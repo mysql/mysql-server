@@ -1096,8 +1096,8 @@ struct dict_sys_t {
     mutex_enter(&mutex);
 
     hash_table_t *hash = table_id_hash;
-
-    for (ulint i = 0; i < hash->n_cells; i++) {
+    const auto n_cells = hash->get_n_cells();
+    for (ulint i = 0; i < n_cells; i++) {
       for (dict_table_t *table =
                static_cast<dict_table_t *>(HASH_GET_FIRST(hash, i));
            table;

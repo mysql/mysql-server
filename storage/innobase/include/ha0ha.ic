@@ -94,47 +94,6 @@ ha_node_t *ha_chain_get_first(
       (ha_node_t *)hash_get_nth_cell(table, hash_calc_hash(fold, table))->node);
 }
 
-#ifdef UNIV_DEBUG
-/** Assert that the synchronization object in a hash operation involving
- possible change in the hash table is held.
- Note that in case of mutexes we assert that mutex is owned while in case
- of rw-locks we assert that it is held in exclusive mode. */
-UNIV_INLINE
-void hash_assert_can_modify(hash_table_t *table, /*!< in: hash table */
-                            ulint fold)          /*!< in: fold value */
-{
-  if (table->type == HASH_TABLE_SYNC_MUTEX) {
-    ut_ad(mutex_own(hash_get_mutex(table, fold)));
-  } else if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
-#if defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
-    rw_lock_t *lock = hash_get_lock(table, fold);
-    ut_ad(rw_lock_own(lock, RW_LOCK_X));
-#endif
-  } else {
-    ut_ad(table->type == HASH_TABLE_SYNC_NONE);
-  }
-}
-
-/** Assert that the synchronization object in a hash search operation is held.
- Note that in case of mutexes we assert that mutex is owned while in case
- of rw-locks we assert that it is held either in x-mode or s-mode. */
-UNIV_INLINE
-void hash_assert_can_search(hash_table_t *table, /*!< in: hash table */
-                            ulint fold)          /*!< in: fold value */
-{
-  if (table->type == HASH_TABLE_SYNC_MUTEX) {
-    ut_ad(mutex_own(hash_get_mutex(table, fold)));
-  } else if (table->type == HASH_TABLE_SYNC_RW_LOCK) {
-#if defined(UNIV_DEBUG) && !defined(UNIV_HOTBACKUP)
-    rw_lock_t *lock = hash_get_lock(table, fold);
-    ut_ad(rw_lock_own(lock, RW_LOCK_X) || rw_lock_own(lock, RW_LOCK_S));
-#endif
-  } else {
-    ut_ad(table->type == HASH_TABLE_SYNC_NONE);
-  }
-}
-#endif /* UNIV_DEBUG */
-
 /** Looks for an element in a hash table.
  @return pointer to the data of the first hash table node in chain
  having the fold number, NULL if not found */

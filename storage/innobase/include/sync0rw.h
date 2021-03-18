@@ -470,10 +470,13 @@ void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock, bool recursive);
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /** Checks if the thread has locked the rw-lock in the specified mode, with
- the pass value == 0. */
-ibool rw_lock_own(rw_lock_t *lock, /*!< in: rw-lock */
-                  ulint lock_type) /*!< in: lock type: RW_LOCK_S,
-                                   RW_LOCK_X */
+the pass value == 0. Note that the mode is checked exactly, so if the thread
+owns RW_LOCK_X only, the rw_lock_own(..,RW_LOCK_S) will return false.
+@param[in]  lock        the rw-lock
+@param[in]  lock_type   The exact lock type to check:
+                        RW_LOCK_S, RW_LOCK_SX or RW_LOCK_X
+ */
+bool rw_lock_own(const rw_lock_t *lock, ulint lock_type)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Checks if the thread has locked the rw-lock in the specified mode, with

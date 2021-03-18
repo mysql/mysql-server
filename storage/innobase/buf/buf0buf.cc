@@ -1314,8 +1314,6 @@ static void buf_pool_create(buf_pool_t *buf_pool, ulint buf_pool_size,
         ib_create(2 * buf_pool->curr_size, LATCH_ID_HASH_TABLE_RW_LOCK,
                   srv_n_page_hash_locks, MEM_HEAP_FOR_PAGE_HASH);
 
-    buf_pool->page_hash_old = nullptr;
-
     buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
     buf_pool->last_printout_time = ut_time_monotonic();
@@ -1926,11 +1924,15 @@ static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
   hash_table_t *new_hash_table;
 
   ut_ad(mutex_own(&buf_pool->zip_hash_mutex));
-  ut_ad(buf_pool->page_hash_old == nullptr);
 
-  /* recreate page_hash */
-  new_hash_table = ib_recreate(buf_pool->page_hash, 2 * buf_pool->curr_size);
-
+  /* create a temporary hash_table with twice larger cells[]  */
+  new_hash_table = hash_create(2 * buf_pool->curr_size);
+  /* Only the current thread will use this temporary hash table, so no need for
+  latching */
+  ut_ad(new_hash_table->type == HASH_TABLE_SYNC_NONE);
+  ut_ad(0 == new_hash_table->n_sync_obj);
+  ut_ad(nullptr == new_hash_table->rw_locks);
+  /* move the data to the temporary hash table */
   for (ulint i = 0; i < hash_get_n_cells(buf_pool->page_hash); i++) {
     buf_page_t *bpage;
 
@@ -1949,9 +1951,24 @@ static void buf_pool_resize_hash(buf_pool_t *buf_pool) {
       HASH_INSERT(buf_page_t, hash, new_hash_table, fold, prev_bpage);
     }
   }
-
-  buf_pool->page_hash_old = buf_pool->page_hash;
-  buf_pool->page_hash = new_hash_table;
+  /* Concurrent threads may be accessing buf_pool->page_hash->n_cells,
+  n_sync_obj and try to latch rw_locks[i] while we are resizing. Therefore we
+  never deallocate page_hash, instead we overwrite its n_cells and cells with
+  the new values "stolen" from the temporary new_hash_table. We also move the
+  old n_cells and cells to the new_hash_table, so they get freed with it. It's
+  important that neither new nor old hash table use `heap`, as otherwise hash
+  chains would got inconsistent after the swap. */
+  ut_ad(buf_pool->page_hash->adaptive == new_hash_table->adaptive);
+  ut_ad(buf_pool->page_hash->heap == nullptr &&
+        new_hash_table->heap == nullptr);
+  std::swap(buf_pool->page_hash->cells, new_hash_table->cells);
+  /* swap(buf_pool->page_hash->n_cells,  new_hash_table->n_cells): */
+  {
+    const auto new_n_cells = new_hash_table->get_n_cells();
+    new_hash_table->set_n_cells(buf_pool->page_hash->get_n_cells());
+    buf_pool->page_hash->set_n_cells(new_n_cells);
+  }
+  hash_table_free(new_hash_table);
 
   /* recreate zip_hash */
   new_hash_table = hash_create(2 * buf_pool->curr_size);
@@ -2436,11 +2453,6 @@ withdraw_retry:
     mutex_exit(&buf_pool->zip_free_mutex);
     hash_unlock_x_all(buf_pool->page_hash);
     mutex_exit(&buf_pool->LRU_list_mutex);
-
-    if (buf_pool->page_hash_old != nullptr) {
-      hash_table_free(buf_pool->page_hash_old);
-      buf_pool->page_hash_old = nullptr;
-    }
   }
   buf_pool_resizing = false;
 
