@@ -877,13 +877,7 @@ void rw_lock_remove_debug_info(rw_lock_t *lock, /*!< in: rw-lock */
   ut_error;
 }
 
-/** Checks if the thread has locked the rw-lock in the specified mode, with
- the pass value == 0.
- @return true if locked */
-ibool rw_lock_own(rw_lock_t *lock, /*!< in: rw-lock */
-                  ulint lock_type) /*!< in: lock type: RW_LOCK_S,
-                                   RW_LOCK_X */
-{
+bool rw_lock_own(const rw_lock_t *lock, ulint lock_type) {
   ut_ad(lock);
   ut_ad(rw_lock_validate(lock));
 
@@ -896,12 +890,12 @@ ibool rw_lock_own(rw_lock_t *lock, /*!< in: rw-lock */
       rw_lock_debug_mutex_exit();
       /* Found! */
 
-      return (TRUE);
+      return true;
     }
   }
   rw_lock_debug_mutex_exit();
 
-  return (FALSE);
+  return false;
 }
 
 /** For collecting the debug information for a thread's rw-lock */

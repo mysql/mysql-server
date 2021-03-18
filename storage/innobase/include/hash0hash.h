@@ -55,8 +55,6 @@ enum hash_table_sync_t {
   HASH_TABLE_SYNC_NONE = 0, /*!< Don't use any internal
                             synchronization objects for
                             this hash_table. */
-  HASH_TABLE_SYNC_MUTEX,    /*!< Use mutexes to control
-                            access to this hash_table. */
   HASH_TABLE_SYNC_RW_LOCK   /*!< Use rw_locks to control
                             access to this hash_table. */
 };
@@ -68,8 +66,7 @@ hash_table_t *hash_create(ulint n); /*!< in: number of array cells */
 
 #ifndef UNIV_HOTBACKUP
 
-/** Creates a sync object array to protect a hash table. "::sync_obj" can be
-mutexes or rw_locks depening on the type of hash table.
+/** Creates a sync object array to protect a hash table.
 @param[in]	table		hash table
 @param[in]	type		HASH_TABLE_SYNC_MUTEX or HASH_TABLE_SYNC_RW_LOCK
 @param[in]	id		latch ID
@@ -88,15 +85,6 @@ void hash_table_free(hash_table_t *table); /*!< in, own: hash table */
 UNIV_INLINE
 ulint hash_calc_hash(ulint fold, hash_table_t *table);
 
-#ifndef UNIV_HOTBACKUP
-/** Assert that the mutex for the table is held */
-#define HASH_ASSERT_OWN(TABLE, FOLD)              \
-  ut_ad((TABLE)->type != HASH_TABLE_SYNC_MUTEX || \
-        (mutex_own(hash_get_mutex((TABLE), FOLD))));
-#else /* !UNIV_HOTBACKUP */
-#define HASH_ASSERT_OWN(TABLE, FOLD)
-#endif /* !UNIV_HOTBACKUP */
-
 /** Inserts a struct to a hash table. */
 
 #define HASH_INSERT(TYPE, NAME, TABLE, FOLD, DATA)                    \
@@ -104,7 +92,7 @@ ulint hash_calc_hash(ulint fold, hash_table_t *table);
     hash_cell_t *cell3333;                                            \
     TYPE *struct3333;                                                 \
                                                                       \
-    HASH_ASSERT_OWN(TABLE, FOLD)                                      \
+    hash_assert_can_modify(TABLE, FOLD);                              \
                                                                       \
     (DATA)->NAME = NULL;                                              \
                                                                       \
@@ -142,7 +130,7 @@ ulint hash_calc_hash(ulint fold, hash_table_t *table);
     hash_cell_t *cell3333;                                            \
     TYPE *struct3333;                                                 \
                                                                       \
-    HASH_ASSERT_OWN(TABLE, FOLD)                                      \
+    hash_assert_can_modify(TABLE, FOLD);                              \
                                                                       \
     cell3333 = hash_get_nth_cell(TABLE, hash_calc_hash(FOLD, TABLE)); \
                                                                       \
@@ -174,7 +162,7 @@ ulint hash_calc_hash(ulint fold, hash_table_t *table);
 /** Looks for a struct in a hash table. */
 #define HASH_SEARCH(NAME, TABLE, FOLD, TYPE, DATA, ASSERTION, TEST)    \
   {                                                                    \
-    HASH_ASSERT_OWN(TABLE, FOLD)                                       \
+    hash_assert_can_search(TABLE, FOLD);                               \
                                                                        \
     (DATA) = (TYPE)HASH_GET_FIRST(TABLE, hash_calc_hash(FOLD, TABLE)); \
     HASH_ASSERT_VALID(DATA);                                           \
@@ -195,7 +183,7 @@ ulint hash_calc_hash(ulint fold, hash_table_t *table);
   do {                                                            \
     ulint i3333;                                                  \
                                                                   \
-    for (i3333 = (TABLE)->n_cells; i3333--;) {                    \
+    for (i3333 = (TABLE)->get_n_cells(); i3333--;) {              \
       (DATA) = (TYPE)HASH_GET_FIRST(TABLE, i3333);                \
                                                                   \
       while ((DATA) != NULL) {                                    \
@@ -317,13 +305,6 @@ ulint hash_get_n_cells(hash_table_t *table); /*!< in: table */
 UNIV_INLINE
 ulint hash_get_sync_obj_index(hash_table_t *table, ulint fold);
 
-/** Gets the nth heap in a hash table.
-@param[in]	table	hash table
-@param[in]	i	index of the mutex
-@return mem heap */
-UNIV_INLINE
-mem_heap_t *hash_get_nth_heap(hash_table_t *table, ulint i);
-
 /** Gets the heap for a fold value in a hash table.
 @param[in]	table	hash table
 @param[in]	fold	fold
@@ -331,26 +312,12 @@ mem_heap_t *hash_get_nth_heap(hash_table_t *table, ulint i);
 UNIV_INLINE
 mem_heap_t *hash_get_heap(hash_table_t *table, ulint fold);
 
-/** Gets the nth mutex in a hash table.
-@param[in]	table	hash table
-@param[in]	i	index of the mutex
-@return mutex */
-UNIV_INLINE
-ib_mutex_t *hash_get_nth_mutex(hash_table_t *table, ulint i);
-
 /** Gets the nth rw_lock in a hash table.
 @param[in]	table	hash table
-@param[in]	i	index of the mutex
+@param[in]	i	index of the rw_lock
 @return rw_lock */
 UNIV_INLINE
 rw_lock_t *hash_get_nth_lock(hash_table_t *table, ulint i);
-
-/** Gets the mutex for a fold value in a hash table.
-@param[in]	table	hash table
-@param[in]	fold	fold
-@return mutex */
-UNIV_INLINE
-ib_mutex_t *hash_get_mutex(hash_table_t *table, ulint fold);
 
 /** Gets the rw_lock for a fold value in a hash table.
 @param[in]	table	hash table
@@ -379,6 +346,16 @@ UNIV_INLINE
 rw_lock_t *hash_lock_x_confirm(rw_lock_t *hash_lock, hash_table_t *table,
                                ulint fold);
 
+#ifdef UNIV_DEBUG
+
+/** Verfies that the current thread holds X-latch on all shards.
+Assumes type==HASH_TABLE_SYNC_RW_LOCK.
+@param[in]  table the table in question
+@return true iff the current thread holds X-latch on all shards*/
+bool hash_lock_has_all_x(const hash_table_t *table);
+
+#endif /* UNIV_DEBUG */
+
 /** Reserves all the locks of a hash table, in an ascending order. */
 void hash_lock_x_all(hash_table_t *table); /*!< in: hash table */
 
@@ -403,37 +380,62 @@ struct hash_cell_t {
 
 /* The hash table structure */
 struct hash_table_t {
-  enum hash_table_sync_t type; /*!< type of hash_table. */
+  /** Either:
+  a) HASH_TABLE_SYNC_NONE in which case n_sync_obj is 0 and rw_locks is nullptr
+  or
+  b) HASH_TABLE_SYNC_RW_LOCK in which case n_sync_obj > 0 is the number of
+  rw_locks elements, each of which protects a disjoint fraction of cells. */
+  enum hash_table_sync_t type;
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 #ifndef UNIV_HOTBACKUP
-  ibool adaptive;     /* TRUE if this is the hash
-                     table of the adaptive hash
-                     index */
-#endif                /* !UNIV_HOTBACKUP */
-#endif                /* UNIV_AHI_DEBUG || UNIV_DEBUG */
-  ulint n_cells;      /* number of cells in the hash table */
-  hash_cell_t *cells; /*!< pointer to cell array */
-#ifndef UNIV_HOTBACKUP
-  ulint n_sync_obj; /* if sync_objs != NULL, then
-                 the number of either the number
-                 of mutexes or the number of
-                 rw_locks depending on the type.
-                 Must be a power of 2 */
-  union {
-    ib_mutex_t *mutexes; /* NULL, or an array of mutexes
-                         used to protect segments of the
-                         hash table */
-    rw_lock_t *rw_locks; /* NULL, or an array of rw_lcoks
-                        used to protect segments of the
-                        hash table */
-  } sync_obj;
+  /* TRUE if this is the hash table of the adaptive hash index */
+  ibool adaptive;
+#endif /* !UNIV_HOTBACKUP */
+#endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
+ private:
+  /** The number of cells in the hash table.
+  If type==HASH_TABLE_SYNC_RW_LOCK it is:
+  - modified when holding X-latches on all n_sync_obj
+  - read
+    - without any latches to peek a value, before hash_lock_[sx]_confirm
+    - when holding S-latch for at least one n_sync_obj to get the "real" value
+  */
+  std::atomic<ulint> n_cells;
 
-  mem_heap_t **heaps; /*!< if this is non-NULL, hash
-                      chain nodes for external chaining
-                      can be allocated from these memory
-                      heaps; there are then n_mutexes
-                      many of these heaps */
-#endif                /* !UNIV_HOTBACKUP */
+ public:
+  /** Returns number of cells in cells[] array.
+   If type==HASH_TABLE_SYNC_RW_LOCK it can be used:
+  - without any latches to peek a value, before hash_lock_[sx]_confirm
+  - when holding S-latch for at least one n_sync_obj to get the "real" value
+  @return value of n_cells
+  */
+  ulint get_n_cells() { return n_cells.load(std::memory_order_relaxed); }
+  /** Sets the number of n_cells, to the provided one.
+  If type==HASH_TABLE_SYNC_RW_LOCK it can be used only when holding x-latches on
+  all shards.
+  @param[in]  n   The new size of cells[] array
+  */
+  void set_n_cells(ulint n) {
+#ifndef UNIV_HOTBACKUP
+    ut_ad(type == HASH_TABLE_SYNC_NONE || hash_lock_has_all_x(this));
+#endif
+    n_cells.store(n);
+  }
+  /** The pointer to the array of cells.
+  If type==HASH_TABLE_SYNC_RW_LOCK it is:
+  - modified when holding X-latches on all n_sync_obj
+  - read when holding an S-latch for at least one n_sync_obj
+  */
+  hash_cell_t *cells;
+#ifndef UNIV_HOTBACKUP
+  /** if rw_locks != nullptr, then it's their number (must be a power of two).
+  Otherwise, 0. Is zero iff the type is HASH_TABLE_SYNC_NONE. */
+  ulint n_sync_obj;
+  /** nullptr, or an array of n_sync_obj rw_locks used to protect segments of
+  the hash table. Is nullptr iff the type is HASH_TABLE_SYNC_NONE. */
+  rw_lock_t *rw_locks;
+
+#endif /* !UNIV_HOTBACKUP */
   mem_heap_t *heap;
 #ifdef UNIV_DEBUG
   ulint magic_n;

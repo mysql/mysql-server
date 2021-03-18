@@ -2247,9 +2247,6 @@ struct buf_pool_t {
   mutexes. */
   hash_table_t *page_hash;
 
-  /** Old pointer to page_hash to be freed after resizing buffer pool */
-  hash_table_t *page_hash_old;
-
   /** Hash table of buf_block_t blocks whose frames are allocated to the zip
   buddy system, indexed by block->frame */
   hash_table_t *zip_hash;
