@@ -11313,6 +11313,9 @@ ER_DEPRECATED_TLS_VERSION_SESSION
 ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL
   eng "A deprecated TLS version %s is enabled for channel %s"
 
+ER_FIREWALL_DEPRECATED_USER_PROFILE
+  eng "User profile \'%s\' loaded. Firewall user profiles are deprecated, consider migrating to group profiles."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
