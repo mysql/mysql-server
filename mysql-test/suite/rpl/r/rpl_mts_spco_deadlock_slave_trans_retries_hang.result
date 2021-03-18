@@ -50,7 +50,7 @@ include/start_slave_sql.inc
 ROLLBACK;
 #
 # Add error supressions.
-CALL mtr.add_suppression("Worker 2 failed executing transaction.*");
+CALL mtr.add_suppression("Worker .* failed executing transaction.*");
 #
 # 3.2. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.
 include/wait_for_slave_sql_error.inc [errno=1213]
