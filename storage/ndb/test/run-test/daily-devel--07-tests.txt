@@ -244,3 +244,6 @@ cmd: testBlobs
 args : -bug 27772916 -skip p
 max-time: 120
 
+cmd: testNodeRestart
+args: -n pnr_lcp D2 D3
+max-time: 2000
