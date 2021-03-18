@@ -1820,7 +1820,7 @@ TEST_F(HypergraphSecondaryEngineTest, RejectAllCompletePlans) {
   hton->secondary_engine_modify_access_path_cost =
       [](THD *, const JoinHypergraph &, AccessPath *path) {
         // Reject the path if all three tables are referenced.
-        return GetUsedTables(path) == 0b111;
+        return GetUsedTableMap(path) == 0b111;
       };
 
   // No plans will be found, so expect an error.

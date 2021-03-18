@@ -66,9 +66,9 @@ static size_t BytesNeededForMatchFlags(size_t rows) {
   return (rows + 7) / 8;
 }
 
-BKAIterator::BKAIterator(THD *thd, JOIN *join,
+BKAIterator::BKAIterator(THD *thd,
                          unique_ptr_destroy_only<RowIterator> outer_input,
-                         qep_tab_map outer_input_tables,
+                         const Prealloced_array<TABLE *, 4> &outer_input_tables,
                          unique_ptr_destroy_only<RowIterator> inner_input,
                          size_t max_memory_available,
                          size_t mrr_bytes_needed_for_single_inner_row,
@@ -81,7 +81,7 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
       m_inner_input(move(inner_input)),
       m_mem_root(key_memory_hash_join, 16384 /* 16 kB */),
       m_rows(&m_mem_root),
-      m_outer_input_tables(join, outer_input_tables, store_rowids,
+      m_outer_input_tables(outer_input_tables, store_rowids,
                            tables_to_get_rowid_for),
       m_max_memory_available(max_memory_available),
       m_mrr_bytes_needed_for_single_inner_row(
@@ -317,17 +317,15 @@ int BKAIterator::Read() {
   }
 }
 
-MultiRangeRowIterator::MultiRangeRowIterator(THD *thd, TABLE *table,
-                                             TABLE_REF *ref, int mrr_flags,
-                                             JoinType join_type, JOIN *join,
-                                             table_map outer_input_tables,
-                                             bool store_rowids,
-                                             table_map tables_to_get_rowid_for)
+MultiRangeRowIterator::MultiRangeRowIterator(
+    THD *thd, TABLE *table, TABLE_REF *ref, int mrr_flags, JoinType join_type,
+    const Prealloced_array<TABLE *, 4> &outer_input_tables, bool store_rowids,
+    table_map tables_to_get_rowid_for)
     : TableRowIterator(thd, table),
       m_file(table->file),
       m_ref(ref),
       m_mrr_flags(mrr_flags),
-      m_outer_input_tables(join, outer_input_tables, store_rowids,
+      m_outer_input_tables(outer_input_tables, store_rowids,
                            tables_to_get_rowid_for),
       m_join_type(join_type) {}
 

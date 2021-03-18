@@ -84,7 +84,7 @@ class BKAIterator final : public RowIterator {
     @param thd Thread handle.
     @param join The JOIN we are part of.
     @param outer_input The iterator to read the outer rows from.
-    @param outer_input_tables QEP_TAB for each outer table involved.
+    @param outer_input_tables Each outer table involved.
       Used to know which fields we are to read into our buffer.
     @param inner_input The iterator to read the inner rows from.
       Must end up in a MultiRangeRowIterator.
@@ -109,9 +109,8 @@ class BKAIterator final : public RowIterator {
       inner_input. Used to send row ranges and buffers.
     @param join_type What kind of join we are executing.
    */
-  BKAIterator(THD *thd, JOIN *join,
-              unique_ptr_destroy_only<RowIterator> outer_input,
-              table_map outer_input_tables,
+  BKAIterator(THD *thd, unique_ptr_destroy_only<RowIterator> outer_input,
+              const Prealloced_array<TABLE *, 4> &outer_input_tables,
               unique_ptr_destroy_only<RowIterator> inner_input,
               size_t max_memory_available,
               size_t mrr_bytes_needed_for_single_inner_row,
@@ -271,7 +270,6 @@ class MultiRangeRowIterator final : public TableRowIterator {
     @param mrr_flags Flags passed on to MRR.
     @param join_type
       What kind of BKA join this MRR iterator is part of.
-    @param join Reference for outer_input_tables and tables_to_get_rowid_for.
     @param outer_input_tables
       Which tables are on the left side of the BKA join (the MRR iterator
       is always alone on the right side). This is needed so that it can
@@ -284,9 +282,9 @@ class MultiRangeRowIterator final : public TableRowIterator {
       after Read().
    */
   MultiRangeRowIterator(THD *thd, TABLE *table, TABLE_REF *ref, int mrr_flags,
-                        JoinType join_type, JOIN *join,
-                        table_map outer_input_tables, bool store_rowids,
-                        table_map tables_to_get_rowid_for);
+                        JoinType join_type,
+                        const Prealloced_array<TABLE *, 4> &outer_input_tables,
+                        bool store_rowids, table_map tables_to_get_rowid_for);
 
   /**
     Specify which outer rows to read inner rows for.

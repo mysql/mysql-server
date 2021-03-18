@@ -62,12 +62,13 @@ static constexpr size_t kZeroKeyLengthHash = 2669509769;
 
 HashJoinIterator::HashJoinIterator(
     THD *thd, unique_ptr_destroy_only<RowIterator> build_input,
-    table_map build_input_tables, double estimated_build_rows,
+    const Prealloced_array<TABLE *, 4> &build_input_tables,
+    double estimated_build_rows,
     unique_ptr_destroy_only<RowIterator> probe_input,
-    table_map probe_input_tables, bool store_rowids,
+    const Prealloced_array<TABLE *, 4> &probe_input_tables, bool store_rowids,
     table_map tables_to_get_rowid_for, size_t max_memory_available,
     const std::vector<HashJoinCondition> &join_conditions,
-    bool allow_spill_to_disk, JoinType join_type, const JOIN *join,
+    bool allow_spill_to_disk, JoinType join_type,
     const Mem_root_array<Item *> &extra_conditions, bool probe_input_batch_mode,
     uint64_t *hash_table_generation)
     : RowIterator(thd),
@@ -75,9 +76,9 @@ HashJoinIterator::HashJoinIterator(
       m_hash_table_generation(hash_table_generation),
       m_build_input(move(build_input)),
       m_probe_input(move(probe_input)),
-      m_probe_input_tables(join, probe_input_tables, store_rowids,
+      m_probe_input_tables(probe_input_tables, store_rowids,
                            tables_to_get_rowid_for),
-      m_build_input_tables(join, build_input_tables, store_rowids,
+      m_build_input_tables(build_input_tables, store_rowids,
                            tables_to_get_rowid_for),
       m_tables_to_get_rowid_for(tables_to_get_rowid_for),
       m_row_buffer(m_build_input_tables, join_conditions, max_memory_available),

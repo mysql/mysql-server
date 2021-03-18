@@ -106,7 +106,7 @@ static RowIterator *FindSingleIteratorOfType(AccessPath *path,
   }
 }
 
-table_map GetUsedTables(const AccessPath *path) {
+table_map GetUsedTableMap(const AccessPath *path) {
   table_map tmap = 0;
   WalkTablesUnderAccessPath(const_cast<AccessPath *>(path),
                             [&tmap](TABLE *table) {
@@ -121,6 +121,15 @@ table_map GetUsedTables(const AccessPath *path) {
                               return false;
                             });
   return tmap;
+}
+
+static Prealloced_array<TABLE *, 4> GetUsedTables(AccessPath *child) {
+  Prealloced_array<TABLE *, 4> tables{PSI_NOT_INSTRUMENTED};
+  WalkTablesUnderAccessPath(child, [&tables](TABLE *table) {
+    tables.push_back(table);
+    return false;
+  });
+  return tables;
 }
 
 // Mirrors QEP_TAB::pfs_batch_update(), with one addition:
@@ -153,37 +162,6 @@ bool ShouldEnableBatchMode(AccessPath *path) {
       // All others, in particular joins.
       return false;
   }
-}
-
-/**
-  Finds the set of tables used by an AGGREGATE access path.
-
-  This needs some special logic, since one such table may be a temporary table
-  internal to the query block, with no table map; see the documentation for
-  GetUsedTables().
- */
-static TableCollection GetUsedTablesForAggregate(JOIN *join,
-                                                 AccessPath *child) {
-  TableCollection tables;
-  table_map used_tables = GetUsedTables(child);
-  if (used_tables == RAND_TABLE_BIT) {
-    AccessPath *stream_path =
-        FindSingleAccessPathOfType(child, AccessPath::STREAM);
-    if (stream_path != nullptr) {
-      tables = TableCollection(stream_path->stream().table);
-    } else {
-      AccessPath *materialize_path =
-          FindSingleAccessPathOfType(child, AccessPath::MATERIALIZE);
-      assert(materialize_path != nullptr);
-      assert(materialize_path->materialize().param->query_blocks.size() == 1);
-      tables = TableCollection(materialize_path->materialize().param->table);
-    }
-
-  } else {
-    tables = TableCollection(join, used_tables, /*store_rowids=*/false,
-                             /*tables_to_get_rowid_for=*/0);
-  }
-  return tables;
 }
 
 void FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
@@ -290,7 +268,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &bka_param = param.bka_path->bka_join();
       iterator = NewIterator<MultiRangeRowIterator>(
           thd, param.table, param.ref, param.mrr_flags, bka_param.join_type,
-          join, GetUsedTables(bka_param.outer), bka_param.store_rowids,
+          GetUsedTables(bka_param.outer), bka_param.store_rowids,
           bka_param.tables_to_get_rowid_for);
       break;
     }
@@ -382,7 +360,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       MultiRangeRowIterator *mrr_iterator = down_cast<MultiRangeRowIterator *>(
           mrr_path->iterator->real_iterator());
       iterator = NewIterator<BKAIterator>(
-          thd, join, move(outer), GetUsedTables(param.outer), move(inner),
+          thd, move(outer), GetUsedTables(param.outer), move(inner),
           thd->variables.join_buff_size, param.mrr_length_per_rec,
           param.rec_per_key, param.store_rowids, param.tables_to_get_rowid_for,
           mrr_iterator, param.join_type);
@@ -448,7 +426,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
           thd, move(inner), GetUsedTables(param.inner), estimated_build_rows,
           move(outer), GetUsedTables(param.outer), param.store_rowids,
           param.tables_to_get_rowid_for, thd->variables.join_buff_size,
-          move(conditions), param.allow_spill_to_disk, join_type, join,
+          move(conditions), param.allow_spill_to_disk, join_type,
           join_predicate->expr->join_conditions, probe_input_batch_mode,
           hash_table_generation);
       break;
@@ -484,8 +462,11 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->aggregate();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      Prealloced_array<TABLE *, 4> tables = GetUsedTables(param.child);
       iterator = NewIterator<AggregateIterator>(
-          thd, move(child), join, GetUsedTablesForAggregate(join, param.child),
+          thd, move(child), join,
+          TableCollection(tables, /*store_rowids=*/false,
+                          /*tables_to_get_rowid_for=*/0),
           param.rollup);
       break;
     }
@@ -677,11 +658,11 @@ void FindTablesToGetRowidFor(AccessPath *path) {
     if (path == subpath) return false;  // Skip ourselves.
     switch (subpath->type) {
       case AccessPath::HASH_JOIN:
-        handled_by_others |= GetUsedTables(subpath);
+        handled_by_others |= GetUsedTableMap(subpath);
         FindTablesToGetRowidFor(subpath);
         return true;  // Don't double-traverse.
       case AccessPath::BKA_JOIN:
-        handled_by_others |= GetUsedTables(subpath->bka_join().outer);
+        handled_by_others |= GetUsedTableMap(subpath->bka_join().outer);
         FindTablesToGetRowidFor(subpath);
         return true;  // Don't double-traverse.
       case AccessPath::STREAM: {
@@ -710,7 +691,7 @@ void FindTablesToGetRowidFor(AccessPath *path) {
                       add_tables_handled_by_others);
       path->hash_join().store_rowids = true;
       path->hash_join().tables_to_get_rowid_for =
-          GetUsedTables(path) & ~handled_by_others;
+          GetUsedTableMap(path) & ~handled_by_others;
       break;
     case AccessPath::BKA_JOIN:
       WalkAccessPaths(path->bka_join().outer, /*join=*/nullptr,
@@ -718,21 +699,21 @@ void FindTablesToGetRowidFor(AccessPath *path) {
                       add_tables_handled_by_others);
       path->bka_join().store_rowids = true;
       path->bka_join().tables_to_get_rowid_for =
-          GetUsedTables(path->bka_join().outer) & ~handled_by_others;
+          GetUsedTableMap(path->bka_join().outer) & ~handled_by_others;
       break;
     case AccessPath::WEEDOUT:
       WalkAccessPaths(path, /*join=*/nullptr,
                       WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
                       add_tables_handled_by_others);
       path->weedout().tables_to_get_rowid_for =
-          GetUsedTables(path) & ~handled_by_others;
+          GetUsedTableMap(path) & ~handled_by_others;
       break;
     case AccessPath::SORT:
       WalkAccessPaths(path, /*join=*/nullptr,
                       WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
                       add_tables_handled_by_others);
       path->sort().tables_to_get_rowid_for =
-          GetUsedTables(path) & ~handled_by_others;
+          GetUsedTableMap(path) & ~handled_by_others;
       break;
     default:
       abort();

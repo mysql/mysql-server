@@ -1381,7 +1381,7 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
   children will be included in the map. In this case, the caller will need to
   manually go in and find said access path, to ask it for its TABLE object.
  */
-table_map GetUsedTables(const AccessPath *path);
+table_map GetUsedTableMap(const AccessPath *path);
 
 /**
   For each access path in the (sub)tree rooted at “path”, expand any use of
