@@ -2094,8 +2094,6 @@ struct buf_pool_t{
 					page_hash mutex. Lookups can happen
 					while holding the buf_pool->mutex or
 					the relevant page_hash mutex. */
-	hash_table_t*	page_hash_old;	/*!< old pointer to page_hash to be
-					freed after resizing buffer pool */
 	hash_table_t*	zip_hash;	/*!< hash table of buf_block_t blocks
 					whose frames are allocated to the
 					zip buddy system,
