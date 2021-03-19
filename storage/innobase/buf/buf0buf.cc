@@ -4589,7 +4589,7 @@ static void buf_page_init_low(buf_page_t *bpage) noexcept {
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
   bpage->flush_type = BUF_FLUSH_LRU;
-  bpage->init_io_fix();
+  bpage->reinit_io_fix();
   bpage->buf_fix_count.store(0);
   bpage->freed_page_clock = 0;
   bpage->access_time = 0;
@@ -4842,6 +4842,7 @@ buf_page_t *buf_page_init_for_read(dberr_t *err, ulint mode,
     bpage->reset_page_id(page_id);
     bpage->reset_flush_observer();
     bpage->state = BUF_BLOCK_ZIP_PAGE;
+    bpage->init_io_fix();
 
     buf_page_init_low(bpage);
 
