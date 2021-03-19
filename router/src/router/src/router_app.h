@@ -526,6 +526,7 @@ class MySQLRouter {
   std::vector<std::string> config_files_;
   /** @brief PID file location **/
   std::string pid_file_path_;
+  bool pid_file_created_{false};
 
   /** @brief CmdArgHandler object handling command line arguments **/
   CmdArgHandler arg_handler_;

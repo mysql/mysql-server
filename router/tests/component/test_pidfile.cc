@@ -37,7 +37,7 @@ using namespace std::chrono_literals;
 #define MY_WAIT_US_NOASSERT(cond, usec) \
   {                                     \
     int n = 0;                          \
-    int max = usec / 1000;              \
+    int max = (usec) / 1000;            \
     do {                                \
       std::this_thread::sleep_for(1ms); \
       n++;                              \
@@ -346,8 +346,8 @@ struct PidFileOptionParams {
   std::string filename;
   bool tmpdir_prefix;
 
-  PidFileOptionParams(const std::string &filename_, bool tmpdir_prefix_)
-      : filename(filename_), tmpdir_prefix(tmpdir_prefix_) {}
+  PidFileOptionParams(std::string filename_, bool tmpdir_prefix_)
+      : filename(std::move(filename_)), tmpdir_prefix(tmpdir_prefix_) {}
 };
 
 class RouterPidfileOptionValueTest
@@ -445,9 +445,8 @@ struct PidFileOptionErrorParams {
   std::string filename;
   std::string pattern;
 
-  PidFileOptionErrorParams(const std::string &filename_,
-                           const std::string &pattern_)
-      : filename(filename_), pattern(pattern_) {}
+  PidFileOptionErrorParams(std::string filename_, std::string pattern_)
+      : filename(std::move(filename_)), pattern(std::move(pattern_)) {}
 };
 
 class RouterPidfileOptionValueTestError
@@ -499,7 +498,8 @@ INSTANTIATE_TEST_SUITE_P(
 struct PidFileOptionCfgParams {
   std::string filename;
 
-  PidFileOptionCfgParams(const std::string &filename_) : filename(filename_) {}
+  PidFileOptionCfgParams(std::string filename_)
+      : filename(std::move(filename_)) {}
 };
 
 class RouterPidfileOptionCfgValueTest
@@ -559,8 +559,8 @@ INSTANTIATE_TEST_SUITE_P(
 struct PidFileOptionCfgErrorParams {
   std::string filename;
 
-  PidFileOptionCfgErrorParams(const std::string &filename_)
-      : filename(filename_) {}
+  PidFileOptionCfgErrorParams(std::string filename_)
+      : filename(std::move(filename_)) {}
 };
 
 class RouterPidfileOptionCfgValueTestError
@@ -605,8 +605,8 @@ INSTANTIATE_TEST_SUITE_P(PidFileOptionCfgValueTestError,
 struct PidFileOptionEnvErrorParams {
   std::string filename;
 
-  PidFileOptionEnvErrorParams(const std::string &filename_)
-      : filename(filename_) {}
+  PidFileOptionEnvErrorParams(std::string filename_)
+      : filename(std::move(filename_)) {}
 };
 
 class RouterPidfileOptionEnvValueTestError
@@ -740,9 +740,9 @@ struct PidFileOptionSupremacyCornerCaseParams {
   std::string extra_params;
   std::string pattern;
 
-  PidFileOptionSupremacyCornerCaseParams(const std::string &extra_params_,
-                                         const std::string &pattern_)
-      : extra_params(extra_params_), pattern(pattern_) {}
+  PidFileOptionSupremacyCornerCaseParams(std::string extra_params_,
+                                         std::string pattern_)
+      : extra_params(std::move(extra_params_)), pattern(std::move(pattern_)) {}
 };
 
 class RouterPidfileOptionSupremacyCornerCaseTest
@@ -801,9 +801,12 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
   // Create an already existing pidfile
   mysql_harness::Path fullpath =
       mysql_harness::Path(runtime_folder.name()).join(pidfile.c_str());
-  std::ofstream alreadyexists(fullpath.c_str());
+  std::ofstream alreadyexists(fullpath.str());
   alreadyexists << "PidFileOptionExistsTest already existing file" << std::endl;
   alreadyexists.close();
+
+  // pid-file still exists
+  ASSERT_TRUE(fullpath.exists()) << fullpath.str();
 
   if (test_params.used & ENV) {
     // set ROUTER_PID and and expect error
@@ -826,9 +829,6 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
 
   check_exit_code(router, EXIT_FAILURE, 1s);
 
-  // Remove the already existing pidfile
-  remove(fullpath.c_str());
-
   if (test_params.used & ENV) {
     // unset ROUTER_PID env
     UnsetEnvRouterPid();
@@ -837,6 +837,9 @@ TEST_P(RouterPidfileOptionExistsTest, PidFileOptionExistsTest) {
   // expect error
   EXPECT_TRUE(router.expect_output(
       "^Error: PID file .* found. Already running?", true));
+
+  // pid-file still exists
+  EXPECT_TRUE(fullpath.exists()) << fullpath.str();
 }
 
 INSTANTIATE_TEST_SUITE_P(PidFileOptionExistsTest, RouterPidfileOptionExistsTest,

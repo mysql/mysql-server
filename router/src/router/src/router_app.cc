@@ -656,6 +656,7 @@ void MySQLRouter::start() {
     auto pid = getpid();
     std::ofstream pidfile(pid_file_path_);
     if (pidfile.good()) {
+      pid_file_created_ = true;
       pidfile << pid << std::endl;
       pidfile.close();
       log_info("PID %d written to '%s'", pid, pid_file_path_.c_str());
@@ -714,8 +715,8 @@ void MySQLRouter::start() {
 }
 
 void MySQLRouter::stop() {
-  // Remove the pidfile if present
-  if (!pid_file_path_.empty()) {
+  // Remove the pidfile if present and was created by us.
+  if (!pid_file_path_.empty() && pid_file_created_) {
     mysql_harness::Path pid_file_path(pid_file_path_);
     if (pid_file_path.is_regular()) {
       log_debug("Removing pidfile %s", pid_file_path.c_str());
