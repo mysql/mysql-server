@@ -6139,59 +6139,46 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
        thread setting option variable or epoch boundaries.
     */
     if (opt_ndb_log_apply_status || opt_ndb_log_orig) {
-      Uint32 ndb_apply_status_logging_server_id = originating_server_id;
-      Uint32 ndb_apply_status_server_id = 0;
-      Uint64 ndb_apply_status_epoch = 0;
-      bool event_has_data = false;
+      Uint32 logging_server_id = originating_server_id;
 
-      switch (pOp->getEventType()) {
-        case NDBEVENT::TE_INSERT:
-        case NDBEVENT::TE_UPDATE:
-          event_has_data = true;
-          break;
+      const NDBEVENT::TableEvent event_type = pOp->getEventType();
+      if (event_type == NDBEVENT::TE_INSERT ||
+          event_type == NDBEVENT::TE_UPDATE) {
+        // Initialize "unused_bitmap" which is an output parameter from
+        // handle_data_unpack_record, afterwards it's not used which means it
+        // need not be initialized with anything useful
+        MY_BITMAP unused_bitmap;
+        Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> unused_bitbuf;
+        ndb_bitmap_init(&unused_bitmap, unused_bitbuf, table->s->fields);
 
-        case NDBEVENT::TE_DELETE:
-          break;
-        default:
-          /* We should REALLY never get here */
-          abort();
-      }
+        // Unpack data event on mysql.ndb_apply_status to get orig_server_id
+        // and orig_epoch
+        handle_data_unpack_record(table, event_data->ndb_value[0],
+                                  &unused_bitmap, table->record[0]);
 
-      if (likely(event_has_data)) {
-        /* unpack data to fetch orig_server_id and orig_epoch */
-        MY_BITMAP b;
-        // NOTE! Using buffer smaller than usual (but still too large!) when
-        // unpacking events for mysql.ndb_apply_status
-        Ndb_bitmap_buf<128> bitbuf;
-        ndb_bitmap_init(&b, bitbuf, table->s->fields);
-        bitmap_copy(&b, &event_data->stored_columns);
-        handle_data_unpack_record(table, event_data->ndb_value[0], &b,
-                                  table->record[0]);
-        ndb_apply_status_server_id =
-            (uint)((Field_long *)table->field[0])->val_int();
-        ndb_apply_status_epoch = ((Field_longlong *)table->field[1])->val_int();
+        const Uint32 orig_server_id =
+            (Uint32) static_cast<Field_long *>(table->field[0])->val_int();
+        const Uint64 orig_epoch =
+            static_cast<Field_longlong *>(table->field[1])->val_int();
 
         if (opt_ndb_log_apply_status) {
           /*
              Determine if event came from our immediate Master server
              Ignore locally manually sourced and reserved events
           */
-          if ((ndb_apply_status_logging_server_id != 0) &&
-              (!ndbcluster_anyvalue_is_reserved(
-                  ndb_apply_status_logging_server_id))) {
-            bool isFromImmediateMaster = (ndb_apply_status_server_id ==
-                                          ndb_apply_status_logging_server_id);
-
-            if (isFromImmediateMaster) {
+          if (logging_server_id != 0 &&
+              !ndbcluster_anyvalue_is_reserved(logging_server_id)) {
+            const bool immediate_master = (orig_server_id == logging_server_id);
+            if (immediate_master) {
               /*
                  We log this event with our server-id so that it
                  propagates back to the originating Master (our
                  immediate Master)
               */
-              assert(ndb_apply_status_logging_server_id != ::server_id);
+              assert(logging_server_id != ::server_id);
 
-              originating_server_id =
-                  0; /* Will be set to our ::serverid below */
+              /* Will be set to our ::serverid below */
+              originating_server_id = 0;
             }
           }
         }
@@ -6199,8 +6186,8 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
         if (opt_ndb_log_orig) {
           /* store */
           ndb_binlog_index_row *row =
-              ndb_find_binlog_index_row(rows, ndb_apply_status_server_id, 1);
-          row->orig_epoch = ndb_apply_status_epoch;
+              ndb_find_binlog_index_row(rows, orig_server_id, 1);
+          row->orig_epoch = orig_epoch;
         }
       }
     }  // opt_ndb_log_apply_status || opt_ndb_log_orig)
