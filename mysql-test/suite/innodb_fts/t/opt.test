@@ -137,7 +137,6 @@ SELECT title, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 --echo Revert to table scan and sorting for this query since not
@@ -149,7 +148,6 @@ FROM wp
 ORDER BY score DESC LIMIT 3;
 
 SHOW SESSION STATUS LIKE 'Handler_read%';
---skip_if_hypergraph  # Sorts more rows.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since no LIMIT clause
@@ -169,7 +167,6 @@ FROM wp
 WHERE dummy IS NULL
 ORDER BY score DESC LIMIT 2;
 
---skip_if_hypergraph  # Sorts more rows.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 --echo Sorting since ordering is not on a simple MATCH expressions
@@ -179,7 +176,6 @@ SELECT title, (MATCH(title, text) AGAINST ('database')) * 100 AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
---skip_if_hypergraph  # Sorts more rows.
 SHOW SESSION STATUS LIKE 'Sort_rows%';
 
 #
@@ -274,9 +270,7 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
 
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW STATUS LIKE 'Handler_read%';
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 #
@@ -367,7 +361,6 @@ SELECT title,
        MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
@@ -385,9 +378,7 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION) AS score
 FROM wp
 ORDER BY score DESC LIMIT 2;
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW STATUS LIKE 'Handler_read%';
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -415,7 +406,6 @@ SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
 FLUSH STATUS;
---skip_if_hypergraph  # Non-deterministic because of rows with identical score.
 SELECT title,
        MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
 FROM wp
@@ -433,7 +423,6 @@ SHOW SESSION STATUS LIKE 'Handler_read%';
 
 # Check the combination of all three
 FLUSH STATUS;
---skip_if_hypergraph  # Non-deterministic because of rows with identical score.
 SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
 FROM wp 
@@ -472,7 +461,6 @@ SELECT title,
        MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
 FROM wp
 ORDER BY score DESC LIMIT 1;
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
@@ -489,9 +477,7 @@ SELECT FTS_DOC_ID docid,
        MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
 FROM wp
 ORDER BY score DESC LIMIT 1;
---skip_if_hypergraph  # Different handler calls.
 SHOW STATUS LIKE 'Handler_read%';
---skip_if_hypergraph  # Does not avoid the sort.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
@@ -544,7 +530,6 @@ FLUSH STATUS;
 SELECT title, MATCH(title, text) AGAINST ('database') AS score 
 FROM wp 
 ORDER BY score DESC LIMIT 2;
---skip_if_hypergraph  # Sorts more rows.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
@@ -561,7 +546,6 @@ SELECT FTS_DOC_ID docid, MATCH(title, text) AGAINST ('database') AS score
 FROM wp 
 ORDER BY score DESC LIMIT 2;
 SHOW STATUS LIKE 'Handler_read%';
---skip_if_hypergraph  # Sorts more rows.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization

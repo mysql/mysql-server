@@ -1250,6 +1250,30 @@ bool CostingReceiver::ProposeAllFullTextIndexScans(TABLE *table, int node_idx) {
         return true;
       }
     }
+
+    // Even if we have no predicates, we may use a full-text index scan if it is
+    // possible to pass the LIMIT clause to the index scan, and the LIMIT is no
+    // greater than the number of documents returned by the index scan. We only
+    // do this if the index scan produces rows in an interesting order. And only
+    // if the storage engine supports the extended full-text API, which is
+    // required for counting the matches in the index.
+    if (m_graph.predicates.empty() && info.order != 0 &&
+        IsLimitHintPushableToFullTextSearch(info.match, m_graph,
+                                            m_sargable_fulltext_predicates) &&
+        Overlaps(table->file->ha_table_flags(), HA_CAN_FULLTEXT_EXT)) {
+      // The full-text function must be initialized before get_count() is
+      // called. Even though we call init_search() on it again after the final
+      // plan has been chosen, this does not mean the search is performed twice.
+      if (info.match->init_search(m_thd)) {
+        return true;
+      }
+      if (m_query_block->join->m_select_limit <= info.match->get_count()) {
+        if (ProposeFullTextIndexScan(table, node_idx, info.match,
+                                     /*predicate_idx=*/-1, info.order)) {
+          return true;
+        }
+      }
+    }
   }
 
   return false;
@@ -1266,43 +1290,55 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
   }
   ref->items[0] = match->key_item();
 
-  const Predicate &predicate = m_graph.predicates[predicate_idx];
-  assert(match == GetSargableFullTextPredicate(predicate));
+  const Predicate *predicate =
+      predicate_idx == -1 ? nullptr : &m_graph.predicates[predicate_idx];
+  assert(predicate_idx == -1 ||
+         match == GetSargableFullTextPredicate(*predicate));
 
-  // The full-text predicate is both passed to the index and in a filter node on
-  // top of the index scan. Find out how much of the selectivity to apply on
-  // each node.
-  double index_selectivity;
   uint64_t applied_predicates = 0;
   uint64_t subsumed_predicates = 0;
-  if (IsSubsumableFullTextPredicate(
-          down_cast<Item_func *>(predicate.condition))) {
-    // The predicate can be fully subsumed by the index. Apply the full
-    // selectivity on the index scan and mark the predicate as subsumed.
-    index_selectivity = predicate.selectivity;
-    subsumed_predicates = uint64_t{1} << predicate_idx;
+  double num_output_rows_from_index;
+  double num_output_rows_from_filter;
+  if (predicate == nullptr) {
+    // We have no predicate. The index is used only for ordering. We only do
+    // this if we have a limit.
+    assert(m_query_block->join->m_select_limit != HA_POS_ERROR);
+    num_output_rows_from_index = num_output_rows_from_filter =
+        m_query_block->join->m_select_limit;
   } else {
-    // The predicate uses <, <=, > or >=, and it cannot be subsumed. For example
-    // MATCH(...) AGAINST(...) > 0.5. In this case, the selectivity of the MATCH
-    // function is used to estimate the number of rows that come out of the
-    // index, and the selectivity of the greater-than function is used to
-    // estimate the number of rows returned by the filter.
-    index_selectivity = EstimateSelectivity(m_thd, match, m_trace);
+    // The full-text predicate is both passed to the index and in a filter node
+    // on top of the index scan. Find out how much of the selectivity to apply
+    // on each node.
+    double index_selectivity;
+    if (IsSubsumableFullTextPredicate(
+            down_cast<Item_func *>(predicate->condition))) {
+      // The predicate can be fully subsumed by the index. Apply the full
+      // selectivity on the index scan and mark the predicate as subsumed.
+      index_selectivity = predicate->selectivity;
+      subsumed_predicates = uint64_t{1} << predicate_idx;
+    } else {
+      // The predicate uses <, <=, > or >=, and it cannot be subsumed. For
+      // example MATCH(...) AGAINST(...) > 0.5. In this case, the selectivity of
+      // the MATCH function is used to estimate the number of rows that come out
+      // of the index, and the selectivity of the greater-than function is used
+      // to estimate the number of rows returned by the filter.
+      index_selectivity = EstimateSelectivity(m_thd, match, m_trace);
 
-    // The selectivity of the predicate is applied manually to
-    // num_output_rows_from_index and num_output_rows_from_filter below, so mark
-    // the predicate as applied to avoid double-counting of the selectivity.
-    applied_predicates = uint64_t{1} << predicate_idx;
+      // The selectivity of the predicate is applied manually to
+      // num_output_rows_from_index and num_output_rows_from_filter below, so
+      // mark the predicate as applied to avoid double-counting of the
+      // selectivity.
+      applied_predicates = uint64_t{1} << predicate_idx;
+    }
+
+    num_output_rows_from_index = table->file->stats.records * index_selectivity;
+    num_output_rows_from_filter =
+        std::min(num_output_rows_from_index,
+                 table->file->stats.records * predicate->selectivity);
   }
 
-  const double num_output_rows_from_index =
-      table->file->stats.records * index_selectivity;
   const double cost = EstimateCostForRefAccess(m_thd, table, key_idx,
                                                num_output_rows_from_index);
-
-  const double num_output_rows_from_filter =
-      std::min(num_output_rows_from_index,
-               table->file->stats.records * predicate.selectivity);
 
   const LogicalOrderings::StateIndex ordering_state =
       m_orderings->SetOrder(ordering_idx);
