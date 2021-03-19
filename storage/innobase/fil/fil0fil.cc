@@ -8596,7 +8596,7 @@ void fil_close() {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Initializes a buffer control block when the buf_pool is created.
+/** Initializes the buffer control block used by fil_tablespace_iterate.
 @param[in]	block		Pointer to the control block
 @param[in]	frame		Pointer to buffer frame */
 static void fil_buf_block_init(buf_block_t *block, byte *frame) {
