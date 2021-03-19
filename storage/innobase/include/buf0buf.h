@@ -1511,12 +1511,26 @@ class buf_page_t {
   buf_pool_resize() (which latch quite a lot) or from fil_tablespace_iterate()
   which creates a fake, private block which is not really a part of the buffer
   pool.
-  It is also called from  buf_page_init_low() under buf_page_get_mutex(this),
-  yet should be treated as initialization of the field, not a state transition.
   Therefore we allow this function to set io_fix without checking for any
   latches.
   Please use set_io_fix(BUF_IO_NONE) to change state in a regular situation. */
-  void init_io_fix() { io_fix.store(BUF_IO_NONE, std::memory_order_relaxed); }
+  void init_io_fix() {
+    io_fix.store(BUF_IO_NONE, std::memory_order_relaxed);
+    /* This is only needed because places which call init_io_fix() do not call
+    buf_page_t's constructor */
+    ut_d(new (&io_responsibility) io_responsibility_t{});
+  }
+
+  /** This is called only when having full ownership of the page object and no
+  other thread can reach it. This currently happens during buf_page_init_low()
+  under buf_page_get_mutex(this), on a previously initialized page for reuse,
+  yet should be treated as initialization of the field, not a state transition.
+  Please use set_io_fix(BUF_IO_NONE) to change state in a regular situation. */
+  void reinit_io_fix() {
+    ut_ad(io_fix.load(std::memory_order_relaxed) == BUF_IO_NONE);
+    ut_ad(!someone_has_io_responsibility());
+    io_fix.store(BUF_IO_NONE, std::memory_order_relaxed);
+  }
 
   /** Sets io_fix to specified value.
   Assumes the caller holds buf_page_get_mutex(this).
