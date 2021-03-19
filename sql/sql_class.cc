@@ -1192,6 +1192,7 @@ THD::THD(bool enable_plugins)
   get_transaction()->m_flags.enabled= true;
   active_vio = 0;
   m_SSL = NULL;
+  my_atomic_store32(&m_safe_to_display, 0);
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
