@@ -9777,10 +9777,13 @@ bool fill_record_n_invoke_before_triggers(
     }
     /*
       Re-calculate generated fields to cater for cases when base columns are
-      updated by the triggers.
+      updated by the triggers. Avoid re-calculating generated fields if it is
+      part of any key, as we are not sure whether base column on which gcol
+      depends has been modified by triggers.
     */
     assert(table->pos_in_table_list && !table->pos_in_table_list->is_view());
-    if (!rc && table->has_gcol())
+    if (!rc && table->has_gcol() &&
+        ((*table->vfield)->part_of_key.is_clear_all()))
       rc = update_generated_write_fields(table->write_set, table);
 
     table->triggers->disable_fields_temporary_nullability();
