@@ -1160,6 +1160,41 @@ ut_malloc has the same problems as the standard library malloc.
 
 namespace ut {
 
+/** Light-weight and type-safe wrapper around the PSI_memory_key
+    that eliminates the possibility of introducing silent bugs
+    through the course of implicit conversions and makes them
+    show up as compile-time errors.
+
+    Without this wrapper it was possible to say:
+      aligned_alloc_withkey(10*sizeof(int), key, 64))
+    Which would unfortunately compile just fine but it would silently
+    introduce a bug because it confuses the order of 10*sizeof(int) and
+    key input arguments. Both of them are unsigned types.
+
+    With the wrapper, aligned_alloc_withkey(10*sizeof(int), key, 64)) now
+    results with a compile-time error and the only proper way to accomplish
+    the original intent is to use PSI_memory_key_t wrapper like so:
+      aligned_alloc_withkey(PSI_memory_key_t(key), 10*sizeof(int), 64))
+
+    Or by making use of the convenience function to create one:
+      aligned_alloc_withkey(make_psi_memory_key(key), 10*sizeof(int), 64))
+ */
+struct PSI_memory_key_t {
+  explicit PSI_memory_key_t(PSI_memory_key key) : m_key(key){};
+  PSI_memory_key operator()() const { return m_key; }
+  PSI_memory_key m_key;
+};
+
+/** Convenience helper function to create type-safe representation of
+    PSI_memory_key.
+
+    @param[in] key PSI memory key to be held in type-safe PSI_memory_key_t.
+    @return PSI_memory_key_t which wraps the given PSI_memory_key
+ */
+inline PSI_memory_key_t make_psi_memory_key(PSI_memory_key key) {
+  return PSI_memory_key_t(key);
+}
+
 /** Dynamically allocates storage of given size and at the address aligned to
     the requested alignment. Instruments the memory with given PSI memory key
     in case PFS memory support is enabled (-DDISABLE_PSI_MEMORY=OFF).
@@ -1173,11 +1208,11 @@ namespace ut {
     Example:
      int* x = static_cast<int*>(aligned_alloc_withkey(key, 10*sizeof(int), 64));
  */
-inline void *aligned_alloc_withkey(PSI_memory_key key, std::size_t size,
+inline void *aligned_alloc_withkey(PSI_memory_key_t key, std::size_t size,
                                    std::size_t alignment) noexcept {
   using impl = detail::select_alloc_impl_t<detail::WITH_PFS_MEMORY>;
   using aligned_alloc_impl = detail::Aligned_alloc_<impl>;
-  return aligned_alloc_impl::alloc<false>(size, alignment, key);
+  return aligned_alloc_impl::alloc<false>(size, alignment, key());
 }
 
 /** Dynamically allocates storage of given size and at the address aligned to
@@ -1192,7 +1227,8 @@ inline void *aligned_alloc_withkey(PSI_memory_key key, std::size_t size,
      int* x = static_cast<int*>(aligned_alloc(10*sizeof(int), 64));
  */
 inline void *aligned_alloc(std::size_t size, std::size_t alignment) noexcept {
-  return aligned_alloc_withkey(PSI_NOT_INSTRUMENTED, size, alignment);
+  return aligned_alloc_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED), size,
+                               alignment);
 }
 
 /** Dynamically allocates zero-initialized storage of given size and at the
@@ -1210,11 +1246,11 @@ inline void *aligned_alloc(std::size_t size, std::size_t alignment) noexcept {
      int* x =
        static_cast<int*>(aligned_zalloc_withkey(key, 10*sizeof(int), 64));
  */
-inline void *aligned_zalloc_withkey(PSI_memory_key key, std::size_t size,
+inline void *aligned_zalloc_withkey(PSI_memory_key_t key, std::size_t size,
                                     std::size_t alignment) noexcept {
   using impl = detail::select_alloc_impl_t<detail::WITH_PFS_MEMORY>;
   using aligned_alloc_impl = detail::Aligned_alloc_<impl>;
-  return aligned_alloc_impl::alloc<true>(size, alignment, key);
+  return aligned_alloc_impl::alloc<true>(size, alignment, key());
 }
 
 /** Dynamically allocates zero-initialized storage of given size and at the
@@ -1229,7 +1265,8 @@ inline void *aligned_zalloc_withkey(PSI_memory_key key, std::size_t size,
      int* x = static_cast<int*>(aligned_zalloc(10*sizeof(int), 64));
  */
 inline void *aligned_zalloc(std::size_t size, std::size_t alignment) noexcept {
-  return aligned_zalloc_withkey(PSI_NOT_INSTRUMENTED, size, alignment);
+  return aligned_zalloc_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED), size,
+                                alignment);
 }
 
 /** Releases storage which has been dynamically allocated through any of
@@ -1272,7 +1309,7 @@ inline void aligned_free(void *ptr) noexcept {
      assert(ptr->y == 2);
  */
 template <typename T, typename... Args>
-inline T *aligned_new_withkey(PSI_memory_key key, std::size_t alignment,
+inline T *aligned_new_withkey(PSI_memory_key_t key, std::size_t alignment,
                               Args &&... args) {
   auto mem = aligned_alloc_withkey(key, sizeof(T), alignment);
   if (unlikely(!mem)) throw std::bad_alloc();
@@ -1304,8 +1341,8 @@ inline T *aligned_new_withkey(PSI_memory_key key, std::size_t alignment,
  */
 template <typename T, typename... Args>
 inline T *aligned_new(std::size_t alignment, Args &&... args) {
-  return aligned_new_withkey<T>(PSI_NOT_INSTRUMENTED, alignment,
-                                std::forward<Args>(args)...);
+  return aligned_new_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
+                                alignment, std::forward<Args>(args)...);
 }
 
 /** Releases storage which has been dynamically allocated through any of
@@ -1357,7 +1394,7 @@ inline void aligned_delete(T *ptr) noexcept {
      assert(ptr[4]->y == 10);
  */
 template <typename T, size_t Count, typename... Args>
-inline T *aligned_new_arr_withkey(PSI_memory_key key, std::size_t alignment,
+inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
                                   Args &&... args) {
   static_assert(
       sizeof...(args) % Count == 0,
@@ -1408,7 +1445,7 @@ inline T *aligned_new_arr_withkey(PSI_memory_key key, std::size_t alignment,
      // will not compile, no default constructor
  */
 template <typename T>
-inline T *aligned_new_arr_withkey(PSI_memory_key key, std::size_t alignment,
+inline T *aligned_new_arr_withkey(PSI_memory_key_t key, std::size_t alignment,
                                   size_t count) {
   auto mem = aligned_alloc_withkey(key, sizeof(T) * count, alignment);
   if (unlikely(!mem)) throw std::bad_alloc();
@@ -1452,8 +1489,9 @@ inline T *aligned_new_arr_withkey(PSI_memory_key key, std::size_t alignment,
  */
 template <typename T, size_t Count, typename... Args>
 inline T *aligned_new_arr(std::size_t alignment, Args &&... args) {
-  return aligned_new_arr_withkey<T, Count>(PSI_NOT_INSTRUMENTED, alignment,
-                                           std::forward<Args>(args)...);
+  return aligned_new_arr_withkey<T, Count>(
+      make_psi_memory_key(PSI_NOT_INSTRUMENTED), alignment,
+      std::forward<Args>(args)...);
 }
 
 /** Dynamically allocates storage for an array of T's at address aligned to
@@ -1489,7 +1527,8 @@ inline T *aligned_new_arr(std::size_t alignment, Args &&... args) {
  */
 template <typename T>
 inline T *aligned_new_arr(std::size_t alignment, size_t count) {
-  return aligned_new_arr_withkey<T>(PSI_NOT_INSTRUMENTED, alignment, count);
+  return aligned_new_arr_withkey<T>(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
+                                    alignment, count);
 }
 
 /** Releases storage which has been dynamically allocated through any of the
@@ -1570,7 +1609,7 @@ class aligned_pointer {
       constructed with.
     */
   template <typename... Args>
-  void alloc_withkey(PSI_memory_key key, Args &&... args) {
+  void alloc_withkey(PSI_memory_key_t key, Args &&... args) {
     ut_ad(ptr == nullptr);
     ptr =
         ut::aligned_new_withkey<T>(key, Alignment, std::forward<Args>(args)...);
@@ -1683,7 +1722,7 @@ class aligned_array_pointer {
       @param[in] key PSI memory key to be used for PFS memory instrumentation.
       @param[in] size Number of T elements in an array.
     */
-  void alloc_withkey(PSI_memory_key key, size_t size) {
+  void alloc_withkey(PSI_memory_key_t key, size_t size) {
     ut_ad(ptr == nullptr);
     ptr = ut::aligned_new_arr_withkey<T>(key, Alignment, size);
   }
@@ -1703,7 +1742,7 @@ class aligned_array_pointer {
       constructed with.
     */
   template <size_t Size, typename... Args>
-  void alloc_withkey(PSI_memory_key key, Args &&... args) {
+  void alloc_withkey(PSI_memory_key_t key, Args &&... args) {
     ut_ad(ptr == nullptr);
     ptr = ut::aligned_new_arr_withkey<T, Size>(key, Alignment,
                                                std::forward<Args>(args)...);
