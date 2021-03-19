@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2179,7 +2179,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
           size_t query_length;
           if ((query_length = tmp->rewritten_query.length()) > 0) {
             query_str = tmp->rewritten_query.c_ptr();
-          } else {
+          } else if(tmp->safe_to_display()) {
             query_length = tmp->query_length();
             query_str = tmp->query();
           }
@@ -2330,7 +2330,7 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
         if ((query_length = tmp->rewritten_query.length()) > 0) {
           query_str = tmp->rewritten_query.c_ptr();
-        } else {
+        } else if(tmp->safe_to_display()){
           query_length = tmp->query_length();
           query_str = tmp->query();
         }

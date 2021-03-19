@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2827,7 +2827,8 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   thd->stmt_arena= stmt;
   thd->set_n_backup_statement(stmt, &stmt_backup);
-
+  int32 saved_safe_to_display = thd->safe_to_display();
+  thd->set_safe_display(true);
   cursor->fetch(num_rows);
 
   if (!cursor->is_open())
@@ -2837,6 +2838,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
   }
 
   thd->restore_backup_statement(stmt, &stmt_backup);
+  thd->set_safe_display(saved_safe_to_display);
   thd->stmt_arena= thd;
 
   DBUG_VOID_RETURN;
@@ -3407,11 +3409,14 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
   */
   thd->set_n_backup_statement(this, &stmt_backup);
   thd->set_n_backup_active_arena(this, &stmt_backup);
+  int32 saved_safe_to_display = thd->safe_to_display();
+  thd->set_safe_display(true);
 
   if (alloc_query(thd, packet, packet_len))
   {
     thd->restore_backup_statement(this, &stmt_backup);
     thd->restore_active_arena(this, &stmt_backup);
+    thd->set_safe_display(saved_safe_to_display);
     DBUG_RETURN(TRUE);
   }
 
@@ -3433,6 +3438,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     thd->restore_backup_statement(this, &stmt_backup);
     thd->restore_active_arena(this, &stmt_backup);
     thd->stmt_arena= old_stmt_arena;
+    thd->set_safe_display(saved_safe_to_display);
     DBUG_RETURN(TRUE);
   }
 
@@ -3522,6 +3528,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
 
   cleanup_stmt();
   thd->restore_backup_statement(this, &stmt_backup);
+  thd->set_safe_display(saved_safe_to_display);
   thd->stmt_arena= old_stmt_arena;
 
   if (error == 0)
@@ -3751,6 +3758,8 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   thd->set_n_backup_statement(this, &stmt_backup);
   thd->set_n_backup_active_arena(this, &stmt_backup);
   thd->stmt_arena= this;
+  int32 saved_safe_to_display = thd->safe_to_display();
+  thd->set_safe_display(true);
 
   error= server_runnable->execute_server_code(thd);
 
@@ -3759,6 +3768,7 @@ Prepared_statement::execute_server_runnable(Server_runnable *server_runnable)
   thd->restore_active_arena(this, &stmt_backup);
   thd->restore_backup_statement(this, &stmt_backup);
   thd->stmt_arena= save_stmt_arena;
+  thd->set_safe_display(saved_safe_to_display);
 
   save_change_list.move_elements_to(&thd->change_list);
 
@@ -3993,6 +4003,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
   */
 
   thd->set_n_backup_statement(this, &stmt_backup);
+  int32 saved_safe_to_display = thd->safe_to_display();
+  thd->set_safe_display(true);
 
   /*
     Change the current database (if needed).
@@ -4107,6 +4119,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   thd->set_statement(&stmt_backup);
   thd->stmt_arena= old_stmt_arena;
+  thd->set_safe_display(saved_safe_to_display);
 
   if (state == Query_arena::STMT_PREPARED)
     state= Query_arena::STMT_EXECUTED;
