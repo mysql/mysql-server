@@ -481,6 +481,35 @@ static bool terminate_consumer(bool rapid);
 static void unregister_udfs();
 static bool register_udfs();
 
+/* Function to check conditions. */
+static bool consumer_is_running() { return redo_log_archive_consume_running; }
+static bool consumer_not_running() { return !redo_log_archive_consume_running; }
+static bool consumer_not_flushed() { return !redo_log_archive_consume_flushed; }
+
+/**
+  Timeout function. Checks one of the conditions above.
+  @param[in]    wait_condition  function to return true for continued waiting
+  @return       whether the wait timed out
+  @note This function must be called under the redo_log_archive_admin_mutex!
+*/
+static bool timeout(bool (*wait_condition)()) {
+  float seconds_to_wait{600.0f};
+  DBUG_EXECUTE_IF(
+      "innodb_redo_log_archive_start_timeout",
+      if (wait_condition == &consumer_not_running) seconds_to_wait = 0.125f;);
+  while ((*wait_condition)() && (seconds_to_wait > 0.0f) &&
+         (redo_log_archive_consume_event != nullptr)) {
+    os_event_t consume_event = redo_log_archive_consume_event;
+    mutex_exit(&redo_log_archive_admin_mutex);
+    // Use 0.125 seconds as it can be accurately represented by "float".
+    os_event_wait_time(consume_event, 125000);  // 0.125 second
+    seconds_to_wait -= 0.125f;
+    os_event_reset(consume_event);
+    mutex_enter(&redo_log_archive_admin_mutex);
+  }
+  return (seconds_to_wait <= 0.0f);
+}
+
 bool register_privilege(const char *priv_name) {
   ut_ad(priv_name != nullptr);
   SERVICE_TYPE(registry) *reg = mysql_plugin_registry_acquire();
@@ -1123,17 +1152,7 @@ static bool terminate_consumer(bool rapid) {
     redo_log_archive_consume_event is set after the final block
     is written into the redo log archive file.
   */
-  float seconds_to_wait = 600.0;
-  while (redo_log_archive_consume_running && (seconds_to_wait > 0.0) &&
-         (redo_log_archive_consume_event != nullptr)) {
-    os_event_t consume_event = redo_log_archive_consume_event;
-    mutex_exit(&redo_log_archive_admin_mutex);
-    os_event_wait_time(consume_event, 100000);  // 0.1 second
-    seconds_to_wait -= 0.1f;
-    os_event_reset(consume_event);
-    mutex_enter(&redo_log_archive_admin_mutex);
-  }
-  if (seconds_to_wait < 0.0) {
+  if (timeout(&consumer_is_running)) {
     /* This would require yet another tricky error injection. */
     /* purecov: begin inspected */
     if (!redo_log_archive_recorded_error.empty()) {
@@ -1297,20 +1316,8 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     Wait for the consumer to start. We do not want to report success
     before the consumer thread has started to work.
   */
-  float seconds_to_wait = 600.0f;
-  DBUG_EXECUTE_IF("innodb_redo_log_archive_start_timeout",
-                  seconds_to_wait = -1.0;);
   mutex_enter(&redo_log_archive_admin_mutex);
-  while (!redo_log_archive_consume_running && (seconds_to_wait > 0.0) &&
-         (redo_log_archive_consume_event != nullptr)) {
-    os_event_t consume_event = redo_log_archive_consume_event;
-    mutex_exit(&redo_log_archive_admin_mutex);
-    os_event_wait_time(consume_event, 100000);  // 0.1 second
-    seconds_to_wait -= 0.1f;
-    os_event_reset(consume_event);
-    mutex_enter(&redo_log_archive_admin_mutex);
-  }
-  if (seconds_to_wait < 0.0f) {
+  if (timeout(&consumer_not_running)) {
     os_event_destroy(redo_log_archive_consume_event);
     redo_log_archive_consume_event = nullptr;
     redo_log_archive_consume_complete = true;
@@ -1327,8 +1334,10 @@ static bool redo_log_archive_start(THD *thd, const char *label,
     redo_log_archive_session = nullptr;
     redo_log_archive_active = false;
     redo_log_archive_queue.deinit();
-    my_error(ER_INNODB_REDO_LOG_ARCHIVE_START_TIMEOUT, MYF(0));
     mutex_exit(&redo_log_archive_admin_mutex);
+    /* Don't leave this with a stray thread. */
+    srv_threads.m_backup_log_archiver.join();
+    my_error(ER_INNODB_REDO_LOG_ARCHIVE_START_TIMEOUT, MYF(0));
     return true;
   }
   mutex_exit(&redo_log_archive_admin_mutex);
@@ -1539,18 +1548,8 @@ static bool redo_log_archive_flush(THD *thd) {
     redo_log_archive_consume_event is set after the flush block
     is written into the redo log archive file.
   */
-  float seconds_to_wait = 600.0;
   mutex_enter(&redo_log_archive_admin_mutex);
-  while (!redo_log_archive_consume_flushed && (seconds_to_wait > 0.0) &&
-         (redo_log_archive_consume_event != nullptr)) {
-    os_event_t consume_event = redo_log_archive_consume_event;
-    mutex_exit(&redo_log_archive_admin_mutex);
-    os_event_wait_time(consume_event, 100000);  // 0.1 second
-    seconds_to_wait -= 0.1f;
-    os_event_reset(consume_event);
-    mutex_enter(&redo_log_archive_admin_mutex);
-  }
-  if (seconds_to_wait < 0.0) {
+  if (timeout(&consumer_not_flushed)) {
     /* This would require yet another tricky error injection. */
     /* purecov: begin inspected */
     if (!redo_log_archive_recorded_error.empty()) {
@@ -1700,6 +1699,20 @@ static void redo_log_archive_consumer() {
   /* Synchronize with with other threads while using global objects. */
   mutex_enter(&redo_log_archive_admin_mutex);
 
+  /*
+    On error injection ensure, that the starting session has executed
+    its timeout handling before the consumer sets its running state. But
+    do not hang infinitely.
+  */
+  DBUG_EXECUTE_IF(
+      "innodb_redo_log_archive_start_timeout",
+      for (int count = 600; (count > 0) && !redo_log_archive_consume_complete;
+           count--) {
+        mutex_exit(&redo_log_archive_admin_mutex);
+        my_sleep(100000);  // 0.1s
+        mutex_enter(&redo_log_archive_admin_mutex);
+      });
+
   if (redo_log_archive_consume_running) {
     /* Another consumer thread is still running. */
     /* purecov: begin inspected */
@@ -1720,8 +1733,6 @@ static void redo_log_archive_consumer() {
     return;
     /* purecov: end */
   }
-  DBUG_EXECUTE_IF("innodb_redo_log_archive_start_timeout",
-                  my_sleep(9000000););  // 9s
 
   /*
     A Guardian sets the 'running' status to true. When leaving the
@@ -1807,27 +1818,30 @@ static void redo_log_archive_consumer() {
     uint64_t file_offset{0};
     Block temp_block;
 
+    mutex_enter(&redo_log_archive_admin_mutex);
     /*
       Write a log header (dummy) to file_offset zero.
       Writes to offset zero are not encrypted by os_file_write().
     */
-    dberr_t err = os_file_write(request, redo_log_archive_file_pathname.c_str(),
-                                redo_log_archive_file_handle,
-                                temp_block.get_queue_block(), file_offset,
-                                QUEUE_BLOCK_SIZE);
-    if (err != DB_SUCCESS) {
-      /* This requires disk full testing */
-      /* purecov: begin inspected */
-      handle_write_error(file_offset);
-      /*
-        handle_write_error() sets redo_log_archive_consume_complete,
-        so that the below loop won't be entered.
-      */
-      /* purecov: end */
+    if (redo_log_archive_file_handle.m_file != OS_FILE_CLOSED) {
+      dberr_t err = os_file_write(
+          request, redo_log_archive_file_pathname.c_str(),
+          redo_log_archive_file_handle, temp_block.get_queue_block(),
+          file_offset, QUEUE_BLOCK_SIZE);
+      if (err != DB_SUCCESS) {
+        /* This requires disk full testing */
+        /* purecov: begin inspected */
+        handle_write_error(file_offset);
+        /*
+          handle_write_error() sets redo_log_archive_consume_complete,
+          so that the below loop won't be entered.
+        */
+        /* purecov: end */
+      } else {
+        file_offset += QUEUE_BLOCK_SIZE;
+      }
     }
-    file_offset += QUEUE_BLOCK_SIZE;
 
-    mutex_enter(&redo_log_archive_admin_mutex);
     while (!redo_log_archive_consume_complete) {
       /* Dequeue a log block from the queue outside of the mutex. */
       mutex_exit(&redo_log_archive_admin_mutex);
