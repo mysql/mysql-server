@@ -128,7 +128,7 @@ class Source_IO_monitor {
   Source_IO_monitor();
 
   /* Source_IO_monitor class destructor */
-  ~Source_IO_monitor() {}
+  virtual ~Source_IO_monitor();
 
   /* Source_IO_monitor class copy constructor (restricted) */
   Source_IO_monitor(const Source_IO_monitor &) = delete;
@@ -139,9 +139,9 @@ class Source_IO_monitor {
   /**
     Fetch Source_IO_monitor class instance.
 
-    @return Reference to the Source_IO_monitor class instance.
+    @return Pointer to the Source_IO_monitor class instance.
   */
-  static Source_IO_monitor &get_instance();
+  static Source_IO_monitor *get_instance();
 
   /**
     Creates and lauches new Monitor IO thread.
@@ -230,9 +230,6 @@ class Source_IO_monitor {
   /* The Monitor IO thread THD object. */
   THD *m_monitor_thd{nullptr};
 
-  /* The flag to determine if Monitor IO thread initiated */
-  static bool m_monitor_thd_initiated;
-
   /* The flag to determine if Monitor IO thread aborted */
   bool m_abort_monitor{false};
 
@@ -259,16 +256,6 @@ class Source_IO_monitor {
     COL_STATE,
     COL_ROLE,
   };
-
-  /**
-    Initialized mutex and condition variables.
-  */
-  void init_mutex();
-
-  /**
-    Destroy initialized mutex and condition variables.
-  */
-  void cleanup_mutex();
 
   /**
     It gets stored senders details for channel from

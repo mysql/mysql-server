@@ -281,7 +281,7 @@ int Async_conn_failover_manager::get_source_quorum_status(MYSQL *mysql,
     replication_asynchronous_connection_failover table.
   */
   std::tie(error, source_conn_merged_list) =
-      Source_IO_monitor::get_instance().get_senders_details(mi->get_channel());
+      Source_IO_monitor::get_instance()->get_senders_details(mi->get_channel());
   if (error) {
     return 2;
   }
@@ -301,7 +301,7 @@ int Async_conn_failover_manager::get_source_quorum_status(MYSQL *mysql,
 
   if (!connected_source_in_sender_list) return 0;
 
-  std::string query = Source_IO_monitor::get_instance().get_query(
+  std::string query = Source_IO_monitor::get_instance()->get_query(
       enum_sql_query_tag::CONFIG_MODE_QUORUM_IO);
 
   if (!mysql_real_query(mysql, query.c_str(), query.length()) &&

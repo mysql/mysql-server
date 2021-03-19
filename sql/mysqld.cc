@@ -803,6 +803,7 @@ MySQL clients support the protocol:
 #include "sql/rpl_info_factory.h"
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_injector.h"  // injector
+#include "sql/rpl_io_monitor.h"
 #include "sql/rpl_log_encryption.h"
 #include "sql/rpl_master.h"  // max_binlog_dump_events
 #include "sql/rpl_mi.h"
@@ -1474,6 +1475,7 @@ Le_creator le_creator;
 
 Rpl_global_filter rpl_global_filter;
 Rpl_filter *binlog_filter;
+Source_IO_monitor *rpl_source_io_monitor = nullptr;
 Udf_load_service udf_load_service;
 
 struct System_variables global_system_variables;
@@ -2487,6 +2489,8 @@ static void clean_up(bool print_message) {
   mysql_bin_log.cleanup();
 
   udf_load_service.deinit();
+  delete rpl_source_io_monitor;
+  rpl_source_io_monitor = nullptr;
 
   if (use_slave_mask) bitmap_free(&slave_error_mask);
   my_tz_free();
@@ -6453,6 +6457,7 @@ static int init_server_components() {
 #endif
     locked_in_memory = false;
 
+  rpl_source_io_monitor = new Source_IO_monitor();
   udf_load_service.init();
 
   /* Initialize the optimizer cost module */
