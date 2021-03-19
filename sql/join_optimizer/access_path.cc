@@ -526,7 +526,7 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         to.join = from.join;
         to.disable_deduplication_by_hash_field =
             from.disable_deduplication_by_hash_field;
-        to.copy_fields_and_items = from.copy_fields_and_items;
+        to.copy_items = from.copy_items;
         to.temp_table_param = from.temp_table_param;
         to.is_recursive_reference = from.is_recursive_reference;
 

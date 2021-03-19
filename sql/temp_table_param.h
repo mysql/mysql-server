@@ -88,17 +88,8 @@ class Temp_table_param {
   ha_rows end_write_records{HA_POS_ERROR};
 
   /**
-    Number of normal fields in the query, including those referred to
-    from aggregate functions. Hence, "SELECT `field1`,
-    SUM(`field2`) from t1" sets this counter to 2.
-
-    @see count_field_types
-  */
-  uint field_count;
-  /**
-    Number of fields in the query that have functions. Includes both
-    aggregate functions (e.g., SUM) and non-aggregates (e.g., RAND)
-    and windowing functions.
+    Number of items in the query. Includes both aggregate functions (e.g., SUM),
+    and non-aggregates (e.g., RAND), window functions and fields.
     Also counts functions referred to from windowing or aggregate functions,
     i.e., "SELECT SUM(RAND())" sets this counter to 2.
 
@@ -185,7 +176,6 @@ class Temp_table_param {
         group_buff(nullptr),
         items_to_copy(nullptr),
         keyinfo(nullptr),
-        field_count(0),
         func_count(0),
         sum_func_count(0),
         hidden_field_count(0),

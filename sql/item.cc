@@ -2153,7 +2153,7 @@ void Item::split_sum_func2(THD *thd, Ref_item_array ref_item_array,
       Indeed, a subquery of another type is wrapped in Item_in_optimizer at this
       stage, so when splitting Item_in_optimizer, if we added the underlying
       Item_subselect to "fields" below it would be later evaluated by
-      copy_fields() (in tmp table processing), which would be incorrect as the
+      copy_funcs() (in tmp table processing), which would be incorrect as the
       Item_subselect cannot be evaluated - as it must always be evaluated
       through its parent Item_in_optimizer.
 

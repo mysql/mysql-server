@@ -866,8 +866,6 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
   Query_expression *const unit;
   unique_ptr_destroy_only<RowIterator> m_iterator;
   AccessPath *m_root_access_path;
-  /* Temp table context of the outer select's JOIN. */
-  Temp_table_param *tmp_param;
 
   /// Saved result object, must be restored after use
   Query_result_interceptor *saved_result{nullptr};
@@ -877,8 +875,7 @@ class subselect_hash_sj_engine final : public subselect_indexsubquery_engine {
                            Query_expression *unit_arg)
       : subselect_indexsubquery_engine(nullptr, in_predicate, nullptr, nullptr),
         is_materialized(false),
-        unit(unit_arg),
-        tmp_param(nullptr) {}
+        unit(unit_arg) {}
   ~subselect_hash_sj_engine() override;
 
   bool setup(THD *thd, const mem_root_deque<Item *> &tmp_columns);

@@ -473,9 +473,9 @@ class MaterializeIterator final : public TableRowIterator {
     /// If set to false, the Field objects in the output row are
     /// presumed already to be filled out. This is the case iff
     /// there's a windowing iterator earlier in the chain.
-    bool copy_fields_and_items;
+    bool copy_items;
 
-    /// If copy_fields_and_items is true, used for copying the Field objects
+    /// If copy_items is true, used for copying the Field objects
     /// into the temporary table row. Otherwise unused.
     Temp_table_param *temp_table_param;
 

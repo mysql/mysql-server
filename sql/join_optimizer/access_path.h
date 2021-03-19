@@ -1201,7 +1201,7 @@ inline AccessPath *NewStreamingAccessPath(THD *thd, AccessPath *child,
 
 inline Mem_root_array<MaterializePathParameters::QueryBlock>
 SingleMaterializeQueryBlock(THD *thd, AccessPath *path, int select_number,
-                            JOIN *join, bool copy_fields_and_items,
+                            JOIN *join, bool copy_items,
                             Temp_table_param *temp_table_param) {
   assert(path != nullptr);
   Mem_root_array<MaterializePathParameters::QueryBlock> array(thd->mem_root, 1);
@@ -1210,7 +1210,7 @@ SingleMaterializeQueryBlock(THD *thd, AccessPath *path, int select_number,
   query_block.select_number = select_number;
   query_block.join = join;
   query_block.disable_deduplication_by_hash_field = false;
-  query_block.copy_fields_and_items = copy_fields_and_items;
+  query_block.copy_items = copy_items;
   query_block.temp_table_param = temp_table_param;
   return array;
 }

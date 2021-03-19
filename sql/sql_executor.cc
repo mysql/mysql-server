@@ -441,12 +441,11 @@ void update_tmptable_sum_func(Item_sum **func_ptr,
 */
 bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
   DBUG_TRACE;
-  if (!param->items_to_copy->size()) return false;
+  if (param->items_to_copy == nullptr || param->items_to_copy->empty()) {
+    return false;
+  }
 
-  Func_ptr_array *func_ptr = param->items_to_copy;
-  uint end = func_ptr->size();
-  for (uint i = 0; i < end; i++) {
-    Func_ptr &func = func_ptr->at(i);
+  for (const Func_ptr &func : *param->items_to_copy) {
     Item *item = func.func();
     bool do_copy = false;
     switch (type) {
@@ -478,6 +477,9 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
         break;
       case CFT_WF:
         do_copy = item->m_is_window_function;
+        break;
+      case CFT_FIELDS:
+        do_copy = item->type() == Item::FIELD_ITEM;
         break;
     }
 
@@ -953,18 +955,17 @@ enum CallingContext {
 /**
   For historical reasons, derived table materialization and temporary
   table materialization didn't specify the fields to materialize in the
-  same way. Temporary table materialization used copy_fields() and
-  copy_funcs() (also reused for aggregation; see the comments on
-  AggregateIterator for the relation between aggregations and temporary
-  tables) to get the data into the Field pointers of the temporary table
-  to be written, storing the lists in copy_fields and items_to_copy.
+  same way. Temporary table materialization used copy_funcs() to get the data
+  into the Field pointers of the temporary table to be written, storing the
+  lists in items_to_copy. (Originally, there was also copy_fields(), but it is
+  no longer used for this purpose.)
 
   However, derived table materialization used JOIN::fields (which is a
   set of Item, not Field!) for the same purpose, calling fill_record()
   (which originally was meant for INSERT and UPDATE) instead. Thus, we
   have to rewrite one to the other, so that we can have only one
   MaterializeIterator. We choose to rewrite JOIN::fields to
-  copy_fields/items_to_copy.
+  items_to_copy.
 
   TODO: The optimizer should output just one kind of structure directly.
  */
@@ -977,15 +978,7 @@ void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
       new (current_thd->mem_root) Func_ptr_array(current_thd->mem_root);
   Field **field_ptr = fields;
   for (Item *item : VisibleFields(items)) {
-    Item *real_item = item->real_item();
-    if (real_item->type() == Item::FIELD_ITEM) {
-      Field *from_field = (pointer_cast<Item_field *>(real_item))->field;
-      Field *to_field = *field_ptr;
-      param->copy_fields.emplace_back(to_field, from_field, /*save=*/true);
-    } else {
-      copy_func->push_back(Func_ptr(item, *field_ptr));
-    }
-    ++field_ptr;
+    copy_func->push_back(Func_ptr(item, *field_ptr++));
   }
   param->items_to_copy = copy_func;
 }
@@ -1522,9 +1515,9 @@ AccessPath *GetAccessPathForDerivedTable(
                      : query_expression->first_query_block()->join;
     path = NewMaterializeAccessPath(
         thd,
-        SingleMaterializeQueryBlock(
-            thd, query_expression->root_access_path(), select_number, join,
-            /*copy_fields_and_items=*/true, tmp_table_param),
+        SingleMaterializeQueryBlock(thd, query_expression->root_access_path(),
+                                    select_number, join,
+                                    /*copy_items=*/true, tmp_table_param),
         invalidators, table, table_path, table_ref->common_table_expr(),
         query_expression,
         /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
@@ -1611,14 +1604,13 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
     subtree_path = PossiblyAttachFilter(subtree_path, not_null_conditions, thd,
                                         &conditions_depend_on_outer_tables);
 
-    bool copy_fields_and_items_in_materialize =
+    bool copy_items_in_materialize =
         true;  // We never have windowing functions within semijoins.
     table_path = NewMaterializeAccessPath(
         thd,
         SingleMaterializeQueryBlock(
             thd, subtree_path, qep_tab->join()->query_block->select_number,
-            qep_tab->join(), copy_fields_and_items_in_materialize,
-            &sjm->table_param),
+            qep_tab->join(), copy_items_in_materialize, &sjm->table_param),
         qep_tab->invalidators, qep_tab->table(), qep_tab->access_path(),
         /*cte=*/nullptr,
         /*query_expression=*/nullptr,
@@ -2839,7 +2831,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             thd,
             SingleMaterializeQueryBlock(
                 thd, path, query_block->select_number, this,
-                /*copy_fields_and_items=*/true, qep_tab->tmp_table_param),
+                /*copy_items=*/true, qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
             /*cte=*/nullptr, query_expression(), qep_tab->ref_item_slice,
             /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
@@ -3017,7 +3009,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             thd,
             SingleMaterializeQueryBlock(
                 thd, path, query_block->select_number, this,
-                /*copy_fields_and_items=*/false, qep_tab->tmp_table_param),
+                /*copy_items=*/false, qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
             /*cte=*/nullptr, query_expression(),
             /*ref_slice=*/-1,
@@ -3063,7 +3055,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         path = NewMaterializeAccessPath(
             thd,
             SingleMaterializeQueryBlock(thd, path, query_block->select_number,
-                                        this, /*copy_fields_and_items=*/true,
+                                        this, /*copy_items=*/true,
                                         qep_tab->tmp_table_param),
             qep_tab->invalidators, qep_tab->table(), table_path,
             /*cte=*/nullptr, query_expression(), qep_tab->ref_item_slice,
@@ -4490,8 +4482,7 @@ finish:
 
   This reads the values of the GROUP BY expressions from fields so assumes
   those expressions have been computed and stored into fields of a temporary
-  table; in practice this means that copy_fields() and copy_funcs() must have
-  been called.
+  table; in practice this means that copy_funcs() must have been called.
 */
 
 static ulonglong unique_hash_group(ORDER *group) {
@@ -4679,8 +4670,9 @@ static size_t compute_ria_idx(const mem_root_deque<Item *> &fields, size_t i,
 /**
   Make a copy of all simple SELECT'ed fields.
 
-  This is used in materialization, to copy the values into the temporary
-  table's fields.
+  This is used in window functions, to copy fields to and from the frame buffer.
+  (It used to be used in materialization, but now that is entirely done by
+  copy_funcs(), even for Item_field.)
 
   @param param     Represents the current temporary file being produced
   @param thd       The current thread
@@ -4698,15 +4690,6 @@ bool copy_fields(Temp_table_param *param, const THD *thd, bool reverse_copy) {
   for (Copy_field &ptr : param->copy_fields) ptr.invoke_do_copy(reverse_copy);
 
   if (thd->is_error()) return true;
-  return false;
-}
-
-bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
-                           Copy_func_type type) {
-  if (copy_fields(param, thd)) return true;
-  if (param->items_to_copy != nullptr) {
-    if (copy_funcs(param, thd, type)) return true;
-  }
   return false;
 }
 
@@ -5173,7 +5156,7 @@ int UnqualifiedCountIterator::Read() {
   // If we are outputting to a temporary table, we need to copy the results
   // into it here. It is also used for nonaggregated items, even when there are
   // no temporary tables involved.
-  if (copy_fields_and_funcs(&m_join->tmp_table_param, m_join->thd)) {
+  if (copy_funcs(&m_join->tmp_table_param, m_join->thd)) {
     return 1;
   }
 

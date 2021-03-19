@@ -389,7 +389,7 @@ inline void dbug_restore_all_columns(std::map<TABLE *, my_bitmap_map *> &map) {
 
 /**
   Bring back buffered data to the record of qep_tab-1 [1], and optionally
-  execute copy_fields() to the OUT table.
+  execute copy_funcs() to the OUT table.
 
   [1] This is not always the case. For the first window, if we have no
   PARTITION BY or ORDER BY in the window, and there is more than one table
@@ -404,7 +404,8 @@ inline void dbug_restore_all_columns(std::map<TABLE *, my_bitmap_map *> &map) {
 
   @param thd       The current thread
   @param w         The current window
-  @param out_param OUT table; if not nullptr, does copy_fields() to OUT
+  @param out_param OUT table; if not nullptr, does copy_funcs() to OUT
+                   (fields only)
   @param rowno     The row number (in the partition) to set up
   @param reason    What kind of row to retrieve
   @param fno       Used with NTH_VALUE and LEAD/LAG to specify which
@@ -491,7 +492,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 
   if (!rc) {
     if (out_param) {
-      if (copy_fields(out_param, thd)) return true;
+      if (copy_funcs(out_param, thd, CFT_FIELDS)) return true;
       // fields are in IN and in OUT
       if (rowno >= 1) w->set_row_has_fields_in_out_table(rowno);
     } else
@@ -1568,7 +1569,7 @@ int WindowIterator::Read() {
 
   SwitchSlice(m_join, m_output_slice);
 
-  if (copy_fields_and_funcs(m_temp_table_param, thd(), CFT_HAS_NO_WF)) return 1;
+  if (copy_funcs(m_temp_table_param, thd(), CFT_HAS_NO_WF)) return 1;
 
   m_window->check_partition_boundary();
 
@@ -1677,7 +1678,7 @@ int BufferingWindowIterator::Read() {
         when the row is fully computable, we will re-evaluate the
         CFT_NON_WF to get a correct value for 1+LEAD.
       */
-      if (copy_fields_and_funcs(m_temp_table_param, thd(), CFT_HAS_NO_WF)) {
+      if (copy_funcs(m_temp_table_param, thd(), CFT_HAS_NO_WF)) {
         return 1;
       }
 

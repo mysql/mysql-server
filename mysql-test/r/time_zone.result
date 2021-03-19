@@ -58,11 +58,16 @@ SET TIME_ZONE = 'SYSTEM';
 SELECT DISTINCT c1 FROM t1;
 c1
 2019-10-27 02:47:42
+2019-10-27 02:47:42
 SELECT COUNT(*) FROM t1 GROUP BY c1;
-ERROR HY000: Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query.
+COUNT(*)
+2
+2
 SET sql_mode='';
 SELECT COUNT(*) FROM t1 GROUP BY c1;
-ERROR HY000: Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query.
+COUNT(*)
+2
+2
 SET sql_mode=DEFAULT;
 SET explicit_defaults_for_timestamp=ON;
 DROP TABLE t1;

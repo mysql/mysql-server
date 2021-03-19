@@ -2196,7 +2196,7 @@ bool Query_result_update::optimize() {
     group->item = &temp_fields.front();
 
     tmp_param->allow_group_via_temp_table = true;
-    tmp_param->field_count = temp_fields.size();
+    tmp_param->func_count = temp_fields.size();
     tmp_param->group_parts = 1;
     tmp_param->group_length = table->file->ref_length;
     tmp_tables[cnt] =

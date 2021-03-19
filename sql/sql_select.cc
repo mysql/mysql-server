@@ -3791,7 +3791,6 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
                        bool reset_with_sum_func, bool save_sum_fields) {
   DBUG_TRACE;
 
-  param->field_count = 0;
   param->sum_func_count = 0;
   param->func_count = 0;
   param->hidden_field_count = 0;
@@ -3808,9 +3807,7 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
     Item *real = field->real_item();
     Item::Type real_type = real->type();
 
-    if (real_type == Item::FIELD_ITEM)
-      param->field_count++;
-    else if (real_type == Item::SUM_FUNC_ITEM && !real->m_is_window_function) {
+    if (real_type == Item::SUM_FUNC_ITEM && !real->m_is_window_function) {
       if (!field->const_item()) {
         Item_sum *sum_item = down_cast<Item_sum *>(field->real_item());
         if (sum_item->aggr_query_block == query_block) {
@@ -3818,13 +3815,8 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
             param->allow_group_via_temp_table = false;  // UDF SUM function
           param->sum_func_count++;
 
-          for (uint i = 0; i < sum_item->argument_count();
-               i++) {  // Add one column per argument
-            if (sum_item->get_arg(i)->real_item()->type() == Item::FIELD_ITEM)
-              param->field_count++;
-            else
-              param->func_count++;
-          }
+          // Add one column per argument.
+          param->func_count += sum_item->argument_count();
         }
         param->func_count++;  // A group aggregate function is a function!
       } else if (save_sum_fields) {
@@ -3836,10 +3828,9 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
           item. We need to distinguish between these two cases since
           they are treated differently by create_tmp_table().
         */
-        if (field->type() == Item::SUM_FUNC_ITEM)  // An Item_sum_*
-          param->field_count++;
-        else  // A reference to an Item_sum_*
-        {
+        param->func_count++;
+        if (field->type() != Item::SUM_FUNC_ITEM) {
+          // A reference to an Item_sum_*
           param->func_count++;
           param->sum_func_count++;
         }
@@ -3849,12 +3840,7 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
       param->func_count++;
 
       Item_sum *window_item = down_cast<Item_sum *>(real);
-      for (uint i = 0; i < window_item->argument_count(); i++) {
-        if (window_item->get_arg(i)->real_item()->type() == Item::FIELD_ITEM)
-          param->field_count++;
-        else
-          param->func_count++;
-      }
+      param->func_count += window_item->argument_count();
     } else {
       param->func_count++;
       if (reset_with_sum_func) field->reset_aggregation();
@@ -4353,7 +4339,7 @@ bool JOIN::make_tmp_tables_info() {
     tmp_table_param.func_count = 0;
 
     if (streaming_aggregation || qep_tab[curr_tmp_table].table()->group) {
-      tmp_table_param.field_count += tmp_table_param.sum_func_count;
+      tmp_table_param.func_count += tmp_table_param.sum_func_count;
       tmp_table_param.sum_func_count = 0;
     }
 
@@ -4478,8 +4464,7 @@ bool JOIN::make_tmp_tables_info() {
       select_distinct = false;
     }
     /* Clean tmp_table_param for the next tmp table. */
-    tmp_table_param.field_count = tmp_table_param.sum_func_count =
-        tmp_table_param.func_count = 0;
+    tmp_table_param.sum_func_count = tmp_table_param.func_count = 0;
 
     tmp_table_param.cleanup();
     streaming_aggregation = false;

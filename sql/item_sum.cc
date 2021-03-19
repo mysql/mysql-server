@@ -73,7 +73,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_exception_handler.h"  // handle_std_exception
-#include "sql/sql_executor.h"           // copy_fields
+#include "sql/sql_executor.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
 #include "sql/sql_resolver.h"  // setup_order
@@ -1229,7 +1229,6 @@ bool Aggregator_distinct::add() {
       sum->count = 1;
       return false;
     }
-    if (copy_fields(tmp_table_param, thd)) return true;
     if (copy_funcs(tmp_table_param, thd)) return true;
 
     for (Field **field = table->field; *field; field++)
@@ -4266,7 +4265,6 @@ void Item_func_group_concat::clear() {
 bool Item_func_group_concat::add() {
   if (always_null) return false;
   THD *thd = current_thd;
-  if (copy_fields(tmp_table_param, thd)) return true;
   if (copy_funcs(tmp_table_param, thd)) return true;
 
   for (uint i = 0; i < m_field_arg_count; i++) {

@@ -208,14 +208,15 @@ enum Copy_func_type {
     Copies all window functions.
   */
   CFT_WF,
+  /**
+    Copies Item_field only (typically because other functions might depend
+    on those fields).
+  */
+  CFT_FIELDS,
 };
 
 bool copy_funcs(Temp_table_param *, const THD *thd,
                 Copy_func_type type = CFT_ALL);
-
-// Combines copy_fields() and copy_funcs().
-bool copy_fields_and_funcs(Temp_table_param *param, const THD *thd,
-                           Copy_func_type type = CFT_ALL);
 
 /**
   Copy the lookup key into the table ref's key buffer.

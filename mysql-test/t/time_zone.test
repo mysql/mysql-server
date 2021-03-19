@@ -72,19 +72,13 @@ INSERT INTO t1 VALUES('2019-10-27 01:47:42'), ('2019-10-27 01:47:42');
 
 SET TIME_ZONE = 'SYSTEM';
 
-# Chooses a different query plan (sorting instead of temporary
-# table aggregation), which does not get the bug.
-# See comments in TemptableAggregateIterator::Init().
---skip_if_hypergraph
 SELECT DISTINCT c1 FROM t1;
 
---skip_if_hypergraph   # Chooses a different query plan, which does not get the duplicate key error.
---error ER_GROUPING_ON_TIMESTAMP_IN_DST
+--skip_if_hypergraph   # Chooses a different query plan, which causes different grouping.
 SELECT COUNT(*) FROM t1 GROUP BY c1;
 
 SET sql_mode='';
---skip_if_hypergraph   # Chooses a different query plan, which does not get the duplicate key error.
---error ER_GROUPING_ON_TIMESTAMP_IN_DST
+--skip_if_hypergraph   # Chooses a different query plan, which causes different grouping.
 SELECT COUNT(*) FROM t1 GROUP BY c1;
 SET sql_mode=DEFAULT;
 

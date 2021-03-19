@@ -2281,8 +2281,7 @@ AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
   AccessPath *materialize_path = NewMaterializeAccessPath(
       thd,
       SingleMaterializeQueryBlock(thd, path, /*select_number=*/-1, join,
-                                  /*copy_fields_and_items=*/true,
-                                  temp_table_param),
+                                  /*copy_items=*/true, temp_table_param),
       /*invalidators=*/nullptr, temp_table, table_path, /*cte=*/nullptr,
       /*unit=*/nullptr, /*ref_slice=*/-1, /*rematerialize=*/true,
       /*limit_rows=*/HA_POS_ERROR, /*reject_multiple_rows=*/false);

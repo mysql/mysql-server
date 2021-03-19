@@ -818,9 +818,8 @@ bool MaterializeIterator::MaterializeQueryBlock(const QueryBlock &query_block,
     }
 
     // Materialize items for this row.
-    if (query_block.copy_fields_and_items) {
-      if (copy_fields_and_funcs(query_block.temp_table_param, thd()))
-        return true;
+    if (query_block.copy_items) {
+      if (copy_funcs(query_block.temp_table_param, thd())) return true;
     }
 
     if (query_block.disable_deduplication_by_hash_field) {
@@ -970,7 +969,7 @@ int StreamingIterator::Read() {
   if (error != 0) return error;
 
   // Materialize items for this row.
-  if (copy_fields_and_funcs(m_temp_table_param, thd())) return 1;
+  if (copy_funcs(m_temp_table_param, thd())) return 1;
 
   if (m_provide_rowid) {
     memcpy(table()->file->ref, &m_row_number, sizeof(m_row_number));
@@ -1042,7 +1041,7 @@ bool TemptableAggregateIterator::Init() {
     }
 
     // Materialize items for this row.
-    if (copy_fields(m_temp_table_param, thd()))
+    if (copy_funcs(m_temp_table_param, thd(), CFT_FIELDS))
       return true; /* purecov: inspected */
 
     // See if we have seen this row already; if so, we want to update it,

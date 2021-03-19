@@ -924,8 +924,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
 
   param->keyinfo = static_cast<KEY *>(own_root.Alloc(sizeof(*param->keyinfo)));
 
-  const uint field_count =
-      param->field_count + param->func_count + param->sum_func_count;
+  const uint field_count = param->func_count + param->sum_func_count;
   try {
     param->copy_fields.reserve(field_count);
   } catch (std::bad_alloc &) {
@@ -936,26 +935,26 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
   TABLE *table = new (&own_root) TABLE;
   if (table == nullptr || share == nullptr) return nullptr;
 
-  // NOTE: reg_field/default_field/from_field correspond 1:1 to each other,
-  // except that reg_field contains an extra nullptr marker at the end.
+  // NOTE: reg_field/default_field/from_field/from_item correspond 1:1 to each
+  // other, except that reg_field contains an extra nullptr marker at the end.
   // (They should have been a struct, but we cannot, since the reg_field
   // array ends up in the TABLE object, which expects a flat array.)
   // blob_field is a separate array, which indexes into these.
-  Field **reg_field = own_root.ArrayAlloc<Field *>(field_count + 2);
-  Field **default_field = own_root.ArrayAlloc<Field *>(field_count + 1);
-  Field **from_field = own_root.ArrayAlloc<Field *>(field_count + 1);
+  Field **reg_field = own_root.ArrayAlloc<Field *>(field_count + 2, nullptr);
+  Field **default_field =
+      own_root.ArrayAlloc<Field *>(field_count + 1, nullptr);
+  Field **from_field = own_root.ArrayAlloc<Field *>(field_count + 1, nullptr);
+  Item **from_item = own_root.ArrayAlloc<Item *>(field_count + 1, nullptr);
   uint *blob_field = own_root.ArrayAlloc<uint>(field_count + 2);
   if (reg_field == nullptr || default_field == nullptr ||
-      from_field == nullptr || blob_field == nullptr)
+      from_field == nullptr || from_item == nullptr || blob_field == nullptr)
     return nullptr;
-  memset(reg_field, 0, sizeof(Field *) * (field_count + 2));
-  memset(default_field, 0, sizeof(Field *) * (field_count + 1));
-  memset(from_field, 0, sizeof(Field *) * (field_count + 1));
 
   // Leave the first place to be prepared for hash_field
   reg_field++;
   default_field++;
   from_field++;
+  from_item++;
   table->init_tmp_table(thd, share, &own_root, param->table_charset,
                         table_alias, reg_field, blob_field, false);
 
@@ -1057,6 +1056,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
               thd, table, arg, arg->type(), param->items_to_copy,
               &from_field[fieldnr], &default_field[fieldnr], group != nullptr,
               not_all_columns, false, false, false);
+          from_item[fieldnr] = arg;
           if (new_field == nullptr) return nullptr;  // Should be OOM
           new_field->set_field_index(fieldnr);
           reg_field[fieldnr++] = new_field;
@@ -1123,6 +1123,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
             param->force_copy_fields,
             (param->m_window &&  // (3)
              param->m_window->frame_buffer_param() && item->is_result_field()));
+        from_item[fieldnr] = item;
       }
 
       if (new_field == nullptr) {
@@ -1370,6 +1371,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     table->field--;
     default_field--;
     from_field--;
+    from_item--;
     share->reclength += field->pack_length();
     share->fields = ++fieldnr;
     param->hidden_field_count++;
@@ -1485,7 +1487,12 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         window_fb->copy_fields.emplace_back(from_field[i], field,
                                             save_sum_fields);
       } else {
-        param->copy_fields.emplace_back(field, from_field[i], save_sum_fields);
+        if (param->m_window) {
+          param->copy_fields.emplace_back(field, from_field[i],
+                                          save_sum_fields);
+        }
+
+        param->items_to_copy->push_back(Func_ptr{from_item[i], field});
       }
     }
 

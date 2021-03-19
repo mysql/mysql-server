@@ -853,7 +853,7 @@ Query_expression::setup_materialization(THD *thd, TABLE *dst_table,
     query_block.join = join;
     query_block.disable_deduplication_by_hash_field =
         (mixed_union_operators() && !activate_deduplication);
-    query_block.copy_fields_and_items = true;
+    query_block.copy_items = true;
     query_block.temp_table_param = &join->tmp_table_param;
     query_block.is_recursive_reference = select->recursive_reference;
     query_blocks.push_back(move(query_block));

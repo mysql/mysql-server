@@ -4354,7 +4354,7 @@ static TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list) {
   if (!tmp_table_param) return nullptr;
 
   tmp_table_param->table_charset = cs;
-  tmp_table_param->field_count = field_count;
+  tmp_table_param->func_count = field_count;
   tmp_table_param->schema_table = true;
   Query_block *query_block = thd->lex->current_query_block();
   if (!(table = create_tmp_table(
