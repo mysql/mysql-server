@@ -3008,7 +3008,8 @@ bool Item_field::eq(const Item *item, bool) const {
 
 table_map Item_field::used_tables() const {
   if (!table_ref) return 1;  // Temporary table; always table 0
-  if (table_ref->table->const_table) return 0;  // const item
+  if (table_ref->table && table_ref->table->const_table)
+    return 0;  // const item
   return depended_from ? OUTER_REF_TABLE_BIT : table_ref->map();
 }
 

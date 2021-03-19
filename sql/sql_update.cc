@@ -2635,8 +2635,13 @@ bool Query_result_update::do_updates(THD *thd) {
         bool rc = table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                                     TRG_ACTION_BEFORE, true);
 
-        // Trigger might have changed dependencies of generated columns
+        /* Trigger might have changed dependencies of generated columns.
+           Avoid re-calculating generated fields if it is part of any key, as
+           we are not sure whether base column on which gcol depends has been
+           modified by triggers.
+         */
         if (!rc && table->vfield &&
+            ((*table->vfield)->part_of_key.is_clear_all()) &&
             update_generated_write_fields(table->write_set, table))
           goto err;
 
