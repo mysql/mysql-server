@@ -174,6 +174,14 @@ class Procedure_impl : public Routine_impl, public Procedure {
  private:
   Procedure_impl(const Procedure_impl &src);
   Procedure_impl *clone() const override { return new Procedure_impl(*this); }
+
+  Procedure *clone_dropped_object_placeholder() const override {
+    Procedure_impl *placeholder = new Procedure_impl();
+    placeholder->set_id(id());
+    placeholder->set_schema_id(schema_id());
+    placeholder->set_name(name());
+    return placeholder;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

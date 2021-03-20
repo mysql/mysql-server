@@ -84,6 +84,13 @@ class Resource_group : virtual public Entity_object {
 
   virtual Resource_group *clone() const = 0;
 
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry (i.e. it has the same
+    keys as original).
+  */
+  virtual Resource_group *clone_dropped_object_placeholder() const = 0;
+
   static void create_mdl_key(const String_type &name, MDL_key *key);
 };
 }  // namespace dd
