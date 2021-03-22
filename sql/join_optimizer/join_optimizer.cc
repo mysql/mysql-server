@@ -2194,7 +2194,7 @@ void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
       // items_to_copy in create_tmp_field(). Aggregate functions have not been
       // added, so add them here.
       if (item->type() == Item::SUM_FUNC_ITEM) {
-        temp_table_param->items_to_copy->push_back(Func_ptr{item});
+        temp_table_param->items_to_copy->push_back(Func_ptr{item, field});
       }
 
       // Verify that all non-field items have been added to items_to_copy.

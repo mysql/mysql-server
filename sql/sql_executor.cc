@@ -482,13 +482,7 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
     }
 
     if (do_copy) {
-      if (func.override_result_field() == nullptr) {
-        item->save_in_field(item->get_result_field(),
-                            /*no_conversions=*/true);
-      } else {
-        item->save_in_field(func.override_result_field(),
-                            /*no_conversions=*/true);
-      }
+      item->save_in_field(func.result_field(), /*no_conversions=*/true);
       /*
         Need to check the THD error state because Item::val_xxx() don't
         return error code, but can generate errors
@@ -598,7 +592,8 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
 
     for (Item_sum **func_ptr = join->sum_funcs; *func_ptr != nullptr;
          ++func_ptr) {
-      tmp_tbl->items_to_copy->push_back(Func_ptr(*func_ptr));
+      tmp_tbl->items_to_copy->push_back(
+          Func_ptr(*func_ptr, (*func_ptr)->get_result_field()));
     }
   } else {
     description = "write_all_rows";
@@ -607,7 +602,8 @@ void setup_tmptable_write_func(QEP_TAB *tab, Opt_trace_object *trace) {
     if (tmp_tbl->precomputed_group_by) {
       for (Item_sum **func_ptr = join->sum_funcs; *func_ptr != nullptr;
            ++func_ptr) {
-        tmp_tbl->items_to_copy->push_back(Func_ptr(*func_ptr));
+        tmp_tbl->items_to_copy->push_back(
+            Func_ptr(*func_ptr, (*func_ptr)->get_result_field()));
       }
     }
   }
@@ -986,14 +982,8 @@ void ConvertItemsToCopy(const mem_root_deque<Item *> &items, Field **fields,
       Field *from_field = (pointer_cast<Item_field *>(real_item))->field;
       Field *to_field = *field_ptr;
       param->copy_fields.emplace_back(to_field, from_field, /*save=*/true);
-    } else if (item->is_result_field()) {
-      Field *to_field = *field_ptr;
-      item->set_result_field(to_field);
-      copy_func->push_back(Func_ptr(item));
     } else {
-      Func_ptr ptr(item);
-      ptr.set_override_result_field(*field_ptr);
-      copy_func->push_back(ptr);
+      copy_func->push_back(Func_ptr(item, *field_ptr));
     }
     ++field_ptr;
   }

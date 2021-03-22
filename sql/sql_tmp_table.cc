@@ -395,7 +395,9 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
           copy_func. We separate fields from functions by checking if the
           item is a result field item.
          */
-        if (item->is_result_field()) copy_func->push_back(Func_ptr(item));
+        if (item->is_result_field()) {
+          copy_func->push_back(Func_ptr(item, result));
+        }
       } else {
         result = create_tmp_field_from_field(
             thd, item_field->field,
@@ -432,8 +434,6 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         if (make_copy_field) {
           assert(item_func_sp->get_result_field());
           *from_field = item_func_sp->get_result_field();
-        } else {
-          copy_func->push_back(Func_ptr(item));
         }
 
         result = create_tmp_field_from_field(thd, sp_result_field,
@@ -441,6 +441,9 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
                                              table, nullptr);
         if (!result) break;
         if (modify_item) item_func_sp->set_result_field(result);
+        if (!make_copy_field) {
+          copy_func->push_back(Func_ptr(item, result));
+        }
         break;
       }
 
@@ -493,8 +496,9 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         result = create_tmp_field_from_item(item, table);
         if (result == nullptr) return nullptr;
         if (modify_item) item->set_result_field(result);
-        if (copy_func && !make_copy_field && item->is_result_field())
-          copy_func->push_back(Func_ptr(item));
+        if (copy_func && !make_copy_field && item->is_result_field()) {
+          copy_func->push_back(Func_ptr(item, result));
+        }
         if (copy_result_field) result->set_flag(FIELD_IS_MARKED);
       }
       break;
