@@ -145,19 +145,12 @@ void hash_table_free(hash_table_t *table) /*!< in, own: hash table */
 
 #ifndef UNIV_HOTBACKUP
 
-/** Creates a sync object array to protect a hash table. "::sync_obj" can be
-mutexes or rw_locks depening on the type of hash table.
-@param[in]	table		hash table
-@param[in]	type		HASH_TABLE_SYNC_MUTEX or HASH_TABLE_SYNC_RW_LOCK
-@param[in]	id		latch ID
-@param[in]	n_sync_obj	number of sync objects, must be a power of 2 */
-void hash_create_sync_obj(hash_table_t *table, enum hash_table_sync_t type,
-                          latch_id_t id, ulint n_sync_obj) {
+void hash_create_sync_obj(hash_table_t *table, latch_id_t id,
+                          ulint n_sync_obj) {
   ut_a(n_sync_obj > 0);
   ut_a(ut_is_2pow(n_sync_obj));
   ut_ad(table->magic_n == HASH_TABLE_MAGIC_N);
-  ut_a(type == HASH_TABLE_SYNC_RW_LOCK);
-  table->type = type;
+  table->type = HASH_TABLE_SYNC_RW_LOCK;
   latch_level_t level = sync_latch_get_level(id);
 
   ut_a(level != SYNC_UNKNOWN);

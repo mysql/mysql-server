@@ -68,11 +68,9 @@ hash_table_t *hash_create(ulint n); /*!< in: number of array cells */
 
 /** Creates a sync object array to protect a hash table.
 @param[in]	table		hash table
-@param[in]	type		HASH_TABLE_SYNC_MUTEX or HASH_TABLE_SYNC_RW_LOCK
 @param[in]	id		latch ID
 @param[in]	n_sync_obj	number of sync objects, must be a power of 2 */
-void hash_create_sync_obj(hash_table_t *table, hash_table_sync_t type,
-                          latch_id_t id, ulint n_sync_obj);
+void hash_create_sync_obj(hash_table_t *table, latch_id_t id, ulint n_sync_obj);
 #endif /* !UNIV_HOTBACKUP */
 
 /** Frees a hash table. */
