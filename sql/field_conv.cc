@@ -764,6 +764,13 @@ type_conversion_status field_conv(Field *to, const Field *from) {
     const Field_json *from_json = down_cast<const Field_json *>(from);
     return to_json->store(from_json);
   }
+  if (from->is_array()) {
+    assert(to->is_array() && from->real_type() == to->real_type() &&
+           from->charset() == to->charset());
+    const Field_blob *from_blob = down_cast<const Field_blob *>(from);
+    Field_blob *to_blob = down_cast<Field_blob *>(to);
+    return to_blob->store(from_blob);
+  }
 
   if (to->real_type() == from->real_type() &&
       !((is_blob_type(to)) && to->table->copy_blobs) &&
