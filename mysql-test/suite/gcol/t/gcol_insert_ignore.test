@@ -65,7 +65,8 @@ CREATE TABLE data_types (
   id INT PRIMARY KEY AUTO_INCREMENT,
   name TEXT
 );
-INSERT INTO data_types (name) SELECT DISTINCT(type_name) FROM data_examples;
+INSERT INTO data_types (name)
+  SELECT type_name FROM data_examples GROUP BY type_name ORDER BY MIN(id);
 
 --let $types_cnt = `SELECT COUNT(1) FROM data_types`
 --let $examples_cnt = `SELECT COUNT(1) FROM data_examples`
