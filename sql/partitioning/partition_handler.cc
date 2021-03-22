@@ -810,6 +810,7 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
     Field *field = *field_array;
     if (use_51_hash) {
       switch (field->real_type()) {
+        case MYSQL_TYPE_BOOL:
         case MYSQL_TYPE_TINY:
         case MYSQL_TYPE_SHORT:
         case MYSQL_TYPE_LONG:
@@ -881,7 +882,6 @@ uint32 Partition_helper::ph_calculate_key_hash_value(Field **field_array) {
 
         /* These types should not be allowed for partitioning! */
         case MYSQL_TYPE_NULL:
-        case MYSQL_TYPE_BOOL:
         case MYSQL_TYPE_DECIMAL:
         case MYSQL_TYPE_DATE:
         case MYSQL_TYPE_TINY_BLOB:

@@ -60,7 +60,7 @@ Table_partition_values::Table_partition_values() {
   m_target_def.add_field(FIELD_VALUE_UTF8, "FIELD_VALUE_UTF8",
                          "value_utf8 TEXT NULL");
   m_target_def.add_field(FIELD_MAX_VALUE, "FIELD_MAX_VALUE",
-                         "max_value BOOL NOT NULL");
+                         "max_value TINYINT(1) NOT NULL");
 
   m_target_def.add_index(INDEX_PK_PARTITION_ID_LIST_NUM_COLUMN_NUM,
                          "INDEX_PK_PARTITION_ID_LIST_NUM_COLUMN_NUM",

@@ -72,12 +72,12 @@ Indexes::Indexes() {
                          ") NOT NULL");
   m_target_def.add_field(FIELD_IS_ALGORITHM_EXPLICIT,
                          "FIELD_IS_ALGORITHM_EXPLICIT",
-                         "is_algorithm_explicit BOOL NOT NULL");
+                         "is_algorithm_explicit TINYINT(1) NOT NULL");
   m_target_def.add_field(FIELD_IS_VISIBLE, "FIELD_IS_VISIBLE",
-                         "is_visible BOOL NOT NULL");
+                         "is_visible TINYINT(1) NOT NULL");
   m_target_def.add_field(FIELD_IS_GENERATED, "FIELD_IS_GENERATED",
-                         "is_generated BOOL NOT NULL");
-  m_target_def.add_field(FIELD_HIDDEN, "FIELD_HIDDEN", "hidden BOOL NOT NULL");
+                         "is_generated TINYINT(1) NOT NULL");
+  m_target_def.add_field(FIELD_HIDDEN, "FIELD_HIDDEN", "hidden TINYINT(1) NOT NULL");
   m_target_def.add_field(FIELD_ORDINAL_POSITION, "FIELD_ORDINAL_POSITION",
                          "ordinal_position INT UNSIGNED NOT NULL");
   m_target_def.add_field(FIELD_COMMENT, "FIELD_COMMENT",

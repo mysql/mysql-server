@@ -5900,6 +5900,10 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
       field = new (*THR_MALLOC)
           Field_tiny(max_length, maybe_null, item_name.ptr(), unsigned_flag);
       break;
+    case MYSQL_TYPE_BOOL:
+      field = new (*THR_MALLOC)
+        Field_boolean(maybe_null, item_name.ptr());
+        break;
     case MYSQL_TYPE_SHORT:
       field = new (*THR_MALLOC)
           Field_short(max_length, maybe_null, item_name.ptr(), unsigned_flag);
@@ -5949,7 +5953,6 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
           Field_bit_as_char(max_length, maybe_null, item_name.ptr());
       break;
     case MYSQL_TYPE_INVALID:
-    case MYSQL_TYPE_BOOL:
     default:
       /* This case should never be chosen */
       DBUG_ASSERT(0);

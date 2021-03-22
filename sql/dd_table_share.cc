@@ -99,6 +99,9 @@ enum_field_types dd_get_old_field_type(dd::enum_column_types type) {
     case dd::enum_column_types::DECIMAL:
       return MYSQL_TYPE_DECIMAL;
 
+    case dd::enum_column_types::BOOL:
+      return MYSQL_TYPE_BOOL;
+
     case dd::enum_column_types::TINY:
       return MYSQL_TYPE_TINY;
 

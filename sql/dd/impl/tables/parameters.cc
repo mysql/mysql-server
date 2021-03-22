@@ -76,14 +76,14 @@ Parameters::Parameters() {
                          "    'MYSQL_TYPE_LONG_BLOB', 'MYSQL_TYPE_BLOB',\n"
                          "    'MYSQL_TYPE_VAR_STRING',\n"
                          "    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',\n"
-                         "    'MYSQL_TYPE_JSON'\n"
+                         "    'MYSQL_TYPE_JSON', 'MYSQL_TYPE_BOOL'\n"
                          "  ) NOT NULL");
   m_target_def.add_field(FIELD_DATA_TYPE_UTF8, "FIELD_DATA_TYPE_UTF8",
                          "data_type_utf8 MEDIUMTEXT NOT NULL");
   m_target_def.add_field(FIELD_IS_ZEROFILL, "FIELD_IS_ZEROFILL",
-                         "is_zerofill BOOL");
+                         "is_zerofill TINYINT(1)");
   m_target_def.add_field(FIELD_IS_UNSIGNED, "FIELD_IS_UNSIGNED",
-                         "is_unsigned BOOL");
+                         "is_unsigned TINYINT(1)");
   m_target_def.add_field(FIELD_CHAR_LENGTH, "FIELD_CHAR_LENGTH",
                          "char_length INT UNSIGNED");
   m_target_def.add_field(FIELD_NUMERIC_PRECISION, "FIELD_NUMERIC_PRECISION",
