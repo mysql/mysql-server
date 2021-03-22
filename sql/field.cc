@@ -4595,8 +4595,24 @@ type_conversion_status Field_temporal::store(const char *str, size_t len,
       error = TYPE_ERR_BAD_VALUE;
   } else {
     if (ltime.time_type == MYSQL_TIMESTAMP_DATETIME_TZ) {
-      if (convert_time_zone_displacement(current_thd->time_zone(), &ltime))
+      /*
+        Convert the timestamp with timezone to without timezone. This is a
+        lossy conversion for edge cases like for the repeat hour of the
+        DST switch, but useful for the boundary conditions check.
+      */
+      MYSQL_TIME tmp_ltime = ltime;
+      if (convert_time_zone_displacement(current_thd->time_zone(), &tmp_ltime))
         return TYPE_ERR_BAD_VALUE;
+      // check for boundary conditions by converting to a timeval
+      struct timeval tm_not_used;
+      if (datetime_with_no_zero_in_date_to_timeval(
+              &tmp_ltime, *current_thd->time_zone(), &tm_not_used,
+              &status.warnings)) {
+        if (status.warnings &&
+            set_warnings(ErrConvString(str, len, cs), status.warnings))
+          return TYPE_WARN_OUT_OF_RANGE;
+        return TYPE_WARN_OUT_OF_RANGE;
+      }
     }
     error = time_warning_to_type_conversion_status(status.warnings);
     const type_conversion_status tmp_error =
