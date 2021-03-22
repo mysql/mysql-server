@@ -48,14 +48,26 @@ using Mem_root_vector = std::vector<T, Mem_root_allocator<T>>;
 */
 class Func_ptr {
  public:
-  Func_ptr(Item *f, Field *result_field)
-      : m_func(f), m_result_field(result_field) {}
+  Func_ptr(Item *f, Field *result_field);
   Item *func() const { return m_func; }
+  void set_func(Item *func) { m_func = func; }
   Field *result_field() const { return m_result_field; }
+  Item_field *result_item() const { return m_result_item; }
 
  private:
   Item *m_func;
-  Field *m_result_field = nullptr;
+  Field *m_result_field;
+
+  // A premade Item_field for m_result_field (may be nullptr if allocation
+  // failed). This has two purposes:
+  //
+  //  - It avoids repeated constructions if the field is used multiple times
+  //    (e.g., first in a SELECT list, then in a sort order).
+  //  - It gives a canonical, unique item, so that we can compare it with ==
+  //    (in FindReplacementItem(), where ->eq would have a metadata issues).
+  //    This is important if we are to replace it with something else again
+  //    later.
+  Item_field *m_result_item;
 };
 
 /// Used by copy_funcs()

@@ -2860,15 +2860,7 @@ bool reposition_innodb_cursor(TABLE *table, ha_rows row_num) {
   return table->file->ha_rnd_pos(table->record[0], rowid_bytes);
 }
 
-/**
-  Make a unique null-terminated table name, based on a table share pointer.
-
-  The share pointer is taken to be unique throughout the instance.
-  It is converted to a hexadecimal string, which is used as table name.
-
-  @param[out] table_name     Table name, to be filled in with unique name
-  @param      table_name_len Size of table name buffer
-  @param      share          Pointer to table share
-
-  @returns size of table name
-*/
+Func_ptr::Func_ptr(Item *f, Field *result_field)
+    : m_func(f),
+      m_result_field(result_field),
+      m_result_item(new Item_field(result_field)) {}

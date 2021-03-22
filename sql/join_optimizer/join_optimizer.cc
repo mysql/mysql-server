@@ -72,6 +72,7 @@
 #include "sql/sql_list.h"
 #include "sql/sql_optimizer.h"
 #include "sql/sql_planner.h"
+#include "sql/sql_resolver.h"
 #include "sql/sql_select.h"
 #include "sql/sql_tmp_table.h"
 #include "sql/table.h"
@@ -103,13 +104,13 @@ constexpr double kMaterializeOneRowCost = 0.1;
 
 using OrderingSet = std::bitset<kMaxSupportedOrderings>;
 
-void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order);
-
 TABLE *CreateTemporaryTableFromSelectList(
     THD *thd, Query_block *query_block,
     Temp_table_param **temp_table_param_arg);
 
 void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
+                                          Temp_table_param *temp_table_param);
+void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
                                           Temp_table_param *temp_table_param);
 
 AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
@@ -2054,41 +2055,6 @@ bool CheckSupportedQuery(THD *thd, JOIN *join) {
 }
 
 /**
-  If we have both ORDER BY and GROUP BY, we need a materialization step
-  after the grouping -- although in most cases, we only need to
-  materialize one row at a time (streaming), so the performance loss
-  should be very slight. This is because when filesort only really deals
-  with fields, not values; when it is to “output” a row, it puts back the
-  contents of the sorted table's (or tables') row buffer(s). For
-  expressions that only depend on the current row, such as (f1 + 1),
-  this is fine, but aggregate functions (Item_sum) depend on multiple
-  rows, so we need a field where filesort can put back its value
-  (and of course, subsequent readers need to read from that field
-  instead of trying to evaluate the Item_sum). A temporary table provides
-  just that, so we create one based on the current field list;
-  StreamingIterator (or MaterializeIterator, if we actually need to
-  materialize) will evaluate all the Items in turn and put their values
-  into the temporary table's fields.
-
-  For simplicity, we materialize all items in the SELECT list, even those
-  that are not aggregate functions. This is a tiny performance loss,
-  but makes things simpler.
-
-  Note that we don't set up an access path for this temporary table yet,
-  since there may be multiple access paths sharing this temporary table.
-  Thus, that job is deferred to CreateMaterializationPathForSortingAggregates().
- */
-TABLE *CreateTemporaryTableForSortingAggregates(
-    THD *thd, Query_block *query_block, Temp_table_param **temp_table_param) {
-  TABLE *temp_table =
-      CreateTemporaryTableFromSelectList(thd, query_block, temp_table_param);
-
-  ReplaceOrderItemsWithTempTableFields(thd, query_block->order_list.first);
-
-  return temp_table;
-}
-
-/**
   Replaces field references in an ON DUPLICATE KEY UPDATE clause with references
   to corresponding fields in a temporary table. The changes will be rolled back
   at the end of execution and will have to be redone during optimization in the
@@ -2143,7 +2109,6 @@ TABLE *CreateTemporaryTableFromSelectList(
   *temp_table_param_arg = temp_table_param;
   assert(!temp_table_param->precomputed_group_by);
   assert(!temp_table_param->skip_create_table);
-  temp_table_param->hidden_field_count = CountHiddenFields(*join->fields);
   count_field_types(query_block, temp_table_param, *join->fields,
                     /*reset_with_sum_func=*/true, /*save_sum_fields=*/true);
 
@@ -2153,17 +2118,20 @@ TABLE *CreateTemporaryTableFromSelectList(
       query_block->active_options(), /*rows_limit=*/HA_POS_ERROR, "");
   temp_table->alias = "<temporary>";
 
-  const mem_root_deque<Item *> *original_fields = join->fields;
+  // Most items have been added to items_to_copy in create_tmp_field(), but not
+  // aggregate funtions, so add them here.
+  for (Item *item : *join->fields) {
+    if (item->type() == Item::SUM_FUNC_ITEM) {
+      temp_table_param->items_to_copy->push_back(
+          Func_ptr{item, item->get_result_field()});
+    }
 
-  // Replace the SELECT list with items that read from our temporary table.
-  ReplaceSelectListWithTempTableFields(thd, join, temp_table_param);
-
-  // In case we have an INSERT SELECT statement with an ON DUPLICATE KEY UPDATE
-  // clause, we also need to update the references in ODKU.
-  if (thd->lex->sql_command == SQLCOM_INSERT_SELECT) {
-    ReplaceUpdateValuesWithTempTableFields(
-        down_cast<Sql_cmd_insert_select *>(thd->lex->m_sql_cmd), query_block,
-        *original_fields, *join->fields);
+    // Verify that all non-constant items have been added to items_to_copy.
+    assert(item->const_for_execution() ||
+           std::any_of(
+               temp_table_param->items_to_copy->begin(),
+               temp_table_param->items_to_copy->end(),
+               [item](const Func_ptr &ptr) { return ptr.func() == item; }));
   }
 
   // We made a new table, so make sure it gets properly cleaned up
@@ -2175,51 +2143,99 @@ TABLE *CreateTemporaryTableFromSelectList(
 }
 
 /**
+  Check what field the given item will be materialized into under the given
+  temporary table parameters.
+
+  If the item is materialized (ie., found in items_to_copy), we return a
+  canonical Item_field for that field; ie., the same every time. This means
+  that you can do the same replacement in a SELECT list and then in
+  items_to_copy itself, and still have them match. This is used in particular
+  when updating Temp_table_param itself, in FinalizePlanForQueryBlock().
+ */
+Item_field *FindReplacementItem(Item *item,
+                                Temp_table_param *temp_table_param) {
+  for (const Func_ptr &func : *temp_table_param->items_to_copy) {
+    if (func.func() == item) {
+      Item_field *item_field = func.result_item();
+      if (item_field == nullptr) return nullptr;
+      item_field->hidden = item->hidden;
+      return item_field;
+    }
+  }
+  return nullptr;
+}
+
+/**
+  Return a new item that is to be used after materialization (as given by
+  temp_table_param->items_to_copy). There are three main cases:
+
+    1. The item isn't touched by materialization (e.g., because it's constant,
+       or because we're not ready to compute it yet).
+    2. The item is directly in the items_to_copy list, so it has its own field
+       in the resulting temporary table; the corresponding new Item_field
+       is returned.
+    3. A _part_ of the item is in the items_to_copy list; e.g. say that we
+       have an item (t1.x + 1), and t1.x is materialized into <temporary>.x.
+       (In particular, this happens when having expressions that contain
+       aggregate functions _and_ non-aggregates.) In this case, we go in and
+       modify the item in-place, so that the appropriate sub-expressions are
+       replaced; in this case, to (<temporary>.x + 1). This assumes that we
+       never use the same item before and after a materialization in the
+       query plan!
+ */
+Item *FindOrModifyReplacementItem(THD *thd, Item *item,
+                                  Temp_table_param *temp_table_param) {
+  const auto replace_functor = [temp_table_param](Item *sub_item, Item *,
+                                                  unsigned) -> ReplaceResult {
+    if (sub_item->const_for_execution()) {
+      // Stop traversing (which we do with a fake replacement with ourselves).
+      return {ReplaceResult::REPLACE, sub_item};
+    }
+    Item *replacement =
+        FindReplacementItem(sub_item->real_item(), temp_table_param);
+    if (replacement != nullptr) {
+      return {ReplaceResult::REPLACE, replacement};
+    } else {
+      return {ReplaceResult::KEEP_TRAVERSING, nullptr};
+    }
+  };
+
+  if (item->const_for_execution()) {
+    return item;
+  }
+
+  Item *replacement = FindReplacementItem(item, temp_table_param);
+  if (replacement != nullptr) {
+    return replacement;
+  } else {
+    WalkAndReplace(thd, item, std::move(replace_functor));
+    return item;
+  }
+}
+
+/**
   Replaces the items in the SELECT list with items that point to fields in a
-  temporary table.
+  temporary table. See FinalizePlanForQueryBlock() for more information.
  */
 void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
                                           Temp_table_param *temp_table_param) {
   auto fields = new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
   for (Item *item : *join->fields) {
-    Field *field = item->get_tmp_table_field();
-    Item *temp_table_item;
-    if (field == nullptr) {
-      assert(item->const_for_execution());
-      temp_table_item = item;
-    } else {
-      temp_table_item = new Item_field(field);
-      // Field items have already been turned into copy_fields entries in
-      // create_tmp_table(), and most non-field items have been added to
-      // items_to_copy in create_tmp_field(). Aggregate functions have not been
-      // added, so add them here.
-      if (item->type() == Item::SUM_FUNC_ITEM) {
-        temp_table_param->items_to_copy->push_back(Func_ptr{item, field});
-      }
-
-      // Verify that all non-field items have been added to items_to_copy.
-      assert(item->real_item()->type() == Item::FIELD_ITEM ||
-             std::any_of(
-                 temp_table_param->items_to_copy->begin(),
-                 temp_table_param->items_to_copy->end(),
-                 [item](const Func_ptr &ptr) { return ptr.func() == item; }));
-    }
-    temp_table_item->hidden = item->hidden;
-    fields->push_back(temp_table_item);
+    fields->push_back(FindOrModifyReplacementItem(thd, item, temp_table_param));
   }
   join->fields = fields;
 }
 
-void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order) {
-  // Change all items in the ORDER list to point to the temporary table.
-  // This isn't important for streaming (the items would get the correct
-  // value anyway -- although possibly with some extra calculations),
-  // but it is for materialization.
+// Change all items in the ORDER list to point to the temporary table.
+// This isn't important for streaming (the items would get the correct
+// value anyway -- although possibly with some extra calculations),
+// but it is for materialization.
+void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
+                                          Temp_table_param *temp_table_param) {
   for (; order != nullptr; order = order->next) {
-    Field *field = (*order->item)->get_tmp_table_field();
-    if (field != nullptr) {
-      Item_field *temp_field_item = new Item_field(field);
-
+    Item *temp_field_item =
+        FindOrModifyReplacementItem(thd, *order->item, temp_table_param);
+    if (temp_field_item != *order->item) {
       // *order->item points into a memory area (the “base ref slice”)
       // where HAVING might expect to find items _not_ pointing into the
       // temporary table (if there is true materialization, it should run
@@ -2237,10 +2253,10 @@ void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order) {
 }
 
 /**
-  Set up an access path for streaming or materializing between grouping
-  and sorting. See CreateTemporaryTableForSortingAggregates() for details.
+  Set up an access path for streaming or materializing through a temporary
+  table.
  */
-AccessPath *CreateMaterializationPathForSortingAggregates(
+AccessPath *CreateMaterializationOrStreamingPath(
     THD *thd, JOIN *join, AccessPath *path, TABLE *temp_table,
     Temp_table_param *temp_table_param) {
   // See if later sorts will need row IDs from us or not.
@@ -2455,18 +2471,32 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     return root_candidates;
   }
 
-  bool inserted_temp_table = false;
-
-  // If we have grouping followed by a sort, we need to bounce via
-  // the buffers of a temporary table. See the comments on
-  // CreateTemporaryTableForSortingAggregates().
+  // If we have both ORDER BY and GROUP BY, we need a materialization step
+  // after the grouping -- although in most cases, we only need to
+  // materialize one row at a time (streaming), so the performance loss
+  // should be very slight. This is because when filesort only really deals
+  // with fields, not values; when it is to “output” a row, it puts back the
+  // contents of the sorted table's (or tables') row buffer(s). For
+  // expressions that only depend on the current row, such as (f1 + 1),
+  // this is fine, but aggregate functions (Item_sum) depend on multiple
+  // rows, so we need a field where filesort can put back its value
+  // (and of course, subsequent readers need to read from that field
+  // instead of trying to evaluate the Item_sum). A temporary table provides
+  // just that, so we create one based on the current field list;
+  // StreamingIterator (or MaterializeIterator, if we actually need to
+  // materialize) will evaluate all the Items in turn and put their values
+  // into the temporary table's fields.
+  //
+  // For simplicity, we materialize all items in the SELECT list, even those
+  // that are not aggregate functions. This is a tiny performance loss,
+  // but makes things simpler.
   //
   // The test on join->sum_funcs is mainly to avoid having to create temporary
   // tables in unit tests; the rationale is that if there are no aggregate
-  // functions, we also cannot sort on them, and thus, we don't get the problem.
-  // Note that we can't do this if sorting by row IDs, as AggregateIterator
-  // doesn't preserve them (doing so would probably not be worth it for
-  // something that's fairly niche).
+  // functions, we also cannot sort on them, and thus, we don't get the
+  // problem. Note that we can't do this if sorting by row IDs, as
+  // AggregateIterator doesn't preserve them (doing so would probably not be
+  // worth it for something that's fairly niche).
   //
   // NOTE: If we elide the sort due to interesting orderings, this might
   // be redundant. It is fairly harmless, though.
@@ -2474,17 +2504,16 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       (*join->sum_funcs != nullptr ||
        join->rollup_state != JOIN::RollupState::NONE || need_rowid)) {
     Temp_table_param *temp_table_param = nullptr;
-    TABLE *temp_table = CreateTemporaryTableForSortingAggregates(
-        thd, query_block, &temp_table_param);
+    TABLE *temp_table =
+        CreateTemporaryTableFromSelectList(thd, query_block, &temp_table_param);
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      root_path = CreateMaterializationPathForSortingAggregates(
+      root_path = CreateMaterializationOrStreamingPath(
           thd, join, root_path, temp_table, temp_table_param);
       receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
     }
     root_candidates = std::move(new_root_candidates);
-    inserted_temp_table = true;
   }
 
   // Now create iterators for DISTINCT, if applicable.
@@ -2550,15 +2579,10 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
           sort_path.ordering_state = ordering_state;
         }
 
-        if (inserted_temp_table) {
-          ORDER *order_copy = BuildSortAheadOrdering(
-              thd, &orderings,
-              orderings.ordering(sort_ahead_ordering.ordering_idx));
-          ReplaceOrderItemsWithTempTableFields(thd, order_copy);
-          sort_path.sort().order = order_copy;
-        } else {
-          sort_path.sort().order = sort_ahead_ordering.order;
-        }
+        ORDER *order_copy = BuildSortAheadOrdering(
+            thd, &orderings,
+            orderings.ordering(sort_ahead_ordering.ordering_idx));
+        sort_path.sort().order = order_copy;
 
         if (need_rowid) {
           FindTablesToGetRowidFor(&sort_path);
@@ -2575,13 +2599,6 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
   if (query_block->is_ordered()) {
     Mem_root_array<TABLE *> tables = CollectTables(
         thd, root_candidates[0]);  // Should be same for all paths.
-    Filesort *filesort = new (thd->mem_root)
-        Filesort(thd, std::move(tables), /*keep_buffers=*/false,
-                 query_block->order_list.first,
-                 /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
-                 /*remove_duplicates=*/false, /*force_sort_positions=*/false,
-                 /*unwrap_rollup=*/false);
-    join->filesorts_to_cleanup.push_back(filesort);
     if (trace != nullptr) {
       *trace += "Applying sort for ORDER BY\n";
     }
@@ -2593,14 +2610,16 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
       } else {
-        AccessPath *sort_path =
-            NewSortAccessPath(thd, root_path, filesort,
-                              /*count_examined_rows=*/false);
+        AccessPath *sort_path = new (thd->mem_root) AccessPath;
+        sort_path->type = AccessPath::SORT;
+        sort_path->count_examined_rows = false;
+        sort_path->sort().child = root_path;
+        sort_path->sort().filesort = nullptr;
+        sort_path->sort().remove_duplicates = false;
+        sort_path->sort().unwrap_rollup = false;
+        sort_path->sort().order = query_block->order_list.first;
         EstimateSortCost(sort_path);
 
-        if (!filesort->using_addon_fields()) {
-          FindTablesToGetRowidFor(sort_path);
-        }
         receiver.ProposeAccessPath(sort_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "");
       }
@@ -3263,6 +3282,121 @@ static void BuildInterestingOrders(
   }
 }
 
+// If the AccessPath is a materialization (MATERIALIZE or STREAM)
+// within the same query block, returns its temporary table parameters.
+// If not, return nullptr.
+Temp_table_param *GetMaterialization(AccessPath *path) {
+  if (path->type == AccessPath::STREAM) {
+    if (path->stream().table->pos_in_table_list != nullptr) {
+      // Materializes a different query block.
+      return nullptr;
+    }
+    return path->stream().temp_table_param;
+  }
+  if (path->type == AccessPath::MATERIALIZE) {
+    const MaterializePathParameters *param = path->materialize().param;
+    if (param->table->pos_in_table_list != nullptr) {
+      // Materializes a different query block.
+      return nullptr;
+    }
+    assert(param->query_blocks.size() == 1);
+    return param->query_blocks[0].temp_table_param;
+  }
+  return nullptr;
+}
+
+/*
+  Do the final touchups of the access path tree, once we have selected a final
+  plan (ie., there are no more alternatives). There are currently two major
+  tasks to do here: Account for materializations (because we cannot do it until
+  we have the entire plan), and set up filesorts (because it involves
+  constructing new objects, so we don't want to do it for unused candidates).
+  The former also influences the latter.
+
+  Materializations in particular are a bit tricky due to the way our item system
+  works; expression evaluation cares intimately about _where_ values come from,
+  not just what they are (i.e., all non-leaf Items carry references to other
+  Items, and pull data only from there). Thus, whenever an Item is materialized,
+  references to that Item need to be modified to instead point into the correct
+  field in the temporary table. We traverse the tree bottom-up and keep track of
+  which materializations are active, and modify the appropriate Item lists at
+  any given point, so that they point to the right place. We currently modify:
+
+    - The SELECT list. (There is only one, so we can update it as we go.)
+    - Referenced fields for INSERT ... ON DUPLICATE KEY UPDATE (IODKU);
+      also updated as we go.
+    - Sort keys (e.g. for ORDER BY).
+
+  Surprisingly enough, we also need to update the materialization parameters
+  themselves. Say that we first have a materialization that copies
+  t1.x -> <temp1>.x. After that, we have a materialization that copies
+  t1.x -> <temp2>.x. For this to work properly, we obviously need to go in
+  and modify the second one so that it instead says <temp1>.x -> <temp2>.x,
+  ie., the copy is done from the correct source.
+
+  You cannot yet insert temporary tables in arbitrary places in the query;
+  in particular, we do not yet handle these rewrites (although they would
+  very likely be possible):
+
+    - Group elements for aggregations (GROUP BY).
+    - Filters (e.g. WHERE predicates); do note that partial pushdown may
+      present its own challenges.
+    - Join conditions.
+ */
+void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
+                               AccessPath *root_path) {
+  Mem_root_array<Temp_table_param *> applied_temp_tables(thd->mem_root);
+  WalkAccessPaths(
+      root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [thd, query_block, &applied_temp_tables](AccessPath *path,
+                                               const JOIN *join) {
+        Temp_table_param *temp_table_param = GetMaterialization(path);
+        if (temp_table_param != nullptr) {
+          // Update source references in this materialization.
+          for (Temp_table_param *earlier_temp_table_param :
+               applied_temp_tables) {
+            for (Func_ptr &func : *temp_table_param->items_to_copy) {
+              func.set_func(FindOrModifyReplacementItem(
+                  thd, func.func(), earlier_temp_table_param));
+            }
+          }
+          applied_temp_tables.push_back(temp_table_param);
+
+          // Update SELECT list and IODKU references.
+          const mem_root_deque<Item *> *original_fields = join->fields;
+          ReplaceSelectListWithTempTableFields(thd, const_cast<JOIN *>(join),
+                                               temp_table_param);
+          if (thd->lex->sql_command == SQLCOM_INSERT_SELECT) {
+            ReplaceUpdateValuesWithTempTableFields(
+                down_cast<Sql_cmd_insert_select *>(thd->lex->m_sql_cmd),
+                query_block, *original_fields, *join->fields);
+          }
+        } else if (path->type == AccessPath::SORT) {
+          assert(path->sort().filesort == nullptr);
+          for (Temp_table_param *temp_table_param : applied_temp_tables) {
+            ReplaceOrderItemsWithTempTableFields(thd, path->sort().order,
+                                                 temp_table_param);
+          }
+
+          // Set up a Filesort object for this sort.
+          Mem_root_array<TABLE *> tables = CollectTables(thd, path);
+          path->sort().filesort = new (thd->mem_root) Filesort(
+              thd, std::move(tables),
+              /*keep_buffers=*/false, path->sort().order,
+              /*limit_arg=*/HA_POS_ERROR,
+              /*force_stable_sort=*/false, path->sort().remove_duplicates,
+              /*force_sort_positions=*/false, path->sort().unwrap_rollup);
+          query_block->join->filesorts_to_cleanup.push_back(
+              path->sort().filesort);
+          if (!path->sort().filesort->using_addon_fields()) {
+            FindTablesToGetRowidFor(path);
+          }
+        }
+        return false;
+      },
+      /*post_order_traversal=*/true);
+}
+
 /**
   Find the lowest-cost plan (which hopefully is also the cheapest to execute)
   of all the legal ways to execute the query. The overall order of operations is
@@ -3555,23 +3689,17 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         }
 
         Mem_root_array<TABLE *> tables = CollectTables(thd, root_path);
-        Filesort *filesort = new (thd->mem_root) Filesort(
-            thd, std::move(tables), /*keep_buffers=*/false,
-            sort_ahead_ordering.order,
-            /*limit_arg=*/HA_POS_ERROR, /*force_stable_sort=*/false,
-            /*remove_duplicates=*/false, /*force_sort_positions=*/false,
-            /*unwrap_rollup=*/true);
-        join->filesorts_to_cleanup.push_back(filesort);
-        AccessPath *sort_path =
-            NewSortAccessPath(thd, root_path, filesort,
-                              /*count_examined_rows=*/false);
+        AccessPath *sort_path = new (thd->mem_root) AccessPath;
+        sort_path->type = AccessPath::SORT;
+        sort_path->count_examined_rows = false;
+        sort_path->sort().child = root_path;
+        sort_path->sort().filesort = nullptr;
+        sort_path->sort().remove_duplicates = false;
+        sort_path->sort().unwrap_rollup = true;
+        sort_path->sort().order = sort_ahead_ordering.order;
         EstimateSortCost(sort_path);
         assert(!aggregation_is_unordered);
         sort_path->ordering_state = ordering_state;
-
-        if (!filesort->using_addon_fields()) {
-          FindTablesToGetRowidFor(sort_path);
-        }
 
         // TODO(sgunders): We don't need to allocate this on the MEM_ROOT.
         AccessPath *aggregate_path =
@@ -3714,27 +3842,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                   });
 #endif
 
-  // Create deferred Filesort objects.
-  WalkAccessPaths(
-      root_path, join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [thd, query_block](AccessPath *path, const JOIN *) {
-        if (path->type == AccessPath::SORT &&
-            path->sort().filesort == nullptr) {
-          Mem_root_array<TABLE *> tables = CollectTables(thd, path);
-          path->sort().filesort = new (thd->mem_root) Filesort(
-              thd, std::move(tables),
-              /*keep_buffers=*/false, path->sort().order,
-              /*limit_arg=*/HA_POS_ERROR,
-              /*force_stable_sort=*/false, path->sort().remove_duplicates,
-              /*force_sort_positions=*/false, path->sort().unwrap_rollup);
-          query_block->join->filesorts_to_cleanup.push_back(
-              path->sort().filesort);
-          if (!path->sort().filesort->using_addon_fields()) {
-            FindTablesToGetRowidFor(path);
-          }
-        }
-        return false;
-      });
+  FinalizePlanForQueryBlock(thd, query_block, root_path);
 
   join->best_rowcount = lrint(root_path->num_output_rows);
   join->best_read = root_path->cost;
