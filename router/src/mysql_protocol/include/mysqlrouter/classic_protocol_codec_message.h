@@ -2624,6 +2624,49 @@ class Codec<message::client::Greeting>
 };
 
 /**
+ * codec for client::AuthMethodData message.
+ *
+ * format:
+ *
+ * - String auth_method_data
+ *
+ * sent after server::AuthMethodData or server::AuthMethodContinue
+ */
+template <>
+class Codec<message::client::AuthMethodData>
+    : public impl::EncodeBase<Codec<message::client::AuthMethodData>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::String(v_.auth_method_data())).result();
+  }
+
+ public:
+  using value_type = message::client::AuthMethodData;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto auth_method_data_res = accu.template step<wire::String>();
+
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(auth_method_data_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
  * codec for client side change-user message.
  *
  * checked capabilities:

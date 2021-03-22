@@ -832,6 +832,33 @@ INSTANTIATE_TEST_SUITE_P(
       return test_param_info.param.test_name;
     });
 
+// client::AuthMethodData
+
+using CodecMessageClientAuthMethodDataTest =
+    CodecTest<classic_protocol::message::client::AuthMethodData>;
+
+TEST_P(CodecMessageClientAuthMethodDataTest, encode) {
+  test_encode(GetParam());
+}
+TEST_P(CodecMessageClientAuthMethodDataTest, decode) {
+  test_decode(GetParam());
+}
+
+const CodecParam<classic_protocol::message::client::AuthMethodData>
+    codec_message_client_auth_method_data_param[] = {
+        {"somedata",    // testname
+         {"somedata"},  // decoded
+         {},            // caps
+         {'s', 'o', 'm', 'e', 'd', 'a', 't', 'a'}},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CodecMessageClientAuthMethodDataTest,
+    ::testing::ValuesIn(codec_message_client_auth_method_data_param),
+    [](auto const &test_param_info) {
+      return test_param_info.param.test_name;
+    });
+
 // client::ListFields
 
 using CodecMessageClientListFieldsTest =

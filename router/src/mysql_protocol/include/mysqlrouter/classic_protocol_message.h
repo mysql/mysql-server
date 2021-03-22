@@ -995,6 +995,26 @@ class Ping {};
 
 constexpr bool operator==(const Ping &, const Ping &) { return true; }
 
+class AuthMethodData {
+ public:
+  /**
+   * send data for the current auth-method to server.
+   *
+   * @param auth_method_data data of the auth-method
+   */
+  AuthMethodData(std::string auth_method_data)
+      : auth_method_data_{std::move(auth_method_data)} {}
+
+  std::string auth_method_data() const { return auth_method_data_; }
+
+ private:
+  std::string auth_method_data_;
+};
+
+inline bool operator==(const AuthMethodData &a, const AuthMethodData &b) {
+  return a.auth_method_data() == b.auth_method_data();
+}
+
 }  // namespace client
 }  // namespace message
 }  // namespace classic_protocol
