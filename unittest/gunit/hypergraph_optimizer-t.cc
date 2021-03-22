@@ -983,6 +983,8 @@ TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {
   EXPECT_TRUE(sort->m_remove_duplicates);
 
   EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctIsSubsumedByGroup) {
@@ -1035,9 +1037,7 @@ TEST_F(HypergraphOptimizerTest, DistinctWithOrderBy) {
 
   EXPECT_EQ(AccessPath::TABLE_SCAN, child->sort().child->type);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
@@ -1062,9 +1062,7 @@ TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
   // No separate sort for ORDER BY.
   EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadSingleTable) {
@@ -1104,9 +1102,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadSingleTable) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
   EXPECT_STREQ("t1", inner->table_scan().table->alias);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, CannotSortAheadBeforeBothTablesAreAvailable) {
@@ -1138,9 +1134,7 @@ TEST_F(HypergraphOptimizerTest, CannotSortAheadBeforeBothTablesAreAvailable) {
                     return false;
                   });
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadTwoTables) {
@@ -1190,9 +1184,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadTwoTables) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
   EXPECT_STREQ("t3", inner->table_scan().table->alias);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadDueToEquivalence) {
@@ -1243,9 +1235,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadDueToEquivalence) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
   EXPECT_STREQ("t2", t2->table_scan().table->alias);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadDueToUniqueIndex) {
@@ -1299,9 +1289,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadDueToUniqueIndex) {
   ASSERT_EQ(AccessPath::EQ_REF, inner->type);
   EXPECT_STREQ("t2", inner->eq_ref().table->alias);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, NoSortAheadOnNonUniqueIndex) {
@@ -1344,9 +1332,7 @@ TEST_F(HypergraphOptimizerTest, NoSortAheadOnNonUniqueIndex) {
   EXPECT_EQ("t2.y", ItemToString(sort->sortorder[1].item));
   EXPECT_FALSE(sort->m_remove_duplicates);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ElideSortDueToBaseFilters) {
@@ -1370,9 +1356,7 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToBaseFilters) {
   // and the constant lookup.
   ASSERT_EQ(AccessPath::EQ_REF, root->type);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ElideSortDueToDelayedFilters) {
@@ -1406,9 +1390,7 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToDelayedFilters) {
                     return false;
                   });
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, ElideSortDueToIndex) {
@@ -1440,9 +1422,7 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToIndex) {
   EXPECT_TRUE(root->index_scan().use_order);
   EXPECT_TRUE(root->index_scan().reverse);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 // This case is tricky; the order given by the index is (x, y), but the
@@ -1478,9 +1458,7 @@ TEST_F(HypergraphOptimizerTest, IndexTailGetsUsed) {
   EXPECT_EQ(true, root->ref().use_order);
   EXPECT_EQ(false, root->ref().reverse);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SortAheadByCoverToElideSortForGroup) {
@@ -1520,9 +1498,7 @@ TEST_F(HypergraphOptimizerTest, SortAheadByCoverToElideSortForGroup) {
 
   // We don't test the inner side.
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
@@ -1554,9 +1530,7 @@ TEST_F(HypergraphOptimizerTest, SatisfyGroupByWithIndex) {
   // The grouping should be taking care of by the ordered index.
   EXPECT_EQ(AccessPath::INDEX_SCAN, inner->type);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SatisfyGroupingForDistinctWithIndex) {
@@ -1593,9 +1567,7 @@ TEST_F(HypergraphOptimizerTest, SatisfyGroupingForDistinctWithIndex) {
   AccessPath *inner = root->remove_duplicates().child;
   EXPECT_EQ(AccessPath::INDEX_SCAN, inner->type);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphOptimizerTest, SemiJoinThroughLooseScan) {
@@ -1653,9 +1625,7 @@ TEST_F(HypergraphOptimizerTest, SemiJoinThroughLooseScan) {
   ASSERT_EQ(AccessPath::TABLE_SCAN, t2->type);
   EXPECT_STREQ("t2", t2->table_scan().table->alias);
 
-  // Maybe JOIN::destroy() should do this:
-  query_block->join->filesorts_to_cleanup.clear();
-  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 // An alias for better naming.
@@ -1777,6 +1747,8 @@ TEST_F(HypergraphSecondaryEngineTest,
   EXPECT_TRUE(sort->m_remove_duplicates);
 
   ASSERT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphSecondaryEngineTest, UnorderedAggregationDoesNotCover) {
@@ -1814,6 +1786,8 @@ TEST_F(HypergraphSecondaryEngineTest, UnorderedAggregationDoesNotCover) {
   EXPECT_TRUE(sort->m_remove_duplicates);
 
   ASSERT_EQ(AccessPath::TABLE_SCAN, distinct->sort().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_F(HypergraphSecondaryEngineTest, RejectAllPlans) {
@@ -1959,6 +1933,8 @@ TEST_P(HypergraphSecondaryEngineRejectionTest, RejectPathType) {
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
   EXPECT_EQ(param.expect_error, root == nullptr);
+
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 TEST_P(HypergraphSecondaryEngineRejectionTest, ErrorOnPathType) {
@@ -1985,6 +1961,8 @@ TEST_P(HypergraphSecondaryEngineRejectionTest, ErrorOnPathType) {
   AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
   EXPECT_EQ(param.expect_error, root == nullptr);
+
+  query_block->cleanup(m_thd, /*full=*/true);
 }
 
 INSTANTIATE_TEST_SUITE_P(
