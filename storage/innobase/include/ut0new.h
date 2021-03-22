@@ -1794,10 +1794,11 @@ inline void *malloc_large_page(
 
     @param[in] ptr Pointer which has been obtained through any of the
     ut::malloc_large_page*(fallback_to_normal_page_t) variants.
-    @return Number of bytes available for use..
+    @return Number of bytes available for use.
  */
 inline size_t large_page_allocation_size(void *ptr,
                                          fallback_to_normal_page_t) noexcept {
+  assert(ptr);
   using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
   using large_page_alloc_impl = detail::Large_alloc_<impl>;
   if (large_page_alloc_impl::page_type(ptr) == detail::Page_type::system_page)
@@ -1821,6 +1822,8 @@ inline size_t large_page_allocation_size(void *ptr,
 inline bool free_large_page(void *ptr, fallback_to_normal_page_t) noexcept {
   using impl = detail::select_large_page_alloc_impl_t<WITH_PFS_MEMORY>;
   using large_page_alloc_impl = detail::Large_alloc_<impl>;
+
+  if (!ptr) return false;
 
   bool success;
   if (large_page_alloc_impl::page_type(ptr) == detail::Page_type::system_page) {
