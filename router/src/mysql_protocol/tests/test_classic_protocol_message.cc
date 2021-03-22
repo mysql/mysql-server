@@ -901,6 +901,27 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientReloadTest,
                            return test_param_info.param.test_name;
                          });
 
+// client::Kill
+
+using CodecMessageClientKillTest =
+    CodecTest<classic_protocol::message::client::Kill>;
+
+TEST_P(CodecMessageClientKillTest, encode) { test_encode(GetParam()); }
+TEST_P(CodecMessageClientKillTest, decode) { test_decode(GetParam()); }
+
+const CodecParam<classic_protocol::message::client::Kill>
+    codec_message_client_kill_param[] = {
+        {"kill_low", {0}, {}, {0x0c, 0x00, 0x00, 0x00, 0x00}},
+        {"kill_1", {1}, {}, {0x0c, 0x01, 0x00, 0x00, 0x00}},
+        {"kill_high", {0xffffffff}, {}, {0x0c, 0xff, 0xff, 0xff, 0xff}},
+};
+
+INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientKillTest,
+                         ::testing::ValuesIn(codec_message_client_kill_param),
+                         [](auto const &test_param_info) {
+                           return test_param_info.param.test_name;
+                         });
+
 // client::ResetConnection
 
 using CodecMessageClientResetConnectionTest =

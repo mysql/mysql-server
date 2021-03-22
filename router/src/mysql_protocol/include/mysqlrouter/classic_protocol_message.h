@@ -747,6 +747,25 @@ inline bool operator==(const Reload &a, const Reload &b) {
   return a.cmds() == b.cmds();
 }
 
+class Kill {
+ public:
+  /**
+   * construct a Kill message.
+   *
+   * @param connection_id payload
+   */
+  constexpr Kill(uint32_t connection_id) : connection_id_{connection_id} {}
+
+  constexpr uint32_t connection_id() const { return connection_id_; }
+
+ private:
+  uint32_t connection_id_;
+};
+
+constexpr bool operator==(const Kill &a, const Kill &b) {
+  return a.connection_id() == b.connection_id();
+}
+
 class StmtPrepare {
  public:
   /**

@@ -159,7 +159,9 @@ static_assert(classic_protocol::Codec<
               "");
 // 0x0a - ProcessInfo
 // 0x0b - Connect
-// 0x0c - Kill
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::Kill>::cmd_byte() == 0x0c,
+              "");
 // 0x0d - Debug
 static_assert(classic_protocol::Codec<
                   classic_protocol::message::client::Ping>::cmd_byte() == 0x0e,

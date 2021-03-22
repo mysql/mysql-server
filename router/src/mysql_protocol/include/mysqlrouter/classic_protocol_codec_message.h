@@ -1667,6 +1667,60 @@ class Codec<message::client::Reload>
 };
 
 /**
+ * codec for client's Kill command.
+ *
+ * format:
+ *
+ * - FixedInt<1> == 0x0c, ProcessKill
+ * - FixedInt<4> id
+ */
+template <>
+class Codec<message::client::Kill>
+    : public impl::EncodeBase<Codec<message::client::Kill>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::FixedInt<4>(v_.connection_id()))
+        .result();
+  }
+
+ public:
+  using value_type = message::client::Kill;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  constexpr Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::ProcessKill);
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
+    auto connection_id_res = accu.template step<wire::FixedInt<4>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(connection_id_res->value()));
+  }
+
+ private:
+  value_type v_;
+};
+
+/**
  * codec for client's Prepared Statement command.
  */
 template <>
