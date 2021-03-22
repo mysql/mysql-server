@@ -47,6 +47,7 @@
 #include "sql/transaction.h"
 #include "storage/ndb/include/ndbapi/NdbDictionary.hpp"
 #include "storage/ndb/include/ndbapi/ndb_cluster_connection.hpp"
+#include "storage/ndb/plugin/ha_ndb_index_stat.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
 #include "storage/ndb/plugin/ndb_apply_status_table.h"
@@ -913,6 +914,16 @@ class Ndb_binlog_setup {
       if (!dd_sync.remove_all_metadata()) {
         return false;
       }
+      // The index stat thread must be restarted. An additional wait
+      // for the setup to complete is required for the ndb_sql_metadata
+      // table to be created below. This also ensures that the index stat
+      // functionality is ready to be used as soon as binlog setup is done
+      ndb_log_info("Waiting for index stat setup to complete");
+      ndb_index_stat_restart();
+      while (!Ndb_index_stat_thread::is_setup_complete()) {
+        ndb_milli_sleep(100);
+      }
+      ndb_log_info("Index stat setup complete");
     } else {
       /*
         Not an initial restart. Delete DD table definitions corresponding to NDB
@@ -7109,7 +7120,6 @@ restart_cluster_failure:
         ndb_latest_handled_binlog_epoch = 0;
         ndb_latest_applied_binlog_epoch = 0;
         ndb_latest_received_binlog_epoch = 0;
-        ndb_index_stat_restart();
       } else if (ndb_latest_applied_binlog_epoch > 0) {
         log_warning(
             "cluster has reconnected. "

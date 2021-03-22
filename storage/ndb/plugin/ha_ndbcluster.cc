@@ -12111,7 +12111,7 @@ static int ndb_wait_setup_func(ulong max_wait) {
   set_timespec(&abstime, 1);
 
   while (max_wait &&
-         (!ndb_setup_complete || !ndb_index_stat_thread.is_setup_complete())) {
+         (!ndb_setup_complete || !Ndb_index_stat_thread::is_setup_complete())) {
     const int rc =
         mysql_cond_timedwait(&ndbcluster_cond, &ndbcluster_mutex, &abstime);
     if (rc) {

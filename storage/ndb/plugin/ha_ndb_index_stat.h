@@ -55,7 +55,7 @@ class Ndb_index_stat_thread : public Ndb_component {
   void wakeup();
 
   /* are we setup */
-  bool is_setup_complete();
+  static bool is_setup_complete();
 
  private:
   int do_init() override;

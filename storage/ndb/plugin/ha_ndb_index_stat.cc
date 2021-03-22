@@ -2200,6 +2200,7 @@ void Ndb_index_stat_thread::do_run() {
         ndb_index_stat_set_allow(false);
         drop_ndb(pr);
         check_sys = true;  // sys objects are gone
+        log_info("Initial restart detected");
       }
 
       // check enable flag
