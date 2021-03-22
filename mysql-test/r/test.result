@@ -1,0 +1,15 @@
+drop table if exists t;
+Warnings:
+Note	1051	Unknown table 'test.t'
+drop database if exists mysqltest;
+Warnings:
+Note	1008	Can't drop database 'mysqltest'; database doesn't exist
+create database mysqltest;
+use mysqltest;
+create table t (b BOOLEAN);
+show create table t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `b` boolean DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop database mysqltest;
