@@ -3805,14 +3805,14 @@ bool Table_check_intact::check(THD *thd MY_ATTRIBUTE((unused)), TABLE *table,
         original one.
        */
       if (strncmp(sql_type.c_ptr_safe(), field_def->type.str,
-                  field_def->type.length - 1)) {/*
+                  field_def->type.length - 1)) {
         report_error(ER_CANNOT_LOAD_FROM_TABLE_V2,
                      "Incorrect definition of "
                      "table %s.%s: expected column '%s' at position %d to "
                      "have type %s, found type %s.",
                      table->s->db.str, table->alias, field_def->name.str, i,
                      field_def->type.str, sql_type.c_ptr_safe());
-        error = true;*/
+        error = true;
       } else if (field_def->cset.str && !field->has_charset()) {
         report_error(ER_CANNOT_LOAD_FROM_TABLE_V2,
                      "Incorrect definition of "
