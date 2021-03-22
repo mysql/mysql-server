@@ -19740,7 +19740,7 @@ static void innodb_extend_and_initialize_update(THD *thd, SYS_VAR *var,
 #else  /* !NO_FALLOCATE && UNIV_LINUX */
   push_warning_printf(thd, Sql_condition::SL_WARNING,
                       ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED,
-                      ER_THD(thd, ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED),
+    ER_THD(thd, ER_WARN_VAR_VALUE_CHANGE_NOT_SUPPORTED),
                       "innodb_extend_and_initialize");
   *static_cast<bool *>(var_ptr) = true;
 #endif /* !NO_FALLOCATE && UNIV_LINUX */

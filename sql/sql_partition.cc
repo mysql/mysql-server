@@ -1947,6 +1947,7 @@ static int check_part_field(enum_field_types sql_type, const char *field_name,
   switch (sql_type) {
     case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_LONGLONG:
