@@ -34,6 +34,7 @@
 #include "mysqlrouter/classic_protocol_codec_base.h"
 #include "mysqlrouter/classic_protocol_codec_error.h"
 #include "mysqlrouter/classic_protocol_codec_wire.h"
+#include "mysqlrouter/classic_protocol_constants.h"
 #include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/classic_protocol_wire.h"
 #include "mysqlrouter/partial_buffer_sequence.h"
@@ -885,6 +886,59 @@ class Codec<message::server::ColumnMeta>
                      type_res->value(), flags_res->value(),
                      decimals_res->value()));
     }
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
+ * codec for server's SendFileRequest response.
+ *
+ * sent as response after client::Query
+ *
+ * layout:
+ *
+ *     0xfb<filename>
+ */
+template <>
+class Codec<message::server::SendFileRequest>
+    : public impl::EncodeBase<Codec<message::server::SendFileRequest>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::String(v_.filename()))
+        .result();
+  }
+
+ public:
+  using value_type = message::server::SendFileRequest;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  static constexpr uint8_t cmd_byte() noexcept { return 0xfb; }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
+    auto filename_res = accu.template step<wire::String>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(filename_res->value()));
   }
 
  private:

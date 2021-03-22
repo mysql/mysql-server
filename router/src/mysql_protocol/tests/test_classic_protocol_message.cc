@@ -541,6 +541,35 @@ INSTANTIATE_TEST_SUITE_P(
       return test_param_info.param.test_name;
     });
 
+// server::SendFileRequest
+
+using CodecMessageServerSendFileRequestTest =
+    CodecTest<classic_protocol::message::server::SendFileRequest>;
+
+TEST_P(CodecMessageServerSendFileRequestTest, encode) {
+  test_encode(GetParam());
+}
+TEST_P(CodecMessageServerSendFileRequestTest, decode) {
+  test_decode(GetParam());
+}
+
+using namespace std::string_literals;
+
+const CodecParam<classic_protocol::message::server::SendFileRequest>
+    codec_message_server_send_file_request_param[] = {
+        {"somefile",
+         {{"somefile"s}},  // decoded
+         {},               // caps
+         {0xfb, 's', 'o', 'm', 'e', 'f', 'i', 'l', 'e'}},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CodecMessageServerSendFileRequestTest,
+    ::testing::ValuesIn(codec_message_server_send_file_request_param),
+    [](auto const &test_param_info) {
+      return test_param_info.param.test_name;
+    });
+
 // server::Row
 
 using CodecMessageServerRowTest =

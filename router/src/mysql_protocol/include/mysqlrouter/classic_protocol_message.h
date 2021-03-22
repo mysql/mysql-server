@@ -464,6 +464,25 @@ class StmtRow : public Row {
   std::vector<field_type::value_type> types_;
 };
 
+class SendFileRequest {
+ public:
+  /**
+   * construct a SendFileRequest message.
+   *
+   * @param filename filename
+   */
+  SendFileRequest(std::string filename) : filename_{std::move(filename)} {}
+
+  std::string filename() const { return filename_; }
+
+ private:
+  std::string filename_;
+};
+
+inline bool operator==(const SendFileRequest &a, const SendFileRequest &b) {
+  return a.filename() == b.filename();
+}
+
 }  // namespace server
 
 namespace client {
