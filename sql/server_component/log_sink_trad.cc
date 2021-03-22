@@ -144,12 +144,49 @@ log_service_error log_sink_trad_parse_log_line(const char *line_start,
   start = end + 1;
 
   // parse message - truncate if needed.
-  if ((len = line_end - start) >= ((ssize_t)sizeof(msg))) len = sizeof(msg) - 1;
+  len = line_end - start;
+
+  /*
+    If we have a message for this, it becomes more easily searchable.
+    This is provided in the hope that between error code (which it appears
+    we have) and subsystem (which it appears we also have), a human reader
+    can find out what happened here even if the log file is not available
+    to them. If the log file IS available, they should be able to just find
+    this event's time stamp in that file and see whether the line contains
+    anything that would break parsing.
+  */
+  const char *parsing_failed =
+      "No message found for this event while parsing a traditional error log! "
+      "If you wish to investigate this, use this event's timestamp to find the "
+      "offending line in the error log file.";
+  if (len <= 0) {
+    start = parsing_failed;
+    len = strlen(parsing_failed);
+  }
+
+  // Truncate length if needed.
+  if (len >= ((ssize_t)sizeof(msg))) {
+    len = sizeof(msg) - 1;
+  }
+
+  // Copy as much of the message as we have space for.
   strncpy(msg, start, len);
   msg[len] = '\0';
+
+  /*
+    Store adjusted length in log-event.
+    m_message_length is a uint while len is ssize_t, but we capped at
+    sizeof(msg) above which is less than either, so we won't
+    assert(len <= UINT_MAX) here.
+    log_sink_pfs_event_add() below will assert() if m_message_length==0,
+    but this should be prevented by us setting a fixed message above if
+    parsed resulting in an empty message field. (If parsing any of the
+    other fields failed, we won't try to add a message to the
+    performance-schema table in the first place.)
+  */
   e.m_message_length = len;
 
-  // add event to ring-buffer
+  // Add event to ring-buffer.
   return log_sink_pfs_event_add(&e, msg);
 }
 

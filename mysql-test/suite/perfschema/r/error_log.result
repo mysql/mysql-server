@@ -172,6 +172,22 @@ COUNT(*)>0
 1
 
 ########################################################################
+# Restart with a broken trad log ...
+
+# restart: --log-error=LOG_FILE_TRAD --log-error-verbosity=3
+SET @@session.time_zone=@@global.log_timestamps;
+SELECT logged INTO @startup
+FROM performance_schema.error_log
+WHERE error_code="MY-010116" ORDER BY logged DESC LIMIT 1;
+SELECT LEFT(logged,19), error_code, subsystem, data
+FROM performance_schema.error_log
+WHERE logged<@startup AND error_code="MY-999999";
+LEFT(logged,19)	error_code	subsystem	data
+2000-01-01 00:00:00	MY-999999	Server	Fake start
+2000-01-01 00:00:02	MY-999999	Server	No message found for this event while parsing a traditional error log! If you wish to investigate this, use this event's timestamp to find the offending line in the error log file.
+2000-01-01 00:00:03	MY-999999	Server	Fake end
+
+########################################################################
 # Restart with JSON logging ...
 
 INSTALL COMPONENT "file://component_log_sink_json";
