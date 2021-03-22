@@ -401,7 +401,7 @@ void init_thread_mask(int *mask, Master_info *mi, bool inverse,
                       bool ignore_monitor_thread) {
   bool set_io = mi->slave_running, set_sql = mi->rli->slave_running;
   bool set_monitor{
-      Source_IO_monitor::get_instance().is_monitoring_process_running()};
+      Source_IO_monitor::get_instance()->is_monitoring_process_running()};
   int tmp_mask{0};
   DBUG_TRACE;
 
@@ -1749,7 +1749,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
           1) {
     DBUG_PRINT("info", ("Terminating Monitor IO thread"));
     if ((error = Source_IO_monitor::get_instance()
-                     .terminate_monitoring_process()) &&
+                     ->terminate_monitoring_process()) &&
         !force_all) {
       if (error == 1) {
         return ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT;
@@ -2122,8 +2122,8 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
 
   if (!is_error && (thread_mask & (SLAVE_IO | SLAVE_MONITOR)) &&
       mi->is_source_connection_auto_failover() &&
-      !Source_IO_monitor::get_instance().is_monitoring_process_running()) {
-    is_error = Source_IO_monitor::get_instance().launch_monitoring_process(
+      !Source_IO_monitor::get_instance()->is_monitoring_process_running()) {
+    is_error = Source_IO_monitor::get_instance()->launch_monitoring_process(
         key_thread_replica_monitor_io);
 
     if (is_error)
@@ -2247,7 +2247,7 @@ static bool is_autocommit_off_and_infotables(THD *thd) {
 }
 
 static bool monitor_io_replica_killed(THD *thd, Master_info *mi) {
-  return Source_IO_monitor::get_instance().is_monitor_killed(thd, mi);
+  return Source_IO_monitor::get_instance()->is_monitor_killed(thd, mi);
 }
 
 static bool io_slave_killed(THD *thd, Master_info *mi) {
@@ -10136,8 +10136,8 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
           the monitoring thread.
         */
         if (mi->slave_running && !Source_IO_monitor::get_instance()
-                                      .is_monitoring_process_running()) {
-          if (Source_IO_monitor::get_instance().launch_monitoring_process(
+                                      ->is_monitoring_process_running()) {
+          if (Source_IO_monitor::get_instance()->launch_monitoring_process(
                   key_thread_replica_monitor_io)) {
             error = ER_STARTING_REPLICA_MONITOR_IO_THREAD;
             my_error(error, MYF(0));
@@ -10160,7 +10160,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
           channel_map
                   .get_number_of_connection_auto_failover_channels_running() ==
               1) {
-        if (Source_IO_monitor::get_instance().terminate_monitoring_process()) {
+        if (Source_IO_monitor::get_instance()->terminate_monitoring_process()) {
           error = ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT;
           my_error(error, MYF(0));
           goto err;
