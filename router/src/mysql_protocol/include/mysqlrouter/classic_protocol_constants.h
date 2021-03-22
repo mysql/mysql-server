@@ -297,6 +297,33 @@ constexpr value_type on_update{1 << pos::on_update};
 constexpr value_type numeric{1 << pos::numeric};
 }  // namespace column_def
 
+namespace reload_cmds {
+namespace pos {
+using value_type = uint8_t;
+constexpr value_type flush_privileges{0};
+constexpr value_type flush_logs{1};
+constexpr value_type flush_tables{2};
+constexpr value_type flush_hosts{3};
+constexpr value_type flush_status{4};
+constexpr value_type flush_threads{5};
+constexpr value_type reset_slave{6};
+constexpr value_type reset_master{7};
+
+constexpr value_type _bitset_size{reset_master + 1};
+}  // namespace pos
+using value_type = std::bitset<pos::_bitset_size>;
+
+constexpr value_type flush_privileges{1 << pos::flush_privileges};
+constexpr value_type flush_logs{1 << pos::flush_logs};
+constexpr value_type flush_tables{1 << pos::flush_tables};
+constexpr value_type flush_hosts{1 << pos::flush_hosts};
+constexpr value_type flush_status{1 << pos::flush_status};
+constexpr value_type flush_threads{1 << pos::flush_threads};
+constexpr value_type reset_slave{1 << pos::reset_slave};
+constexpr value_type reset_master{1 << pos::reset_master};
+
+}  // namespace reload_cmds
+
 namespace collation {
 using value_type = uint8_t;
 constexpr value_type Latin1SwedishCi{0x08};

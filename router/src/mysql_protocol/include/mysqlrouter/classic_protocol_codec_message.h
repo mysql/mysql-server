@@ -1619,6 +1619,54 @@ class Codec<message::client::ListFields>
 };
 
 /**
+ * codec for client's Reload command.
+ */
+template <>
+class Codec<message::client::Reload>
+    : public impl::EncodeBase<Codec<message::client::Reload>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::FixedInt<1>(v_.cmds().to_ulong()))
+        .result();
+  }
+
+ public:
+  using value_type = message::client::Reload;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Refresh);
+  }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    if (cmd_byte_res->value() != cmd_byte()) {
+      return stdx::make_unexpected(make_error_code(codec_errc::invalid_input));
+    }
+
+    auto cmds_res = accu.template step<wire::FixedInt<1>>();
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(), value_type(cmds_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
  * codec for client's Prepared Statement command.
  */
 template <>

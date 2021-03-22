@@ -875,6 +875,32 @@ INSTANTIATE_TEST_SUITE_P(
       return test_param_info.param.test_name;
     });
 
+// client::Reload
+
+using CodecMessageClientReloadTest =
+    CodecTest<classic_protocol::message::client::Reload>;
+
+TEST_P(CodecMessageClientReloadTest, encode) { test_encode(GetParam()); }
+TEST_P(CodecMessageClientReloadTest, decode) { test_decode(GetParam()); }
+
+const CodecParam<classic_protocol::message::client::Reload>
+    codec_message_client_reload_param[] = {
+        {"flush_privileges", {0}, {}, {0x07, 0x00}},
+        {"flush_logs", {1}, {}, {0x07, 0x01}},
+        {"flush_tables", {2}, {}, {0x07, 0x02}},
+        {"flush_hosts", {3}, {}, {0x07, 0x03}},
+        {"flush_status", {4}, {}, {0x07, 0x04}},
+        {"flush_threads", {5}, {}, {0x07, 0x05}},
+        {"reset_slave", {6}, {}, {0x07, 0x06}},
+        {"reset_master", {7}, {}, {0x07, 0x07}},
+};
+
+INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientReloadTest,
+                         ::testing::ValuesIn(codec_message_client_reload_param),
+                         [](auto const &test_param_info) {
+                           return test_param_info.param.test_name;
+                         });
+
 // client::ResetConnection
 
 using CodecMessageClientResetConnectionTest =

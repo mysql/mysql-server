@@ -728,6 +728,25 @@ constexpr bool operator==(const Statistics &, const Statistics &) {
   return true;
 }
 
+class Reload {
+ public:
+  /**
+   * construct a Reload message.
+   *
+   * @param cmds what to reload
+   */
+  Reload(classic_protocol::reload_cmds::value_type cmds) : cmds_{cmds} {}
+
+  classic_protocol::reload_cmds::value_type cmds() const { return cmds_; }
+
+ private:
+  classic_protocol::reload_cmds::value_type cmds_;
+};
+
+inline bool operator==(const Reload &a, const Reload &b) {
+  return a.cmds() == b.cmds();
+}
+
 class StmtPrepare {
  public:
   /**

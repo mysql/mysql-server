@@ -148,7 +148,10 @@ static_assert(classic_protocol::Codec<
               "");
 // 0x05 - CreateDb
 // 0x06 - DropDb
-// 0x07 - Reload
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::Reload>::cmd_byte() ==
+                  0x07,
+              "");
 // 0x08 - shutdown
 static_assert(classic_protocol::Codec<
                   classic_protocol::message::client::Statistics>::cmd_byte() ==
