@@ -609,6 +609,148 @@ TEST_P(CodecMessageServerStmtRowTest, decode) {
                               classic_protocol::field_type::VarString});
 }
 
+// server::StmtPrepareOk
+
+using CodecMessageServerStmtPrepareOkTest =
+    CodecTest<classic_protocol::message::server::StmtPrepareOk>;
+
+TEST_P(CodecMessageServerStmtPrepareOkTest, encode) { test_encode(GetParam()); }
+TEST_P(CodecMessageServerStmtPrepareOkTest, decode) { test_decode(GetParam()); }
+
+const CodecParam<classic_protocol::message::server::StmtPrepareOk>
+    codec_message_server_prepstmtok_param[] = {
+        {"do_1",  // like DO 1
+         {
+             1,     // stmt-id
+             0,     // column-count
+             0,     // param-count
+             0,     // warning-count
+             true,  // with-metadata
+         },
+         {},  // caps: no optional_resultset_metadata
+         {
+             0x00,                    // ok
+             0x01, 0x00, 0x00, 0x00,  // stmt-id
+             0x00, 0x00,              // column-count
+             0x00, 0x00,              // param-count
+             0x00,                    // filler
+             0x00, 0x00               // warning-count
+         }},
+        {"select_1",  // like SELECT 1;
+         {
+             2,     // stmt-id
+             1,     // column-count
+             0,     // param-count
+             0,     // warning-count
+             true,  // with-metadata
+         },
+         {},  // caps: no optional_resultset_metadata
+         {
+             0x00,                    // ok
+             0x02, 0x00, 0x00, 0x00,  // stmt-id
+             0x01, 0x00,              // column-count
+             0x00, 0x00,              // param-count
+             0x00,                    // filler
+             0x00, 0x00               // warning-count
+         }},
+        {"select_placeholder",  // like SELECT ?
+         {
+             2,     // stmt-id
+             1,     // column-count
+             1,     // param-count
+             3,     // warning-count
+             true,  // with-metadata
+         },
+         {},  // caps: no optional_resultset_metadata
+         {
+             0x00,                    // ok
+             0x02, 0x00, 0x00, 0x00,  // stmt-id
+             0x01, 0x00,              // column-count
+             0x01, 0x00,              // param-count
+             0x00,                    // filler
+             0x03, 0x00               // warning-count
+         }},
+        {"do_1_with_metadata",  // like DO 1
+         {
+             1,     // stmt-id
+             0,     // column-count
+             0,     // param-count
+             0,     // warning-count
+             true,  // with-metadata
+         },
+         classic_protocol::capabilities::optional_resultset_metadata,
+         {
+             0x00,                    // ok
+             0x01, 0x00, 0x00, 0x00,  // stmt-id
+             0x00, 0x00,              // column-count
+             0x00, 0x00,              // param-count
+             0x00,                    // filler
+             0x00, 0x00,              // warning-count
+             0x01                     // with-metadata
+         }},
+        {"select_1_with_metadata",  // like SELECT 1;
+         {
+             2,     // stmt-id
+             0,     // param-count
+             1,     // column-count
+             0,     // warning-count
+             true,  // with-metadata
+         },
+         classic_protocol::capabilities::optional_resultset_metadata,
+         {
+             0x00,                    // ok
+             0x02, 0x00, 0x00, 0x00,  // stmt-id
+             0x00, 0x00,              // column-count
+             0x01, 0x00,              // param-count
+             0x00,                    // filler
+             0x00, 0x00,              // warning-count
+             0x01                     // with-metadata
+         }},
+        {"select_placeholder_with_metadata",  // like SELECT ?
+         {
+             2,     // stmt-id
+             1,     // param-count
+             1,     // column-count
+             3,     // warning-count
+             true,  // with-metadata
+         },
+         classic_protocol::capabilities::optional_resultset_metadata,
+         {
+             0x00,                    // ok
+             0x02, 0x00, 0x00, 0x00,  // stmt-id
+             0x01, 0x00,              // column-count
+             0x01, 0x00,              // param-count
+             0x00,                    // filler
+             0x03, 0x00,              // warning-count
+             0x01                     // with-metadata
+         }},
+        {"select_placeholder_without_metadata",  // like SELECT ?
+         {
+             2,      // stmt-id
+             1,      // param-count
+             1,      // column-count
+             3,      // warning-count
+             false,  // with-metadata
+         },
+         classic_protocol::capabilities::optional_resultset_metadata,
+         {
+             0x00,                    // ok
+             0x02, 0x00, 0x00, 0x00,  // stmt-id
+             0x01, 0x00,              // column-count
+             0x01, 0x00,              // param-count
+             0x00,                    // filler
+             0x03, 0x00,              // warning-count
+             0x00                     // with-metadata
+         }},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CodecMessageServerStmtPrepareOkTest,
+    ::testing::ValuesIn(codec_message_server_prepstmtok_param),
+    [](auto const &test_param_info) {
+      return test_param_info.param.test_name;
+    });
+
 // client::Quit
 
 using CodecMessageClientQuitTest =

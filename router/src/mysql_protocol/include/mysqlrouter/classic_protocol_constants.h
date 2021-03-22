@@ -59,7 +59,7 @@ constexpr value_type client_auth_method_data_varint{21};
 constexpr value_type expired_passwords{22};
 constexpr value_type session_track{23};
 constexpr value_type text_result_with_session_tracking{24};
-// 25: optional resultset metdata
+constexpr value_type optional_resultset_metadata{25};
 constexpr value_type compress_zstd{26};
 //
 // 29 is an extension flag for >32 bit
@@ -136,6 +136,9 @@ constexpr value_type text_result_with_session_tracking{
     1 << pos::text_result_with_session_tracking};
 // version_added: 8.0
 constexpr value_type compress_zstd{1 << pos::compress_zstd};
+// version_added: 8.0
+constexpr value_type optional_resultset_metadata{
+    1 << pos::optional_resultset_metadata};
 }  // namespace capabilities
 
 namespace status {

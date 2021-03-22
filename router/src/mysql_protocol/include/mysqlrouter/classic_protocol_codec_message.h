@@ -946,6 +946,89 @@ class Codec<message::server::SendFileRequest>
 };
 
 /**
+ * codec for server::StmtPrepareOk message.
+ *
+ * format:
+ *
+ * - FixedInt<1> == 0x00 [ok]
+ * - FixedInt<4> stmt-id
+ * - FixedInt<2> column-count
+ * - FixedInt<2> param-count
+ * - FixedInt<1> == 0x00 [filler]
+ * - FixedInt<2> warning-count
+ *
+ * If caps contains optional_resultset_metadata:
+ *
+ * - FixedInt<1> with_metadata
+ *
+ * sent as response after a client::StmtPrepare
+ */
+template <>
+class Codec<message::server::StmtPrepareOk>
+    : public impl::EncodeBase<Codec<message::server::StmtPrepareOk>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    accu.step(wire::FixedInt<1>(cmd_byte()))
+        .step(wire::FixedInt<4>(v_.statement_id()))
+        .step(wire::FixedInt<2>(v_.column_count()))
+        .step(wire::FixedInt<2>(v_.param_count()))
+        .step(wire::FixedInt<1>(0))
+        .step(wire::FixedInt<2>(v_.warning_count()));
+
+    if (caps()[capabilities::pos::optional_resultset_metadata]) {
+      accu.step(wire::FixedInt<1>(v_.with_metadata()));
+    }
+
+    return accu.result();
+  }
+
+ public:
+  using value_type = message::server::StmtPrepareOk;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  constexpr static uint8_t cmd_byte() noexcept { return 0x00; }
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto cmd_byte_res = accu.template step<wire::FixedInt<1>>();
+    auto stmt_id_res = accu.template step<wire::FixedInt<4>>();
+    auto column_count_res = accu.template step<wire::FixedInt<2>>();
+    auto param_count_res = accu.template step<wire::FixedInt<2>>();
+    auto filler_res = accu.template step<wire::FixedInt<1>>();
+    auto warning_count_res = accu.template step<wire::FixedInt<2>>();
+
+    // by default, metadata isn't optional
+    int8_t with_metadata{1};
+    if (caps[capabilities::pos::optional_resultset_metadata]) {
+      auto with_metadata_res = accu.template step<wire::FixedInt<1>>();
+
+      if (with_metadata_res) {
+        with_metadata = with_metadata_res->value();
+      }
+    }
+
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(
+        accu.result().value(),
+        value_type(stmt_id_res->value(), column_count_res->value(),
+                   param_count_res->value(), warning_count_res->value(),
+                   with_metadata));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
  * codec for a Row from the server.
  */
 template <>

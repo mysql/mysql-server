@@ -420,28 +420,43 @@ class ResultSet {
  */
 class StmtPrepareOk {
  public:
-  StmtPrepareOk(uint32_t stmt_id, uint16_t warning_count,
-                std::vector<ColumnMeta> params, std::vector<ColumnMeta> columns)
+  /**
+   * create a Ok message for a client::StmtPrepare.
+   *
+   * @param stmt_id id of the statement
+   * @param column_count number of columns the prepared stmt will return
+   * @param param_count number of parameters the prepared stmt contained
+   * @param warning_count number of warnings the prepared stmt created
+   * @param with_metadata 0 if no metadata shall be sent for "param_count" and
+   * "column_count".
+   */
+  StmtPrepareOk(uint32_t stmt_id, uint16_t column_count, uint16_t param_count,
+                uint16_t warning_count, uint8_t with_metadata)
       : statement_id_{stmt_id},
         warning_count_{warning_count},
-        params_{std::move(params)},
-        columns_{std::move(columns)} {}
+        param_count_{param_count},
+        column_count_{column_count},
+        with_metadata_{with_metadata} {}
 
   uint32_t statement_id() const noexcept { return statement_id_; }
   uint16_t warning_count() const noexcept { return warning_count_; }
-  std::vector<ColumnMeta> params() const { return params_; }
-  std::vector<ColumnMeta> columns() const { return columns_; }
+
+  uint16_t column_count() const { return column_count_; }
+  uint16_t param_count() const { return param_count_; }
+  uint8_t with_metadata() const { return with_metadata_; }
 
  private:
   uint32_t statement_id_;
   uint16_t warning_count_;
-  std::vector<ColumnMeta> params_;
-  std::vector<ColumnMeta> columns_;
+  uint16_t param_count_;
+  uint16_t column_count_;
+  uint8_t with_metadata_{1};
 };
 
 inline bool operator==(const StmtPrepareOk &a, const StmtPrepareOk &b) {
   return (a.statement_id() == b.statement_id()) &&
-         (a.columns() == b.columns()) && (a.params() == b.params()) &&
+         (a.column_count() == b.column_count()) &&
+         (a.param_count() == b.param_count()) &&
          (a.warning_count() == b.warning_count());
 }
 
