@@ -1597,9 +1597,11 @@ class Item_rollup_group_item final : public Item_func {
   table_map used_tables() const override {
     /*
       If underlying item is non-constant, return its used_tables value.
-      Otherwise, ensure it is non-constant by returning RAND_TABLE_BIT.
+      Otherwise, ensure it is non-constant by adding RAND_TABLE_BIT.
     */
-    return args[0]->used_tables() ? args[0]->used_tables() : RAND_TABLE_BIT;
+    return args[0]->const_for_execution()
+               ? (args[0]->used_tables() | RAND_TABLE_BIT)
+               : args[0]->used_tables();
   }
   Item_result result_type() const override { return args[0]->result_type(); }
   bool resolve_type(THD *) override {
