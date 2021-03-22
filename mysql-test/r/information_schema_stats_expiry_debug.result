@@ -67,7 +67,6 @@ a
 SELECT table_name, table_rows, avg_row_length, data_length, max_data_length,
 index_length, data_free, auto_increment from mysql.table_stats where table_name='t2';
 table_name	table_rows	avg_row_length	data_length	max_data_length	index_length	data_free	auto_increment
-t2	1	16384	16384	0	16384	0	0
 START TRANSACTION;
 INSERT INTO t3 VALUES(1);
 SELECT TABLE_NAME, ENGINE, ROW_FORMAT, TABLE_ROWS, AVG_ROW_LENGTH, DATA_LENGTH,
@@ -88,3 +87,49 @@ DELETE FROM mysql.table_stats;
 DELETE FROM mysql.index_stats;
 DROP TABLE t2,t3;
 SET SESSION information_schema_stats_expiry= default;
+# Bug#32338335 STOP UPDATING I_S DYNAMIC STATS CACHE
+# IN MULTI-STATEMENT TRANSACTIONS
+CREATE TABLE t1 (a INT);
+# CASE 1: Use START TRANSACTION
+START TRANSACTION;
+INSERT INTO t1 VALUES
+(0),(1),(2),(3),(4),(5),(6),(7),(8),(9),
+(10),(11),(12),(13),(14),(15),(16),(17),(18),(19);
+# Make sure that we see latest dynamic statistics and do not cache it.
+SELECT table_rows FROM information_schema.tables WHERE table_name = "t1";
+TABLE_ROWS
+20
+COMMIT;
+# Make sure that there is no dynamic statistics written
+# by previous I_S query.
+SELECT schema_name, table_name, table_rows
+FROM mysql.table_stats WHERE table_name="t1";
+schema_name	table_name	table_rows
+# CASE 2: Use AUTOCOMMIT=0
+SET AUTOCOMMIT=0;
+INSERT INTO t1 VALUES
+(0),(1),(2),(3),(4),(5),(6),(7),(8),(9),
+(10),(11),(12),(13),(14),(15),(16),(17),(18),(19);
+# Make sure that we see latest dynamic statistics and do not cache it.
+SELECT table_rows FROM information_schema.tables WHERE table_name = "t1";
+TABLE_ROWS
+40
+COMMIT;
+SET AUTOCOMMIT=1;
+# Make sure that there is no dynamic statistics written
+# by previous I_S query.
+SELECT schema_name, table_name, table_rows
+FROM mysql.table_stats WHERE table_name="t1";
+schema_name	table_name	table_rows
+# Make sure that we see latest dynamic statistics and also cache it.
+SELECT table_rows FROM information_schema.tables WHERE table_name = "t1";
+TABLE_ROWS
+40
+# Make sure that there is dynamic statistics written
+# by previous I_S query.
+SELECT schema_name, table_name, table_rows
+FROM mysql.table_stats WHERE table_name="t1";
+schema_name	table_name	table_rows
+test	t1	40
+DROP table t1;
+set global debug=RESET;
