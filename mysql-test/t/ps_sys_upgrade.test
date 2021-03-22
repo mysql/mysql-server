@@ -31,6 +31,7 @@ DROP PROCEDURE sys.ps_setup_reload_saved;
 --let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
+--sorted_result
 SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'PROCEDURE';
 
 # Filter out ndb_binlog_index to mask differences due to running with or
@@ -38,6 +39,7 @@ SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys
 --let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
+--sorted_result
 SELECT ROUTINE_NAME FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_SCHEMA = 'sys' AND ROUTINE_TYPE = 'FUNCTION';
 
 --echo # Now drop views and make sure re-install is done
@@ -50,6 +52,7 @@ DROP VIEW sys.processlist;
 --source include/restart_mysqld.inc
 # Filter out ndb_binlog_index to mask differences due to running with or
 # without ndb.
+--sorted_result
 --replace_regex /mysql.ndb_binlog_index.*\n//
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'VIEW' ORDER BY TABLE_NAME;
 
@@ -60,6 +63,7 @@ DROP TRIGGER sys.sys_config_update_set_user;
 # without ndb.
 --let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
+--sorted_result
 --source include/restart_mysqld.inc
 SELECT TRIGGER_NAME FROM INFORMATION_SCHEMA.TRIGGERS WHERE TRIGGER_SCHEMA = 'sys';
 
@@ -70,6 +74,7 @@ DROP TABLE sys.sys_config;
 --let $restart_parameters = restart:--upgrade=FORCE
 --let $wait_counter= 10000
 --source include/restart_mysqld.inc
+--sorted_result
 SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = 'sys' AND TABLE_TYPE = 'BASE TABLE';
 
 --echo #
