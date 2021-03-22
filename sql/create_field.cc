@@ -349,7 +349,10 @@ bool Create_field::init(
       break;
     case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_INVALID:
+      break;
     case MYSQL_TYPE_BOOL:
+      if (!display_width_in_codepoints)
+        m_max_display_width_in_codepoints = MAX_BOOL_WIDTH;
       break;
     case MYSQL_TYPE_NEWDECIMAL: {
       ulong precision = static_cast<ulong>(m_max_display_width_in_codepoints);

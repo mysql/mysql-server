@@ -2764,14 +2764,12 @@ static bool parse_query_bind_params(
       enum enum_field_types type =
           has_new_types ? params[i].type
                         : stmt_data->param_array[i]->data_type_actual();
-      if (type == MYSQL_TYPE_BOOL)
-        return true;  // unsupported in this version of the Server
       if (stmt_data && stmt_data->param_array[i]->param_state() ==
                            Item_param::LONG_DATA_VALUE) {
         DBUG_PRINT("info", ("long data"));
         if (!((type >= MYSQL_TYPE_TINY_BLOB) && (type <= MYSQL_TYPE_STRING)))
           return true;
-        if (type == MYSQL_TYPE_BOOL || type == MYSQL_TYPE_INVALID) return true;
+        if (type == MYSQL_TYPE_INVALID) return true;
         if (out_parameter_count) *out_parameter_count += 1;
         continue;
       }
@@ -3253,8 +3251,6 @@ bool Protocol_classic::send_field_metadata(Send_field *field,
   char *pos;
   const CHARSET_INFO *cs = system_charset_info;
   const CHARSET_INFO *thd_charset = m_thd->variables.character_set_results;
-
-  DBUG_ASSERT(field->type != MYSQL_TYPE_BOOL);
 
   /* Keep things compatible for old clients */
   if (field->type == MYSQL_TYPE_VARCHAR) field->type = MYSQL_TYPE_VAR_STRING;

@@ -292,6 +292,10 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
       break;
 
     case MYSQL_TYPE_BOOL:
+      column_info.set_length(field->length);
+      column_info.set_type(Mysqlx::Resultset::ColumnMetaData::UINT);
+      break;
+
     case MYSQL_TYPE_INVALID:
       DBUG_ASSERT(false);
       break;

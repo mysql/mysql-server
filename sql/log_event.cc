@@ -1888,6 +1888,13 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       return 4;
     }
 
+    case MYSQL_TYPE_BOOL: {
+      snprintf(typestr, typestr_length, "BOOL");
+      if(!ptr) return my_b_printf(file, "NULL");
+      my_b_write(file, ptr, 1);
+      return 1;
+    }
+
     case MYSQL_TYPE_TINY: {
       snprintf(typestr, typestr_length, "TINYINT");
       if (!ptr) return my_b_printf(file, "NULL");
@@ -2177,7 +2184,7 @@ static size_t log_event_print_value(IO_CACHE *file, const uchar *ptr, uint type,
       }
       return length + meta;
     }
-    case MYSQL_TYPE_BOOL:
+
     case MYSQL_TYPE_INVALID:
     default: {
       char tmp[5];

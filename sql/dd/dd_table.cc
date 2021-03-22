@@ -119,6 +119,9 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
     case MYSQL_TYPE_DECIMAL:
       return dd::enum_column_types::DECIMAL;
 
+    case MYSQL_TYPE_BOOL:
+      return dd::enum_column_types::BOOL;
+
     case MYSQL_TYPE_TINY:
       return dd::enum_column_types::TINY;
 
@@ -136,7 +139,6 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
 
     case MYSQL_TYPE_NULL:
     case MYSQL_TYPE_INVALID:
-    case MYSQL_TYPE_BOOL:
       return dd::enum_column_types::TYPE_NULL;
 
     case MYSQL_TYPE_TIMESTAMP:

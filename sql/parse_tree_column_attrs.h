@@ -619,6 +619,7 @@ class PT_bit_type : public PT_type {
   const char *get_length() const override { return length; }
 };
 
+// Does this need to be PT_numeric_type?
 /**
   Node for the BOOL/BOOLEAN type
 

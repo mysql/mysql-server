@@ -191,6 +191,13 @@ static String *query_parameter_val_str(const PS_PARAM *param,
   String *str = nullptr;
   switch (param->type) {
     // the expected data types listed in the manual
+    case MYSQL_TYPE_BOOL:
+      if(param->length == 1) {
+        bool value = static_cast<bool>(*param->value);
+        str = new String[1];
+        str->set_int(value, param->unsigned_type != 0, cs);
+      }
+      break;
     case MYSQL_TYPE_TINY:
       if (param->length == 1) {
         int8 value = (int8)*param->value;
@@ -386,7 +393,6 @@ static String *query_parameter_val_str(const PS_PARAM *param,
     case MYSQL_TYPE_DATETIME2:   /**< Internal to MySQL. Not used in protocol */
     case MYSQL_TYPE_TIME2:       /**< Internal to MySQL. Not used in protocol */
     case MYSQL_TYPE_TYPED_ARRAY: /**< Used for replication only */
-    case MYSQL_TYPE_BOOL:        /**< Currently just a placeholder */
     case MYSQL_TYPE_NEWDATE:     /**< Internal to MySQL. Not used in protocol */
     default:
       str = nullptr;

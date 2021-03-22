@@ -189,6 +189,9 @@ enum_field_types dd_get_old_field_type(dd::enum_column_types type) {
     case dd::enum_column_types::JSON:
       return MYSQL_TYPE_JSON;
 
+    case dd::enum_column_types::BOOL:
+      return MYSQL_TYPE_BOOL;
+
     default:
       DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
   }
