@@ -316,7 +316,8 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
    * @param auth_cache_refresh_interval Refresh rate of the rest user
    *                                    authentication data
    * @param ssl_options SSL relatd options for connection
-   * @param cluster_name The name of the cluster to be used.
+   * @param target_cluster object identifying the Cluster this operation refers
+   * to
    * @param connect_timeout The time in seconds after which trying to connect
    *                        to metadata server should time out.
    * @param read_timeout The time in seconds after which read from metadata
@@ -339,7 +340,8 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
       const std::chrono::milliseconds auth_cache_ttl,
       const std::chrono::milliseconds auth_cache_refresh_interval,
       const mysqlrouter::SSLOptions &ssl_options,
-      const std::string &cluster_name, int connect_timeout, int read_timeout,
+      const mysqlrouter::TargetCluster &target_cluster, int connect_timeout,
+      int read_timeout,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_cluster_notifications = false, const unsigned view_id = 0) = 0;
 
@@ -490,7 +492,8 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
 
   virtual RefreshStatus get_refresh_status() = 0;
   virtual std::string cluster_type_specific_id() const = 0;
-  virtual std::string cluster_name() const = 0;
+  virtual mysqlrouter::TargetCluster target_cluster() const = 0;
+
   virtual std::chrono::milliseconds ttl() const = 0;
 };
 
@@ -507,9 +510,9 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
       const std::chrono::milliseconds auth_cache_ttl,
       const std::chrono::milliseconds auth_cache_refresh_interval,
       const mysqlrouter::SSLOptions &ssl_options,
-      const std::string &cluster_name, int connect_timeout, int read_timeout,
-      size_t thread_stack_size, bool use_cluster_notifications,
-      unsigned view_id) override;
+      const mysqlrouter::TargetCluster &target_cluster, int connect_timeout,
+      int read_timeout, size_t thread_stack_size,
+      bool use_cluster_notifications, unsigned view_id) override;
 
   mysqlrouter::ClusterType cluster_type() const override;
 
@@ -517,7 +520,7 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
   std::string instance_name() const override;
 
   std::string cluster_type_specific_id() const override;
-  std::string cluster_name() const override;
+  mysqlrouter::TargetCluster target_cluster() const override;
   std::chrono::milliseconds ttl() const override;
 
   bool is_initialized() noexcept override { return is_initialized_; }

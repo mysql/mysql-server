@@ -59,7 +59,7 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
             get_option_milliseconds(section, "auth_cache_ttl", -1, 3600.0)),
         auth_cache_refresh_interval(get_option_milliseconds(
             section, "auth_cache_refresh_interval", 0.001, 3600.0)),
-        metadata_cluster(get_option_string(section, "metadata_cluster")),
+        cluster_name(get_option_string(section, "metadata_cluster")),
         connect_timeout(
             get_uint_option<uint16_t>(section, "connect_timeout", 1)),
         read_timeout(get_uint_option<uint16_t>(section, "read_timeout", 1)),
@@ -104,8 +104,9 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   /** @brief Refresh rate of the rest user authentication data stored in the
    * cache */
   const std::chrono::milliseconds auth_cache_refresh_interval;
-  /** @brief Cluster in the metadata */
-  const std::string metadata_cluster;
+  /** @brief Name of the Cluster this Router instance was bootstrapped to use.
+   */
+  const std::string cluster_name;
   /** @brief connect_timeout The time in seconds after which trying to connect
    * to metadata server timeouts */
   const unsigned int connect_timeout;

@@ -78,7 +78,7 @@ class METADATA_API MetadataCache
       const std::chrono::milliseconds auth_cache_ttl,
       const std::chrono::milliseconds auth_cache_refresh_interval,
       const mysqlrouter::SSLOptions &ssl_options,
-      const std::string &cluster_name,
+      const mysqlrouter::TargetCluster &target_cluster,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_cluster_notifications = false);
 
@@ -207,7 +207,7 @@ class METADATA_API MetadataCache
     return cluster_type_specific_id_;
   }
   std::chrono::milliseconds ttl() const { return ttl_; }
-  std::string cluster_name() const { return cluster_name_; }
+  mysqlrouter::TargetCluster target_cluster() const { return target_cluster_; }
 
   virtual mysqlrouter::ClusterType cluster_type() const noexcept = 0;
 
@@ -263,8 +263,8 @@ class METADATA_API MetadataCache
   // Stores the list of cluster's server instances.
   metadata_cache::ManagedCluster cluster_data_;
 
-  // The name of the cluster in the topology.
-  std::string cluster_name_;
+  // identifies the Cluster we work with
+  mysqlrouter::TargetCluster target_cluster_;
 
   // For GR cluster Group Replication ID, for AR cluster cluster_id from the
   // metadata

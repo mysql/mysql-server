@@ -75,7 +75,9 @@ class MetadataCachePluginTest : public ::testing::Test {
         metadata_server_vector,
         {kDefaultMetadataUser, kDefaultMetadataPassword}, kDefaultMetadataTTL,
         kDefaultAuthCacheTTL, kDefaultAuthCacheRefreshInterval,
-        mysqlrouter::SSLOptions(), kDefaultClusterName, 1, 1);
+        mysqlrouter::SSLOptions(),
+        {mysqlrouter::TargetCluster::TargetType::ByName, kDefaultClusterName},
+        1, 1);
     metadata_cache::MetadataCacheAPI::instance()->cache_start();
     int count = 1;
     /**

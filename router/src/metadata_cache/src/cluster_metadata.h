@@ -122,7 +122,8 @@ class METADATA_API ClusterMetadata : public MetaData {
       const unsigned router_id) override;
 
   auth_credentials_t fetch_auth_credentials(
-      const std::string &cluster_name) override;
+      const mysqlrouter::TargetCluster &target_cluster,
+      const std::string &cluster_type_specific_id) override;
 
  protected:
   /** Connects a MYSQL connection to the given instance
@@ -142,12 +143,6 @@ class METADATA_API ClusterMetadata : public MetaData {
   // Metadata node generic information
   mysql_ssl_mode ssl_mode_;
   mysqlrouter::SSLOptions ssl_options_;
-
-  std::string cluster_name_;
-#if 0  // not used so far
-  std::string metadata_uuid_;
-  std::string message_;
-#endif
 
   // The time after which trying to connect to the metadata server should
   // timeout.

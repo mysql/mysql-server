@@ -75,7 +75,7 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
    * @throws logic_error
    */
   metadata_cache::ManagedCluster fetch_instances(
-      const std::string & /*cluster_name*/,
+      const mysqlrouter::TargetCluster & /*target_cluster*/,
       const std::string & /*cluster_type_specific_id*/) override {
     throw std::logic_error("Call to unexpected fetch_instances overload");
   }

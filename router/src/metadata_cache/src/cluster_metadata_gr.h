@@ -66,14 +66,11 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
 
   /** @brief Returns cluster topology defined in the metadata server
    *
-   * @param cluster_name                the name of the cluster to query
-   * @param cluster_type_specific_id    (GR ID for GR cluster, cluster_id for AR
-   * cluster)
-   * @return cluster topology object
-   * @throws metadata_cache::metadata_error, MetadataUpgradeInProgressException
+   * @param [in,out] target_cluster object identifying the Cluster this
+   * operation refers to
    */
   metadata_cache::ManagedCluster fetch_instances(
-      const std::string &cluster_name,
+      const mysqlrouter::TargetCluster &target_cluster,
       const std::string &cluster_type_specific_id) override;
 
   /** @brief Returns cluster topology defined in the metadata server
@@ -119,19 +116,24 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
    * method fetches the following information: username, password hash,
    * privileges and name of the authentication mechanism that should be used.
    *
-   * @param cluster_name - name of the cluster
+   * @param target_cluster information about the Cluster that this information
+   * is retrieved for
+   * @param cluster_type_specific_id additional information about the Cluster
+   * that this information is retrieved for (clusterset_id in case of
+   * clusterset)
    *
    * @returns authentication data of the rest users stored in the metadata
    */
   auth_credentials_t fetch_auth_credentials(
-      const std::string &cluster_name) override;
+      const mysqlrouter::TargetCluster &target_cluster,
+      const std::string &cluster_type_specific_id) override;
 
  protected:
   /** @brief Queries the metadata server for the list of instances that belong
    * to the desired cluster.
    */
   metadata_cache::ManagedCluster fetch_instances_from_metadata_server(
-      const std::string &cluster_name,
+      const mysqlrouter::TargetCluster &target_cluster,
       const std::string &cluster_type_specific_id);
 
   /** Query the GR performance_schema tables for live information about a
@@ -145,7 +147,7 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
    *
    * The information is pulled from GR maintained performance_schema tables.
    */
-  void update_cluster_status(const std::string &name,
+  void update_cluster_status(const mysqlrouter::TargetCluster &target_cluster,
                              metadata_cache::ManagedCluster &cluster);
 
   metadata_cache::ClusterStatus check_cluster_status(
@@ -187,4 +189,4 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
 #endif
 };
 
-#endif  // METADATA_CACHE_CLUSTER_METADATA_AR_INCLUDED
+#endif  // METADATA_CACHE_CLUSTER_METADATA_GR_INCLUDED

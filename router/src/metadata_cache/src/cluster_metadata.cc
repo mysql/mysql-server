@@ -50,6 +50,7 @@ using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
 using mysqlrouter::strtoi_checked;
 using mysqlrouter::strtoui_checked;
+using namespace std::string_literals;
 IMPORT_LOG_FUNCTIONS()
 
 /**
@@ -326,15 +327,31 @@ bool ClusterMetadata::update_router_last_check_in(
   return true;
 }
 
+static std::string get_limit_target_cluster_clause(
+    const mysqlrouter::TargetCluster &target_cluster,
+    const mysqlrouter::MySQLSession &session) {
+  switch (target_cluster.target_type()) {
+    case mysqlrouter::TargetCluster::TargetType::ByUUID:
+      return "(SELECT cluster_id FROM "
+             "mysql_innodb_cluster_metadata.v2_gr_clusters C WHERE "
+             "C.attributes->>'$.group_replication_group_name' = " +
+             session.quote(target_cluster.to_string()) + ")";
+    default:
+      return "(SELECT cluster_id FROM "
+             "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name=" +
+             session.quote(target_cluster.to_string()) + ")";
+  }
+}
+
 ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
-    const std::string &cluster_name) {
+    const mysqlrouter::TargetCluster &target_cluster,
+    const std::string & /*cluster_type_specific_id*/) {
   ClusterMetadata::auth_credentials_t auth_credentials;
-  sqlstring query =
+  const std::string query =
       "SELECT user, authentication_string, privileges, authentication_method "
       "FROM mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE "
-      "cluster_id=(SELECT cluster_id FROM "
-      "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name=?)";
-  query << cluster_name << sqlstring::end;
+      "cluster_id="s +
+      get_limit_target_cluster_clause(target_cluster, *metadata_connection_);
 
   auto result_processor =
       [&auth_credentials](const MySQLSession::Row &row) -> bool {

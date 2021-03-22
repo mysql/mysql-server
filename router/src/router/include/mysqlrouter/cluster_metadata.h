@@ -122,5 +122,31 @@ class MetadataUpgradeInProgressException : public std::exception {};
 
 stdx::expected<void, std::string> setup_metadata_session(MySQLSession &session);
 
+class TargetCluster {
+ public:
+  enum class TargetType { ByUUID, ByName, ByPrimaryRole };
+  enum class InvalidatedClusterRoutingPolicy { DropAll, AcceptRO };
+
+  TargetCluster(const TargetType type, const std::string &value = "")
+      : target_type_(type), target_value_(value) {
+    if (target_type_ == TargetType::ByPrimaryRole) target_value_ = "PRIMARY";
+  }
+
+  std::string to_string() const { return target_value_; }
+  const char *c_str() const { return target_value_.c_str(); }
+
+  InvalidatedClusterRoutingPolicy invalidated_cluster_routing_policy() const {
+    return invalidated_cluster_routing_policy_;
+  }
+
+  TargetType target_type() const { return target_type_; }
+
+ private:
+  TargetType target_type_;
+  std::string target_value_;
+  InvalidatedClusterRoutingPolicy invalidated_cluster_routing_policy_{
+      InvalidatedClusterRoutingPolicy::DropAll};
+};
+
 }  // namespace mysqlrouter
 #endif

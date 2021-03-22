@@ -81,7 +81,8 @@ bool RestMetadataCacheConfig::on_handle_request(
 
     json_doc.SetObject()
         .AddMember("clusterName",
-                   json_value_from_string(md_api->cluster_name(), allocator),
+                   json_value_from_string(md_api->target_cluster().to_string(),
+                                          allocator),
                    allocator)
         .AddMember<uint64_t>("timeRefreshInMs",
                              static_cast<uint64_t>(md_api->ttl().count()),

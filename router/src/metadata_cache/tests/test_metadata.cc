@@ -475,8 +475,9 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
     ASSERT_NO_THROW({
       metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-      auto cluster =
-          metadata.fetch_instances_from_metadata_server("cluster-name", "0001");
+      auto cluster = metadata.fetch_instances_from_metadata_server(
+          {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+          "0001");
 
       EXPECT_EQ(4u, cluster.members.size());  // not set/checked
       // -------------------vvvvvvvvvvvvvvvvvvvvvvv
@@ -514,8 +515,9 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
 
     ASSERT_NO_THROW({
       metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-      auto cluster =
-          metadata.fetch_instances_from_metadata_server("cluster-name", "0001");
+      auto cluster = metadata.fetch_instances_from_metadata_server(
+          {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+          "0001");
 
       EXPECT_EQ(0u, cluster.members.size());
     });
@@ -538,7 +540,8 @@ TEST_F(MetadataTest, FetchInstancesFromMetadataServer) {
     try {
       metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
       auto cluster = metadata.fetch_instances_from_metadata_server(
-          "cluster_name", "gr-id");
+          {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+          "gr-id");
       FAIL() << "Expected metadata_cache::metadata_error to be thrown";
     } catch (const metadata_cache::metadata_error &e) {
       EXPECT_STREQ("Error executing MySQL query: some error(42)", e.what());
@@ -1523,7 +1526,9 @@ TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailConnectOnNode2) {
 
   ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_cluster_status("cluster_name", cluster);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster_name"},
+      cluster);
 
   EXPECT_EQ(3u, cluster.members.size());
   EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
@@ -1580,7 +1585,9 @@ TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailConnectOnAllNodes) {
   ManagedCluster cluster = typical_cluster;
   ConnectCallback clb;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_cluster_status("cluster_name", cluster);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
   EXPECT_TRUE(cluster.members.empty());
 
   EXPECT_EQ(3, session_factory.create_cnt());  // +2 from new connections to
@@ -1642,7 +1649,9 @@ TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailQueryOnNode1) {
   ManagedCluster cluster = typical_cluster;
   ConnectCallback clb;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_cluster_status("cluster_name", cluster);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
 
   EXPECT_EQ(2, session_factory.create_cnt());  // +1 from new connection to
                                                // localhost:3320 (instance-2)
@@ -1715,7 +1724,9 @@ TEST_F(MetadataTest, UpdateClusterStatus_PrimaryMember_FailQueryOnAllNodes) {
   // replicaset.members
   ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_cluster_status("cluster_name", cluster);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
   EXPECT_TRUE(cluster.members.empty());
 
   EXPECT_EQ(3, session_factory.create_cnt());  // +2 from new connections to
@@ -1781,7 +1792,9 @@ TEST_F(MetadataTest, UpdateClusterStatus_Status_FailQueryOnNode1) {
 
   ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_cluster_status("cluster_name", cluster);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
 
   EXPECT_EQ(2, session_factory.create_cnt());  // +1 from new connection to
                                                // localhost:3320 (instance-2)
@@ -1871,7 +1884,9 @@ TEST_F(MetadataTest, UpdateClusterStatus_Status_FailQueryOnAllNodes) {
   // replicaset.members
   ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_cluster_status("cluster_name", cluster);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster_name"},
+      cluster);
   EXPECT_TRUE(cluster.members.empty());
 
   EXPECT_EQ(3, session_factory.create_cnt());  // +2 from new connections to
@@ -1918,7 +1933,9 @@ TEST_F(MetadataTest, UpdateClusterStatus_SimpleSunnyDayScenario) {
 
   ManagedCluster cluster = typical_cluster;
   metadata.reset_metadata_backend(mysqlrouter::ClusterType::GR_V1);
-  metadata.update_cluster_status("cluster_name", cluster);
+  metadata.update_cluster_status(
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name"},
+      cluster);
 
   EXPECT_EQ(1,
             session_factory
@@ -1992,7 +2009,9 @@ TEST_F(MetadataTest, FetchInstances_ok) {
       .WillOnce(Invoke(query_status_ok(session)));
 
   ASSERT_NO_THROW({
-    auto cluster = metadata.fetch_instances("cluster_name", "gr-id");
+    auto cluster = metadata.fetch_instances(
+        {mysqlrouter::TargetCluster::TargetType::ByName, "cluster_name"},
+        "gr-id");
 
     EXPECT_EQ(3u, cluster.members.size());
     EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
@@ -2051,7 +2070,9 @@ TEST_F(MetadataTest, FetchInstances_fail) {
   // if fetch_instances() can't connect to a quorum for a particular replicaset,
   // it should clear its replicaset.members
   ASSERT_NO_THROW({
-    auto cluster = metadata.fetch_instances("cluster_name", "gr-id");
+    auto cluster = metadata.fetch_instances(
+        {mysqlrouter::TargetCluster::TargetType::ByName, "cluster_name"},
+        "gr-id");
     EXPECT_EQ(0u, cluster.members.size());
   });
 }

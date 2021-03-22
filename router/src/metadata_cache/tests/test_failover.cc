@@ -82,7 +82,9 @@ class FailoverTest : public ::testing::Test {
         std::vector<mysql_harness::TCPAddress>{
             {"localhost", 32275},
         },
-        cmeta, 10s, -1s, 20s, mysqlrouter::SSLOptions(), "cluster-1",
+        cmeta, 10s, -1s, 20s, mysqlrouter::SSLOptions(),
+        mysqlrouter::TargetCluster{
+            mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"},
         mysql_harness::kDefaultStackSizeInKiloBytes, false);
   }
 

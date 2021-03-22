@@ -510,7 +510,7 @@ bool GRMetadataCache::fetch_metadata_from_connected_instance(
     changed = false;
     // Fetch the metadata and store it in a temporary variable.
     auto cluster_data_temp =
-        meta_data_->fetch_instances(cluster_name_, cluster_type_specific_id_);
+        meta_data_->fetch_instances(target_cluster_, cluster_type_specific_id_);
 
     // this node no longer contains metadata for our cluster, check the next
     // node (if available)
@@ -540,13 +540,14 @@ bool GRMetadataCache::fetch_metadata_from_connected_instance(
     if (changed) {
       log_info(
           "Potential changes detected in cluster '%s' after metadata refresh",
-          cluster_name_.c_str());
+          target_cluster_.c_str());
       // dump some informational/debugging information about the cluster
       if (cluster_data_.empty())
-        log_error("Metadata for cluster '%s' is empty!", cluster_name_.c_str());
+        log_error("Metadata for cluster '%s' is empty!",
+                  target_cluster_.c_str());
       else {
-        log_info("Metadata for cluster '%s' has %zu members, %s:",
-                 cluster_name_.c_str(), cluster_data_.members.size(),
+        log_info("Metadata for cluster '%s' has %zu member(s), %s",
+                 target_cluster_.c_str(), cluster_data_.members.size(),
                  cluster_data_.single_primary_mode ? "single-primary"
                                                    : "multi-primary");
         for (const auto &mi : cluster_data_.members) {

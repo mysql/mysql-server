@@ -77,7 +77,7 @@ MockNG::~MockNG() = default;
  * @return cluster topology information.
  */
 metadata_cache::ManagedCluster MockNG::fetch_instances(
-    const std::string & /*cluster_name*/,
+    const mysqlrouter::TargetCluster & /*target_cluster*/,
     const string & /*cluster_type_specific_id*/) {
   return cluster_info;
 }

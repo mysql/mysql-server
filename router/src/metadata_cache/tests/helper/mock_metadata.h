@@ -120,7 +120,7 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
    * @return Cluster topology object.
    */
   metadata_cache::ManagedCluster fetch_instances(
-      const std::string &cluster_name,
+      const mysqlrouter::TargetCluster &target_cluster,
       const std::string &cluster_type_specific_id) override;
 
   metadata_cache::ManagedCluster fetch_instances(

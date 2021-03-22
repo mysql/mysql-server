@@ -56,10 +56,10 @@ bool ARMetadataCache::refresh() {
   if (changed) {
     log_info(
         "Potential changes detected in cluster '%s' after metadata refresh",
-        cluster_name_.c_str());
+        target_cluster_.c_str());
     // dump some debugging info about the cluster
     if (cluster_data_.empty())
-      log_error("Metadata for cluster '%s' is empty!", cluster_name_.c_str());
+      log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
     else {
       view_id = cluster_data_.view_id;
       log_info("view_id = %u, (%i members)", view_id,

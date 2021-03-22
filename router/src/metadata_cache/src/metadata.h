@@ -50,7 +50,7 @@ class METADATA_API MetaData {
       std::map<std::string, std::pair<std::string, JsonDocument>>;
   // fetch instances from connected server
   virtual metadata_cache::ManagedCluster fetch_instances(
-      const std::string &cluster_name,
+      const mysqlrouter::TargetCluster &target_cluster,
       const std::string &cluster_type_specific_id) = 0;
 
   // fetch instances from vector of servers
@@ -83,7 +83,8 @@ class METADATA_API MetaData {
   virtual mysqlrouter::ClusterType get_cluster_type() = 0;
 
   virtual auth_credentials_t fetch_auth_credentials(
-      const std::string &cluster_name) = 0;
+      const mysqlrouter::TargetCluster &target_cluster,
+      const std::string &cluster_type_specific_id) = 0;
 
   MetaData() = default;
   // disable copy as it isn't needed right now. Feel free to enable

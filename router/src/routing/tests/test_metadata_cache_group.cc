@@ -118,8 +118,8 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
       std::chrono::milliseconds /*auth_cache_ttl*/,
       std::chrono::milliseconds /*auth_cache_refresh_interval*/,
       const mysqlrouter::SSLOptions & /*ssl_options*/,
-      const std::string & /*cluster_name*/, int /*connect_timeout*/,
-      int /*read_timeout*/,
+      const mysqlrouter::TargetCluster & /*target_cluster*/,
+      int /*connect_timeout*/, int /*read_timeout*/,
       size_t /*thread_stack_size*/ =
           mysql_harness::kDefaultStackSizeInKiloBytes,
       bool /*use_gr_notifications*/ = false,
@@ -137,7 +137,9 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   void instance_name(const std::string &) override {}
   std::string instance_name() const override { return "foo"; }
   std::string cluster_type_specific_id() const override { return "foo"; }
-  std::string cluster_name() const override { return "foo"; }
+  mysqlrouter::TargetCluster target_cluster() const override {
+    return {mysqlrouter::TargetCluster::TargetType::ByName, "foo"};
+  }
   std::chrono::milliseconds ttl() const override { return {}; }
 
   RefreshStatus get_refresh_status() override { return {}; }

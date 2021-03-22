@@ -41,15 +41,16 @@ using namespace std::string_literals;
 IMPORT_LOG_FUNCTIONS()
 
 MetadataCache::MetadataCache(
-    const unsigned router_id, const std::string &cluster_type_specifig_id,
+    const unsigned router_id, const std::string &cluster_type_specific_id,
     const std::vector<mysql_harness::TCPAddress> &metadata_servers,
     std::shared_ptr<MetaData> cluster_metadata, std::chrono::milliseconds ttl,
     const std::chrono::milliseconds auth_cache_ttl,
     const std::chrono::milliseconds auth_cache_refresh_interval,
-    const mysqlrouter::SSLOptions &ssl_options, const std::string &cluster,
-    size_t thread_stack_size, bool use_cluster_notifications)
-    : cluster_name_(cluster),
-      cluster_type_specific_id_(cluster_type_specifig_id),
+    const mysqlrouter::SSLOptions &ssl_options,
+    const mysqlrouter::TargetCluster &target_cluster, size_t thread_stack_size,
+    bool use_cluster_notifications)
+    : target_cluster_(target_cluster),
+      cluster_type_specific_id_(cluster_type_specific_id),
       ttl_(ttl),
       auth_cache_ttl_(auth_cache_ttl),
       auth_cache_refresh_interval_(auth_cache_refresh_interval),
@@ -444,7 +445,7 @@ void MetadataCache::mark_instance_reachability(
             "Instance '%s:%i' [%s] of cluster '%s' is invalid. Increasing "
             "metadata cache refresh frequency.",
             instance->host.c_str(), instance->port, instance_id.c_str(),
-            cluster_name().c_str());
+            target_cluster_.c_str());
         has_unreachable_nodes = true;
         break;
       case metadata_cache::InstanceStatus::Unreachable:
@@ -452,7 +453,7 @@ void MetadataCache::mark_instance_reachability(
             "Instance '%s:%i' [%s] of cluster '%s' is unreachable. "
             "Increasing metadata cache refresh frequency.",
             instance->host.c_str(), instance->port, instance_id.c_str(),
-            cluster_name().c_str());
+            target_cluster_.c_str());
         has_unreachable_nodes = true;
         break;
       case metadata_cache::InstanceStatus::Unusable:
@@ -489,7 +490,7 @@ static bool primary_has_changed(
 bool MetadataCache::wait_primary_failover(const std::string &server_uuid,
                                           const std::chrono::seconds &timeout) {
   log_debug("Waiting for failover to happen in '%s' for %lds",
-            cluster_name().c_str(), static_cast<long>(timeout.count()));
+            target_cluster_.c_str(), static_cast<long>(timeout.count()));
 
   using clock_type = std::chrono::steady_clock;
   const auto end_time = clock_type::now() + timeout;
@@ -599,8 +600,8 @@ bool MetadataCache::update_auth_cache() {
   if (meta_data_ && auth_metadata_fetch_enabled_) {
     try {
       rest_auth_([this](auto &rest_auth) {
-        rest_auth.rest_auth_data_ =
-            meta_data_->fetch_auth_credentials(cluster_name_);
+        rest_auth.rest_auth_data_ = meta_data_->fetch_auth_credentials(
+            target_cluster_, cluster_type_specific_id());
         rest_auth.last_credentials_update_ = std::chrono::system_clock::now();
       });
       return true;

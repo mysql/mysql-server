@@ -91,7 +91,7 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
  * @param auth_cache_refresh_interval Refresh rate of the rest user
  *                                    authentication data
  * @param ssl_options SSL related options for connections
- * @param cluster_name The name of the cluster from the metadata schema
+ * @param target_cluster object identifying the Cluster this operation refers to
  * @param connect_timeout The time in seconds after which trying to connect
  *                        to metadata server timeouts
  * @param read_timeout The time in seconds after which read from metadata
@@ -112,9 +112,10 @@ void MetadataCacheAPI::cache_init(
     const std::chrono::milliseconds ttl,
     const std::chrono::milliseconds auth_cache_ttl,
     const std::chrono::milliseconds auth_cache_refresh_interval,
-    const mysqlrouter::SSLOptions &ssl_options, const std::string &cluster_name,
-    int connect_timeout, int read_timeout, size_t thread_stack_size,
-    bool use_cluster_notifications, const unsigned view_id) {
+    const mysqlrouter::SSLOptions &ssl_options,
+    const mysqlrouter::TargetCluster &target_cluster, int connect_timeout,
+    int read_timeout, size_t thread_stack_size, bool use_cluster_notifications,
+    const unsigned view_id) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
   if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
@@ -124,7 +125,7 @@ void MetadataCacheAPI::cache_init(
                      user_credentials.password, connect_timeout, read_timeout,
                      1, ssl_options, use_cluster_notifications, view_id),
         ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
-        cluster_name, thread_stack_size));
+        target_cluster, thread_stack_size));
   } else {
     g_metadata_cache.reset(new GRMetadataCache(
         router_id, cluster_type_specific_id, metadata_servers,
@@ -132,7 +133,7 @@ void MetadataCacheAPI::cache_init(
                      user_credentials.password, connect_timeout, read_timeout,
                      1, ssl_options, use_cluster_notifications, view_id),
         ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
-        cluster_name, thread_stack_size, use_cluster_notifications));
+        target_cluster, thread_stack_size, use_cluster_notifications));
   }
 
   is_initialized_ = true;
@@ -152,8 +153,8 @@ std::string MetadataCacheAPI::cluster_type_specific_id() const {
   return g_metadata_cache->cluster_type_specific_id();
 }
 
-std::string MetadataCacheAPI::cluster_name() const {
-  return g_metadata_cache->cluster_name();
+mysqlrouter::TargetCluster MetadataCacheAPI::target_cluster() const {
+  return g_metadata_cache->target_cluster();
 }
 
 std::chrono::milliseconds MetadataCacheAPI::ttl() const {

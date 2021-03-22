@@ -170,7 +170,7 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     std::chrono::milliseconds auth_cache_ttl{config.auth_cache_ttl};
     std::chrono::milliseconds auth_cache_refresh_interval{
         config.auth_cache_refresh_interval};
-    std::string metadata_cluster{config.metadata_cluster};
+    std::string metadata_cluster{config.cluster_name};
 
     // Initialize the defaults.
     metadata_cluster = metadata_cluster.empty()
@@ -203,9 +203,11 @@ static void start(mysql_harness::PluginFuncEnv *env) {
         config.cluster_type, config.router_id, cluster_type_specific_id,
         config.metadata_servers_addresses, {config.user, password}, ttl,
         auth_cache_ttl, auth_cache_refresh_interval, make_ssl_options(section),
-        metadata_cluster, config.connect_timeout, config.read_timeout,
-        config.thread_stack_size, config.use_gr_notifications,
-        config.get_view_id());
+        mysqlrouter::TargetCluster{
+            mysqlrouter::TargetCluster::TargetType::ByName,
+            config.cluster_name},
+        config.connect_timeout, config.read_timeout, config.thread_stack_size,
+        config.use_gr_notifications, config.get_view_id());
 
     // register callback
     md_cache_dynamic_state = std::move(config.metadata_cache_dynamic_state);
