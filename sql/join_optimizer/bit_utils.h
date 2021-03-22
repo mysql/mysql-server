@@ -182,7 +182,16 @@ inline uint64_t TableBitmap(unsigned x) { return uint64_t{1} << x; }
 // Returns a bitmap representing the semi-open interval [start, end).
 inline uint64_t BitsBetween(unsigned start, unsigned end) {
   assert(end >= start);
-  return (uint64_t{1} << end) - (uint64_t{1} << start);
+  assert(end <= 64);
+  if (end == 64) {
+    if (start == 64) {
+      return 0;
+    } else {
+      return -(uint64_t{1} << start);
+    }
+  } else {
+    return (uint64_t{1} << end) - (uint64_t{1} << start);
+  }
 }
 
 // The same, just with a different name for clarity.
