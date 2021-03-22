@@ -1567,6 +1567,48 @@ class Codec<message::client::Query>
 };
 
 /**
+ * codec for client::SendFile message.
+ *
+ * sent by client as response to server::SendFileRequest
+ *
+ * format:
+ *
+ * - String payload
+ */
+template <>
+class Codec<message::client::SendFile>
+    : public impl::EncodeBase<Codec<message::client::SendFile>> {
+  template <class Accumulator>
+  constexpr auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::String(v_.payload())).result();
+  }
+
+ public:
+  using value_type = message::client::SendFile;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto payload_res = accu.template step<wire::String>();
+    if (!accu.result()) return accu.result().get_unexpected();
+
+    return std::make_pair(accu.result().value(),
+                          value_type(payload_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
  * codec for client's ListFields command.
  */
 template <>

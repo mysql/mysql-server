@@ -766,6 +766,25 @@ constexpr bool operator==(const Kill &a, const Kill &b) {
   return a.connection_id() == b.connection_id();
 }
 
+class SendFile {
+ public:
+  /**
+   * construct a SendFile message.
+   *
+   * @param payload payload
+   */
+  SendFile(std::string payload) : payload_{std::move(payload)} {}
+
+  std::string payload() const { return payload_; }
+
+ private:
+  std::string payload_;
+};
+
+inline bool operator==(const SendFile &a, const SendFile &b) {
+  return a.payload() == b.payload();
+}
+
 class StmtPrepare {
  public:
   /**

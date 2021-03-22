@@ -809,6 +809,29 @@ INSTANTIATE_TEST_SUITE_P(Spec, CodecMessageClientQueryTest,
                            return test_param_info.param.test_name;
                          });
 
+// client::SendFile
+
+using CodecMessageClientSendFileTest =
+    CodecTest<classic_protocol::message::client::SendFile>;
+
+TEST_P(CodecMessageClientSendFileTest, encode) { test_encode(GetParam()); }
+TEST_P(CodecMessageClientSendFileTest, decode) { test_decode(GetParam()); }
+
+const CodecParam<classic_protocol::message::client::SendFile>
+    codec_message_client_send_file_param[] = {
+        {"somefile",    // testname
+         {"somefile"},  // decoded
+         {},            // caps
+         {'s', 'o', 'm', 'e', 'f', 'i', 'l', 'e'}},
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, CodecMessageClientSendFileTest,
+    ::testing::ValuesIn(codec_message_client_send_file_param),
+    [](auto const &test_param_info) {
+      return test_param_info.param.test_name;
+    });
+
 // client::ListFields
 
 using CodecMessageClientListFieldsTest =
