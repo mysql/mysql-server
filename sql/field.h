@@ -2145,8 +2145,8 @@ class Field_new_decimal : public Field_num {
 
 class Field_boolean : public Field_num {
  public:
-  Field_boolean(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg, uchar auto_flags_arg, const char *field_name_arg, bool zero_arg) : Field_num(ptr_arg, 1, null_ptr_arg, null_bit_arg, auto_flags_arg, field_name_arg, 0, zero_arg, 1){}
-  Field_boolean(bool is_nullable_arg, const char *field_name_arg) : Field_num(nullptr, 1, is_nullable_arg ? &dummy_null_buffer : nullptr, 0, NONE, field_name_arg, 0, false, 1){}
+  Field_boolean(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg, uchar auto_flags_arg, const char *field_name_arg, bool zero_arg) : Field_num(ptr_arg, 1, null_ptr_arg, null_bit_arg, auto_flags_arg, field_name_arg, 0, zero_arg, 0){}
+  Field_boolean(bool is_nullable_arg, const char *field_name_arg) : Field_num(nullptr, 1, is_nullable_arg ? &dummy_null_buffer : nullptr, 0, NONE, field_name_arg, 0, false, 0){}
   enum Item_result result_type() const final { return INT_RESULT; }
   enum_field_types type() const override { return MYSQL_TYPE_BOOL; }
   enum ha_base_keytype key_type() const final {  return HA_KEYTYPE_BINARY;  }
