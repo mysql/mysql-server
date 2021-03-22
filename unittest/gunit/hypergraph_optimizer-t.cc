@@ -1909,6 +1909,11 @@ struct RejectionParam {
   // an error or is rejected.
   bool expect_error;
 };
+
+std::ostream &operator<<(std::ostream &os, const RejectionParam &param) {
+  return os << param.query << '/' << param.rejected_type << '/'
+            << param.expect_error;
+}
 }  // namespace
 
 using HypergraphSecondaryEngineRejectionTest =
