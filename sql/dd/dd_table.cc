@@ -141,9 +141,6 @@ dd::enum_column_types get_new_field_type(enum_field_types type) {
     case MYSQL_TYPE_INVALID:
       return dd::enum_column_types::TYPE_NULL;
 
-    case MYSQL_TYPE_BOOL:
-      return dd::enum_column_types::BOOL;
-
     case MYSQL_TYPE_TIMESTAMP:
       return dd::enum_column_types::TIMESTAMP;
 
