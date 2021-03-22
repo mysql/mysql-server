@@ -1289,6 +1289,43 @@ class Codec<message::server::StmtRow>
 };
 
 /**
+ * codec for server::Statistics message.
+ */
+template <>
+class Codec<message::server::Statistics>
+    : public impl::EncodeBase<Codec<message::server::Statistics>> {
+  template <class Accumulator>
+  auto accumulate_fields(Accumulator &&accu) const {
+    return accu.step(wire::String(v_.stats())).result();
+  }
+
+ public:
+  using value_type = message::server::Statistics;
+  using __base = impl::EncodeBase<Codec<value_type>>;
+
+  friend __base;
+
+  Codec(value_type v, capabilities::value_type caps)
+      : __base(caps), v_{std::move(v)} {}
+
+  template <class ConstBufferSequence>
+  static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
+      const ConstBufferSequence &buffers, capabilities::value_type caps) {
+    impl::DecodeBufferAccumulator<ConstBufferSequence> accu(buffers, caps);
+
+    auto stats_res = accu.template step<wire::String>();
+
+    if (!accu.result()) return stdx::make_unexpected(accu.result().error());
+
+    return std::make_pair(accu.result().value(),
+                          value_type(stats_res->value()));
+  }
+
+ private:
+  const value_type v_;
+};
+
+/**
  * CRTP base for client-side commands that are encoded as a single byte.
  */
 template <class Base, class ValueType>

@@ -498,6 +498,25 @@ inline bool operator==(const SendFileRequest &a, const SendFileRequest &b) {
   return a.filename() == b.filename();
 }
 
+class Statistics {
+ public:
+  /**
+   * construct a Statistics message.
+   *
+   * @param stats statistics
+   */
+  Statistics(std::string stats) : stats_{std::move(stats)} {}
+
+  std::string stats() const { return stats_; }
+
+ private:
+  std::string stats_;
+};
+
+inline bool operator==(const Statistics &a, const Statistics &b) {
+  return a.stats() == b.stats();
+}
+
 }  // namespace server
 
 namespace client {
