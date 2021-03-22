@@ -134,6 +134,7 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Bug#59149 valgrind warnings with "like .. escape .." function
 --echo #
+--error ER_WRONG_ARGUMENTS
 SELECT '' LIKE '1' ESCAPE COUNT(1);
 
 --echo End of 5.1 tests

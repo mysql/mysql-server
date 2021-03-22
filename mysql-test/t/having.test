@@ -941,3 +941,10 @@ DELETE FROM v LIMIT 1;
 DROP VIEW v;
 DROP TABLE t;
 
+--echo # Bug#32239484: Item_sum_json::val_json: assertion `!m_wrapper->empty()'
+
+SELECT 1 HAVING COUNT(*) = 1;
+SELECT 1 WHERE TRUE HAVING COUNT(*) = 1;
+SELECT 1 WHERE FALSE HAVING COUNT(*) = 0;
+SELECT 1 HAVING json_objectagg(utc_date(), 1416) <> 0;
+

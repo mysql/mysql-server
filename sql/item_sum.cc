@@ -781,10 +781,10 @@ void Item_sum::add_used_tables_for_aggr_func() {
           ? base_query_block->all_tables_map()
           : OUTER_REF_TABLE_BIT;
   /*
-    Aggregate functions are not allowed to be const, but they may
-    be const-for-execution.
+    Aggregate functions are not allowed to be const, so if there are no tables
+    to depend them on, ensure they are executed anyway:
   */
-  if (used_tables_cache == 0) used_tables_cache = INNER_TABLE_BIT;
+  if (const_for_execution()) used_tables_cache |= RAND_TABLE_BIT;
 }
 
 Item *Item_sum::set_arg(THD *thd, uint i, Item *new_val) {
