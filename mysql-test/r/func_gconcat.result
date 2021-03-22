@@ -1330,3 +1330,30 @@ center,small
 deallocate prepare s;
 DROP VIEW v;
 DROP TABLE t1;
+# Bug#32413530: Prepared statements with GROUP_CONCAT fail with a high
+#               group_concat_max_len
+CREATE TABLE t1 (
+o_id int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Primary Key',
+PRIMARY KEY (o_id)
+);
+set group_concat_max_len = 1024;
+PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
+EXECUTE ps;
+GROUP_CONCAT(o_id)
+NULL
+set group_concat_max_len = 10000000000;
+PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
+EXECUTE ps;
+GROUP_CONCAT(o_id)
+NULL
+set group_concat_max_len = 9223372036854775807;
+PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
+EXECUTE ps;
+GROUP_CONCAT(o_id)
+NULL
+set group_concat_max_len = 18446744073709551615;
+PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
+EXECUTE ps;
+GROUP_CONCAT(o_id)
+NULL
+DROP TABLE t1;
