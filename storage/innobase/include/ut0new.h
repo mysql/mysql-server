@@ -718,10 +718,6 @@ class ut_allocator {
 #endif /* UNIV_PFS_MEMORY */
   }
 
-  /** Create an object of type 'T' using the value 'val' over the
-  memory pointed by 'p'. */
-  void construct(pointer p, const T &val) { new (p) T(val); }
-
   /** Destroy an object pointed by 'p'. */
   void destroy(pointer p) { p->~T(); }
 
