@@ -2058,7 +2058,7 @@ vector<RelationalExpression *> GenerateAllCompleteBinaryTrees(
     table->pos_in_table_list->set_tableno(start_idx);
 
     // For debugging only.
-    char name[16];
+    char name[32];
     snprintf(name, sizeof(name), "t%zu", start_idx + 1);
     table->alias = sql_strdup(name);
     table->pos_in_table_list->alias = table->alias;
