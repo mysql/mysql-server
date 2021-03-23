@@ -4028,6 +4028,9 @@ MetadataRecover *recv_recovery_from_checkpoint_finish(log_t &log,
   mutex currently held by any thread. */
   mutex_enter(&recv_sys->writer_mutex);
 
+  /* Restore state. */
+  if (recv_sys->is_meb_recovery) dblwr::enabled = recv_sys->dblwr_state;
+
   /* Free the resources of the recovery system */
   recv_recovery_on = false;
 
