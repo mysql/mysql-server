@@ -2514,7 +2514,7 @@ incomplete_log:
     {
       if (c_start.m_node_gci[i] != 0)
       {
-        g_eventLogger->info("Node group GCI = %u for NG %u",
+        g_eventLogger->info("Node GCI = %u for node %u",
                             c_start.m_node_gci[i],
                             i);
       }
