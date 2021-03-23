@@ -35,16 +35,16 @@ include/assert.inc ['SELECT * FROM s.t_innodb_1' will allocate 0 objects.]
 include/assert.inc ['SELECT * FROM s.t_innodb_1' will free 0 objects.]
 include/assert.inc ['SELECT * FROM s.t_innodb_1' will leave 0 objects.]
 ###############################################################################
-include/assert.inc ['DROP TABLE s.t_innodb_1' will allocate 7 objects.]
-include/assert.inc ['DROP TABLE s.t_innodb_1' will free 17 objects.]
+include/assert.inc ['DROP TABLE s.t_innodb_1' will allocate 16 objects.]
+include/assert.inc ['DROP TABLE s.t_innodb_1' will free 26 objects.]
 include/assert.inc ['DROP TABLE s.t_innodb_1' will leave -10 objects.]
 ###############################################################################
-include/assert.inc ['DROP TABLE s.t_innodb_2' will allocate 7 objects.]
-include/assert.inc ['DROP TABLE s.t_innodb_2' will free 17 objects.]
+include/assert.inc ['DROP TABLE s.t_innodb_2' will allocate 16 objects.]
+include/assert.inc ['DROP TABLE s.t_innodb_2' will free 26 objects.]
 include/assert.inc ['DROP TABLE s.t_innodb_2' will leave -10 objects.]
 ###############################################################################
-include/assert.inc ['DROP SCHEMA s' will allocate 2 objects.]
-include/assert.inc ['DROP SCHEMA s' will free 5 objects.]
+include/assert.inc ['DROP SCHEMA s' will allocate 3 objects.]
+include/assert.inc ['DROP SCHEMA s' will free 6 objects.]
 include/assert.inc ['DROP SCHEMA s' will leave -3 objects.]
 ###############################################################################
 include/assert.inc ['SELECT * FROM test.tables' will allocate 168 objects.]
@@ -55,6 +55,5 @@ We will see that the total size allocated is about 40K.
 include/assert.inc ['' will allocate 151 + 151 objects.]
 include/assert.inc ['' will free 151 + 151 objects.]
 ###############################################################################
-include/assert.inc ['DROP SCHEMA s' will allocate 601 objects.]
-include/assert.inc ['DROP SCHEMA s' will free 2202 objects.]
-include/assert.inc ['DROP SCHEMA s' will leave -1601 objects.]
+include/assert.inc ['DROP SCHEMA s' will allocate 3801 objects.]
+include/assert.inc ['DROP SCHEMA s' will free 3802 objects.]
