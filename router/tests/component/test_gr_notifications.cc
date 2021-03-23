@@ -299,7 +299,6 @@ class GrNotificationsTest : public RouterComponentTest {
            md_queries_count + expected_new_queries_count;
   }
 
-  TcpPortPool port_pool_;
   std::unique_ptr<JsonValue> notices_;
   std::unique_ptr<JsonValue> gr_id_;
   std::unique_ptr<JsonValue> gr_nodes_;

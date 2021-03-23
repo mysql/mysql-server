@@ -183,8 +183,6 @@ class AsyncReplicasetTest : public RouterComponentTest {
   std::vector<ProcessWrapper *> cluster_nodes;
   std::vector<uint16_t> cluster_nodes_ports;
   std::vector<uint16_t> cluster_http_ports;
-
-  TcpPortPool port_pool_;
 };
 
 const std::chrono::milliseconds AsyncReplicasetTest::kTTL = 50ms;

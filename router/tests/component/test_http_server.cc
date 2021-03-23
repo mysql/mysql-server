@@ -174,9 +174,7 @@ class HttpServerPlainTest
       public ::testing::WithParamInterface<HttpServerPlainParams> {
  public:
   HttpServerPlainTest()
-      : port_pool_{},
-        http_port_{port_pool_.get_next_available()},
-        conf_dir_{} {}
+      : http_port_{port_pool_.get_next_available()}, conf_dir_{} {}
 
   static void SetUpTestCase() {
     auto http_base_path = mysql_harness::Path(http_base_dir_.name());
@@ -200,7 +198,6 @@ class HttpServerPlainTest
   }
 
  protected:
-  TcpPortPool port_pool_;
   uint16_t http_port_;
   TempDirectory conf_dir_;
   static TempDirectory http_base_dir_;
@@ -942,7 +939,6 @@ class HttpClientSecureTest
                 }))} {}
 
  protected:
-  TcpPortPool port_pool_;
   uint16_t http_port_;
   std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;
@@ -1191,7 +1187,6 @@ class HttpServerSecureTest
         ssl_cert_data_dir_{SSL_TEST_DATA_DIR} {}
 
  protected:
-  TcpPortPool port_pool_;
   uint16_t http_port_;
   std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;
@@ -1687,12 +1682,10 @@ class HttpServerAuthFailTest
       public ::testing::WithParamInterface<HttpServerAuthFailParams> {
  public:
   HttpServerAuthFailTest()
-      : port_pool_{},
-        http_port_{port_pool_.get_next_available()},
+      : http_port_{port_pool_.get_next_available()},
         conf_dir_{},
         passwd_filename_{"passwd"} {}
 
-  TcpPortPool port_pool_;
   uint16_t http_port_;
   std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;

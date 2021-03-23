@@ -242,7 +242,6 @@ class RestApiComponentTest : public RouterComponentTest {
       kProblemJsonMethodNotAllowed;
 
  protected:
-  TcpPortPool port_pool_;
   const uint16_t http_port_{port_pool_.get_next_available()};
   TempDirectory conf_dir_;
 };

@@ -37,8 +37,6 @@ class RouterConfigTest : public RouterComponentTest {
     return ProcessManager::launch_router(params, expected_exit_code, true,
                                          false, wait_ready);
   }
-
-  TcpPortPool port_pool_;
 };
 
 // Bug #25800863 WRONG ERRORMSG IF DIRECTORY IS PROVIDED AS CONFIGFILE

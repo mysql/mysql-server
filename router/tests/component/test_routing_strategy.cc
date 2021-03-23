@@ -242,7 +242,6 @@ class RouterRoutingStrategyTest : public RouterComponentTest {
     EXPECT_EQ(server->wait_for_exit(), 0);
   }
 
-  TcpPortPool port_pool_;
   std::chrono::milliseconds wait_for_cache_ready_timeout{1000};
   std::chrono::milliseconds wait_for_static_ready_timeout{100};
   std::chrono::milliseconds wait_for_process_exit_timeout{10000};

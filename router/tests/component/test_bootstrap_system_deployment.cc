@@ -82,7 +82,6 @@ class RouterBootstrapSystemDeploymentTest : public RouterComponentTest,
         /*wait_for_notify_ready=*/-1s);
   }
 
-  TcpPortPool port_pool_;
   uint16_t server_port_;
 };
 

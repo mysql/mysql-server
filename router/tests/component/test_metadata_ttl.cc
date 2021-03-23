@@ -153,8 +153,6 @@ class MetadataChacheTTLTest : public RouterComponentTest {
 
     return router;
   }
-
-  TcpPortPool port_pool_;
 };
 
 struct MetadataTTLTestParams {
