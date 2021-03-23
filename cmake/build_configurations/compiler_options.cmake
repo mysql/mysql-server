@@ -174,6 +174,21 @@ IF(UNIX)
   STRING_PREPEND(CMAKE_CXX_FLAGS_RELEASE        "${SECTIONS_FLAG} ")
   STRING_PREPEND(CMAKE_CXX_FLAGS_MINSIZEREL     "${SECTIONS_FLAG} ")
 
+  # We need -O3 by default for RelWithDebInfo in order to avoid
+  # performance regressions from earlier releases.
+  # To disable this (and everything else in this file),
+  # do 'cmake -DWITH_DEFAULT_COMPILER_OPTIONS=NO'.
+  IF(LINUX)
+    FOREACH(flag
+        CMAKE_C_FLAGS_RELEASE
+        CMAKE_C_FLAGS_RELWITHDEBINFO
+        CMAKE_CXX_FLAGS_RELEASE
+        CMAKE_CXX_FLAGS_RELWITHDEBINFO
+        )
+      STRING(REPLACE "-O2"  "-O3" "${flag}" "${${flag}}")
+    ENDFOREACH()
+  ENDIF()
+
 ENDIF()
 
 SET(CMAKE_C_FLAGS_DEBUG
