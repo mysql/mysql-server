@@ -1187,6 +1187,41 @@ class CodecSimpleCommand
   }
 };
 
+enum class CommandByte {
+  Quit = 0x01,
+  InitSchema,
+  Query,
+  ListFields,
+  CreateDb,
+  DropDb,
+  Refresh,
+  Shutdown,
+  Statistics,
+  ProcessInfo,
+  Connect,
+  ProcessKill,
+  Debug,
+  Ping,
+  Time,
+  DelayedInsert,
+  ChangeUser,
+  BinlogDump,
+  TableDump,
+  ConnectOut,
+  RegisterSlave,
+  StmtPrepare,
+  StmtExecute,
+  StmtSendLongData,
+  StmtClose,
+  StmtReset,
+  SetOption,
+  StmtFetch,
+  Deamon,
+  BinlogDumpGtid,
+  ResetConnection,
+  Clone
+};
+
 /**
  * codec for client's Quit command.
  */
@@ -1200,7 +1235,9 @@ class Codec<message::client::Quit>
 
   constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x01; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Quit);
+  }
 };
 
 /**
@@ -1216,7 +1253,9 @@ class Codec<message::client::ResetConnection>
 
   constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x1f; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::ResetConnection);
+  }
 };
 
 /**
@@ -1232,7 +1271,9 @@ class Codec<message::client::Ping>
 
   constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x0e; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Ping);
+  }
 };
 
 /**
@@ -1248,7 +1289,9 @@ class Codec<message::client::Statistics>
 
   constexpr Codec(value_type, capabilities::value_type caps) : __base(caps) {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x09; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Statistics);
+  }
 };
 
 /**
@@ -1273,7 +1316,9 @@ class Codec<message::client::InitSchema>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  constexpr static uint8_t cmd_byte() noexcept { return 0x02; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::InitSchema);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1320,7 +1365,9 @@ class Codec<message::client::Query>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x03; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::Query);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1368,7 +1415,9 @@ class Codec<message::client::ListFields>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x04; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::ListFields);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1417,7 +1466,9 @@ class Codec<message::client::StmtPrepare>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x16; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtPrepare);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1543,7 +1594,9 @@ class Codec<message::client::StmtExecute>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x17; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtExecute);
+  }
 
   /**
    * decode a sequence of buffers into a message::client::ExecuteStmt.
@@ -1753,7 +1806,9 @@ class Codec<message::client::StmtParamAppendData>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x18; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtSendLongData);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1803,7 +1858,9 @@ class Codec<message::client::StmtClose>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x19; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtClose);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1850,7 +1907,9 @@ class Codec<message::client::StmtReset>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x1a; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtReset);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1876,7 +1935,7 @@ class Codec<message::client::StmtReset>
 };
 
 /**
- * codec for client's Fetch Cursor command.
+ * codec for client's SetOption Cursor command.
  */
 template <>
 class Codec<message::client::StmtSetOption>
@@ -1897,7 +1956,9 @@ class Codec<message::client::StmtSetOption>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x1b; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::SetOption);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -1945,7 +2006,9 @@ class Codec<message::client::StmtFetch>
   constexpr Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x1c; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::StmtFetch);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
@@ -2296,7 +2359,9 @@ class Codec<message::client::ChangeUser>
   Codec(value_type v, capabilities::value_type caps)
       : __base(caps), v_{std::move(v)} {}
 
-  static constexpr uint8_t cmd_byte() noexcept { return 0x11; }
+  constexpr static uint8_t cmd_byte() noexcept {
+    return static_cast<uint8_t>(CommandByte::ChangeUser);
+  }
 
   template <class ConstBufferSequence>
   static stdx::expected<std::pair<size_t, value_type>, std::error_code> decode(
