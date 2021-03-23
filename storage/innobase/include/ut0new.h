@@ -589,38 +589,27 @@ class ut_allocator {
   static_assert(alignof(T) <= alignof(std::max_align_t),
                 "ut_allocator does not support over-aligned types. Use "
                 "aligned_memory or another similar allocator for this type.");
+
   /** Default constructor.
   @param[in] key  performance schema key. */
-  explicit ut_allocator(PSI_memory_key key = UT_NEW_THIS_FILE_PSI_KEY)
-      :
 #ifdef UNIV_PFS_MEMORY
-        m_key(key),
+  explicit ut_allocator(PSI_memory_key key = UT_NEW_THIS_FILE_PSI_KEY)
+      : m_key(key)
+#else
+  explicit ut_allocator(PSI_memory_key key = PSI_NOT_INSTRUMENTED)
 #endif /* UNIV_PFS_MEMORY */
-        m_oom_fatal(true) {
+  {
   }
 
   /** Constructor from allocator of another type.
   @param[in] other  the allocator to copy. */
   template <class U>
   ut_allocator(const ut_allocator<U> &other)
-      :
 #ifdef UNIV_PFS_MEMORY
-        m_key(other.get_mem_key()),
+      : m_key(other.get_mem_key())
 #endif /* UNIV_PFS_MEMORY */
-        m_oom_fatal(other.is_oom_fatal()) {
+  {
   }
-
-  /** When out of memory (OOM) happens, report error and do not
-  make it fatal.
-  @return a reference to the allocator. */
-  ut_allocator &set_oom_not_fatal() {
-    m_oom_fatal = false;
-    return (*this);
-  }
-
-  /** Check if allocation failure is a fatal error.
-  @return true if allocation failure is fatal, false otherwise. */
-  bool is_oom_fatal() const { return (m_oom_fatal); }
 
 #ifdef UNIV_PFS_MEMORY
   /** Get the performance schema key to use for tracing allocations.
@@ -686,11 +675,6 @@ class ut_allocator {
     }
 
     if (ptr == nullptr) {
-      ib::fatal_or_error(m_oom_fatal)
-          << "Cannot allocate " << total_bytes << " bytes of memory after "
-          << alloc_max_retries << " retries over " << alloc_max_retries
-          << " seconds. OS error: " << strerror(errno) << " (" << errno << "). "
-          << OUT_OF_MEMORY_MSG;
       throw std::bad_alloc();
     }
 
@@ -781,13 +765,7 @@ class ut_allocator {
     }
 
     if (pfx_new == nullptr) {
-      ib::fatal_or_error(m_oom_fatal)
-          << "Cannot reallocate " << total_bytes << " bytes of memory after "
-          << alloc_max_retries << " retries over " << alloc_max_retries
-          << " seconds. OS error: " << strerror(errno) << " (" << errno << "). "
-          << OUT_OF_MEMORY_MSG;
-      /* not reached */
-      return (nullptr);
+      return nullptr;
     }
 
     /* pfx_new still contains the description of the old block
@@ -945,10 +923,6 @@ class ut_allocator {
   /** Performance schema key. */
   const PSI_memory_key m_key;
 #endif /* UNIV_PFS_MEMORY */
-
-  /** A flag to indicate whether out of memory (OOM) error is considered
-  fatal.  If true, it is fatal. */
-  bool m_oom_fatal;
 };
 
 /** Compare two allocators of the same type.
@@ -1054,25 +1028,24 @@ inline void ut_delete_array(T *ptr) {
 
 /**
 Do not use ut_malloc, ut_zalloc, ut_malloc_nokey, ut_zalloc_nokey,
-ut_zalloc_nokey_nofatal and ut_realloc when allocating memory for
-over-aligned types. We have to use aligned_pointer instead, analogously to how
-we have to use aligned_alloc when working with the standard library to handle
-dynamic allocation for over-aligned types. These macros use ut_allocator to
-allocate raw memory (no type information is passed). This is why ut_allocator
-needs to be instantiated with the byte type. This has implications on the max
-alignment of the objects that are allocated using this API. ut_allocator returns
-memory aligned to alignof(std::max_align_t), similarly to library allocation
-functions. This value is 16 bytes on most x64 machines. A static_assert enforces
-this when using UT_NEW, however, since the ut_allocator template is instantiated
-with byte here the assert will not be hit if using alignment >=
-alignof(std::max_align_t). Not meeting the alignment requirements for a type
-causes undefined behaviour.
-One should avoid using the macros below when writing new code in general,
-and try to remove them when refactoring existing code (in favor of using the
-UT_NEW). The reason behind this lies both in the undefined behaviour problem
-described above, and in the fact that standard C-like malloc use is discouraged
-in c++ (see CppCoreGuidelines - R.10: Avoid malloc() and free()). Using
-ut_malloc has the same problems as the standard library malloc.
+and ut_realloc when allocating memory for over-aligned types. We have to use
+aligned_pointer instead, analogously to how we have to use aligned_alloc when
+working with the standard library to handle dynamic allocation for over-aligned
+types. These macros use ut_allocator to allocate raw memory (no type information
+is passed). This is why ut_allocator needs to be instantiated with the byte
+type. This has implications on the max alignment of the objects that are
+allocated using this API. ut_allocator returns memory aligned to
+alignof(std::max_align_t), similarly to library allocation functions. This value
+is 16 bytes on most x64 machines. A static_assert enforces this when using
+UT_NEW, however, since the ut_allocator template is instantiated with byte here
+the assert will not be hit if using alignment >= alignof(std::max_align_t). Not
+meeting the alignment requirements for a type causes undefined behaviour. One
+should avoid using the macros below when writing new code in general, and try to
+remove them when refactoring existing code (in favor of using the UT_NEW). The
+reason behind this lies both in the undefined behaviour problem described above,
+and in the fact that standard C-like malloc use is discouraged in c++ (see
+CppCoreGuidelines - R.10: Avoid malloc() and free()). Using ut_malloc has the
+same problems as the standard library malloc.
 */
 
 #define ut_malloc(n_bytes, key)                         \
@@ -1091,12 +1064,6 @@ ut_malloc has the same problems as the standard library malloc.
 #define ut_zalloc_nokey(n_bytes)               \
   static_cast<void *>(                         \
       ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
-          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true))
-
-#define ut_zalloc_nokey_nofatal(n_bytes)       \
-  static_cast<void *>(                         \
-      ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
-          .set_oom_not_fatal()                 \
           .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true))
 
 #define ut_realloc(ptr, n_bytes)                               \
@@ -1130,8 +1097,6 @@ ut_malloc has the same problems as the standard library malloc.
 #define ut_malloc_nokey(n_bytes) ::malloc(n_bytes)
 
 #define ut_zalloc_nokey(n_bytes) ::calloc(1, n_bytes)
-
-#define ut_zalloc_nokey_nofatal(n_bytes) ::calloc(1, n_bytes)
 
 #define ut_realloc(ptr, n_bytes) ::realloc(ptr, n_bytes)
 
