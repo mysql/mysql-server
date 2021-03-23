@@ -340,14 +340,6 @@ class Function_impl : public Routine_impl, public Function {
 
   Function_impl(const Function_impl &src);
   Function_impl *clone() const override { return new Function_impl(*this); }
-
-  Function *clone_dropped_object_placeholder() const override {
-    Function_impl *placeholder = new Function_impl();
-    placeholder->set_id(id());
-    placeholder->set_schema_id(schema_id());
-    placeholder->set_name(name());
-    return placeholder;
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

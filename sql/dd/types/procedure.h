@@ -56,14 +56,6 @@ class Procedure : virtual public Routine {
   */
   Procedure *clone() const override = 0;
 
-  /**
-    Allocate a new object which can serve as a placeholder for the original
-    object in the Dictionary_client's dropped registry. Such object has the
-    same keys as the original but has no other info and as result occupies
-    less memory.
-  */
-  Procedure *clone_dropped_object_placeholder() const override = 0;
-
   static void create_mdl_key(const String_type &schema_name,
                              const String_type &name, MDL_key *key) {
     Routine::create_mdl_key(RT_PROCEDURE, schema_name, name, key);

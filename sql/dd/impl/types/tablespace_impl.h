@@ -176,13 +176,6 @@ class Tablespace_impl : public Entity_object_impl, public Tablespace {
   Tablespace_impl(const Tablespace_impl &src);
 
   Tablespace *clone() const override { return new Tablespace_impl(*this); }
-
-  Tablespace *clone_dropped_object_placeholder() const override {
-    Tablespace_impl *placeholder = new Tablespace_impl();
-    placeholder->set_id(id());
-    placeholder->set_name(name());
-    return placeholder;
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

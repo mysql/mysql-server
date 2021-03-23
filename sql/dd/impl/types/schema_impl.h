@@ -231,17 +231,6 @@ class Schema_impl : public Entity_object_impl, public Schema {
   Object_id m_default_collation_id;
 
   Schema *clone() const override { return new Schema_impl(*this); }
-
-  Schema *clone_dropped_object_placeholder() const override {
-    /*
-      Even though we don't drop databases en masse we still create slimmed
-      down version for consistency sake.
-    */
-    Schema_impl *placeholder = new Schema_impl();
-    placeholder->set_id(id());
-    placeholder->set_name(name());
-    return placeholder;
-  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

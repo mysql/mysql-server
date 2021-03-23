@@ -2468,14 +2468,11 @@ bool Dictionary_client::drop(const T *object) {
     return true;
   }
 
-  // Prepare an object placeholder to be added to the dropped registry.
-  // This must be done prior to cleaning up the committed registry since
-  // the instance we drop might be present there (since we are allowed to
-  // drop const object coming from acquire()).
-  // We use placeholder instead of simple clone of the original object in
-  // order to avoid consuming too much memory in cases when we need to drop
-  // many (thousands or more) objects within the single atomic operation.
-  T *dropped_object = object->clone_dropped_object_placeholder();
+  // Prepare an instance to be added to the dropped registry. This must be done
+  // prior to cleaning up the committed registry since the instance we drop
+  // might be present there (since we are allowed to drop const object coming
+  // from acquire()).
+  T *dropped_object = object->clone();
 
   // Invalidate the entry in the shared cache (if present).
   invalidate(object);
