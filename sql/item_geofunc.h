@@ -1347,6 +1347,7 @@ class Item_func_st_difference final : public Item_func_spatial_operation {
  public:
   Item_func_st_difference(const POS &pos, Item *a, Item *b)
       : Item_func_spatial_operation(pos, a, b, op_difference) {}
+  String *val_str(String *) override;
   const char *func_name() const override { return "st_difference"; }
 };
 
