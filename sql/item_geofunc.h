@@ -1368,6 +1368,7 @@ class Item_func_st_union final : public Item_func_spatial_operation {
  public:
   Item_func_st_union(const POS &pos, Item *a, Item *b)
       : Item_func_spatial_operation(pos, a, b, op_union) {}
+  String *val_str(String *) override;
   const char *func_name() const override { return "st_union"; }
 };
 

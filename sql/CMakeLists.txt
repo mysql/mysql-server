@@ -309,12 +309,14 @@ SET(SQL_GIS_SOURCES
   gis/ring_flip_visitor.cc
   gis/rtree_support.cc
   gis/simplify.cc
+  gis/so_utils.cc
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
   gis/st_units_of_measure.cc
   gis/touches.cc
   gis/transform.cc
   gis/union.cc
+  gis/union_functor.cc
   gis/within.cc
   gis/wkb.cc
   gis/wkb_size_visitor.cc

@@ -233,7 +233,9 @@ SET(SERVER_TESTS
   gis_line_interpolate_point
   gis_relops
   gis_rtree_support
+  gis_setops
   gis_srs
+  gis_union
   gis_wkb_parser
   gis_wkb_writer
   handler

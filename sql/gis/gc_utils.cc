@@ -130,7 +130,13 @@ void typed_gc_union(double semi_major, double semi_minor,
 
   std::unique_ptr<MPy> polygons(new MPy());
   for (auto &py : *down_cast<MPy *>(mpy->get())) {
-    polygons.reset(down_cast<MPy *>(union_(polygons.get(), &py)));
+    std::unique_ptr<Geometry> union_result = union_(polygons.get(), &py);
+    if (union_result->type() == Geometry_type::kPolygon) {
+      polygons->clear();
+      polygons->push_back(*union_result);
+    } else if (union_result->type() == Geometry_type::kMultipolygon) {
+      polygons.reset(new MPy(*down_cast<MPy *>(union_result.get())));
+    }
     if (polygons->coordinate_system() == Coordinate_system::kGeographic &&
         polygons->is_empty()) {
       // The result of a union between a geographic multipolygon and a
