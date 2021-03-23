@@ -141,6 +141,14 @@ class Column_statistics : virtual public Entity_object {
   }
 
   virtual Column_statistics *clone() const = 0;
+
+  /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  virtual Column_statistics *clone_dropped_object_placeholder() const = 0;
 };
 
 ///////////////////////////////////////////////////////////////////////////
