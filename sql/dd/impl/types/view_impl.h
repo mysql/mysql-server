@@ -300,6 +300,14 @@ class View_impl : public Abstract_table_impl, public View {
 
   View_impl(const View_impl &src);
   View_impl *clone() const override { return new View_impl(*this); }
+
+  View *clone_dropped_object_placeholder() const override {
+    View_impl *placeholder = new View_impl();
+    placeholder->set_id(id());
+    placeholder->set_schema_id(schema_id());
+    placeholder->set_name(name());
+    return placeholder;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////
