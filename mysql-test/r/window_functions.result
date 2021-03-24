@@ -514,10 +514,10 @@ INSERT INTO t_a VALUES (4, 40), (1, 10), (2, 20), (2, 20), (3, 30);
 CREATE TABLE t_b SELECT DISTINCT a FROM t_a;
 SELECT (SELECT SUM(t_b.a) OVER () FROM t_b WHERE t_b.a = t_a.a) aa, b FROM t_a GROUP BY aa, b;
 aa	b
-4	40
 1	10
 2	20
 3	30
+4	40
 DROP TABLE t_a, t_b;
 ----------------------------------------------------------------------
 Test of legal frame border value, including prepared statement and dynamic ?

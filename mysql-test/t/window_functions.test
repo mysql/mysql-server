@@ -265,6 +265,7 @@ SELECT id, FIRST_VALUE(id) OVER w first, LAST_VALUE(id) OVER w last, sex FROM t1
 CREATE TABLE t_a (a INT, b INT);
 INSERT INTO t_a VALUES (4, 40), (1, 10), (2, 20), (2, 20), (3, 30);
 CREATE TABLE t_b SELECT DISTINCT a FROM t_a;
+--sorted_result
 SELECT (SELECT SUM(t_b.a) OVER () FROM t_b WHERE t_b.a = t_a.a) aa, b FROM t_a GROUP BY aa, b;
 DROP TABLE t_a, t_b;
 

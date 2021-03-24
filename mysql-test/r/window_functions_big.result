@@ -426,96 +426,6 @@ ON (innr2.col_date <> innr1.col_date_key)
 WHERE innr1.col_int < 5 XOR outr2.col_date IS NULL
 LIMIT 1);
 f1	f2
-a	ftedx
-a	gktbkjr
-a	gx
-a	hxptz
-a	k
-a	surqdhu
-a	uc
-tef	ak
-tef	iakh
-tef	kmqm
-tef	mwc
-tef	nchyhu
-tef	oervq
-tef	rvqlzs
-tef	tbkjrkm
-tef	toe
-tef	urqdh
-tef	xptzfp
-efqsd	knbtoe
-efqsd	ktbkjrk
-efqsd	mq
-efqsd	mxwcft
-efqsd	qlzsva
-efqsd	qmwcid
-efqsd	tzfpjwr
-efqsd	vgqmw
-efqsd	v
-efqsd	ycjzxie
-fqsdk	NULL
-qsdksji	tyz
-qsdksji	zsvasu
-sdks	tyz
-sdks	zsvasu
-dksjij	bycj
-dksjij	ciak
-dksjij	eozxnby
-dksjij	hucjx
-dksjij	ityzg
-dksjij	lzsvasu
-dksjij	t
-dksjij	tumxwc
-sjijcsz	chy
-sjijcsz	cidtum
-sjijcsz	dtumxwc
-sjijcsz	mkn
-sjijcsz	oo
-sjijcsz	uoowit
-sjijcsz	xnbycjz
-sjijcsz	yhuoo
-i	tyz
-i	zsvasu
-jcszxw	NULL
-csz	huoo
-csz	n
-csz	qy
-csz	umxwcf
-csz	xdo
-csz	y
-csz	zxnbyc
-szxwbjj	ak
-szxwbjj	iakh
-szxwbjj	kmqm
-szxwbjj	mwc
-szxwbjj	nchyhu
-szxwbjj	oervq
-szxwbjj	rvqlzs
-szxwbjj	tbkjrkm
-szxwbjj	toe
-szxwbjj	urqdh
-szxwbjj	xptzfp
-xwb	tyz
-xwb	zsvasu
-wbjjvvk	chy
-wbjjvvk	cidtum
-wbjjvvk	dtumxwc
-wbjjvvk	mkn
-wbjjvvk	oo
-wbjjvvk	uoowit
-wbjjvvk	xnbycjz
-wbjjvvk	yhuoo
-bj	tyz
-bj	zsvasu
-jjvvk	dhu
-jjvvk	dx
-jjvvk	nby
-jjvvk	oz
-jjvvk	svas
-jjvvk	xqyciak
-j	NULL
-Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'aax'
 Warning	1292	Truncated incorrect DOUBLE value: 'aax'
 Warning	1292	Truncated incorrect DOUBLE value: 'aax'
@@ -523,17 +433,23 @@ Warning	1292	Truncated incorrect DOUBLE value: 'aax'
 Warning	1292	Truncated incorrect DOUBLE value: 'aax'
 Warning	1292	Truncated incorrect DOUBLE value: 'aax'
 Warning	1292	Truncated incorrect DOUBLE value: 'aax'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
-Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'bjbjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'bjbjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
+Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
+Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
+Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
+Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
+Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
+Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
+Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
 Warning	1292	Truncated incorrect DOUBLE value: 'efqsdefqsdx'
 Warning	1292	Truncated incorrect DOUBLE value: 'efqsdefqsdx'
 Warning	1292	Truncated incorrect DOUBLE value: 'efqsdefqsdx'
@@ -545,59 +461,9 @@ Warning	1292	Truncated incorrect DOUBLE value: 'efqsdefqsdx'
 Warning	1292	Truncated incorrect DOUBLE value: 'efqsdefqsdx'
 Warning	1292	Truncated incorrect DOUBLE value: 'efqsdefqsdx'
 Warning	1292	Truncated incorrect DOUBLE value: 'fqsdkfqsdkx'
-Warning	1292	Truncated incorrect DOUBLE value: 'qsdksjiqsdksjix'
-Warning	1292	Truncated incorrect DOUBLE value: 'qsdksjiqsdksjix'
-Warning	1292	Truncated incorrect DOUBLE value: 'sdkssdksx'
-Warning	1292	Truncated incorrect DOUBLE value: 'sdkssdksx'
-Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
-Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
-Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
-Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
-Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
-Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
-Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
-Warning	1292	Truncated incorrect DOUBLE value: 'dksjijdksjijx'
-Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
 Warning	1292	Truncated incorrect DOUBLE value: 'iix'
 Warning	1292	Truncated incorrect DOUBLE value: 'iix'
 Warning	1292	Truncated incorrect DOUBLE value: 'jcszxwjcszxwx'
-Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'cszcszx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'xwbxwbx'
-Warning	1292	Truncated incorrect DOUBLE value: 'xwbxwbx'
-Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
-Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
-Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
-Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
-Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
-Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
-Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
-Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
-Warning	1292	Truncated incorrect DOUBLE value: 'bjbjx'
-Warning	1292	Truncated incorrect DOUBLE value: 'bjbjx'
 Warning	1292	Truncated incorrect DOUBLE value: 'jjvvkjjvvkx'
 Warning	1292	Truncated incorrect DOUBLE value: 'jjvvkjjvvkx'
 Warning	1292	Truncated incorrect DOUBLE value: 'jjvvkjjvvkx'
@@ -605,6 +471,140 @@ Warning	1292	Truncated incorrect DOUBLE value: 'jjvvkjjvvkx'
 Warning	1292	Truncated incorrect DOUBLE value: 'jjvvkjjvvkx'
 Warning	1292	Truncated incorrect DOUBLE value: 'jjvvkjjvvkx'
 Warning	1292	Truncated incorrect DOUBLE value: 'jjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'qsdksjiqsdksjix'
+Warning	1292	Truncated incorrect DOUBLE value: 'qsdksjiqsdksjix'
+Warning	1292	Truncated incorrect DOUBLE value: 'sdkssdksx'
+Warning	1292	Truncated incorrect DOUBLE value: 'sdkssdksx'
+Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'sjijcszsjijcszx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'szxwbjjszxwbjjx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'teftefx'
+Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
+Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
+Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
+Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
+Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
+Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
+Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
+Warning	1292	Truncated incorrect DOUBLE value: 'wbjjvvkwbjjvvkx'
+Warning	1292	Truncated incorrect DOUBLE value: 'xwbxwbx'
+Warning	1292	Truncated incorrect DOUBLE value: 'xwbxwbx'
+Warnings:
+a	ftedx
+a	gktbkjr
+a	gx
+a	hxptz
+a	k
+a	surqdhu
+a	uc
+bj	tyz
+bj	zsvasu
+csz	huoo
+csz	n
+csz	qy
+csz	umxwcf
+csz	xdo
+csz	y
+csz	zxnbyc
+dksjij	bycj
+dksjij	ciak
+dksjij	eozxnby
+dksjij	hucjx
+dksjij	ityzg
+dksjij	lzsvasu
+dksjij	t
+dksjij	tumxwc
+efqsd	knbtoe
+efqsd	ktbkjrk
+efqsd	mq
+efqsd	mxwcft
+efqsd	qlzsva
+efqsd	qmwcid
+efqsd	tzfpjwr
+efqsd	v
+efqsd	vgqmw
+efqsd	ycjzxie
+fqsdk	NULL
+i	tyz
+i	zsvasu
+j	NULL
+jcszxw	NULL
+jjvvk	dhu
+jjvvk	dx
+jjvvk	nby
+jjvvk	oz
+jjvvk	svas
+jjvvk	xqyciak
+qsdksji	tyz
+qsdksji	zsvasu
+sdks	tyz
+sdks	zsvasu
+sjijcsz	chy
+sjijcsz	cidtum
+sjijcsz	dtumxwc
+sjijcsz	mkn
+sjijcsz	oo
+sjijcsz	uoowit
+sjijcsz	xnbycjz
+sjijcsz	yhuoo
+szxwbjj	ak
+szxwbjj	iakh
+szxwbjj	kmqm
+szxwbjj	mwc
+szxwbjj	nchyhu
+szxwbjj	oervq
+szxwbjj	rvqlzs
+szxwbjj	tbkjrkm
+szxwbjj	toe
+szxwbjj	urqdh
+szxwbjj	xptzfp
+tef	ak
+tef	iakh
+tef	kmqm
+tef	mwc
+tef	nchyhu
+tef	oervq
+tef	rvqlzs
+tef	tbkjrkm
+tef	toe
+tef	urqdh
+tef	xptzfp
+wbjjvvk	chy
+wbjjvvk	cidtum
+wbjjvvk	dtumxwc
+wbjjvvk	mkn
+wbjjvvk	oo
+wbjjvvk	uoowit
+wbjjvvk	xnbycjz
+wbjjvvk	yhuoo
+xwb	tyz
+xwb	zsvasu
 DROP TABLE `C`, `E`, `DD`;
 SET SQL_MODE=DEFAULT;
 SET SESSION big_tables=(SELECT CAST(@sav_big AS SIGNED));
