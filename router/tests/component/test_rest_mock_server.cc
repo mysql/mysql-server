@@ -57,10 +57,7 @@ using JsonDocument =
 using JsonValue =
     rapidjson::GenericValue<rapidjson::UTF8<>, rapidjson::CrtAllocator>;
 
-class RestMockServerTest : public RouterComponentTest {
- protected:
-  TcpPortPool port_pool_;
-};
+class RestMockServerTest : public RouterComponentTest {};
 
 /**
  * base class.

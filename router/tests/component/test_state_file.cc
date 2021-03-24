@@ -192,8 +192,6 @@ class StateFileTest : public RouterComponentTest {
 
     return result;
   }
-
-  TcpPortPool port_pool_;
 };
 
 //////////////////////////////////////////////////////////////////////////

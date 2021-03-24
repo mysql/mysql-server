@@ -327,7 +327,6 @@ class TestRestApiEnable : public RouterComponentTest {
   uint16_t router_port;
   uint16_t default_rest_port{8443};
   ProcessWrapper *cluster_node;
-  TcpPortPool port_pool_;
 
   TempDirectory temp_test_dir;
   mysql_harness::Path config_path;

@@ -65,8 +65,6 @@ class RouterLoggingTest : public RouterComponentTest {
         directory, sections, default_section, "mysqlrouter.conf", "", false);
   }
 
-  TcpPortPool port_pool_;
-
   ProcessWrapper &launch_router(
       const std::vector<std::string> &params,
       int expected_exit_code = EXIT_SUCCESS, bool catch_stderr = true,

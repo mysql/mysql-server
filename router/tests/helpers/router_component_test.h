@@ -103,6 +103,9 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
   void verify_existing_connection_dropped(MySQLSession *session) {
     ASSERT_ANY_THROW(session->query_one("select @@port"));
   }
+
+ protected:
+  TcpPortPool port_pool_;
 };
 
 /** @class CommonBootstrapTest
@@ -115,7 +118,6 @@ class RouterComponentBootstrapTest : public RouterComponentTest {
   static void SetUpTestCase() { my_hostname = "dont.query.dns"; }
 
  protected:
-  TcpPortPool port_pool_;
   TempDirectory bootstrap_dir;
   static std::string my_hostname;
   std::string config_file;

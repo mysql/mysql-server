@@ -411,7 +411,6 @@ class RouterRoutingConnectionCommonTest : public RouterComponentTest {
     EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
   }
 
-  TcpPortPool port_pool_;
   std::chrono::milliseconds metadata_refresh_ttl_{100};
   std::chrono::milliseconds wait_for_cache_ready_timeout{
       metadata_refresh_ttl_ + std::chrono::milliseconds(5000)};

@@ -295,8 +295,6 @@ class MetadataHttpAuthTest : public RouterComponentTest {
   uint16_t router_port;
 
   std::string uri;
-
-  TcpPortPool port_pool_;
 };
 
 const std::chrono::milliseconds MetadataHttpAuthTest::kTTL = 200ms;

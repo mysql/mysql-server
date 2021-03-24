@@ -58,10 +58,7 @@ std::ostream &operator<<(std::ostream &os,
 
 using mysqlrouter::MySQLSession;
 
-class RouterRoutingTest : public RouterComponentTest {
- protected:
-  TcpPortPool port_pool_;
-};
+class RouterRoutingTest : public RouterComponentTest {};
 
 TEST_F(RouterRoutingTest, RoutingOk) {
   const auto server_port = port_pool_.get_next_available();
