@@ -39,6 +39,7 @@
 #include "prealloced_array.h"
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
+#include "sql/gis/buffer_strategies.h"  // gis::buffer_strategies
 #include "sql/gis/srid.h"
 #include "sql/parse_location.h"  // POS
 /* This file defines all spatial functions */
@@ -1756,6 +1757,25 @@ class Item_func_st_area : public Item_real_func {
     // ST_Area returns NULL if the geometry is empty.
     set_nullable(true);
     return false;
+  }
+};
+
+class Item_func_st_buffer : public Item_geometry_func {
+ public:
+  /// Parses strategy stored in String object, and sets values in strats.
+  bool parse_strategy(String *arg, gis::BufferStrategies &strats);
+
+  Item_func_st_buffer(const POS &pos, PT_item_list *ilist)
+      : Item_geometry_func(pos, ilist) {}
+
+  String *val_str(String *) override;
+  const char *func_name() const override { return "st_buffer"; }
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
+    if (param_type_is_default(thd, 2, -1))
+      return true;  // Does nothing with the strategy args
+    return Item_geometry_func::resolve_type(thd);
   }
 };
 

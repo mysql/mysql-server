@@ -1504,7 +1504,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_ASTEXT", SQL_FN_V(Item_func_as_wkt, 1, 2)},
     {"ST_ASWKB", SQL_FN_V(Item_func_as_wkb, 1, 2)},
     {"ST_ASWKT", SQL_FN_V(Item_func_as_wkt, 1, 2)},
-    {"ST_BUFFER", SQL_FN_V_LIST(Item_func_buffer, 2, 5)},
+    {"ST_BUFFER", SQL_FN_V_LIST(Item_func_st_buffer, 2, 5)},
     {"ST_BUFFER_STRATEGY", SQL_FN_V_LIST(Item_func_buffer_strategy, 1, 2)},
     {"ST_CENTROID", SQL_FN(Item_func_centroid, 1)},
     {"ST_CONTAINS", SQL_FN(Item_func_st_contains, 2)},

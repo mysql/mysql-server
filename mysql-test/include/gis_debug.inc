@@ -80,8 +80,9 @@ CALL p1(0, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2)), ((9 9,8 1,1 5,9 9)))');
 CALL p1(0, 'MultiPolygon(((2 2,2 8,8 8,8 2,2 2), (4 4,4 6,6 6,6 4,4 4)),((9 9,8 1,1 5,9 9)))');
 --error ER_GIS_INVALID_DATA
 CALL p1(0, 'GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))');
-CALL p1(0, 'GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))');
-CALL p1(0, 'GeometryCollection(MultiPolygon(((0 0, 3 0, 3 3, 0 3, 0 0)),((6 6,6 9,9 9,9 6,6 6))))');
+# Distance is zero so ST_Buffer returns input geometry unchanged. ST_Area only supports (multi)polygon.
+#CALL p1(0, 'GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2)))');
+#CALL p1(0, 'GeometryCollection(MultiPolygon(((0 0, 3 0, 3 3, 0 3, 0 0)),((6 6,6 9,9 9,9 6,6 6))))');
 
 
 --echo #

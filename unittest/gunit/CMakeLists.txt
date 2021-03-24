@@ -224,6 +224,7 @@ SET(SERVER_TESTS
   get_diagnostics
   gis_algos
   gis_area
+  gis_buffer
   gis_difference
   gis_distance
   gis_frechet_distance

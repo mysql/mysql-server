@@ -2302,14 +2302,8 @@ SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POLYGON((0 0,10 0,10 10,0 10,0 0))')
 --echo # BUG#20517621 : ASSERTION `GEOMETRY::IS_VALID_GEOTYPE(GT)' FAILED
 --echo ######################################################################################################
 
---error ER_GIS_DATA_WRONG_ENDIANESS
+--error ER_GIS_INVALID_DATA
 SELECT ST_ASTEXT(ST_BUFFER(0x000000000200000000000000000000000000000000, 1));
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_ASTEXT(ST_BUFFER(0x010100000001000000010100000000000000000000, 1));
-
---error ER_GIS_DATA_WRONG_ENDIANESS
-SELECT ST_ASTEXT(ST_BUFFER(0x010100000002000000000000000000000000000000, 1));
 
 --echo ######################################################################################################
 --echo # BUG#20558289 : ST_BUFFER() RETURNS EMPTY GEOMETRY WITH [MULTI]LINESTRING GEOMETRY
@@ -6427,10 +6421,13 @@ SELECT ST_TOUCHES(
 --echo # Bug#21783889 ASSERT GEOMETRY::EQUALS(CURRENT_ROBUST_RING.FRONT(),CURRENT_ROBUST_RING.BACK())
 --echo #####################################################################################################
 
+--error ER_GIS_UNKNOWN_ERROR
 do st_buffer(linestring(point(1,1),point(2,-1), point(1.765258e+308,4),point(-1,1),point(10,4)),'1');
 
+--error ER_GIS_UNKNOWN_ERROR
 do st_buffer( linestring( point(2199023255556,16777218), point(32770,8194), point(1.417733e+308,7.823620e+307), point(-8,-9), point(2147483649,20)),( 1099511627778 ) );
 
+--error ER_GIS_UNKNOWN_ERROR
 do st_buffer( linestring( point(-5,-8), point(2,8), point(2.160023e+307,1.937208e+307), point(-4,-3), point(-5,-4), point(8796093022208,281474976710653)), 0xbe );
 
 do st_buffer( multilinestring( linestring( point(7,-4), point(-3,-5)), linestring( point(72057594037927936,15), point(72057594037927940,70368744177660), point(32771,36028797018963964), point(8589934589,2305843009213693953), point(7,2), point(9.300367e+307,9.649737e+307), point(-4092,-274877906946), point(5,10), point(-3,4))) , ( 4051744443 ) );

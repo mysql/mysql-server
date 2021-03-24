@@ -188,6 +188,7 @@ do st_symdifference(
 --echo # BUG#31053222 UBSAN: INTERSECTION.HPP SIGNED INTEGER OVERFLOW IN SEGMENTS_TUPLED
 --echo #
 
+--error ER_GIS_UNKNOWN_ERROR
 do st_buffer(
   multilinestring(
    linestring(

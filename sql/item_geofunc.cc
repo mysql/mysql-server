@@ -59,6 +59,7 @@
 #include "sql/dd/types/spatial_reference_system.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/gis/area.h"
+#include "sql/gis/buffer.h"
 #include "sql/gis/distance.h"
 #include "sql/gis/distance_sphere.h"
 #include "sql/gis/frechet_distance.h"
@@ -5144,6 +5145,110 @@ double Item_func_st_area::val_real() {
   }
 
   return result;
+}
+
+String *Item_func_st_buffer::val_str(String *str) {
+  assert(fixed);
+  null_value = false;
+
+  gis::BufferStrategies strategies;
+  std::vector<String> buf_strats(3);
+  std::vector<String *> p_strats;
+
+  String *swkb = args[0]->val_str(str);
+  strategies.distance = args[1]->val_real();
+
+  for (uint i = 0; i < arg_count; ++i) {
+    if (i > 1) p_strats.push_back(args[i]->val_str(&buf_strats[i - 2]));
+    if (args[i]->null_value) return null_return_str();
+  }
+
+  if (!swkb) {
+    assert(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (std::isnan(strategies.distance) || std::isinf(strategies.distance)) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_str();
+  }
+
+  // If distance passed to ST_Buffer is too small, then we return the
+  // original geometry as its buffer. This is needed to avoid division
+  // overflow in buffer calculation, as well as for performance purposes.
+  if (std::abs(strategies.distance) <= GIS_ZERO) return swkb;
+
+  const dd::Spatial_reference_system *srs;
+  std::unique_ptr<gis::Geometry> g;
+
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+
+  if (gis::parse_geometry(current_thd, func_name(), swkb, &srs, &g))
+    return error_str();
+
+  for (String *p : p_strats) {
+    if (parse_strategy(p, strategies)) {
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+      return error_str();
+    }
+  }
+
+  std::unique_ptr<gis::Geometry> result;
+  if (gis::buffer(srs, *g, strategies, func_name(), &result))
+    return error_str();
+
+  if (gis::write_geometry(srs, *result, str)) return error_str();
+
+  return str;
+}
+
+bool Item_func_st_buffer::parse_strategy(String *arg,
+                                         gis::BufferStrategies &strats) {
+  // Extracting the strategy (type) and value from the String object.
+  const uchar *p_arg = pointer_cast<const uchar *>(arg->ptr());
+  uint strategy_number = uint4korr(p_arg);
+  double value = float8get(p_arg + 4);
+
+  // Numbers stem from old buffer implementation. Still using the old
+  // Item_func_buffer_strategy, thus need to convert into variables for
+  // the new BufferStrategies struct.
+  switch (strategy_number) {
+    // Raising error (return true) if a strategy type is provided more than
+    // once, or if value is outside size_t limits (for round/round/circle).
+    case gis::kEndRound:
+      return strats.set_end_round(value);
+      break;
+
+    case gis::kEndFlat:
+      return strats.set_end_flat();
+      break;
+
+    case gis::kJoinRound:
+      return strats.set_join_round(value);
+      break;
+
+    case gis::kJoinMiter:
+      return strats.set_join_miter(value);
+      break;
+
+    case gis::kPointCircle:
+      return strats.set_point_circle(value);
+      break;
+
+    case gis::kPointSquare:
+      return strats.set_point_square();
+      break;
+
+    default:
+      // Value of strategy_number not recognized as a valid strategy.
+      return true;
+      break;
+  }
+
+  return false;
 }
 
 enum class ConvertUnitResult {
