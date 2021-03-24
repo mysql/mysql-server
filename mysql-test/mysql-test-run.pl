@@ -7435,7 +7435,16 @@ sub run_ctest() {
   # the MTR tests.
   mtr_report("Running ctest parallel=$opt_parallel");
   $ENV{CTEST_PARALLEL_LEVEL} = $opt_parallel;
-  my $ctest_out = `ctest --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
+  my $ctest_opts = "";
+  if ($ndbcluster_only) {
+    # Run only tests with label NDB
+    $ctest_opts .= "-L " . ((IS_WINDOWS) ? "^^NDB\$" : "^NDB\\\$");
+  }
+  if ($opt_skip_ndbcluster) {
+    # Skip tests with label NDB
+    $ctest_opts .= "-LE " . ((IS_WINDOWS) ? "^^NDB\$" : "^NDB\\\$");
+  }
+  my $ctest_out = `ctest $ctest_opts --test-timeout $opt_ctest_timeout $ctest_vs 2>&1`;
   if ($? == $no_ctest && ($opt_ctest == -1 || defined $ENV{PB2WORKDIR})) {
     chdir($olddir);
     return;
