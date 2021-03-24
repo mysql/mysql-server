@@ -366,6 +366,18 @@ class Spatial_reference_system_impl : public Entity_object_impl,
   Spatial_reference_system *clone() const override {
     return new Spatial_reference_system_impl(*this);
   }
+
+  Spatial_reference_system *clone_dropped_object_placeholder() const override {
+    /*
+      Even though we don't drop SRSes en masse we still create slimmed
+      down version for consistency sake.
+    */
+    Spatial_reference_system_impl *placeholder =
+        new Spatial_reference_system_impl();
+    placeholder->set_id(id());
+    placeholder->set_name(name());
+    return placeholder;
+  }
 };
 
 ///////////////////////////////////////////////////////////////////////////

@@ -420,6 +420,14 @@ class Table : virtual public Abstract_table {
   Table *clone() const override = 0;
 
   /**
+    Allocate a new object which can serve as a placeholder for the original
+    object in the Dictionary_client's dropped registry. Such object has the
+    same keys as the original but has no other info and as result occupies
+    less memory.
+  */
+  Table *clone_dropped_object_placeholder() const override = 0;
+
+  /**
     Converts *this into json.
 
     Converts all member variables that are to be included in the sdi
