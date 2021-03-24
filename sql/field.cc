@@ -3189,6 +3189,13 @@ type_conversion_status Field_boolean::store(const char *from, size_t len,
 }
 
 type_conversion_status Field_boolean::store(double nr) {
+  return Field_boolean::store(static_cast<bool>(nr), 0);
+}
+
+//Why?
+//Change double and longlong
+//How is decimal numbers converted to booleans today?
+type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error = TYPE_OK;
   if(nr != 0) {
@@ -3197,18 +3204,10 @@ type_conversion_status Field_boolean::store(double nr) {
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error = TYPE_WARN_OUT_OF_RANGE;
     }
-  }else {
+  } else {
     *ptr = 0;
   }
-
   return error;
-}
-
-//Why?
-//Change double and longlong
-//How is decimal numbers converted to booleans today?
-type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
-  return Field_boolean::store((double)nr);
 }
 
 double Field_boolean::val_real() const {
