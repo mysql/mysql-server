@@ -171,7 +171,6 @@ int configure_and_start_applier_module();
 void initialize_asynchronous_channels_observer();
 void initialize_group_partition_handler();
 int start_group_communication();
-void declare_plugin_running();
 int leave_group_and_terminate_plugin_modules(
     gr_modules::mask modules_to_terminate, char **error_message);
 int leave_group();
@@ -1049,8 +1048,6 @@ int plugin_group_replication_stop(char **error_message) {
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
-  lv.plugin_is_stopping = true;
-
   /*
     We delete the delayed initialization object here because:
 
@@ -1070,11 +1067,13 @@ int plugin_group_replication_stop(char **error_message) {
     delayed_initialization_thread = nullptr;
   }
 
-  shared_plugin_stop_lock->grab_write_lock();
   if (!plugin_is_group_replication_running()) {
-    shared_plugin_stop_lock->release_write_lock();
     return 0;
   }
+
+  lv.plugin_is_stopping = true;
+
+  shared_plugin_stop_lock->grab_write_lock();
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_IS_STOPPING);
 
   lv.plugin_is_waiting_to_set_server_read_mode = true;
@@ -1789,6 +1788,7 @@ int plugin_group_replication_deinit(void *p) {
   if (lv.plugin_info_ptr == nullptr) return 0;
 
   lv.plugin_is_being_uninstalled = true;
+  lv.plugin_is_stopping = true;
   int observer_unregister_error = 0;
 
   if (plugin_group_replication_stop())
@@ -1952,8 +1952,6 @@ static bool init_group_sidno() {
   return false;
 }
 
-void declare_plugin_running() { lv.group_replication_running = true; }
-
 void declare_plugin_cloning(bool is_running) {
   lv.group_replication_cloning = is_running;
 }
@@ -1994,7 +1992,7 @@ int configure_and_start_applier_module() {
   error = applier_module->setup_applier_module(
       STANDARD_GROUP_REPLICATION_PIPELINE, lv.known_server_reset,
       ov.components_stop_timeout_var, lv.group_sidno,
-      ov.gtid_assignment_block_size_var, shared_plugin_stop_lock);
+      ov.gtid_assignment_block_size_var);
   if (error) {
     // Delete the possible existing pipeline
     applier_module->terminate_applier_pipeline();
@@ -2019,8 +2017,8 @@ int configure_and_start_applier_module() {
 }
 
 void initialize_group_partition_handler() {
-  group_partition_handler = new Group_partition_handling(
-      shared_plugin_stop_lock, ov.timeout_on_unreachable_var);
+  group_partition_handler =
+      new Group_partition_handling(ov.timeout_on_unreachable_var);
 }
 
 void set_auto_increment_handler_values() {
