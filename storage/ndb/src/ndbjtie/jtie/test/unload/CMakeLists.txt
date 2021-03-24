@@ -50,3 +50,4 @@ ADD_TEST(
   "-Dcom.mysql.jtie.test.MyLoadUnloadTest.target_method_name=test"
   "test.MyLoadUnloadTest"
 )
+SET_TESTS_PROPERTIES(test_jtie_unload PROPERTIES LABELS "NDB")

@@ -206,3 +206,14 @@ ADD_TEST(
   "test.MyLoadUnloadTest"
   ${JAVATEST_WORKING_DIRECTORY}
 )
+
+SET_TESTS_PROPERTIES(
+  test_ndbjtie_constants
+  test_ndbjtie_multilib
+  test_ndbjtie_mutils
+  test_ndbjtie_smoke
+  test_ndbjtie_unload_constants
+  test_ndbjtie_unload_multilib
+  test_ndbjtie_unload_mutils
+  test_ndbjtie_unload_smoke
+  PROPERTIES LABELS "NDB")

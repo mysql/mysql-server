@@ -92,3 +92,4 @@ ADD_TEST(
   "-Djava.library.path=${CMAKE_CURRENT_BINARY_DIR}/${JAVA_SUBDIR}"
   "test.MyJapiTest"
 )
+SET_TESTS_PROPERTIES(test_jtie_myjapi PROPERTIES LABELS "NDB")
