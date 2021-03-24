@@ -24,23 +24,23 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #define BACKUP_COMP_CONSTANTS_H
 namespace Backup_comp_constants {
 // backup consts
-constexpr const char *mysqlbackup("mysqlbackup");
-constexpr const char *backupid("backupid");
-constexpr const char *reqd_priv_str("SUPER or BACKUP_ADMIN");
-constexpr const char *backup_component_version("mysqlbackup.component_version");
+const std::string mysqlbackup("mysqlbackup");
+const std::string backupid("backupid");
+const std::string reqd_priv_str("SUPER or BACKUP_ADMIN");
+const std::string backup_component_version("mysqlbackup.component_version");
 // backup consts
 
 // page-track constants
-constexpr const char *page_track("page_track");
-constexpr const char *backupdir("backupdir");
-constexpr const char *udf_set_page_tracking("mysqlbackup_page_track_set");
-constexpr const char *udf_get_start_lsn("mysqlbackup_page_track_get_start_lsn");
-constexpr const char *udf_get_changed_pages(
+const std::string page_track("page_track");
+const std::string backupdir("backupdir");
+const std::string udf_set_page_tracking("mysqlbackup_page_track_set");
+const std::string udf_get_start_lsn("mysqlbackup_page_track_get_start_lsn");
+const std::string udf_get_changed_pages(
     "mysqlbackup_page_track_get_changed_pages");
-constexpr const char *udf_get_changed_page_count(
+const std::string udf_get_changed_page_count(
     "mysqlbackup_page_track_get_changed_page_count");
-constexpr const char *backup_scratch_dir("#meb");     // changed pages file path
-constexpr const char *change_file_extension(".idx");  // changed page file extn
+const std::string backup_scratch_dir("#meb");     // changed pages file path
+const std::string change_file_extension(".idx");  // changed page file extn
 // 4 bytes for space id + 4 bytes for the page number
 const int page_number_size(8);
 // page-track constants
