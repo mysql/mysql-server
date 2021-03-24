@@ -82,7 +82,6 @@ class BKAIterator final : public RowIterator {
  public:
   /**
     @param thd Thread handle.
-    @param join The JOIN we are part of.
     @param outer_input The iterator to read the outer rows from.
     @param outer_input_tables Each outer table involved.
       Used to know which fields we are to read into our buffer.
