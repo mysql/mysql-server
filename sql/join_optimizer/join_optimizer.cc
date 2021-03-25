@@ -3256,6 +3256,33 @@ static void BuildInterestingOrders(
   }
 }
 
+/**
+  Find the lowest-cost plan (which hopefully is also the cheapest to execute)
+  of all the legal ways to execute the query. The overall order of operations is
+  largely dictated by the standard:
+
+    1. All joined tables, including join predicates.
+    2. WHERE predicates (we push these down into #1 where allowed)
+    3. GROUP BY (it is sometimes possible to push this down into #1,
+       but we don't have the functionality to do so).
+    4. HAVING.
+    5. Window functions (not supported yet).
+    6. DISTINCT.
+    7. ORDER BY.
+    8. LIMIT.
+    9. SQL_BUFFER_RESULT (a MySQL extension).
+
+  The place where we have the most leeway by far is #1, which is why this
+  part of the optimizer is generally called the join optimizer (there are
+  potentially billions of different join orderings, whereas each of the
+  other steps, except windowing, can only be done in one or two ways).
+  But the various outputs of #1 can have different properties, that can make
+  for higher or lower costs in the other steps. (For instance, LIMIT will
+  affect candidates with different init_cost differently, and ordering
+  properties can skip sorting in ORDER BY entirely.) Thus, we allow keeping
+  multiple candidates in play at every step if they are meaningfully different,
+  and only pick out the winning candidate based on cost at the very end.
+ */
 AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                               string *trace) {
   JOIN *join = query_block->join;
