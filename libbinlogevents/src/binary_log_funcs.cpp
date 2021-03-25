@@ -122,7 +122,8 @@ unsigned int max_display_length_for_field(enum_field_types sql_type,
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_TINY:
       return 4;
-
+    case MYSQL_TYPE_BOOL:
+      return 1;
     case MYSQL_TYPE_SHORT:
       return 6;
 
@@ -254,6 +255,7 @@ uint32_t calc_field_size(unsigned char col, const unsigned char *master_data,
     }
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_TINY:
+    case MYSQL_TYPE_BOOL:
       length = 1;
       break;
     case MYSQL_TYPE_SHORT:
