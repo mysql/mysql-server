@@ -1575,8 +1575,7 @@ class HttpServerAuthTest
       public ::testing::WithParamInterface<HttpServerAuthParams> {
  public:
   HttpServerAuthTest()
-      : port_pool_{},
-        http_port_{port_pool_.get_next_available()},
+      : http_port_{port_pool_.get_next_available()},
         conf_dir_{},
         passwd_filename_{"passwd"},
         conf_file_{create_config_file(
@@ -1613,7 +1612,6 @@ class HttpServerAuthTest
 
     pwf << kPasswdUserTest;
   }
-  TcpPortPool port_pool_;
   uint16_t http_port_;
   std::string http_hostname_ = "127.0.0.1";
   TempDirectory conf_dir_;

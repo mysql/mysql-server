@@ -181,7 +181,6 @@ class MasterKeyReaderWriterTest : public RouterComponentTest {
         /*wait_for_notify_ready=*/-1s);
   }
 
-  TcpPortPool port_pool_;
   TempDirectory tmp_dir_;
   TempDirectory bootstrap_dir_;
   std::string logging_folder;

@@ -269,7 +269,6 @@ class SocketCloseTest : public RouterComponentTest {
   }
 
   std::chrono::milliseconds ttl{100ms};
-  TcpPortPool port_pool_;
   std::vector<uint16_t> node_ports, node_http_ports;
   std::vector<ProcessWrapper *> cluster_nodes;
   ProcessWrapper *router;

@@ -53,7 +53,6 @@ using namespace std::chrono_literals;
 
 class SplicerTest : public RouterComponentTest {
  protected:
-  TcpPortPool port_pool_;
   TempDirectory conf_dir_;
   const std::string mock_server_host_{"127.0.0.1"s};
   const std::string router_host_{"127.0.0.1"s};
