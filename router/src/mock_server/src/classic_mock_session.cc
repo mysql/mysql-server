@@ -402,7 +402,12 @@ bool MySQLServerMockSessionClassic::handle_handshake(
 
         state(HandshakeState::DONE);
       } else {
-        protocol_->send_error(0, "unknown auth-method", "28000");
+        log_error("unsupported auth method: %s",
+                  protocol_->auth_method_name().c_str());
+        protocol_->send_error(ER_ACCESS_DENIED_ERROR,  // 1045
+                              "Access Denied for user '" +
+                                  protocol_->username() + "'@'localhost'",
+                              "28000");
 
         state(HandshakeState::DONE);
       }

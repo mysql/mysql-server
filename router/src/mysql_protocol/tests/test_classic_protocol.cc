@@ -132,6 +132,91 @@ static_assert(
             .size() == 5,
     "");
 
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::Quit>::cmd_byte() == 0x01,
+              "");
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::InitSchema>::cmd_byte() ==
+                  0x02,
+              "");
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::Query>::cmd_byte() == 0x03,
+              "");
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::ListFields>::cmd_byte() ==
+                  0x04,
+              "");
+// 0x05 - CreateDb
+// 0x06 - DropDb
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::Reload>::cmd_byte() ==
+                  0x07,
+              "");
+// 0x08 - shutdown
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::Statistics>::cmd_byte() ==
+                  0x09,
+              "");
+// 0x0a - ProcessInfo
+// 0x0b - Connect
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::Kill>::cmd_byte() == 0x0c,
+              "");
+// 0x0d - Debug
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::Ping>::cmd_byte() == 0x0e,
+              "");
+// 0x0f - Time
+// 0x10 - DelayedInsert
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::ChangeUser>::cmd_byte() ==
+                  0x11,
+              "");
+// 0x12 - BinlogDump
+// 0x13 - TableDump
+// 0x14 - ConnectOut
+// 0x15 - RegisterSlave
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::StmtPrepare>::cmd_byte() ==
+                  0x16,
+              "");
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::StmtExecute>::cmd_byte() ==
+                  0x17,
+              "");
+static_assert(
+    classic_protocol::Codec<
+        classic_protocol::message::client::StmtParamAppendData>::cmd_byte() ==
+        0x18,
+    "");
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::StmtClose>::cmd_byte() ==
+                  0x19,
+              "");
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::StmtReset>::cmd_byte() ==
+                  0x1a,
+              "");
+static_assert(
+    classic_protocol::Codec<
+        classic_protocol::message::client::StmtSetOption>::cmd_byte() == 0x1b,
+    "");
+
+static_assert(classic_protocol::Codec<
+                  classic_protocol::message::client::StmtFetch>::cmd_byte() ==
+                  0x1c,
+              "");
+
+// 0x1d - Deamon
+// 0x1e - BinlogDumpGtid
+
+static_assert(
+    classic_protocol::Codec<
+        classic_protocol::message::client::ResetConnection>::cmd_byte() == 0x1f,
+    "");
+
+// 0x20 - Clone
+
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();

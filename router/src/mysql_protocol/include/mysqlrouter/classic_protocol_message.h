@@ -251,6 +251,11 @@ class Eof : public Ok {
   // 4.1-like constructor
   Eof(classic_protocol::status::value_type status_flags, uint16_t warning_count)
       : Ok(0, 0, status_flags, warning_count) {}
+
+  Eof(classic_protocol::status::value_type status_flags, uint16_t warning_count,
+      std::string message, std::string session_changes)
+      : Ok(0, 0, status_flags, warning_count, std::move(message),
+           std::move(session_changes)) {}
 };
 
 /**
@@ -284,6 +289,28 @@ class Error {
 inline bool operator==(const Error &a, const Error &b) {
   return (a.error_code() == b.error_code()) &&
          (a.sql_state() == b.sql_state()) && (a.message() == b.message());
+}
+
+/**
+ * ColumnCount message.
+ */
+class ColumnCount {
+ public:
+  /**
+   * construct an ColumnCount message.
+   *
+   * @param count column count
+   */
+  constexpr ColumnCount(uint64_t count) : count_{count} {}
+
+  constexpr uint64_t count() const noexcept { return count_; }
+
+ private:
+  uint64_t count_;
+};
+
+constexpr inline bool operator==(const ColumnCount &a, const ColumnCount &b) {
+  return (a.count() == b.count());
 }
 
 class ColumnMeta {
@@ -393,28 +420,43 @@ class ResultSet {
  */
 class StmtPrepareOk {
  public:
-  StmtPrepareOk(uint32_t stmt_id, uint16_t warning_count,
-                std::vector<ColumnMeta> params, std::vector<ColumnMeta> columns)
+  /**
+   * create a Ok message for a client::StmtPrepare.
+   *
+   * @param stmt_id id of the statement
+   * @param column_count number of columns the prepared stmt will return
+   * @param param_count number of parameters the prepared stmt contained
+   * @param warning_count number of warnings the prepared stmt created
+   * @param with_metadata 0 if no metadata shall be sent for "param_count" and
+   * "column_count".
+   */
+  StmtPrepareOk(uint32_t stmt_id, uint16_t column_count, uint16_t param_count,
+                uint16_t warning_count, uint8_t with_metadata)
       : statement_id_{stmt_id},
         warning_count_{warning_count},
-        params_{std::move(params)},
-        columns_{std::move(columns)} {}
+        param_count_{param_count},
+        column_count_{column_count},
+        with_metadata_{with_metadata} {}
 
   uint32_t statement_id() const noexcept { return statement_id_; }
   uint16_t warning_count() const noexcept { return warning_count_; }
-  std::vector<ColumnMeta> params() const { return params_; }
-  std::vector<ColumnMeta> columns() const { return columns_; }
+
+  uint16_t column_count() const { return column_count_; }
+  uint16_t param_count() const { return param_count_; }
+  uint8_t with_metadata() const { return with_metadata_; }
 
  private:
   uint32_t statement_id_;
   uint16_t warning_count_;
-  std::vector<ColumnMeta> params_;
-  std::vector<ColumnMeta> columns_;
+  uint16_t param_count_;
+  uint16_t column_count_;
+  uint8_t with_metadata_{1};
 };
 
 inline bool operator==(const StmtPrepareOk &a, const StmtPrepareOk &b) {
   return (a.statement_id() == b.statement_id()) &&
-         (a.columns() == b.columns()) && (a.params() == b.params()) &&
+         (a.column_count() == b.column_count()) &&
+         (a.param_count() == b.param_count()) &&
          (a.warning_count() == b.warning_count());
 }
 
@@ -436,6 +478,44 @@ class StmtRow : public Row {
  private:
   std::vector<field_type::value_type> types_;
 };
+
+class SendFileRequest {
+ public:
+  /**
+   * construct a SendFileRequest message.
+   *
+   * @param filename filename
+   */
+  SendFileRequest(std::string filename) : filename_{std::move(filename)} {}
+
+  std::string filename() const { return filename_; }
+
+ private:
+  std::string filename_;
+};
+
+inline bool operator==(const SendFileRequest &a, const SendFileRequest &b) {
+  return a.filename() == b.filename();
+}
+
+class Statistics {
+ public:
+  /**
+   * construct a Statistics message.
+   *
+   * @param stats statistics
+   */
+  Statistics(std::string stats) : stats_{std::move(stats)} {}
+
+  std::string stats() const { return stats_; }
+
+ private:
+  std::string stats_;
+};
+
+inline bool operator==(const Statistics &a, const Statistics &b) {
+  return a.stats() == b.stats();
+}
 
 }  // namespace server
 
@@ -536,6 +616,37 @@ inline bool operator==(const Query &a, const Query &b) {
   return a.statement() == b.statement();
 }
 
+class ListFields {
+ public:
+  /**
+   * list columns of a table.
+   *
+   * If 'wildcard' is empty the server will execute:
+   *
+   * SHOW COLUMNS FROM table_name
+   *
+   * Otherwise:
+   *
+   * SHOW COLUMNS FROM table_name LIKE wildcard
+   *
+   * @param table_name name of table to list
+   * @param wildcard wildcard
+   */
+  ListFields(std::string table_name, std::string wildcard)
+      : table_name_{std::move(table_name)}, wildcard_{std::move(wildcard)} {}
+
+  std::string table_name() const { return table_name_; }
+  std::string wildcard() const { return wildcard_; }
+
+ private:
+  std::string table_name_;
+  std::string wildcard_;
+};
+
+inline bool operator==(const ListFields &a, const ListFields &b) {
+  return a.table_name() == b.table_name() && a.wildcard() == b.wildcard();
+}
+
 class InitSchema {
  public:
   /**
@@ -615,6 +726,63 @@ class Statistics {};
 
 constexpr bool operator==(const Statistics &, const Statistics &) {
   return true;
+}
+
+class Reload {
+ public:
+  /**
+   * construct a Reload message.
+   *
+   * @param cmds what to reload
+   */
+  Reload(classic_protocol::reload_cmds::value_type cmds) : cmds_{cmds} {}
+
+  classic_protocol::reload_cmds::value_type cmds() const { return cmds_; }
+
+ private:
+  classic_protocol::reload_cmds::value_type cmds_;
+};
+
+inline bool operator==(const Reload &a, const Reload &b) {
+  return a.cmds() == b.cmds();
+}
+
+class Kill {
+ public:
+  /**
+   * construct a Kill message.
+   *
+   * @param connection_id payload
+   */
+  constexpr Kill(uint32_t connection_id) : connection_id_{connection_id} {}
+
+  constexpr uint32_t connection_id() const { return connection_id_; }
+
+ private:
+  uint32_t connection_id_;
+};
+
+constexpr bool operator==(const Kill &a, const Kill &b) {
+  return a.connection_id() == b.connection_id();
+}
+
+class SendFile {
+ public:
+  /**
+   * construct a SendFile message.
+   *
+   * @param payload payload
+   */
+  SendFile(std::string payload) : payload_{std::move(payload)} {}
+
+  std::string payload() const { return payload_; }
+
+ private:
+  std::string payload_;
+};
+
+inline bool operator==(const SendFile &a, const SendFile &b) {
+  return a.payload() == b.payload();
 }
 
 class StmtPrepare {
@@ -826,6 +994,26 @@ constexpr bool operator==(const Quit &, const Quit &) { return true; }
 class Ping {};
 
 constexpr bool operator==(const Ping &, const Ping &) { return true; }
+
+class AuthMethodData {
+ public:
+  /**
+   * send data for the current auth-method to server.
+   *
+   * @param auth_method_data data of the auth-method
+   */
+  AuthMethodData(std::string auth_method_data)
+      : auth_method_data_{std::move(auth_method_data)} {}
+
+  std::string auth_method_data() const { return auth_method_data_; }
+
+ private:
+  std::string auth_method_data_;
+};
+
+inline bool operator==(const AuthMethodData &a, const AuthMethodData &b) {
+  return a.auth_method_data() == b.auth_method_data();
+}
 
 }  // namespace client
 }  // namespace message
