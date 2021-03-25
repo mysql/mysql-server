@@ -750,6 +750,18 @@ void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path,
     new_path->num_output_rows = path->num_output_rows_before_filter;
     new_path->cost = path->cost_before_filter;
 
+    // We don't really know how much of init_cost comes from the filter,
+    // but we need to heed the invariant that cost >= init_cost
+    // also for the new (non-filter) path we're creating, even if it's
+    // just for display. Heuristically allocate as much as possible to
+    // the filter.
+    double filter_only_cost = path->cost - path->cost_before_filter;
+    new_path->init_cost = std::max(new_path->init_cost - filter_only_cost, 0.0);
+    new_path->init_once_cost =
+        std::max(new_path->init_once_cost - filter_only_cost, 0.0);
+    assert(new_path->cost >= new_path->init_cost);
+    assert(new_path->init_cost >= new_path->init_once_cost);
+
     path->type = AccessPath::FILTER;
     path->filter().condition = condition;
     path->filter().child = new_path;

@@ -1544,3 +1544,20 @@ CREATE TABLE t1 (a INTEGER);
 CREATE TABLE t2 (b INTEGER);
 SELECT ( SELECT b FROM t2 ORDER BY a, MIN(a) LIMIT 1 ) FROM t1 GROUP BY a;
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug #32680367: ASSERTION `PATH->COST >= PATH->INIT_COST' FAILED|JOIN_OPTIMIZER.CC - HYPERGRAPH
+--echo #
+
+CREATE TABLE t1 (a VARCHAR(1));
+INSERT INTO t1 VALUES (NULL), ('r');
+ANALYZE TABLE t1;
+
+# We don't care about the output, just that the access paths are consistent
+# (which is verified by assertion).
+SELECT * FROM t1 WHERE a <= ALL (
+  SELECT 'a' FROM t1 AS t2
+  WHERE t2.a < t1.a AND t2.a NOT IN (SELECT a FROM t1)
+);
+
+DROP TABLE t1;
