@@ -2379,7 +2379,13 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
       1 << 16 |
       255 << 8 |
       255;
-    openReq->fileFlags = FsOpenReq::OM_READWRITE | FsOpenReq::OM_CREATE;
+    openReq->fileFlags = FsOpenReq::OM_WRITEONLY | FsOpenReq::OM_CREATE |
+                         FsOpenReq::OM_TRUNCATE;
+
+    openReq->page_size = 0;
+    openReq->file_size_hi = UINT32_MAX;
+    openReq->file_size_lo = UINT32_MAX;
+    openReq->auto_sync_size = 0;
 
     for (Uint32 i=0; i < numFiles; i++)
     {

@@ -563,6 +563,7 @@ void
 Ndbfs::execFSOPENREQ(Signal* signal)
 {
   jamEntry();
+  require(signal->getLength() >= FsOpenReq::SignalLength);
   const FsOpenReq * const fsOpenReq = (FsOpenReq *)&signal->theData[0];
   const BlockReference userRef = fsOpenReq->userReference;
 
@@ -596,6 +597,11 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   }
   releaseSections(handle);
   
+  const Uint32 page_size = fsOpenReq->page_size;
+  const Uint64 file_size = (Uint64{fsOpenReq->file_size_hi} << 32) |
+                           fsOpenReq->file_size_lo;
+  const Uint32 auto_sync_size = fsOpenReq->auto_sync_size;
+
   if (fsOpenReq->fileFlags & FsOpenReq::OM_INIT)
   {
     jam();
@@ -658,13 +664,10 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   request->file = file;
   request->theTrace = signal->getTrace();
   request->par.open.flags = fsOpenReq->fileFlags;
-  request->par.open.page_size = fsOpenReq->page_size;
-  request->par.open.file_size = fsOpenReq->file_size_hi;
-  request->par.open.file_size <<= 32;
-  request->par.open.file_size |= fsOpenReq->file_size_lo;
-  request->par.open.auto_sync_size = fsOpenReq->auto_sync_size;
+  request->par.open.page_size = page_size;
+  request->par.open.file_size = file_size;
+  request->par.open.auto_sync_size = auto_sync_size;
   request->m_do_bind = bound;
-
   ndbrequire(forward(file, request));
 }
 

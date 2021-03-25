@@ -49,6 +49,7 @@ class FsCloseReq {
    */
   friend class Backup;
   friend class Dbdict;
+  friend class Dbdih;
   friend class Restore;
   friend class Dbtup;
   friend class Ndbcntr;

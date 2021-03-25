@@ -80,6 +80,7 @@
 #include <signaldata/DictTabInfo.hpp>
 #include <signaldata/CreateFragmentation.hpp>
 #include <signaldata/LqhFrag.hpp>
+#include <signaldata/FsCloseReq.hpp>
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/DihScanTab.hpp>
 #include <signaldata/DictLock.hpp>
@@ -24166,32 +24167,42 @@ void Dbdih::checkKeepGci(TabRecordPtr tabPtr, Uint32 fragId, Fragmentstore*,
 
 void Dbdih::closeFile(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = filePtr.p->fileRef;
-  signal->theData[1] = reference();
-  signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZCLOSE_NO_DELETE;
-  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 4, JBA);
+  FsCloseReq* req = (FsCloseReq*)signal->getDataPtrSend();
+  req->filePointer = filePtr.p->fileRef;
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileFlag = 0;
+  FsCloseReq::setRemoveFileFlag(req->fileFlag, false);
+  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
 }//Dbdih::closeFile()
 
 void Dbdih::closeFileDelete(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = filePtr.p->fileRef;
-  signal->theData[1] = reference();
-  signal->theData[2] = filePtr.i;
-  signal->theData[3] = ZCLOSE_DELETE;
-  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, 4, JBA);
+  FsCloseReq* req = (FsCloseReq*)signal->getDataPtrSend();
+  req->filePointer = filePtr.p->fileRef;
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileFlag = 0;
+  FsCloseReq::setRemoveFileFlag(req->fileFlag, true);
+  sendSignal(NDBFS_REF, GSN_FSCLOSEREQ, signal, FsCloseReq::SignalLength, JBA);
 }//Dbdih::closeFileDelete()
 
 void Dbdih::createFileRw(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = reference();
-  signal->theData[1] = filePtr.i;
-  signal->theData[2] = filePtr.p->fileName[0];
-  signal->theData[3] = filePtr.p->fileName[1];
-  signal->theData[4] = filePtr.p->fileName[2];
-  signal->theData[5] = filePtr.p->fileName[3];
-  signal->theData[6] = ZCREATE_READ_WRITE;
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+  FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileNumber[0] = filePtr.p->fileName[0];
+  req->fileNumber[1] = filePtr.p->fileName[1];
+  req->fileNumber[2] = filePtr.p->fileName[2];
+  req->fileNumber[3] = filePtr.p->fileName[3];
+  req->fileFlags = FsOpenReq::OM_READWRITE | FsOpenReq::OM_CREATE |
+                   FsOpenReq::OM_TRUNCATE;
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dbdih::createFileRw()
 
 void
@@ -25958,26 +25969,36 @@ void Dbdih::nodeResetStart(Signal *signal)
 
 void Dbdih::openFileRw(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = reference();
-  signal->theData[1] = filePtr.i;
-  signal->theData[2] = filePtr.p->fileName[0];
-  signal->theData[3] = filePtr.p->fileName[1];
-  signal->theData[4] = filePtr.p->fileName[2];
-  signal->theData[5] = filePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READWRITE;
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+  FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileNumber[0] = filePtr.p->fileName[0];
+  req->fileNumber[1] = filePtr.p->fileName[1];
+  req->fileNumber[2] = filePtr.p->fileName[2];
+  req->fileNumber[3] = filePtr.p->fileName[3];
+  req->fileFlags = FsOpenReq::OM_READWRITE;
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dbdih::openFileRw()
 
 void Dbdih::openFileRo(Signal* signal, FileRecordPtr filePtr) 
 {
-  signal->theData[0] = reference();
-  signal->theData[1] = filePtr.i;
-  signal->theData[2] = filePtr.p->fileName[0];
-  signal->theData[3] = filePtr.p->fileName[1];
-  signal->theData[4] = filePtr.p->fileName[2];
-  signal->theData[5] = filePtr.p->fileName[3];
-  signal->theData[6] = FsOpenReq::OM_READONLY;
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+  FsOpenReq* req = (FsOpenReq*)signal->getDataPtrSend();
+  req->userReference = reference();
+  req->userPointer = filePtr.i;
+  req->fileNumber[0] = filePtr.p->fileName[0];
+  req->fileNumber[1] = filePtr.p->fileName[1];
+  req->fileNumber[2] = filePtr.p->fileName[2];
+  req->fileNumber[3] = filePtr.p->fileName[3];
+  req->fileFlags = FsOpenReq::OM_READONLY;
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dbdih::openFileRw()
 
 /*************************************************************************/

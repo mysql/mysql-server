@@ -793,6 +793,12 @@ Restore::lcp_create_ctl_open(Signal *signal, FilePtr file_ptr)
   FsOpenReq::v5_setLcpNo(req->fileNumber, 0);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
   FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
+
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
@@ -1127,6 +1133,12 @@ Restore::open_ctl_file(Signal *signal, FilePtr file_ptr, Uint32 lcp_no)
   FsOpenReq::v5_setLcpNo(req->fileNumber, lcp_no);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
   FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
+
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
@@ -2252,6 +2264,12 @@ Restore::open_data_file(Signal* signal, FilePtr file_ptr)
   FsOpenReq::v5_setLcpNo(req->fileNumber, file_ptr.p->m_file_id);
   FsOpenReq::v5_setTableId(req->fileNumber, file_ptr.p->m_table_id);
   FsOpenReq::v5_setFragmentId(req->fileNumber, file_ptr.p->m_fragment_id);
+
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 

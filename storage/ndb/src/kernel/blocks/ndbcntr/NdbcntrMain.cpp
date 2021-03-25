@@ -6050,7 +6050,11 @@ Ndbcntr::open_local_sysfile(Signal *signal,
       FsOpenReq::OM_CREATE |
       FsOpenReq::OM_TRUNCATE;
   }
-  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, 7, JBA);
+  req->page_size = 0;
+  req->file_size_hi = UINT32_MAX;
+  req->file_size_lo = UINT32_MAX;
+  req->auto_sync_size = 0;
+  sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }
 
 void

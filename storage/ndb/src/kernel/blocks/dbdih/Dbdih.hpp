@@ -45,14 +45,6 @@
 
 #ifdef DBDIH_C
 
-/*###################*/
-/* FILE SYSTEM FLAGS */
-/*###################*/
-#define ZOPEN_READ_WRITE 2
-#define ZCREATE_READ_WRITE 0x302
-#define ZCLOSE_NO_DELETE 0
-#define ZCLOSE_DELETE 1
-
 /*###############*/
 /* NODE STATES   */
 /*###############*/

@@ -1606,6 +1606,10 @@ void Dbdict::openTableFile(Signal* signal,
   FsOpenReq::v1_setFragment(fsOpenReq->fileNumber, (Uint32)-1);
   FsOpenReq::v1_setS(fsOpenReq->fileNumber, 0);
   FsOpenReq::v1_setP(fsOpenReq->fileNumber, 255);
+  fsOpenReq->page_size = 0;
+  fsOpenReq->file_size_hi = UINT32_MAX;
+  fsOpenReq->file_size_lo = UINT32_MAX;
+  fsOpenReq->auto_sync_size = 0;
 /* ---------------------------------------------------------------- */
 // File name : D1/DBDICT/T0/S1.TableList
 // D1 means Disk 1 (set by fileNo + 1)
@@ -1934,6 +1938,10 @@ void Dbdict::openSchemaFile(Signal* signal,
   FsOpenReq::v1_setFragment(fsOpenReq->fileNumber, (Uint32)-1);
   FsOpenReq::v1_setS(fsOpenReq->fileNumber, (Uint32)-1);
   FsOpenReq::v1_setP(fsOpenReq->fileNumber, 0);
+  fsOpenReq->page_size = 0;
+  fsOpenReq->file_size_hi = UINT32_MAX;
+  fsOpenReq->file_size_lo = UINT32_MAX;
+  fsOpenReq->auto_sync_size = 0;
 /* ---------------------------------------------------------------- */
 // File name : D1/DBDICT/P0.SchemaLog
 // D1 means Disk 1 (set by fileNo + 1). Writes to both D1 and D2

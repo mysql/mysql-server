@@ -1621,6 +1621,7 @@ Lgman::open_file(Signal* signal,
   Uint64 size = (Uint64)file_ptr.p->m_file_size * (Uint64)File_formats::NDB_PAGE_SIZE;
   req->file_size_hi = (Uint32)(size >> 32);
   req->file_size_lo = (Uint32)(size & 0xFFFFFFFF);
+  req->auto_sync_size = 0;
 
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBB,
 	     handle);

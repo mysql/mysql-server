@@ -25758,6 +25758,7 @@ void Dblqh::openFileRw(Signal* signal,
   sz *= 1024; sz *= 1024;
   req->file_size_hi = (Uint32)(sz >> 32);
   req->file_size_lo = (Uint32)(sz & 0xFFFFFFFF);
+  req->page_size = File_formats::NDB_PAGE_SIZE;
   sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
 }//Dblqh::openFileRw()
 
@@ -25938,6 +25939,7 @@ void Dblqh::openNextLogfile(Signal *signal,
     sz *= 1024; sz *= 1024;
     req->file_size_hi = (Uint32)(sz >> 32);
     req->file_size_lo = (Uint32)(sz & 0xFFFFFFFF);
+    req->page_size = File_formats::NDB_PAGE_SIZE;
     sendSignal(NDBFS_REF, GSN_FSOPENREQ, signal, FsOpenReq::SignalLength, JBA);
   }//if
 }//Dblqh::openNextLogfile()

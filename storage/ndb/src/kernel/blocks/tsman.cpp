@@ -1014,6 +1014,7 @@ Tsman::open_file(Signal* signal,
   req->page_size = File_formats::NDB_PAGE_SIZE;
   req->file_size_hi = hi;
   req->file_size_lo = lo;
+  req->auto_sync_size = 0;
 
   Uint64 pages = (Uint64(hi) << 32 | Uint64(lo)) / Uint64(File_formats::NDB_PAGE_SIZE);
   Uint32 extent_size = ts_ptr.p->m_extent_size; // Extent size in #pages
