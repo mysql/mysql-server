@@ -4696,8 +4696,12 @@ bool WalkAndReplace(
       if (result.action == ReplaceResult::ERROR) {
         return true;
       } else if (result.action == ReplaceResult::REPLACE) {
-        Item *new_arg = result.replacement;
-        func_item->arguments()[argument_idx] = new_arg;
+        if (thd->lex->is_exec_started()) {
+          thd->change_item_tree(&func_item->arguments()[argument_idx],
+                                result.replacement);
+        } else {
+          func_item->arguments()[argument_idx] = result.replacement;
+        }
       } else if (WalkAndReplace(thd, arg, get_new_item)) {
         return true;
       }
@@ -4724,9 +4728,11 @@ bool WalkAndReplace(
       if (result.action == ReplaceResult::ERROR) {
         return true;
       } else if (result.action == ReplaceResult::REPLACE) {
-        Item *new_arg = result.replacement;
-        assert(item != new_arg);
-        *li.ref() = new_arg;
+        if (thd->lex->is_exec_started()) {
+          thd->change_item_tree(li.ref(), result.replacement);
+        } else {
+          *li.ref() = result.replacement;
+        }
       } else if (WalkAndReplace(thd, arg, get_new_item)) {
         return true;
       }

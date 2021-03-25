@@ -77,6 +77,10 @@ struct ReplaceResult {
   Walk through the conditions and functions below the given item, and allows the
   given functor to replace it with new items. See ReplaceResult.
 
+  Note that this must not be used for permanent changes during optimization,
+  as all changes done during optimization will be rolled back if a prepared
+  statement is re-executed.
+
   @return true on error.
  */
 bool WalkAndReplace(
