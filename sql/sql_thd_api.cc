@@ -38,6 +38,7 @@
 #include "mysql/components/services/psi_thread_bits.h"
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/service_thd_engine_lock.h"
 #include "mysql_com.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
@@ -622,13 +623,15 @@ void thd_wait_end(MYSQL_THD thd) {
 //
 //////////////////////////////////////////////////////////
 
-/**
-   Interface for Engine to report row lock conflict.
-   The caller should guarantee thd_wait_for does not be freed, when it is
-   called.
-*/
 void thd_report_row_lock_wait(THD *self, THD *wait_for) {
   DBUG_TRACE;
+  thd_report_lock_wait(self, wait_for, true);
+}
+
+void thd_report_lock_wait(THD *self, THD *wait_for,
+                          bool /* may_survive_prepare*/) {
+  DBUG_TRACE;
+  conditional_sync_point("report_lock_collision");
 
   if (self != nullptr && wait_for != nullptr && is_mts_worker(self) &&
       is_mts_worker(wait_for))

@@ -1252,6 +1252,10 @@ struct trx_t {
     return (isolation_level == READ_UNCOMMITTED);
   }
 
+  bool releases_gap_locks_at_prepare() const {
+    return isolation_level <= READ_COMMITTED;
+  }
+
   bool skip_gap_locks() const {
     switch (isolation_level) {
       case READ_UNCOMMITTED:

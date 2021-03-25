@@ -2830,7 +2830,7 @@ static void trx_prepare(trx_t *trx) /*!< in/out: transaction */
 
   /* Release read locks after PREPARE for READ COMMITTED
   and lower isolation. */
-  if (trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
+  if (trx->releases_gap_locks_at_prepare()) {
     /* Stop inheriting GAP locks. */
     trx->skip_lock_inheritance = true;
 

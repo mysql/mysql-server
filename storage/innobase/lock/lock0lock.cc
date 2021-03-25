@@ -1241,11 +1241,52 @@ static void lock_mark_trx_for_rollback(hit_list_t &hit_list, trx_id_t hp_trx_id,
   }
 #endif /* UNIV_DEBUG */
 }
+/**
+Checks if the waits-for edge between waiting_lock and blocking_lock may
+survive PREPARE of the blocking_lock->trx. For transactions in low
+isolation levels we release some of the locks during PREPARE.
+@param[in]    waiting_lock    A lock waiting in queue, blocked by blocking_lock
+@param[in]    blocking_lock   A lock which is a reason the waiting_lock has to
+                              wait
+@return if the waiting_lock->trx MAY have to wait for blocking_lock->trx
+        even if blocking_lock->trx PREPAREs. The nondeterminism comes from
+        situations like when X lock conflicts with S lock on a delete-marked
+        record - purgining it might convert both to non-conflicitng gap locks
+@retval true    the waiting_lock->trx MAY have to wait for blocking_lock->trx
+                even if blocking_lock->trx PREPAREs.
+@retval false   the waiting_lock->trx CERTAINLY will not have to wait for
+                blocking_lock->trx for this particular reason.
+*/
+static bool lock_edge_may_survive_prepare(const lock_t *waiting_lock,
+                                          const lock_t *blocking_lock) {
+  /* Keep in sync with lock_relase_read_lock(blocking_lock, only_gap)
+  for the only_gap value currently used in the call from trx_prepare().
+  Currently some transactions release locks on gaps and a lock on a gap blocks
+  only Insert Intention, and II is only blocked by locks on a gap.
+  A "lock on a gap" can be either a LOCK_GAP, or a part of LOCK_ORDINARY. */
+  if (blocking_lock->trx->releases_gap_locks_at_prepare() &&
+      waiting_lock->is_insert_intention()) {
+    ut_ad(blocking_lock->is_record_lock());
+    ut_ad(waiting_lock->is_record_lock());
 
+    return false;
+  }
+  return true;
+}
+static void lock_report_wait_for_edge_to_server(const lock_t *waiting_lock,
+                                                const lock_t *blocking_lock) {
+  thd_report_lock_wait(
+      waiting_lock->trx->mysql_thd, blocking_lock->trx->mysql_thd,
+      lock_edge_may_survive_prepare(waiting_lock, blocking_lock));
+}
 /** Creates a new edge in wait-for graph, from waiter to blocker
-@param[in]  waiter    The transaction that has to wait for blocker
-@param[in]  blocker   The transaction which causes waiter to wait */
-static void lock_create_wait_for_edge(trx_t *waiter, trx_t *blocker) {
+@param[in]    waiting_lock    A lock waiting in queue, blocked by blocking_lock
+@param[in]    blocking_lock   A lock which is a reason the waiting_lock has to
+                          wait */
+static void lock_create_wait_for_edge(const lock_t *waiting_lock,
+                                      const lock_t *blocking_lock) {
+  trx_t *waiter = waiting_lock->trx;
+  trx_t *blocker = blocking_lock->trx;
   ut_ad(trx_mutex_own(waiter));
   ut_ad(waiter->lock.wait_lock != nullptr);
   ut_ad(locksys::owns_lock_shard(waiter->lock.wait_lock));
@@ -1258,6 +1299,7 @@ static void lock_create_wait_for_edge(trx_t *waiter, trx_t *blocker) {
   lock_wait_request_check_for_cycles() once it insert the trx to a
   slot.*/
   waiter->lock.blocking_trx.store(blocker);
+  lock_report_wait_for_edge_to_server(waiting_lock, blocking_lock);
 }
 
 /**
@@ -1303,18 +1345,13 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
   /* Don't queue the lock to hash table, if high priority transaction. */
   lock_t *lock = create(m_trx, prdt);
 
-  lock_create_wait_for_edge(m_trx, wait_for->trx);
+  lock_create_wait_for_edge(lock, wait_for);
 
   ut_ad(lock_get_wait(lock));
 
   set_wait_state(lock);
 
   MONITOR_INC(MONITOR_LOCKREC_WAIT);
-
-  /* m_trx->mysql_thd is NULL if it's an internal trx. So current_thd
-   is used */
-
-  thd_report_row_lock_wait(current_thd, wait_for->trx->mysql_thd);
 
   return (DB_LOCK_WAIT);
 }
@@ -1962,6 +1999,7 @@ static void lock_update_wait_for_edge(const lock_t *waiting_lock,
     wait_lock->trx has changed it's endpoint and we need to analyze the
     wait-for-graph again. */
     lock_wait_request_check_for_cycles();
+    lock_report_wait_for_edge_to_server(waiting_lock, blocking_lock);
   }
 }
 
@@ -3416,13 +3454,14 @@ void lock_table_remove_low(lock_t *lock) /*!< in/out: table lock */
 
 /** Enqueues a waiting request for a table lock which cannot be granted
  immediately. Checks for deadlocks.
+ @param[in] mode           lock mode this transaction is requesting
+ @param[in] table          the table to be locked
+ @param[in] thr            the query thread requesting the lock
+ @param[in] blocking_lock  the lock which is the reason this request has to wait
  @return DB_LOCK_WAIT or DB_DEADLOCK */
-static dberr_t lock_table_enqueue_waiting(
-    ulint mode,          /*!< in: lock mode this transaction is
-                         requesting */
-    dict_table_t *table, /*!< in/out: table */
-    que_thr_t *thr)      /*!< in: query thread */
-{
+static dberr_t lock_table_enqueue_waiting(ulint mode, dict_table_t *table,
+                                          que_thr_t *thr,
+                                          const lock_t *blocking_lock) {
   trx_t *trx;
 
   ut_ad(locksys::owns_table_shard(*table));
@@ -3455,7 +3494,7 @@ static dberr_t lock_table_enqueue_waiting(
   }
 
   /* Enqueue the lock request that will wait to be granted */
-  lock_table_create(table, mode | LOCK_WAIT, trx);
+  lock_t *lock = lock_table_create(table, mode | LOCK_WAIT, trx);
 
   trx->lock.que_state = TRX_QUE_LOCK_WAIT;
 
@@ -3466,7 +3505,7 @@ static dberr_t lock_table_enqueue_waiting(
   ut_a(stopped);
 
   MONITOR_INC(MONITOR_TABLELOCK_WAIT);
-
+  lock_create_wait_for_edge(lock, blocking_lock);
   return (DB_LOCK_WAIT);
 }
 
@@ -3602,10 +3641,7 @@ dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
   mode: this trx may have to wait */
 
   if (wait_for != nullptr) {
-    err = lock_table_enqueue_waiting(mode | flags, table, thr);
-    if (err == DB_LOCK_WAIT) {
-      lock_create_wait_for_edge(trx, wait_for->trx);
-    }
+    err = lock_table_enqueue_waiting(mode | flags, table, thr, wait_for);
   } else {
     lock_table_create(table, mode | flags, trx);
 
@@ -3914,6 +3950,7 @@ released if rules permit it.
 @param[in]   only_gap   true if we don't want to release records,
                         just the gaps between them */
 static void lock_release_read_lock(lock_t *lock, bool only_gap) {
+  /* Keep in sync with lock_edge_may_survive_prepare() */
   if (!lock->is_record_lock() || lock->is_insert_intention() ||
       lock->is_predicate()) {
     /* DO NOTHING */
