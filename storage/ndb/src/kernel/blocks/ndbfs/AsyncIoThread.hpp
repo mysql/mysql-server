@@ -115,8 +115,17 @@ public:
       Uint32 milliseconds;
     } suspend;
   } par;
-  int error;
-
+  struct {
+    int code;
+    int line;
+    const char* file;
+    const char* func;
+  } error;
+  void set_error(int code, int line, const char* file, const char* func) {
+    error = { code, line, file, func};
+  }
+#define NDBFS_SET_REQUEST_ERROR(req,code) \
+          ((req)->set_error((code), __LINE__, __FILE__, __func__))
   void set(BlockReference userReference,
 	   Uint32 userPointer,
 	   Uint16 filePointer);

@@ -37,6 +37,7 @@
 
 class AsyncIoThread;
 class FsReadWriteReq;
+struct FsRef;
 
 // Because one NDB Signal request can result in multiple requests to
 // AsyncFile one class must be made responsible to keep track
@@ -102,6 +103,8 @@ private:
   AsyncFile* createAsyncFile();
   AsyncFile* getIdleFile(bool bound);
   void pushIdleFile(AsyncFile*);
+  void log_file_error(GlobalSignalNumber gsn, AsyncFile* file,
+                      Request* request, FsRef* fsRef);
 
   Vector<AsyncIoThread*> theThreads;// List of all created threads
   Vector<AsyncFile*> theFiles;      // List all created AsyncFiles

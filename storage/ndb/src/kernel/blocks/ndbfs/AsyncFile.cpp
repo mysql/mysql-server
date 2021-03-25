@@ -197,7 +197,7 @@ AsyncFile::openReq(Request * request)
           ((flags & FsOpenReq::OM_CREATE_IF_NONE) ||
            Ndbfs::translateErrno(error) != FsRef::fsErrFileExists))
       {
-        request->error = error;
+        NDBFS_SET_REQUEST_ERROR(request, error);
         return;
       }
     }
@@ -212,7 +212,8 @@ AsyncFile::openReq(Request * request)
       FsOpenReq::OM_READ_WRITE_MASK | FsOpenReq::OM_APPEND;
   if (m_file.open(theFileName.c_str(), flags & open_flags) == -1)
   {
-    request->error = get_last_os_error();
+    // Common expected error for NDBCNTR sysfile, DBDIH sysfile, LCP ctl
+    NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
     goto remove_if_created;
   }
 
@@ -221,7 +222,7 @@ AsyncFile::openReq(Request * request)
   {
     if (m_file.truncate(0) == -1)
     {
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       m_file.close();
       goto remove_if_created;
     }
@@ -233,13 +234,13 @@ AsyncFile::openReq(Request * request)
     ndb_file::off_t file_size = m_file.get_size();
     if (file_size == -1)
     {
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
     }
     else if ((Uint64)file_size != request->par.open.file_size)
     {
-      request->error = FsRef::fsErrInvalidFileSize;
+      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidFileSize);
     }
-    if (request->error)
+    if (request->error.code != 0)
     {
       m_file.close();
       goto remove_if_created;
@@ -291,7 +292,7 @@ AsyncFile::openReq(Request * request)
     const ndb_file::off_t file_size = (ndb_file::off_t)request->par.open.file_size;
     if (m_file.extend(file_size, ndb_file::NO_FILL) == -1)
     {
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       m_file.close();
       goto remove_if_created;
     }
@@ -357,7 +358,7 @@ AsyncFile::openReq(Request * request)
       }
       if (size != 0)
       {
-        request->error = get_last_os_error();
+        NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
         m_file.close();
         goto remove_if_created;
       }
@@ -365,9 +366,9 @@ AsyncFile::openReq(Request * request)
     }
     if (m_file.sync() == -1)
     {
-        request->error = get_last_os_error();
-        m_file.close();
-        goto remove_if_created;
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+      m_file.close();
+      goto remove_if_created;
     }
 #ifdef TRACE_INIT
     const NDB_TICKS stop = NdbTick_getCurrentTicks();
@@ -382,7 +383,7 @@ AsyncFile::openReq(Request * request)
 
     if (m_file.set_pos(0) == -1)
     {
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       m_file.close();
       goto remove_if_created;
     }
@@ -439,7 +440,7 @@ AsyncFile::openReq(Request * request)
        * sync mode, explicit call to fsync/FlushFiles will be done on every
        * write.
        */
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       m_file.close();
       goto remove_if_created;
     }
@@ -454,7 +455,7 @@ AsyncFile::openReq(Request * request)
     ndb_file::off_t file_size = m_file.get_size();
     if (file_size == -1)
     {
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       m_file.close();
       goto remove_if_created;
     }
@@ -497,7 +498,7 @@ AsyncFile::openReq(Request * request)
       ndbz_flags |= O_RDWR;
       break;
     default:
-      request->error = FsRef::fsErrInvalidParameters;
+      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidParameters);
       m_file.close();
       goto remove_if_created;
     }
@@ -513,7 +514,7 @@ AsyncFile::openReq(Request * request)
       }
       if (rv == -1)
       {
-        request->error = FsRef::fsErrInvalidParameters; // TODO better error!
+        NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidParameters);
         m_file.close();
       }
     }
@@ -614,7 +615,7 @@ AsyncFile::openReq(Request * request)
     m_next_read_pos = UINT64_MAX;
   }
 
-  require(request->error == 0);
+  require(request->error.code == 0);
   return;
 
 remove_if_created:
@@ -623,7 +624,7 @@ remove_if_created:
   {
     g_eventLogger->info(
         "Could not remove '%s' (err %u) after open failure (err %u).",
-        theFileName.c_str(), get_last_os_error(), request->error);
+        theFileName.c_str(), get_last_os_error(), request->error.code);
   }
 }
 
@@ -671,20 +672,20 @@ AsyncFile::closeReq(Request *request)
           int r = ndbxfrm_append(request, &in);
           if (r == -1)
           {
-            request->error = get_last_os_error();
-            if (request->error == 0)
+            NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+            if (request->error.code == 0)
             {
-              request->error = FsRef::fsErrUnknown;
+              NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
             }
           }
           if (r == 0) break;
         }
         if (r != 0 || !m_compress_buffer.last())
         {
-          request->error = get_last_os_error();
-          if (request->error == 0)
+          NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+          if (request->error.code == 0)
           {
-            request->error = FsRef::fsErrUnknown;
+            NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
           }
         }
       }
@@ -750,7 +751,7 @@ AsyncFile::closeReq(Request *request)
       if (n > 0) wr_in.advance(n);
       if (n == -1 || size_t(n) != write_len)
       {
-        request->error = get_last_os_error();
+        NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       }
       if (wr_in.empty()) wr_in.set_last();
       require(wr_in.last());
@@ -792,7 +793,7 @@ AsyncFile::closeReq(Request *request)
       if (n > 0) wr_in.advance(n);
       if (n == -1 || size_t(n) != write_len)
       {
-        request->error = get_last_os_error();
+        NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       }
       if (wr_in.empty()) wr_in.set_last();
       require(wr_in.last());
@@ -816,7 +817,7 @@ AsyncFile::closeReq(Request *request)
   nzf.stream.opaque = (void*)&nz_mempool;
 
   if (-1 == r) {
-    request->error = get_last_os_error();
+    NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
   }
 }
 
@@ -839,16 +840,16 @@ AsyncFile::readReq( Request * request)
         // assume speculative read beyond end of file
         if (request->action != Request::readPartial)
         {
-          request->error = ERR_ReadUnderflow;
+          NDBFS_SET_REQUEST_ERROR(request, ERR_ReadUnderflow);
         }
         return;
       }
-      request->error = FsRef::fsErrUnknown; // read out sync
+      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown); // read out sync
       return;
     }
     int err = readBuffer(request, buf, size, offset);
     if(err != 0){
-      request->error = err;
+      NDBFS_SET_REQUEST_ERROR(request, err);
       return;
     }
     if (read_forward) m_next_read_pos += request->par.readWrite.pages[0].size;
@@ -868,13 +869,13 @@ AsyncFile::writeReq(Request * request)
                             request->par.readWrite.pages[i].offset);
       if (err)
       {
-        request->error = err;
+        NDBFS_SET_REQUEST_ERROR(request, err);
         return;
       }
     }
     if (m_file.sync_on_write() == -1)
     {
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
     }
     return;
   }
@@ -906,7 +907,7 @@ AsyncFile::writeReq(Request * request)
             if (tmp != request->par.readWrite.pages[i+1].offset) {
               // Next page is not aligned with previous, not allowed
               DEBUG(g_eventLogger->info("Page offsets are not aligned"));
-              request->error = EINVAL;
+              NDBFS_SET_REQUEST_ERROR(request, EINVAL);
               return;
             }
             if ((unsigned)(totsize + request->par.readWrite.pages[i+1].size) > (unsigned)theWriteBufferSize) {
@@ -927,14 +928,14 @@ AsyncFile::writeReq(Request * request)
       }
       int err = writeBuffer(bufptr, totsize, offset);
       if(err != 0){
-        request->error = err;
+        NDBFS_SET_REQUEST_ERROR(request, err);
         return;
       }
     } // while(write_not_complete)
   }
   if (m_file.sync_on_write() == -1)
   {
-    request->error = get_last_os_error();
+    NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
   }
 }
 
@@ -942,7 +943,7 @@ void AsyncFile::syncReq(Request *request)
 {
   if (m_file.sync())
   {
-    request->error = get_last_os_error();
+    NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
     return;
   }
 }
@@ -1153,7 +1154,7 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
     if (rv == -1)
     {
       transform_failed = true;
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       return -1;
     }
     if (!in->last()) require(!out.last());
@@ -1198,7 +1199,7 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
     if (rv == -1)
     {
       transform_failed = true;
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       return -1;
     }
     m_compress_buffer.update_read(c_in);
@@ -1222,7 +1223,7 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
     // Fail if not all written and no buffer is used.
     if (n == -1 || (file_bufp == nullptr && !file_in.empty()))
     {
-      request->error = get_last_os_error();
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
       return -1;
     }
     if (file_bufp != nullptr)
@@ -1235,7 +1236,7 @@ int AsyncFile::ndbxfrm_append(Request *request, ndbxfrm_input_iterator* in)
   }
   else
   {
-    request->error = get_last_os_error();
+    NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
     return -1;
   }
 #if 0
@@ -1259,7 +1260,7 @@ void AsyncFile::appendReq(Request *request)
   Uint32 size = request->par.append.size;
 
   if (!check_odirect_request(request->par.append.buf, size, 0))
-    request->error = FsRef::fsErrInvalidParameters;
+    NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrInvalidParameters);
 
   int Guard = 80;
   while (size > 0)
@@ -1273,10 +1274,10 @@ void AsyncFile::appendReq(Request *request)
     int r;
     if ((r = ndbxfrm_append(request, &in)) == -1)
     {
-      request->error = get_last_os_error();
-      if (request->error == 0)
+      NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+      if (request->error.code == 0)
       {
-        request->error = FsRef::fsErrUnknown;
+        NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrUnknown);
       }
       return;
     }
@@ -1291,14 +1292,14 @@ void AsyncFile::appendReq(Request *request)
 
   if (m_file.sync_on_write() == -1)
   {
-    request->error = get_last_os_error();
-    if (request->error == 0)
+    NDBFS_SET_REQUEST_ERROR(request, get_last_os_error());
+    if (request->error.code == 0)
     {
-      request->error = FsRef::fsErrSync;
+      NDBFS_SET_REQUEST_ERROR(request, FsRef::fsErrSync);
     }
     return;
   }
-  require(request->error == 0);
+  require(request->error.code == 0);
 }
 
 #ifdef DEBUG_ASYNCFILE

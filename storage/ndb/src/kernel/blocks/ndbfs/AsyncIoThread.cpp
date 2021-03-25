@@ -195,7 +195,7 @@ AsyncIoThread::run()
     switch (request->action) {
     case Request::open:
       file->openReq(request);
-      if (request->error == 0 && request->m_do_bind)
+      if (request->error.code == 0 && request->m_do_bind)
         attach(file);
       break;
     case Request::close:
@@ -282,7 +282,7 @@ AsyncIoThread::allocMemReq(Request* request)
     bool memlock = !!(request->par.alloc.requestInfo & AllocMemReq::RT_MEMLOCK);
     request->par.alloc.ctx->m_mm.map(&watchDog, memlock);
     request->par.alloc.bytes = 0;
-    request->error = 0;
+    NDBFS_SET_REQUEST_ERROR(request, 0);
     break;
   }
   case AllocMemReq::RT_EXTEND:
@@ -291,7 +291,7 @@ AsyncIoThread::allocMemReq(Request* request)
      */
     assert(false);
     request->par.alloc.bytes = 0;
-    request->error = 1;
+    NDBFS_SET_REQUEST_ERROR(request, 1);
     break;
   }
 }
@@ -311,7 +311,7 @@ AsyncIoThread::buildIndxReq(Request* request)
   memcpy(&req, &request->par.build.m_req, sizeof(req));
   req.mem_buffer = request->file->m_page_ptr.p;
   req.buffer_size = request->file->m_page_cnt * sizeof(GlobalPage);
-  request->error = (* req.func_ptr)(&req);
+  NDBFS_SET_REQUEST_ERROR(request, (* req.func_ptr)(&req));
 }
 
 void

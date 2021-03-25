@@ -59,8 +59,7 @@ PosixAsyncFile::PosixAsyncFile(Ndbfs& fs) :
 void PosixAsyncFile::removeReq(Request *request)
 {
   if (-1 == ::remove(theFileName.c_str())) {
-    request->error = errno;
-
+    NDBFS_SET_REQUEST_ERROR(request, errno);
   }
 }
 
@@ -71,7 +70,7 @@ PosixAsyncFile::rmrfReq(Request *request, const char * src, bool removePath)
   {
     // Remove file
     if(unlink(src) != 0 && errno != ENOENT)
-      request->error = errno;
+      NDBFS_SET_REQUEST_ERROR(request, errno);
     return;
   }
 
@@ -86,7 +85,7 @@ loop:
   if(dirp == 0)
   {
     if(errno != ENOENT)
-      request->error = errno;
+      NDBFS_SET_REQUEST_ERROR(request, errno);
     return;
   }
 
@@ -118,7 +117,7 @@ loop:
 
   if(removePath && rmdir(src) != 0)
   {
-    request->error = errno;
+    NDBFS_SET_REQUEST_ERROR(request, errno);
   }
 }
 

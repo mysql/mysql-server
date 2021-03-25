@@ -44,7 +44,7 @@ void
 Win32AsyncFile::removeReq(Request * request)
 {
   if(!DeleteFile(theFileName.c_str())) {
-    request->error = GetLastError();
+    NDBFS_SET_REQUEST_ERROR(request, GetLastError());
   }
 }
 
@@ -57,7 +57,7 @@ Win32AsyncFile::rmrfReq(Request * request, const char * src, bool removePath){
     {
       DWORD dwError = GetLastError();
       if (dwError != ERROR_FILE_NOT_FOUND && dwError != ERROR_PATH_NOT_FOUND)
-        request->error = dwError;
+        NDBFS_SET_REQUEST_ERROR(request, dwError);
     }
     return;
   }
@@ -74,7 +74,7 @@ loop:
   {
     DWORD dwError = GetLastError();
     if (dwError != ERROR_FILE_NOT_FOUND && dwError != ERROR_PATH_NOT_FOUND)
-      request->error = dwError;
+      NDBFS_SET_REQUEST_ERROR(request, dwError);
     return;
   }
   path[strlen(path) - 1] = 0; // remove '*'
@@ -107,7 +107,7 @@ loop:
   }
 
   if(removePath && !RemoveDirectory(src))
-    request->error = GetLastError();
+    NDBFS_SET_REQUEST_ERROR(request, GetLastError());
 }
 
 void Win32AsyncFile::createDirectories()
