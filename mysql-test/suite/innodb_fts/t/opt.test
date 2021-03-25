@@ -621,15 +621,14 @@ SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@
 SELECT FTS_DOC_ID, title FROM t1 WHERE MATCH(title, text) AGAINST ('"very fast"@3' IN BOOLEAN MODE);
 
 # check case with 'for' stopword
-EXPLAIN SELECT FTS_DOC_ID  FROM t1
-WHERE MATCH(title, text) AGAINST ('+for' IN BOOLEAN MODE);
---skip_if_hypergraph  # Does not support FTS covering index scans.
---replace_regex / *\(cost=.*//
-EXPLAIN FORMAT=TREE SELECT FTS_DOC_ID  FROM t1
-WHERE MATCH(title, text) AGAINST ('+for' IN BOOLEAN MODE);
+let $query =
 SELECT FTS_DOC_ID  FROM t1
 WHERE MATCH(title, text) AGAINST ('+for' IN BOOLEAN MODE);
-
+eval EXPLAIN $query;
+--let SEARCH_EXPRESSION = query_get_value("EXPLAIN FORMAT=TREE $query", EXPLAIN, 1)
+--let SEARCH_PATTERN = Full-text covering index search on t1 using ft_idx
+--source include/search_pattern_on_variable.inc
+eval $query;
 
 --echo # No sorting by rank
 

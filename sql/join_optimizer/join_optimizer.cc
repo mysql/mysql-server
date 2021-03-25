@@ -3127,6 +3127,24 @@ uint64_t FindSargableFullTextPredicates(const JoinHypergraph &graph) {
   return fulltext_predicates;
 }
 
+// Checks if any of the full-text indexes are covering for a table. If the query
+// only needs the document ID and the rank, there is no need to access table
+// rows. Index-only access can only be used if there is an FTS_DOC_ID column in
+// the table, and no other columns must be accessed. All covering full-text
+// indexes that are found, are added to TABLE::covering_keys.
+void EnableFullTextCoveringIndexes(const Query_block *query_block) {
+  for (Item_func_match &match : *query_block->ftfunc_list) {
+    TABLE *table = match.table_ref->table;
+    if (match.master == nullptr && match.key != NO_SUCH_KEY &&
+        table->fts_doc_id_field != nullptr &&
+        bitmap_is_set(table->read_set,
+                      table->fts_doc_id_field->field_index()) &&
+        bitmap_bits_set(table->read_set) == 1) {
+      table->covering_keys.set_bit(match.key);
+    }
+  }
+}
+
 }  // namespace
 
 static ORDER *BuildSortAheadOrdering(THD *thd,
@@ -4462,6 +4480,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
 
     // Check if we have full-text indexes that can be used.
     sargable_fulltext_predicates = FindSargableFullTextPredicates(graph);
+    EnableFullTextCoveringIndexes(query_block);
   }
 
   // Collect interesting orders from ORDER BY, GROUP BY and semijoins.

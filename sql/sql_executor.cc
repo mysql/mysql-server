@@ -4083,6 +4083,12 @@ FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
     // Mark the MATCH function as a source for a full-text index scan.
     ft_func->score_from_index_scan = true;
 
+    if (table->covering_keys.is_set(ft_func->key) && !table->no_keyread) {
+      // The index is covering. Tell the storage engine that it can do an
+      // index-only scan.
+      table->set_keyread(true);
+    }
+
     // Enable ordering of the results on relevance, if requested.
     if (use_order) {
       ft_func->get_hints()->set_hint_flag(FT_SORTED);
@@ -4100,6 +4106,9 @@ FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
 
 FullTextSearchIterator::~FullTextSearchIterator() {
   table()->file->ha_index_or_rnd_end();
+  if (table()->key_read) {
+    table()->set_keyread(false);
+  }
 }
 
 bool FullTextSearchIterator::Init() {
