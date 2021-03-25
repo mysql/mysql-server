@@ -2154,6 +2154,7 @@ class Field_boolean : public Field_num {
                              const CHARSET_INFO *charset) override;
   type_conversion_status store(double nr) override;
   type_conversion_status store(longlong nr, bool unsigned_val) override;
+  type_conversion_status store_decimal(const my_decimal *val) override;
   double val_real() const override;
   longlong val_int() const override;
   String *val_str(String *, String *) const override;

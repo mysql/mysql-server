@@ -2013,7 +2013,7 @@ longlong Field::convert_decimal2longlong(const my_decimal *val,
   @param val       value for storing
 
   @note
-    This method is used by all integer fields, real/decimal redefine it
+    This method is used by all integer fields except boolean, real/decimal/boolean redefine it
 
   @retval TYPE_OK   Storage of value went fine without warnings or errors
   @retval !TYPE_OK  Warning/error as indicated by type_conversion_status enum
@@ -3189,12 +3189,10 @@ type_conversion_status Field_boolean::store(const char *from, size_t len,
 }
 
 type_conversion_status Field_boolean::store(double nr) {
-  return Field_boolean::store(static_cast<bool>(nr), 0);
+  ASSERT_COLUMN_MARKED_FOR_WRITE;
+  return Field_boolean::store(nr ? 1 : 0, 0);
 }
 
-//Why?
-//Change double and longlong
-//How is decimal numbers converted to booleans today?
 type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error = TYPE_OK;
@@ -3208,6 +3206,11 @@ type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
     *ptr = 0;
   }
   return error;
+}
+
+type_conversion_status Field_boolean::store_decimal(const my_decimal *val) {
+  ASSERT_COLUMN_MARKED_FOR_WRITE;
+  const type_conversion_status res = store(!my_decimal_is_zero(val), 0);
 }
 
 double Field_boolean::val_real() const {
@@ -3225,7 +3228,6 @@ longlong Field_boolean::val_int() const {
 // #TODO ask about string rep. 0 or 1, or FALSE or TRUE?
 //Test both ways
 //Use static_cast or eliminiate casting
-//No need to check is_unsigned
 String *Field_boolean::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_numeric;
@@ -3234,14 +3236,9 @@ String *Field_boolean::val_str(String *val_buffer, String *) const {
   val_buffer->alloc(mlength);
   char *to = val_buffer->ptr();
 
-  if (is_unsigned())
-    length = (uint)cs->cset->long10_to_str(cs, to, mlength, 10, (long)*ptr);
-  else
-    length = (uint)cs->cset->long10_to_str(cs, to, mlength, -10,
-                                           (long)*((signed char *)ptr));
+  length = static_cast<uint>(cs->cset->long10_to_str(cs, to, mlength, -10, (long)*((signed char *)ptr)));
 
   val_buffer->length(length);
-  if (zerofill) prepend_zeros(val_buffer);
   val_buffer->set_charset(cs);
   return val_buffer;
 }
@@ -3253,8 +3250,8 @@ bool Field_boolean::send_to_protocol(Protocol *protocol) const {
 
 int Field_boolean::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   bool a, b;
-  a = (bool)a_ptr[0];
-  b = (bool)b_ptr[0];
+  a = static_cast<bool>(a_ptr[0]);
+  b = static_cast<bool>(b_ptr[0]);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
