@@ -207,10 +207,7 @@ struct MockServerConnectOkTestParam {
 
 class MockServerConnectOkTest
     : public RouterComponentTest,
-      public ::testing::WithParamInterface<MockServerConnectOkTestParam> {
- protected:
-  TcpPortPool port_pool_;
-};
+      public ::testing::WithParamInterface<MockServerConnectOkTestParam> {};
 
 /**
  * replace named placeholders in a string.
@@ -489,10 +486,7 @@ struct MockServerConnectTestParam {
 
 class MockServerConnectTest
     : public RouterComponentTest,
-      public ::testing::WithParamInterface<MockServerConnectTestParam> {
- protected:
-  TcpPortPool port_pool_;
-};
+      public ::testing::WithParamInterface<MockServerConnectTestParam> {};
 
 TEST_P(MockServerConnectTest, check) {
   auto mysql_server_mock_path = get_mysqlserver_mock_exec().str();
