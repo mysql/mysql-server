@@ -631,7 +631,7 @@ void thd_report_row_lock_wait(THD *self, THD *wait_for) {
 void thd_report_lock_wait(THD *self, THD *wait_for,
                           bool /* may_survive_prepare*/) {
   DBUG_TRACE;
-  conditional_sync_point("report_lock_collision");
+  CONDITIONAL_SYNC_POINT("report_lock_collision");
 
   if (self != nullptr && wait_for != nullptr && is_mts_worker(self) &&
       is_mts_worker(wait_for))
