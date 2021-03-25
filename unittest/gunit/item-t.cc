@@ -229,7 +229,7 @@ TEST_F(ItemTest, ItemInt) {
 
   item_int->neg();
   EXPECT_EQ(-val, item_int->val_int());
-  EXPECT_EQ(precision - 1, item_int->decimal_precision());
+  EXPECT_EQ(precision, item_int->decimal_precision());
 
   // Functions inherited from parent class(es).
   const table_map tmap = 0;

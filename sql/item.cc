@@ -632,7 +632,7 @@ uint Item::decimal_precision() const {
   if ((restype == DECIMAL_RESULT) || (restype == INT_RESULT)) {
     uint prec = my_decimal_length_to_precision(max_char_length(), decimals,
                                                unsigned_flag);
-    return min<uint>(prec, DECIMAL_MAX_PRECISION);
+    return max<uint>(1, min<uint>(prec, DECIMAL_MAX_PRECISION));
   }
   switch (data_type()) {
     case MYSQL_TYPE_TIME:
@@ -3116,7 +3116,7 @@ void Item_int::init(const char *str_arg, uint length) {
   const char *end_ptr = str_arg + length;
   int error;
   value = my_strtoll10(str_arg, &end_ptr, &error);
-  max_length = (uint)(end_ptr - str_arg);
+  set_max_size(static_cast<uint>(end_ptr - str_arg));
   item_name.copy(str_arg, max_length);
   fixed = true;
 }

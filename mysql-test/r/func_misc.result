@@ -1130,7 +1130,7 @@ CREATE TABLE t1 AS SELECT CONCAT(NAME_CONST('char_col',_cp932'test' COLLATE 'cp9
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` varchar(5) CHARACTER SET cp932 DEFAULT NULL
+  `a` varchar(6) CHARACTER SET cp932 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 DROP TABLE t1;
 # Bug#28892294: Segmentation fault at get_time_value()

@@ -1792,7 +1792,7 @@ t5	CREATE TABLE `t5` (
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 select * from t5 ;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t5	t5	const01	const01	3	1	1	N	32769	0	63
+def	test	t5	t5	const01	const01	3	2	1	N	32769	0	63
 def	test	t5	t5	param01	param01	8	21	1	Y	32768	0	63
 def	test	t5	t5	const02	const02	246	4	3	N	32769	1	63
 def	test	t5	t5	param02	param02	246	67	32	Y	32768	30	63

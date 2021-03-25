@@ -28,8 +28,8 @@ blocking_trx_started	datetime	X		X
 blocking_trx_age	time	X		X	
 blocking_trx_rows_locked	bigint unsigned	X		X	
 blocking_trx_rows_modified	bigint unsigned	X		X	
-sql_kill_blocking_query	varchar(32)	X		X	
-sql_kill_blocking_connection	varchar(26)	X		X	
+sql_kill_blocking_query	varchar(33)	X		X	
+sql_kill_blocking_connection	varchar(27)	X		X	
 SELECT * FROM sys.innodb_lock_waits;
 DESC sys.x$innodb_lock_waits;
 Field	Type	Null	Key	Default	Extra
@@ -61,6 +61,6 @@ blocking_trx_started	datetime	X		X
 blocking_trx_age	time	X		X	
 blocking_trx_rows_locked	bigint unsigned	X		X	
 blocking_trx_rows_modified	bigint unsigned	X		X	
-sql_kill_blocking_query	varchar(32)	X		X	
-sql_kill_blocking_connection	varchar(26)	X		X	
+sql_kill_blocking_query	varchar(33)	X		X	
+sql_kill_blocking_connection	varchar(27)	X		X	
 SELECT * FROM sys.x$innodb_lock_waits;

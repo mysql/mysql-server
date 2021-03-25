@@ -2606,8 +2606,7 @@ my_decimal *Item_func_neg::decimal_op(my_decimal *decimal_value) {
 
 void Item_func_neg::fix_num_length_and_dec() {
   decimals = args[0]->decimals;
-  /* 1 add because sign can appear */
-  max_length = args[0]->max_length + 1;
+  max_length = args[0]->max_length + (args[0]->unsigned_flag ? 1 : 0);
 }
 
 bool Item_func_neg::resolve_type(THD *thd) {

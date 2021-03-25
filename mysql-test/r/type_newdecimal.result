@@ -179,7 +179,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `round(15.4,-1)` decimal(3,0) NOT NULL DEFAULT '0',
   `truncate(-5678.123451,-3)` decimal(4,0) NOT NULL DEFAULT '0',
-  `abs(-1.1)` decimal(3,1) NOT NULL DEFAULT '0.0',
+  `abs(-1.1)` decimal(2,1) NOT NULL DEFAULT '0.0',
   `-(-1.1)` decimal(2,1) NOT NULL DEFAULT '0.0'
 ) ENGINE=ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;

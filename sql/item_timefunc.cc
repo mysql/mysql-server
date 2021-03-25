@@ -1078,7 +1078,6 @@ bool Item_func_to_days::resolve_type(THD *thd) {
   // correct value.)
   fix_char_length(8);
   assert(decimal_precision() == 7);
-  assert(decimal_int_part() == 7);
   set_nullable(true);
   return false;
 }
@@ -1219,7 +1218,6 @@ bool Item_func_dayofyear::resolve_type(THD *thd) {
   // character length for the sign.
   fix_char_length(4);
   assert(decimal_precision() == 3);
-  assert(decimal_int_part() == 3);
   set_nullable(true);
   return false;
 }
@@ -1238,7 +1236,6 @@ bool Item_func_dayofmonth::resolve_type(THD *thd) {
   // character length for the sign.
   fix_char_length(3);
   assert(decimal_precision() == 2);
-  assert(decimal_int_part() == 2);
   set_nullable(true);
   return false;
 }
@@ -1255,7 +1252,6 @@ bool Item_func_month::resolve_type(THD *thd) {
   // character length for the sign.
   fix_char_length(3);
   assert(decimal_precision() == 2);
-  assert(decimal_int_part() == 2);
   set_nullable(true);
   return false;
 }
@@ -1297,7 +1293,6 @@ bool Item_func_quarter::resolve_type(THD *thd) {
   // Always one digit [1, 4]. Add one character for the sign.
   fix_char_length(2);
   assert(decimal_precision() == 1);
-  assert(decimal_int_part() == 1);
   set_nullable(true);
   return false;
 }
@@ -1318,7 +1313,6 @@ bool Item_func_hour::resolve_type(THD *thd) {
   // Can have up to three digits (TIME_MAX_HOUR == 838). Add one for the sign.
   fix_char_length(4);
   assert(decimal_precision() == 3);
-  assert(decimal_int_part() == 3);
   set_nullable(true);
   return false;
 }
@@ -1334,7 +1328,6 @@ bool Item_func_minute::resolve_type(THD *thd) {
   // Can have up to two digits [0, 59]. Add one for the sign.
   fix_char_length(3);
   assert(decimal_precision() == 2);
-  assert(decimal_int_part() == 2);
   set_nullable(true);
   return false;
 }
@@ -1350,7 +1343,6 @@ bool Item_func_second::resolve_type(THD *thd) {
   // Can have up to two digits [0, 59]. Add one for the sign.
   fix_char_length(3);
   assert(decimal_precision() == 2);
-  assert(decimal_int_part() == 2);
   set_nullable(true);
   return false;
 }
@@ -1388,7 +1380,6 @@ bool Item_func_week::resolve_type(THD *thd) {
   // 53]). Add one for the sign.
   fix_char_length(3);
   assert(decimal_precision() == 2);
-  assert(decimal_int_part() == 2);
   set_nullable(true);
   return false;
 }
@@ -1438,7 +1429,6 @@ bool Item_func_yearweek::resolve_type(THD *thd) {
   // Returns six digits (YYYYWW). Add one character for the sign.
   fix_char_length(7);
   assert(decimal_precision() == 6);
-  assert(decimal_int_part() == 6);
   set_nullable(true);
   return false;
 }
@@ -1515,7 +1505,6 @@ bool Item_typecast_year::resolve_type(THD *thd) {
   if (reject_geometry_args(arg_count, args, this)) return true;
   if (args[0]->propagate_type(thd, MYSQL_TYPE_YEAR, false, true)) return true;
   assert(decimal_precision() == 4);
-  assert(decimal_int_part() == 4);
   set_nullable(true);
   return false;
 }

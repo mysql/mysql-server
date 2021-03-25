@@ -7078,7 +7078,7 @@ static void test_explain_bug() {
   no = 0;
 
   verify_prepare_field(result, no++, "id", "", MYSQL_TYPE_LONGLONG, "", "", "",
-                       3, 0);
+                       4, 0);
 
   verify_prepare_field(result, no++, "select_type", "", MYSQL_TYPE_VAR_STRING,
                        "", "", "", 19, 0);
@@ -7109,7 +7109,7 @@ static void test_explain_bug() {
                        "", NAME_CHAR_LEN * 16, 0);
 
   verify_prepare_field(result, no++, "rows", "", MYSQL_TYPE_LONGLONG, "", "",
-                       "", 10, 0);
+                       "", 11, 0);
 
   if (mysql_get_server_version(mysql) > 50702) no++;
 

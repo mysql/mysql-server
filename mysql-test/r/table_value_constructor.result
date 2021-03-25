@@ -127,7 +127,7 @@ column_1	decimal(2,1)	NO		0.0
 column_2	double	NO		0	
 column_3	varchar(10)	NO			
 column_4	varchar(10)	NO			
-column_5	varchar(1)	NO			
+column_5	varchar(2)	NO			
 column_6	longblob	YES		NULL	
 column_7	longtext	YES		NULL	
 DROP TABLE t;

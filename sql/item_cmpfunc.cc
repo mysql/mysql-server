@@ -3239,14 +3239,6 @@ void Item_func_between::print(const THD *thd, String *str,
   str->append(')');
 }
 
-uint Item_func_ifnull::decimal_precision() const {
-  int arg0_int_part = args[0]->decimal_int_part();
-  int arg1_int_part = args[1]->decimal_int_part();
-  int max_int_part = max(arg0_int_part, arg1_int_part);
-  int precision = max_int_part + decimals;
-  return min<uint>(precision, DECIMAL_MAX_PRECISION);
-}
-
 Field *Item_func_ifnull::tmp_table_field(TABLE *table) {
   return tmp_table_field_from_field_type(table, false);
 }
@@ -3414,13 +3406,6 @@ TYPELIB *Item_func_if::get_typelib() const {
          (args[2]->data_type() == MYSQL_TYPE_NULL));
   return args[1]->data_type() != MYSQL_TYPE_NULL ? args[1]->get_typelib()
                                                  : args[2]->get_typelib();
-}
-
-uint Item_func_if::decimal_precision() const {
-  int arg1_prec = args[1]->decimal_int_part();
-  int arg2_prec = args[2]->decimal_int_part();
-  int precision = max(arg1_prec, arg2_prec) + decimals;
-  return min<uint>(precision, DECIMAL_MAX_PRECISION);
 }
 
 double Item_func_if::val_real() {
@@ -3993,16 +3978,6 @@ TYPELIB *Item_func_case::get_typelib() const {
   }
   assert(typelib != nullptr);
   return typelib;
-}
-
-uint Item_func_case::decimal_precision() const {
-  int max_int_part = 0;
-  for (uint i = 0; i < ncases; i += 2)
-    max_int_part = max(max_int_part, args[i + 1]->decimal_int_part());
-
-  if (else_expr_num != -1)
-    max_int_part = max(max_int_part, args[else_expr_num]->decimal_int_part());
-  return min(max_int_part + decimals, DECIMAL_MAX_PRECISION);
 }
 
 /**

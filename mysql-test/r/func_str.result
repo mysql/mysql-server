@@ -712,9 +712,9 @@ t1	CREATE TABLE `t1` (
   `bin(130)` varchar(65) DEFAULT NULL,
   `oct(130)` varchar(65) DEFAULT NULL,
   `conv(130,16,10)` varchar(65) DEFAULT NULL,
-  `hex(130)` varchar(6) DEFAULT NULL,
+  `hex(130)` varchar(8) DEFAULT NULL,
   `char(130)` varbinary(4) DEFAULT NULL,
-  `format(130,10)` varchar(36) DEFAULT NULL,
+  `format(130,10)` varchar(37) DEFAULT NULL,
   `left(_latin2'a',1)` varchar(1) CHARACTER SET latin2 DEFAULT NULL,
   `right(_latin2'a',1)` varchar(1) CHARACTER SET latin2 DEFAULT NULL,
   `lcase(_latin2'a')` varchar(1) CHARACTER SET latin2 DEFAULT NULL,
@@ -2730,7 +2730,7 @@ CREATE TABLE t1 charset utf8mb4 AS SELECT format(123,2,'no_NO');
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `format(123,2,'no_NO')` varchar(36) CHARACTER SET latin1 DEFAULT NULL
+  `format(123,2,'no_NO')` varchar(37) CHARACTER SET latin1 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM t1;
 format(123,2,'no_NO')
