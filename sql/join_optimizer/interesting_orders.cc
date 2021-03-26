@@ -169,6 +169,7 @@ int LogicalOrderings::AddFunctionalDependency(THD *thd,
 void LogicalOrderings::Build(THD *thd, string *trace) {
   BuildEquivalenceClasses();
   AddFDsFromComputedItems(thd);
+  AddFDsFromConstItems(thd);
   PreReduceOrderings(thd);
   CreateOrderingsFromGroupings(thd);
   CreateHomogenizedOrderings(thd);
@@ -494,6 +495,33 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
         fd.tail = item_idx;
         AddFunctionalDependency(thd, fd);
       }
+    }
+  }
+}
+
+/**
+  Try to add FDs from items that are constant by themselves, e.g. if someone
+  does ORDER BY 'x', add a new FD {} → 'x' so that the ORDER BY can be elided.
+ */
+void LogicalOrderings::AddFDsFromConstItems(THD *thd) {
+  int num_original_items = m_items.size();
+  for (int item_idx = 0; item_idx < num_original_items; ++item_idx) {
+    // We only care about items that are used in some ordering,
+    // not any used as base in FDs or the likes.
+    const ItemHandle canonical_idx = m_items[item_idx].canonical_item;
+    if (!m_items[canonical_idx].used_asc && !m_items[canonical_idx].used_desc &&
+        !m_items[canonical_idx].used_in_grouping) {
+      continue;
+    }
+
+    if (m_items[item_idx].item->const_for_execution()) {
+      // Add {} → item.
+      FunctionalDependency fd;
+      fd.type = FunctionalDependency::FD;
+      fd.head = Bounds_checked_array<ItemHandle>();
+      fd.tail = item_idx;
+      fd.always_active = true;
+      AddFunctionalDependency(thd, fd);
     }
   }
 }

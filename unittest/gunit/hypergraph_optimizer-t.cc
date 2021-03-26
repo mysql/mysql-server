@@ -1423,6 +1423,24 @@ TEST_F(HypergraphOptimizerTest, ElideSortDueToIndex) {
   query_block->cleanup(m_thd, /*full=*/true);
 }
 
+TEST_F(HypergraphOptimizerTest, ElideConstSort) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x FROM t1 ORDER BY 'a', 'b', CONCAT('c')",
+                      /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The sort should be elided entirely.
+  ASSERT_EQ(AccessPath::TABLE_SCAN, root->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
 // This case is tricky; the order given by the index is (x, y), but the
 // interesting order is just (y). Normally, we only grow orders into interesting
 // orders, but here, we have to reduce them as well.

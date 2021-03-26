@@ -576,6 +576,9 @@ class LogicalOrderings {
   // See comment in .cc file.
   void AddFDsFromComputedItems(THD *thd);
 
+  // See comment in .cc file.
+  void AddFDsFromConstItems(THD *thd);
+
   // Populates ItemInfo::can_be_added_by_fd.
   void FindElementsThatCanBeAddedByFDs();
 
