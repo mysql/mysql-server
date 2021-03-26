@@ -283,6 +283,7 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func) {
             return false;
         }
         assert(false);
+        return true;
       });
 }
 
