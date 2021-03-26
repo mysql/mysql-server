@@ -20949,7 +20949,7 @@ of m_prebuilt->fts_doc_id
 @return the relevance ranking value */
 static float innobase_fts_retrieve_ranking(FT_INFO *fts_hdl) {
   fts_result_t *result;
-  row_prebuilt_t *ft_prebuilt;
+  row_prebuilt_t *ft_prebuilt MY_ATTRIBUTE((unused));
 
   result = reinterpret_cast<NEW_FT_INFO *>(fts_hdl)->ft_result;
 
