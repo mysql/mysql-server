@@ -490,6 +490,21 @@ class Dictionary_client {
   bool fetch(Const_ptr_vec<Object_type> *coll, const Object_key *object_key)
       MY_ATTRIBUTE((warn_unused_result));
 
+  /**
+    Auxiliary function to retrieve an object by its object id without caching
+    it.It is responsibility of the caller to delete the retrieved object.
+  */
+  template <typename T>
+  bool acquire_uncached_impl(Object_id id, T **object);
+
+  /**
+    Auxiliary function to retrieve a possibly uncommitted object by its object
+    id without caching it. It is responsibility of the caller to delete the
+    retrieved object.
+  */
+  template <typename T>
+  bool acquire_uncached_uncommitted_impl(Object_id id, T **object);
+
  public:
   // Initialize an instance with a default auto releaser.
   explicit Dictionary_client(THD *thd);
@@ -553,6 +568,25 @@ class Dictionary_client {
       MY_ATTRIBUTE((warn_unused_result));
 
   /**
+    Retrieve an object by its object id without caching it.
+
+    The object is not cached and owned by the caller through unique_ptr
+    it provides. The object may not be used as a parameter to the other
+    dictionary client methods since it is not known by the object registry.
+
+    @tparam       T           Dictionary object type.
+    @param        id          Object id to retrieve.
+    @param [out]  object_ptr  Smart pointer with dictionary object,
+                              if present or with nullptr otherwise.
+
+    @retval       false   No error.
+    @retval       true    Error (from reading the dictionary tables).
+  */
+  template <typename T>
+  bool acquire_uncached(Object_id id, std::unique_ptr<T> *object_ptr)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /**
     Retrieve a possibly uncommitted object by its object id without caching it.
 
     The object is not cached but owned by the dictionary client, who
@@ -574,6 +608,30 @@ class Dictionary_client {
 
   template <typename T>
   bool acquire_uncached_uncommitted(Object_id id, T **object)
+      MY_ATTRIBUTE((warn_unused_result));
+
+  /**
+    Retrieve a possibly uncommitted object by its object id without caching it.
+
+    The object is not cached and owned by the caller through unique_ptr
+    it provides. The object may not be used as a parameter to the other
+    dictionary client methods since it is not known by the object registry.
+
+    When the object is read from the persistent tables, the transaction
+    isolation level is READ UNCOMMITTED. This is necessary to be able to
+    read uncommitted data from an earlier stage of the same session.
+
+    @tparam       T           Dictionary object type.
+    @param        id          Object id to retrieve.
+    @param [out]  object_ptr  Smart pointer with dictionary object,
+                              if present or with nullptr otherwise.
+
+    @retval       false   No error.
+    @retval       true    Error (from reading the dictionary tables).
+  */
+  template <typename T>
+  bool acquire_uncached_uncommitted(Object_id id,
+                                    std::unique_ptr<T> *object_ptr)
       MY_ATTRIBUTE((warn_unused_result));
 
   /**
