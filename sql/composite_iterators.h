@@ -555,6 +555,11 @@ class MaterializeIterator final : public TableRowIterator {
    */
   void AddInvalidator(const CacheInvalidatorIterator *invalidator);
 
+  // Signal to TimingIterator that num_init_calls() and num_rows() exists.
+  using keeps_own_timing = void;
+  uint64_t num_init_calls() const { return m_num_materializations; }
+  uint64_t num_rows() const { return m_num_materialized_rows; }
+
  private:
   Mem_root_array<QueryBlock> m_query_blocks_to_materialize;
   unique_ptr_destroy_only<RowIterator> m_table_iterator;
@@ -596,6 +601,11 @@ class MaterializeIterator final : public TableRowIterator {
     int64_t generation_at_last_materialize;
   };
   Mem_root_array<Invalidator> m_invalidators;
+
+  // How many times we've actually materialized, and how many rows we
+  // materialized then. Used when we're wrapped in TimingIterator.
+  uint64_t m_num_materializations = 0;
+  uint64_t m_num_materialized_rows = 0;
 
   /// Whether we are deduplicating using a hash field on the temporary
   /// table. (This condition mirrors check_unique_constraint().)

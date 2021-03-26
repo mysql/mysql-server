@@ -38,6 +38,12 @@
   even inlined, since all RowIterator implementations are final). This is used
   for EXPLAIN ANALYZE.
 
+  If RealIterator has a type called keeps_own_timing (no matter what it
+  is), it must contain num_rows() and num_init_calls() accessors that override
+  the number of Init() calls that is counted. This is useful for
+  MaterializeIterator, where most Init() calls don't actually cause a
+  rematerialization and are effectively free.
+
   See also NewIterator, below.
  */
 template <class RealIterator>
@@ -129,6 +135,32 @@ int TimingIterator<RealIterator>::Read() {
   return err;
 }
 
+// In the default implementation, just return default_num_init_calls.
+template <class RealIterator, class = void>
+struct GetTimingData {
+  inline uint64_t num_init_calls(const RealIterator &,
+                                 uint64_t default_num_init_calls) const {
+    return default_num_init_calls;
+  }
+  inline uint64_t num_rows(const RealIterator &,
+                           uint64_t default_num_rows) const {
+    return default_num_rows;
+  }
+};
+
+// However, if RealIterator::keeps_own_timing exists, call its
+// num_init_calls(). (If it does not exist, this template is not considered
+// due to SFINAE.)
+template <class RealIterator>
+struct GetTimingData<RealIterator, typename RealIterator::keeps_own_timing> {
+  inline uint64_t num_init_calls(const RealIterator &iterator, uint64_t) const {
+    return iterator.num_init_calls();
+  }
+  inline uint64_t num_rows(const RealIterator &iterator, uint64_t) const {
+    return iterator.num_rows();
+  }
+};
+
 template <class RealIterator>
 std::string TimingIterator<RealIterator>::TimingString() const {
   double first_row_ms =
@@ -138,14 +170,18 @@ std::string TimingIterator<RealIterator>::TimingString() const {
           .count() *
       1e3;
   char buf[1024];
-  if (m_num_init_calls == 0) {
+  GetTimingData<RealIterator> timing_data;
+  const uint64_t num_init_calls =
+      timing_data.num_init_calls(m_iterator, m_num_init_calls);
+  const uint64_t num_rows = timing_data.num_rows(m_iterator, m_num_rows);
+  if (num_init_calls == 0) {
     snprintf(buf, sizeof(buf), "(never executed)");
   } else {
     snprintf(buf, sizeof(buf),
              "(actual time=%.3f..%.3f rows=%lld loops=%" PRIu64 ")",
-             first_row_ms / m_num_init_calls, last_row_ms / m_num_init_calls,
-             llrintf(static_cast<double>(m_num_rows) / m_num_init_calls),
-             m_num_init_calls);
+             first_row_ms / num_init_calls, last_row_ms / num_init_calls,
+             llrintf(static_cast<double>(num_rows) / num_init_calls),
+             num_init_calls);
   }
   return buf;
 }

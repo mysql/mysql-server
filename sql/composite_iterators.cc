@@ -628,10 +628,12 @@ bool MaterializeIterator::Init() {
         break;
       }
     }
+    m_num_materialized_rows += stored_rows;
   }
 
   end_unique_index.rollback();
   table()->materialized = true;
+  ++m_num_materializations;
 
   if (!m_rematerialize) {
     DEBUG_SYNC(thd(), "after_materialize_derived");
@@ -773,6 +775,8 @@ bool MaterializeIterator::MaterializeRecursive() {
       disabled_trace = true;
     }
   } while (stored_rows > last_stored_rows);
+
+  m_num_materialized_rows += stored_rows;
 
   if (disabled_trace) {
     trace.restore_I_S();

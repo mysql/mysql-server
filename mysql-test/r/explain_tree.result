@@ -836,3 +836,19 @@ EXPLAIN
 -> Zero rows (Impossible WHERE)  (cost=0.00..0.00 rows=0)
 
 DROP TABLE t1;
+#
+# Bug #32688540: MATERIALIZE ITERATORS HAVE SKEWED TIMINGS FROM SKIPPED MATERIALIZATIONS
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
+EXPLAIN
+-> Nested loop left join  (cost=14.94 rows=15) (actual time=N.NNN..N.NNN rows=15 loops=1)
+    -> Table scan on t1  (cost=0.75 rows=5) (actual time=N.NNN..N.NNN rows=5 loops=1)
+    -> Table scan on d1  (cost=0.85..2.54 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=5)
+        -> Materialize  (cost=1.57..2.60 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+            -> Limit: 3 row(s)  (cost=0.75 rows=3) (actual time=N.NNN..N.NNN rows=3 loops=1)
+                -> Sort: t1.a, limit input to 3 row(s) per chunk  (cost=0.75 rows=5) (actual time=N.NNN..N.NNN rows=3 loops=1)
+                    -> Table scan on t1  (cost=0.75 rows=5) (actual time=N.NNN..N.NNN rows=5 loops=1)
+
+DROP TABLE t1;

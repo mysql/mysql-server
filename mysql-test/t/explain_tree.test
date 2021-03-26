@@ -480,3 +480,16 @@ DROP TABLE t1;
 CREATE TABLE t1 (a INTEGER);
 EXPLAIN FORMAT=tree SELECT (1 IN (SELECT 1 FROM t1)) WHERE FALSE;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32688540: MATERIALIZE ITERATORS HAVE SKEWED TIMINGS FROM SKIPPED MATERIALIZATIONS
+--echo #
+
+# The important thing here is that the Materialize node has rows=3 and loops=1,
+# because even though it's been asked to materialize five times, it only materialized
+# one of them. The LIMIT is to avoid temporary table merging.
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+--replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
+EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
+DROP TABLE t1;
