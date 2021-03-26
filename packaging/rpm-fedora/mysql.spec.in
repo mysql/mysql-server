@@ -215,12 +215,18 @@ to run and administer a MySQL server.
 
 %package        server-debug
 Summary:        The debug version of MySQL server
+Requires:       %{name}-server = %{version}-%{release}
 %if 0%{?commercial}
-Requires:       mysql-commercial-server = %{version}-%{release}
 Obsoletes:      mysql-community-server-debug < %{version}-%{release}
+%if 0%{?cluster}
+Obsoletes:      mysql-commercial-server-debug < %{version}-%{release}
+Obsoletes:      mysql-cluster-community-server-debug < %{version}-%{release}
+%endif # cluster
 %else
-Requires:       mysql-community-server = %{version}-%{release}
-%endif
+%if 0%{?cluster}
+Obsoletes:      mysql-community-server-debug < %{version}-%{release}
+%endif # cluster
+%endif # commercial
 %description    server-debug
 This packages contains the special debug build of MySQL server.
 
