@@ -102,7 +102,7 @@ mysql_service_status_t unregister_udfs() {
 // variables are introduced, so that we can keep track of the
 // register/unregister status for each variable.
 static SHOW_VAR mysqlbackup_status_variables[] = {
-    {Backup_comp_constants::backup_component_version.c_str(),
+    {Backup_comp_constants::backup_component_version,
      (char *)&mysqlbackup_component_version, SHOW_CHAR_PTR, SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 
@@ -231,14 +231,13 @@ static bool register_system_variables() {
   str_arg.def_val = nullptr;
 
   if (mysql_service_component_sys_variable_register->register_variable(
-          Backup_comp_constants::mysqlbackup.c_str(),
-          Backup_comp_constants::backupid.c_str(),
+          Backup_comp_constants::mysqlbackup, Backup_comp_constants::backupid,
           PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC | PLUGIN_VAR_RQCMDARG |
               PLUGIN_VAR_NOPERSIST,
           "Backup id of an ongoing backup.", mysqlbackup_backup_id_check,
           mysqlbackup_backup_id_update, (void *)&str_arg,
           (void *)&mysqlbackup_backup_id)) {
-    std::string msg{Backup_comp_constants::mysqlbackup + "." +
+    std::string msg{std::string(Backup_comp_constants::mysqlbackup) + "." +
                     Backup_comp_constants::backupid + " register failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
@@ -263,14 +262,14 @@ static bool register_system_variables() {
 */
 static bool unregister_system_variables() {
   if (mysql_service_component_sys_variable_unregister->unregister_variable(
-          Backup_comp_constants::mysqlbackup.c_str(),
-          Backup_comp_constants::backupid.c_str())) {
+          Backup_comp_constants::mysqlbackup,
+          Backup_comp_constants::backupid)) {
     if (!mysqlbackup_component_sys_var_registered) {
       // System variable is already un-registered.
       return (false);
     }
 
-    std::string msg{Backup_comp_constants::mysqlbackup + "." +
+    std::string msg{std::string(Backup_comp_constants::mysqlbackup) + "." +
                     Backup_comp_constants::backupid + " unregister failed."};
     LogEvent()
         .type(LOG_TYPE_ERROR)
@@ -355,6 +354,7 @@ mysql_service_status_t mysqlbackup_init() {
 */
 mysql_service_status_t mysqlbackup_deinit() {
   mysql_service_status_t failed = 0;
+  Backup_page_tracker::deinit();
   if (unregister_udfs()) failed = 1;
   if (unregister_status_variables()) failed = 1;
   if (unregister_system_variables()) failed = 1;

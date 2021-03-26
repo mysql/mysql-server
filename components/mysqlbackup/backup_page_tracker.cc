@@ -39,10 +39,10 @@
 // defined in mysqlbackup component definition
 extern char *mysqlbackup_backup_id;
 
-// page track system variables
-uchar *Backup_page_tracker::m_changed_pages_buf = nullptr;
-static std::string changed_pages_file;
+// Page track system variables
 bool Backup_page_tracker::m_receive_changed_page_data = false;
+char *Backup_page_tracker::m_changed_pages_file = nullptr;
+uchar *Backup_page_tracker::m_changed_pages_buf = nullptr;
 std::list<udf_data_t *> Backup_page_tracker::m_udf_list;
 
 bool Backup_page_tracker::backup_id_update() {
@@ -50,9 +50,21 @@ bool Backup_page_tracker::backup_id_update() {
   if (Backup_page_tracker::m_receive_changed_page_data)
     Backup_page_tracker::m_receive_changed_page_data = false;
 
-  // delete the existing page tracker file
-  remove(changed_pages_file.c_str());
+  // Delete the existing page tracker file
+  if (m_changed_pages_file != nullptr) {
+    remove(m_changed_pages_file);
+    free(m_changed_pages_file);
+    m_changed_pages_file = nullptr;
+  }
+
   return true;
+}
+
+void Backup_page_tracker::deinit() {
+  if (m_changed_pages_file != nullptr) {
+    free(m_changed_pages_file);
+    m_changed_pages_file = nullptr;
+  }
 }
 
 /**
@@ -331,6 +343,7 @@ bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
 void Backup_page_tracker::page_track_get_changed_pages_deinit(
     UDF_INIT *initid MY_ATTRIBUTE((unused))) {
   free(m_changed_pages_buf);
+  m_changed_pages_buf = nullptr;
 }
 
 /**
@@ -356,6 +369,7 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   if (!mysqlbackup_backup_id) {
     return (-1);
   }
+
   // Not expecting anything other than digits in the backupid.
   // Make sure no elements of a relative path are there if the
   // above rule is relaxed
@@ -371,7 +385,8 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   if (var_len == 0) return 2;
 
   std::string changed_pages_file_dir =
-      mysqlbackup_backupdir + Backup_comp_constants::backup_scratch_dir;
+      mysqlbackup_backupdir +
+      std::string(Backup_comp_constants::backup_scratch_dir);
 
 #if defined _MSC_VER
   _mkdir(changed_pages_file_dir.c_str());
@@ -381,10 +396,14 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
   }
 #endif
 
-  changed_pages_file = changed_pages_file_dir + FN_LIBCHAR + backupid +
-                       Backup_comp_constants::change_file_extension;
-  // if file already exists return error
-  FILE *fd = fopen(changed_pages_file.c_str(), "r");
+  free(m_changed_pages_file);
+  m_changed_pages_file =
+      strdup((changed_pages_file_dir + FN_LIBCHAR + backupid +
+              Backup_comp_constants::change_file_extension)
+                 .c_str());
+
+  // If file already exists return error
+  FILE *fd = fopen(m_changed_pages_file, "r");
   if (fd) {
     fclose(fd);
     return (-1);
@@ -421,8 +440,8 @@ int page_track_callback(MYSQL_THD opaque_thd MY_ATTRIBUTE((unused)),
                         const uchar *buffer,
                         size_t buffer_length MY_ATTRIBUTE((unused)),
                         int page_count, void *context MY_ATTRIBUTE((unused))) {
-  // append to the disk file in binary mode
-  FILE *fd = fopen(changed_pages_file.c_str(), "ab");
+  // Append to the disk file in binary mode
+  FILE *fd = fopen(Backup_page_tracker::m_changed_pages_file, "ab");
   if (!fd) {
     LogEvent()
         .type(LOG_TYPE_ERROR)
