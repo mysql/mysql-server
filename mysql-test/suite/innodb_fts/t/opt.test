@@ -1082,3 +1082,38 @@ MATCH (body) AGAINST ('table' IN BOOLEAN MODE));
 DROP TABLE t1;
 
 --echo # End of test for Bug#22679209
+
+--echo #
+--echo # Bug#32685616: WRONG RESULTS WITH FTS COVERING INDEX SCAN
+--echo #
+
+CREATE TABLE t(FTS_DOC_ID BIGINT UNSIGNED PRIMARY KEY,
+               x VARCHAR(10),
+               FULLTEXT KEY (x));
+INSERT INTO t VALUES (1, 'abc'), (2, 'abc xyz'), (3, 'xyz abc'), (4, 'xyz');
+ANALYZE TABLE t;
+
+# These three queries used to return wrong results (zero matches
+# found). The IF() around the first predicate is to prevent it from
+# being used as the key for the covering index scan. The bug is seen
+# if the non-key MATCH predicate is evaluated before the key MATCH
+# predicate.
+--sorted_result
+SELECT FTS_DOC_ID FROM t WHERE
+  IF(MATCH(x) AGAINST('abc'), TRUE, FALSE) AND MATCH(x) AGAINST('xyz');
+SELECT 1 FROM t WHERE
+  IF(MATCH(x) AGAINST('abc'), TRUE, FALSE) AND MATCH(x) AGAINST('xyz');
+SELECT COUNT(*) FROM t WHERE
+  IF(MATCH(x) AGAINST('abc'), TRUE, FALSE) AND MATCH(x) AGAINST('xyz');
+
+# Changing the order of the predicates made the queries return correct
+# results even before the bug fix. Test them for completeness.
+--sorted_result
+SELECT FTS_DOC_ID FROM t WHERE
+  MATCH(x) AGAINST('xyz') AND IF(MATCH(x) AGAINST('abc'), TRUE, FALSE);
+SELECT 1 FROM t WHERE
+  MATCH(x) AGAINST('xyz') AND IF(MATCH(x) AGAINST('abc'), TRUE, FALSE);
+SELECT COUNT(*) FROM t WHERE
+  MATCH(x) AGAINST('xyz') AND IF(MATCH(x) AGAINST('abc'), TRUE, FALSE);
+
+DROP TABLE t;

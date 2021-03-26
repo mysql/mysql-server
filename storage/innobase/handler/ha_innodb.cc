@@ -10781,9 +10781,9 @@ next_record:
     /* If we only need information from result we can return
        without fetching the table row */
     if (ft_prebuilt->read_just_key) {
+      const fts_ranking_t *ranking = rbt_value(fts_ranking_t, result->current);
+      m_prebuilt->fts_doc_id = ranking->doc_id;
       if (m_prebuilt->fts_doc_id_in_read_set) {
-        fts_ranking_t *ranking;
-        ranking = rbt_value(fts_ranking_t, result->current);
         innobase_fts_store_docid(table, ranking->doc_id);
       }
       return (0);
@@ -20955,7 +20955,7 @@ static float innobase_fts_retrieve_ranking(FT_INFO *fts_hdl) {
   ft_prebuilt = reinterpret_cast<NEW_FT_INFO *>(fts_hdl)->ft_prebuilt;
 
   fts_ranking_t *ranking = rbt_value(fts_ranking_t, result->current);
-  ft_prebuilt->fts_doc_id = ranking->doc_id;
+  assert(ft_prebuilt->fts_doc_id == ranking->doc_id);
 
   return (ranking->rank);
 }
