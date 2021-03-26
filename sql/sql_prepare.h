@@ -153,6 +153,11 @@ class Ed_result_set final {
 
   size_t get_field_count() const { return m_column_count; }
 
+  static void *operator new(size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t & = std::nothrow) noexcept {
+    return mem_root->Alloc(size);
+  }
+
   static void operator delete(void *, size_t) noexcept {
     // Does nothing because m_mem_root is deallocated in the destructor
   }

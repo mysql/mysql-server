@@ -283,7 +283,9 @@ void Storage_adapter::core_store(THD *thd, T *object) {
     // For unit tests, drop old object (based on id) to simulate update.
     if (s_use_fake_storage) core_drop(thd, object);
   } else {
-    dynamic_cast<dd::Entity_object_impl *>(object)->set_id(next_oid<T>());
+    dd::Entity_object_impl *object_impl =
+        dynamic_cast<dd::Entity_object_impl *>(object);
+    object_impl->set_id(next_oid<T>());
   }
 
   // Need to clone since core registry takes ownership

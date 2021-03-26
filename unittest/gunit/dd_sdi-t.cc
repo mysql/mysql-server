@@ -94,7 +94,9 @@ static void mock_dd_obj(dd::Column_type_element *cte) {
 
 static void mock_dd_obj(dd::Column *c) {
   static dd::Object_id curid = 10000;
-  dynamic_cast<dd::Entity_object_impl *>(c)->set_id(curid++);
+  dd::Entity_object_impl *object_impl =
+      dynamic_cast<dd::Entity_object_impl *>(c);
+  object_impl->set_id(curid++);
   c->set_type(dd::enum_column_types::ENUM);
   c->set_char_length(42);
   c->set_numeric_precision(42);
@@ -141,7 +143,9 @@ static void mock_dd_obj(dd::Index_element *ie) {
 
 static void mock_dd_obj(dd::Index *i, dd::Column *c = nullptr) {
   static dd::Object_id curid = 10000;
-  dynamic_cast<dd::Entity_object_impl *>(i)->set_id(curid++);
+  dd::Entity_object_impl *object_impl =
+      dynamic_cast<dd::Entity_object_impl *>(i);
+  object_impl->set_id(curid++);
   i->set_comment("mocked index comment");
   mock_properties(i->options(), FANOUT);
   mock_properties(i->se_private_data(), FANOUT);
