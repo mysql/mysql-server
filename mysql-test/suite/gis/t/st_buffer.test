@@ -49,7 +49,9 @@ SET @cart_gc = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0, 1
 SELECT ST_ASTEXT(ST_BUFFER(@cart_pt, 2, ST_BUFFER_STRATEGY('point_square')));
 SELECT ST_ASTEXT(ST_BUFFER(ST_GEOMFROMTEXT('POINT(0 0)'), 2, @p_square));
 
+--replace_numeric_round 12
 SELECT ST_ASTEXT(ST_BUFFER(g, 200000)) FROM gis_geometries WHERE fid=119;
+--replace_numeric_round 12
 SELECT ST_ASTEXT(ST_BUFFER(g, 200000)) FROM gis_geometries WHERE fid=120;
 DROP TABLE gis_geometries;
 
