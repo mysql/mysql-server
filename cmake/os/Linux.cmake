@@ -46,6 +46,10 @@ IF(EXISTS "/etc/fedora-release")
       FEDORA_RELEASE MATCHES "28")
     SET(LINUX_FEDORA_28 1)
   ENDIF()
+  IF(FEDORA_RELEASE MATCHES "Fedora" AND
+      FEDORA_RELEASE MATCHES "34")
+    SET(LINUX_FEDORA_34 1)
+  ENDIF()
 ENDIF()
 
 IF(EXISTS "/etc/os-release")
