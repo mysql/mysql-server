@@ -1148,7 +1148,7 @@ bool Dictionary_client::acquire_for_modification(Object_id id, T **object) {
 
 // Retrieve an object by its object id without caching it.
 template <typename T>
-bool Dictionary_client::acquire_uncached(Object_id id, T **object) {
+bool Dictionary_client::acquire_uncached_impl(Object_id id, T **object) {
   const typename T::Id_key key(id);
   const typename T::Cache_partition *stored_object = nullptr;
 
@@ -1166,19 +1166,35 @@ bool Dictionary_client::acquire_uncached(Object_id id, T **object) {
     *object = const_cast<T *>(dynamic_cast<const T *>(stored_object));
 
     // Delete the object if dynamic cast fails.
-    if (stored_object && !*object)
-      delete stored_object;
-    else
-      auto_delete<T>(*object);
+    // Otherwise, it is caller's responsibility to manage returned object
+    // lifetime, for example, by registering it for auto-deletion.
+    if (stored_object && !*object) delete stored_object;
   } else
     assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
 
   return error;
 }
 
+template <typename T>
+bool Dictionary_client::acquire_uncached(Object_id id, T **object) {
+  if (acquire_uncached_impl(id, object)) return true;
+  if (*object != nullptr) auto_delete<T>(*object);
+  return false;
+}
+
+template <typename T>
+bool Dictionary_client::acquire_uncached(Object_id id,
+                                         std::unique_ptr<T> *object_ptr) {
+  T *object;
+  if (acquire_uncached_impl(id, &object)) return true;
+  object_ptr->reset(object);
+  return false;
+}
+
 // Retrieve an object by its object id without caching it.
 template <typename T>
-bool Dictionary_client::acquire_uncached_uncommitted(Object_id id, T **object) {
+bool Dictionary_client::acquire_uncached_uncommitted_impl(Object_id id,
+                                                          T **object) {
   const typename T::Id_key key(id);
   assert(object);
 
@@ -1199,11 +1215,11 @@ bool Dictionary_client::acquire_uncached_uncommitted(Object_id id, T **object) {
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return, but in this
     // case, we cannot delete the stored_object since it is present
-    // in the uncommitted registry. The returned object, however,
-    // must be auto deleted.
+    // in the uncommitted registry.
+    // It is caller's responsibility to manage life time of the returned
+    // object e.g. by registering it for auto-deletion.
     *object =
         const_cast<T *>(dynamic_cast<const T *>(uncommitted_object->clone()));
-    if (*object != nullptr) auto_delete<T>(*object);
     return false;
   }
 
@@ -1215,15 +1231,30 @@ bool Dictionary_client::acquire_uncached_uncommitted(Object_id id, T **object) {
   if (!error) {
     // Here, stored_object is a newly created instance, so we do not need to
     // clone() it, but we must delete it if dynamic cast fails.
+    // Otherwise, it is caller's responsibility to manage returned object
+    // lifetime, for example, by registering it for auto-deletion.
     *object = const_cast<T *>(dynamic_cast<const T *>(stored_object));
-    if (stored_object && !*object)
-      delete stored_object;
-    else
-      auto_delete<T>(*object);
+    if (stored_object && !*object) delete stored_object;
   } else
     assert(m_thd->is_error() || m_thd->killed);
 
   return error;
+}
+
+template <typename T>
+bool Dictionary_client::acquire_uncached_uncommitted(Object_id id, T **object) {
+  if (acquire_uncached_uncommitted_impl(id, object)) return true;
+  if (*object != nullptr) auto_delete<T>(*object);
+  return false;
+}
+
+template <typename T>
+bool Dictionary_client::acquire_uncached_uncommitted(
+    Object_id id, std::unique_ptr<T> *object_ptr) {
+  T *object;
+  if (acquire_uncached_uncommitted_impl(id, &object)) return true;
+  object_ptr->reset(object);
+  return false;
 }
 
 // Retrieve an object by its name.
@@ -3060,6 +3091,8 @@ template bool Dictionary_client::store(Table *);
 template bool Dictionary_client::update(Table *);
 
 template bool Dictionary_client::acquire_uncached(Object_id, Tablespace **);
+template bool Dictionary_client::acquire_uncached(
+    Object_id, std::unique_ptr<Tablespace> *);
 template bool Dictionary_client::acquire(const String_type &,
                                          const Tablespace **);
 template bool Dictionary_client::acquire_for_modification(const String_type &,
@@ -3067,6 +3100,8 @@ template bool Dictionary_client::acquire_for_modification(const String_type &,
 template bool Dictionary_client::acquire(Object_id, const Tablespace **);
 template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
                                                               Tablespace **);
+template bool Dictionary_client::acquire_uncached_uncommitted(
+    Object_id, std::unique_ptr<Tablespace> *);
 template bool Dictionary_client::acquire_for_modification(Object_id,
                                                           Tablespace **);
 template void Dictionary_client::remove_uncommitted_objects<Tablespace>(bool);

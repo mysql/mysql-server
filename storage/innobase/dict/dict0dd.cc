@@ -4250,13 +4250,13 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     uint32 sid = 0;
     uint64 trx_id = 0;
     dd::Object_id index_space_id = dd_index->tablespace_id();
-    dd::Tablespace *index_space = nullptr;
 
     if (dd_table->tablespace_id() == dict_sys_t::s_dd_space_id) {
       sid = dict_sys_t::s_space_id;
     } else if (dd_table->tablespace_id() == dict_sys_t::s_dd_temp_space_id) {
       sid = dict_sys_t::s_temp_space_id;
     } else {
+      std::unique_ptr<dd::Tablespace> index_space;
       if (client->acquire_uncached_uncommitted<dd::Tablespace>(index_space_id,
                                                                &index_space) ||
           index_space == nullptr) {
