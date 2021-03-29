@@ -334,7 +334,6 @@ class Applier_module : public Applier_module_interface {
     @param[in] stop_timeout               the timeout when waiting on shutdown
     @param[in] group_sidno                the group configured sidno
     @param[in] gtid_assignment_block_size the group gtid assignment block size
-    @param[in] shared_stop_lock           the lock used to block transactions
 
     @return the operation status
       @retval 0      OK
@@ -342,8 +341,7 @@ class Applier_module : public Applier_module_interface {
   */
   int setup_applier_module(Handler_pipeline_type pipeline_type, bool reset_logs,
                            ulong stop_timeout, rpl_sidno group_sidno,
-                           ulonglong gtid_assignment_block_size,
-                           Shared_writelock *shared_stop_lock);
+                           ulonglong gtid_assignment_block_size);
 
   /**
     Configure the applier pipeline handlers
@@ -885,9 +883,6 @@ class Applier_module : public Applier_module_interface {
 
   /* The condition for signaling the applier suspension*/
   mysql_cond_t suspension_waiting_condition;
-
-  /* The stop lock used when killing transaction/stopping server*/
-  Shared_writelock *shared_stop_write_lock;
 
   /* The incoming event queue */
   Synchronized_queue<Packet *> *incoming;

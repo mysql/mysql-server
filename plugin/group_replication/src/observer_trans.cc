@@ -222,7 +222,10 @@ int group_replication_trans_before_commit(Trans_param *param) {
     return 0;
   }
 
-  shared_plugin_stop_lock->grab_read_lock();
+  if (shared_plugin_stop_lock->try_grab_read_lock()) {
+    /* If plugin is stopping, rollback the transaction immediatly. */
+    return 1;
+  }
 
   if (is_plugin_waiting_to_set_server_read_mode()) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CANNOT_EXECUTE_TRANS_WHILE_STOPPING);
