@@ -1,0 +1,291 @@
+################################################################################
+#
+# Test validates that all members use same UUID on View log event configured on
+# group_replication_view_change_uuid.
+#
+# Test:
+#   0. This test requires 3 servers to create a Group Replication setup
+#   1. Start server 1 and assert it only has one transaction
+#   2. Start server 2 and assert it has two transactions
+#   3. Confirm server 1 has same GTID_EXECUTED as server 2
+#   4. Start server 3 and assert it has three transactions
+#   5. Confirm server 1 has same GTID_EXECUTED than server 3
+#   6. Confirm server 2 has same GTID_EXECUTED than server 3
+#   7. Stop server 3 and assert it has three transactions
+#   8. Stop server 2 and assert it has three transactions
+#   9. Start server 2 and assert it has 4 transactions
+#  10. Confirm server 1 has same GTID_EXECUTED as server 2
+#  11. Start server 3 and assert it has 5 transactions
+#  12. Confirm server 1 has same GTID_EXECUTED than server 3
+#  13. Confirm server 2 has same GTID_EXECUTED than server 3
+#  14. Cleanup
+#
+################################################################################
+
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Load GTID functions (GTID_IS_EQUAL)
+
+SET sql_log_bin = 0;
+--source include/gtid_utils.inc
+SET sql_log_bin = 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+--source include/gtid_utils.inc
+SET sql_log_bin = 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+--source include/gtid_utils.inc
+SET sql_log_bin = 1;
+
+--echo
+--echo ############################################################
+--echo # 1. Start server 1 and assert it only has one transaction
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+--let $view_change_uuid = c0dec0de-c0de-c0de-c0de-c0dec0dec0de
+
+--eval SET GLOBAL group_replication_view_change_uuid = "$view_change_uuid"
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text = GTID_EXECUTED must have one transaction of view change
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo
+--echo ############################################################
+--echo # 2. Start server 2 and assert it has two transactions
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+--eval SET GLOBAL group_replication_view_change_uuid = "$view_change_uuid"
+
+--source include/start_group_replication.inc
+
+--let $assert_text = GTID_EXECUTED must have two transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-2")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo
+--echo ############################################################
+--echo # 3. Confirm server 1 has same GTID_EXECUTED as server 2
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text = GTID_EXECUTED must have two transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-2")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Start server 3 and assert it has three transactions
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+--eval SET GLOBAL group_replication_view_change_uuid = "$view_change_uuid"
+--source include/start_group_replication.inc
+
+--let $assert_text = GTID_EXECUTED must have three transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-3")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo
+--echo ############################################################
+--echo # 5. Confirm server 1 has same GTID_EXECUTED than server 3
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text = GTID_EXECUTED must have three transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-3")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo ############################################################
+--echo # 6. Confirm server 2 has same GTID_EXECUTED than server 3
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text = GTID_EXECUTED must have three transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-3")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo
+--echo ############################################################
+--echo # 7. Stop server 3 and assert it has three transactions
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--let $assert_text = GTID_EXECUTED must have three transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-3")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo
+--echo ############################################################
+--echo # 8. Stop server 2 and assert it has three transactions
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/stop_group_replication.inc
+
+--let $assert_text = GTID_EXECUTED must have three transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-3")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo
+--echo ############################################################
+--echo # 9. Start server 2 and assert it has 4 transactions
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $assert_text = GTID_EXECUTED must have four transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-4")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo
+--echo ############################################################
+--echo # 10. Confirm server 1 has same GTID_EXECUTED as server 2
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text = GTID_EXECUTED must have four transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-4")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo
+--echo ############################################################
+--echo # 11. Start server 3 and assert it has 5 transactions
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--source include/start_group_replication.inc
+
+--let $assert_text = GTID_EXECUTED must have five transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-5")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo ############################################################
+--echo # 12. Confirm server 1 has same GTID_EXECUTED than server 3
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $assert_text = GTID_EXECUTED must have five transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-5")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+--echo ############################################################
+--echo # 13. Confirm server 2 has same GTID_EXECUTED than server 3
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text = GTID_EXECUTED must have five transactions of view changes
+--let $assert_cond = GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$view_change_uuid:1-5")
+--source include/assert.inc
+
+--let $keep_gtid_events= 1
+--source include/show_binlog_events.inc
+
+
+--echo
+--echo ############################################################
+--echo # 14. Cleanup
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+--source include/gtid_utils_end.inc
+SET sql_log_bin = 1;
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+SET GLOBAL group_replication_view_change_uuid = "AUTOMATIC";
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+--source include/gtid_utils_end.inc
+SET sql_log_bin = 1;
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+SET sql_log_bin = 0;
+--source include/gtid_utils_end.inc
+SET sql_log_bin = 1;
+
+--source include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+
+--source include/group_replication_end.inc

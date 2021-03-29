@@ -44,7 +44,8 @@ Group_member_info::Group_member_info(
     Group_member_info::Group_member_role role_arg, bool in_single_primary_mode,
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
     uint lower_case_table_names_arg, bool default_table_encryption_arg,
-    const char *recovery_endpoints_arg, PSI_mutex_key psi_mutex_key_arg)
+    const char *recovery_endpoints_arg, const char *view_change_uuid_arg,
+    PSI_mutex_key psi_mutex_key_arg)
     : Plugin_gcs_message(CT_MEMBER_INFO_MESSAGE),
       hostname(hostname_arg),
       port(port_arg),
@@ -63,8 +64,11 @@ Group_member_info::Group_member_info(
       primary_election_running(false),
       recovery_endpoints(recovery_endpoints_arg ? recovery_endpoints_arg
                                                 : "DEFAULT"),
+      m_view_change_uuid(view_change_uuid_arg ? view_change_uuid_arg
+                                              : "AUTOMATIC"),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
+      m_skip_encode_view_change_uuid(false),
 #endif
       psi_mutex_key(psi_mutex_key_arg) {
   mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
@@ -101,8 +105,10 @@ Group_member_info::Group_member_info(Group_member_info &other)
       group_action_running(other.is_group_action_running()),
       primary_election_running(other.is_primary_election_running()),
       recovery_endpoints(other.get_recovery_endpoints()),
+      m_view_change_uuid(other.get_view_change_uuid()),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
+      m_skip_encode_view_change_uuid(false),
 #endif
       psi_mutex_key(other.psi_mutex_key) {
   mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
@@ -122,8 +128,10 @@ Group_member_info::Group_member_info(const uchar *data, size_t len,
       group_action_running(false),
       primary_election_running(false),
       recovery_endpoints("DEFAULT"),
+      m_view_change_uuid("AUTOMATIC"),
 #ifndef NDEBUG
       skip_encode_default_table_encryption(false),
+      m_skip_encode_view_change_uuid(false),
 #endif
       psi_mutex_key(psi_mutex_key_arg) {
   mysql_mutex_init(psi_mutex_key, &update_lock, MY_MUTEX_INIT_FAST);
@@ -146,7 +154,7 @@ void Group_member_info::update(
     Group_member_info::Group_member_role role_arg, bool in_single_primary_mode,
     bool has_enforces_update_everywhere_checks, uint member_weight_arg,
     uint lower_case_table_names_arg, bool default_table_encryption_arg,
-    const char *recovery_endpoints_arg) {
+    const char *recovery_endpoints_arg, const char *view_change_uuid_arg) {
   MUTEX_LOCK(lock, &update_lock);
 
   hostname.assign(hostname_arg);
@@ -181,6 +189,8 @@ void Group_member_info::update(
     configuration_flags |= CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F;
 
   recovery_endpoints.assign(recovery_endpoints_arg);
+
+  m_view_change_uuid.assign(view_change_uuid_arg);
 }
 
 void Group_member_info::update(Group_member_info &other) {
@@ -196,7 +206,8 @@ void Group_member_info::update(Group_member_info &other) {
       other.get_configuration_flags() | CNF_ENFORCE_UPDATE_EVERYWHERE_CHECKS_F,
       other.get_member_weight(), other.get_lower_case_table_names(),
       other.get_default_table_encryption(),
-      other.get_recovery_endpoints().c_str());
+      other.get_recovery_endpoints().c_str(),
+      other.get_view_change_uuid().c_str());
 }
 
 /*
@@ -292,6 +303,13 @@ void Group_member_info::encode_payload(
   encode_payload_item_string(buffer, PIT_RECOVERY_ENDPOINTS,
                              recovery_endpoints.c_str(),
                              recovery_endpoints.length());
+
+#ifndef NDEBUG
+  if (!m_skip_encode_view_change_uuid)
+#endif
+    encode_payload_item_string(buffer, PIT_VIEW_CHANGE_UUID,
+                               m_view_change_uuid.c_str(),
+                               m_view_change_uuid.length());
 }
 
 void Group_member_info::decode_payload(const unsigned char *buffer,
@@ -428,6 +446,13 @@ void Group_member_info::decode_payload(const unsigned char *buffer,
       case PIT_RECOVERY_ENDPOINTS:
         if (slider + payload_item_length <= end) {
           recovery_endpoints.assign(reinterpret_cast<const char *>(slider),
+                                    static_cast<size_t>(payload_item_length));
+          slider += payload_item_length;
+        }
+        break;
+      case PIT_VIEW_CHANGE_UUID:
+        if (slider + payload_item_length <= end) {
+          m_view_change_uuid.assign(reinterpret_cast<const char *>(slider),
                                     static_cast<size_t>(payload_item_length));
           slider += payload_item_length;
         }
@@ -715,6 +740,16 @@ string Group_member_info::get_recovery_endpoints() {
 void Group_member_info::set_recovery_endpoints(const char *endpoints) {
   MUTEX_LOCK(lock, &update_lock);
   recovery_endpoints.assign(endpoints);
+}
+
+string Group_member_info::get_view_change_uuid() {
+  MUTEX_LOCK(lock, &update_lock);
+  return m_view_change_uuid;
+}
+
+void Group_member_info::set_view_change_uuid(const char *view_change_cnf) {
+  MUTEX_LOCK(lock, &update_lock);
+  m_view_change_uuid.assign(view_change_cnf);
 }
 
 bool Group_member_info::comparator_group_member_uuid(Group_member_info *m1,

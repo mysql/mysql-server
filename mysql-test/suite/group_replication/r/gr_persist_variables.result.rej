@@ -1,0 +1,26 @@
+--- mysql-test/suite/group_replication/r/gr_persist_variables.result
++++ mysql-test/suite/group_replication/r/gr_persist_variables.result
+@@ -80,8 +80,9 @@ SET PERSIST group_replication_start_on_boot = @@GLOBAL.group_replication_start_o
+ SET PERSIST group_replication_tls_source = @@GLOBAL.group_replication_tls_source;
+ SET PERSIST group_replication_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
+ SET PERSIST group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
++SET PERSIST group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
+ 
+-include/assert.inc ['Expect 58 persisted variables.']
++include/assert.inc ['Expect 59 persisted variables.']
+ 
+ ############################################################
+ # 2. Restart server, it must bootstrap the group and preserve
+@@ -90,9 +91,9 @@ include/assert.inc ['Expect 58 persisted variables.']
+ include/rpl_reconnect.inc
+ include/gr_wait_for_member_state.inc
+ 
+-include/assert.inc ['Expect 58 persisted variables in persisted_variables table.']
+-include/assert.inc ['Expect 57 variables which last value was set through SET PERSIST.']
+-include/assert.inc ['Expect 57 variables which last value was set through SET PERSIST is equal to its global value.']
++include/assert.inc ['Expect 59 persisted variables in persisted_variables table.']
++include/assert.inc ['Expect 58 variables which last value was set through SET PERSIST.']
++include/assert.inc ['Expect 58 variables which last value was set through SET PERSIST is equal to its global value.']
+ 
+ ############################################################
+ # 3. Test RESET PERSIST.

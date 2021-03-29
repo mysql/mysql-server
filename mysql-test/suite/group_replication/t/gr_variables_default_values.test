@@ -84,9 +84,10 @@ SET @@GLOBAL.group_replication_communication_max_message_size= default;
 --let $saved_gr_recovery_tls_version = `SELECT @@GLOBAL.group_replication_recovery_tls_version;`
 --let $saved_gr_recovery_tls_ciphersuites = `SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites;`
 --let $saved_gr_advertise_recovery_endpoints = `SELECT @@GLOBAL.group_replication_advertise_recovery_endpoints;`
+--let $saved_gr_view_change_uuid = `SELECT @@GLOBAL.group_replication_view_change_uuid;`
 
 # Total number of GR variables.
---let $total_gr_vars= 58
+--let $total_gr_vars= 59
 
 --echo #
 --echo # Test Unit#1
@@ -154,6 +155,7 @@ SET @@GLOBAL.group_replication_recovery_zstd_compression_level= default;
 SET @@GLOBAL.group_replication_recovery_tls_version= default;
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= default;
 SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
+SET @@GLOBAL.group_replication_view_change_uuid= default;
 
 # Session variables
 SET @@SESSION.group_replication_consistency= default;
@@ -373,6 +375,11 @@ SET @@SESSION.group_replication_consistency= default;
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_advertise_recovery_endpoints]" = "DEFAULT"
 --source include/assert.inc
 
+# group_replication_view_change_uuid
+--let $assert_text= Default group_replication_view_change_uuid is "AUTOMATIC"
+--let $assert_cond= "[SELECT @@GLOBAL.group_replication_view_change_uuid]" = "AUTOMATIC"
+--source include/assert.inc
+
 --echo #
 --echo # Clean up
 --echo #
@@ -426,6 +433,7 @@ SET @@SESSION.group_replication_consistency= default;
 --eval SET @@GLOBAL.group_replication_recovery_tls_version= "$saved_gr_recovery_tls_version"
 --eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
 --eval SET @@GLOBAL.group_replication_advertise_recovery_endpoints= "$saved_gr_advertise_recovery_endpoints"
+--eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
 --enable_query_log
 
 --let $total_gr_vars=

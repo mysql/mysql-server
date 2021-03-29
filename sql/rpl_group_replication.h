@@ -57,4 +57,20 @@ unsigned int get_group_replication_members_number_info();
 */
 std::string get_group_replication_group_name();
 
+/**
+  Getter to extract the value of variable group_replication_view_change_uuid in
+  Group Replication.
+
+  If group_replication_view_change_uuid variable isn't defined or service
+  retrieves error when getting variable it will return default value
+  "AUTOMATIC".
+
+  @param[out] uuid  Retrieves value of variable group_replication_view_change
+
+    @return the operation status
+      @retval false      OK
+      @retval true    Error
+*/
+bool get_group_replication_view_change_uuid(std::string &uuid);
+
 #endif /* RPL_GROUP_REPLICATION_INCLUDED */

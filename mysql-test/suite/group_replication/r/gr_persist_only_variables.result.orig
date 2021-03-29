@@ -152,7 +152,6 @@ RESET PERSIST IF EXISTS group_replication_start_on_boot;
 RESET PERSIST IF EXISTS group_replication_tls_source;
 RESET PERSIST IF EXISTS group_replication_transaction_size_limit;
 RESET PERSIST IF EXISTS group_replication_unreachable_majority_timeout;
-RESET PERSIST IF EXISTS group_replication_view_change_uuid;
 
 include/assert.inc ['Expect 0 persisted variables.']
 

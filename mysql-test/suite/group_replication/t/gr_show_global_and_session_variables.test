@@ -29,7 +29,7 @@
 
 --sleep 30
 
---let $gr_var_count= 58
+--let $gr_var_count= 59
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
@@ -84,6 +84,7 @@
 --let $saved_gr_clone_threshold = `SELECT @@GLOBAL.group_replication_clone_threshold`
 --let $saved_gr_recovery_tls_version = `SELECT @@GLOBAL.group_replication_recovery_tls_version`
 --let $saved_gr_recovery_tls_ciphersuites = `SELECT @@GLOBAL.group_replication_recovery_tls_ciphersuites`
+--let $saved_gr_view_change_uuid = `SELECT @@GLOBAL.group_replication_view_change_uuid`
 --enable_query_log
 
 
@@ -175,6 +176,8 @@ SET @@SESSION.group_replication_clone_threshold= 1;
 SET @@SESSION.group_replication_recovery_tls_version= "";
 --error ER_GLOBAL_VARIABLE
 SET @@SESSION.group_replication_recovery_tls_ciphersuites= "";
+--error ER_GLOBAL_VARIABLE
+SET @@SESSION.group_replication_view_change_uuid= "AUTOMATIC";
 
 # Set values to GLOBAL GR variables to test further.
 --disable_query_log
@@ -221,6 +224,7 @@ SET GLOBAL group_replication_message_cache_size= 2000000000;
 SET GLOBAL group_replication_clone_threshold= 1;
 SET GLOBAL group_replication_recovery_tls_version= "";
 SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
+SET GLOBAL group_replication_view_change_uuid= "aaaaaaaa-cccc-bbbb-dddd-eeeeeeeeeeee";
 --enable_query_log
 
 
@@ -971,6 +975,10 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_recovery_tls_ciphersuites\', VARIABLE_VALUE, 1]" = ""
 --source include/assert.inc
 
+--let $assert_text= Verify SESSION value of group_replication_view_change_uuid
+--let $assert_cond= "[SELECT * FROM performance_schema.session_variables WHERE VARIABLE_NAME=\'group_replication_view_change_uuid\', VARIABLE_VALUE, 1]" = "aaaaaaaa-cccc-bbbb-dddd-eeeeeeeeeeee"
+--source include/assert.inc
+
 --echo
 --echo # Clean up
 --source include/stop_group_replication.inc
@@ -1020,6 +1028,7 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --eval SET @@GLOBAL.group_replication_clone_threshold= $saved_gr_clone_threshold
 --eval SET @@GLOBAL.group_replication_recovery_tls_version= "$saved_gr_recovery_tls_version"
 --eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
+--eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
 --enable_query_log
 
 --source include/group_replication_end.inc

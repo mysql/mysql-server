@@ -4986,7 +4986,7 @@ ER_GRP_RPL_MEMBER_SERVER_UUID_IS_INCOMPATIBLE_WITH_GRP
   eng "Member server_uuid is incompatible with the group. Server_uuid %s matches group_replication_group_name %s."
 
 ER_GRP_RPL_MEMBER_CONF_INFO
-  eng "Member configuration: member_id: %lu; member_uuid: \"%s\"; single-primary mode: \"%s\"; group_replication_auto_increment_increment: %lu; "
+  eng "Member configuration: member_id: %lu; member_uuid: \"%s\"; single-primary mode: \"%s\"; group_replication_auto_increment_increment: %lu; group_replication_view_change_uuid: \"%s\";"
 
 ER_GRP_RPL_FAILED_TO_CONFIRM_IF_SERVER_LEFT_GRP
   eng "Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information."
@@ -11315,6 +11315,48 @@ ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL
 
 ER_FIREWALL_DEPRECATED_USER_PROFILE
   eng "User profile \'%s\' loaded. Firewall user profiles are deprecated, consider migrating to group profiles."
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_INVALID
+  eng "Invalid input value for group_replication_view_change_uuid '%s'. Please, provide a valid UUID."
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_SAME_AS_GROUP_NAME
+  eng "Variable 'group_replication_view_change_uuid' cannot be set to the value of '%s'. If you want to use the UUID of 'group_replication_group_name' for the UUID of View_change_log_events, please set 'group_replication_view_change_uuid' to AUTOMATIC."
+
+ER_GRP_RPL_GROUP_NAME_SAME_AS_VIEW_CHANGE_UUID
+  eng "group_replication_group_name '%s', which is the same as group_replication_view_change_uuid. Please change group_replication_view_change_uuid to AUTOMATIC"
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID
+  eng "The group_replication_view_change_uuid '%s' is the same as the UUID value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS in a server channel"
+
+ER_GRP_RPL_GRP_VIEW_CHANGE_UUID_IS_INCOMPATIBLE_WITH_SERVER_UUID
+  eng "group_replication_view_change_uuid is incompatible with group. group_replication_view_change_uuid %s matches server_uuid %s."
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_DIFF_FROM_GRP
+  eng "The member is configured with a group_replication_view_change_uuid option value '%s' different from the group '%s'. The member will now exit the group."
+
+ER_WARN_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID
+  eng "Replication channel '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS='%s' which is equal to group_replication_view_change_uuid. To fix this issue, either change the group_replication_view_change_uuid or use a different value for ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS."
+
+ER_GRP_RPL_FAILED_TO_PARSE_THE_VIEW_CHANGE_UUID
+  eng "Unable to parse the group_replication_view_change_uuid."
+
+ER_GRP_RPL_FAILED_TO_GENERATE_SIDNO_FOR_VIEW_CHANGE_UUID
+  eng "Unable to generate sidno for group_replication_view_change_uuid."
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_PARSE_ERROR
+  eng "Unable to parse the group_replication_view_change_uuid during the Certification module initialization."
+
+ER_GRP_RPL_UPDATE_GRPGTID_VIEW_CHANGE_UUID_EXECUTED_ERROR
+  eng "Error updating group_gtid_executed GTID set with view change uuid during the Certification module initialization."
+
+ER_GRP_RPL_ADD_VIEW_CHANGE_UUID_TO_GRP_SID_MAP_ERROR
+  eng "Unable to add the group_replication_view_change_uuid sidno in the group_gtid_sid_map during the Certification module initialization."
+
+ER_GRP_RPL_DONOR_VIEW_CHANGE_UUID_TRANS_INFO_ERROR
+  eng "Unable to handle the donor's view change uuid transaction information when initializing the conflict detection component. Possible out of memory error."
+
+ER_WARN_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE
+  eng "Unable to retrieve group_replication_view_change_uuid during server checks on replication operations."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

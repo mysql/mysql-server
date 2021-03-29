@@ -36,6 +36,7 @@ struct plugin_local_variables {
   MYSQL_PLUGIN plugin_info_ptr;
   unsigned int plugin_version;
   rpl_sidno group_sidno;
+  rpl_sidno view_change_sidno;
 
   mysql_mutex_t force_members_running_mutex;
   mysql_mutex_t plugin_running_mutex;
@@ -79,6 +80,7 @@ struct plugin_local_variables {
     plugin_info_ptr = nullptr;
     plugin_version = 0;
     group_sidno = 0;
+    view_change_sidno = 0;
 
     online_wait_mutex = nullptr;
     plugin_stop_lock = nullptr;
@@ -277,6 +279,8 @@ struct plugin_options_variables {
   TYPELIB tls_source_values_typelib_t = {2, "tls_source_typelib_t",
                                          tls_source_values, nullptr};
   ulong tls_source_var;
+
+  char *view_change_uuid_var;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

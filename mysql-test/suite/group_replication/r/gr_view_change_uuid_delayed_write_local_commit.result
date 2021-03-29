@@ -16,7 +16,7 @@ SET sql_log_bin = 0;
 include/gtid_utils.inc
 SET sql_log_bin = 1;
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
-SET @@GLOBAL.group_replication_view_change_uuid = "AUTOMATIC";
+SET @@GLOBAL.group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -30,7 +30,7 @@ GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
-SET @@GLOBAL.group_replication_view_change_uuid = "AUTOMATIC";
+SET @@GLOBAL.group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";
 include/start_group_replication.inc
 
 ############################################################
@@ -55,7 +55,7 @@ call mtr.add_suppression("For details please check performance_schema.replicatio
 SET SESSION sql_log_bin= 1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'recovery_user', SOURCE_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
-SET @@GLOBAL.group_replication_view_change_uuid = "AUTOMATIC";;
+SET @@GLOBAL.group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";;
 include/start_group_replication.inc
 
 ############################################################

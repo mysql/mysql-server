@@ -1716,6 +1716,15 @@ int Plugin_gcs_events_handler::compare_member_option_compatibility() const {
                    (*all_members_it)->get_default_table_encryption());
       goto cleaning;
     }
+
+    if (local_member_info->get_view_change_uuid() !=
+        (*all_members_it)->get_view_change_uuid()) {
+      result = 1;
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_VIEW_CHANGE_UUID_DIFF_FROM_GRP,
+                   local_member_info->get_view_change_uuid().c_str(),
+                   (*all_members_it)->get_view_change_uuid().c_str());
+      goto cleaning;
+    }
   }
 
 cleaning:

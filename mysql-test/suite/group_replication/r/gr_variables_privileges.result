@@ -141,6 +141,8 @@ SET GLOBAL group_replication_transaction_size_limit = @@GLOBAL.group_replication
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 
 # Like most system variables, setting the session value for
 # group_replication_consistency requires no special privileges.
@@ -216,6 +218,7 @@ SET GLOBAL group_replication_start_on_boot = @@GLOBAL.group_replication_start_on
 SET GLOBAL group_replication_tls_source = @@GLOBAL.group_replication_tls_source;
 SET GLOBAL group_replication_transaction_size_limit = @@GLOBAL.group_replication_transaction_size_limit;
 SET GLOBAL group_replication_unreachable_majority_timeout = @@GLOBAL.group_replication_unreachable_majority_timeout;
+SET GLOBAL group_replication_view_change_uuid = @@GLOBAL.group_replication_view_change_uuid;
 
 ############################################################
 # 4. Grant GROUP_REPLICATION_ADMIN and verify setting

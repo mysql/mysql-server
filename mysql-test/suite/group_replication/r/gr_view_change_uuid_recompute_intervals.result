@@ -1,0 +1,86 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+#  1. Setup Group Replication on server 1 and 2 with view
+#     change uuid configured with an valid uuid
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET GLOBAL group_replication_view_change_uuid = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
+SET GLOBAL group_replication_view_change_uuid =  "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+include/start_group_replication.inc
+
+############################################################
+#  2. Create a table on server 1 that will add one
+#     transaction to the group
+[connection server1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/rpl_sync.inc
+
+############################################################
+#  3. Insert data into table on server 2 that will add one
+#     transaction to the group
+[connection server2]
+INSERT INTO t1 VALUES (0);
+include/rpl_sync.inc
+
+############################################################
+#  4. Remove and rejoin server 2, that will generate a new
+#     view and will recompute intervals
+include/stop_group_replication.inc
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 2 transactions]
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 2 view changes]
+include/start_group_replication.inc
+
+############################################################
+#  5. Insert data into table on server 2 that will add one
+#     transaction to the group
+INSERT INTO t1 VALUES (1);
+include/rpl_sync.inc
+
+############################################################
+#  6. Transactions are added to the correct intervals and
+#     views are logged with view uuid
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval]
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 3 view changes]
+[connection server1]
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval]
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 3 view changes]
+
+############################################################
+#  7. Stop server 2 and on server 1 set GTID_NEXT to next
+#     expected view uuid and execute a transaction.
+#     Start server 2
+[connection server2]
+include/stop_group_replication.inc
+[connection server1]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4';;
+INSERT INTO t1 VALUES (2);
+[connection server2]
+include/start_group_replication.inc
+
+############################################################
+#  8. Assert the intervals were not used, the new view
+#     change is correctly logged and the transaction using
+#     the view uuid is also executed.
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval]
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 4 view changes plus 1 transaction]
+[connection server1]
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 3 transactions, two on first interval]
+include/assert.inc [GTID_EXECUTED must contain GTID_EXECUTED 4 view changes plus 1 transaction]
+
+############################################################
+#  9. Cleanup
+SET GTID_NEXT= 'AUTOMATIC';
+DROP TABLE t1;
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+[connection server2]
+include/stop_group_replication.inc
+SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+include/group_replication_end.inc

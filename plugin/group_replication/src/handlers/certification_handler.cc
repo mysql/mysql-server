@@ -512,10 +512,10 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
   }
 
   std::string local_gtid_certified_string;
-  rpl_gno view_change_event_gno = -1;
+  Gtid vlce_gtid = {-1, -1};
   if (!error) {
     error = log_view_change_event_in_order(pevent, local_gtid_certified_string,
-                                           &view_change_event_gno, cont);
+                                           &vlce_gtid, cont);
   }
 
   /*
@@ -525,7 +525,7 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
   if (error) {
     if (LOCAL_WAIT_TIMEOUT_ERROR == error) {
       error = store_view_event_for_delayed_logging(
-          pevent, local_gtid_certified_string, view_change_event_gno, cont);
+          pevent, local_gtid_certified_string, vlce_gtid, cont);
       LogPluginErr(WARNING_LEVEL, ER_GRP_DELAYED_VCLE_LOGGING);
       if (error)
         cont->signal(1, false);
@@ -549,7 +549,7 @@ int Certification_handler::log_delayed_view_change_events(Continuation *cont) {
     error = log_view_change_event_in_order(
         stored_view_info->view_change_pevent,
         stored_view_info->local_gtid_certified,
-        &(stored_view_info->view_change_event_gno), cont);
+        &(stored_view_info->view_change_gtid), cont);
     // if we timeout keep the event
     if (LOCAL_WAIT_TIMEOUT_ERROR != error) {
       delete stored_view_info->view_change_pevent;
@@ -561,8 +561,8 @@ int Certification_handler::log_delayed_view_change_events(Continuation *cont) {
 }
 
 int Certification_handler::store_view_event_for_delayed_logging(
-    Pipeline_event *pevent, std::string &local_gtid_certified_string,
-    rpl_gno event_gno, Continuation *cont) {
+    Pipeline_event *pevent, std::string &local_gtid_certified_string, Gtid gtid,
+    Continuation *cont) {
   DBUG_TRACE;
 
   int error = 0;
@@ -582,8 +582,8 @@ int Certification_handler::store_view_event_for_delayed_logging(
   // -1 means there was a second timeout on a VCLE that we already delayed
   if (view_change_event_id != "-1") {
     m_view_change_event_on_wait = true;
-    View_change_stored_info *vcle_info = new View_change_stored_info(
-        pevent, local_gtid_certified_string, event_gno);
+    View_change_stored_info *vcle_info =
+        new View_change_stored_info(pevent, local_gtid_certified_string, gtid);
     pending_view_change_events.push_back(vcle_info);
     // Use the discard flag to let the applier know this was delayed
     cont->set_transation_discarded(true);
@@ -638,7 +638,7 @@ int Certification_handler::wait_for_local_transaction_execution(
 }
 
 int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
-                                                       rpl_gno *event_gno,
+                                                       Gtid *gtid,
                                                        Continuation *cont) {
   DBUG_TRACE;
   Log_event *event = nullptr;
@@ -662,15 +662,14 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
 
   // GTID event
 
-  if (*event_gno == -1) {
-    *event_gno = cert_module->generate_view_change_group_gno();
+  if (gtid->gno == -1) {
+    *gtid = cert_module->generate_view_change_group_gtid();
   }
-  Gtid gtid = {group_sidno, *event_gno};
-  if (gtid.gno <= 0) {
+  if (gtid->gno <= 0) {
     cont->signal(1, true);
     return 1;
   }
-  Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
+  Gtid_specification gtid_specification = {ASSIGNED_GTID, *gtid};
   /**
    The original_commit_timestamp of this Gtid_log_event will be zero
    because the transaction corresponds to a View_change_event, which is
@@ -736,12 +735,12 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
 }
 
 int Certification_handler::log_view_change_event_in_order(
-    Pipeline_event *view_pevent, std::string &local_gtid_string,
-    rpl_gno *event_gno, Continuation *cont) {
+    Pipeline_event *view_pevent, std::string &local_gtid_string, Gtid *gtid,
+    Continuation *cont) {
   DBUG_TRACE;
 
   int error = 0;
-  bool first_log_attempt = (*event_gno == -1);
+  bool first_log_attempt = (gtid->gno == -1);
 
   Log_event *event = nullptr;
   error = view_pevent->get_LogEvent(&event);
@@ -790,10 +789,10 @@ int Certification_handler::log_view_change_event_in_order(
      VCLE
      COMMIT
     */
-    error = inject_transactional_events(view_pevent, event_gno, cont);
+    error = inject_transactional_events(view_pevent, gtid, cont);
   } else if (LOCAL_WAIT_TIMEOUT_ERROR == error && first_log_attempt) {
     // Even if we can't log it, register the position
-    *event_gno = cert_module->generate_view_change_group_gno();
+    *gtid = cert_module->generate_view_change_group_gtid();
   }
 
   return error;

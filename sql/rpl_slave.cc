@@ -584,6 +584,26 @@ int init_slave() {
                    mi->rli->m_assign_gtids_to_anonymous_transactions_info
                        .get_value()
                        .c_str());
+
+          std::string view_change_uuid;
+          if (get_group_replication_view_change_uuid(view_change_uuid)) {
+            /* purecov: begin inspected */
+            LogErr(WARNING_LEVEL,
+                   ER_WARN_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE);
+            /* purecov: end */
+          }
+
+          if (!(view_change_uuid.compare(
+                  mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                      .get_value()))) {
+            LogErr(
+                WARNING_LEVEL,
+                ER_WARN_REPLICA_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID,
+                mi->get_channel(),
+                mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                    .get_value()
+                    .c_str());
+          }
         }
       }
     }
@@ -2096,6 +2116,21 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
       my_error(ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME, MYF(0),
                mi->get_channel());
       return true;
+    }
+    std::string view_change_uuid;
+    if (get_group_replication_view_change_uuid(view_change_uuid)) {
+      /* purecov: begin inspected */
+      my_error(ER_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE, MYF(0));
+      return true;
+      /* purecov: end */
+    } else {
+      if (!(view_change_uuid.compare(
+              mi->rli->m_assign_gtids_to_anonymous_transactions_info
+                  .get_value()))) {
+        my_error(ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID, MYF(0),
+                 mi->get_channel());
+        return true;
+      }
     }
     if (mi->rli->until_condition == Relay_log_info::UNTIL_SQL_BEFORE_GTIDS ||
         mi->rli->until_condition == Relay_log_info::UNTIL_SQL_AFTER_GTIDS) {
@@ -9902,6 +9937,27 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
         error = ER_CANT_USE_SAME_UUID_AS_GROUP_NAME;
         my_error(ER_CANT_USE_SAME_UUID_AS_GROUP_NAME, MYF(0));
         goto err;
+      }
+
+      std::string view_change_uuid;
+      if (get_group_replication_view_change_uuid(view_change_uuid)) {
+        /* purecov: begin inspected */
+        my_error(ER_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE, MYF(0));
+        error = ER_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE;
+        goto err;
+        /* purecov: end */
+      } else {
+        if (type == LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_LOCAL)
+          if (!(view_change_uuid.compare(::server_uuid))) is_same = true;
+        if (type == LEX_MASTER_INFO::LEX_MI_ANONYMOUS_TO_GTID_UUID)
+          if (!(view_change_uuid.compare(
+                  lex_mi->assign_gtids_to_anonymous_transactions_manual_uuid)))
+            is_same = true;
+        if (is_same) {
+          error = ER_CANT_USE_SAME_UUID_AS_VIEW_CHANGE_UUID;
+          my_error(ER_CANT_USE_SAME_UUID_AS_VIEW_CHANGE_UUID, MYF(0));
+          goto err;
+        }
       }
     }
   }

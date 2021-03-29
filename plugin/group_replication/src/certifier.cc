@@ -314,6 +314,8 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
 
   rpl_sid group_sid;
   const char *group_name = get_group_name_var();
+  rpl_sid view_sid;
+  const char *view_uuid = get_view_change_uuid_var();
   if (group_sid.parse(group_name, strlen(group_name)) != RETURN_STATUS_OK) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_GROUP_NAME_PARSE_ERROR); /* purecov: inspected */
@@ -345,6 +347,50 @@ int Certifier::initialize_server_gtid_set(bool get_server_gtid_retrieved) {
                  ER_GRP_RPL_DONOR_TRANS_INFO_ERROR); /* purecov: inspected */
     error = 1;                                       /* purecov: inspected */
     goto end;                                        /* purecov: inspected */
+  }
+
+  if (strcmp(view_uuid, "AUTOMATIC") == 0) {
+    views_sidno_group_representation = group_gtid_sid_map_group_sidno;
+    views_sidno_server_representation = get_group_sidno();
+  } else {
+    if (view_sid.parse(view_uuid, strlen(view_uuid)) != RETURN_STATUS_OK) {
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_VIEW_CHANGE_UUID_PARSE_ERROR);
+      error = 1;
+      goto end;
+      /* purecov: end */
+    }
+
+    views_sidno_group_representation = group_gtid_sid_map->add_sid(view_sid);
+    if (views_sidno_group_representation < 0) {
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_ADD_VIEW_CHANGE_UUID_TO_GRP_SID_MAP_ERROR);
+      error = 1;
+      goto end;
+      /* purecov: end */
+    }
+    views_sidno_server_representation = get_view_change_sidno();
+
+    if (group_gtid_executed->ensure_sidno(views_sidno_group_representation) !=
+        RETURN_STATUS_OK) {
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_UPDATE_GRPGTID_VIEW_CHANGE_UUID_EXECUTED_ERROR);
+      error = 1;
+      goto end;
+      /* purecov: end */
+    }
+
+    if (group_gtid_extracted->ensure_sidno(views_sidno_group_representation) !=
+        RETURN_STATUS_OK) {
+      /* purecov: begin inspected */
+      LogPluginErr(ERROR_LEVEL,
+                   ER_GRP_RPL_DONOR_VIEW_CHANGE_UUID_TRANS_INFO_ERROR);
+      error = 1;
+      goto end;
+      /* purecov: end */
+    }
   }
 
   sql_command_interface = new Sql_service_command_interface();
@@ -505,9 +551,11 @@ void Certifier::add_to_group_gtid_executed_internal(rpl_sidno sidno,
      1) certifier is handling already applied transactions
         on distributed recovery procedure;
      2) the transaction does have a group GTID.
+     3) the transactions use the view UUID
   */
   if (certifying_already_applied_transactions &&
-      sidno == group_gtid_sid_map_group_sidno)
+      (sidno == group_gtid_sid_map_group_sidno ||
+       sidno == views_sidno_group_representation))
     group_gtid_extracted->_add_gtid(sidno, gno);
 }
 
@@ -902,12 +950,17 @@ int Certifier::add_group_gtid_to_group_gtid_executed(rpl_gno gno, bool local) {
      from the available GNOs set.
 */
 rpl_gno Certifier::get_group_next_available_gtid(const char *member_uuid) {
+  return get_next_available_gtid(member_uuid, group_gtid_sid_map_group_sidno);
+}
+
+rpl_gno Certifier::get_next_available_gtid(const char *member_uuid,
+                                           rpl_sidno sidno) {
   DBUG_TRACE;
   mysql_mutex_assert_owner(&LOCK_certification_info);
   rpl_gno result = 0;
 
   if (member_uuid == nullptr || gtid_assignment_block_size <= 1) {
-    result = get_group_next_available_gtid_candidate(1, MAX_GNO);
+    result = get_next_available_gtid_candidate(sidno, 1, MAX_GNO);
     if (result < 0) {
       assert(result == -1);
       return result;
@@ -949,13 +1002,13 @@ rpl_gno Certifier::get_group_next_available_gtid(const char *member_uuid) {
       it = insert_ret.first;
     }
 
-    result = get_group_next_available_gtid_candidate(it->second.start,
-                                                     it->second.end);
+    result = get_next_available_gtid_candidate(sidno, it->second.start,
+                                               it->second.end);
     while (result == -2) {
       // Block has no available GTIDs, reserve more.
       it->second = reserve_gtid_block(gtid_assignment_block_size);
-      result = get_group_next_available_gtid_candidate(it->second.start,
-                                                       it->second.end);
+      result = get_next_available_gtid_candidate(sidno, it->second.start,
+                                                 it->second.end);
     }
     if (result < 0) return result;
 
@@ -967,8 +1020,9 @@ rpl_gno Certifier::get_group_next_available_gtid(const char *member_uuid) {
   return result;
 }
 
-rpl_gno Certifier::get_group_next_available_gtid_candidate(rpl_gno start,
-                                                           rpl_gno end) const {
+rpl_gno Certifier::get_next_available_gtid_candidate(rpl_sidno sidno,
+                                                     rpl_gno start,
+                                                     rpl_gno end) const {
   DBUG_TRACE;
   assert(start > 0);
   assert(start <= end);
@@ -978,10 +1032,10 @@ rpl_gno Certifier::get_group_next_available_gtid_candidate(rpl_gno start,
   Gtid_set::Const_interval_iterator ivit(certifying_already_applied_transactions
                                              ? group_gtid_extracted
                                              : group_gtid_executed,
-                                         group_gtid_sid_map_group_sidno);
+                                         sidno);
 #ifndef NDEBUG
   if (certifying_already_applied_transactions)
-    DBUG_PRINT("Certifier::get_group_next_available_gtid_candidate()",
+    DBUG_PRINT("Certifier::get_next_available_gtid_candidate()",
                ("Generating group transaction id from group_gtid_extracted"));
 #endif
 
@@ -1408,21 +1462,22 @@ void Certifier::get_certification_info(
   mysql_mutex_unlock(&LOCK_certification_info);
 }
 
-rpl_gno Certifier::generate_view_change_group_gno() {
+Gtid Certifier::generate_view_change_group_gtid() {
   DBUG_TRACE;
 
   mysql_mutex_lock(&LOCK_certification_info);
-  rpl_gno result = get_group_next_available_gtid(nullptr);
+  rpl_gno result =
+      get_next_available_gtid(nullptr, views_sidno_group_representation);
 
   DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_5", assert(result == 5););
   DBUG_EXECUTE_IF("certifier_assert_next_seqno_equal_7", assert(result == 7););
 
   if (result > 0)
-    add_to_group_gtid_executed_internal(group_gtid_sid_map_group_sidno, result,
-                                        false);
+    add_to_group_gtid_executed_internal(views_sidno_group_representation,
+                                        result, false);
   mysql_mutex_unlock(&LOCK_certification_info);
 
-  return result;
+  return {views_sidno_server_representation, result};
 }
 
 int Certifier::set_certification_info(

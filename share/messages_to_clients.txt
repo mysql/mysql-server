@@ -9544,6 +9544,14 @@ ER_CHANGE_RPL_SRC_WRONG_COMPRESSION_ALGORITHM_SIZE
 ER_WARN_DEPRECATED_TLS_VERSION_FOR_CHANNEL_CLI
   eng "A deprecated TLS version %s is enabled for channel %s. Please use TLSv1.2 or higher."
 
+ER_CANT_USE_SAME_UUID_AS_VIEW_CHANGE_UUID
+  eng "CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> cannot be executed because the UUID value is equal to the group_replication_view_change_uuid."
+
+ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID
+  eng "Replication '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> where the UUID value is equal to the group_replication_view_change_uuid"
+
+ER_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE
+  eng "Unable to retrieve group_replication_view_change_uuid variable during server checks on replication operations."
 
 #
 #  End of 8.0 error messages (server-to-client).

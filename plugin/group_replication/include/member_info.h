@@ -141,8 +141,11 @@ class Group_member_info : public Plugin_gcs_message {
     // Length of the payload item: variable
     PIT_RECOVERY_ENDPOINTS = 20,
 
+    // Length of the payload item: variable
+    PIT_VIEW_CHANGE_UUID = 21,
+
     // No valid type codes can appear after this one.
-    PIT_MAX = 21
+    PIT_MAX = 22
   };
 
   /*
@@ -195,6 +198,7 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] psi_mutex_key_arg                      mutex key
     @param[in] default_table_encryption_arg           default_table_encryption
     @param[in] recovery_endpoints_arg                 recovery endpoints
+    @param[in] view_change_uuid_arg                   view change uuid
     advertised
    */
   Group_member_info(const char *hostname_arg, uint port_arg,
@@ -209,6 +213,7 @@ class Group_member_info : public Plugin_gcs_message {
                     uint member_weight_arg, uint lower_case_table_names_arg,
                     bool default_table_encryption_arg,
                     const char *recovery_endpoints_arg,
+                    const char *view_change_uuid_arg,
                     PSI_mutex_key psi_mutex_key_arg =
                         key_GR_LOCK_group_member_info_update_lock);
 
@@ -259,6 +264,7 @@ class Group_member_info : public Plugin_gcs_message {
     @param[in] default_table_encryption_arg           default table encryption
     @param[in] recovery_endpoints_arg                 recovery endpoints
     advertised
+    @param[in] view_change_uuid_arg                   view change uuid
    */
   void update(const char *hostname_arg, uint port_arg, const char *uuid_arg,
               int write_set_extraction_algorithm,
@@ -271,7 +277,8 @@ class Group_member_info : public Plugin_gcs_message {
               bool has_enforces_update_everywhere_checks,
               uint member_weight_arg, uint lower_case_table_names_arg,
               bool default_table_encryption_arg,
-              const char *recovery_endpoints_arg);
+              const char *recovery_endpoints_arg,
+              const char *view_change_uuid_arg);
 
   /**
     Update Group_member_info.
@@ -543,6 +550,18 @@ class Group_member_info : public Plugin_gcs_message {
    */
   void set_recovery_endpoints(const char *endpoints);
 
+  /**
+    Get UID used when logging view change events
+    @return view change uuid or "AUTOMATIC"
+   */
+  std::string get_view_change_uuid();
+
+  /**
+    Save member view change uuid
+    @param view_change_cnf uuid to be used on change views or "AUTOMATIC"
+   */
+  void set_view_change_uuid(const char *view_change_cnf);
+
  protected:
   void encode_payload(std::vector<unsigned char> *buffer) const override;
   void decode_payload(const unsigned char *buffer,
@@ -585,9 +604,11 @@ class Group_member_info : public Plugin_gcs_message {
   bool group_action_running;
   bool primary_election_running;
   std::string recovery_endpoints;
+  std::string m_view_change_uuid;
 #ifndef NDEBUG
  public:
   bool skip_encode_default_table_encryption;
+  bool m_skip_encode_view_change_uuid;
 #endif
   // Allow use copy constructor on unit tests.
   PSI_mutex_key psi_mutex_key;
