@@ -63,6 +63,7 @@
 #include "mysql/harness/logging/registry.h"
 #include "mysql/harness/plugin.h"
 #include "mysql/harness/sd_notify.h"
+#include "mysql/harness/stdx/monitor.h"
 #include "utilities.h"
 IMPORT_LOG_FUNCTIONS()
 
@@ -111,8 +112,7 @@ static std::string shutdown_fatal_error_message;
 std::mutex log_reopen_cond_mutex;
 std::condition_variable log_reopen_cond;
 
-std::mutex g_reopen_thread_mtx;
-mysql_harness::LogReopenThread *g_reopen_thread{nullptr};
+Monitor<mysql_harness::LogReopenThread *> g_reopen_thread{nullptr};
 
 // application defined pointer to function called at log rename completion
 static log_reopen_callback g_log_reopen_complete_callback_fp =
@@ -141,32 +141,31 @@ void request_application_shutdown(const ShutdownReason reason) {
  * @param dst rename old logfile to filename before reopen
  * @throws std::system_error same as std::unique_lock::lock does
  */
-void request_log_reopen(const std::string dst) {
-  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
-
-  if (g_reopen_thread) g_reopen_thread->request_reopen(dst);
+void request_log_reopen(const std::string &dst) {
+  g_reopen_thread([dst](const auto &thr) {
+    if (thr) thr->request_reopen(dst);
+  });
 }
 
 /**
  * check reopen completed
  */
 bool log_reopen_completed() {
-  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
-
-  if (g_reopen_thread) return g_reopen_thread->is_completed();
-
-  return true;
+  return g_reopen_thread([](const auto &thr) {
+    if (thr) return thr->is_completed();
+    return true;
+  });
 }
 
 /**
  * get last log reopen error
  */
 std::string log_reopen_get_error() {
-  std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
+  return g_reopen_thread([](auto *thr) -> std::string {
+    if (thr) return thr->get_last_error();
 
-  if (g_reopen_thread) return g_reopen_thread->get_last_error();
-
-  return std::string("");
+    return {};
+  });
 }
 
 namespace {
@@ -827,9 +826,9 @@ std::exception_ptr Loader::run() {
   // run plugins if initialization didn't fail
   if (!first_eptr) {
     try {
+      // reset the global reopen-thread when we leave the block.
       std::shared_ptr<void> exit_guard(nullptr, [](void *) {
-        std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
-        g_reopen_thread = nullptr;
+        g_reopen_thread([](auto &thr) { thr = nullptr; });
       });
 
       start_all();  // if start() throws, exception is forwarded to
@@ -837,10 +836,11 @@ std::exception_ptr Loader::run() {
 
       // may throw std::system_error
       LogReopenThread log_reopen_thread;
-      {
-        std::lock_guard<std::mutex> lk(g_reopen_thread_mtx);
-        g_reopen_thread = &log_reopen_thread;
-      }
+
+      g_reopen_thread([thread_func = &log_reopen_thread](auto &thr) {
+        thr = thread_func;
+        on_service_ready("Log Reopen ready");
+      });
 
       first_eptr = main_loop();
     } catch (const std::exception &e) {
@@ -1340,16 +1340,10 @@ LogReopenThread::~LogReopenThread() {
  */
 void LogReopenThread::log_reopen_thread_function(LogReopenThread *t) {
   auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
-  bool notified_ready{false};
 
   while (true) {
     {
       std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
-
-      if (!notified_ready) {
-        on_service_ready("Log rotate thread");
-        notified_ready = true;
-      }
 
       if (g_shutdown_pending) {
         break;
@@ -1390,7 +1384,7 @@ void LogReopenThread::log_reopen_thread_function(LogReopenThread *t) {
 /*
  * request reopen
  */
-void LogReopenThread::request_reopen(const std::string dst) {
+void LogReopenThread::request_reopen(const std::string &dst) {
   std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
 
   if (state_ == REOPEN_ACTIVE) {
