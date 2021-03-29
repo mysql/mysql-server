@@ -360,9 +360,6 @@ URI ConfigGenerator::parse_server_uri(const std::string &server_uri,
           "non-'localhost' hostname: " +
           u.host);
     }
-  } else {
-    // setup localhost address.
-    u.host = (u.host == "localhost" ? "127.0.0.1" : u.host);
   }
 
   return u;
@@ -1336,7 +1333,7 @@ std::string ConfigGenerator::bootstrap_deployment(
   auto cluster_info = metadata_->fetch_metadata_servers();
 
   auto conf_options = get_options_from_config_if_it_exists(
-      config_file_path.str(), cluster_info.metadata_cluster_name, force);
+      config_file_path.str(), cluster_info.name, force);
 
   // if user provided --account, override username with it
   conf_options.username =
@@ -1383,8 +1380,8 @@ std::string ConfigGenerator::bootstrap_deployment(
         cluster_aware.failover_on_failure<std::tuple<std::string>>([&]() {
           return try_bootstrap_deployment(
               conf_options.router_id, conf_options.username, password,
-              router_name, cluster_info.metadata_cluster_id, user_options,
-              multivalue_options, options);
+              router_name, cluster_info, user_options, multivalue_options,
+              options);
         });
   }
 
@@ -1405,8 +1402,8 @@ std::string ConfigGenerator::bootstrap_deployment(
   // test out the connection that Router would use
   {
     bool strict = user_options.count("strict");
-    verify_router_account(conf_options.username, password,
-                          cluster_info.metadata_cluster_name, strict);
+    verify_router_account(conf_options.username, password, cluster_info.name,
+                          strict);
   }
 
   store_credentials_in_keyring(auto_clean, user_options, conf_options.router_id,
@@ -1429,7 +1426,7 @@ std::string ConfigGenerator::bootstrap_deployment(
         metadata_->get_type() == ClusterType::RS_V2 ? "InnoDB ReplicaSet"
                                                     : "InnoDB Cluster";
     return get_bootstrap_report_text(
-        config_file_path.str(), router_name, cluster_info.metadata_cluster_name,
+        config_file_path.str(), router_name, cluster_info.name,
         cluster_type_name, map_get(user_options, "report-host", "localhost"),
         !directory_deployment, options);
   } else {
@@ -1603,7 +1600,7 @@ See https://dev.mysql.com/doc/mysql-router/8.0/en/ for more information.)";
 
 std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
     uint32_t &router_id, std::string &username, std::string &password,
-    const std::string &router_name, const std::string &cluster_id,
+    const std::string &router_name, const ClusterInfo &cluster_info,
     const std::map<std::string, std::string> &user_options,
     const std::map<std::string, std::vector<std::string>> &multivalue_options,
     const Options &options) {
@@ -1653,8 +1650,9 @@ std::tuple<std::string> ConfigGenerator::try_bootstrap_deployment(
   const std::string ro_endpoint = str(options.ro_endpoint);
   const std::string rw_x_endpoint = str(options.rw_x_endpoint);
   const std::string ro_x_endpoint = str(options.ro_x_endpoint);
-  metadata_->update_router_info(router_id, cluster_id, rw_endpoint, ro_endpoint,
-                                rw_x_endpoint, ro_x_endpoint, username);
+  metadata_->update_router_info(router_id, cluster_info.cluster_id, rw_endpoint,
+                                ro_endpoint, rw_x_endpoint, ro_x_endpoint,
+                                username);
 
   transaction.commit();
 
@@ -1937,9 +1935,7 @@ static void save_initial_dynamic_state(
 
 /*static*/ std::string ConfigGenerator::gen_metadata_cache_routing_section(
     bool is_classic, bool is_writable, const Options::Endpoint endpoint,
-    const Options &options, const std::string &metadata_key,
-    const std::string &metadata_replicaset,
-    const std::string &fast_router_key) {
+    const Options &options, const std::string &metadata_key) {
   if (!endpoint) return "";
 
   const std::string key_suffix =
@@ -1948,9 +1944,11 @@ static void save_initial_dynamic_state(
   const std::string strategy =
       is_writable ? "first-available" : "round-robin-with-fallback";
   const std::string protocol = is_classic ? "classic" : "x";
+  // kept for backward compatibility, always empty
+  const std::string metadata_replicaset{""};
 
   // clang-format off
-  return "[routing:" + fast_router_key + key_suffix + "]\n" +
+  return "[routing:" + metadata_key + key_suffix + "]\n" +
          endpoint_option(options, endpoint) + "\n" +
          "destinations=metadata-cache://" + metadata_key + "/" +
              metadata_replicaset + "?role=" + role + "\n"
@@ -2017,9 +2015,10 @@ void ConfigGenerator::create_config(
 
   config_file << "\n";
 
-  const auto &metadata_key = cluster_info.metadata_cluster_name;
-  auto ttl = options.use_gr_notifications ? kDefaultMetadataTTLGRNotificationsON
-                                          : kDefaultMetadataTTL;
+  const auto &metadata_key = cluster_info.name;
+  const auto ttl = options.use_gr_notifications
+                       ? kDefaultMetadataTTLGRNotificationsON
+                       : kDefaultMetadataTTL;
 
   const auto auth_cache_refresh_interval =
       options.use_gr_notifications ? kDefaultMetadataTTLGRNotificationsON
@@ -2031,14 +2030,12 @@ void ConfigGenerator::create_config(
           : "use_gr_notifications="s +
                 (options.use_gr_notifications ? "1" : "0") + "\n";
 
-  config_file << "[metadata_cache:" << cluster_info.metadata_cluster_name
-              << "]\n"
+  config_file << "[metadata_cache:" << cluster_info.name << "]\n"
               << "cluster_type="
               << mysqlrouter::to_string(metadata_->get_type()) << "\n"
               << "router_id=" << router_id << "\n"
               << "user=" << username << "\n"
-              << "metadata_cluster=" << cluster_info.metadata_cluster_name
-              << "\n"
+              << "metadata_cluster=" << cluster_info.name << "\n"
               << "ttl=" << mysqlrouter::ms_to_seconds_string(ttl) << "\n"
               << "auth_cache_ttl="
               << mysqlrouter::ms_to_seconds_string(kDefaultAuthCacheTTL) << "\n"
@@ -2061,17 +2058,11 @@ void ConfigGenerator::create_config(
   // connection itself.
   config_file << "\n";
 
-  const auto &metadata_replicaset = cluster_info.metadata_replicaset;
-  const std::string fast_router_key = metadata_key +
-                                      (metadata_replicaset.empty() ? "" : "_") +
-                                      metadata_replicaset;
-
   // proxy to save on typing the same long list of args
   auto gen_mdc_rt_sect = [&](bool is_classic, bool is_writable,
                              Options::Endpoint endpoint) {
-    return gen_metadata_cache_routing_section(
-        is_classic, is_writable, endpoint, options, metadata_key,
-        metadata_replicaset, fast_router_key);
+    return gen_metadata_cache_routing_section(is_classic, is_writable, endpoint,
+                                              options, metadata_key);
   };
   config_file << gen_mdc_rt_sect(true, true, options.rw_endpoint);
   config_file << gen_mdc_rt_sect(true, false, options.ro_endpoint);

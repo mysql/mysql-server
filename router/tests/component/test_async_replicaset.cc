@@ -579,7 +579,8 @@ TEST_F(AsyncReplicasetTest, ClusterSecondaryQueryErrors) {
 
   for (size_t i = 1; i <= 2; i++) {
     const std::string pattern =
-        "metadata_cache WARNING .* Failed fetching metadata from instance: " +
+        "metadata_cache WARNING .* Failed fetching metadata from metadata "
+        "server on 127.0.0.1:" +
         std::to_string(cluster_nodes_ports[i]);
     ASSERT_TRUE(pattern_found(log_content, pattern)) << log_content;
   }

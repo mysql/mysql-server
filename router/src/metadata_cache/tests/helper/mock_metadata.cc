@@ -63,6 +63,10 @@ MockNG::MockNG(const std::string &user, const std::string &password,
 
   cluster_info.single_primary_mode = true;
   cluster_info.members = cluster_instances_vector;
+
+  metadata_servers.push_back({ms1.host, ms1.port});
+  metadata_servers.push_back({ms2.host, ms2.port});
+  metadata_servers.push_back({ms3.host, ms3.port});
 }
 
 /** @brief Destructor
@@ -76,16 +80,14 @@ MockNG::~MockNG() = default;
  *
  * @return cluster topology information.
  */
-metadata_cache::ManagedCluster MockNG::fetch_instances(
-    const mysqlrouter::TargetCluster & /*target_cluster*/,
-    const string & /*cluster_type_specific_id*/) {
-  return cluster_info;
-}
-
-metadata_cache::ManagedCluster MockNG::fetch_instances(
-    const std::vector<metadata_cache::ManagedInstance> & /*instances*/,
+stdx::expected<metadata_cache::ClusterTopology, std::error_code>
+MockNG::fetch_cluster_topology(
+    const std::atomic<bool> & /*terminated*/,
+    mysqlrouter::TargetCluster & /*target_cluster*/,
+    const unsigned /*router_id*/,
+    const metadata_cache::metadata_servers_list_t & /*metadata_servers*/,
     const string & /*group_replication_id*/, size_t & /*instance_id*/) {
-  return cluster_info;
+  return metadata_cache::ClusterTopology{cluster_info, metadata_servers};
 }
 
 /** @brief Mock connect method.
@@ -95,7 +97,7 @@ metadata_cache::ManagedCluster MockNG::fetch_instances(
  * @return a boolean to indicate if the connection was successful.
  */
 bool MockNG::connect_and_setup_session(
-    const metadata_cache::ManagedInstance &metadata_server) noexcept {
+    const metadata_cache::metadata_server_t &metadata_server) noexcept {
   (void)metadata_server;
   return true;
 }

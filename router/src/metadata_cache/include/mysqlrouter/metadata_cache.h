@@ -60,6 +60,52 @@
 
 namespace metadata_cache {
 
+enum class metadata_errc {
+  ok,
+  no_rw_node_found,
+  no_metadata_server_reached,
+  no_metadata_read_successful,
+  metadata_refresh_terminated
+};
+}  // namespace metadata_cache
+
+namespace std {
+template <>
+struct is_error_code_enum<metadata_cache::metadata_errc>
+    : public std::true_type {};
+}  // namespace std
+
+namespace metadata_cache {
+inline const std::error_category &metadata_cache_category() noexcept {
+  class metadata_category_impl : public std::error_category {
+   public:
+    const char *name() const noexcept override { return "metadata cache"; }
+    std::string message(int ev) const override {
+      switch (static_cast<metadata_errc>(ev)) {
+        case metadata_errc::ok:
+          return "ok";
+        case metadata_errc::no_rw_node_found:
+          return "no RW node found";
+        case metadata_errc::no_metadata_server_reached:
+          return "no metadata server accessible";
+        case metadata_errc::no_metadata_read_successful:
+          return "did not successfully read metadata from any metadata server";
+        case metadata_errc::metadata_refresh_terminated:
+          return "metadata refresh terminated";
+        default:
+          return "unknown";
+      }
+    }
+  };
+
+  static metadata_category_impl instance;
+  return instance;
+}
+
+inline std::error_code make_error_code(metadata_errc e) noexcept {
+  return std::error_code(static_cast<int>(e), metadata_cache_category());
+}
+
 extern const uint16_t kDefaultMetadataPort;
 extern const std::string kDefaultMetadataAddress;
 extern const std::string kDefaultMetadataUser;
@@ -126,13 +172,19 @@ class METADATA_API ManagedInstance {
       kNodeTagDisconnectWhenHiddenDefault};
 };
 
+using cluster_nodes_list_t = std::vector<ManagedInstance>;
+
+using metadata_server_t = mysql_harness::TCPAddress;
+
+using metadata_servers_list_t = std::vector<metadata_server_t>;
+
 /** @class ManagedCluster
  * Represents a cluster (a GR group or AR members)
  */
 class METADATA_API ManagedCluster {
  public:
   /** @brief List of the members that belong to the cluster */
-  std::vector<metadata_cache::ManagedInstance> members;
+  cluster_nodes_list_t members;
   /** @brief Whether the cluster is in single_primary_mode (from PFS in case of
    * GR) */
   bool single_primary_mode;
@@ -143,9 +195,23 @@ class METADATA_API ManagedCluster {
    * cluster metadata)*/
   bool md_discrepancy{false};
 
+  // address of the writable metadata server that can be used for updating the
+  // metadata (router version, last_check_in), error code if not found
+  stdx::expected<metadata_cache::metadata_server_t, std::error_code>
+      writable_server{stdx::make_unexpected(
+          make_error_code(metadata_cache::metadata_errc::no_rw_node_found))};
+
   bool empty() const noexcept { return members.empty(); }
 
   void clear() noexcept { members.clear(); }
+};
+
+/** @class ManagedCluster
+ * Represents a cluster (a GR group or AR members) and its metadata servers
+ */
+struct METADATA_API ClusterTopology {
+  ManagedCluster cluster_data;
+  metadata_servers_list_t metadata_servers;
 };
 
 /** @class connection_error
@@ -178,11 +244,11 @@ class metadata_error : public std::runtime_error {
 class METADATA_API LookupResult {
  public:
   /** @brief Constructor */
-  LookupResult(const std::vector<ManagedInstance> &instance_vector_)
+  LookupResult(const cluster_nodes_list_t &instance_vector_)
       : instance_vector(instance_vector_) {}
 
   /** @brief List of ManagedInstance objects */
-  const std::vector<metadata_cache::ManagedInstance> instance_vector;
+  const cluster_nodes_list_t instance_vector;
 };
 
 /**
@@ -197,14 +263,16 @@ class METADATA_API ClusterStateListenerInterface {
    * @brief Callback function that is called when state of cluster is
    * changed.
    *
-   * @param instances allowed nodes
+   * @param instances allowed Cluster nodes
+   * @param metadata_servers list of the Cluster metadata servers
    * @param md_servers_reachable true if metadata changed, false if metadata
    * unavailable
    * @param view_id current metadata view_id in case of ReplicaSet cluster
    */
-  virtual void notify_instances_changed(const LookupResult &instances,
-                                        const bool md_servers_reachable,
-                                        const unsigned view_id) = 0;
+  virtual void notify_instances_changed(
+      const LookupResult &instances,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
+      const bool md_servers_reachable, const unsigned view_id) = 0;
 
   ClusterStateListenerInterface() = default;
   // disable copy as it isn't needed right now. Feel free to enable
@@ -249,7 +317,7 @@ class METADATA_API AcceptorUpdateHandlerInterface {
  *        observers on cluster status changes.
  *
  * When state of cluster is changed, then
- * ClusterStateListenerInterface::notify_instances_changed function is called
+ * ClusterStateListenerInterface::notify function is called
  * for every registered observer.
  */
 class METADATA_API ClusterStateNotifierInterface {
@@ -307,8 +375,8 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
    * @param cluster_type type of the cluster the metadata cache object will
    *                     represent (GR or ReplicaSet)
    * @param router_id id of the router in the cluster metadata
-   * @param cluster_type_specific_id (id of the replication group for GR,
-   *                                 cluster_id for ReplicaSet)
+   * @param cluster_type_specific_id id of the ReplicaSet in case of the
+   * ReplicaSet, Replication Group name for GR Cluster
    * @param metadata_servers The list of cluster metadata servers
    * @param user_credentials MySQL Metadata username and password
    * @param ttl The time to live for the cached data
@@ -334,7 +402,7 @@ class METADATA_API MetadataCacheAPIBase : public ClusterStateNotifierInterface {
   virtual void cache_init(
       const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
       const std::string &cluster_type_specific_id,
-      const std::vector<mysql_harness::TCPAddress> &metadata_servers,
+      const metadata_servers_list_t &metadata_servers,
       const mysqlrouter::UserCredentials &user_credentials,
       const std::chrono::milliseconds ttl,
       const std::chrono::milliseconds auth_cache_ttl,
@@ -501,18 +569,19 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
  public:
   static MetadataCacheAPIBase *instance();
 
-  void cache_init(
-      const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
-      const std::string &cluster_type_specific_id,
-      const std::vector<mysql_harness::TCPAddress> &metadata_servers,
-      const mysqlrouter::UserCredentials &user_credentials,
-      const std::chrono::milliseconds ttl,
-      const std::chrono::milliseconds auth_cache_ttl,
-      const std::chrono::milliseconds auth_cache_refresh_interval,
-      const mysqlrouter::SSLOptions &ssl_options,
-      const mysqlrouter::TargetCluster &target_cluster, int connect_timeout,
-      int read_timeout, size_t thread_stack_size,
-      bool use_cluster_notifications, unsigned view_id) override;
+  void cache_init(const mysqlrouter::ClusterType cluster_type,
+                  const unsigned router_id,
+                  const std::string &cluster_type_specific_id,
+                  const metadata_servers_list_t &metadata_servers,
+                  const mysqlrouter::UserCredentials &user_credentials,
+                  const std::chrono::milliseconds ttl,
+                  const std::chrono::milliseconds auth_cache_ttl,
+                  const std::chrono::milliseconds auth_cache_refresh_interval,
+                  const mysqlrouter::SSLOptions &ssl_options,
+                  const mysqlrouter::TargetCluster &target_cluster,
+                  int connect_timeout, int read_timeout,
+                  size_t thread_stack_size, bool use_cluster_notifications,
+                  unsigned view_id) override;
 
   mysqlrouter::ClusterType cluster_type() const override;
 

@@ -107,7 +107,7 @@ MetadataCacheAPIBase *MetadataCacheAPI::instance() {
 void MetadataCacheAPI::cache_init(
     const mysqlrouter::ClusterType cluster_type, const unsigned router_id,
     const std::string &cluster_type_specific_id,
-    const std::vector<mysql_harness::TCPAddress> &metadata_servers,
+    const metadata_servers_list_t &metadata_servers,
     const mysqlrouter::UserCredentials &user_credentials,
     const std::chrono::milliseconds ttl,
     const std::chrono::milliseconds auth_cache_ttl,
@@ -118,22 +118,24 @@ void MetadataCacheAPI::cache_init(
     const unsigned view_id) {
   std::lock_guard<std::mutex> lock(g_metadata_cache_m);
 
-  if (cluster_type == mysqlrouter::ClusterType::RS_V2) {
-    g_metadata_cache.reset(new ARMetadataCache(
-        router_id, cluster_type_specific_id, metadata_servers,
-        get_instance(cluster_type, user_credentials.username,
-                     user_credentials.password, connect_timeout, read_timeout,
-                     1, ssl_options, use_cluster_notifications, view_id),
-        ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
-        target_cluster, thread_stack_size));
-  } else {
-    g_metadata_cache.reset(new GRMetadataCache(
-        router_id, cluster_type_specific_id, metadata_servers,
-        get_instance(cluster_type, user_credentials.username,
-                     user_credentials.password, connect_timeout, read_timeout,
-                     1, ssl_options, use_cluster_notifications, view_id),
-        ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
-        target_cluster, thread_stack_size, use_cluster_notifications));
+  switch (cluster_type) {
+    case mysqlrouter::ClusterType::RS_V2:
+      g_metadata_cache.reset(new ARMetadataCache(
+          router_id, cluster_type_specific_id, metadata_servers,
+          get_instance(cluster_type, user_credentials.username,
+                       user_credentials.password, connect_timeout, read_timeout,
+                       1, ssl_options, use_cluster_notifications, view_id),
+          ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
+          target_cluster, thread_stack_size));
+      break;
+    default:
+      g_metadata_cache.reset(new GRMetadataCache(
+          router_id, cluster_type_specific_id, metadata_servers,
+          get_instance(cluster_type, user_credentials.username,
+                       user_credentials.password, connect_timeout, read_timeout,
+                       1, ssl_options, use_cluster_notifications, view_id),
+          ttl, auth_cache_ttl, auth_cache_refresh_interval, ssl_options,
+          target_cluster, thread_stack_size, use_cluster_notifications));
   }
 
   is_initialized_ = true;

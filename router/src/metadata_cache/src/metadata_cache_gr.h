@@ -71,19 +71,7 @@ class METADATA_API GRMetadataCache : public MetadataCache {
     return meta_data_->get_cluster_type();
   }
 
-  /**
-   * Fetches metadata from the metadata server we are currently connected to.
-   *
-   * @param instance        object representing the metadata server we are
-   * currently connected to
-   * @param [out] changed   true if the metadata read from the server has
-   * changed since the last update, false otherwise
-   *
-   * @return true if the operation succeeded, false otherwise
-   */
-  bool fetch_metadata_from_connected_instance(
-      const metadata_cache::ManagedInstance &instance, bool &changed);
-
+ private:
 #ifdef FRIEND_TEST
   FRIEND_TEST(FailoverTest, basics);
   FRIEND_TEST(FailoverTest, primary_failover);

@@ -36,9 +36,11 @@ namespace mysqlrouter {
 
 struct ClusterInfo {
   std::vector<std::string> metadata_servers;
-  std::string metadata_cluster_id;
-  std::string metadata_cluster_name;
-  std::string metadata_replicaset;
+  std::string cluster_id;
+  // GR name for GR cluster
+  std::string cluster_type_specific_id;
+  // name of the cluster
+  std::string name;
 };
 
 class ClusterMetadata {

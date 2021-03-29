@@ -66,7 +66,8 @@ class METADATA_API MetadataCache
    * @param auth_cache_refresh_interval Refresh rate of the rest users
    *        authentiction data
    * @param ssl_options SSL related options for connection
-   * @param cluster_name The name of the desired cluster in the metadata server
+   * @param target_cluster object identifying the Cluster this operation refers
+   * to
    * @param thread_stack_size The maximum memory allocated for thread's stack
    * @param use_cluster_notifications Flag indicating if the metadata cache
    * should use GR notifications as an additional trigger for metadata refresh
@@ -96,15 +97,14 @@ class METADATA_API MetadataCache
    */
   void stop() noexcept;
 
-  using metadata_servers_list_t = std::vector<metadata_cache::ManagedInstance>;
-
   /** @brief Returns list of managed servers in a cluster
+   * TODO: is this needed?!?
    *
    * Returns list of managed servers in a cluster.
    *
    * @return std::vector containing ManagedInstance objects
    */
-  metadata_servers_list_t get_cluster_nodes();
+  metadata_cache::cluster_nodes_list_t get_cluster_nodes();
 
   /** @brief Update the status of the instance
    *
@@ -235,14 +235,17 @@ class METADATA_API MetadataCache
    */
   virtual bool refresh() = 0;
 
-  void on_refresh_failed(bool terminated);
+  void on_refresh_failed(bool terminated, bool md_servers_reachable = false);
   void on_refresh_succeeded(
-      const metadata_cache::ManagedInstance &metadata_server);
+      const metadata_cache::metadata_server_t &metadata_server);
 
   // Called each time the metadata has changed and we need to notify
   // the subscribed observers
-  void on_instances_changed(const bool md_servers_reachable,
-                            unsigned view_id = 0);
+  void on_instances_changed(
+      const bool md_servers_reachable,
+      const metadata_cache::cluster_nodes_list_t &cluster_nodes,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
+      unsigned view_id = 0);
 
   /**
    * Called when the listening sockets acceptors state should be updated but
@@ -260,6 +263,12 @@ class METADATA_API MetadataCache
   // Update rest users authentication data
   bool update_auth_cache();
 
+  // Update current Router version in the metadata
+  void update_router_version();
+
+  // Update Router last_check_in timestamp in the metadata
+  void update_router_last_check_in();
+
   // Stores the list of cluster's server instances.
   metadata_cache::ManagedCluster cluster_data_;
 
@@ -272,7 +281,7 @@ class METADATA_API MetadataCache
 
   // The list of servers that contain the metadata about the managed
   // topology.
-  metadata_servers_list_t metadata_servers_;
+  metadata_cache::metadata_servers_list_t metadata_servers_;
 
   // The time to live of the metadata cache.
   std::chrono::milliseconds ttl_;

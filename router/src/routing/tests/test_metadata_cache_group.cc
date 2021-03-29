@@ -150,8 +150,14 @@ class MetadataCacheAPIStub : public metadata_cache::MetadataCacheAPIBase {
   void trigger_instances_change_callback(
       const bool md_servers_reachable = true) {
     if (!instances_change_listener_) return;
+
+    metadata_cache::metadata_servers_list_t md_servers;
+    for (const auto &instance : instance_vector_) {
+      md_servers.push_back({instance.host, instance.port});
+    }
+
     instances_change_listener_->notify_instances_changed(
-        instance_vector_, md_servers_reachable, 0);
+        instance_vector_, md_servers, md_servers_reachable, 0);
   }
 
   std::vector<metadata_cache::ManagedInstance> instance_vector_;

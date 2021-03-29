@@ -99,13 +99,13 @@ class MetadataServersStateListener
     metadata_cache::MetadataCacheAPI::instance()->remove_state_listener(this);
   }
 
-  void notify_instances_changed(const LookupResult &instances,
-                                const bool md_servers_reachable,
-                                const unsigned view_id) override {
+  void notify_instances_changed(
+      const LookupResult & /*instances*/,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
+      const bool md_servers_reachable, const unsigned view_id) override {
     if (!md_servers_reachable) return;
-    auto md_servers = instances.instance_vector;
 
-    if (md_servers.empty()) {
+    if (metadata_servers.empty()) {
       // This happens for example when the router could connect to one of the
       // metadata servers but failed to fetch metadata because the connection
       // went down while querying metadata
@@ -117,11 +117,11 @@ class MetadataServersStateListener
 
     // need to convert from ManagedInstance to uri string
     std::vector<std::string> metadata_servers_str;
-    for (auto &md_server : md_servers) {
+    for (auto &md_server : metadata_servers) {
       mysqlrouter::URI uri;
       uri.scheme = "mysql";
-      uri.host = md_server.host;
-      uri.port = md_server.port;
+      uri.host = md_server.address();
+      uri.port = md_server.port();
       metadata_servers_str.emplace_back(uri.str());
     }
 
@@ -170,12 +170,6 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     std::chrono::milliseconds auth_cache_ttl{config.auth_cache_ttl};
     std::chrono::milliseconds auth_cache_refresh_interval{
         config.auth_cache_refresh_interval};
-    std::string metadata_cluster{config.cluster_name};
-
-    // Initialize the defaults.
-    metadata_cluster = metadata_cluster.empty()
-                           ? metadata_cache::kDefaultMetadataCluster
-                           : metadata_cluster;
 
     std::string password;
     try {

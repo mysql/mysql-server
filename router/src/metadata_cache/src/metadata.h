@@ -48,27 +48,26 @@ class METADATA_API MetaData {
   // username as key, password hash and priviliges as value
   using auth_credentials_t =
       std::map<std::string, std::pair<std::string, JsonDocument>>;
-  // fetch instances from connected server
-  virtual metadata_cache::ManagedCluster fetch_instances(
-      const mysqlrouter::TargetCluster &target_cluster,
-      const std::string &cluster_type_specific_id) = 0;
 
-  // fetch instances from vector of servers
-  virtual metadata_cache::ManagedCluster fetch_instances(
-      const std::vector<metadata_cache::ManagedInstance> &instances,
+  // fetch instances from vector of metadata servers
+  virtual stdx::expected<metadata_cache::ClusterTopology, std::error_code>
+  fetch_cluster_topology(
+      const std::atomic<bool> &terminated,
+      mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
       const std::string &cluster_type_specific_id,
       std::size_t &instance_id) = 0;
 
   virtual bool update_router_version(
-      const metadata_cache::ManagedInstance &rw_instance,
+      const metadata_cache::metadata_server_t &rw_server,
       const unsigned router_id) = 0;
 
   virtual bool update_router_last_check_in(
-      const metadata_cache::ManagedInstance &rw_instance,
+      const metadata_cache::metadata_server_t &rw_server,
       const unsigned router_id) = 0;
 
   virtual bool connect_and_setup_session(
-      const metadata_cache::ManagedInstance &metadata_server) = 0;
+      const metadata_cache::metadata_server_t &metadata_server) = 0;
 
   virtual void disconnect() = 0;
 

@@ -93,7 +93,7 @@ class MetadataCachePluginConfig final : public mysqlrouter::BasePluginConfig {
   mutable std::unique_ptr<ClusterMetadataDynamicState>
       metadata_cache_dynamic_state;
   /** @brief MySQL Metadata hosts to connect with */
-  const std::vector<mysql_harness::TCPAddress> metadata_servers_addresses;
+  const metadata_cache::metadata_servers_list_t metadata_servers_addresses;
   /** @brief User used for authenticating with MySQL Metadata */
   const std::string user;
   /** @brief TTL used for storing data in the cache */

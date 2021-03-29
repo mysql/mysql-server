@@ -128,17 +128,28 @@ const std::string execute_commit = "COMMIT";
 
 // query #2 (occurs second) - fetches primary member as seen by a particular
 // node
-std::string query_primary_member =
+const std::string query_primary_member =
     "show status like 'group_replication_primary_member'";
 
 // query #3 (occurs last) - fetches current topology as seen by a particular
 // node
-std::string query_status =
+const std::string query_status =
     "SELECT "
     "member_id, member_host, member_port, member_state, "
     "@@group_replication_single_primary_mode "
     "FROM performance_schema.replication_group_members "
     "WHERE channel_name = 'group_replication_applier'";
+
+const std::string setup_session1 =
+    "SET @@SESSION.autocommit=1, @@SESSION.character_set_client=utf8, "
+    "@@SESSION.character_set_results=utf8, "
+    "@@SESSION.character_set_connection=utf8, "
+    "@@SESSION.sql_mode='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_"
+    "DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION', "
+    "@@SESSION.optimizer_switch='derived_merge=on'";
+
+const std::string setup_session2 =
+    "SET @@SESSION.group_replication_consistency='EVENTUAL'";
 
 ////////////////////////////////////////////////////////////////////////////////
 //
@@ -297,7 +308,7 @@ class MetadataTest : public ::testing::Test {
         {"instance-1", ServerMode::ReadWrite, "localhost", 3310, 33100},
     };
     session_factory.get(0).set_good_conns(
-        {"127.0.0.1:3310", "127.0.0.1:3320", "127.0.0.1:3330"});
+        {"localhost:3310", "localhost:3320", "localhost:3330"});
 
     EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
     EXPECT_TRUE(metadata.connect_and_setup_session(metadata_servers[0]));
@@ -305,7 +316,7 @@ class MetadataTest : public ::testing::Test {
 
   void enable_connection(unsigned session, unsigned port) {
     session_factory.get(session).set_good_conns(
-        {std::string("127.0.0.1:") +
+        {std::string("localhost:") +
          std::to_string(port)});  // \_ new connection
     EXPECT_CALL(session_factory.get(session), flag_succeed(_, port))
         .Times(1);  // /  should succeed
@@ -420,7 +431,7 @@ class MetadataTest : public ::testing::Test {
 TEST_F(MetadataTest, ConnectToMetadataServer_Succeed) {
   ManagedInstance metadata_server{"instance-1", ServerMode::ReadWrite,
                                   "localhost", 3310, 33100};
-  session_factory.get(0).set_good_conns({"127.0.0.1:3310"});
+  session_factory.get(0).set_good_conns({"localhost:3310"});
 
   // should connect successfully
   EXPECT_CALL(session_factory.get(0), flag_succeed(_, 3310)).Times(1);
@@ -1956,24 +1967,30 @@ TEST_F(MetadataTest, UpdateClusterStatus_SimpleSunnyDayScenario) {
 
 ////////////////////////////////////////////////////////////////////////////////
 //
-// test ClusterMetadata::fetch_instances()
-// (this is the highest-level function, it calls everything tested above
-// except connect() (which is a separate step))
+// test ClusterMetadata::fetch_cluster_topology()
 //
 ////////////////////////////////////////////////////////////////////////////////
 
 /**
  * @test
- * Verify `ClusterMetadata::fetch_instances()` will return correct results in a
- * sunny-day scenario.
+ * Verify `ClusterMetadata::fetch_cluster_topology()` will return correct
+ * results in a sunny-day scenario.
  */
 TEST_F(MetadataTest, FetchInstances_ok) {
-  connect_to_first_metadata_server();
+  metadata_cache::metadata_servers_list_t metadata_servers{
+      {"localhost", 3310},
+  };
+  session_factory.get(0).set_good_conns(
+      {"localhost:3310", "localhost:3320", "localhost:3330"});
 
   // update_cluster_status() first iteration: all requests go to existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
 
+  EXPECT_CALL(session_factory.get(session), execute(StartsWith(setup_session1)))
+      .Times(1);
+  EXPECT_CALL(session_factory.get(session), execute(StartsWith(setup_session2)))
+      .Times(1);
   EXPECT_CALL(session_factory.get(session),
               execute(StartsWith(execute_start_trasaction)))
       .Times(1);
@@ -2009,31 +2026,43 @@ TEST_F(MetadataTest, FetchInstances_ok) {
       .WillOnce(Invoke(query_status_ok(session)));
 
   ASSERT_NO_THROW({
-    auto cluster = metadata.fetch_instances(
-        {mysqlrouter::TargetCluster::TargetType::ByName, "cluster_name"},
-        "gr-id");
+    size_t instance_id;
+    std::atomic<bool> terminated{false};
+    auto target_cluster = mysqlrouter::TargetCluster(
+        mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name");
+    const auto res = metadata.fetch_cluster_topology(
+        terminated, target_cluster, 0, metadata_servers, "gr-id", instance_id);
 
-    EXPECT_EQ(3u, cluster.members.size());
+    EXPECT_TRUE(res);
+    EXPECT_EQ(0u, instance_id);
+    const auto topology = res.value();
+
+    EXPECT_EQ(3u, topology.cluster_data.members.size());
     EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-1", ServerMode::ReadWrite,
                                           "localhost", 3310, 33100},
-                          cluster.members.at(0)));
+                          topology.cluster_data.members.at(0)));
     EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-2", ServerMode::ReadOnly,
                                           "localhost", 3320, 33200},
-                          cluster.members.at(1)));
+                          topology.cluster_data.members.at(1)));
     EXPECT_TRUE(cmp_mi_FI(ManagedInstance{"instance-3", ServerMode::ReadOnly,
                                           "localhost", 3330, 33300},
-                          cluster.members.at(2)));
+                          topology.cluster_data.members.at(2)));
   });
 }
 
 /**
  * @test
- * Verify `ClusterMetadata::fetch_instances()` will handle correctly when
+ * Verify `ClusterMetadata::fetch_cluster_topology()` will handle correctly when
  * retreiving information from all servers fail. It should return an empty
  * routing table since it's unable to complete its operation successfully.
  */
 TEST_F(MetadataTest, FetchInstances_fail) {
-  connect_to_first_metadata_server();
+  metadata_cache::metadata_servers_list_t metadata_servers{
+      {"localhost", 3310},
+  };
+  session_factory.get(0).set_good_conns(
+      {"localhost:3310", "localhost:3320", "localhost:3330"});
+
   // update_cluster_status() first iteration: requests start with existing
   // connection to instance-1 (shared with metadata server)
   unsigned session = 0;
@@ -2070,10 +2099,18 @@ TEST_F(MetadataTest, FetchInstances_fail) {
   // if fetch_instances() can't connect to a quorum for a particular replicaset,
   // it should clear its replicaset.members
   ASSERT_NO_THROW({
-    auto cluster = metadata.fetch_instances(
-        {mysqlrouter::TargetCluster::TargetType::ByName, "cluster_name"},
-        "gr-id");
-    EXPECT_EQ(0u, cluster.members.size());
+    size_t instance_id;
+    std::atomic<bool> terminated{false};
+    auto target_cluster = mysqlrouter::TargetCluster(
+        mysqlrouter::TargetCluster::TargetType::ByName, "cluster-name");
+    const auto res = metadata.fetch_cluster_topology(
+        terminated, target_cluster, 0, metadata_servers, "gr-id", instance_id);
+
+    EXPECT_TRUE(res);
+    EXPECT_EQ(0u, instance_id);
+    const auto topology = res.value();
+
+    EXPECT_EQ(0u, topology.cluster_data.members.size());
   });
 }
 

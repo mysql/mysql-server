@@ -465,118 +465,85 @@
 IMPORT_LOG_FUNCTIONS()
 
 bool GRMetadataCache::refresh() {
-  bool changed{false}, fetched{false};
-  // fetch metadata
-  bool broke_loop = false;
-  for (const auto &metadata_server : metadata_servers_) {
-    if (terminated_) {
-      broke_loop = true;
-      break;
-    }
+  bool changed{false};
+  unsigned view_id{0};
+  size_t metadata_server_id{0};
+  changed = false;
+  std::size_t instance_id;
+  // Fetch the metadata and store it in a temporary variable.
+  const auto res = meta_data_->fetch_cluster_topology(
+      terminated_, target_cluster_, router_id_, metadata_servers_,
+      cluster_type_specific_id_, instance_id);
 
-    if (!meta_data_->connect_and_setup_session(metadata_server)) {
-      log_error("Failed to connect to metadata server %s",
-                metadata_server.mysql_server_uuid.c_str());
-      continue;
-    }
-    fetched = fetch_metadata_from_connected_instance(metadata_server, changed);
-    if (fetched) {
-      on_refresh_succeeded(metadata_server);
-      break;  // successfully updated metadata
-    }
-  }
+  if (!res) {
+    const bool md_servers_reachable =
+        res.error() !=
+            metadata_cache::metadata_errc::no_metadata_server_reached &&
+        res.error() !=
+            metadata_cache::metadata_errc::no_metadata_read_successful;
 
-  if (fetched) {
-    // only now we can safely update the list of metadata servers
-    // when we no longer iterate over it
-    if (changed) {
-      auto metadata_servers_tmp = get_cluster_nodes();
-      // never let the list that we iterate over become empty as we would
-      // not recover from that
-      if (!metadata_servers_tmp.empty()) {
-        metadata_servers_ = std::move(metadata_servers_tmp);
-      }
-    }
-    return true;
-  }
-
-  on_refresh_failed(broke_loop);
-  return false;
-}
-
-bool GRMetadataCache::fetch_metadata_from_connected_instance(
-    const metadata_cache::ManagedInstance &instance, bool &changed) {
-  try {
-    changed = false;
-    // Fetch the metadata and store it in a temporary variable.
-    auto cluster_data_temp =
-        meta_data_->fetch_instances(target_cluster_, cluster_type_specific_id_);
-
-    // this node no longer contains metadata for our cluster, check the next
-    // node (if available)
-    if (cluster_data_temp.empty()) {
-      log_warning(
-          "Tried node %s on host %s, port %d as a metadata server, it does "
-          "not contain metadata for cluster %s",
-          instance.mysql_server_uuid.c_str(), instance.host.c_str(),
-          instance.port, cluster_type_specific_id_.c_str());
-      return false;
-    }
-
-    {
-      // Ensure that the refresh does not result in an inconsistency during the
-      // lookup.
-      std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-      if (cluster_data_ != cluster_data_temp) {
-        cluster_data_ = cluster_data_temp;
-        changed = true;
-      }
-    }
-
-    // we want to trigger those actions not only if the metadata has really
-    // changed but also when something external (like unsuccessful client
-    // connection) triggered the refresh so that we verified if this wasn't
-    // false alarm and turn it off if it was
-    if (changed) {
-      log_info(
-          "Potential changes detected in cluster '%s' after metadata refresh",
-          target_cluster_.c_str());
-      // dump some informational/debugging information about the cluster
-      if (cluster_data_.empty())
-        log_error("Metadata for cluster '%s' is empty!",
-                  target_cluster_.c_str());
-      else {
-        log_info("Metadata for cluster '%s' has %zu member(s), %s",
-                 target_cluster_.c_str(), cluster_data_.members.size(),
-                 cluster_data_.single_primary_mode ? "single-primary"
-                                                   : "multi-primary");
-        for (const auto &mi : cluster_data_.members) {
-          log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
-                   mi.xport, to_string(mi.mode).c_str(),
-                   get_hidden_info(mi).c_str());
-
-          if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
-            // If we were running with a primary or secondary node gone
-            // missing before (in so-called "emergency mode"), we trust that
-            // the update fixed the problem. This is wrong behavior that
-            // should be fixed, see notes [05] and [06] in Notes section of
-            // Metadata Cache module in Doxygen.
-            has_unreachable_nodes = false;
-          }
-        }
-      }
-
-      on_instances_changed(/*md_servers_reachable=*/true);
-    } else if (trigger_acceptor_update_on_next_refresh_) {
-      // Instances information has not changed, but we failed to start listening
-      // on incoming sockets, therefore we must retry on next metadata refresh.
-      on_handle_sockets_acceptors();
-    }
-  } catch (const std::runtime_error &exc) {
-    // fetching the meatadata failed
-    log_error("Failed fetching metadata: %s", exc.what());
+    on_refresh_failed(terminated_, md_servers_reachable);
     return false;
   }
 
+  const auto cluster_topology = res.value();
+
+  {
+    // Ensure that the refresh does not result in an inconsistency during
+    // the lookup.
+    std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
+    if (cluster_data_ != cluster_topology.cluster_data) {
+      cluster_data_ = cluster_topology.cluster_data;
+      changed = true;
+    }
+  }
+
+  // we want to trigger those actions not only if the metadata has really
+  // changed but also when something external (like unsuccessful client
+  // connection) triggered the refresh so that we verified if this wasn't
+  // false alarm and turn it off if it was
+  if (changed) {
+    log_info(
+        "Potential changes detected in cluster '%s' after metadata refresh",
+        target_cluster_.c_str());
+    // dump some informational/debugging information about the cluster
+    if (cluster_data_.empty())
+      log_error("Metadata for cluster '%s' is empty!", target_cluster_.c_str());
+    else {
+      log_info("Metadata for cluster '%s' has %zu member(s), %s",
+               target_cluster_.c_str(), cluster_data_.members.size(),
+               cluster_data_.single_primary_mode ? "single-primary"
+                                                 : "multi-primary");
+      for (const auto &mi : cluster_data_.members) {
+        log_info("    %s:%i / %i - mode=%s %s", mi.host.c_str(), mi.port,
+                 mi.xport, to_string(mi.mode).c_str(),
+                 get_hidden_info(mi).c_str());
+
+        if (mi.mode == metadata_cache::ServerMode::ReadWrite) {
+          // If we were running with a primary or secondary node gone
+          // missing before (in so-called "emergency mode"), we trust that
+          // the update fixed the problem. This is wrong behavior that
+          // should be fixed, see notes [05] and [06] in Notes section of
+          // Metadata Cache module in Doxygen.
+          has_unreachable_nodes = false;
+        }
+      }
+    }
+
+    on_instances_changed(/*md_servers_reachable=*/true, cluster_data_.members,
+                         cluster_topology.metadata_servers, view_id);
+    // never let the list that we iterate over become empty as we would
+    // not recover from that
+    if (!cluster_topology.metadata_servers.empty()) {
+      metadata_servers_ = std::move(cluster_topology.metadata_servers);
+    }
+  } else if (trigger_acceptor_update_on_next_refresh_) {
+    // Instances information has not changed, but we failed to start
+    // listening on incoming sockets, therefore we must retry on next
+    // metadata refresh.
+    on_handle_sockets_acceptors();
+  }
+
+  on_refresh_succeeded(metadata_servers_[metadata_server_id]);
   return true;
 }

@@ -194,9 +194,11 @@ class DestMetadataCacheGroup final
   void subscribe_for_metadata_cache_changes();
   void subscribe_for_acceptor_handler();
 
-  void notify_instances_changed(const metadata_cache::LookupResult &instances,
-                                const bool md_servers_reachable,
-                                const unsigned /*view_id*/) noexcept override;
+  void notify_instances_changed(
+      const metadata_cache::LookupResult &instances,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
+      const bool md_servers_reachable,
+      const unsigned /*view_id*/) noexcept override;
 
   bool update_socket_acceptor_state(
       const metadata_cache::LookupResult &instances) noexcept override;

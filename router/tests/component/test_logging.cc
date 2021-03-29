@@ -2103,7 +2103,7 @@ TEST_F(MetadataCacheLoggingTest,
   // '127.0.0.1' (111) (2003)
   auto info_matcher = [&](const std::string &line) -> bool {
     return line.find("metadata_cache WARNING") != line.npos &&
-           line.find("Failed connecting with Metadata Server 127.0.0.1:" +
+           line.find("Failed connecting with Metadata Server localhost:" +
                      std::to_string(cluster_nodes_ports[0])) != line.npos;
   };
 

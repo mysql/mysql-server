@@ -77,21 +77,6 @@ void *MetadataCache::run_thread(void *context) {
   return nullptr;
 }
 
-// finds first rw instance in the instances vector,
-// if not found returns false
-static bool find_rw_instance(
-    const std::vector<metadata_cache::ManagedInstance> &instances,
-    const metadata_cache::ManagedInstance **res_instance) {
-  for (auto &instance : instances) {
-    if (instance.mode == metadata_cache::ServerMode::ReadWrite) {
-      *res_instance = &instance;
-      return true;
-    }
-  }
-
-  return false;
-}
-
 void MetadataCache::refresh_thread() {
   mysql_harness::rename_thread("MDC Refresh");
   log_info("Starting metadata cache refresh thread");
@@ -131,20 +116,7 @@ void MetadataCache::refresh_thread() {
       }
       // we want to update the router version in the routers table once
       // when we start
-      if (!version_updated_) {
-        const auto &instances = cluster_data_.members;
-        const metadata_cache::ManagedInstance *rw_instance;
-        if (find_rw_instance(instances, &rw_instance)) {
-          try {
-            meta_data_->update_router_version(*rw_instance, router_id_);
-            version_updated_ = true;
-          } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
-          } catch (...) {
-            // we only attempt it once, if it fails we will not try again
-            version_updated_ = true;
-          }
-        }
-      }
+      update_router_version();
 
       if (auth_cache_force_update) {
         update_auth_cache();
@@ -152,19 +124,7 @@ void MetadataCache::refresh_thread() {
       }
 
       // we want to update the router.last_check_in every 10 ttl queries
-      if (last_check_in_updated_ % 10 == 0) {
-        last_check_in_updated_ = 0;
-        const auto &instances = cluster_data_.members;
-        const metadata_cache::ManagedInstance *rw_instance;
-        if (find_rw_instance(instances, &rw_instance)) {
-          try {
-            meta_data_->update_router_last_check_in(*rw_instance, router_id_);
-          } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
-          } catch (...) {
-          }
-        }
-      }
-      ++last_check_in_updated_;
+      update_router_last_check_in();
     }
 
     auto ttl_left = ttl_;
@@ -253,7 +213,7 @@ void MetadataCache::stop() noexcept {
  *
  * TODO: this is not needed, get rid of this API
  */
-MetadataCache::metadata_servers_list_t MetadataCache::get_cluster_nodes() {
+metadata_cache::cluster_nodes_list_t MetadataCache::get_cluster_nodes() {
   std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
   return cluster_data_.members;
 }
@@ -277,7 +237,7 @@ metadata_cache::ManagedInstance::ManagedInstance(
       xport(p_xport) {}
 
 metadata_cache::ManagedInstance::ManagedInstance(const TCPAddress &addr) {
-  host = addr.address() == "localhost" ? "127.0.0.1" : addr.address();
+  host = addr.address();
   port = addr.port();
 }
 
@@ -334,7 +294,8 @@ std::string get_hidden_info(const metadata_cache::ManagedInstance &instance) {
   return result;
 }
 
-void MetadataCache::on_refresh_failed(bool terminated) {
+void MetadataCache::on_refresh_failed(bool terminated,
+                                      bool md_servers_reachable) {
   stats_([](auto &stats) {
     stats.refresh_failed++;
     stats.last_refresh_failed = std::chrono::system_clock::now();
@@ -355,39 +316,42 @@ void MetadataCache::on_refresh_failed(bool terminated) {
     }
     if (clearing) {
       log_info("... cleared current routing table as a precaution");
-      on_instances_changed(/*md_servers_reachable=*/false);
+      on_instances_changed(md_servers_reachable, {}, {});
     }
   }
 }
 
 void MetadataCache::on_refresh_succeeded(
-    const metadata_cache::ManagedInstance &metadata_server) {
+    const metadata_cache::metadata_server_t &metadata_server) {
   stats_([&metadata_server](auto &stats) {
     stats.last_refresh_succeeded = std::chrono::system_clock::now();
-    stats.last_metadata_server_host = metadata_server.host;
-    stats.last_metadata_server_port = metadata_server.port;
+    stats.last_metadata_server_host = metadata_server.address();
+    stats.last_metadata_server_port = metadata_server.port();
     stats.refresh_succeeded++;
   });
 }
 
-void MetadataCache::on_instances_changed(const bool md_servers_reachable,
-                                         unsigned view_id) {
+void MetadataCache::on_instances_changed(
+    const bool md_servers_reachable,
+    const metadata_cache::cluster_nodes_list_t &cluster_nodes,
+    const metadata_cache::metadata_servers_list_t &metadata_servers,
+    unsigned view_id) {
   // Socket acceptors state will be updated when processing new instances
   // information.
   trigger_acceptor_update_on_next_refresh_ = false;
 
-  auto instances = get_cluster_nodes();
   {
     std::lock_guard<std::mutex> lock(cluster_instances_change_callbacks_mtx_);
 
-    for (auto &each : state_listeners_) {
-      each->notify_instances_changed(instances, md_servers_reachable, view_id);
+    for (auto each : state_listeners_) {
+      each->notify_instances_changed(cluster_nodes, metadata_servers,
+                                     md_servers_reachable, view_id);
     }
   }
 
   if (use_cluster_notifications_) {
     meta_data_->setup_notifications_listener(
-        instances, [this]() { on_refresh_requested(); });
+        cluster_nodes, [this]() { on_refresh_requested(); });
   }
 }
 
@@ -601,7 +565,7 @@ bool MetadataCache::update_auth_cache() {
     try {
       rest_auth_([this](auto &rest_auth) {
         rest_auth.rest_auth_data_ = meta_data_->fetch_auth_credentials(
-            target_cluster_, cluster_type_specific_id());
+            target_cluster_, this->cluster_type_specific_id());
         rest_auth.last_credentials_update_ = std::chrono::system_clock::now();
       });
       return true;
@@ -611,4 +575,43 @@ bool MetadataCache::update_auth_cache() {
     }
   }
   return false;
+}
+
+void MetadataCache::update_router_version() {
+  if (!version_updated_) {
+    if (cluster_data_.writable_server) {
+      const auto &rw_server = cluster_data_.writable_server.value();
+      try {
+        meta_data_->update_router_version(rw_server, router_id_);
+        version_updated_ = true;
+      } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+      } catch (...) {
+        // we only attempt it once, if it fails we will not try again
+        version_updated_ = true;
+      }
+      log_debug(
+          "Successfully updated the Router version in the metadata using "
+          "instance %s",
+          rw_server.str().c_str());
+    } else {
+      log_debug(
+          "Did not find writable instance to update the Router version in "
+          "the metadata.");
+    }
+  }
+}
+
+void MetadataCache::update_router_last_check_in() {
+  if (last_check_in_updated_ % 10 == 0) {
+    last_check_in_updated_ = 0;
+    if (cluster_data_.writable_server) {
+      const auto &rw_server = cluster_data_.writable_server.value();
+      try {
+        meta_data_->update_router_last_check_in(rw_server, router_id_);
+      } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
+      } catch (...) {
+      }
+    }
+  }
+  ++last_check_in_updated_;
 }

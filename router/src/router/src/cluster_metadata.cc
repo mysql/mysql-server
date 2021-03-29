@@ -619,9 +619,7 @@ static uint64_t query_gr_cluster_count(MySQLSession *mysql,
           "expected 1 got " +
           std::to_string(result->size()));
     }
-    const bool has_one_cluster = strtoi_checked((*result)[0]) == 1;
-
-    return has_one_cluster;
+    return strtoui_checked((*result)[0]);
   }
   throw std::logic_error("No result returned for metadata query");
 }
@@ -672,10 +670,10 @@ static ClusterInfo query_metadata_servers(MySQLSession *mysql,
   try {
     mysql->query(
         query, [&result](const std::vector<const char *> &row) -> bool {
-          if (result.metadata_cluster_id == "") {
-            result.metadata_cluster_id = get_string(row[0]);
-            result.metadata_cluster_name = get_string(row[1]);
-          } else if (result.metadata_cluster_id != get_string(row[0])) {
+          if (result.cluster_id == "") {
+            result.cluster_id = get_string(row[0]);
+            result.name = get_string(row[1]);
+          } else if (result.cluster_id != get_string(row[0])) {
             // metadata with more than 1 cluster not currently supported
             throw std::runtime_error("Metadata contains more than one cluster");
           }
@@ -687,7 +685,7 @@ static ClusterInfo query_metadata_servers(MySQLSession *mysql,
     throw std::runtime_error(std::string("Error querying metadata: ") +
                              e.what());
   }
-  if (result.metadata_cluster_name.empty())
+  if (result.name.empty())
     throw std::runtime_error("No clusters defined in metadata server");
 
   return result;
@@ -773,7 +771,7 @@ uint64_t ClusterMetadataAR::query_cluster_count() {
           "expected 1 got " +
           std::to_string(result->size()));
     }
-    return strtoi_checked((*result)[0]);
+    return strtoui_checked((*result)[0]);
   }
   throw std::logic_error("No result returned for metadata query");
 }
@@ -790,9 +788,8 @@ std::string ClusterMetadataAR::get_cluster_type_specific_id() {
   if (result) {
     if (result->size() != 1) {
       throw std::out_of_range(
-          "Invalid number of values returned from "
-          "@@group_replication_group_name "
-          "expected 1 got " +
+          "Invalid number of values returned from cluster_id query expected 1 "
+          "got " +
           std::to_string(result->size()));
     }
     return std::string((*result)[0]);

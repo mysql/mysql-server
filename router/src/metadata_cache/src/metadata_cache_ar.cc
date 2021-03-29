@@ -30,27 +30,34 @@ IMPORT_LOG_FUNCTIONS()
 
 bool ARMetadataCache::refresh() {
   bool changed{false};
-  bool fetched{false};
   unsigned view_id{0};
 
   size_t metadata_server_id;
-  auto cluster_data_temp = meta_data_->fetch_instances(
-      metadata_servers_, cluster_type_specific_id_, metadata_server_id);
+  const auto res = meta_data_->fetch_cluster_topology(
+      terminated_, target_cluster_, router_id_, metadata_servers_,
+      cluster_type_specific_id_, metadata_server_id);
+
+  if (!res) {
+    const bool md_servers_reachable =
+        res.error() !=
+            metadata_cache::metadata_errc::no_metadata_server_reached &&
+        res.error() !=
+            metadata_cache::metadata_errc::no_metadata_read_successful;
+
+    on_refresh_failed(terminated_, md_servers_reachable);
+    return false;
+  }
+
+  const auto cluster_topology = res.value();
 
   {
     // Ensure that the refresh does not result in an inconsistency during the
     // lookup.
     std::lock_guard<std::mutex> lock(cache_refreshing_mutex_);
-    fetched = !cluster_data_temp.empty();
-    if (fetched && (cluster_data_ != cluster_data_temp)) {
-      cluster_data_ = cluster_data_temp;
+    if (cluster_data_ != cluster_topology.cluster_data) {
+      cluster_data_ = cluster_topology.cluster_data;
       changed = true;
     }
-  }
-
-  if (!fetched) {
-    on_refresh_failed(/*broke_loop=*/false);
-    return false;
   }
 
   if (changed) {
@@ -75,14 +82,15 @@ bool ARMetadataCache::refresh() {
       }
     }
 
-    on_instances_changed(/*md_servers_reachable=*/true, view_id);
+    on_instances_changed(/*md_servers_reachable=*/true, cluster_data_.members,
+                         cluster_topology.metadata_servers, view_id);
 
-    auto metadata_servers_tmp = get_cluster_nodes();
+    on_refresh_succeeded(metadata_servers_[metadata_server_id]);
+
     // never let the list that we iterate over become empty as we would
     // not recover from that
-    on_refresh_succeeded(metadata_servers_[metadata_server_id]);
-    if (!metadata_servers_tmp.empty()) {
-      metadata_servers_ = std::move(metadata_servers_tmp);
+    if (!cluster_topology.metadata_servers.empty()) {
+      metadata_servers_ = std::move(cluster_topology.metadata_servers);
     }
   } else if (trigger_acceptor_update_on_next_refresh_) {
     // Instances information has not changed, but we failed to start listening
