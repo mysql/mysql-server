@@ -139,9 +139,7 @@
 
 --echo
 --echo # Compare fresh and upgraded tables
-# TODO : Replace with --diff_files after Bug#32250735 is fixed
---error 0,1
---exec diff $tables_fresh_datadir $tables_upgraded_datadir
+--diff_files $tables_fresh_datadir $tables_upgraded_datadir
 
 --echo
 --echo # Compare fresh and upgraded columns

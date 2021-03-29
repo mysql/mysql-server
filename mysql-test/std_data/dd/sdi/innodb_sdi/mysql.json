@@ -40281,7 +40281,7 @@
         "created": NNN,
         "last_altered": NNN,
         "hidden": 1,
-        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_sample_pages=0;",
+        "options": "avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;",
         "columns": [
             {
                 "name": "source_uuid",

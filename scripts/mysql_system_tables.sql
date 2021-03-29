@@ -421,7 +421,7 @@ SET @cmd= "CREATE TABLE IF NOT EXISTS gtid_executed (
     source_uuid CHAR(36) NOT NULL COMMENT 'uuid of the source where the transaction was originally executed.',
     interval_start BIGINT NOT NULL COMMENT 'First number of interval.',
     interval_end BIGINT NOT NULL COMMENT 'Last number of interval.',
-    PRIMARY KEY(source_uuid, interval_start))";
+    PRIMARY KEY(source_uuid, interval_start)) STATS_PERSISTENT=0";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB ROW_FORMAT=DYNAMIC TABLESPACE=mysql ENCRYPTION=\'', @is_mysql_encrypted,'\''), CONCAT(@cmd, ' ENGINE= MYISAM'));
 PREPARE stmt FROM @str;

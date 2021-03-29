@@ -50,10 +50,6 @@ include/filter_file.inc
 ########################################################################
 
 # Compare fresh and upgraded tables
-20c20
-< #	#	gtid_executed	BASE TABLE	InnoDB	#	Dynamic	255		Visible	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
----
-> #	#	gtid_executed	BASE TABLE	InnoDB	#	Dynamic	255		Visible	avg_row_length=0;encrypt_type=N;explicit_tablespace=1;key_block_size=0;keys_disabled=0;pack_record=1;row_type=2;stats_auto_recalc=0;stats_persistent=0;stats_sample_pages=0;	#	#	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	#	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	#	NULL	NULL
 
 # Compare fresh and upgraded columns
 
