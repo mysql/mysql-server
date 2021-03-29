@@ -1,3 +1,6 @@
+# This test need to run with TZ=MET/CET, skip if not available
+--source include/have_met_timezone.inc
+
 # Bug 32173664 - INSERT WRONG TIMESTAMPS USING EXPLICIT TIME ZONE
 # OFFSET IN TIME_ZONE WITH DST
 
@@ -5,7 +8,6 @@ CREATE TABLE ts (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
                  ts TIMESTAMP);
 
 SELECT @@GLOBAL.TIME_ZONE;
-SELECT @@GLOBAL.SYSTEM_TIME_ZONE;
 
 --echo
 --echo Insert timestamps covering skip hour at the start of DST for CET
@@ -41,8 +43,10 @@ INSERT INTO ts(ts) VALUES
 
 --echo Time difference between 2 consecutive rows should be 1200(20 min)
 CREATE TABLE diffs (i INT, CONSTRAINT i CHECK (1200 = i) ENFORCED);
+--skip_if_hypergraph #hypergraph does not support window functions yet
 INSERT INTO diffs (SELECT unix_timestamp(ts) - LAG(unix_timestamp(ts))
                    OVER(ORDER BY id) AS diff FROM ts ORDER BY id);
+--skip_if_hypergraph
 SELECT COUNT(*) FROM diffs;
 DROP TABLE diffs;
 
