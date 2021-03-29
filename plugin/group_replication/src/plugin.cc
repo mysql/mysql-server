@@ -3836,7 +3836,7 @@ static MYSQL_SYSVAR_STR(
     force_members,        /* name */
     ov.force_members_var, /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_MEMALLOC |
-        PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var | malloc string*/
+        PLUGIN_VAR_NOPERSIST, /* optional var | malloc string*/
     "The list of members, comma separated. E.g., host1:port1,host2:port2. "
     "This option is used to force a new group membership, on which the "
     "excluded "
