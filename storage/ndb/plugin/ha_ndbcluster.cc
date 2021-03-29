@@ -1132,8 +1132,9 @@ static inline int execute_no_commit_ie(Thd_ndb *thd_ndb,
 
   trans->releaseCompletedOpsAndQueries();
 
-  int res = trans->execute(NdbTransaction::NoCommit,
-                           NdbOperation::AO_IgnoreError, thd_ndb->m_force_send);
+  const int res =
+      trans->execute(NdbTransaction::NoCommit, NdbOperation::AO_IgnoreError,
+                     thd_ndb->m_force_send);
   thd_ndb->m_unsent_bytes = 0;
   thd_ndb->m_execute_count++;
   thd_ndb->m_unsent_blob_ops = false;
@@ -2806,23 +2807,6 @@ bool ha_ndbcluster::primary_key_is_clustered() const {
           idx_type == UNIQUE_ORDERED_INDEX || idx_type == ORDERED_INDEX);
 }
 
-bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno) {
-  KEY *key_info = table->key_info + keyno;
-  KEY_PART_INFO *key_part = key_info->key_part;
-  KEY_PART_INFO *end = key_part + key_info->user_defined_key_parts;
-  uint i;
-  DBUG_TRACE;
-
-  for (i = 0; key_part != end; key_part++, i++) {
-    Field *field = key_part->field;
-    if (!bitmap_is_set(table->write_set, field->field_index())) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
 /**
   Read one record from NDB using primary key.
 */
@@ -2957,58 +2941,107 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd, const uchar *old_data,
   return 0;
 }
 
-/**
-  Check that all operations between first and last all
-  have gotten the errcode
-  If checking for HA_ERR_KEY_NOT_FOUND then update m_dupkey
-  for all succeeding operations
-*/
-bool ha_ndbcluster::check_all_operations_for_error(NdbTransaction *trans,
-                                                   const NdbOperation *first,
-                                                   const NdbOperation *last,
-                                                   uint errcode) {
-  const NdbOperation *op = first;
+bool ha_ndbcluster::peek_index_rows_check_index_fields_in_write_set(
+    const KEY *key_info) const {
   DBUG_TRACE;
 
-  while (op) {
-    NdbError err = op->getNdbError();
-    if (err.status != NdbError::Success) {
-      if (ndb_to_mysql_error(&err) != (int)errcode) return false;
-      if (op == last) break;
-      op = trans->getNextCompletedOperation(op);
-    } else {
-      // We found a duplicate
-      if (op->getType() == NdbOperation::UniqueIndexAccess) {
-        if (errcode == HA_ERR_KEY_NOT_FOUND) {
-          const NdbIndexOperation *iop =
-              down_cast<const NdbIndexOperation *>(op);
-          const NdbDictionary::Index *index = iop->getIndex();
-          // Find the key_no of the index
-          for (uint i = 0; i < table->s->keys; i++) {
-            if (m_index[i].unique_index == index) {
-              m_dupkey = i;
-              break;
-            }
-          }
-        }
-      } else {
-        // Must have been primary key access
-        assert(op->getType() == NdbOperation::PrimaryKeyAccess);
-        if (errcode == HA_ERR_KEY_NOT_FOUND) m_dupkey = table->s->primary_key;
-      }
+  KEY_PART_INFO *key_part = key_info->key_part;
+  const KEY_PART_INFO *const end = key_part + key_info->user_defined_key_parts;
+
+  for (; key_part != end; key_part++) {
+    Field *field = key_part->field;
+    if (!bitmap_is_set(table->write_set, field->field_index())) {
       return false;
     }
   }
+
   return true;
 }
 
 /**
- * Check if record contains any null valued columns that are part of a key
+  Check if any operation used for the speculative "peek index rows" read has
+  succeeded. Finding a successful read indicates that a conflicting key already
+  exists and thus the peek has failed.
+
+  @param trans   The transaction owning the operations to check
+  @param first   First operation to check
+  @param last    Last operation to check (may point to same operation as first)
+
+  @note Function requires that at least one read operation has been defined in
+        transactions.
+
+  @return true peek succeeded, no duplicate rows was found
+  @return false peek failed, at least one duplicate row was found. The number of
+          the index where it was a duplicate key is available in m_dupkey.
+
  */
-static int check_null_in_record(const KEY *key_info, const uchar *record) {
-  KEY_PART_INFO *curr_part, *end_part;
-  curr_part = key_info->key_part;
-  end_part = curr_part + key_info->user_defined_key_parts;
+bool ha_ndbcluster::peek_index_rows_check_ops(NdbTransaction *trans,
+                                              const NdbOperation *first,
+                                              const NdbOperation *last) {
+  DBUG_TRACE;
+  ndbcluster::ndbrequire(first != nullptr);
+  ndbcluster::ndbrequire(last != nullptr);
+
+  const NdbOperation *op = first;
+  while (op) {
+    const NdbError err = op->getNdbError();
+    if (err.status == NdbError::Success) {
+      // One "peek index rows" read has succeeded, this means there is a
+      // duplicate entry in the primary or unique index. Assign the number of
+      // that index to m_dupkey and return error.
+
+      switch (op->getType()) {
+        case NdbOperation::PrimaryKeyAccess:
+          m_dupkey = table_share->primary_key;
+          break;
+
+        case NdbOperation::UniqueIndexAccess: {
+          const NdbIndexOperation *iop =
+              down_cast<const NdbIndexOperation *>(op);
+          const NdbDictionary::Index *index = iop->getIndex();
+          // Find the number of the index
+          for (uint i = 0; i < table_share->keys; i++) {
+            if (m_index[i].unique_index == index) {
+              m_dupkey = i;
+              break;  // for
+            }
+          }
+          break;
+        }
+
+        default:
+          // Internal error, since only primary and unique indexes are peeked
+          // there should never be any other type of operation in the
+          // transaction
+          ndbcluster::ndbrequire(false);
+          break;
+      }
+      DBUG_PRINT("info", ("m_dupkey: %u", m_dupkey));
+      return false;  // Found duplicate key
+    }
+
+    // Check that this "peek index rows" read has failed because the row could
+    // not be found, otherwise the caller should report this as a NDB error
+    if (err.mysql_code != HA_ERR_KEY_NOT_FOUND) {
+      return false;  // Some unexpected error occurred while reading from NDB
+    }
+
+    if (op == last) {
+      break;
+    }
+
+    op = trans->getNextCompletedOperation(op);
+  }
+
+  return true;  // No duplicates keys found
+}
+
+// Check if record contains any null valued columns that are part of a key
+static int peek_index_rows_check_null_in_record(const KEY *key_info,
+                                                const uchar *record) {
+  const KEY_PART_INFO *curr_part = key_info->key_part;
+  const KEY_PART_INFO *const end_part =
+      curr_part + key_info->user_defined_key_parts;
 
   while (curr_part != end_part) {
     if (curr_part->null_bit &&
@@ -3017,12 +3050,6 @@ static int check_null_in_record(const KEY *key_info, const uchar *record) {
     curr_part++;
   }
   return 0;
-  /*
-    We could instead pre-compute a bitmask in table_share with one bit for
-    every null-bit in the key, and so check this just by OR'ing the bitmask
-    with the null bitmap in the record.
-    But not sure it's worth it.
-  */
 }
 
 /* Empty mask and dummy row, for reading no attributes using NdbRecord. */
@@ -3037,96 +3064,106 @@ static char dummy_row[1];
 
 int ha_ndbcluster::peek_indexed_rows(const uchar *record,
                                      NDB_WRITE_OP write_op) {
-  NdbTransaction *trans;
-  const NdbOperation *op;
-  const NdbOperation *first, *last;
-  NdbOperation::OperationOptions options;
-  NdbOperation::OperationOptions *poptions = NULL;
-  options.optionsPresent = 0;
-  uint i;
-  int error;
   DBUG_TRACE;
+
+  int error;
+  NdbTransaction *trans;
   if (unlikely(!(trans = get_transaction(error)))) {
     return error;
   }
   const NdbOperation::LockMode lm = get_ndb_lock_mode(m_lock.type);
-  first = NULL;
-  if (write_op != NDB_UPDATE && table->s->primary_key != MAX_KEY) {
-    /*
-     * Fetch any row with colliding primary key
-     */
+
+  const NdbOperation *first = nullptr;
+  const NdbOperation *last = nullptr;
+  if (write_op != NDB_UPDATE && table_share->primary_key != MAX_KEY) {
+    // Define speculative read of row with colliding primary key
     const NdbRecord *key_rec =
         m_index[table->s->primary_key].ndb_unique_record_row;
 
+    NdbOperation::OperationOptions options;
+    NdbOperation::OperationOptions *poptions = NULL;
+    options.optionsPresent = 0;
+
     if (m_user_defined_partitioning) {
       uint32 part_id;
-      int error;
       longlong func_value;
       my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->read_set);
-      error = m_part_info->get_partition_id(m_part_info, &part_id, &func_value);
+      const int part_id_error =
+          m_part_info->get_partition_id(m_part_info, &part_id, &func_value);
       dbug_tmp_restore_column_map(table->read_set, old_map);
-      if (error) {
+      if (part_id_error) {
         m_part_info->err_value = func_value;
-        return error;
+        return part_id_error;
       }
       options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
       options.partitionId = part_id;
       poptions = &options;
     }
 
-    if (!(op = trans->readTuple(key_rec, (const char *)record, m_ndb_record,
-                                dummy_row, lm, empty_mask, poptions,
-                                sizeof(NdbOperation::OperationOptions))))
+    const NdbOperation *const op = trans->readTuple(
+        key_rec, (const char *)record, m_ndb_record, dummy_row, lm, empty_mask,
+        poptions, sizeof(NdbOperation::OperationOptions));
+    if (op == nullptr) {
       ERR_RETURN(trans->getNdbError());
+    }
 
     first = op;
+    last = op;
   }
-  /*
-   * Fetch any rows with colliding unique indexes
-   */
-  KEY *key_info;
-  for (i = 0, key_info = table->key_info; i < table->s->keys; i++, key_info++) {
-    if (i != table_share->primary_key && key_info->flags & HA_NOSAME &&
+
+  // Define speculative read of colliding row(s) in unique indexes
+  const KEY *key_info = table->key_info;
+  for (uint i = 0; i < table_share->keys; i++, key_info++) {
+    if (i == table_share->primary_key) {
+      DBUG_PRINT("info", ("skip primary key"));
+      continue;
+    }
+
+    if (key_info->flags & HA_NOSAME &&
         bitmap_is_overlapping(table->write_set, m_key_fields[i])) {
+      // Unique index being written
+
       /*
-        A unique index is defined on table and it's being updated
-        We cannot look up a NULL field value in a unique index. But since
-        keys with NULLs are not indexed, such rows cannot conflict anyway, so
-        we just skip the index in this case.
+        It's not possible to lookup a NULL field value in a unique index. But
+        since keys with NULLs are not indexed, such rows cannot conflict anyway
+        -> just skip checking the index in that case.
       */
-      if (check_null_in_record(key_info, record)) {
+      if (peek_index_rows_check_null_in_record(key_info, record)) {
         DBUG_PRINT("info", ("skipping check for key with NULL"));
         continue;
       }
-      if (write_op != NDB_INSERT && !check_index_fields_in_write_set(i)) {
+
+      if (write_op != NDB_INSERT &&
+          !peek_index_rows_check_index_fields_in_write_set(key_info)) {
         DBUG_PRINT("info", ("skipping check for key %u not in write_set", i));
         continue;
       }
 
-      const NdbOperation *iop;
-      const NdbRecord *key_rec = m_index[i].ndb_unique_record_row;
-      if (!(iop = trans->readTuple(key_rec, (const char *)record, m_ndb_record,
-                                   dummy_row, lm, empty_mask)))
+      const NdbRecord *const key_rec = m_index[i].ndb_unique_record_row;
+      const NdbOperation *const iop =
+          trans->readTuple(key_rec, (const char *)record, m_ndb_record,
+                           dummy_row, lm, empty_mask);
+      if (iop == nullptr) {
         ERR_RETURN(trans->getNdbError());
+      }
 
       if (!first) first = iop;
+      last = iop;
     }
   }
-  last = trans->getLastDefinedOperation();
-  if (first) {
-    (void)execute_no_commit_ie(m_thd_ndb, trans);
-  } else {
+
+  if (first == nullptr) {
     // Table has no keys
     return HA_ERR_KEY_NOT_FOUND;
   }
+
+  (void)execute_no_commit_ie(m_thd_ndb, trans);
+
   const NdbError ndberr = trans->getNdbError();
   error = ndberr.mysql_code;
   if ((error != 0 && error != HA_ERR_KEY_NOT_FOUND) ||
-      check_all_operations_for_error(trans, first, last,
-                                     HA_ERR_KEY_NOT_FOUND)) {
+      peek_index_rows_check_ops(trans, first, last)) {
     return ndb_err(trans);
-  } else {
-    DBUG_PRINT("info", ("m_dupkey %d", m_dupkey));
   }
   return 0;
 }
@@ -4876,7 +4913,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
       start_bulk_insert will set parameters to ensure that each
       write_row is committed individually
     */
-    int peek_res = peek_indexed_rows(record, NDB_INSERT);
+    const int peek_res = peek_indexed_rows(record, NDB_INSERT);
 
     if (!peek_res) {
       error = HA_ERR_FOUND_DUPP_KEY;
@@ -5564,9 +5601,10 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   longlong func_value = 0;
   Uint32 func_value_uint32;
   bool have_pk = (table_share->primary_key != MAX_KEY);
-  bool pk_update = (!m_read_before_write_removal_possible && have_pk &&
-                    bitmap_is_overlapping(table->write_set, m_pk_bitmap_p) &&
-                    primary_key_cmp(old_data, new_data));
+  const bool pk_update =
+      (!m_read_before_write_removal_possible && have_pk &&
+       bitmap_is_overlapping(table->write_set, m_pk_bitmap_p) &&
+       primary_key_cmp(old_data, new_data));
   bool batch_allowed =
       !m_update_cannot_batch && (is_bulk_update || thd_allow_batch(thd));
   NdbOperation::SetValueSpec sets[2];
@@ -5594,8 +5632,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
    */
   if (m_ignore_dup_key && (thd->lex->sql_command == SQLCOM_UPDATE ||
                            thd->lex->sql_command == SQLCOM_UPDATE_MULTI)) {
-    const NDB_WRITE_OP write_op = (pk_update) ? NDB_PK_UPDATE : NDB_UPDATE;
-    int peek_res = peek_indexed_rows(new_data, write_op);
+    const NDB_WRITE_OP write_op = pk_update ? NDB_PK_UPDATE : NDB_UPDATE;
+    const int peek_res = peek_indexed_rows(new_data, write_op);
 
     if (!peek_res) {
       return HA_ERR_FOUND_DUPP_KEY;

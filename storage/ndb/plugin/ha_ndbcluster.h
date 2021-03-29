@@ -515,9 +515,11 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   int ndb_optimize_table(THD *thd, uint delay) const;
 
-  bool check_all_operations_for_error(NdbTransaction *trans,
-                                      const NdbOperation *first,
-                                      const NdbOperation *last, uint errcode);
+  bool peek_index_rows_check_index_fields_in_write_set(
+      const KEY *key_info) const;
+  bool peek_index_rows_check_ops(NdbTransaction *trans,
+                                 const NdbOperation *first,
+                                 const NdbOperation *last);
 
   enum NDB_WRITE_OP { NDB_INSERT = 0, NDB_UPDATE = 1, NDB_PK_UPDATE = 2 };
 
@@ -556,8 +558,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   void get_hidden_fields_scan(NdbScanOperation::ScanOptions *options,
                               NdbOperation::GetValueSpec gets[2]);
   void get_read_set(bool use_cursor, uint idx);
-
-  bool check_index_fields_in_write_set(uint keyno);
 
   int log_exclusive_read(const NdbRecord *key_rec, const uchar *key, uchar *buf,
                          Uint32 *ppartition_id);
