@@ -2722,6 +2722,9 @@ static bool secondary_engine_unload_table(THD *thd, const char *db_name,
   @param[in,out] safe_to_release_mdl  Under LOCK TABLES set of metadata locks
                                       on tables dropped which is safe to
                                       release after DROP operation.
+  @param        foreach_table_root MEM_ROOT which can be used for allocating
+                                   objects which lifetime is limited to dropping
+                                   of single table.
 
   @sa mysql_rm_table_no_locks().
 
@@ -2733,7 +2736,8 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
                             TABLE_LIST *table, bool atomic,
                             std::set<handlerton *> *post_ddl_htons,
                             Foreign_key_parents_invalidator *fk_invalidator,
-                            std::vector<MDL_ticket *> *safe_to_release_mdl) {
+                            std::vector<MDL_ticket *> *safe_to_release_mdl,
+                            MEM_ROOT *foreach_table_root) {
   char path[FN_REFLEN + 1];
 
   /* Check that we have an exclusive lock on the table to be dropped. */
@@ -2888,8 +2892,18 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
                              table->table_name, "",
                              table->internal_tmp_table ? FN_IS_TMP : 0);
 
+  /*
+    Use memory root that is freed right after table processing for allocating
+    dummy handler object for calling handler::delete_table() in order to avoid
+    gobbling up memory when lots of tables are deleted.
+  */
+  MEM_ROOT *save_thd_mem_root = thd->mem_root;
+  thd->mem_root = foreach_table_root;
+
   int error = ha_delete_table(thd, hton, path, table->db, table->table_name,
                               table_def, !drop_ctx.drop_database);
+
+  thd->mem_root = save_thd_mem_root;
 
   /*
     Table was present in data-dictionary but is missing in storage engine.
@@ -3112,6 +3126,9 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     default_db_doesnt_exist = !exists;
   }
 
+  MEM_ROOT foreach_table_root(key_memory_rm_table_foreach_table_root,
+                              MEM_ROOT_BLOCK_SIZE);
+
   if (drop_ctx.has_base_non_atomic_tables()) {
     /*
       Handle base tables in storage engines which don't support atomic DDL.
@@ -3132,7 +3149,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     */
     for (TABLE_LIST *table : drop_ctx.base_non_atomic_tables) {
       if (drop_base_table(thd, drop_ctx, table, false /* non-atomic */, nullptr,
-                          nullptr, safe_to_release_mdl))
+                          nullptr, safe_to_release_mdl, &foreach_table_root))
         goto err_with_rollback;
 
       *dropped_non_atomic_flag = true;
@@ -3220,6 +3237,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           committed earlier.
         */
       }
+      free_root(&foreach_table_root, MYF(MY_MARK_BLOCKS_FREE));
     }
   }
 
@@ -3244,9 +3262,10 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     for (TABLE_LIST *table : drop_ctx.base_atomic_tables) {
       if (drop_base_table(thd, drop_ctx, table, true /* atomic */,
                           post_ddl_htons, fk_invalidator,
-                          &safe_to_release_mdl_atomic)) {
+                          &safe_to_release_mdl_atomic, &foreach_table_root)) {
         goto err_with_rollback;
       }
+      free_root(&foreach_table_root, MYF(MY_MARK_BLOCKS_FREE));
     }
 
     DBUG_EXECUTE_IF("rm_table_no_locks_abort_after_atomic_tables", {

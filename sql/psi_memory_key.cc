@@ -128,6 +128,7 @@ PSI_memory_key key_memory_quick_index_merge_root;
 PSI_memory_key key_memory_quick_range_select_root;
 PSI_memory_key key_memory_quick_ror_intersect_select_root;
 PSI_memory_key key_memory_quick_ror_union_select_root;
+PSI_memory_key key_memory_rm_table_foreach_table_root;
 PSI_memory_key key_memory_rpl_filter;
 PSI_memory_key key_memory_rpl_slave_check_temp_dir;
 PSI_memory_key key_memory_servers;
@@ -377,7 +378,10 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_log_sink_pfs, "log_sink_pfs", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_histograms, "histograms", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_hash_join, "hash_join", 0, 0, PSI_DOCUMENT_ME}};
+    {&key_memory_hash_join, "hash_join", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_rm_table_foreach_table_root, "rm_table::foreach_table_root",
+     PSI_FLAG_THREAD, 0,
+     "Mem root for temporary objects allocated while dropping tables."}};
 
 void register_server_memory_keys() {
   const char *category = "sql";

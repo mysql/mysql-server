@@ -35,6 +35,7 @@ memory/sql/Partition::sort_buffer	Record buffer for a partition.
 memory/sql/Partition::syntax_buffer	Buffer used for formatting the partition expression.
 memory/sql/Prepared_statement::infrastructure	Map infrastructure for prepared statements per session.
 memory/sql/Prepared_statement::main_mem_root	Mem root for each prepared statement for items etc.
+memory/sql/rm_table::foreach_table_root	Mem root for temporary objects allocated while dropping tables.
 memory/sql/servers_cache	Cache infrastructure and mem root for servers cache.
 memory/sql/Shared_memory_name	Communication through shared memory (windows).
 memory/sql/sp_head::call_mem_root	Mem root for objects with same life time as stored program call.
