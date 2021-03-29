@@ -1,0 +1,18 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+####################################################################
+# 1. SET PERSIST group_replication_force_members shall fail,
+#    variable non persistable
+SET PERSIST group_replication_force_members = "";
+ERROR HY000: Variable 'group_replication_force_members' is a non persistent variable
+
+####################################################################
+# 2. SET PERSIST_ONLY group_replication_force_members shall fail,
+#    variable non persistable
+SET PERSIST_ONLY group_replication_force_members = "";
+ERROR HY000: Variable 'group_replication_force_members' is a non persistent variable
+include/group_replication_end.inc
