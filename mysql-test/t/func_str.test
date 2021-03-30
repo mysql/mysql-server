@@ -2237,3 +2237,7 @@ SELECT (SELECT 1
         WHERE CONVERT(1 USING gb18030) <> GROUP_CONCAT(x'a3')
         );
 DROP TABLE t;
+
+--echo # Bug#32694458: Assertion `thd->is_error()' failed|sql/sql_select.cc
+
+SELECT INSERT('a', 1, 1, YEAR(UNHEX('w')));

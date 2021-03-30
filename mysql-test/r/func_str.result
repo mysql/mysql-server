@@ -5341,3 +5341,9 @@ WHERE CONVERT(1 USING gb18030) <> GROUP_CONCAT(x'a3')
 );
 ERROR HY000: Cannot convert string '\xA3' from binary to gb18030
 DROP TABLE t;
+# Bug#32694458: Assertion `thd->is_error()' failed|sql/sql_select.cc
+SELECT INSERT('a', 1, 1, YEAR(UNHEX('w')));
+INSERT('a', 1, 1, YEAR(UNHEX('w')))
+NULL
+Warnings:
+Warning	1411	Incorrect string value: ''w'' for function unhex

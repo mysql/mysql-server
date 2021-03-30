@@ -189,6 +189,8 @@ bool simplify_string_args(THD *thd, const DTCollation &c, Item **args,
   // Only used during resolving
   assert(!thd->lex->is_exec_started());
 
+  if (thd->lex->is_view_context_analysis()) return false;
+
   uint i;
   Item **arg;
   for (i = 0, arg = args; i < nargs; i++, arg++) {
@@ -202,7 +204,12 @@ bool simplify_string_args(THD *thd, const DTCollation &c, Item **args,
     StringBuffer<STRING_BUFFER_USUAL_SIZE> original;
     StringBuffer<STRING_BUFFER_USUAL_SIZE> converted;
     String *ostr = (*arg)->val_str(&original);
-    if (ostr == nullptr) return true;
+    if (ostr == nullptr) {
+      if (thd->is_error()) return true;
+      *arg = new (thd->mem_root) Item_null;
+      if (*arg == nullptr) return true;
+      continue;
+    }
     uint conv_status;
     converted.copy(ostr->ptr(), ostr->length(), ostr->charset(), c.collation,
                    &conv_status);
@@ -214,8 +221,8 @@ bool simplify_string_args(THD *thd, const DTCollation &c, Item **args,
 
     char *ptr = thd->strmake(converted.ptr(), converted.length());
     if (ptr == nullptr) return true;
-    Item *conv = new Item_string(ptr, converted.length(), converted.charset(),
-                                 c.derivation);
+    Item *conv = new (thd->mem_root)
+        Item_string(ptr, converted.length(), converted.charset(), c.derivation);
     if (conv == nullptr) return true;
 
     *arg = conv;

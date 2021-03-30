@@ -6255,3 +6255,13 @@ DROP VIEW v1;
 --replace_regex /[0-9][0-9]/XX/
 call sys.create_synonym_db("INFORMATION_SCHEMA", "I_S");
 DROP DATABASE I_S;
+
+--echo # Bug#32694458: Assertion `thd->is_error()' failed|sql/sql_select.cc
+
+# No expression should be evaluated during resolving when creating a view,
+# so these commands should not cause any warnings.
+
+CREATE VIEW v AS SELECT INSERT('a', 1, 1, YEAR(UNHEX('w'))) AS c;
+SHOW CREATE VIEW v;
+SELECT * FROM v;
+DROP VIEW v;

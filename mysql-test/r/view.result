@@ -6739,3 +6739,14 @@ call sys.create_synonym_db("INFORMATION_SCHEMA", "I_S");
 summary
 Created XX views in the `I_S` database
 DROP DATABASE I_S;
+# Bug#32694458: Assertion `thd->is_error()' failed|sql/sql_select.cc
+CREATE VIEW v AS SELECT INSERT('a', 1, 1, YEAR(UNHEX('w'))) AS c;
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select insert('a',1,1,year(unhex('w'))) AS `c`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM v;
+c
+NULL
+Warnings:
+Warning	1411	Incorrect string value: ''w'' for function unhex
+DROP VIEW v;
