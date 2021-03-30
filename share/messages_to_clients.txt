@@ -9553,6 +9553,12 @@ ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_VIEW_CHANGE_UUID
 ER_GRP_RPL_VIEW_CHANGE_UUID_FAIL_GET_VARIABLE
   eng "Unable to retrieve group_replication_view_change_uuid variable during server checks on replication operations."
 
+ER_WARN_ADUIT_LOG_MAX_SIZE_AND_PRUNE_SECONDS
+  eng "Both audit_log_max_size and audit_log_prune_seconds are set to non-zero. audit_log_max_size takes precedence and audit_log_prune_seconds is ignored"
+
+ER_WARN_ADUIT_LOG_MAX_SIZE_CLOSE_TO_ROTATE_ON_SIZE
+  eng "audit_log_rotate_on_size is not granular enough for the value of audit_log_max_size supplied. Should be at least %d times smaller."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

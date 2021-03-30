@@ -673,7 +673,8 @@ void push_warning(THD *thd, uint code) {
   @param thd      Thread handle
   @param severity Severity of warning (note, warning)
   @param code     Error number
-  @param format   Error message printf format
+  @param format   Error message printf format, or nullptr to go by the error
+  code.
 */
 
 void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
@@ -684,7 +685,7 @@ void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
   DBUG_PRINT("enter", ("warning: %u", code));
 
   assert(code != 0);
-  assert(format != nullptr);
+  if (format == nullptr) format = ER_THD(thd, code);
 
   va_start(args, format);
   vsnprintf(warning, sizeof(warning), format, args);
