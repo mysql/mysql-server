@@ -3423,11 +3423,11 @@ int warn_self_signed_ca()
   return ret_val;
 }
 
-#endif /* EMBEDDED_LIBRARY */
-
 static void push_deprecated_tls_option_no_replacement(const char *tls_version) {
   sql_print_warning(ER_DEFAULT(ER_WARN_DEPRECATED_TLS_VERSION), tls_version);
 }
+
+#endif /* EMBEDDED_LIBRARY */
 
 static int init_ssl()
 {
