@@ -658,6 +658,7 @@ DROP TABLE t1;
 CREATE TABLE t1(a TINYBLOB);
 INSERT INTO t1 VALUES('aaa'),('bbb'),(''),('ccc');
 
+--skip_if_hypergraph  # Optimizes away the entire ORDER BY, leaving no error.
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 SELECT DISTINCT * FROM t1
 ORDER BY UUID_TO_BIN(

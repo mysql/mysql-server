@@ -2016,6 +2016,7 @@ INSERT INTO t2 VALUES
   (2,1), (1,3), (2,1), (4,4), (2,2), (1,4);
 
 SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2 );
+--skip_if_hypergraph   # Optimizes away the entire ORDER BY, leaving no error.
 --error ER_SUBQUERY_NO_1_ROW
 SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 1);
 SELECT a FROM t1 ORDER BY (SELECT c FROM t2 WHERE b > 2), a;
@@ -4098,8 +4099,10 @@ ORDER BY
   WHERE 1 < SOME (SELECT a1 FROM t1)
 )' ;
 
+--skip_if_hypergraph   # Optimizes away the entire ORDER BY, leaving no error.
 --error ER_SUBQUERY_NO_1_ROW
 EXECUTE stmt ;
+--skip_if_hypergraph   # Optimizes away the entire ORDER BY, leaving no error.
 --error ER_SUBQUERY_NO_1_ROW
 EXECUTE stmt ;
 

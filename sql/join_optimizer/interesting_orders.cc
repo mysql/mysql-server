@@ -502,6 +502,11 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
 /**
   Try to add FDs from items that are constant by themselves, e.g. if someone
   does ORDER BY 'x', add a new FD {} → 'x' so that the ORDER BY can be elided.
+
+  TODO(sgunders): This can potentially remove subqueries or other functions
+  that would throw errors if actually executed, potentially modifying
+  semantics. See if that is illegal, and thus, if we need to test-execute them
+  at least once somehow (ideally not during optimization).
  */
 void LogicalOrderings::AddFDsFromConstItems(THD *thd) {
   int num_original_items = m_items.size();

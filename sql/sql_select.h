@@ -1009,4 +1009,14 @@ uint actual_key_flags(const KEY *key_info);
 bool equality_determines_uniqueness(const Item_func_comparison *func,
                                     const Item *v, const Item *c);
 
+/**
+  Check whether equality between two items is exact, ie., there are no implicit
+  casts involved. This is especially important for GROUP BY/ORDER BY, as it
+  means they can be treated interchangeably. The primary difference between this
+  and equality_determines_uniqueness() is that item2 does not need to be
+  a constant (which makes it stricter in other aspects).
+ */
+bool equality_has_no_implicit_casts(const Item_func_comparison *func,
+                                    const Item *item1, const Item *item2);
+
 #endif /* SQL_SELECT_INCLUDED */

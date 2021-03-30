@@ -3670,6 +3670,32 @@ bool equality_determines_uniqueness(const Item_func_comparison *func,
            func->compare_collation() == v->collation.collation));
 }
 
+bool equality_has_no_implicit_casts(const Item_func_comparison *func,
+                                    const Item *item1, const Item *item2) {
+  // See equality_determines_uniqueness() for the logic around strings
+  // and dates.
+  if (item1->result_type() != item2->result_type()) {
+    return false;
+  }
+  if (item1->result_type() == STRING_RESULT) {
+    if (is_temporal_type(item1->data_type()) !=
+        is_temporal_type(item2->data_type())) {
+      return false;
+    }
+    if (is_string_type(item1->data_type()) !=
+        is_string_type(item2->data_type())) {
+      return false;
+    }
+    if (is_string_type(item1->data_type())) {
+      if (func->compare_collation() != item1->collation.collation ||
+          func->compare_collation() != item2->collation.collation) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 /*
   Return true if i1 and i2 (if any) are equal items,
   or if i1 is a wrapper item around the f2 field.

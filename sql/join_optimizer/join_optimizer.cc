@@ -2735,6 +2735,14 @@ static int AddFunctionalDependencyFromCondition(THD *thd, Item *condition,
     fd.always_active = always_active;
 
     return orderings->AddFunctionalDependency(thd, fd);
+  } else if (!equality_has_no_implicit_casts(eq, left, right)) {
+    // This is not a true equivalence; there is an implicit cast involved
+    // that is potentially information-losing, so ordering by one will not
+    // necessarily be the same as ordering by the other.
+    // TODO(sgunders): Revisit this when we have explicit casts for
+    // all comparisons, where we can generate potentially useful equivalences
+    // involving the casts.
+    return -1;
   } else {
     // item = item.
     FunctionalDependency fd;
