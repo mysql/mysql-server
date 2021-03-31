@@ -1969,13 +1969,18 @@ charset utf8mb4;
 CREATE TABLE t3 (a varchar(32), b char(3), UNIQUE KEY a (a,b))
 charset utf8mb4;
 INSERT INTO t3 SELECT * FROM t1;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN
 SELECT d FROM t1, t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'
 ORDER BY t2.c LIMIT 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	a,b	b	13	const	4	100.00	Using where; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ref	a,b,c	a	136	test.t1.a,const	1	78.90	Using where
+1	SIMPLE	t2	NULL	ref	a,b,c	a	136	test.t1.a,const	11	78.90	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`d` AS `d` from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`b` = 'DE') and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`b` = 14) and (5.1 < `test`.`t2`.`c`)) order by `test`.`t2`.`c` limit 1
 SELECT d FROM t1, t2

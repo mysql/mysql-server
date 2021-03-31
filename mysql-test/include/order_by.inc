@@ -1375,7 +1375,7 @@ INSERT INTO t2 (a, b, c, d) VALUES
 --enable_query_log
 
 INSERT INTO t3 SELECT * FROM t1;
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN
 SELECT d FROM t1, t2
 WHERE t2.b=14 AND t2.a=t1.a AND 5.1<t2.c AND t1.b='DE'

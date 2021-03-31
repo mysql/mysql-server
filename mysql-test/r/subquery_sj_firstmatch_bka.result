@@ -4879,6 +4879,11 @@ insert into t3_16 values
 (concat('1 - 03', repeat('x', @suffix_len)), concat('2 - 03', repeat('x', @suffix_len)));
 insert into t3_16 values
 (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
+ANALYZE TABLE t1_16, t2_16, t3_16;
+Table	Op	Msg_type	Msg_text
+test.t1_16	analyze	status	OK
+test.t2_16	analyze	status	OK
+test.t3_16	analyze	status	OK
 explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0');
@@ -4969,6 +4974,11 @@ insert into t3 values ('1 - 05', '2 - 05');
 insert into t3 values ('1 - 06', '2 - 06');
 insert into t3 values ('1 - 07', '2 - 07');
 insert into t3 values ('1 - 08', '2 - 08');
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 explain
 select * from t1
 where concat(a1,'x') IN
@@ -7152,6 +7162,11 @@ INSERT INTO works VALUES  ('E3','P2',20);
 INSERT INTO works VALUES  ('E4','P2',20);
 INSERT INTO works VALUES  ('E4','P4',40);
 INSERT INTO works VALUES  ('E4','P5',80);
+ANALYZE TABLE staff, proj, works;
+Table	Op	Msg_type	Msg_text
+test.staff	analyze	status	OK
+test.proj	analyze	status	OK
+test.works	analyze	status	OK
 explain SELECT EMPNUM, EMPNAME
 FROM staff
 WHERE EMPNUM IN
@@ -7472,6 +7487,11 @@ INSERT INTO t3 VALUES  ('E4','P2',20);
 INSERT INTO t3 VALUES  ('E4','P4',40);
 INSERT INTO t3 VALUES  ('E4','P5',80);
 CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 EXPLAIN SELECT EMPNAME
 FROM t1
 WHERE EMPNUM IN
@@ -7516,6 +7536,9 @@ Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`
 DEALLOCATE PREPARE stmt;
 DROP INDEX t1_IDX ON t1;
 CREATE INDEX t1_IDX ON t1(EMPNUM);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT EMPNAME
 FROM t1
 WHERE EMPNUM IN
@@ -7526,7 +7549,7 @@ WHERE PNUM IN
 FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; FirstMatch(t1)
 Warnings:
@@ -7542,7 +7565,7 @@ WHERE EMPNUM IN
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; FirstMatch(t1)
 Warnings:
@@ -7552,13 +7575,16 @@ This line is only in place to help --skip_if_hypergraph diffing some more.
 
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	t1_IDX	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; FirstMatch(t1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`EMPNAME` AS `EMPNAME` from `test`.`t1` semi join (`test`.`t3` join `test`.`t2`) where ((`test`.`t3`.`EMPNUM` = `test`.`t1`.`EMPNUM`) and (`test`.`t3`.`PNUM` = `test`.`t2`.`PNUM`) and (`test`.`t2`.`PTYPE` = 'Design'))
 DEALLOCATE PREPARE stmt;
 DROP INDEX t1_IDX ON t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 EXPLAIN SELECT EMPNAME
 FROM t1
 WHERE EMPNUM IN
@@ -7569,7 +7595,7 @@ WHERE PNUM IN
 FROM t2
 WHERE PTYPE = 'Design'));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; FirstMatch(t1)
 Warnings:
@@ -7585,7 +7611,7 @@ WHERE EMPNUM IN
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; FirstMatch(t1)
 Warnings:
@@ -7595,7 +7621,7 @@ This line is only in place to help --skip_if_hypergraph diffing some more.
 
 EXECUTE stmt;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
 1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	12	8.33	Using where; FirstMatch(t1)
 Warnings:
@@ -8211,6 +8237,12 @@ insert into t1 values (0,0),(1,1),(2,2);
 create table t2 as select * from t1;
 create table t3 (pk int, a int, primary key(pk));
 insert into t3 select a,a from t0;
+ANALYZE TABLE t0, t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t0	analyze	status	OK
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
 explain 
 select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra

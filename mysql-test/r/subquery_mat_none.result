@@ -676,12 +676,12 @@ a
 2
 3
 explain
-select a from t1 group by a having a in (select c from t2 where d >= 20);
+select/*+ NO_RANGE_OPTIMIZATION(t1) */ a from t1 group by a having a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	it1a	it1a	4	NULL	7	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where ((`test`.`t2`.`d` >= 20) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where ((`test`.`t2`.`d` >= 20) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 a
 2
@@ -691,12 +691,12 @@ ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain
-select a from t1 group by a having a in (select c from t2 where d >= 20);
+select /*+ NO_RANGE_OPTIMIZATION(t1) */ a from t1 group by a having a in (select c from t2 where d >= 20);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	it1a,iab	it1a	4	NULL	7	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	7	14.29	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where ((`test`.`t2`.`d` >= 20) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
+Note	1003	/* select#1 */ select /*+ NO_RANGE_OPTIMIZATION(`t1`@`select#1`) */ `test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a` having <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select `test`.`t2`.`c` from `test`.`t2` where ((`test`.`t2`.`d` >= 20) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 a
 2

@@ -2803,9 +2803,6 @@ field1	field2
 2009-12-01	cd
 2009-12-01	cd
 2009-12-01	cd
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Warnings:
 SET FOREIGN_KEY_CHECKS = 1;
 SET UNIQUE_CHECKS = 1;
 CREATE TABLE t2 SELECT table2.col_date_key AS field1,
@@ -2823,9 +2820,6 @@ table1.col_int_key < ( 226 + 227 ) )
 ) 
 )
 ;
-Warnings:
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
 SELECT * FROM t2
 WHERE (field1, field2) IN (SELECT table2.col_date_key AS field1,
 CONCAT ( table2.col_varchar_nokey, table1.col_varchar_nokey ) AS field2
@@ -2941,9 +2935,6 @@ field1	field2
 2009-12-01	cd
 2009-12-01	cd
 2009-12-01	cd
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Warning	3170	Memory capacity of 10 bytes for 'range_optimizer_max_mem_size' exceeded. Range optimization was not done for this query.
-Warnings:
 DROP TABLE t1, t2;
 #
 # BUG#12912171 - ASSERTION FAILED: QUICK->HEAD->READ_SET ==

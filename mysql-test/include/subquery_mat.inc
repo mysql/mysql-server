@@ -420,15 +420,17 @@ select a from t1 where a in (select c from t2 where d >= 20);
 
 # cacheing for IN predicates inside a having clause - here the cached
 # items are changed to point to temporary tables.
+--replace_column 10 7
 explain
-select a from t1 group by a having a in (select c from t2 where d >= 20);
+select/*+ NO_RANGE_OPTIMIZATION(t1) */ a from t1 group by a having a in (select c from t2 where d >= 20);
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 
 # create an index that can be used for the outer query GROUP BY 
 create index iab on t1(a, b);
 ANALYZE TABLE t1;
+--replace_column 10 7
 explain
-select a from t1 group by a having a in (select c from t2 where d >= 20);
+select /*+ NO_RANGE_OPTIMIZATION(t1) */ a from t1 group by a having a in (select c from t2 where d >= 20);
 select a from t1 group by a having a in (select c from t2 where d >= 20);
 
 explain

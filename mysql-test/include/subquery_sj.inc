@@ -808,6 +808,7 @@ insert into t3_16 values
  (concat('1 - 04', repeat('x', @suffix_len)), concat('2 - 04', repeat('x', @suffix_len)));
 
 # single value transformer
+ANALYZE TABLE t1_16, t2_16, t3_16;
 explain select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select b1 from t2_16 where b1 > '0');
@@ -875,7 +876,7 @@ insert into t3 values ('1 - 05', '2 - 05');
 insert into t3 values ('1 - 06', '2 - 06');
 insert into t3 values ('1 - 07', '2 - 07');
 insert into t3 values ('1 - 08', '2 - 08');
-
+ANALYZE TABLE t1, t2, t3;
 explain
 select * from t1
 where concat(a1,'x') IN
@@ -2506,7 +2507,7 @@ INSERT INTO works VALUES  ('E3','P2',20);
 INSERT INTO works VALUES  ('E4','P2',20);
 INSERT INTO works VALUES  ('E4','P4',40);
 INSERT INTO works VALUES  ('E4','P5',80);
-
+ANALYZE TABLE staff, proj, works;
 explain SELECT EMPNUM, EMPNAME
 FROM staff
 WHERE EMPNUM IN
@@ -2757,7 +2758,7 @@ INSERT INTO t3 VALUES  ('E4','P4',40);
 INSERT INTO t3 VALUES  ('E4','P5',80);
 
 CREATE UNIQUE INDEX t1_IDX ON t1(EMPNUM);
-
+ANALYZE TABLE t1, t2, t3;
 EXPLAIN SELECT EMPNAME
 FROM t1
 WHERE EMPNUM IN
@@ -2786,7 +2787,7 @@ DEALLOCATE PREPARE stmt;
 
 DROP INDEX t1_IDX ON t1;
 CREATE INDEX t1_IDX ON t1(EMPNUM);
-
+ANALYZE TABLE t1;
 EXPLAIN SELECT EMPNAME
 FROM t1
 WHERE EMPNUM IN
@@ -2814,7 +2815,7 @@ EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
 DROP INDEX t1_IDX ON t1;
-
+ANALYZE TABLE t1;
 EXPLAIN SELECT EMPNAME
 FROM t1
 WHERE EMPNUM IN
@@ -3571,7 +3572,7 @@ create table t2 as select * from t1;
 
 create table t3 (pk int, a int, primary key(pk));
 insert into t3 select a,a from t0;
-
+ANALYZE TABLE t0, t1, t2, t3;
 explain 
 select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
 

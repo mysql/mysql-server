@@ -1865,6 +1865,7 @@ WHERE ( table1.pk > 226 AND
         ) 
       )
 ;
+--disable_warnings
 SET UNIQUE_CHECKS = 0;
 SET FOREIGN_KEY_CHECKS = 0;
 sorted_result;
@@ -1877,7 +1878,7 @@ eval CREATE TABLE t2 $query;
 sorted_result;
 eval SELECT * FROM t2
      WHERE (field1, field2) IN ($query);
-
+--enable_warnings
 DROP TABLE t1, t2;
 
 --echo #
