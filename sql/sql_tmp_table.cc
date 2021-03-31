@@ -1043,7 +1043,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         continue;  // We don't have to store this
     }
 
-    if (store_column && is_sum_func && !group &&
+    if (store_column && is_sum_func && group == nullptr &&
         !save_sum_fields) { /* Can't calc group yet */
       Item_sum *sum_item = down_cast<Item_sum *>(item);
       for (uint i = 0; i < sum_item->argument_count(); i++) {
@@ -1052,7 +1052,7 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         if (!arg->const_item()) {
           Field *new_field = create_tmp_field(
               thd, table, arg, arg->type(), param->items_to_copy,
-              &from_field[fieldnr], &default_field[fieldnr], group != nullptr,
+              &from_field[fieldnr], &default_field[fieldnr], /*group=*/false,
               not_all_columns, false, false, false);
           from_item[fieldnr] = arg;
           if (new_field == nullptr) return nullptr;  // Should be OOM

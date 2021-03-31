@@ -3338,7 +3338,10 @@ Temp_table_param *GetMaterialization(AccessPath *path) {
   in particular, we do not yet handle these rewrites (although they would
   very likely be possible):
 
-    - Group elements for aggregations (GROUP BY).
+    - Group elements for aggregations (GROUP BY). Do note that
+      create_tmp_table() will replace elements within aggregate functions
+      if you set save_sum_funcs=false; you may also want to supplant
+      this mechanism.
     - Filters (e.g. WHERE predicates); do note that partial pushdown may
       present its own challenges.
     - Join conditions.
