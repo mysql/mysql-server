@@ -1640,7 +1640,7 @@ BackupFile::~BackupFile()
   int r = 0;
   if (m_xfile.is_open())
   {
-    r = m_xfile.close();
+    r = m_xfile.close(false);
   }
 
   if (m_file.close() == -1)
@@ -1725,7 +1725,7 @@ BackupFile::openFile(){
 
   if (r != -1)
   {
-    m_xfile.close();
+    m_xfile.close(false);
   }
   m_file.close();
   return false;

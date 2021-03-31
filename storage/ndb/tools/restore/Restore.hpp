@@ -33,7 +33,7 @@
 #include <NdbOut.hpp>
 #include "../src/kernel/blocks/backup/BackupFormat.hpp"
 #include <NdbApi.hpp>
-#include "util/ndbxfrm_readfile.h"
+#include "util/ndbxfrm_file.h"
 #include "portlib/ndb_file.h"
 #include <util/UtilBuffer.hpp>
 
@@ -400,7 +400,7 @@ class RestoreLogIterator;
 class BackupFile {
 protected:
   ndb_file m_file;
-  ndbxfrm_readfile m_xfile;
+  ndbxfrm_file m_xfile;
 
   char m_path[PATH_MAX];
   char m_fileName[PATH_MAX];
@@ -482,7 +482,7 @@ public:
    * parameter is used to get current position in compressed state.This
    * parameter also works when compressed backup is disabled.
    */
-  Uint64 get_file_pos() const { return 0; } // { return m_xfrm.get_backing_pos(); }
+  Uint64 get_file_pos() const { return m_xfile.get_file_pos(); }
 #ifdef ERROR_INSERT
   void error_insert(unsigned int code); 
 #endif

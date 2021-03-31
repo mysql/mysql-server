@@ -36,7 +36,7 @@
 #include "kernel/signaldata/FsOpenReq.hpp"
 #include "portlib/ndb_file.h"
 #include "util/ndbxfrm_iterator.h"
-#include "util/ndbxfrm_readfile.h"
+#include "util/ndbxfrm_file.h"
 #include "util/ndb_openssl_evp.h"
 #include "util/ndb_opts.h"
 
@@ -127,29 +127,29 @@ static const char* load_defaults_groups[] = { "ndb_print_backup_file",
 
 static const Uint32 MaxReadWords = 32768;
 
-bool readHeader(ndbxfrm_readfile*, BackupFormat::FileHeader *);
-bool readFragHeader(ndbxfrm_readfile*,
+bool readHeader(ndbxfrm_file*, BackupFormat::FileHeader *);
+bool readFragHeader(ndbxfrm_file*,
                     BackupFormat::DataFile::FragmentHeader *);
-bool readFragFooter(ndbxfrm_readfile*,
+bool readFragFooter(ndbxfrm_file*,
                     BackupFormat::DataFile::FragmentFooter *);
-Int32 readRecord(ndbxfrm_readfile*, Uint32 **, Uint32*, bool print);
+Int32 readRecord(ndbxfrm_file*, Uint32 **, Uint32*, bool print);
 
 NdbOut & operator<<(NdbOut&, const BackupFormat::FileHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentHeader &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::DataFile::FragmentFooter &); 
 
-bool readLCPCtlFile(ndbxfrm_readfile* f, BackupFormat::LCPCtlFile *ret);
-bool readTableList(ndbxfrm_readfile*, BackupFormat::CtlFile::TableList **);
-bool readTableDesc(ndbxfrm_readfile*,
+bool readLCPCtlFile(ndbxfrm_file* f, BackupFormat::LCPCtlFile *ret);
+bool readTableList(ndbxfrm_file*, BackupFormat::CtlFile::TableList **);
+bool readTableDesc(ndbxfrm_file*,
                    BackupFormat::CtlFile::TableDescription **);
-bool readGCPEntry(ndbxfrm_readfile*, BackupFormat::CtlFile::GCPEntry **);
+bool readGCPEntry(ndbxfrm_file*, BackupFormat::CtlFile::GCPEntry **);
 
 NdbOut & operator<<(NdbOut&, const BackupFormat::LCPCtlFile &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableList &); 
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::TableDescription &);
 NdbOut & operator<<(NdbOut&, const BackupFormat::CtlFile::GCPEntry &); 
 
-Int32 readLogEntry(ndbxfrm_readfile*,
+Int32 readLogEntry(ndbxfrm_file*,
                    Uint32**,
                    Uint32 file_type,
                    Uint32 version);
@@ -507,7 +507,7 @@ void handle_print_restored_rows()
 
   char buf[255];
   ndb_file file;
-  ndbxfrm_readfile fo;
+  ndbxfrm_file fo;
 
   BaseString::snprintf(buf, sizeof(buf),
                        "%u/T%uF%u.ctl",
@@ -527,7 +527,7 @@ void handle_print_restored_rows()
     ndbout_c("Failed to open ctl file '%s', error: %d", buf, r);
     ndb_end_and_exit(1);
   }
-  ndbxfrm_readfile* f = &fo;
+  ndbxfrm_file* f = &fo;
   BackupFormat::FileHeader fileHeader;
   if (!readHeader(f, &fileHeader))
   {
@@ -550,7 +550,7 @@ void handle_print_restored_rows()
     ndbout << "Invalid LCP Control file!" << endl;
     ndb_end_and_exit(1);
   }
-  fo.close();
+  fo.close(false);
   file.close();
 
   /**
@@ -748,7 +748,7 @@ void handle_print_restored_rows()
         }
       }
     }
-    fo.close();
+    fo.close(false);
     file.close();
     ndbout_c("Number of all rows currently are: %u", all_rows_count);
   }
@@ -814,7 +814,7 @@ main(int argc, char * argv[])
 
   const char *file_name = argv[0];
   ndb_file file;
-  ndbxfrm_readfile fo;
+  ndbxfrm_file fo;
 
   int r = file.open(file_name, FsOpenReq::OM_READONLY);
   r = fo.open(file,
@@ -829,7 +829,7 @@ main(int argc, char * argv[])
     ndb_end_and_exit(1);
   }
 
-  ndbxfrm_readfile* f = &fo;
+  ndbxfrm_file* f = &fo;
 
   BackupFormat::FileHeader fileHeader;
   if(!readHeader(f, &fileHeader)){
@@ -1016,7 +1016,7 @@ main(int argc, char * argv[])
 	   << fileHeader.FileType << endl;
     break;
   }
-  fo.close();
+  fo.close(false);
   file.close();
   ndb_end_and_exit(0);
 }
@@ -1041,7 +1041,7 @@ static inline Uint32 Twiddle32(Uint32 x)
 static
 inline
 size_t
-aread(void * buf, size_t sz, size_t n, ndbxfrm_readfile* f)
+aread(void * buf, size_t sz, size_t n, ndbxfrm_file* f)
 {
   byte* byte_buf = static_cast<byte*>(buf);
   ndbxfrm_output_iterator it(byte_buf, byte_buf + sz * n, false);
@@ -1060,7 +1060,7 @@ aread(void * buf, size_t sz, size_t n, ndbxfrm_readfile* f)
 }
 
 bool 
-readHeader(ndbxfrm_readfile* f, BackupFormat::FileHeader * dst){
+readHeader(ndbxfrm_file* f, BackupFormat::FileHeader * dst){
   if(aread(dst, 4, 3, f) != 3)
     RETURN_FALSE();
 
@@ -1126,7 +1126,7 @@ readHeader(ndbxfrm_readfile* f, BackupFormat::FileHeader * dst){
 }
 
 bool 
-readFragHeader(ndbxfrm_readfile* f,
+readFragHeader(ndbxfrm_file* f,
                BackupFormat::DataFile::FragmentHeader * dst)
 {
   if(aread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
@@ -1154,7 +1154,7 @@ readFragHeader(ndbxfrm_readfile* f,
 }
 
 bool 
-readFragFooter(ndbxfrm_readfile* f,
+readFragFooter(ndbxfrm_file* f,
                BackupFormat::DataFile::FragmentFooter * dst)
 { 
   if(aread(dst, 1, sizeof(* dst), f) != sizeof(* dst))
@@ -1187,7 +1187,7 @@ static union {
 } theData;
 
 Int32
-readRecord(ndbxfrm_readfile* f,
+readRecord(ndbxfrm_file* f,
            Uint32 **dst,
            Uint32 *ext_header_type,
            bool print)
@@ -1292,7 +1292,7 @@ readRecord(ndbxfrm_readfile* f,
 }
 
 Int32
-readLogEntry(ndbxfrm_readfile* f,
+readLogEntry(ndbxfrm_file* f,
              Uint32 **dst,
              Uint32 file_type,
              Uint32 version)
@@ -1495,7 +1495,7 @@ Uint32 decompress_part_pairs(
 }
 
 bool 
-readLCPCtlFile(ndbxfrm_readfile* f, BackupFormat::LCPCtlFile *ret)
+readLCPCtlFile(ndbxfrm_file* f, BackupFormat::LCPCtlFile *ret)
 {
   char * struct_dst = (char*)&theData.LCPCtlFile.Checksum;
   size_t struct_sz = sizeof(BackupFormat::LCPCtlFile) -
@@ -1540,7 +1540,7 @@ readLCPCtlFile(ndbxfrm_readfile* f, BackupFormat::LCPCtlFile *ret)
 }
 
 bool 
-readTableList(ndbxfrm_readfile* f, BackupFormat::CtlFile::TableList **ret){
+readTableList(ndbxfrm_file* f, BackupFormat::CtlFile::TableList **ret){
   BackupFormat::CtlFile::TableList * dst = &theData.TableList;
   
   if(aread(dst, 4, 2, f) != 2)
@@ -1566,7 +1566,7 @@ readTableList(ndbxfrm_readfile* f, BackupFormat::CtlFile::TableList **ret){
 }
 
 bool 
-readTableDesc(ndbxfrm_readfile* f,
+readTableDesc(ndbxfrm_file* f,
               BackupFormat::CtlFile::TableDescription **ret)
 {
   BackupFormat::CtlFile::TableDescription * dst = &theData.TableDescription;
@@ -1591,7 +1591,7 @@ readTableDesc(ndbxfrm_readfile* f,
 }
 
 bool 
-readGCPEntry(ndbxfrm_readfile* f, BackupFormat::CtlFile::GCPEntry **ret){
+readGCPEntry(ndbxfrm_file* f, BackupFormat::CtlFile::GCPEntry **ret){
   BackupFormat::CtlFile::GCPEntry * dst = &theData.GcpEntry;
   
   if(aread(dst, 4, 4, f) != 4)
