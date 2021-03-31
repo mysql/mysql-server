@@ -32,6 +32,7 @@
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsReadWriteReq.hpp>
 #include <signaldata/AllocMem.hpp>
+#include "util/require.h"
 #include "Ndbfs.hpp"
 #include <NdbSleep.h>
 
@@ -123,6 +124,7 @@ void
 AsyncIoThread::dispatch(Request *request)
 {
   assert(m_current_file);
+  require(m_current_file->thread_bound());
   assert(m_current_file->getThread() == this);
   assert(theMemoryChannelPtr == &theMemoryChannel);
   theMemoryChannelPtr->writeChannel(request);
@@ -191,6 +193,11 @@ AsyncIoThread::run()
     }//if
 
     AsyncFile * file = request->file;
+    /*
+     * Associate request with thread to be able to reuse encryption context
+     * m_openssl_evp_op.
+     */
+    request->thread = this;
     m_current_request= request;
     switch (request->action) {
     case Request::open:
@@ -329,7 +336,7 @@ AsyncIoThread::detach(AsyncFile* file)
 {
   if (m_current_file == 0)
   {
-    assert(file->getThread() == 0);
+    assert(!file->thread_bound());
   }
   else
   {
