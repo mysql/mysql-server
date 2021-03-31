@@ -3792,7 +3792,7 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
   DBUG_TRACE;
 
   param->sum_func_count = 0;
-  param->func_count = 0;
+  param->func_count = fields.size();
   param->hidden_field_count = 0;
   param->outer_sum_func_count = 0;
   param->allow_group_via_temp_table = true;
@@ -3818,7 +3818,6 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
           // Add one column per argument.
           param->func_count += sum_item->argument_count();
         }
-        param->func_count++;  // A group aggregate function is a function!
       } else if (save_sum_fields) {
         /*
           Count the way create_tmp_table() does if asked to preserve
@@ -3828,21 +3827,18 @@ void count_field_types(const Query_block *query_block, Temp_table_param *param,
           item. We need to distinguish between these two cases since
           they are treated differently by create_tmp_table().
         */
-        param->func_count++;
         if (field->type() != Item::SUM_FUNC_ITEM) {
           // A reference to an Item_sum_*
-          param->func_count++;
+          param->func_count++;  // TODO: Is this really needed?
           param->sum_func_count++;
         }
       }
     } else if (real_type == Item::SUM_FUNC_ITEM) {
       assert(real->m_is_window_function);
-      param->func_count++;
 
       Item_sum *window_item = down_cast<Item_sum *>(real);
       param->func_count += window_item->argument_count();
     } else {
-      param->func_count++;
       if (reset_with_sum_func) field->reset_aggregation();
       if (field->has_aggregation()) param->outer_sum_func_count++;
     }
