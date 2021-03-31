@@ -2159,7 +2159,7 @@ longlong Item_func_minus::int_op() {
     if (args[1]->unsigned_flag) {
       if ((ulonglong)(val0 - LLONG_MIN) < (ulonglong)val1) goto err;
     } else {
-      if (val0 > 0 && val1 < 0)
+      if (val0 >= 0 && val1 < 0)
         res_unsigned = true;
       else if (val0 < 0 && val1 > 0 && res >= 0)
         goto err;
