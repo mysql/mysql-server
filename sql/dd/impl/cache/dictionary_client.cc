@@ -2078,6 +2078,30 @@ bool Dictionary_client::fetch_schema_component_names<Abstract_table>(
       m_thd, schema, names, fetch_criteria);
 }
 
+template <>
+bool Dictionary_client::fetch_schema_component_names<Procedure>(
+    const Schema *schema, std::vector<String_type> *names) const {
+  auto fetch_criteria = [&](Raw_record *r) {
+    return static_cast<dd::Routine::enum_routine_type>(
+               r->read_int(dd::tables::Routines::FIELD_TYPE)) ==
+           dd::Routine::RT_PROCEDURE;  // Select only PROCEDUREs.
+  };
+  return fetch_schema_component_names_by_criteria<Routine>(m_thd, schema, names,
+                                                           fetch_criteria);
+}
+
+template <>
+bool Dictionary_client::fetch_schema_component_names<Function>(
+    const Schema *schema, std::vector<String_type> *names) const {
+  auto fetch_criteria = [&](Raw_record *r) {
+    return static_cast<dd::Routine::enum_routine_type>(
+               r->read_int(dd::tables::Routines::FIELD_TYPE)) ==
+           dd::Routine::RT_FUNCTION;  // Select only FUNCTIONs.
+  };
+  return fetch_schema_component_names_by_criteria<Routine>(m_thd, schema, names,
+                                                           fetch_criteria);
+}
+
 // Fetch the names of object type T that belong to schema.
 template <typename T>
 bool Dictionary_client::fetch_schema_component_names(
@@ -2970,6 +2994,12 @@ template bool Dictionary_client::fetch_global_components(
     std::vector<const Resource_group *> *);
 
 template bool Dictionary_client::fetch_schema_component_names<Event>(
+    const Schema *, std::vector<String_type> *) const;
+
+template bool Dictionary_client::fetch_schema_component_names<Function>(
+    const Schema *, std::vector<String_type> *) const;
+
+template bool Dictionary_client::fetch_schema_component_names<Procedure>(
     const Schema *, std::vector<String_type> *) const;
 
 template bool Dictionary_client::fetch_schema_component_names<Trigger>(

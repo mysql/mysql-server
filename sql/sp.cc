@@ -1083,13 +1083,14 @@ err_report_with_rollback:
 bool lock_db_routines(THD *thd, const dd::Schema &schema) {
   DBUG_TRACE;
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  // Vectors for names of stored functions and procedures of the schema.
+  std::vector<dd::String_type> func_names, proc_names;
 
-  // Vector for the stored routines of the schema.
-  std::vector<const dd::Routine *> routines;
-
-  // Fetch stored routines of the schema.
-  if (thd->dd_client()->fetch_schema_components(&schema, &routines))
+  // Fetch names of stored functions and procedures of the schema.
+  if (thd->dd_client()->fetch_schema_component_names<dd::Function>(
+          &schema, &func_names) ||
+      thd->dd_client()->fetch_schema_component_names<dd::Procedure>(
+          &schema, &proc_names))
     return true;
 
   /*
@@ -1103,24 +1104,31 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
     my_casedn_str(system_charset_info, schema_name_buf);
     schema_name = schema_name_buf;
   }
+  const dd::String_type schema_name_str(schema_name);
+
+  /*
+    Ensure that we don't hold memory used by MDL_requests after locks have
+    been acquired. This reduces memory usage in cases when we have DROP
+    DATABASE tha needs to drop lots of different objects.
+  */
+  MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
 
   MDL_request_list mdl_requests;
-  for (const dd::Routine *routine : routines) {
-    MDL_key mdl_key;
 
-    if (is_dd_routine_type_function(routine))
-      dd::Function::create_mdl_key(dd::String_type(schema_name),
-                                   routine->name(), &mdl_key);
-    else
-      dd::Procedure::create_mdl_key(dd::String_type(schema_name),
-                                    routine->name(), &mdl_key);
+  auto add_requests_for_names = [&](dd::Routine::enum_routine_type type,
+                                    const std::vector<dd::String_type> &names) {
+    for (const dd::String_type &name : names) {
+      MDL_key mdl_key;
+      dd::Routine::create_mdl_key(type, schema_name_str, name, &mdl_key);
+      MDL_request *mdl_request = new (&mdl_reqs_root) MDL_request;
+      MDL_REQUEST_INIT_BY_KEY(mdl_request, &mdl_key, MDL_EXCLUSIVE,
+                              MDL_TRANSACTION);
+      mdl_requests.push_front(mdl_request);
+    }
+  };
 
-    // Add MDL_request for routine to mdl_requests list.
-    MDL_request *mdl_request = new (thd->mem_root) MDL_request;
-    MDL_REQUEST_INIT_BY_KEY(mdl_request, &mdl_key, MDL_EXCLUSIVE,
-                            MDL_TRANSACTION);
-    mdl_requests.push_front(mdl_request);
-  }
+  add_requests_for_names(dd::Routine::RT_FUNCTION, func_names);
+  add_requests_for_names(dd::Routine::RT_PROCEDURE, proc_names);
 
   return thd->mdl_context.acquire_locks(&mdl_requests,
                                         thd->variables.lock_wait_timeout);

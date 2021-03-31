@@ -1378,6 +1378,7 @@ static bool collect_fk_names(THD *thd, const char *db,
 }
 
 bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, TABLE_LIST *tables) {
+  MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
   MDL_request_list mdl_requests;
 
   for (TABLE_LIST *table = tables; table; table = table->next_local) {
@@ -1418,6 +1419,16 @@ bool rm_table_do_discovery_and_lock_fk_tables(THD *thd, TABLE_LIST *tables) {
 
     const dd::Table *table_def =
         dynamic_cast<const dd::Table *>(abstract_table_def);
+
+    /*
+      Ensure that we don't hold memory used by MDL_requests after locks
+      have been acquired. This reduces memory usage in cases when we have
+      DROP DATABASE tha needs to drop lots of different objects.
+    */
+    MEM_ROOT *save_thd_mem_root = thd->mem_root;
+    auto restore_thd_mem_root =
+        create_scope_guard([&]() { thd->mem_root = save_thd_mem_root; });
+    thd->mem_root = &mdl_reqs_root;
 
     if (collect_fk_parents_for_all_fks(thd, table_def, nullptr, MDL_EXCLUSIVE,
                                        &mdl_requests, nullptr))
@@ -19250,6 +19261,7 @@ bool lock_check_constraint_names_for_rename(THD *thd, const char *db,
 
 bool lock_check_constraint_names(THD *thd, TABLE_LIST *tables) {
   DBUG_TRACE;
+  MEM_ROOT mdl_reqs_root(key_memory_rm_db_mdl_reqs_root, MEM_ROOT_BLOCK_SIZE);
   MDL_request_list mdl_requests;
 
   for (TABLE_LIST *table = tables; table != nullptr;
@@ -19270,6 +19282,16 @@ bool lock_check_constraint_names(THD *thd, TABLE_LIST *tables) {
     const dd::Table *table_def =
         dynamic_cast<const dd::Table *>(abstract_table_def);
     assert(table_def != nullptr);
+
+    /*
+      Ensure that we don't hold memory used by MDL_requests after locks
+      have been acquired. This reduces memory usage in cases when we have
+      DROP DATABASE tha needs to drop lots of different objects.
+    */
+    MEM_ROOT *save_thd_mem_root = thd->mem_root;
+    auto restore_thd_mem_root =
+        create_scope_guard([&]() { thd->mem_root = save_thd_mem_root; });
+    thd->mem_root = &mdl_reqs_root;
 
     for (auto &cc : table_def->check_constraints()) {
       if (push_check_constraint_mdl_request_to_list(
