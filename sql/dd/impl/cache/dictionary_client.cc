@@ -2996,12 +2996,6 @@ template bool Dictionary_client::fetch_global_components(
 template bool Dictionary_client::fetch_schema_component_names<Event>(
     const Schema *, std::vector<String_type> *) const;
 
-template bool Dictionary_client::fetch_schema_component_names<Function>(
-    const Schema *, std::vector<String_type> *) const;
-
-template bool Dictionary_client::fetch_schema_component_names<Procedure>(
-    const Schema *, std::vector<String_type> *) const;
-
 template bool Dictionary_client::fetch_schema_component_names<Trigger>(
     const Schema *, std::vector<String_type> *) const;
 
