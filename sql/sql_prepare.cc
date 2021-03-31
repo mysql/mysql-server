@@ -1646,8 +1646,21 @@ bool mysql_stmt_precheck(THD *thd, const COM_DATA *com_data,
     case COM_STMT_EXECUTE: {
       stmt_id = com_data->com_stmt_execute.stmt_id;
       if (!(*stmt = thd->stmt_map.find(stmt_id))) goto not_found;
-      if ((*stmt)->param_count != com_data->com_stmt_execute.parameter_count)
-        goto wrong_arg;
+      if (thd->get_protocol()->has_client_capability(CLIENT_QUERY_ATTRIBUTES)) {
+        /*
+          For client supporting query attributes it's perfectly fine to send
+          more parameter values than the prepared statement has. The prepared
+          statement will take the first param_count values and will leave the
+          rest for the component service to consume. Thus altering the validity
+          check accordingly to just error out if there's less than the expected
+          number of parameters and pass if there's more.
+        */
+        if ((*stmt)->param_count > com_data->com_stmt_execute.parameter_count)
+          goto wrong_arg;
+      } else {
+        if ((*stmt)->param_count != com_data->com_stmt_execute.parameter_count)
+          goto wrong_arg;
+      }
       break;
     }
     default:
