@@ -838,7 +838,7 @@ bool mysql_rm_db(THD *thd, const LEX_CSTRING &db, bool if_exists) {
       thd->clear_error(); /* @todo Do not ignore errors */
       Disable_binlog_guard binlog_guard(thd);
       error = Events::drop_schema_events(thd, *schema);
-      error = (error || (sp_drop_db_routines(thd, *schema) != SP_OK));
+      error = (error || sp_drop_db_routines(thd, *schema));
     }
     thd->pop_internal_handler();
 
