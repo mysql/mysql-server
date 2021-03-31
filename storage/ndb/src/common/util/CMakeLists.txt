@@ -54,6 +54,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   ndb_ndbxfrm1.cpp
   ndb_openssl_evp.cpp
   ndb_zlib.cpp
+  ndbxfrm_file.cpp
   ndbxfrm_readfile.cpp
   ndbxfrm_writefile.cpp
   OutputStream.cpp
@@ -81,7 +82,7 @@ ADD_CONVENIENCE_LIBRARY(ndbgeneral
   uucode.cpp
   version.cpp
 )
-SET(NDBGENERAL_LIBS ndbtrace ${ZLIB_LIBRARY} mysys)
+SET(NDBGENERAL_LIBS ndbtrace ndbportlib ${ZLIB_LIBRARY} mysys)
 TARGET_LINK_LIBRARIES(ndbgeneral ${NDBGENERAL_LIBS})
 # Cyclic dependencies for ndbgeneral.
 SET_TARGET_PROPERTIES(ndbgeneral PROPERTIES LINK_INTERFACE_MULTIPLICITY 3)
@@ -97,6 +98,7 @@ FOREACH(tests
     NdbPack
     mysql_utils_test
     ndb_openssl_evp
+    ndbxfrm_file
     NdbSqlUtil
     LogBuffer
     testSimpleProperties
