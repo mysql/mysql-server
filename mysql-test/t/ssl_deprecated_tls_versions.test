@@ -7,12 +7,14 @@
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count = 1
 --let $assert_text = Found a cmdline TLSv1 deprecation warning
+--let $assert_only_after = CURRENT_TEST: main.ssl_deprecated_tls_versions
 --source include/assert_grep.inc
 
 --let $assert_select = A deprecated TLS version TLSv1.1 is enabled
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count = 1
 --let $assert_text = Found a cmdline TLSv1.1 deprecation warning
+--let $assert_only_after = CURRENT_TEST: main.ssl_deprecated_tls_versions
 --source include/assert_grep.inc
 
 --echo # Test for the connect warning
@@ -21,6 +23,7 @@
 --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
 --let $assert_count = 1
 --let $assert_text = An old tls version client triggers a warning
+--let $assert_only_after = CURRENT_TEST: main.ssl_deprecated_tls_versions
 --source include/assert_grep.inc
 
 --echo # End of 5.7 tests
