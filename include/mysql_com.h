@@ -178,9 +178,7 @@
 #define EXPLICIT_NULL_FLAG                        \
   (1 << 27) /**< Field is explicitly specified as \
                NULL by the user */
-#define FIELD_IS_MARKED                   \
-  (1 << 28) /**< Intern: field is marked, \
-                 general purpose */
+/* 1 << 28 is unused. */
 
 /** Field will not be loaded in secondary engine. */
 #define NOT_SECONDARY_FLAG (1 << 29)

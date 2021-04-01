@@ -479,8 +479,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
           creation has set IN's item's result_field to be the FB field. Here
           we save that FB field in from_field. Right after that,
           create_tmp_field_from_item() sets IN's item's result_field to the
-          OUT field (which OUT field is the 'result' variable). We mark the
-          OUT field with FIELD_IS_MARKED. Later we detect the mark, and create
+          OUT field (which OUT field is the 'result' variable). Later, we create
           a Copy_field to from_field (FB) from the marked field (OUT). The end
           situation is: IN's item's result_field is in OUT, enabling the
           initial function evaluation and saving of its result in OUT; the
@@ -499,7 +498,6 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         if (copy_func && !make_copy_field && item->is_result_field()) {
           copy_func->push_back(Func_ptr(item, result));
         }
-        if (copy_result_field) result->set_flag(FIELD_IS_MARKED);
       }
       break;
     case Item::TYPE_HOLDER:
@@ -1477,13 +1475,14 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     }
 
     if (from_field[i]) {
+      Item *item = from_item[i];
       /* This column is directly mapped to a column in the GROUP BY clause. */
       if (param->m_window && param->m_window->frame_buffer_param() &&
-          field->is_flag_set(FIELD_IS_MARKED)) {
+          item->is_result_field() &&
+          (item->type() != Item::SUM_FUNC_ITEM ||
+           !item->real_item()->m_is_window_function)) {
+        // A non-window-function. Grep for (2) in this file.
         Temp_table_param *window_fb = param->m_window->frame_buffer_param();
-        // Grep for FIELD_IS_MARKED in this file.
-        field->is_flag_set(FIELD_IS_MARKED) ? field->clear_flag(FIELD_IS_MARKED)
-                                            : field->set_flag(FIELD_IS_MARKED);
         window_fb->copy_fields.emplace_back(from_field[i], field);
       } else {
         if (param->m_window) {
