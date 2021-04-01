@@ -215,10 +215,9 @@ int ndb_openssl_evp::set_aes_256_cbc(bool padding, size_t data_unit_size)
 }
 
 
-int ndb_openssl_evp::set_aes_256_xts(size_t data_unit_size)
+int ndb_openssl_evp::set_aes_256_xts(bool padding, size_t data_unit_size)
 {
   require(m_evp_cipher == nullptr);
-  require(m_padding == false);
 
   assert(data_unit_size % XTS_BLOCK_LEN == 0);
   if (data_unit_size % XTS_BLOCK_LEN != 0)
@@ -231,6 +230,7 @@ int ndb_openssl_evp::set_aes_256_xts(size_t data_unit_size)
   require(EVP_CIPHER_block_size(EVP_aes_256_xts()) == XTS_BLOCK_LEN);
 
   m_evp_cipher = EVP_aes_256_xts();
+  m_padding = padding;
   m_data_unit_size = data_unit_size;
   m_mix_key_iv_pair = true;
   return 0;
@@ -384,7 +384,7 @@ int ndb_openssl_evp::key256_iv256_set::get_key_iv_mixed_pair(
 }
 
 
-ndb_openssl_evp::operation::operation(ndb_openssl_evp* context)
+ndb_openssl_evp::operation::operation(const ndb_openssl_evp* context)
 : m_op_mode(NO_OP),
   m_input_position(-1),
   m_output_position(-1),
@@ -392,6 +392,21 @@ ndb_openssl_evp::operation::operation(ndb_openssl_evp* context)
   m_evp_context(EVP_CIPHER_CTX_new())
 {}
 
+ndb_openssl_evp::operation::operation()
+: m_op_mode(NO_OP),
+  m_input_position(-1),
+  m_output_position(-1),
+  m_context(nullptr),
+  m_evp_context(EVP_CIPHER_CTX_new())
+{}
+
+void ndb_openssl_evp::operation::reset()
+{
+  m_op_mode = NO_OP;
+  m_input_position = -1;
+  m_output_position = -1;
+  EVP_CIPHER_CTX_init(m_evp_context);
+}
 
 ndb_openssl_evp::operation::~operation()
 {
@@ -402,6 +417,17 @@ ndb_openssl_evp::operation::~operation()
   }
 }
 
+int ndb_openssl_evp::operation::set_context(const ndb_openssl_evp* context)
+{
+  require(m_op_mode == NO_OP);
+  m_context = context;
+  m_op_mode = NO_OP;
+  m_input_position = -1;
+  m_output_position = -1;
+  m_context = context;
+  EVP_CIPHER_CTX_init(m_evp_context); // _reset in newer openssl
+  return 0;
+}
 
 int ndb_openssl_evp::operation::setup_key_iv(off_t input_position,
                                              const byte **key,
@@ -418,8 +444,10 @@ int ndb_openssl_evp::operation::setup_key_iv(off_t input_position,
 
     if (m_context->m_has_key_iv)
     {
-      *key = &m_context->m_key_iv[0];
-      *iv = &m_context->m_key_iv[KEY_LEN];
+      memcpy(&m_key_iv[0], &m_context->m_key_iv[0], KEY_LEN);
+      memcpy(&m_key_iv[KEY_LEN], &m_context->m_key_iv[KEY_LEN], IV_LEN);
+      *key = &m_key_iv[0];
+      *iv = &m_key_iv[KEY_LEN];
     }
     else
     {
@@ -453,9 +481,9 @@ int ndb_openssl_evp::operation::setup_key_iv(off_t input_position,
          * iv should be set as 16 bit sequence number in bigendian
          * copy key and iv into one long key
          */
-        memcpy(&m_context->m_key_iv[0], *key, KEY_LEN);
-        memcpy(&m_context->m_key_iv[KEY_LEN], *iv, IV_LEN);
-        *key = m_context->m_key_iv;
+        memcpy(&m_key_iv[0], *key, KEY_LEN);
+        memcpy(&m_key_iv[KEY_LEN], *iv, IV_LEN);
+        *key = m_key_iv;
 
         *iv = xts_seq_num;
         for (int i = 0; i < 14; i++)
@@ -467,13 +495,26 @@ int ndb_openssl_evp::operation::setup_key_iv(off_t input_position,
   }
   else
   {
-    if (!m_context->m_has_key_iv)
+    if (input_position == 0)
     {
-      RETURN(-1);
-    }
+      if (m_context->m_has_key_iv)
+      {
+        memcpy(&m_key_iv[0], &m_context->m_key_iv[0], KEY_LEN);
+        memcpy(&m_key_iv[KEY_LEN], &m_context->m_key_iv[KEY_LEN], IV_LEN);
 
-    *key = &m_context->m_key_iv[0];
-    *iv = &m_context->m_key_iv[KEY_LEN];
+        *key = &m_key_iv[0];
+        *iv = &m_key_iv[KEY_LEN];
+      }
+      else if (m_context->m_key_iv_set != nullptr)
+      {
+        int rc = m_context->m_key_iv_set->get_key_iv_mixed_pair(0, key, iv);
+        if (rc == -1)
+        {
+          RETURN(-1);
+        }
+      }
+      else RETURN(-1);
+    }
   }
   return 0;
 }
@@ -544,7 +585,7 @@ int ndb_openssl_evp::operation::setup_encrypt_key_iv(off_t position)
 
   if (data_unit_size == 0)
   {
-    assert(position == 0);
+//    assert(position == 0);
     if (position != 0)
     {
       return -1;
@@ -591,7 +632,7 @@ int ndb_openssl_evp::operation::encrypt_init(off_t output_position,
   {
     if (setup_encrypt_key_iv(input_position) == -1)
     {
-      return -1;
+      RETURN(-1);
     }
   }
   m_op_mode = ENCRYPT;
@@ -814,7 +855,7 @@ int ndb_openssl_evp::operation::decrypt(output_iterator* out,
       r = EVP_DecryptFinal_ex(m_evp_context, out->begin(), &outl);
       if (r != 1)
       {
-        RETURN(-1);
+        return -1; // bad password?
       }
       if (m_context->m_padding)
       {
@@ -996,6 +1037,7 @@ int ndb_openssl_evp::operation::decrypt_reverse(output_reverse_iterator* out,
 
 int ndb_openssl_evp::operation::decrypt_end()
 {
+//  require(m_op_mode == DECRYPT);
   m_op_mode = NO_OP;
   return 0;
 }
@@ -1033,9 +1075,12 @@ int main(int argc, char*argv[])
   if (argc == 1) enc.set_aes_256_cbc(true,0);
   else switch (argv[1][0])
   {
-  case 'c': enc.set_aes_256_cbc(false,argv[1][1]?atoi(&argv[1][1]):0); break;
-  case 'p': enc.set_aes_256_cbc(true,0); break;
-  case 'x': enc.set_aes_256_xts(argv[1][1]?atoi(&argv[1][1]):32); break;
+  case 'c': enc.set_aes_256_cbc(false, argv[1][1] ? atoi(&argv[1][1]) : 0);
+  break;
+  case 'p': enc.set_aes_256_cbc(true, 0);
+  break;
+  case 'x': enc.set_aes_256_xts(false, argv[1][1] ? atoi(&argv[1][1]) : 32);
+  break;
   }
 
   byte salt[32];
@@ -1084,5 +1129,4 @@ int main(int argc, char*argv[])
   ndb_end(0);
   return 0;
 }
-
 #endif

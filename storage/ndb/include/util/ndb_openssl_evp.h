@@ -69,12 +69,20 @@ public:
 
   ndb_openssl_evp();
   ~ndb_openssl_evp();
+  /*
+   * For XTS the data unit is the smallest data block that can be decrypted and
+   * defines the block size that could be randomly accessed.
+   *
+   * CBC-mode do not support random access, indicated by
+   * random_access_block_size (and m_data_unit_size) being zero.
+   */
+  size_t get_random_access_block_size() const { return m_data_unit_size; }
   int reset();
 
   int set_memory(void* mem, size_t size); // sets m_key_iv_set
 
   int set_aes_256_cbc(bool padding, size_t data_unit_size);
-  int set_aes_256_xts(size_t data_unit_size);
+  int set_aes_256_xts(bool padding, size_t data_unit_size);
   int generate_salt256(byte salt[SALT_LEN]);
   int derive_and_add_key_iv_pair(const byte pwd[],
                                  size_t pwd_len,
@@ -120,8 +128,11 @@ static_assert(sizeof(ndb_openssl_evp::key256_iv256_set) <= 32768 - 512);
 class ndb_openssl_evp::operation
 {
 public:
-  operation(ndb_openssl_evp* context);
+  operation(const ndb_openssl_evp* context);
+  operation();
   ~operation();
+  void reset();
+  int set_context(const ndb_openssl_evp* context);
 
   int setup_key_iv(off_t input_position, const byte **key, const byte **iv, byte xts_seq_num[16]);
   int setup_encrypt_key_iv(off_t input_position);
@@ -147,8 +158,9 @@ private:
 
   off_t m_input_position;
   off_t m_output_position;
-  ndb_openssl_evp* m_context;
+  const ndb_openssl_evp* m_context;
   EVP_CIPHER_CTX *m_evp_context;
+  byte m_key_iv[KEY_LEN + IV_LEN];
 };
 
 #endif
