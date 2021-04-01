@@ -1140,64 +1140,83 @@ bool lock_db_routines(THD *thd, const dd::Schema &schema) {
   @param   thd         Thread context.
   @param   schema      Schema object.
 
-  @retval  SP_OK       Success
-  @retval  non-SP_OK   Error (Other constants are used to indicate errors)
+  @retval  false       Success
+  @retval  true        Error
 */
 
-enum_sp_return_code sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
+bool sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
   DBUG_TRACE;
 
   bool is_routine_dropped = false;
 
-  dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+  // Vectors for names of stored functions and procedures of the schema.
+  std::vector<dd::String_type> func_names, proc_names;
 
-  // Vector for the stored routines of the schema.
-  std::vector<const dd::Routine *> routines;
+  // Fetch names of stored functions and procedures of the schema.
+  if (thd->dd_client()->fetch_schema_component_names<dd::Function>(
+          &schema, &func_names) ||
+      thd->dd_client()->fetch_schema_component_names<dd::Procedure>(
+          &schema, &proc_names))
+    return true;
 
-  // Fetch stored routines of the schema.
-  if (thd->dd_client()->fetch_schema_components(&schema, &routines))
-    return SP_INTERNAL_ERROR;
+  auto drop_routines_by_names = [&](enum_sp_type type,
+                                    const std::vector<dd::String_type> &names) {
+    for (const dd::String_type &name : names) {
+      dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
+      const dd::Routine *routine = nullptr;
 
-  enum_sp_return_code ret_code = SP_OK;
-  for (const dd::Routine *routine : routines) {
-    sp_name name(
-        {schema.name().c_str(), schema.name().length()},
-        {const_cast<char *>(routine->name().c_str()), routine->name().length()},
-        false);
-    enum_sp_type type = is_dd_routine_type_function(routine)
-                            ? enum_sp_type::FUNCTION
-                            : enum_sp_type::PROCEDURE;
+      if (type == enum_sp_type::FUNCTION) {
+        if (thd->dd_client()->acquire<dd::Function>(schema.name().c_str(),
+                                                    name.c_str(), &routine))
+          return true;
+      } else {
+        if (thd->dd_client()->acquire<dd::Procedure>(schema.name().c_str(),
+                                                     name.c_str(), &routine))
+          return true;
+      }
 
-    DBUG_EXECUTE_IF("fail_drop_db_routines", {
-      my_error(ER_SP_DROP_FAILED, MYF(0), "ROUTINE", "");
-      return SP_DROP_FAILED;
-    });
+      DBUG_EXECUTE_IF("fail_drop_db_routines", {
+        my_error(ER_SP_DROP_FAILED, MYF(0), "ROUTINE", "");
+        return true;
+      });
 
-    if (thd->dd_client()->drop(routine)) {
-      ret_code = SP_DROP_FAILED;
-      my_error(ER_SP_DROP_FAILED, MYF(0),
-               is_dd_routine_type_function(routine) ? "FUNCTION" : "PROCEDURE",
-               routine->name().c_str());
-      break;
-    }
+      if (routine == nullptr || thd->dd_client()->drop(routine)) {
+        assert(routine != nullptr);
+        my_error(ER_SP_DROP_FAILED, MYF(0),
+                 type == enum_sp_type::FUNCTION ? "FUNCTION" : "PROCEDURE",
+                 name.c_str());
+        return true;
+      }
 
-    if (type == enum_sp_type::FUNCTION &&
-        update_referencing_views_metadata(thd, &name))
-      return SP_INTERNAL_ERROR;
+      if (type == enum_sp_type::FUNCTION) {
+        sp_name fn_name({schema.name().c_str(), schema.name().length()},
+                        {const_cast<char *>(name.c_str()), name.length()},
+                        false);
 
-    is_routine_dropped = true;
+        if (update_referencing_views_metadata(thd, &fn_name)) return true;
+      }
+
+      is_routine_dropped = true;
 
 #ifdef HAVE_PSI_SP_INTERFACE
-    /* Drop statistics for this stored routine from performance schema. */
-    MYSQL_DROP_SP(to_uint(type), schema.name().c_str(), schema.name().length(),
-                  routine->name().c_str(), routine->name().length());
+      /* Drop statistics for this stored routine from performance schema. */
+      MYSQL_DROP_SP(to_uint(type), schema.name().c_str(),
+                    schema.name().length(), name.c_str(), name.length());
 #endif
+    }
+
+    return false;
+  };
+
+  if (drop_routines_by_names(enum_sp_type::FUNCTION, func_names) ||
+      drop_routines_by_names(enum_sp_type::PROCEDURE, proc_names)) {
+    return true;
   }
 
   // Invalidate the sp cache.
   if (is_routine_dropped) sp_cache_invalidate();
 
-  return ret_code;
+  return false;
 }
 
 /**
