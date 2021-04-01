@@ -1484,12 +1484,10 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         // Grep for FIELD_IS_MARKED in this file.
         field->is_flag_set(FIELD_IS_MARKED) ? field->clear_flag(FIELD_IS_MARKED)
                                             : field->set_flag(FIELD_IS_MARKED);
-        window_fb->copy_fields.emplace_back(from_field[i], field,
-                                            save_sum_fields);
+        window_fb->copy_fields.emplace_back(from_field[i], field);
       } else {
         if (param->m_window) {
-          param->copy_fields.emplace_back(field, from_field[i],
-                                          save_sum_fields);
+          param->copy_fields.emplace_back(field, from_field[i]);
         }
 
         param->items_to_copy->push_back(Func_ptr{from_item[i], field});

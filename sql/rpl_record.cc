@@ -807,7 +807,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
                              field_ptr->field_name, source_type.c_ptr_safe(),
                              value_string.c_ptr_safe()));
 #endif
-        copy.set(field_ptr, f, true);
+        copy.set(field_ptr, f);
         copy.invoke_do_copy();
 #ifndef NDEBUG
         char target_buf[MAX_FIELD_WIDTH];

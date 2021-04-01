@@ -414,7 +414,7 @@ TEST_F(FieldTest, CopyFieldSet) {
   f_from->set_field_ptr(&from_fieldval);
 
   Copy_field *cf = new (thd()->mem_root) Copy_field;
-  cf->set(f_to, f_from, false);
+  cf->set(f_to, f_from);
   cf->invoke_do_copy();
 
   // Copy_field DTOR is not invoked in all contexts, so we may leak memory.

@@ -2345,7 +2345,7 @@ store_key_field::store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
   if (!to_field->is_nullable() &&
       (from_field->is_nullable() || from_field->table->is_nullable()))
     to_field->set_tmp_nullable();
-  m_copy_field.set(to_field, from_field, false);
+  m_copy_field.set(to_field, from_field);
 }
 
 enum store_key::store_key_result store_key_field::copy_inner() {
@@ -2358,7 +2358,7 @@ enum store_key::store_key_result store_key_field::copy_inner() {
 }
 
 void store_key_field::replace_from_field(Field *from_field) {
-  m_copy_field.set(to_field, from_field, false);
+  m_copy_field.set(to_field, from_field);
 }
 
 namespace {

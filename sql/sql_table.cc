@@ -17958,7 +17958,7 @@ static int copy_data_between_tables(
         if (def->field == from->found_next_number_field)
           thd->variables.sql_mode |= MODE_NO_AUTO_VALUE_ON_ZERO;
       }
-      (copy_end++)->set(*ptr, def->field, false);
+      (copy_end++)->set(*ptr, def->field);
     } else {
       /*
         New column. Add it to the array of columns requiring value

@@ -4585,14 +4585,6 @@ class Send_field {
   Send_field() = default;
 };
 
-/**
-  Constitutes a mapping from columns of tables in the from clause to
-  aggregated columns. Typically, this means that they represent the mapping
-  between columns of temporary tables used for aggregation, but not
-  always. They are also used for aggregation that can be executed "on the
-  fly" without a temporary table.
-*/
-
 class Copy_field {
   /**
     Convenience definition of a copy function returned by
@@ -4605,18 +4597,16 @@ class Copy_field {
     is called with 'reverse' = true.
   */
   using Copy_func = void(Copy_field *, const Field *, Field *);
-  Copy_func *get_copy_func(bool save);
+  Copy_func *get_copy_func();
 
  public:
   String tmp;  // For items
 
   Copy_field() = default;
 
-  Copy_field(Field *to, Field *from, bool save) : Copy_field() {
-    set(to, from, save);
-  }
+  Copy_field(Field *to, Field *from) : Copy_field() { set(to, from); }
 
-  void set(Field *to, Field *from, bool save);  // Field to field
+  void set(Field *to, Field *from);  // Field to field
 
  private:
   void (*m_do_copy)(Copy_field *, const Field *, Field *);

@@ -2564,7 +2564,7 @@ bool Query_result_update::do_updates(THD *thd) {
     Copy_field *copy_field_ptr = copy_field, *copy_field_end;
     for (; *field; field++) {
       Item_field *item = down_cast<Item_field *>(*field_it++);
-      (copy_field_ptr++)->set(item->field, *field, false);
+      (copy_field_ptr++)->set(item->field, *field);
     }
     copy_field_end = copy_field_ptr;
 

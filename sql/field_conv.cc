@@ -321,28 +321,6 @@ static void do_conv_blob(Copy_field *copy, const Field *from_field,
       copy->tmp.ptr(), copy->tmp.length(), copy->tmp.charset());
 }
 
-/** Save blob in copy->tmp for GROUP BY. */
-
-static void do_save_blob(Copy_field *copy, const Field *from_field,
-                         Field *to_field) {
-  char buff[MAX_FIELD_WIDTH];
-  String res(buff, sizeof(buff), copy->tmp.charset());
-  from_field->val_str(&res);
-  copy->tmp.copy(res);
-  down_cast<Field_blob *>(to_field)->store(copy->tmp.ptr(), copy->tmp.length(),
-                                           copy->tmp.charset());
-}
-
-/**
-  Copy the contents of one Field_json into another Field_json.
-*/
-static void do_save_json(Copy_field *, const Field *from_field,
-                         Field *to_field) {
-  const Field_json *from = down_cast<const Field_json *>(from_field);
-  Field_json *to = down_cast<Field_json *>(to_field);
-  to->store(from);
-}
-
 static void do_field_string(Copy_field *, const Field *from_field,
                             Field *to_field) {
   StringBuffer<MAX_FIELD_WIDTH> res(from_field->charset());
@@ -562,7 +540,7 @@ void Copy_field::invoke_do_copy2(const Field *from, Field *to) {
   (*(m_do_copy2))(this, from, to);
 }
 
-void Copy_field::set(Field *to, Field *from, bool save) {
+void Copy_field::set(Field *to, Field *from) {
   if (to->type() == MYSQL_TYPE_NULL) {
     m_do_copy = do_skip;
     return;
@@ -570,7 +548,7 @@ void Copy_field::set(Field *to, Field *from, bool save) {
   m_from_field = from;
   m_to_field = to;
 
-  m_do_copy2 = get_copy_func(save);
+  m_do_copy2 = get_copy_func();
 
   if (m_from_field->is_nullable() || m_from_field->table->is_nullable()) {
     if (m_to_field->is_nullable() || m_to_field->is_tmp_nullable())
@@ -588,28 +566,9 @@ void Copy_field::set(Field *to, Field *from, bool save) {
   }
 }
 
-/*
-  To do:
-
-  If 'save' is set to true and the 'from' is a blob field, m_do_copy is set to
-  do_save_blob rather than do_conv_blob.  The only differences between them
-  appears to be:
-
-  - do_save_blob allocates and uses an intermediate buffer before calling
-    Field_blob::store. Is this in order to trigger the call to
-    well_formed_copy_nchars, by changing the pointer copy->tmp.ptr()?
-    That call will take place anyway in all known cases.
- */
-Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
+Copy_field::Copy_func *Copy_field::get_copy_func() {
   THD *thd = current_thd;
-  if ((m_to_field->is_flag_set(BLOB_FLAG)) && save) {
-    if (m_to_field->real_type() == MYSQL_TYPE_JSON &&
-        m_from_field->real_type() == MYSQL_TYPE_JSON)
-      return do_save_json;
-    else
-      return do_save_blob;
-  }
-  if (m_to_field->is_array() && m_from_field->is_array()) return do_save_blob;
+  if (m_to_field->is_array() && m_from_field->is_array()) return do_copy_blob;
 
   bool compatible_db_low_byte_first =
       (m_to_field->table->s->db_low_byte_first ==
