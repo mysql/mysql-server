@@ -1,5 +1,7 @@
 --echo # Bug 32565996: backport of WL#14519: Deprecate the use of TLS v1.[01]
 
+# Can't test with embedded server
+-- source include/not_embedded.inc
 # Test needs suport for TLSv1.0 and v1.1
 --source include/not_min_protocol_tlsv12.inc
 
