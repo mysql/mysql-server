@@ -265,7 +265,7 @@ bool Event_db_repository::drop_schema_events(THD *thd,
                                                                 &event_names))
     return true;
 
-  for (const dd::String_type name : event_names) {
+  for (const dd::String_type &name : event_names) {
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     const dd::Event *event_obj = nullptr;
 
