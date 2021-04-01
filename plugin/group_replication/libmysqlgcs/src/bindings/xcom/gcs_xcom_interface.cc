@@ -425,7 +425,7 @@ enum_gcs_error Gcs_xcom_interface::configure(
   std::string *ip_allowlist_reconfigure_str = const_cast<std::string *>(
       interface_params.get_parameter("reconfigure_ip_allowlist"));
 
-  bool should_configure_allowlist = true;
+  bool should_configure_allowlist = false;
   if (ip_allowlist_reconfigure_str) {
     should_configure_allowlist =
         ip_allowlist_reconfigure_str->compare("on") == 0 ||
