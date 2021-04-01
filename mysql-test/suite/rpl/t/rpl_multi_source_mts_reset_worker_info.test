@@ -77,4 +77,10 @@ eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', S
 eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT FOR CHANNEL 'ch_b';
 START SLAVE;
 
+STOP SLAVE;
+RESET SLAVE ALL;
+
+--let $rpl_skip_stop_slave=1
+--let $rpl_skip_sync = 1
+
 --source include/rpl_end.inc
