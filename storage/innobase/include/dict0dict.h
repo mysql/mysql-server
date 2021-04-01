@@ -1136,7 +1136,7 @@ struct dict_sys_t {
   static constexpr space_id_t s_invalid_space_id = 0xFFFFFFFF;
 
   /** The data dictionary tablespace ID. */
-  static constexpr space_id_t s_space_id = 0xFFFFFFFE;
+  static constexpr space_id_t s_dict_space_id = 0xFFFFFFFE;
 
   /** The innodb_temporary tablespace ID. */
   static constexpr space_id_t s_temp_space_id = 0xFFFFFFFD;
@@ -1165,7 +1165,7 @@ struct dict_sys_t {
   static constexpr space_id_t s_reserved_space_id = s_min_temp_space_id;
 
   /** The dd::Tablespace::id of the dictionary tablespace. */
-  static constexpr dd::Object_id s_dd_space_id = 1;
+  static constexpr dd::Object_id s_dd_dict_space_id = 1;
 
   /** The dd::Tablespace::id of innodb_system. */
   static constexpr dd::Object_id s_dd_sys_space_id = 2;

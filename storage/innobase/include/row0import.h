@@ -51,18 +51,4 @@ dberr_t row_import_for_mysql(dict_table_t *table, dd::Table *table_def,
                              row_prebuilt_t *prebuilt)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Update the DICT_TF2_DISCARDED flag in SYS_TABLES.
- @return DB_SUCCESS or error code. */
-dberr_t row_import_update_discarded_flag(
-    trx_t *trx,          /*!< in/out: transaction that
-                         covers the update */
-    table_id_t table_id, /*!< in: Table for which we want
-                         to set the root table->flags2 */
-    bool discarded,      /*!< in: set MIX_LEN column bit
-                         to discarded, if true */
-    bool dict_locked)    /*!< in: Set to true if the
-                         caller already owns the
-                         dict_sys_t:: mutex. */
-    MY_ATTRIBUTE((warn_unused_result));
-
 #endif /* row0import_h */

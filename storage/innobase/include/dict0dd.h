@@ -472,37 +472,15 @@ inline bool dd_is_discarded(const dd::Partition &partition) {
 
 /** Sets appropriate discard attribute of dd::Table
 Please note that this function must not be called on partitioned tables
-
-@param[in] table non-partitioned dd::Table
-@param[in] discarded true if Table is discarded, false otherwise */
-inline void dd_set_discarded(dd::Table &table, bool discarded) {
-  ut_ad(!dd_table_is_partitioned(table));
-
-  dd::Properties &p = table.se_private_data();
-  p.set(dd_table_key_strings[DD_TABLE_DISCARD], discarded);
-}
+@param[in]  table    non-partitioned dd::Table
+@param[in]  discard  true if Table is discarded, false otherwise */
+void dd_set_discarded(dd::Table &table, bool discard);
 
 /** Sets appropriate discard attribute of dd::Partition
-
 Please note that this function can be only called on leaf_partitions.
-
-@param[in] partition leaf dd::Partition
-@param[in] discarded true if Table is discarded, false otherwise */
-inline void dd_set_discarded(dd::Partition &partition, bool discarded) {
-#ifdef UNIV_DEBUG
-  bool is_leaf = false;
-  for (const dd::Partition *part : *partition.table().leaf_partitions()) {
-    if (part == &partition) {
-      is_leaf = true;
-      break;
-    }
-  }
-  ut_ad(is_leaf);
-#endif
-
-  dd::Properties &p = partition.se_private_data();
-  p.set(dd_partition_key_strings[DD_PARTITION_DISCARD], discarded);
-}
+@param[in]  partition  leaf dd::Partition
+@param[in]  discard    true if Table is discarded, false otherwise */
+void dd_set_discarded(dd::Partition &partition, bool discard);
 
 /** Get the first index of a table or partition.
 @tparam		Table	dd::Table or dd::Partition
@@ -583,7 +561,8 @@ void dd_copy_instant_n_cols(dd::Table &new_table, const dd::Table &old_table);
 when the change does not affect InnoDB. This mainly copies the common
 private data between dd::Table and dd::Partition
 @tparam		Table		dd::Table or dd::Partition
-@param[in,out]	new_table	Copy of old table or partition definition
+@param[in,out]	new_table	Copy of old table or partition
+definition
 @param[in]	old_table	Old table or partition definition */
 template <typename Table>
 void dd_copy_private(Table &new_table, const Table &old_table);
@@ -1239,7 +1218,17 @@ char *dd_get_referenced_table(const char *name, const char *database_name,
                               ulint table_name_len, dict_table_t **table,
                               MDL_ticket **mdl, mem_heap_t *heap);
 
-/** Set state attribute in se_private_data of tablespace
+/** Set the 'state' value in dd:tablespace::se_private_data starting with
+an object id and the space name. Update the transaction when complete.
+@param[in]  thd          current thread
+@param[in]  dd_space_id  dd::Tablespace
+@param[in]  space_name   tablespace name
+@param[in]  state        value to set for key 'state'. */
+void dd_tablespace_set_state(THD *thd, dd::Object_id dd_space_id,
+                             std::string space_name, dd_space_states state);
+
+/** Set the 'state' value in dd:tablespace::se_private_data.
+The caller will update the transaction.
 @param[in,out]	dd_space	dd::Tablespace object
 @param[in]	state		value to set for key 'state' */
 void dd_tablespace_set_state(dd::Tablespace *dd_space, dd_space_states state);
@@ -1276,12 +1265,20 @@ from either dd::Tablespace::se_private_data or undo::Tablespace
 dd_space_states dd_tablespace_get_state_enum(
     const dd::Tablespace *dd_space, space_id_t space_id = SPACE_UNKNOWN);
 
-/** Get the enum for the state of the undo tablespace
+/** Get the enum for the state of a tablespace
 from either dd::Tablespace::se_private_data or undo::Tablespace
 @param[in]  p         dd::Properties for dd::Tablespace::se_private_data
 @param[in]  space_id  tablespace ID
 @return enumerated value associated with the key 'state' */
 dd_space_states dd_tablespace_get_state_enum(
+    const dd::Properties *p, space_id_t space_id = SPACE_UNKNOWN);
+
+/** Get the enum for the state of a tablespace. Try the old 'discarded'
+key value for IBD spaces or undo::Tablespace.
+@param[in]  p         dd::Properties for dd::Tablespace::se_private_data
+@param[in]  space_id  tablespace ID
+@return enumerated value associated with the key 'state' */
+dd_space_states dd_tablespace_get_state_enum_legacy(
     const dd::Properties *p, space_id_t space_id = SPACE_UNKNOWN);
 
 /** Get the discarded state from se_private_data of tablespace

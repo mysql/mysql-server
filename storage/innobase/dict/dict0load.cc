@@ -1492,7 +1492,7 @@ space_id_t dict_check_sys_tables(bool validate) {
     discovered in the default location.*/
     char *space_name_from_dict = dict_space_get_name(space_id, nullptr);
 
-    if (space_id == dict_sys_t::s_space_id) {
+    if (space_id == dict_sys_t::s_dict_space_id) {
       tbl_name = dict_sys_t::s_dd_space_name;
       space_name = dict_sys_t::s_dd_space_name;
       tablespace_name.assign(space_name);
@@ -1536,7 +1536,7 @@ space_id_t dict_check_sys_tables(bool validate) {
 
     /* Set the expected filepath from the data dictionary. */
     char *filepath = nullptr;
-    if (space_id == dict_sys_t::s_space_id) {
+    if (space_id == dict_sys_t::s_dict_space_id) {
       filepath = mem_strdup(dict_sys_t::s_dd_space_file_name);
     } else {
       filepath = dict_get_first_path(space_id);
@@ -2213,7 +2213,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
     return;
   }
 
-  if (table->flags2 & DICT_TF2_DISCARDED) {
+  if (dict_table_is_discarded(table)) {
     ib::warn(ER_IB_MSG_204)
         << "Tablespace for table " << table->name << " is set as discarded.";
     table->ibd_file_missing = TRUE;
@@ -2230,7 +2230,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   const char *tbl_name;
 
   if (DICT_TF_HAS_SHARED_SPACE(table->flags)) {
-    if (table->space == dict_sys_t::s_space_id) {
+    if (table->space == dict_sys_t::s_dict_space_id) {
       shared_space_name = mem_strdup(dict_sys_t::s_dd_space_name);
     } else if (srv_sys_tablespaces_open) {
       shared_space_name = dict_space_get_name(table->space, nullptr);

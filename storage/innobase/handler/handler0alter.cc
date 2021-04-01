@@ -4017,9 +4017,18 @@ static void dd_commit_inplace_alter_table(
 
   dd_write_table(dd_space_id, new_dd_tab, new_table);
 
-  /* For discarded table, need set this to dd. */
+  /* If this table is discarded, we need to set this to both dd::Table
+  and dd::Tablespace. */
   if (old_info.m_discarded) {
     dd_set_discarded(*new_dd_tab, true);
+
+    THD *thd = current_thd;
+    dd::Object_id dd_space_id =
+        (*new_dd_tab->indexes()->begin())->tablespace_id();
+    std::string space_name(new_table->name.m_name);
+    dict_name::convert_to_space(space_name);
+    dd_tablespace_set_state(thd, dd_space_id, space_name,
+                            DD_SPACE_STATE_DISCARDED);
   }
 }
 

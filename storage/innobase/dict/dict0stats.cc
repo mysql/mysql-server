@@ -2826,10 +2826,11 @@ storage */
   ut_ad(!mutex_own(&dict_sys->mutex));
 
   if (table->ibd_file_missing) {
-    ib::warn(ER_IB_MSG_224)
-        << "Cannot calculate statistics for table " << table->name
-        << " because the .ibd file is missing. " << TROUBLESHOOTING_MSG;
-
+    if (!dict_table_is_discarded(table)) {
+      ib::warn(ER_IB_MSG_224)
+          << "Cannot calculate statistics for table " << table->name
+          << " because the .ibd file is missing. " << TROUBLESHOOTING_MSG;
+    }
     dict_stats_empty_table(table);
     return (DB_TABLESPACE_DELETED);
   } else if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE) {

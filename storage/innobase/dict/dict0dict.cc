@@ -5093,12 +5093,12 @@ void DDTableBuffer::open() {
     ++root;
   }
 
-  table = dict_mem_table_create(table_name, dict_sys_t::s_space_id, N_USER_COLS,
-                                0, 0, 0, 0);
+  table = dict_mem_table_create(table_name, dict_sys_t::s_dict_space_id,
+                                N_USER_COLS, 0, 0, 0, 0);
 
   table->id = dict_sys_t::s_dynamic_meta_table_id;
   table->is_dd_table = true;
-  table->dd_space_id = dict_sys_t::s_dd_space_id;
+  table->dd_space_id = dict_sys_t::s_dd_dict_space_id;
   table->flags |= DICT_TF_COMPACT | (1 << DICT_TF_POS_SHARED_SPACE) |
                   (1 << DICT_TF_POS_ATOMIC_BLOBS);
 
@@ -5117,8 +5117,9 @@ void DDTableBuffer::open() {
 
   dict_table_add_system_columns(table, heap);
 
-  m_index = dict_mem_index_create(table_name, "PRIMARY", dict_sys_t::s_space_id,
-                                  DICT_CLUSTERED | DICT_UNIQUE, 1);
+  m_index =
+      dict_mem_index_create(table_name, "PRIMARY", dict_sys_t::s_dict_space_id,
+                            DICT_CLUSTERED | DICT_UNIQUE, 1);
 
   dict_index_add_col(m_index, table, &table->cols[0], 0, true);
 
