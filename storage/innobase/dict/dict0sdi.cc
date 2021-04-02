@@ -44,8 +44,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 
 /** Check if SDI Index exists in a tablespace
-@param[in]	tablespace	tablespace object
-@param[in,out]	space_id	space_id from tablespace object
+@param[in]      dd_space  DD tablespace object
+@param[in,out]  space_id  space_id from tablespace object
 @return DB_SUCCESS if SDI exists, else return DB_ERROR,
 DB_TABLESPACE_NOT_FOUND */
 static dberr_t dict_sdi_exists(const dd::Tablespace &dd_space,
