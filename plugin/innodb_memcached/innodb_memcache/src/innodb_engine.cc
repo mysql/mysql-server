@@ -505,14 +505,21 @@ void innodb_close_mysql_table(
 
 #define NUM_MAX_MEM_SLOT 1024
 
+static void innodb_conn_free_used_buffers(innodb_conn_data_t *conn_data) {
+  mem_buf_t *mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
+  while (mem_buf) {
+    UT_LIST_REMOVE(mem_list, conn_data->mul_used_buf, mem_buf);
+    free(mem_buf->mem);
+    free(mem_buf);
+    mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
+  }
+}
 /*******************************************************************/ /**
  Cleanup idle connections if "clear_all" is false, and clean up all
  connections if "clear_all" is true. */
 static void innodb_conn_clean_data(
     /*===================*/
     innodb_conn_data_t *conn_data, bool has_lock, bool free_all) {
-  mem_buf_t *mem_buf;
-
   if (!conn_data) {
     return;
   }
@@ -595,13 +602,7 @@ static void innodb_conn_clean_data(
       conn_data->mul_col_buf_len = 0;
     }
 
-    mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
-
-    while (mem_buf) {
-      UT_LIST_REMOVE(mem_list, conn_data->mul_used_buf, mem_buf);
-      free(mem_buf->mem);
-      mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
-    }
+    innodb_conn_free_used_buffers(conn_data);
 
     pthread_mutex_destroy(&conn_data->curr_conn_mutex);
     free(conn_data);
@@ -1515,7 +1516,6 @@ static void innodb_release(ENGINE_HANDLE *handle, const void *cookie,
                            item *item) {
   struct innodb_engine *innodb_eng = innodb_handle(handle);
   innodb_conn_data_t *conn_data;
-  mem_buf_t *mem_buf;
 
   conn_data =
       (innodb_conn_data_t *)innodb_eng->server.cookie->get_engine_specific(
@@ -1532,13 +1532,7 @@ static void innodb_release(ENGINE_HANDLE *handle, const void *cookie,
   conn_data->multi_get = false;
   conn_data->mul_col_buf_used = 0;
 
-  mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
-
-  while (mem_buf) {
-    UT_LIST_REMOVE(mem_list, conn_data->mul_used_buf, mem_buf);
-    free(mem_buf->mem);
-    mem_buf = UT_LIST_GET_FIRST(conn_data->mul_used_buf);
-  }
+  innodb_conn_free_used_buffers(conn_data);
 
   /* If item's memory comes from Memcached default engine, release it
   through Memcached APIs */
@@ -1631,6 +1625,24 @@ static void innodb_free_item(
   if (result->col_value[MCI_COL_VALUE].allocated) {
     free(result->col_value[MCI_COL_VALUE].value_str);
     result->col_value[MCI_COL_VALUE].allocated = false;
+  }
+}
+static void innodb_ensure_mul_col_buf_capacity(innodb_conn_data_t *conn_data,
+                                               size_t total_len) {
+  if (conn_data->mul_col_buf_len < total_len + conn_data->mul_col_buf_used) {
+    /* Need to keep the old result buffer, since its
+    point is already registered with memcached output
+    buffer. These result buffers will be release
+    once results are all reported */
+    if (conn_data->mul_col_buf) {
+      mem_buf_t *new_temp = (mem_buf_t *)malloc(sizeof(mem_buf_t));
+      new_temp->mem = conn_data->mul_col_buf;
+      UT_LIST_ADD_LAST(mem_list, conn_data->mul_used_buf, new_temp);
+    }
+
+    conn_data->mul_col_buf = (char *)malloc(total_len);
+    conn_data->mul_col_buf_len = total_len;
+    conn_data->mul_col_buf_used = 0;
   }
 }
 /*******************************************************************/ /**
@@ -1936,21 +1948,7 @@ search_done:
     /* No need to add the last separator */
     total_len -= option_length;
 
-    if (conn_data->mul_col_buf_len < total_len + conn_data->mul_col_buf_used) {
-      /* Need to keep the old result buffer, since its
-      point is already registered with memcached output
-      buffer. These result buffers will be release
-      once results are all reported */
-      if (conn_data->mul_col_buf) {
-        mem_buf_t *new_temp = (mem_buf_t *)malloc(sizeof(mem_buf_t));
-        new_temp->mem = conn_data->mul_col_buf;
-        UT_LIST_ADD_LAST(mem_list, conn_data->mul_used_buf, new_temp);
-      }
-
-      conn_data->mul_col_buf = (char *)malloc(total_len);
-      conn_data->mul_col_buf_len = total_len;
-      conn_data->mul_col_buf_used = 0;
-    }
+    innodb_ensure_mul_col_buf_capacity(conn_data, total_len);
 
     c_value = &conn_data->mul_col_buf[conn_data->mul_col_buf_used];
     assert(conn_data->mul_col_buf_used + total_len <=
@@ -2019,23 +2017,14 @@ search_done:
                               result->col_value[MCI_COL_VALUE].value_len,
                               result->col_value[MCI_COL_VALUE].is_unsigned);
 
-    assert(conn_data->mul_col_buf_used == 0);
-    if (int_len > conn_data->mul_col_buf_len) {
-      if (conn_data->mul_col_buf) {
-        free(conn_data->mul_col_buf);
-      }
-
-      conn_data->mul_col_buf = (char *)malloc(int_len);
-      conn_data->mul_col_buf_len = int_len;
-    }
-
-    if (int_len > 0) {
-      memcpy(conn_data->mul_col_buf, int_buf, int_len);
-      conn_data->mul_col_buf_used += int_len;
-    }
-    result->col_value[MCI_COL_VALUE].value_str = conn_data->mul_col_buf;
-
+    assert(int_len > 0);
+    innodb_ensure_mul_col_buf_capacity(conn_data, int_len);
+    result->col_value[MCI_COL_VALUE].value_str =
+        conn_data->mul_col_buf + conn_data->mul_col_buf_used;
     result->col_value[MCI_COL_VALUE].value_len = int_len;
+    conn_data->mul_col_buf_used += int_len;
+    memcpy(result->col_value[MCI_COL_VALUE].value_str, int_buf,
+           result->col_value[MCI_COL_VALUE].value_len);
     result->col_value[MCI_COL_VALUE].is_str = true;
     result->col_value[MCI_COL_VALUE].is_valid = true;
   }
