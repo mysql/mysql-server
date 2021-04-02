@@ -2855,6 +2855,14 @@ error_handling:
     case DB_SUCCESS:
     case DB_IO_NO_PUNCH_HOLE_FS:
       break;
+    case DB_ERROR:
+      mutex_enter(&dict_sys->mutex);
+
+      dict_table_remove_from_cache(table);
+
+      mutex_exit(&dict_sys->mutex);
+
+      break;
 
     case DB_OUT_OF_FILE_SPACE:
     case DB_TOO_MANY_CONCURRENT_TRXS:
