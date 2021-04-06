@@ -150,8 +150,6 @@ BEGIN; INSERT INTO t1 VALUES (1);;
 [connection master]
 # Adding debug point 'set_commit_parent_100' to @@GLOBAL.debug
 BEGIN; INSERT INTO t1 VALUES (1); COMMIT; BEGIN; INSERT INTO t1 VALUES (2); COMMIT; ALTER TABLE t_hash IMPORT TABLESPACE;;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't_hash'
 [connection server_1]
 BEGIN; INSERT INTO t2 VALUES (1); COMMIT; BEGIN; INSERT INTO t2 VALUES (2); COMMIT; BEGIN; INSERT INTO t2 VALUES (3); COMMIT;;
 # Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
