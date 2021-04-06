@@ -106,6 +106,7 @@ SELECT @@global.innodb_table_locks;
 
 # for session
 
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@session.innodb_table_locks = -6;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.innodb_table_locks = 1.6;
@@ -127,6 +128,7 @@ SET @@session.innodb_table_locks = ÓFF;
 # for global
 
 
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_table_locks = -1;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_table_locks = 2;
