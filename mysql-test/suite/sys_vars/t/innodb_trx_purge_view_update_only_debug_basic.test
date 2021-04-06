@@ -44,6 +44,7 @@ set @@session.innodb_trx_purge_view_update_only_debug='some';
 set global innodb_trx_purge_view_update_only_debug=1.1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_trx_purge_view_update_only_debug='foo';
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_trx_purge_view_update_only_debug=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_trx_purge_view_update_only_debug=1e1;

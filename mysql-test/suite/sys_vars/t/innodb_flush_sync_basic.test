@@ -58,7 +58,7 @@ set global innodb_flush_sync=1.1;
 set global innodb_flush_sync=1e1;
 --error ER_WRONG_VALUE_FOR_VAR
 set global innodb_flush_sync=2;
---echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_flush_sync=-3;
 select @@global.innodb_flush_sync;
 --disable_warnings
