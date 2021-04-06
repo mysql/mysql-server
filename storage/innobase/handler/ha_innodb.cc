@@ -10153,8 +10153,9 @@ int ha_innobase::change_active_index(
   be able to retrieve FTS_DOC_ID column value if necessary. */
   if ((m_prebuilt->index->type & DICT_FTS)) {
     if (table->fts_doc_id_field &&
-        bitmap_is_set(table->read_set, table->fts_doc_id_field->field_index() &&
-                                           m_prebuilt->read_just_key)) {
+        bitmap_is_set(table->read_set,
+                      table->fts_doc_id_field->field_index()) &&
+        m_prebuilt->read_just_key) {
       m_prebuilt->fts_doc_id_in_read_set = true;
     }
   } else {
