@@ -71,6 +71,7 @@ ERROR 42000: Incorrect argument type to variable 'innodb_log_checkpoint_fuzzy_no
 set global innodb_log_checkpoint_fuzzy_now='foo';
 ERROR 42000: Variable 'innodb_log_checkpoint_fuzzy_now' can't be set to the value of 'foo'
 set global innodb_log_checkpoint_fuzzy_now=-2;
+ERROR 42000: Variable 'innodb_log_checkpoint_fuzzy_now' can't be set to the value of '-2'
 set global innodb_log_checkpoint_fuzzy_now=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_log_checkpoint_fuzzy_now'
 SET @@global.innodb_log_checkpoint_fuzzy_now = @start_global_value;

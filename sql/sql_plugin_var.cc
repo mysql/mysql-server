@@ -604,7 +604,7 @@ int check_func_bool(THD *, SYS_VAR *, void *save, st_mysql_value *value) {
       goto err;
   } else {
     if (value->val_int(value, &tmp) < 0) goto err;
-    if (tmp > 1) goto err;
+    if (tmp > 1 || tmp < 0) goto err;
     result = (int)tmp;
   }
   *(bool *)save = result ? true : false;
