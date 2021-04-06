@@ -75,6 +75,9 @@ DbUtil::isConnected(){
     require(m_mysql);
     return true;
   }
+  if (m_mysql) {
+    return true; // Already connected
+  }
   return connect();
 }
 
@@ -112,6 +115,9 @@ DbUtil::connect()
 {
   // Only allow connect() when the MYSQL object is owned by this class
   require(m_owns_mysql);
+
+  // Only allow connect() when the MYSQL object isn't already allocated
+  require(m_mysql == nullptr);
 
   if (!(m_mysql = mysql_init(NULL)))
   {
