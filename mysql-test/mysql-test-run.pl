@@ -1165,6 +1165,8 @@ sub run_test_server ($$$) {
                 my $tt = $tests->[$j];
                 last unless defined $tt;
                 last if $tt->{criteria} ne $criteria;
+		# Do not pick up not_parallel tests, they are run separately
+		last if $tt->{'not_parallel'};
                 $tt->{reserved} = $wid;
               }
             }
@@ -1285,7 +1287,8 @@ sub run_worker ($) {
       # A sanity check. Should this happen often we need to look at it.
       if (defined $test->{reserved} && $test->{reserved} != $thread_num) {
         my $tres = $test->{reserved};
-        mtr_warning("Test reserved for w$tres picked up by w$thread_num");
+	my $name = $test->{name};
+	mtr_warning("Test $name reserved for w$tres picked up by w$thread_num");
       }
       $test->{worker} = $thread_num if $opt_parallel > 1;
 
