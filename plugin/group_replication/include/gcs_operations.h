@@ -24,6 +24,7 @@
 #define GCS_OPERATIONS_INCLUDE
 
 #include <mysql/group_replication_priv.h>
+#include <atomic>
 #include <future>
 #include <string>
 #include <utility>
@@ -339,11 +340,9 @@ class Gcs_operations {
   /** Was this view change injected */
   bool injected_view_modification;
   /** Is the member leaving*/
-  bool leave_coordination_leaving;
+  std::atomic<bool> leave_coordination_leaving;
   /** Did the member already left*/
-  bool leave_coordination_left;
-  /** Is finalize ongoing*/
-  bool finalize_ongoing;
+  std::atomic<bool> leave_coordination_left;
 
   /** List of associated view change notifiers waiting */
   std::list<Plugin_gcs_view_modification_notifier *> view_change_notifier_list;
@@ -351,7 +350,6 @@ class Gcs_operations {
   Checkable_rwlock *gcs_operations_lock;
   /** Lock for the list of waiters on a view change */
   Checkable_rwlock *view_observers_lock;
-  Checkable_rwlock *finalize_ongoing_lock;
 };
 
 #endif /* GCS_OPERATIONS_INCLUDE */

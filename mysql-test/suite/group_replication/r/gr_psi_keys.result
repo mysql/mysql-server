@@ -67,7 +67,6 @@ wait/synch/mutex/group_rpl/LOCK_mysql_thread_dispatcher_run	YES	YES	singleton	0	
 wait/synch/rwlock/group_rpl/RWLOCK_certifier_stable_gtid_set	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_channel_observation_list	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations	YES	YES	singleton	0	NULL
-wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations_finalize_ongoing	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations_view_change_observers	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_group_event_observation_list	YES	YES	singleton	0	NULL
 wait/synch/rwlock/group_rpl/RWLOCK_io_cache_unused_list	YES	YES	singleton	0	NULL

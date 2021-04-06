@@ -35,8 +35,7 @@ Gcs_operations::Gcs_operations()
     : gcs_interface(nullptr),
       injected_view_modification(false),
       leave_coordination_leaving(false),
-      leave_coordination_left(false),
-      finalize_ongoing(false) {
+      leave_coordination_left(false) {
   gcs_operations_lock = new Checkable_rwlock(
 #ifdef HAVE_PSI_INTERFACE
       key_GR_RWLOCK_gcs_operations
@@ -47,17 +46,11 @@ Gcs_operations::Gcs_operations()
       key_GR_RWLOCK_gcs_operations_view_change_observers
 #endif
   );
-  finalize_ongoing_lock = new Checkable_rwlock(
-#ifdef HAVE_PSI_INTERFACE
-      key_GR_RWLOCK_gcs_operations_finalize_ongoing
-#endif
-  );
 }
 
 Gcs_operations::~Gcs_operations() {
   delete gcs_operations_lock;
   delete view_observers_lock;
-  delete finalize_ongoing_lock;
 }
 
 int Gcs_operations::initialize() {
@@ -96,19 +89,13 @@ end:
 
 void Gcs_operations::finalize() {
   DBUG_TRACE;
-  finalize_ongoing_lock->wrlock();
-  finalize_ongoing = true;
   gcs_operations_lock->wrlock();
-  finalize_ongoing_lock->unlock();
 
   if (gcs_interface != nullptr) gcs_interface->finalize();
   Gcs_interface_factory::cleanup(gcs_engine);
   gcs_interface = nullptr;
 
-  finalize_ongoing_lock->wrlock();
-  finalize_ongoing = false;
   gcs_operations_lock->unlock();
-  finalize_ongoing_lock->unlock();
 }
 
 enum enum_gcs_error Gcs_operations::configure(
@@ -327,28 +314,8 @@ void Gcs_operations::remove_view_notifer(
 void Gcs_operations::leave_coordination_member_left() {
   DBUG_TRACE;
 
-  /*
-    If finalize method is ongoing, it means that GCS is waiting that
-    all messages and views are delivered to GR, if we proceed with
-    this method we will enter on the deadlock:
-      1) leave view was not delivered before wait view timeout;
-      2) finalize did start and acquired lock->wrlock();
-      3) leave view was delivered, member_left is waiting to
-         acquire lock->wrlock().
-    So, if leaving, we just do nothing.
-  */
-  finalize_ongoing_lock->rdlock();
-  if (finalize_ongoing) {
-    finalize_ongoing_lock->unlock();
-    return;
-  }
-  gcs_operations_lock->wrlock();
-  finalize_ongoing_lock->unlock();
-
   leave_coordination_leaving = false;
   leave_coordination_left = true;
-
-  gcs_operations_lock->unlock();
 }
 
 Gcs_view *Gcs_operations::get_current_view() {
