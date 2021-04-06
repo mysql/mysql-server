@@ -966,6 +966,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_current_thread_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_runtime_error.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_mysql_system_variable_set.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_test_table_access.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_udf_reg_avg_func.so
@@ -1046,6 +1047,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_current_thread_reader.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_runtime_error.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_mysql_system_variable_set.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_table_access.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_test_component_deinit.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_3_func.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_udf_reg_avg_func.so

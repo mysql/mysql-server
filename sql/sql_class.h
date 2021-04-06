@@ -4371,6 +4371,25 @@ class THD : public MDL_context_owner,
   PS_PARAM *bind_parameter_values;
   /** the number of elements in parameters */
   unsigned long bind_parameter_values_count;
+
+ public:
+  /**
+    Copy session properties that affect table access
+    from the parent session to the current session.
+
+    The following properties:
+    - the OPTION_BIN_LOG flag,
+    - the skip_readonly_check flag,
+    - the transaction isolation (tx_isolation)
+    are copied from the parent to the current THD.
+
+    This is useful to execute an isolated, internal THD session
+    to access tables, while leaving tables in the parent session
+    unchanged.
+
+    @param thd parent session
+  */
+  void copy_table_access_properties(THD *thd);
 };
 
 /**

@@ -574,6 +574,13 @@ THD::THD(bool enable_plugins)
   set_system_user(false);
 }
 
+void THD::copy_table_access_properties(THD *thd) {
+  thread_stack = thd->thread_stack;
+  variables.option_bits = thd->variables.option_bits & OPTION_BIN_LOG;
+  skip_readonly_check = thd->skip_readonly_check;
+  tx_isolation = thd->tx_isolation;
+}
+
 void THD::set_transaction(Transaction_ctx *transaction_ctx) {
   assert(is_attachable_ro_transaction_active());
 

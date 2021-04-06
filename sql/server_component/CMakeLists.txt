@@ -50,6 +50,7 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   security_context_imp.cc
   server_component.cc
   system_variable_source_imp.cc
+  table_access_service.cc
   udf_metadata_imp.cc
   audit_api_connection_service_imp.cc
   mysql_query_attributes_imp.cc

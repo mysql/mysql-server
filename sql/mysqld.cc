@@ -391,6 +391,13 @@ MySQL clients support the protocol:
 
 
 /**
+  @page PAGE_SERVICES Available services
+
+  @subpage PAGE_TABLE_ACCESS_SERVICE
+*/
+
+
+/**
   @page PAGE_SERVER_TOOLS Server tools
 
   - @subpage PAGE_MYSQL_ROUTER

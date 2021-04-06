@@ -3707,10 +3707,10 @@ ER_AUDIT_LOG_JSON_READER_FAILED_TO_OPEN_FILE
 ER_AUDIT_LOG_JSON_READER_FILE_PARSING_ERROR
   eng "JSON file parsing error. Reading next file if exists"
 
-ER_AUDIT_LOG_FILTER_INVALID_COLUMN_COUNT
+OBSOLETE_ER_AUDIT_LOG_FILTER_INVALID_COLUMN_COUNT
   eng "Invalid column count in the '%s.%s' table."
 
-ER_AUDIT_LOG_FILTER_INVALID_COLUMN_DEFINITION
+OBSOLETE_ER_AUDIT_LOG_FILTER_INVALID_COLUMN_DEFINITION
   eng "Invalid column definition of the '%s.%s' table."
 
 ER_AUDIT_LOG_FILTER_FAILED_TO_STORE_TABLE_FLDS
@@ -11363,6 +11363,9 @@ ER_WARN_ADUIT_LOG_MAX_SIZE_AND_PRUNE_SECONDS_LOG
 
 ER_WARN_ADUIT_LOG_MAX_SIZE_CLOSE_TO_ROTATE_ON_SIZE_LOG
   eng "audit_log_rotate_on_size is not granular enough for the value of audit_log_max_size supplied. Should be at least %d times smaller."
+
+ER_PLUGIN_INVALID_TABLE_DEFINITION
+  eng "Invalid table definition for '%s.%s'."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
