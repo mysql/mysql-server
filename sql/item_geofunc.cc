@@ -5207,6 +5207,12 @@ String *Item_func_st_buffer::val_str(String *str) {
 
 bool Item_func_st_buffer::parse_strategy(String *arg,
                                          gis::BufferStrategies &strats) {
+  // Input validation
+  assert(arg);
+  if (arg == nullptr || arg->length() < 12) {
+    return true;
+  }
+
   // Extracting the strategy (type) and value from the String object.
   const uchar *p_arg = pointer_cast<const uchar *>(arg->ptr());
   uint strategy_number = uint4korr(p_arg);
