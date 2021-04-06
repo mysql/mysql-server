@@ -123,6 +123,7 @@ update t1 set c = 'bb' where a = 2;
 --sleep 1
 --error ER_LOCK_DEADLOCK
 update t1 set c = 'aa' where a = 1;
+--error ER_XA_RBDEADLOCK
 select count(*) from t1;
 --error ER_XA_RBDEADLOCK
 xa end 'a','c';

@@ -1,0 +1,73 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# BUG#32707060: INCONSISTENT BINLOG CAUSES ON REPLICA ERROR 'XAER_RMFAIL:
+#               THE COMMAND CANNOT BE EXECUTED WHEN GLOBAL TRANSACTION IS
+#               IN THE ACTIVE STATE'
+#
+CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 VARCHAR(5));
+INSERT INTO t1(c2) VALUES("a");
+INSERT INTO t1(c2) VALUES("b");
+XA START 'xa1_t1';
+SELECT * FROM t1 WHERE c1 = 2 FOR UPDATE;
+c1	c2
+2	b
+UPDATE t1 SET c2 = 'c' WHERE c1 = 2;
+[connection master1]
+XA START 'xa2_t1';
+SELECT * FROM t1 WHERE c1 = 1 FOR UPDATE;
+c1	c2
+1	a
+UPDATE t1 SET c2 = 'd' WHERE c1 = 1;
+[connection master]
+SELECT * FROM t1 WHERE c1 = 1 FOR UPDATE;
+[connection master1]
+SELECT * FROM t1 WHERE c1 = 2 FOR UPDATE;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+[connection master]
+c1	c2
+1	a
+UPDATE t1 SET c2 = 'e' WHERE c1 = 1;
+XA END 'xa1_t1';
+XA PREPARE 'xa1_t1';
+XA COMMIT 'xa1_t1';
+[connection master1]
+XA END 'xa2_t1';
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+UPDATE t1 SET c2 = 'f' WHERE c1 = 2;
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+SELECT c1 FROM t1;
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+XA END 'xa2_t1';
+ERROR XA102: XA_RBDEADLOCK: Transaction branch was rolled back: deadlock was detected
+XA ROLLBACK 'xa2_t1';
+include/assert.inc [Incorrect content in table t1. c2 should contain 'e']
+include/assert.inc [Incorrect content in table t1. c2 should contain 'c']
+[connection master]
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (c1 INT AUTO_INCREMENT PRIMARY KEY, c2 VARCHAR(5))
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	XA START X'7861315f7431',X'',1
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Query	#	#	XA END X'7861315f7431',X'',1
+master-bin.000001	#	XA_prepare	#	#	XA PREPARE X'7861315f7431',X'',1
+master-bin.000001	#	Query	#	#	XA COMMIT X'7861315f7431',X'',1
+[connection master1]
+CREATE TABLE t2 (c1 int);
+[connection master]
+DROP TABLE t1, t2;
+include/rpl_end.inc
