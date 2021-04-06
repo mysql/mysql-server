@@ -3376,9 +3376,10 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
           }
         } else if (path->type == AccessPath::SORT) {
           assert(path->sort().filesort == nullptr);
-          for (Temp_table_param *temp_table_param : applied_temp_tables) {
+          for (Temp_table_param *earlier_temp_table_param :
+               applied_temp_tables) {
             ReplaceOrderItemsWithTempTableFields(thd, path->sort().order,
-                                                 temp_table_param);
+                                                 earlier_temp_table_param);
           }
 
           // Set up a Filesort object for this sort.
