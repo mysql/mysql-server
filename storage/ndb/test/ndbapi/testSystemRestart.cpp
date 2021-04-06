@@ -3756,6 +3756,9 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
     }
   }
+
+  DbUtil::thread_end();
+
   return NDBT_OK;
 }
 

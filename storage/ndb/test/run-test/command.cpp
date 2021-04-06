@@ -56,7 +56,7 @@ static bool ack_command(AtrtClient& atrtdb, int command_id, const char* state) {
   return atrtdb.doQuery(sql);
 }
 
-BaseString set_env_var(const BaseString& existing, const BaseString& name,
+static BaseString set_env_var(const BaseString& existing, const BaseString& name,
                        const BaseString& value) {
   /* Split existing on space
    * (may have issues with env vars with spaces)

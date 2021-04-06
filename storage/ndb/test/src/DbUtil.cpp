@@ -33,6 +33,12 @@
 #include <NdbSleep.h>
 #include "NDBT_Output.hpp"
 
+// Release resources at program exit
+static void dbutil_atexit() {
+  // Release MySQL library
+  mysql_library_end();
+}
+
 DbUtil::DbUtil(const char* _dbname,
                const char* _suffix):
   m_mysql(NULL),
@@ -41,6 +47,11 @@ DbUtil::DbUtil(const char* _dbname,
   m_pass(""),
   m_dbname(_dbname)
 {
+
+  // Initialize MySQL library and setup to release it when program exits
+  mysql_library_init(0, nullptr, nullptr);
+  std::atexit(dbutil_atexit);
+
   const char* env= getenv("MYSQL_HOME");
   if (env && strlen(env))
   {
@@ -64,6 +75,11 @@ DbUtil::DbUtil(MYSQL* mysql):
   m_mysql(mysql),
   m_owns_mysql(false) // The passed MYSQL object is NOT owned by this class
 {
+}
+
+void DbUtil::thread_end() {
+  // Release MySQL thread resources
+  mysql_thread_end();
 }
 
 bool

@@ -1632,7 +1632,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
       if (!m_noddl)
       {
-        createFuncName= m_createAll ? "runCreateTable" : "runCreateTable";
+        createFuncName= m_createAll ? "runCreateTables" : "runCreateTable";
         createFunc=   m_createAll ? &runCreateTables : &runCreateTable;
         dropFuncName= m_createAll ? "runDropTables" : "runDropTable";
         dropFunc= m_createAll ? &runDropTables : &runDropTable;
@@ -1670,7 +1670,7 @@ int NDBT_TestSuite::execute(int argc, const char** argv){
 
       if (!m_noddl)
       {
-        createFuncName= m_createAll ? "runCreateTable" : "runCreateTable";
+        createFuncName= m_createAll ? "runCreateTables" : "runCreateTable";
         createFunc=   m_createAll ? &runCreateTables : &runCreateTable;
         dropFuncName= m_createAll ? "runDropTables" : "runDropTable";
         dropFunc= m_createAll ? &runDropTables : &runDropTable;
