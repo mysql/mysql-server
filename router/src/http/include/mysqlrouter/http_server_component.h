@@ -27,8 +27,10 @@
 
 #include <mutex>
 
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/http_server_export.h"
+
+class HttpServer;
 
 class HTTP_SERVER_EXPORT BaseRequestHandler {
  public:

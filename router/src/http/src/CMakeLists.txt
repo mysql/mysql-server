@@ -33,7 +33,9 @@ ADD_LIBRARY(http_common
   http_time.cc
   )
 TARGET_LINK_LIBRARIES(http_common
+  PUBLIC
   harness_tls
+  PRIVATE
   ${LIBEVENT_LIBRARIES}
   ${SSL_LIBRARIES}
   )
