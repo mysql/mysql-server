@@ -77,7 +77,7 @@ class Server_side_cursor {
                             const std::nothrow_t & = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
-  static void operator delete(void *, size_t){};
+  static void operator delete(void *, size_t) {}
   static void operator delete(
       void *, MEM_ROOT *, const std::nothrow_t &) noexcept { /* never called */
   }
