@@ -484,7 +484,8 @@ bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
     }
 
     if (do_copy) {
-      item->save_in_field(func.result_field(), /*no_conversions=*/true);
+      item->save_in_field_no_error_check(func.result_field(),
+                                         /*no_conversions=*/true);
       /*
         Need to check the THD error state because Item::val_xxx() don't
         return error code, but can generate errors

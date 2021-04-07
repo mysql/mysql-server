@@ -1247,6 +1247,17 @@ class Item : public Parse_tree_node {
   */
   type_conversion_status save_in_field(Field *field, bool no_conversions);
 
+  /**
+    A slightly faster value of save_in_field() that returns no error value
+    (you will need to check thd->is_error() yourself), and does not support
+    saving into hidden fields for functional indexes. Used by copy_funcs(),
+    to avoid the functional call overhead and RAII setup of save_in_field().
+   */
+  void save_in_field_no_error_check(Field *field, bool no_conversions) {
+    assert(!field->is_field_for_functional_index());
+    save_in_field_inner(field, no_conversions);
+  }
+
   virtual void save_org_in_field(Field *field) { save_in_field(field, true); }
 
   virtual bool send(Protocol *protocol, String *str);
