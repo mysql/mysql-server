@@ -441,51 +441,14 @@ void update_tmptable_sum_func(Item_sum **func_ptr,
 */
 bool copy_funcs(Temp_table_param *param, const THD *thd, Copy_func_type type) {
   DBUG_TRACE;
-  if (param->items_to_copy == nullptr || param->items_to_copy->empty()) {
+  if (param->items_to_copy == nullptr) {
     return false;
   }
 
   for (const Func_ptr &func : *param->items_to_copy) {
-    Item *item = func.func();
-    bool do_copy = false;
-    switch (type) {
-      case CFT_ALL:
-        do_copy = true;
-        break;
-      case CFT_WF_FRAMING:
-        do_copy = (item->m_is_window_function &&
-                   down_cast<Item_sum *>(item)->framing());
-        break;
-      case CFT_WF_NON_FRAMING:
-        do_copy = (item->m_is_window_function &&
-                   !down_cast<Item_sum *>(item)->framing() &&
-                   !down_cast<Item_sum *>(item)->needs_partition_cardinality());
-        break;
-      case CFT_WF_NEEDS_PARTITION_CARDINALITY:
-        do_copy = (item->m_is_window_function &&
-                   down_cast<Item_sum *>(item)->needs_partition_cardinality());
-        break;
-      case CFT_WF_USES_ONLY_ONE_ROW:
-        do_copy = (item->m_is_window_function &&
-                   down_cast<Item_sum *>(item)->uses_only_one_row());
-        break;
-      case CFT_HAS_NO_WF:
-        do_copy = !item->m_is_window_function && !item->has_wf();
-        break;
-      case CFT_HAS_WF:
-        do_copy = !item->m_is_window_function && item->has_wf();
-        break;
-      case CFT_WF:
-        do_copy = item->m_is_window_function;
-        break;
-      case CFT_FIELDS:
-        do_copy = item->type() == Item::FIELD_ITEM;
-        break;
-    }
-
-    if (do_copy) {
-      item->save_in_field_no_error_check(func.result_field(),
-                                         /*no_conversions=*/true);
+    if (func.should_copy(type)) {
+      func.func()->save_in_field_no_error_check(func.result_field(),
+                                                /*no_conversions=*/true);
       /*
         Need to check the THD error state because Item::val_xxx() don't
         return error code, but can generate errors

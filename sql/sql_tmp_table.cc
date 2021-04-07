@@ -2860,7 +2860,45 @@ bool reposition_innodb_cursor(TABLE *table, ha_rows row_num) {
   return table->file->ha_rnd_pos(table->record[0], rowid_bytes);
 }
 
-Func_ptr::Func_ptr(Item *f, Field *result_field)
-    : m_func(f),
+// Computes Func_ptr::m_func_bits.
+static int FindCopyBitmap(Item *item) {
+  int bits = 1 << CFT_ALL;
+  if (item->m_is_window_function) {
+    bits |= 1 << CFT_WF;
+
+    Item_sum *item_wf = down_cast<Item_sum *>(item);
+    if (item_wf->framing()) {
+      bits |= 1 << CFT_WF_FRAMING;
+    }
+    if (item_wf->needs_partition_cardinality()) {
+      bits |= 1 << CFT_WF_NEEDS_PARTITION_CARDINALITY;
+    }
+    if (!item_wf->framing() && !item_wf->needs_partition_cardinality()) {
+      bits |= 1 << CFT_WF_NON_FRAMING;
+    }
+    if (item_wf->uses_only_one_row()) {
+      bits |= 1 << CFT_WF_USES_ONLY_ONE_ROW;
+    }
+  } else {
+    if (item->has_wf()) {
+      bits |= 1 << CFT_HAS_WF;
+    } else {
+      bits |= 1 << CFT_HAS_NO_WF;
+    }
+    if (item->type() == Item::FIELD_ITEM) {
+      bits |= 1 << CFT_FIELDS;
+    }
+  }
+  return bits;
+}
+
+Func_ptr::Func_ptr(Item *item, Field *result_field)
+    : m_func(item),
       m_result_field(result_field),
-      m_result_item(new Item_field(result_field)) {}
+      m_result_item(new Item_field(result_field)),
+      m_func_bits(FindCopyBitmap(item)) {}
+
+void Func_ptr::set_func(Item *func) {
+  m_func = func;
+  m_func_bits = FindCopyBitmap(func);
+}

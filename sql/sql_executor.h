@@ -166,7 +166,7 @@ MY_ATTRIBUTE((warn_unused_result))
 bool copy_fields(Temp_table_param *param, const THD *thd,
                  bool reverse_copy = false);
 
-enum Copy_func_type {
+enum Copy_func_type : int {
   /**
     In non-windowing step, copies functions
   */

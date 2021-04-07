@@ -42,17 +42,23 @@ struct MEM_ROOT;
 template <typename T>
 using Mem_root_vector = std::vector<T, Mem_root_allocator<T>>;
 
+enum Copy_func_type : int;
+
 /**
    Helper class for copy_funcs(); represents an Item to copy from table to
    next tmp table.
 */
 class Func_ptr {
  public:
-  Func_ptr(Item *f, Field *result_field);
+  Func_ptr(Item *item, Field *result_field);
+
   Item *func() const { return m_func; }
-  void set_func(Item *func) { m_func = func; }
+  void set_func(Item *func);
   Field *result_field() const { return m_result_field; }
   Item_field *result_item() const { return m_result_item; }
+  bool should_copy(Copy_func_type type) const {
+    return m_func_bits & (1 << type);
+  }
 
  private:
   Item *m_func;
@@ -68,6 +74,13 @@ class Func_ptr {
   //    This is important if we are to replace it with something else again
   //    later.
   Item_field *m_result_item;
+
+  // A bitmap where all CFT_* enums are bit indexes, and we have a 1 if m_func
+  // is of the type given by that enum. E.g., if m_func is an Item_field,
+  // (1 << CFT_FIELDS) will be set here. This is used for quickly finding out
+  // which items to copy in copy_funcs(), without having to look at the actual
+  // items (which involves virtual function calls).
+  int m_func_bits;
 };
 
 /// Used by copy_funcs()
