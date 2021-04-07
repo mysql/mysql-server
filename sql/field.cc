@@ -3199,7 +3199,7 @@ type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
   if(nr != 0) {
     *ptr = 1;
     if (nr != 1){
-      set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
+      set_warning(Sql_condition::SL_NOTE, ER_WARN_DATA_OUT_OF_RANGE, 1);
       error = TYPE_WARN_OUT_OF_RANGE;
     }
   } else {
