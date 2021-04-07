@@ -3039,7 +3039,8 @@ int verifyEvents(const Vector<EventInfo>& receivedEvents,
 }
 
 int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
-  int records = ctx->getNumRecords();
+  int records = ctx->getNumRecords()/2;
+  g_err << "runRefreshTuple : #recs " << records << endl;
   Ndb* ndb = GETNDB(step);
 
   /* Now attempt to create EventOperation */
