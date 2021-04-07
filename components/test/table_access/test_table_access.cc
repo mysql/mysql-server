@@ -66,7 +66,7 @@ const char *common_insert_customer(char * /* out */, size_t num_tables,
       {ADDRESS_COL, "ADDRESS", 7, TA_TYPE_VARCHAR, true, 255}};
 
   const char *result;
-  Table_access access;
+  Table_access access = nullptr;
   TA_table table;
   long long id_value;
   my_h_string name_value = nullptr;
@@ -81,7 +81,8 @@ const char *common_insert_customer(char * /* out */, size_t num_tables,
 
   access = ta_factory_srv->create(thd, num_tables);
   if (access == nullptr) {
-    return "create() failed";
+    result = "create() failed";
+    goto cleanup;
   }
 
   ticket = ta_srv->add(access, "shop", 4, "customer", 8, lock_type);
@@ -148,7 +149,10 @@ cleanup:
     string_factory_srv->destroy(name_value);
   }
 
-  ta_factory_srv->destroy(access);
+  if (access != nullptr) {
+    ta_factory_srv->destroy(access);
+  }
+
   return result;
 }
 
@@ -215,7 +219,7 @@ const char *common_fetch_order(char *out, int order_num) {
   static const size_t pk_order_line_numcol = 2;
 
   const char *result;
-  Table_access access;
+  Table_access access = nullptr;
   TA_table table_order;
   bool order_comment_null;
   my_h_string order_comment_value = nullptr;
@@ -237,7 +241,8 @@ const char *common_fetch_order(char *out, int order_num) {
 
   access = ta_factory_srv->create(thd, 2);
   if (access == nullptr) {
-    return "create() failed";
+    result = "create() failed";
+    goto cleanup;
   }
 
   ticket_order = ta_srv->add(access, "shop", 4, "order", 5, TA_READ);
@@ -363,10 +368,6 @@ const char *common_fetch_order(char *out, int order_num) {
   result = out;
 
 cleanup_index:
-  if (order_comment_value != nullptr) {
-    string_factory_srv->destroy(order_comment_value);
-  }
-
   if (order_line_pk != nullptr) {
     ta_index_srv->end(access, table_order_line, order_line_pk);
   }
@@ -376,7 +377,13 @@ cleanup_index:
   }
 
 cleanup:
-  ta_factory_srv->destroy(access);
+  if (order_comment_value != nullptr) {
+    string_factory_srv->destroy(order_comment_value);
+  }
+
+  if (access != nullptr) {
+    ta_factory_srv->destroy(access);
+  }
   return result;
 }
 
@@ -619,7 +626,7 @@ const char *test_math_insert(char * /* out */, bool utf8mb4) {
       {0, column_name, column_name_length, TA_TYPE_VARCHAR, true, 255}};
 
   const char *result;
-  Table_access access;
+  Table_access access = nullptr;
   TA_table table;
   my_h_string row_value = nullptr;
   char value_buffer[255];
@@ -639,7 +646,8 @@ const char *test_math_insert(char * /* out */, bool utf8mb4) {
 
   access = ta_factory_srv->create(thd, 1);
   if (access == nullptr) {
-    return "create() failed";
+    result = "create() failed";
+    goto cleanup;
   }
 
   if (utf8mb4) {
@@ -714,7 +722,10 @@ cleanup:
     string_factory_srv->destroy(row_value);
   }
 
-  ta_factory_srv->destroy(access);
+  if (access != nullptr) {
+    ta_factory_srv->destroy(access);
+  }
+
   return result;
 }
 
