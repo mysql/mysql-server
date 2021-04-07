@@ -145,7 +145,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   RSA *public_key = nullptr;
   bool got_public_key_from_server = false;
   bool connection_is_secure = false;
-  unsigned char scramble_pkt[20];
+  unsigned char scramble_pkt[SCRAMBLE_LENGTH]{};
   unsigned char *pkt;
 
   DBUG_TRACE;
@@ -268,7 +268,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
   bool got_public_key_from_server = false;
   int io_result;
   bool connection_is_secure = (mysql_get_ssl_cipher(mysql) != nullptr);
-  unsigned char scramble_pkt[20];
+  unsigned char scramble_pkt[SCRAMBLE_LENGTH]{};
   unsigned char *pkt;
   unsigned int passwd_len =
       static_cast<unsigned int>(strlen(mysql->passwd) + 1);
@@ -451,7 +451,7 @@ int caching_sha2_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql) {
   RSA *public_key = nullptr;
   bool got_public_key_from_server = false;
   bool connection_is_secure = false;
-  unsigned char scramble_pkt[20];
+  unsigned char scramble_pkt[SCRAMBLE_LENGTH]{};
   unsigned char *pkt;
 
   DBUG_TRACE;
@@ -609,7 +609,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
   static RSA *public_key = nullptr;
   bool connection_is_secure = is_secure_transport(mysql);
   bool got_public_key_from_server = false;
-  static unsigned char scramble_pkt[20];
+  static unsigned char scramble_pkt[SCRAMBLE_LENGTH]{};
   static int cipher_length = 0;
   static unsigned int passwd_len = 0;
   unsigned char *pkt;

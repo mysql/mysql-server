@@ -68,7 +68,7 @@ enum_gtid_consistency_mode get_gtid_consistency_mode() {
 
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
   DBUG_TRACE;
-  rpl_sid sid;
+  rpl_sid sid{};
   const char *s = text;
 
   SKIP_WHITESPACE();

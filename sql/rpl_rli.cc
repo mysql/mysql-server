@@ -3261,9 +3261,9 @@ bool Assign_gtids_to_anonymous_transactions_info::set_info(
       m_value.assign(::server_uuid);
       m_sidno = gtid_state->get_server_sidno();
       break;
-    case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_UUID:
+    case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_UUID: {
       assert(value_arg != nullptr);
-      rpl_sid rename_sid;
+      rpl_sid rename_sid{};
       if (rename_sid.parse(value_arg, strlen(value_arg))) {
         return true;
       }
@@ -3274,6 +3274,7 @@ bool Assign_gtids_to_anonymous_transactions_info::set_info(
       rename_sid.to_string(normalized_uuid);
       m_value.assign(normalized_uuid);
       break;
+    }
     case Assign_gtids_to_anonymous_transactions_info::enum_type::AGAT_OFF:
       m_value.assign("");
       break;

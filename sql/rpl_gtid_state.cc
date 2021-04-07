@@ -653,7 +653,7 @@ int Gtid_state::init() {
 
   global_sid_lock->assert_some_wrlock();
 
-  rpl_sid server_sid;
+  rpl_sid server_sid{};
   if (server_sid.parse(server_uuid, binary_log::Uuid::TEXT_LENGTH) != 0)
     return 1;
   rpl_sidno sidno = sid_map->add_sid(server_sid);

@@ -22,6 +22,7 @@
 
 #include "sql/dd/dd_table.h"
 
+#include <stdio.h>
 #include <string.h>
 #include <algorithm>
 #include <memory>  // unique_ptr
@@ -2488,7 +2489,7 @@ bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
     if (is_generated_foreign_key_name(old_table_name_norm,
                                       old_table_name_norm_len, hton, *fk)) {
       char table_name[NAME_LEN + 1];
-      my_stpncpy(table_name, new_tab->name().c_str(), sizeof(table_name));
+      snprintf(table_name, sizeof(table_name), "%s", new_tab->name().c_str());
       if (lower_case_table_names == 2)
         my_casedn_str(system_charset_info, table_name);
       dd::String_type new_name(table_name);

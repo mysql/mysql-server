@@ -622,8 +622,8 @@ class Prealloced_array {
   };
 
   union {
+    External m_ext{};
     Element_type m_buff[Prealloc];
-    External m_ext;
   };
 };
 static_assert(sizeof(Prealloced_array<void *, 4>) <= 40,

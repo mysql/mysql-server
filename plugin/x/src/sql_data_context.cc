@@ -623,7 +623,7 @@ ngs::Error_code Sql_data_context::execute_prep_stmt(
 }
 
 ngs::Error_code Sql_data_context::reset() {
-  COM_DATA data;
+  COM_DATA data{};
   Empty_resultset rset;
   return execute_server_command(COM_RESET_CONNECTION, data, &rset);
 }
