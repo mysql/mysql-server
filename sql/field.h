@@ -256,7 +256,30 @@ enum type_conversion_status {
 #define my_charset_numeric my_charset_latin1
 #define MY_REPERTOIRE_NUMERIC MY_REPERTOIRE_ASCII
 
-type_conversion_status field_conv(Field *to, const Field *from);
+/**
+  Check if one can copy from “from” to “to” with a simple memcpy(), with
+  pack_length() as the length. This is the case if the types of the two fields
+  are the same and we don't have special copying rules for the type
+  (e.g., blobs, which require allocation, or time functions that require
+  checking for special SQL modes).
+
+  You should never call this with to == from, as such copies are no-ops
+  and memcpy() has undefined behavior with overlapping memory areas.
+ */
+bool fields_are_memcpyable(const Field *to, const Field *from);
+
+/**
+  Copy the value in "from" (assumed to be non-NULL) to "to", doing any
+  required conversions in the process.
+
+  Note that you should only call this if fields_are_memcpyable() is false,
+  since it does an actual conversion on the slow path (and it is not properly
+  tested whether it gives the correct result in all cases if
+  fields_are_memcpyable() is true).
+
+  You should never call this with to == from, as they are no-ops.
+ */
+type_conversion_status field_conv_slow(Field *to, const Field *from);
 
 inline uint get_enum_pack_length(int elements) {
   return elements < 256 ? 1 : 2;

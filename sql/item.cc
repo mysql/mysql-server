@@ -6042,23 +6042,54 @@ void Item_field::make_field(Send_field *tmp_field) {
 }
 
 /**
+  Copies/converts data from “from” to “to”, but is faster on repeated execution
+  with the same “to” field, as it caches the fields_are_memcpyable() and
+  pack_length() calls. These are not terribly expensive in themselves, but it
+  adds up to 5–10% in DBT-3 Q1 due to the repeated calls.
+
+  The “from” field _must_ correspond to the same last_to / to_is_memcpyable pair
+  as earlier calls, unless last_to is cleared to nullptr.
+ */
+static inline type_conversion_status field_conv_with_cache(
+    Field *to, Field *from, Field **last_to, uint32_t *to_is_memcpyable) {
+  assert(to->field_ptr() != from->field_ptr());
+  if (to != *last_to) {
+    *last_to = to;
+    if (fields_are_memcpyable(to, from)) {
+      *to_is_memcpyable = to->pack_length();
+    } else {
+      *to_is_memcpyable = -1;
+    }
+  }
+  if (*to_is_memcpyable != static_cast<uint32_t>(-1)) {
+    memcpy(to->field_ptr(), from->field_ptr(), *to_is_memcpyable);
+    return TYPE_OK;
+  } else {
+    return field_conv_slow(to, from);
+  }
+}
+
+/**
   Set a field's value from a item.
 */
 
 void Item_field::save_org_in_field(Field *to) {
-  if (field->is_null()) {
+  if (field == to) {
+    assert(null_value == field->is_null());
+    return;
+  } else if (field->is_null()) {
     null_value = true;
     set_field_to_null_with_conversions(to, true);
   } else {
     to->set_notnull();
-    field_conv(to, field);
+    field_conv_with_cache(to, field, &last_org_destination_field,
+                          &last_org_destination_field_memcpyable);
     null_value = false;
   }
 }
 
 type_conversion_status Item_field::save_in_field_inner(Field *to,
                                                        bool no_conversions) {
-  type_conversion_status res;
   DBUG_TRACE;
   if (field->is_null()) {
     null_value = true;
@@ -6067,19 +6098,17 @@ type_conversion_status Item_field::save_in_field_inner(Field *to,
     return status;
   }
   to->set_notnull();
+  null_value = false;
 
   /*
     If we're setting the same field as the one we're reading from there's
     nothing to do. This can happen in 'SET x = x' type of scenarios.
   */
   if (to == field) {
-    null_value = false;
     return TYPE_OK;
   }
-
-  res = field_conv(to, field);
-  null_value = false;
-  return res;
+  return field_conv_with_cache(to, field, &last_destination_field,
+                               &last_destination_field_memcpyable);
 }
 
 /**

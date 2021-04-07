@@ -3994,6 +3994,21 @@ class Item_field : public Item_ident {
   /// Result field
   Field *result_field{nullptr};
 
+  // save_in_field() and save_org_in_field() are often called repeatedly
+  // with the same destination field (although the destination for the
+  // two are distinct, thus two distinct caches). We detect this case by
+  // storing the last destination, and whether it was of a compatible type
+  // that we can memcpy into (see fields_are_memcpyable()). This saves time
+  // doing the same type checking over and over again.
+  //
+  // The _memcpyable fields are uint32_t(-1) if the fields are not memcpyable,
+  // and pack_length() (ie., the amount of bytes to copy) if they are.
+  // See field_conv_with_cache(), where this logic is encapsulated.
+  Field *last_org_destination_field{nullptr};
+  Field *last_destination_field{nullptr};
+  uint32_t last_org_destination_field_memcpyable = -1;
+  uint32_t last_destination_field_memcpyable = -1;
+
   /**
     If this field is derived from another field, e.g. it is reading a column
     from a temporary table which is populated from a base table, this member
