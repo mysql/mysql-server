@@ -14563,45 +14563,33 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array) {
   return m_table->getPartitionId(hash_value);
 }
 
-/*
-  Set-up auto-partitioning for NDB Cluster
-
-  SYNOPSIS
-    set_auto_partitions()
-    part_info                  Partition info struct to set-up
-
-  RETURN VALUE
-    NONE
-
-  DESCRIPTION
-    Set-up auto partitioning scheme for tables that didn't define any
-    partitioning. We'll use PARTITION BY KEY() in this case which
-    translates into partition by primary key if a primary key exists
-    and partition by hidden key otherwise.
-*/
-
 enum ndb_distribution_enum {
   NDB_DISTRIBUTION_KEYHASH = 0,
   NDB_DISTRIBUTION_LINHASH = 1
 };
 static const char *distribution_names[] = {"KEYHASH", "LINHASH", NullS};
-static ulong opt_ndb_distribution;
 static TYPELIB distribution_typelib = {array_elements(distribution_names) - 1,
                                        "", distribution_names, NULL};
+static ulong opt_ndb_distribution;
 static MYSQL_SYSVAR_ENUM(distribution,         /* name */
                          opt_ndb_distribution, /* var */
                          PLUGIN_VAR_RQCMDARG,
-                         "Default distribution for new tables in ndb",
+                         "Default distribution for new tables in NDB",
                          NULL,                     /* check func. */
                          NULL,                     /* update func. */
                          NDB_DISTRIBUTION_KEYHASH, /* default */
                          &distribution_typelib     /* typelib */
 );
 
-enum row_type ha_ndbcluster::get_partition_row_type(const dd::Table *, uint) {
-  return table_share->real_row_type;
-}
+/**
+  Setup auto partitioning scheme for tables that didn't define any
+  partitioning. Use PARTITION BY KEY() in this case which translates into
+  partition by primary key if a primary key exists and partition by hidden
+  key otherwise.
 
+  @param part_info    Partition info struct to setup
+
+*/
 void ha_ndbcluster::set_auto_partitions(partition_info *part_info) {
   DBUG_TRACE;
   part_info->list_of_part_fields = true;
@@ -14617,6 +14605,10 @@ void ha_ndbcluster::set_auto_partitions(partition_info *part_info) {
       assert(false);
       break;
   }
+}
+
+enum row_type ha_ndbcluster::get_partition_row_type(const dd::Table *, uint) {
+  return table_share->real_row_type;
 }
 
 /*
@@ -17058,66 +17050,34 @@ static bool ndbcluster_get_tablespace_statistics(
 }
 
 /**
-  Return number of partitions for table in SE
+  Return number of partitions used by NDB table.
+
+  This function is used while opening table which exist in DD, the number of
+  partitions are then loaded from DD into table_share. For upgrade, when
+  value is not in DD, there is an extra step in the upgrade code that fills the
+  value by fetching from NDB.
 
   @param path normalized path(same as open) to the table
 
   @param[out] num_parts Number of partitions
 
   @retval false for success
-  @retval true for failure, for example table didn't exist in engine
 */
-
 bool ha_ndbcluster::get_num_parts(const char *path MY_ATTRIBUTE((unused)),
                                   uint *num_parts) {
-  /*
-    NOTE! This function is called very early in the code path
-    for opening a table and ha_ndbcluster might not have been
-    involved ealier in this query. Also it's asking questions
-    about a table but is using a ha_ndbcluster instance which
-    haven't been opened yet. Implement as a local static function
-    to avoid having access to member variables and functions.
-  */
-
-  struct impl {
-    static int get_num_parts(const char *db_name, const char *table_name,
-                             uint *num_parts) {
-      DBUG_TRACE;
-
-      // Since this function is always called early in the code
-      // path, it's safe to allow the Ndb object to be recycled
-      const bool allow_recycle_ndb = true;
-      Ndb *const ndb = check_ndb_in_thd(current_thd, allow_recycle_ndb);
-      if (!ndb) {
-        if (Ndb_dist_priv_util::is_privilege_table(db_name, table_name)) {
-          // Bootstrap privilege table migration
-          *num_parts = 0;
-          return 0;
-        }
-        // No connection to NDB
-        return HA_ERR_NO_CONNECTION;
-      }
-
-      // Open the table from NDB
-      Ndb_table_guard ndbtab_g(ndb, db_name, table_name);
-      if (!ndbtab_g.get_table()) {
-        // Could not open table from NDB
-        ERR_RETURN(ndbtab_g.getNdbError());
-      }
-
-      // Return number of partitions used in the table
-      *num_parts = ndbtab_g.get_table()->getPartitionCount();
-
-      return 0;
-    }
-  };
-
-  const int error = impl::get_num_parts(table_share->db.str,
-                                        table_share->table_name.str, num_parts);
-  if (error) {
-    print_error(error, MYF(0));
-    return true;  // Could not return number of partitions
+  if (table_share->m_part_info == nullptr) {
+    // Bootstrap privilege table migration
+    // The part_info is not set during generic server upgrade of "legacy
+    // privilege tables", use hardcoded value to allow open before
+    // altering to other engine
+    assert(Ndb_dist_priv_util::is_privilege_table(table_share->db.str,
+                                                  table_share->table_name.str));
+    *num_parts = 0;
+    return false;
   }
+
+  *num_parts = table_share->m_part_info->num_parts;
+  DBUG_PRINT("exit", ("num_parts: %u", *num_parts));
   return false;
 }
 
