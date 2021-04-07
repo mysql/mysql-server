@@ -2234,7 +2234,8 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
     const NodeMap used_nodes = GetNodeMapFromTableMap(
         cond->used_tables(), graph->table_num_to_node_num);
     const NodeMap left = IsolateLowestBit(used_nodes);  // Arbitrary.
-    graph->graph.AddEdge(left, used_nodes & ~left);
+    const NodeMap right = used_nodes & ~left;
+    graph->graph.AddEdge(left, right);
 
     RelationalExpression *expr = new (thd->mem_root) RelationalExpression(thd);
     expr->type = RelationalExpression::INNER_JOIN;
@@ -2257,6 +2258,17 @@ void AddCycleEdges(THD *thd, const Mem_root_array<Item *> &cycle_inducing_edges,
     graph->edges.push_back(JoinPredicate{
         expr, selectivity, estimated_bytes_per_row,
         /*functional_dependencies=*/0, /*functional_dependencies_idx=*/{}});
+
+    // Make this predicate potentially sargable (cycle edges are always
+    // simple equalities).
+    assert(IsSingleBitSet(left));
+    assert(IsSingleBitSet(right));
+    const int left_node_idx = *BitsSetIn(left).begin();
+    const int right_node_idx = *BitsSetIn(right).begin();
+    graph->nodes[left_node_idx].join_conditions_pushable_to_this.push_back(
+        cond);
+    graph->nodes[right_node_idx].join_conditions_pushable_to_this.push_back(
+        cond);
   }
 }
 
@@ -2443,6 +2455,12 @@ void AddMultipleEqualityPredicate(THD *thd, Item_equal *item_equal,
   eq_item->quick_fix_field();
   expr->equijoin_conditions.push_back(
       eq_item);  // NOTE: We run after MakeHashJoinConditions().
+
+  // Make this predicate potentially sargable.
+  graph->nodes[left_node_idx].join_conditions_pushable_to_this.push_back(
+      eq_item);
+  graph->nodes[right_node_idx].join_conditions_pushable_to_this.push_back(
+      eq_item);
 }
 
 /**

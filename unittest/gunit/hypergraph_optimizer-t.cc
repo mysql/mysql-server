@@ -45,6 +45,7 @@
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
+#include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/join_optimizer/walk_access_paths.h"
@@ -1484,6 +1485,82 @@ TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
   EXPECT_EQ(0, inner_inner->ref().ref->key);
   EXPECT_EQ("t2.x", ItemToString(inner_inner->ref().ref->items[0]));
 }
+
+static string PrintSargablePredicate(const SargablePredicate &sp,
+                                     const JoinHypergraph &graph) {
+  return StringPrintf(
+      "%s.%s -> %s [%s]", sp.field->table->alias, sp.field->field_name,
+      ItemToString(sp.other_side).c_str(),
+      ItemToString(graph.predicates[sp.predicate_index].condition).c_str());
+}
+
+// Verify that when we add a cycle in the graph due to a multiple equality,
+// that join predicate also becomes sargable.
+using HypergraphOptimizerCyclePredicatesSargableTest =
+    HypergraphTestBase<::testing::TestWithParam<const char *>>;
+
+TEST_P(HypergraphOptimizerCyclePredicatesSargableTest,
+       CyclePredicatesSargable) {
+  Query_block *query_block = ParseAndResolve(GetParam(),
+                                             /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  Fake_TABLE *t3 = m_fake_tables["t3"];
+  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t2->create_index(t2->field[0], /*column2=*/nullptr, /*unique=*/false);
+  t3->create_index(t3->field[0], /*column2=*/nullptr, /*unique=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  string trace;
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  ASSERT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  FindSargablePredicates(m_thd, &trace, &graph);
+
+  // Each node should have two sargable join predicates
+  // (one to each of the other nodes). Verify that they are
+  // correctly set up (the order does not matter, though).
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  ASSERT_EQ(2, graph.nodes[0].sargable_predicates.size());
+  EXPECT_EQ(
+      "t1.field_1 -> t2.x [(t1.x = t2.x)]",
+      PrintSargablePredicate(graph.nodes[0].sargable_predicates[0], graph));
+  EXPECT_EQ(
+      "t1.field_1 -> t3.x [(t1.x = t3.x)]",
+      PrintSargablePredicate(graph.nodes[0].sargable_predicates[1], graph));
+
+  ASSERT_EQ(2, graph.nodes[1].sargable_predicates.size());
+  EXPECT_EQ(
+      "t2.field_1 -> t3.x [(t2.x = t3.x)]",
+      PrintSargablePredicate(graph.nodes[1].sargable_predicates[0], graph));
+  EXPECT_EQ(
+      "t2.field_1 -> t1.x [(t1.x = t2.x)]",
+      PrintSargablePredicate(graph.nodes[1].sargable_predicates[1], graph));
+
+  ASSERT_EQ(2, graph.nodes[2].sargable_predicates.size());
+  EXPECT_EQ(
+      "t3.field_1 -> t2.x [(t2.x = t3.x)]",
+      PrintSargablePredicate(graph.nodes[2].sargable_predicates[0], graph));
+  EXPECT_EQ(
+      "t3.field_1 -> t1.x [(t1.x = t3.x)]",
+      PrintSargablePredicate(graph.nodes[2].sargable_predicates[1], graph));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    TrueAndFalse, HypergraphOptimizerCyclePredicatesSargableTest,
+    ::testing::Values(
+        // With and without an explicit cycle.
+        "SELECT 1 FROM t1,t2,t3 WHERE t1.x=t2.x AND t2.x=t3.x AND t1.x=t3.x",
+        "SELECT 1 FROM t1,t2,t3 WHERE t1.x=t2.x AND t2.x=t3.x"));
 
 TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   Query_block *query_block = ParseAndResolve(
