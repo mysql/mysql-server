@@ -2319,7 +2319,7 @@ POSTUPGRADE("ShowVersions")
 };
 TESTCASE("Upgrade_NR1",
 	 "Test that one node at a time can be upgraded"){
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runReadVersions);
   INITIALIZER(checkForUpgrade);
@@ -2329,7 +2329,7 @@ TESTCASE("Upgrade_NR1",
 }
 POSTUPGRADE("Upgrade_NR1")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2480,7 +2480,7 @@ TESTCASE("Upgrade_Api_Before_NR1",
 }
 POSTUPGRADE("Upgrade_Api_Before_NR1")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeDecideDDL);
   INITIALIZER(runGetTableList);
@@ -2690,7 +2690,7 @@ TESTCASE("Downgrade_NR2_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_NR2_WithMGMDInitialStart")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2722,7 +2722,7 @@ TESTCASE("Downgrade_NR3_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_NR3_WithMGMDInitialStart")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
@@ -2764,7 +2764,7 @@ TESTCASE("Downgrade_FS_WithMGMDInitialStart",
 }
 POSTUPGRADE("Downgrade_FS_WithMGMDInitialStart")
 {
-  TC_PROPERTY("InitialMGMDRestart", Uint32(1));
+  TC_PROPERTY("InitialMgmdRestart", Uint32(1));
   INITIALIZER(runCheckStarted);
   INITIALIZER(runPostUpgradeChecks);
 }
