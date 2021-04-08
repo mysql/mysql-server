@@ -60,6 +60,7 @@
 #include <string>
 
 struct AccessPath;
+struct JoinHypergraph;
 class THD;
 class Query_block;
 
@@ -135,6 +136,10 @@ class Query_block;
  */
 AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                               std::string *trace);
+
+// Exposed for unit testing only.
+void FindSargablePredicates(THD *thd, std::string *trace,
+                            JoinHypergraph *graph);
 
 void EstimateAggregateCost(AccessPath *path);
 void EstimateMaterializeCost(AccessPath *path);

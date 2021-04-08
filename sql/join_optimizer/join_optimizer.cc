@@ -2719,6 +2719,36 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
   }
 }
 
+// Find sargable predicates, ie., those that we can push down into indexes.
+// See add_key_field().
+//
+// TODO(sgunders): Include x=y OR NULL predicates, <=> and IS NULL predicates,
+// and the special case of COLLATION accepted in add_key_field().
+//
+// TODO(sgunders): Integrate with the range optimizer, or find some other way
+// of accepting <, >, <= and >= predicates.
+void FindSargablePredicates(THD *thd, string *trace, JoinHypergraph *graph) {
+  if (trace != nullptr) {
+    *trace += "\n";
+  }
+  for (unsigned i = 0; i < graph->num_where_predicates; ++i) {
+    if (IsSingleBitSet(graph->predicates[i].total_eligibility_set)) {
+      PossiblyAddSargableCondition(thd, graph->predicates[i].condition,
+                                   /*force_table=*/nullptr, i,
+                                   /*is_join_condition=*/false, graph, trace);
+    }
+  }
+  for (JoinHypergraph::Node &node : graph->nodes) {
+    for (Item *cond : node.join_conditions_pushable_to_this) {
+      const auto it = graph->sargable_join_predicates.find(cond);
+      int predicate_index =
+          (it == graph->sargable_join_predicates.end()) ? -1 : it->second;
+      PossiblyAddSargableCondition(thd, cond, node.table, predicate_index,
+                                   /*is_join_condition=*/true, graph, trace);
+    }
+  }
+}
+
 /**
   Helper for CollectFunctionalDependenciesFromPredicates(); also used for
   non-equijoin predicates in CollectFunctionalDependenciesFromJoins().
@@ -3471,34 +3501,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   if (MakeJoinHypergraph(thd, trace, &graph)) {
     return nullptr;
   }
-
-  // Find sargable predicates, ie., those that we can push down into indexes.
-  // See add_key_field().
-  //
-  // TODO(sgunders): Include x=y OR NULL predicates, <=> and IS NULL predicates,
-  // and the special case of COLLATION accepted in add_key_field().
-  //
-  // TODO(sgunders): Integrate with the range optimizer, or find some other way
-  // of accepting <, >, <= and >= predicates.
-  if (trace != nullptr) {
-    *trace += "\n";
-  }
-  for (unsigned i = 0; i < graph.num_where_predicates; ++i) {
-    if (IsSingleBitSet(graph.predicates[i].total_eligibility_set)) {
-      PossiblyAddSargableCondition(thd, graph.predicates[i].condition,
-                                   /*force_table=*/nullptr, i,
-                                   /*is_join_condition=*/false, &graph, trace);
-    }
-  }
-  for (JoinHypergraph::Node &node : graph.nodes) {
-    for (Item *cond : node.join_conditions_pushable_to_this) {
-      const auto it = graph.sargable_join_predicates.find(cond);
-      int predicate_index =
-          (it == graph.sargable_join_predicates.end()) ? -1 : it->second;
-      PossiblyAddSargableCondition(thd, cond, node.table, predicate_index,
-                                   /*is_join_condition=*/true, &graph, trace);
-    }
-  }
+  FindSargablePredicates(thd, trace, &graph);
 
   // Figure out if any later sort will need row IDs.
   bool need_rowid = false;
