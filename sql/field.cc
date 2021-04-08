@@ -3190,7 +3190,7 @@ type_conversion_status Field_boolean::store(const char *from, size_t len,
 
 type_conversion_status Field_boolean::store(double nr) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  return Field_boolean::store(nr ? 1 : 0, 0);
+  return store(nr ? 1 : 0, 0);
 }
 
 type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
@@ -3209,8 +3209,8 @@ type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
 }
 
 type_conversion_status Field_boolean::store_decimal(const my_decimal *val) {
-  ASSERT_COLUMN_MARKED_FOR_WRITE;
-  const type_conversion_status res = store(!my_decimal_is_zero(val), 0);
+  ASSERT_COLUMN_MARKED_FOR_WRITE;                     
+  return store(!my_decimal_is_zero(val), 0);
 }
 
 double Field_boolean::val_real() const {
