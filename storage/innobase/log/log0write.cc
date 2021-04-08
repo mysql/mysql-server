@@ -2577,7 +2577,11 @@ void log_write_notifier(log_t *log_ptr) {
 
     if (UNIV_UNLIKELY(
             log.writer_threads_paused.load(std::memory_order_acquire))) {
+      ut_ad(log.write_notifier_resume_lsn.load(std::memory_order_acquire) == 0);
       log_write_notifier_mutex_exit(log);
+
+      /* set to acknowledge */
+      log.write_notifier_resume_lsn.store(lsn, std::memory_order_release);
 
       os_event_wait(log.writer_threads_resume_event);
       ut_ad(log.write_notifier_resume_lsn.load(std::memory_order_acquire) + 1 >=
@@ -2695,7 +2699,11 @@ void log_flush_notifier(log_t *log_ptr) {
 
     if (UNIV_UNLIKELY(
             log.writer_threads_paused.load(std::memory_order_acquire))) {
+      ut_ad(log.flush_notifier_resume_lsn.load(std::memory_order_acquire) == 0);
       log_flush_notifier_mutex_exit(log);
+
+      /* set to acknowledge */
+      log.flush_notifier_resume_lsn.store(lsn, std::memory_order_release);
 
       os_event_wait(log.writer_threads_resume_event);
       ut_ad(log.flush_notifier_resume_lsn.load(std::memory_order_acquire) + 1 >=
