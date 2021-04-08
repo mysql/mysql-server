@@ -532,18 +532,6 @@ AsyncFile::openReq(Request * request)
     m_file.set_autosync(0);
   }
 
-#if defined(_WIN32)
-  /*
-   * Make sure compression is ignored on Windows as before for LCP until
-   * supported.
-   */
-  if ((flags & FsOpenReq::OM_GZ) &&
-      theFileName.get_base_path_spec() == FsOpenReq::BP_FS)
-  {
-    flags &= ~FsOpenReq::OM_GZ;
-  }
-#endif 
-
   // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC) after init
   if (flags & FsOpenReq::OM_DIRECT)
   {
