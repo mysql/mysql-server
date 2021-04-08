@@ -70,6 +70,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "mysql_server_runnable_imp.h"
 #include "mysql_string_service_imp.h"
 #include "mysql_system_variable_update_imp.h"
+#include "mysql_thd_attributes_imp.h"
 #include "mysqld_error.h"
 #include "persistent_dynamic_loader_imp.h"
 #include "security_context_imp.h"
@@ -407,6 +408,10 @@ Keyring_writer_service_impl::store,
 BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_system_variable_update_string)
 mysql_system_variable_update_string_imp::set END_SERVICE_IMPLEMENTATION();
 
+BEGIN_SERVICE_IMPLEMENTATION(mysql_server, mysql_thd_attributes)
+mysql_thd_attributes_imp::get,
+    mysql_thd_attributes_imp::set END_SERVICE_IMPLEMENTATION();
+
 BEGIN_COMPONENT_PROVIDES(mysql_server)
 PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, persistent_dynamic_loader),
@@ -531,6 +536,7 @@ PROVIDES_SERVICE(mysql_server_path_filter, dynamic_loader_scheme_file),
     PROVIDES_SERVICE(mysql_server, field_integer_access_v1),
     PROVIDES_SERVICE(mysql_server, field_varchar_access_v1),
     PROVIDES_SERVICE(mysql_server, field_any_access_v1),
+    PROVIDES_SERVICE(mysql_server, mysql_thd_attributes),
     END_COMPONENT_PROVIDES();
 
 static BEGIN_COMPONENT_REQUIRES(mysql_server) END_COMPONENT_REQUIRES();
