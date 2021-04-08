@@ -50,6 +50,19 @@ constexpr bool WITH_PFS_MEMORY = true;
 constexpr bool WITH_PFS_MEMORY = false;
 #endif
 
+/** Calculates the smallest multiple of m that is not smaller than n
+    when m is a power of two. In other words, rounds n up to m * k.
+    @param n in: number to round up
+    @param m in: alignment, must be a power of two
+    @return n rounded up to the smallest possible integer multiple of m
+ */
+constexpr size_t calc_align(size_t n, size_t m) {
+  // This is a copy pasta from ut0ut.h but consuming that header from
+  // this file bursts the build into flames. Let's at least stick to the
+  // similar name.
+  return (n + (m - 1)) & ~(m - 1);
+}
+
 /** Simple wrapping type around malloc, calloc and friends.*/
 template <bool Zero_initialized>
 struct Alloc_fn {
@@ -739,8 +752,17 @@ struct Aligned_alloc_pfs : public allocator_traits<true> {
   template <bool Zero_initialized>
   static inline void *alloc(std::size_t size, std::size_t alignment,
                             pfs_metadata::pfs_memory_key_t key) {
-    auto ret = Aligned_alloc_impl::alloc<Zero_initialized>(size + alignment,
-                                                           alignment);
+    // We must take special care to allocate enough extra space to hold the
+    // PFS metadata (PFS-META + PFS-META-OFFSET) but we also need to take
+    // special care that the pointer which will be returned to the callee by
+    // this function will still be suitably over-aligned as requested. Both of
+    // these requirements can be fulfilled by finding the smallest multiple of
+    // requested alignment that is not smaller than actual PFS metadata size.
+    const auto metadata_len =
+        calc_align(pfs_metadata::pfs_metadata_size, alignment);
+    const auto total_len = size + metadata_len;
+    auto ret =
+        Aligned_alloc_impl::alloc<Zero_initialized>(total_len, alignment);
     if (unlikely(!ret.first)) return nullptr;
 
     // Same as we do with non-PFS variant of Aligned_alloc::alloc(), here we
@@ -752,11 +774,11 @@ struct Aligned_alloc_pfs : public allocator_traits<true> {
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
     // When computing total number of bytes allocated. we must not only account
-    // for the size that we have requested (size + alignment) but we also need
+    // for the size that we have requested (total_len) but we also need
     // to account for extra memory Aligned_alloc_impl may have allocated in
     // order to be able to accomodate the request. Amount of extra memory
     // allocated corresponds to the offset value returned by Aligned_alloc_impl.
-    const auto datalen = size + alignment + ret.second;
+    const auto datalen = total_len + ret.second;
     // The point of this allocator variant is to trace the memory allocations
     // through PFS (PSI) so do it.
     pfs_metadata::pfs_owning_thread_t owner;
@@ -768,10 +790,10 @@ struct Aligned_alloc_pfs : public allocator_traits<true> {
     pfs_metadata::pfs_owning_thread(ret.first, owner);
     pfs_metadata::pfs_datalen(ret.first, datalen);
     pfs_metadata::pfs_key(ret.first, key);
-    pfs_metadata::pfs_metaoffset(ret.first, alignment);
+    pfs_metadata::pfs_metaoffset(ret.first, metadata_len);
 #endif
 
-    return static_cast<uint8_t *>(ret.first) + alignment;
+    return static_cast<uint8_t *>(ret.first) + metadata_len;
   }
 
   /** Releases storage dynamically allocated through
