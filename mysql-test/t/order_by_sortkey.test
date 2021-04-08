@@ -60,7 +60,6 @@ SHOW SESSION STATUS LIKE 'Sort%';
 SELECT * FROM t1 ORDER BY f2,f0 LIMIT 101;
 
 # 32-bit has smaller pointers and thus can do with fewer merge passes.
---skip_if_hypergraph  # LIMIT optimization in filesort not supported yet.
 --replace_result 100 102
 SHOW SESSION STATUS LIKE 'Sort%';
 
@@ -70,7 +69,6 @@ INSERT INTO t2 VALUES (0), (0);
 SELECT * FROM t2 where f1 =
 (SELECT f2 from t1 where t1.f1 = t2.f1 ORDER BY f1 LIMIT 1);
 
---skip_if_hypergraph  # LIMIT optimization in filesort not supported yet.
 SHOW SESSION STATUS LIKE 'Sort%';
 
 DROP TABLE t1, t2, tmp;

@@ -2118,9 +2118,9 @@ TEST_F(HypergraphOptimizerTest, SortAheadDueToUniqueIndex) {
   m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0],
                                     /*column2=*/nullptr, /*unique=*/true);
 
-  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.records = 200;
   m_fake_tables["t2"]->file->stats.records = 10000;
-  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t1"]->file->stats.data_file_length = 2e6;
   m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
 
   string trace;
@@ -2173,9 +2173,9 @@ TEST_F(HypergraphOptimizerTest, NoSortAheadOnNonUniqueIndex) {
   m_fake_tables["t2"]->create_index(m_fake_tables["t2"]->field[0],
                                     /*column2=*/nullptr, /*unique=*/false);
 
-  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t1"]->file->stats.records = 200;
   m_fake_tables["t2"]->file->stats.records = 10000;
-  m_fake_tables["t1"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t1"]->file->stats.data_file_length = 2e6;
   m_fake_tables["t2"]->file->stats.data_file_length = 100e6;
 
   string trace;

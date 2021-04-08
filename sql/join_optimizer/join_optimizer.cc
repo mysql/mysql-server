@@ -1889,18 +1889,30 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
   }
 }
 
-void EstimateSortCost(AccessPath *path) {
+void EstimateSortCost(AccessPath *path, ha_rows limit_rows = HA_POS_ERROR) {
   AccessPath *child = path->sort().child;
-  const double num_rows = child->num_output_rows;
+  const double num_input_rows = child->num_output_rows;
+  const double num_output_rows =
+      path->sort().use_limit ? std::min<double>(num_input_rows, limit_rows)
+                             : num_input_rows;
+
   double sort_cost;
-  if (num_rows <= 1.0) {
+  if (num_input_rows <= 1.0) {
     // Avoid NaNs from log2().
     sort_cost = kSortOneRowCost;
   } else {
-    sort_cost = kSortOneRowCost * num_rows * std::max(log2(num_rows), 1.0);
+    // Filesort's complexity is O(n + k log k) with a limit, or O(n log n)
+    // without. See comment in Filesort_buffer::sort_buffer(). We can use the
+    // same calculation for both. If n = k (no limit, or the limit is higher
+    // than the number of input rows), O(n + k log k) is the same as
+    // O(n + n log n), which is equivalent to O(n log n) because n < n log n for
+    // large values of n. So we always calculate it as n + k log k:
+    sort_cost = kSortOneRowCost *
+                (num_input_rows +
+                 num_output_rows * std::max(log2(num_output_rows), 1.0));
   }
 
-  path->num_output_rows = num_rows;
+  path->num_output_rows = num_output_rows;
   path->cost = path->init_cost = child->cost + sort_cost;
   path->init_once_cost = 0.0;
   path->num_output_rows_before_filter = path->num_output_rows;
@@ -2074,6 +2086,7 @@ AccessPath MakeSortPathWithoutFilesort(AccessPath *child, ORDER *order,
   sort_path.sort().order = order;
   sort_path.sort().remove_duplicates = false;
   sort_path.sort().unwrap_rollup = true;
+  sort_path.sort().use_limit = false;
   EstimateSortCost(&sort_path);
   return sort_path;
 }
@@ -2640,6 +2653,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         sort_path.sort().filesort = nullptr;
         sort_path.sort().remove_duplicates = true;
         sort_path.sort().unwrap_rollup = false;
+        sort_path.sort().use_limit = false;
 
         if (aggregation_is_unordered) {
           // Even though we create a sort node for the distinct operation,
@@ -2674,13 +2688,29 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       *trace += "Applying sort for ORDER BY\n";
     }
 
+    // If we have LIMIT or OFFSET, we apply them here. This is done so that we
+    // can push the LIMIT clause down to the SORT node in order to let Filesort
+    // take advantage of it.
+    const Query_expression *query_expression = join->query_expression();
+    const ha_rows limit_rows = query_expression->select_limit_cnt;
+    const ha_rows offset_rows = query_expression->offset_limit_cnt;
+
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       if (orderings.DoesFollowOrder(root_path->ordering_state,
                                     order_by_ordering_idx)) {
+        if (limit_rows != HA_POS_ERROR || offset_rows != 0) {
+          root_path = NewLimitOffsetAccessPath(
+              thd, root_path, limit_rows, offset_rows, join->calc_found_rows,
+              /*reject_multiple_rows=*/false,
+              /*send_records_override=*/nullptr);
+        }
         receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "sort elided");
       } else {
+        const bool push_limit_to_filesort =
+            limit_rows != HA_POS_ERROR && !join->calc_found_rows;
+
         AccessPath *sort_path = new (thd->mem_root) AccessPath;
         sort_path->type = AccessPath::SORT;
         sort_path->count_examined_rows = false;
@@ -2688,9 +2718,21 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
         sort_path->sort().filesort = nullptr;
         sort_path->sort().remove_duplicates = false;
         sort_path->sort().unwrap_rollup = false;
+        sort_path->sort().use_limit = push_limit_to_filesort;
         sort_path->sort().order = query_block->order_list.first;
-        EstimateSortCost(sort_path);
+        EstimateSortCost(sort_path,
+                         push_limit_to_filesort ? limit_rows : HA_POS_ERROR);
 
+        // If we have a LIMIT clause that is not pushed down to the filesort, or
+        // if we have an OFFSET clause, we need to add a LIMIT_OFFSET path on
+        // top of the SORT node.
+        if ((limit_rows != HA_POS_ERROR && !push_limit_to_filesort) ||
+            offset_rows != 0) {
+          sort_path = NewLimitOffsetAccessPath(
+              thd, sort_path, limit_rows, offset_rows, join->calc_found_rows,
+              /*reject_multiple_rows=*/false,
+              /*send_records_override=*/nullptr);
+        }
         receiver.ProposeAccessPath(sort_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "");
       }
@@ -3485,10 +3527,13 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
 
           // Set up a Filesort object for this sort.
           Mem_root_array<TABLE *> tables = CollectTables(thd, path);
+          const ha_rows limit_rows =
+              path->sort().use_limit
+                  ? join->query_expression()->select_limit_cnt
+                  : HA_POS_ERROR;
           path->sort().filesort = new (thd->mem_root) Filesort(
               thd, std::move(tables),
-              /*keep_buffers=*/false, path->sort().order,
-              /*limit_arg=*/HA_POS_ERROR,
+              /*keep_buffers=*/false, path->sort().order, limit_rows,
               /*force_stable_sort=*/false, path->sort().remove_duplicates,
               /*force_sort_positions=*/false, path->sort().unwrap_rollup);
           join->filesorts_to_cleanup.push_back(path->sort().filesort);
@@ -3773,6 +3818,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         sort_path->sort().filesort = nullptr;
         sort_path->sort().remove_duplicates = false;
         sort_path->sort().unwrap_rollup = true;
+        sort_path->sort().use_limit = false;
         sort_path->sort().order = sort_ahead_ordering.order;
         EstimateSortCost(sort_path);
         assert(!aggregation_is_unordered);
@@ -3850,10 +3896,12 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         fd_set, query_block, need_rowid, std::move(root_candidates), trace);
   }
 
-  // Apply LIMIT, if applicable.
+  // Apply LIMIT and OFFSET, if applicable. If the query block is ordered, they
+  // are already applied by ApplyDistinctAndOrder().
   Query_expression *query_expression = join->query_expression();
-  if (query_expression->select_limit_cnt != HA_POS_ERROR ||
-      query_expression->offset_limit_cnt != 0) {
+  if (!query_block->is_ordered() &&
+      (query_expression->select_limit_cnt != HA_POS_ERROR ||
+       query_expression->offset_limit_cnt != 0)) {
     if (trace != nullptr) {
       *trace += "Applying LIMIT\n";
     }

@@ -799,6 +799,7 @@ struct AccessPath {
       ORDER *order;
       bool remove_duplicates;
       bool unwrap_rollup;
+      bool use_limit;
     } sort;
     struct {
       AccessPath *child;
