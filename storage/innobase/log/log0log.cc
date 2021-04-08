@@ -889,6 +889,14 @@ static void log_pause_writer_threads(log_t &log) {
     for (size_t i = 0; i < log.flush_events_size; ++i) {
       os_event_set(log.flush_events[i]);
     }
+
+    /* confirms *_notifier_thread accepted to pause */
+    while (log.write_notifier_resume_lsn.load(std::memory_order_acquire) == 0 ||
+           log.flush_notifier_resume_lsn.load(std::memory_order_acquire) == 0) {
+      ut_a(log_write_notifier_is_active());
+      ut_a(log_flush_notifier_is_active());
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
   }
 }
 
