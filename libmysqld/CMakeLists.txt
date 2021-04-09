@@ -197,6 +197,14 @@ IF(HAVE_MAYBE_UNINITIALIZED)
     COMPILE_FLAGS "-Wno-maybe-uninitialized")
 ENDIF()
 
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "-Wno-free-nonheap-object")
+ENDIF()
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there

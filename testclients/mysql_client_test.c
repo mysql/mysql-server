@@ -18145,9 +18145,9 @@ static void test_bug40365(void)
     if (!opt_silent)
       fprintf(stdout, "\ntime[%d]: %02d-%02d-%02d ",
               i, tm[i].year, tm[i].month, tm[i].day);
-      DIE_UNLESS(tm[i].year == 0);
-      DIE_UNLESS(tm[i].month == 0);
-      DIE_UNLESS(tm[i].day == 0);
+    DIE_UNLESS(tm[i].year == 0);
+    DIE_UNLESS(tm[i].month == 0);
+    DIE_UNLESS(tm[i].day == 0);
   }
   mysql_stmt_close(stmt);
   rc= mysql_commit(mysql);
