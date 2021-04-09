@@ -604,7 +604,7 @@ angel_run(const char* progname,
   }
   g_eventLogger->info("Angel allocated nodeid: %u", nodeid);
 
-  ndb_mgm_config_unique_ptr config(retriever.getConfig(nodeid));
+  const ndb_mgm::config_ptr config(retriever.getConfig(nodeid));
   if (!config)
   {
     g_eventLogger->error("Could not fetch configuration/invalid "

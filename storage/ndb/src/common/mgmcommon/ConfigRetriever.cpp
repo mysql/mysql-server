@@ -153,7 +153,7 @@ ConfigRetriever::is_connected(void)
   return (ndb_mgm_is_connected(m_handle) != 0);
 }
 
-ndb_mgm_config_unique_ptr
+ndb_mgm::config_ptr
 ConfigRetriever::getConfig(Uint32 nodeid)
 {
   if (!m_handle)
@@ -166,7 +166,7 @@ ConfigRetriever::getConfig(Uint32 nodeid)
   const Uint32 save_nodeid = get_configuration_nodeid();
   setNodeId(nodeid);
 
-  ndb_mgm_config_unique_ptr conf = getConfig(m_handle);
+  ndb_mgm::config_ptr conf = getConfig(m_handle);
 
   setNodeId(save_nodeid);
 
@@ -179,11 +179,11 @@ ConfigRetriever::getConfig(Uint32 nodeid)
   return conf;
 }
 
-ndb_mgm_config_unique_ptr
+ndb_mgm::config_ptr
 ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
 {
   const int from_node = 0;
-  ndb_mgm_config_unique_ptr conf(
+  ndb_mgm::config_ptr conf(
     ndb_mgm_get_configuration2(mgm_handle,
                                m_version,
                                m_node_type,
@@ -198,7 +198,7 @@ ConfigRetriever::getConfig(NdbMgmHandle mgm_handle)
   return conf;
 }
 
-ndb_mgm_config_unique_ptr
+ndb_mgm::config_ptr
 ConfigRetriever::getConfig(const char * filename)
 {
   if (access(filename, F_OK))
@@ -236,7 +236,7 @@ ConfigRetriever::getConfig(const char * filename)
     setError(CR_ERROR,  "Error while unpacking");
     return {};
   }
-  return ndb_mgm_config_unique_ptr(
+  return ndb_mgm::config_ptr(
       reinterpret_cast<ndb_mgm_configuration *>(cvf.getConfigValues()));
 }
 

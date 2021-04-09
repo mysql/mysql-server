@@ -87,7 +87,7 @@ enum RestartMode : long {
 
 namespace coverage {
 enum Coverage : long { None, Testcase, Testsuite };
-};
+}
 
 enum CoverageTools : long { Lcov, Fastcov };
 

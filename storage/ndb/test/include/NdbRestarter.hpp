@@ -26,6 +26,7 @@
 #define NDBT_RESTARTER_HPP
 
 #include <mgmapi.h>
+#include "mgmcommon/NdbMgm.hpp"
 #include <Vector.hpp>
 #include <BaseString.hpp>
 
@@ -179,7 +180,7 @@ protected:
   
   bool connected;
   BaseString addr;
-  ndb_mgm_config_unique_ptr m_config;
+  ndb_mgm::config_ptr m_config;
   bool m_reconnect;
 protected:
   const ndb_mgm_configuration * getConfig();

@@ -1443,7 +1443,7 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       break;
     }
 
-    ndb_mgm_config_unique_ptr config = m_config_retriever->getConfig(nodeId);
+    const ndb_mgm::config_ptr config = m_config_retriever->getConfig(nodeId);
     if (!config)
       break;
 

@@ -2182,7 +2182,7 @@ ConfigManager::fetch_config(void)
     }
   }
   // read config from other management server
-  ndb_mgm_config_unique_ptr conf =
+  ndb_mgm::config_ptr conf =
     m_config_retriever.getConfig(m_config_retriever.get_mgmHandle());
 
   // Disconnect from other mgmd
@@ -2350,7 +2350,7 @@ ConfigManager::failed_config_change_exists() const
 Config*
 ConfigManager::load_saved_config(const BaseString& config_name)
 {
-  ndb_mgm_config_unique_ptr retrieved_config =
+  ndb_mgm::config_ptr retrieved_config =
       m_config_retriever.getConfig(config_name.c_str());
   if(!retrieved_config)
   {
