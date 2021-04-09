@@ -479,6 +479,9 @@ enum class AssociativeRewritesAllowed { ANY, RIGHT_ONLY, LEFT_ONLY };
   Find a bitmap of used tables for all conditions on \<expr\>.
   Note that after all conditions have been pushed, you can check
   expr.conditions_used_tables instead (see FindConditionsUsedTables()).
+
+  NOTE: The map might be wider than expr.tables_in_subtree due to
+  multiple equalities; you should normally just ignore those bits.
  */
 table_map UsedTablesForCondition(const RelationalExpression &expr) {
   assert(expr.equijoin_conditions
@@ -486,6 +489,36 @@ table_map UsedTablesForCondition(const RelationalExpression &expr) {
   table_map used_tables = 0;
   for (Item *cond : expr.join_conditions) {
     used_tables |= cond->used_tables();
+  }
+  return used_tables;
+}
+
+/**
+  Like UsedTablesForCondition(), but multiple equalities set no bits unless
+  they're certain, i.e., cannot be avoided no matter how we break up the
+  multiple equality. This is the case for tables that are the only ones on
+  their side of the join. E.g.: For a multiple equality {A,C,D} on a join
+  (A,B) JOIN (C,D), A is certain; either A=C or A=D has to be included
+  no matter what.
+ */
+table_map CertainlyUsedTablesForCondition(const RelationalExpression &expr) {
+  assert(expr.equijoin_conditions
+             .empty());  // MakeHashJoinConditions() has not run yet.
+  table_map used_tables = 0;
+  for (Item *cond : expr.join_conditions) {
+    table_map this_used_tables = cond->used_tables();
+    if (IsMultipleEquals(cond)) {
+      table_map left_bits = this_used_tables & expr.left->tables_in_subtree;
+      table_map right_bits = this_used_tables & expr.right->tables_in_subtree;
+      if (IsSingleBitSet(left_bits)) {
+        used_tables |= left_bits;
+      }
+      if (IsSingleBitSet(right_bits)) {
+        used_tables |= right_bits;
+      }
+    } else {
+      used_tables |= this_used_tables;
+    }
   }
   return used_tables;
 }
@@ -607,7 +640,7 @@ bool IsBadJoinForCondition(const RelationalExpression &expr, Item *cond) {
     return true;
   }
 
-  const table_map already_used_tables = UsedTablesForCondition(expr);
+  const table_map already_used_tables = CertainlyUsedTablesForCondition(expr);
   if (already_used_tables == 0) {
     // Making a Cartesian join into a proper join is good.
     return false;
@@ -719,7 +752,7 @@ void RotateLeft(RelationalExpression *op) {
  */
 Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
                                        const RelationalExpression &expr) {
-  const table_map already_used_tables = UsedTablesForCondition(expr);
+  const table_map already_used_tables = CertainlyUsedTablesForCondition(expr);
 
   Item_field *left = nullptr;
   Item_field *right = nullptr;
@@ -916,6 +949,10 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
   if (allowed != AssociativeRewritesAllowed::LEFT_ONLY &&
       expr->right->type != RelationalExpression::TABLE &&
       OperatorsAreAssociative(*expr, *expr->right)) {
+    // Note that we need to use the conservative check here
+    // (UsedTablesForCondition() instead of CertainlyUsedTablesForCondition()),
+    // in order not to do possibly illegal rewrites. (It should only matter
+    // for the rare case where we have unpushed multiple equalities.)
     if (!Overlaps(UsedTablesForCondition(*expr),
                   expr->right->right->tables_in_subtree)) {
       RotateRight(expr);
@@ -1199,14 +1236,11 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
   // Now that any partial pushdown has been done, see if we can promote
   // the original filter to a join condition.
   if (is_join_condition_for_expr) {
-    // We were already a join condition on this join, so there's nothing to do
-    // except possibly concretize a multi-equals. (Any multiple equalities
-    // should be simplified but not pushed further, unlike WHERE conditions
-    // that induce inner joins.)
+    // We were already a join condition on this join, so there's nothing to do.
+    // (We leave any multiple equalities for LateConcretizeMultipleEqualities();
+    // see comments there. We should also not push them further, unlike WHERE
+    // conditions that induce inner joins.)
     if (remaining_parts != nullptr) {
-      if (IsMultipleEquals(cond)) {
-        cond = ConcretizeMultipleEquals(down_cast<Item_equal *>(cond), *expr);
-      }
       remaining_parts->push_back(cond);
     }
     return;
@@ -1238,11 +1272,9 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     // are not really WHERE conditions, and must not be handled as such
     // (they cannot be moved to being conditions on inner joins).
     // See the comment about pushability of these above.
-    // (Any multiple equalities should be simplified but not pushed further,
+    // (Any multiple equalities should be simplified in
+    // LateConcretizeMultipleEqualities(), but not pushed further,
     // unlike WHERE conditions that induce inner joins.)
-    if (IsMultipleEquals(cond)) {
-      cond = ConcretizeMultipleEquals(down_cast<Item_equal *>(cond), *expr);
-    }
     expr->join_conditions.push_back(cond);
     return;
   }
@@ -1455,6 +1487,42 @@ void PushDownJoinConditionsForSargable(THD *thd, RelationalExpression *expr) {
   }
   PushDownJoinConditionsForSargable(thd, expr->left);
   PushDownJoinConditionsForSargable(thd, expr->right);
+}
+
+/**
+  Do a final pass of unexpanded (and non-degenerate) multiple equalities on join
+  conditions, deciding on what equalities to concretize them into right before
+  pushing join conditions to sargable predicates. The reason for doing it after
+  all other pushing is that we want to make sure not to expand the hyperedges
+  any more than necessary, and we don't know what “necessary” is before
+  everything else is pushed.
+
+  This is only relevant for antijoins and semijoins; inner joins (and partially
+  left joins) get concretized as we push, since they can resolve such conflicts
+  by associative rewrites and/or creating cycles in the graph. Normally,
+  we probably wouldn't worry about such a narrow case, but there are specific
+  benchmark queries that happen to exhibit this problem.
+
+  There may still be remaining ones afterwards, such as those that are
+  degenerate or within more complex expressions; CanonicalizeJoinConditions()
+  will deal with them.
+ */
+void LateConcretizeMultipleEqualities(THD *thd, RelationalExpression *expr) {
+  if (expr->type == RelationalExpression::TABLE) {
+    return;
+  }
+  assert(expr->equijoin_conditions
+             .empty());  // MakeHashJoinConditions() has not run yet.
+
+  for (Item *&item : expr->join_conditions) {
+    if (IsMultipleEquals(item) &&
+        Overlaps(item->used_tables(), expr->left->tables_in_subtree) &&
+        Overlaps(item->used_tables(), expr->right->tables_in_subtree)) {
+      item = ConcretizeMultipleEquals(down_cast<Item_equal *>(item), *expr);
+    }
+  }
+  LateConcretizeMultipleEqualities(thd, expr->left);
+  LateConcretizeMultipleEqualities(thd, expr->right);
 }
 
 /**
@@ -2565,6 +2633,10 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
                                   /*is_join_condition_for_expr=*/false);
     }
   }
+
+  // Now that everything is pushed, we can concretize any multiple equalities
+  // that are left on antijoins and semijoins.
+  LateConcretizeMultipleEqualities(thd, root);
 
   // Now see if we can push down join conditions to sargable predicates.
   // We do this after we're done pushing, since pushing can change predicates

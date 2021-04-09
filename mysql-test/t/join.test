@@ -1708,3 +1708,34 @@ ANALYZE TABLE t1;
 SELECT * FROM t1, t1 AS t2, t1 AS t3 WHERE t1.a = t2.a AND t1.a = t3.b AND t1.a = t3.a;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32751315: WL#14418: ASSERTION `RIGHT != NULLPTR' FAILED|MAKE_JOIN_HYPERGRAPH.CC
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+SELECT * FROM
+  t1
+  JOIN t1 AS t2 ON t1.pk = t2.pk
+  JOIN t1 AS t3
+  LEFT JOIN t1 AS t4 ON t2.pk = t3.pk AND t4.pk = 135;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #32757178: WL#14418: ASSERTION `!EQ_ITEMS.IS_EMPTY()' FAILED|MAKE_JOIN_HYPERGRAPH.CC
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+
+SELECT *
+  FROM
+    t1
+    JOIN t1 AS t2 ON t1.a = t2.b
+    LEFT JOIN t1 AS t3 ON t2.b = t3.b
+    LEFT JOIN (
+      t1 AS t4
+      JOIN t1 AS t5 ON t4.b = t5.b
+    ) ON t2.b = t4.a
+  WHERE t1.b >= 6 OR t3.b <> t4.b;
+
+DROP TABLE t1;

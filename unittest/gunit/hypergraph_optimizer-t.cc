@@ -1060,6 +1060,76 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityCausesCycle) {
   EXPECT_EQ(0, graph.edges[4].expr->join_conditions.size());
 }
 
+// Sets up a nonsensical query, but the point is that the multiple equality
+// on the antijoin can be resolved to either t1.x or t2.x, and it should choose
+// the same as is already there due to the inequality in order to not create
+// an overly broad hyperedge. This is similar to a situation in DBT-3 Q21.
+//
+// We test with the inequality referring to both tables in turn, to make sure
+// that we're not just getting lucky.
+using MakeHypergraphMultipleEqualParamTest =
+    HypergraphTestBase<::testing::TestWithParam<int>>;
+
+TEST_P(MakeHypergraphMultipleEqualParamTest,
+       MultipleEqualityOnAntijoinGetsIdeallyResolved) {
+  const int table_num = GetParam();
+  string other_table = (table_num == 0) ? "t1" : "t2";
+  string query_str =
+      "SELECT 1 FROM t1, t2 WHERE t1.x=t2.x "
+      "AND t1.x NOT IN (SELECT t3.x FROM t3 WHERE t3.x <> " +
+      other_table + ".x + 1)";
+  Query_block *query_block = ParseAndResolve(query_str.c_str(),
+                                             /*nullable=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(3, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+
+  // t1/t2. This one should not be too surprising.
+  ASSERT_EQ(2, graph.edges.size());
+  EXPECT_EQ(0x01, graph.graph.edges[0].left);
+  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+  ASSERT_EQ(1, graph.edges[0].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t2.x)",
+            ItemToString(graph.edges[0].expr->equijoin_conditions[0]));
+  EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
+
+  // t1/t3 (antijoin) or t2/t3. The important part is that this should _not_
+  // be a hyperedge.
+  if (table_num == 0) {
+    EXPECT_EQ(0x01, graph.graph.edges[2].left);
+  } else {
+    EXPECT_EQ(0x02, graph.graph.edges[2].left);
+  }
+  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::ANTIJOIN, graph.edges[1].expr->type);
+  ASSERT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
+  ASSERT_EQ(1, graph.edges[1].expr->join_conditions.size());
+  EXPECT_EQ("(" + other_table + ".x = t3.x)",
+            ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
+  EXPECT_EQ("(t3.x <> (" + other_table + ".x + 1))",
+            ItemToString(graph.edges[1].expr->join_conditions[0]));
+}
+
+INSTANTIATE_TEST_SUITE_P(All, MakeHypergraphMultipleEqualParamTest,
+                         ::testing::Values(0, 1));
+
 // An alias for better naming.
 // We don't verify costs; to do that, we'd probably need to mock out
 // the cost model.
