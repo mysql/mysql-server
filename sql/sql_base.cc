@@ -5935,7 +5935,8 @@ restart:
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
   if (*start &&
-      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+      (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true) ||
+       thd->get_transaction()->xid_state()->xa_trans_rolled_back()))
     return true;
 
   /*
