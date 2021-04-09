@@ -59,6 +59,18 @@
 
 #define JAM_FILE_ID 393
 
+#if defined(VM_TRACE) || defined(ERROR_INSERT)
+/*
+ * To be able to test different combinations of compression, encryption, and,
+ * use of ODirect enable the define below.
+ * This works ok for LCP data files there are typically several files with
+ * different table and fragment number as part of name.
+ * For other file types which only are present in a few copies with predictable
+ * names the actual combinations will not vary much, even between runs.
+ */
+//#define NAME_BASED_DISABLING_COMPRESS_ENCRYPT_ODIRECT
+#endif
+
 /**
  * NDBFS has two types of async IO file threads : Bound and non-bound.
  * These threads are kept in two distinct idle pools.
@@ -375,6 +387,19 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
     }
   }
 
+#ifdef NDBFS_TDE
+  /*
+   * Note: All code protected by NDBFS_TDE should be removed as soon as each
+   * client block sets OM_ENCRYPT and OM_PASSWORD as it should for FSOPENREQ.
+   *
+   * To be able to test encryption of filesystem Ndbfs reads the
+   * EncryptedFileSystem configuration parameter and by itself sets OM_ENCRYPT
+   * and a dummy OM_PASSWORD.
+   */
+  m_encrypt_fs = false;
+  ndb_mgm_get_int_parameter(p, CFG_DB_ENCRYPTED_FILE_SYSTEM, &m_encrypt_fs);
+#endif
+
   m_maxFiles = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MAX_OPEN_FILES, &m_maxFiles);
   Uint32 noIdleFiles = 27;
@@ -564,7 +589,11 @@ Ndbfs::execFSOPENREQ(Signal* signal)
 {
   jamEntry();
   require(signal->getLength() >= FsOpenReq::SignalLength);
+#if defined(NAME_BASED_DISABLING_COMPRESS_ENCRYPT_ODIRECT) || defined(NDBFS_TDE)
+  FsOpenReq * const fsOpenReq = (FsOpenReq *)&signal->theData[0];
+#else
   const FsOpenReq * const fsOpenReq = (FsOpenReq *)&signal->theData[0];
+#endif
   const BlockReference userRef = fsOpenReq->userReference;
 
   bool bound = (fsOpenReq->fileFlags & FsOpenReq::OM_THREAD_POOL) == 0;
@@ -601,6 +630,88 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   const Uint64 file_size = (Uint64{fsOpenReq->file_size_hi} << 32) |
                            fsOpenReq->file_size_lo;
   const Uint32 auto_sync_size = fsOpenReq->auto_sync_size;
+
+#if defined(NAME_BASED_DISABLING_COMPRESS_ENCRYPT_ODIRECT)
+  const int name_hash = crc32(0,
+                              ((const unsigned char*)file->theFileName.c_str()),
+                              strlen(file->theFileName.c_str()));
+  const bool backup = (file->theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP);
+  const bool allow_gz = backup || (name_hash & 1);
+  const bool allow_enc = backup || (name_hash & 2);
+  const bool allow_odirect = (name_hash & 4);
+#endif
+
+#ifdef NDBFS_TDE
+  /*
+   * Note: All code protected by NDBFS_TDE should be removed as soon as each
+   * client block sets OM_ENCRYPT and OM_PASSWORD as it should for FSOPENREQ.
+   *
+   * To be able to test encryption of filesystem Ndbfs reads the
+   * EncryptedFileSystem configuration parameter and by itself sets OM_ENCRYPT
+   * and a dummy OM_PASSWORD.
+   */
+  if (m_encrypt_fs)
+  {
+    /* LCP */
+    if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 5 &&
+        FsOpenReq::getSuffix(fsOpenReq->fileNumber) == FsOpenReq::S_DATA)
+    { /* LCP data files */
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD));
+      if (page_size > 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
+      require(page_size == 0);
+      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT;
+    }
+    /* TS */
+    if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 4 &&
+       FsOpenReq::v4_getBasePath(fsOpenReq->fileNumber) == FsOpenReq::BP_DD_DF)
+    { /* TS data files */
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD));
+      if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
+      require(page_size > 0);
+      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT;
+    }
+    /* UNDO */
+    if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 4 &&
+        FsOpenReq::v4_getBasePath(fsOpenReq->fileNumber) == FsOpenReq::BP_DD_UF)
+    { /* LG undo files */
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD));
+      if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
+      require(page_size > 0);
+      fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT;
+    }
+    /* REDO */
+    if (FsOpenReq::getVersion(fsOpenReq->fileNumber) == 1 &&
+        FsOpenReq::getSuffix(fsOpenReq->fileNumber) == FsOpenReq::S_FRAGLOG)
+    { /* redo log */
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT));
+      require(!(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD));
+      require(fsOpenReq->fileFlags & FsOpenReq::OM_ZEROS_ARE_SPARSE);
+#ifdef ERROR_INSERT
+      if (page_size == 0)
+      {
+        // CMVMI creates many concurrent files in testLimits -n NdbfsBulkOpe T1
+        if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
+      }
+      else
+#endif
+      {
+        if (page_size == 0) fprintf(stderr,"YYY: %s: %u: %s: page_size %zu\n",__func__,__LINE__,file->theFileName.c_str(),(size_t)page_size);
+        require(page_size > 0);
+        fsOpenReq->fileFlags |= FsOpenReq::OM_ENCRYPT;
+      }
+    }
+  }
+  if (fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT &&
+      !(fsOpenReq->fileFlags & FsOpenReq::OM_PASSWORD))
+  {
+    strcpy(file->m_password.encryption_password, "DUMMY");
+    file->m_password.password_length = 5;
+    fsOpenReq->fileFlags |= FsOpenReq::OM_PASSWORD;
+  }
+#endif
 
   if (fsOpenReq->fileFlags & FsOpenReq::OM_INIT)
   {
@@ -662,6 +773,23 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   request->file = file;
   request->theTrace = signal->getTrace();
   request->par.open.flags = fsOpenReq->fileFlags;
+#if defined(NAME_BASED_DISABLING_COMPRESS_ENCRYPT_ODIRECT)
+  if (!allow_gz)
+  {
+    request->par.open.flags &= ~(FsOpenReq::OM_GZ);
+  }
+  if (!allow_enc)
+  {
+    request->par.open.flags &=
+        ~(FsOpenReq::OM_ENCRYPT | FsOpenReq::OM_PASSWORD);
+    file->m_password.password_length = 0;
+  }
+  if (!allow_odirect)
+  {
+    request->par.open.flags &=
+        ~(FsOpenReq::OM_DIRECT|FsOpenReq::OM_DIRECT_SYNC);
+  }
+#endif
   request->par.open.page_size = page_size;
   request->par.open.file_size = file_size;
   request->par.open.auto_sync_size = auto_sync_size;
