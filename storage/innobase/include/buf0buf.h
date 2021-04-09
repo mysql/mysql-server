@@ -1901,6 +1901,13 @@ public:
 	@param bpage	buffer block to be compared */
 	virtual void adjust(const buf_page_t*) = 0;
 
+	/** Adjust the value of hp for moving. This happens
+	when some other thread working on the same list
+	attempts to relocate the hp of the page.
+	@param bpage	buffer block to be compared
+	@param dpage	buffer block to be moved to */
+	void move(const buf_page_t *bpage, buf_page_t *dpage);
+
 protected:
 	/** Disable copying */
 	HazardPointer(const HazardPointer&);
@@ -2129,6 +2136,8 @@ struct buf_pool_t{
 					used during scan of flush_list
 					while doing flush list batch.
 					Protected by flush_list_mutex */
+	FlushHp			oldest_hp;/*!< entry pointer to scan the oldest
+					page except for system temporary */
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
 					/*!< base node of the modified block
 					list */

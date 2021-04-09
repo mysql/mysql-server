@@ -424,8 +424,14 @@ buf_pool_get_oldest_modification(void)
 		/* We don't let log-checkpoint halt because pages from system
 		temporary are not yet flushed to the disk. Anyway, object
 		residing in system temporary doesn't generate REDO logging. */
-		for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-		     bpage != NULL
+		bpage = buf_pool->oldest_hp.get();
+		if (bpage != NULL) {
+			ut_ad(bpage->in_flush_list);
+		} else {
+			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+		}
+
+		for (; bpage != NULL
 			&& fsp_is_system_temporary(bpage->id.space());
 		     bpage = UT_LIST_GET_PREV(list, bpage)) {
 			/* Do nothing. */
@@ -434,6 +440,12 @@ buf_pool_get_oldest_modification(void)
 		if (bpage != NULL) {
 			ut_ad(bpage->in_flush_list);
 			lsn = bpage->oldest_modification;
+			buf_pool->oldest_hp.set(bpage);
+		} else {
+			/* The last scanned page as entry point,
+			or nullptr. */
+			buf_pool->oldest_hp.set(
+				UT_LIST_GET_FIRST(buf_pool->flush_list));
 		}
 
 		buf_flush_list_mutex_exit(buf_pool);
@@ -1844,6 +1856,10 @@ buf_pool_init_instance(
 	new(&buf_pool->flush_hp)
 		FlushHp(buf_pool, &buf_pool->flush_list_mutex);
 
+	/* Initialize the hazard pointer for the oldest page scan */
+	new (&buf_pool->oldest_hp)
+		FlushHp(buf_pool, &buf_pool->flush_list_mutex);
+
 	/* Initialize the hazard pointer for LRU batches */
 	new(&buf_pool->lru_hp) LRUHp(buf_pool, &buf_pool->mutex);
 
@@ -3194,6 +3210,21 @@ HazardPointer::is_hp(const buf_page_t* bpage)
 	ut_ad(!bpage || buf_pool_from_bpage(bpage) == m_buf_pool);
 
 	return(bpage == m_hp);
+}
+
+/** Adjust the value of hp for moving. This happens when some other thread
+working on the same list attempts to relocate the hp of the page.
+@param bpage	buffer block to be compared
+@param dpage	buffer block to be moved to */
+void
+HazardPointer::move(const buf_page_t *bpage, buf_page_t *dpage)
+{
+	ut_ad(bpage != NULL);
+	ut_ad(dpage != NULL);
+
+	if (is_hp(bpage)) {
+		m_hp = dpage;
+	}
 }
 
 /** Adjust the value of hp. This happens when some other thread working

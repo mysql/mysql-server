@@ -561,6 +561,11 @@ buf_flush_insert_sorted_into_flush_list(
 		UT_LIST_INSERT_AFTER(buf_pool->flush_list, prev_b, &block->page);
 	}
 
+	if (buf_pool->oldest_hp.get() != NULL) {
+		/* clear oldest_hp */
+		buf_pool->oldest_hp.set(NULL);
+	}
+
 	incr_flush_list_size_in_bytes(block, buf_pool);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -658,6 +663,7 @@ buf_flush_remove(
 	/* Important that we adjust the hazard pointer before removing
 	the bpage from flush list. */
 	buf_pool->flush_hp.adjust(bpage);
+	buf_pool->oldest_hp.adjust(bpage);
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
@@ -757,7 +763,8 @@ buf_flush_relocate_on_flush_list(
 
 	/* Important that we adjust the hazard pointer before removing
 	the bpage from the flush list. */
-	buf_pool->flush_hp.adjust(bpage);
+	buf_pool->flush_hp.move(bpage, dpage);
+	buf_pool->oldest_hp.move(bpage, dpage);
 
 	/* Must be done after we have removed it from the flush_rbt
 	because we assert on in_flush_list in comparison function. */
@@ -2599,6 +2606,15 @@ page_cleaner_flush_pages_recommendation(
 	lsn_t	target_lsn = oldest_lsn
 			     + lsn_avg_rate * buf_flush_lsn_scan_factor;
 
+	/* Cap the maximum IO capacity that we are going to use by
+	max_io_capacity. Limit the value to avoid too quick increase */
+	const ulint	sum_pages_max = srv_max_io_capacity * 2;
+
+	/* Limit individual BP scan based on overall capacity. */
+	const ulint	pages_for_lsn_max =
+		(sum_pages_max / srv_buf_pool_instances) *
+		buf_flush_lsn_scan_factor * 2;
+
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool = buf_pool_from_array(i);
 		ulint		pages_for_lsn = 0;
@@ -2611,6 +2627,9 @@ page_cleaner_flush_pages_recommendation(
 				break;
 			}
 			++pages_for_lsn;
+			if (pages_for_lsn >= pages_for_lsn_max) {
+				break;
+			}
 		}
 		buf_flush_list_mutex_exit(buf_pool);
 
@@ -2632,7 +2651,7 @@ page_cleaner_flush_pages_recommendation(
 	/* Cap the maximum IO capacity that we are going to use by
 	max_io_capacity. Limit the value to avoid too quick increase */
 	ulint	pages_for_lsn =
-		std::min<ulint>(sum_pages_for_lsn, srv_max_io_capacity * 2);
+		std::min<ulint>(sum_pages_for_lsn, sum_pages_max);
 
 	n_pages = (PCT_IO(pct_total) + avg_page_rate + pages_for_lsn) / 3;
 
