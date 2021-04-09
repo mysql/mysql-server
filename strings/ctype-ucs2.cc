@@ -2125,7 +2125,10 @@ static size_t my_well_formed_len_utf32(
   /* Ensure string length is divisible by 4 */
   const char *b0 = b;
   size_t length = e - b;
-  assert((length % 4) == 0);
+  if ((length % 4) != 0) {
+    *error = 1;
+    return 0;
+  }
   *error = 0;
   nchars *= 4;
   if (length > nchars) {

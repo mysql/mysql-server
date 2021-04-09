@@ -1424,6 +1424,10 @@ qxuvoxcgohdbytybwcqxdwtqrebgjzbycekyjgbpmqadutrqluyxhrdodxqqjwasfkvetfobocgpft
 rhvxugmmszwpoglvarsfiljrzimqeplevleqdhepkhcfrahcpjj') CHARACTER SET utf32)
 RETURNS CHAR(50) DETERMINISTIC RETURN CONCAT('Hello, ',s,'!');
 ERROR HY000: Too long enumeration/set value for column s.
+# Bug#32745294: my_well_formed_len_utf32: assertion `(length % 4) == 0'
+#               failed.
+DO REPLACE(CONVERT(1 USING utf32),BIT_XOR(1),SHA1(@d));
+ERROR HY000: Cannot convert string '1' from binary to utf32
 #
 # End of 8.0 tests
 #
