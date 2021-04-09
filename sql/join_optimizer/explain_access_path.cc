@@ -328,8 +328,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       assert(table->file->pushed_idx_cond == nullptr);
 
       const KEY *key = &table->key_info[path->index_scan().idx];
-      string str =
-          string("Index scan on ") + table->alias + " using " + key->name;
+      string str = string(table->key_read ? "Covering index scan on "
+                                          : "Index scan on ") +
+                   table->alias + " using " + key->name;
       if (path->index_scan().reverse) {
         str += " (reverse)";
       }
@@ -342,8 +343,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     case AccessPath::REF: {
       TABLE *table = path->ref().table;
       const KEY *key = &table->key_info[path->ref().ref->key];
-      string str = string("Index lookup on ") + table->alias + " using " +
-                   key->name + " (" +
+      string str = string(table->key_read ? "Covering index lookup on "
+                                          : "Index lookup on ") +
+                   table->alias + " using " + key->name + " (" +
                    RefToString(*path->ref().ref, key, /*include_nulls=*/false);
       if (path->ref().reverse) {
         str += "; iterate backwards";
@@ -362,8 +364,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       TABLE *table = path->ref_or_null().table;
       const KEY *key = &table->key_info[path->ref_or_null().ref->key];
       string str =
-          string("Index lookup on ") + table->alias + " using " + key->name +
-          " (" +
+          string(table->key_read ? "Covering index lookup on "
+                                 : "Index lookup on ") +
+          table->alias + " using " + key->name + " (" +
           RefToString(*path->ref_or_null().ref, key, /*include_nulls=*/true) +
           ")";
       if (table->file->pushed_idx_cond != nullptr) {
@@ -379,8 +382,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       TABLE *table = path->eq_ref().table;
       const KEY *key = &table->key_info[path->eq_ref().ref->key];
       string str =
-          string("Single-row index lookup on ") + table->alias + " using " +
-          key->name + " (" +
+          string(table->key_read ? "Single-row covering index lookup on "
+                                 : "Single-row index lookup on ") +
+          table->alias + " using " + key->name + " (" +
           RefToString(*path->eq_ref().ref, key, /*include_nulls=*/false) + ")";
       if (table->file->pushed_idx_cond != nullptr) {
         str += ", with index condition: " +
@@ -397,9 +401,10 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       const KEY *key = &table->key_info[path->pushed_join_ref().ref->key];
       string str;
       if (path->pushed_join_ref().is_unique) {
-        str = string("Single-row index");
+        str =
+            table->key_read ? "Single-row covering index" : "Single-row index";
       } else {
-        str = string("Index");
+        str = table->key_read ? "Covering index" : "Index";
       }
       str += " lookup on " + string(table->alias) + " using " + key->name +
              " (" +
@@ -413,7 +418,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       TABLE *table = path->full_text_search().table;
       assert(table->file->pushed_idx_cond == nullptr);
       const KEY *key = &table->key_info[path->full_text_search().ref->key];
-      description.push_back(string("Indexed full text search on ") +
+      description.push_back(string(table->key_read
+                                       ? "Full-text covering index search on "
+                                       : "Full-text index search on ") +
                             table->alias + " using " + key->name + " (" +
                             RefToString(*path->full_text_search().ref, key,
                                         /*include_nulls=*/false) +
@@ -430,10 +437,11 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     case AccessPath::MRR: {
       TABLE *table = path->mrr().table;
       const KEY *key = &table->key_info[path->mrr().ref->key];
-      string str = string("Multi-range index lookup on ") + table->alias +
-                   " using " + key->name + " (" +
-                   RefToString(*path->mrr().ref, key, /*include_nulls=*/false) +
-                   ")";
+      string str =
+          string(table->key_read ? "Multi-range covering index lookup on "
+                                 : "Multi-range index lookup on ") +
+          table->alias + " using " + key->name + " (" +
+          RefToString(*path->mrr().ref, key, /*include_nulls=*/false) + ")";
       if (table->file->pushed_idx_cond != nullptr) {
         str += ", with index condition: " +
                ItemToString(table->file->pushed_idx_cond);
@@ -454,8 +462,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       // get better outputs here (similar to dbug_dump()).
       String str;
       path->index_range_scan().quick->add_info_string(&str);
-      string ret = string("Index range scan on ") + table->alias + " using " +
-                   to_string(str);
+      string ret = string(table->key_read ? "Covering index range scan on "
+                                          : "Index range scan on ") +
+                   table->alias + " using " + to_string(str);
       if (table->file->pushed_idx_cond != nullptr) {
         ret += ", with index condition: " +
                ItemToString(table->file->pushed_idx_cond);
@@ -470,8 +479,9 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       // TODO(sgunders): Convert QUICK_SELECT_I to RowIterator so that we can
       // get better outputs here (similar to dbug_dump()), although it might get
       // tricky when there are many alternatives.
-      string str = string("Index range scan on ") + table->alias +
-                   " (re-planned for each iteration)";
+      string str = string(table->key_read ? "Covering index range scan on "
+                                          : "Index range scan on ") +
+                   table->alias + " (re-planned for each iteration)";
       if (table->file->pushed_idx_cond != nullptr) {
         str += ", with index condition: " +
                ItemToString(table->file->pushed_idx_cond);

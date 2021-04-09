@@ -1118,8 +1118,8 @@ EXPLAIN
                             -> Hash
                                 -> Filter: (t2.f2 is not null)  (cost=0.55 rows=3)
                                     -> Index scan on t2 using f2  (cost=0.55 rows=3)
-                        -> Index lookup on ta3 using f2 (f2=t2.f2)  (cost=0.30 rows=2)
-                    -> Single-row index lookup on ta4 using PRIMARY (f1=t4.f1)  (cost=0.08 rows=1)
+                        -> Covering index lookup on ta3 using f2 (f2=t2.f2)  (cost=0.30 rows=2)
+                    -> Single-row covering index lookup on ta4 using PRIMARY (f1=t4.f1)  (cost=0.08 rows=1)
 
 SELECT /*+ JOIN_PREFIX(t2@qb2, t4@qb1, ta3, ta4) */
 COUNT(*) FROM t1 JOIN t2 AS ta3 JOIN t2 AS ta4
@@ -1234,7 +1234,7 @@ EXPLAIN
                         -> Index lookup on alias3 using <auto_key0> (col_int_key=alias2.col_int_key, col_varchar_key=alias2.col_varchar_key)
                             -> Materialize  (cost=0.45..0.45 rows=1)
                                 -> Table scan on sq1_alias1  (cost=0.35 rows=1)
-        -> Index lookup on alias1 using idx (col_varchar_key=sq2_alias1.col_varchar)  (cost=0.26 rows=1)
+        -> Covering index lookup on alias1 using idx (col_varchar_key=sq2_alias1.col_varchar)  (cost=0.26 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.alias2.col_varchar' of SELECT #3 was resolved in SELECT #1
@@ -1526,7 +1526,7 @@ EXPLAIN
                                                 -> Limit: 100 row(s)  (cost=9.92 rows=27)
                                                     -> Nested loop left join  (cost=9.92 rows=27)
                                                         -> Table scan on sq1_alias2  (cost=2.25 rows=20)
-                                                        -> Index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (cost=0.26 rows=1)
+                                                        -> Covering index lookup on sq1_alias1 using col_varchar_key (col_varchar_key=sq1_alias2.col_varchar_key)  (cost=0.26 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'alias1.col_varchar' of SELECT #3 was resolved in SELECT #1
@@ -1637,7 +1637,7 @@ EXPLAIN
         -> Hash
             -> Table scan on subquery1_t1  (cost=0.35 rows=1)
     -> Nested loop semijoin  (cost=3.83 rows=2)
-        -> Index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
+        -> Covering index lookup on table2 using <auto_key0> (col_varchar=subquery1_t1.col_varchar)
             -> Materialize  (cost=3.38..3.38 rows=2)
                 -> Table scan on <temporary>  (cost=1.26..2.52 rows=2)
                     -> Temporary table with deduplication  (cost=1.91..3.17 rows=2)
@@ -1957,7 +1957,7 @@ EXPLAIN
         -> Nested loop inner join  (cost=8.61 rows=1)
             -> Filter: (t1.col1 <> t2.col1)  (cost=0.01 rows=1)
                 -> Index scan on t1 using idx  (cost=0.01 rows=1)
-            -> Index lookup on t1_2 using idx (col1=t1.col1)  (cost=0.25 rows=1)
+            -> Covering index lookup on t1_2 using idx (col1=t1.col1)  (cost=0.25 rows=1)
 
 Warnings:
 Note	1276	Field or reference 'test.t2.col1' of SELECT #3 was resolved in SELECT #1

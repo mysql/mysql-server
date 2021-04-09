@@ -3862,7 +3862,7 @@ EXPLAIN
                                 -> Inner hash join (no condition)  (cost=42.50 rows=360)
                                     -> Table scan on subquery1_t2  (cost=0.10 rows=20)
                                     -> Hash
-                                        -> Index scan on subquery1_t1 using idx_cc_col_varchar_key  (cost=2.25 rows=20)
+                                        -> Covering index scan on subquery1_t1 using idx_cc_col_varchar_key  (cost=2.25 rows=20)
                             -> Filter: (cc.col_varchar = subquery1_t2.col_varchar_key)  (cost=0.25 rows=0)
                                 -> Index lookup on cc using idx_cc_col_int_key (col_int_key=subquery1_t2.col_int)  (cost=0.25 rows=1)
 

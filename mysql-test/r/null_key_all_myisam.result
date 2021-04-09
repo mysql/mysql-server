@@ -37,7 +37,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` fr
 explain format=tree select * from t1 where (a is null or a = 7) and b=7;
 EXPLAIN
 -> Filter: ((t1.b = 7) and ((t1.a is null) or (t1.a = 7)))  (cost=0.46 rows=2)
-    -> Index lookup on t1 using a (a=7 or NULL, b=7)  (cost=0.46 rows=2)
+    -> Covering index lookup on t1 using a (a=7 or NULL, b=7)  (cost=0.46 rows=2)
 
 explain select * from t1 where (a is null or a = 7) and b=7;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -453,7 +453,7 @@ Warning	1062	Duplicate entry '6-6' for key 't1.b'
 explain format=tree select * from t1 where (a is null or a = 7) and b=7;
 EXPLAIN
 -> Filter: ((t1.b = 7) and ((t1.a is null) or (t1.a = 7)))  (cost=0.46 rows=2)
-    -> Index lookup on t1 using b (b=7, a=7 or NULL)  (cost=0.46 rows=2)
+    -> Covering index lookup on t1 using b (b=7, a=7 or NULL)  (cost=0.46 rows=2)
 
 drop table t1;
 set optimizer_switch=default;
