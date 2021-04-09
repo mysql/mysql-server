@@ -9559,6 +9559,9 @@ ER_WARN_ADUIT_LOG_MAX_SIZE_AND_PRUNE_SECONDS
 ER_WARN_ADUIT_LOG_MAX_SIZE_CLOSE_TO_ROTATE_ON_SIZE
   eng "audit_log_rotate_on_size is not granular enough for the value of audit_log_max_size supplied. Should be at least %d times smaller."
 
+ER_KERBEROS_CREATE_USER
+  eng "Create/Alter user has failed, Configured user realm as authentication string is empty, Please make sure to configure authentication string as user realm."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

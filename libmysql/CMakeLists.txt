@@ -270,8 +270,11 @@ IF(WIN32)
   LIST(APPEND LIBS_TO_MERGE auth_win_client)
 ENDIF()
 
-# LDAP authentication SASL client plugin
+# LDAP authentication SASL client plug-in
 ADD_SUBDIRECTORY(authentication_ldap)
+
+# authentication kerberos client plug-in
+ADD_SUBDIRECTORY(authentication_kerberos)
 
 # Merge several convenience libraries into one big mysqlclient
 MERGE_CONVENIENCE_LIBRARIES(mysqlclient ${LIBS_TO_MERGE}

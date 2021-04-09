@@ -5330,7 +5330,29 @@ static mysql_state_machine_status authsm_begin_plugin_auth(
   ctx->auth_plugin_name = nullptr;
   if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH &&
       ctx->data_plugin != nullptr) {
-    ctx->auth_plugin_name = ctx->data_plugin;
+    /*
+      LDAP SASL Kerberos and Native Karberos plug-in depends on client side set
+      default plug-in to obtained user name from credential cache. If we don't
+      use client side authentication plug-in, user and password less
+      functionality will not work. And this is very important feature for
+      Kerberos.
+
+      We are not overriding client side default authentication plug-in if
+      it is configured in the client side. Once server supports configuration of
+      all the authentication plug-ins as default, Below code shall be removed.
+      Checks:
+      1. Default authentication plug-in is configured
+      2. Default authentication plug-in is valid.
+    */
+    auth_plugin_t *client_plugin{nullptr};
+    if (mysql->options.extension && mysql->options.extension->default_auth &&
+        (client_plugin = (auth_plugin_t *)mysql_client_find_plugin(
+             mysql, mysql->options.extension->default_auth,
+             MYSQL_CLIENT_AUTHENTICATION_PLUGIN))) {
+      ctx->auth_plugin_name = mysql->options.extension->default_auth;
+    } else {
+      ctx->auth_plugin_name = ctx->data_plugin;
+    }
     if (!(ctx->auth_plugin = (auth_plugin_t *)mysql_client_find_plugin(
               mysql, ctx->auth_plugin_name,
               MYSQL_CLIENT_AUTHENTICATION_PLUGIN))) {
