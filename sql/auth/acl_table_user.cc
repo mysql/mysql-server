@@ -2286,6 +2286,12 @@ bool read_user_application_user_metadata_from_table(
              table->s->table_name.str);
     return true;
   }
+  if (!table->key_info) {
+    my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
+             table->s->table_name.str);
+    table->file->ha_index_end();
+    return true;
+  }
   table->use_all_columns();
   table->field[MYSQL_USER_FIELD_HOST]->store(host.str, host.length,
                                              system_charset_info);
