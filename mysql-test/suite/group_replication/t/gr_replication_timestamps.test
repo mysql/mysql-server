@@ -201,8 +201,8 @@ while ($i<3)
   --let $assert_cond= $server_ICT > 0
   --source include/assert.inc
 
-  --let $assert_text= Assert that the View_change_event OCT is zero for server_2.
-  --let $assert_cond= $server_OCT = 0
+  --let $assert_text= Assert that the View_change_event OCT is bigger than zero for server_2.
+  --let $assert_cond= $server_OCT > 0
   --source include/assert.inc
 
   --let $rpl_connection_name= server_3
@@ -216,8 +216,8 @@ while ($i<3)
   --let $assert_cond= $server_ICT > 0
   --source include/assert.inc
 
-  --let $assert_text= Assert that the View_change_event OCT is zero for server_3.
-  --let $assert_cond= $server_OCT = 0
+  --let $assert_text= Assert that the View_change_event OCT is bigger than zero for server_3.
+  --let $assert_cond= $server_OCT > 0
   --source include/assert.inc
 
   --let $rpl_connection_name= server_5
@@ -231,8 +231,8 @@ while ($i<3)
   --let $assert_cond= $server_ICT > 0
   --source include/assert.inc
 
-  --let $assert_text= Assert that the View_change_event OCT is zero for server_3.
-  --let $assert_cond= $server_OCT = 0
+  --let $assert_text= Assert that the View_change_event OCT is bigger than zero for server_3.
+  --let $assert_cond= $server_OCT > 0
   --source include/assert.inc
 
   --inc $i
