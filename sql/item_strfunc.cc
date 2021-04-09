@@ -1589,6 +1589,7 @@ String *Item_func_trim::val_str(String *str) {
 
   String *res = eval_string_arg(collation.collation, args[0], str);
   if ((null_value = args[0]->null_value)) return nullptr;
+  if (res == nullptr) return error_str();
 
   char buff[MAX_FIELD_WIDTH];
   String tmp(buff, sizeof(buff), system_charset_info);

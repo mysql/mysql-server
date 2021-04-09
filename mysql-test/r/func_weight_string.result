@@ -188,3 +188,12 @@ SELECT DISTINCT HEX(WEIGHT_STRING(ch)) FROM t1;
 HEX(WEIGHT_STRING(ch))
 140127014D014D00
 DROP TABLE t1;
+#
+# Bug #32744772 REGRESSION: TRIM CRASHES IN STRING::LENGTH
+#
+SET NAMES DEFAULT;
+DO ltrim(weight_string(1));
+ERROR HY000: Cannot convert string '\x80\x00\x00\x00\x00\x00...' from binary to utf8mb4
+DO rtrim(weight_string(1));
+ERROR HY000: Cannot convert string '\x80\x00\x00\x00\x00\x00...' from binary to utf8mb4
+SET NAMES latin1;
