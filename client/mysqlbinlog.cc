@@ -3275,7 +3275,12 @@ int main(int argc, char **argv) {
     load_processor.init_by_cur_dir();
 
   if (!raw_mode) {
-    fprintf(result_file, "/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;\n");
+    fprintf(
+        result_file,
+        "# The proper term is pseudo_replica_mode, but we use this "
+        "compatibility alias\n"
+        "# to make the statement usable on server versions 8.0.24 and older.\n"
+        "/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;\n");
 
     if (disable_log_bin)
       fprintf(
