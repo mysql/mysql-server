@@ -672,18 +672,14 @@ int Certification_handler::inject_transactional_events(Pipeline_event *pevent,
   }
   Gtid_specification gtid_specification = {ASSIGNED_GTID, gtid};
   /**
-   The original_commit_timestamp of this Gtid_log_event will be zero
-   because the transaction corresponds to a View_change_event, which is
-   generated and committed locally by all members. Consequently, there is no
-   'original master'. So, instead of each member generating a GTID with
-   its own unique original_commit_timestamp (and violating the property that
-   the original_commit_timestamp is the same for a given GTID), this timestamp
-   will not be defined.
+   The original_commit_timestamp for this GTID will be different for each
+   member that generated this View_change_event.
   */
   uint32_t server_version = do_server_version_int(::server_version);
-  Gtid_log_event *gtid_log_event =
-      new Gtid_log_event(event->server_id, true, 0, 0, true, 0, 0,
-                         gtid_specification, server_version, server_version);
+  auto time_stamp_now = my_micro_time();
+  Gtid_log_event *gtid_log_event = new Gtid_log_event(
+      event->server_id, true, 0, 0, true, time_stamp_now, time_stamp_now,
+      gtid_specification, server_version, server_version);
 
   Pipeline_event *gtid_pipeline_event =
       new Pipeline_event(gtid_log_event, fd_event);
