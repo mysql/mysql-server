@@ -81,8 +81,9 @@
 #include "sql/item.h"
 #include "sql/item_cmpfunc.h"    // and_conds
 #include "sql/item_json_func.h"  // Item_func_array_cast
-#include "sql/json_diff.h"       // Json_diff_vector
-#include "sql/json_dom.h"        // Json_wrapper
+#include "sql/join_optimizer/bit_utils.h"
+#include "sql/json_diff.h"  // Json_diff_vector
+#include "sql/json_dom.h"   // Json_wrapper
 #include "sql/json_path.h"
 #include "sql/key.h"  // find_ref_key
 #include "sql/log.h"
@@ -740,8 +741,9 @@ void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
     contains prefix keys.
     Note that prefix keys in the extended PK key parts
     (part_of_key_not_extended is false) are not considered.
+    Full-text keys are not considered prefix keys.
   */
-  if (full_length_key_part) {
+  if (full_length_key_part || Overlaps(keyinfo->flags, HA_FULLTEXT)) {
     field->part_of_key.set_bit(key_n);
     if (part_of_key_not_extended)
       field->part_of_key_not_extended.set_bit(key_n);
