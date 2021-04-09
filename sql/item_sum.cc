@@ -1815,6 +1815,8 @@ void Item_sum_sum::clear() {
   m_frame_null_count = 0;
 }
 
+void Item_sum_sum::no_rows_in_result() { clear(); }
+
 bool Item_sum_sum::resolve_type(THD *thd) {
   DBUG_TRACE;
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_DOUBLE)) return true;
@@ -4251,6 +4253,8 @@ Item *Item_func_group_concat::copy_or_same(THD *thd) {
   return result;
 }
 
+void Item_func_group_concat::no_rows_in_result() { clear(); }
+
 void Item_func_group_concat::clear() {
   result.length(0);
   result.copy();
@@ -4388,6 +4392,8 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
       setup_order(thd, Ref_item_array(args, arg_count), context->table_list,
                   &fields, order_array.begin()))
     return true;
+
+  null_value = true;
 
   fixed = true;
 
@@ -4865,7 +4871,6 @@ bool Item_nth_value::check_wf_semantics2(Window_evaluation_requirements *r) {
 bool Item_ntile::fix_fields(THD *thd, Item **items) {
   if (super::fix_fields(thd, items)) return true;
 
-  set_nullable(true);
   return false;
 }
 

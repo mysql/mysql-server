@@ -1020,9 +1020,9 @@ class Item_sum_sum : public Item_sum_num {
   enum Item_result result_type() const override { return hybrid_type; }
   bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
+  void no_rows_in_result() override;
   void reset_field() override;
   void update_field() override;
-  void no_rows_in_result() override {}
   const char *func_name() const override { return "sum"; }
   Item *copy_or_same(THD *thd) override;
 };
@@ -1303,7 +1303,6 @@ class Item_sum_avg final : public Item_sum_sum {
   Item *result_item(Field *) override {
     return new Item_avg_field(hybrid_type, this);
   }
-  void no_rows_in_result() override {}
   const char *func_name() const override { return "avg"; }
   Item *copy_or_same(THD *thd) override;
   Field *create_tmp_field(bool group, TABLE *table) override;
@@ -2161,7 +2160,7 @@ class Item_func_group_concat final : public Item_sum {
   }
   String *val_str(String *str) override;
   Item *copy_or_same(THD *thd) override;
-  void no_rows_in_result() override {}
+  void no_rows_in_result() override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool change_context_processor(uchar *arg) override {
