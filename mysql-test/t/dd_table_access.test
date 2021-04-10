@@ -96,6 +96,9 @@ if (!$TABLE)
   --echo # Test CHECK TABLE mysql.innodb_index_stats.
   CHECK TABLE mysql.innodb_index_stats;
 
+  --echo # Reset innodb_index_stats
+  ALTER TABLE mysql.innodb_index_stats COMMENT '';
+
   --echo # Reset innodb_stats_auto_recalc.
   SET @@global.innodb_stats_auto_recalc= default;
 

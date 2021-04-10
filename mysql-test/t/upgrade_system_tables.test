@@ -1,5 +1,7 @@
 --source include/have_case_sensitive_file_system.inc
 --source include/have_debug.inc
+# Make MTR copy a fresh datadir after the test is finished.
+--source include/force_restart.inc
 
 ###############################################################################
 #
@@ -80,7 +82,7 @@
 
 --echo # Set data directory and log file
 --let $MYSQLD_DATADIR1 = $MYSQLTEST_VARDIR/tmp/data_57_clean/db
---let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/log/data_57_clean.log
+--let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/tmp/data_57_clean/error.log
 
 --echo # Restart server to trigger upgrade.
 --replace_result $MYSQLD MYSQLD $MYSQLD_DATADIR1 MYSQLD_DATADIR1 $MYSQLD_LOG MYSQLD_LOG
@@ -185,7 +187,7 @@
 
 --echo # Set data directory and log file
 --let $MYSQLD_DATADIR1 = $MYSQLTEST_VARDIR/tmp/data_57_help_tables/db
---let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/log/data_57_help_tables.log
+--let $MYSQLD_LOG      = $MYSQLTEST_VARDIR/tmp/data_57_help_tables/error.log
 
 --echo # Restart server to trigger upgrade.
 --echo # Upgrade of help tables should succeed.
