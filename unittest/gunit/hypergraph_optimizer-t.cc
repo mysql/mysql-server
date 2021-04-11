@@ -847,15 +847,13 @@ TEST_F(MakeHypergraphTest, MultipleEqualityIsNotPushedMultipleTimes) {
   EXPECT_EQ("(t2.x = t3.x)",
             ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
 
-  // {t1,t3}/t4, souping up the rest of the conditions.
-  EXPECT_EQ(0x05, graph.graph.edges[4].left);
+  // t1/t4. Note that t3.x = t4.x creates a separate edge.
+  EXPECT_EQ(0x01, graph.graph.edges[4].left);
   EXPECT_EQ(0x08, graph.graph.edges[4].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
-  ASSERT_EQ(2, graph.edges[2].expr->equijoin_conditions.size());
+  ASSERT_EQ(1, graph.edges[2].expr->equijoin_conditions.size());
   EXPECT_EQ("(t1.y = t4.y)",
             ItemToString(graph.edges[2].expr->equijoin_conditions[0]));
-  EXPECT_EQ("(t3.x = t4.x)",
-            ItemToString(graph.edges[2].expr->equijoin_conditions[1]));
 
   // Don't check the cycle edges.
 }
@@ -981,6 +979,84 @@ TEST_F(MakeHypergraphTest, MultipleEqualityPushedFromJoinConditions) {
   EXPECT_EQ("(t2.x = t3.x)",
             ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
   EXPECT_EQ(0, graph.edges[1].expr->join_conditions.size());
+}
+
+TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityCausesCycle) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3, t4 "
+      // Two simple equalities that set up a join structure.
+      "WHERE t1.y=t2.y AND t2.z=t3.z "
+      // And then a multi-equality that is not cleanly pushable onto that
+      // structure.
+      "AND t1.x=t3.x AND t3.x=t4.x",
+      /*nullable=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(4, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+
+  ASSERT_EQ(5, graph.edges.size());
+
+  // t1/t2.
+  EXPECT_EQ(0x01, graph.graph.edges[0].left);
+  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+  ASSERT_EQ(1, graph.edges[0].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.y = t2.y)",
+            ItemToString(graph.edges[0].expr->equijoin_conditions[0]));
+  EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
+
+  // t2/t3.
+  EXPECT_EQ(0x02, graph.graph.edges[2].left);
+  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
+  ASSERT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t2.z = t3.z)",
+            ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
+  EXPECT_EQ(0, graph.edges[1].expr->join_conditions.size());
+
+  // t3/t4 (the first of many cycle edges from the multiple equality).
+  EXPECT_EQ(0x04, graph.graph.edges[4].left);
+  EXPECT_EQ(0x08, graph.graph.edges[4].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
+  ASSERT_EQ(1, graph.edges[2].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t3.x = t4.x)",
+            ItemToString(graph.edges[2].expr->equijoin_conditions[0]));
+  EXPECT_EQ(0, graph.edges[2].expr->join_conditions.size());
+
+  // t1/t3 (cycle edge).
+  EXPECT_EQ(0x01, graph.graph.edges[6].left);
+  EXPECT_EQ(0x04, graph.graph.edges[6].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[3].expr->type);
+  ASSERT_EQ(1, graph.edges[3].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t3.x)",
+            ItemToString(graph.edges[3].expr->equijoin_conditions[0]));
+  EXPECT_EQ(0, graph.edges[3].expr->join_conditions.size());
+
+  // t1/t4 (cycle edge within the cycle, comes from meshing).
+  EXPECT_EQ(0x01, graph.graph.edges[8].left);
+  EXPECT_EQ(0x08, graph.graph.edges[8].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[4].expr->type);
+  ASSERT_EQ(1, graph.edges[4].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.x = t4.x)",
+            ItemToString(graph.edges[4].expr->equijoin_conditions[0]));
+  EXPECT_EQ(0, graph.edges[4].expr->join_conditions.size());
 }
 
 // An alias for better naming.

@@ -523,7 +523,7 @@ int CompanionSetUsedByCondition(
   condition, instead of pushing the condition onto the given point in the
   join tree (which we have presumably found out that we don't want).
  */
-bool IsCandidateForCycle(Item *cond,
+bool IsCandidateForCycle(Item *cond, table_map tables_in_subtree,
                          const int table_num_to_companion_set[MAX_TABLES]) {
   if (cond->type() != Item::FUNC_ITEM) {
     return false;
@@ -532,15 +532,17 @@ bool IsCandidateForCycle(Item *cond,
     return false;
   }
   Item_func *func_item = down_cast<Item_func *>(cond);
-  // Don't try to make cycle edges out of hyperpredicates, at least for now;
-  // simple equalities only.
-  if (!func_item->contains_only_equi_join_condition()) {
-    return false;
+  if (!IsMultipleEquals(func_item)) {
+    // Don't try to make cycle edges out of hyperpredicates, at least for now;
+    // simple equalities and multi-equalities only.
+    if (!func_item->contains_only_equi_join_condition()) {
+      return false;
+    }
+    if (my_count_bits(cond->used_tables()) != 2) {
+      return false;
+    }
   }
-  if (my_count_bits(cond->used_tables()) != 2) {
-    return false;
-  }
-  return CompanionSetUsedByCondition(cond->used_tables(),
+  return CompanionSetUsedByCondition(cond->used_tables() & tables_in_subtree,
                                      table_num_to_companion_set) != -1;
 }
 
@@ -757,10 +759,12 @@ Item_func_eq *ConcretizeMultipleEquals(Item_equal *cond,
   (ie., allowed_tables={A,B,C,D}), and given the multi-equality
   (A.x, B.x, D.x, E.x), it will generate A.x = B.x and B.x = D.x
   (E.x is ignored).
+
+  The given container must support push_back(Item_func_eq *).
  */
+template <class T>
 static void FullyConcretizeMultipleEquals(Item_equal *cond,
-                                          table_map allowed_tables,
-                                          List<Item> *result) {
+                                          table_map allowed_tables, T *result) {
   Item_field *last_field = nullptr;
   for (Item_field &field : cond->get_fields()) {
     if (!Overlaps(field.used_tables(), allowed_tables)) {
@@ -1247,16 +1251,25 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
           expr, cond, AssociativeRewritesAllowed::ANY,
           /*used_commutativity=*/false, trace)) {
     if (expr->type == RelationalExpression::INNER_JOIN &&
-        IsCandidateForCycle(cond, table_num_to_companion_set)) {
+        IsCandidateForCycle(cond, expr->tables_in_subtree,
+                            table_num_to_companion_set)) {
       // We couldn't push the condition to this join without broadening its
-      // hyperedge, but we could add a simple edge to create a cycle, so we'll
-      // take it out now and then add such an edge in AddCycleEdges().
+      // hyperedge, but we could add a simple edge (or multiple simple edges,
+      // in the case of multiple equalities -- we defer the meshing of those
+      // to later) to create a cycle, so we'll take it out now and then add such
+      // an edge in AddCycleEdges().
       if (trace != nullptr) {
         *trace += StringPrintf("- condition %s induces a hypergraph cycle\n",
                                ItemToString(cond).c_str());
       }
-      cycle_inducing_edges->push_back(
-          CanonicalizeCondition(cond, cond->used_tables()));
+      if (IsMultipleEquals(cond)) {
+        FullyConcretizeMultipleEquals(down_cast<Item_equal *>(cond),
+                                      expr->tables_in_subtree,
+                                      cycle_inducing_edges);
+      } else {
+        cycle_inducing_edges->push_back(
+            CanonicalizeCondition(cond, expr->tables_in_subtree));
+      }
       return;
     }
     if (trace != nullptr) {
