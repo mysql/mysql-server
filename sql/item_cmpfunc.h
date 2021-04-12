@@ -1773,7 +1773,7 @@ class cmp_item_string final : public cmp_item_scalar {
   }
 
   void store_value(Item *item) override {
-    String *res = item->val_str(&value);
+    String *res = eval_string_arg(cmp_charset, item, &value);
     if (res && (res != &value || !res->is_alloced())) {
       // 'res' may point in item's transient internal data, so make a copy
       value.copy(*res);

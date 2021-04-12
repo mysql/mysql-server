@@ -5347,3 +5347,9 @@ INSERT('a', 1, 1, YEAR(UNHEX('w')))
 NULL
 Warnings:
 Warning	1411	Incorrect string value: ''w'' for function unhex
+# Bug#32746552: my_strnncollsp_utf32: assertion `(slen % 4) == 0' failed
+DO USER() in
+(COERCIBILITY(@c),
+CONVERT(LAST_VALUE(FROM_UNIXTIME(1536999169)) OVER() USING utf32));
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'root@localhost'
