@@ -4270,8 +4270,8 @@ static int innodb_log_file_size_init() {
             var_name_log_files,
             static_cast<unsigned int>(strlen(var_name_log_files)), &source)) {
       if (source == COMPILED) {
-        if (auto_buf_pool_size_in_gb < 1.0) {
-          ;
+        if (auto_buf_pool_size_in_gb < 2.0) {
+          srv_n_log_files = 2;
         } else if (auto_buf_pool_size_in_gb < 8.0) {
           srv_n_log_files = static_cast<ulong>(round(auto_buf_pool_size_in_gb));
         } else if (auto_buf_pool_size_in_gb <= 128.0) {
