@@ -339,6 +339,9 @@ class CostingReceiver {
   bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
                         bool reverse, table_map allowed_parameter_tables,
                         int ordering_idx);
+  bool AlreadyAppliedThroughSargable(Item_func_eq *cond,
+                                     uint64_t applied_sargable_join_predicates,
+                                     uint64_t left, uint64_t right);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                              AccessPath *right_path, const JoinPredicate *edge,
                              bool rewrite_semi_to_inner,
@@ -1506,6 +1509,60 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
 static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
                         const char *description_for_trace);
 
+/**
+  Check if we're about to apply a join condition that would be redundant
+  with regards to an already-applied sargable predicate, ie., whether our
+  join condition and the sargable predicate applies the same multiple equality.
+  E.g. if we try to join {t1,t2} and {t3} along t1=t3, but the access path
+  for t3 already has applied the join condition t2=t3, and these are from the
+  same multiple equality, return true.
+
+  Even though this is totally _legal_, having such a situation is bad, because
+
+    a) It double-counts the selectivity, causing the overall row estimate
+       to become too low.
+    b) It causes unneeded work by adding a redundant filter.
+
+  b) would normally cause the path to be pruned out due to cost, except that
+  the artifically low row count due to a) could make the path attractive as a
+  subplan of a larger join. Thus, we simply reject these joins; we'll see a
+  different alternative for this join at some point that is not redundant
+  (e.g., in the given example, we'd see the t2=t3 join).
+ */
+bool CostingReceiver::AlreadyAppliedThroughSargable(
+    Item_func_eq *join_cond, uint64_t applied_sargable_join_predicates,
+    uint64_t left, uint64_t right) {
+  if (join_cond->source_multiple_equality == nullptr) {
+    return false;
+  }
+  for (size_t predicate_idx : BitsSetIn(applied_sargable_join_predicates)) {
+    const Predicate &pred = m_graph.predicates[predicate_idx];
+
+    // Don't deduplicate against ourselves (in case we're sargable).
+    if (pred.condition == join_cond) {
+      continue;
+    }
+
+    // Must be an equijoin condition that comes from the same multiple equality
+    // as the one we're trying to join in.
+    if (pred.condition->type() != Item::FUNC_ITEM ||
+        down_cast<Item_func *>(pred.condition)->functype() !=
+            Item_func::EQ_FUNC ||
+        down_cast<Item_func_eq *>(pred.condition)->source_multiple_equality !=
+            join_cond->source_multiple_equality) {
+      continue;
+    }
+
+    // The sargable condition must work as a join condition for this join
+    // (not between tables we've already joined in).
+    if (Overlaps(pred.condition->used_tables(), left) &&
+        Overlaps(pred.condition->used_tables(), right)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void CostingReceiver::ProposeNestedLoopJoin(
     NodeMap left, NodeMap right, AccessPath *left_path, AccessPath *right_path,
     const JoinPredicate *edge, bool rewrite_semi_to_inner,
@@ -1605,6 +1662,16 @@ void CostingReceiver::ProposeNestedLoopJoin(
             m_graph.predicates[it->second].selectivity;
         subsumed = Overlaps(subsumed_sargable_join_predicates,
                             uint64_t{1} << it->second);
+      } else if (AlreadyAppliedThroughSargable(condition,
+                                               applied_sargable_join_predicates,
+                                               left, right)) {
+        if (m_trace != nullptr) {
+          *m_trace +=
+              " - " + PrintCost(*right_path, m_graph, "") +
+              " has a sargable predicate that is redundant with our join "
+              "predicate, skipping\n";
+          return;
+        }
       }
       if (!subsumed) {
         items.push_back(condition);

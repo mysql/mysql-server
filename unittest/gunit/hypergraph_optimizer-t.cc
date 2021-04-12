@@ -1347,6 +1347,68 @@ TEST_F(HypergraphOptimizerTest, MultiEqualitySargable) {
   ASSERT_EQ(AccessPath::REF, inner->nested_loop_join().inner->type);
 }
 
+TEST_F(HypergraphOptimizerTest, DoNotApplyBothSargableJoinAndFilterJoin) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2, t3, t4 WHERE t1.x = t2.x AND t2.x = t3.x",
+      /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], /*column2=*/nullptr, /*unique=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  // The logical plan should be to hash-join t2/t3, then nestloop-join
+  // against the index on t1. The t4 table somehow needs to be present
+  // to trigger the issue; it doesn't really matter whether it's on the
+  // left or right side (since it doesn't have a join condition),
+  // but it happens to be put on the right.
+  m_fake_tables["t1"]->file->stats.records = 100;
+  m_fake_tables["t2"]->file->stats.records = 100000000;
+  m_fake_tables["t3"]->file->stats.records = 1000000;
+  m_fake_tables["t4"]->file->stats.records = 10000;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // t4 needs to come in on the top (since we've put it as a Cartesian product);
+  // either left or right side. It happens to be on the right.
+  // We don't verify costs.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
+
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner->type);
+  EXPECT_EQ(m_fake_tables["t4"], inner->table_scan().table);
+
+  // Now for the meat of the plan. There should be a nested loop,
+  // with t2/t3 on the inside and t1 on the outside.
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, outer->type);
+
+  // We don't check the t2/t3 part very thoroughly.
+  EXPECT_EQ(AccessPath::HASH_JOIN, outer->nested_loop_join().outer->type);
+
+  // Now for the point of the test: We should have t1 on the inner side,
+  // with t1=t2 pushed down into the index, and it should _not_ have a t1=t3
+  // filter; even though it would seemingly be attractive to join t1=t3 against
+  // the ref access, that would be double-counting the selectivity and thus
+  // not permitted. (Well, it would be permitted, but we'd have to add code
+  // not to apply the selectivity twice, and then it would just be extra cost
+  // applying a redundant filter.)
+  AccessPath *inner_inner = outer->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::REF, inner_inner->type);
+  EXPECT_STREQ("t1", inner_inner->ref().table->alias);
+  EXPECT_EQ(0, inner_inner->ref().ref->key);
+  EXPECT_EQ("t2.x", ItemToString(inner_inner->ref().ref->items[0]));
+}
+
 TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
