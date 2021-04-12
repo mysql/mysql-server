@@ -268,7 +268,7 @@ class Ndb_binlog_thread : public Ndb_component {
   void inject_incident(injector *inj, THD *thd,
                        NdbDictionary::Event::TableEvent event_type,
                        Uint64 gap_epoch) const;
-  void inject_table_map(Ndb *ndb, injector_transaction &trans) const;
+  void inject_table_map(injector_transaction &trans, Ndb *ndb) const;
   void commit_trans(injector_transaction &trans, THD *thd, Uint64 current_epoch,
                     ndb_binlog_index_row *rows, unsigned trans_row_count,
                     unsigned replicated_row_count) const;

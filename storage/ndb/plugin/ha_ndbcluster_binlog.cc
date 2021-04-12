@@ -6586,7 +6586,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(
          !ndb_name_is_blob_prefix(i_pOp->getEvent()->getTable()->getName()));
 
   if (ndb_latest_received_binlog_epoch == 0) {
-    // Cluster is restarted after a cluster failure. Let injector ndb
+    // Cluster is restarted after a cluster failure. Let injector Ndb
     // handle the received events including TE_NODE_FAILURE and/or
     // TE_CLUSTER_FAILURE.
   } else {
@@ -6602,7 +6602,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(
   i_ndb->setReportThreshEventGCISlip(opt_ndb_report_thresh_binlog_epoch_slip);
   i_ndb->setReportThreshEventFreeMem(opt_ndb_report_thresh_binlog_mem_usage);
 
-  inject_table_map(i_ndb, trans);
+  inject_table_map(trans, i_ndb);
 
   if (trans.good()) {
     /* Inject ndb_apply_status WRITE_ROW event */
@@ -6959,9 +6959,12 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
   }
 
   thd->proc_info = "Committing events to binlog";
-  if (int r = trans.commit()) {
-    log_error("Error during COMMIT of GCI. Error: %d", r);
-    /* TODO: Further handling? */
+  {
+    const int commit_res = trans.commit();
+    if (commit_res != 0) {
+      log_error("Error during COMMIT of GCI. Error: %d", commit_res);
+      ndbcluster::ndbrequire(commit_res == 0);
+    }
   }
   injector::transaction::binlog_pos start = trans.start_pos();
   injector::transaction::binlog_pos next = trans.next_pos();
@@ -7001,12 +7004,12 @@ void Ndb_binlog_thread::commit_trans(injector_transaction &trans, THD *thd,
 /**
   Inject all tables used by current epoch into injector transaction.
 
-  @param ndb      The Ndb object to retrieve list of tables from.
   @param trans    The injector transaction
+  @param ndb      The Ndb object to retrieve list of tables from.
 
 */
-void Ndb_binlog_thread::inject_table_map(Ndb *ndb,
-                                         injector_transaction &trans) const {
+void Ndb_binlog_thread::inject_table_map(injector_transaction &trans,
+                                         Ndb *ndb) const {
   DBUG_TRACE;
   Uint32 iter = 0;
   const NdbEventOperation *gci_op;
