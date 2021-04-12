@@ -44,6 +44,7 @@
 #include "sql/item_func.h"
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/bit_utils.h"
+#include "sql/join_optimizer/common_subexpression_elimination.h"
 #include "sql/join_optimizer/estimate_selectivity.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/print_utils.h"
@@ -976,6 +977,27 @@ void FindConditionsUsedTables(THD *thd, RelationalExpression *expr) {
 }
 
 /**
+  Run simple CSE on all conditions (see CommonSubexpressionElimination()).
+ */
+void CSEConditions(THD *thd, Mem_root_array<Item *> *conditions) {
+  bool need_resplit = false;
+  for (Item *&item : *conditions) {
+    Item *new_item = CommonSubexpressionElimination(item);
+    if (new_item != item) {
+      need_resplit = true;
+      item = new_item;
+    }
+  }
+  if (need_resplit) {
+    Mem_root_array<Item *> new_join_conditions(thd->mem_root);
+    for (Item *condition : *conditions) {
+      ExtractConditions(condition, &new_join_conditions);
+    }
+    *conditions = std::move(new_join_conditions);
+  }
+}
+
+/**
   Convert multi-equalities to simple equalities. This is a hack until we get
   real handling of multi-equalities (in which case it would be done much later,
   after the join order has been determined); however, note that
@@ -983,6 +1005,7 @@ void FindConditionsUsedTables(THD *thd, RelationalExpression *expr) {
   important for correctness in general.
  */
 bool ConcretizeMultipleEquals(THD *thd, Mem_root_array<Item *> *conditions) {
+  CSEConditions(thd, conditions);
   for (auto it = conditions->begin(); it != conditions->end();) {
     Item::cond_result res;
     if (remove_eq_conds(thd, *it, &*it, &res)) {

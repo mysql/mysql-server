@@ -40,6 +40,7 @@
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/common_subexpression_elimination.h"
 #include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/join_optimizer.h"
@@ -112,7 +113,7 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   for (TABLE_LIST *tl = query_block->get_table_list(); tl != nullptr;
        tl = tl->next_global) {
     Fake_TABLE *fake_table =
-        new (m_thd->mem_root) Fake_TABLE(/*num_columns=*/2, nullable);
+        new (m_thd->mem_root) Fake_TABLE(/*num_columns=*/3, nullable);
     fake_table->alias = tl->alias;
     fake_table->pos_in_table_list = tl;
     tl->table = fake_table;
@@ -188,6 +189,8 @@ void HypergraphTestBase<T>::ResolveFieldToFakeTable(Item *item_arg) {
         item_field->field = table->field[0];
       } else if (strcmp(item_field->field_name, "y") == 0) {
         item_field->field = table->field[1];
+      } else if (strcmp(item_field->field_name, "z") == 0) {
+        item_field->field = table->field[2];
       } else {
         assert(false);
       }
@@ -2324,4 +2327,74 @@ TEST(ConflictDetectorTest, CountPlansLargeOperatorSet) {
                 Pair(19846278, 16448441514));
   }
   initializer.TearDown();
+}
+
+class CSETest : public HypergraphTestBase<::testing::Test> {
+ protected:
+  string TestCSE(const string &expression);
+};
+
+string CSETest::TestCSE(const string &expression) {
+  // Abuse ParseAndResolve() to get the expression parsed.
+  Query_block *query_block = ParseAndResolve(
+      ("SELECT 1 FROM t1, t2, t3, t4, t5 WHERE " + expression).c_str(),
+      /*nullable=*/true);
+  return ItemToString(
+      CommonSubexpressionElimination(query_block->join->where_cond));
+}
+
+TEST_F(CSETest, NoopSimpleItem) {
+  EXPECT_EQ(TestCSE("t1.x=t2.x"), "(t1.x = t2.x)");
+}
+
+TEST_F(CSETest, NoopANDNoOR) {
+  EXPECT_EQ(TestCSE("t1.x=t2.x AND t2.x = t3.x"),
+            "((t1.x = t2.x) and (t2.x = t3.x))");
+}
+
+TEST_F(CSETest, NoopORNoAND) {
+  EXPECT_EQ(TestCSE("t1.x=t2.x OR t2.x = t3.x"),
+            "((t1.x = t2.x) or (t2.x = t3.x))");
+}
+
+TEST_F(CSETest, NoopNoCommon) {
+  EXPECT_EQ(TestCSE("t1.x=t2.x OR (t2.x = t3.x AND t3.x > 4)"),
+            "((t1.x = t2.x) or ((t2.x = t3.x) and (t3.x > 4)))");
+}
+
+TEST_F(CSETest, BasicSplit) {
+  EXPECT_EQ(TestCSE("(t1.x=t2.x AND t2.x > 3) OR (t1.x=t2.x AND t2.x < 0)"),
+            "((t1.x = t2.x) and ((t2.x > 3) or (t2.x < 0)))");
+}
+
+TEST_F(CSETest, SplitFromRecursedORGroups) {
+  EXPECT_EQ(TestCSE("(t1.x=0 AND t2.x>1) OR ((t1.x=0 AND t2.y>1) OR (t1.x=0 "
+                    "AND t2.z>0))"),
+            "((t1.x = 0) and ((t2.x > 1) or (t2.y > 1) or (t2.z > 0)))");
+}
+
+TEST_F(CSETest, SplitFromRecursedANDGroups) {
+  EXPECT_EQ(TestCSE("(t2.x>1 AND (t2.y>1 AND (t1.x=0))) OR "
+                    "(t3.x>1 AND (t3.y>1 AND (t1.x=0)))"),
+            "((t1.x = 0) and "
+            "(((t2.x > 1) and (t2.y > 1)) or ((t3.x > 1) and (t3.y > 1))))");
+}
+
+// Split out t1.x > 1 and t2.y < 2, ie., more than one element,
+// and they are in different orders. There are multiple items left
+// in the rightmost OR group, too.
+TEST_F(CSETest, SplitOutMoreThanOneElement) {
+  EXPECT_EQ(TestCSE("(t1.x > 1 AND t2.y < 2 AND t2.x > 3) OR ((t2.y < 2 AND "
+                    "t1.x > 1 AND t2.x < 1 AND t2.z >= 4))"),
+            "((t1.x > 1) and (t2.y < 2) and "
+            "((t2.x > 3) or ((t2.x < 1) and (t2.z >= 4))))");
+}
+
+TEST_F(CSETest, ShortCircuit) {
+  EXPECT_EQ(TestCSE("t1.x=t2.x OR (t1.x=t2.x AND t2.x < 0)"), "(t1.x = t2.x)");
+}
+
+TEST_F(CSETest, ShortCircuitWithMultipleElements) {
+  EXPECT_EQ(TestCSE("(t1.x=0 AND t1.y=1) OR (t1.x=0 AND t1.y=1)"),
+            "((t1.x = 0) and (t1.y = 1))");
 }
