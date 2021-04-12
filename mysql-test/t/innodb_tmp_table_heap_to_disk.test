@@ -102,6 +102,13 @@ SELECT SUM(id) sm FROM t1 group by id order by sm limit 1;
 #end_write_group
 --replace_column 10 x
 explain SELECT SUM(DISTINCT t1.id) sm FROM t1 left join t2 on t1.id=t2.id GROUP BY t1.id order by sm limit 1;
+# Since we have no indexes, we badly misestimate the t1/t2 join,
+# thinking it returns 100M rows where it returns only 750k.
+# This makes the hypergraph optimizer thinks it is critical to
+# push the sort down into t1 to avoid a monstrously large sort
+# at the end, causing it to prioritize that over using a hash join,
+# causing the query to time out.
+--skip_if_hypergraph
 SELECT SUM(DISTINCT t1.id) sm FROM t1 left join t2 on t1.id=t2.id GROUP BY t1.id order by sm limit 1;
 #missing rollup
 set max_heap_table_size = @old_heap_size;
