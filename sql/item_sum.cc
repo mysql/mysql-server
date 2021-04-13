@@ -4341,8 +4341,13 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
 
   result.set_charset(collation.collation);
   group_concat_max_len = thd->variables.group_concat_max_len;
+  if (thd->variables.group_concat_max_len > UINT_MAX32)
+    group_concat_max_len = UINT_MAX32;
+  else
+    group_concat_max_len =
+        static_cast<uint>(thd->variables.group_concat_max_len);
   uint32 max_chars = group_concat_max_len / collation.collation->mbminlen;
-  uint max_byte_length = max_chars * collation.collation->mbmaxlen;
+  uint32 max_byte_length = max_chars * collation.collation->mbmaxlen;
   max_chars > CONVERT_IF_BIGGER_TO_BLOB ? set_data_type_blob(max_byte_length)
                                         : set_data_type_string(max_chars);
 
@@ -4411,7 +4416,12 @@ bool Item_func_group_concat::setup(THD *thd) {
 
   assert(thd->lex->current_query_block() == aggr_query_block);
 
-  if (group_concat_max_len < thd->variables.group_concat_max_len) {
+  uint new_max_len;
+  if (thd->variables.group_concat_max_len > UINT_MAX32)
+    new_max_len = UINT_MAX32;
+  else
+    new_max_len = static_cast<uint>(thd->variables.group_concat_max_len);
+  if (group_concat_max_len < new_max_len) {
     /*
       Probably the user increased @@group_concat_max_len between preparation
       and execution. The Field we have set up may be too short for the
