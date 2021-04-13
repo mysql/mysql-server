@@ -250,8 +250,6 @@ struct TrxFactory {
 
     new (&trx->lock.table_pool) lock_pool_t();
 
-    new (&trx->lock.table_locks) lock_pool_t();
-
     trx_init(trx);
 
     trx->state = TRX_STATE_NOT_STARTED;
@@ -324,8 +322,6 @@ struct TrxFactory {
     trx->lock.rec_pool.~lock_pool_t();
 
     trx->lock.table_pool.~lock_pool_t();
-
-    trx->lock.table_locks.~lock_pool_t();
   }
 
   /** Enforce any invariants here, this is called before the transaction
@@ -359,8 +355,6 @@ struct TrxFactory {
     ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
     ut_ad(trx->lock.autoinc_locks == nullptr);
-
-    ut_ad(trx->lock.table_locks.empty());
 
     ut_ad(!trx->lock.inherit_all.load());
 
@@ -1264,7 +1258,6 @@ static void trx_start_low(
   trx->no = TRX_ID_MAX;
 
   ut_a(ib_vector_is_empty(trx->lock.autoinc_locks));
-  ut_a(trx->lock.table_locks.empty());
 
   /* If this transaction came from trx_allocate_for_mysql(),
   trx->in_mysql_trx_list would hold. In that case, the trx->state
