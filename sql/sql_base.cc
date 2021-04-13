@@ -6982,6 +6982,55 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
 }
 
 /**
+  Simplified version of lock_tables() call to be used for locking
+  data-dictionary tables when reading or storing data-dictionary
+  objects.
+
+  @note The main reason why this function exists is that it avoids
+        allocating temporary buffer on memory root of statement.
+        As result it can be called many times (e.g. thousands)
+        during DDL statement execution without hogging memory.
+*/
+
+bool lock_dictionary_tables(THD *thd, TABLE_LIST *tables, uint count,
+                            uint flags) {
+  DBUG_TRACE;
+
+  // We always open at least one DD table.
+  assert(tables);
+  /*
+    This function is supposed to be called after backing up and resetting
+    to clean state Open_tables_state and Query_table_lists contexts.
+  */
+  assert(thd->locked_tables_mode == LTM_NONE);
+  assert(!thd->lex->requires_prelocking());
+  assert(thd->lex->lock_tables_state == Query_tables_list::LTS_NOT_LOCKED);
+  assert(thd->lock == nullptr);
+
+  TABLE **start, **ptr;
+  if (!(ptr = start = (TABLE **)my_alloca(sizeof(TABLE *) * count)))
+    return true;
+
+  for (TABLE_LIST *table = tables; table; table = table->next_global) {
+    // Data-dictionary tables must be base tables.
+    assert(!table->is_placeholder());
+    assert(table->table->s->tmp_table == NO_TMP_TABLE);
+    // There should be no prelocking when DD code uses this call.
+    assert(!table->prelocking_placeholder);
+    *(ptr++) = table->table;
+  }
+
+  DEBUG_SYNC(thd, "before_lock_dictionary_tables_takes_lock");
+
+  if (!(thd->lock = mysql_lock_tables(thd, start, (uint)(ptr - start), flags)))
+    return true;
+
+  thd->lex->lock_tables_state = Query_tables_list::LTS_LOCKED;
+
+  return false;
+}
+
+/**
   Prepare statement for reopening of tables and recalculation of set of
   prelocked tables.
 
