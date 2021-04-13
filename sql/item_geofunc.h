@@ -1363,6 +1363,7 @@ class Item_func_st_symdifference final : public Item_func_spatial_operation {
  public:
   Item_func_st_symdifference(const POS &pos, Item *a, Item *b)
       : Item_func_spatial_operation(pos, a, b, op_symdifference) {}
+  String *val_str(String *) override;
   const char *func_name() const override { return "st_symdifference"; }
 };
 

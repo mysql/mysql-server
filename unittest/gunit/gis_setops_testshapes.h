@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,22 @@ typename T::Linestring simple_ls() {
   typename T::Linestring ls;
   ls.push_back(typename T::Point(0.0, 0.0));
   ls.push_back(typename T::Point(0.1, 0.0));
+  return ls;
+}
+
+template <typename T>
+typename T::Linestring vertical_ls() {
+  typename T::Linestring ls;
+  ls.push_back(typename T::Point(0.1, 0.0));
+  ls.push_back(typename T::Point(0.1, 0.1));
+  return ls;
+}
+
+template <typename T>
+typename T::Linestring simple_ls_2() {
+  typename T::Linestring ls;
+  ls.push_back(typename T::Point(0.0, 0.1));
+  ls.push_back(typename T::Point(0.1, 0.1));
   return ls;
 }
 

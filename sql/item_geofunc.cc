@@ -5898,6 +5898,71 @@ String *Item_func_lineinterpolate::val_str(String *str) {
   return str;
 }
 
+String *Item_func_st_symdifference::val_str(String *str) {
+  assert(fixed);
+  String temp_str1;
+  String temp_str2;
+  String *swkb1 = args[0]->val_str(&temp_str1);
+  String *swkb2 = args[1]->val_str(&temp_str2);
+
+  if (args[0]->null_value || args[1]->null_value) {
+    return null_return_str();
+  }
+
+  if (!swkb1 || !swkb2) {
+    /*
+    We've already found out that args[0]->null_value and args[1]->null_value are
+    false. Therefore, this should never happen.
+    */
+    assert(false);
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  std::unique_ptr<dd::cache::Dictionary_client::Auto_releaser> releaser(
+      new dd::cache::Dictionary_client::Auto_releaser(
+          current_thd->dd_client()));
+  const dd::Spatial_reference_system *srs1 = nullptr;
+  const dd::Spatial_reference_system *srs2 = nullptr;
+  std::unique_ptr<gis::Geometry> g1;
+  std::unique_ptr<gis::Geometry> g2;
+  if (gis::parse_geometry(current_thd, func_name(), swkb1, &srs1, &g1) ||
+      gis::parse_geometry(current_thd, func_name(), swkb2, &srs2, &g2)) {
+    assert(current_thd->is_error());
+    return error_str();
+  }
+
+  assert(g1);
+  assert(g2);
+
+  // The two geometry operand must be in the same coordinate system.
+  gis::srid_t srid1 = srs1 == nullptr ? 0 : srs1->id();
+  gis::srid_t srid2 = srs2 == nullptr ? 0 : srs2->id();
+  if (srid1 != srid2) {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(), srid1, srid2);
+    return error_str();
+  }
+
+  std::unique_ptr<gis::Geometry> result_g;
+  if (gis::symdifference(srs1, g1.get(), g2.get(), func_name(), &result_g)) {
+    assert(current_thd->is_error());
+    return error_str();
+  }
+
+  if (result_g.get() == nullptr) {
+    // There should always be an output geometry for valid input.
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    return error_str();
+  }
+
+  if (write_geometry(srs1, *result_g, str)) {
+    assert(current_thd->is_error());
+    return error_str();
+  }
+
+  return str;
+}
+
 String *Item_func_st_transform::val_str(String *str) {
   assert(fixed);
   String *source_swkb = args[0]->val_str(str);

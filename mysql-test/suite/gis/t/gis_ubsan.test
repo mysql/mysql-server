@@ -66,7 +66,7 @@ DO ST_Union(
 --echo # BUG#30358736 UBSAN: SIGNED INTEGER OVERFLOW IN BOOST'S PARTITION.HPP
 --echo #
 
---error ER_SRS_NOT_FOUND
+--error ER_GIS_INVALID_DATA
 do mbrwithin(
  st_symdifference(
   polygon(
@@ -127,6 +127,7 @@ do mbrwithin(
 ,'3536-12-23 04:13:33.501612'
 );
 
+--error ER_GIS_INVALID_DATA
 do st_symdifference(
   polygon(
    linestring(

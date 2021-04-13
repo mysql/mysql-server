@@ -319,6 +319,8 @@ SET(SQL_GIS_SOURCES
   gis/srs/srs.cc
   gis/srs/wkt_parser.cc
   gis/st_units_of_measure.cc
+  gis/symdifference.cc
+  gis/symdifference_functor.cc
   gis/touches.cc
   gis/transform.cc
   gis/union.cc
