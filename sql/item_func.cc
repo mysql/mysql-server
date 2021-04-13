@@ -2333,8 +2333,8 @@ void Item_func_mul::result_precision() {
                                                             unsigned_flag);
 }
 
-double Item_func_div::real_op() {
-  assert(fixed == 1);
+double Item_func_div_base::real_op() {
+  assert(fixed);
   double val1 = args[0]->val_real();
   if (current_thd->is_error()) return error_real();
   double val2 = args[1]->val_real();
@@ -2348,7 +2348,7 @@ double Item_func_div::real_op() {
   return check_float_overflow(val1 / val2);
 }
 
-my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
+my_decimal *Item_func_div_base::decimal_op(my_decimal *decimal_value) {
   my_decimal value1, *val1;
   my_decimal value2, *val2;
   int err;
@@ -2360,7 +2360,7 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
 
   if ((err = check_decimal_overflow(
            my_decimal_div(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW & ~E_DEC_DIV_ZERO,
-                          decimal_value, val1, val2, prec_increment))) > 3) {
+                          decimal_value, val1, val2, m_prec_increment))) > 3) {
     if (err == E_DEC_DIV_ZERO) signal_divide_by_null();
     return error_decimal(decimal_value);
   }
@@ -2369,7 +2369,7 @@ my_decimal *Item_func_div::decimal_op(my_decimal *decimal_value) {
 
 void Item_func_div::result_precision() {
   uint precision = min<uint>(
-      args[0]->decimal_precision() + args[1]->decimals + prec_increment,
+      args[0]->decimal_precision() + args[1]->decimals + m_prec_increment,
       DECIMAL_MAX_PRECISION);
 
   if (result_type() == DECIMAL_RESULT) assert(precision > 0);
@@ -2379,19 +2379,39 @@ void Item_func_div::result_precision() {
     unsigned_flag = args[0]->unsigned_flag | args[1]->unsigned_flag;
   else
     unsigned_flag = args[0]->unsigned_flag & args[1]->unsigned_flag;
-  decimals = min<uint>(args[0]->decimals + prec_increment, DECIMAL_MAX_SCALE);
+  decimals = min<uint>(args[0]->decimals + m_prec_increment, DECIMAL_MAX_SCALE);
   max_length = my_decimal_precision_to_length_no_truncation(precision, decimals,
                                                             unsigned_flag);
 }
 
+void Item_func_div_int::result_precision() {
+  assert(result_type() == INT_RESULT);
+
+  // Integer operations keep unsigned_flag if one of arguments is unsigned
+  unsigned_flag = args[0]->unsigned_flag | args[1]->unsigned_flag;
+
+  uint arg0_decimals = args[0]->decimals;
+  if (arg0_decimals == DECIMAL_NOT_SPECIFIED) arg0_decimals = 0;
+  uint arg1_decimals = args[1]->decimals;
+  if (arg1_decimals == DECIMAL_NOT_SPECIFIED)
+    arg1_decimals = args[1]->decimal_precision();
+
+  uint precision =
+      min<uint>(args[0]->decimal_precision() - arg0_decimals + arg1_decimals,
+                MY_INT64_NUM_DECIMAL_DIGITS);
+
+  max_length =
+      my_decimal_precision_to_length_no_truncation(precision, 0, unsigned_flag);
+}
+
 bool Item_func_div::resolve_type(THD *thd) {
   DBUG_TRACE;
-  prec_increment = thd->variables.div_precincrement;
+  m_prec_increment = thd->variables.div_precincrement;
   if (Item_num_op::resolve_type(thd)) return true;
 
   switch (hybrid_type) {
     case REAL_RESULT: {
-      decimals = max(args[0]->decimals, args[1]->decimals) + prec_increment;
+      decimals = max(args[0]->decimals, args[1]->decimals) + m_prec_increment;
       decimals = min(decimals, uint8(DECIMAL_NOT_SPECIFIED));
       uint tmp = float_length(decimals);
       if (decimals == DECIMAL_NOT_SPECIFIED)
@@ -2418,9 +2438,8 @@ bool Item_func_div::resolve_type(THD *thd) {
   return false;
 }
 
-/* Integer division */
-longlong Item_func_int_div::val_int() {
-  assert(fixed == 1);
+longlong Item_func_div_base::int_op() {
+  assert(fixed);
 
   /*
     Perform division using DECIMAL math if either of the operands has a
@@ -2479,15 +2498,21 @@ longlong Item_func_int_div::val_int() {
   return check_integer_overflow(res, !res_negative);
 }
 
-bool Item_func_int_div::resolve_type(THD *thd) {
+bool Item_func_div_int::resolve_type(THD *thd) {
+  // Integer division forces result to be integer, so force arguments
+  // that are parameters to be integer as well.
   if (param_type_uses_non_param(thd, MYSQL_TYPE_LONGLONG)) return true;
-  uint precision = args[0]->decimal_precision();
-  unsigned_flag = args[0]->unsigned_flag | args[1]->unsigned_flag;
 
-  fix_char_length(my_decimal_precision_to_length(precision, 0, unsigned_flag));
+  if (Item_func_div_base::resolve_type(thd)) return true;
+  set_nullable(true);  // division by zero
 
-  set_nullable(true);
-  return reject_geometry_args(arg_count, args, this);
+  return false;
+}
+
+void Item_func_div_int::set_numeric_type() {
+  set_data_type_longlong();
+  hybrid_type = INT_RESULT;
+  result_precision();
 }
 
 longlong Item_func_mod::int_op() {

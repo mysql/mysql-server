@@ -10341,7 +10341,7 @@ bit_expr:
           }
         | bit_expr DIV_SYM bit_expr %prec DIV_SYM
           {
-            $$= NEW_PTN Item_func_int_div(@$, $1,$3);
+            $$= NEW_PTN Item_func_div_int(@$, $1,$3);
           }
         | bit_expr MOD_SYM bit_expr %prec MOD_SYM
           {

@@ -2057,7 +2057,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `5.0 + 96 DIV 1` decimal(4,1) DEFAULT NULL,
-  `5.0 + 96.1234 DIV 1` decimal(8,1) DEFAULT NULL,
+  `5.0 + 96.1234 DIV 1` decimal(4,1) DEFAULT NULL,
   `5.0 + '96' DIV 1` decimal(4,1) DEFAULT NULL,
   `5.0 + CAST('96' AS SIGNED) DIV 1` decimal(22,1) DEFAULT NULL,
   `5.0 + CAST('96' AS UNSIGNED) DIV 1` decimal(23,1) DEFAULT NULL
@@ -2075,4 +2075,25 @@ DELETE FROM t1;
 INSERT INTO t1 VALUES (-9223372036854775807);
 SELECT a, 1-a FROM t1;
 ERROR 22003: BIGINT value is out of range in '(1 - `test`.`t1`.`a`)'
+DROP TABLE t1;
+# Bug#31641064: Decimal returned function value overflow with GROUP BY
+CREATE TABLE t1(c1 INTEGER, c2 INTEGER);
+INSERT INTO t1 VALUES(97, 1);
+SET SQL_MODE='';
+SELECT 27 DIV (c2/c1) / 17 AS c1 FROM t1 GROUP BY c1;
+c1
+154.0588
+Warnings:
+Warning	1052	Column 'c1' in group statement is ambiguous
+SELECT 27 DIV CAST(c2/c1 AS CHAR) / 17 AS c1 FROM t1 GROUP BY c1;
+c1
+154.1765
+Warnings:
+Warning	1052	Column 'c1' in group statement is ambiguous
+SELECT 27 DIV CAST(c2/c1 AS DOUBLE) / 17 AS c1 FROM t1 GROUP BY c1;
+c1
+154.0588
+Warnings:
+Warning	1052	Column 'c1' in group statement is ambiguous
+SET SQL_MODE=DEFAULT;
 DROP TABLE t1;
