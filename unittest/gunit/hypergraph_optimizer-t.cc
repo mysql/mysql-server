@@ -115,7 +115,7 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
   for (TABLE_LIST *tl = query_block->get_table_list(); tl != nullptr;
        tl = tl->next_global) {
     Fake_TABLE *fake_table =
-        new (m_thd->mem_root) Fake_TABLE(/*num_columns=*/3, nullable);
+        new (m_thd->mem_root) Fake_TABLE(/*num_columns=*/4, nullable);
     fake_table->alias = tl->alias;
     fake_table->pos_in_table_list = tl;
     tl->table = fake_table;
@@ -194,6 +194,8 @@ void HypergraphTestBase<T>::ResolveFieldToFakeTable(Item *item_arg) {
         item_field->field = table->field[1];
       } else if (strcmp(item_field->field_name, "z") == 0) {
         item_field->field = table->field[2];
+      } else if (strcmp(item_field->field_name, "w") == 0) {
+        item_field->field = table->field[3];
       } else {
         assert(false);
       }
@@ -1058,6 +1060,76 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityCausesCycle) {
   EXPECT_EQ("(t1.x = t4.x)",
             ItemToString(graph.edges[4].expr->equijoin_conditions[0]));
   EXPECT_EQ(0, graph.edges[4].expr->join_conditions.size());
+}
+
+TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
+  // The (t2.y, t3.x, t3.y, t4.x) multi-equality is unpushable
+  // due to the t1.z = t4.w equality that's already set up;
+  // we need to create a cycle from t2/t3/t4, while still not losing
+  // the t3.x = t3.y condition.
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t1 AS t2, t1 AS t3, t1 AS t4 "
+      "WHERE t1.z = t4.w "
+      "AND t2.y = t3.x AND t3.x = t3.y AND t3.y = t4.x",
+      /*nullable=*/false);
+
+  // Build multiple equalities from the WHERE condition.
+  COND_EQUAL *cond_equal = nullptr;
+  EXPECT_FALSE(optimize_cond(m_thd, query_block->where_cond_ref(), &cond_equal,
+                             &query_block->top_join_list,
+                             &query_block->cond_value));
+
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  string trace;
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+
+  EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
+  EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
+
+  ASSERT_EQ(4, graph.nodes.size());
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
+  EXPECT_STREQ("t4", graph.nodes[3].table->alias);
+
+  ASSERT_EQ(6, graph.edges.size());
+
+  // We only check that the given edges exist, and that we didn't lose
+  // the t3.x = t3.y condition. All edges come from explicit
+  // WHERE conditions, except t1/t2, which is just a Cartesian product.
+
+  // t1/t2.
+  EXPECT_EQ(0x01, graph.graph.edges[0].left);
+  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+
+  // t2/t3.
+  EXPECT_EQ(0x02, graph.graph.edges[2].left);
+  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+
+  // t1/t4.
+  EXPECT_EQ(0x01, graph.graph.edges[4].left);
+  EXPECT_EQ(0x08, graph.graph.edges[4].right);
+
+  // t2/t3.
+  EXPECT_EQ(0x02, graph.graph.edges[6].left);
+  EXPECT_EQ(0x04, graph.graph.edges[6].right);
+
+  // t3/t4.
+  EXPECT_EQ(0x04, graph.graph.edges[8].left);
+  EXPECT_EQ(0x08, graph.graph.edges[8].right);
+
+  // t2/t4.
+  EXPECT_EQ(0x02, graph.graph.edges[10].left);
+  EXPECT_EQ(0x08, graph.graph.edges[10].right);
+
+  bool found_predicate = false;
+  for (const Predicate &pred : graph.predicates) {
+    if (ItemToString(pred.condition) == "(t3.x = t3.y)") {
+      found_predicate = true;
+    }
+  }
+  EXPECT_TRUE(found_predicate);
 }
 
 // Sets up a nonsensical query, but the point is that the multiple equality

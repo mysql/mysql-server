@@ -81,12 +81,54 @@ inline bool IsMultipleEquals(Item *cond) {
 }
 
 /**
+  For a multiple equality, split out any conditions that refer to the
+  same table, without touching the multi-equality; e.g. for equal(t1.a, t2.a,
+  t2.b, t3.a), will return t2.a=t2.b AND (original item). This means that later
+  stages can ignore such duplicates, and also that we can push these parts
+  independently of the multiple equality as a whole.
+ */
+Item *ExpandSameTableFromMultipleEquals(Item_equal *equal) {
+  List<Item> eq_items;
+
+  // Look for pairs of items that touch the same table.
+  for (auto it1 = equal->get_fields().begin(); it1 != equal->get_fields().end();
+       ++it1) {
+    for (auto it2 = std::next(it1); it2 != equal->get_fields().end(); ++it2) {
+      if (it1->field->table == it2->field->table) {
+        Item_func_eq *eq_item = new Item_func_eq(&*it1, &*it2);
+        eq_item->set_cmp_func();
+        eq_item->update_used_tables();
+        eq_item->quick_fix_field();
+        eq_items.push_back(eq_item);
+
+        // If there are more, i.e., *it2 = *it3, they will be dealt with
+        // in a future iteration of the outer loop; so stop now to avoid
+        // duplicates.
+        break;
+      }
+    }
+  }
+  if (eq_items.is_empty()) {
+    return equal;
+  } else {
+    eq_items.push_back(equal);
+    Item_cond_and *item_and = new Item_cond_and(eq_items);
+    item_and->update_used_tables();
+    item_and->quick_fix_field();
+    return item_and;
+  }
+}
+
+/**
   Expand multiple equalities that can (and should) be expanded before join
   pushdown. These are the ones that only touch less than three tables, or that
   are against a constant. They can be expanded unambiguously; no matter the join
   order, they will be the same. Fields on tables not in “tables_in_subtree” are
   assumed to be irrelevant to the equality and ignored (see the comment on
   PushDownCondition() for more details).
+
+  For multi-equalities that are kept, split out any conditions that refer to the
+  same table. See ExpandSameTableFromMultipleEquals().
 
   The return value is an AND conjunction, so most likely, it needs to be split.
  */
@@ -98,11 +140,12 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
           return item;
         }
         Item_equal *equal = down_cast<Item_equal *>(item);
-        List<Item> eq_items;
         if (equal->get_const() == nullptr &&
             my_count_bits(equal->used_tables() & tables_in_subtree) > 2) {
-          return item;
+          // Only look at partial expansion.
+          return ExpandSameTableFromMultipleEquals(equal);
         }
+        List<Item> eq_items;
         Item *base_item = equal->get_const();
         for (Item_field &field : equal->get_fields()) {
           if (!IsSubset(field.used_tables(), tables_in_subtree)) {
@@ -799,9 +842,15 @@ template <class T>
 static void FullyConcretizeMultipleEquals(Item_equal *cond,
                                           table_map allowed_tables, T *result) {
   Item_field *last_field = nullptr;
+  table_map seen_tables = 0;
   for (Item_field &field : cond->get_fields()) {
     if (!Overlaps(field.used_tables(), allowed_tables)) {
       // From outside this join.
+      continue;
+    }
+    if (Overlaps(field.used_tables(), seen_tables)) {
+      // We've already seen something from this table,
+      // which has been dealt with in ExpandSameTableFromMultipleEquals().
       continue;
     }
     if (last_field != nullptr) {
@@ -813,6 +862,7 @@ static void FullyConcretizeMultipleEquals(Item_equal *cond,
       result->push_back(eq_item);
     }
     last_field = &field;
+    seen_tables |= field.used_tables();
   }
 }
 
@@ -1086,15 +1136,8 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
                        Mem_root_array<Item *> *cycle_inducing_edges,
                        Mem_root_array<Item *> *remaining_parts, string *trace) {
   if (expr->type == RelationalExpression::TABLE) {
-    if (IsMultipleEquals(cond)) {
-      // Get rid of all the other tables, leaving only equalities within
-      // this table.
-      table_filters->push_back(
-          CanonicalizeCondition(cond, expr->tables_in_subtree));
-      return;  // Do not leave it in remaining_parts.
-    } else {
-      table_filters->push_back(cond);
-    }
+    assert(!IsMultipleEquals(cond));
+    table_filters->push_back(cond);
     if (remaining_parts != nullptr) {
       remaining_parts->push_back(cond);
     }
@@ -1198,34 +1241,27 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     }
   }
 
-  // For multiple equalities, if there are multiple referred-to fields on one
+  // For multiple equalities, if there are multiple referred-to tables on one
   // side, then we must keep pushing down; there are still equalities left to
   // resolve. E.g. if we have equal(t1.x, t2.x, t3.x) and have (t1,t2) on the
   // left side and t3 on the right, we would pick e.g. t1.x=t3.x for this join,
   // but need to keep pushing down on the left side to get the t1.x=t2.x
   // condition further down.
   //
-  // Note that this is a stricter condition than multiple referred-to _tables_.
-  // If we have equal (t1.x, t1.y, t2.x), we must push down into t1 to get
-  // t1.x = t1.y.
+  // We can ignore the special case of a multi-equality referring to several
+  // fields in the same table, as ExpandSameTableFromMultipleEquals()
+  // has dealt with those for us.
   if (IsMultipleEquals(cond)) {
-    int left_fields = 0, right_fields = 0;
-    for (const Item_field &field :
-         down_cast<Item_equal *>(cond)->get_fields()) {
-      if (Overlaps(field.used_tables(), expr->left->tables_in_subtree)) {
-        ++left_fields;
-      }
-      if (Overlaps(field.used_tables(), expr->right->tables_in_subtree)) {
-        ++right_fields;
-      }
-    }
-    if (left_fields >= 2 && can_push_into_left) {
+    table_map left_tables = cond->used_tables() & expr->left->tables_in_subtree;
+    table_map right_tables =
+        cond->used_tables() & expr->right->tables_in_subtree;
+    if (my_count_bits(left_tables) >= 2 && can_push_into_left) {
       PushDownCondition(cond, expr->left,
                         /*is_join_condition_for_expr=*/false,
                         table_num_to_companion_set, table_filters,
                         cycle_inducing_edges, remaining_parts, trace);
     }
-    if (right_fields >= 2 && can_push_into_right) {
+    if (my_count_bits(right_tables) >= 2 && can_push_into_right) {
       PushDownCondition(cond, expr->right,
                         /*is_join_condition_for_expr=*/false,
                         table_num_to_companion_set, table_filters,
