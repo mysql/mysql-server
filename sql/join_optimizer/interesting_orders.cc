@@ -45,6 +45,27 @@ using std::upper_bound;
 
 namespace {
 
+// Set some maximum limits on the size of the FSMs, in order to prevent runaway
+// computation on pathological queries. As rough reference: As of 8.0.26,
+// there is a single query in the test suite hitting these limits (it wants 8821
+// NFSM states and an estimated 2^50 DFSM states). Excluding that query, the
+// test suite contains the following largest FSMs:
+//
+//  - Largest NFSM: 63 NFSM states => 2 DFSM states
+//  - Largest DFSM: 37 NFSM states => 152 DFSM states
+//
+// And for DBT-3:
+//
+//  - Largest NFSM: 43 NFSM states => 3 DFSM states
+//  - Largest DFSM: 8 NFSM states => 8 DFSM states
+//
+// We could make system variables out of these if needed, but they would
+// probably have to be settable by superusers only, in order to prevent runaway
+// unabortable queries from taking down the server. Having them as fixed limits
+// is good enough for now.
+constexpr int kMaxNFSMStates = 200;
+constexpr int kMaxDFSMStates = 2000;
+
 template <class T>
 Bounds_checked_array<T> DuplicateArray(THD *thd,
                                        Bounds_checked_array<T> array) {
@@ -186,6 +207,9 @@ void LogicalOrderings::Build(THD *thd, string *trace) {
   if (trace != nullptr) {
     *trace += "NFSM for interesting orders, before pruning:\n";
     PrintNFSMDottyGraph(trace);
+    if (m_states.size() >= kMaxNFSMStates) {
+      *trace += "NOTE: NFSM is incomplete, because it became too big.\n";
+    }
   }
   PruneNFSM(thd);
   if (trace != nullptr) {
@@ -196,6 +220,11 @@ void LogicalOrderings::Build(THD *thd, string *trace) {
   if (trace != nullptr) {
     *trace += "\nDFSM for interesting orders:\n";
     PrintDFSMDottyGraph(trace);
+    if (m_dfsm_states.size() >= kMaxDFSMStates) {
+      *trace +=
+          "NOTE: DFSM does not contain all NFSM states, because it became too "
+          "big.\n";
+    }
   }
   FindInitialStatesForOrdering();
   m_built = true;
@@ -1136,6 +1165,15 @@ void LogicalOrderings::BuildNFSM(THD *thd) {
       }
     }
 
+    if (m_states.size() >= kMaxNFSMStates) {
+      // Stop expanding new functional dependencies, causing us to end fairly
+      // soon. We won't necessarily find the optimal query, but we'll keep all
+      // essential information, and not throw away any of the information we
+      // have already gathered (unless the DFSM gets too large, too;
+      // see ConvertNFSMToDFSM()).
+      continue;
+    }
+
     for (size_t fd_idx = 1; fd_idx < m_fds.size(); ++fd_idx) {
       const FunctionalDependency &fd = m_fds[fd_idx];
       Ordering old_ordering = m_states[state_idx].satisfied_ordering;
@@ -1512,6 +1550,14 @@ void LogicalOrderings::ConvertNFSMToDFSM(THD *thd) {
           nfsm_edges.push_back(edge);
         }
       }
+    }
+
+    if (m_dfsm_states.size() >= kMaxDFSMStates) {
+      // Stop creating new states, causing us to end fairly soon (same as the
+      // cutoff in BuildNFSM()). Note that since the paths representing explicit
+      // sorts are put first, they will never be lost unless kMaxDFSMStates is
+      // set extremely low.
+      continue;
     }
 
     {
