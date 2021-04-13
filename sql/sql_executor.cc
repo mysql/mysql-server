@@ -4963,8 +4963,11 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
       // The group item may have been resolved to a different Item_field
       // for the same field. Update it accordingly, for the sake of
       // replace_contents_of_rollup_wrappers_with_tmp_fields() below.
-      ORDER *order =
-          select->find_in_group_list(rollup_item->inner_item(), nullptr);
+      Item *inner_item = rollup_item->inner_item();
+      if (inner_item->type() == Item::CACHE_ITEM) {
+        inner_item = down_cast<Item_cache *>(inner_item)->get_example();
+      }
+      ORDER *order = select->find_in_group_list(inner_item, nullptr);
       order->rollup_item->inner_item()->set_result_field(
           item->get_result_field());
 
