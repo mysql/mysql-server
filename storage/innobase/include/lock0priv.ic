@@ -299,30 +299,18 @@ bool lock_table_has(const trx_t *trx, const dict_table_t *table,
   trx_mutex_enter(trx);
   ut_ad(trx_can_be_handled_by_current_thread(trx));
 
-  if (trx->lock.table_locks.empty()) {
-    trx_mutex_exit(trx);
-    return (false);
-  }
-
-  typedef lock_pool_t::const_reverse_iterator iterator;
-
-  iterator end = trx->lock.table_locks.rend();
-
   /* Look for stronger locks the same trx already has on the table */
-
-  for (iterator it = trx->lock.table_locks.rbegin(); it != end; ++it) {
-    const lock_t *lock = *it;
-
-    ut_ad(lock != nullptr);
-
+  for (const lock_t *lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
+       lock != nullptr && lock_get_type(lock) == LOCK_TABLE;
+       lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
     lock_mode mode = lock_get_mode(lock);
 
     ut_ad(trx == lock->trx);
-    ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
     ut_ad(lock->tab_lock.table != nullptr);
 
     if (table == lock->tab_lock.table &&
         lock_mode_stronger_or_eq(mode, in_mode)) {
+      // we know it can't be waiting because we are the thread *running* the trx
       ut_ad(!lock_get_wait(lock));
 
       trx_mutex_exit(trx);

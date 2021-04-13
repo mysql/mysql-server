@@ -682,6 +682,7 @@ struct trx_lock_t {
   mem_heap_t *lock_heap;
 
   /** Locks requested by the transaction.
+  It is sorted so that LOCK_TABLE locks are before LOCK_REC locks.
   Modifications are protected by trx->mutex and shard of lock_sys mutex.
   Reads can be performed while holding trx->mutex or exclusive lock_sys latch.
   One can also check if this list is empty or not from the thread running this
@@ -694,13 +695,9 @@ struct trx_lock_t {
   one can read it without risking unsafe pointer operations) */
   trx_lock_list_t trx_locks;
 
-  /** All table locks requested by this transaction, including AUTOINC locks.
-  Protected by trx->mutex. */
-  lock_pool_t table_locks;
-
-  /** AUTOINC locks held by this transaction. Note that these are also in the
-  lock list trx_locks and table_locks. This vector needs to be freed explicitly
-  when the trx instance is destroyed.
+  /** AUTOINC locks held by this transaction.
+  Note that these are also in the trx_locks list.
+  This vector needs to be freed explicitly when the trx instance is destroyed.
   Protected by trx->mutex. */
   ib_vector_t *autoinc_locks;
 

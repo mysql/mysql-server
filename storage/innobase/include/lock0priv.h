@@ -996,11 +996,11 @@ ulint lock_get_wait(const lock_t *lock); /*!< in: lock */
 
 /** Checks if a transaction has the specified table lock, or stronger. This
 function should only be called by the thread that owns the transaction.
-This function acquires trx->mutex which protects trx->lock.table_locks, but you
+This function acquires trx->mutex which protects trx->lock.trx_locks, but you
 should understand that this only makes it easier to argue against races at the
 level of access to the data structure, yet does not buy us any protection at
 the higher level of making actual decisions based on the result of this call -
-it may happen that another thread is performing lock_trx_table_locks_remove(),
+it may happen that another thread is removing a table lock,
 and even though lock_table_has returned true to the caller, the lock is no
 longer in possession of trx once the caller gets to evaluate if/else condition
 based on the result.
@@ -1008,7 +1008,7 @@ Therefore it is up to caller to make sure that the context of the call to this
 function and making any decisions based on the result is protected from any
 concurrent modifications. This in turn makes the whole trx_mutex_enter/exit
 a bit redundant, but it does not affect performance yet makes the reasoning
-about data structure a bit easier and protects trx->lock.table_locks data
+about data structure a bit easier and protects trx->lock.trx_locks data
 structure from corruption in case our high level reasoning about absence of
 parallel modifications turns out wrong.
 @param[in]	trx	transaction
