@@ -45,8 +45,40 @@ IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
   SET(MYSQL_MACHINE_TYPE "x86_64")
 ENDIF()
 
-# Use Libtool -static rather than ranlib
-SET(CMAKE_C_CREATE_STATIC_LIBRARY
-  "/usr/bin/libtool -static -no_warning_for_no_symbols -o <TARGET> <LINK_FLAGS> <OBJECTS> ")
-SET(CMAKE_CXX_CREATE_STATIC_LIBRARY
-  "/usr/bin/libtool -static -no_warning_for_no_symbols -o <TARGET> <LINK_FLAGS> <OBJECTS> ")
+# CMAKE_CXX_ARCHIVE_CREATE is by default
+#     "<CMAKE_AR> qc <TARGET> <LINK_FLAGS> <OBJECTS>"
+# And CMAKE_AR is "<toolchain>/usr/bin/ar"
+#
+# CMAKE_CXX_ARCHIVE_FINISH is by default
+#     "<CMAKE_RANLIB> <TARGET>"
+# and CMAKE_RANLIB is "<toolchain>/usr/bin/ranlib>"
+#
+# libtool has an option -no_warning_for_no_symbols
+# but will generate lots of warnings for files with the same basename:
+# /usr/bin/libtool: warning same member name (check_constraints.cc.o) ....
+#
+# To get a clean build, use 'ar' and ensure all source files are non-empty.
+# Use this by default for Ninja and Makefiles.
+IF(APPLE_XCODE)
+  SET(WITH_LIBTOOL_DEFAULT ON)
+ELSE()
+  SET(WITH_LIBTOOL_DEFAULT OFF)
+ENDIF()
+OPTION(WITH_LIBTOOL
+  "Use 'libtool' rather than 'ar' for creating static libraries"
+  ${WITH_LIBTOOL_DEFAULT}
+  )
+
+IF(WITH_LIBTOOL)
+  SET(CMAKE_C_CREATE_STATIC_LIBRARY
+    "/usr/bin/libtool -static -no_warning_for_no_symbols -o <TARGET> <LINK_FLAGS> <OBJECTS> ")
+  SET(CMAKE_CXX_CREATE_STATIC_LIBRARY
+    "/usr/bin/libtool -static -no_warning_for_no_symbols -o <TARGET> <LINK_FLAGS> <OBJECTS> ")
+ELSE()
+  # This did not fix the "library.a(filename.cc.o) has no symbols" warnings.
+  # 'ranlib' has the -no_warning_for_no_symbols option, but 'ar' does not.
+  # STRING(REPLACE "<CMAKE_RANLIB>" "<CMAKE_RANLIB> -no_warning_for_no_symbols"
+  #   CMAKE_C_ARCHIVE_FINISH "${CMAKE_C_ARCHIVE_FINISH}")
+  # STRING(REPLACE "<CMAKE_RANLIB>" "<CMAKE_RANLIB> -no_warning_for_no_symbols"
+  #   CMAKE_CXX_ARCHIVE_FINISH "${CMAKE_CXX_ARCHIVE_FINISH}")
+ENDIF()

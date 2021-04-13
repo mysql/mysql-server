@@ -816,6 +816,10 @@ set(SRC_CORE
     signal.c
     strlcpy.c)
 
+IF(EVENT__HAVE_STRLCPY)
+  LIST(REMOVE_ITEM SRC_CORE strlcpy.c)
+ENDIF()
+
 if(EVENT__HAVE_SELECT)
     list(APPEND SRC_CORE select.c)
 endif()

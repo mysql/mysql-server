@@ -83,7 +83,7 @@ SET(harness_source
   logging/handler.cc
   logging/logger.cc
   logging/logger_plugin.cc
-  logging/logging.cc
+# logging/logging.cc       empty file
   logging/registry.cc
   random_generator.cc
   sd_notify.cc

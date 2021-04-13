@@ -203,6 +203,15 @@ SET(ICU_COMMON_SOURCES
   wintz.cpp
 )
 
+IF(APPLE)
+  LIST(REMOVE_ITEM ICU_COMMON_SOURCES
+    cwchar.cpp
+    icuplug.cpp
+    restrace.cpp
+    wintz.cpp
+    )
+ENDIF()
+
 ADD_LIBRARY(icuuc STATIC ${ICU_COMMON_SOURCES})
 
 # uidna_toASCII_59 is marked as deprecated

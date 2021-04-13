@@ -594,7 +594,19 @@ SET(SQL_SHARED_SOURCES
   window_iterators.cc
   xa.cc
   daemon_proxy_keyring/daemon_proxy_keyring.cc
-)
+  )
+
+IF(BUILD_IS_SINGLE_CONFIG)
+  GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
+  IF(NOT CMAKE_CXX_FLAGS MATCHES "DENABLED_DEBUG_SYNC" AND
+      NOT CMAKE_CXX_FLAGS_${CMAKE_BUILD_TYPE_UPPER} MATCHES "DENABLED_DEBUG_SYNC" AND
+      NOT CWD_DEFINITIONS MATCHES "ENABLED_DEBUG_SYNC")
+    # This has ifdef ENABLED_DEBUG_SYNC
+    LIST(REMOVE_ITEM SQL_SHARED_SOURCES
+      debug_sync.cc
+      )
+  ENDIF()
+ENDIF()
 
 # BISON_TARGET(<Name> <YaccInput> <CodeOutput>
 #              [COMPILE_FLAGS <flags>]
@@ -738,6 +750,10 @@ SET(SQL_SOURCE
   srv_session_info_service.cc
   srv_session_service.cc
   )
+
+IF(NOT HAVE_SETNS)
+  LIST(REMOVE_ITEM SQL_SOURCE ../sql-common/net_ns.cc)
+ENDIF()
 
 IF(NOT WIN32)
   LIST(APPEND SQL_SOURCE mysqld_daemon.cc)

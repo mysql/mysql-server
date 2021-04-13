@@ -67,7 +67,7 @@ MACRO(FATAL_SSL_NOT_FOUND_ERROR string)
   ENDIF()
   IF(APPLE)
     MESSAGE(FATAL_ERROR
-      "Please see http://brewformulas.org/Openssl\n")
+      "Please see https://formulae.brew.sh/formula/openssl@1.1\n")
   ENDIF()
 ENDMACRO()
 

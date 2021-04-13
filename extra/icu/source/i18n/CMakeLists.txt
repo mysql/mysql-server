@@ -3,7 +3,8 @@
 
 PROJECT (ICU-i18n)
 
-SET_DIRECTORY_PROPERTIES(PROPERTIES INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../common;${PROJECT_SOURCE_DIR}")
+SET_DIRECTORY_PROPERTIES(PROPERTIES INCLUDE_DIRECTORIES
+  "${PROJECT_SOURCE_DIR}/../common;${PROJECT_SOURCE_DIR}")
 
 # Compiler errors when turning this one on.
 #ADD_DEFINITIONS(-DU_HIDE_DEPRECATED_API)
@@ -236,13 +237,18 @@ SET(ICU_SOURCES
   utrans.cpp
   vtzone.cpp
   vzone.cpp
-  windtfmt.cpp
-  winnmfmt.cpp
-  wintzimpl.cpp
   zonemeta.cpp
   zrule.cpp
   ztrans.cpp
 )
+
+IF(WIN32)
+  LIST(APPEND ICU_SOURCES
+    windtfmt.cpp
+    winnmfmt.cpp
+    wintzimpl.cpp
+    )
+ENDIF()
 
 ADD_LIBRARY(icui18n STATIC ${ICU_SOURCES})
 

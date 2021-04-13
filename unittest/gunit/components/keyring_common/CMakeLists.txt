@@ -51,32 +51,34 @@ IF(WIN32)
     )
 ENDIF()
 
-SET(KEYRING_COMPONENT_LIBS)
-LIST(APPEND KEYRING_COMPONENT_LIBS
+SET(KEYRING_COMPONENT_LIBS
   keyring_common
   ${SSL_LIBRARIES}
   ${LIBDL}
   )
 
+IF(COMPONENT_COMPILE_VISIBILITY)
+  SET(COMPILE_OPTIONS_ARG COMPILE_OPTIONS "${COMPONENT_COMPILE_VISIBILITY}")
+ENDIF()
+
 MYSQL_ADD_EXECUTABLE(merge_component_keyring_common_tests-t
  ${ALL_KEYRING_COMPONENT_COMMON_TESTS}
+ ${COMPILE_OPTIONS_ARG}
  ENABLE_EXPORTS
- ADD_TEST merge_component_keyring_common_tests)
-
-TARGET_LINK_LIBRARIES(merge_component_keyring_common_tests-t
-  ${KEYRING_COMPONENT_LIBS}
-  gunit_large
-  server_unittest_library
-  )
+ ADD_TEST merge_component_keyring_common_tests
+ LINK_LIBRARIES
+ ${KEYRING_COMPONENT_LIBS}
+ gunit_large
+ server_unittest_library
+ )
 
 FOREACH(test ${KEYRING_COMPONENT_COMMON_TESTS})
   MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+    ${COMPILE_OPTIONS_ARG}
     ENABLE_EXPORTS
     SKIP_INSTALL
     EXCLUDE_FROM_ALL
-    )
-
-  TARGET_LINK_LIBRARIES(${test}-t
+    LINK_LIBRARIES
     ${KEYRING_COMPONENT_LIBS}
     gunit_large
     server_unittest_library

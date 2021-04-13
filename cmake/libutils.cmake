@@ -338,8 +338,13 @@ MACRO(MERGE_CONVENIENCE_LIBRARIES TARGET_ARG)
   SET(TARGET ${TARGET_ARG})
   SET(LIBS ${ARG_UNPARSED_ARGUMENTS})
 
+  # Add a dummy source file, with non-empty content, to avoid warning:
+  # libjson_binlog_static.a(json_binlog_static_depends.c.o) has no symbols
   SET(SOURCE_FILE
     ${CMAKE_BINARY_DIR}/archive_output_directory/${TARGET}_depends.c)
+  SET(SOURCE_FILE_CONTENT "void dummy_${TARGET}_function() {}")
+  CONFIGURE_FILE_CONTENT("${SOURCE_FILE_CONTENT}" "${SOURCE_FILE}")
+
   ADD_LIBRARY(${TARGET} STATIC ${SOURCE_FILE})
 
   IF(ARG_EXCLUDE_FROM_ALL)
