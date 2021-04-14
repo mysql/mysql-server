@@ -24,19 +24,19 @@ ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_SUBSYSTEM_TAG="Repl")
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="semisync")
 
-MYSQL_ADD_PLUGIN(semisync_master
+MYSQL_ADD_PLUGIN(semisync_source
   semisync.cc
   semisync_source.cc
   semisync_source_ack_receiver.cc
   semisync_source_plugin.cc
   MODULE_ONLY
-  MODULE_OUTPUT_NAME "semisync_master"
+  MODULE_OUTPUT_NAME "semisync_source"
   )
 
-MYSQL_ADD_PLUGIN(semisync_slave
+MYSQL_ADD_PLUGIN(semisync_replica
   semisync.cc
   semisync_replica.cc 
   semisync_replica_plugin.cc
   MODULE_ONLY
-  MODULE_OUTPUT_NAME "semisync_slave"
+  MODULE_OUTPUT_NAME "semisync_replica"
   )

@@ -69,7 +69,7 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
   if (!repl_semisync->getSlaveEnabled()) return 0;
 
   /* Check if master server has semi-sync plugin installed */
-  query = "SELECT @@global.rpl_semi_sync_master_enabled";
+  query = "SELECT @@global.rpl_semi_sync_source_enabled";
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) ||
       !(res = mysql_store_result(mysql))) {
     mysql_error = mysql_errno(mysql);
@@ -92,7 +92,7 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
   if (mysql_error == ER_UNKNOWN_SYSTEM_VARIABLE) {
     /* Master does not support semi-sync */
     LogPluginErr(WARNING_LEVEL, ER_SEMISYNC_NOT_SUPPORTED_BY_MASTER);
-    rpl_semi_sync_slave_status = 0;
+    rpl_semi_sync_replica_status = 0;
     mysql_free_result(res);
     return 0;
   }
@@ -102,13 +102,13 @@ static int repl_semi_slave_request_dump(Binlog_relay_IO_param *param, uint32) {
     Tell master dump thread that we want to do semi-sync
     replication
   */
-  query = "SET @rpl_semi_sync_slave= 1";
+  query = "SET @rpl_semi_sync_replica= 1";
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query)))) {
     LogPluginErr(ERROR_LEVEL, ER_SEMISYNC_SLAVE_SET_FAILED);
     return 1;
   }
   mysql_free_result(mysql_store_result(mysql));
-  rpl_semi_sync_slave_status = 1;
+  rpl_semi_sync_replica_status = 1;
   return 0;
 }
 
@@ -116,7 +116,7 @@ static int repl_semi_slave_read_event(Binlog_relay_IO_param *,
                                       const char *packet, unsigned long len,
                                       const char **event_buf,
                                       unsigned long *event_len) {
-  if (rpl_semi_sync_slave_status)
+  if (rpl_semi_sync_replica_status)
     return repl_semisync->slaveReadSyncHeader(
         packet, len, &semi_sync_need_reply, event_buf, event_len);
   *event_buf = packet;
@@ -126,7 +126,7 @@ static int repl_semi_slave_read_event(Binlog_relay_IO_param *,
 
 static int repl_semi_slave_queue_event(Binlog_relay_IO_param *param,
                                        const char *, unsigned long, uint32) {
-  if (rpl_semi_sync_slave_status && semi_sync_need_reply) {
+  if (rpl_semi_sync_replica_status && semi_sync_need_reply) {
     /*
       We deliberately ignore the error in slaveReply, such error
       should not cause the slave IO thread to stop, and the error
@@ -150,27 +150,27 @@ int repl_semi_slave_sql_start(Binlog_relay_IO_param *) { return 0; }
 
 static int repl_semi_slave_sql_stop(Binlog_relay_IO_param *, bool) { return 0; }
 
-static void fix_rpl_semi_sync_slave_enabled(MYSQL_THD, SYS_VAR *, void *ptr,
-                                            const void *val) {
+static void fix_rpl_semi_sync_replica_enabled(MYSQL_THD, SYS_VAR *, void *ptr,
+                                              const void *val) {
   *static_cast<char *>(ptr) = *static_cast<const char *>(val);
-  repl_semisync->setSlaveEnabled(rpl_semi_sync_slave_enabled != 0);
+  repl_semisync->setSlaveEnabled(rpl_semi_sync_replica_enabled != 0);
 }
 
 static void fix_rpl_semi_sync_trace_level(MYSQL_THD, SYS_VAR *, void *ptr,
                                           const void *val) {
   *static_cast<unsigned long *>(ptr) = *static_cast<const unsigned long *>(val);
-  repl_semisync->setTraceLevel(rpl_semi_sync_slave_trace_level);
+  repl_semisync->setTraceLevel(rpl_semi_sync_replica_trace_level);
 }
 
 /* plugin system variables */
 static MYSQL_SYSVAR_BOOL(
-    enabled, rpl_semi_sync_slave_enabled, PLUGIN_VAR_OPCMDARG,
+    enabled, rpl_semi_sync_replica_enabled, PLUGIN_VAR_OPCMDARG,
     "Enable semi-synchronous replication slave (disabled by default). ",
-    nullptr,                           // check
-    &fix_rpl_semi_sync_slave_enabled,  // update
+    nullptr,                             // check
+    &fix_rpl_semi_sync_replica_enabled,  // update
     0);
 
-static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_slave_trace_level,
+static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_replica_trace_level,
                           PLUGIN_VAR_OPCMDARG,
                           "The tracing level for semi-sync replication.",
                           nullptr,                         // check
@@ -185,7 +185,7 @@ static SYS_VAR *semi_sync_slave_system_vars[] = {
 
 /* plugin status variables */
 static SHOW_VAR semi_sync_slave_status_vars[] = {
-    {"Rpl_semi_sync_replica_status", (char *)&rpl_semi_sync_slave_status,
+    {"Rpl_semi_sync_replica_status", (char *)&rpl_semi_sync_replica_status,
      SHOW_BOOL, SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
 };
@@ -238,7 +238,7 @@ struct Mysql_replication semi_sync_slave_plugin = {
 mysql_declare_plugin(semi_sync_slave){
     MYSQL_REPLICATION_PLUGIN,
     &semi_sync_slave_plugin,
-    "rpl_semi_sync_slave",
+    "rpl_semi_sync_replica",
     PLUGIN_AUTHOR_ORACLE,
     "Semi-synchronous replication slave",
     PLUGIN_LICENSE_GPL,

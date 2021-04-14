@@ -6,14 +6,14 @@
 # Added an 'all_vars-master.opt' file that includes
 # "$SEMISYNC_PLUGIN_OPT --loose-innodb" (see $SEMISYNC_PLUGIN_OPT setting in mysql-test-run.pl)
 # and logic similar to 'include/have_semisync_plugin.inc' that will load semisync plugin
-if (`SELECT @@have_dynamic_loading = 'YES' AND LENGTH('$SEMISYNC_MASTER_PLUGIN') > 0`)
+if (`SELECT @@have_dynamic_loading = 'YES' AND LENGTH('$SEMISYNC_SOURCE_PLUGIN') > 0`)
 {
   --disable_query_log
   # The following is to prevent a mis-match on windows that has the name of of the lib ending with 'dll' 
   --replace_regex /\.dll/.so/
-  eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+  eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
   --replace_regex /\.dll/.so/
-  eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+  eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
   --enable_query_log
 }
 
@@ -77,11 +77,11 @@ drop table t1;
 drop table t2;
 
 # Unloading the semisync plugins in case they were loaded
-if (`SELECT @@have_dynamic_loading = 'YES' AND LENGTH('$SEMISYNC_MASTER_PLUGIN') > 0`)
+if (`SELECT @@have_dynamic_loading = 'YES' AND LENGTH('$SEMISYNC_SOURCE_PLUGIN') > 0`)
 {
   --disable_query_log
-  UNINSTALL PLUGIN rpl_semi_sync_master;
-  UNINSTALL PLUGIN rpl_semi_sync_slave;
+  UNINSTALL PLUGIN rpl_semi_sync_source;
+  UNINSTALL PLUGIN rpl_semi_sync_replica;
   --enable_query_log
 }
 

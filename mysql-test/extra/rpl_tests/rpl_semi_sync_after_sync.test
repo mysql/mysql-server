@@ -105,7 +105,7 @@ TRUNCATE t1;
 --let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_yes_tx', Value, 1)
 --let $no_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_source_no_tx', Value, 1)
 
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 SET DEBUG_SYNC= "before_call_after_commit_observer SIGNAL engine_commit_done
                  WAIT_FOR end";
 --send INSERT INTO t1 VALUES(1);
@@ -137,6 +137,6 @@ SET DEBUG_SYNC= "now SIGNAL end";
 SET DEBUG_SYNC= "RESET";
 --source include/rpl_connection_master.inc
 SET DEBUG_SYNC= "RESET";
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 --source include/sync_slave_sql_with_master.inc

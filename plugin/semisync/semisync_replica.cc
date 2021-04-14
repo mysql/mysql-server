@@ -31,9 +31,9 @@
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
 
-bool rpl_semi_sync_slave_enabled;
-char rpl_semi_sync_slave_status = 0;
-unsigned long rpl_semi_sync_slave_trace_level;
+bool rpl_semi_sync_replica_enabled;
+char rpl_semi_sync_replica_status = 0;
+unsigned long rpl_semi_sync_replica_trace_level;
 
 int ReplSemiSyncSlave::initObject() {
   int result = 0;
@@ -46,8 +46,8 @@ int ReplSemiSyncSlave::initObject() {
   init_done_ = true;
 
   /* References to the parameter works after set_options(). */
-  setSlaveEnabled(rpl_semi_sync_slave_enabled);
-  setTraceLevel(rpl_semi_sync_slave_trace_level);
+  setSlaveEnabled(rpl_semi_sync_replica_enabled);
+  setTraceLevel(rpl_semi_sync_replica_trace_level);
 
   return result;
 }
@@ -86,12 +86,13 @@ int ReplSemiSyncSlave::slaveStart(Binlog_relay_IO_param *param) {
          param->master_log_name[0] ? param->master_log_name : "FIRST",
          (unsigned long)param->master_log_pos);
 
-  if (semi_sync && !rpl_semi_sync_slave_status) rpl_semi_sync_slave_status = 1;
+  if (semi_sync && !rpl_semi_sync_replica_status)
+    rpl_semi_sync_replica_status = 1;
   return 0;
 }
 
 int ReplSemiSyncSlave::slaveStop(Binlog_relay_IO_param *) {
-  if (rpl_semi_sync_slave_status) rpl_semi_sync_slave_status = 0;
+  if (rpl_semi_sync_replica_status) rpl_semi_sync_replica_status = 0;
   if (mysql_reply) mysql_close(mysql_reply);
   mysql_reply = nullptr;
   return 0;

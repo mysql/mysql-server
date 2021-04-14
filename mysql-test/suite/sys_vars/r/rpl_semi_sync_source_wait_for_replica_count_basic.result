@@ -1,0 +1,94 @@
+#
+# Initialization
+#
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'semisync_source.so';
+#
+# Verify it can set selected and showed correctly
+#
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+@@GLOBAL.rpl_semi_sync_source_wait_for_replica_count
+1
+SHOW GLOBAL VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+Variable_name	Value
+rpl_semi_sync_source_wait_for_replica_count	1
+SELECT * FROM performance_schema.global_variables WHERE
+VARIABLE_NAME = 'rpl_semi_sync_source_wait_for_replica_count';
+VARIABLE_NAME	VARIABLE_VALUE
+rpl_semi_sync_source_wait_for_replica_count	1
+#
+# Verify it is not a session variable
+#
+SELECT @@SESSION.rpl_semi_sync_source_wait_for_replica_count;
+ERROR HY000: Variable 'rpl_semi_sync_source_wait_for_replica_count' is a GLOBAL variable
+SHOW SESSION VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+Variable_name	Value
+rpl_semi_sync_source_wait_for_replica_count	1
+SELECT * FROM performance_schema.session_variables WHERE
+VARIABLE_NAME ='rpl_semi_sync_source_wait_for_replica_count';
+VARIABLE_NAME	VARIABLE_VALUE
+rpl_semi_sync_source_wait_for_replica_count	1
+#
+# Verify it can be set correctly
+#
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 2;
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+@@GLOBAL.rpl_semi_sync_source_wait_for_replica_count
+2
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 20;
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+@@GLOBAL.rpl_semi_sync_source_wait_for_replica_count
+20
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 65535;
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+@@GLOBAL.rpl_semi_sync_source_wait_for_replica_count
+65535
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 1;
+SELECT @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+@@GLOBAL.rpl_semi_sync_source_wait_for_replica_count
+1
+SET SESSION rpl_semi_sync_source_wait_for_replica_count = 2;
+ERROR HY000: Variable 'rpl_semi_sync_source_wait_for_replica_count' is a GLOBAL variable and should be set with SET GLOBAL
+SHOW SESSION VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+Variable_name	Value
+rpl_semi_sync_source_wait_for_replica_count	1
+#
+# Verify it could not bet set with invalid values
+#
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = -1;
+Warnings:
+Warning	1292	Truncated incorrect rpl_semi_sync_source_wait_for_replica_count value: '-1'
+SHOW  VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+Variable_name	Value
+rpl_semi_sync_source_wait_for_replica_count	1
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 0;
+Warnings:
+Warning	1292	Truncated incorrect rpl_semi_sync_source_wait_for_replica_count value: '0'
+SHOW  VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+Variable_name	Value
+rpl_semi_sync_source_wait_for_replica_count	1
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 65536;
+Warnings:
+Warning	1292	Truncated incorrect rpl_semi_sync_source_wait_for_replica_count value: '65536'
+SHOW  VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+Variable_name	Value
+rpl_semi_sync_source_wait_for_replica_count	65535
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 300000;
+Warnings:
+Warning	1292	Truncated incorrect rpl_semi_sync_source_wait_for_replica_count value: '300000'
+SHOW  VARIABLES LIKE 'rpl_semi_sync_source_wait_for_replica_count';
+Variable_name	Value
+rpl_semi_sync_source_wait_for_replica_count	65535
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = blabla;
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_source_wait_for_replica_count'
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = "blabla";
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_source_wait_for_replica_count'
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = "";
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_source_wait_for_replica_count'
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = NULL;
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_source_wait_for_replica_count'
+SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 0.1;
+ERROR 42000: Incorrect argument type to variable 'rpl_semi_sync_source_wait_for_replica_count'
+#
+# Cleanup
+#
+UNINSTALL PLUGIN rpl_semi_sync_source;

@@ -37,8 +37,8 @@ qa_auth_server                          plugin_output_directory  no PLUGIN_AUTH_
 qa_auth_client                          plugin_output_directory  no PLUGIN_AUTH_CLIENT    qa_auth_client
 udf_example                             plugin_output_directory  no UDF_EXAMPLE_LIB
 ha_example                              plugin_output_directory  no EXAMPLE_PLUGIN         EXAMPLE
-semisync_master                         plugin_output_directory  no SEMISYNC_MASTER_PLUGIN
-semisync_slave                          plugin_output_directory  no SEMISYNC_SLAVE_PLUGIN
+semisync_source                         plugin_output_directory  no SEMISYNC_SOURCE_PLUGIN
+semisync_replica                          plugin_output_directory  no SEMISYNC_REPLICA_PLUGIN
 ha_archive                              plugin_output_directory  no ARCHIVE_PLUGIN
 ha_blackhole                            plugin_output_directory  no BLACKHOLE_PLUGIN
 ha_federated                            plugin_output_directory  no FEDERATED_PLUGIN

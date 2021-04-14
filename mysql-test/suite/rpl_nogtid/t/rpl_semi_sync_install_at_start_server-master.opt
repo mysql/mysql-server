@@ -1,6 +1,6 @@
 $SEMISYNC_PLUGIN_OPT
 --force-restart
---plugin-load=semisync_master.$PLUGIN_SUFFIX
---rpl_semi_sync_master_enabled=1
---rpl_semi_sync_master_wait_no_slave=0
---rpl_semi_sync_master_wait_for_slave_count=2
+--plugin-load=semisync_source.$PLUGIN_SUFFIX
+--rpl_semi_sync_source_enabled=1
+--rpl_semi_sync_source_wait_no_replica=0
+--rpl_semi_sync_source_wait_for_replica_count=2

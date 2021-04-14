@@ -108,24 +108,24 @@ ROLLBACK;
 ####################################################################
 
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
---replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_LIB
---eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN'
-UNINSTALL PLUGIN rpl_semi_sync_master;
---let $plugin_count= `SELECT COUNT(*) FROM information_schema.plugins WHERE plugin_name = 'rpl_semi_sync_master' AND plugin_status = 'DELETED'`
+--replace_result $SEMISYNC_SOURCE_PLUGIN SEMISYNC_MASTER_LIB
+--eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN'
+UNINSTALL PLUGIN rpl_semi_sync_source;
+--let $plugin_count= `SELECT COUNT(*) FROM information_schema.plugins WHERE plugin_name = 'rpl_semi_sync_source' AND plugin_status = 'DELETED'`
 --let $assert_cond= $plugin_count = 1
 --let $assert_text= Semi-sync not disposed because it is in use
 --source include/assert.inc
 
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
---let $plugin_count= `SELECT COUNT(*) FROM information_schema.plugins WHERE plugin_name = 'rpl_semi_sync_master' AND plugin_status = 'DELETED'`
+--let $plugin_count= `SELECT COUNT(*) FROM information_schema.plugins WHERE plugin_name = 'rpl_semi_sync_source' AND plugin_status = 'DELETED'`
 --let $assert_cond= $plugin_count = 0
 --let $assert_text= Semi-sync disposed because it is no longer in use
 --source include/assert.inc
 
---replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_LIB
---eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN'
-UNINSTALL PLUGIN rpl_semi_sync_master;
---let $plugin_count= `SELECT COUNT(*) FROM information_schema.plugins WHERE plugin_name = 'rpl_semi_sync_master' AND plugin_status = 'DELETED'`
+--replace_result $SEMISYNC_SOURCE_PLUGIN SEMISYNC_MASTER_LIB
+--eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN'
+UNINSTALL PLUGIN rpl_semi_sync_source;
+--let $plugin_count= `SELECT COUNT(*) FROM information_schema.plugins WHERE plugin_name = 'rpl_semi_sync_source' AND plugin_status = 'DELETED'`
 --let $assert_cond= $plugin_count = 0
 --let $assert_text= Semi-sync disposed because it is no longer in use
 --source include/assert.inc

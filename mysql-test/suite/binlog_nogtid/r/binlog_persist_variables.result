@@ -104,14 +104,14 @@ ERROR HY000: Variable 'relay_log_recovery' is a read only variable
 SET PERSIST relay_log_space_limit = @@GLOBAL.relay_log_space_limit;
 ERROR HY000: Variable 'relay_log_space_limit' is a read only variable
 SET PERSIST rpl_read_size = @@GLOBAL.rpl_read_size;
-SET PERSIST rpl_semi_sync_master_enabled = @@GLOBAL.rpl_semi_sync_master_enabled;
-SET PERSIST rpl_semi_sync_master_timeout = @@GLOBAL.rpl_semi_sync_master_timeout;
-SET PERSIST rpl_semi_sync_master_trace_level = @@GLOBAL.rpl_semi_sync_master_trace_level;
-SET PERSIST rpl_semi_sync_master_wait_for_slave_count = @@GLOBAL.rpl_semi_sync_master_wait_for_slave_count;
-SET PERSIST rpl_semi_sync_master_wait_no_slave = @@GLOBAL.rpl_semi_sync_master_wait_no_slave;
-SET PERSIST rpl_semi_sync_master_wait_point = @@GLOBAL.rpl_semi_sync_master_wait_point;
-SET PERSIST rpl_semi_sync_slave_enabled = @@GLOBAL.rpl_semi_sync_slave_enabled;
-SET PERSIST rpl_semi_sync_slave_trace_level = @@GLOBAL.rpl_semi_sync_slave_trace_level;
+SET PERSIST rpl_semi_sync_source_enabled = @@GLOBAL.rpl_semi_sync_source_enabled;
+SET PERSIST rpl_semi_sync_source_timeout = @@GLOBAL.rpl_semi_sync_source_timeout;
+SET PERSIST rpl_semi_sync_source_trace_level = @@GLOBAL.rpl_semi_sync_source_trace_level;
+SET PERSIST rpl_semi_sync_source_wait_for_replica_count = @@GLOBAL.rpl_semi_sync_source_wait_for_replica_count;
+SET PERSIST rpl_semi_sync_source_wait_no_replica = @@GLOBAL.rpl_semi_sync_source_wait_no_replica;
+SET PERSIST rpl_semi_sync_source_wait_point = @@GLOBAL.rpl_semi_sync_source_wait_point;
+SET PERSIST rpl_semi_sync_replica_enabled = @@GLOBAL.rpl_semi_sync_replica_enabled;
+SET PERSIST rpl_semi_sync_replica_trace_level = @@GLOBAL.rpl_semi_sync_replica_trace_level;
 SET PERSIST rpl_stop_replica_timeout = @@GLOBAL.rpl_stop_replica_timeout;
 SET PERSIST session_track_gtids = @@GLOBAL.session_track_gtids;
 SET PERSIST replica_allow_batching = @@GLOBAL.replica_allow_batching;
@@ -241,14 +241,14 @@ RESET PERSIST IF EXISTS relay_log_space_limit;
 Warnings:
 Warning	3615	Variable relay_log_space_limit does not exist in persisted config file
 RESET PERSIST IF EXISTS rpl_read_size;
-RESET PERSIST IF EXISTS rpl_semi_sync_master_enabled;
-RESET PERSIST IF EXISTS rpl_semi_sync_master_timeout;
-RESET PERSIST IF EXISTS rpl_semi_sync_master_trace_level;
-RESET PERSIST IF EXISTS rpl_semi_sync_master_wait_for_slave_count;
-RESET PERSIST IF EXISTS rpl_semi_sync_master_wait_no_slave;
-RESET PERSIST IF EXISTS rpl_semi_sync_master_wait_point;
-RESET PERSIST IF EXISTS rpl_semi_sync_slave_enabled;
-RESET PERSIST IF EXISTS rpl_semi_sync_slave_trace_level;
+RESET PERSIST IF EXISTS rpl_semi_sync_source_enabled;
+RESET PERSIST IF EXISTS rpl_semi_sync_source_timeout;
+RESET PERSIST IF EXISTS rpl_semi_sync_source_trace_level;
+RESET PERSIST IF EXISTS rpl_semi_sync_source_wait_for_replica_count;
+RESET PERSIST IF EXISTS rpl_semi_sync_source_wait_no_replica;
+RESET PERSIST IF EXISTS rpl_semi_sync_source_wait_point;
+RESET PERSIST IF EXISTS rpl_semi_sync_replica_enabled;
+RESET PERSIST IF EXISTS rpl_semi_sync_replica_trace_level;
 RESET PERSIST IF EXISTS rpl_stop_replica_timeout;
 RESET PERSIST IF EXISTS session_track_gtids;
 RESET PERSIST IF EXISTS replica_allow_batching;
@@ -282,6 +282,6 @@ include/assert.inc ['Expect 0 persisted variables.']
 
 ############################################################
 # 4. Clean up.
-UNINSTALL PLUGIN rpl_semi_sync_master;
-UNINSTALL PLUGIN rpl_semi_sync_slave;
+UNINSTALL PLUGIN rpl_semi_sync_source;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
 DROP TABLE rplvars;

@@ -1,0 +1,70 @@
+
+#
+# exists as a global only
+#
+# 2010-01-21 OBN - Added 
+#
+#
+source include/have_semisync_plugin.inc;
+# The following is to prevent a mis-match on windows that has the name of of the lib ending with 'dll' 
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
+select @@global.rpl_semi_sync_source_enabled;
+SET @start_global_value = @@global.rpl_semi_sync_source_enabled;
+
+select @@global.rpl_semi_sync_source_enabled in (0,1);
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.rpl_semi_sync_source_enabled;
+show global variables like 'rpl_semi_sync_source_enabled';
+show session variables like 'rpl_semi_sync_source_enabled';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_source_enabled';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_source_enabled';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global rpl_semi_sync_source_enabled=0;
+--error ER_GLOBAL_VARIABLE
+set session rpl_semi_sync_source_enabled=0;
+select @@global.rpl_semi_sync_source_enabled;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.rpl_semi_sync_source_enabled;
+show global variables like 'rpl_semi_sync_source_enabled';
+show session variables like 'rpl_semi_sync_source_enabled';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_source_enabled';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_source_enabled';
+--enable_warnings
+set global rpl_semi_sync_source_enabled=1;
+--error ER_GLOBAL_VARIABLE
+set session rpl_semi_sync_source_enabled=1;
+select @@global.rpl_semi_sync_source_enabled;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.rpl_semi_sync_source_enabled;
+show global variables like 'rpl_semi_sync_source_enabled';
+show session variables like 'rpl_semi_sync_source_enabled';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_source_enabled';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_source_enabled';
+--enable_warnings
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global rpl_semi_sync_source_enabled=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global rpl_semi_sync_source_enabled=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global rpl_semi_sync_source_enabled="some text";
+
+
+#
+# Cleanup
+#
+SET @@global.rpl_semi_sync_source_enabled = @start_global_value;
+select @@global.rpl_semi_sync_source_enabled;
+UNINSTALL PLUGIN rpl_semi_sync_source;
+

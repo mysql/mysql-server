@@ -88,8 +88,8 @@ class ReplSemiSyncSlave : public ReplSemiSyncBase {
 };
 
 /* System and status variables for the slave component */
-extern bool rpl_semi_sync_slave_enabled;
-extern unsigned long rpl_semi_sync_slave_trace_level;
-extern char rpl_semi_sync_slave_status;
+extern bool rpl_semi_sync_replica_enabled;
+extern unsigned long rpl_semi_sync_replica_trace_level;
+extern char rpl_semi_sync_replica_status;
 
 #endif /* SEMISYNC_REPLICA_H */
