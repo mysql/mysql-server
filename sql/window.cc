@@ -1077,19 +1077,25 @@ void Window::eliminate_unused_objects(List<Window> &windows) {
           }
         }
         if (window_used) break;
+        // We check if partition by or order by of this window has subqueries.
+        // If so, we cannot remove this window. Removing subqueries would need
+        // removal of their entries in ref_item_array (added when setting up
+        // order by/partition by fields in find_order_in_list).
+        for (PT_order_list *it : {w1->m_partition_by, w1->m_order_by}) {
+          if (it != nullptr) {
+            for (ORDER *o = it->value.first; o != nullptr; o = o->next) {
+              if ((*o->item)->has_subquery()) {
+                window_used = true;
+                break;
+              }
+            }
+          }
+          if (window_used) break;
+        }
       }
       if (!window_used) {
         w1->cleanup();
         w1->destroy();
-        for (PT_order_list *it : {w1->m_partition_by, w1->m_order_by}) {
-          if (it != nullptr) {
-            for (ORDER *o = it->value.first; o != nullptr; o = o->next) {
-              Item *item = *o->item;
-              item->walk(&Item::clean_up_after_removal,
-                         enum_walk::SUBQUERY_POSTFIX, nullptr);
-            }
-          }
-        }
         wi1.remove();
       }
     }
