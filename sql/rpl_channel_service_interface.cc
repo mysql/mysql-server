@@ -1011,9 +1011,9 @@ int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker) {
 
     const char *proc_info = thd->get_proc_info();
     if (proc_info) {
-      const char *stage_name = stage_slave_has_read_all_relay_log.m_name;
+      const char *stage_name = stage_replica_has_read_all_relay_log.m_name;
       if (worker)
-        stage_name = stage_slave_waiting_event_from_coordinator.m_name;
+        stage_name = stage_replica_waiting_event_from_coordinator.m_name;
 
       if (!strcmp(proc_info, stage_name)) result = 1;
     }

@@ -143,7 +143,7 @@ while (!$slave_value)
   {
     query_vertical show slave status;
     select count_received_heartbeats from performance_schema.replication_connection_status;
-    --die ERROR: failed while waiting for slave to generate a heartbeat.
+    --die ERROR: failed while waiting for replica to generate a heartbeat.
     exit;
   }
   sleep 0.1;

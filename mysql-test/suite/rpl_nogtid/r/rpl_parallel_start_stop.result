@@ -8,7 +8,7 @@ call mtr.add_suppression("Slave SQL for channel '':.* Could not execute Update_r
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 create view worker_proc_list as SELECT id  from Information_Schema.processlist
 where state like 'Waiting for an event from Coordinator';
-create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Slave has read all relay log%';
+create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Replica has read all relay log%';
 include/stop_slave.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;

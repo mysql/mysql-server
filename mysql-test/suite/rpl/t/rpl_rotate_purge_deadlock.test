@@ -86,7 +86,7 @@ eval kill query $_tid;
 #
 let $wait_condition=
   SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
-    WHERE command like 'Binlog Dump%' and STATE like "Master has sent all binlog to slave%";
+    WHERE command like 'Binlog Dump%' and STATE like "Source has sent all binlog to replica%";
 --source include/wait_condition_or_abort.inc
 
 SET DEBUG_SYNC = 'now SIGNAL rotated';

@@ -604,7 +604,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
   set_timespec_nsec(&abstime, static_cast<ulonglong>(timeout * 1000000000ULL));
   mysql_mutex_lock(&data_lock);
   thd->ENTER_COND(&data_cond, &data_lock,
-                  &stage_waiting_for_the_slave_thread_to_advance_position,
+                  &stage_waiting_for_the_replica_thread_to_advance_position,
                   &old_stage);
   /*
      This function will abort when it notices that some CHANGE MASTER or
@@ -711,7 +711,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
 
     // wait for master update, with optional timeout.
 
-    DBUG_PRINT("info", ("Waiting for master update"));
+    DBUG_PRINT("info", ("Waiting for source update"));
     /*
       We are going to mysql_cond_(timed)wait(); if the SQL thread stops it
       will wake us up.
@@ -814,7 +814,7 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
   mysql_mutex_lock(&data_lock);
   if (update_THD_status)
     thd->ENTER_COND(&data_cond, &data_lock,
-                    &stage_waiting_for_the_slave_thread_to_advance_position,
+                    &stage_waiting_for_the_replica_thread_to_advance_position,
                     &old_stage);
   /*
      This function will abort when it notices that some CHANGE MASTER or
@@ -870,7 +870,7 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
     }
     global_sid_lock->unlock();
 
-    DBUG_PRINT("info", ("Waiting for master update"));
+    DBUG_PRINT("info", ("Waiting for source update"));
 
     /*
       We are going to mysql_cond_(timed)wait(); if the SQL thread stops it

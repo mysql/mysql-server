@@ -423,7 +423,7 @@ int Source_IO_monitor::connect_senders(THD *thd,
     uint mi_port = mi->port;
     const std::string mi_network_namespace(mi->network_namespace_str());
 
-    THD_STAGE_INFO(thd, stage_connecting_to_master);
+    THD_STAGE_INFO(thd, stage_connecting_to_source);
     Mysql_connection *conn =
         new Mysql_connection(thd, mi, host, port, mi_network_namespace);
     if (!conn->is_connected()) {

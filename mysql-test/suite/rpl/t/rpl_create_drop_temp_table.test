@@ -62,7 +62,7 @@ CREATE TEMPORARY TABLE temp (i INT);
 # FormatDescription event which tells slave SQL thread to drop all temporary
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= = 'Slave has read all relay log; waiting for more updates';
+--let $condition= = 'Replica has read all relay log; waiting for more updates';
 --source include/wait_show_condition.inc
 
 # 8.Now if we verify replica_open_temp_tables, it should be '0'

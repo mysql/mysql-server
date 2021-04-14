@@ -45,8 +45,8 @@
 --let $assert_cond= $time_diff >= $delay
 --source include/assert.inc
 
---let $assert_text= Status should not be 'Waiting until MASTER_DELAY seconds after master executed event'
---let $assert_cond= NOT("[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Waiting until % seconds after master executed event")
+--let $assert_text= Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event'
+--let $assert_cond= NOT("[SHOW SLAVE STATUS, Slave_SQL_Running_State, 1]" LIKE "Waiting until % seconds after source executed event")
 --source include/assert.inc
 
 --source include/rpl_connection_master.inc

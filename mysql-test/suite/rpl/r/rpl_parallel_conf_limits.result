@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 create view coord_wait_list as
 SELECT id from Information_Schema.processlist
-where state like 'Waiting for Slave Worker%';
+where state like 'Waiting for Replica Worker%';
 include/stop_slave.inc
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 4;

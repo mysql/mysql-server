@@ -1249,7 +1249,7 @@ int testWorker(NDBT_Context* ctx, NDBT_Step* step)
           ndbout_c("Worker : Error restarting Slave.");
           return NDBT_FAILED;
         }
-        ndbout_c("Worker : Waiting for slave to recover...");
+        ndbout_c("Worker : Waiting for replica to recover...");
         if (restarter.waitNodesStarted(&slave_nodeid, 1))
         {
           ndbout_c("Worker : Error waiting for Slave restart");

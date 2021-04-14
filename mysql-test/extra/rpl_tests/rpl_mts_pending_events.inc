@@ -88,7 +88,7 @@ if (!$tables_involved_in_test)
 --let $assert_cond= [SELECT count(*) FROM information_schema.processlist WHERE state = "Waiting for table metadata lock"] = 1
 --source include/assert.inc
 
---let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE state = "Waiting for Slave Workers to free pending events"
+--let $wait_condition= SELECT count(*) = 1 FROM information_schema.processlist WHERE state = "Waiting for Replica Workers to free pending events"
 --source include/wait_condition.inc
 
 --echo #

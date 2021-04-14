@@ -40,8 +40,8 @@
 extern ReplSemiSyncMaster *repl_semisync;
 
 #ifdef HAVE_PSI_INTERFACE
-extern PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave;
-extern PSI_stage_info stage_waiting_for_semi_sync_slave;
+extern PSI_stage_info stage_waiting_for_semi_sync_ack_from_replica;
+extern PSI_stage_info stage_waiting_for_semi_sync_replica;
 extern PSI_stage_info stage_reading_semi_sync_ack;
 extern PSI_mutex_key key_ss_mutex_Ack_receiver_mutex;
 extern PSI_cond_key key_ss_cond_Ack_receiver_cond;
@@ -227,7 +227,7 @@ inline void Ack_receiver::set_stage_info(
 }
 
 inline void Ack_receiver::wait_for_slave_connection() {
-  set_stage_info(stage_waiting_for_semi_sync_slave);
+  set_stage_info(stage_waiting_for_semi_sync_replica);
   mysql_cond_wait(&m_cond, &m_mutex);
 }
 
@@ -266,7 +266,7 @@ void Ack_receiver::run() {
     mysql_mutex_lock(&m_mutex);
     if (unlikely(m_status == ST_STOPPING)) goto end;
 
-    set_stage_info(stage_waiting_for_semi_sync_ack_from_slave);
+    set_stage_info(stage_waiting_for_semi_sync_ack_from_replica);
     if (unlikely(m_slaves_changed)) {
       if (unlikely(m_slaves.empty())) {
         wait_for_slave_connection();

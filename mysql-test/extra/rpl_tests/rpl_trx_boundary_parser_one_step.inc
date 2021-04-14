@@ -82,7 +82,7 @@ BEGIN;
 --eval INSERT INTO $table VALUES (@val)
 COMMIT;
 
-# Waiting for slave IO thread to stop
+# Waiting for replica IO thread to stop
 --source include/rpl_connection_slave.inc
 --source include/wait_for_slave_io_to_stop.inc
 
