@@ -61,7 +61,7 @@ source include/assert.inc;
 
 let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_connection_status)`;
 let $assert_text= thread_name should should indicate io thread.;
-let $assert_cond= "$thread_name" = "thread/sql/slave_io";
+let $assert_cond= "$thread_name" = "thread/sql/replica_io";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_IO_Running, 1);

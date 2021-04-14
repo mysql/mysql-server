@@ -35,7 +35,7 @@ COMMIT;
 --source include/rpl_connection_slave.inc
 
 # wait for the applier to block on the lock
---let $wait_condition = SELECT count(*) = 1 FROM performance_schema.threads WHERE processlist_state = "Waiting for table metadata lock" AND name IN ('thread/sql/slave_sql', "thread/sql/slave_worker")
+--let $wait_condition = SELECT count(*) = 1 FROM performance_schema.threads WHERE processlist_state = "Waiting for table metadata lock" AND name IN ('thread/sql/replica_sql', "thread/sql/replica_worker")
 --source include/wait_condition.inc
 
 # assert that SOURCE_POS_WAIT exits with error

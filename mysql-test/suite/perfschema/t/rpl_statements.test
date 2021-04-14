@@ -104,7 +104,7 @@ sync_slave_with_master;
 --echo *** Verify row, get replication thread id, clear statement events
 --echo
 
-# TODO: Get slave thread id from threads using thread/sql/slave_sql event name
+# TODO: Get slave thread id from threads using thread/sql/replica_sql event name
 
 select thread_id into @slave_thread_id from performance_schema.events_statements_history
   where sql_text like '%marker%';
