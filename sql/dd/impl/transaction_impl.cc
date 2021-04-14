@@ -121,7 +121,7 @@ bool Open_dictionary_tables_ctx::open_tables() {
   }
 
   // Lock the tables.
-  if (lock_tables(m_thd, table_list, counter, flags)) return true;
+  if (lock_dictionary_tables(m_thd, table_list, counter, flags)) return true;
 
   return false;
 }
