@@ -2102,7 +2102,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
       global_gtid_mode.get() != Gtid_mode::ON) {
     /*
       This function may be called either during server start (when
-      --skip-start-slave is not used) or during START SLAVE. The error should
+      --skip-start-replica is not used) or during START SLAVE. The error should
       only be generated during START SLAVE. During server start, an error has
       already been written to the log for this case (in init_replica).
     */
@@ -2174,7 +2174,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
   if (!is_error && (thread_mask & SLAVE_SQL)) {
     /*
       MTS-recovery gaps gathering is placed onto common execution path
-      for either START-SLAVE and --skip-start-slave= 0
+      for either START-SLAVE and --skip-start-replica= 0
     */
     if (mi->rli->recovery_parallel_workers != 0) {
       if (mts_recovery_groups(mi->rli)) {
