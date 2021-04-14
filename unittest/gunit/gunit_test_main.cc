@@ -31,6 +31,8 @@
 #endif
 #include <sys/types.h>
 
+#include "gunit_test_main.h"
+
 #include "my_getopt.h"
 #include "my_inttypes.h"
 #include "my_stacktrace.h"
@@ -116,15 +118,18 @@ static void init_signal_handling() {
 
 #endif
 
-// Some globals needed for merge_small_tests.cc
+// Some globals needed for "small" tests.
 mysql_mutex_t LOCK_open;
 uint opt_debug_sync_timeout = 0;
 thread_local MEM_ROOT **THR_MALLOC = nullptr;
 thread_local THD *current_thd = nullptr;
-// Needed for linking with opt_costconstantcache.cc and Fake_Cost_model_server
-Cost_constant_cache *cost_constant_cache = nullptr;
+size_t malloc_chunk_size = 1024;
 
 extern "C" void sql_alloc_error_handler(void) { ADD_FAILURE(); }
+
+int compare_malloc_chunks(void *a, void *b, size_t sz) {
+  return memcmp(a, b, sz);
+}
 
 int main(int argc, char **argv) {
   ::testing::InitGoogleTest(&argc, argv);

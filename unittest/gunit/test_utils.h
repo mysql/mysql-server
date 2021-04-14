@@ -38,12 +38,6 @@ class THD;
 class my_decimal;
 struct MEM_ROOT;
 
-extern thread_local THD *current_thd;
-extern thread_local MEM_ROOT **THR_MALLOC;
-extern mysql_mutex_t LOCK_open;
-extern uint opt_debug_sync_timeout;
-extern "C" void sql_alloc_error_handler(void);
-
 namespace my_testing {
 
 inline int native_compare(size_t *length, unsigned char **a,

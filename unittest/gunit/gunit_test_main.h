@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,22 +20,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <gtest/gtest.h>
+#include "my_inttypes.h"
+#include "my_sys.h"
 
-#include "unittest/gunit/parsertest.h"
-#include "unittest/gunit/test_utils.h"
+class THD;
+struct MEM_ROOT;
 
-namespace into_syntax_unittest {
+// Some globals needed for "small" tests.
 
-using my_testing::Mock_error_handler;
-using my_testing::Server_initializer;
+extern mysql_mutex_t LOCK_open;
+extern uint opt_debug_sync_timeout;
+extern thread_local MEM_ROOT **THR_MALLOC;
+extern thread_local THD *current_thd;
+extern size_t malloc_chunk_size;
 
-class IntoSyntaxTest : public ParserTest {};
-
-TEST_F(IntoSyntaxTest, Outer) {
-  Query_block *term = parse("SELECT 1 INTO @v");
-  Query_expression *top_union = term->master_query_expression();
-  EXPECT_EQ(nullptr, top_union->outer_query_block());
-}
-
-}  // namespace into_syntax_unittest
+extern "C" void sql_alloc_error_handler(void);
+extern int compare_malloc_chunks(void *a, void *b, size_t);

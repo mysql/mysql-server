@@ -29,7 +29,7 @@
 #include "my_inttypes.h"
 #include "sql/filesort_utils.h"
 #include "unittest/gunit/benchmark.h"
-#include "unittest/gunit/test_utils.h"
+#include "unittest/gunit/gunit_test_main.h"
 
 namespace filesort_compare_unittest {
 

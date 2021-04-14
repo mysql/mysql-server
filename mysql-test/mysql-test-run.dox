@@ -8195,7 +8195,7 @@
 
   @section SECTION_WRITING_UNIT_TESTS Writing Unit Tests for Google Test
 
-  The Google Test unit test files are located in the
+  Most of The Google Test unit test files are located in the
   <b>unittest/gunit</b> directory. You can look at these files to
   see how tests are written. Here are some examples:
 
@@ -8210,11 +8210,6 @@
   Most MyTAP-based tests are likely easily converted to Google Test.
   However, there might be low-level tests that absolutely must be run
   on every platform, and thus require MyTAP.
-
-  As currently implemented, the Google Test unit-test programs produce
-  TAP output rather than the “plain” alternative. This can be disabled
-  by using the <b>`--disable-tap-output`</b> command-line option
-  when running a test executable.
 
   To see what options are available, run a test executable with the
   <b>`--help`</b> option.

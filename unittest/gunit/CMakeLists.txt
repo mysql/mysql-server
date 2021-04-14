@@ -125,14 +125,16 @@ ADD_DEFINITIONS(-DDATA_DIR="${CMAKE_CURRENT_BINARY_DIR}")
 # Add tests (link them with gunit/gmock libraries)
 SET(TESTS
   alignment
-  bounds_checked_array
   bitmap
-  charset_bug28956360
+  bounds_checked_array
   byteorder
   calloc
+  charset_bug28956360
+  collation_loader
   cost_estimate
   dbug
   decimal
+  dns_srv_data
   dphyp
   dynarray
   filesort_buffer
@@ -147,11 +149,14 @@ SET(TESTS
   m_string
   mdl
   mem_root_deque
+  my_alloc
   my_bitmap
   my_error
   my_fileutils
   my_murmur3
+  my_rcu_lock
   my_thread
+  my_timer
   mysys_base64
   mysys_lf
   mysys_my_b_vprintf
@@ -162,10 +167,10 @@ SET(TESTS
   mysys_my_malloc
   mysys_my_pwrite
   mysys_my_rdtsc
+  mysys_my_read
   mysys_my_symlink
   mysys_my_time
   mysys_my_write
-  mysys_my_read
   mysys_pathfuncs
   nullable
   opt_recperkey
@@ -173,30 +178,25 @@ SET(TESTS
   pattern_matcher
   prealloced_array
   priority_queue
+  pump_object_filter
   record_buffer
-  stream_cipher
   sql_class_header
   sql_list
   sql_plist
   sql_string
   stl_alloc
+  stream_cipher
   strings_skip_trailing
   strings_strnxfrm
   strings_utf8
   strings_valid_check
   strtoll
-  thread_utils
-  my_timer
   template_utils
+  thread_utils
   timespec
-  my_alloc
-  pump_object_filter
+  unhex
   val_int_compare
   varlen_sort
-  collation_loader
-  my_rcu_lock
-  unhex
-  dns_srv_data
   )
 
 SET(ALL_SMALL_TESTS)
@@ -219,6 +219,7 @@ SET(SERVER_TESTS
   dd_string_type
   dd_table
   debug_sync
+  decoy_user
   explain_filename
   field
   get_diagnostics
@@ -252,8 +253,8 @@ SET(SERVER_TESTS
   item_filter
   item_func_case
   item_func_now_local
-  item_json_func
   item_func_regexp
+  item_json_func
   item_like
   item_timefunc
   join_syntax
@@ -263,8 +264,8 @@ SET(SERVER_TESTS
   json_path
   locking_clause_syntax
   locking_service
-  log_timestamp
   log_throttle
+  log_timestamp
   make_sortkey
   mdl_sync
   my_decimal
@@ -281,11 +282,12 @@ SET(SERVER_TESTS
   security_context
   segfault
   select_lex_visitor
+  sha2_password
   sql_table
   subquery_syntax
   table_cache
-  table_list
   table_factor_syntax
+  table_list
   tc_log_mmap
   temptable_allocator
   temptable_storage
@@ -294,8 +296,6 @@ SET(SERVER_TESTS
   unique
   value_map
   wild_case_compare
-  sha2_password
-  decoy_user
 )
 
 IF(WIN32)
