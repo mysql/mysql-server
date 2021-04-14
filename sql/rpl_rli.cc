@@ -229,7 +229,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
     mysql_mutex_init(key_mta_temp_table_LOCK, &mts_temp_table_LOCK,
                      MY_MUTEX_INIT_FAST);
     mysql_mutex_init(key_mta_gaq_LOCK, &mts_gaq_LOCK, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond_mts_gaq, &logical_clock_cond);
+    mysql_cond_init(key_cond_mta_gaq, &logical_clock_cond);
 
     relay_log.init_pthread_objects();
     force_flush_postponed_due_to_split_trans = false;

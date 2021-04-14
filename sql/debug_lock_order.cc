@@ -460,7 +460,7 @@ static bool g_with_rwlock = true;
   For example:
 
   @verbatim
-  BIND "cond/sql/Master_info::start_cond" TO "mutex/sql/Source_info::run_lock" FLAGS UNFAIR
+  BIND "cond/sql/Source_info::start_cond" TO "mutex/sql/Source_info::run_lock" FLAGS UNFAIR
   @endverbatim
 
   @subsubsection LO_DEP_FILE File nodes

@@ -273,7 +273,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli,
   mysql_mutex_init(key_mutex_slave_parallel_worker, &jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_worker, &jobs_cond);
-  mysql_cond_init(key_cond_mts_gaq, &logical_clock_cond);
+  mysql_cond_init(key_cond_mta_gaq, &logical_clock_cond);
 }
 
 Slave_worker::~Slave_worker() {
