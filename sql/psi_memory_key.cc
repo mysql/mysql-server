@@ -74,10 +74,10 @@ PSI_memory_key key_memory_xa_recovered_transactions;
 PSI_memory_key key_memory_Row_data_memory_memory;
 PSI_memory_key key_memory_Rpl_info_file_buffer;
 PSI_memory_key key_memory_Rpl_info_table;
-PSI_memory_key key_memory_SLAVE_INFO;
+PSI_memory_key key_memory_REPLICA_INFO;
 PSI_memory_key key_memory_ST_SCHEMA_TABLE;
 PSI_memory_key key_memory_Slave_applier_json_diff_vector;
-PSI_memory_key key_memory_Slave_job_group_group_relay_log_name;
+PSI_memory_key key_memory_Replica_job_group_group_relay_log_name;
 PSI_memory_key key_memory_Sys_var_charptr_value;
 PSI_memory_key key_memory_TABLE;
 PSI_memory_key key_memory_TABLE_RULE_ENT;
@@ -131,10 +131,10 @@ PSI_memory_key key_memory_quick_ror_union_select_root;
 PSI_memory_key key_memory_rm_db_mdl_reqs_root;
 PSI_memory_key key_memory_rm_table_foreach_table_root;
 PSI_memory_key key_memory_rpl_filter;
-PSI_memory_key key_memory_rpl_slave_check_temp_dir;
+PSI_memory_key key_memory_rpl_replica_check_temp_dir;
 PSI_memory_key key_memory_servers;
 PSI_memory_key key_memory_shared_memory_name;
-PSI_memory_key key_memory_show_slave_status_io_gtid_set;
+PSI_memory_key key_memory_show_replica_status_io_gtid_set;
 PSI_memory_key key_memory_sp_head_call_root;
 PSI_memory_key key_memory_sp_head_execute_root;
 PSI_memory_key key_memory_sp_head_main_root;
@@ -219,8 +219,8 @@ static PSI_memory_info all_server_memory[] = {
     {&key_memory_queue_item, "Queue::queue_item", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_THD_db, "THD::db", 0, 0, "Name of currently used schema."},
     {&key_memory_user_var_entry, "user_var_entry", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_Slave_job_group_group_relay_log_name,
-     "Slave_job_group::group_relay_log_name", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_Replica_job_group_group_relay_log_name,
+     "Replica_job_group::group_relay_log_name", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_binlog_cache_mngr, "binlog_cache_mngr", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_Row_data_memory_memory, "Row_data_memory::memory", 0, 0,
      PSI_DOCUMENT_ME},
@@ -301,9 +301,9 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_db_worker_hash_entry, "db_worker_hash_entry", 0, 0,
      PSI_DOCUMENT_ME},
-    {&key_memory_rpl_slave_check_temp_dir, "rpl_slave::check_temp_dir", 0, 0,
-     PSI_DOCUMENT_ME},
-    {&key_memory_SLAVE_INFO, "SLAVE_INFO", 0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_rpl_replica_check_temp_dir, "rpl_replica::check_temp_dir", 0,
+     0, PSI_DOCUMENT_ME},
+    {&key_memory_REPLICA_INFO, "REPLICA_INFO", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_binlog_pos, "binlog_pos", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_HASH_ROW_ENTRY, "HASH_ROW_ENTRY", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_binlog_statement_buffer, "binlog_statement_buffer", 0, 0,
@@ -367,8 +367,8 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_THD_Session_sysvar_resource_manager,
      "THD::Session_sysvar_resource_manager", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_show_slave_status_io_gtid_set, "show_slave_status_io_gtid_set",
-     0, 0, PSI_DOCUMENT_ME},
+    {&key_memory_show_replica_status_io_gtid_set,
+     "show_replica_status_io_gtid_set", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_write_set_extraction, "write_set_extraction", 0, 0,
      PSI_DOCUMENT_ME},
     {&key_memory_JSON, "JSON", 0, 0, PSI_DOCUMENT_ME},

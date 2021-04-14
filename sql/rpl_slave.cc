@@ -455,7 +455,7 @@ void unlock_slave_threads(Master_info *mi) {
 
 #ifdef HAVE_PSI_INTERFACE
 
-static PSI_memory_key key_memory_rli_mts_coor;
+static PSI_memory_key key_memory_rli_mta_coor;
 
 static PSI_thread_key key_thread_replica_io, key_thread_replica_sql,
     key_thread_replica_worker, key_thread_replica_monitor_io;
@@ -470,8 +470,8 @@ static PSI_thread_info all_slave_threads[] = {
     {&key_thread_replica_monitor_io, "replica_monitor",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME}};
 
-static PSI_memory_info all_slave_memory[] = {{&key_memory_rli_mts_coor,
-                                              "Relay_log_info::mts_coor", 0, 0,
+static PSI_memory_info all_slave_memory[] = {{&key_memory_rli_mta_coor,
+                                              "Relay_log_info::mta_coor", 0, 0,
                                               PSI_DOCUMENT_ME}};
 
 static void init_replica_psi_keys(void) {
@@ -3756,7 +3756,7 @@ bool show_slave_status(THD *thd) {
   num_io_gtid_sets = channel_map.get_num_instances();
 
   io_gtid_set_buffer_array =
-      (char **)my_malloc(key_memory_show_slave_status_io_gtid_set,
+      (char **)my_malloc(key_memory_show_replica_status_io_gtid_set,
                          num_io_gtid_sets * sizeof(char *), MYF(MY_WME));
 
   if (io_gtid_set_buffer_array == nullptr) return true;
@@ -5914,7 +5914,7 @@ static int check_temp_dir(char *tmp_file, const char *channel_name) {
   constexpr uint size_of_tmp_file_name = 768;
   static_assert(size_of_tmp_file_name >= FN_REFLEN + TEMP_FILE_MAX_LEN, "");
   char *unique_tmp_file_name = (char *)my_malloc(
-      key_memory_rpl_slave_check_temp_dir, size_of_tmp_file_name, MYF(0));
+      key_memory_rpl_replica_check_temp_dir, size_of_tmp_file_name, MYF(0));
   /*
     In the case of Multisource replication, the file create
     sometimes fail because of there is a race that a second SQL
