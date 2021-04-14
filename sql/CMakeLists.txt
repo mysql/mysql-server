@@ -939,7 +939,7 @@ ADD_DEPENDENCIES(binlog GenError)
 ADD_LIBRARY(rpl STATIC ${RPL_SOURCE})
 TARGET_LINK_LIBRARIES(rpl sql_main)
 
-SET (MASTER_SOURCE rpl_master.cc rpl_binlog_sender.cc binlog_reader.cc)
+SET (MASTER_SOURCE rpl_source.cc rpl_binlog_sender.cc binlog_reader.cc)
 ADD_DEPENDENCIES(rpl GenError)
 ADD_LIBRARY(master STATIC ${MASTER_SOURCE})
 ADD_DEPENDENCIES(master GenError)
@@ -968,14 +968,14 @@ SET (SLAVE_SOURCE
   rpl_io_monitor.cc
   rpl_mi.cc
   rpl_msr.cc
-  rpl_mts_submode.cc
+  rpl_mta_submode.cc
   rpl_mysql_connect.cc
   rpl_reporting.cc
   rpl_rli.cc
   rpl_rli_pdb.cc
-  rpl_slave.cc
-  rpl_slave_commit_order_manager.cc
-  rpl_slave_until_options.cc
+  rpl_replica.cc
+  rpl_replica_commit_order_manager.cc
+  rpl_replica_until_options.cc
   rpl_sys_key_access.cc
   rpl_sys_table_access.cc
   rpl_trx_boundary_parser.cc

@@ -128,8 +128,8 @@
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_rli.h"                         // rli_slave etc
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_rli.h"                           // rli_slave etc
 #include "sql/session_tracker.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_alter.h"

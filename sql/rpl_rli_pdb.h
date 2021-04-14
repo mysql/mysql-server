@@ -45,9 +45,9 @@
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/log_event.h"     // Format_description_log_event
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_replica.h"      // MTS_WORKER_UNDEF
 #include "sql/rpl_rli.h"          // Relay_log_info
-#include "sql/rpl_slave.h"        // MTS_WORKER_UNDEF
 #include "sql/sql_class.h"
 #include "sql/system_variables.h"
 

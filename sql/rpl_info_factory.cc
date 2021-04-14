@@ -50,9 +50,9 @@
 #include "sql/rpl_info_table_access.h"  // Rpl_info_table_access
 #include "sql/rpl_mi.h"                 // Master_info
 #include "sql/rpl_msr.h"                // channel_map
-#include "sql/rpl_rli.h"                // Relay_log_info
-#include "sql/rpl_rli_pdb.h"            // Slave_worker
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
+#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_rli_pdb.h"  // Slave_worker
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/system_variables.h"

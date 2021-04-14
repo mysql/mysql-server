@@ -100,11 +100,11 @@
 #include "sql/record_buffer.h"  // Record_buffer
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_handler.h"  // RUN_HOOK
-#include "sql/rpl_rli.h"      // is_atomic_ddl_commit_on_slave
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
-#include "sql/rpl_write_set_handler.h"           // add_pke
-#include "sql/sdi_utils.h"                       // import_serialized_meta_data
+#include "sql/rpl_handler.h"                       // RUN_HOOK
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_rli.h"                // is_atomic_ddl_commit_on_slave
+#include "sql/rpl_write_set_handler.h"  // add_pke
+#include "sql/sdi_utils.h"              // import_serialized_meta_data
 #include "sql/session_tracker.h"
 #include "sql/sql_base.h"  // free_io_cache
 #include "sql/sql_bitmap.h"

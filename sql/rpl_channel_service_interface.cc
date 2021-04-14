@@ -60,10 +60,10 @@
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h" /* Multisource replication */
-#include "sql/rpl_mts_submode.h"
+#include "sql/rpl_mta_submode.h"
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
 #include "sql/rpl_rli_pdb.h"
-#include "sql/rpl_slave.h"
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/sql_class.h"
 #include "sql/sql_lex.h"

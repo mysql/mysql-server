@@ -74,9 +74,9 @@
 #include "sql/protocol_classic.h"
 #include "sql/rpl_group_replication.h"  // is_group_replication_running
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
-#include "sql/sp.h"                              // Sroutine_hash_entry
-#include "sql/sp_rcontext.h"                     // sp_rcontext
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
+#include "sql/sp.h"                                // Sroutine_hash_entry
+#include "sql/sp_rcontext.h"                       // sp_rcontext
 #include "sql/sql_alter.h"
 #include "sql/sql_alter_instance.h"  // Alter_instance
 #include "sql/sql_backup_lock.h"     // acquire_shared_backup_lock

@@ -49,8 +49,8 @@
 #include "sql/protocol_classic.h"
 #include "sql/query_options.h"
 #include "sql/resourcegroups/platform/thread_attrs_api.h"  // num_vcpus
-#include "sql/rpl_rli.h"                                   // is_mts_worker
-#include "sql/rpl_slave_commit_order_manager.h"  // check_and_report_deadlock
+#include "sql/rpl_replica_commit_order_manager.h"  // check_and_report_deadlock
+#include "sql/rpl_rli.h"                           // is_mts_worker
 #include "sql/sql_alter.h"
 #include "sql/sql_callback.h"  // MYSQL_CALLBACK
 #include "sql/sql_class.h"     // THD

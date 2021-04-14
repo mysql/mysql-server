@@ -84,7 +84,7 @@
 #include "sql/mysqld.h"          // key_file_misc
 #include "sql/psi_memory_key.h"  // key_memory_THD_db
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
 #include "sql/session_tracker.h"
 #include "sql/sp.h"         // lock_db_routines
 #include "sql/sql_base.h"   // lock_table_names

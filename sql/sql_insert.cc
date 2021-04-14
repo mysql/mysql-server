@@ -78,8 +78,8 @@
 #include "sql/partition_info.h"  // partition_info
 #include "sql/protocol.h"
 #include "sql/query_options.h"
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // rpl_master_has_bug
+#include "sql/rpl_replica.h"  // rpl_master_has_bug
+#include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/sql_alter.h"
 #include "sql/sql_array.h"
 #include "sql/sql_base.h"  // setup_fields

@@ -126,7 +126,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "sql/resourcegroups/platform/thread_attrs_api.h"
 #include "sql/resourcegroups/resource_group_basic_types.h"
 #include "sql/rpl_filter.h"
-#include "sql/rpl_slave.h"                       // Sql_cmd_change_repl_filter
+#include "sql/rpl_replica.h"                       // Sql_cmd_change_repl_filter
 #include "sql/set_var.h"
 #include "sql/sp.h"
 #include "sql/sp_head.h"

@@ -25,7 +25,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "include/sql_common.h"
 #include "mysql/components/services/log_builtins.h"
 #include "sql-common/net_ns.h"
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 
 Mysql_connection::Mysql_connection(THD *thd, Master_info *mi, std::string host,
                                    uint port, std::string network_namespace,

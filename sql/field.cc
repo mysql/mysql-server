@@ -70,8 +70,8 @@
 #include "sql/mysqld.h"  // log_10
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
+#include "sql/rpl_replica.h"            // rpl_master_has_bug
 #include "sql/rpl_rli.h"                // Relay_log_info
-#include "sql/rpl_slave.h"              // rpl_master_has_bug
 #include "sql/spatial.h"                // Geometry
 #include "sql/sql_class.h"              // THD
 #include "sql/sql_exception_handler.h"  // handle_std_exception

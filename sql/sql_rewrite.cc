@@ -86,8 +86,8 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // GRANT_ACL
 #include "sql/handler.h"
-#include "sql/log_event.h"  // append_query_string
-#include "sql/rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
+#include "sql/log_event.h"    // append_query_string
+#include "sql/rpl_replica.h"  // SLAVE_SQL, SLAVE_IO
 #include "sql/set_var.h"
 #include "sql/sql_admin.h"  // Sql_cmd_clone
 #include "sql/sql_class.h"  // THD
@@ -1312,7 +1312,7 @@ bool Rewriter_change_replication_source::rewrite(String &rlb) const {
   }
   comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_PORT ="),
                      lex->mi.port, lex->mi.port > 0);
-  // condition as per rpl_slave.cc
+  // condition as per rpl_replica.cc
   comma = append_int(&rlb, comma, STRING_WITH_LEN("SOURCE_CONNECT_RETRY ="),
                      lex->mi.connect_retry, lex->mi.connect_retry > 0);
   comma = append_int(

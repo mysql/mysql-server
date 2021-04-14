@@ -29,7 +29,7 @@
 #include "sql/protocol_classic.h"
 #include "sql/rpl_async_conn_failover.h"  // reset_pos
 #include "sql/rpl_msr.h"                  /* Multisource replication */
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 #include "sql/rpl_sys_key_access.h"
 #include "sql/rpl_sys_table_access.h"
 #include "sql/sql_class.h"  // THD

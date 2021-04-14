@@ -21,7 +21,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/semisync/semisync_master.h"
+#include "plugin/semisync/semisync_source.h"
 
 #include <assert.h>
 #include <time.h>

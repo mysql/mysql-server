@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "sql/rpl_mts_submode.h"
+#include "sql/rpl_mta_submode.h"
 
 #include <limits.h>
 #include <string.h>
@@ -50,11 +50,11 @@
 #include "sql/mysqld.h"  // stage_worker_....
 #include "sql/query_options.h"
 #include "sql/rpl_filter.h"
-#include "sql/rpl_rli.h"      // Relay_log_info
-#include "sql/rpl_rli_pdb.h"  // db_worker_hash_entry
-#include "sql/rpl_slave.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
-#include "sql/sql_class.h"                       // THD
+#include "sql/rpl_replica.h"
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_rli.h"                           // Relay_log_info
+#include "sql/rpl_rli_pdb.h"                       // db_worker_hash_entry
+#include "sql/sql_class.h"                         // THD
 #include "sql/system_variables.h"
 #include "sql/table.h"
 

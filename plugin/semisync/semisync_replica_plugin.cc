@@ -29,7 +29,7 @@
 
 #include "my_inttypes.h"
 #include "my_macros.h"
-#include "plugin/semisync/semisync_slave.h"
+#include "plugin/semisync/semisync_replica.h"
 
 ReplSemiSyncSlave *repl_semisync = nullptr;
 
