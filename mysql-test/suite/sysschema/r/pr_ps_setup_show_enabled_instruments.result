@@ -117,7 +117,7 @@ statement/com/Prepare	YES
 statement/com/Processlist	YES
 statement/com/Quit	YES
 statement/com/Refresh	YES
-statement/com/Register Slave	YES
+statement/com/Register Replica	YES
 statement/com/Reset Connection	YES
 statement/com/Reset stmt	YES
 statement/com/Set option	YES

@@ -236,7 +236,7 @@ const LEX_CSTRING command_name[] = {
     {STRING_WITH_LEN("Binlog Dump")},
     {STRING_WITH_LEN("Table Dump")},
     {STRING_WITH_LEN("Connect Out")},
-    {STRING_WITH_LEN("Register Slave")},
+    {STRING_WITH_LEN("Register Replica")},
     {STRING_WITH_LEN("Prepare")},
     {STRING_WITH_LEN("Execute")},
     {STRING_WITH_LEN("Long Data")},
