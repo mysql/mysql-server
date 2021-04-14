@@ -1,0 +1,103 @@
+# ###################################################################
+# Show that local table stats are correctly reflecting number of
+# records in table at failure to insert, both with and without trans
+# - in particular this shows how the "uncomitted rows" value in Thd_ndb
+#   is handled
+CREATE TABLE t1 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE = NDB;
+INSERT INTO t1 VALUES (1, "this is in the way");
+SELECT COUNT(*) as "count should be 1" FROM t1;
+count should be 1
+1
+INSERT INTO t1 VALUES (1, "duplicate key");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+INSERT INTO t1 VALUES
+(2, "val2"), (3, "val3"), (4, "val4"),
+(1, "duplicate key, 3 uncommitted");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+BEGIN;
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+COMMIT;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+BEGIN;
+INSERT INTO t1 VALUES
+(2, "val2"), (3, "val3"), (4, "val4");
+SELECT COUNT(*) as "count should be 4" FROM t1;
+count should be 4
+4
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction, 3 uncommitted");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1, whole trans aborted" FROM t1;
+count should still be 1, whole trans aborted
+1
+COMMIT;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+BEGIN;
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+ROLLBACK;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+BEGIN;
+INSERT INTO t1 VALUES
+(2, "val2"), (3, "val3"), (4, "val4");
+SELECT COUNT(*) as "count should be 4" FROM t1;
+count should be 4
+4
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction, 3 uncommitted");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1, whole trans aborted" FROM t1;
+count should still be 1, whole trans aborted
+1
+ROLLBACK;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+CREATE TABLE t2 (
+a int PRIMARY KEY,
+b varchar(255)
+) ENGINE = NDB;
+INSERT INTO t2 VALUES
+(10, "val10"), (12, "val12"), (13, "val13"), (14, "val14"), (15, "val15");
+BEGIN;
+INSERT INTO t2 VALUES (1, "val1"), (2, "val2"), (3, "val3"), (4, "val4");
+SELECT COUNT(*) as "count should be 9" FROM t2;
+count should be 9
+9
+INSERT INTO t1 VALUES (1, "duplicate key, inside transaction");
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+SELECT COUNT(*) as "count should be 5, trans aborted" FROM t2;
+count should be 5, trans aborted
+5
+COMMIT;
+SELECT COUNT(*) as "count should still be 1" FROM t1;
+count should still be 1
+1
+SELECT COUNT(*) as "count should be 5" FROM t2;
+count should be 5
+5
+DROP TABLE t2;
+DROP TABLE t1;
