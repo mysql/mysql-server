@@ -1,1 +1,1 @@
---skip-core-file --skip-slave-start --relay-log-recovery=1 --innodb-buffer-pool-size=268435456
+--skip-core-file --skip-replica-start --relay-log-recovery=1 --innodb-buffer-pool-size=268435456

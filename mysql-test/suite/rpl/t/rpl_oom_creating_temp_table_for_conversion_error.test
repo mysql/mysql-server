@@ -7,7 +7,7 @@
 #
 # 1. At slave:
 #   a. Add debug point to hit the OOM at slave.
-#   b. Set SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY' to trigger conversion.
+#   b. Set REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY' to trigger conversion.
 # 2. At master, create a table t with tinyint column.
 # 3. At slave, create a table t with int column.
 # 4. At master, insert a row in the table.
@@ -30,9 +30,9 @@ CALL mtr.add_suppression("Slave SQL for channel .*Can.t create conversion table 
 --let $debug_point = simulate_out_of_memory_while_creating_temp_table_for_conversion
 --source include/add_debug_point.inc
 
-#  1b. Set SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY' to trigger conversion.
-SET @saved_global_slave_type_conversions = @@global.SLAVE_TYPE_CONVERSIONS;
-SET @@global.SLAVE_TYPE_CONVERSIONS='ALL_NON_LOSSY';
+#  1b. Set REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY' to trigger conversion.
+SET @saved_global_replica_type_conversions = @@global.REPLICA_TYPE_CONVERSIONS;
+SET @@global.REPLICA_TYPE_CONVERSIONS='ALL_NON_LOSSY';
 
 # 2. At master, create a table t with tinyint column.
 --source include/rpl_connection_master.inc
@@ -51,7 +51,7 @@ INSERT INTO t VALUES (1);
 # 5a. At slave, remove the debug point and restore SLAVE_TYPE_CONVERSION.
 --source include/sync_slave_sql_with_master.inc
 --source include/remove_debug_point.inc
-SET @@global.SLAVE_TYPE_CONVERSIONS = @saved_global_slave_type_conversions;
+SET @@global.REPLICA_TYPE_CONVERSIONS = @saved_global_replica_type_conversions;
 
 # 5b. At slave, verify that ER_SLAVE_CANT_CREATE_CONVERSION occurred.
 --let $assert_text = Found 1 warning in the error log

@@ -25,7 +25,7 @@ INSERT INTO t1 VALUES (3);
 INSERT INTO t1 VALUES (4);
 include/rpl_sync.inc
 #
-# Step-3) If gtid_mode is OFF, set sql_slave_skip_counter to 50 on
+# Step-3) If gtid_mode is OFF, set sql_replica_skip_counter to 50 on
 #         M2 node and restart sql thread to make the change effective.
 #
 #         If gtid_mode is ON, execute 50 empty transactions on
@@ -42,7 +42,7 @@ include/start_slave_sql.inc
 [connection server_2]
 #
 # Step-5) Insert 100 sample queries on M1 node. First 50 inserts will
-#         be ignored on M2 node (because sql_slave_skip_counter set to
+#         be ignored on M2 node (because sql_replica_skip_counter set to
 #         50). Second 50 inserts will be executed on M2 and will be
 #         replicated back to M1 node. But they will be ignored on M1
 #         because they were originated on M1 node.

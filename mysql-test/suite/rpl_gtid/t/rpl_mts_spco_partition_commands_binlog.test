@@ -1,5 +1,5 @@
 # This is wrapper testcase of rpl_mts_spco_partition_commands.test to verify the behavior
-# of commands on partition tables with slave-preserve-commit-order enabled binlog slave.
+# of commands on partition tables with replica-preserve-commit-order enabled binlog slave.
 
 --source include/big_test.inc
 --source include/have_debug.inc

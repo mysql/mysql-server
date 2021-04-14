@@ -1,1 +1,1 @@
---skip-log-bin --log-slave-updates --slave-preserve-commit-order --slave-parallel-workers=4 --slave-parallel-type=LOGICAL_CLOCK
+--skip-log-bin --log-replica-updates --replica-preserve-commit-order --replica-parallel-workers=4 --replica-parallel-type=LOGICAL_CLOCK

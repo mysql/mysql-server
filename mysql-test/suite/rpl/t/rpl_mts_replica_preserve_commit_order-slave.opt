@@ -1,0 +1,2 @@
+--replica-parallel-workers=6 --replica-parallel-type='logical_clock'
+--replica-transaction-retries=0 --replica-preserve-commit-order=1

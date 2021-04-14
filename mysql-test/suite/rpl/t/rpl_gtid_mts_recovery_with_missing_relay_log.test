@@ -25,8 +25,8 @@
 
 # This test case is binlog format agnostic
 --source include/have_binlog_format_row.inc
---source include/have_slave_parallel_type_database.inc
---source include/only_mts_slave_parallel_workers.inc
+--source include/have_replica_parallel_type_database.inc
+--source include/only_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 
 --source include/rpl_connection_slave.inc
@@ -50,7 +50,7 @@ while($k >= 0)
   --source include/rpl_connection_slave.inc
   --let $rpl_server_number= 2
   --let $rpl_start_with_gtids= 1
-  --let $rpl_server_parameters= --skip_slave_start=1 --sync_master_info=1 --relay-log-recovery=$k
+  --let $rpl_server_parameters= --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=$k
   --source include/rpl_start_server.inc
 
   # Due to Bug#29931117, executing START SLAVE after restarting the server
@@ -62,7 +62,7 @@ while($k >= 0)
     START SLAVE;
 
     --echo "Restart server with RELAY_LOG_RECOVERY=ON followed by START SLAVE
-    --let $rpl_server_parameters= --skip_slave_start=1 --sync_master_info=1 --relay-log-recovery=1
+    --let $rpl_server_parameters= --skip_replica_start=1 --sync_source_info=1 --relay-log-recovery=1
     --source include/rpl_restart_server.inc
     --source include/start_slave.inc
   }

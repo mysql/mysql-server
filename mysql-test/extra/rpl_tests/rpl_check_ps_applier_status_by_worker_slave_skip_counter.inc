@@ -15,7 +15,7 @@
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave_sql.inc
-SET GLOBAL sql_slave_skip_counter= 4;
+SET GLOBAL sql_replica_skip_counter= 4;
 
 --source include/rpl_connection_master.inc
 CREATE TABLE t1 (a int);

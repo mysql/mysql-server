@@ -1,4 +1,4 @@
---log-error-verbosity=1 --slave-transaction-retries=0
+--log-error-verbosity=1 --replica-transaction-retries=0
 
 
 

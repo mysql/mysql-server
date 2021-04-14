@@ -2543,7 +2543,7 @@ SERVICE_TYPE(registry) * get_plugin_registry() { return lv.reg_srv; }
   - Binlog enabled
   - Binlog format
   - Gtid mode
-  - LOG_SLAVE_UPDATES
+  - LOG_REPLICA_UPDATES
   - Single primary mode configuration
 
   @return If the operation succeed or failed
@@ -2573,8 +2573,8 @@ static int check_if_server_properly_configured() {
     return 1;
   }
 
-  if (startup_pre_reqs.log_slave_updates != true) {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_LOG_SLAVE_UPDATES_NOT_SET);
+  if (startup_pre_reqs.log_replica_updates != true) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_LOG_REPLICA_UPDATES_NOT_SET);
     return 1;
   }
 
@@ -2609,7 +2609,7 @@ static int check_if_server_properly_configured() {
 
     if (!startup_pre_reqs.parallel_applier_preserve_commit_order) {
       LogPluginErr(WARNING_LEVEL,
-                   ER_GRP_RPL_SLAVE_PRESERVE_COMMIT_ORDER_NOT_SET);
+                   ER_GRP_RPL_REPLICA_PRESERVE_COMMIT_ORDER_NOT_SET);
       return 1;
     }
   }

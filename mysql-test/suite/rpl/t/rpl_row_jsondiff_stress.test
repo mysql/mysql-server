@@ -32,8 +32,8 @@
 #   C1. partial JSON enabled/disabled
 #   C2. binlog_row_image=MINIMAL/NOBLOB/FULL
 #   C3. slave_rows_search_algorithms=INDEX_SCAN/HASH_SCAN/TABLE_SCAN
-#   C4. slave_exec_mode=idempotent/strict
-#!   C5. slave_skip_errors includes expected error, or not
+#   C4. replica_exec_mode=idempotent/strict
+#!   C5. replica_skip_errors includes expected error, or not
 
 
 --source include/have_binlog_format_row.inc
@@ -47,7 +47,7 @@
 SET @old_binlog_row_image= @@GLOBAL.BINLOG_ROW_IMAGE;
 SET @old_binlog_row_value_options= @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS;
 SET @old_slave_rows_search_algorithms= @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS;
-SET @old_slave_exec_mode= @@GLOBAL.SLAVE_EXEC_MODE;
+SET @old_replica_exec_mode= @@GLOBAL.REPLICA_EXEC_MODE;
 
 --source include/rpl_connection_master.inc
 SET @@SESSION.BINLOG_ROW_IMAGE = 'MINIMAL';
@@ -208,17 +208,17 @@ while (!$done)
     SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS = 'HASH_SCAN,TABLE_SCAN';
   }
 
-  if ($verb==3) { echo # Decide slave_exec_mode; }
+  if ($verb==3) { echo # Decide replica_exec_mode; }
   --let $rand_type= decide
   --let $rand_probability= 0.5
   --source include/rand.inc
   --let $idempotent=$rand
   if ($verb>=2) { echo # - idempotent=$idempotent; }
   if ($idempotent) {
-    SET @@GLOBAL.SLAVE_EXEC_MODE = 'IDEMPOTENT';
+    SET @@GLOBAL.REPLICA_EXEC_MODE = 'IDEMPOTENT';
   }
   if (!$idempotent) {
-    SET @@GLOBAL.SLAVE_EXEC_MODE = 'STRICT';
+    SET @@GLOBAL.REPLICA_EXEC_MODE = 'STRICT';
   }
 
   if ($verb<3) { disable_query_log; }
@@ -519,7 +519,7 @@ while (!$done)
 SET @@GLOBAL.BINLOG_ROW_IMAGE= @old_binlog_row_image;
 SET @@GLOBAL.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 SET @@GLOBAL.SLAVE_ROWS_SEARCH_ALGORITHMS= @old_slave_rows_search_algorithms;
-SET @@GLOBAL.SLAVE_EXEC_MODE= @old_slave_exec_mode;
+SET @@GLOBAL.REPLICA_EXEC_MODE= @old_replica_exec_mode;
 
 --disable_query_log
 

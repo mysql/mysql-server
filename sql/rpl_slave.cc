@@ -178,7 +178,7 @@ bool use_slave_mask = false;
 MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
-char *slave_load_tmpdir = nullptr;
+char *replica_load_tmpdir = nullptr;
 bool replicate_same_server_id;
 ulonglong relay_log_space_limit = 0;
 
@@ -292,7 +292,7 @@ static bool wait_for_relay_log_space(Relay_log_info *rli);
 static inline bool io_slave_killed(THD *thd, Master_info *mi);
 static inline bool monitor_io_replica_killed(THD *thd, Master_info *mi);
 static inline bool is_autocommit_off_and_infotables(THD *thd);
-static void print_slave_skip_errors(void);
+static void print_replica_skip_errors(void);
 static int safe_connect(THD *thd, MYSQL *mysql, Master_info *mi,
                         const std::string &host = std::string(),
                         const uint port = 0);
@@ -354,32 +354,32 @@ static void set_thd_write_set_options(THD *thd, bool ignore_limit,
 
 /*
   Function to set the slave's max_allowed_packet based on the value
-  of slave_max_allowed_packet.
+  of replica_max_allowed_packet.
 
     @in_param    thd    Thread handler for slave
     @in_param    mysql  MySQL connection handle
 */
 
-static void set_slave_max_allowed_packet(THD *thd, MYSQL *mysql) {
+static void set_replica_max_allowed_packet(THD *thd, MYSQL *mysql) {
   DBUG_TRACE;
   // thd and mysql must be valid
   assert(thd && mysql);
 
-  thd->variables.max_allowed_packet = slave_max_allowed_packet;
+  thd->variables.max_allowed_packet = replica_max_allowed_packet;
   /*
     Adding MAX_LOG_EVENT_HEADER_LEN to the max_packet_size on the I/O
     thread and the mysql->option max_allowed_packet, since a
     replication event can become this much  larger than
     the corresponding packet (query) sent from client to master.
   */
-  thd->get_protocol_classic()->set_max_packet_size(slave_max_allowed_packet +
+  thd->get_protocol_classic()->set_max_packet_size(replica_max_allowed_packet +
                                                    MAX_LOG_EVENT_HEADER);
   /*
     Skipping the setting of mysql->net.max_packet size to slave
     max_allowed_packet since this is done during mysql_real_connect.
   */
   mysql->options.max_allowed_packet =
-      slave_max_allowed_packet + MAX_LOG_EVENT_HEADER;
+      replica_max_allowed_packet + MAX_LOG_EVENT_HEADER;
 }
 
 /*
@@ -474,7 +474,7 @@ static PSI_memory_info all_slave_memory[] = {{&key_memory_rli_mts_coor,
                                               "Relay_log_info::mts_coor", 0, 0,
                                               PSI_DOCUMENT_ME}};
 
-static void init_slave_psi_keys(void) {
+static void init_replica_psi_keys(void) {
   const char *category = "sql";
   int count;
 
@@ -488,13 +488,13 @@ static void init_slave_psi_keys(void) {
 
 /* Initialize slave structures */
 
-int init_slave() {
+int init_replica() {
   DBUG_TRACE;
   int error = 0;
   int thread_mask = SLAVE_SQL | SLAVE_IO;
 
 #ifdef HAVE_PSI_INTERFACE
-  init_slave_psi_keys();
+  init_replica_psi_keys();
 #endif
 
   /*
@@ -620,7 +620,7 @@ int init_slave() {
   /*
     Loop through the channel_map and start slave threads for each channel.
   */
-  if (!opt_skip_slave_start) {
+  if (!opt_skip_replica_start) {
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
          it++) {
       Master_info *mi = it->second;
@@ -629,7 +629,8 @@ int init_slave() {
       if (Master_info::is_configured(mi) && mi->rli->inited) {
         /* same as in start_slave() cache the global var values into rli's
          * members */
-        mi->rli->opt_slave_parallel_workers = opt_mts_slave_parallel_workers;
+        mi->rli->opt_replica_parallel_workers =
+            opt_mts_replica_parallel_workers;
         mi->rli->checkpoint_group = opt_mts_checkpoint_group;
         if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
           mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
@@ -696,16 +697,16 @@ bool start_slave(THD *thd) {
   } else {
     /*
       Users cannot start more than one channel's applier thread
-      if sql_slave_skip_counter > 0. It throws an error to the session.
+      if sql_replica_skip_counter > 0. It throws an error to the session.
     */
-    mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
-    /* sql_slave_skip_counter > 0 && !(START SLAVE IO_THREAD) */
-    if (sql_slave_skip_counter > 0 && !(thd->lex->slave_thd_opt & SLAVE_IO)) {
+    mysql_mutex_lock(&LOCK_sql_replica_skip_counter);
+    /* sql_replica_skip_counter > 0 && !(START SLAVE IO_THREAD) */
+    if (sql_replica_skip_counter > 0 && !(thd->lex->slave_thd_opt & SLAVE_IO)) {
       my_error(ER_SLAVE_CHANNEL_SQL_SKIP_COUNTER, MYF(0));
-      mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
+      mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
       return true;
     }
-    mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
+    mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
 
     for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
          it++) {
@@ -989,7 +990,7 @@ static enum_read_rotate_from_relay_log_status read_rotate_from_relay_log(
     char *filename, char *master_log_file, my_off_t *master_log_pos) {
   DBUG_TRACE;
 
-  Relaylog_file_reader relaylog_file_reader(opt_slave_sql_verify_checksum);
+  Relaylog_file_reader relaylog_file_reader(opt_replica_sql_verify_checksum);
   if (relaylog_file_reader.open(filename)) {
     LogErr(ERROR_LEVEL, ER_RPL_RECOVERY_ERROR,
            relaylog_file_reader.get_error_str());
@@ -1170,7 +1171,7 @@ static void recover_relay_log(Master_info *mi) {
   coordinate problems in master.info.
 
   In this function, there is no need for a mutex as the caller
-  (i.e. init_slave) already has one acquired.
+  (i.e. init_replica) already has one acquired.
 
   Specifically, the following structures are updated:
 
@@ -1548,7 +1549,7 @@ int flush_master_info(Master_info *mi, bool force, bool need_lock,
   Convert slave skip errors bitmap into a printable string.
 */
 
-static void print_slave_skip_errors(void) {
+static void print_replica_skip_errors(void) {
   /*
     To be safe, we want 10 characters of room in the buffer for a number
     plus terminators. Also, we need some space for constant strings.
@@ -1598,19 +1599,19 @@ static void print_slave_skip_errors(void) {
 
 /**
  Change arg to the string with the nice, human-readable skip error values.
-   @param slave_skip_errors_ptr
+   @param replica_skip_errors_ptr
           The pointer to be changed
 */
-void set_slave_skip_errors(char **slave_skip_errors_ptr) {
+void set_replica_skip_errors(char **replica_skip_errors_ptr) {
   DBUG_TRACE;
-  print_slave_skip_errors();
-  *slave_skip_errors_ptr = slave_skip_error_names;
+  print_replica_skip_errors();
+  *replica_skip_errors_ptr = slave_skip_error_names;
 }
 
 /**
   Init function to set up array for errors that should be skipped for slave
 */
-static void init_slave_skip_errors() {
+static void init_replica_skip_errors() {
   DBUG_TRACE;
   assert(!use_slave_mask);  // not already initialized
 
@@ -1621,7 +1622,7 @@ static void init_slave_skip_errors() {
   use_slave_mask = true;
 }
 
-static void add_slave_skip_errors(const uint *errors, uint n_errors) {
+static void add_replica_skip_errors(const uint *errors, uint n_errors) {
   DBUG_TRACE;
   assert(errors);
   assert(use_slave_mask);
@@ -1643,14 +1644,14 @@ static void add_slave_skip_errors(const uint *errors, uint n_errors) {
   Add errors that should be skipped for slave
 
   SYNOPSIS
-    add_slave_skip_errors()
+    add_replica_skip_errors()
     arg         List of errors numbers to be added to skip, separated with ','
 
   NOTES
     Called from get_options() in mysqld.cc on start-up
 */
 
-void add_slave_skip_errors(const char *arg) {
+void add_replica_skip_errors(const char *arg) {
   const char *p = nullptr;
   /*
     ALL is only valid when nothing else is provided.
@@ -1666,7 +1667,7 @@ void add_slave_skip_errors(const char *arg) {
   DBUG_TRACE;
 
   // initialize mask if not done yet
-  if (!use_slave_mask) init_slave_skip_errors();
+  if (!use_slave_mask) init_replica_skip_errors();
 
   for (; my_isspace(system_charset_info, *arg); ++arg) /* empty */
     ;
@@ -1688,8 +1689,8 @@ void add_slave_skip_errors(const char *arg) {
         // error codes with drop <schema object>
         ER_DB_DROP_EXISTS, ER_BAD_TABLE_ERROR, ER_CANT_DROP_FIELD_OR_KEY};
 
-    add_slave_skip_errors(ddl_errors,
-                          sizeof(ddl_errors) / sizeof(ddl_errors[0]));
+    add_replica_skip_errors(ddl_errors,
+                            sizeof(ddl_errors) / sizeof(ddl_errors[0]));
     /*
       After processing the SKIP_DDL_ERRORS, the pointer is
       increased to the position after the comma.
@@ -1837,7 +1838,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
                      stage_flushing_relay_log_and_master_info_repository);
 
     /*
-      Flushes the master info regardles of the sync_master_info option.
+      Flushes the master info regardles of the sync_source_info option.
     */
     mysql_mutex_lock(&mi->data_lock);
     if (mi->flush_info(true)) {
@@ -2103,7 +2104,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
       This function may be called either during server start (when
       --skip-start-slave is not used) or during START SLAVE. The error should
       only be generated during START SLAVE. During server start, an error has
-      already been written to the log for this case (in init_slave).
+      already been written to the log for this case (in init_replica).
     */
     if (current_thd)
       my_error(ER_CANT_USE_ANONYMOUS_TO_GTID_WITH_GTID_MODE_NOT_ON, MYF(0),
@@ -2167,7 +2168,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
 
     if (is_error)
       terminate_slave_threads(mi, thread_mask & (SLAVE_IO | SLAVE_MONITOR),
-                              rpl_stop_slave_timeout, need_lock_slave);
+                              rpl_stop_replica_timeout, need_lock_slave);
   }
 
   if (!is_error && (thread_mask & SLAVE_SQL)) {
@@ -2187,7 +2188,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
           cond_sql, &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
     if (is_error)
       terminate_slave_threads(mi, thread_mask & (SLAVE_IO | SLAVE_MONITOR),
-                              rpl_stop_slave_timeout, need_lock_slave);
+                              rpl_stop_replica_timeout, need_lock_slave);
   }
   return is_error;
 }
@@ -2219,7 +2220,7 @@ void end_slave() {
     mi = it->second;
 
     if (mi)
-      terminate_slave_threads(mi, SLAVE_FORCE_ALL, rpl_stop_slave_timeout);
+      terminate_slave_threads(mi, SLAVE_FORCE_ALL, rpl_stop_replica_timeout);
   }
   channel_map.unlock();
 }
@@ -2347,7 +2348,7 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli) {
           "... Slave SQL Thread stopped with incomplete event group "
           "having non-transactional changes. "
           "If the group consists solely of row-based events, you can try "
-          "to restart the slave with --slave-exec-mode=IDEMPOTENT, which "
+          "to restart the slave with --replica-exec-mode=IDEMPOTENT, which "
           "ignores duplicate key, key not found, and similar errors (see "
           "documentation for details).";
       char msg_stopped_mts[] =
@@ -3992,7 +3993,7 @@ void set_slave_thread_options(THD *thd) {
      only for client threads.
   */
   ulonglong options = thd->variables.option_bits | OPTION_BIG_SELECTS;
-  if (opt_log_slave_updates)
+  if (opt_log_replica_updates)
     options |= OPTION_BIN_LOG;
   else
     options &= ~OPTION_BIN_LOG;
@@ -4048,10 +4049,10 @@ void set_slave_thread_default_charset(THD *thd, Relay_log_info const *rli) {
 }
 
 /*
-  init_slave_thread()
+  init_replica_thread()
 */
 
-int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
+int init_replica_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
   DBUG_TRACE;
 #if !defined(NDEBUG)
   int simulate_error = 0;
@@ -4063,7 +4064,7 @@ int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
                                  : SYSTEM_THREAD_SLAVE_IO;
   thd->get_protocol_classic()->init_net(nullptr);
   thd->slave_thread = true;
-  thd->enable_slow_log = opt_log_slow_slave_statements;
+  thd->enable_slow_log = opt_log_slow_replica_statements;
   set_slave_thread_options(thd);
 
   /*
@@ -5186,7 +5187,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
           rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                       "Slave SQL thread retried transaction %lu time(s) "
                       "in vain, giving up. Consider raising the value of "
-                      "the slave_transaction_retries variable.",
+                      "the replica_transaction_retries variable.",
                       rli->trans_retries);
         }
       } else if ((exec_res && !temp_err) ||
@@ -5372,7 +5373,7 @@ extern "C" void *handle_slave_io(void *arg) {
     thd->thread_stack = (char *)&thd;  // remember where our stack is
     mi->clear_error();
     mi->slave_running = 1;
-    if (init_slave_thread(thd, SLAVE_THD_IO)) {
+    if (init_replica_thread(thd, SLAVE_THD_IO)) {
       mysql_cond_broadcast(&mi->start_cond);
       mysql_mutex_unlock(&mi->run_lock);
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
@@ -5576,11 +5577,11 @@ extern "C" void *handle_slave_io(void *arg) {
           switch (mysql_error_number) {
             case CR_NET_PACKET_TOO_LARGE:
               LogErr(ERROR_LEVEL,
-                     ER_RPL_LOG_ENTRY_EXCEEDS_SLAVE_MAX_ALLOWED_PACKET,
-                     slave_max_allowed_packet);
-              mi->report(
-                  ERROR_LEVEL, ER_SERVER_NET_PACKET_TOO_LARGE, "%s",
-                  "Got a packet bigger than 'slave_max_allowed_packet' bytes");
+                     ER_RPL_LOG_ENTRY_EXCEEDS_REPLICA_MAX_ALLOWED_PACKET,
+                     replica_max_allowed_packet);
+              mi->report(ERROR_LEVEL, ER_SERVER_NET_PACKET_TOO_LARGE, "%s",
+                         "Got a packet bigger than "
+                         "'replica_max_allowed_packet' bytes");
               goto err;
             case ER_MASTER_FATAL_ERROR_READING_BINLOG:
               mi->report(ERROR_LEVEL,
@@ -5977,7 +5978,7 @@ static void *handle_slave_worker(void *arg) {
 #endif
   mysql_thread_set_psi_THD(thd);
 
-  if (init_slave_thread(thd, SLAVE_THD_WORKER)) {
+  if (init_replica_thread(thd, SLAVE_THD_WORKER)) {
     // todo make SQL thread killed
     LogErr(ERROR_LEVEL, ER_RPL_SLAVE_CANT_INITIALIZE_SLAVE_WORKER,
            rli->get_for_channel_str());
@@ -6176,7 +6177,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
 
   DBUG_TRACE;
 
-  assert(rli->slave_parallel_workers == 0);
+  assert(rli->replica_parallel_workers == 0);
 
   /*
      Although mts_recovery_groups() is reentrant it returns
@@ -6309,7 +6310,7 @@ bool mts_recovery_groups(Relay_log_info *rli) {
     }
     offset = rli->get_group_relay_log_pos();
 
-    Relaylog_file_reader relaylog_file_reader(opt_slave_sql_verify_checksum);
+    Relaylog_file_reader relaylog_file_reader(opt_replica_sql_verify_checksum);
 
     for (int checking = 0; not_reached_commit; checking++) {
       if (relaylog_file_reader.open(linfo.log_file_name, offset)) {
@@ -6678,7 +6679,7 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
 
   for (uint i = 0; i < n; i++) {
     if ((error = slave_start_single_worker(rli, i))) goto err;
-    rli->slave_parallel_workers++;
+    rli->replica_parallel_workers++;
   }
 
 end:
@@ -6721,7 +6722,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
 
   if (!*mts_inited)
     return;
-  else if (rli->slave_parallel_workers == 0)
+  else if (rli->replica_parallel_workers == 0)
     goto end;
 
   /*
@@ -6846,7 +6847,7 @@ end:
   rli->curr_group_assigned_parts.clear();  // GCAP
   rli->deinit_workers();
   rli->workers_array_initialized = false;
-  rli->slave_parallel_workers = 0;
+  rli->replica_parallel_workers = 0;
 
   *mts_inited = false;
 }
@@ -6973,9 +6974,9 @@ extern "C" void *handle_slave_sql(void *arg) {
     else
       rli->current_mts_submode = new Mts_submode_database();
 
-    if (opt_slave_preserve_commit_order && !rli->is_parallel_exec())
+    if (opt_replica_preserve_commit_order && !rli->is_parallel_exec())
       commit_order_mngr =
-          new Commit_order_manager(rli->opt_slave_parallel_workers);
+          new Commit_order_manager(rli->opt_replica_parallel_workers);
 
     rli->set_commit_order_manager(commit_order_mngr);
 
@@ -6998,7 +6999,7 @@ extern "C" void *handle_slave_sql(void *arg) {
     rli->reported_unsafe_warning = false;
     rli->sql_thread_kill_accepted = false;
 
-    if (init_slave_thread(thd, SLAVE_THD_SQL)) {
+    if (init_replica_thread(thd, SLAVE_THD_SQL)) {
       /*
         TODO: this is currently broken - slave start and change master
         will be stuck if we fail here
@@ -7055,7 +7056,7 @@ extern "C" void *handle_slave_sql(void *arg) {
     }
 
     /* MTS: starting the worker pool */
-    if (slave_start_workers(rli, rli->opt_slave_parallel_workers,
+    if (slave_start_workers(rli, rli->opt_replica_parallel_workers,
                             &mts_inited) != 0) {
       mysql_cond_broadcast(&rli->start_cond);
       mysql_mutex_unlock(&rli->run_lock);
@@ -7135,7 +7136,7 @@ extern "C" void *handle_slave_sql(void *arg) {
     if (check_temp_dir(rli->slave_patternload_file, rli->get_channel())) {
       rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                   "Unable to use slave's temporary directory %s - %s",
-                  slave_load_tmpdir, thd->get_stmt_da()->message_text());
+                  replica_load_tmpdir, thd->get_stmt_da()->message_text());
       goto err;
     }
 
@@ -7173,9 +7174,9 @@ extern "C" void *handle_slave_sql(void *arg) {
              rli->get_privilege_checks_hostname().c_str(),
              opt_always_activate_granted_roles == 0 ? "DEFAULT" : "ALL");
 
-    /* execute init_slave variable */
-    if (opt_init_slave.length) {
-      execute_init_command(thd, &opt_init_slave, &LOCK_sys_init_slave);
+    /* execute init_replica variable */
+    if (opt_init_replica.length) {
+      execute_init_command(thd, &opt_init_replica, &LOCK_sys_init_replica);
       if (thd->is_slave_error) {
         rli->report(ERROR_LEVEL, ER_SERVER_SLAVE_INIT_QUERY_FAILED,
                     ER_THD(current_thd, ER_SERVER_SLAVE_INIT_QUERY_FAILED),
@@ -8020,7 +8021,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
 
      ANY event coming from ourselves can be ignored: it is obvious for queries;
      for STOP_EVENT/ROTATE_EVENT/START_EVENT: these cannot come from ourselves
-     (--log-slave-updates would not log that) unless this slave is also its
+     (--log-replica-updates would not log that) unless this slave is also its
      direct master (an unsupported, useless setup!).
   */
 
@@ -8273,7 +8274,7 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
   char password[MAX_PASSWORD_LENGTH + 1];
   size_t password_size = sizeof(password);
   DBUG_TRACE;
-  set_slave_max_allowed_packet(thd, mysql);
+  set_replica_max_allowed_packet(thd, mysql);
 #ifndef NDEBUG
   mi->events_until_exit = disconnect_slave_event_count;
 #endif
@@ -8282,8 +8283,8 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
   /* Always reset public key to remove cached copy */
   mysql_reset_server_public_key();
 
-  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&slave_net_timeout);
-  mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *)&slave_net_timeout);
+  mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *)&replica_net_timeout);
+  mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *)&replica_net_timeout);
 
   if (mi->bind_addr[0]) {
     DBUG_PRINT("info", ("bind_addr: %s", mi->bind_addr));
@@ -8319,8 +8320,8 @@ int connect_to_master(THD *thd, MYSQL *mysql, Master_info *mi, bool reconnect,
   mysql_options(mysql, MYSQL_OPT_SSL_MODE, &ssl_mode);
 
   mysql_options(mysql, MYSQL_OPT_COMPRESSION_ALGORITHMS,
-                opt_slave_compressed_protocol ? COMPRESSION_ALGORITHM_ZLIB
-                                              : mi->compression_algorithm);
+                opt_replica_compressed_protocol ? COMPRESSION_ALGORITHM_ZLIB
+                                                : mi->compression_algorithm);
   mysql_options(mysql, MYSQL_OPT_ZSTD_COMPRESSION_LEVEL,
                 &mi->zstd_compression_level);
   /*
@@ -8784,11 +8785,11 @@ bool rpl_master_erroneous_autoinc(THD *thd) {
 
 /**
   a copy of active_mi->rli->slave_skip_counter, for showing in SHOW GLOBAL
-  VARIABLES, INFORMATION_SCHEMA.GLOBAL_VARIABLES and @@sql_slave_skip_counter
+  VARIABLES, INFORMATION_SCHEMA.GLOBAL_VARIABLES and @@sql_replica_skip_counter
   without taking all the mutexes needed to access
   active_mi->rli->slave_skip_counter properly.
 */
-uint sql_slave_skip_counter;
+uint sql_replica_skip_counter;
 
 /**
    Executes a START SLAVE statement.
@@ -8891,18 +8892,18 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
       */
       if (thread_mask & SLAVE_SQL) {
         /*
-          sql_slave_skip_counter only effects the applier thread which is
-          first started. So after sql_slave_skip_counter is copied to
+          sql_replica_skip_counter only effects the applier thread which is
+          first started. So after sql_replica_skip_counter is copied to
           rli->slave_skip_counter, it is reset to 0.
         */
-        mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
+        mysql_mutex_lock(&LOCK_sql_replica_skip_counter);
         if (mi->rli->m_assign_gtids_to_anonymous_transactions_info.get_type() !=
                 Assign_gtids_to_anonymous_transactions_info::enum_type::
                     AGAT_OFF ||
             global_gtid_mode.get() != Gtid_mode::ON)
-          mi->rli->slave_skip_counter = sql_slave_skip_counter;
-        sql_slave_skip_counter = 0;
-        mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
+          mi->rli->slave_skip_counter = sql_replica_skip_counter;
+        sql_replica_skip_counter = 0;
+        mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
         /*
           To cache the MTS system var values and used them in the following
           runtime. The system vars can change meanwhile but having no other
@@ -8910,7 +8911,8 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
           It also allows the per channel definition of this variables.
         */
         if (set_mts_settings) {
-          mi->rli->opt_slave_parallel_workers = opt_mts_slave_parallel_workers;
+          mi->rli->opt_replica_parallel_workers =
+              opt_mts_replica_parallel_workers;
           if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
             mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
           else
@@ -9030,7 +9032,7 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
 
   if (thread_mask) {
     slave_errno =
-        terminate_slave_threads(mi, thread_mask, rpl_stop_slave_timeout,
+        terminate_slave_threads(mi, thread_mask, rpl_stop_replica_timeout,
                                 false /*need_lock_term=false*/);
   } else {
     // no error if both threads are already stopped, only a warning
@@ -9564,7 +9566,7 @@ static int change_receive_options(THD *thd, LEX_MASTER_INFO *lex_mi,
       specify it.  (no data loss in conversion as hb period has a max)
     */
     mi->heartbeat_period =
-        min<float>(SLAVE_MAX_HEARTBEAT_PERIOD, (slave_net_timeout / 2.0f));
+        min<float>(SLAVE_MAX_HEARTBEAT_PERIOD, (replica_net_timeout / 2.0f));
     assert(mi->heartbeat_period > (float)0.001 || mi->heartbeat_period == 0);
 
     // counter is cleared if master is CHANGED.
@@ -10675,39 +10677,39 @@ err:
   @return 0 is returned if there is no conflict, otherwise 1 is returned.
  */
 static int check_slave_sql_config_conflict(const Relay_log_info *rli) {
-  int channel_mts_submode, slave_parallel_workers;
+  int channel_mts_submode, replica_parallel_workers;
 
   if (rli) {
     channel_mts_submode = rli->channel_mts_submode;
-    slave_parallel_workers = rli->opt_slave_parallel_workers;
+    replica_parallel_workers = rli->opt_replica_parallel_workers;
   } else {
     /*
       When the slave is first initialized, we collect the values from the
       command line options
     */
     channel_mts_submode = mts_parallel_option;
-    slave_parallel_workers = opt_mts_slave_parallel_workers;
+    replica_parallel_workers = opt_mts_replica_parallel_workers;
   }
 
-  if (opt_slave_preserve_commit_order && slave_parallel_workers > 0) {
+  if (opt_replica_preserve_commit_order && replica_parallel_workers > 0) {
     if (channel_mts_submode == MTS_PARALLEL_TYPE_DB_NAME) {
-      my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
-               "when slave_parallel_type is DATABASE");
-      return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
+      my_error(ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER, MYF(0),
+               "when replica_parallel_type is DATABASE");
+      return ER_DONT_SUPPORT_REPLICA_PRESERVE_COMMIT_ORDER;
     }
   }
 
   if (rli) {
     const char *channel = const_cast<Relay_log_info *>(rli)->get_channel();
-    if (slave_parallel_workers > 0 &&
+    if (replica_parallel_workers > 0 &&
         (channel_mts_submode != MTS_PARALLEL_TYPE_LOGICAL_CLOCK ||
          (channel_mts_submode == MTS_PARALLEL_TYPE_LOGICAL_CLOCK &&
-          !opt_slave_preserve_commit_order)) &&
+          !opt_replica_preserve_commit_order)) &&
         channel_map.is_group_replication_channel_name(channel, true)) {
       my_error(ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED, MYF(0),
-               "START SLAVE SQL_THREAD when SLAVE_PARALLEL_WORKERS > 0 "
-               "and SLAVE_PARALLEL_TYPE != LOGICAL_CLOCK "
-               "or SLAVE_PRESERVE_COMMIT_ORDER != ON",
+               "START SLAVE SQL_THREAD when REPLICA_PARALLEL_WORKERS > 0 "
+               "and REPLICA_PARALLEL_TYPE != LOGICAL_CLOCK "
+               "or REPLICA_PRESERVE_COMMIT_ORDER != ON",
                channel);
       return ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED;
     }

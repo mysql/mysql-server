@@ -680,7 +680,7 @@ static inline void pretty_print_str(String *packet, const String *str) {
 static char *slave_load_file_stem(char *buf, uint file_id, int event_server_id,
                                   const char *ext) {
   char *res;
-  fn_format(buf, PREFIX_SQL_LOAD, slave_load_tmpdir, "", MY_UNPACK_FILENAME);
+  fn_format(buf, PREFIX_SQL_LOAD, replica_load_tmpdir, "", MY_UNPACK_FILENAME);
   to_unix_path(buf);
 
   buf = strend(buf);
@@ -701,7 +701,7 @@ static void cleanup_load_tmpdir() {
   uint i;
   char fname[FN_REFLEN], prefbuf[TEMP_FILE_MAX_LEN], *p;
 
-  if (!(dirp = my_dir(slave_load_tmpdir, MYF(0)))) return;
+  if (!(dirp = my_dir(replica_load_tmpdir, MYF(0)))) return;
 
   /*
      When we are deleting temporary files, we should only remove
@@ -717,7 +717,7 @@ static void cleanup_load_tmpdir() {
   for (i = 0; i < dirp->number_off_files; i++) {
     file = dirp->dir_entry + i;
     if (is_prefix(file->name, prefbuf)) {
-      fn_format(fname, file->name, slave_load_tmpdir, "", MY_UNPACK_FILENAME);
+      fn_format(fname, file->name, replica_load_tmpdir, "", MY_UNPACK_FILENAME);
       mysql_file_delete(key_file_misc, fname, MYF(0));
     }
   }
@@ -3414,7 +3414,7 @@ bool Query_log_event::write(Basic_ostream *ostream) {
     which master connection the temp table belongs.
     Now imagine we (write()) are called by the slave SQL thread (we are
     logging a query executed by this thread; the slave runs with
-    --log-slave-updates). Then this query will be logged with
+    --log-replica-updates). Then this query will be logged with
     thread_id=the_thread_id_of_the_SQL_thread. Imagine that 2 temp tables of
     the same name were created simultaneously on the master (in the masters
     binlog you have
@@ -4484,7 +4484,7 @@ static bool is_silent_error(THD *thd) {
   @endcode
   We may also want an option to tell the slave to ignore "affected"
   mismatch. This mismatch could be implemented with a new ER_ code, and
-  to ignore it you would use --slave-skip-errors...
+  to ignore it you would use --replica-skip-errors...
 */
 int Query_log_event::do_apply_event(Relay_log_info const *rli,
                                     const char *query_arg, size_t q_len_arg) {
@@ -4878,14 +4878,14 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       /*
         Resetting the enable_slow_log thd variable.
 
-        We need to reset it back to the opt_log_slow_slave_statements
+        We need to reset it back to the opt_log_slow_replica_statements
         value after the statement execution (and slow logging
         is done). It might have changed if the statement was an
         admin statement (in which case, down in dispatch_sql_command execution
         thd->enable_slow_log is set to the value of
         opt_log_slow_admin_statements).
       */
-      thd->enable_slow_log = opt_log_slow_slave_statements;
+      thd->enable_slow_log = opt_log_slow_replica_statements;
     } else {
       /*
         The query got a really bad error on the master (thread killed etc),
@@ -4988,15 +4988,16 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
             actual_error, print_slave_db_safe(db), query_arg);
         thd->is_slave_error = true;
       } else {
-        rli->report(INFORMATION_LEVEL, actual_error,
-                    "The actual error and expected error on slave are"
-                    " different that will result in ER_INCONSISTENT_ERROR but"
-                    " that is passed as an argument to slave_skip_errors so no"
-                    " error is thrown. "
-                    "The expected error was %s with, Error_code: %d. "
-                    "The actual error is %s with ",
-                    ER_THD_NONCONST(thd, expected_error), expected_error,
-                    thd->get_stmt_da()->message_text());
+        rli->report(
+            INFORMATION_LEVEL, actual_error,
+            "The actual error and expected error on slave are"
+            " different that will result in ER_INCONSISTENT_ERROR but"
+            " that is passed as an argument to replica_skip_errors so no"
+            " error is thrown. "
+            "The expected error was %s with, Error_code: %d. "
+            "The actual error is %s with ",
+            ER_THD_NONCONST(thd, expected_error), expected_error,
+            thd->get_stmt_da()->message_text());
         clear_all_errors(thd, const_cast<Relay_log_info *>(rli));
       }
     }
@@ -5052,7 +5053,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       }
       We may also want an option to tell the slave to ignore "affected"
       mismatch. This mismatch could be implemented with a new ER_ code, and
-      to ignore it you would use --slave-skip-errors...
+      to ignore it you would use --replica-skip-errors...
 
       To do the comparison we need to know the value of "affected" which the
       above dispatch_sql_command() computed. And we need to know the value of
@@ -6890,7 +6891,7 @@ void Stop_log_event::print(FILE *, PRINT_EVENT_INFO *print_event_info) const {
   this is useless as, as the master has shut down properly, it has
   written all DROP TEMPORARY TABLE (prepared statements' deletion is
   TODO only when we binlog prep stmts).  We used to clean up
-  slave_load_tmpdir, but this is useless as it has been cleared at the
+  replica_load_tmpdir, but this is useless as it has been cleared at the
   end of LOAD DATA INFILE.  So we have nothing to do here.  The place
   were we must do this cleaning is in
   Start_log_event_v3::do_apply_event(), not here. Because if we come
@@ -9866,7 +9867,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
     }
 
     if (thd->slave_thread)  // set the mode for slave
-      this->rbr_exec_mode = slave_exec_mode_options;
+      this->rbr_exec_mode = replica_exec_mode_options;
     else  // set the mode for user thread
       this->rbr_exec_mode = thd->variables.rbr_exec_mode_options;
 

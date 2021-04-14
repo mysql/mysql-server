@@ -105,8 +105,8 @@ while ($count_debug_groups <= $max_groups)
         if ($equal == 1)
         {
           --connection slave
-          --eval SET @@global.slave_parallel_workers= $count_workers
-          --eval SET @@global.slave_checkpoint_period= $count_checkpoint
+          --eval SET @@global.replica_parallel_workers= $count_workers
+          --eval SET @@global.replica_checkpoint_period= $count_checkpoint
           let $count_transactions= 1;
           while ($count_transactions <= $count_groups)
           {
@@ -164,7 +164,7 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 # That prevents the following tests in a suite execution to hit
 # Bug #14827923 RPL TEST RPL_PARALLEL_CHANGE_MASTER FAILS WITH WARNING
 # Technically resetting of the repo type is implemented through
-# one to slave_parallel_workers. Having it zero in the info table
+# one to replica_parallel_workers. Having it zero in the info table
 # at the following restart makes the slave server to quietly migrate
 # the repository to the requested type.
 # Notice that Bug#15858271 of mtr does not allow effectiveness of

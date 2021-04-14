@@ -203,7 +203,7 @@
 --source include/have_binlog_format_row.inc
 # Disable multi threaded slave since an error in a worker slave leads to an
 # upper-level error in the coordinator
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 # The test does not support group replication plugin since binlog_format is
 # not equal to 'ROW' for some test cases
 --source include/not_group_replication_plugin.inc

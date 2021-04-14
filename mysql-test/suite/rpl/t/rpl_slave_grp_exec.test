@@ -121,13 +121,13 @@ RENAME TABLE t3 TO t3_bak;
 if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET'`)
 {
   --disable_query_log
-  SET @saved_slave_preserve_commit_order= @@GLOBAL.slave_preserve_commit_order;
+  SET @saved_replica_preserve_commit_order= @@GLOBAL.replica_preserve_commit_order;
   STOP REPLICA SQL_THREAD;
-  # Set slave_preserve_commit_order to ON to make the following
+  # Set replica_preserve_commit_order to ON to make the following
   # INSERT statements execute in commit order to make the following
   # SELECT statements output the consistent result even when
   # binlog_transaction_dependency_tracking is set to WRITESET.
-  SET GLOBAL slave_preserve_commit_order= ON;
+  SET GLOBAL replica_preserve_commit_order= ON;
   START REPLICA SQL_THREAD;
   --enable_query_log
 }
@@ -166,7 +166,7 @@ SELECT * FROM t2 ORDER BY a;
 if (`select @@GLOBAL.binlog_transaction_dependency_tracking = 'WRITESET'`)
 {
   --disable_query_log
-  SET GLOBAL slave_preserve_commit_order= @saved_slave_preserve_commit_order;
+  SET GLOBAL replica_preserve_commit_order= @saved_replica_preserve_commit_order;
   --enable_query_log
 }
 

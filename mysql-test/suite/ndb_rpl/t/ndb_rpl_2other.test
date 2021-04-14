@@ -18,8 +18,8 @@ SET default_storage_engine=ndb;
 --echo
 --source include/rpl_connection_slave.inc
 
-set @old_slave_exec_mode= @@global.slave_exec_mode;
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @old_replica_exec_mode= @@global.replica_exec_mode;
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 
 # Silence warning about MyISAM not supporting HASH index algorithm
 # when creating mysql.ndb_apply_status
@@ -39,17 +39,17 @@ SET @@global.default_storage_engine=myisam;
 
 --source include/start_slave.inc
 
-# Check if log-slave-updates and slave-preserve-commit-order
+# Check if log-replica-updates and replica-preserve-commit-order
 # have been turned off
 
-if (`select @@log_slave_updates`)
+if (`select @@log_replica_updates`)
 {
-  die Test requires log-slave-updates=0;
+  die Test requires log-replica-updates=0;
 }
 
-if (`select @@slave_preserve_commit_order`)
+if (`select @@replica_preserve_commit_order`)
 {
-  die Test requires slave-preserve-commit-order=0;
+  die Test requires replica-preserve-commit-order=0;
 }
 
 --source suite/ndb_rpl/t/ndb_rpl_2multi_basic.inc
@@ -74,7 +74,7 @@ SET @@global.default_storage_engine=innodb;
 # Cleanup
 --source include/rpl_connection_slave.inc
 drop table mysql.ndb_apply_status;
-set @@global.slave_exec_mode= @old_slave_exec_mode;
+set @@global.replica_exec_mode= @old_replica_exec_mode;
 SET @@global.default_storage_engine=@old_slave_storage_engine;
 --let $rpl_skip_sync= 1
 --let $rpl_only_running_threads= 1

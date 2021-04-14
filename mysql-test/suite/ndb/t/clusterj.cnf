@@ -44,7 +44,7 @@ local-infile=true
 # This suite (--suite=ndb) is designed to be run without binlogging,
 # turn off binlogging (and thus also slave updates) for this mysqld
 skip-log-bin
-skip-log-slave-updates
+skip-log-replica-updates
 
 [ENV]
 NDB_CONNECTSTRING = @mysql_cluster.1.ndb_connectstring

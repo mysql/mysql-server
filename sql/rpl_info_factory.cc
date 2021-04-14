@@ -77,7 +77,7 @@ Rpl_info_factory::struct_table_data Rpl_info_factory::worker_table_data;
   @param[in]  channel   the channel for which mi is to be created
   @param[in]  to_decide_repo     the flag is set to true if mi repositories
                                  are allowed to convert. For details,
-                                 see init_slave()
+                                 see init_replica()
 
   The execution fails if a user requests a type but a different type
   already exists in the system. This is done to avoid that a user
@@ -263,7 +263,7 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option,
       goto err;
   } else {
     if (channel != nullptr) {
-      /* Here dest code should be TABLE type repo. See, init_slave() */
+      /* Here dest code should be TABLE type repo. See, init_replica() */
       if (handler_dest->get_rpl_info_type() != INFO_REPOSITORY_TABLE) {
         LogErr(ERROR_LEVEL, ER_RPL_REPO_SHOULD_BE_TABLE);
         goto err;
@@ -972,7 +972,7 @@ bool Rpl_info_factory::configure_channel_replication_filters(
 }
 
 /**
-  This function should be called from init_slave() only.
+  This function should be called from init_replica() only.
 
   During the server start, read all the slave repositories
   on disk (either in FILE or TABLE form) and create corresponding
@@ -1086,7 +1086,7 @@ bool Rpl_info_factory::create_slave_info_objects(
   /*
     Number of instances of Relay_log_info_repository.
     (Number of Slave worker objects that will be created by the Coordinator
-    (when slave_parallel_workers>0) at a later stage and not here).
+    (when replica_parallel_workers>0) at a later stage and not here).
   */
   uint rli_instances = 0;
 
@@ -1286,7 +1286,7 @@ bool Rpl_info_factory::load_channel_names_from_repository(
 }
 
 /**
-  In a multisourced slave, during init_slave(), the repositories
+  In a multisourced slave, during init_replica(), the repositories
   are read to initialize the slave info objects. To initialize
   the slave info objects, we need the number of channels the slave
   was connected to previously. The following function, finds the

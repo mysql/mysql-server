@@ -403,7 +403,7 @@ class table_def {
 
       - Each column on the master that also exists on the slave can be
         converted according to the current settings of @c
-        SLAVE_TYPE_CONVERSIONS.
+        REPLICA_TYPE_CONVERSIONS.
 
     @param thd   Current thread
     @param rli   Pointer to relay log info

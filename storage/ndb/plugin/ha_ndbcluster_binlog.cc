@@ -233,8 +233,8 @@ static ulonglong ndb_latest_received_binlog_epoch = 0;
 
 NDB_SHARE *ndb_apply_status_share = NULL;
 
-extern bool opt_log_slave_updates;
-static bool g_ndb_log_slave_updates;
+extern bool opt_log_replica_updates;
+static bool g_ndb_log_replica_updates;
 
 static bool g_injector_v1_warning_emitted = false;
 
@@ -1906,7 +1906,7 @@ class Ndb_schema_event_handler {
          mysqld.
          TODO : Assert that we are running in the Binlog injector thread?
       */
-      if (!g_ndb_log_slave_updates) {
+      if (!g_ndb_log_replica_updates) {
         /* This MySQLD does not log slave updates */
         return;
       }
@@ -6065,7 +6065,7 @@ static int handle_data_event(NdbEventOperation *pOp,
   }
 
   uint32 originating_server_id = ndbcluster_anyvalue_get_serverid(anyValue);
-  bool log_this_slave_update = g_ndb_log_slave_updates;
+  bool log_this_slave_update = g_ndb_log_replica_updates;
   bool count_this_event = true;
 
   if (share == ndb_apply_status_share) {
@@ -7325,7 +7325,7 @@ restart_cluster_failure:
 
     if (unlikely(s_pOp != NULL && s_pOp->getEpoch() == current_epoch)) {
       thd->proc_info = "Processing events from schema table";
-      g_ndb_log_slave_updates = opt_log_slave_updates;
+      g_ndb_log_replica_updates = opt_log_replica_updates;
       s_ndb->setReportThreshEventGCISlip(
           opt_ndb_report_thresh_binlog_epoch_slip);
       s_ndb->setReportThreshEventFreeMem(
@@ -7470,7 +7470,7 @@ restart_cluster_failure:
 
           // Apply changes to user configurable variables once per epoch
           i_ndb->set_eventbuf_max_alloc(opt_ndb_eventbuffer_max_alloc);
-          g_ndb_log_slave_updates = opt_log_slave_updates;
+          g_ndb_log_replica_updates = opt_log_replica_updates;
           i_ndb->setReportThreshEventGCISlip(
               opt_ndb_report_thresh_binlog_epoch_slip);
           i_ndb->setReportThreshEventFreeMem(

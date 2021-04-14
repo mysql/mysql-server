@@ -2648,8 +2648,8 @@ bool THD::is_current_stmt_binlog_disabled() const {
           !mysql_bin_log.is_open());
 }
 
-bool THD::is_current_stmt_binlog_log_slave_updates_disabled() const {
-  return ((!opt_bin_log || (slave_thread && !opt_log_slave_updates)) ||
+bool THD::is_current_stmt_binlog_log_replica_updates_disabled() const {
+  return ((!opt_bin_log || (slave_thread && !opt_log_replica_updates)) ||
           !mysql_bin_log.is_open());
 }
 

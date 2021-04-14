@@ -24,12 +24,12 @@
 #
 #    !include ../my.cnf
 #    [mysqld.1]
-#    log-slave-updates
+#    log-replica-updates
 #    [mysqld.2]
-#    log-slave-updates
+#    log-replica-updates
 #    ...
 #    [mysqld.N]
-#    log-slave-updates
+#    log-replica-updates
 #
 #    [ENV]
 #    SERVER_MYPORT_3= @mysqld.3.port

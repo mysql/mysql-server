@@ -65,8 +65,8 @@ typedef std::map<std::string, Rpl_filter *> filter_map;
   to a slave.
 
   The important objects for a slave are the following:
-  i) Master_info and Relay_log_info (slave_parallel_workers == 0)
-  ii) Master_info, Relay_log_info and Slave_worker(slave_parallel_workers >0 )
+  i) Master_info and Relay_log_info (replica_parallel_workers == 0)
+  ii) Master_info, Relay_log_info and Slave_worker(replica_parallel_workers >0 )
 
   Master_info is always assosiated with a Relay_log_info per channel.
   So, it is enough to store Master_infos and call the corresponding

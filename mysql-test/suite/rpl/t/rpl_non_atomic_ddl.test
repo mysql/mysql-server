@@ -103,11 +103,11 @@ START SLAVE SQL_THREAD;
 # coordiate remained as before the crash as the table could not be
 # re-CREATE-ed.
 --let $assert_text=The executed coordinates must be as after the crashing '$current_query'
-if (`select @@global.slave_parallel_workers = 0`)
+if (`select @@global.replica_parallel_workers = 0`)
 {
   --let $assert_cond=`SELECT Master_log_pos = $binlog_pos FROM mysql.slave_relay_log_info`
 }
-if (`select @@global.slave_parallel_workers > 0`)
+if (`select @@global.replica_parallel_workers > 0`)
 {
   --let $assert_cond=`SELECT max(Master_log_pos) = $binlog_pos FROM mysql.slave_worker_info`
 }

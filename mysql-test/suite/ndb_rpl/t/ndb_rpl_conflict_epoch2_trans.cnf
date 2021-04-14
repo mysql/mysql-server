@@ -2,7 +2,7 @@
 !include ../my.cnf
 
 # 2 clusters, each with 2 MySQLDs
-# All MySQLDs log-slave-updates
+# All MySQLDs log-replica-updates
 # Potential infinite loops are broken by both servers
 # on each cluster having the same server-id
 
@@ -13,7 +13,7 @@ MaxNoOfExecutionThreads=8
 mysqld=,
 
 [mysqld]
-log-slave-updates
+log-replica-updates
 ndb-log-apply-status
 ndb-log-transaction-id
 log-bin-use-v1-row-events=false
@@ -29,7 +29,7 @@ log-bin = pref-master-2
 [mysqld.1.slave]
 server-id= 3
 log-bin = sec-master-1
-skip-slave-start
+skip-replica-start
 
 [cluster_config.mysqld.2.slave]
 NodeId=16
@@ -39,7 +39,7 @@ Dedicated=1
 ndb-cluster-connection-pool-nodeids=16,48,127
 server-id= 4
 log-bin = sec-master-2
-skip-slave-start
+skip-replica-start
 ndb_connectstring=	@mysql_cluster.slave.ndb_connectstring
 
 [ENV]

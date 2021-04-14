@@ -16,7 +16,7 @@
 set ndb_table_temporary=0;
 
 -- connection slave
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 
 # Silence warning about MyISAM not supporting HASH index algorithm
 # when creating mysql.ndb_apply_status
@@ -37,6 +37,6 @@ set default_storage_engine=ndbcluster;
 --source suite/ndb_rpl/t/ndb_rpl_2multi_eng.inc
 
 --connection slave
-set @@global.slave_exec_mode= 'STRICT';
+set @@global.replica_exec_mode= 'STRICT';
 drop table mysql.ndb_apply_status;
 --source include/rpl_end.inc

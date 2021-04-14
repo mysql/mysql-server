@@ -5,7 +5,7 @@
 # ==== Notes ====
 #
 # This test uses the -slave.opt file to start the slave with
-# --skip-slave-start.
+# --skip-replica-start.
 
 --source include/not_group_replication_plugin.inc
 --source include/not_windows.inc

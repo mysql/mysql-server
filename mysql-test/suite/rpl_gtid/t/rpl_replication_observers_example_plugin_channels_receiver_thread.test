@@ -37,8 +37,8 @@ CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
 --let wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE NAME="thread/sql/slave_sql" AND PROCESSLIST_STATE="Slave has read all relay log; waiting for more updates";
 --source include/wait_condition_or_abort.inc
 
---let $slave_parallel_workers_configured= `SELECT @@GLOBAL.slave_parallel_workers`
---let wait_condition=SELECT COUNT(*)=$slave_parallel_workers_configured FROM performance_schema.threads WHERE NAME="thread/sql/slave_worker" AND PROCESSLIST_STATE="Waiting for an event from Coordinator";
+--let $replica_parallel_workers_configured= `SELECT @@GLOBAL.replica_parallel_workers`
+--let wait_condition=SELECT COUNT(*)=$replica_parallel_workers_configured FROM performance_schema.threads WHERE NAME="thread/sql/slave_worker" AND PROCESSLIST_STATE="Waiting for an event from Coordinator";
 --source include/wait_condition_or_abort.inc
 
 # Install the replication observers example plugin on the slave

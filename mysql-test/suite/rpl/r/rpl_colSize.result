@@ -15,8 +15,8 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-SET @saved_slave_type_conversions = @@slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 CREATE TABLE t1 (
 a float     (47),
 b double    (143,9),
@@ -212,5 +212,5 @@ include/sync_slave_sql_with_master.inc
 DROP TABLE t1;
 DROP TABLE t2;
 include/sync_slave_sql_with_master.inc
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 include/rpl_end.inc

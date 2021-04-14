@@ -22,7 +22,7 @@ source include/force_myisam_default.inc;
 source include/have_myisam.inc;
 source include/have_binlog_format_statement.inc;
 # UNTIL is not supported by MTS yet (TODO: support and remove the guard)
--- source include/not_mts_slave_parallel_workers.inc
+-- source include/not_mts_replica_parallel_workers.inc
 --source include/set_privilege_checks_user_as_system_user.inc
 source include/master-slave.inc;
 

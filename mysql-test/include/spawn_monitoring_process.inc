@@ -30,9 +30,9 @@ if (!$have_windows) {
   CREATE TABLE test.r_vars (id INT PRIMARY KEY AUTO_INCREMENT, var_name VARCHAR(64), var_value VARCHAR(256));
   INSERT INTO test.r_vars (var_name, var_value)
    SELECT * FROM performance_schema.global_variables
-   WHERE VARIABLE_NAME LIKE 'slave_parallel_workers'
-   OR VARIABLE_NAME LIKE 'slave_parallel_type'
-   OR VARIABLE_NAME LIKE 'slave_preserve_commit_order'
+   WHERE VARIABLE_NAME LIKE 'replica_parallel_workers'
+   OR VARIABLE_NAME LIKE 'replica_parallel_type'
+   OR VARIABLE_NAME LIKE 'replica_preserve_commit_order'
    OR VARIABLE_NAME LIKE 'binlog_transaction_dependency_tracking'
    OR VARIABLE_NAME LIKE 'transaction_write_set_extraction'
    OR VARIABLE_NAME LIKE 'enforce_gtid_consistency'

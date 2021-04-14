@@ -96,8 +96,8 @@
 
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
-SET @save_slave_parallel_workers= @@GLOBAL.slave_parallel_workers;
-SET @@GLOBAL.slave_parallel_workers= 4;
+SET @save_replica_parallel_workers= @@GLOBAL.replica_parallel_workers;
+SET @@GLOBAL.replica_parallel_workers= 4;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -309,6 +309,6 @@ SET @@GLOBAL.binlog_transaction_dependency_tracking= COMMIT_ORDER;
 SET @@GLOBAL.binlog_transaction_dependency_tracking= @save_binlog_transaction_dependency_tracking;
 
 --source include/sync_slave_sql_with_master.inc
-SET @@GLOBAL.slave_parallel_workers= @save_slave_parallel_workers;
+SET @@GLOBAL.replica_parallel_workers= @save_replica_parallel_workers;
 
 --source include/rpl_end.inc

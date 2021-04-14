@@ -1,0 +1,57 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Bootstrap server1 (disable certification database garbage collection).
+#    Set replica_max_allowed_packet to lowest value
+[connection server1]
+SET @@GLOBAL.DEBUG= '+d,group_replication_do_not_clear_certification_database';
+SET @@GLOBAL.DEBUG= '+d,group_replication_certifier_broadcast_thread_big_period';
+include/start_and_bootstrap_group_replication.inc
+SET @debug_save_replica_max_allowed_packet= @@GLOBAL.replica_max_allowed_packet;
+SET GLOBAL replica_max_allowed_packet=1024;
+
+# 2.  Generate 200 transactions on server1 to increase
+#     certification database size.
+[connection server1]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+# 3. Start GR on server2, view_change packet will be high in size.
+#    Without certification information, server 2 can't join and moves to ERROR state
+
+[connection server2]
+include/start_group_replication.inc
+include/assert_grep.inc [Found the expected error about the view change log even being over size]
+
+# 4. Set a bigger value of replica_max_allowed_packet on server1
+#    Restart server2 and see it come ONLINE.
+[connection server1]
+SET @@GLOBAL.replica_max_allowed_packet=@debug_save_replica_max_allowed_packet;
+[connection server2]
+include/stop_group_replication.inc
+include/start_group_replication.inc
+[connection server1]
+include/rpl_gr_wait_for_number_of_members.inc
+
+# 5.  Verification.
+include/diff_tables.inc [server1:t1, server2:t1]
+
+# 6.  Cleanup.
+DROP TABLE t1;
+[connection server1]
+SET @@GLOBAL.DEBUG= '-d,group_replication_do_not_clear_certification_database';
+SET @@GLOBAL.DEBUG= '-d,group_replication_certifier_broadcast_thread_big_period';
+[connection server2]
+SET session sql_log_bin=0;
+call mtr.add_suppression("On shutdown there was a timeout on the Group Replication recovery module termination. Check the log for more details");
+call mtr.add_suppression("The certification information could not be set in this server: 'Certification information is too large for transmission.'");
+call mtr.add_suppression("Error when processing certification information in the incremental recovery process");
+call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("All donors left. Aborting group replication incremental recovery.");
+call mtr.add_suppression("Skipping leave operation: member already left the group.");
+SET session sql_log_bin=1;
+include/group_replication_end.inc

@@ -816,7 +816,7 @@ MySQL clients support the protocol:
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"    // Multisource_info
 #include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // slave_load_tmpdir
+#include "sql/rpl_slave.h"  // replica_load_tmpdir
 #include "sql/rpl_trx_tracking.h"
 #include "sql/sd_notify.h"  // sd_notify_connect
 #include "sql/session_tracker.h"
@@ -1043,8 +1043,8 @@ static PSI_mutex_key key_LOCK_crypt;
 static PSI_mutex_key key_LOCK_user_conn;
 static PSI_mutex_key key_LOCK_global_system_variables;
 static PSI_mutex_key key_LOCK_prepared_stmt_count;
-static PSI_mutex_key key_LOCK_sql_slave_skip_counter;
-static PSI_mutex_key key_LOCK_slave_net_timeout;
+static PSI_mutex_key key_LOCK_sql_replica_skip_counter;
+static PSI_mutex_key key_LOCK_replica_net_timeout;
 static PSI_mutex_key key_LOCK_slave_trans_dep_tracker;
 static PSI_mutex_key key_LOCK_uuid_generator;
 static PSI_mutex_key key_LOCK_error_messages;
@@ -1071,7 +1071,7 @@ static PSI_rwlock_key key_rwlock_global_sid_lock;
 PSI_rwlock_key key_rwlock_gtid_mode_lock;
 static PSI_rwlock_key key_rwlock_LOCK_system_variables_hash;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_connect;
-static PSI_rwlock_key key_rwlock_LOCK_sys_init_slave;
+static PSI_rwlock_key key_rwlock_LOCK_sys_init_replica;
 static PSI_cond_key key_BINLOG_COND_done;
 static PSI_cond_key key_BINLOG_COND_flush_queue;
 static PSI_cond_key key_BINLOG_update_cond;
@@ -1140,7 +1140,7 @@ bool temptable_use_mmap;
 static char compiled_default_collation_name[] = MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used = false;
 
-LEX_STRING opt_init_connect, opt_init_slave;
+LEX_STRING opt_init_connect, opt_init_replica;
 
 /* Global variables */
 
@@ -1193,14 +1193,14 @@ bool opt_no_monitor = false;
 bool opt_no_dd_upgrade = false;
 long opt_upgrade_mode = UPGRADE_AUTO;
 bool opt_initialize = false;
-bool opt_skip_slave_start = false;  ///< If set, slave is not autostarted
+bool opt_skip_replica_start = false;  ///< If set, slave is not autostarted
 bool opt_enable_named_pipe = false;
-bool opt_local_infile, opt_slave_compressed_protocol;
+bool opt_local_infile, opt_replica_compressed_protocol;
 bool opt_safe_user_create = false;
 bool opt_show_slave_auth_info;
-bool opt_log_slave_updates = false;
-char *opt_slave_skip_errors;
-bool opt_slave_allow_batching = false;
+bool opt_log_replica_updates = false;
+char *opt_replica_skip_errors;
+bool opt_replica_allow_batching = false;
 
 /**
   compatibility option:
@@ -1227,7 +1227,7 @@ bool relay_log_recovery;
 bool opt_allow_suspicious_udfs;
 const char *opt_secure_file_priv;
 bool opt_log_slow_admin_statements = false;
-bool opt_log_slow_slave_statements = false;
+bool opt_log_slow_replica_statements = false;
 bool lower_case_file_system = false;
 bool opt_large_pages = false;
 bool opt_super_large_pages = false;
@@ -1276,8 +1276,8 @@ bool clone_recovery_error = false;
 ulong binlog_row_event_max_size;
 ulong binlog_checksum_options;
 ulong binlog_row_metadata;
-bool opt_master_verify_checksum = false;
-bool opt_slave_sql_verify_checksum = true;
+bool opt_source_verify_checksum = false;
+bool opt_replica_sql_verify_checksum = true;
 const char *binlog_format_names[] = {"MIXED", "STATEMENT", "ROW", NullS};
 bool binlog_gtid_simple_recovery;
 ulong binlog_error_action;
@@ -1307,20 +1307,20 @@ ulong slow_launch_time;
 std::atomic<int32> atomic_slave_open_temp_tables{0};
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_trans_retries;
-uint slave_net_timeout;
-ulong slave_exec_mode_options;
-ulonglong slave_type_conversions_options;
-ulong opt_mts_slave_parallel_workers;
+uint replica_net_timeout;
+ulong replica_exec_mode_options;
+ulonglong replica_type_conversions_options;
+ulong opt_mts_replica_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
 ulonglong slave_rows_search_algorithms_options;
-bool opt_slave_preserve_commit_order;
+bool opt_replica_preserve_commit_order;
 #ifndef NDEBUG
 uint slave_rows_last_search_algorithm_used;
 #endif
 ulong mts_parallel_option;
 ulong binlog_cache_size = 0;
 ulonglong max_binlog_cache_size = 0;
-ulong slave_max_allowed_packet = 0;
+ulong replica_max_allowed_packet = 0;
 ulong binlog_stmt_cache_size = 0;
 int32 opt_binlog_max_flush_queue_time = 0;
 long opt_binlog_group_commit_sync_delay = 0;
@@ -1336,7 +1336,7 @@ ulong specialflag = 0;
 ulong binlog_cache_use = 0, binlog_cache_disk_use = 0;
 ulong binlog_stmt_cache_use = 0, binlog_stmt_cache_disk_use = 0;
 ulong max_connections, max_connect_errors;
-ulong rpl_stop_slave_timeout = LONG_TIMEOUT;
+ulong rpl_stop_replica_timeout = LONG_TIMEOUT;
 bool log_bin_use_v1_row_events = false;
 bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
@@ -1523,15 +1523,15 @@ mysql_mutex_t LOCK_prepared_stmt_count;
 
 /*
  The below two locks are introduced as guards (second mutex) for
-  the global variables sql_slave_skip_counter and slave_net_timeout
-  respectively. See fix_slave_skip_counter/fix_slave_net_timeout
+  the global variables sql_replica_skip_counter and replica_net_timeout
+  respectively. See fix_slave_skip_counter/fix_replica_net_timeout
   for more details
 */
-mysql_mutex_t LOCK_sql_slave_skip_counter;
-mysql_mutex_t LOCK_slave_net_timeout;
+mysql_mutex_t LOCK_sql_replica_skip_counter;
+mysql_mutex_t LOCK_replica_net_timeout;
 mysql_mutex_t LOCK_slave_trans_dep_tracker;
 mysql_mutex_t LOCK_log_throttle_qni;
-mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_slave;
+mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_replica;
 mysql_rwlock_t LOCK_system_variables_hash;
 my_thread_handle signal_thread_id;
 sigset_t mysqld_signal_mask;
@@ -1590,16 +1590,16 @@ bool opt_relaylog_index_name_supplied = false;
 */
 bool opt_relay_logname_supplied = false;
 /*
-  True if --log-slave-updates option is set explicitly
+  True if --log-replica-updates option is set explicitly
   on command line or configuration file.
 */
-bool log_slave_updates_supplied = false;
+bool log_replica_updates_supplied = false;
 
 /*
-  True if --slave-preserve-commit-order-supplied option is set explicitly
+  True if --replica-preserve-commit-order-supplied option is set explicitly
   on command line or configuration file.
 */
-bool slave_preserve_commit_order_supplied = false;
+bool replica_preserve_commit_order_supplied = false;
 char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /*
@@ -2619,14 +2619,14 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_crypt);
   mysql_mutex_destroy(&LOCK_user_conn);
   mysql_rwlock_destroy(&LOCK_sys_init_connect);
-  mysql_rwlock_destroy(&LOCK_sys_init_slave);
+  mysql_rwlock_destroy(&LOCK_sys_init_replica);
   mysql_mutex_destroy(&LOCK_global_system_variables);
   mysql_rwlock_destroy(&LOCK_system_variables_hash);
   mysql_mutex_destroy(&LOCK_uuid_generator);
   mysql_mutex_destroy(&LOCK_sql_rand);
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
-  mysql_mutex_destroy(&LOCK_sql_slave_skip_counter);
-  mysql_mutex_destroy(&LOCK_slave_net_timeout);
+  mysql_mutex_destroy(&LOCK_sql_replica_skip_counter);
+  mysql_mutex_destroy(&LOCK_replica_net_timeout);
   mysql_mutex_destroy(&LOCK_slave_trans_dep_tracker);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
@@ -4669,18 +4669,18 @@ int init_common_variables() {
   */
   if (!opt_bin_log) {
     /*
-      The log-slave-updates should be disabled if binary log is disabled
-      and --log-slave-updates option is not set explicitly on command
+      The log-replica-updates should be disabled if binary log is disabled
+      and --log-replica-updates option is not set explicitly on command
       line or configuration file.
     */
-    if (!log_slave_updates_supplied) opt_log_slave_updates = false;
+    if (!log_replica_updates_supplied) opt_log_replica_updates = false;
     /*
-      The slave-preserve-commit-order should be disabled if binary log is
-      disabled and --slave-preserve-commit-order option is not set
+      The replica-preserve-commit-order should be disabled if binary log is
+      disabled and --replica-preserve-commit-order option is not set
       explicitly on command line or configuration file.
     */
-    if (!slave_preserve_commit_order_supplied)
-      opt_slave_preserve_commit_order = false;
+    if (!replica_preserve_commit_order_supplied)
+      opt_replica_preserve_commit_order = false;
   }
 
   if (opt_protocol_compression_algorithms) {
@@ -5036,9 +5036,9 @@ static int init_thread_environment() {
                     &LOCK_system_variables_hash);
   mysql_mutex_init(key_LOCK_prepared_stmt_count, &LOCK_prepared_stmt_count,
                    MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_sql_slave_skip_counter,
-                   &LOCK_sql_slave_skip_counter, MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_slave_net_timeout, &LOCK_slave_net_timeout,
+  mysql_mutex_init(key_LOCK_sql_replica_skip_counter,
+                   &LOCK_sql_replica_skip_counter, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_replica_net_timeout, &LOCK_replica_net_timeout,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_slave_trans_dep_tracker,
                    &LOCK_slave_trans_dep_tracker, MY_MUTEX_INIT_FAST);
@@ -5058,7 +5058,7 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_password_reuse_interval,
                    &LOCK_password_reuse_interval, MY_MUTEX_INIT_FAST);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
-  mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
+  mysql_rwlock_init(key_rwlock_LOCK_sys_init_replica, &LOCK_sys_init_replica);
   mysql_cond_init(key_COND_manager, &COND_manager);
   mysql_mutex_init(key_LOCK_server_started, &LOCK_server_started,
                    MY_MUTEX_INIT_FAST);
@@ -5692,7 +5692,7 @@ static int init_server_components() {
 
   randominit(&sql_rand, (ulong)server_start_time, (ulong)server_start_time / 2);
   setup_fpu();
-  init_slave_list();
+  init_replica_list();
 
   setup_error_log();  // opens the log if needed
 
@@ -5719,8 +5719,8 @@ static int init_server_components() {
   if (delegates_init()) unireg_abort(MYSQLD_ABORT_EXIT);
 
   /* need to configure logging before initializing storage engines */
-  if (opt_log_slave_updates && !opt_bin_log) {
-    LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--log-slave-updates");
+  if (opt_log_replica_updates && !opt_bin_log) {
+    LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--log-replica-updates");
   }
   if (binlog_format_used && !opt_bin_log)
     LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-format");
@@ -5944,7 +5944,7 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  if (opt_log_slave_updates && replicate_same_server_id) {
+  if (opt_log_replica_updates && replicate_same_server_id) {
     if (opt_bin_log && global_gtid_mode.get() != Gtid_mode::ON) {
       LogErr(ERROR_LEVEL, ER_RPL_INFINITY_DENIED);
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -7223,7 +7223,7 @@ int mysqld_main(int argc, char **argv)
 
     if (mysql_bin_log.init_gtid_sets(
             &gtids_in_binlog, &purged_gtids_from_binlog,
-            opt_master_verify_checksum, true /*true=need lock*/,
+            opt_source_verify_checksum, true /*true=need lock*/,
             nullptr /*trx_parser*/, nullptr /*partial_trx*/,
             true /*is_server_starting*/))
       unireg_abort(MYSQLD_ABORT_EXIT);
@@ -7419,7 +7419,7 @@ int mysqld_main(int argc, char **argv)
 
   init_status_vars();
   /* If running with --initialize, do not start replication. */
-  if (opt_initialize) opt_skip_slave_start = true;
+  if (opt_initialize) opt_skip_replica_start = true;
 
   check_binlog_cache_size(nullptr);
   check_binlog_stmt_cache_size(nullptr);
@@ -7428,20 +7428,20 @@ int mysqld_main(int argc, char **argv)
 
   /* If running with --initialize, do not start replication. */
   if (!opt_initialize) {
-    // Make @@slave_skip_errors show the nice human-readable value.
-    set_slave_skip_errors(&opt_slave_skip_errors);
+    // Make @@replica_skip_errors show the nice human-readable value.
+    set_replica_skip_errors(&opt_replica_skip_errors);
     /*
-      Group replication filters should be discarded before init_slave(),
+      Group replication filters should be discarded before init_replica(),
       otherwise the pre-configured filters will be referenced by group
       replication channels.
     */
     rpl_channel_filters.discard_group_replication_filters();
 
     /*
-      init_slave() must be called after the thread keys are created.
+      init_replica() must be called after the thread keys are created.
     */
     if (server_id != 0)
-      init_slave(); /* Ignoring errors while configuring replication. */
+      init_replica(); /* Ignoring errors while configuring replication. */
 
     /*
       If the user specifies a per-channel replication filter through a
@@ -8445,7 +8445,7 @@ struct my_option my_long_options[] = {
     {"replicate-same-server-id", 0,
      "In replication, if set to 1, do not skip events having our server id. "
      "Default value is 0 (to break infinite loops in circular replication). "
-     "Can't be set to 1 if --log-slave-updates is used.",
+     "Can't be set to 1 if --log-replica-updates is used.",
      &replicate_same_server_id, &replicate_same_server_id, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"replicate-wild-do-table", OPT_REPLICATE_WILD_DO_TABLE,
@@ -9483,7 +9483,7 @@ To see what values a running MySQL server is using, type\n\
 
 static int mysql_init_variables() {
   /* Things reset to zero */
-  opt_skip_slave_start = false;
+  opt_skip_replica_start = false;
   pidfile_name[0] = 0;
   myisam_test_invalid_symlink = test_if_data_home_dir;
   opt_general_log = opt_slow_log = false;
@@ -10147,11 +10147,11 @@ bool mysqld_get_one_option(int optid,
     case OPT_KEYRING_MIGRATION_PORT:
       migrate_connect_options = true;
       break;
-    case OPT_LOG_SLAVE_UPDATES:
-      log_slave_updates_supplied = true;
+    case OPT_LOG_REPLICA_UPDATES:
+      log_replica_updates_supplied = true;
       break;
-    case OPT_SLAVE_PRESERVE_COMMIT_ORDER:
-      slave_preserve_commit_order_supplied = true;
+    case OPT_REPLICA_PRESERVE_COMMIT_ORDER:
+      replica_preserve_commit_order_supplied = true;
       break;
     case OPT_ENFORCE_GTID_CONSISTENCY: {
       const char *wrong_value =
@@ -10332,7 +10332,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
   if (!opt_help && opt_verbose) LogErr(ERROR_LEVEL, ER_VERBOSE_REQUIRES_HELP);
 
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes ||
-       opt_log_slow_slave_statements) &&
+       opt_log_slow_replica_statements) &&
       !opt_slow_log)
     LogErr(WARNING_LEVEL, ER_POINTLESS_WITHOUT_SLOWLOG);
 
@@ -10353,7 +10353,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
     LogErr(WARNING_LEVEL, ER_DEPRECATED_TIMESTAMP_IMPLICIT_DEFAULTS);
 
   opt_init_connect.length = strlen(opt_init_connect.str);
-  opt_init_slave.length = strlen(opt_init_slave.str);
+  opt_init_replica.length = strlen(opt_init_replica.str);
   opt_mandatory_roles.length = strlen(opt_mandatory_roles.str);
 
   if (global_system_variables.low_priority_updates)
@@ -10373,7 +10373,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
   if (myisam_flush) flush_time = 0;
 
-  if (opt_slave_skip_errors) add_slave_skip_errors(opt_slave_skip_errors);
+  if (opt_replica_skip_errors) add_replica_skip_errors(opt_replica_skip_errors);
 
   if (global_system_variables.max_join_size == HA_POS_ERROR)
     global_system_variables.option_bits |= OPTION_BIG_SELECTS;
@@ -10759,7 +10759,7 @@ static int fix_paths(void) {
   if (!check_tmpdir_path_lengths(mysql_tmpdir_list)) return 1;
 #endif
   if (!opt_mysql_tmpdir) opt_mysql_tmpdir = mysql_tmpdir;
-  if (!slave_load_tmpdir) slave_load_tmpdir = mysql_tmpdir;
+  if (!replica_load_tmpdir) replica_load_tmpdir = mysql_tmpdir;
 
   if (opt_help) return 0;
   /*
@@ -11075,8 +11075,8 @@ static PSI_mutex_info all_server_mutexes[]=
 #endif
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_sql_slave_skip_counter, "LOCK_sql_slave_skip_counter", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_slave_net_timeout, "LOCK_slave_net_timeout", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_sql_replica_skip_counter, "LOCK_sql_replica_skip_counter", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_replica_net_timeout, "LOCK_replica_net_timeout", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_slave_trans_dep_tracker, "LOCK_slave_trans_dep_tracker", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #if !defined(_WIN32)
@@ -11154,7 +11154,7 @@ static PSI_rwlock_info all_server_rwlocks[]=
   { &key_rwlock_Binlog_relay_IO_delegate_lock, "Binlog_relay_IO_delegate::lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_LOCK_logger, "LOGGER::LOCK_logger", 0, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_LOCK_sys_init_connect, "LOCK_sys_init_connect", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_rwlock_LOCK_sys_init_slave, "LOCK_sys_init_slave", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_rwlock_LOCK_sys_init_replica, "LOCK_sys_init_replica", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_LOCK_system_variables_hash, "LOCK_system_variables_hash", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_global_sid_lock, "gtid_commit_rollback", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_rwlock_gtid_mode_lock, "gtid_mode_lock", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},

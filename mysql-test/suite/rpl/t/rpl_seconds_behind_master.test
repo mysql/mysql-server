@@ -6,7 +6,7 @@
 
 # this test logics requires adaption to MTS policies for SBM
 # (see rpl_parallel_seconds_behind_master.test)
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 
 --source include/master-slave.inc
 

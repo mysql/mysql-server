@@ -9,7 +9,7 @@
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
 log-bin
-log-slave-updates
+log-replica-updates
 
 [ENV]
 SERVER_MYPORT_3=		@mysqld.3.port

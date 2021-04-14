@@ -30,7 +30,7 @@ INSERT INTO d1.t VALUES (2, 'T5');
 CALL mtr.add_suppression("Recovery from master pos");
 [connection slave]
 # Kill the server
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start=FALSE --sync_master_info=1 --relay-log-recovery=1]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start=FALSE --sync_source_info=1 --relay-log-recovery=1]
 After restart gaps should be filled.
 include/assert.inc [Table d1.t should contain 2 rows.]
 include/assert.inc [Table d2.t should contain 3 rows.]
@@ -68,7 +68,7 @@ INSERT INTO d1.t VALUES (2, 'T5');
 CALL mtr.add_suppression("Recovery from master pos");
 [connection slave]
 # Kill the server
-include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start=TRUE --sync_master_info=1 --relay-log-recovery=1]
+include/rpl_start_server.inc [server_number=2 parameters: --skip_replica_start=TRUE --sync_source_info=1 --relay-log-recovery=1]
 After restart gaps should be filled.
 include/assert.inc [Table d1.t should contain 2 rows.]
 include/assert.inc [Table d2.t should contain 3 rows.]

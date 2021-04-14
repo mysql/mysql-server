@@ -530,7 +530,7 @@ unsigned long thd_get_thread_id(const MYSQL_THD thd) {
 
 int thd_allow_batch(MYSQL_THD thd) {
   if ((thd->variables.option_bits & OPTION_ALLOW_BATCH) ||
-      (thd->slave_thread && opt_slave_allow_batching))
+      (thd->slave_thread && opt_replica_allow_batching))
     return 1;
   return 0;
 }

@@ -5,11 +5,11 @@ binlog-row-image=MINIMAL
 binlog-row-value-options=PARTIAL_JSON
 
 [mysqld.2]
-log-slave-updates
+log-replica-updates
 binlog-row-image=MINIMAL
 
 [mysqld.3]
-log-slave-updates
+log-replica-updates
 binlog-row-image=MINIMAL
 binlog-row-value-options=PARTIAL_JSON
 

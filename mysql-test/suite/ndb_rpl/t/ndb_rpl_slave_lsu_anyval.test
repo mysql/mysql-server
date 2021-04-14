@@ -33,7 +33,7 @@
 #        option, and shows the full serverid.
 #        It can be seen that events originating on the master are given a
 #        composite server id which is available at the slave as it is written
-#        into the binlog of the slave running with --log-slave-updates on.
+#        into the binlog of the slave running with --log-replica-updates on.
 ###############################################################################
 --source include/have_debug.inc
 --source suite/ndb_rpl/t/ndb_rpl_slave_lsu.test

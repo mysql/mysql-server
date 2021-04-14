@@ -1,0 +1,1 @@
+--no-console --log_error=$MYSQLTEST_VARDIR/tmp/rpl_mts_replica_preserve_commit_order_deadlock_error.2.err

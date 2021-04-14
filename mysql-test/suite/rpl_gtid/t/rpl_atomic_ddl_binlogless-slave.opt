@@ -1,1 +1,1 @@
---disable-log-bin --log-slave-updates=false --slave-preserve-commit-order=OFF
+--disable-log-bin --log-replica-updates=false --replica-preserve-commit-order=OFF

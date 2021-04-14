@@ -112,7 +112,7 @@ SELECT @@global.init_connect;
 SET @@global.init_connect=this_will_give_syntax_error;
 SELECT @@global.init_connect;
 
-SET @@global.init_connect = init_slave;
+SET @@global.init_connect = init_replica;
 SELECT @@global.init_connect;
 
 --echo '#--------------------FN_DYNVARS_036_05-------------------------#'

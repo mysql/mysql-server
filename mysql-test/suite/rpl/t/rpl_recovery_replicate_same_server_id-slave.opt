@@ -1,1 +1,1 @@
---disable-log-slave-updates --replicate-same-server-id --relay-log-recovery=1 --log_error=$MYSQLTEST_VARDIR/tmp/slave.err
+--disable-log-replica-updates --replicate-same-server-id --relay-log-recovery=1 --log_error=$MYSQLTEST_VARDIR/tmp/slave.err

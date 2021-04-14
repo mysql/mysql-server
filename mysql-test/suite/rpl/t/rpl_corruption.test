@@ -27,7 +27,7 @@ call mtr.add_suppression('Replication event checksum verification failed');
 call mtr.add_suppression('Event crc check failed! Most likely there is event corruption');
 call mtr.add_suppression("Slave SQL for channel '': Error initializing relay log position: I/O error reading event at position .*, Error_code: MY-013117");
 
-SET @old_master_verify_checksum = @@master_verify_checksum;
+SET @old_source_verify_checksum = @@source_verify_checksum;
 
 # Creating test table/data and set corruption position for testing
 --echo # 1. Creating test table/data and set corruption position for testing
@@ -88,7 +88,7 @@ let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 # Emulate corruption on master without crc checking on master
 --echo # 4. Master read a corrupted event from binlog and send it to slave
 --connection master
-SET GLOBAL master_verify_checksum=0;
+SET GLOBAL source_verify_checksum=0;
 SET GLOBAL debug="d,corrupt_read_log_event";
 --connection slave
 START SLAVE IO_THREAD;
@@ -96,7 +96,7 @@ let $slave_io_errno= 13122,13115; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK
 --source include/wait_for_slave_io_error.inc
 --connection master
 SET GLOBAL debug="";
-SET GLOBAL master_verify_checksum=1;
+SET GLOBAL source_verify_checksum=1;
 
 # Emulate corruption in network
 --echo # 5. Slave. Corruption in network
@@ -127,7 +127,7 @@ SET GLOBAL debug= "";
 # Clean up
 --echo # 8. Clean up
 --connection master
-SET GLOBAL master_verify_checksum = @old_master_verify_checksum;
+SET GLOBAL source_verify_checksum = @old_source_verify_checksum;
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 

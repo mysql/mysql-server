@@ -11,10 +11,10 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server_2]
 call mtr.add_suppression("Slave: Could not start slave for channel");
 #
-# Verify that Setting sql_slave_skip_counter doesn't effect running
+# Verify that Setting sql_replica_skip_counter doesn't effect running
 # channels
 #
-SET GLOBAL sql_slave_skip_counter= 1;
+SET GLOBAL sql_replica_skip_counter= 1;
 0
 include/assert.inc [check that channel_1's Skip_Counter is 0.]
 STOP SLAVE SQL_THREAD;
@@ -22,31 +22,31 @@ Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/rpl_for_each_connection.inc [include/wait_for_slave_sql_to_stop.inc]
 #
-# Verify that START SLAVE FOR CHANNEL will copy sql_slave_skip_counter's
-# value to the channel and reset sql_slave_skip_counter to 0
+# Verify that START SLAVE FOR CHANNEL will copy sql_replica_skip_counter's
+# value to the channel and reset sql_replica_skip_counter to 0
 #
 [connection server_2]
 include/stop_slave.inc
 include/start_slave.inc [FOR CHANNEL 'channel_1']
 1
 include/assert.inc [check that channel_1's Skip_Counter is 0.]
-include/assert.inc [check that sql_slave_skip_counter is 0]
+include/assert.inc [check that sql_replica_skip_counter is 0]
 #
-# START SLAVE [SQL_THREAD] will fail when sql_slave_skip_counter is 1
+# START SLAVE [SQL_THREAD] will fail when sql_replica_skip_counter is 1
 # and there are more than one channels
 #
-SET GLOBAL sql_slave_skip_counter = 1;
+SET GLOBAL sql_replica_skip_counter = 1;
 START SLAVE;
-ERROR HY000: When sql_slave_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_slave_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_slave_skip_counter.
+ERROR HY000: When sql_replica_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_replica_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_replica_skip_counter.
 START SLAVE SQL_THREAD;
-ERROR HY000: When sql_slave_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_slave_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_slave_skip_counter.
+ERROR HY000: When sql_replica_skip_counter > 0, it is not allowed to start more than one SQL thread by using 'START SLAVE [SQL_THREAD]'. Value of sql_replica_skip_counter can only be used by one SQL thread at a time. Please use 'START SLAVE [SQL_THREAD] FOR CHANNEL' to start the SQL thread which will use the value of sql_replica_skip_counter.
 #
 # START SLAVE IO_THREAD should not fail.
 #
 START SLAVE IO_THREAD;
 include/rpl_for_each_connection.inc [include/wait_for_slave_io_to_start.inc]
 include/assert.inc [All two IO threads are running after START SLAVE IO_THREAD]
-SET GLOBAL sql_slave_skip_counter= 0;
+SET GLOBAL sql_replica_skip_counter= 0;
 include/rpl_end.inc
 RESET REPLICA ALL FOR CHANNEL 'channel_1';
 RESET REPLICA ALL FOR CHANNEL 'channel_3';

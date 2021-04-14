@@ -38,7 +38,7 @@
 # BUG#25694813 INSTRUMENTATION IS ALWAYS ENABLED FOR REPLICATION P_S STATUS
 #              TABLES
 
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 # the test is binlog-format agnostic
 --source include/have_binlog_format_row.inc
 --source include/have_debug_sync.inc
@@ -54,7 +54,7 @@
 # reset when restarting an STS slave with MTS enabled.
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
-SET GLOBAL slave_parallel_workers= 4;
+SET GLOBAL replica_parallel_workers= 4;
 --source include/start_slave.inc
 
 --let $processing_gtid_= query_get_value(SELECT PROCESSING_TRANSACTION FROM performance_schema.replication_applier_status_by_coordinator, PROCESSING_TRANSACTION, 1)
@@ -69,6 +69,6 @@ SET GLOBAL slave_parallel_workers= 4;
 
 #cleanup
 --source include/stop_slave.inc
-SET GLOBAL slave_parallel_workers= 0;
+SET GLOBAL replica_parallel_workers= 0;
 --source include/start_slave.inc
 --source include/rpl_end.inc

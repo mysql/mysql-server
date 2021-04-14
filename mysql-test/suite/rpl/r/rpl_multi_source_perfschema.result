@@ -31,14 +31,14 @@ include/assert.inc [Number of rows= 0 on slave for a non existent channel for re
 include/assert.inc [Number of rows= 0 on slave for a non existent channel for replication_applier_status_by_worker table.]
 #
 #  Test case 3: Rows on multi sourced slave, shall be 2. In workers table it should be
-#               2*@@global.slave_parallel_workers
+#               2*@@global.replica_parallel_workers
 USE performance_schema;
 include/assert.inc [there shall be 2 rows for replication_connection_configuration]
 include/assert.inc [there shall be 2 rows for replication_connection_status]
 include/assert.inc [there shall be 2 rows for replication_applier_configuration]
 include/assert.inc [there shall be 2 rows for replication_applier_status]
 include/assert.inc [there shall be 2 rows for replication_connection_configuration]
-include/assert.inc [there shall be 2*global.slave_parallel_workers rows for 2 configured channels.]
+include/assert.inc [there shall be 2*global.replica_parallel_workers rows for 2 configured channels.]
 #
 # Test case 4: Verify that selects work on named channels
 #              Do this verification by comparing with some known data
@@ -109,7 +109,7 @@ include/assert.inc [there shall be 1 in replication connection_status table afte
 include/assert.inc [there shall be 1 in replication applier_config table after a channel is deleted.]
 include/assert.inc [there shall be 1 in replication applier_status table after a channel is deleted.]
 include/assert.inc [there shall be 1 applier after a channel is deleted.]
-include/assert.inc [there shall be global.slave_parallel_workers rows after a channel is deleted.]
+include/assert.inc [there shall be global.replica_parallel_workers rows after a channel is deleted.]
 #
 #  Test case 8: Do a complete delete and see if the number of rows are zero
 #

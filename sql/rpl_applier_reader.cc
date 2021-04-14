@@ -82,8 +82,8 @@ class Rpl_applier_reader::Stage_controller {
 
 Rpl_applier_reader::Rpl_applier_reader(Relay_log_info *rli)
     : m_relaylog_file_reader(
-          opt_slave_sql_verify_checksum,
-          std::max(slave_max_allowed_packet,
+          opt_replica_sql_verify_checksum,
+          std::max(replica_max_allowed_packet,
                    binlog_row_event_max_size + MAX_LOG_EVENT_HEADER)),
       m_rli(rli) {}
 
@@ -541,7 +541,7 @@ void Rpl_applier_reader::reset_seconds_behind_master() {
   /*
     We say in Seconds_Behind_Master that we have "caught up". Note that for
     example if network link is broken but I/O slave thread hasn't noticed it
-    (slave_net_timeout not elapsed), then we'll say "caught up" whereas we're
+    (replica_net_timeout not elapsed), then we'll say "caught up" whereas we're
     not really caught up. Fixing that would require internally cutting timeout
     in smaller pieces in network read. Another example: SQL has caught up on
     I/O, now I/O has read a new event and is queuing it; the false "0" will
@@ -552,18 +552,18 @@ void Rpl_applier_reader::reset_seconds_behind_master() {
     which provides the slave the status of the master at time the master does
     not have any new update to send. Seconds_Behind_Master would be zero only
     when master has no more updates in binlog for slave. The heartbeat can be
-    sent in a (small) fraction of slave_net_timeout. Until it's done
+    sent in a (small) fraction of replica_net_timeout. Until it's done
     m_rli->last_master_timestamp is temporarely (for time of waiting for the
     following event) reset whenever EOF is reached.
 
     Note, in MTS case Seconds_Behind_Master resetting follows
     slightly different schema where reaching EOF is not enough.  The status
     parameter is updated per some number of processed group of events. The
-    number can't be greater than @@global.slave_checkpoint_group and anyway SBM
-    updating rate does not exceed @@global.slave_checkpoint_period. Notice that
-    SBM is set to a new value after processing the terminal event (e.g Commit)
-    of a group.  Coordinator resets SBM when notices no more groups left neither
-    to read from Relay-log nor to process by Workers.
+    number can't be greater than @@global.replica_checkpoint_group and anyway
+    SBM updating rate does not exceed @@global.replica_checkpoint_period. Notice
+    that SBM is set to a new value after processing the terminal event (e.g
+    Commit) of a group.  Coordinator resets SBM when notices no more groups left
+    neither to read from Relay-log nor to process by Workers.
   */
   if (!m_rli->is_parallel_exec() || m_rli->gaq->empty())
     m_rli->last_master_timestamp = 0;

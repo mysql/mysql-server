@@ -6,8 +6,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 CALL mtr.add_suppression(".* Could not execute Write_rows event on table test.*");
 SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
-SET @saved_slave_transaction_retries = @@GLOBAL.slave_transaction_retries;
-SET @@GLOBAL.slave_transaction_retries = 10;
+SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+SET @@GLOBAL.replica_transaction_retries = 10;
 SET @@GLOBAL.innodb_lock_wait_timeout = 2;
 [connection master]
 CREATE TABLE t1 (a INT UNIQUE);
@@ -39,7 +39,7 @@ include/assert.inc [The last transient error number information about the last a
 include/assert.inc [The last transient error message information about the last applied transaction was not changed]
 include/assert.inc [The last transient error timestamp information about the last applied transaction was not changed]
 SET @@GLOBAL.innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
-SET @@GLOBAL.slave_transaction_retries = @saved_slave_transaction_retries;
+SET @@GLOBAL.replica_transaction_retries = @saved_replica_transaction_retries;
 [connection master]
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc

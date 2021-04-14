@@ -108,7 +108,7 @@ class Rpl_info_table : public Rpl_info_handler {
 
     @retval 0         Success
     @retval nonzero   Failure  This can happen if there is an error writing the
-                               table, or if slave_preserve_commit_order is
+                               table, or if replica_preserve_commit_order is
                                enabled and a previous transaction has failed. In
                                both cases, the error has been reported already.
   */

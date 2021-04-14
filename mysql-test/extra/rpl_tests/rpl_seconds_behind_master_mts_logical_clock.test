@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Verify that Seconds_Behind_Master is calculated correctly on a
-# Multi-threaded Slave when slave_parallel_type = 'LOGICAL_CLOCK'.
+# Multi-threaded Slave when replica_parallel_type = 'LOGICAL_CLOCK'.
 # The test covers these scenarios:
 #
 # 1) With two workers, check if Seconds_Behind_Master is calculated

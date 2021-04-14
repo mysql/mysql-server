@@ -69,7 +69,7 @@ ALTER TABLE t8 ADD e1 INT NOT NULL DEFAULT 0, ADD e2 INT NOT NULL DEFAULT 0,
 # modified when the row from the master is applied.
 # since bug#31552/31609 idempotency is not default any longer. In order
 # the following INSERTs to pass the mode is switched temprorarily
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 
 # so the inserts are going to be overriden
 INSERT INTO t1_int  VALUES (2, 4, 4711);
@@ -89,7 +89,7 @@ SELECT * FROM t1_bit ORDER BY a;
 SELECT * FROM t1_char ORDER BY a;
 --echo **** On Slave ****
 sync_slave_with_master;
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 
 SELECT a,b,x FROM t1_int ORDER BY a;
 SELECT a,b,HEX(x),HEX(y),HEX(z) FROM t1_bit ORDER BY a;

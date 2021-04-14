@@ -1,1 +1,1 @@
---max_allowed_packet=4096 --net_buffer_length=1024 --slave_max_allowed_packet=4096
+--max_allowed_packet=4096 --net_buffer_length=1024 --replica_max_allowed_packet=4096

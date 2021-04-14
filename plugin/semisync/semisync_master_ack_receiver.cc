@@ -273,7 +273,7 @@ void Ack_receiver::run() {
         mysql_mutex_unlock(&m_mutex);
         continue;
       }
-      if (!listener.init_slave_sockets(m_slaves)) goto end;
+      if (!listener.init_replica_sockets(m_slaves)) goto end;
       m_slaves_changed = false;
       mysql_cond_broadcast(&m_cond);
     }

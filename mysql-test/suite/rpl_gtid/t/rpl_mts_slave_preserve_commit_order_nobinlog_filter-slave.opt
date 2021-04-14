@@ -1,1 +1,0 @@
---skip-log-bin --log-slave-updates=0 --replicate-ignore-db=ignored_db

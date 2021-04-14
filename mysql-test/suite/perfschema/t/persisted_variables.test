@@ -7,7 +7,7 @@ SET PERSIST flush_time=2;
 # return 2 rows
 select * from performance_schema.persisted_variables ORDER BY 1;
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 SET PERSIST innodb_default_row_format=COMPACT;
 SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 # return 8 rows
@@ -16,7 +16,7 @@ select * from performance_schema.persisted_variables ORDER BY 1;
 SET PERSIST foreign_key_checks=DEFAULT;
 SET PERSIST flush_time=DEFAULT;
 SET PERSIST sort_buffer_size=DEFAULT;
-SET PERSIST max_heap_table_size=DEFAULT, slave_net_timeout=DEFAULT;
+SET PERSIST max_heap_table_size=DEFAULT, replica_net_timeout=DEFAULT;
 SET PERSIST innodb_default_row_format=DEFAULT;
 SET @@persist.max_execution_time=DEFAULT, @@persist.max_user_connections=DEFAULT;
 

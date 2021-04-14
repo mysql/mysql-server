@@ -29,7 +29,7 @@ master-bin.000001	#	Incident	#	#	#1 (LOST_EVENTS)
 master-bin.000001	#	Rotate	#	#	master-bin.000002;pos=POS
 #
 # Verify that we can skip the incident event by setting
-# --slave-skip-errors=1590 on slave.
+# --replica-skip-errors=1590 on slave.
 #
 include/sync_slave_sql_with_master.inc
 [connection master]

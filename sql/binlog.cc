@@ -1651,10 +1651,10 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd) {
   if (thd->owned_gtid.sidno > 0) {
     assert(thd->variables.gtid_next.type == ASSIGNED_GTID);
 
-    if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) {
+    if (!opt_bin_log || (thd->slave_thread && !opt_log_replica_updates)) {
       /*
         If the binary log is disabled for this thread (either by
-        log_bin=0 or sql_log_bin=0 or by log_slave_updates=0 for a
+        log_bin=0 or sql_log_bin=0 or by log_replica_updates=0 for a
         slave thread), then the statement must not be written to the
         binary log.  In this case, we just save the GTID into the
         table directly.
@@ -1686,7 +1686,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd) {
             MYSQL_BIN_LOG::commit ->
             ha_commit_low
 
-          If slave-preserve-commit-order is disabled, it does not call
+          If replica-preserve-commit-order is disabled, it does not call
           update_on_commit from this stack. The reason is as follows:
 
           In the normal case of MYSQL_BIN_LOG::commit, where the transaction is
@@ -1699,7 +1699,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd) {
           ha_commit_low directly, skipping ordered_commit. Therefore, the GTID
           state is not updated in this stack.
 
-          On the other hand, if slave-preserve-commit-order is enabled, the
+          On the other hand, if replica-preserve-commit-order is enabled, the
           logic that orders commit carries out a subset of the binlog group
           commit from within ha_commit_low, and this includes updating the GTID
           state. In particular, there is the following call stack under
@@ -1712,7 +1712,7 @@ int MYSQL_BIN_LOG::gtid_end_transaction(THD *thd) {
             Gtid_state::update_commit_group
 
           Therefore, it is necessary to call update_on_commit only in case we
-          are not using slave-preserve-commit-order here.
+          are not using replica-preserve-commit-order here.
         */
         gtid_state->update_on_commit(thd);
       }
@@ -3287,7 +3287,7 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
     BINLOG_FILE_READER binlog_file_reader(
-        opt_master_verify_checksum,
+        opt_source_verify_checksum,
         std::max(thd->variables.max_allowed_packet,
                  binlog_row_event_max_size + MAX_LOG_EVENT_HEADER));
 
@@ -4400,7 +4400,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
     switch (read_gtids_from_binlog(filename, nullptr, &binlog_previous_gtid_set,
                                    first_gtid,
                                    binlog_previous_gtid_set.get_sid_map(),
-                                   opt_master_verify_checksum, is_relay_log)) {
+                                   opt_source_verify_checksum, is_relay_log)) {
       case ERROR:
         *errmsg =
             "Error reading header of binary log while looking for "
@@ -4844,7 +4844,7 @@ bool MYSQL_BIN_LOG::open_binlog(
     /* relay-log */
     if (relay_log_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF) {
       /* inherit master's A descriptor if one has been received */
-      if (opt_slave_sql_verify_checksum == 0)
+      if (opt_replica_sql_verify_checksum == 0)
         /* otherwise use slave's local preference of RL events verification */
         relay_log_checksum_alg = binary_log::BINLOG_CHECKSUM_ALG_OFF;
       else
@@ -4917,7 +4917,7 @@ bool MYSQL_BIN_LOG::open_binlog(
          file but won't write the PREVIOUS_GTIDS event yet;
       2) Initialize server's GTIDs;
       3) Write the binary log PREVIOUS_GTIDS;
-      4) Call init_slave() in where the new relay log file will be created
+      4) Call init_replica() in where the new relay log file will be created
          after initializing relay log's Retrieved_Gtid_Set;
     */
     if (is_relay_log) {
@@ -5917,7 +5917,7 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log, bool included,
     global_sid_lock->wrlock();
     error = init_gtid_sets(
         nullptr, const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
-        opt_master_verify_checksum, false /*false=don't need lock*/,
+        opt_source_verify_checksum, false /*false=don't need lock*/,
         nullptr /*trx_parser*/, nullptr /*partial_trx*/);
     global_sid_lock->unlock();
     if (error) goto err;
@@ -7745,7 +7745,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
       goto err;
     }
 
-    Binlog_file_reader binlog_file_reader(opt_master_verify_checksum);
+    Binlog_file_reader binlog_file_reader(opt_source_verify_checksum);
     if (binlog_file_reader.open(log_name)) {
       LogErr(ERROR_LEVEL, ER_BINLOG_FILE_OPEN_FAILED,
              binlog_file_reader.get_error_str());
@@ -7881,9 +7881,9 @@ int MYSQL_BIN_LOG::prepare(THD *thd, bool all) {
   assert(opt_bin_log);
   /*
     The applier thread explicitly overrides the value of sql_log_bin
-    with the value of log_slave_updates.
+    with the value of log_replica_updates.
   */
-  assert(thd->slave_thread ? opt_log_slave_updates
+  assert(thd->slave_thread ? opt_log_replica_updates
                            : thd->variables.sql_log_bin);
 
   /*

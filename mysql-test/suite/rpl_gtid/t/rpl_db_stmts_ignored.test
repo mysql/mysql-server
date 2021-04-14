@@ -37,7 +37,7 @@
 #
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
---let $rpl_server_parameters=--replicate-ignore-db=db1 --skip_slave_start=FALSE
+--let $rpl_server_parameters=--replicate-ignore-db=db1 --skip_replica_start=FALSE
 --source include/rpl_restart_server.inc
 --source extra/rpl_tests/rpl_db_stmts_ignored.inc
 
@@ -51,7 +51,7 @@
 #
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
---let $rpl_server_parameters=--replicate-do-db=db2 --skip_slave_start=FALSE
+--let $rpl_server_parameters=--replicate-do-db=db2 --skip_replica_start=FALSE
 --source include/rpl_restart_server.inc
 --source extra/rpl_tests/rpl_db_stmts_ignored.inc
 
@@ -65,7 +65,7 @@
 #
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
---let $rpl_server_parameters=--replicate-wild-ignore-table=db1.% --skip_slave_start=FALSE
+--let $rpl_server_parameters=--replicate-wild-ignore-table=db1.% --skip_replica_start=FALSE
 --source include/rpl_restart_server.inc
 --source extra/rpl_tests/rpl_db_stmts_ignored.inc
 
@@ -79,7 +79,7 @@
 #
 --let $rpl_server_number= 2
 --let $rpl_start_with_gtids= 1
---let $rpl_server_parameters= --replicate-do-db=db2 --replicate-wild-ignore-table=db1.t% --skip_slave_start=FALSE
+--let $rpl_server_parameters= --replicate-do-db=db2 --replicate-wild-ignore-table=db1.t% --skip_replica_start=FALSE
 --source include/rpl_restart_server.inc
 --source extra/rpl_tests/rpl_db_stmts_ignored.inc
 

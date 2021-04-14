@@ -30,7 +30,7 @@
 --source include/rpl_reset.inc
 
 --echo ####################################################################
---echo # Test Case 2: Enable Multithreaded Slave with slave_parallel_type as
+--echo # Test Case 2: Enable Multithreaded Slave with replica_parallel_type as
 --echo # DATABASE. Verify that slave displays appropriate XA_STATE in
 --echo # performance schema table, post XA PREPARE AND XA COMMIT command
 --echo # execution.
@@ -38,13 +38,13 @@
 --source include/rpl_connection_slave.inc
 
 # Save existing settings.
-SET @save_slave_parallel_workers=@@global.slave_parallel_workers;
-SET @slave_parallel_type=@@global.slave_parallel_type;
+SET @save_replica_parallel_workers=@@global.replica_parallel_workers;
+SET @replica_parallel_type=@@global.replica_parallel_type;
 
 # Enable MTS
 --source include/stop_slave.inc
-SET GLOBAL slave_parallel_workers=4;
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_workers=4;
+SET GLOBAL replica_parallel_type='DATABASE';
 --source include/start_slave.inc
 
 # Verify
@@ -54,7 +54,7 @@ SET GLOBAL slave_parallel_type='DATABASE';
 --source include/rpl_reset.inc
 
 --echo ####################################################################
---echo # Test Case 3: Enable Multithreaded Slave with slave_parallel_type as
+--echo # Test Case 3: Enable Multithreaded Slave with replica_parallel_type as
 --echo # LOGICAL_CLOCK. Verify that slave displays appropriate XA_STATE in
 --echo # performance schema table, post XA PREPARE AND XA COMMIT command
 --echo # execution.
@@ -62,8 +62,8 @@ SET GLOBAL slave_parallel_type='DATABASE';
 
 # Enable MTS
 --source include/stop_slave.inc
-SET GLOBAL slave_parallel_workers=4;
-SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_workers=4;
+SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
 --source include/start_slave.inc
 
 # Verify
@@ -73,8 +73,8 @@ SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
 
 # Cleanup
 --source include/stop_slave.inc
-set @@global.slave_parallel_workers= @save_slave_parallel_workers;
-set @@global.slave_parallel_type= @slave_parallel_type;
+set @@global.replica_parallel_workers= @save_replica_parallel_workers;
+set @@global.replica_parallel_type= @replica_parallel_type;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

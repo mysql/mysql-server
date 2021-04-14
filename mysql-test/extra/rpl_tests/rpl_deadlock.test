@@ -25,7 +25,7 @@ sync_slave_with_master;
 SHOW CREATE TABLE t1;
 SHOW CREATE TABLE t2;
 SHOW CREATE TABLE t3;
-SELECT @@GLOBAL.slave_transaction_retries;
+SELECT @@GLOBAL.replica_transaction_retries;
 SELECT @@GLOBAL.innodb_lock_wait_timeout;
 --source include/stop_slave.inc
 
@@ -149,7 +149,7 @@ source include/check_slave_is_running.inc;
 # bug#11748510/36524 incident of deadlock on slave is overdramatized
 #
 # Observe that the slave stopped when the number of transation retries 
-# exceeds @@global.slave_transaction_retries
+# exceeds @@global.replica_transaction_retries
 #
 connection master;
 
@@ -167,8 +167,8 @@ delete from t2;
 delete from t3;
 
 # the first attempt to run a deadlock scenario of p 1) leads to the error
-set @save.slave_transaction_retries= @@global.slave_transaction_retries;
-set @@global.slave_transaction_retries= 0;
+set @save.replica_transaction_retries= @@global.replica_transaction_retries;
+set @@global.replica_transaction_retries= 0;
 source include/stop_slave.inc;
 
 connection master;
@@ -196,7 +196,7 @@ source include/wait_for_slave_sql_error.inc;
 
 rollback;
 
-set @@global.slave_transaction_retries= @save.slave_transaction_retries;
+set @@global.replica_transaction_retries= @save.replica_transaction_retries;
 source include/start_slave.inc;
 # Clean up
 --echo *** Clean up ***

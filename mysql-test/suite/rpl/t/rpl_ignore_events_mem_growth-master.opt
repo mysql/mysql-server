@@ -1,5 +1,5 @@
 --master_info_repository='TABLE'
 --relay_log_info_repository='TABLE'
 --sync_relay_log_info=1
---sync_master_info=1
+--sync_source_info=1
 --performance-schema-instrument='memory%=ON'

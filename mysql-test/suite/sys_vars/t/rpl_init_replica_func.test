@@ -1,0 +1,110 @@
+###############################################################################
+#                                                                             #
+# Variable Name: init_replica                                                   #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: string                                                           #
+# Default Value:                                                              #
+# Range:                                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2008-03-08                                                   #
+# Author:  Rizwan                                                             #
+# Modified: HHunger 2008-09-29 Fixed the bug by inserting the usual wait and  #
+#                              SQL-Satements to control master and slave,     #
+#                              deleted the sleep and made improvements like:  #
+#                              - Replaced the opt file by dynamic variables,  #
+#                              - Made the tests independant of the initial    #
+#                                values of the global variables,              #
+#                              - Reduced the test to the needed test case to  #
+#                                save run time,                               #
+#                              - Beautification.                              #
+#                                                                             #
+# Description: Test Cases of Dynamic System Variable init_replica               #
+#              that checks the behavior of this variable                      #
+#                                                                             #
+# Reference:                                                                  #
+# http://dev.mysql.com/doc/refman/5.1/en/server-system-variables.html         #
+#                                                                             #
+###############################################################################
+
+source include/master-slave.inc;
+--echo connection slave
+connection slave;
+--disable_query_log
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+--enable_query_log
+#
+# save the current values
+
+SET @start_max_connections= @@global.max_connections;
+SET @start_init_replica= @@global.init_replica;
+
+# setting of a global value with an effect on the next start of the slave server
+# check that @@global.init_replica could be set
+SET NAMES utf8;
+let $my_init_replica=
+   'SET @@global.max_connections = @@global.max_connections + 1 -- комментарий';
+eval SET @@global.init_replica = $my_init_replica;
+
+# show the data type of the variable
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+CREATE TEMPORARY TABLE t1 AS SELECT @@global.init_replica AS my_column;
+--enable_warnings
+DESCRIBE t1;
+select length(my_column) from t1;
+DROP TABLE t1;
+#
+# check that the new setting of @@global.init_replica becomes immediately visible
+eval SELECT @@global.init_replica = $my_init_replica;
+--echo Expect 1
+# wait for the slave threads have set the global variable.
+let $wait_timeout= 90;
+let $wait_condition= SELECT @@global.max_connections = @start_max_connections;
+--source include/wait_condition_sp.inc
+# check that the action in init_replica does not happen immediately
+--let $assert_text= @@global.max_connections = @start_max_connections
+--let $assert_cond= @@global.max_connections = @start_max_connections
+--source include/assert.inc
+#
+# reset of the server
+STOP SLAVE;
+--wait_for_slave_to_stop
+RESET MASTER;
+RESET SLAVE;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+#
+# wait for the slave threads have set the global variable.
+let $wait_timeout= 90;
+let $wait_condition= SELECT @@global.max_connections = @start_max_connections + 1;
+--source include/wait_condition_sp.inc
+# check that the action in init_replica was executed and had the intended effect
+--let $assert_text= @@global.max_connections = @start_max_connections + 1
+--let $assert_cond= @@global.max_connections = @start_max_connections + 1
+--source include/assert.inc
+#
+# Setting a variable(which is local to a session) and must not be visible
+SET @@global.init_replica = "SET @a=5";
+#
+STOP SLAVE;
+--wait_for_slave_to_stop
+RESET MASTER;
+RESET SLAVE;
+START SLAVE;
+source include/wait_for_slave_to_start.inc;
+#
+SHOW VARIABLES LIKE 'init_replica';
+# expect NULL
+SELECT @a;
+--echo Expect NULL
+#
+# Clean up
+SET @@global.max_connections= @start_max_connections;
+SET @@global.init_replica= @start_init_replica;
+##################################################
+# End of functionality Testing for init_replica    #
+##################################################
+
+--source include/rpl_end.inc

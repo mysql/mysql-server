@@ -1,2 +1,2 @@
---slave-skip-errors=1678
+--replica-skip-errors=1678
 --log-error-verbosity=2

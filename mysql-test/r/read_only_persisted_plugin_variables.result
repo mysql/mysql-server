@@ -47,7 +47,7 @@ set @@persist_only.innodb_sort_buffer_size=1048576;
 set @@persist_only.innodb_sync_array_size=1;
 set @@persist_only.innodb_use_native_aio=1;
 set @@persist_only.innodb_write_io_threads=4;
-set @@persist_only.log_slave_updates=0;
+set @@persist_only.log_replica_updates=0;
 set @@persist_only.max_digest_length=1024;
 set @@persist_only.myisam_recover_options='OFF';
 set @@persist_only.ngram_token_size=2;
@@ -100,7 +100,7 @@ set @@persist_only.relay_log_recovery=0;
 set @@persist_only.relay_log_space_limit=0;
 set @@persist_only.skip_name_resolve=0;
 set @@persist_only.skip_show_database=0;
-set @@persist_only.slave_type_conversions='';
+set @@persist_only.replica_type_conversions='';
 set @@persist_only.table_open_cache_instances=16;
 set @@persist_only.thread_handling='one-thread-per-connection';
 set @@persist_only.thread_stack=286720;
@@ -119,7 +119,7 @@ CALL mtr.add_suppression("Plugin audit_log reported *");
 SELECT * FROM performance_schema.persisted_variables;
 VARIABLE_NAME	VARIABLE_VALUE
 innodb_log_buffer_size	16777216
-slave_type_conversions	
+replica_type_conversions	
 back_log	80
 binlog_gtid_simple_recovery	ON
 disabled_storage_engines	
@@ -151,7 +151,7 @@ innodb_sort_buffer_size	1048576
 innodb_sync_array_size	1
 innodb_use_native_aio	1
 innodb_write_io_threads	4
-log_slave_updates	OFF
+log_replica_updates	OFF
 max_digest_length	1024
 myisam_recover_options	OFF
 ngram_token_size	2
@@ -246,7 +246,7 @@ innodb_sort_buffer_size
 innodb_sync_array_size
 innodb_use_native_aio
 innodb_write_io_threads
-log_slave_updates
+log_replica_updates
 max_digest_length
 myisam_recover_options
 ngram_token_size
@@ -303,7 +303,7 @@ report_port
 report_user
 skip_name_resolve
 skip_show_database
-slave_type_conversions
+replica_type_conversions
 table_open_cache_instances
 thread_handling
 thread_stack

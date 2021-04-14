@@ -5,7 +5,7 @@
 -- source include/have_binlog_format_row.inc
 -- source include/master-slave.inc
 
-# sql_slave_skip_counter is not supported with compression
+# sql_replica_skip_counter is not supported with compression
 --source include/not_binlog_transaction_compression_on.inc
 
 let $engine_type = 'InnoDB';

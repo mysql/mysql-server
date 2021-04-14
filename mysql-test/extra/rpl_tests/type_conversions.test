@@ -12,11 +12,11 @@
 
 disable_query_log;
 connection slave;
---let $conv = `select @@slave_type_conversions`
---echo **** Running tests with @@SLAVE_TYPE_CONVERSIONS = '$conv' ****
+--let $conv = `select @@replica_type_conversions`
+--echo **** Running tests with @@REPLICA_TYPE_CONVERSIONS = '$conv' ****
 
-let $if_is_lossy = `SELECT FIND_IN_SET('ALL_LOSSY', @@SLAVE_TYPE_CONVERSIONS)`;
-let $if_is_non_lossy = `SELECT FIND_IN_SET('ALL_NON_LOSSY', @@SLAVE_TYPE_CONVERSIONS)`;
+let $if_is_lossy = `SELECT FIND_IN_SET('ALL_LOSSY', @@REPLICA_TYPE_CONVERSIONS)`;
+let $if_is_non_lossy = `SELECT FIND_IN_SET('ALL_NON_LOSSY', @@REPLICA_TYPE_CONVERSIONS)`;
 
 # TINYBLOB
 
