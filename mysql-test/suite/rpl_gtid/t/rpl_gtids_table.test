@@ -155,7 +155,7 @@ SET GLOBAL DEBUG= @debug_save;
 --echo #
 --echo # connection slave
 --echo #
---let $slave_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--let $replica_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 
 --echo #
 --echo # Verify that the transaction is skiped if its specified gtid is
@@ -227,8 +227,8 @@ COMMIT;
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 --eval SELECT * FROM mysql.gtid_executed where source_uuid="$master_uuid"
---replace_result $slave_uuid SLAVE_UUID
---eval SELECT * FROM mysql.gtid_executed where source_uuid="$slave_uuid"
+--replace_result $replica_uuid SLAVE_UUID
+--eval SELECT * FROM mysql.gtid_executed where source_uuid="$replica_uuid"
 
 --connection master
 DROP TABLE t1, t2;

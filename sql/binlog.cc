@@ -9148,7 +9148,7 @@ void MYSQL_BIN_LOG::report_missing_purged_gtids(
 
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&current_thd->LOCK_thd_data);
-  const auto it = current_thd->user_vars.find("slave_uuid");
+  const auto it = current_thd->user_vars.find("replica_uuid");
   if (it != current_thd->user_vars.end() && it->second->length() > 0) {
     tmp_uuid.copy(it->second->ptr(), it->second->length(), NULL);
   }
@@ -9217,7 +9217,7 @@ void MYSQL_BIN_LOG::report_missing_gtids(
 
   /* Protects thd->user_vars. */
   mysql_mutex_lock(&current_thd->LOCK_thd_data);
-  const auto it = current_thd->user_vars.find("slave_uuid");
+  const auto it = current_thd->user_vars.find("replica_uuid");
   if (it != current_thd->user_vars.end() && it->second->length() > 0) {
     tmp_uuid.copy(it->second->ptr(), it->second->length(), NULL);
   }

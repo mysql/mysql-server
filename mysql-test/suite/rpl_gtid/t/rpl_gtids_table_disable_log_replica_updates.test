@@ -44,7 +44,7 @@ SELECT * FROM mysql.gtid_executed;
 --echo #
 --echo # connection slave
 --echo #
---let $slave_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--let $replica_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 --let $assert_text= committed gtids MASTER_UUID:1-4
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-4"
 --source include/assert.inc
@@ -74,8 +74,8 @@ SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= @old_compression_period;
 
 --replace_result $master_uuid MASTER_UUID
 --eval SELECT * FROM mysql.gtid_executed where source_uuid="$master_uuid"
---replace_result $slave_uuid SLAVE_UUID
---eval SELECT * FROM mysql.gtid_executed where source_uuid="$slave_uuid"
+--replace_result $replica_uuid SLAVE_UUID
+--eval SELECT * FROM mysql.gtid_executed where source_uuid="$replica_uuid"
 
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --echo #
@@ -84,7 +84,7 @@ SET @@GLOBAL.GTID_EXECUTED_COMPRESSION_PERIOD= @old_compression_period;
 --echo #
 --eval PURGE BINARY LOGS TO '$binlog_file'
 --let $assert_text= purged gtids SLAVE_UUID:1-2,MASTER_UUID:1-4
---let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_PURGED]", "$slave_uuid:1-2,$master_uuid:1-4")
+--let $assert_cond= GTID_IS_EQUAL("[SELECT @@GLOBAL.GTID_PURGED]", "$replica_uuid:1-2,$master_uuid:1-4")
 --source include/assert.inc
 
 --echo #
@@ -111,8 +111,8 @@ SET GLOBAL MAX_BINLOG_SIZE=@SIZE_DEFAULT;
 
 --replace_result $master_uuid MASTER_UUID
 --eval SELECT * FROM mysql.gtid_executed where source_uuid="$master_uuid"
---replace_result $slave_uuid SLAVE_UUID
---eval SELECT * FROM mysql.gtid_executed where source_uuid="$slave_uuid"
+--replace_result $replica_uuid SLAVE_UUID
+--eval SELECT * FROM mysql.gtid_executed where source_uuid="$replica_uuid"
 
 --replace_result $saved_binlog_transaction_compression SAVED
 --eval SET @@session.binlog_transaction_compression= $saved_binlog_transaction_compression
