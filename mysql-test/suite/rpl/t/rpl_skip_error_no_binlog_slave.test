@@ -15,7 +15,7 @@
 # ==== References ====
 #
 # BUG#22268777 BINLOGLESS SLAVE DOES NOT UPDATE EXEC_MASTER_LOG_POS
-#              WITH SLAVE_SKIP_ERRORS
+#              WITH REPLICA_SKIP_ERRORS
 
 --source include/master-slave.inc
 

@@ -4,7 +4,7 @@
 # track of the starting position of the current transaction. This position
 # is used to rewind the position in case the SQL thread is stopped in the
 # middle of a transaction, or in case the transaction is re-executed due to
-# slave_transaction_retries > 0.
+# replica_transaction_retries > 0.
 #
 # This test verifies that the start of the transaction is correctly updated
 # even if the transaction spans multiple relay logs, such that a Gtid_log_event

@@ -43,10 +43,10 @@ SELECT * FROM t1 ORDER BY a;
 --source include/check_slave_no_error.inc
 --source include/check_slave_is_running.inc
 
---echo Slave Binlog contains all ops as log_slave_updates is on
+--echo Slave Binlog contains all ops as log_replica_updates is on
 show variables like 'server_id';
 show variables like 'log_bin';
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 --source include/show_binlog_events.inc
 
 source include/check_slave_is_running.inc;
@@ -56,10 +56,10 @@ SELECT * FROM t1 ORDER BY a;
 #SELECT * FROM t2 ORDER BY a;
 source include/check_slave_is_running.inc;
 
---echo Master Binlog contains only Master ops as log_slave_updates is off
+--echo Master Binlog contains only Master ops as log_replica_updates is off
 show variables like 'server_id';
 show variables like 'log_bin';
-show variables like 'log_slave_updates';
+show variables like 'log_replica_updates';
 --source include/show_binlog_events.inc
 
 # stop replication on "master" as not to replicate

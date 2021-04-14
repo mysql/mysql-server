@@ -9,8 +9,8 @@ enforce-gtid-consistency=on
 [mysqld.2]
 gtid-mode=on
 enforce-gtid-consistency=on
-slave-transaction-retries= 0
-slave-preserve-commit-order=OFF
+replica-transaction-retries= 0
+replica-preserve-commit-order=OFF
 
 [ENV]
 MASTER_MYPORT=          @mysqld.1.port

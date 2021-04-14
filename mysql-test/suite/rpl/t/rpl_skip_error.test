@@ -1,13 +1,13 @@
 # ==== Purpose ====
 #
-# Verify that --slave-skip-errors works correctly.  The error messages
-# specified by --slave-skip-errors on slave should be ignored.  If
+# Verify that --replica-skip-errors works correctly.  The error messages
+# specified by --replica-skip-errors on slave should be ignored.  If
 # such errors occur, they should not be reported and not cause the
 # slave to stop.
 #
 # ==== Method ====
 #
-# We run the slave with --slave-skip-errors=1062 (the code for
+# We run the slave with --replica-skip-errors=1062 (the code for
 # duplicate key).  Then we have two set of tests. In the first 
 # set, we insert value 1 in a table on the slave, and then, on 
 # master, we insert value 1 in the table. In the second set, we 
@@ -19,9 +19,9 @@
 # 
 # ==== Related bugs ====
 #
-# BUG#28839: Errors in strict mode silently stop SQL thread if --slave-skip-errors exists
+# BUG#28839: Errors in strict mode silently stop SQL thread if --replica-skip-errors exists
 # bug in this test: BUG#30594: rpl.rpl_skip_error is nondeterministic:
-# BUG#39393: slave-skip-errors does not work when using ROW based replication
+# BUG#39393: replica-skip-errors does not work when using ROW based replication
 
 --source include/not_group_replication_plugin.inc
 source include/master-slave.inc;
@@ -64,7 +64,7 @@ drop table t1;
 # End of 4.1 tests
 
 #
-# #28839 Errors in strict mode silently stop SQL thread if --slave-skip-errors exists
+# #28839 Errors in strict mode silently stop SQL thread if --replica-skip-errors exists
 #
 connection master;
 create table t1(a int primary key);
@@ -89,7 +89,7 @@ drop table t1;
 # End of 5.0 tests
 
 #
-# BUG#39393: slave-skip-errors does not work when using ROW based replication
+# BUG#39393: replica-skip-errors does not work when using ROW based replication
 #
 --echo ==== Using Innodb ====
 

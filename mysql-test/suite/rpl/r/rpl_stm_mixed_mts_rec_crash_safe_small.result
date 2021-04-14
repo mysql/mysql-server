@@ -585,8 +585,8 @@ slave_worker_info	CREATE TABLE `slave_worker_info` (
 ########################################################################
 #                                TEST
 ########################################################################
-SET @@global.slave_parallel_workers= 4;
-SET @@global.slave_checkpoint_period= 2;
+SET @@global.replica_parallel_workers= 4;
+SET @@global.replica_checkpoint_period= 2;
 Generating Number of Workers 4 --- Number of Groups per worker 4 --- Debugging Groups 3 --- Database test_1
 ==== begin rpl_mts_crash_safe.inc:rpl_mixing_engines.inc ====
 rpl_mixing_engines.inc [commands=B T T C]
@@ -863,17 +863,17 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
+include/rpl_start_server.inc [server_number=2 parameters: --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0]
 START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
-include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --sync-master-info=1]
+include/rpl_restart_server.inc [server_number=2 parameters: --skip-replica-start --replica-transaction-retries=0 --sync-source-info=1]
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
-SET @@global.slave_parallel_workers= 4;
-SET @@global.slave_checkpoint_period= 2;
+SET @@global.replica_parallel_workers= 4;
+SET @@global.replica_checkpoint_period= 2;
 ==== end rpl_mts_crash_safe.inc:recovery ====
 ########################################################################
 #                          CHECK CONSISTENCY

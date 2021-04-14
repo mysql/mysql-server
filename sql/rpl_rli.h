@@ -81,7 +81,7 @@ class String;
 struct LEX_MASTER_INFO;
 struct db_worker_hash_entry;
 
-extern uint sql_slave_skip_counter;
+extern uint sql_replica_skip_counter;
 
 typedef Prealloced_array<Slave_worker *, 4> Slave_worker_array;
 
@@ -908,7 +908,7 @@ class Relay_log_info : public Rpl_info {
   char cached_charset[6];
 
   /*
-    trans_retries varies between 0 to slave_transaction_retries and counts how
+    trans_retries varies between 0 to replica_transaction_retries and counts how
     many times the slave has retried the present transaction; gets reset to 0
     when the transaction finally succeeds. retried_trans is a cumulative
     counter: how many times the slave has retried a transaction (any) since
@@ -1099,7 +1099,7 @@ class Relay_log_info : public Rpl_info {
     W  - Worker;
     WQ - Worker Queue containing event assignments
   */
-  // number's is determined by global slave_parallel_workers
+  // number's is determined by global replica_parallel_workers
   Slave_worker_array workers;
 
   // To map a database to a worker
@@ -1176,11 +1176,13 @@ class Relay_log_info : public Rpl_info {
      Coordinator in order to avoid reaching WQ limits.
   */
   volatile long mts_wq_excess_cnt;
-  long mts_worker_underrun_level;    // % of WQ size at which W is considered
-                                     // hungry
-  ulong mts_coordinator_basic_nap;   // C sleeps to avoid WQs overrun
-  ulong opt_slave_parallel_workers;  // cache for ::opt_slave_parallel_workers
-  ulong slave_parallel_workers;  // the one slave session time number of workers
+  long mts_worker_underrun_level;   // % of WQ size at which W is considered
+                                    // hungry
+  ulong mts_coordinator_basic_nap;  // C sleeps to avoid WQs overrun
+  ulong
+      opt_replica_parallel_workers;  // cache for ::opt_replica_parallel_workers
+  ulong
+      replica_parallel_workers;  // the one slave session time number of workers
   ulong
       exit_counter;  // Number of workers contributed to max updated group index
   ulonglong max_updated_index;
@@ -1325,7 +1327,7 @@ class Relay_log_info : public Rpl_info {
      returns true if events are to be executed in parallel
   */
   inline bool is_parallel_exec() const {
-    bool ret = (slave_parallel_workers > 0) && !is_mts_recovery();
+    bool ret = (replica_parallel_workers > 0) && !is_mts_recovery();
 
     assert(!ret || !workers.empty());
 

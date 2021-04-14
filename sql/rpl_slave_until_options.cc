@@ -277,7 +277,7 @@ bool Until_view_id::check_after_dispatching_event() {
 }
 
 void Until_mts_gap::init() {
-  m_rli->opt_slave_parallel_workers = m_rli->recovery_parallel_workers;
+  m_rli->opt_replica_parallel_workers = m_rli->recovery_parallel_workers;
 }
 
 bool Until_mts_gap::check_at_start_slave() { return false; }

@@ -21,11 +21,11 @@ CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log 
 CALL mtr.add_suppression(".*Worker.*failed executing transaction.*at master log .*, end_log_pos.*Replica worker has stopped after at least one previous worker.*");
 CALL mtr.add_suppression(".*worker thread retried transaction.*time.*in vain, giving up.*");
 CALL mtr.add_suppression(".*The slave coordinator and worker threads are stopped.*");
-CALL mtr.add_suppression(".*Slave worker has stopped after at least one previous worker encountered an error when slave-preserve-commit-order was enabled.*");
-SET GLOBAL slave_parallel_type = LOGICAL_CLOCK;
-SET GLOBAL slave_parallel_workers = 3;
-SET GLOBAL slave_preserve_commit_order = ON;
-SET GLOBAL slave_transaction_retries = REPLICA_TRANSACTION_RETRIES;
+CALL mtr.add_suppression(".*Slave worker has stopped after at least one previous worker encountered an error when replica-preserve-commit-order was enabled.*");
+SET GLOBAL replica_parallel_type = LOGICAL_CLOCK;
+SET GLOBAL replica_parallel_workers = 3;
+SET GLOBAL replica_preserve_commit_order = ON;
+SET GLOBAL replica_transaction_retries = REPLICA_TRANSACTION_RETRIES;
 SET GLOBAL innodb_lock_wait_timeout = INNODB_LOCK_WAIT_TIMEOUT;
 include/rpl_connect.inc [creating rpl_slave_connection_2]
 include/rpl_connect.inc [creating rpl_slave_connection_3]
@@ -573,9 +573,9 @@ DROP TABLE t1;
 DROP TABLE t2;
 include/rpl_end.inc
 [connection slave]
-SET GLOBAL slave_parallel_type = 'SAVED_REPLICA_PARALLEL_TYPE';
-SET GLOBAL slave_parallel_workers = SAVED_REPLICA_PARALLEL_WORKERS;
-SET GLOBAL slave_preserve_commit_order = SAVED_REPLICA_PRESERVE_COMMIT_ORDER;
-SET GLOBAL slave_transaction_retries = SAVED_REPLICA_TRANSACTION_RETRIES;
+SET GLOBAL replica_parallel_type = 'SAVED_REPLICA_PARALLEL_TYPE';
+SET GLOBAL replica_parallel_workers = SAVED_REPLICA_PARALLEL_WORKERS;
+SET GLOBAL replica_preserve_commit_order = SAVED_REPLICA_PRESERVE_COMMIT_ORDER;
+SET GLOBAL replica_transaction_retries = SAVED_REPLICA_TRANSACTION_RETRIES;
 SET GLOBAL innodb_lock_wait_timeout = SAVED_INNODB_LOCK_WAIT_TIMEOUT;
 SET GLOBAL read_only = SAVED_READ_ONLY;

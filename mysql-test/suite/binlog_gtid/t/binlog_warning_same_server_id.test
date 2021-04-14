@@ -25,7 +25,7 @@
 #
 # Start with gtid-mode turned on, it will start
 #
---let $restart_parameters="restart: --log-error=$error_log --log-slave-updates --replicate-same-server-id --gtid-mode=ON --enforce-gtid-consistency"
+--let $restart_parameters="restart: --log-error=$error_log --log-replica-updates --replicate-same-server-id --gtid-mode=ON --enforce-gtid-consistency"
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --source include/start_mysqld.inc
 
@@ -35,7 +35,7 @@
 
 --let $assert_text= Assert that the server starts and emits a warning
 --let $assert_file= $error_log
---let $assert_select= .*using --replicate-same-server-id in conjunction with --log-slave-updates would lead to infinite loops in this server. However this will be ignored as the --log-bin option is not defined or your server is running with global transaction identiers enabled.
+--let $assert_select= .*using --replicate-same-server-id in conjunction with --log-replica-updates would lead to infinite loops in this server. However this will be ignored as the --log-bin option is not defined or your server is running with global transaction identiers enabled.
 --let $assert_count= 1
 --source include/assert_grep.inc
 

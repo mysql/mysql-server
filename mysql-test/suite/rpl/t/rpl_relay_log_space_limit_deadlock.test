@@ -25,7 +25,7 @@
 
 --source include/have_debug_sync.inc
 # this issue only happened on MTS
---source include/only_mts_slave_parallel_workers.inc
+--source include/only_mts_replica_parallel_workers.inc
 --source include/master-slave.inc
 
 --echo #
@@ -49,8 +49,8 @@ SET @@GLOBAL.DEBUG= '+d,rpl_set_relay_log_limits';
 SET @@GLOBAL.DEBUG= '+d,rpl_before_forced_rotate';
 
 # Reduce this to a minimum
---let $slave_checkpoint_period_value = `SELECT @@global.slave_checkpoint_period`
-SET @@GLOBAL.slave_checkpoint_period= 1;
+--let $replica_checkpoint_period_value = `SELECT @@global.replica_checkpoint_period`
+SET @@GLOBAL.replica_checkpoint_period= 1;
 
 --echo #
 --echo # 3. Execute a transaction on the master
@@ -95,8 +95,8 @@ INSERT INTO t1 VALUES (1);
 --echo #
 --echo # 5. Cleanup
 
---replace_result $slave_checkpoint_period_value SLAVE_CHECKPOINT_PERIOD
---eval SET @@GLOBAL.slave_checkpoint_period= $slave_checkpoint_period_value
+--replace_result $replica_checkpoint_period_value REPLICA_CHECKPOINT_PERIOD
+--eval SET @@GLOBAL.replica_checkpoint_period= $replica_checkpoint_period_value
 
 --source include/rpl_connection_master.inc
 

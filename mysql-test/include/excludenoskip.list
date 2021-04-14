@@ -196,12 +196,12 @@ have_memcached_plugin.inc
 # 14.0 MTR tests that runs only with specific rpl modes:
 
 # 14.1 Some rpl tests can run only with MTS_LC, MTS_DB and Non MTS
-have_slave_parallel_type_logical_clock.inc
-have_slave_parallel_type_database.inc
-only_mts_slave_parallel_workers.inc
-only_mts_slave_parallel_type_logical_clock.inc
-only_mts_slave_parallel_type_database.inc
-not_mts_slave_parallel_workers.inc
+have_replica_parallel_type_logical_clock.inc
+have_replica_parallel_type_database.inc
+only_mts_replica_parallel_workers.inc
+only_mts_replica_parallel_type_logical_clock.inc
+only_mts_replica_parallel_type_database.inc
+not_mts_replica_parallel_workers.inc
 # 14.2 rpl misc files
 have_slave_repository_type_table.inc
 not_relay_log_info_file.inc

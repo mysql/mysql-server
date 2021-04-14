@@ -47,8 +47,8 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped")
 
 SET @save.innodb_lock_wait_timeout=@@GLOBAL.innodb_lock_wait_timeout;
 eval SET @@global.innodb_lock_wait_timeout=$innodb_wait_timeout;
-SET @save.slave_transaction_retries= @@global.slave_transaction_retries;
-SET @@global.slave_transaction_retries= 0;
+SET @save.replica_transaction_retries= @@global.replica_transaction_retries;
+SET @@global.replica_transaction_retries= 0;
 SET @save.max_relay_log_size= @@global.max_relay_log_size;
 --eval SET @@global.max_relay_log_size=$relay_log_size
 
@@ -175,8 +175,8 @@ while ($iter)
     --connection slave
     SET @save.innodb_lock_wait_timeout=@@GLOBAL.innodb_lock_wait_timeout;
     eval SET @@global.innodb_lock_wait_timeout=$innodb_wait_timeout;
-    SET @save.slave_transaction_retries= @@global.slave_transaction_retries;
-    SET @@global.slave_transaction_retries= 0;
+    SET @save.replica_transaction_retries= @@global.replica_transaction_retries;
+    SET @@global.replica_transaction_retries= 0;
     SET @save.max_relay_log_size= @@global.max_relay_log_size;
     SET @@global.max_relay_log_size=4096;
     if ($rpl_multi_source)
@@ -227,5 +227,5 @@ while ($index)
 
 --source include/sync_slave_sql_with_master.inc
 SET @@global.innodb_lock_wait_timeout=@save.innodb_lock_wait_timeout;
-SET @@global.slave_transaction_retries= @save.slave_transaction_retries;
+SET @@global.replica_transaction_retries= @save.replica_transaction_retries;
 SET @@global.max_relay_log_size= @save.max_relay_log_size;

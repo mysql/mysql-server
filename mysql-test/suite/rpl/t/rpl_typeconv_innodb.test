@@ -7,8 +7,8 @@
 #
 
 connection slave;
-SET @saved_slave_type_conversions = @@GLOBAL.SLAVE_TYPE_CONVERSIONS;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = '';
+SET @saved_replica_type_conversions = @@GLOBAL.REPLICA_TYPE_CONVERSIONS;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = '';
 
 connection master;
 CREATE TABLE t1(b1 BIT(1), b2 BIT(2), b3 BIT(3)) ENGINE=InnoDB;
@@ -22,5 +22,5 @@ connection master;
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 --source include/rpl_end.inc

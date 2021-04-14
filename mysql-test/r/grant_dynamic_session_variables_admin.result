@@ -41,7 +41,7 @@ SET SESSION character_set_database = DEFAULT;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
 SET SESSION character_set_filesystem = DEFAULT;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN, SESSION_VARIABLES_ADMIN or REPLICATION_APPLIER privilege(s) for this operation
 SET SESSION pseudo_thread_id = DEFAULT;
 ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
@@ -74,9 +74,9 @@ SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 Warnings:
-Warning	1231	'pseudo_slave_mode' change was ineffective.
+Warning	1231	'pseudo_replica_mode' change was ineffective.
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
 Warnings:
@@ -116,9 +116,9 @@ SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 Warnings:
-Warning	1231	'pseudo_slave_mode' change was ineffective.
+Warning	1231	'pseudo_replica_mode' change was ineffective.
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
 Warnings:
@@ -160,9 +160,9 @@ SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
 Warnings:
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 Warnings:
-Warning	1231	'pseudo_slave_mode' change was ineffective.
+Warning	1231	'pseudo_replica_mode' change was ineffective.
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
 Warnings:

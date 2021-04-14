@@ -198,7 +198,7 @@ SET PERSIST binlog_encryption = ON;
 
 --echo Restart the slave with keyring installed
 --let $rpl_server_number= 2
---let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --skip-slave-start
+--let $rpl_server_parameters= $RPL_PLUGIN_DIR_OPT --skip-replica-start
 --let $rpl_server_error= 0
 --let $rpl_omit_print_server_parameters= 1
 --source include/rpl_restart_server.inc

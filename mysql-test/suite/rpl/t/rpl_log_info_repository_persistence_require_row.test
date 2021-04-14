@@ -63,7 +63,7 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --source include/not_master_info_file.inc
---source include/not_mts_slave_parallel_workers.inc
+--source include/not_mts_replica_parallel_workers.inc
 --source include/not_have_privilege_checks_user.inc
 --source include/master-slave.inc
 
@@ -146,7 +146,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 --echo #     REQUIRE_ROW_FORMAT must be 0
 
 --let $sub_testcase = no_flag_no_priv_user
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -158,7 +158,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 --echo #     REQUIRE_ROW_FORMAT must be 0
 
 --let $sub_testcase = no_flag_with_priv_user
---let $rpl_server_restart_parameters = --skip_slave_start
+--let $rpl_server_restart_parameters = --skip_replica_start
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -180,7 +180,7 @@ CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT = 0;
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 
 --let $sub_testcase = no_flag_no_priv_user
---let $rpl_server_restart_parameters = --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $rpl_server_restart_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -206,7 +206,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 
 --let $sub_testcase = no_flag_with_priv_user
---let $rpl_server_restart_parameters = --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $rpl_server_restart_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
 --let $slave_server_num = 2
 --source extra/rpl_tests/restart_slave_with_custom_relaylog_repo_file.inc
 
@@ -240,7 +240,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 UPDATE mysql.slave_relay_log_info SET Number_of_lines = 10;
 
 --let $rpl_server_number = 2
---let $rpl_server_parameters = --skip_slave_start --relay-log-info-repository=TABLE --upgrade=FORCE
+--let $rpl_server_parameters = --skip_replica_start --relay-log-info-repository=TABLE --upgrade=FORCE
 --let $explicit_default_wait_counter = 15000
 --source include/rpl_restart_server.inc
 

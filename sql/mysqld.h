@@ -151,7 +151,7 @@ enum_server_operational_state get_server_state();
 
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_bin_log;
-extern bool opt_log_slave_updates;
+extern bool opt_log_replica_updates;
 extern bool opt_log_unsafe_statements;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern ulonglong log_output_options;
@@ -170,8 +170,8 @@ extern long opt_upgrade_mode;
 extern bool opt_initialize;
 extern bool opt_safe_user_create;
 extern bool opt_local_infile, opt_myisam_use_mmap;
-extern bool opt_slave_compressed_protocol;
-extern ulong slave_exec_mode_options;
+extern bool opt_replica_compressed_protocol;
+extern ulong replica_exec_mode_options;
 extern Rpl_global_filter rpl_global_filter;
 extern Source_IO_monitor *rpl_source_io_monitor;
 extern int32_t opt_regexp_time_limit;
@@ -182,13 +182,13 @@ extern bool opt_no_monitor;
 extern bool opt_debugging;
 extern bool opt_validate_config;
 
-enum enum_slave_type_conversions {
-  SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
-  SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY,
-  SLAVE_TYPE_CONVERSIONS_ALL_UNSIGNED,
-  SLAVE_TYPE_CONVERSIONS_ALL_SIGNED
+enum enum_replica_type_conversions {
+  REPLICA_TYPE_CONVERSIONS_ALL_LOSSY,
+  REPLICA_TYPE_CONVERSIONS_ALL_NON_LOSSY,
+  REPLICA_TYPE_CONVERSIONS_ALL_UNSIGNED,
+  REPLICA_TYPE_CONVERSIONS_ALL_SIGNED
 };
-extern ulonglong slave_type_conversions_options;
+extern ulonglong replica_type_conversions_options;
 
 extern bool read_only, opt_readonly;
 extern bool super_read_only, opt_super_readonly;
@@ -202,7 +202,7 @@ enum enum_slave_rows_search_algorithms {
 extern ulonglong slave_rows_search_algorithms_options;
 extern bool opt_require_secure_transport;
 
-extern bool opt_slave_preserve_commit_order;
+extern bool opt_replica_preserve_commit_order;
 
 #ifndef NDEBUG
 extern uint slave_rows_last_search_algorithm_used;
@@ -216,7 +216,7 @@ extern mysql_rwlock_t LOCK_named_pipe_full_access_group;
 #endif
 extern bool opt_allow_suspicious_udfs;
 extern const char *opt_secure_file_priv;
-extern bool opt_log_slow_admin_statements, opt_log_slow_slave_statements;
+extern bool opt_log_slow_admin_statements, opt_log_slow_replica_statements;
 extern bool sp_automatic_privileges, opt_noacl;
 extern bool opt_old_style_user_limits, trust_function_creators;
 extern bool check_proxy_users, mysql_native_password_proxy_users,
@@ -301,12 +301,12 @@ extern ulong tablespace_def_size;
 extern MYSQL_PLUGIN_IMPORT ulong max_connections;
 extern ulong max_digest_length;
 extern ulong max_connect_errors, connect_timeout;
-extern bool opt_slave_allow_batching;
+extern bool opt_replica_allow_batching;
 extern ulong slave_trans_retries;
-extern uint slave_net_timeout;
-extern ulong opt_mts_slave_parallel_workers;
+extern uint replica_net_timeout;
+extern ulong opt_mts_replica_parallel_workers;
 extern ulonglong opt_mts_pending_jobs_size_max;
-extern ulong rpl_stop_slave_timeout;
+extern ulong rpl_stop_replica_timeout;
 extern bool log_bin_use_v1_row_events;
 extern ulong what_to_log, flush_time;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
@@ -319,13 +319,13 @@ extern int32 opt_binlog_max_flush_queue_time;
 extern long opt_binlog_group_commit_sync_delay;
 extern ulong opt_binlog_group_commit_sync_no_delay_count;
 extern ulong max_binlog_size, max_relay_log_size;
-extern ulong slave_max_allowed_packet;
+extern ulong replica_max_allowed_packet;
 extern ulong binlog_row_event_max_size;
 extern ulong binlog_checksum_options;
 extern ulong binlog_row_metadata;
 extern const char *binlog_checksum_type_names[];
-extern bool opt_master_verify_checksum;
-extern bool opt_slave_sql_verify_checksum;
+extern bool opt_source_verify_checksum;
+extern bool opt_replica_sql_verify_checksum;
 extern uint32 gtid_executed_compression_period;
 extern bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
@@ -367,7 +367,7 @@ extern "C" MYSQL_PLUGIN_IMPORT char **orig_argv;
 extern my_thread_attr_t connection_attrib;
 extern bool old_mode;
 extern bool avoid_temporal_upgrade;
-extern LEX_STRING opt_init_connect, opt_init_slave;
+extern LEX_STRING opt_init_connect, opt_init_replica;
 extern ulong connection_errors_internal;
 extern ulong connection_errors_peer_addr;
 extern char *opt_log_error_suppression_list;
@@ -668,8 +668,8 @@ extern mysql_mutex_t LOCK_user_conn;
 extern mysql_mutex_t LOCK_log_throttle_qni;
 extern mysql_mutex_t LOCK_prepared_stmt_count;
 extern mysql_mutex_t LOCK_error_messages;
-extern mysql_mutex_t LOCK_sql_slave_skip_counter;
-extern mysql_mutex_t LOCK_slave_net_timeout;
+extern mysql_mutex_t LOCK_sql_replica_skip_counter;
+extern mysql_mutex_t LOCK_replica_net_timeout;
 extern mysql_mutex_t LOCK_slave_trans_dep_tracker;
 extern mysql_mutex_t LOCK_mandatory_roles;
 extern mysql_mutex_t LOCK_password_history;
@@ -690,7 +690,7 @@ extern mysql_cond_t COND_compress_gtid_table;
 extern mysql_cond_t COND_manager;
 
 extern mysql_rwlock_t LOCK_sys_init_connect;
-extern mysql_rwlock_t LOCK_sys_init_slave;
+extern mysql_rwlock_t LOCK_sys_init_replica;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 
 extern ulong opt_ssl_fips_mode;

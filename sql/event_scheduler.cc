@@ -55,7 +55,7 @@
 #include "sql/events.h"
 #include "sql/log.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"              // my_localhost slave_net_timeout
+#include "sql/mysqld.h"              // my_localhost replica_net_timeout
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
@@ -216,7 +216,7 @@ void pre_init_event_thread(THD *thd) {
                                               strlen(my_localhost));
   thd->get_protocol_classic()->init_net(nullptr);
   thd->security_context()->set_user_ptr(STRING_WITH_LEN("event_scheduler"));
-  thd->get_protocol_classic()->get_net()->read_timeout = slave_net_timeout;
+  thd->get_protocol_classic()->get_net()->read_timeout = replica_net_timeout;
   thd->slave_thread = false;
   thd->variables.option_bits |= OPTION_AUTO_IS_NULL;
   thd->get_protocol_classic()->set_client_capabilities(CLIENT_MULTI_RESULTS);

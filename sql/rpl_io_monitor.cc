@@ -232,7 +232,7 @@ void Source_IO_monitor::source_monitor_handler() {
 #endif
   thd->thread_stack = (char *)&thd;  // remember where our stack is
 
-  if (init_slave_thread(thd, SLAVE_THD_IO)) {
+  if (init_replica_thread(thd, SLAVE_THD_IO)) {
     my_error(ER_SLAVE_FATAL_ERROR, MYF(0),
              "Failed during Replica IO Monitor thread initialization ");
     goto err;
@@ -978,7 +978,7 @@ int Source_IO_monitor::terminate_monitoring_process() {
   // Awake up possible stuck conditions
   mysql_cond_broadcast(&m_run_cond);
 
-  ulong stop_wait_timeout = rpl_stop_slave_timeout;
+  ulong stop_wait_timeout = rpl_stop_replica_timeout;
   while (m_monitor_thd_state.is_thread_alive()) {
     DBUG_PRINT("sleep",
                ("Waiting for the Monitoring IO process thread to finish"));
@@ -1066,7 +1066,7 @@ static bool restart_io_thread(THD *thd, const std::string &channel_name,
   thread_mask |= SLAVE_IO;
   thd->set_skip_readonly_check();
 
-  if (terminate_slave_threads(mi, thread_mask, rpl_stop_slave_timeout,
+  if (terminate_slave_threads(mi, thread_mask, rpl_stop_replica_timeout,
                               false /*need_lock_term=false*/)) {
     LogErr(WARNING_LEVEL, ER_RPL_REPLICA_MONITOR_IO_THREAD_RECONNECT_CHANNEL,
            "stopping", channel_name.c_str());

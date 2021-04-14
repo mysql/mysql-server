@@ -1,1 +1,1 @@
---relay-log-info-repository=FILE --skip-slave-preserve-commit-order
+--relay-log-info-repository=FILE --skip-replica-preserve-commit-order

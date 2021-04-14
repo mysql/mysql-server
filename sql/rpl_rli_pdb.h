@@ -886,14 +886,14 @@ class Slave_worker : public Relay_log_info {
   }
 
   /**
-     Return true if slave-preserve-commit-order is enabled and an
+     Return true if replica-preserve-commit-order is enabled and an
      earlier transaction is waiting for a row-level lock held by this
      transaction.
   */
   bool found_commit_order_deadlock();
 
   /**
-     Called when slave-preserve-commit-order is enabled, by the worker
+     Called when replica-preserve-commit-order is enabled, by the worker
      processing an earlier transaction that waits on a row-level lock
      held by this worker's transaction.
   */

@@ -29,7 +29,7 @@ Warnings:
 Warning	1287	'@@relay_log_info_file' is deprecated and will be removed in a future release.
 SET PERSIST_ONLY secure_file_priv = DEFAULT;
 SET PERSIST_ONLY skip_networking = DEFAULT;
-SET PERSIST_ONLY slave_load_tmpdir = DEFAULT;
+SET PERSIST_ONLY replica_load_tmpdir = DEFAULT;
 SET PERSIST_ONLY socket = DEFAULT;
 SET PERSIST_ONLY tmpdir = DEFAULT;
 SET PERSIST_ONLY caching_sha2_password_auto_generate_rsa_keys = DEFAULT;

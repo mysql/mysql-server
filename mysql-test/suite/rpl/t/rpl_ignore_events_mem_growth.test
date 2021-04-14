@@ -13,7 +13,7 @@
 #    on the table. And run some sample inserts on both nodes, so that
 #    initially bytes used will not be counted.
 #
-# 3) If gtid_mode is OFF, set sql_slave_skip_counter to 50 on M2 node
+# 3) If gtid_mode is OFF, set sql_replica_skip_counter to 50 on M2 node
 #    and restart sql thread to make the change effective.
 #
 #    If gtid_mode is ON, execute 50 empty transactions on M2 node,
@@ -23,7 +23,7 @@
 #    starting the experiment.
 #
 # 5) Insert 100 sample queries on M1 node. First 50 inserts will be ignored
-#    on M2 node (because sql_slave_skip_counter set to 50 in step-3).
+#    on M2 node (because sql_replica_skip_counter set to 50 in step-3).
 #    Second 50 inserts will be executed on M2 and will be replicated back to
 #    M1 node. But they will be ignored on M1 because they were originated on
 #    M1 node.
@@ -42,7 +42,7 @@
 # This test is independent of binlog format. Choosing 'row' format.
 --source include/have_binlog_format_row.inc
 
-# sql_slave_skip_counter is not supported with compression
+# sql_replica_skip_counter is not supported with compression
 --source include/not_binlog_transaction_compression_on.inc
 
 # Performance schema Query used to test memory growth
@@ -76,7 +76,7 @@ INSERT INTO t1 VALUES (4);
 --source include/rpl_sync.inc
 
 --echo #
---echo # Step-3) If gtid_mode is OFF, set sql_slave_skip_counter to 50 on
+--echo # Step-3) If gtid_mode is OFF, set sql_replica_skip_counter to 50 on
 --echo #         M2 node and restart sql thread to make the change effective.
 --echo #
 --echo #         If gtid_mode is ON, execute 50 empty transactions on
@@ -88,7 +88,7 @@ INSERT INTO t1 VALUES (4);
 --disable_query_log
 if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 {
-  SET GLOBAL sql_slave_skip_counter=50;
+  SET GLOBAL sql_replica_skip_counter=50;
 }
 if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 {
@@ -121,7 +121,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "ON"` )
 
 --echo #
 --echo # Step-5) Insert 100 sample queries on M1 node. First 50 inserts will
---echo #         be ignored on M2 node (because sql_slave_skip_counter set to
+--echo #         be ignored on M2 node (because sql_replica_skip_counter set to
 --echo #         50). Second 50 inserts will be executed on M2 and will be
 --echo #         replicated back to M1 node. But they will be ignored on M1
 --echo #         because they were originated on M1 node.

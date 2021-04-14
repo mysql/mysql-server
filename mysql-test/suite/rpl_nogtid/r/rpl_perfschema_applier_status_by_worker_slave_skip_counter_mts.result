@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 include/stop_slave_sql.inc
-SET GLOBAL sql_slave_skip_counter= 4;
+SET GLOBAL sql_replica_skip_counter= 4;
 [connection master]
 CREATE TABLE t1 (a int);
 DROP TABLE t1;

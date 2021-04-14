@@ -98,7 +98,7 @@ typedef struct Trans_table_info {
 typedef struct Trans_context_info {
   bool binlog_enabled;
   ulong gtid_mode;  // enum values in Gtid_mode::value_type
-  bool log_slave_updates;
+  bool log_replica_updates;
   ulong binlog_checksum_options;  // enum values in enum
                                   // enum_binlog_checksum_alg
   ulong binlog_format;            // enum values in enum enum_binlog_format

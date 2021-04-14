@@ -959,7 +959,7 @@ T	10000
 Check that Primary Slave has stopped
 include/wait_for_slave_sql_error.inc [errno=1296]
 Restart Primary Slave
-set global sql_slave_skip_counter=1;
+set global sql_replica_skip_counter=1;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

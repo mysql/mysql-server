@@ -12,7 +12,7 @@
 --source include/have_slave_repository_type_table.inc
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/have_slave_parallel_type_logical_clock.inc
+--source include/have_replica_parallel_type_logical_clock.inc
 
 --let $rpl_topology= 1->2
 --let $rpl_multi_source= 1

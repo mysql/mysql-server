@@ -13,9 +13,9 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 RESET MASTER;
-SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 SET @restore_event_scheduler=@@global.event_scheduler;
 
 *** Default value ***
@@ -23,14 +23,14 @@ CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, S
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-slave_net_timeout/slave_heartbeat_timeout=2.0000
+replica_net_timeout/slave_heartbeat_timeout=2.0000
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 
 *** Reset slave affect ***
-SET @@global.slave_net_timeout=30;
+SET @@global.replica_net_timeout=30;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -43,8 +43,8 @@ select heartbeat_interval from performance_schema.replication_connection_configu
 heartbeat_interval
 5.000
 
-*** Default value if slave_net_timeout changed ***
-SET @@global.slave_net_timeout=50;
+*** Default value if replica_net_timeout changed ***
+SET @@global.replica_net_timeout=50;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -52,26 +52,26 @@ Note	####	Storing MySQL user name or password information in the master info rep
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 heartbeat_interval
 25.000
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 
-*** Warning if updated slave_net_timeout < slave_heartbeat_timeout ***
-SET @@global.slave_net_timeout=FLOOR(SLAVE_HEARTBEAT_TIMEOUT)-1;
+*** Warning if updated replica_net_timeout < slave_heartbeat_timeout ***
+SET @@global.replica_net_timeout=FLOOR(SLAVE_HEARTBEAT_TIMEOUT)-1;
 Warnings:
-Warning	1704	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+Warning	1704	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 
-*** Warning if updated slave_heartbeat_timeout > slave_net_timeout ***
-CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=SLAVE_NET_TIMEOUT;
+*** Warning if updated slave_heartbeat_timeout > replica_net_timeout ***
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=REPLICA_NET_TIMEOUT;
 Warnings:
-Warning	####	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
+Warning	####	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 RESET SLAVE;
@@ -80,33 +80,33 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 RESET MASTER;
 
 *** CHANGE MASTER statement only updates slave_heartbeat_period ***
-SET @@global.slave_net_timeout=20;
+SET @@global.replica_net_timeout=20;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=5;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
-SHOW VARIABLES LIKE 'slave_net_timeout';
+SHOW VARIABLES LIKE 'replica_net_timeout';
 Variable_name	Value
-slave_net_timeout	20
+replica_net_timeout	20
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 heartbeat_interval
 5.000
-SET @@global.slave_net_timeout=2*@@global.slave_net_timeout;
-SHOW VARIABLES LIKE 'slave_net_timeout';
+SET @@global.replica_net_timeout=2*@@global.replica_net_timeout;
+SHOW VARIABLES LIKE 'replica_net_timeout';
 Variable_name	Value
-slave_net_timeout	40
+replica_net_timeout	40
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 heartbeat_interval
 5.000
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
 
-*** Update slave_net_timeout on master ***
-SET @@global.slave_net_timeout=500;
-SET @@global.slave_net_timeout=200;
+*** Update replica_net_timeout on master ***
+SET @@global.replica_net_timeout=500;
+SET @@global.replica_net_timeout=200;
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
@@ -117,24 +117,24 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
-SHOW VARIABLES LIKE 'slave_net_timeout';
+SHOW VARIABLES LIKE 'replica_net_timeout';
 Variable_name	Value
-slave_net_timeout	200
+replica_net_timeout	200
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 heartbeat_interval
 100.000
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 Warnings:
-Warning	1704	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
+Warning	1704	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 
 *** Start/stop slave ***
-SET @@global.slave_net_timeout=100;
+SET @@global.replica_net_timeout=100;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=20;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -150,7 +150,7 @@ heartbeat_interval
 20.000
 
 *** Reload slave ***
-SET @@global.slave_net_timeout=50;
+SET @@global.replica_net_timeout=50;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=30;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -159,7 +159,7 @@ include/rpl_restart_server.inc [server_number=2]
 select heartbeat_interval from performance_schema.replication_connection_configuration;
 heartbeat_interval
 30.000
-SET @restore_slave_net_timeout=@@global.slave_net_timeout;
+SET @restore_replica_net_timeout=@@global.replica_net_timeout;
 
 *** Disable heartbeat ***
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0;
@@ -223,7 +223,7 @@ RESET MASTER;
 *** Max slave_heartbeat_timeout ***
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=4294967;
 Warnings:
-Warning	####	The requested value for the heartbeat period exceeds the value of `slave_net_timeout' seconds. A sensible value for the period should be less than the timeout.
+Warning	####	The requested value for the heartbeat period exceeds the value of `replica_net_timeout' seconds. A sensible value for the period should be less than the timeout.
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 select heartbeat_interval from performance_schema.replication_connection_configuration;
@@ -342,21 +342,21 @@ include/start_slave.inc
 include/assert.inc [Should receive at least one heartbeat event while running FLUSH LOGS for 10 seconds]
 
 *** Compressed protocol ***
-SET @@global.slave_compressed_protocol=1;
+SET @@global.replica_compressed_protocol=1;
 include/stop_slave.inc
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 RESET MASTER;
-SET @@global.slave_compressed_protocol=1;
+SET @@global.replica_compressed_protocol=1;
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_CONNECT_RETRY=20, SOURCE_HEARTBEAT_PERIOD=0.1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 Heartbeat event received
-SET @@global.slave_compressed_protocol=0;
-SET @@global.slave_compressed_protocol=0;
+SET @@global.replica_compressed_protocol=0;
+SET @@global.replica_compressed_protocol=0;
 
 *** Reset master ***
 STOP SLAVE;
@@ -420,5 +420,5 @@ Heartbeat event received on master
 Heartbeat event received on slave
 *** Clean up ***
 DROP TABLE t1;
-SET @@global.slave_net_timeout=@restore_slave_net_timeout;
+SET @@global.replica_net_timeout=@restore_replica_net_timeout;
 include/rpl_end.inc

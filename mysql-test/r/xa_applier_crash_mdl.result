@@ -2,10 +2,10 @@
 # 0. Initial setup. Create two connections (applier_thread, xa_commit_thread).
 #
 #
-# 1. Make a thread as "applier_thread" by setting pseudo_slave_mode and
+# 1. Make a thread as "applier_thread" by setting pseudo_replica_mode and
 #    by executing BINLOG'' query.
 #
-SET @@SESSION.pseudo_slave_mode=1;
+SET @@SESSION.pseudo_replica_mode=1;
 BINLOG '0';
 ERROR HY000: Decoding of base64 string failed
 #

@@ -749,7 +749,7 @@ tf	CREATE TABLE `tf` (
   CONSTRAINT `tf_ibfk_1` FOREIGN KEY (`fk1`, `fk2`) REFERENCES `tf` (`b`, `a`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 # Restart on the upgraded data dir
-# restart: --loose-skip-log-bin --skip-log-slave-updates --datadir=MYSQLD_DATADIR1
+# restart: --loose-skip-log-bin --skip-log-replica-updates --datadir=MYSQLD_DATADIR1
 # Execute FTS queries that modify FTS pages
 select count(*) from sakila.film_text;
 count(*)

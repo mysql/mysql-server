@@ -43,11 +43,11 @@ INSERT INTO rplvars (varname, varvalue)
  WHERE (VARIABLE_NAME LIKE '%binlog%' OR
         VARIABLE_NAME LIKE '%gtid%' OR
         VARIABLE_NAME LIKE '%log_bin%' OR
-        VARIABLE_NAME LIKE '%master%' OR
+        VARIABLE_NAME LIKE '%source%' OR
         VARIABLE_NAME LIKE '%relay%' OR
         VARIABLE_NAME LIKE '%rpl%' OR
         VARIABLE_NAME LIKE '%semi_sync%' OR
-        VARIABLE_NAME LIKE '%slave%') AND
+        VARIABLE_NAME LIKE '%replica%') AND
        (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
         'innodb_master_thread_disabled_debug'))
        ORDER BY VARIABLE_NAME;
@@ -70,14 +70,14 @@ while ( $varid <= $countvars )
   --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid`
 
   # Following variables are non persistent read only variables.
-  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir', 'log_bin_use_v1_row_events')`)
+  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'replica_load_tmpdir', 'log_bin_use_v1_row_events')`)
   {
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
   }
   --eval SET PERSIST_ONLY $varnames = @@GLOBAL.$varnames
 
   #  TODO: Remove/update this once Bug#27322592 is FIXED.
-  if (`SELECT '$varnames' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_slow_slave_statements', 'log_statements_unsafe_for_binlog', 'master_verify_checksum', 'slave_allow_batching', 'slave_compressed_protocol', 'slave_preserve_commit_order', 'slave_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_master_enabled', 'rpl_semi_sync_master_wait_no_slave', 'rpl_semi_sync_slave_enabled', 'binlog_gtid_simple_recovery', 'log_slave_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup', 'binlog_transaction_compression')`)
+  if (`SELECT '$varnames' IN ('binlog_direct_non_transactional_updates', 'binlog_order_commits', 'binlog_rows_query_log_events', 'log_bin_trust_function_creators', 'log_slow_replica_statements', 'log_statements_unsafe_for_binlog', 'source_verify_checksum', 'replica_allow_batching', 'replica_compressed_protocol', 'replica_preserve_commit_order', 'replica_sql_verify_checksum', 'relay_log_purge', 'rpl_semi_sync_master_enabled', 'rpl_semi_sync_master_wait_no_slave', 'rpl_semi_sync_slave_enabled', 'binlog_gtid_simple_recovery', 'log_replica_updates', 'relay_log_recovery', 'binlog_rotate_encryption_master_key_at_startup', 'binlog_transaction_compression')`)
   {
     --disable_query_log
       --eval SELECT varvalue INTO @varvalues FROM rplvars WHERE id=$varid
@@ -126,7 +126,7 @@ while ( $varid <= $countvars )
 {
   --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid`
 
-  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'slave_load_tmpdir', 'log_bin_use_v1_row_events')`)
+  if (`SELECT '$varnames' IN ('gtid_executed', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_info_file', 'replica_load_tmpdir', 'log_bin_use_v1_row_events')`)
   {
     --error ER_VAR_DOES_NOT_EXIST
   }

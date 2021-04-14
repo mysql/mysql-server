@@ -51,7 +51,7 @@ UPDATE t2 SET c1=99 WHERE c1=100;
 # 07. Execute transaction T2 on server1, it will execute
 #     on servers 1 and 3.
 #     server2 will apply it in order not because of the
-#     consistency but due to --slave_preserve_commit_order
+#     consistency but due to --replica_preserve_commit_order
 #     or single thread applier which will make T2 be
 #     committed after the UPDATE.
 [connection server1]

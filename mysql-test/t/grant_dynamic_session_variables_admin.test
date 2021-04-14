@@ -58,7 +58,7 @@ SET SESSION character_set_database = DEFAULT;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET SESSION character_set_filesystem = DEFAULT;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
 SET SESSION pseudo_thread_id = DEFAULT;
 --error ER_SPECIFIC_ACCESS_DENIED_ERROR
@@ -91,7 +91,7 @@ SET SESSION bulk_insert_buffer_size = DEFAULT;
 SET SESSION character_set_database = DEFAULT;
 SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
@@ -133,7 +133,7 @@ SET SESSION bulk_insert_buffer_size = DEFAULT;
 SET SESSION character_set_database = DEFAULT;
 SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
 SET SESSION histogram_generation_max_mem_size = DEFAULT;
@@ -175,7 +175,7 @@ SET SESSION bulk_insert_buffer_size = DEFAULT;
 SET SESSION character_set_database = DEFAULT;
 SET SESSION character_set_filesystem = DEFAULT;
 SET SESSION collation_database = DEFAULT;
-SET SESSION pseudo_slave_mode = DEFAULT;
+SET SESSION pseudo_replica_mode = DEFAULT;
 SET SESSION pseudo_thread_id = DEFAULT;
 SET SESSION transaction_write_set_extraction = DEFAULT;
 SET SESSION histogram_generation_max_mem_size = DEFAULT;

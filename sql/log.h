@@ -106,7 +106,7 @@ struct TABLE_LIST;
     Values: ON, OFF
     Log statements such as OPTIMIZE TABLE, ALTER TABLE to the slow query log.
 
-  --log-slow-slave-statements
+  --log-slow-replica-statements
     Values: ON, OFF
 
   log_throttle_queries_not_using_indexes

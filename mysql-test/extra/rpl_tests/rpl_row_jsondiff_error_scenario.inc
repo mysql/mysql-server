@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Check that slave handles an applier error according to
-# slave_exec_mode, slave_skip_error, or none of them.
+# replica_exec_mode, slave_skip_error, or none of them.
 #
 # ==== Usage ====
 #
@@ -24,7 +24,7 @@
 #
 # Invariants:
 # - Replication threads should be running, and will be left running.
-# - slave_exec_mode or slave_skip_error should be set according to $error_mode.
+# - replica_exec_mode or slave_skip_error should be set according to $error_mode.
 #
 # Parameters:
 #

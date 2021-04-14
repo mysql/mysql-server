@@ -279,7 +279,7 @@ SELECT * FROM t1 ORDER BY a;
 a	b
 2	master,slave
 5	slave
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 **** On Master ****
 UPDATE t1 SET a = 5, b = 'master' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
@@ -288,7 +288,7 @@ a	b
 5	master
 **** On Slave ****
 include/sync_slave_sql_with_master.inc
-set @@global.slave_exec_mode= default;
+set @@global.replica_exec_mode= default;
 Last_SQL_Error
 
 SELECT * FROM t1 ORDER BY a;

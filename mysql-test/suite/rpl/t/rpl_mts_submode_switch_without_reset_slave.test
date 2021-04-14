@@ -12,7 +12,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 --connection slave
 
 # save  MTS submode
---let $saved_submode= `SELECT @@slave_parallel_type`
+--let $saved_submode= `SELECT @@replica_parallel_type`
 
 --source include/stop_slave.inc
 
@@ -34,7 +34,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 
 # DEFAULT  ========> DATABASE
 --connection slave
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
@@ -51,7 +51,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 
 # DATABASE  ========> LOGICAL_CLOCK
 --connection slave
-SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
@@ -68,7 +68,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 
 # LOGICAL_CLOCK  ========> DATABASE
 --connection slave
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
 --source include/start_slave.inc
 --connection master
 --source include/sync_slave_sql_with_master.inc
@@ -86,7 +86,7 @@ DROP DATABASE db1;
 --source include/stop_slave.inc
 --disable_query_log
 --disable_result_log
---eval SET GLOBAL slave_parallel_type= '$saved_submode'
+--eval SET GLOBAL replica_parallel_type= '$saved_submode'
 --source include/start_slave.inc
 --connection master
 --eval SET GLOBAL DEBUG='$saved_debug'

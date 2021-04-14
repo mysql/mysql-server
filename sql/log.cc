@@ -1302,7 +1302,7 @@ bool Query_logger::slow_log_write(
   if (!(*slow_log_handler_list)) return false;
 
   /* do not log slow queries from replication threads */
-  if (thd->slave_thread && !opt_log_slow_slave_statements) return false;
+  if (thd->slave_thread && !opt_log_slow_replica_statements) return false;
 
   /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
   char user_host_buff[MAX_USER_HOST_SIZE + 1];

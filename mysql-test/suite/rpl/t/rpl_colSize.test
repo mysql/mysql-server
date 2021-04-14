@@ -22,8 +22,8 @@ STOP SLAVE;
 RESET SLAVE;
 RESET MASTER;
 
-SET @saved_slave_type_conversions = @@slave_type_conversions;
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
+SET @saved_replica_type_conversions = @@replica_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = 'ALL_NON_LOSSY';
 
 #Get default engine value          WL#6921
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
@@ -239,7 +239,7 @@ SHOW CREATE TABLE t1;
 # Steps to reproduce:
 #  1) Create a table t1
 #  2) Change it's definition on slave, so that insert will create conversion
-#     temporary table on slave (set SLAVE_TYPE_CONVERSIONS appropriately to
+#     temporary table on slave (set REPLICA_TYPE_CONVERSIONS appropriately to
 #     allow the scenario)
 #  3) Create a table t2
 #  4) Create a trigger on top of table t1. Inside the trigger, insert a tuple
@@ -283,7 +283,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 --source include/sync_slave_sql_with_master.inc
 
-SET GLOBAL SLAVE_TYPE_CONVERSIONS = @saved_slave_type_conversions;
+SET GLOBAL REPLICA_TYPE_CONVERSIONS = @saved_replica_type_conversions;
 
 # END 5.1 Test Case
 --source include/rpl_end.inc

@@ -117,7 +117,7 @@ static void init_all_slave_list_mutexes(void) {
 }
 #endif /* HAVE_PSI_INTERFACE */
 
-void init_slave_list() {
+void init_replica_list() {
 #ifdef HAVE_PSI_INTERFACE
   init_all_slave_list_mutexes();
 #endif

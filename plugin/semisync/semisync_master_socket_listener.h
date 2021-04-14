@@ -43,7 +43,7 @@ class Poll_socket_listener {
     m_fds[index].events = 0;
   }
 
-  bool init_slave_sockets(Slave_vector &slaves) {
+  bool init_replica_sockets(Slave_vector &slaves) {
     m_slaves.clear();
     m_fds.clear();
     for (uint i = 0; i < slaves.size(); i++) {
@@ -97,7 +97,7 @@ class Select_socket_listener {
     FD_CLR(m_slaves[index].sock_fd(), &m_init_fds);
   }
 
-  bool init_slave_sockets(Slave_vector &slaves) {
+  bool init_replica_sockets(Slave_vector &slaves) {
     m_slaves.clear();
     FD_ZERO(&m_init_fds);
     for (uint i = 0; i < slaves.size(); i++) {

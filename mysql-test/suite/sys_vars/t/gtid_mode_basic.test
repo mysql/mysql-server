@@ -80,19 +80,19 @@ select @@global.gtid_mode;
 --error ER_GLOBAL_VARIABLE
 set session gtid_mode = ON;
 
-# can set ON when sql_slave_skip_counter > 0 with a warning
+# can set ON when sql_replica_skip_counter > 0 with a warning
 set global gtid_mode = on_permissive;
-set global sql_slave_skip_counter = 1;
+set global sql_replica_skip_counter = 1;
 set global gtid_mode = on;
 
---let $assert_text= A warning will be generated stating "The value of sql_slave_skip_counter will only take effect for channels running with"
+--let $assert_text= A warning will be generated stating "The value of sql_replica_skip_counter will only take effect for channels running with"
 --let $warning_code= query_get_value(SHOW WARNINGS, Code, 1)
---let $expected_code= convert_error(ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON)
+--let $expected_code= convert_error(ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON)
 --let $assert_cond= $warning_code = $expected_code
 --source include/assert.inc
 
 # No warning for setting to 0
-set global sql_slave_skip_counter = 0;
+set global sql_replica_skip_counter = 0;
 set global gtid_mode = on;
 
 # can set everything except ON when enforce_gtid_consistency!=ON

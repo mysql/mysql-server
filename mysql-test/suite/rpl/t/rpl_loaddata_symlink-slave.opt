@@ -1,2 +1,2 @@
---slave-load-tmpdir=$MYSQLTEST_VARDIR/std_data_slave_link
+--replica-load-tmpdir=$MYSQLTEST_VARDIR/std_data_slave_link
 --local-infile=true

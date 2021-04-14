@@ -64,11 +64,11 @@ SELECT @@global.max_connections;
 --echo # default values
 SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
-SELECT @@global.slave_net_timeout;
+SELECT @@global.replica_net_timeout;
 
 --echo # persist few more variables
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 SET PERSIST long_query_time= 8.3452;
 SET PERSIST sql_require_primary_key= true;
 SET PERSIST default_table_encryption= true;
@@ -86,7 +86,7 @@ SET PERSIST table_encryption_privilege_check= true;
 SELECT @@global.max_connections;
 SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
-SELECT @@global.slave_net_timeout;
+SELECT @@global.replica_net_timeout;
 SELECT @@global.long_query_time;
 SELECT @@global.sql_require_primary_key;
 SELECT @@global.default_table_encryption;
@@ -94,7 +94,7 @@ SELECT @@global.table_encryption_privilege_check;
 
 --echo # modify existing persisted variables
 SET PERSIST sort_buffer_size=156000,max_connections= 52;
-SET PERSIST max_heap_table_size=887808, slave_net_timeout=160;
+SET PERSIST max_heap_table_size=887808, replica_net_timeout=160;
 SET PERSIST long_query_time= 7.8102;
 SET PERSIST sql_require_primary_key= false;
 SET PERSIST default_table_encryption= false;
@@ -112,7 +112,7 @@ SET PERSIST table_encryption_privilege_check= false;
 SELECT @@global.max_connections;
 SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
-SELECT @@global.slave_net_timeout;
+SELECT @@global.replica_net_timeout;
 SELECT @@global.long_query_time;
 SELECT @@global.sql_require_primary_key;
 SELECT @@global.default_table_encryption;
@@ -123,7 +123,7 @@ SELECT @@global.max_execution_time;
 
 --echo # modify existing persisted variables and add new
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 SET PERSIST long_query_time= 2.999999;
 SET PERSIST sql_require_primary_key= true;
 SET PERSIST default_table_encryption= true;
@@ -141,7 +141,7 @@ SET @@persist.max_execution_time=44000, @@persist.max_user_connections=30;
 --echo # after restart
 SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
-SELECT @@global.slave_net_timeout;
+SELECT @@global.replica_net_timeout;
 SELECT @@global.max_user_connections;
 SELECT @@global.max_execution_time;
 SELECT @@global.long_query_time;
@@ -169,7 +169,7 @@ RESET PERSIST table_encryption_privilege_check;
 --echo # after restart
 SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
-SELECT @@global.slave_net_timeout;
+SELECT @@global.replica_net_timeout;
 SELECT @@global.max_user_connections;
 SELECT @@global.max_execution_time;
 SELECT @@global.max_connections;
@@ -181,7 +181,7 @@ SELECT @@global.default_table_encryption;
 SELECT @@global.table_encryption_privilege_check;
 
 --echo # reset persisted variables and add new
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 SET PERSIST server_id=47, @@persist.general_log=0;
 SET PERSIST concurrent_insert=NEVER;
 RESET PERSIST max_connections;
@@ -197,7 +197,7 @@ RESET PERSIST max_connections;
 --echo # after restart
 SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
-SELECT @@global.slave_net_timeout;
+SELECT @@global.replica_net_timeout;
 SELECT @@global.max_user_connections;
 SELECT @@global.max_execution_time;
 SELECT @@global.max_connections;
@@ -269,7 +269,7 @@ SET GLOBAL persisted_globals_load= -1;
 --echo # Test persisted-globals-load functionality
 
 SET PERSIST sort_buffer_size=256000;
-SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
+SET PERSIST max_heap_table_size=999424, replica_net_timeout=124;
 
 --echo # Restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -282,7 +282,7 @@ SET PERSIST max_heap_table_size=999424, slave_net_timeout=124;
 --echo # values must be read from persited config file
 SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
-SELECT @@global.slave_net_timeout;
+SELECT @@global.replica_net_timeout;
 
 SELECT @@global.foreign_key_checks;
 SET PERSIST foreign_key_checks=0;
@@ -299,7 +299,7 @@ SET PERSIST flush_time=2;
 --echo # should have default values
 SELECT @@global.sort_buffer_size;
 SELECT @@global.max_heap_table_size;
-SELECT @@global.slave_net_timeout;
+SELECT @@global.replica_net_timeout;
 
 --echo # Expected value 1
 SELECT @@global.foreign_key_checks;
@@ -307,7 +307,7 @@ SELECT @@global.foreign_key_checks;
 SELECT @@global.flush_time;
 --echo # reset some persisted values
 RESET PERSIST sort_buffer_size;
-RESET PERSIST slave_net_timeout;
+RESET PERSIST replica_net_timeout;
 
 --echo # Restart server with persisted-globals-load=1
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -319,7 +319,7 @@ RESET PERSIST slave_net_timeout;
 
 --echo # should have default values
 SELECT @@global.sort_buffer_size;
-SELECT @@global.slave_net_timeout;
+SELECT @@global.replica_net_timeout;
 SELECT @@global.max_heap_table_size;
 --echo # Expected value 0
 SELECT @@global.foreign_key_checks;

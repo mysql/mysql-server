@@ -864,13 +864,13 @@ void Gtid_state::update_gtids_impl_own_gtid(THD *thd, bool is_commit) {
       are always same, so we did not save gtid into lost_gtids for every
       transaction for improving performance.
 
-      If binlog is enabled and log_slave_updates is disabled, slave
+      If binlog is enabled and log_replica_updates is disabled, slave
       SQL thread or slave worker thread adds transaction owned GTID
       into global executed_gtids, lost_gtids and gtids_only_in_table.
     */
     executed_gtids._add_gtid(thd->owned_gtid);
     thd->rpl_thd_ctx.session_gtids_ctx().notify_after_gtid_executed_update(thd);
-    if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates) {
+    if (thd->slave_thread && opt_bin_log && !opt_log_replica_updates) {
       lost_gtids._add_gtid(thd->owned_gtid);
       gtids_only_in_table._add_gtid(thd->owned_gtid);
     }

@@ -484,15 +484,15 @@ void get_server_startup_prerequirements(Trans_context_info &requirements) {
   requirements.binlog_format = global_system_variables.binlog_format;
   requirements.binlog_checksum_options = binlog_checksum_options;
   requirements.gtid_mode = global_gtid_mode.get();
-  requirements.log_slave_updates = opt_log_slave_updates;
+  requirements.log_replica_updates = opt_log_replica_updates;
   requirements.transaction_write_set_extraction =
       global_system_variables.transaction_write_set_extraction;
   requirements.mi_repository_type = opt_mi_repository_id;
   requirements.rli_repository_type = opt_rli_repository_id;
   requirements.parallel_applier_type = mts_parallel_option;
-  requirements.parallel_applier_workers = opt_mts_slave_parallel_workers;
+  requirements.parallel_applier_workers = opt_mts_replica_parallel_workers;
   requirements.parallel_applier_preserve_commit_order =
-      opt_slave_preserve_commit_order;
+      opt_replica_preserve_commit_order;
   requirements.lower_case_table_names = lower_case_table_names;
   requirements.default_table_encryption =
       global_system_variables.default_table_encryption;
@@ -549,11 +549,11 @@ bool is_gtid_committed(const Gtid &gtid) {
   return result;
 }
 
-unsigned long get_slave_max_allowed_packet() {
-  return slave_max_allowed_packet;
+unsigned long get_replica_max_allowed_packet() {
+  return replica_max_allowed_packet;
 }
 
-unsigned long get_max_slave_max_allowed_packet() {
+unsigned long get_max_replica_max_allowed_packet() {
   return MAX_MAX_ALLOWED_PACKET;
 }
 

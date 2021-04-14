@@ -43,7 +43,7 @@ if (!$rpl_corrupt_channel_name)
 #         1.2: Stop the server
 #         1.3: Remove the channel's index file (one form of corrupting the
 #                                               channel)
-#         1.4: Restart the server with --skip-slave-start option.
+#         1.4: Restart the server with --skip-replica-start option.
 ###############################################################################
 
 --let $number_of_channels= `SELECT $rpl_number_of_servers -1`
@@ -86,15 +86,15 @@ if ($rpl_corrupt_channel_name != "''")
 }
 
 ###############################################################################
-# Step-1.4: Restart the server with --skip-slave-start option.
+# Step-1.4: Restart the server with --skip-replica-start option.
 ###############################################################################
 
---echo ===== Start the server $rpl_msr_server_number with --skip-slave-start=0 option.
---let $rpl_server_parameters=--skip-slave-start=0
+--echo ===== Start the server $rpl_msr_server_number with --skip-replica-start=0 option.
+--let $rpl_server_parameters=--skip-replica-start=0
 --source include/rpl_start_server.inc
 
 ###############################################################################
-# Step-2: After server started with (--skip-slave-start=0) option,
+# Step-2: After server started with (--skip-replica-start=0) option,
 #         check the state of the channels. Only corrupted channel
 #         should be in OFF state and remaining channels IO and SQL
 #         thread should be in ON state.

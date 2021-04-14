@@ -60,7 +60,7 @@ while ($i < 2)
     --let $rpl_force_stop= 1
   }
   --let $rpl_server_number= 2
-  --let $rpl_server_parameters= --skip_slave_start=1
+  --let $rpl_server_parameters= --skip_replica_start=1
   --source include/rpl_restart_server.inc
 
   --let $rpl_connection_name= server_2

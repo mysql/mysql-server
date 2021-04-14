@@ -168,7 +168,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       curr_group_da(PSI_NOT_INSTRUMENTED),
       curr_group_seen_begin(false),
       mts_end_group_sets_max_dbs(false),
-      slave_parallel_workers(0),
+      replica_parallel_workers(0),
       exit_counter(0),
       max_updated_index(0),
       recovery_parallel_workers(0),
@@ -461,7 +461,7 @@ bool Relay_log_info::mts_finalize_recovery() {
       goto err;
     }
   }
-  recovery_parallel_workers = slave_parallel_workers;
+  recovery_parallel_workers = replica_parallel_workers;
 
 err:
   return ret;
@@ -1519,7 +1519,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
   tables_to_lock_count = 0;
 
   char pattern[FN_REFLEN];
-  (void)my_realpath(pattern, slave_load_tmpdir, 0);
+  (void)my_realpath(pattern, replica_load_tmpdir, 0);
   /*
    @TODO:
     In MSR, sometimes slave fail with the following error:
@@ -1531,7 +1531,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
    */
   if (fn_format(pattern, PREFIX_SQL_LOAD, pattern, "",
                 MY_SAFE_PATH | MY_RETURN_REAL_PATH) == NullS) {
-    LogErr(ERROR_LEVEL, ER_SLAVE_CANT_USE_TEMPDIR, slave_load_tmpdir);
+    LogErr(ERROR_LEVEL, ER_SLAVE_CANT_USE_TEMPDIR, replica_load_tmpdir);
     return 1;
   }
   unpack_filename(slave_patternload_file, pattern);
@@ -1658,7 +1658,7 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       if (!is_relay_log_recovery && !gtid_retrieved_initialized &&
           !skip_received_gtid_set_recovery &&
           relay_log.init_gtid_sets(
-              gtid_set, nullptr, opt_slave_sql_verify_checksum,
+              gtid_set, nullptr, opt_replica_sql_verify_checksum,
               true /*true=need lock*/, &mi->transaction_parser, partial_trx)) {
         LogErr(ERROR_LEVEL, ER_RPL_CANT_INITIALIZE_GTID_SETS_IN_RLI_INIT_INFO);
         return 1;
@@ -2709,8 +2709,8 @@ int Relay_log_info::init_until_option(THD *thd,
 
         option = until_g = new Until_after_gtids(this);
         until_condition = UNTIL_SQL_AFTER_GTIDS;
-        if (opt_slave_parallel_workers != 0) {
-          opt_slave_parallel_workers = 0;
+        if (opt_replica_parallel_workers != 0) {
+          opt_replica_parallel_workers = 0;
           push_warning_printf(
               thd, Sql_condition::SL_NOTE, ER_MTS_FEATURE_IS_NOT_SUPPORTED,
               ER_THD(thd, ER_MTS_FEATURE_IS_NOT_SUPPORTED), "UNTIL condtion",
@@ -2737,8 +2737,8 @@ int Relay_log_info::init_until_option(THD *thd,
 
   if (until_condition == UNTIL_MASTER_POS ||
       until_condition == UNTIL_RELAY_POS) {
-    /* Issuing warning then started without --skip-slave-start */
-    if (!opt_skip_slave_start)
+    /* Issuing warning then started without --skip-replica-start */
+    if (!opt_skip_replica_start)
       push_warning(thd, Sql_condition::SL_NOTE, ER_MISSING_SKIP_SLAVE,
                    ER_THD(thd, ER_MISSING_SKIP_SLAVE));
   }

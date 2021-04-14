@@ -471,11 +471,11 @@ static int check_slave_config() {
         ndb_get_number_of_channels());
     return HA_ERR_UNSUPPORTED;
   }
-  if (ndb_mi_get_slave_parallel_workers() > 0) {
+  if (ndb_mi_get_replica_parallel_workers() > 0) {
     ndb_log_error(
-        "NDB Replica: Configuration 'slave_parallel_workers = %lu' is "
+        "NDB Replica: Configuration 'replica_parallel_workers = %lu' is "
         "not supported when applying to NDB",
-        ndb_mi_get_slave_parallel_workers());
+        ndb_mi_get_replica_parallel_workers());
     return HA_ERR_UNSUPPORTED;
   }
 
@@ -4200,9 +4200,9 @@ inline void ha_ndbcluster::eventSetAnyValue(
   if (unlikely(m_slow_path)) {
     /*
       Ignore TNTO_NO_LOGGING for slave thd.  It is used to indicate
-      log-slave-updates option.  This is instead handled in the
+      log-replica-updates option.  This is instead handled in the
       injector thread, by looking explicitly at the
-      opt_log_slave_updates flag.
+      opt_log_replica_updates flag.
     */
     Thd_ndb *thd_ndb = get_thd_ndb(thd);
     if (thd->slave_thread) {
@@ -12444,12 +12444,12 @@ static int ndbcluster_init(void *handlerton_ptr) {
         "Changed global value of binlog_format from STATEMENT to MIXED");
   }
 
-  if (opt_mts_slave_parallel_workers) {
+  if (opt_mts_replica_parallel_workers) {
     ndb_log_info(
-        "Changed global value of --slave-parallel-workers "
+        "Changed global value of --replica-parallel-workers "
         "from %lu to 0",
-        opt_mts_slave_parallel_workers);
-    opt_mts_slave_parallel_workers = 0;
+        opt_mts_replica_parallel_workers);
+    opt_mts_replica_parallel_workers = 0;
   }
 
   if (ndb_index_stat_thread.init() ||

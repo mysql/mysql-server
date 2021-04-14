@@ -44,14 +44,14 @@ INSERT INTO rplvars (varname, varvalue)
  WHERE (VARIABLE_NAME LIKE '%binlog%' OR
         VARIABLE_NAME LIKE '%gtid%' OR
         VARIABLE_NAME LIKE '%log_bin%' OR
-        VARIABLE_NAME LIKE '%master%' OR
+        VARIABLE_NAME LIKE '%source%' OR
         VARIABLE_NAME LIKE '%relay%' OR
         VARIABLE_NAME LIKE '%rpl%' OR
         VARIABLE_NAME LIKE '%semi_sync%' OR
-        VARIABLE_NAME LIKE '%slave%') AND
+        VARIABLE_NAME LIKE '%replica%') AND
        (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
         'innodb_master_thread_disabled_debug',
-        'skip_slave_start'))
+        'skip_replica_start'))
        ORDER BY VARIABLE_NAME;
 --enable_warnings
 --let $countvars= `SELECT COUNT(*) FROM rplvars;`
@@ -72,7 +72,7 @@ while ( $varid <= $countvars )
   --let $varnames= `SELECT varname FROM rplvars WHERE id=$varid;`
 
   # Following variables are either non persistent or read only variables.
-  if (`SELECT '$varnames' IN ('binlog_row_event_max_size', 'binlog_gtid_simple_recovery', 'gtid_executed', 'gtid_next', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_slave_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'slave_load_tmpdir', 'slave_load_tmpdir', 'slave_skip_errors', 'log_bin_use_v1_row_events', 'binlog_rotate_encryption_master_key_at_startup')`)
+  if (`SELECT '$varnames' IN ('binlog_row_event_max_size', 'binlog_gtid_simple_recovery', 'gtid_executed', 'gtid_next', 'gtid_owned', 'log_bin', 'log_bin_basename', 'log_bin_index', 'log_replica_updates', 'relay_log', 'relay_log_basename', 'relay_log_index', 'relay_log_index', 'relay_log_info_file', 'relay_log_recovery', 'relay_log_space_limit', 'replica_load_tmpdir', 'replica_load_tmpdir', 'replica_skip_errors', 'log_bin_use_v1_row_events', 'binlog_rotate_encryption_master_key_at_startup')`)
   {
     --error ER_INCORRECT_GLOBAL_LOCAL_VAR
   }

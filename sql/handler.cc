@@ -1522,15 +1522,15 @@ std::pair<int, bool> commit_owned_gtids(THD *thd, bool all) {
 
   /*
     If the binary log is disabled for this thread (either by
-    log_bin=0 or sql_log_bin=0 or by log_slave_updates=0 for a
+    log_bin=0 or sql_log_bin=0 or by log_replica_updates=0 for a
     slave thread), then the statement will not be written to
     the binary log. In this case, we should save its GTID into
     mysql.gtid_executed table and @@GLOBAL.GTID_EXECUTED as it
     did when binlog is enabled.
 
     We also skip saving GTID into mysql.gtid_executed table and
-    @@GLOBAL.GTID_EXECUTED when slave-preserve-commit-order is enabled. We skip
-    as GTID will be saved in
+    @@GLOBAL.GTID_EXECUTED when replica-preserve-commit-order is enabled. We
+    skip as GTID will be saved in
     Commit_order_manager::flush_engine_and_signal_threads (invoked from
     Commit_order_manager::wait_and_finish). In particular, there is the
     following call stack under ha_commit_low which save GTID in case its skipped
@@ -1545,7 +1545,7 @@ std::pair<int, bool> commit_owned_gtids(THD *thd, bool all) {
     We also skip saving GTID for intermediate commits i.e. when
     thd->is_operating_substatement_implicitly is enabled.
   */
-  if (thd->is_current_stmt_binlog_log_slave_updates_disabled() &&
+  if (thd->is_current_stmt_binlog_log_replica_updates_disabled() &&
       ending_trans(thd, all) && !thd->is_operating_gtid_table_implicitly &&
       !thd->is_operating_substatement_implicitly) {
     if (!has_commit_order_manager(thd) &&
@@ -1596,7 +1596,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
   bool need_clear_owned_gtid = false;
   /*
     Save transaction owned gtid into table before transaction prepare
-    if binlog is disabled, or binlog is enabled and log_slave_updates
+    if binlog is disabled, or binlog is enabled and log_replica_updates
     is disabled with slave SQL thread or slave worker thread.
   */
   std::tie(error, need_clear_owned_gtid) = commit_owned_gtids(thd, all);
@@ -1796,7 +1796,7 @@ end:
     thd->server_status &= ~SERVER_STATUS_IN_TRANS;
     /*
       Release the owned GTID when binlog is disabled, or binlog is
-      enabled and log_slave_updates is disabled with slave SQL thread
+      enabled and log_replica_updates is disabled with slave SQL thread
       or slave worker thread.
     */
     if (error)
@@ -1919,7 +1919,7 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
     */
     if ((!thd->is_operating_substatement_implicitly &&
          !thd->is_operating_gtid_table_implicitly &&
-         thd->is_current_stmt_binlog_log_slave_updates_disabled() &&
+         thd->is_current_stmt_binlog_log_replica_updates_disabled() &&
          ending_trans(thd, all)) ||
         Commit_order_manager::get_rollback_status(thd)) {
       if (Commit_order_manager::wait(thd)) {

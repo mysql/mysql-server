@@ -1343,7 +1343,7 @@ static bool mysql_admin_table(
       /*
         It allows saving GTID and invoking commit order i.e. set
         thd->is_operating_substatement_implicitly = false, when
-        slave-preserve-commit-order is enabled and any of OPTIMIZE TABLE,
+        replica-preserve-commit-order is enabled and any of OPTIMIZE TABLE,
         ANALYZE TABLE and REPAIR TABLE command is getting executed,
         otherwise saving GTID and invoking commit order is disabled.
       */

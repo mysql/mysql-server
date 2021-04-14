@@ -1,7 +1,7 @@
 set @save_binlog_checksum = @@global.binlog_checksum;
-set @save_master_verify_checksum = @@global.master_verify_checksum;
+set @save_source_verify_checksum = @@global.source_verify_checksum;
 set @@global.binlog_checksum = CRC32;
-set @@global.master_verify_checksum = 1;
+set @@global.source_verify_checksum = 1;
 reset master;
 must be binlog.000001
 show binary logs;
@@ -19,5 +19,5 @@ Tables_in_test
 t1
 drop table t1;
 set @@global.binlog_checksum = @save_binlog_checksum;
-set @@global.master_verify_checksum = @save_master_verify_checksum;
+set @@global.source_verify_checksum = @save_source_verify_checksum;
 End of the tests

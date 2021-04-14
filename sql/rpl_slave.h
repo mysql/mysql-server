@@ -80,7 +80,7 @@ typedef enum {
 */
 #define SLAVE_MAX_HEARTBEAT_PERIOD 4294967
 
-#define SLAVE_NET_TIMEOUT 60
+#define REPLICA_NET_TIMEOUT 60
 
 #define MAX_SLAVE_ERROR 14000
 
@@ -136,7 +136,7 @@ extern bool server_id_supplied;
   channel_map (either adding/removing channels to/from the channel_map)
   should hold the wrlock during the operation.
 
-  [init_slave() does not need it it's called early].
+  [init_replica() does not need it it's called early].
 
   ## In Master_info (mi) ##
 
@@ -347,16 +347,16 @@ extern ulong master_retry_count;
 extern MY_BITMAP slave_error_mask;
 extern char slave_skip_error_names[];
 extern bool use_slave_mask;
-extern char *slave_load_tmpdir;
+extern char *replica_load_tmpdir;
 extern const char *master_info_file;
 extern const char *relay_log_info_file;
 extern char *opt_relay_logname, *opt_relaylog_index_name;
 extern bool opt_relaylog_index_name_supplied;
 extern bool opt_relay_logname_supplied;
 extern char *opt_binlog_index_name;
-extern bool opt_skip_slave_start;
-extern bool opt_log_slave_updates;
-extern char *opt_slave_skip_errors;
+extern bool opt_skip_replica_start;
+extern bool opt_log_replica_updates;
+extern char *opt_replica_skip_errors;
 extern ulonglong relay_log_space_limit;
 
 extern const char *relay_log_index;
@@ -400,7 +400,7 @@ bool reencrypt_relay_logs();
 int flush_relay_logs(Master_info *mi, THD *thd);
 int reset_slave(THD *thd, Master_info *mi, bool reset_all);
 int reset_slave(THD *thd);
-int init_slave();
+int init_replica();
 int init_recovery(Master_info *mi);
 /**
   Call mi->init_info() and/or mi->rli->init_info(), which will read
@@ -453,8 +453,8 @@ int remove_info(Master_info *mi);
 bool reset_info(Master_info *mi);
 int flush_master_info(Master_info *mi, bool force, bool need_lock = true,
                       bool flush_relay_log = true);
-void add_slave_skip_errors(const char *arg);
-void set_slave_skip_errors(char **slave_skip_errors_ptr);
+void add_replica_skip_errors(const char *arg);
+void set_replica_skip_errors(char **replica_skip_errors_ptr);
 int add_new_channel(Master_info **mi, const char *channel);
 /**
   Terminates the slave threads according to the given mask.
@@ -609,7 +609,7 @@ bool is_network_error(uint errorno);
 #define SLAVE_SQL 2
 #define SLAVE_MONITOR 4
 
-int init_slave_thread(THD *thd, SLAVE_THD_TYPE thd_type);
+int init_replica_thread(THD *thd, SLAVE_THD_TYPE thd_type);
 
 /**
   @} (end of group Replication)

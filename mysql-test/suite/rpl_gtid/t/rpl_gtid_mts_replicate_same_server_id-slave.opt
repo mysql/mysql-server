@@ -1,4 +1,4 @@
 --replicate-same-server-id
---log-slave-updates=off
---slave-parallel-workers=2
---slave-transaction-retries=0
+--log-replica-updates=off
+--replica-parallel-workers=2
+--replica-transaction-retries=0

@@ -384,7 +384,7 @@ void Binlog_sender::run() {
   unsigned int max_event_size =
       std::max(m_thd->variables.max_allowed_packet,
                binlog_row_event_max_size + MAX_LOG_EVENT_HEADER);
-  File_reader reader(opt_master_verify_checksum, max_event_size);
+  File_reader reader(opt_source_verify_checksum, max_event_size);
   my_off_t start_pos = m_start_pos;
   const char *log_file = m_linfo.log_file_name;
   bool is_index_file_reopened_on_binlog_disable = false;

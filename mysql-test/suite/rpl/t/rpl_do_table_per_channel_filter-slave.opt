@@ -1,3 +1,3 @@
---skip-slave-start=0
+--skip-replica-start=0
 --replicate-do-table=:db1.t1
 --replicate-do-table=channel_3_2:db3.t1

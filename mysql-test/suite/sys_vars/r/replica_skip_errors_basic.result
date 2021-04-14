@@ -1,0 +1,21 @@
+select @@global.replica_skip_errors;
+@@global.replica_skip_errors
+OFF
+select @@session.replica_skip_errors;
+ERROR HY000: Variable 'replica_skip_errors' is a GLOBAL variable
+show global variables like 'replica_skip_errors';
+Variable_name	Value
+replica_skip_errors	OFF
+show session variables like 'replica_skip_errors';
+Variable_name	Value
+replica_skip_errors	OFF
+select * from performance_schema.global_variables where variable_name='replica_skip_errors';
+VARIABLE_NAME	VARIABLE_VALUE
+replica_skip_errors	OFF
+select * from performance_schema.session_variables where variable_name='replica_skip_errors';
+VARIABLE_NAME	VARIABLE_VALUE
+replica_skip_errors	OFF
+set global replica_skip_errors=1;
+ERROR HY000: Variable 'replica_skip_errors' is a read only variable
+set session replica_skip_errors=1;
+ERROR HY000: Variable 'replica_skip_errors' is a read only variable

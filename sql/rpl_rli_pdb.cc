@@ -121,7 +121,7 @@ bool handle_slave_worker_stop(Slave_worker *worker, Slave_job_item *job_item) {
     increment of it.
   */
   if (!worker->exit_incremented) {
-    if (rli->exit_counter < rli->slave_parallel_workers)
+    if (rli->exit_counter < rli->replica_parallel_workers)
       rli->max_updated_index = max(rli->max_updated_index, group_index);
 
     ++rli->exit_counter;
@@ -136,14 +136,14 @@ bool handle_slave_worker_stop(Slave_worker *worker, Slave_job_item *job_item) {
   /*
     Now let's decide about the deferred exit to consider
     the empty queue and the counter value reached
-    slave_parallel_workers.
+    replica_parallel_workers.
   */
   if (!job_item->data) {
     worker->running_status = Slave_worker::STOP_ACCEPTED;
     mysql_cond_signal(&worker->jobs_cond);
     mysql_mutex_unlock(&rli->exit_count_lock);
     return (true);
-  } else if (rli->exit_counter == rli->slave_parallel_workers) {
+  } else if (rli->exit_counter == rli->replica_parallel_workers) {
     // over steppers should exit with accepting STOP
     if (group_index > rli->max_updated_index) {
       worker->running_status = Slave_worker::STOP_ACCEPTED;
@@ -482,7 +482,7 @@ int Slave_worker::flush_info(const bool force) {
 
   /*
     This fails on errors committing the info, or when
-    slave_preserve_commit_order is enabled and a previous transaction
+    replica_preserve_commit_order is enabled and a previous transaction
     has failed.  In both cases, the error is reported already.
   */
   if (handler->flush_info(force)) return 1;
@@ -1355,9 +1355,9 @@ bool Slave_committed_queue::count_done(Relay_log_info *rli) {
   DBUG_PRINT("mts",
              ("Checking if it can simulate a crash:"
               " mts_checkpoint_group %u counter %lu parallel slaves %lu\n",
-              opt_mts_checkpoint_group, cnt, rli->slave_parallel_workers));
+              opt_mts_checkpoint_group, cnt, rli->replica_parallel_workers));
 
-  return (cnt == (rli->slave_parallel_workers * opt_mts_checkpoint_group));
+  return (cnt == (rli->replica_parallel_workers * opt_mts_checkpoint_group));
 }
 #endif
 
@@ -1852,7 +1852,7 @@ std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
     c_rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                   "worker thread retried transaction %lu time(s) "
                   "in vain, giving up. Consider raising the value of "
-                  "the slave_transaction_retries variable.",
+                  "the replica_transaction_retries variable.",
                   trans_retries);
     return std::make_tuple(true, silent, error);
   }
@@ -1955,7 +1955,7 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
   uint file_number = start_relay_number;
   bool error = true;
   bool arrive_end = false;
-  Relaylog_file_reader relaylog_file_reader(opt_slave_sql_verify_checksum);
+  Relaylog_file_reader relaylog_file_reader(opt_replica_sql_verify_checksum);
 
   relay_log_number_to_name(start_relay_number, file_name);
 
@@ -2164,14 +2164,14 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
   /*
     C waits basing on *data* sizes in the queues.
     If it is a big event (event size is greater than
-    slave_pending_jobs_size_max but less than slave_max_allowed_packet),
+    replica_pending_jobs_size_max but less than replica_max_allowed_packet),
     it will wait for all the jobs in the workers's queue to be
     completed. If it is normal event (event size is less than
-    slave_pending_jobs_size_max), then it will wait for
+    replica_pending_jobs_size_max), then it will wait for
     enough empty memory to keep the event in one of the workers's
     queue.
     NOTE: Receiver thread (I/O thread) is taking care of restricting
-    the event size to slave_max_allowed_packet. If an event from
+    the event size to replica_max_allowed_packet. If an event from
     the master is bigger than this value, IO thread will be stopped
     with error ER_NET_PACKET_TOO_LARGE.
   */

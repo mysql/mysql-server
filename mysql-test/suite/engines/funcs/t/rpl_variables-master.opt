@@ -1,1 +1,1 @@
---slave-skip-errors=3,100,137,643,1752
+--replica-skip-errors=3,100,137,643,1752

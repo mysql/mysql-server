@@ -177,7 +177,7 @@ bool Gtid_table_access_context::deinit(THD *thd, TABLE *table, bool error,
 
   /*
     This fails on errors committing the info, or when
-    slave_preserve_commit_order is enabled and a previous transaction
+    replica_preserve_commit_order is enabled and a previous transaction
     has failed.  In both cases, the error is reported already.
   */
   err = this->close_table(thd, table, &m_backup, 0 != error, need_commit);

@@ -87,7 +87,7 @@ INSERT INTO t1 VALUES(10);
 
 # Make server 3 run with mysqld_safe
 
---let $mysqld_extra_settings=--skip-slave-start=1
+--let $mysqld_extra_settings=--skip-replica-start=1
 --source include/spawn_monitoring_process.inc
 
 # Install clone

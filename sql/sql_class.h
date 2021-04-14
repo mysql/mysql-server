@@ -950,7 +950,7 @@ class THD : public MDL_context_owner,
     @return true  when the thread is a binlog applier
   */
   bool is_binlog_applier() const {
-    return rli_fake && variables.pseudo_slave_mode;
+    return rli_fake && variables.pseudo_replica_mode;
   }
 
   /**
@@ -1520,14 +1520,14 @@ class THD : public MDL_context_owner,
   /**
     Determine if binlogging is currently disabled for this session.
     If the binary log is disabled for this thread (either by log_bin=0 or
-    sql_log_bin=0 or by log_slave_updates=0 for a slave thread), then the
+    sql_log_bin=0 or by log_replica_updates=0 for a slave thread), then the
     statement will not be written to the binary log.
 
     @retval true The binary log is currently disabled for the statement.
 
     @retval false The binary log is currently enabled for the statement.
   */
-  bool is_current_stmt_binlog_log_slave_updates_disabled() const;
+  bool is_current_stmt_binlog_log_replica_updates_disabled() const;
 
   /**
     Determine if binloging is enabled in row format and write set extraction is
@@ -2036,7 +2036,7 @@ class THD : public MDL_context_owner,
     When it is true, the applier will not save the transaction owned
     gtid into mysql.gtid_executed table before transaction prepare, as
     it does when binlog is disabled, or binlog is enabled and
-    log_slave_updates is disabled.
+    log_replica_updates is disabled.
     Also the flag is made to defer updates to the slave info table from
     intermediate commits by non-atomic DDL.
     Rpl_info_table::do_flush_info(), rpl_rli.h::is_atomic_ddl_commit_on_slave()

@@ -101,7 +101,7 @@ CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1 FOR CHANNEL 'channel_3';
 --source include/rpl_connection.inc
 
 # Make server 4 run with mysqld_safe
---let $mysqld_extra_settings=--skip-slave-start=1
+--let $mysqld_extra_settings=--skip-replica-start=1
 --source include/spawn_monitoring_process.inc
 
 # Install clone

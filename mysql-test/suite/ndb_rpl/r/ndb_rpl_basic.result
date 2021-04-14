@@ -149,12 +149,12 @@ INSERT INTO t1 VALUES(1,"XYZ1","ABC1");
 **** On Slave ****
 BEGIN;
 UPDATE t1 SET `nom`="LOCK" WHERE `nid`=1;
-set GLOBAL slave_transaction_retries=1;
+set GLOBAL replica_transaction_retries=1;
 **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 **** On Slave ****
 include/wait_for_slave_sql_error.inc [errno=1205 ]
-set GLOBAL slave_transaction_retries=10;
+set GLOBAL replica_transaction_retries=10;
 include/start_slave.inc
 select * from t1 order by nid;
 nid	nom	prenom

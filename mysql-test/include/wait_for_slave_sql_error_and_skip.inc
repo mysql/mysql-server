@@ -67,10 +67,10 @@ source include/wait_for_slave_sql_error.inc;
 
 # skip the erroneous statement
 if ($slave_skip_counter) {
-  eval SET GLOBAL SQL_SLAVE_SKIP_COUNTER= $slave_skip_counter;
+  eval SET GLOBAL SQL_REPLICA_SKIP_COUNTER= $slave_skip_counter;
 }
 if (!$slave_skip_counter) {
-  SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+  SET GLOBAL SQL_REPLICA_SKIP_COUNTER=1;
 }
 source include/start_slave.inc;
 

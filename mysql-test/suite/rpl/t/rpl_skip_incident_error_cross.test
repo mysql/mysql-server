@@ -1,7 +1,7 @@
 # ==== Purpose ====
 #
 # Verify that we can skip an incident event without a GTID by setting
-# --slave-skip-errors=1590 on cross-version replication.
+# --replica-skip-errors=1590 on cross-version replication.
 #
 # ==== Implementation ====
 #
@@ -10,7 +10,7 @@
 #    enough to accommodate the changes.
 #
 # 2. sync slave sql with master to verify that we can skip the incident event
-#    by setting --slave-skip-errors=1590 on slave.
+#    by setting --replica-skip-errors=1590 on slave.
 #
 # ==== References ====
 #
@@ -67,7 +67,7 @@ eval INSERT INTO t1 (c1, data) VALUES (1,
 
 --echo #
 --echo # Verify that we can skip the incident event by setting
---echo # --slave-skip-errors=1590 on slave.
+--echo # --replica-skip-errors=1590 on slave.
 --echo #
 --source include/sync_slave_sql_with_master.inc
 

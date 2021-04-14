@@ -6144,8 +6144,8 @@ sub mysqld_arguments ($$$) {
       $found_no_console = 1;
       next;
     } elsif ($arg =~ /--loose[-_]skip[-_]log[-_]bin/ and
-             $mysqld->option("log-slave-updates")) {
-      # Dont add --skip-log-bin when mysqld has --log-slave-updates in config
+             $mysqld->option("log-replica-updates")) {
+      # Dont add --skip-log-bin when mysqld has --log-replica-updates in config
       next;
     } elsif ($arg eq "") {
       # We can get an empty argument when  we set environment variables to ""

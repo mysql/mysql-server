@@ -53,7 +53,7 @@ include/stop_slave_io.inc
 CHANGE REPLICATION SOURCE to SOURCE_USER='test';
 CHANGE REPLICATION SOURCE to SOURCE_USER='root';
 include/check_slave_no_error.inc
-set global sql_slave_skip_counter=1;
+set global sql_replica_skip_counter=1;
 start slave;
 set sql_log_bin=0;
 delete from t1;

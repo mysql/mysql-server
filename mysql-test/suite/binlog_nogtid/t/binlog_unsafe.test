@@ -501,7 +501,7 @@ BEGIN
   INSERT INTO t1 VALUES (@@session.insert_id);
   INSERT INTO t2 SELECT UUID();
   INSERT INTO t2 VALUES (@@session.sql_mode);
-  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@global.init_replica);
   RETURN 0;
 END|
 DELIMITER ;|
@@ -520,7 +520,7 @@ BEGIN
   INSERT INTO t1 VALUES (@@global.auto_increment_increment);
   INSERT INTO t2 SELECT UUID();
   INSERT INTO t2 VALUES (@@session.sql_mode);
-  INSERT INTO t2 VALUES (@@global.init_slave);
+  INSERT INTO t2 VALUES (@@global.init_replica);
   INSERT INTO t2 VALUES (@@hostname);
 END|
 DELIMITER ;|

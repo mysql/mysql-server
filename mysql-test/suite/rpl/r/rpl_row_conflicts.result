@@ -5,9 +5,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 call mtr.add_suppression("Slave: Can\'t find record in \'t1\' Error_code: .*");
 [on slave]
-SET @old_slave_exec_mode= @@global.slave_exec_mode;
-######## Run with slave_exec_mode=STRICT ########
-SET @@global.slave_exec_mode = 'STRICT';
+SET @old_replica_exec_mode= @@global.replica_exec_mode;
+######## Run with replica_exec_mode=STRICT ########
+SET @@global.replica_exec_mode = 'STRICT';
 ==== Initialize ====
 [on master]
 CREATE TABLE t1(a INT PRIMARY KEY);
@@ -82,8 +82,8 @@ DROP TABLE t1;
 [on slave]
 include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
-######## Run with slave_exec_mode=IDEMPOTENT ########
-set @@global.slave_exec_mode= 'IDEMPOTENT';
+######## Run with replica_exec_mode=IDEMPOTENT ########
+set @@global.replica_exec_mode= 'IDEMPOTENT';
 ==== Initialize ====
 [on master]
 CREATE TABLE t1(a INT PRIMARY KEY);
@@ -127,5 +127,5 @@ a
 DROP TABLE t1;
 [on slave]
 include/sync_slave_sql_with_master.inc
-SET @@global.slave_exec_mode= @old_slave_exec_mode;
+SET @@global.replica_exec_mode= @old_replica_exec_mode;
 include/rpl_end.inc

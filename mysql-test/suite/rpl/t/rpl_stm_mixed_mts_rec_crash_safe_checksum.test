@@ -2,6 +2,6 @@
 --source include/big_test.inc
 # Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
 --source include/have_slave_repository_type_table.inc
---source include/have_slave_parallel_type_database.inc
+--source include/have_replica_parallel_type_database.inc
 
 --source rpl_stm_mixed_mts_rec_crash_safe.test

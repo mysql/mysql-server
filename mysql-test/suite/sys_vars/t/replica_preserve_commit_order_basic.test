@@ -1,0 +1,68 @@
+
+# Save initial value
+SET @saved_value= @@GLOBAL.replica_preserve_commit_order;
+
+--echo #
+--echo # Verify it can be queried corrected in different ways.
+--echo #
+SELECT @@GLOBAL.replica_preserve_commit_order;
+--disable_warnings
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE
+  VARIABLE_NAME = 'replica_preserve_commit_order';
+--enable_warnings
+SHOW GLOBAL VARIABLES LIKE 'replica_preserve_commit_order';
+
+--echo #
+--echo # Verify it is not a session variable
+--echo #
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.replica_preserve_commit_order;
+--disable_warnings
+SELECT VARIABLE_VALUE FROM performance_schema.session_variables WHERE
+  VARIABLE_NAME = 'replica_preserve_commit_order';
+--enable_warnings
+SHOW SESSION VARIABLES LIKE 'replica_preserve_commit_order';
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION replica_preserve_commit_order= TRUE;
+SELECT @@global.replica_preserve_commit_order;
+
+--echo #
+--echo # Verify it can be set correctly
+--echo #
+SET GLOBAL replica_preserve_commit_order= true;
+SELECT @@global.replica_preserve_commit_order;
+--disable_warnings
+SELECT VARIABLE_VALUE FROM performance_schema.global_variables WHERE
+  VARIABLE_NAME = 'replica_preserve_commit_order';
+--enable_warnings
+
+SET GLOBAL replica_preserve_commit_order= false;
+SELECT @@global.replica_preserve_commit_order;
+
+SET GLOBAL replica_preserve_commit_order= TRUE;
+SELECT @@global.replica_preserve_commit_order;
+
+SET GLOBAL replica_preserve_commit_order= FALSE;
+SELECT @@global.replica_preserve_commit_order;
+
+SET GLOBAL replica_preserve_commit_order= DEFAULT;
+SELECT @@global.replica_preserve_commit_order;
+
+--echo #
+--echo # It should throw an error when encountering invalid value
+--echo #
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replica_preserve_commit_order= NULL;
+SELECT @@global.replica_preserve_commit_order;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replica_preserve_commit_order= '';
+SELECT @@global.replica_preserve_commit_order;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL replica_preserve_commit_order= 'GARBAGE';
+SELECT @@global.replica_preserve_commit_order;
+
+# Restore the initial value
+SET GLOBAL replica_preserve_commit_order = @saved_value;

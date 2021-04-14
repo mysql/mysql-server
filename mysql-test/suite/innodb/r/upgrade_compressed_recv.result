@@ -7,7 +7,7 @@
 # These files are added to test error scenario, delete from for upgrade testing.
 # Remove myisam partitioned tables. There are used for negative testing.
 # start mysqld on the 5.7 datadir
-# restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG --innodb_page_size=16k
+# restart: --loose-skip-log-bin --skip-log-replica-updates --skip-replica-preserve-commit-order --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG --innodb_page_size=16k
 SELECT * FROM test.t_compressed;
 c1	c2
 SHOW CREATE TABLE test.t_compressed;
@@ -26,7 +26,7 @@ INSERT INTO test.t_compressed VALUES (1, 'hello'), (2, 'hi');
 INSERT INTO test.t_compressed VALUES (3, 'satya'), (4, 'bodapati');
 INSERT INTO test.t_blob VALUES ('hello', 'hi', 'satya', 'bodapati');
 INSERT INTO test.t_blob VALUES ('hi', 'hello', 'satya', 'bodapati');
-# Kill and restart: --loose-skip-log-bin --skip-log-slave-updates --skip-slave-preserve-commit-order --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG --innodb_page_size=16k
+# Kill and restart: --loose-skip-log-bin --skip-log-replica-updates --skip-replica-preserve-commit-order --datadir=MYSQLD_DATADIR1 --log-error=MYSQLD_LOG --innodb_page_size=16k
 SELECT * FROM test.t_compressed;
 c1	c2
 1	hello

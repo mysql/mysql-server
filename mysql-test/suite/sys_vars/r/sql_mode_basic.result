@@ -660,7 +660,7 @@ SET @@session.sql_mode = 0;
 CREATE TABLE t1 (i INT);
 CREATE TRIGGER trg1 BEFORE INSERT ON t1 FOR EACH ROW SET @@session.sql_mode=1436549152;
 CREATE PROCEDURE p1() SET @@session.sql_mode=1436549152;
-# pseudo_slave_mode is "off", assignment should fail as before:
+# pseudo_replica_mode is "off", assignment should fail as before:
 SET @@session.sql_mode=1436549152;
 ERROR HY000: sql_mode=0x10000000 is not supported.
 SELECT @@session.sql_mode;
@@ -677,9 +677,9 @@ SELECT @@session.sql_mode;
 @@session.sql_mode
 
 #
-SET @session_pseudo_slave_mode = @@session.pseudo_slave_mode;
-SET @@session.pseudo_slave_mode = TRUE;
-# pseudo_slave_mode is "on", assignment should succeed:
+SET @session_pseudo_replica_mode = @@session.pseudo_replica_mode;
+SET @@session.pseudo_replica_mode = TRUE;
+# pseudo_replica_mode is "on", assignment should succeed:
 SET @@session.sql_mode=1436549152;
 Warnings:
 Warning	13249	sql_mode=0x10000000 has been removed and will be ignored
@@ -701,7 +701,7 @@ SELECT @@session.sql_mode;
 
 DROP PROCEDURE p1;
 DROP TABLE t1;
-SET @@session.pseudo_slave_mode = @session_pseudo_slave_mode;
+SET @@session.pseudo_replica_mode = @session_pseudo_replica_mode;
 Warnings:
 Warning	1231	Slave applier execution mode not active, statement ineffective.
 SET @@session.sql_mode = DEFAULT;

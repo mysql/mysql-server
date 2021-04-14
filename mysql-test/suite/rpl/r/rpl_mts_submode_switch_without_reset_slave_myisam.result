@@ -11,7 +11,7 @@ CREATE TABLE db2.t (a int) engine=myisam;
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 INSERT INTO db2.t values (1),(2),(3);
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db2.t, slave:db2.t]
@@ -19,7 +19,7 @@ include/stop_slave.inc
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
 INSERT INTO db2.t values (1),(2),(3);
-SET GLOBAL slave_parallel_type='LOGICAL_CLOCK';
+SET GLOBAL replica_parallel_type='LOGICAL_CLOCK';
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db2.t, slave:db2.t]
@@ -27,7 +27,7 @@ include/stop_slave.inc
 SET GLOBAL DEBUG ='-d,set_commit_parent_150';
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 INSERT INTO db2.t values (1),(2),(3);
-SET GLOBAL slave_parallel_type='DATABASE';
+SET GLOBAL replica_parallel_type='DATABASE';
 include/start_slave.inc
 include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:db2.t, slave:db2.t]

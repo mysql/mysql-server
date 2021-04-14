@@ -306,7 +306,7 @@ ER_VERBOSE_REQUIRES_HELP
   eng "--verbose is for use with --help; did you mean --log-error-verbosity?"
 
 ER_POINTLESS_WITHOUT_SLOWLOG
-  eng "options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --slow-query-log is not set"
+  eng "options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-replica-statements have no effect if --slow-query-log is not set"
 
 ER_WASTEFUL_NET_BUFFER_SIZE
   eng "net_buffer_length (%lu) is set to be larger than max_allowed_packet (%lu). Please rectify."
@@ -622,10 +622,10 @@ ER_INVALID_ERROR_LOG_NAME
   eng "Invalid log file name after expanding symlinks: '%s'"
 
 ER_RPL_INFINITY_DENIED
-  eng "using --replicate-same-server-id in conjunction with --log-slave-updates is impossible, it would lead to infinite loops in this server."
+  eng "using --replicate-same-server-id in conjunction with --log-replica-updates is impossible, it would lead to infinite loops in this server."
 
 ER_RPL_INFINITY_IGNORED
-  eng "using --replicate-same-server-id in conjunction with --log-slave-updates would lead to infinite loops in this server. However this will be ignored as the --log-bin option is not defined or your server is running with global transaction identiers enabled."
+  eng "using --replicate-same-server-id in conjunction with --log-replica-updates would lead to infinite loops in this server. However this will be ignored as the --log-bin option is not defined or your server is running with global transaction identiers enabled."
 
 OBSOLETE_ER_NDB_TABLES_NOT_READY
   eng "NDB : Tables not available after %lu seconds. Consider increasing --ndb-wait-setup value"
@@ -711,7 +711,7 @@ ER_VALGRIND_COUNT_LEAKS
   eng "VALGRIND_COUNT_LEAKS reports %lu leaked bytes for query '%.*s'"
 
 ER_LOAD_DATA_INFILE_FAILED_IN_UNEXPECTED_WAY
-  eng "LOAD DATA INFILE in the slave SQL Thread can only read from --slave-load-tmpdir. Please, report a bug."
+  eng "LOAD DATA INFILE in the slave SQL Thread can only read from --replica-load-tmpdir. Please, report a bug."
 
 ER_UNKNOWN_ERROR_NUMBER
   eng "Got unknown error: %d"
@@ -1707,7 +1707,7 @@ ER_RPL_SLAVE_MASTER_UUID_HAS_CHANGED
   eng "The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was %s."
 
 ER_RPL_SLAVE_USES_CHECKSUM_AND_MASTER_PRE_50
-  eng "Found a master with MySQL server version older than 5.0. With checksums enabled on the slave, replication might not work correctly. To ensure correct replication, restart the slave server with --slave_sql_verify_checksum=0."
+  eng "Found a master with MySQL server version older than 5.0. With checksums enabled on the slave, replication might not work correctly. To ensure correct replication, restart the slave server with --replica_sql_verify_checksum=0."
 
 ER_RPL_SLAVE_SECONDS_BEHIND_MASTER_DUBIOUS
   eng "\"SELECT UNIX_TIMESTAMP()\" failed on master, do not trust column Seconds_Behind_Master of SHOW SLAVE STATUS. Error: %s (%d)"
@@ -1757,8 +1757,8 @@ ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD
 ER_RPL_SLAVE_ERROR_REQUESTING_BINLOG_DUMP
   eng "Failed on request_dump()%s"
 
-ER_RPL_LOG_ENTRY_EXCEEDS_SLAVE_MAX_ALLOWED_PACKET
-  eng "Log entry on master is longer than slave_max_allowed_packet (%lu) on slave. If the entry is correct, restart the server with a higher value of slave_max_allowed_packet"
+ER_RPL_LOG_ENTRY_EXCEEDS_REPLICA_MAX_ALLOWED_PACKET
+  eng "Log entry on master is longer than replica_max_allowed_packet (%lu) on slave. If the entry is correct, restart the server with a higher value of replica_max_allowed_packet"
 
 ER_RPL_SLAVE_STOPPING_AS_MASTER_OOM
   eng "Stopping slave I/O thread due to out-of-memory error from master"
@@ -1803,7 +1803,7 @@ ER_RPL_SLAVE_SQL_THREAD_STARTING
   eng "Slave SQL thread%s initialized, starting replication in log '%s' at position %s, relay log '%s' position: %s"
 
 ER_RPL_SLAVE_SKIP_COUNTER_EXECUTED
-  eng "'SQL_SLAVE_SKIP_COUNTER=%ld' executed at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' and new position at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' "
+  eng "'SQL_REPLICA_SKIP_COUNTER=%ld' executed at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' and new position at relay_log_file='%s', relay_log_pos='%ld', master_log_name='%s', master_log_pos='%ld' "
 
 ER_RPL_SLAVE_ADDITIONAL_ERROR_INFO_FROM_DA
   eng "Slave (additional info): %s Error_code: MY-%06d"
@@ -2223,7 +2223,7 @@ ER_RPL_WORKER_CANT_FIND_NEXT_RELAY_LOG
   eng "Failed to find next relay log when retrying the transaction, current relay log is %s"
 
 ER_RPL_MTS_SLAVE_COORDINATOR_HAS_WAITED
-  eng "Multi-threaded slave: Coordinator has waited %lu times hitting slave_pending_jobs_size_max; current event size = %zu."
+  eng "Multi-threaded slave: Coordinator has waited %lu times hitting replica_pending_jobs_size_max; current event size = %zu."
 
 ER_BINLOG_FAILED_TO_WRITE_DROP_FOR_TEMP_TABLES
   eng "Failed to write the DROP statement for temporary tables to binary log"
@@ -2741,8 +2741,8 @@ ER_AUDIT_WARNING
 OBSOLETE_ER_NDB_NUMBER_OF_CHANNELS
   eng "Slave SQL: Configuration with number of replication masters = %u' is not supported when applying to Ndb"
 
-OBSOLETE_ER_NDB_SLAVE_PARALLEL_WORKERS
-  eng "Slave SQL: Configuration 'slave_parallel_workers = %lu' is not supported when applying to Ndb"
+OBSOLETE_ER_NDB_REPLICA_PARALLEL_WORKERS
+  eng "Slave SQL: Configuration 'replica_parallel_workers = %lu' is not supported when applying to Ndb"
 
 OBSOLETE_ER_NDB_DISTRIBUTING_ERR
   eng "NDB %s: distributing %s err: %u"
@@ -5087,8 +5087,8 @@ ER_GRP_RPL_BINLOG_DISABLED
 ER_GRP_RPL_GTID_MODE_OFF
   eng "Gtid mode should be ON for Group Replication"
 
-ER_GRP_RPL_LOG_SLAVE_UPDATES_NOT_SET
-  eng "LOG_SLAVE_UPDATES should be ON for Group Replication"
+ER_GRP_RPL_LOG_REPLICA_UPDATES_NOT_SET
+  eng "LOG_REPLICA_UPDATES should be ON for Group Replication"
 
 ER_GRP_RPL_INVALID_TRANS_WRITE_SET_EXTRACTION_VALUE
   eng "Extraction of transaction write sets requires an hash algorithm configuration. Please, double check that the parameter transaction-write-set-extraction is set to a valid algorithm."
@@ -5100,10 +5100,10 @@ ER_GRP_RPL_MASTER_INFO_REPO_MUST_BE_TABLE
   eng "Master info repository must be set to TABLE."
 
 ER_GRP_RPL_INCORRECT_TYPE_SET_FOR_PARALLEL_APPLIER
-  eng "In order to use parallel applier on Group Replication, parameter slave-parallel-type must be set to 'LOGICAL_CLOCK'."
+  eng "In order to use parallel applier on Group Replication, parameter replica-parallel-type must be set to 'LOGICAL_CLOCK'."
 
-ER_GRP_RPL_SLAVE_PRESERVE_COMMIT_ORDER_NOT_SET
-  eng "Group Replication requires slave-preserve-commit-order to be set to ON when using more than 1 applier threads."
+ER_GRP_RPL_REPLICA_PRESERVE_COMMIT_ORDER_NOT_SET
+  eng "Group Replication requires replica-preserve-commit-order to be set to ON when using more than 1 applier threads."
 
 ER_GRP_RPL_SINGLE_PRIM_MODE_NOT_ALLOWED_WITH_UPDATE_EVERYWHERE
   eng "It is not allowed to run single primary mode with 'group_replication_enforce_update_everywhere_checks' enabled."
@@ -9492,7 +9492,7 @@ ER_SERVER_ACL_TABLE_ERROR
   eng ""
 
 ER_SERVER_SLAVE_INIT_QUERY_FAILED
-  eng "Slave SQL thread aborted. Can't execute init_slave query, MY-%06d - '%s'"
+  eng "Slave SQL thread aborted. Can't execute init_replica query, MY-%06d - '%s'"
 
 ER_SERVER_SLAVE_CONVERSION_FAILED
   eng "Column %d of table '%-.192s.%-.192s' cannot be converted from type '%-.32s' to type '%-.32s'"

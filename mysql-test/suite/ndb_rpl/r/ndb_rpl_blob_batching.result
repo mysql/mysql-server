@@ -3,9 +3,9 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-show variables like 'slave_allow_batching';
+show variables like 'replica_allow_batching';
 Variable_name	Value
-slave_allow_batching	ON
+replica_allow_batching	ON
 set @s_batch_size:=@@ndb_batch_size;
 set @s_blob_write_batch:=@@ndb_blob_write_batch_bytes;
 set @s_blob_read_batch:=@@ndb_blob_read_batch_bytes;
@@ -190,7 +190,7 @@ create table tb2(a varchar(20) character set utf8 primary key,
 b blob,
 c blob) engine=ndb;
 stop slave;
-set global slave_type_conversions="ALL_LOSSY,ALL_NON_LOSSY";
+set global replica_type_conversions="ALL_LOSSY,ALL_NON_LOSSY";
 start slave;
 insert into tsync values (2);
 insert into tv values ("Sync", "Sync");
@@ -235,7 +235,7 @@ commit;
 round_trips_slave	15
 pk_ops_slave	67
 
-set global slave_type_conversions="";
+set global replica_type_conversions="";
 set global ndb_batch_size=@s_batch_size;
 set ndb_batch_size=@s_batch_size;
 set global ndb_blob_write_batch_bytes=@s_blob_write_batch;

@@ -13289,7 +13289,7 @@ static bool mysql_inplace_alter_table(
 
     /*
       It allows saving GTID and invoking commit order, except when
-      slave-preserve-commit-order is enabled and OPTIMIZE TABLE command
+      replica-preserve-commit-order is enabled and OPTIMIZE TABLE command
       is getting executed. The exception for OPTIMIZE TABLE command is
       because if it does enter commit order here and at the same time
       any operation on the table which is getting optimized is done,

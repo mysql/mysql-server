@@ -12,7 +12,7 @@
 [mysqld.3]
 loose-innodb_write_io_threads=    2
 loose-innodb_read_io_threads=     2
-log-slave-updates=OFF
+log-replica-updates=OFF
 
 [ENV]
 SERVER_MYPORT_3= @mysqld.3.port

@@ -34,7 +34,7 @@
 --source include/rpl_connection_slave.inc
 let $MYSQLD_DATADIR= `select @@datadir`;
 --source include/stop_slave.inc
-SET @@global.slave_parallel_workers=2;
+SET @@global.replica_parallel_workers=2;
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc

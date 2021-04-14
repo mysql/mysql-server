@@ -565,7 +565,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     Pre-condition: transactions should have called ha_prepare_low, using
                    HA_IGNORE_DURABILITY, before entering here.
 
-    Stage#0 implements slave-preserve-commit-order for applier threads that
+    Stage#0 implements replica-preserve-commit-order for applier threads that
     write the binary log. i.e. it forces threads to enter the queue in the
     correct commit order.
 
@@ -588,7 +588,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
     will wait until the last stage is finished.
 
     Stage 0 (SLAVE COMMIT ORDER):
-    1. If slave-preserve-commit-order and is slave applier worker thread, then
+    1. If replica-preserve-commit-order and is slave applier worker thread, then
        waits until its turn to commit i.e. till it is on the top of the queue.
     2. When it reaches top of the queue, it signals next worker in the commit
        order queue to awake.
