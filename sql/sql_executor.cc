@@ -2240,8 +2240,8 @@ static AccessPath *ConnectJoins(
     // into one invalidator.
     for (auto it = pending_invalidators->begin();
          it != pending_invalidators->end();) {
-      assert(path != nullptr);
       if (it->table_index_to_invalidate < last_idx) {
+        assert(path != nullptr);
         path = NewInvalidatorAccessPathForTable(thd, path, it->qep_tab,
                                                 it->table_index_to_invalidate);
         it = pending_invalidators->erase(it);
