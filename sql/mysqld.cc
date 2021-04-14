@@ -11180,11 +11180,11 @@ PSI_cond_key key_COND_active;
 PSI_cond_key key_COND_pool;
 PSI_cond_key key_COND_cache_status_changed;
 PSI_cond_key key_item_func_sleep_cond;
-PSI_cond_key key_master_info_data_cond;
-PSI_cond_key key_master_info_start_cond;
-PSI_cond_key key_master_info_stop_cond;
-PSI_cond_key key_master_info_sleep_cond;
-PSI_cond_key key_master_info_rotate_cond;
+PSI_cond_key key_source_info_data_cond;
+PSI_cond_key key_source_info_start_cond;
+PSI_cond_key key_source_info_stop_cond;
+PSI_cond_key key_source_info_sleep_cond;
+PSI_cond_key key_source_info_rotate_cond;
 PSI_cond_key key_relay_log_info_data_cond;
 PSI_cond_key key_relay_log_info_log_space_cond;
 PSI_cond_key key_relay_log_info_start_cond;
@@ -11192,7 +11192,7 @@ PSI_cond_key key_relay_log_info_stop_cond;
 PSI_cond_key key_relay_log_info_sleep_cond;
 PSI_cond_key key_cond_slave_parallel_pend_jobs;
 PSI_cond_key key_cond_slave_parallel_worker;
-PSI_cond_key key_cond_mts_gaq;
+PSI_cond_key key_cond_mta_gaq;
 PSI_cond_key key_RELAYLOG_update_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
 PSI_cond_key key_COND_thr_lock;
@@ -11222,11 +11222,11 @@ static PSI_cond_info all_server_conds[]=
 #endif
   { &key_COND_thr_lock, "COND_thr_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_item_func_sleep_cond, "Item_func_sleep::cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_data_cond, "Master_info::data_cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_start_cond, "Master_info::start_cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_stop_cond, "Master_info::stop_cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_sleep_cond, "Master_info::sleep_cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_rotate_cond, "Master_info::rotate_cond", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_data_cond, "Source_info::data_cond", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_start_cond, "Source_info::start_cond", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_stop_cond, "Source_info::stop_cond", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_sleep_cond, "Source_info::sleep_cond", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_rotate_cond, "Source_info::rotate_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_data_cond, "Relay_log_info::data_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_log_space_cond, "Relay_log_info::log_space_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_start_cond, "Relay_log_info::start_cond", 0, 0, PSI_DOCUMENT_ME},
@@ -11234,7 +11234,7 @@ static PSI_cond_info all_server_conds[]=
   { &key_relay_log_info_sleep_cond, "Relay_log_info::sleep_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_cond_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_cond_slave_parallel_worker, "Worker_info::jobs_cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_cond_mts_gaq, "Relay_log_info::mts_gaq_cond", 0, 0, PSI_DOCUMENT_ME},
+  { &key_cond_mta_gaq, "Relay_log_info::mta_gaq_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0, 0, PSI_DOCUMENT_ME},
