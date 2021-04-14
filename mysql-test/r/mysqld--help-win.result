@@ -1244,7 +1244,7 @@ The following options may be given as the first argument:
  'INFORMATION_SCHEMA.COLUMNS' table as a comment in
  COLUMN_TYPE field. This variable is deprecated and will
  be removed in a future release.
- --show-slave-auth-info 
+ --show-replica-auth-info 
  Show user and password in SHOW SLAVE HOSTS on this
  master.
  --skip-grant-tables Start without grant tables. This gives all users FULL
@@ -1806,7 +1806,7 @@ shared-memory FALSE
 shared-memory-base-name MYSQL
 show-create-table-verbosity FALSE
 show-old-temporals FALSE
-show-slave-auth-info FALSE
+show-replica-auth-info FALSE
 skip-grant-tables TRUE
 skip-name-resolve FALSE
 skip-networking FALSE

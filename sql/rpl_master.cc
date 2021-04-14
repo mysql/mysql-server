@@ -221,7 +221,7 @@ bool show_slave_hosts(THD *thd) {
 
   field_list.push_back(new Item_return_int("Server_Id", 10, MYSQL_TYPE_LONG));
   field_list.push_back(new Item_empty_string("Host", HOSTNAME_LENGTH));
-  if (opt_show_slave_auth_info) {
+  if (opt_show_replica_auth_info) {
     field_list.push_back(new Item_empty_string("User", USERNAME_CHAR_LENGTH));
     field_list.push_back(new Item_empty_string("Password", 20));
   }
@@ -244,7 +244,7 @@ bool show_slave_hosts(THD *thd) {
     protocol->start_row();
     protocol->store((uint32)si->server_id);
     protocol->store(si->host, &my_charset_bin);
-    if (opt_show_slave_auth_info) {
+    if (opt_show_replica_auth_info) {
       protocol->store(si->user, &my_charset_bin);
       protocol->store(si->password, &my_charset_bin);
     }
