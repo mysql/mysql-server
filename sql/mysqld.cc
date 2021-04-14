@@ -1304,7 +1304,7 @@ ulong table_def_size;
 ulong tablespace_def_size;
 ulong what_to_log;
 ulong slow_launch_time;
-std::atomic<int32> atomic_slave_open_temp_tables{0};
+std::atomic<int32> atomic_replica_open_temp_tables{0};
 ulong open_files_limit, max_binlog_size, max_relay_log_size;
 ulong slave_trans_retries;
 uint replica_net_timeout;
@@ -1315,7 +1315,7 @@ ulonglong opt_mts_pending_jobs_size_max;
 ulonglong slave_rows_search_algorithms_options;
 bool opt_replica_preserve_commit_order;
 #ifndef NDEBUG
-uint slave_rows_last_search_algorithm_used;
+uint replica_rows_last_search_algorithm_used;
 #endif
 ulong mts_parallel_option;
 ulong binlog_cache_size = 0;
@@ -8839,9 +8839,9 @@ static int show_heartbeat_period(THD *, SHOW_VAR *var, char *buff) {
 }
 
 #ifndef NDEBUG
-static int show_slave_rows_last_search_algorithm_used(THD *, SHOW_VAR *var,
-                                                      char *buff) {
-  uint res = slave_rows_last_search_algorithm_used;
+static int show_replica_rows_last_search_algorithm_used(THD *, SHOW_VAR *var,
+                                                        char *buff) {
+  uint res = replica_rows_last_search_algorithm_used;
   const char *s =
       ((res == Rows_log_event::ROW_LOOKUP_TABLE_SCAN)
            ? "TABLE_SCAN"
@@ -8995,10 +8995,10 @@ static int show_ssl_get_cipher_list(THD *thd, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
-static int show_slave_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
+static int show_replica_open_temp_tables(THD *, SHOW_VAR *var, char *buf) {
   var->type = SHOW_INT;
   var->value = buf;
-  *((int *)buf) = atomic_slave_open_temp_tables;
+  *((int *)buf) = atomic_replica_open_temp_tables;
   return 0;
 }
 
@@ -9205,8 +9205,8 @@ SHOW_VAR status_vars[] = {
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
     {"Select_scan", (char *)offsetof(System_status_var, select_scan_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
-    {"Slave_open_temp_tables", (char *)&show_slave_open_temp_tables, SHOW_FUNC,
-     SHOW_SCOPE_GLOBAL},
+    {"Replica_open_temp_tables", (char *)&show_replica_open_temp_tables,
+     SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Slave_retried_transactions", (char *)&show_slave_retried_trans, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Slave_heartbeat_period", (char *)&show_heartbeat_period, SHOW_FUNC,
@@ -9216,8 +9216,8 @@ SHOW_VAR status_vars[] = {
     {"Slave_last_heartbeat", (char *)&show_slave_last_heartbeat, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
 #ifndef NDEBUG
-    {"Slave_rows_last_search_algorithm_used",
-     (char *)&show_slave_rows_last_search_algorithm_used, SHOW_FUNC,
+    {"Replica_rows_last_search_algorithm_used",
+     (char *)&show_replica_rows_last_search_algorithm_used, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
 #endif
     {"Slave_running", (char *)&show_slave_running, SHOW_FUNC,
@@ -9496,7 +9496,7 @@ static int mysql_init_variables() {
   cleanup_done = 0;
   server_id_supplied = false;
   test_flags = select_errors = ha_open_options = 0;
-  atomic_slave_open_temp_tables = 0;
+  atomic_replica_open_temp_tables = 0;
   opt_endinfo = using_udf_functions = false;
   opt_using_transactions = false;
   set_connection_events_loop_aborted(false);

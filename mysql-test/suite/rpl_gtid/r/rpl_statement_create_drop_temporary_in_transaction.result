@@ -14,7 +14,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 COMMIT;
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a single STMT transaction
@@ -45,7 +45,7 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (2)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a MULTI STMTs transaction
@@ -65,7 +65,7 @@ master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (3)
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 CREATE PROCEDURE sp1 ()
 BEGIN
@@ -96,7 +96,7 @@ ERROR HY000: Statement violates GTID consistency: CREATE TEMPORARY TABLE and DRO
 COMMIT;
 include/show_binlog_events.inc
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a single STMT procedure
@@ -123,7 +123,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (9)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that DROP TEMPORARY TABLE in a PROCEDURE in transactional
@@ -140,7 +140,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (10)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Slave_open_temp_tables shall be 0]
+include/assert.inc [Replica_open_temp_tables shall be 0]
 [connection master]
 #
 # Verify that CREATE/DROP TEMPORARY TABLE in a procedure outside

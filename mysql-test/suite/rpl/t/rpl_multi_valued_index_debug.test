@@ -23,12 +23,12 @@ INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 --source include/sync_slave_sql_with_master.inc
 --echo [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 --source include/sync_slave_sql_with_master.inc
 --echo [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 
@@ -40,12 +40,12 @@ INSERT INTO t1 VALUES (3, 3, NULL);
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 --source include/sync_slave_sql_with_master.inc
 --echo [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 --source include/sync_slave_sql_with_master.inc
 --echo [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 
@@ -57,12 +57,12 @@ INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 --source include/sync_slave_sql_with_master.inc
 --echo [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 --source include/sync_slave_sql_with_master.inc
 --echo [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 
@@ -74,12 +74,12 @@ INSERT INTO t1 VALUES (1, 1, '[1,2,3,4]'), (2, 2, '[5,6,7,8]');
 UPDATE t1 SET j = '[2,9,10]' WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 --source include/sync_slave_sql_with_master.inc
 --echo [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 --source include/sync_slave_sql_with_master.inc
 --echo [Connection Slave]
-SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 --source include/rpl_connection_master.inc
 DROP TABLE t1;
 

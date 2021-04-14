@@ -21,8 +21,8 @@ SET GLOBAL rpl_semi_sync_master_trace_level= 255;
 ####################################################################
 SET GLOBAL rpl_semi_sync_master_timeout=3000;
 INSERT INTO t1 VALUES(1);
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 0 + 0]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 0 + 1]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 0 + 0]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 0 + 1]
 ###################################################################
 # Test Case: Wait ack from 1 slave, and 1 semisync slave is enabled
 ###################################################################
@@ -32,16 +32,16 @@ include/install_semisync_slave.inc
 SET GLOBAL rpl_semi_sync_master_timeout=100000;
 INSERT INTO t1 VALUES(3);
 INSERT INTO t1 VALUES(4);
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 0 + 2]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 1 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 0 + 2]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 1 + 0]
 #########################################################################
 # Test Case: Wait ack from 2 slaves, but only 1 semisync slave is enabled
 #########################################################################
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 2;
 SET GLOBAL rpl_semi_sync_master_timeout=3000;
 INSERT INTO t1 VALUES(10);
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 2 + 0]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 1 + 1]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 2 + 0]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 1 + 1]
 #####################################################################
 # Test Case: Wait ack from 2 slaves, and 2 semisync slave are enabled
 #####################################################################
@@ -51,8 +51,8 @@ include/install_semisync_slave.inc
 SET GLOBAL rpl_semi_sync_master_timeout = 100000;
 INSERT INTO t1 VALUES(102);
 INSERT INTO t1 VALUES(103);
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 2 + 2]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 2 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 2 + 2]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 2 + 0]
 ##########################################################################
 # Test Case: Wait ack from 3 slaves, but only 2 semisync slave are enabled
 ##########################################################################
@@ -60,8 +60,8 @@ SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 3;
 SET GLOBAL rpl_semi_sync_master_timeout = 3000;
 INSERT INTO t1 VALUES(100);
 INSERT INTO t1 VALUES(101);
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 4 + 0]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 2 + 2]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 2 + 2]
 ######################################################################
 # Test Case: Wait ack from 3 slaves, and 3 semisync slaves are enabled
 ######################################################################
@@ -71,8 +71,8 @@ include/install_semisync_slave.inc
 SET GLOBAL rpl_semi_sync_master_timeout = 100000;
 INSERT INTO t1 VALUES(102);
 INSERT INTO t1 VALUES(103);
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 4 + 2]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 4 + 2]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 ######################################################################
 # Test Case: Verify only the transaction before replied ack position
 #            can stop waiting and go ahead.
@@ -90,13 +90,13 @@ INSERT INTO t1 VALUES(105);
 [connection server_4]
 SET DEBUG_SYNC = 'now SIGNAL continue';
 [connection default]
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 6 + 1]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 6 + 1]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 [connection server_4]
 SET DEBUG_SYNC = 'now SIGNAL continue';
 [connection server_1]
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 7 + 1]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 7 + 1]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 ######################################################################
 # Test Case: Coverage test, it covers the branch that coming ack is
 #            greater than the acked already received.
@@ -114,8 +114,8 @@ INSERT INTO t1 VALUES(131);;
 [connection server_5]
 include/install_semisync_slave.inc
 [connection server_1]
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 8 + 1]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 8 + 1]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 [connection server_2]
 SET GLOBAL debug = @original_debug;
 SET DEBUG_SYNC= 'now SIGNAL continue';
@@ -126,8 +126,8 @@ SET DEBUG_SYNC= 'now SIGNAL continue';
 SET GLOBAL debug = @original_debug;
 SET DEBUG_SYNC= 'now SIGNAL continue';
 [connection default]
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 9 + 1]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 9 + 1]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 ######################################################################
 # Test Case: Verify it can work well when number of semisync slaves
 # is greater than rpl_semi_sync_master_wait_for_slave_count
@@ -137,13 +137,13 @@ SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 2;
 INSERT INTO t1 VALUES(106);
 INSERT INTO t1 VALUES(107);
 include/rpl_sync.inc
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 10 + 2]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 10 + 2]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 4;
 INSERT INTO t1 VALUES(108);
 INSERT INTO t1 VALUES(109);
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 12 + 2]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 12 + 2]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 ######################################################################
 # Test Case: It should still keep the old value and works well when
 # setting rpl_semi_sync_master_wait_for_slave_count fails
@@ -154,14 +154,14 @@ SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 2;
 include/assert.inc [ should be 4]
 INSERT INTO t1 VALUES(110);
 INSERT INTO t1 VALUES(111);
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 14 + 2]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 14 + 2]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 5;
 include/assert.inc [ should be 4]
 INSERT INTO t1 VALUES(112);
 INSERT INTO t1 VALUES(113);
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 16 + 2]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 16 + 2]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 SET GLOBAL debug = @original_debug;
 ########################################################################
 # Test Case: Verify it works well when some semisync slaves shutdown and
@@ -179,8 +179,8 @@ INSERT INTO t1 VALUES(201);
 include/rpl_sync.inc
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 2;
 [connection default]
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 18 + 1]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 18 + 1]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 [connection server_3]
 include/uninstall_semisync_slave.inc
 [connection default]
@@ -189,8 +189,8 @@ INSERT INTO t1 VALUES(202);
 include/rpl_sync.inc
 SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = 1;
 [connection default]
-include/assert.inc [rpl_semi_sync_master_yes_tx should be 19 + 1]
-include/assert.inc [rpl_semi_sync_master_no_tx should be 4 + 0]
+include/assert.inc [rpl_semi_sync_source_yes_tx should be 19 + 1]
+include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 ########################################################################
 # Test Case: Verify semisync master will turn off immediately after a
 #            a semisync slave unregistered and there are no enough

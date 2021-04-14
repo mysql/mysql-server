@@ -1012,7 +1012,7 @@ void Relay_log_info::close_temporary_tables() {
     num_closed_temp_tables++;
   }
   save_temporary_tables = nullptr;
-  atomic_slave_open_temp_tables -= num_closed_temp_tables;
+  atomic_replica_open_temp_tables -= num_closed_temp_tables;
   atomic_channel_open_temp_tables -= num_closed_temp_tables;
 }
 

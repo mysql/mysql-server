@@ -10,7 +10,7 @@
 
 # wait till semisync clients are '0' before uninstalling
 # semisync master plugin.
---let $status_var= Rpl_semi_sync_master_clients
+--let $status_var= Rpl_semi_sync_source_clients
 --let $status_var_value= 0
 --source include/wait_for_status_var.inc
 

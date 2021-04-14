@@ -7223,7 +7223,7 @@ ER_SLAVE_CHANNEL_IO_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD FOR CHANNEL '%s' first."
 
 ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
-  eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0."
+  eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until replica_open_temp_tables = 0."
 
 ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS
   eng "CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file."
@@ -8644,7 +8644,7 @@ ER_TEMP_TABLE_PREVENTS_SWITCH_SESSION_BINLOG_FORMAT
   eng "Changing @@session.binlog_format is disallowed when the session has open temporary table(s). You could wait until these temporary table(s) are dropped and try again."
 
 ER_TEMP_TABLE_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
-  eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Slave_open_temp_tables = 0 and try again"
+  eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel has open temporary table(s). You could wait until Replica_open_temp_tables = 0 and try again"
 
 ER_RUNNING_APPLIER_PREVENTS_SWITCH_GLOBAL_BINLOG_FORMAT
   eng "Changing @@global.binlog_format or @@persist.binlog_format is disallowed when any replication channel applier thread is running. You could execute STOP SLAVE SQL_THREAD and try again."
