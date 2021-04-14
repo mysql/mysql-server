@@ -185,7 +185,7 @@ static SYS_VAR *semi_sync_slave_system_vars[] = {
 
 /* plugin status variables */
 static SHOW_VAR semi_sync_slave_status_vars[] = {
-    {"Rpl_semi_sync_slave_status", (char *)&rpl_semi_sync_slave_status,
+    {"Rpl_semi_sync_replica_status", (char *)&rpl_semi_sync_slave_status,
      SHOW_BOOL, SHOW_SCOPE_GLOBAL},
     {nullptr, nullptr, SHOW_BOOL, SHOW_SCOPE_GLOBAL},
 };

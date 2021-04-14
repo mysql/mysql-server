@@ -12,7 +12,7 @@ CALL mtr.add_suppression(".*Got an error reading communication packets.*");
 #
 include/assert.inc [Semisync master is off]
 CREATE TABLE t1(c1 INT);
-include/assert.inc [rpl_semi_sync_master_tx_waits should be 0]
+include/assert.inc [rpl_semi_sync_source_tx_waits should be 0]
 #
 # Semisync's status should still be OFF, because there is only one slave
 #

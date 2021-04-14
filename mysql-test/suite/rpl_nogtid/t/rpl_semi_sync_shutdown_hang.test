@@ -39,7 +39,7 @@ SET GLOBAL rpl_semi_sync_master_timeout = 10000000;
 --send CREATE TABLE t(f INT) ENGINE=INNODB;
 
 --source include/rpl_connection_master1.inc
---let $status_var= rpl_semi_sync_master_wait_sessions
+--let $status_var= rpl_semi_sync_source_wait_sessions
 --let $status_var_value= 1
 --source include/wait_for_status_var.inc
 

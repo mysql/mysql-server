@@ -190,7 +190,7 @@ include/rpl_start_server.inc [server_number=1]
 include/start_slave_io.inc
 [connection master]
 include/sync_slave_io_with_master.inc
-include/assert.inc [Slave_open_temp_tables should be 0]
+include/assert.inc [Replica_open_temp_tables should be 0]
 [connection master]
 USE test;
 DROP TABLE trans_t1;

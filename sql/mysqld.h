@@ -205,7 +205,7 @@ extern bool opt_require_secure_transport;
 extern bool opt_replica_preserve_commit_order;
 
 #ifndef NDEBUG
-extern uint slave_rows_last_search_algorithm_used;
+extern uint replica_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;
 #ifdef _WIN32
@@ -291,7 +291,7 @@ extern ulong binlog_stmt_cache_use, binlog_stmt_cache_disk_use;
 extern ulong aborted_threads;
 extern ulong delayed_insert_timeout;
 extern ulong delayed_insert_limit, delayed_queue_size;
-extern std::atomic<int32> atomic_slave_open_temp_tables;
+extern std::atomic<int32> atomic_replica_open_temp_tables;
 extern ulong slow_launch_time;
 extern ulong table_cache_size;
 extern ulong schema_def_size;

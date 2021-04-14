@@ -8362,7 +8362,7 @@ end:
                   : "INDEX_SCAN"));
 
   // only for testing purposes
-  slave_rows_last_search_algorithm_used = m_rows_lookup_algorithm;
+  replica_rows_last_search_algorithm_used = m_rows_lookup_algorithm;
   DBUG_PRINT("debug", ("Row lookup method: %s", s));
 #endif
 }

@@ -39,9 +39,9 @@ count(*)
 select sum(n) from t2;
 sum(n)
 2749
-show status like 'Slave_open_temp_tables';
+show status like 'Replica_open_temp_tables';
 Variable_name	Value
-Slave_open_temp_tables	0
+Replica_open_temp_tables	0
 drop table if exists t1,t2;
 Warnings:
 Note	1051	Unknown table 'test.t1'

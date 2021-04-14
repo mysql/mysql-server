@@ -68,20 +68,20 @@ INSERT INTO t1 values (2);
 DROP TABLE t1;
 --sync_slave_with_master
 
-# Step 2.5: Make sure rpl_semi_sync_master_status on Master and
+# Step 2.5: Make sure rpl_semi_sync_source_status on Master and
 # rpl_semi_sync_slave_staus on Slave are ON
---let $slave_status=[show status like "Rpl_semi_sync_slave_status", Value, 1]
+--let $slave_status=[show status like "Rpl_semi_sync_replica_status", Value, 1]
 --let assert_cond= "$slave_status" = "ON"
 --let assert_text= semi sync slave status should be ON.
 --source include/assert.inc
 
 --connection master
---let $master_status=[show status like "Rpl_semi_sync_master_status", Value, 1]
+--let $master_status=[show status like "Rpl_semi_sync_source_status", Value, 1]
 --let assert_cond= "$master_status" = "ON"
 --let assert_text= semi sync master status should be ON.
 --source include/assert.inc
 
---let $master_clients=[show status like "Rpl_semi_sync_master_clients", Value, 1]
+--let $master_clients=[show status like "Rpl_semi_sync_source_clients", Value, 1]
 --let assert_cond= $master_clients = 1
 --let assert_text= semi sync master clients should be 1.
 --source include/assert.inc
@@ -94,13 +94,13 @@ DROP TABLE t1;
 --connection master
 SET GLOBAL rpl_semi_sync_master_enabled = OFF;
 
-# Step 3.2: Check that still Rpl_semi_sync_master_clients is 1
---let $master_clients=[show status like "Rpl_semi_sync_master_clients", Value, 1]
+# Step 3.2: Check that still Rpl_semi_sync_source_clients is 1
+--let $master_clients=[show status like "Rpl_semi_sync_source_clients", Value, 1]
 --let assert_cond= $master_clients = 1
 --let assert_text= semi sync master clients should be 1.
 --source include/assert.inc
 
-# Step 3.3: Since Rpl_semi_sync_master_clients is 1, uninstallation of
+# Step 3.3: Since Rpl_semi_sync_source_clients is 1, uninstallation of
 #  rpl_semi_sync_master should be disallowed.
 --error ER_PLUGIN_CANNOT_BE_UNINSTALLED
 UNINSTALL PLUGIN rpl_semi_sync_master;
@@ -126,7 +126,7 @@ UNINSTALL PLUGIN rpl_semi_sync_slave;
 
 # Step 4.5: On Master, wait until semi sync slaves is '0'.
 --connection master
---let $status_var= Rpl_semi_sync_master_clients
+--let $status_var= Rpl_semi_sync_source_clients
 --let $status_var_value= 0
 --source include/wait_for_status_var.inc
 

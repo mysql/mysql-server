@@ -2534,7 +2534,7 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   */
   if (!strcmp(name.str, "rpl_semi_sync_master") &&
       get_status_var(thd, plugin->plugin->status_vars,
-                     "Rpl_semi_sync_master_clients", buff, OPT_DEFAULT,
+                     "Rpl_semi_sync_source_clients", buff, OPT_DEFAULT,
                      &buff_length) &&
       strcmp(buff, "0")) {
     mysql_mutex_unlock(&LOCK_plugin);
@@ -2550,12 +2550,12 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   /* Slave: If there is semi sync enabled IO thread active on this Slave,
     then that means plugin is busy and rpl_semi_sync_slave plugin
     cannot be uninstalled. To check whether semi sync
-    IO thread is active or not, check Rpl_semi_sync_slave_status status
+    IO thread is active or not, check Rpl_semi_sync_replica_status status
     variable value, if it is ON, that means it is busy.
   */
   if (!strcmp(name.str, "rpl_semi_sync_slave") &&
       get_status_var(thd, plugin->plugin->status_vars,
-                     "Rpl_semi_sync_slave_status", buff, OPT_DEFAULT,
+                     "Rpl_semi_sync_replica_status", buff, OPT_DEFAULT,
                      &buff_length) &&
       !strcmp(buff, "ON")) {
     mysql_mutex_unlock(&LOCK_plugin);
