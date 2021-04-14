@@ -11,7 +11,7 @@ Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in 
 # Create two additional replication channels
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='binlog-ch1.000001', SOURCE_LOG_POS=4 FOR CHANNEL 'ch1';
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE='binlog-ch2.000001', SOURCE_LOG_POS=4 FOR CHANNEL 'ch2';
-# Execute mysqldump with --dump-slave
+# Execute mysqldump with --dump-replica
 CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
 CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';
 # Execute mysql using the dump as input
@@ -21,7 +21,7 @@ include/stop_slave.inc
 #
 # Setup the default replication channel
 CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_LOG_FILE="binlog-default.000001", SOURCE_LOG_POS=4 FOR CHANNEL '';
-# Execute mysqldump with --dump-slave
+# Execute mysqldump with --dump-replica
 CHANGE MASTER TO MASTER_LOG_FILE='binlog-default.000001', MASTER_LOG_POS=4 FOR CHANNEL '';
 CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch1.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch1';
 CHANGE MASTER TO MASTER_LOG_FILE='binlog-ch2.000001', MASTER_LOG_POS=4 FOR CHANNEL 'ch2';

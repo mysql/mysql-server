@@ -6,4 +6,4 @@ call mtr.add_suppression("\\[Warning\\] \\[[^]]*\\] \\[[^]]*\\] You need to use 
 
 --replace_regex /MASTER_LOG_POS=[0-9]+/XX/
 --error 2
---exec $MYSQL_DUMP --compact --master-data=2 test 2>&1
+--exec $MYSQL_DUMP --compact --source-data=2 test 2>&1
