@@ -86,7 +86,7 @@ SET @@SESSION.group_replication_consistency='AFTER';
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/slave_%'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/replica_%'
 --source include/wait_condition.inc
 
 
@@ -105,7 +105,7 @@ if ($transaction_T2_consistency)
 
 --let $rpl_connection_name= server_2
 --source include/rpl_connection.inc
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/slave_%'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/replica_%'
 --source include/wait_condition.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='Executing hook on transaction begin.'
@@ -132,7 +132,7 @@ if ($transaction_T2_consistency)
 --source include/wait_condition.inc
 
 # Ensure that transaction from server2 is still blocked, also "select" on a parallel session is blocked.
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/slave_%'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE processlist_state LIKE 'waiting for handler commit' AND name LIKE 'thread/sql/replica_%'
 --source include/wait_condition.inc
 
 --let $wait_condition=SELECT COUNT(*)=1 FROM information_schema.processlist WHERE user='root' AND state='Executing hook on transaction begin.'

@@ -17,7 +17,7 @@ limit 1;
 select NAME from performance_schema.threads
 where THREAD_ID = @coordinator_thread_id;
 NAME
-thread/sql/slave_sql
+thread/sql/replica_sql
 
 ## Create index_test() procedure
 DROP PROCEDURE IF EXISTS index_test;

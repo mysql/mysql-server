@@ -129,9 +129,9 @@ INSERT INTO t2 VALUES(1);
 --echo #     (Transaction 1 and Transaction 2). They will wait for locks due
 --echo #     local transacations (3 & 4).
 #
---let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_INFO= 'INSERT INTO t1 VALUES(3, 1)' AND NAME LIKE '%slave_worker%'
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_INFO= 'INSERT INTO t1 VALUES(3, 1)' AND NAME LIKE '%replica_worker%'
 --source include/wait_condition.inc
---let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_INFO= 'INSERT INTO t2 values(1)' AND NAME LIKE '%slave_worker%'
+--let $wait_condition= SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_INFO= 'INSERT INTO t2 values(1)' AND NAME LIKE '%replica_worker%'
 --source include/wait_condition.inc
 
 --echo #

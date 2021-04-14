@@ -87,7 +87,7 @@ if ($worker_count != 0)
 thread_id= (select Thread_Id from performance_schema.replication_applier_status_by_coordinator)`;
 }
 let $assert_text= thread_name should should indicate sql thread.;
-let $assert_cond= "$thread_name" = "thread/sql/slave_sql";
+let $assert_cond= "$thread_name" = "thread/sql/replica_sql";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);
@@ -393,7 +393,7 @@ source include/wait_for_slave_param.inc;
 # the thread.
 let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_applier_status_by_coordinator)`;
 let $assert_text= thread_name should should indicate sql thread.;
-let $assert_cond= "$thread_name" = "thread/sql/slave_sql";
+let $assert_cond= "$thread_name" = "thread/sql/replica_sql";
 source include/assert.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, Slave_SQL_Running, 1);

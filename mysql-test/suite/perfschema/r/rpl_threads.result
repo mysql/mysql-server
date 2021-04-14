@@ -52,7 +52,7 @@ select NAME, TYPE, PROCESSLIST_COMMAND, PROCESSLIST_STATE
 from performance_schema.threads
 where PROCESSLIST_ID = @slave_io_pid;
 NAME	TYPE	PROCESSLIST_COMMAND	PROCESSLIST_STATE
-thread/sql/slave_io	FOREGROUND	Connect	Waiting for source to send event
+thread/sql/replica_io	FOREGROUND	Connect	Waiting for source to send event
 select THREAD_ID from performance_schema.threads
 where PROCESSLIST_ID = @slave_io_pid
 into @slave_io_tid;
@@ -79,7 +79,7 @@ select NAME, TYPE, PROCESSLIST_COMMAND, PROCESSLIST_STATE
 from performance_schema.threads
 where PROCESSLIST_ID = @slave_sql_pid;
 NAME	TYPE	PROCESSLIST_COMMAND	PROCESSLIST_STATE
-thread/sql/slave_sql	FOREGROUND	Query	Replica has read all relay log; waiting for more updates
+thread/sql/replica_sql	FOREGROUND	Query	Replica has read all relay log; waiting for more updates
 select THREAD_ID from performance_schema.threads
 where PROCESSLIST_ID = @slave_sql_pid
 into @slave_sql_tid;

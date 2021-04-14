@@ -457,15 +457,15 @@ void unlock_slave_threads(Master_info *mi) {
 
 static PSI_memory_key key_memory_rli_mts_coor;
 
-static PSI_thread_key key_thread_slave_io, key_thread_slave_sql,
-    key_thread_slave_worker, key_thread_replica_monitor_io;
+static PSI_thread_key key_thread_replica_io, key_thread_replica_sql,
+    key_thread_replica_worker, key_thread_replica_monitor_io;
 
 static PSI_thread_info all_slave_threads[] = {
-    {&key_thread_slave_io, "slave_io",
+    {&key_thread_replica_io, "replica_io",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
-    {&key_thread_slave_sql, "slave_sql",
+    {&key_thread_replica_sql, "replica_sql",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
-    {&key_thread_slave_worker, "slave_worker",
+    {&key_thread_replica_worker, "replica_worker",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
     {&key_thread_replica_monitor_io, "replica_monitor",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME}};
@@ -1263,7 +1263,7 @@ static inline int fill_mts_gaps_and_recover(Master_info *mi) {
                                  : MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
   LogErr(INFORMATION_LEVEL, ER_RPL_MTS_RECOVERY_STARTING_COORDINATOR);
   recovery_error = start_slave_thread(
-      key_thread_slave_sql, handle_slave_sql, &rli->run_lock, &rli->run_lock,
+      key_thread_replica_sql, handle_slave_sql, &rli->run_lock, &rli->run_lock,
       &rli->start_cond, &rli->slave_running, &rli->slave_run_id, mi);
 
   if (recovery_error) {
@@ -2156,9 +2156,9 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
   }
 
   if (thread_mask & SLAVE_IO)
-    is_error = start_slave_thread(key_thread_slave_io, handle_slave_io, lock_io,
-                                  lock_cond_io, cond_io, &mi->slave_running,
-                                  &mi->slave_run_id, mi);
+    is_error = start_slave_thread(key_thread_replica_io, handle_slave_io,
+                                  lock_io, lock_cond_io, cond_io,
+                                  &mi->slave_running, &mi->slave_run_id, mi);
 
   if (!is_error && (thread_mask & (SLAVE_IO | SLAVE_MONITOR)) &&
       mi->is_source_connection_auto_failover() &&
@@ -2184,7 +2184,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
     }
     if (!is_error)
       is_error = start_slave_thread(
-          key_thread_slave_sql, handle_slave_sql, lock_sql, lock_cond_sql,
+          key_thread_replica_sql, handle_slave_sql, lock_sql, lock_cond_sql,
           cond_sql, &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
     if (is_error)
       terminate_slave_threads(mi, thread_mask & (SLAVE_IO | SLAVE_MONITOR),
@@ -6575,9 +6575,9 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i) {
   rli->workers[i] = w;
 
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
-      (error =
-           mysql_thread_create(key_thread_slave_worker, &th, &connection_attrib,
-                               handle_slave_worker, (void *)w))) {
+      (error = mysql_thread_create(key_thread_replica_worker, &th,
+                                   &connection_attrib, handle_slave_worker,
+                                   (void *)w))) {
     LogErr(ERROR_LEVEL, ER_RPL_SLAVE_WORKER_THREAD_CREATION_FAILED_WITH_ERRNO,
            rli->get_for_channel_str(), error);
     error = 1;

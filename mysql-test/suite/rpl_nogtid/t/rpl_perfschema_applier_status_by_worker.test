@@ -93,7 +93,7 @@ source include/assert.inc;
 
 let $thread_name= `select name from performance_schema.threads where thread_id= (select Thread_Id from performance_schema.replication_applier_status_by_worker)`;
 let $assert_text= thread_name should should indicate worker thread.;
-let $assert_cond= "$thread_name" = "thread/sql/slave_worker";
+let $assert_cond= "$thread_name" = "thread/sql/replica_worker";
 source include/assert.inc;
 
 let $ps_value= query_get_value(select Service_State from performance_schema.replication_applier_status_by_worker, Service_State, 1);

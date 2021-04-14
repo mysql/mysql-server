@@ -44,7 +44,7 @@ CALL mtr.add_suppression("Waiting until I/O thread .* finish writing to disk bef
 --echo # Step 1 - Monitor and kill I/O thread while waiting for disk space
 --echo #
 
---let $io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/slave_io'`
+--let $io_id=`SELECT PROCESSLIST_ID FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
 
 # Set the debug option that will simulate disk full
 --let $debug_point=simulate_io_thd_wait_for_disk_space
@@ -62,7 +62,7 @@ INSERT INTO t1 VALUES(2);
 --source include/wait_for_slave_param.inc
 
 # performance_schema.threads and information_schema.processlist checks
---let $io_state=`SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE NAME = 'thread/sql/slave_io'`
+--let $io_state=`SELECT PROCESSLIST_STATE FROM performance_schema.threads WHERE NAME = 'thread/sql/replica_io'`
 --let $assert_text= I/O thread PROCESSLIST_STATE should be Waiting for disk space at performance_schema.threads
 --let $assert_cond= "$io_state" = "Waiting for disk space"
 --source include/assert.inc

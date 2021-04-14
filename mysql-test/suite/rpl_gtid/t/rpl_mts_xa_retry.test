@@ -87,11 +87,11 @@ while ($j > 0) {
     --source include/rpl_connection_slave.inc
 
     # wait for the applier thread to start applying
-    --let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.threads WHERE name IN ("thread/sql/slave_sql", "thread/sql/slave_worker") AND processlist_info LIKE 'XA START%'
+    --let $wait_condition=SELECT COUNT(*) > 0 FROM performance_schema.threads WHERE name IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND processlist_info LIKE 'XA START%'
     --source include/wait_condition.inc
 
     # get the exact thread id for the applier thread
-    --let $worker_thread_id=`SELECT thread_id FROM performance_schema.threads WHERE name IN ("thread/sql/slave_sql", "thread/sql/slave_worker") AND processlist_info LIKE 'XA START%'`
+    --let $worker_thread_id=`SELECT thread_id FROM performance_schema.threads WHERE name IN ("thread/sql/replica_sql", "thread/sql/replica_worker") AND processlist_info LIKE 'XA START%'`
 
     # wait for the applier thread to start retrying
     --let $wait_condition=SELECT APPLYING_TRANSACTION_RETRIES_COUNT > 0 FROM performance_schema.replication_applier_status_by_worker WHERE thread_id = $worker_thread_id
