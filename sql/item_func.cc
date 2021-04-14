@@ -4860,7 +4860,7 @@ String *Item_func_udf_str::val_str(String *str) {
   return res;
 }
 
-bool Item_master_pos_wait::itemize(Parse_context *pc, Item **res) {
+bool Item_source_pos_wait::itemize(Parse_context *pc, Item **res) {
   if (skip_itemize(res)) return false;
   if (super::itemize(pc, res)) return true;
   pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
@@ -4873,7 +4873,7 @@ bool Item_master_pos_wait::itemize(Parse_context *pc, Item **res) {
   on the slave.
 */
 
-longlong Item_master_pos_wait::val_int() {
+longlong Item_source_pos_wait::val_int() {
   assert(fixed == 1);
   THD *thd = current_thd;
   String *log_name = args[0]->val_str(&value);
@@ -4889,10 +4889,10 @@ longlong Item_master_pos_wait::val_int() {
   double timeout = (arg_count >= 3) ? args[2]->val_real() : 0;
   if (timeout < 0) {
     if (thd->is_strict_mode()) {
-      my_error(ER_WRONG_ARGUMENTS, MYF(0), "MASTER_POS_WAIT.");
+      my_error(ER_WRONG_ARGUMENTS, MYF(0), "SOURCE_POS_WAIT.");
     } else {
       push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
-                          ER_THD(thd, ER_WRONG_ARGUMENTS), "MASTER_POS_WAIT.");
+                          ER_THD(thd, ER_WRONG_ARGUMENTS), "SOURCE_POS_WAIT.");
       null_value = true;
     }
     return 0;

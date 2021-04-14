@@ -4967,7 +4967,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
   if (!master_pos.file[0])
     die("Calling 'sync_with_master' without calling 'save_master_pos'");
 
-  sprintf(query_buf, "select master_pos_wait('%s', %ld, %d)", master_pos.file,
+  sprintf(query_buf, "select source_pos_wait('%s', %ld, %d)", master_pos.file,
           master_pos.pos + offset, timeout);
 
   if (mysql_query_wrapper(mysql, query_buf))
@@ -4988,7 +4988,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
   mysql_free_result_wrapper(res);
 
   if (!result_str || result < 0) {
-    /* master_pos_wait returned NULL or < 0 */
+    /* source_pos_wait returned NULL or < 0 */
     show_query(mysql, "SHOW MASTER STATUS");
     show_query(mysql, "SHOW SLAVE STATUS");
     show_query(mysql, "SHOW PROCESSLIST");
@@ -4996,7 +4996,7 @@ static void do_sync_with_master2(struct st_command *command, long offset) {
 
     if (!result_str) {
       /*
-        master_pos_wait returned NULL. This indicates that
+        source_pos_wait returned NULL. This indicates that
         slave SQL thread is not started, the slave's master
         information is not initialized, the arguments are
         incorrect, or an error has occurred

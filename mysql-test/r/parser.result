@@ -456,11 +456,11 @@ select make_set();
 ERROR 42000: Incorrect parameter count in the call to native function 'make_set'
 select make_set(1);
 ERROR 42000: Incorrect parameter count in the call to native function 'make_set'
-select master_pos_wait();
-ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
-select master_pos_wait(1);
-ERROR 42000: Incorrect parameter count in the call to native function 'master_pos_wait'
-select master_pos_wait('binlog.999999', 4, -1);
+select source_pos_wait();
+ERROR 42000: Incorrect parameter count in the call to native function 'source_pos_wait'
+select source_pos_wait(1);
+ERROR 42000: Incorrect parameter count in the call to native function 'source_pos_wait'
+select source_pos_wait('binlog.999999', 4, -1);
 select rand(1, 2, 3);
 ERROR 42000: Incorrect parameter count in the call to native function 'rand'
 select round(1, 2, 3);

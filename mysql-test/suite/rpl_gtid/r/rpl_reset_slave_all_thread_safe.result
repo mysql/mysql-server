@@ -4,11 +4,11 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 #
-# Case 1: Verify master_pos_wait can block RESET SLAVE ALL
+# Case 1: Verify source_pos_wait can block RESET SLAVE ALL
 #
 [connection slave]
-SET debug_sync = "begin_master_pos_wait SIGNAL wait_func_begin WAIT_FOR wait_func_continue";
-SELECT master_pos_wait("master-bin.000001", 10000);;
+SET debug_sync = "begin_source_pos_wait SIGNAL wait_func_begin WAIT_FOR wait_func_continue";
+SELECT source_pos_wait("master-bin.000001", 10000);;
 [connection slave1]
 SET debug_sync = "now WAIT_FOR wait_func_begin";
 include/stop_slave.inc
@@ -20,7 +20,7 @@ Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 SET debug_sync = 'RESET';
 [connection slave]
-master_pos_wait("master-bin.000001", 10000)
+source_pos_wait("master-bin.000001", 10000)
 NULL
 SET debug_sync = 'RESET';
 [connection master]
