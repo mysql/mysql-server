@@ -1463,10 +1463,10 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
     ut_d(ib::info(ER_IB_MSG_UNDO_MARKED_ACTIVE, marked_space->file_name()));
   }
 
-  undo_trunc->reset();
-
   marked_rsegs->x_unlock();
   undo::spaces->s_unlock();
+
+  undo_trunc->reset();
 
   ut_d(undo::inject_crash("ib_undo_trunc_before_dd_update"));
 

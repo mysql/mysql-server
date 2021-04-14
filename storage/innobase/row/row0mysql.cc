@@ -3741,7 +3741,8 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
   if (!fil_space_exists_in_mem(space_id, nullptr, true, false)) {
     /* Force a delete of any discarded or temporary files. */
     if (fil_delete_file(filepath)) {
-      ib::info(ER_IB_MSG_989) << "Removed datafile " << filepath;
+      ib::info(ER_IB_MSG_989)
+          << "Removed datafile=" << filepath << ", space_id=" << space_id;
 
     } else {
       ib::info(ER_IB_MSG_990)
@@ -3753,8 +3754,8 @@ dberr_t row_drop_tablespace(space_id_t space_id, const char *filepath) {
 
     if (err != DB_SUCCESS && err != DB_TABLESPACE_NOT_FOUND) {
       ib::error(ER_IB_MSG_991)
-          << "Failed to delete the datafile of"
-          << " tablespace " << space_id << ", file '" << filepath << "'!";
+          << "Failed to delete the datafile of tablespace ID=" << space_id
+          << ", file '" << filepath << "'!";
     }
   }
 
