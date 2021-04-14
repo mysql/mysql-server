@@ -81,7 +81,7 @@ int max_binlog_dump_events = 0;  // unlimited
 bool opt_sporadic_binlog_dump_fail = false;
 
 malloc_unordered_map<uint32, unique_ptr_my_free<SLAVE_INFO>> slave_list{
-    key_memory_SLAVE_INFO};
+    key_memory_REPLICA_INFO};
 extern TYPELIB binlog_checksum_typelib;
 
 #define get_object(p, obj, msg)                  \
@@ -152,7 +152,7 @@ int register_slave(THD *thd, uchar *packet, size_t packet_length) {
     return 1;
 
   unique_ptr_my_free<SLAVE_INFO> si((SLAVE_INFO *)my_malloc(
-      key_memory_SLAVE_INFO, sizeof(SLAVE_INFO), MYF(MY_WME)));
+      key_memory_REPLICA_INFO, sizeof(SLAVE_INFO), MYF(MY_WME)));
   if (si == nullptr) return 1;
 
   /* 4 bytes for the server id */

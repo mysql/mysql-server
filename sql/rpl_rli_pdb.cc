@@ -1324,7 +1324,7 @@ bool circular_buffer_queue<Element_type>::gt(ulong i, ulong k) {
 Slave_committed_queue::Slave_committed_queue(ulong max, uint n)
     : circular_buffer_queue<Slave_job_group>(max),
       inited(false),
-      last_done(key_memory_Slave_job_group_group_relay_log_name) {
+      last_done(key_memory_Replica_job_group_group_relay_log_name) {
   if (max >= (ulong)-1 || !inited_queue)
     return;
   else
@@ -1333,7 +1333,7 @@ Slave_committed_queue::Slave_committed_queue(ulong max, uint n)
   last_done.resize(n);
 
   lwm.group_relay_log_name = (char *)my_malloc(
-      key_memory_Slave_job_group_group_relay_log_name, FN_REFLEN + 1, MYF(0));
+      key_memory_Replica_job_group_group_relay_log_name, FN_REFLEN + 1, MYF(0));
   lwm.group_relay_log_name[0] = 0;
   lwm.sequence_number = SEQ_UNINIT;
 }
