@@ -1,0 +1,68 @@
+
+#
+# exists as a global only
+#
+# 2010-01-21 OBN - Added 
+#
+source include/have_semisync_plugin.inc;
+# The following is to prevent a mis-match on windows that has the name of of the lib ending with 'dll' 
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
+select @@global.rpl_semi_sync_replica_trace_level;
+SET @start_global_value = @@global.rpl_semi_sync_replica_trace_level;
+
+select @@global.rpl_semi_sync_replica_trace_level in (1,16,32,64); 
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.rpl_semi_sync_replica_trace_level;
+show global variables like 'rpl_semi_sync_replica_trace_level';
+show session variables like 'rpl_semi_sync_replica_trace_level';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_replica_trace_level';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_replica_trace_level';
+--enable_warnings
+
+#
+# show that it's writable
+#
+set global rpl_semi_sync_replica_trace_level=16;
+--error ER_GLOBAL_VARIABLE
+set session rpl_semi_sync_replica_trace_level=99;
+select @@global.rpl_semi_sync_replica_trace_level;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.rpl_semi_sync_replica_trace_level;
+show global variables like 'rpl_semi_sync_replica_trace_level';
+show session variables like 'rpl_semi_sync_replica_trace_level';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_replica_trace_level';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_replica_trace_level';
+--enable_warnings
+
+--echo NOTE: Value can also be set to values that are combinations of values
+set global rpl_semi_sync_replica_trace_level=42;
+select @@global.rpl_semi_sync_replica_trace_level;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.rpl_semi_sync_replica_trace_level;
+show global variables like 'rpl_semi_sync_replica_trace_level';
+show session variables like 'rpl_semi_sync_replica_trace_level';
+--disable_warnings
+select * from performance_schema.global_variables where variable_name='rpl_semi_sync_replica_trace_level';
+select * from performance_schema.session_variables where variable_name='rpl_semi_sync_replica_trace_level';
+--enable_warnings
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global rpl_semi_sync_replica_trace_level=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global rpl_semi_sync_replica_trace_level=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global rpl_semi_sync_replica_trace_level="some text";
+
+#
+# Cleanup
+#
+SET @@global.rpl_semi_sync_replica_trace_level = @start_global_value;
+select @@global.rpl_semi_sync_replica_trace_level;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
+

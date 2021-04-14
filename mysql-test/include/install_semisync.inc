@@ -2,9 +2,9 @@
 --source include/begin_include_file.inc
 
 --connection master
---source include/install_semisync_master.inc
+--source include/install_semisync_source.inc
 
 --connection slave
---source include/install_semisync_slave.inc
+--source include/install_semisync_replica.inc
 
 --source include/end_include_file.inc

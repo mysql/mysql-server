@@ -741,8 +741,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/mysql_clone.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/rewriter.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_source.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
@@ -790,8 +790,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mysql_no_login.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewrite_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/rewriter.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
-%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_source.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_replica.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/version_token.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/component_keyring_file.so

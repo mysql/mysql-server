@@ -34,11 +34,11 @@
 #
 --source include/rpl_connection_master.inc
 CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
---source include/install_semisync_master.inc
+--source include/install_semisync_source.inc
 
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("Semi-sync slave net_flush.*");
---source include/install_semisync_slave.inc
+--source include/install_semisync_replica.inc
 
 #
 # 1. Run a sanity test
@@ -126,10 +126,10 @@ while ($i > 0)
 #
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
---source include/uninstall_semisync_slave.inc
+--source include/uninstall_semisync_replica.inc
 --source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
---source include/uninstall_semisync_master.inc
+--source include/uninstall_semisync_source.inc
 
 --source include/rpl_end.inc

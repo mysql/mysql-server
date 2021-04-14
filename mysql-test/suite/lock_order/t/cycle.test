@@ -15,10 +15,10 @@
 --eval INSTALL PLUGIN pfs_example_plugin_employee SONAME '$PFS_EXAMPLE_PLUGIN_EMPLOYEE'
 
 --replace_regex /\.so|\.dll/.xxx/
---eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+--eval INSTALL PLUGIN rpl_semi_sync_source SONAME '$SEMISYNC_SOURCE_PLUGIN';
 
 --replace_regex /\.so|\.dll/.xxx/
---eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
+--eval INSTALL PLUGIN rpl_semi_sync_replica SONAME '$SEMISYNC_REPLICA_PLUGIN';
 
 --replace_regex /\.so|\.dll/.xxx/
 --eval INSTALL PLUGIN version_tokens SONAME '$VERSION_TOKEN';
@@ -54,9 +54,9 @@ UNINSTALL PLUGIN validate_password;
 
 UNINSTALL PLUGIN version_tokens;
 
-UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_source;
 
-UNINSTALL PLUGIN rpl_semi_sync_slave;
+UNINSTALL PLUGIN rpl_semi_sync_replica;
 
 UNINSTALL PLUGIN pfs_example_plugin_employee;
 

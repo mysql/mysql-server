@@ -1,8 +1,8 @@
 # Uninstall semisync master plugin
 # Usage:
-# --source include/uninstall_semisync_master.inc
+# --source include/uninstall_semisync_source.inc
 
---let $include_filename= uninstall_semisync_master.inc
+--let $include_filename= uninstall_semisync_source.inc
 --source include/begin_include_file.inc
 
 --disable_query_log
@@ -14,6 +14,6 @@
 --let $status_var_value= 0
 --source include/wait_for_status_var.inc
 
-UNINSTALL PLUGIN rpl_semi_sync_master;
+UNINSTALL PLUGIN rpl_semi_sync_source;
 
 --source include/end_include_file.inc

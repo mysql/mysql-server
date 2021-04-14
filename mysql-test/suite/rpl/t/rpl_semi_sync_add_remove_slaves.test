@@ -52,12 +52,12 @@ while ($i < 10)
   {
     --connect(server1_1, localhost,root,,,$MASTER_MYPORT)
     CALL mtr.add_suppression("Semi-sync master failed on net_flush.*");
-    --source include/install_semisync_master.inc
+    --source include/install_semisync_source.inc
   }
   if ( $i != 1 )
   {
     CALL mtr.add_suppression("Semi-sync slave net_flush.*");
-    --source include/install_semisync_slave.inc
+    --source include/install_semisync_replica.inc
   }
   --inc $i
 }
@@ -68,7 +68,7 @@ while ($i < 10)
 --let $rpl_connection_name= server1_1
 --source include/rpl_connection.inc
 --let $slaves = 8
---eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+--eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
 
 --echo #
 --echo # 4. Insert 1000 tuples in background using 10 parallel connections.
@@ -98,9 +98,9 @@ while ( $iter < 50 )
     --source include/stop_slave.inc
     --let $rpl_connection_name= server1_1
     --source include/rpl_connection.inc
-    # Adjust rpl_semi_sync_master_wait_for_slave_count variable.
+    # Adjust rpl_semi_sync_source_wait_for_replica_count variable.
     --dec $slaves
-    --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+    --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
   }
   if ($service_state == 'OFF')
   {
@@ -108,9 +108,9 @@ while ( $iter < 50 )
     --source include/start_slave.inc
     --let $rpl_connection_name= server1_1
     --source include/rpl_connection.inc
-    # Adjust rpl_semi_sync_master_wait_for_slave_count variable.
+    # Adjust rpl_semi_sync_source_wait_for_replica_count variable.
     --inc $slaves
-    --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+    --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
   }
   --inc $iter
   # Do it slowly while insertions on the master are happening in the background.
@@ -132,9 +132,9 @@ while ($iter <= 9)
     --source include/start_slave.inc
     --let $rpl_connection_name= server1_1
     --source include/rpl_connection.inc
-    # Adjust rpl_semi_sync_master_wait_for_slave_count variable.
+    # Adjust rpl_semi_sync_source_wait_for_replica_count variable.
     --inc $slaves
-    --eval SET GLOBAL rpl_semi_sync_master_wait_for_slave_count = $slaves
+    --eval SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = $slaves
   }
   --inc $iter
 }
@@ -167,17 +167,17 @@ while ($i >= 1)
   --source include/rpl_connection.inc
   if ( $i == 1)
   {
-    --let $assert_variable_name= rpl_semi_sync_master_enabled
+    --let $assert_variable_name= rpl_semi_sync_source_enabled
     --let $assert_variable_value= 1
     --source include/assert_variable.inc
-    --source include/uninstall_semisync_master.inc
+    --source include/uninstall_semisync_source.inc
   }
   if ( $i != 1 )
   {
-    --let $assert_variable_name= rpl_semi_sync_slave_enabled
+    --let $assert_variable_name= rpl_semi_sync_replica_enabled
     --let $assert_variable_value= 1
     --source include/assert_variable.inc
-    --source include/uninstall_semisync_slave.inc
+    --source include/uninstall_semisync_replica.inc
   }
   --dec $i
 }

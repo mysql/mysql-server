@@ -24,14 +24,14 @@ BEGIN;
 SET GLOBAL replication_optimize_for_static_plugin_config = ON;
 ROLLBACK;
 SET GLOBAL replication_optimize_for_static_plugin_config = 1;
-INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_LIB';
-UNINSTALL PLUGIN rpl_semi_sync_master;
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'SEMISYNC_MASTER_LIB';
+UNINSTALL PLUGIN rpl_semi_sync_source;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
 include/assert.inc [Semi-sync not disposed because it is in use]
 SET GLOBAL replication_optimize_for_static_plugin_config = 0;
 include/assert.inc [Semi-sync disposed because it is no longer in use]
-INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_LIB';
-UNINSTALL PLUGIN rpl_semi_sync_master;
+INSTALL PLUGIN rpl_semi_sync_source SONAME 'SEMISYNC_MASTER_LIB';
+UNINSTALL PLUGIN rpl_semi_sync_source;
 include/assert.inc [Semi-sync disposed because it is no longer in use]
 SET @@global.replication_optimize_for_static_plugin_config = 0;

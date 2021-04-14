@@ -43,7 +43,7 @@ extern PSI_stage_info stage_waiting_for_semi_sync_ack_from_replica;
 extern PSI_stage_info stage_waiting_for_semi_sync_replica;
 extern PSI_stage_info stage_reading_semi_sync_ack;
 
-extern unsigned int rpl_semi_sync_master_wait_for_slave_count;
+extern unsigned int rpl_semi_sync_source_wait_for_replica_count;
 
 struct TranxNode {
   char log_name_[FN_REFLEN];
@@ -654,7 +654,7 @@ class ReplSemiSyncMaster : public ReplSemiSyncBase {
   }
 
   /* Set if the master has to wait for an ack from the salve or not. */
-  void set_wait_no_slave(const void *val);
+  void set_wait_no_replica(const void *val);
 
   /* Set the transaction wait timeout period, in milliseconds. */
   void setWaitTimeout(unsigned long wait_timeout) {
@@ -793,9 +793,10 @@ class ReplSemiSyncMaster : public ReplSemiSyncBase {
   int resetMaster();
 
   /*
-    'SET rpl_semi_sync_master_wait_for_slave_count' command is issued from user
-    and semi-sync need to update rpl_semi_sync_master_wait_for_slave_count and
-    notify ack_container_ to resize itself.
+    'SET rpl_semi_sync_source_wait_for_replica_count' command is issued from
+    user and semi-sync need to update
+    rpl_semi_sync_source_wait_for_replica_count and notify ack_container_ to
+    resize itself.
 
     @param[in] new_value The value users want to set to.
 
@@ -805,7 +806,7 @@ class ReplSemiSyncMaster : public ReplSemiSyncBase {
 
   /*
     Update ack_array after receiving an ack from a dump connection. If any
-    binlog pos is already replied by rpl_semi_sync_master_wait_for_slave_count
+    binlog pos is already replied by rpl_semi_sync_source_wait_for_replica_count
     slaves, it will call reportReplyBinlog to increase received binlog
     position and wake up waiting transactions. It acquires LOCK_binlog_
     to protect the operation.
@@ -817,7 +818,7 @@ class ReplSemiSyncMaster : public ReplSemiSyncBase {
   void handleAck(int server_id, const char *log_file_name,
                  my_off_t log_file_pos) {
     lock();
-    if (rpl_semi_sync_master_wait_for_slave_count == 1)
+    if (rpl_semi_sync_source_wait_for_replica_count == 1)
       reportReplyBinlog(log_file_name, log_file_pos);
     else {
       const AckInfo *ackinfo = nullptr;
@@ -831,25 +832,25 @@ class ReplSemiSyncMaster : public ReplSemiSyncBase {
 };
 
 /* System and status variables for the master component */
-extern bool rpl_semi_sync_master_enabled;
-extern char rpl_semi_sync_master_status;
-extern unsigned long rpl_semi_sync_master_clients;
-extern unsigned long rpl_semi_sync_master_timeout;
-extern unsigned long rpl_semi_sync_master_trace_level;
-extern unsigned long rpl_semi_sync_master_yes_transactions;
-extern unsigned long rpl_semi_sync_master_no_transactions;
-extern unsigned long rpl_semi_sync_master_off_times;
-extern unsigned long rpl_semi_sync_master_wait_timeouts;
-extern unsigned long rpl_semi_sync_master_timefunc_fails;
-extern unsigned long rpl_semi_sync_master_num_timeouts;
-extern unsigned long rpl_semi_sync_master_wait_sessions;
-extern unsigned long rpl_semi_sync_master_wait_pos_backtraverse;
-extern unsigned long rpl_semi_sync_master_avg_trx_wait_time;
-extern unsigned long rpl_semi_sync_master_avg_net_wait_time;
-extern unsigned long long rpl_semi_sync_master_net_wait_num;
-extern unsigned long long rpl_semi_sync_master_trx_wait_num;
-extern unsigned long long rpl_semi_sync_master_net_wait_time;
-extern unsigned long long rpl_semi_sync_master_trx_wait_time;
+extern bool rpl_semi_sync_source_enabled;
+extern char rpl_semi_sync_source_status;
+extern unsigned long rpl_semi_sync_source_clients;
+extern unsigned long rpl_semi_sync_source_timeout;
+extern unsigned long rpl_semi_sync_source_trace_level;
+extern unsigned long rpl_semi_sync_source_yes_transactions;
+extern unsigned long rpl_semi_sync_source_no_transactions;
+extern unsigned long rpl_semi_sync_source_off_times;
+extern unsigned long rpl_semi_sync_source_wait_timeouts;
+extern unsigned long rpl_semi_sync_source_timefunc_fails;
+extern unsigned long rpl_semi_sync_source_num_timeouts;
+extern unsigned long rpl_semi_sync_source_wait_sessions;
+extern unsigned long rpl_semi_sync_source_wait_pos_backtraverse;
+extern unsigned long rpl_semi_sync_source_avg_trx_wait_time;
+extern unsigned long rpl_semi_sync_source_avg_net_wait_time;
+extern unsigned long long rpl_semi_sync_source_net_wait_num;
+extern unsigned long long rpl_semi_sync_source_trx_wait_num;
+extern unsigned long long rpl_semi_sync_source_net_wait_time;
+extern unsigned long long rpl_semi_sync_source_trx_wait_time;
 
 /*
   This indicates whether we should keep waiting if no semi-sync slave
@@ -857,5 +858,5 @@ extern unsigned long long rpl_semi_sync_master_trx_wait_time;
      0           : stop waiting if detected no avaialable semi-sync slave.
      1 (default) : keep waiting until timeout even no available semi-sync slave.
 */
-extern bool rpl_semi_sync_master_wait_no_slave;
+extern bool rpl_semi_sync_source_wait_no_replica;
 #endif /* SEMISYNC_SOURCE_H */

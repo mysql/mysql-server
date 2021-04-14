@@ -104,8 +104,8 @@ class Ack_receiver : public ReplSemiSyncBase {
   void setTraceLevel(unsigned long trace_level) { trace_level_ = trace_level; }
 
   bool init() {
-    setTraceLevel(rpl_semi_sync_master_trace_level);
-    if (rpl_semi_sync_master_enabled) return start();
+    setTraceLevel(rpl_semi_sync_source_trace_level);
+    if (rpl_semi_sync_source_enabled) return start();
     return false;
   }
 

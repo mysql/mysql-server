@@ -2517,7 +2517,7 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   }
 
   /*
-    FIXME: plugin rpl_semi_sync_master, check_uninstall() function.
+    FIXME: plugin rpl_semi_sync_source, check_uninstall() function.
   */
 
   /* Block Uninstallation of semi_sync plugins (Master/Slave)
@@ -2527,12 +2527,12 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   size_t buff_length;
   /*
     Master: If there are active semi sync slaves for this Master,
-    then that means it is busy and rpl_semi_sync_master plugin
+    then that means it is busy and rpl_semi_sync_source plugin
     cannot be uninstalled. To check whether the master
     has any semi sync slaves or not, check Rpl_semi_sync_master_cliens
     status variable value, if it is not 0, that means it is busy.
   */
-  if (!strcmp(name.str, "rpl_semi_sync_master") &&
+  if (!strcmp(name.str, "rpl_semi_sync_source") &&
       get_status_var(thd, plugin->plugin->status_vars,
                      "Rpl_semi_sync_source_clients", buff, OPT_DEFAULT,
                      &buff_length) &&
@@ -2544,16 +2544,16 @@ static bool mysql_uninstall_plugin(THD *thd, LEX_CSTRING name) {
   }
 
   /*
-    FIXME: plugin rpl_semi_sync_slave, check_uninstall() function.
+    FIXME: plugin rpl_semi_sync_replica, check_uninstall() function.
   */
 
   /* Slave: If there is semi sync enabled IO thread active on this Slave,
-    then that means plugin is busy and rpl_semi_sync_slave plugin
+    then that means plugin is busy and rpl_semi_sync_replica plugin
     cannot be uninstalled. To check whether semi sync
     IO thread is active or not, check Rpl_semi_sync_replica_status status
     variable value, if it is ON, that means it is busy.
   */
-  if (!strcmp(name.str, "rpl_semi_sync_slave") &&
+  if (!strcmp(name.str, "rpl_semi_sync_replica") &&
       get_status_var(thd, plugin->plugin->status_vars,
                      "Rpl_semi_sync_replica_status", buff, OPT_DEFAULT,
                      &buff_length) &&

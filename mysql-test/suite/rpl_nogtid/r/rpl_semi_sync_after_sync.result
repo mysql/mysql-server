@@ -59,7 +59,7 @@ TRUNCATE t1;
 # #######################################################################
 # Verify after_sync hook will not be executed
 #
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 SET DEBUG_SYNC= "before_call_after_commit_observer SIGNAL engine_commit_done
                  WAIT_FOR end";
 INSERT INTO t1 VALUES(1);;
@@ -73,7 +73,7 @@ SET DEBUG_SYNC= "now SIGNAL end";
 SET DEBUG_SYNC= "RESET";
 [connection master]
 SET DEBUG_SYNC= "RESET";
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 include/sync_slave_sql_with_master.inc
 [connection master]
@@ -130,7 +130,7 @@ TRUNCATE t1;
 # #######################################################################
 # Verify after_sync hook will not be executed
 #
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_COMMIT;
 SET DEBUG_SYNC= "before_call_after_commit_observer SIGNAL engine_commit_done
                  WAIT_FOR end";
 INSERT INTO t1 VALUES(1);;
@@ -144,7 +144,7 @@ SET DEBUG_SYNC= "now SIGNAL end";
 SET DEBUG_SYNC= "RESET";
 [connection master]
 SET DEBUG_SYNC= "RESET";
-SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+SET GLOBAL rpl_semi_sync_source_wait_point= AFTER_SYNC;
 TRUNCATE t1;
 include/sync_slave_sql_with_master.inc
 [connection master]

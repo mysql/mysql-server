@@ -83,8 +83,8 @@ usr/lib/mysql/plugin/keyring_udf.so
 usr/lib/mysql/plugin/libmemcached.so
 usr/lib/mysql/plugin/auth_socket.so
 usr/lib/mysql/plugin/validate_password.so
-usr/lib/mysql/plugin/semisync_master.so
-usr/lib/mysql/plugin/semisync_slave.so
+usr/lib/mysql/plugin/semisync_source.so
+usr/lib/mysql/plugin/semisync_replica.so
 usr/lib/mysql/plugin/libpluginmecab.so
 usr/lib/mysql/plugin/version_token.so
 usr/lib/mysql/plugin/group_replication.so

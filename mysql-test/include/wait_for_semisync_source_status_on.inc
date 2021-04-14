@@ -4,7 +4,7 @@
 #
 # ==== Usage ====
 #
-# --source include/wait_for_semisync_master_status_on.inc
+# --source include/wait_for_semisync_source_status_on.inc
 #
 --let $status_var= rpl_semi_sync_source_status
 --let $status_var_value= ON
