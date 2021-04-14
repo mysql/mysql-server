@@ -14,7 +14,7 @@ DROP TABLE t1;
 #
 # Active injected error during getting server id from master
 #
-SET GLOBAL DEBUG='d,get_master_server_id.ER_NET_READ_INTERRUPTED';
+SET GLOBAL DEBUG='d,get_source_server_id.ER_NET_READ_INTERRUPTED';
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

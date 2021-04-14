@@ -39,7 +39,7 @@ FLUSH BINARY LOGS;
 #
 [connection slave]
 include/stop_slave.inc
-SET GLOBAL debug= 'd,request_master_log_pos_3';
+SET GLOBAL debug= 'd,request_source_log_pos_3';
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

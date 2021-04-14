@@ -631,7 +631,7 @@ int init_replica() {
          * members */
         mi->rli->opt_replica_parallel_workers =
             opt_mts_replica_parallel_workers;
-        mi->rli->checkpoint_group = opt_mts_checkpoint_group;
+        mi->rli->checkpoint_group = opt_mta_checkpoint_group;
         if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
           mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_DB_NAME;
         else
@@ -799,11 +799,11 @@ bool start_slave_cmd(THD *thd) {
   LEX *lex = thd->lex;
   bool res = true; /* default, an error */
 
-  DEBUG_SYNC(thd, "begin_start_slave");
+  DEBUG_SYNC(thd, "begin_start_replica");
 
   channel_map.wrlock();
 
-  DEBUG_SYNC(thd, "after_locking_channel_map_in_start_slave");
+  DEBUG_SYNC(thd, "after_locking_channel_map_in_start_replica");
 
   if (!is_slave_configured()) {
     my_error(ER_SLAVE_CONFIGURATION, MYF(0));
@@ -947,8 +947,8 @@ bool stop_slave_cmd(THD *thd) {
 
   channel_map.unlock();
 
-  DBUG_EXECUTE_IF("stop_slave_dont_release_backup_lock", {
-    rpl_slave_debug_point(DBUG_RPL_S_STOP_SLAVE_BACKUP_LOCK, thd);
+  DBUG_EXECUTE_IF("stop_replica_dont_release_backup_lock", {
+    rpl_replica_debug_point(DBUG_RPL_S_STOP_SLAVE_BACKUP_LOCK, thd);
   });
 
   return res;
@@ -1376,8 +1376,8 @@ int load_mi_and_rli_from_repositories(Master_info *mi, bool ignore_if_no_info,
     }
   }
 
-  DBUG_EXECUTE_IF("enable_mts_worker_failure_init",
-                  { DBUG_SET("+d,mts_worker_thread_init_fails"); });
+  DBUG_EXECUTE_IF("enable_mta_worker_failure_init",
+                  { DBUG_SET("+d,mta_worker_thread_init_fails"); });
 end:
   /*
     When info tables are used and autocommit= 0 we force transaction
@@ -1500,7 +1500,7 @@ int flush_master_info(Master_info *mi, bool force, bool need_lock,
                       bool do_flush_relay_log) {
   DBUG_TRACE;
   assert(mi != nullptr && mi->rli != nullptr);
-  DBUG_EXECUTE_IF("fail_to_flush_master_info", { return 1; });
+  DBUG_EXECUTE_IF("fail_to_flush_source_info", { return 1; });
   /*
     With the appropriate recovery process, we will not need to flush
     the content of the current log.
@@ -1787,7 +1787,7 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
     DBUG_PRINT("info", ("Terminating IO thread"));
     mi->abort_slave = true;
     DBUG_EXECUTE_IF("pause_after_queue_event",
-                    { rpl_slave_debug_point(DBUG_RPL_S_PAUSE_QUEUE_EV); });
+                    { rpl_replica_debug_point(DBUG_RPL_S_PAUSE_QUEUE_EV); });
     /*
       If the I/O thread is running and waiting for disk space,
       the signal above will not make it to stop.
@@ -1808,8 +1808,9 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
     if (io_waiting_disk_space && !force_io_stop) {
       LogErr(WARNING_LEVEL, ER_STOP_SLAVE_IO_THREAD_DISK_SPACE,
              mi->get_channel());
-      DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space",
-                      { rpl_slave_debug_point(DBUG_RPL_S_IO_WAIT_FOR_SPACE); });
+      DBUG_EXECUTE_IF("simulate_io_thd_wait_for_disk_space", {
+        rpl_replica_debug_point(DBUG_RPL_S_IO_WAIT_FOR_SPACE);
+      });
     }
 
     if ((error = terminate_slave_thread(
@@ -2068,7 +2069,7 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
   mysql_cond_t *cond_io{nullptr}, *cond_sql{nullptr};
   bool is_error{false};
   DBUG_TRACE;
-  DBUG_EXECUTE_IF("uninitialized_master-info_structure", mi->inited = false;);
+  DBUG_EXECUTE_IF("uninitialized_source-info_structure", mi->inited = false;);
 
   if (!mi->inited || !mi->rli->inited) {
     int error = (!mi->inited ? ER_SLAVE_MI_INIT_REPOSITORY
@@ -2325,9 +2326,9 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli) {
   assert(rli->info_thd == thd);
   assert(rli->slave_running == 1);
   if (rli->sql_thread_kill_accepted) return true;
-  DBUG_EXECUTE_IF("stop_when_mts_in_group", rli->abort_slave = 1;
-                  DBUG_SET("-d,stop_when_mts_in_group");
-                  DBUG_SET("-d,simulate_stop_when_mts_in_group");
+  DBUG_EXECUTE_IF("stop_when_mta_in_group", rli->abort_slave = 1;
+                  DBUG_SET("-d,stop_when_mta_in_group");
+                  DBUG_SET("-d,simulate_stop_when_mta_in_group");
                   return false;);
   if (connection_events_loop_aborted() || thd->killed || rli->abort_slave) {
     rli->sql_thread_kill_accepted = true;
@@ -2385,7 +2386,7 @@ bool sql_slave_killed(THD *thd, Relay_log_info *rli) {
                 ? false
                 : true;
 
-        DBUG_EXECUTE_IF("stop_slave_middle_group",
+        DBUG_EXECUTE_IF("stop_replica_middle_group",
                         DBUG_EXECUTE_IF("incomplete_group_in_relay_log",
                                         rli->sql_thread_kill_accepted =
                                             true;););  // time is over
@@ -2541,7 +2542,7 @@ static enum_command_status io_thread_init_command(
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi) {
   char query[256];
   int ret = 0;
-  DBUG_EXECUTE_IF("fake_5_5_version_slave", return ret;);
+  DBUG_EXECUTE_IF("fake_5_5_version_replica", return ret;);
 
   mi->reset_network_error();
 
@@ -2593,16 +2594,16 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi) {
 
   mi->reset_network_error();
 
-  DBUG_EXECUTE_IF("dbug.return_null_MASTER_UUID", {
+  DBUG_EXECUTE_IF("dbug.return_null_SOURCE_UUID", {
     mi->master_uuid[0] = 0;
     return 0;
   };);
 
-  DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
-                  { rpl_slave_debug_point(DBUG_RPL_S_BEFORE_MASTER_UUID); };);
+  DBUG_EXECUTE_IF("dbug.before_get_SOURCE_UUID",
+                  { rpl_replica_debug_point(DBUG_RPL_S_BEFORE_MASTER_UUID); };);
 
   DBUG_EXECUTE_IF("dbug.simulate_busy_io",
-                  { rpl_slave_debug_point(DBUG_RPL_S_SIMULATE_BUSY_IO); };);
+                  { rpl_replica_debug_point(DBUG_RPL_S_SIMULATE_BUSY_IO); };);
 #ifndef NDEBUG
   DBUG_EXECUTE_IF("dbug.simulate_no_such_var_server_uuid", {
     query_buf[strlen(query_buf) - 1] = '_';  // currupt the last char
@@ -2684,7 +2685,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   MYSQL_ROW master_row;
   DBUG_TRACE;
 
-  DBUG_EXECUTE_IF("unrecognized_master_version", { version_number = 1; };);
+  DBUG_EXECUTE_IF("unrecognized_source_version", { version_number = 1; };);
 
   mi->reset_network_error();
 
@@ -2761,7 +2762,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   */
 
   DBUG_EXECUTE_IF("dbug.before_get_UNIX_TIMESTAMP", {
-    rpl_slave_debug_point(DBUG_RPL_S_BEFORE_UNIX_TIMESTAMP);
+    rpl_replica_debug_point(DBUG_RPL_S_BEFORE_UNIX_TIMESTAMP);
   };);
 
   master_res = nullptr;
@@ -2771,7 +2772,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
     mysql_mutex_lock(&mi->data_lock);
     mi->clock_diff_with_master =
         (long)(time((time_t *)nullptr) - strtoul(master_row[0], nullptr, 10));
-    DBUG_EXECUTE_IF("dbug.mts.force_clock_diff_eq_0",
+    DBUG_EXECUTE_IF("dbug.mta.force_clock_diff_eq_0",
                     mi->clock_diff_with_master = 0;);
     mysql_mutex_unlock(&mi->data_lock);
   } else if (check_io_slave_killed(mi->info_thd, mi, nullptr))
@@ -2802,13 +2803,13 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
     UNIX_TIMESTAMP() instead, but this would not have worked on 3.23 masters.
   */
   DBUG_EXECUTE_IF("dbug.before_get_SERVER_ID",
-                  { rpl_slave_debug_point(DBUG_RPL_S_BEFORE_SERVER_ID); };);
+                  { rpl_replica_debug_point(DBUG_RPL_S_BEFORE_SERVER_ID); };);
   master_res = nullptr;
   master_row = nullptr;
-  DBUG_EXECUTE_IF("get_master_server_id.ER_NET_READ_INTERRUPTED", {
+  DBUG_EXECUTE_IF("get_source_server_id.ER_NET_READ_INTERRUPTED", {
     DBUG_SET("+d,inject_ER_NET_READ_INTERRUPTED");
     DBUG_SET(
-        "-d,get_master_server_id."
+        "-d,get_source_server_id."
         "ER_NET_READ_INTERRUPTED");
   });
   if (!mysql_real_query(mysql, STRING_WITH_LEN("SELECT @@GLOBAL.SERVER_ID")) &&
@@ -2902,7 +2903,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
     is stored in the dump thread's uservar area as well as cached locally
     to become known in consensus by master and slave.
   */
-  if (DBUG_EVALUATE_IF("simulate_slave_unaware_checksum", 0, 1)) {
+  if (DBUG_EVALUATE_IF("simulate_replica_unaware_checksum", 0, 1)) {
     int rc;
     const char query[] =
         "SET @master_binlog_checksum= @@global.binlog_checksum";
@@ -2955,7 +2956,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
         mi->checksum_alg_before_fd = static_cast<enum_binlog_checksum_alg>(
             find_type(master_row[0], &binlog_checksum_typelib, 1) - 1);
 
-        DBUG_EXECUTE_IF("undefined_algorithm_on_slave",
+        DBUG_EXECUTE_IF("undefined_algorithm_on_replica",
                         mi->checksum_alg_before_fd =
                             binary_log::BINLOG_CHECKSUM_ALG_UNDEF;);
         if (mi->checksum_alg_before_fd ==
@@ -2999,7 +3000,7 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
   } else
     mi->checksum_alg_before_fd = binary_log::BINLOG_CHECKSUM_ALG_OFF;
 
-  if (DBUG_EVALUATE_IF("simulate_slave_unaware_gtid", 0, 1)) {
+  if (DBUG_EVALUATE_IF("simulate_replica_unaware_gtid", 0, 1)) {
     auto master_gtid_mode = Gtid_mode::OFF;
     auto slave_gtid_mode = global_gtid_mode.get();
     switch (io_thread_init_command(mi, "SELECT @@GLOBAL.GTID_MODE",
@@ -3013,11 +3014,11 @@ static int get_master_version_and_clock(MYSQL *mysql, Master_info *mi) {
         break;
       case COMMAND_STATUS_OK: {
         const char *master_gtid_mode_string = master_row[0];
-        DBUG_EXECUTE_IF("simulate_master_has_gtid_mode_on_something",
+        DBUG_EXECUTE_IF("simulate_source_has_gtid_mode_on_something",
                         { master_gtid_mode_string = "on_something"; });
-        DBUG_EXECUTE_IF("simulate_master_has_gtid_mode_off_something",
+        DBUG_EXECUTE_IF("simulate_source_has_gtid_mode_off_something",
                         { master_gtid_mode_string = "off_something"; });
-        DBUG_EXECUTE_IF("simulate_master_has_unknown_gtid_mode",
+        DBUG_EXECUTE_IF("simulate_source_has_unknown_gtid_mode",
                         { master_gtid_mode_string = "Krakel Spektakel"; });
         bool error;
         std::tie(error, master_gtid_mode) =
@@ -3133,7 +3134,7 @@ static bool wait_for_relay_log_space(Relay_log_info *rli) {
 #endif
     if (rli->sql_force_rotate_relay) {
       DBUG_EXECUTE_IF("rpl_before_forced_rotate", {
-        rpl_slave_debug_point(DBUG_RPL_S_BEFORE_FORCED_ROTATE);
+        rpl_replica_debug_point(DBUG_RPL_S_BEFORE_FORCED_ROTATE);
       });
       rotate_relay_log(mi, true, true, false);
       rli->sql_force_rotate_relay = false;
@@ -3176,7 +3177,7 @@ static int write_rotate_to_master_pos_into_relay_log(THD *thd, Master_info *mi,
                                               mi->get_master_log_pos(),
                                               Rotate_log_event::DUP_NAME);
 
-  DBUG_EXECUTE_IF("fail_generating_rotate_event_on_write_rotate_to_master_pos",
+  DBUG_EXECUTE_IF("fail_generating_rotate_event_on_write_rotate_to_source_pos",
                   {
                     if (likely((bool)ev)) {
                       delete ev;
@@ -3318,7 +3319,7 @@ static int register_slave_on_master(MYSQL *mysql, Master_info *mi,
     return 1;
   }
 
-  DBUG_EXECUTE_IF("simulate_register_slave_killed", {
+  DBUG_EXECUTE_IF("simulate_register_replica_killed", {
     mi->abort_slave = 1;
     return 1;
   };);
@@ -4083,9 +4084,9 @@ int init_replica_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
   PSI_THREAD_CALL(set_thread_id)(psi, thd->thread_id());
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
-  DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
+  DBUG_EXECUTE_IF("simulate_io_replica_error_on_init",
                   simulate_error |= (1 << SLAVE_THD_IO););
-  DBUG_EXECUTE_IF("simulate_sql_slave_error_on_init",
+  DBUG_EXECUTE_IF("simulate_sql_replica_error_on_init",
                   simulate_error |= (1 << SLAVE_THD_SQL););
   thd->store_globals();
 #if !defined(NDEBUG)
@@ -4218,7 +4219,7 @@ static int request_dump(THD *thd, MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
   } else {
     rpl->file_name_length = 0;
     rpl->file_name = mi->get_master_log_name();
-    rpl->start_position = DBUG_EVALUATE_IF("request_master_log_pos_3", 3,
+    rpl->start_position = DBUG_EVALUATE_IF("request_source_log_pos_3", 3,
                                            mi->get_master_log_pos());
   }
   if (mysql_binlog_open(mysql, rpl)) {
@@ -4531,10 +4532,10 @@ apply_event_and_update_pos(Log_event **ptr_ev, THD *thd, Relay_log_info *rli) {
 
     exec_res = ev->apply_event(rli);
 
-    DBUG_EXECUTE_IF("simulate_stop_when_mts_in_group",
+    DBUG_EXECUTE_IF("simulate_stop_when_mta_in_group",
                     if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP &&
                         rli->curr_group_seen_begin)
-                        DBUG_SET("+d,stop_when_mts_in_group"););
+                        DBUG_SET("+d,stop_when_mta_in_group"););
 
     if (!exec_res && (ev->worker != rli)) {
       if (ev->worker) {
@@ -4913,9 +4914,9 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
       need force to compute checkpoint.
     */
     bool force = rli->rli_checkpoint_seqno >= rli->checkpoint_group;
-    if (force || rli->is_time_for_mts_checkpoint()) {
+    if (force || rli->is_time_for_mta_checkpoint()) {
       mysql_mutex_unlock(&rli->data_lock);
-      if (mts_checkpoint_routine(rli, force)) {
+      if (mta_checkpoint_routine(rli, force)) {
         delete ev;
         return 1;
       }
@@ -4924,7 +4925,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
   }
 
   /*
-    It should be checked after calling mts_checkpoint_routine(), because that
+    It should be checked after calling mta_checkpoint_routine(), because that
     function could be interrupted by kill while 'force' is true.
   */
   if (sql_slave_killed(thd, rli)) {
@@ -5063,13 +5064,13 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
 
       DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event", {
         if (ev->get_type_code() == binary_log::PREVIOUS_GTIDS_LOG_EVENT) {
-          rpl_slave_debug_point(DBUG_RPL_S_SBM_AFTER_PREVIOUS_GTID_EV, thd);
+          rpl_replica_debug_point(DBUG_RPL_S_SBM_AFTER_PREVIOUS_GTID_EV, thd);
         }
       };);
       DBUG_EXECUTE_IF("dbug.calculate_sbm_after_fake_rotate_log_event", {
         if (ev->get_type_code() == binary_log::ROTATE_EVENT &&
             ev->is_artificial_event()) {
-          rpl_slave_debug_point(DBUG_RPL_S_SBM_AFTER_FAKE_ROTATE_EV, thd);
+          rpl_replica_debug_point(DBUG_RPL_S_SBM_AFTER_FAKE_ROTATE_EV, thd);
         }
       };);
       /*
@@ -5174,7 +5175,7 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
 #ifndef NDEBUG
             if (rli->trans_retries == 2 || rli->trans_retries == 6)
               DBUG_EXECUTE_IF("rpl_ps_tables_worker_retry", {
-                rpl_slave_debug_point(DBUG_RPL_S_PS_TABLE_WORKER_RETRY);
+                rpl_replica_debug_point(DBUG_RPL_S_PS_TABLE_WORKER_RETRY);
               };);
 
 #endif
@@ -5445,7 +5446,7 @@ extern "C" void *handle_slave_io(void *arg) {
     mi->reset_network_error();
 
     DBUG_EXECUTE_IF("dbug.before_get_running_status_yes", {
-      rpl_slave_debug_point(DBUG_RPL_S_BEFORE_RUNNING_STATUS, thd);
+      rpl_replica_debug_point(DBUG_RPL_S_BEFORE_RUNNING_STATUS, thd);
     };);
     DBUG_EXECUTE_IF("dbug.calculate_sbm_after_previous_gtid_log_event", {
       /* Fake that thread started 3 minutes ago */
@@ -5504,7 +5505,7 @@ extern "C" void *handle_slave_io(void *arg) {
     }
 
     DBUG_EXECUTE_IF(
-        "FORCE_SLAVE_TO_RECONNECT_REG", if (!retry_count_reg) {
+        "FORCE_REPLICA_TO_RECONNECT_REG", if (!retry_count_reg) {
           retry_count_reg++;
           LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
                  mi->get_for_channel_str());
@@ -5531,7 +5532,7 @@ extern "C" void *handle_slave_io(void *arg) {
         goto connected;
       }
       DBUG_EXECUTE_IF(
-          "FORCE_SLAVE_TO_RECONNECT_DUMP", if (!retry_count_dump) {
+          "FORCE_REPLICA_TO_RECONNECT_DUMP", if (!retry_count_dump) {
             retry_count_dump++;
             LogErr(INFORMATION_LEVEL,
                    ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
@@ -5560,7 +5561,7 @@ extern "C" void *handle_slave_io(void *arg) {
                                   "reading event"))
           goto err;
         DBUG_EXECUTE_IF(
-            "FORCE_SLAVE_TO_RECONNECT_EVENT", if (!retry_count_event) {
+            "FORCE_REPLICA_TO_RECONNECT_EVENT", if (!retry_count_event) {
               retry_count_event++;
               LogErr(INFORMATION_LEVEL,
                      ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
@@ -5624,7 +5625,7 @@ extern "C" void *handle_slave_io(void *arg) {
         if (mi->is_queueing_trx()) {
           was_in_trx = true;
           DBUG_EXECUTE_IF("rpl_ps_tables_queue", {
-            rpl_slave_debug_point(DBUG_RPL_S_PS_TABLE_QUEUE);
+            rpl_replica_debug_point(DBUG_RPL_S_PS_TABLE_QUEUE);
           };);
         }
 #endif
@@ -5638,7 +5639,7 @@ extern "C" void *handle_slave_io(void *arg) {
 #ifndef NDEBUG
         if (was_in_trx && !mi->is_queueing_trx()) {
           DBUG_EXECUTE_IF("rpl_ps_tables",
-                          { rpl_slave_debug_point(DBUG_RPL_S_PS_TABLES); };);
+                          { rpl_replica_debug_point(DBUG_RPL_S_PS_TABLES); };);
         }
 #endif
         if (RUN_HOOK(binlog_relay_io, after_queue_event,
@@ -5664,7 +5665,7 @@ extern "C" void *handle_slave_io(void *arg) {
           execution.
         */
         DBUG_EXECUTE_IF("pause_after_queue_event", {
-          rpl_slave_debug_point(DBUG_RPL_S_PAUSE_AFTER_QUEUE_EV);
+          rpl_replica_debug_point(DBUG_RPL_S_PAUSE_AFTER_QUEUE_EV);
         };);
 
         /*
@@ -5705,7 +5706,7 @@ extern "C" void *handle_slave_io(void *arg) {
           }
         DBUG_EXECUTE_IF("flush_after_reading_user_var_event", {
           if (event_buf[EVENT_TYPE_OFFSET] == binary_log::USER_VAR_EVENT)
-            rpl_slave_debug_point(DBUG_RPL_S_FLUSH_AFTER_USERV_EV);
+            rpl_replica_debug_point(DBUG_RPL_S_FLUSH_AFTER_USERV_EV);
         });
         DBUG_EXECUTE_IF(
             "stop_io_after_reading_gtid_log_event",
@@ -5776,7 +5777,7 @@ extern "C" void *handle_slave_io(void *arg) {
       }
       DBUG_EXECUTE_IF("replica_retry_count_exceed", {
         if (Async_conn_failover_manager::ACF_NO_ERROR == update_source_error) {
-          rpl_slave_debug_point(DBUG_RPL_S_RETRY_COUNT_EXCEED, thd);
+          rpl_replica_debug_point(DBUG_RPL_S_RETRY_COUNT_EXCEED, thd);
         }
       });
 
@@ -5810,7 +5811,7 @@ extern "C" void *handle_slave_io(void *arg) {
       signal to continue to shutdown the IO thread.
     */
     DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook", {
-      rpl_slave_debug_point(DBUG_RPL_S_PAUSE_AFTER_IO_STOP, thd);
+      rpl_replica_debug_point(DBUG_RPL_S_PAUSE_AFTER_IO_STOP, thd);
     };);
 
     thd->reset_query();
@@ -5873,7 +5874,7 @@ extern "C" void *handle_slave_io(void *arg) {
       delete the mi structure leading to a crash! (see BUG#25306 for details)
      */
     mysql_cond_broadcast(&mi->stop_cond);  // tell the world we are done
-    DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
+    DBUG_EXECUTE_IF("simulate_replica_delay_at_terminate_bug38694", sleep(5););
     mysql_mutex_unlock(&mi->run_lock);
   }
   my_thread_end();
@@ -6414,7 +6415,7 @@ end:
   return is_error;
 }
 
-bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
+bool mta_checkpoint_routine(Relay_log_info *rli, bool force) {
   ulong cnt;
   bool error = false;
   time_t ts = 0;
@@ -6422,11 +6423,11 @@ bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
   DBUG_TRACE;
 
 #ifndef NDEBUG
-  if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)) {
+  if (DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)) {
     if (!rli->gaq->count_done(rli)) return false;
   }
-  DBUG_EXECUTE_IF("mts_checkpoint", {
-    rpl_slave_debug_point(DBUG_RPL_S_MTS_CHECKPOINT_START, rli->info_thd);
+  DBUG_EXECUTE_IF("mta_checkpoint", {
+    rpl_replica_debug_point(DBUG_RPL_S_MTS_CHECKPOINT_START, rli->info_thd);
   };);
 #endif
 
@@ -6447,12 +6448,12 @@ bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
 
     if (!is_mts_db_partitioned(rli)) mysql_mutex_unlock(&rli->mts_gaq_LOCK);
 #ifndef NDEBUG
-    if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
-        cnt != opt_mts_checkpoint_period)
+    if (DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0) &&
+        cnt != opt_mta_checkpoint_period)
       LogErr(ERROR_LEVEL, ER_RPL_MTS_CHECKPOINT_PERIOD_DIFFERS_FROM_CNT);
 #endif
   } while (!sql_slave_killed(rli->info_thd, rli) && cnt == 0 && force &&
-           !DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
+           !DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0) &&
            (my_sleep(rli->mts_coordinator_basic_nap), 1));
   /*
     This checks how many consecutive jobs where processed.
@@ -6529,9 +6530,9 @@ bool mts_checkpoint_routine(Relay_log_info *rli, bool force) {
 end:
   error = error || rli->info_thd->killed != THD::NOT_KILLED;
 #ifndef NDEBUG
-  if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)) DBUG_SUICIDE();
-  DBUG_EXECUTE_IF("mts_checkpoint", {
-    rpl_slave_debug_point(DBUG_RPL_S_MTS_CHECKPOINT_END, rli->info_thd);
+  if (DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)) DBUG_SUICIDE();
+  DBUG_EXECUTE_IF("mta_checkpoint", {
+    rpl_replica_debug_point(DBUG_RPL_S_MTS_CHECKPOINT_END, rli->info_thd);
   };);
 #endif
   set_timespec_nsec(&rli->last_clock, 0);
@@ -6574,7 +6575,7 @@ static int slave_start_single_worker(Relay_log_info *rli, ulong i) {
   if (i >= rli->workers.size()) rli->workers.resize(i + 1);
   rli->workers[i] = w;
 
-  if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
+  if (DBUG_EVALUATE_IF("mta_worker_thread_fails", i == 1, 0) ||
       (error = mysql_thread_create(key_thread_replica_worker, &th,
                                    &connection_attrib, handle_slave_worker,
                                    (void *)w))) {
@@ -6645,9 +6646,9 @@ static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
 
   /*
      GAQ  queue holds seqno:s of scheduled groups. C polls workers in
-     @c opt_mts_checkpoint_period to update GAQ (see @c next_event())
+     @c opt_mta_checkpoint_period to update GAQ (see @c next_event())
      The length of GAQ is set to be equal to checkpoint_group.
-     Notice, the size matters for mts_checkpoint_routine's progress loop.
+     Notice, the size matters for mta_checkpoint_routine's progress loop.
   */
 
   rli->gaq = new Slave_committed_queue(rli->checkpoint_group, n);
@@ -6802,7 +6803,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
   }
 
   /// @todo: consider to propagate an error out of the function
-  if (thd->killed == THD::NOT_KILLED) (void)mts_checkpoint_routine(rli, false);
+  if (thd->killed == THD::NOT_KILLED) (void)mta_checkpoint_routine(rli, false);
 
   while (!rli->workers.empty()) {
     Slave_worker *w = rli->workers.back();
@@ -7111,7 +7112,7 @@ extern "C" void *handle_slave_sql(void *arg) {
     mysql_cond_broadcast(&rli->start_cond);
     mysql_mutex_unlock(&rli->run_lock);
 
-    DEBUG_SYNC(thd, "after_start_slave");
+    DEBUG_SYNC(thd, "after_start_replica");
 
     // tell the I/O thread to take relay_log_space_limit into account from now
     // on
@@ -7309,7 +7310,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       signal to continue to shutdown the SQL thread.
     */
     DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook", {
-      rpl_slave_debug_point(DBUG_RPL_S_AFTER_SQL_STOP, thd);
+      rpl_replica_debug_point(DBUG_RPL_S_AFTER_SQL_STOP, thd);
     };);
 
     THD_STAGE_INFO(thd, stage_waiting_for_replica_mutex_on_exit);
@@ -7383,7 +7384,7 @@ extern "C" void *handle_slave_sql(void *arg) {
      for details)
     */
     mysql_cond_broadcast(&rli->stop_cond);
-    DBUG_EXECUTE_IF("simulate_slave_delay_at_terminate_bug38694", sleep(5););
+    DBUG_EXECUTE_IF("simulate_replica_delay_at_terminate_bug38694", sleep(5););
     mysql_mutex_unlock(&rli->run_lock);  // tell the world we are done
   }
   my_thread_end();
@@ -7517,7 +7518,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
     signal to continue IO thread execution.
   */
   DBUG_EXECUTE_IF("pause_on_queuing_event",
-                  { rpl_slave_debug_point(DBUG_RPL_S_PAUSE_QUEUING); };);
+                  { rpl_replica_debug_point(DBUG_RPL_S_PAUSE_QUEUING); };);
 
   /*
     FD_queue checksum alg description does not apply in a case of
@@ -7825,7 +7826,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
                       hb.get_log_ident(), hb.get_ident_len()) == 0);
 
         DBUG_EXECUTE_IF("reached_heart_beat_queue_event",
-                        { rpl_slave_debug_point(DBUG_RPL_S_HEARTBEAT_EV); };);
+                        { rpl_replica_debug_point(DBUG_RPL_S_HEARTBEAT_EV); };);
         mi->set_master_log_pos(hb.common_header->log_pos);
 
         /*
@@ -8919,9 +8920,9 @@ bool start_slave(THD *thd, LEX_SLAVE_CONNECTION *connection_param,
             mi->rli->channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
 
 #ifndef NDEBUG
-          if (!DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
+          if (!DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0))
 #endif
-            mi->rli->checkpoint_group = opt_mts_checkpoint_group;
+            mi->rli->checkpoint_group = opt_mta_checkpoint_group;
         }
 
         int slave_errno = mi->rli->init_until_option(thd, master_param);
@@ -9017,7 +9018,8 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
   int thread_mask;
   lock_slave_threads(mi);
 
-  DBUG_EXECUTE_IF("simulate_hold_run_locks_on_stop_slave", my_sleep(10000000););
+  DBUG_EXECUTE_IF("simulate_hold_run_locks_on_stop_replica",
+                  my_sleep(10000000););
 
   // Get a mask of _running_ threads
   init_thread_mask(&thread_mask, mi, false /* not inverse*/);

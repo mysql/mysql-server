@@ -249,12 +249,12 @@ int Rpl_info_table::do_flush_info(const bool force) {
   }
 
 end:
-  DBUG_EXECUTE_IF("mts_debug_concurrent_access", {
+  DBUG_EXECUTE_IF("mta_debug_concurrent_access", {
     while (thd->system_thread == SYSTEM_THREAD_SLAVE_WORKER &&
-           mts_debug_concurrent_access < 2 && mts_debug_concurrent_access > 0) {
+           mta_debug_concurrent_access < 2 && mta_debug_concurrent_access > 0) {
       DBUG_PRINT("mts", ("Waiting while locks are acquired to show "
                          "concurrency in mts: %u %u\n",
-                         mts_debug_concurrent_access, thd->thread_id()));
+                         mta_debug_concurrent_access, thd->thread_id()));
       my_sleep(6000000);
     }
   };);

@@ -34,11 +34,11 @@ CALL mtr.add_suppression(".* Master command COM_REGISTER_SLAVE failed.*");
 CHANGE REPLICATION SOURCE TO SOURCE_USER='root';
 
 # Simulate register_slave_to_master is killed
-SET GLOBAL debug = '+d,simulate_register_slave_killed';
+SET GLOBAL debug = '+d,simulate_register_replica_killed';
 START SLAVE IO_THREAD;
 
 --source include/wait_for_slave_io_to_stop.inc
-SET GLOBAL debug = '-d,simulate_register_slave_killed';
+SET GLOBAL debug = '-d,simulate_register_replica_killed';
 --source include/start_slave_io.inc
 
 --source include/rpl_connection_master.inc

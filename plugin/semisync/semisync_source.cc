@@ -642,7 +642,7 @@ int ReplSemiSyncMaster::commitTrx(const char *trx_wait_binlog_name,
 #if defined(ENABLED_DEBUG_SYNC)
   /* debug sync may not be initialized for a master */
   if (current_thd->debug_sync_control)
-    DEBUG_SYNC(current_thd, "rpl_semisync_master_commit_trx_before_lock");
+    DEBUG_SYNC(current_thd, "rpl_semisync_source_commit_trx_before_lock");
 #endif
   /* Acquire the mutex. */
   lock();

@@ -3111,7 +3111,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
   }
 
   DBUG_EXECUTE_IF(
-      "force_rollback_in_slave_on_transactional_ddl_commit",
+      "force_rollback_in_replica_on_transactional_ddl_commit",
       if (thd->m_transactional_ddl.inited() &&
           thd->lex->sql_command == SQLCOM_COMMIT) {
         lex->sql_command = SQLCOM_ROLLBACK;

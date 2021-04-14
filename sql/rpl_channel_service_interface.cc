@@ -139,9 +139,9 @@ static void set_mi_settings(Master_info *mi,
   }
 
   mi->rli->checkpoint_group =
-      (channel_info->channel_mts_checkpoint_group == RPL_SERVICE_SERVER_DEFAULT)
-          ? opt_mts_checkpoint_group
-          : channel_info->channel_mts_checkpoint_group;
+      (channel_info->channel_mta_checkpoint_group == RPL_SERVICE_SERVER_DEFAULT)
+          ? opt_mta_checkpoint_group
+          : channel_info->channel_mta_checkpoint_group;
 
   Format_description_log_event *fde = new Format_description_log_event();
   /*
@@ -195,7 +195,7 @@ void initialize_channel_creation_info(Channel_creation_info *channel_info) {
   channel_info->auto_position = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->channel_mts_parallel_type = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->channel_mts_parallel_workers = RPL_SERVICE_SERVER_DEFAULT;
-  channel_info->channel_mts_checkpoint_group = RPL_SERVICE_SERVER_DEFAULT;
+  channel_info->channel_mta_checkpoint_group = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->replicate_same_server_id = RPL_SERVICE_SERVER_DEFAULT;
   channel_info->thd_tx_priority = 0;
   channel_info->sql_delay = RPL_SERVICE_SERVER_DEFAULT;

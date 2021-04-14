@@ -4422,7 +4422,7 @@ bool MYSQL_BIN_LOG::find_first_log_not_in_gtid_set(char *binlog_file_name,
           /*
             Verify that the selected binlog is not the first binlog,
           */
-          DBUG_EXECUTE_IF("slave_reconnect_with_gtid_set_executed",
+          DBUG_EXECUTE_IF("replica_reconnect_with_gtid_set_executed",
                           assert(strcmp(filename_list.begin()->c_str(),
                                         binlog_file_name) != 0););
           goto end;
@@ -6653,7 +6653,7 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
 
 #ifndef NDEBUG
   if (m_binlog_file->get_real_file_size() >
-          DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size) &&
+          DBUG_EVALUATE_IF("rotate_replica_debug_group", 500, max_size) &&
       !can_rotate) {
     DBUG_PRINT("info", ("Postponing the rotation by size waiting for "
                         "the end of the current transaction."));
@@ -6716,7 +6716,7 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
         see binary log files larger than max_binlog_size."
       */
       if (m_binlog_file->get_real_file_size() >
-              DBUG_EVALUATE_IF("rotate_slave_debug_group", 500, max_size) ||
+              DBUG_EVALUATE_IF("rotate_replica_debug_group", 500, max_size) ||
           mi->is_rotate_requested()) {
         error = new_file_without_locking(mi->get_mi_description_event());
         mi->clear_rotate_requests();

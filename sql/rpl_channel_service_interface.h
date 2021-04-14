@@ -93,7 +93,7 @@ struct Channel_creation_info {
   int auto_position;
   int channel_mts_parallel_type;
   int channel_mts_parallel_workers;
-  int channel_mts_checkpoint_group;
+  int channel_mta_checkpoint_group;
   int replicate_same_server_id;
   int thd_tx_priority;  // The applier thread priority
   int sql_delay;

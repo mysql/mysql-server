@@ -1189,7 +1189,7 @@ class Relay_log_info : public Rpl_info {
   ulong recovery_parallel_workers;  // number of workers while recovering
   uint rli_checkpoint_seqno;        // counter of groups executed after the most
                                     // recent CP
-  uint checkpoint_group;            // cache for ::opt_mts_checkpoint_group
+  uint checkpoint_group;            // cache for ::opt_mta_checkpoint_group
   MY_BITMAP recovery_groups;        // bitmap used during recovery
   bool recovery_groups_inited;
   ulong mts_recovery_group_cnt;  // number of groups to execute at recovery
@@ -1348,7 +1348,7 @@ class Relay_log_info : public Rpl_info {
      @retval true   It is time to compute MTS checkpoint.
      @retval false  It is not MTS or it is not time for computing checkpoint.
   */
-  bool is_time_for_mts_checkpoint();
+  bool is_time_for_mta_checkpoint();
   /**
      While a group is executed by a Worker the relay log can change.
      Coordinator notifies Workers about this event. Worker is supposed

@@ -160,7 +160,7 @@ bool Ack_receiver::add_slave(THD *thd) {
   try {
     mysql_mutex_lock(&m_mutex);
 
-    DBUG_EXECUTE_IF("rpl_semisync_simulate_add_slave_failure", throw 1;);
+    DBUG_EXECUTE_IF("rpl_semisync_simulate_add_replica_failure", throw 1;);
 
     m_slaves.push_back(slave);
     m_slaves_changed = true;

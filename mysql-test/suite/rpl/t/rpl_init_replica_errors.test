@@ -44,7 +44,7 @@ reset slave;
 connection slave;
 
 # Set debug flags on slave to force errors to occur
-SET GLOBAL debug= "d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
+SET GLOBAL debug= "d,simulate_io_replica_error_on_init,simulate_sql_replica_error_on_init";
 
 start slave;
 

@@ -5935,7 +5935,7 @@ static Sys_var_uint Sys_checkpoint_mts_period(
     "Gather workers' activities to "
     "Update progress status of Multi-threaded slave and flush "
     "the relay log info to disk after every #th milli-seconds.",
-    GLOBAL_VAR(opt_mts_checkpoint_period), CMD_LINE(REQUIRED_ARG),
+    GLOBAL_VAR(opt_mta_checkpoint_period), CMD_LINE(REQUIRED_ARG),
 #ifndef NDEBUG
     VALID_RANGE(0, UINT_MAX), DEFAULT(300), BLOCK_SIZE(1));
 #else
@@ -5946,7 +5946,7 @@ static Sys_var_uint Sys_checkpoint_mts_group(
     "replica_checkpoint_group",
     "Maximum number of processed transactions by Multi-threaded slave "
     "before a checkpoint operation is called to update progress status.",
-    GLOBAL_VAR(opt_mts_checkpoint_group), CMD_LINE(REQUIRED_ARG),
+    GLOBAL_VAR(opt_mta_checkpoint_group), CMD_LINE(REQUIRED_ARG),
 #ifndef NDEBUG
     VALID_RANGE(1, MTS_MAX_BITS_IN_GROUP), DEFAULT(512), BLOCK_SIZE(1));
 #else

@@ -181,7 +181,7 @@ Log_event *Rpl_applier_reader::read_next_event() {
         However, workers are executing their assigned jobs and as such
         the checkpoint routine must be periodically invoked.
 
-        mts_checkpoint_routine has to be called before enter_stage().
+        mta_checkpoint_routine has to be called before enter_stage().
         Otherwise, it will cause a deadlock with STOP SLAVE or other
         thread has the same lock pattern.
         STOP SLAVE Thread                   Coordinator Thread
@@ -191,15 +191,15 @@ Log_event *Rpl_applier_reader::read_next_event() {
         lock LOCK_binlog_end_pos
         in THD::awake
                                             lock LOCK_thd_data in
-                                            mts_checkpoint_routine()
+                                            mta_checkpoint_routine()
                                               flush_info()
                                                 ...
                                                 close_thread_table()
       */
       mysql_mutex_unlock(&m_rli->data_lock);
-      if ((m_rli->is_time_for_mts_checkpoint() ||
-           DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)) &&
-          mts_checkpoint_routine(m_rli, false)) {
+      if ((m_rli->is_time_for_mta_checkpoint() ||
+           DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)) &&
+          mta_checkpoint_routine(m_rli, false)) {
         m_errmsg = "Failed to compute mts checkpoint";
         mysql_mutex_lock(&m_rli->data_lock);
         return nullptr;
@@ -286,11 +286,11 @@ bool Rpl_applier_reader::wait_for_new_event() {
 
   int ret = 0;
   if (m_rli->is_parallel_exec() &&
-      (opt_mts_checkpoint_period != 0 ||
-       DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))) {
+      (opt_mta_checkpoint_period != 0 ||
+       DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0))) {
     struct timespec waittime;
-    set_timespec_nsec(&waittime, opt_mts_checkpoint_period * 1000000ULL);
-    DBUG_EXECUTE_IF("check_slave_debug_group",
+    set_timespec_nsec(&waittime, opt_mta_checkpoint_period * 1000000ULL);
+    DBUG_EXECUTE_IF("check_replica_debug_group",
                     { set_timespec_nsec(&waittime, 10000000); });
     ret = m_rli->relay_log.wait_for_update(&waittime);
   } else

@@ -1368,7 +1368,7 @@ ulong prepared_stmt_count = 0;
 ulong current_pid;
 uint sync_binlog_period = 0, sync_relaylog_period = 0,
      sync_relayloginfo_period = 0, sync_masterinfo_period = 0,
-     opt_mts_checkpoint_period, opt_mts_checkpoint_group;
+     opt_mta_checkpoint_period, opt_mta_checkpoint_group;
 ulong expire_logs_days = 0;
 ulong binlog_expire_logs_seconds = 0;
 /**

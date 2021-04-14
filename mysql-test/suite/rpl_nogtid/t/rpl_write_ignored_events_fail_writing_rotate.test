@@ -34,10 +34,10 @@ CREATE TABLE t1 (c1 INT);
 DROP TABLE t1;
 
 --source include/sync_slave_io_with_master.inc
-SET @@GLOBAL.debug="+d,fail_generating_rotate_event_on_write_rotate_to_master_pos";
+SET @@GLOBAL.debug="+d,fail_generating_rotate_event_on_write_rotate_to_source_pos";
 --let $slave_io_errno= convert_error(ER_SLAVE_CREATE_EVENT_FAILURE)
 --source include/stop_slave_io.inc
-SET @@GLOBAL.debug="-d,fail_generating_rotate_event_on_write_rotate_to_master_pos";
+SET @@GLOBAL.debug="-d,fail_generating_rotate_event_on_write_rotate_to_source_pos";
 
 --let $slave_io_errno= convert_error(ER_SLAVE_CREATE_EVENT_FAILURE)
 --let $show_slave_io_error= 1
@@ -105,9 +105,9 @@ CREATE TABLE t1 (c1 INT);
 DROP TABLE t1;
 
 --source include/sync_slave_io_with_master.inc
-SET @@GLOBAL.debug="+d,fail_to_flush_master_info";
+SET @@GLOBAL.debug="+d,fail_to_flush_source_info";
 --source include/stop_slave_io.inc
-SET @@GLOBAL.debug="-d,fail_to_flush_master_info";
+SET @@GLOBAL.debug="-d,fail_to_flush_source_info";
 
 # The failure while flushing master info is not considered an I/O thread error
 

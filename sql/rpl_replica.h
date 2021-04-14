@@ -592,7 +592,7 @@ bool mts_recovery_groups(Relay_log_info *rli);
    @retval    false    Success
    @retval    true     Error
 */
-bool mts_checkpoint_routine(Relay_log_info *rli, bool force);
+bool mta_checkpoint_routine(Relay_log_info *rli, bool force);
 bool sql_slave_killed(THD *thd, Relay_log_info *rli);
 
 /*

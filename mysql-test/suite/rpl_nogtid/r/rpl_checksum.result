@@ -64,7 +64,7 @@ zero
 include/stop_slave.inc
 set @@global.binlog_checksum = CRC32;
 insert into t1 values (1) /* will not be applied on slave due to simulation */;
-set @@global.debug='d,simulate_slave_unaware_checksum';
+set @@global.debug='d,simulate_replica_unaware_checksum';
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

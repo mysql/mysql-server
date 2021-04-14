@@ -16,7 +16,7 @@ call mtr.add_suppression("Slave SQL.*Failed during slave thread initialization.*
 reset slave;
 
 # Set debug flags on slave to force errors to occur
-SET GLOBAL debug="d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
+SET GLOBAL debug="d,simulate_io_replica_error_on_init,simulate_sql_replica_error_on_init";
 
 --disable_query_log
 --replace_regex /[0-9]{4}/####/

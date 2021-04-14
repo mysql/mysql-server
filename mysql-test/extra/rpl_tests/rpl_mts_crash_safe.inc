@@ -91,7 +91,7 @@ if ($commands == recovery)
   --connection slave
   let $saved_current_workers= `SELECT @@global.replica_parallel_workers`;
   let $saved_current_checkpoint= `SELECT @@global.replica_checkpoint_period`;
-  SET GLOBAL debug="d,rotate_slave_debug_group";
+  SET GLOBAL debug="d,rotate_replica_debug_group";
   --source include/start_slave_io.inc
   let $wait_condition=SELECT Master_log_pos = $m_before_master_pos AND Master_log_name = "$m_before_master_file" FROM mysql.slave_master_info;
   let $show_rpl_debug_info= 1;
@@ -102,8 +102,8 @@ if ($commands == recovery)
 
   --let $mts_run=`select @@global.replica_parallel_workers > 0`
   eval SET @@global.replica_checkpoint_group= $count_debug_groups;
-  SET GLOBAL debug="d,check_slave_debug_group";
-  SET GLOBAL debug="+d,mts_distribute_round_robin";
+  SET GLOBAL debug="d,check_replica_debug_group";
+  SET GLOBAL debug="+d,mta_distribute_round_robin";
   --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
   --error 0, 2013
   START REPLICA SQL_THREAD;

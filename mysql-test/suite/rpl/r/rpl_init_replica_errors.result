@@ -7,7 +7,7 @@ stop slave;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL debug= "d,simulate_io_slave_error_on_init,simulate_sql_slave_error_on_init";
+SET GLOBAL debug= "d,simulate_io_replica_error_on_init,simulate_sql_replica_error_on_init";
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

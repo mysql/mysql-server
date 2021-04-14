@@ -280,7 +280,7 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
 #ifndef NDEBUG
           /*
             This is specific to mysql test run on the server
-            for the keyword "query_log_event_mts_corrupt_db_names"
+            for the keyword "query_log_event_mta_corrupt_db_names"
           */
           if (binary_log_debug::debug_query_mts_corrupt_db_names) {
             if (mts_accessed_dbs == 2) {

@@ -1663,7 +1663,7 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
       error = true;
       my_error(ER_UNKNOWN_ERROR, MYF(0));
     });
-    DBUG_EXECUTE_IF("slave_crash_before_commit", {
+    DBUG_EXECUTE_IF("replica_crash_before_commit", {
       /* This pre-commit crash aims solely at atomic DDL */
       DBUG_SUICIDE();
     });
@@ -1809,7 +1809,7 @@ end:
     }
   }
   if (run_slave_post_commit) {
-    DBUG_EXECUTE_IF("slave_crash_after_commit", DBUG_SUICIDE(););
+    DBUG_EXECUTE_IF("replica_crash_after_commit", DBUG_SUICIDE(););
 
     thd->rli_slave->post_commit(error != 0);
     /*
@@ -1822,7 +1822,7 @@ end:
     */
     thd->server_status &= ~SERVER_STATUS_IN_TRANS;
   } else {
-    DBUG_EXECUTE_IF("slave_crash_after_commit", {
+    DBUG_EXECUTE_IF("replica_crash_after_commit", {
       if (thd->slave_thread && thd->rli_slave &&
           thd->rli_slave->current_event &&
           thd->rli_slave->current_event->get_type_code() ==

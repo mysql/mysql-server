@@ -21,7 +21,7 @@
 
 # Start slave in MTS mode
 connection slave;
---let $debug_point= dbug.mts.force_clock_diff_eq_0
+--let $debug_point= dbug.mta.force_clock_diff_eq_0
 --source include/add_debug_point.inc
 SET @save_replica_parallel_type = @@GLOBAL.replica_parallel_type;
 SET @save.replica_parallel_workers= @@global.replica_parallel_workers;
@@ -38,7 +38,7 @@ SET GLOBAL replica_parallel_workers = 3;
 --source extra/rpl_tests/rpl_seconds_behind_master_mts_logical_clock.test
 
 #Cleanup
---let $debug_point= dbug.mts.force_clock_diff_eq_0
+--let $debug_point= dbug.mta.force_clock_diff_eq_0
 --source include/remove_debug_point.inc
 SET @@GLOBAL.replica_parallel_type= @save_replica_parallel_type;
 SET @@global.replica_parallel_workers= @save.replica_parallel_workers;

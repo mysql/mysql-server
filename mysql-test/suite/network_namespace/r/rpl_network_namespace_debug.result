@@ -42,14 +42,14 @@ include/assert.inc [SHOW REPLICA STATUS should show that the network namespace f
 [connection master]
 [connection slave]
 include/stop_slave.inc
-# Adding debug point 'dbug.before_get_MASTER_UUID' to @@GLOBAL.debug
+# Adding debug point 'dbug.before_get_SOURCE_UUID' to @@GLOBAL.debug
 include/start_slave.inc
 include/rpl_stop_server.inc [server_number=1]
 # Unblock receiver thread
-SET DEBUG_SYNC = 'now SIGNAL signal.get_master_uuid';
+SET DEBUG_SYNC = 'now SIGNAL signal.get_source_uuid';
 # Check network error happened here
 include/wait_for_slave_io_error.inc [errno=1040, 1053, 2002, 2003, 2006, 2013]
-# Removing debug point 'dbug.before_get_MASTER_UUID' from @@GLOBAL.debug
+# Removing debug point 'dbug.before_get_SOURCE_UUID' from @@GLOBAL.debug
 include/rpl_start_server.inc [server_number=1 parameters: --bind-address=127.0.0.1,10.0.2.1/red]
 include/wait_for_slave_io_to_start.inc
 include/assert.inc [Performance_schema should show that the network namespace for the replication connection is configured to 'red'.]
