@@ -1197,7 +1197,7 @@ bool opt_skip_replica_start = false;  ///< If set, slave is not autostarted
 bool opt_enable_named_pipe = false;
 bool opt_local_infile, opt_replica_compressed_protocol;
 bool opt_safe_user_create = false;
-bool opt_show_slave_auth_info;
+bool opt_show_replica_auth_info;
 bool opt_log_replica_updates = false;
 char *opt_replica_skip_errors;
 bool opt_replica_allow_batching = false;
@@ -8471,10 +8471,10 @@ struct my_option my_long_options[] = {
      "the mysql.user table.",
      &opt_safe_user_create, &opt_safe_user_create, nullptr, GET_BOOL, NO_ARG, 0,
      0, 0, nullptr, 0, nullptr},
-    {"show-slave-auth-info", 0,
+    {"show-replica-auth-info", 0,
      "Show user and password in SHOW SLAVE HOSTS on this master.",
-     &opt_show_slave_auth_info, &opt_show_slave_auth_info, nullptr, GET_BOOL,
-     NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
+     &opt_show_replica_auth_info, &opt_show_replica_auth_info, nullptr,
+     GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"skip-host-cache", OPT_SKIP_HOST_CACHE, "Don't cache host names.", nullptr,
      nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
