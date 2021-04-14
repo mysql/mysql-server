@@ -62,8 +62,8 @@
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"         // Gtid_set
 #include "sql/rpl_info.h"         // Rpl_info
-#include "sql/rpl_mts_submode.h"  // enum_mts_parallel_type
-#include "sql/rpl_slave_until_options.h"
+#include "sql/rpl_mta_submode.h"  // enum_mts_parallel_type
+#include "sql/rpl_replica_until_options.h"
 #include "sql/rpl_tblmap.h"  // table_mapping
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/rpl_utility.h"  // Deferred_log_events
@@ -337,7 +337,7 @@ class Relay_log_info : public Rpl_info {
 
   /*
     Identifies when the recovery process is going on.
-    See sql/rpl_slave.h:init_recovery for further details.
+    See sql/rpl_replica.h:init_recovery for further details.
   */
   bool is_relay_log_recovery;
 

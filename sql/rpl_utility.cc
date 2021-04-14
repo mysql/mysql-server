@@ -62,8 +62,8 @@ struct TYPELIB;
 #include "sql/my_decimal.h"
 #include "sql/mysqld.h"  // replica_type_conversions_options
 #include "sql/psi_memory_key.h"
-#include "sql/rpl_rli.h"  // Relay_log_info
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
+#include "sql/rpl_rli.h"    // Relay_log_info
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"  // LEX

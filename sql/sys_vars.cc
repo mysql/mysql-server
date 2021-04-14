@@ -115,9 +115,9 @@
 #include "sql/rpl_log_encryption.h"
 #include "sql/rpl_mi.h"                 // Master_info
 #include "sql/rpl_msr.h"                // channel_map
-#include "sql/rpl_mts_submode.h"        // MTS_PARALLEL_TYPE_DB_NAME
+#include "sql/rpl_mta_submode.h"        // MTS_PARALLEL_TYPE_DB_NAME
+#include "sql/rpl_replica.h"            // SLAVE_THD_TYPE
 #include "sql/rpl_rli.h"                // Relay_log_info
-#include "sql/rpl_slave.h"              // SLAVE_THD_TYPE
 #include "sql/rpl_write_set_handler.h"  // transaction_write_set_hashing_algorithms
 #include "sql/server_component/log_builtins_filter_imp.h"  // until we have pluggable variables
 #include "sql/server_component/log_builtins_imp.h"

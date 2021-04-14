@@ -64,9 +64,9 @@
 #include "sql/psi_memory_key.h"
 #include "sql/raii/sentry.h"  // raii::Sentry<>
 #include "sql/rpl_info_handler.h"
-#include "sql/rpl_msr.h"  // For channel_map
+#include "sql/rpl_msr.h"                           // For channel_map
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
 #include "sql/rpl_reporting.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/table.h"

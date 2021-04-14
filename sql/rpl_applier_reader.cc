@@ -25,9 +25,9 @@
 #include "mysql/components/services/log_builtins.h"
 #include "sql/log.h"
 #include "sql/mysqld.h"
+#include "sql/rpl_replica.h"
 #include "sql/rpl_rli.h"
 #include "sql/rpl_rli_pdb.h"
-#include "sql/rpl_slave.h"
 #include "sql/sql_backup_lock.h"
 
 /**

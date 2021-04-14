@@ -40,7 +40,7 @@
 #include "my_rnd.h"
 #include "mysql/components/services/log_builtins.h"
 #include "sql/binlog.h"
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 #include "sql/server_component/mysql_server_keyring_lockable_imp.h"
 
 Rpl_encryption rpl_encryption;

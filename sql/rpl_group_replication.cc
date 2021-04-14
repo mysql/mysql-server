@@ -46,9 +46,9 @@
 #include "sql/replication.h"         // Trans_context_info
 #include "sql/rpl_channel_credentials.h"
 #include "sql/rpl_channel_service_interface.h"
-#include "sql/rpl_gtid.h"   // Gtid_mode::lock
-#include "sql/rpl_slave.h"  // report_host
-#include "sql/sql_class.h"  // THD
+#include "sql/rpl_gtid.h"     // Gtid_mode::lock
+#include "sql/rpl_replica.h"  // report_host
+#include "sql/sql_class.h"    // THD
 #include "sql/sql_lex.h"
 #include "sql/sql_plugin.h"  // plugin_unlock
 #include "sql/sql_plugin_ref.h"

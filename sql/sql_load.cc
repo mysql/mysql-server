@@ -73,8 +73,8 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"
-#include "sql/rpl_rli.h"  // Relay_log_info
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
+#include "sql/rpl_rli.h"   // Relay_log_info
 #include "sql/sql_base.h"  // fill_record_n_invoke_before_triggers
 #include "sql/sql_class.h"
 #include "sql/sql_error.h"

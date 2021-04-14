@@ -54,7 +54,7 @@
 #include "mysql/service_mysql_alloc.h"
 #include "mysys_err.h"  // EE_OUTOFMEMORY
 #include "pfs_statement_provider.h"
-#include "rpl_master.h"  // unregister_slave
+#include "rpl_source.h"  // unregister_slave
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/binlog.h"
 #include "sql/check_stack.h"
@@ -81,8 +81,8 @@
 #include "sql/protocol_classic.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_result.h"
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // rpl_master_erroneous_autoinc
+#include "sql/rpl_replica.h"  // rpl_master_erroneous_autoinc
+#include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_transaction_write_set_ctx.h"
 #include "sql/sp_cache.h"         // sp_cache_clear
 #include "sql/sp_head.h"          // sp_head

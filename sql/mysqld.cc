@@ -812,11 +812,11 @@ MySQL clients support the protocol:
 #include "sql/rpl_injector.h"  // injector
 #include "sql/rpl_io_monitor.h"
 #include "sql/rpl_log_encryption.h"
-#include "sql/rpl_master.h"  // max_binlog_dump_events
+#include "sql/rpl_source.h"  // max_binlog_dump_events
 #include "sql/rpl_mi.h"
-#include "sql/rpl_msr.h"    // Multisource_info
-#include "sql/rpl_rli.h"    // Relay_log_info
-#include "sql/rpl_slave.h"  // replica_load_tmpdir
+#include "sql/rpl_msr.h"      // Multisource_info
+#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_replica.h"  // replica_load_tmpdir
 #include "sql/rpl_trx_tracking.h"
 #include "sql/sd_notify.h"  // sd_notify_connect
 #include "sql/session_tracker.h"

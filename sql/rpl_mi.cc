@@ -42,8 +42,8 @@
 #include "sql/log.h"
 #include "sql/mysqld.h"  // sync_masterinfo_period
 #include "sql/rpl_info_handler.h"
-#include "sql/rpl_msr.h"    // channel_map
-#include "sql/rpl_slave.h"  // master_retry_count
+#include "sql/rpl_msr.h"      // channel_map
+#include "sql/rpl_replica.h"  // master_retry_count
 #include "sql/sql_class.h"
 
 enum {

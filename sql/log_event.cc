@@ -124,11 +124,11 @@
 #include "sql/mysqld.h"  // lower_case_table_names server_uuid ...
 #include "sql/protocol.h"
 #include "sql/rpl_msr.h"          // channel_map
-#include "sql/rpl_mts_submode.h"  // Mts_submode
+#include "sql/rpl_mta_submode.h"  // Mts_submode
+#include "sql/rpl_replica.h"      // use_slave_mask
 #include "sql/rpl_reporting.h"
 #include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_rli_pdb.h"  // Slave_job_group
-#include "sql/rpl_slave.h"    // use_slave_mask
 #include "sql/sp_head.h"      // sp_name
 #include "sql/sql_base.h"     // close_thread_tables
 #include "sql/sql_bitmap.h"

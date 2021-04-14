@@ -28,7 +28,7 @@
 #include "sql/rpl_async_conn_failover_table_operations.h"
 #include "sql/rpl_io_monitor.h"
 #include "sql/rpl_msr.h"  // channel_map
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 
 #include <algorithm>
 

@@ -103,7 +103,7 @@
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/rpl_master.h"
+#include "sql/rpl_source.h"
 #include "sql/set_var.h"
 #include "sql/sp.h"        // sp_cache_routine
 #include "sql/sp_head.h"   // sp_head

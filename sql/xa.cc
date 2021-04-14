@@ -62,8 +62,8 @@
 #include "sql/query_options.h"
 #include "sql/rpl_context.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
-#include "sql/sql_class.h"                       // THD
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
+#include "sql/sql_class.h"                         // THD
 #include "sql/sql_const.h"
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"

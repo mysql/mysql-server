@@ -56,8 +56,8 @@
 #include "sql/rpl_constants.h"  // BINLOG_DUMP_NON_BLOCK
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_handler.h"    // RUN_HOOK
-#include "sql/rpl_master.h"     // opt_sporadic_binlog_dump_fail
 #include "sql/rpl_reporting.h"  // MAX_SLAVE_ERRMSG
+#include "sql/rpl_source.h"     // opt_sporadic_binlog_dump_fail
 #include "sql/sql_class.h"      // THD
 #include "sql/system_variables.h"
 #include "sql_string.h"

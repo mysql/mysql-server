@@ -110,9 +110,9 @@
 #include "sql/psi_memory_key.h"  // key_memory_TABLE
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_handler.h"                     // RUN_HOOK
-#include "sql/rpl_rli.h"                         //Relay_log_information
-#include "sql/rpl_slave_commit_order_manager.h"  // has_commit_order_manager
+#include "sql/rpl_handler.h"                       // RUN_HOOK
+#include "sql/rpl_replica_commit_order_manager.h"  // has_commit_order_manager
+#include "sql/rpl_rli.h"                           //Relay_log_information
 #include "sql/session_tracker.h"
 #include "sql/sp.h"               // Sroutine_hash_entry
 #include "sql/sp_cache.h"         // sp_cache_version

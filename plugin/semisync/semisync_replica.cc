@@ -20,7 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "plugin/semisync/semisync_slave.h"
+#include "plugin/semisync/semisync_replica.h"
 
 #include <assert.h>
 #include <sys/types.h>

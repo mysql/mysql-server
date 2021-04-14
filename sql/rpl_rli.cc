@@ -61,9 +61,9 @@
 #include "sql/rpl_info_handler.h"
 #include "sql/rpl_mi.h"   // Master_info
 #include "sql/rpl_msr.h"  // channel_map
+#include "sql/rpl_replica.h"
 #include "sql/rpl_reporting.h"
 #include "sql/rpl_rli_pdb.h"  // Slave_worker
-#include "sql/rpl_slave.h"
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/sql_base.h"  // close_thread_tables
 #include "sql/sql_error.h"

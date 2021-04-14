@@ -24,13 +24,13 @@
   @addtogroup Replication
   @{
 
-  @file sql/rpl_slave.cc
+  @file sql/rpl_replica.cc
 
   @brief Code to run the io thread and the sql thread on the
   replication slave.
 */
 
-#include "sql/rpl_slave.h"
+#include "sql/rpl_replica.h"
 
 #include "my_config.h"
 
@@ -133,12 +133,12 @@
 #include "sql/rpl_io_monitor.h"
 #include "sql/rpl_mi.h"
 #include "sql/rpl_msr.h"  // Multisource_info
-#include "sql/rpl_mts_submode.h"
+#include "sql/rpl_mta_submode.h"
+#include "sql/rpl_replica_commit_order_manager.h"  // Commit_order_manager
+#include "sql/rpl_replica_until_options.h"
 #include "sql/rpl_reporting.h"
-#include "sql/rpl_rli.h"                         // Relay_log_info
-#include "sql/rpl_rli_pdb.h"                     // Slave_worker
-#include "sql/rpl_slave_commit_order_manager.h"  // Commit_order_manager
-#include "sql/rpl_slave_until_options.h"
+#include "sql/rpl_rli.h"      // Relay_log_info
+#include "sql/rpl_rli_pdb.h"  // Slave_worker
 #include "sql/rpl_trx_boundary_parser.h"
 #include "sql/rpl_utility.h"
 #include "sql/sql_backup_lock.h"  // is_instance_backup_locked
