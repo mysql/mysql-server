@@ -90,9 +90,9 @@ ERROR HY000: Expression of generated column 'b' contains a disallowed function: 
 # LAST_INSERT_ID()
 create table t1 (a int generated always as (last_insert_id()) virtual);
 ERROR HY000: Expression of generated column 'a' contains a disallowed function: last_insert_id.
-# MASTER_POS_WAIT()
-create table t1 (a varchar(32), b int generated always as (master_pos_wait(a,0,2)) virtual);
-ERROR HY000: Expression of generated column 'b' contains a disallowed function: master_pos_wait.
+# SOURCE_POS_WAIT()
+create table t1 (a varchar(32), b int generated always as (source_pos_wait(a,0,2)) virtual);
+ERROR HY000: Expression of generated column 'b' contains a disallowed function: source_pos_wait.
 # NAME_CONST()
 create table t1 (a varchar(32) generated always as (name_const('test',1)) virtual);
 ERROR HY000: Expression of generated column 'a' contains a disallowed function.

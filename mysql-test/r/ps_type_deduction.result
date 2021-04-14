@@ -1796,15 +1796,15 @@ prepare s from 'select MAKETIME(?,?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["LONGLONG", "LONGLONG", "NEWDECIMAL decimals=30"]]
-prepare s from 'select MASTER_POS_WAIT(?,?)';
+prepare s from 'select SOURCE_POS_WAIT(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR", "LONGLONG"]]
-prepare s from 'select MASTER_POS_WAIT(?,?,?)';
+prepare s from 'select SOURCE_POS_WAIT(?,?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR", "LONGLONG", "LONGLONG"]]
-prepare s from 'select MASTER_POS_WAIT(?,?,?,?)';
+prepare s from 'select SOURCE_POS_WAIT(?,?,?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR", "LONGLONG", "LONGLONG", "VARCHAR"]]

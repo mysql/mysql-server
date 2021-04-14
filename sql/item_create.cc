@@ -1441,7 +1441,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"MAKEDATE", SQL_FN(Item_func_makedate, 2)},
     {"MAKETIME", SQL_FN(Item_func_maketime, 3)},
     {"MAKE_SET", SQL_FACTORY(Make_set_instantiator)},
-    {"MASTER_POS_WAIT", SQL_FN_V(Item_master_pos_wait, 2, 4)},
+    {"SOURCE_POS_WAIT", SQL_FN_V(Item_source_pos_wait, 2, 4)},
     {"MBRCONTAINS", SQL_FN(Item_func_mbrcontains, 2)},
     {"MBRCOVEREDBY", SQL_FN(Item_func_mbrcoveredby, 2)},
     {"MBRCOVERS", SQL_FN(Item_func_mbrcovers, 2)},

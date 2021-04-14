@@ -569,7 +569,7 @@ void Relay_log_info::fill_coord_err_buf(loglevel level, int err_code,
 
   SYNOPSIS
   @param[in]  thd             client thread that sent @c SELECT @c
-  MASTER_POS_WAIT,
+  SOURCE_POS_WAIT,
   @param[in]  log_name        log name to wait for,
   @param[in]  log_pos         position to wait for,
   @param[in]  timeout         @c timeout in seconds before giving up waiting.
@@ -599,7 +599,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
   DBUG_PRINT("enter", ("log_name: '%s'  log_pos: %lu  timeout: %lu",
                        log_name->c_ptr_safe(), (ulong)log_pos, (ulong)timeout));
 
-  DEBUG_SYNC(thd, "begin_master_pos_wait");
+  DEBUG_SYNC(thd, "begin_source_pos_wait");
 
   set_timespec_nsec(&abstime, static_cast<ulonglong>(timeout * 1000000000ULL));
   mysql_mutex_lock(&data_lock);
@@ -952,7 +952,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     If we had not done this fix here, the problem would also have appeared
     when the slave and master are 5.0 but with different event length (for
     example the slave is more recent than the master and features the event
-    UID). It would give false MASTER_POS_WAIT, false Exec_master_log_pos in
+    UID). It would give false SOURCE_POS_WAIT, false Exec_master_log_pos in
     SHOW SLAVE STATUS, and so the user would do some CHANGE MASTER using this
     value which would lead to badly broken replication.
     Even the relay_log_pos will be corrupted in this case, because the len is
@@ -974,7 +974,7 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
     In MTS mode FD or Rotate event commit their solitary group to
     Coordinator's info table. Callers make sure that Workers have been
     executed all assignements.
-    Broadcast to master_pos_wait() waiters should be done after
+    Broadcast to source_pos_wait() waiters should be done after
     the table is updated.
   */
   assert(!is_parallel_exec() ||

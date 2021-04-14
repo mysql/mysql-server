@@ -2329,21 +2329,21 @@ class Item_func_release_all_locks final : public Item_int_func {
 
 /* replication functions */
 
-class Item_master_pos_wait final : public Item_int_func {
+class Item_source_pos_wait final : public Item_int_func {
   typedef Item_int_func super;
   String value;
 
  public:
-  Item_master_pos_wait(const POS &pos, Item *a, Item *b)
+  Item_source_pos_wait(const POS &pos, Item *a, Item *b)
       : Item_int_func(pos, a, b) {}
-  Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c)
+  Item_source_pos_wait(const POS &pos, Item *a, Item *b, Item *c)
       : Item_int_func(pos, a, b, c) {}
-  Item_master_pos_wait(const POS &pos, Item *a, Item *b, Item *c, Item *d)
+  Item_source_pos_wait(const POS &pos, Item *a, Item *b, Item *c, Item *d)
       : Item_int_func(pos, a, b, c, d) {}
 
   bool itemize(Parse_context *pc, Item **res) override;
   longlong val_int() override;
-  const char *func_name() const override { return "master_pos_wait"; }
+  const char *func_name() const override { return "source_pos_wait"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1)) return true;
     if (param_type_is_default(thd, 1, 3, MYSQL_TYPE_LONGLONG)) return true;

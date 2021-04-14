@@ -483,7 +483,7 @@ create table t1 as select concat(uuid(), cast('a' as char character set latin1))
 show create table t1;
 drop table t1;
 
-create table t1 as select concat(master_pos_wait('non-existent',0,2)) as c1;
+create table t1 as select concat(source_pos_wait('non-existent',0,2)) as c1;
 show create table t1;
 drop table t1;
 

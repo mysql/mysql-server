@@ -1027,7 +1027,7 @@ static COMMANDS commands[] = {
     {"MAKE_SET", 0, nullptr, false, ""},
     {"MAKEDATE", 0, nullptr, false, ""},
     {"MAKETIME", 0, nullptr, false, ""},
-    {"MASTER_POS_WAIT", 0, nullptr, false, ""},
+    {"SOURCE_POS_WAIT", 0, nullptr, false, ""},
     {"MAX", 0, nullptr, false, ""},
     {"MBRCONTAINS", 0, nullptr, false, ""},
     {"MBRDISJOINT", 0, nullptr, false, ""},

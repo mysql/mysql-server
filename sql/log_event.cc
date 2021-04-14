@@ -6907,7 +6907,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli) {
     We do not want to update master_log pos because we get a rotate event
     before stop, so by now group_master_log_name is set to the next log.
     If we updated it, we will have incorrect master coordinates and this
-    could give false triggers in MASTER_POS_WAIT() that we have reached
+    could give false triggers in SOURCE_POS_WAIT() that we have reached
     the target position when in fact we have not.
     The group position is always unchanged in MTS mode because the event
     is never executed so can't be scheduled to a Worker.

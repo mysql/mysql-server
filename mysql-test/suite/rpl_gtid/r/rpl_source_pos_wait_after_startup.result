@@ -21,7 +21,7 @@ include/sync_slave_sql_with_master.inc
 include/rpl_restart_server.inc [server_number=1 gtids=on]
 #
 # Step 3: Wait on positions by setting ignore_gtids_on_sync= 1.
-#         The sync_slave_sql_with_master.inc will call MASTER_POS_WAIT()
+#         The sync_slave_sql_with_master.inc will call SOURCE_POS_WAIT()
 #         internally verifying the fix.
 #
 [connection master]

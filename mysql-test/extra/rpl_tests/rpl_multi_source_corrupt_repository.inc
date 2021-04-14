@@ -182,14 +182,14 @@ START SLAVE;
 SHOW RELAYLOG EVENTS;
 
 ###############################################################################
-# Step-3.4: MASTER_POS_WAIT function without 4th argument (channel name
+# Step-3.4: SOURCE_POS_WAIT function without 4th argument (channel name
 #           argument) when we have multiple channels, should throw error
 #           ER_SLAVE_MULTIPLE_CHANNELS_CMD.
 ###############################################################################
 
---echo ===== SELECT MASTER_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
+--echo ===== SELECT SOURCE_POS_WAIT(...) without 'FOR CHANNEL' argument should throw error.
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
-SELECT MASTER_POS_WAIT('server1-bin.000001', 120, 5);
+SELECT SOURCE_POS_WAIT('server1-bin.000001', 120, 5);
 
 ###############################################################################
 # Step-3.5: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS function without 3rd argument
@@ -234,7 +234,7 @@ while ($i <= $number_of_channels)
   }
 
   ##############################################################################
-  # Step-4.1: Check MASTER_POS_WAIT and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
+  # Step-4.1: Check SOURCE_POS_WAIT and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS
   #           functions. We need two iterations here.
   #           > j ==1 : Test with past position/gtid (already executed)
   #                     Return value for corrupted channel: NULL
@@ -245,7 +245,7 @@ while ($i <= $number_of_channels)
   ##############################################################################
 
   --echo ===== Executing few basic commands on channel $channel_name.
-  --echo ===== Executing MASTER_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
+  --echo ===== Executing SOURCE_POS_WAIT() and WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS().
   --let $j=1
   while ($j <=2)
   {
@@ -269,8 +269,8 @@ while ($i <= $number_of_channels)
 
     --let $rpl_connection_name= server_$rpl_number_of_servers
     --source include/rpl_connection.inc
-    --let $query_result= query_get_value("SELECT MASTER_POS_WAIT('server$i-bin.000001', $position, 1, $channel_name) AS VALUE", VALUE, 1)
-    --let $assert_text= MASTER_POS_WAIT should return $query_expected_result for channel $channel_name and position $masked_position.
+    --let $query_result= query_get_value("SELECT SOURCE_POS_WAIT('server$i-bin.000001', $position, 1, $channel_name) AS VALUE", VALUE, 1)
+    --let $assert_text= SOURCE_POS_WAIT should return $query_expected_result for channel $channel_name and position $masked_position.
     --let $assert_cond= "$query_result" = "$query_expected_result"
     --source include/assert.inc
 

@@ -35,7 +35,7 @@
 --source include/have_binlog_format_statement.inc
 --source include/master-slave.inc
 
-# Bug#23297190 :RPL_GTID_SERVER_SIGHUP AND RPL_MASTER_POS_WAIT_AFTER_STARTUP FAILS
+# Bug#23297190 :RPL_GTID_SERVER_SIGHUP AND RPL_SOURCE_POS_WAIT_AFTER_STARTUP FAILS
 # IN VALGRIND : Increased the time interval between the connection retries.
 --connection slave
 --source include/stop_slave.inc

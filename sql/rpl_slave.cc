@@ -7314,11 +7314,11 @@ extern "C" void *handle_slave_sql(void *arg) {
 
     THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
     mysql_mutex_lock(&rli->run_lock);
-    /* We need data_lock, at least to wake up any waiting master_pos_wait() */
+    /* We need data_lock, at least to wake up any waiting source_pos_wait() */
     mysql_mutex_lock(&rli->data_lock);
     applier_reader.close();
     assert(rli->slave_running == 1);  // tracking buffer overrun
-    /* When master_pos_wait() wakes up it will check this and terminate */
+    /* When source_pos_wait() wakes up it will check this and terminate */
     rli->slave_running = 0;
     rli->atomic_is_stopping = false;
     /* Forget the relay log's format */
@@ -7328,9 +7328,9 @@ extern "C" void *handle_slave_sql(void *arg) {
 #endif
       assert(set_rli_description_event_failed);
     }
-    /* Wake up master_pos_wait() */
+    /* Wake up source_pos_wait() */
     DBUG_PRINT("info",
-               ("Signaling possibly waiting master_pos_wait() functions"));
+               ("Signaling possibly waiting source_pos_wait() functions"));
     mysql_cond_broadcast(&rli->data_cond);
     mysql_mutex_unlock(&rli->data_lock);
     rli->ignore_log_space_limit = false; /* don't need any lock */
@@ -10339,7 +10339,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     if (!var_group_master_log_name[0])  // uninitialized case
       mi->rli->set_group_master_log_pos(0);
 
-    mi->rli->abort_pos_wait++; /* for MASTER_POS_WAIT() to abort */
+    mi->rli->abort_pos_wait++; /* for SOURCE_POS_WAIT() to abort */
 
     /* Clear the errors, for a clean start */
     mi->rli->clear_error();
