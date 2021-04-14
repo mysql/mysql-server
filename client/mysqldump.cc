@@ -240,7 +240,7 @@ static struct my_option my_long_options[] = {
     {"allow-keywords", OPT_KEYWORDS,
      "Allow creation of column names that are keywords.", &opt_keywords,
      &opt_keywords, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"apply-slave-statements", OPT_MYSQLDUMP_SLAVE_APPLY,
+    {"apply-replica-statements", OPT_MYSQLDUMP_SLAVE_APPLY,
      "Adds 'STOP SLAVE' prior to 'CHANGE MASTER' and 'START SLAVE' to bottom "
      "of dump.",
      &opt_slave_apply, &opt_slave_apply, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -311,9 +311,9 @@ static struct my_option my_long_options[] = {
     {"default-character-set", OPT_DEFAULT_CHARSET,
      "Set the default character set.", &default_charset, &default_charset,
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-    {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
+    {"delete-source-logs", OPT_DELETE_MASTER_LOGS,
      "Delete logs on master after backup. This automatically enables "
-     "--master-data.",
+     "--source-data.",
      &opt_delete_master_logs, &opt_delete_master_logs, nullptr, GET_BOOL,
      NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"disable-keys", 'K',
@@ -321,7 +321,7 @@ static struct my_option my_long_options[] = {
      "TABLE tb_name ENABLE KEYS */; will be put in the output.",
      &opt_disable_keys, &opt_disable_keys, nullptr, GET_BOOL, NO_ARG, 1, 0, 0,
      nullptr, 0, nullptr},
-    {"dump-slave", OPT_MYSQLDUMP_SLAVE_DATA,
+    {"dump-replica", OPT_MYSQLDUMP_SLAVE_DATA,
      "This causes the binary log position and filename of the master to be "
      "appended to the dumped data output. Setting the value to 1, will print"
      "it as a CHANGE MASTER command in the dumped data output; if equal"
@@ -361,11 +361,11 @@ static struct my_option my_long_options[] = {
      "Note that if you dump many databases at once (using the option "
      "--databases= or --all-databases), the logs will be flushed for "
      "each database dumped. The exception is when using --lock-all-tables "
-     "or --master-data: "
+     "or --source-data: "
      "in this case the logs will be flushed only once, corresponding "
      "to the moment all tables are locked. So if you want your dump and "
      "the log flush to happen at the same exact moment you should use "
-     "--lock-all-tables or --master-data with --flush-logs.",
+     "--lock-all-tables or --source-data with --flush-logs.",
      &flush_logs, &flush_logs, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
     {"flush-privileges", OPT_ESC,
@@ -399,9 +399,9 @@ static struct my_option my_long_options[] = {
      "--ignore-table=database.table.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"include-master-host-port", OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT,
+    {"include-source-host-port", OPT_MYSQLDUMP_INCLUDE_MASTER_HOST_PORT,
      "Adds 'MASTER_HOST=<host>, MASTER_PORT=<port>' to 'CHANGE MASTER TO..' "
-     "in dump produced with --dump-slave.",
+     "in dump produced with --dump-replica.",
      &opt_include_master_host_port, &opt_include_master_host_port, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"insert-ignore", OPT_INSERT_IGNORE, "Insert rows with INSERT IGNORE.",
@@ -423,7 +423,7 @@ static struct my_option my_long_options[] = {
      "Append warnings and errors to given file.", &log_error_file,
      &log_error_file, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"master-data", OPT_MASTER_DATA,
+    {"source-data", OPT_MASTER_DATA,
      "This causes the binary log position and filename to be appended to the "
      "output. If equal to 1, will print it as a CHANGE MASTER command; if equal"
      " to 2, that command will be prefixed with a comment symbol. "
@@ -5138,7 +5138,7 @@ static int purge_bin_logs_to(MYSQL *mysql_con, char *log_name) {
 static int start_transaction(MYSQL *mysql_con) {
   verbose_msg("-- Starting transaction...\n");
   /*
-    We use BEGIN for old servers. --single-transaction --master-data will fail
+    We use BEGIN for old servers. --single-transaction --source-data will fail
     on old servers, but that's ok as it was already silently broken (it didn't
     do a consistent read, so better tell people frankly, with the error).
 
@@ -5149,7 +5149,7 @@ static int start_transaction(MYSQL *mysql_con) {
   if ((mysql_get_server_version(mysql_con) < 40100) && opt_master_data) {
     fprintf(stderr,
             "-- %s: the combination of --single-transaction and "
-            "--master-data requires a MySQL server version of at least 4.1 "
+            "--source-data requires a MySQL server version of at least 4.1 "
             "(current server's version is %s). %s\n",
             opt_force ? "Warning" : "Error",
             mysql_con->server_version ? mysql_con->server_version : "unknown",
@@ -5888,7 +5888,7 @@ int main(int argc, char **argv) {
     }
   }
 
-  /* if --dump-slave , start the slave sql thread */
+  /* if --dump-replica , start the slave sql thread */
   if (opt_slave_data && do_start_slave_sql(mysql)) goto err;
 
   /*

@@ -25,7 +25,7 @@ SELECT MASTER_POS_WAIT('non-existent', 0);
 --error ER_SLAVE_CONFIGURATION
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 1, SOURCE_HEARTBEAT_PERIOD = 1.01;
 --error 2
---exec $MYSQL_DUMP --compact --master-data=2 test
+--exec $MYSQL_DUMP --compact --source-data=2 test
 FLUSH LOGS;
 FLUSH RELAY LOGS;
 
@@ -83,7 +83,7 @@ SHOW SLAVE HOSTS;
 RESET MASTER;
 SHOW BINLOG EVENTS;
 --error 2
---exec $MYSQL_DUMP --compact --master-data=2 test
+--exec $MYSQL_DUMP --compact --source-data=2 test
 FLUSH LOGS;
 FLUSH BINARY LOGS;
 
