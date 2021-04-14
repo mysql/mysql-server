@@ -14,7 +14,7 @@ CREATE TABLE t1 (a INT);
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -24,7 +24,7 @@ INSERT INTO t1 VALUES (1);
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -34,7 +34,7 @@ UPDATE t1 SET a=2;
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -44,7 +44,7 @@ DELETE FROM t1 WHERE a=2;
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -58,7 +58,7 @@ COMMIT;
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]
@@ -68,7 +68,7 @@ DROP TABLE t1;
 include/assert.inc [Assert that the REMAINING_DELAY from performance_schema is same as SQL_Remaining_Delay in the output of show slave status.]
 [connection master]
 include/sync_slave_sql_with_master.inc
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 include/assert.inc [The difference between the immediate_commit_timestamp should be at least the SQL_Delay]

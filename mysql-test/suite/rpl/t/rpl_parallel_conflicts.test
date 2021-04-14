@@ -116,7 +116,7 @@ if (`SELECT @@global.binlog_transaction_compression = FALSE`)
   # transaction events. Then it does not wait  and assigns 2nd
   # transaction to the worker handling d1 already.
   #
-  --let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE processlist_state LIKE 'Waiting for Slave Worker to release partition' AND name = 'thread/sql/slave_sql'
+  --let $wait_condition=SELECT COUNT(*) = 1 FROM performance_schema.threads WHERE processlist_state LIKE 'Waiting for Replica Worker to release partition' AND name = 'thread/sql/slave_sql'
   --source include/wait_condition.inc
 }
 

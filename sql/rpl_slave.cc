@@ -1832,10 +1832,10 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
 
     mysql_mutex_lock(log_lock);
 
-    DBUG_PRINT("info", ("Flushing relay log and master info repository."));
+    DBUG_PRINT("info", ("Flushing relay log and source info repository."));
     if (current_thd)
       THD_STAGE_INFO(current_thd,
-                     stage_flushing_relay_log_and_master_info_repository);
+                     stage_flushing_relay_log_and_source_info_repository);
 
     /*
       Flushes the master info regardles of the sync_source_info option.
@@ -2021,10 +2021,10 @@ bool start_slave_thread(PSI_thread_key thread_key, my_start_routine h_func,
   {
     THD *thd = current_thd;
     while (start_id == *slave_run_id && thd != nullptr) {
-      DBUG_PRINT("sleep", ("Waiting for slave thread to start"));
+      DBUG_PRINT("sleep", ("Waiting for replica thread to start"));
       PSI_stage_info saved_stage = {0, "", 0, ""};
       thd->ENTER_COND(start_cond, cond_lock,
-                      &stage_waiting_for_slave_thread_to_start, &saved_stage);
+                      &stage_waiting_for_replica_thread_to_start, &saved_stage);
       /*
         It is not sufficient to test this at loop bottom. We must test
         it after registering the mutex in enter_cond(). If the kill
@@ -4099,7 +4099,7 @@ int init_replica_thread(THD *thd, SLAVE_THD_TYPE thd_type) {
     thd->set_command(
         COM_QUERY);  // the SQL thread does not use the server protocol
   } else {
-    THD_STAGE_INFO(thd, stage_waiting_for_master_update);
+    THD_STAGE_INFO(thd, stage_waiting_for_source_update);
   }
   thd->set_time();
   /* Do not use user-supplied timeout value for system threads. */
@@ -5412,7 +5412,7 @@ extern "C" void *handle_slave_io(void *arg) {
     }
     mysql_extension_set_server_extn(mysql, &mi->server_extn);
 
-    THD_STAGE_INFO(thd, stage_connecting_to_master);
+    THD_STAGE_INFO(thd, stage_connecting_to_source);
 
     if (!safe_connect(thd, mysql, mi)) {
       LogErr(SYSTEM_LEVEL, ER_RPL_SLAVE_CONNECTED_TO_MASTER_REPLICATION_STARTED,
@@ -5459,7 +5459,7 @@ extern "C" void *handle_slave_io(void *arg) {
     mi->slave_running = MYSQL_SLAVE_RUN_CONNECT;
     mysql_mutex_unlock(&mi->run_lock);
 
-    THD_STAGE_INFO(thd, stage_checking_master_version);
+    THD_STAGE_INFO(thd, stage_checking_source_version);
     ret = get_master_version_and_clock(mysql, mi);
     if (!ret) ret = get_master_uuid(mysql, mi);
     if (!ret) ret = io_thread_init_commands(mysql, mi);
@@ -5489,7 +5489,7 @@ extern "C" void *handle_slave_io(void *arg) {
     /*
       Register ourselves with the master.
     */
-    THD_STAGE_INFO(thd, stage_registering_slave_on_master);
+    THD_STAGE_INFO(thd, stage_registering_replica_on_source);
     if (register_slave_on_master(mysql, mi, &suppress_warnings)) {
       if (!check_io_slave_killed(thd, mi,
                                  "Slave I/O thread killed "
@@ -5553,7 +5553,7 @@ extern "C" void *handle_slave_io(void *arg) {
            important thing is to not confuse users by saying "reading" whereas
            we're in fact receiving nothing.
         */
-        THD_STAGE_INFO(thd, stage_waiting_for_master_to_send_event);
+        THD_STAGE_INFO(thd, stage_waiting_for_source_to_send_event);
         event_len = read_event(mysql, &rpl, mi, &suppress_warnings);
         if (check_io_slave_killed(thd, mi,
                                   "Slave I/O thread killed while "
@@ -5602,7 +5602,7 @@ extern "C" void *handle_slave_io(void *arg) {
         }  // if (event_len == packet_error)
 
         retry_count = 0;  // ok event, reset retry counter
-        THD_STAGE_INFO(thd, stage_queueing_master_event_to_the_relay_log);
+        THD_STAGE_INFO(thd, stage_queueing_source_event_to_the_relay_log);
         event_buf = (const char *)mysql->net.read_pos + 1;
         DBUG_PRINT("info", ("IO thread received event of type %s",
                             Log_event::get_type_str(
@@ -5829,7 +5829,7 @@ extern "C" void *handle_slave_io(void *arg) {
       mi->mysql = nullptr;
     }
     write_ignored_events_info_to_relay_log(thd, mi);
-    THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
+    THD_STAGE_INFO(thd, stage_waiting_for_replica_mutex_on_exit);
     mysql_mutex_lock(&mi->run_lock);
     /*
       Clean information used to start slave in order to avoid
@@ -6769,7 +6769,7 @@ static void slave_stop_workers(Relay_log_info *rli, bool *mts_inited) {
              w->running_status == Slave_worker::STOP_ACCEPTED);
 
       thd->ENTER_COND(&w->jobs_cond, &w->jobs_lock,
-                      &stage_slave_waiting_workers_to_exit, &old_stage);
+                      &stage_replica_waiting_workers_to_exit, &old_stage);
       mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
       mysql_mutex_unlock(&w->jobs_lock);
       thd->EXIT_COND(&old_stage);
@@ -7312,7 +7312,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       rpl_slave_debug_point(DBUG_RPL_S_AFTER_SQL_STOP, thd);
     };);
 
-    THD_STAGE_INFO(thd, stage_waiting_for_slave_mutex_on_exit);
+    THD_STAGE_INFO(thd, stage_waiting_for_replica_mutex_on_exit);
     mysql_mutex_lock(&rli->run_lock);
     /* We need data_lock, at least to wake up any waiting source_pos_wait() */
     mysql_mutex_lock(&rli->data_lock);
@@ -9013,7 +9013,7 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
 
   mi->channel_wrlock();
 
-  THD_STAGE_INFO(thd, stage_killing_slave);
+  THD_STAGE_INFO(thd, stage_killing_replica);
   int thread_mask;
   lock_slave_threads(mi);
 
@@ -10084,7 +10084,7 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     goto err;
   }
 
-  THD_STAGE_INFO(thd, stage_changing_master);
+  THD_STAGE_INFO(thd, stage_changing_source);
 
   int thread_mask_stopped_threads;
 

@@ -11336,13 +11336,13 @@ PSI_stage_info stage_after_create= { 0, "After create", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_alter_inplace_prepare= { 0, "preparing for alter table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_alter_inplace= { 0, "altering table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_alter_inplace_commit= { 0, "committing alter table to storage engine", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_changing_master= { 0, "Changing master", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_checking_master_version= { 0, "Checking master version", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_changing_source= { 0, "Changing replication source", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_checking_source_version= { 0, "Checking source version", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_checking_permissions= { 0, "checking permissions", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_cleaning_up= { 0, "cleaning up", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_closing_tables= { 0, "closing tables", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_connecting_to_master= { 0, "Connecting to master", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_connecting_to_source= { 0, "Connecting to source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_converting_heap_to_ondisk= { 0, "converting HEAP to ondisk", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_copy_to_tmp_table= { 0, "copy to tmp table", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 PSI_stage_info stage_creating_table= { 0, "creating table", 0, PSI_DOCUMENT_ME};
@@ -11355,43 +11355,43 @@ PSI_stage_info stage_executing= { 0, "executing", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_execution_of_init_command= { 0, "Execution of init_command", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_explaining= { 0, "explaining", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_finished_reading_one_binlog_switching_to_next_binlog= { 0, "Finished reading one binlog; switching to next binlog", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_flushing_relay_log_and_master_info_repository= { 0, "Flushing relay log and master info repository.", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_flushing_relay_log_and_source_info_repository= { 0, "Flushing relay log and source info repository.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_flushing_relay_log_info_file= { 0, "Flushing relay-log info file.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_freeing_items= { 0, "freeing items", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_fulltext_initialization= { 0, "FULLTEXT initialization", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_init= { 0, "init", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_killing_slave= { 0, "Killing slave", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_killing_replica= { 0, "Killing replica", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_logging_slow_query= { 0, "logging slow query", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_making_temp_file_append_before_load_data= { 0, "Making temporary file (append) before replaying LOAD DATA INFILE", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_manage_keys= { 0, "manage keys", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_master_has_sent_all_binlog_to_slave= { 0, "Master has sent all binlog to slave; waiting for more updates", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_source_has_sent_all_binlog_to_replica= { 0, "Source has sent all binlog to replica; waiting for more updates", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_opening_tables= { 0, "Opening tables", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_optimizing= { 0, "optimizing", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_preparing= { 0, "preparing", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_purging_old_relay_logs= { 0, "Purging old relay logs", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_query_end= { 0, "query end", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_queueing_master_event_to_the_relay_log= { 0, "Queueing master event to the relay log", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_queueing_source_event_to_the_relay_log= { 0, "Queueing source event to the relay log", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_reading_event_from_the_relay_log= { 0, "Reading event from the relay log", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_registering_slave_on_master= { 0, "Registering slave on master", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_registering_replica_on_source= { 0, "Registering replica on source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_removing_tmp_table= { 0, "removing tmp table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rename= { 0, "rename", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rename_result_table= { 0, "rename result table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_requesting_binlog_dump= { 0, "Requesting binlog dump", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_searching_rows_for_update= { 0, "Searching rows for update", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_sending_binlog_event_to_slave= { 0, "Sending binlog event to slave", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_sending_binlog_event_to_replica= { 0, "Sending binlog event to replica", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_setup= { 0, "setup", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_slave_has_read_all_relay_log= { 0, "Slave has read all relay log; waiting for more updates", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_slave_waiting_for_workers_to_process_queue= { 0, "Waiting for slave workers to process their queues", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slave Workers to free pending events", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_slave_waiting_worker_to_release_partition= { 0, "Waiting for Slave Worker to release partition", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_slave_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_has_read_all_relay_log= { 0, "Replica has read all relay log; waiting for more updates", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_for_workers_to_process_queue= { 0, "Waiting for replica workers to process their queues", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_worker_queue= { 0, "Waiting for Replica Worker queue", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_worker_to_free_events= { 0, "Waiting for Replica Workers to free pending events", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_worker_to_release_partition= { 0, "Waiting for Replica Worker to release partition", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_workers_to_exit= { 0, "Waiting for workers to exit", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rpl_apply_row_evt_write= { 0, "Applying batch of row changes (write)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rpl_apply_row_evt_update= { 0, "Applying batch of row changes (update)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 PSI_stage_info stage_rpl_apply_row_evt_delete= { 0, "Applying batch of row changes (delete)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 PSI_stage_info stage_statistics= { 0, "statistics", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_sql_thd_waiting_until_delay= { 0, "Waiting until MASTER_DELAY seconds after master executed event", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_sql_thd_waiting_until_delay= { 0, "Waiting until SOURCE_DELAY seconds after source executed event", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_system_lock= { 0, "System lock", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_update= { 0, "update", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_updating= { 0, "updating", 0, PSI_DOCUMENT_ME};
@@ -11401,14 +11401,14 @@ PSI_stage_info stage_user_sleep= { 0, "User sleep", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_gtid_to_be_committed= { 0, "Waiting for GTID to be committed", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_handler_commit= { 0, "waiting for handler commit", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_waiting_for_master_to_send_event= { 0, "Waiting for master to send event", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_waiting_for_master_update= { 0, "Waiting for master update", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_waiting_for_relay_log_space= { 0, "Waiting for the slave SQL thread to free enough relay log space", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_waiting_for_slave_mutex_on_exit= { 0, "Waiting for slave mutex on exit", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_waiting_for_slave_thread_to_start= { 0, "Waiting for slave thread to start", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_source_to_send_event= { 0, "Waiting for source to send event", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_source_update= { 0, "Waiting for source update", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_relay_log_space= { 0, "Waiting for the replica SQL thread to free relay log space", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_replica_mutex_on_exit= { 0, "Waiting for replica mutex on exit", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_replica_thread_to_start= { 0, "Waiting for replica thread to start", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_table_flush= { 0, "Waiting for table flush", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_for_the_next_event_in_relay_log= { 0, "Waiting for the next event in relay log", 0, PSI_DOCUMENT_ME};
-PSI_stage_info stage_waiting_for_the_slave_thread_to_advance_position= { 0, "Waiting for the slave SQL thread to advance position", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_the_replica_thread_to_advance_position= { 0, "Waiting for the replica SQL thread to advance position", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_waiting_to_finalize_termination= { 0, "Waiting to finalize termination", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for preceding transaction to commit", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_worker_waiting_for_commit_parent= { 0, "Waiting for dependent transaction to commit", 0, PSI_DOCUMENT_ME};
@@ -11432,13 +11432,13 @@ PSI_stage_info *all_server_stages[] = {
     &stage_alter_inplace_prepare,
     &stage_alter_inplace,
     &stage_alter_inplace_commit,
-    &stage_changing_master,
-    &stage_checking_master_version,
+    &stage_changing_source,
+    &stage_checking_source_version,
     &stage_checking_permissions,
     &stage_cleaning_up,
     &stage_closing_tables,
     &stage_compressing_gtid_table,
-    &stage_connecting_to_master,
+    &stage_connecting_to_source,
     &stage_converting_heap_to_ondisk,
     &stage_copy_to_tmp_table,
     &stage_creating_table,
@@ -11451,38 +11451,38 @@ PSI_stage_info *all_server_stages[] = {
     &stage_execution_of_init_command,
     &stage_explaining,
     &stage_finished_reading_one_binlog_switching_to_next_binlog,
-    &stage_flushing_relay_log_and_master_info_repository,
+    &stage_flushing_relay_log_and_source_info_repository,
     &stage_flushing_relay_log_info_file,
     &stage_freeing_items,
     &stage_fulltext_initialization,
     &stage_init,
-    &stage_killing_slave,
+    &stage_killing_replica,
     &stage_logging_slow_query,
     &stage_making_temp_file_append_before_load_data,
     &stage_manage_keys,
-    &stage_master_has_sent_all_binlog_to_slave,
+    &stage_source_has_sent_all_binlog_to_replica,
     &stage_opening_tables,
     &stage_optimizing,
     &stage_preparing,
     &stage_purging_old_relay_logs,
     &stage_query_end,
-    &stage_queueing_master_event_to_the_relay_log,
+    &stage_queueing_source_event_to_the_relay_log,
     &stage_reading_event_from_the_relay_log,
-    &stage_registering_slave_on_master,
+    &stage_registering_replica_on_source,
     &stage_removing_tmp_table,
     &stage_rename,
     &stage_rename_result_table,
     &stage_requesting_binlog_dump,
     &stage_searching_rows_for_update,
-    &stage_sending_binlog_event_to_slave,
+    &stage_sending_binlog_event_to_replica,
     &stage_setup,
-    &stage_slave_has_read_all_relay_log,
-    &stage_slave_waiting_event_from_coordinator,
-    &stage_slave_waiting_for_workers_to_process_queue,
-    &stage_slave_waiting_worker_queue,
-    &stage_slave_waiting_worker_to_free_events,
-    &stage_slave_waiting_worker_to_release_partition,
-    &stage_slave_waiting_workers_to_exit,
+    &stage_replica_has_read_all_relay_log,
+    &stage_replica_waiting_event_from_coordinator,
+    &stage_replica_waiting_for_workers_to_process_queue,
+    &stage_replica_waiting_worker_queue,
+    &stage_replica_waiting_worker_to_free_events,
+    &stage_replica_waiting_worker_to_release_partition,
+    &stage_replica_waiting_workers_to_exit,
     &stage_rpl_apply_row_evt_write,
     &stage_rpl_apply_row_evt_update,
     &stage_rpl_apply_row_evt_delete,
@@ -11497,14 +11497,14 @@ PSI_stage_info *all_server_stages[] = {
     &stage_verifying_table,
     &stage_waiting_for_gtid_to_be_committed,
     &stage_waiting_for_handler_commit,
-    &stage_waiting_for_master_to_send_event,
-    &stage_waiting_for_master_update,
+    &stage_waiting_for_source_to_send_event,
+    &stage_waiting_for_source_update,
     &stage_waiting_for_relay_log_space,
-    &stage_waiting_for_slave_mutex_on_exit,
-    &stage_waiting_for_slave_thread_to_start,
+    &stage_waiting_for_replica_mutex_on_exit,
+    &stage_waiting_for_replica_thread_to_start,
     &stage_waiting_for_table_flush,
     &stage_waiting_for_the_next_event_in_relay_log,
-    &stage_waiting_for_the_slave_thread_to_advance_position,
+    &stage_waiting_for_the_replica_thread_to_advance_position,
     &stage_waiting_to_finalize_termination,
     &stage_worker_waiting_for_its_turn_to_commit,
     &stage_worker_waiting_for_commit_parent,

@@ -18,7 +18,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 INSERT INTO t1 VALUES (1);
 [connection slave]
@@ -28,7 +28,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 UPDATE t1 SET a=2;
 [connection slave]
@@ -38,7 +38,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 DELETE FROM t1 WHERE a=2;
 [connection slave]
@@ -48,7 +48,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 START TRANSACTION;
 INSERT INTO t1 VALUES (1);
@@ -62,7 +62,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 DROP TABLE t1;
 [connection slave]
@@ -72,7 +72,7 @@ include/sync_slave_sql_with_master.inc
 [connection master]
 [connection slave]
 include/assert.inc [In the old infrastructure, the execution time of the transaction in the slave must be at least the delay]
-include/assert.inc [Status should not be 'Waiting until MASTER_DELAY seconds after master executed event']
+include/assert.inc [Status should not be 'Waiting until SOURCE_DELAY seconds after source executed event']
 [connection master]
 [connection slave]
 # Removing debug point 'sql_delay_without_timestamps' from @@GLOBAL.debug

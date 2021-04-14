@@ -124,13 +124,13 @@ include/rpl_sync.inc
 # Test Case: PS threads table includes ACK thread's status correctly.
 #####################################################################
 #
-# Status: Waiting for semi-sync ACK from slave
+# Status: Waiting for semi-sync ACK from replica
 #
 [connection server_1]
 SELECT name, type, processlist_state FROM performance_schema.threads
 WHERE name LIKE "%Ack_receiver";
 name	type	processlist_state
-thread/semisync/Ack_receiver	BACKGROUND	Waiting for semi-sync ACK from slave
+thread/semisync/Ack_receiver	BACKGROUND	Waiting for semi-sync ACK from replica
 #
 # Coverage Test:
 # It should print an error to log if select() function returns -1
@@ -152,7 +152,7 @@ INSERT INTO t1 VALUES(1);
 SELECT name, type, processlist_state FROM performance_schema.threads
 WHERE name LIKE "%Ack_receiver";
 name	type	processlist_state
-thread/semisync/Ack_receiver	BACKGROUND	Waiting for semi-sync slave connection
+thread/semisync/Ack_receiver	BACKGROUND	Waiting for semi-sync replica connection
 #
 # Ack thread is stopped, it should be not in PS.threads table.
 #

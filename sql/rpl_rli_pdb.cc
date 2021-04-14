@@ -1042,7 +1042,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       do {
         thd->ENTER_COND(
             &rli->slave_worker_hash_cond, &rli->slave_worker_hash_lock,
-            &stage_slave_waiting_worker_to_release_partition, &old_stage);
+            &stage_replica_waiting_worker_to_release_partition, &old_stage);
         mysql_cond_wait(&rli->slave_worker_hash_cond,
                         &rli->slave_worker_hash_lock);
       } while (entry->usage != 0 && !thd->killed);
@@ -2180,7 +2180,7 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
     rli->mts_wq_oversize = true;
     rli->wq_size_waits_cnt++;  // waiting due to the total size
     thd->ENTER_COND(&rli->pending_jobs_cond, &rli->pending_jobs_lock,
-                    &stage_slave_waiting_worker_to_free_events, &old_stage);
+                    &stage_replica_waiting_worker_to_free_events, &old_stage);
     mysql_cond_wait(&rli->pending_jobs_cond, &rli->pending_jobs_lock);
     mysql_mutex_unlock(&rli->pending_jobs_lock);
     thd->EXIT_COND(&old_stage);
@@ -2233,7 +2233,7 @@ bool append_item_to_jobs(slave_job_item *job_item, Slave_worker *worker,
   while (worker->running_status == Slave_worker::RUNNING && !thd->killed &&
          (ret = en_queue(&worker->jobs, job_item)) == -1) {
     thd->ENTER_COND(&worker->jobs_cond, &worker->jobs_lock,
-                    &stage_slave_waiting_worker_queue, &old_stage);
+                    &stage_replica_waiting_worker_queue, &old_stage);
     worker->jobs.overfill = true;
     worker->jobs.waited_overfill++;
     rli->mts_wq_overfill_cnt++;
@@ -2377,7 +2377,8 @@ static struct slave_job_item *pop_jobs_item(Slave_worker *worker,
     if (job_item->data == nullptr) {
       worker->wq_empty_waits++;
       thd->ENTER_COND(&worker->jobs_cond, &worker->jobs_lock,
-                      &stage_slave_waiting_event_from_coordinator, &old_stage);
+                      &stage_replica_waiting_event_from_coordinator,
+                      &old_stage);
       mysql_cond_wait(&worker->jobs_cond, &worker->jobs_lock);
       mysql_mutex_unlock(&worker->jobs_lock);
       thd->EXIT_COND(&old_stage);

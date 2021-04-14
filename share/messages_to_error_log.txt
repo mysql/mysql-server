@@ -3540,7 +3540,7 @@ ER_SEMISYNC_TRX_SKIPPED_AT_POS
   eng "%s: Transaction skipped at (%s, %lu)."
 
 ER_SEMISYNC_MASTER_FAILED_ON_NET_FLUSH
-  eng "Semi-sync master failed on net_flush() before waiting for slave reply."
+  eng "Semi-sync master failed on net_flush() before waiting for replica reply."
 
 ER_SEMISYNC_RECEIVED_ACK_IS_SMALLER
   eng "The received ack is smaller than m_greatest_ack."

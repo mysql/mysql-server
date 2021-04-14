@@ -321,11 +321,11 @@ while ($i <= $number_of_channels)
   --let $slave_timeout= 60
 
   --let $slave_param= Slave_IO_State
-  --let $slave_param_value= Waiting for master to send event
+  --let $slave_param_value= Waiting for source to send event
   --source include/wait_for_slave_param.inc
 
   --let $slave_param= Slave_SQL_Running_State
-  --let $slave_param_value= Slave has read all relay log; waiting for more updates
+  --let $slave_param_value= Replica has read all relay log; waiting for more updates
   --source include/wait_for_slave_param.inc
 
   --let $status_items=Last_IO_Errno,Last_IO_Error,Last_SQL_Errno,Last_SQL_Error,Channel_Name

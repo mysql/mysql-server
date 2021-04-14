@@ -64,10 +64,10 @@ INSERT INTO t1 VALUES (0);
 
 --source include/rpl_connection_slave.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name='thread/sql/slave_io' AND processlist_state= 'Waiting for the slave SQL thread to free enough relay log space'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name='thread/sql/slave_io' AND processlist_state= 'Waiting for the replica SQL thread to free relay log space'
 --source include/wait_condition.inc
 
---let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name='thread/sql/slave_sql' AND processlist_state= 'Slave has read all relay log; waiting for more updates'
+--let $wait_condition=SELECT COUNT(*)=1 FROM performance_schema.threads WHERE name='thread/sql/slave_sql' AND processlist_state= 'Replica has read all relay log; waiting for more updates'
 --source include/wait_condition.inc
 
 # The MTS checkpoint sleep on the SQL thread wait for new events

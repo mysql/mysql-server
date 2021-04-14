@@ -23,7 +23,7 @@ connection slave;
 
 create view coord_wait_list as
        SELECT id from Information_Schema.processlist
-              where state like 'Waiting for Slave Worker%';
+              where state like 'Waiting for Replica Worker%';
 
 # restart in Parallel
 

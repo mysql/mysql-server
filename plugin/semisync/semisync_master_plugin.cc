@@ -452,22 +452,22 @@ static PSI_thread_info all_semisync_threads[] = {
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_INTERFACE */
 
-PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave = {
-    0, "Waiting for semi-sync ACK from slave", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_semi_sync_ack_from_replica = {
+    0, "Waiting for semi-sync ACK from replica", 0, PSI_DOCUMENT_ME};
 
-PSI_stage_info stage_waiting_for_semi_sync_slave = {
-    0, "Waiting for semi-sync slave connection", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_waiting_for_semi_sync_replica = {
+    0, "Waiting for semi-sync replica connection", 0, PSI_DOCUMENT_ME};
 
 PSI_stage_info stage_reading_semi_sync_ack = {
-    0, "Reading semi-sync ACK from slave", 0, PSI_DOCUMENT_ME};
+    0, "Reading semi-sync ACK from replica", 0, PSI_DOCUMENT_ME};
 
 /* Always defined. */
 PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
 
 #ifdef HAVE_PSI_INTERFACE
 PSI_stage_info *all_semisync_stages[] = {
-    &stage_waiting_for_semi_sync_ack_from_slave,
-    &stage_waiting_for_semi_sync_slave, &stage_reading_semi_sync_ack};
+    &stage_waiting_for_semi_sync_ack_from_replica,
+    &stage_waiting_for_semi_sync_replica, &stage_reading_semi_sync_ack};
 
 PSI_memory_info all_semisync_memory[] = {
     {&key_ss_memory_TranxNodeAllocator_block, "TranxNodeAllocator::block", 0, 0,

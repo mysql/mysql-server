@@ -77,7 +77,7 @@ while ($i)
 # Wait for coordinator to populate worker's queues.
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
---let $condition= = 'Slave has read all relay log; waiting for more updates'
+--let $condition= = 'Replica has read all relay log; waiting for more updates'
 --source include/wait_show_condition.inc
 
 

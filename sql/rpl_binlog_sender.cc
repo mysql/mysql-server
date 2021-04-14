@@ -408,7 +408,7 @@ void Binlog_sender::run() {
       break;
     }
 
-    THD_STAGE_INFO(m_thd, stage_sending_binlog_event_to_slave);
+    THD_STAGE_INFO(m_thd, stage_sending_binlog_event_to_replica);
     if (send_binlog(&reader, start_pos)) break;
 
     /* Will go to next file, need to copy log file name */
@@ -772,7 +772,7 @@ int Binlog_sender::wait_new_events(my_off_t log_pos) {
 
   m_thd->ENTER_COND(mysql_bin_log.get_log_cond(),
                     mysql_bin_log.get_binlog_end_pos_lock(),
-                    &stage_master_has_sent_all_binlog_to_slave, &old_stage);
+                    &stage_source_has_sent_all_binlog_to_replica, &old_stage);
 
   if (m_heartbeat_period.count() > 0)
     ret = wait_with_heartbeat(log_pos);

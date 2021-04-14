@@ -25,7 +25,7 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 
 create view worker_proc_list as SELECT id  from Information_Schema.processlist
        where state like 'Waiting for an event from Coordinator';
-create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Slave has read all relay log%';
+create view coord_proc_list  as SELECT id from Information_Schema.processlist where state like 'Replica has read all relay log%';
 
 source include/stop_slave.inc;
 

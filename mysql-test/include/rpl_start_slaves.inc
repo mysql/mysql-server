@@ -18,7 +18,7 @@
 #     See include/rpl_init.inc
 #
 #   $slave_timeout
-#     Set the timeout when waiting for slave threads to stop and
+#     Set the timeout when waiting for replica threads to stop and
 #     start, respectively.  See include/wait_for_slave_param.inc
 
 

@@ -18,7 +18,7 @@
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc
 # Suppress warning:
-# "Semi-sync master failed on net_flush() before waiting for slave reply"
+# "Semi-sync master failed on net_flush() before waiting for replica reply"
 CALL mtr.add_suppression("Semi-sync master failed on net_flush().*");
 
 --echo ####################################################################
@@ -115,11 +115,11 @@ SET GLOBAL rpl_semi_sync_master_enabled= ON;
 --echo #####################################################################
 
 --echo #
---echo # Status: Waiting for semi-sync ACK from slave
+--echo # Status: Waiting for semi-sync ACK from replica
 --echo #
 
 # It may still in ack reading state, but it should change to ack waiting state.
---let $wait_condition= SELECT count(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = 'Waiting for semi-sync ACK from slave'
+--let $wait_condition= SELECT count(*) = 1 FROM performance_schema.threads WHERE PROCESSLIST_STATE = 'Waiting for semi-sync ACK from replica'
 --source include/wait_condition.inc
 
 --let $rpl_connection_name= server_1

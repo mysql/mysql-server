@@ -209,7 +209,7 @@ Log_event *Rpl_applier_reader::read_next_event() {
       /* Lock LOCK_binlog_end_pos before wait */
       Stage_controller stage_controller(
           m_rli->info_thd, m_rli->relay_log.get_binlog_end_pos_lock(),
-          m_rli->relay_log.get_log_cond(), stage_slave_has_read_all_relay_log,
+          m_rli->relay_log.get_log_cond(), stage_replica_has_read_all_relay_log,
           Stage_controller::LOCKED);
 
       /* Check it again to avoid missing update signals from receiver thread */

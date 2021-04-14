@@ -146,7 +146,7 @@ int Mts_submode_database::wait_for_workers_to_finish(Relay_log_info *rli,
       entry->worker = nullptr;  // mark Worker to signal when  usage drops to 0
       thd->ENTER_COND(
           &rli->slave_worker_hash_cond, &rli->slave_worker_hash_lock,
-          &stage_slave_waiting_worker_to_release_partition, &old_stage);
+          &stage_replica_waiting_worker_to_release_partition, &old_stage);
       do {
         mysql_cond_wait(&rli->slave_worker_hash_cond,
                         &rli->slave_worker_hash_lock);
@@ -940,7 +940,7 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
 
       set_timespec_nsec(&ts[0], 0);
       // Update thd info as waiting for workers to finish.
-      thd->enter_stage(&stage_slave_waiting_for_workers_to_process_queue,
+      thd->enter_stage(&stage_replica_waiting_for_workers_to_process_queue,
                        old_stage, __func__, __FILE__, __LINE__);
       while (!worker && !thd->killed) {
         /*
@@ -1022,8 +1022,8 @@ int Mts_submode_logical_clock::wait_for_workers_to_finish(
   DBUG_TRACE;
   DBUG_PRINT("info", ("delegated %d, jobs_done %d", delegated_jobs, jobs_done));
   // Update thd info as waiting for workers to finish.
-  thd->enter_stage(&stage_slave_waiting_for_workers_to_process_queue, old_stage,
-                   __func__, __FILE__, __LINE__);
+  thd->enter_stage(&stage_replica_waiting_for_workers_to_process_queue,
+                   old_stage, __func__, __FILE__, __LINE__);
   while (delegated_jobs > jobs_done && !thd->killed && !is_error) {
     // Todo: consider to replace with a. GAQ::get_lwm_timestamp() or
     // b. (better) pthread wait+signal similarly to DB type.

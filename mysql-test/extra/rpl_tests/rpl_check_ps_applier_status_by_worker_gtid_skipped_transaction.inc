@@ -17,7 +17,7 @@ DROP TABLE t;
 --source include/sync_slave_sql_with_master.inc
 
 --let $slave_param= Slave_SQL_Running_State
---let $slave_param_value= Slave has read all relay log; waiting for more updates
+--let $slave_param_value= Replica has read all relay log; waiting for more updates
 --source include/wait_for_slave_param.inc
 
 --let $last_processed_gtid_before= query_get_value(select LAST_PROCESSED_TRANSACTION from performance_schema.replication_applier_status_by_coordinator, LAST_PROCESSED_TRANSACTION, 1)

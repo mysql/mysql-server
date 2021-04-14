@@ -59,7 +59,7 @@ CREATE TABLE  t1 (a INT, b blob, PRIMARY KEY(b(512)));
 let $slave_param= Last_SQL_Errno;
 let $slave_param_comparison= =; 
 let $slave_param_value= 0;
-let $slave_error_message= Failed while waiting for slave to clear the SQL error after starting;
+let $slave_error_message= Failed while waiting for replica to clear the SQL error after starting;
 source include/wait_for_slave_param.inc;
 
 
@@ -106,7 +106,7 @@ START SLAVE;
 let $slave_param= Last_IO_Errno;
 let $slave_param_comparison= =; 
 let $slave_param_value= 0;
-let $slave_error_message= Failed while waiting for slave to clear the IO error after starting;
+let $slave_error_message= Failed while waiting for replica to clear the IO error after starting;
 source include/wait_for_slave_param.inc;
 
 --source include/rpl_end.inc

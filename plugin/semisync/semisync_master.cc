@@ -657,7 +657,7 @@ int ReplSemiSyncMaster::commitTrx(const char *trx_wait_binlog_name,
   }
   /* This must be called after acquired the lock */
   THD_ENTER_COND(nullptr, thd_cond, &LOCK_binlog_,
-                 &stage_waiting_for_semi_sync_ack_from_slave, &old_stage);
+                 &stage_waiting_for_semi_sync_ack_from_replica, &old_stage);
 
   if (getMasterEnabled() && trx_wait_binlog_name) {
     struct timespec start_ts;
