@@ -156,13 +156,18 @@ struct MEM_ROOT {
   }
 
   /**
-    Allocate “num” objects of type T, and default-construct them.
+    Allocate “num” objects of type T, and initialize them to a default value
+    that is created by passing the supplied args to T's constructor. If args
+    is empty, value-initialization is used. For primitive types, like int and
+    pointers, this means the elements will be set to the equivalent of 0
+    (or false or nullptr).
+
     If the constructor throws an exception, behavior is undefined.
 
     We don't use new[], as it can put extra data in front of the array.
    */
   template <class T, class... Args>
-  T *ArrayAlloc(size_t num, Args &&... args) {
+  T *ArrayAlloc(size_t num, Args... args) {
     static_assert(alignof(T) <= 8, "MEM_ROOT only returns 8-aligned memory.");
     if (num * sizeof(T) < num) {
       // Overflow.
@@ -174,11 +179,9 @@ struct MEM_ROOT {
       return nullptr;
     }
 
-    // Construct all elements. For primitive types like int
-    // and no arguments (ie., default construction),
-    // the entire loop will be optimized away.
+    // Initialize all elements.
     for (size_t i = 0; i < num; ++i) {
-      new (&ret[i]) T(std::forward<Args>(args)...);
+      new (&ret[i]) T(args...);
     }
 
     return ret;

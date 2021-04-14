@@ -24,6 +24,8 @@
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <sys/types.h>
+#include <memory>
+#include <string>
 
 #include "my_alloc.h"
 #include "my_inttypes.h"
@@ -196,6 +198,51 @@ TEST_F(MyAllocTest, RawInterface) {
 
   // The value should still be there.
   EXPECT_STREQ("12345", store_ptr);
+}
+
+TEST_F(MyAllocTest, ArrayAllocInitialization) {
+  MEM_ROOT alloc(PSI_NOT_INSTRUMENTED, 512);
+
+  // No default value means each element is value-initialized. For int, it means
+  // they are set to 0.
+  int *int_array1 = alloc.ArrayAlloc<int>(100);
+  ASSERT_NE(nullptr, int_array1);
+  for (int i = 0; i < 100; ++i) {
+    EXPECT_EQ(0, int_array1[i]);
+  }
+
+  // Initialize to explicit value.
+  int *int_array2 = alloc.ArrayAlloc<int>(100, 123);
+  ASSERT_NE(nullptr, int_array2);
+  for (int i = 0; i < 100; ++i) {
+    EXPECT_EQ(123, int_array2[i]);
+  }
+
+  // Initialize from rvalue. (Verifies that a bug, which made it only initialize
+  // the first element correctly, is fixed.)
+  std::string *string_array1 = alloc.ArrayAlloc<std::string>(
+      10, std::string("abcdefghijklmnopqrstuvwxyz"));
+  ASSERT_NE(nullptr, string_array1);
+  for (int i = 0; i < 10; ++i) {
+    EXPECT_EQ("abcdefghijklmnopqrstuvwxyz", string_array1[i]);
+  }
+  destroy_array(string_array1, 10);
+
+  // Should be allowed to create an array of a class which is not
+  // copy-constructible.
+  auto uptr_array1 = alloc.ArrayAlloc<std::unique_ptr<int>>(10);
+  ASSERT_NE(nullptr, uptr_array1);
+  auto uptr_array2 = alloc.ArrayAlloc<std::unique_ptr<int>>(10, nullptr);
+  ASSERT_NE(nullptr, uptr_array2);
+  for (int i = 0; i < 10; ++i) {
+    EXPECT_EQ(nullptr, uptr_array1[i]);
+    EXPECT_EQ(nullptr, uptr_array2[i]);
+  }
+
+  // This should give a compiler error, because it attempts to copy a value of a
+  // non-copyable type:
+  //
+  // alloc.ArrayAlloc<std::unique_ptr<int>>(3, std::make_unique<int>(123));
 }
 
 }  // namespace my_alloc_unittest
