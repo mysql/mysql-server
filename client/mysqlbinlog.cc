@@ -1889,14 +1889,14 @@ static struct my_option my_long_options[] = {
      nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"read-from-remote-server", 'R',
      "Read binary logs from a MySQL server. "
-     "This is an alias for read-from-remote-master=BINLOG-DUMP-NON-GTIDS.",
+     "This is an alias for read-from-remote-source=BINLOG-DUMP-NON-GTIDS.",
      &opt_remote_alias, &opt_remote_alias, nullptr, GET_BOOL, NO_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-    {"read-from-remote-master", OPT_REMOTE_PROTO,
+    {"read-from-remote-source", OPT_REMOTE_PROTO,
      "Read binary logs from a MySQL server through the COM_BINLOG_DUMP or "
      "COM_BINLOG_DUMP_GTID commands by setting the option to either "
      "BINLOG-DUMP-NON-GTIDS or BINLOG-DUMP-GTIDS, respectively. If "
-     "--read-from-remote-master=BINLOG-DUMP-GTIDS is combined with "
+     "--read-from-remote-source=BINLOG-DUMP-GTIDS is combined with "
      "--exclude-gtids, transactions can be filtered out on the master "
      "avoiding unnecessary network traffic.",
      &opt_remote_proto_str, &opt_remote_proto_str, nullptr, GET_STR,
@@ -2624,7 +2624,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     running with:
 
       --read-from-remote-server
-      --read-from-remote-master=BINLOG-DUMP-GTIDS'
+      --read-from-remote-source=BINLOG-DUMP-GTIDS'
       --stop-never
       --stop-never-slave-server-id
 
@@ -3089,7 +3089,7 @@ static int args_post_process(void) {
   if (opt_remote_alias && opt_remote_proto != BINLOG_DUMP_NON_GTID) {
     error(
         "The option read-from-remote-server cannot be used when "
-        "read-from-remote-master is defined and is not equal to "
+        "read-from-remote-source is defined and is not equal to "
         "BINLOG-DUMP-NON-GTIDS");
     return ERROR_STOP;
   }
@@ -3100,7 +3100,7 @@ static int args_post_process(void) {
 
     if (opt_remote_proto == BINLOG_LOCAL) {
       error(
-          "The --raw flag requires one of --read-from-remote-master or "
+          "The --raw flag requires one of --read-from-remote-source or "
           "--read-from-remote-server");
       return ERROR_STOP;
     }
@@ -3115,7 +3115,7 @@ static int args_post_process(void) {
       error(
           "You cannot use both of --exclude-gtids and --raw together "
           "with one of --read-from-remote-server or "
-          "--read-from-remote-master=BINLOG-DUMP-NON-GTID.");
+          "--read-from-remote-source=BINLOG-DUMP-NON-GTID.");
       return ERROR_STOP;
     }
 

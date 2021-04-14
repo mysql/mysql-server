@@ -11,15 +11,15 @@
 # - exclude-gtids + skip-gtids
 # - skip-gtids
 # - read-from-remote-server
-# - read-from-remote-master=BINLOG-DUMP-GTID
-# - read-from-remote-master=BINLOG-DUMP-NON-GTID
+# - read-from-remote-source=BINLOG-DUMP-GTID
+# - read-from-remote-source=BINLOG-DUMP-NON-GTID
 # - read-from-remote-server + raw
-# - read-from-remote-master=BINLOG-DUMP-GTID + raw
-# - read-from-remote-master=BINLOG-DUMP-NON-GTID + raw
-# - include-gtids + read-from-remote-master=BINLOG-DUMP-GTID
-# - include-gtids + read-from-remote-master=BINLOG-DUMP-NON-GTID
+# - read-from-remote-source=BINLOG-DUMP-GTID + raw
+# - read-from-remote-source=BINLOG-DUMP-NON-GTID + raw
+# - include-gtids + read-from-remote-source=BINLOG-DUMP-GTID
+# - include-gtids + read-from-remote-source=BINLOG-DUMP-NON-GTID
 # - exclude-gtids + read-from-remote-maste=BINLOG-DUMP-GTID + raw
-# - exclude-gtids + read-from-remote-master=BINLOG-DUMP-NON-GTID + raw
+# - exclude-gtids + read-from-remote-source=BINLOG-DUMP-NON-GTID + raw
 #
 # TODO: implement all combinations and make it more uniform and
 # maintainable, like:
@@ -27,8 +27,8 @@
 #   for opt1 in (include-gtids, exclude-gtids, ''):
 #     for opt2 in (skip-gtids, ''):
 #       for opt3 in (read-from-remote-server,
-#                    read-from-remote-master=BINLOG-DUMP-GTID,
-#                    read-from-remote-master=BINLOG-DUMP-NON-GTID,
+#                    read-from-remote-source=BINLOG-DUMP-GTID,
+#                    read-from-remote-source=BINLOG-DUMP-NON-GTID,
 #                    ''):
 #         for opt4 in (raw, ''):
 #           mysqlbinlog $opt1 $opt2 $opt3 $opt4
@@ -124,9 +124,9 @@ INSERT INTO t1 VALUES (NULL) /* 10 */;
 
 #
 # In what follows we are going to check if a dump file created with
-# --read-from-remote-master={BINLOG-DUMP-NON-GTID, BINLOG-DUMP-GTID}
+# --read-from-remote-source={BINLOG-DUMP-NON-GTID, BINLOG-DUMP-GTID}
 # is equal to a dump file created with --read-from-remote-server or
-# an empty option (i.e. without neiter --read-from-remote-master nor
+# an empty option (i.e. without neiter --read-from-remote-source nor
 # --read-from-remote-server).
 #
 # The --raw option is combined with the aforementioned options to
@@ -136,7 +136,7 @@ INSERT INTO t1 VALUES (NULL) /* 10 */;
 # also create additional files.
 #
 
---echo ==== --read-from-remote-master ====
+--echo ==== --read-from-remote-source ====
 --connection master
 FLUSH LOGS;
 
@@ -149,21 +149,21 @@ let $UUID= `SELECT @@SERVER_UUID`;
 --exec $MYSQL_BINLOG --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000002
 
 # read-from-remote-server=BINLOG-DUMP-NON-GTID
---exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-NON-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000003
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-NON-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000003
 
 # read-from-remote-server=BINLOG-DUMP-GTID
---exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000004
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000004
 
 # read-from-remote-server + raw
 --exec $MYSQL_BINLOG --raw --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000005
 
 # read-from-remote-server=BINLOG-DUMP-NON-GTID + raw
---exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-NON-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG --raw --read-from-remote-source=BINLOG-DUMP-NON-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000006
 
 # read-from-remote-server=BINLOG-DUMP-GTID + raw
---exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG --raw --read-from-remote-source=BINLOG-DUMP-GTID --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000007
 
 --diff_files $MYSQLTEST_VARDIR/tmp/output.000002 $MYSQLTEST_VARDIR/tmp/output.000001
@@ -181,15 +181,15 @@ let $UUID= `SELECT @@SERVER_UUID`;
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000007
 --remove_file $MYSQLTEST_VARDIR/tmp/$binlog_file
 
---echo ==== --read-from-remote-master with --exclude-gtids ====
+--echo ==== --read-from-remote-source with --exclude-gtids ====
 
 --exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file --exclude-gtids=$UUID:1-3 --result-file=$MYSQLTEST_VARDIR/tmp/output.000001
---exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-NON-GTID --exclude-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000002
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-NON-GTID --exclude-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000002
 
---exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-GTID --exclude-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000003
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-GTID --exclude-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000003
 --error 1
---exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-NON-GTID --exclude-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
---exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-GTID --exclude-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG --raw --read-from-remote-source=BINLOG-DUMP-NON-GTID --exclude-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG --raw --read-from-remote-source=BINLOG-DUMP-GTID --exclude-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
 --exec $MYSQL_BINLOG $MYSQLTEST_VARDIR/tmp/$binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000004
 
 #
@@ -204,14 +204,14 @@ let $UUID= `SELECT @@SERVER_UUID`;
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000004
 --remove_file $MYSQLTEST_VARDIR/tmp/$binlog_file
 
---echo ==== --read-from-remote-master with --include-gtids ====
+--echo ==== --read-from-remote-source with --include-gtids ====
 
---exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-NON-GTID --include-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000001
---exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-GTID --include-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000002
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-NON-GTID --include-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000001
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-GTID --include-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/output.000002
 --error 1
---exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-NON-GTID --include-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG --raw --read-from-remote-source=BINLOG-DUMP-NON-GTID --include-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
 --error 1
---exec $MYSQL_BINLOG --raw --read-from-remote-master=BINLOG-DUMP-GTID --include-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
+--exec $MYSQL_BINLOG --raw --read-from-remote-source=BINLOG-DUMP-GTID --include-gtids=$UUID:1-3 --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $binlog_file --result-file=$MYSQLTEST_VARDIR/tmp/
 --diff_files $MYSQLTEST_VARDIR/tmp/output.000002 $MYSQLTEST_VARDIR/tmp/output.000001
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000001
 --remove_file $MYSQLTEST_VARDIR/tmp/output.000002
@@ -219,7 +219,7 @@ let $UUID= `SELECT @@SERVER_UUID`;
 --echo ==== Error cases ====
 
 --error 1
---exec $MYSQL_BINLOG --read-from-remote-server --read-from-remote-master=BINLOG-DUMP-GTID $binlog_file 2>&1
+--exec $MYSQL_BINLOG --read-from-remote-server --read-from-remote-source=BINLOG-DUMP-GTID $binlog_file 2>&1
 
 --error 1
 --exec $MYSQL_BINLOG --raw $binlog_file 2>&1
@@ -228,7 +228,7 @@ let $UUID= `SELECT @@SERVER_UUID`;
 --exec $MYSQL_BINLOG --read-from-remote-server --raw --exclude-gtids= $binlog_file 2>&1
 
 --error 1
---exec $MYSQL_BINLOG --read-from-remote-master=BINLOG-DUMP-NON-GTID --raw --exclude-gtids= $binlog_file 2>&1
+--exec $MYSQL_BINLOG --read-from-remote-source=BINLOG-DUMP-NON-GTID --raw --exclude-gtids= $binlog_file 2>&1
 
 --error 1
 --exec $MYSQL_BINLOG --read-from-remote-server --raw --include-gtids= $binlog_file 2>&1
