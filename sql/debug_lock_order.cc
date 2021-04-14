@@ -460,7 +460,7 @@ static bool g_with_rwlock = true;
   For example:
 
   @verbatim
-  BIND "cond/sql/Master_info::start_cond" TO "mutex/sql/Master_info::run_lock" FLAGS UNFAIR
+  BIND "cond/sql/Master_info::start_cond" TO "mutex/sql/Source_info::run_lock" FLAGS UNFAIR
   @endverbatim
 
   @subsubsection LO_DEP_FILE File nodes
@@ -540,12 +540,12 @@ NODE: mutex/sql/LOCK_open
     FROM: mutex/p_dyn_loader/key_component_id_by_urn_mutex
     FROM: mutex/sql/LOCK_plugin_install
     FROM: mutex/sql/LOCK_table_cache
-    FROM: mutex/sql/key_mts_temp_table_LOCK
+    FROM: mutex/sql/key_mta_temp_table_LOCK
     FROM: mutex/sql/LOCK_event_queue
     FROM: mutex/sql/LOCK_global_system_variables
     FROM: mutex/sql/LOCK_reset_gtid_table
-    FROM: mutex/sql/Master_info::data_lock
-    FROM: mutex/sql/Master_info::run_lock
+    FROM: mutex/sql/Source_info::data_lock
+    FROM: mutex/sql/Source_info::run_lock
     FROM: mutex/sql/MYSQL_BIN_LOG::LOCK_index
     FROM: mutex/sql/MYSQL_BIN_LOG::LOCK_log
     FROM: mutex/sql/MYSQL_RELAY_LOG::LOCK_log
@@ -592,7 +592,7 @@ mutex/sql/LOCK_offline_mode
 
 Found SCC number 2 of size 2:
 mutex/sql/Relay_log_info::run_lock
-mutex/sql/Master_info::run_lock
+mutex/sql/Source_info::run_lock
 
 Number of SCC found: 2
   @endverbatim
@@ -614,8 +614,8 @@ SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/LOCK_plugin"
 SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/THD::LOCK_current_cond"
 
 Dumping arcs for SCC 2:
-SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Master_info::run_lock"
-SCC ARC FROM "mutex/sql/Master_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
+SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Source_info::run_lock"
+SCC ARC FROM "mutex/sql/Source_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
   @endverbatim
 
   The section "IGNORED NODES" prints the nodes flagged as IGNORED
@@ -663,12 +663,12 @@ mutex/sql/MYSQL_BIN_LOG::LOCK_commit
 mutex/sql/MYSQL_BIN_LOG::LOCK_index
 mutex/sql/MYSQL_RELAY_LOG::LOCK_log
 mutex/sql/Relay_log_info::data_lock
-mutex/sql/key_mts_temp_table_LOCK
-mutex/sql/Master_info::data_lock
+mutex/sql/key_mta_temp_table_LOCK
+mutex/sql/Source_info::data_lock
 
 Found SCC number 2 of size 2:
 mutex/sql/Relay_log_info::run_lock
-mutex/sql/Master_info::run_lock
+mutex/sql/Source_info::run_lock
 
 Number of SCC found: 2
 
@@ -806,8 +806,8 @@ mutex/sql/LOCK_thd_list
 mutex/sql/MYSQL_RELAY_LOG::LOCK_index
 mutex/sql/MYSQL_RELAY_LOG::LOCK_log
 mutex/sql/Relay_log_info::data_lock
-mutex/sql/key_mts_temp_table_LOCK
-mutex/sql/Master_info::data_lock
+mutex/sql/key_mta_temp_table_LOCK
+mutex/sql/Source_info::data_lock
 mutex/sql/MYSQL_BIN_LOG::LOCK_log
 mutex/sql/LOCK_reset_gtid_table
 mutex/sql/MYSQL_BIN_LOG::LOCK_sync
@@ -816,7 +816,7 @@ mutex/sql/LOCK_offline_mode
 
 Found SCC number 2 of size 2:
 mutex/sql/Relay_log_info::run_lock
-mutex/sql/Master_info::run_lock
+mutex/sql/Source_info::run_lock
 
 Number of SCC found: 2
   @endverbatim
@@ -840,8 +840,8 @@ SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/LOCK_plugin"
 SCC ARC FROM "mutex/sql/MYSQL_BIN_LOG::LOCK_commit" TO "mutex/sql/THD::LOCK_current_cond"
 
 Dumping arcs for SCC 2:
-SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Master_info::run_lock"
-SCC ARC FROM "mutex/sql/Master_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
+SCC ARC FROM "mutex/sql/Relay_log_info::run_lock" TO "mutex/sql/Source_info::run_lock"
+SCC ARC FROM "mutex/sql/Source_info::run_lock" TO "mutex/sql/Relay_log_info::run_lock"
   @endverbatim
 
   Note that only arcs within the same SCC are printed here,

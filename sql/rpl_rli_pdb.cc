@@ -732,7 +732,7 @@ bool init_hash_workers(Relay_log_info *rli) {
   DBUG_TRACE;
 
   rli->inited_hash_workers = true;
-  mysql_mutex_init(key_mutex_slave_worker_hash, &rli->slave_worker_hash_lock,
+  mysql_mutex_init(key_mutex_replica_worker_hash, &rli->slave_worker_hash_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_worker_hash, &rli->slave_worker_hash_cond);
 

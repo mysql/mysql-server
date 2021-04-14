@@ -3876,7 +3876,7 @@ static bool update_binlog_transaction_dependency_tracking(sys_var *, THD *,
 }
 
 static PolyLock_mutex PLock_slave_trans_dep_tracker(
-    &LOCK_slave_trans_dep_tracker);
+    &LOCK_replica_trans_dep_tracker);
 static const char *opt_binlog_transaction_dependency_tracking_names[] = {
     "COMMIT_ORDER", "WRITESET", "WRITESET_SESSION", NullS};
 static Sys_var_enum Binlog_transaction_dependency_tracking(

@@ -226,9 +226,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
     mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond);
     mysql_mutex_init(key_mutex_slave_parallel_worker_count, &exit_count_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK,
+    mysql_mutex_init(key_mta_temp_table_LOCK, &mts_temp_table_LOCK,
                      MY_MUTEX_INIT_FAST);
-    mysql_mutex_init(key_mts_gaq_LOCK, &mts_gaq_LOCK, MY_MUTEX_INIT_FAST);
+    mysql_mutex_init(key_mta_gaq_LOCK, &mts_gaq_LOCK, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_cond_mts_gaq, &logical_clock_cond);
 
     relay_log.init_pthread_objects();

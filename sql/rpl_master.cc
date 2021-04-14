@@ -100,13 +100,13 @@ extern TYPELIB binlog_checksum_typelib;
     p += len;                                    \
   }
 
-static mysql_mutex_t LOCK_slave_list;
+static mysql_mutex_t LOCK_replica_list;
 static bool slave_list_inited = false;
 #ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_slave_list;
+static PSI_mutex_key key_LOCK_replica_list;
 
 static PSI_mutex_info all_slave_list_mutexes[] = {
-    {&key_LOCK_slave_list, "LOCK_slave_list", PSI_FLAG_SINGLETON, 0,
+    {&key_LOCK_replica_list, "LOCK_replica_list", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME}};
 
 static void init_all_slave_list_mutexes(void) {
@@ -122,13 +122,14 @@ void init_replica_list() {
   init_all_slave_list_mutexes();
 #endif
 
-  mysql_mutex_init(key_LOCK_slave_list, &LOCK_slave_list, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_replica_list, &LOCK_replica_list,
+                   MY_MUTEX_INIT_FAST);
   slave_list_inited = true;
 }
 
 void end_slave_list() {
   if (slave_list_inited) {
-    mysql_mutex_destroy(&LOCK_slave_list);
+    mysql_mutex_destroy(&LOCK_replica_list);
     slave_list_inited = false;
   }
 }
@@ -179,10 +180,10 @@ int register_slave(THD *thd, uchar *packet, size_t packet_length) {
   if (!(si->master_id = uint4korr(p))) si->master_id = server_id;
   si->thd = thd;
 
-  mysql_mutex_lock(&LOCK_slave_list);
+  mysql_mutex_lock(&LOCK_replica_list);
   unregister_slave(thd, false, false /*need_lock_slave_list=false*/);
   res = !slave_list.emplace(si->server_id, std::move(si)).second;
-  mysql_mutex_unlock(&LOCK_slave_list);
+  mysql_mutex_unlock(&LOCK_replica_list);
   return res;
 
 err:
@@ -193,15 +194,15 @@ err:
 void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list) {
   if (thd->server_id && slave_list_inited) {
     if (need_lock_slave_list)
-      mysql_mutex_lock(&LOCK_slave_list);
+      mysql_mutex_lock(&LOCK_replica_list);
     else
-      mysql_mutex_assert_owner(&LOCK_slave_list);
+      mysql_mutex_assert_owner(&LOCK_replica_list);
 
     auto it = slave_list.find(thd->server_id);
     if (it != slave_list.end() && (!only_mine || it->second->thd == thd))
       slave_list.erase(it);
 
-    if (need_lock_slave_list) mysql_mutex_unlock(&LOCK_slave_list);
+    if (need_lock_slave_list) mysql_mutex_unlock(&LOCK_replica_list);
   }
 }
 
@@ -237,7 +238,7 @@ bool show_slave_hosts(THD *thd) {
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
-  mysql_mutex_lock(&LOCK_slave_list);
+  mysql_mutex_lock(&LOCK_replica_list);
 
   for (const auto &key_and_value : slave_list) {
     SLAVE_INFO *si = key_and_value.second.get();
@@ -256,11 +257,11 @@ bool show_slave_hosts(THD *thd) {
     if (get_slave_uuid(si->thd, &slave_uuid))
       protocol->store(slave_uuid.c_ptr_safe(), &my_charset_bin);
     if (protocol->end_row()) {
-      mysql_mutex_unlock(&LOCK_slave_list);
+      mysql_mutex_unlock(&LOCK_replica_list);
       return true;
     }
   }
-  mysql_mutex_unlock(&LOCK_slave_list);
+  mysql_mutex_unlock(&LOCK_replica_list);
   my_eof(thd);
   return false;
 }
