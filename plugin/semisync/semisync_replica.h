@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SEMISYNC_SLAVE_H
-#define SEMISYNC_SLAVE_H
+#ifndef SEMISYNC_REPLICA_H
+#define SEMISYNC_REPLICA_H
 
 #include "my_inttypes.h"
 #include "plugin/semisync/semisync.h"
@@ -92,4 +92,4 @@ extern bool rpl_semi_sync_slave_enabled;
 extern unsigned long rpl_semi_sync_slave_trace_level;
 extern char rpl_semi_sync_slave_status;
 
-#endif /* SEMISYNC_SLAVE_H */
+#endif /* SEMISYNC_REPLICA_H */

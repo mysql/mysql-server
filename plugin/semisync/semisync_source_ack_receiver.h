@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SEMISYNC_MASTER_ACK_RECEIVER_DEFINED
-#define SEMISYNC_MASTER_ACK_RECEIVER_DEFINED
+#ifndef SEMISYNC_SOURCE_ACK_RECEIVER_DEFINED
+#define SEMISYNC_SOURCE_ACK_RECEIVER_DEFINED
 
 #include <sys/types.h>
 #include <vector>

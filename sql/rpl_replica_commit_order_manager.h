@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef RPL_SLAVE_COMMIT_ORDER_MANAGER
-#define RPL_SLAVE_COMMIT_ORDER_MANAGER
+#ifndef RPL_REPLICA_COMMIT_ORDER_MANAGER
+#define RPL_REPLICA_COMMIT_ORDER_MANAGER
 #include <stddef.h>
 #include <memory>
 #include <vector>
@@ -512,4 +512,4 @@ class Commit_order_lock_graph : public MDL_wait_for_subgraph {
 */
 bool has_commit_order_manager(THD *thd);
 
-#endif /*RPL_SLAVE_COMMIT_ORDER_MANAGER*/
+#endif /*RPL_REPLICA_COMMIT_ORDER_MANAGER*/

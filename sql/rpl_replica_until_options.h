@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef DEFINED_RPL_SLAVE_UNTIL_OPTIONS_H
-#define DEFINED_RPL_SLAVE_UNTIL_OPTIONS_H
+#ifndef DEFINED_RPL_REPLICA_UNTIL_OPTIONS_H
+#define DEFINED_RPL_REPLICA_UNTIL_OPTIONS_H
 
 #include <sys/types.h>
 #include <string>
@@ -363,4 +363,4 @@ class Until_mts_gap : public Until_option {
   bool check_after_dispatching_event() override;
 };
 
-#endif  // DEFINED_RPL_SLAVE_UNTIL_OPTIONS_H
+#endif  // DEFINED_RPL_REPLICA_UNTIL_OPTIONS_H

@@ -20,8 +20,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SEMISYNC_MASTER_SOCKET_LISTENER
-#define SEMISYNC_MASTER_SOCKET_LISTENER
+#ifndef SEMISYNC_SOURCE_SOCKET_LISTENER
+#define SEMISYNC_SOURCE_SOCKET_LISTENER
 #include "plugin/semisync/semisync_source_ack_receiver.h"
 
 #ifdef HAVE_POLL
@@ -136,4 +136,4 @@ class Select_socket_listener {
 
 typedef class Select_socket_listener Socket_listener;
 #endif  // HAVE_POLL
-#endif  // SEMISYNC_MASTER_SOCKET_LISTENER
+#endif  // SEMISYNC_SOURCE_SOCKET_LISTENER
