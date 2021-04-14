@@ -443,6 +443,6 @@ bool operator!(Rpl_info_handler::enum_field_get_status status);
 
 #ifndef NDEBUG
 extern ulong w_rr;
-extern uint mts_debug_concurrent_access;
+extern uint mta_debug_concurrent_access;
 #endif
 #endif /* RPL_INFO_HANDLER_H */

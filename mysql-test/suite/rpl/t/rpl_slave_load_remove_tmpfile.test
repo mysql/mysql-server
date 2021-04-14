@@ -7,7 +7,7 @@
 # ==== Implementation ====
 #
 # Steps:
-#    0 - Set debug variable remove_slave_load_file_before_write. This
+#    0 - Set debug variable remove_replica_load_file_before_write. This
 #        causes the slave to remove the file.
 #    1 - Creates a table and populates it through "LOAD DATA INFILE".
 #    2 - Catches error.
@@ -28,7 +28,7 @@
 
 connection slave;
 --let $old_debug= `SELECT @@GLOBAL.DEBUG`
-SET @@GLOBAL.DEBUG = '+d,remove_slave_load_file_before_write';
+SET @@GLOBAL.DEBUG = '+d,remove_replica_load_file_before_write';
 
 connection master;
 

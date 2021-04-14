@@ -103,7 +103,7 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE *table,
   bool res =
       System_table_access::close_table(thd, table, backup, error, thd_created);
 
-  DBUG_EXECUTE_IF("slave_crash_after_commit_no_atomic_ddl", {
+  DBUG_EXECUTE_IF("replica_crash_after_commit_no_atomic_ddl", {
     if (thd->slave_thread && thd->rli_slave && thd->rli_slave->current_event &&
         thd->rli_slave->current_event->get_type_code() ==
             binary_log::QUERY_EVENT &&

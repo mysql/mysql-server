@@ -129,7 +129,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 --source include/stop_slave.inc
 
 # Make receiver thread pause after it has connected
---let $debug_point = dbug.before_get_MASTER_UUID
+--let $debug_point = dbug.before_get_SOURCE_UUID
 --source include/add_debug_point.inc
 
 --source include/start_slave.inc
@@ -138,7 +138,7 @@ if ( `SELECT @@GLOBAL.GTID_MODE = "OFF"` )
 --source include/rpl_stop_server.inc
 
 --echo # Unblock receiver thread
-eval SET DEBUG_SYNC = 'now SIGNAL signal.get_master_uuid';
+eval SET DEBUG_SYNC = 'now SIGNAL signal.get_source_uuid';
 
 --echo # Check network error happened here
 # '2013' CR_SERVER_LOST
@@ -152,7 +152,7 @@ eval SET DEBUG_SYNC = 'now SIGNAL signal.get_master_uuid';
 --source include/wait_for_slave_io_error.inc
 
 # clean up sync points
---let $debug_point = dbug.before_get_MASTER_UUID
+--let $debug_point = dbug.before_get_SOURCE_UUID
 --source include/remove_debug_point.inc
 
 --let $rpl_server_number = 1

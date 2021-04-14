@@ -7,14 +7,14 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # TC1. Lock instance for backup while `STOP SLAVE` executes
 #
 [connection slave]
-SET DEBUG = "+d,stop_slave_dont_release_backup_lock";
+SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 [connection slave1]
 CALL mtr.add_suppression("Lock wait timeout exceeded; try restarting transaction");
-SET DEBUG = "+d,stop_slave_dont_release_backup_lock";
+SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 [connection slave]
 STOP SLAVE;
 [connection slave1]
-SET DEBUG_SYNC = "now WAIT_FOR slave_acquired_backup_lock";
+SET DEBUG_SYNC = "now WAIT_FOR replica_acquired_backup_lock";
 LOCK INSTANCE FOR BACKUP;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = "now SIGNAL tried_to_lock_instance_for_backup";
@@ -25,21 +25,21 @@ START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection slave]
-SET DEBUG = "-d,stop_slave_dont_release_backup_lock";
+SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 [connection slave1]
-SET DEBUG = "-d,stop_slave_dont_release_backup_lock";
+SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 #
 # TC2. Lock instance for backup while `STOP SLAVE SQL_THREAD` executes
 #
 [connection slave]
-SET DEBUG = "+d,stop_slave_dont_release_backup_lock";
+SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 [connection slave1]
 CALL mtr.add_suppression("Lock wait timeout exceeded; try restarting transaction");
-SET DEBUG = "+d,stop_slave_dont_release_backup_lock";
+SET DEBUG = "+d,stop_replica_dont_release_backup_lock";
 [connection slave]
 STOP SLAVE SQL_THREAD;
 [connection slave1]
-SET DEBUG_SYNC = "now WAIT_FOR slave_acquired_backup_lock";
+SET DEBUG_SYNC = "now WAIT_FOR replica_acquired_backup_lock";
 LOCK INSTANCE FOR BACKUP;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = "now SIGNAL tried_to_lock_instance_for_backup";
@@ -50,7 +50,7 @@ START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 [connection slave]
-SET DEBUG = "-d,stop_slave_dont_release_backup_lock";
+SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 [connection slave1]
-SET DEBUG = "-d,stop_slave_dont_release_backup_lock";
+SET DEBUG = "-d,stop_replica_dont_release_backup_lock";
 include/rpl_end.inc

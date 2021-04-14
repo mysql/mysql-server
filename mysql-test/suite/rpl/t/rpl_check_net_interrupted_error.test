@@ -39,7 +39,7 @@ DROP TABLE t1;
 --echo #
 --echo # Active injected error during getting server id from master
 --echo #
-SET GLOBAL DEBUG='d,get_master_server_id.ER_NET_READ_INTERRUPTED';
+SET GLOBAL DEBUG='d,get_source_server_id.ER_NET_READ_INTERRUPTED';
 
 START SLAVE;
 # Crash if error happens during getting server id from master

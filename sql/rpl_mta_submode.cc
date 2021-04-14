@@ -398,7 +398,7 @@ Slave_worker *Mts_submode_database::get_least_occupied_worker(
 
 #ifndef NDEBUG
 
-  if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0)) {
+  if (DBUG_EVALUATE_IF("mta_distribute_round_robin", 1, 0)) {
     worker = ws->at(w_rr % ws->size());
     LogErr(INFORMATION_LEVEL, ER_RPL_WORKER_ID_IS, worker->id,
            static_cast<ulong>(w_rr % ws->size()));
@@ -902,7 +902,7 @@ Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
   DBUG_TRACE;
 #ifndef NDEBUG
 
-  if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0)) {
+  if (DBUG_EVALUATE_IF("mta_distribute_round_robin", 1, 0)) {
     worker = ws->at(w_rr % ws->size());
     LogErr(INFORMATION_LEVEL, ER_RPL_WORKER_ID_IS, worker->id,
            static_cast<ulong>(w_rr % ws->size()));
@@ -1027,7 +1027,7 @@ int Mts_submode_logical_clock::wait_for_workers_to_finish(
   while (delegated_jobs > jobs_done && !thd->killed && !is_error) {
     // Todo: consider to replace with a. GAQ::get_lwm_timestamp() or
     // b. (better) pthread wait+signal similarly to DB type.
-    if (mts_checkpoint_routine(rli, true)) return -1;
+    if (mta_checkpoint_routine(rli, true)) return -1;
   }
 
   // Check if there is a failure on a not-ignored Worker

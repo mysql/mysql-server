@@ -1785,7 +1785,7 @@ ER_RPL_CANT_FIND_FOLLOWUP_FILE
   eng "Error looking for file after %s."
 
 ER_RPL_MTS_CHECKPOINT_PERIOD_DIFFERS_FROM_CNT
-  eng "This an error cnt != mts_checkpoint_period"
+  eng "This an error cnt != mta_checkpoint_period"
 
 ER_RPL_SLAVE_WORKER_THREAD_CREATION_FAILED
   eng "Failed during slave worker thread creation%s"

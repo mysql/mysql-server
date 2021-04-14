@@ -57,7 +57,7 @@ call mtr.add_suppression("Error writing relay log configuration");
 if (!$crash_commit)
 {
   --let $commit_message=Crash right after the non-atomic DDL's event has updated slave relay log info
-  --let $crash_commit="+d,slave_crash_after_commit_no_atomic_ddl"
+  --let $crash_commit="+d,replica_crash_after_commit_no_atomic_ddl"
 }
 
 ##

@@ -173,7 +173,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       max_updated_index(0),
       recovery_parallel_workers(0),
       rli_checkpoint_seqno(0),
-      checkpoint_group(opt_mts_checkpoint_group),
+      checkpoint_group(opt_mta_checkpoint_group),
       recovery_groups_inited(false),
       mts_recovery_group_cnt(0),
       mts_recovery_index(0),
@@ -349,7 +349,7 @@ void Relay_log_info::reset_notified_relay_log_change() {
 }
 
 /**
-   This method is called in mts_checkpoint_routine() to mark that each
+   This method is called in mta_checkpoint_routine() to mark that each
    worker is required to adapt to a new checkpoint data whose coordinates
    are passed to it through GAQ index.
 
@@ -434,7 +434,7 @@ bool Relay_log_info::mts_finalize_recovery() {
   for (Slave_worker **it = workers.begin(); !ret && it != workers.end(); ++it) {
     Slave_worker *w = *it;
     ret = w->reset_recovery_info();
-    DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret = true;);
+    DBUG_EXECUTE_IF("mta_debug_recovery_reset_fails", ret = true;);
   }
   /*
     The loop is traversed in the worker index descending order due
@@ -442,8 +442,8 @@ bool Relay_log_info::mts_finalize_recovery() {
     even temporary holes. Therefore stale records are deleted
     from the tail.
   */
-  DBUG_EXECUTE_IF("enable_mts_wokrer_failure_in_recovery_finalize",
-                  { DBUG_SET("+d,mts_worker_thread_init_fails"); });
+  DBUG_EXECUTE_IF("enable_mta_wokrer_failure_in_recovery_finalize",
+                  { DBUG_SET("+d,mta_worker_thread_init_fails"); });
   for (i = recovery_parallel_workers; i > workers.size() && !ret; i--) {
     Slave_worker *w =
         Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
@@ -740,7 +740,7 @@ int Relay_log_info::wait_for_pos(THD *thd, String *log_name, longlong log_pos,
         Doing this to generate a stack trace and make debugging
         easier.
       */
-      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out", 1, 0)) assert(0);
+      if (DBUG_EVALUATE_IF("debug_crash_replica_time_out", 1, 0)) assert(0);
 #endif
       error = -1;
       break;
@@ -900,7 +900,7 @@ int Relay_log_info::wait_for_gtid_set(THD *thd, const Gtid_set *wait_gtid_set,
         Doing this to generate a stack trace and make debugging
         easier.
       */
-      if (DBUG_EVALUATE_IF("debug_crash_slave_time_out", 1, 0)) assert(0);
+      if (DBUG_EVALUATE_IF("debug_crash_replica_time_out", 1, 0)) assert(0);
 #endif
       error = -1;
       break;
@@ -2885,12 +2885,12 @@ void Relay_log_info::clear_relay_log_truncated() {
   m_relay_log_truncated = false;
 }
 
-bool Relay_log_info::is_time_for_mts_checkpoint() {
-  if (is_parallel_exec() && opt_mts_checkpoint_period != 0) {
+bool Relay_log_info::is_time_for_mta_checkpoint() {
+  if (is_parallel_exec() && opt_mta_checkpoint_period != 0) {
     struct timespec curr_clock;
     set_timespec_nsec(&curr_clock, 0);
     return diff_timespec(&curr_clock, &last_clock) >=
-           opt_mts_checkpoint_period * 1000000ULL;
+           opt_mta_checkpoint_period * 1000000ULL;
   }
   return false;
 }

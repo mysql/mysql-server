@@ -914,7 +914,8 @@ void st_ndb_slave_state::atTransactionCommit(Uint64 epoch) {
 
   current_master_server_epoch_committed = true;
 
-  if (DBUG_EVALUATE_IF("ndb_slave_fail_marking_epoch_committed", true, false)) {
+  if (DBUG_EVALUATE_IF("ndb_replica_fail_marking_epoch_committed", true,
+                       false)) {
     fprintf(stderr,
             "Replica clearing epoch committed flag "
             "for epoch %llu/%llu (%llu)\n",

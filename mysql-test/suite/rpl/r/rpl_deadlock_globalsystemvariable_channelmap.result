@@ -11,7 +11,7 @@ SET GLOBAL binlog_encryption=OFF;
 [connection slave]
 SET DEBUG_SYNC='now WAIT_FOR sysvar_before_unlock';
 [connection server_2_2]
-SET DEBUG_SYNC='after_locking_channel_map_in_start_slave SIGNAL after_channelmap_lock WAIT_FOR cont_start_slave';
+SET DEBUG_SYNC='after_locking_channel_map_in_start_replica SIGNAL after_channelmap_lock WAIT_FOR cont_start_slave';
 START SLAVE;
 [connection slave]
 SET DEBUG_SYNC='now WAIT_FOR after_channelmap_lock';

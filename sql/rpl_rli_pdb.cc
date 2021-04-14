@@ -75,7 +75,7 @@
 
 #ifndef NDEBUG
 ulong w_rr = 0;
-uint mts_debug_concurrent_access = 0;
+uint mta_debug_concurrent_access = 0;
 #endif
 
 #define HASH_DYNAMIC_INIT 4
@@ -430,7 +430,7 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase) {
   bitmap_init(&group_shifted, nullptr, num_bits);
 
   if (is_gaps_collecting_phase &&
-      (DBUG_EVALUATE_IF("mts_slave_worker_init_at_gaps_fails", true, false) ||
+      (DBUG_EVALUATE_IF("mta_replica_worker_init_at_gaps_fails", true, false) ||
        read_info(handler))) {
     bitmap_free(&group_executed);
     bitmap_free(&group_shifted);
@@ -691,8 +691,8 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group *ptr_g,
                      id, group_master_log_pos, group_master_log_name,
                      worker_checkpoint_seqno));
 
-  DBUG_EXECUTE_IF("mts_debug_concurrent_access",
-                  { mts_debug_concurrent_access++; };);
+  DBUG_EXECUTE_IF("mta_debug_concurrent_access",
+                  { mta_debug_concurrent_access++; };);
 
   return flush_info(force);
 }
@@ -1255,7 +1255,7 @@ void Slave_worker::slave_worker_ends_group(Log_event *ev, int error) {
     int64 min_child_waited_logical_ts =
         mts_submode->min_waited_timestamp.load();
 
-    DBUG_EXECUTE_IF("slave_worker_ends_group_before_signal_lwm", {
+    DBUG_EXECUTE_IF("replica_worker_ends_group_before_signal_lwm", {
       const char act[] = "now WAIT_FOR worker_continue";
       assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
@@ -1354,10 +1354,10 @@ bool Slave_committed_queue::count_done(Relay_log_info *rli) {
 
   DBUG_PRINT("mts",
              ("Checking if it can simulate a crash:"
-              " mts_checkpoint_group %u counter %lu parallel slaves %lu\n",
-              opt_mts_checkpoint_group, cnt, rli->replica_parallel_workers));
+              " mta_checkpoint_group %u counter %lu parallel slaves %lu\n",
+              opt_mta_checkpoint_group, cnt, rli->replica_parallel_workers));
 
-  return (cnt == (rli->replica_parallel_workers * opt_mts_checkpoint_group));
+  return (cnt == (rli->replica_parallel_workers * opt_mta_checkpoint_group));
 }
 #endif
 
@@ -1392,8 +1392,8 @@ ulong Slave_committed_queue::move_queue_head(Slave_worker_array *ws) {
     char grl_name[FN_REFLEN];
 
 #ifndef NDEBUG
-    if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
-        cnt == opt_mts_checkpoint_period)
+    if (DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0) &&
+        cnt == opt_mta_checkpoint_period)
       return cnt;
 #endif
 
@@ -2597,13 +2597,13 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
   }
 
 #ifndef NDEBUG
-  DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mts_checkpoint_group"
+  DBUG_PRINT("mts", ("Check_slave_debug_group worker %lu mta_checkpoint_group"
                      " %u processed %lu debug %d\n",
-                     worker->id, opt_mts_checkpoint_group, worker->groups_done,
-                     DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)));
+                     worker->id, opt_mta_checkpoint_group, worker->groups_done,
+                     DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0)));
 
-  if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
-      opt_mts_checkpoint_group == worker->groups_done) {
+  if (DBUG_EVALUATE_IF("check_replica_debug_group", 1, 0) &&
+      opt_mta_checkpoint_group == worker->groups_done) {
     DBUG_PRINT("mts", ("Putting worker %lu in busy wait.", worker->id));
     while (true) my_sleep(6000000);
   }

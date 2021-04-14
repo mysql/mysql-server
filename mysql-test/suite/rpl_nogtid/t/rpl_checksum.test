@@ -99,7 +99,7 @@ insert into t1 values (1) /* will not be applied on slave due to simulation */;
 # instruction to the dump thread
 
 connection slave;
-set @@global.debug='d,simulate_slave_unaware_checksum';
+set @@global.debug='d,simulate_replica_unaware_checksum';
 start slave;
 let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 --let $show_slave_io_error= 1

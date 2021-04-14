@@ -19,7 +19,7 @@ CREATE TABLE t1(c1 INT);
 include/wait_for_slave_sql_error.inc [errno=1050]
 DROP TABLE t1;
 # Block SQL thread immediately after it starts.
-SET DEBUG_SYNC='after_start_slave WAIT_FOR signal.continue';
+SET DEBUG_SYNC='after_start_replica WAIT_FOR signal.continue';
 START SLAVE SQL_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

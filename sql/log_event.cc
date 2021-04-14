@@ -3200,7 +3200,7 @@ int Log_event::apply_event(Relay_log_info *rli) {
             With MTS logical clock mode, when coordinator is applying an
             incident event, it must withdraw delegated_job increased by
             the incident's GTID before waiting for workers to finish.
-            So that it can exit from mts_checkpoint_routine.
+            So that it can exit from mta_checkpoint_routine.
           */
           ((Mts_submode_logical_clock *)rli->current_mts_submode)
               ->withdraw_delegated_job();
@@ -3331,7 +3331,7 @@ err:
   }
 
   return (!(rli_thd->is_error() || (!worker && rli->abort_slave)) ||
-          DBUG_EVALUATE_IF("fault_injection_get_slave_worker", 1, 0))
+          DBUG_EVALUATE_IF("fault_injection_get_replica_worker", 1, 0))
              ? 0
              : -1;
 }
@@ -5067,7 +5067,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
   {
     /**
       The following failure injecion works in cooperation with tests
-      setting @@global.debug= 'd,stop_slave_middle_group'.
+      setting @@global.debug= 'd,stop_replica_middle_group'.
       The sql thread receives the killed status and will proceed
       to shutdown trying to finish incomplete events group.
     */
@@ -5075,7 +5075,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     // TODO: address the middle-group killing in MTS case
 
     DBUG_EXECUTE_IF(
-        "stop_slave_middle_group",
+        "stop_replica_middle_group",
         if (strcmp("COMMIT", query) != 0 && strcmp("BEGIN", query) != 0) {
           if (thd->get_transaction()->cannot_safely_rollback(
                   Transaction_ctx::SESSION))
@@ -5682,7 +5682,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
         synchronization point. For that reason, the checkpoint
         routine is being called here.
       */
-      if ((error = mts_checkpoint_routine(rli, false))) goto err;
+      if ((error = mta_checkpoint_routine(rli, false))) goto err;
     }
 
     mysql_mutex_lock(&rli->data_lock);
@@ -5700,7 +5700,7 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
       for recovery.
       It is safe to update the last executed coordinates because all Worker
       assignments prior to Rotate has been already processed (as well as
-      above call to @c mts_checkpoint_routine has harvested their
+      above call to @c mta_checkpoint_routine has harvested their
       contribution to the last executed coordinates).
     */
     if ((error = rli->inc_group_relay_log_pos(
@@ -7070,7 +7070,7 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli) {
                 get_type_str(), fname, thd->get_stmt_da()->message_text());
     goto err;
   }
-  DBUG_EXECUTE_IF("remove_slave_load_file_before_write",
+  DBUG_EXECUTE_IF("remove_replica_load_file_before_write",
                   { my_delete_allow_opened(fname, MYF(0)); });
 
   DBUG_EXECUTE_IF("simulate_file_write_error_Append_block_event",
@@ -7958,7 +7958,7 @@ size_t Rows_log_event::get_data_size() {
   uchar buf[sizeof(m_width) + 1];
   uchar *end = net_store_length(buf, m_width);
 
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
+  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_source",
                   return 6 + no_bytes_in_map(&m_cols) + (end - buf) +
                          (general_type_code == binary_log::UPDATE_ROWS_EVENT
                               ? no_bytes_in_map(&m_cols_ai)
@@ -9996,12 +9996,12 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli) {
 
     { /*
           The following failure injecion works in cooperation with tests
-          setting @@global.debug= 'd,stop_slave_middle_group'.
+          setting @@global.debug= 'd,stop_replica_middle_group'.
           The sql thread receives the killed status and will proceed
           to shutdown trying to finish incomplete events group.
       */
       DBUG_EXECUTE_IF(
-          "stop_slave_middle_group",
+          "stop_replica_middle_group",
           if (thd->get_transaction()->cannot_safely_rollback(
                   Transaction_ctx::SESSION)) const_cast<Relay_log_info *>(rli)
               ->abort_slave = 1;);
@@ -10204,7 +10204,7 @@ bool Rows_log_event::write_data_header(Basic_ostream *ostream) {
   uchar
       buf[Binary_log_event::ROWS_HEADER_LEN_V2];  // No need to init the buffer
   assert(m_table_id.is_valid());
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master", {
+  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_source", {
     int4store(buf + 0, (ulong)m_table_id.id());
     int2store(buf + 4, m_flags);
     return (wrapper_my_b_safe_write(ostream, buf, 6));
@@ -10460,7 +10460,7 @@ Table_map_log_event::Table_map_log_event(THD *thd_arg, TABLE *tbl,
   assert(tbl->s->table_name.str[tbl->s->table_name.length] == 0);
 
   m_data_size = Binary_log_event::TABLE_MAP_HEADER_LEN;
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master", m_data_size = 6;);
+  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_source", m_data_size = 6;);
   m_data_size += m_dblen + 2;   // Include length and terminating \0
   m_data_size += m_tbllen + 2;  // Include length and terminating \0
   cbuf_end = net_store_length(cbuf, (size_t)m_colcnt);
@@ -10817,7 +10817,7 @@ int Table_map_log_event::do_update_pos(Relay_log_info *rli) {
 bool Table_map_log_event::write_data_header(Basic_ostream *ostream) {
   assert(m_table_id.is_valid());
   uchar buf[Binary_log_event::TABLE_MAP_HEADER_LEN];
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master", {
+  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_source", {
     int4store(buf + 0, static_cast<uint32>(m_table_id.id()));
     int2store(buf + 4, m_flags);
     return (wrapper_my_b_safe_write(ostream, buf, 6));

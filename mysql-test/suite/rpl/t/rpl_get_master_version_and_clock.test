@@ -47,8 +47,8 @@ source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 #Test case 3: Try to get the value of the MASTER_UUID from master under network disconnection
 connection slave;
 
-let $dbug_sync_point= 'dbug.before_get_MASTER_UUID';
-let $debug_sync_action= 'now SIGNAL signal.get_master_uuid';
+let $dbug_sync_point= 'dbug.before_get_SOURCE_UUID';
+let $debug_sync_action= 'now SIGNAL signal.get_source_uuid';
 source extra/rpl_tests/rpl_get_master_version_and_clock.test;
 
 #

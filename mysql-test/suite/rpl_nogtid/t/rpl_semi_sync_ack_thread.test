@@ -220,7 +220,7 @@ SET GLOBAL rpl_semi_sync_master_enabled= OFF;
 --echo #
 --echo # Failure on registering semisync slave
 --echo #
-SET GLOBAL debug= 'd,rpl_semisync_simulate_add_slave_failure';
+SET GLOBAL debug= 'd,rpl_semisync_simulate_add_replica_failure';
 SET GLOBAL rpl_semi_sync_master_enabled= ON;
 
 --let $rpl_connection_name= server_2
@@ -233,12 +233,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 1, SOURCE_CONNECT_RETRY = 5;
 # Make IO thread hungs after connecting to master. So we can make sure it is
 # stopped by add_slave_failure
 SET @save_debug= @@GLOBAL.debug;
-SET GLOBAL debug= 'd,dbug.before_get_MASTER_UUID';
+SET GLOBAL debug= 'd,dbug.before_get_SOURCE_UUID';
 --source include/install_semisync_slave.inc
 
 # Clear the debug point and signal IO thread to resume
 SET GLOBAL debug= @save_debug;
-SET debug_sync= 'now SIGNAL signal.get_master_uuid';
+SET debug_sync= 'now SIGNAL signal.get_source_uuid';
 
 # It should be stopped by add_slave failure
 --source include/wait_for_slave_io_to_stop.inc
