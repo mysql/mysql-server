@@ -222,6 +222,11 @@ static bool check_options_for_sanity() {
               << std::endl;
     return false;
   }
+
+  if (strcmp(Options::s_source_keyring, Options::s_destination_keyring) == 0) {
+    log_error << "Source and destination cannot be the same." << std::endl;
+    return false;
+  }
   return true;
 }
 
