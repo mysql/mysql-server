@@ -54,7 +54,7 @@ void end_slave_list();
 int register_slave(THD *thd, uchar *packet, size_t packet_length);
 void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list);
 bool show_slave_hosts(THD *thd);
-String *get_slave_uuid(THD *thd, String *value);
+String *get_replica_uuid(THD *thd, String *value);
 bool show_master_status(THD *thd);
 bool show_binlogs(THD *thd);
 void kill_zombie_dump_threads(THD *thd);

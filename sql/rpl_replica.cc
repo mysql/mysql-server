@@ -2546,7 +2546,7 @@ int io_thread_init_commands(MYSQL *mysql, Master_info *mi) {
 
   mi->reset_network_error();
 
-  sprintf(query, "SET @slave_uuid= '%s'", server_uuid);
+  sprintf(query, "SET @replica_uuid= '%s'", server_uuid);
   if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) &&
       !check_io_slave_killed(mi->info_thd, mi, nullptr))
     goto err;

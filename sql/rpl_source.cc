@@ -253,9 +253,9 @@ bool show_slave_hosts(THD *thd) {
     protocol->store((uint32)si->master_id);
 
     /* get slave's UUID */
-    String slave_uuid;
-    if (get_slave_uuid(si->thd, &slave_uuid))
-      protocol->store(slave_uuid.c_ptr_safe(), &my_charset_bin);
+    String replica_uuid;
+    if (get_replica_uuid(si->thd, &replica_uuid))
+      protocol->store(replica_uuid.c_ptr_safe(), &my_charset_bin);
     if (protocol->end_row()) {
       mysql_mutex_unlock(&LOCK_replica_list);
       return true;
@@ -1026,13 +1026,13 @@ void mysql_binlog_send(THD *thd, char *log_ident, my_off_t pos,
 
   @return       if success value is returned else NULL is returned.
 */
-String *get_slave_uuid(THD *thd, String *value) {
+String *get_replica_uuid(THD *thd, String *value) {
   if (value == nullptr) return nullptr;
 
   /* Protects thd->user_vars. */
   MUTEX_LOCK(lock_guard, &thd->LOCK_thd_data);
 
-  const auto it = thd->user_vars.find("slave_uuid");
+  const auto it = thd->user_vars.find("replica_uuid");
   if (it != thd->user_vars.end() && it->second->length() > 0) {
     value->copy(it->second->ptr(), it->second->length(), nullptr);
     return value;
@@ -1049,18 +1049,18 @@ String *get_slave_uuid(THD *thd, String *value) {
 */
 class Find_zombie_dump_thread : public Find_THD_Impl {
  public:
-  Find_zombie_dump_thread(String value) : m_slave_uuid(value) {}
+  Find_zombie_dump_thread(String value) : m_replica_uuid(value) {}
   bool operator()(THD *thd) override {
     THD *cur_thd = current_thd;
     if (thd != cur_thd && (thd->get_command() == COM_BINLOG_DUMP ||
                            thd->get_command() == COM_BINLOG_DUMP_GTID)) {
       String tmp_uuid;
       bool is_zombie_thread = false;
-      get_slave_uuid(thd, &tmp_uuid);
-      if (m_slave_uuid.length()) {
+      get_replica_uuid(thd, &tmp_uuid);
+      if (m_replica_uuid.length()) {
         is_zombie_thread =
             (tmp_uuid.length() &&
-             !strncmp(m_slave_uuid.c_ptr(), tmp_uuid.c_ptr(), UUID_LENGTH));
+             !strncmp(m_replica_uuid.c_ptr(), tmp_uuid.c_ptr(), UUID_LENGTH));
       } else {
         /*
           Check if it is a 5.5 slave's dump thread i.e., server_id should be
@@ -1078,7 +1078,7 @@ class Find_zombie_dump_thread : public Find_THD_Impl {
   }
 
  private:
-  String m_slave_uuid;
+  String m_replica_uuid;
 };
 
 /*
@@ -1102,11 +1102,11 @@ class Find_zombie_dump_thread : public Find_THD_Impl {
 */
 
 void kill_zombie_dump_threads(THD *thd) {
-  String slave_uuid;
-  get_slave_uuid(thd, &slave_uuid);
-  if (slave_uuid.length() == 0 && thd->server_id == 0) return;
+  String replica_uuid;
+  get_replica_uuid(thd, &replica_uuid);
+  if (replica_uuid.length() == 0 && thd->server_id == 0) return;
 
-  Find_zombie_dump_thread find_zombie_dump_thread(slave_uuid);
+  Find_zombie_dump_thread find_zombie_dump_thread(replica_uuid);
   THD *tmp =
       Global_THD_manager::get_instance()->find_thd(&find_zombie_dump_thread);
   if (tmp) {
@@ -1116,9 +1116,9 @@ void kill_zombie_dump_threads(THD *thd) {
       again. We just to do kill the thread ourselves.
     */
     if (log_error_verbosity > 2) {
-      if (slave_uuid.length()) {
+      if (replica_uuid.length()) {
         LogErr(INFORMATION_LEVEL, ER_RPL_ZOMBIE_ENCOUNTERED, "UUID",
-               slave_uuid.c_ptr(), "UUID", tmp->thread_id());
+               replica_uuid.c_ptr(), "UUID", tmp->thread_id());
       } else {
         char numbuf[32];
         snprintf(numbuf, sizeof(numbuf), "%u", thd->server_id);
