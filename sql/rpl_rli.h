@@ -307,7 +307,7 @@ class Relay_log_info : public Rpl_info {
   }
 /* Instrumentation key for performance schema for mts_temp_table_LOCK */
 #ifdef HAVE_PSI_INTERFACE
-  PSI_mutex_key m_key_mts_temp_table_LOCK;
+  PSI_mutex_key m_key_mta_temp_table_LOCK;
 #endif
   /*
      Lock to protect race condition while transferring temporary table from

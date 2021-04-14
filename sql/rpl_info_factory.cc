@@ -41,7 +41,7 @@
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/handler.h"
-#include "sql/mysqld.h"  // key_master_info_run_lock
+#include "sql/mysqld.h"  // key_source_info_run_lock
 #include "sql/rpl_filter.h"
 #include "sql/rpl_info.h"
 #include "sql/rpl_info_dummy.h"         // Rpl_info_dummy
@@ -101,9 +101,9 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option, const char *channel,
 
   if (!(mi = new Master_info(
 #ifdef HAVE_PSI_INTERFACE
-            &key_master_info_run_lock, &key_master_info_data_lock,
-            &key_master_info_sleep_lock, &key_master_info_thd_lock,
-            &key_master_info_rotate_lock, &key_master_info_data_cond,
+            &key_source_info_run_lock, &key_source_info_data_lock,
+            &key_source_info_sleep_lock, &key_source_info_thd_lock,
+            &key_source_info_rotate_lock, &key_master_info_data_cond,
             &key_master_info_start_cond, &key_master_info_stop_cond,
             &key_master_info_sleep_cond, &key_master_info_rotate_cond,
 #endif

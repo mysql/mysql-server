@@ -1045,7 +1045,7 @@ static PSI_mutex_key key_LOCK_global_system_variables;
 static PSI_mutex_key key_LOCK_prepared_stmt_count;
 static PSI_mutex_key key_LOCK_sql_replica_skip_counter;
 static PSI_mutex_key key_LOCK_replica_net_timeout;
-static PSI_mutex_key key_LOCK_slave_trans_dep_tracker;
+static PSI_mutex_key key_LOCK_replica_trans_dep_tracker;
 static PSI_mutex_key key_LOCK_uuid_generator;
 static PSI_mutex_key key_LOCK_error_messages;
 static PSI_mutex_key key_LOCK_default_password_lifetime;
@@ -1529,7 +1529,7 @@ mysql_mutex_t LOCK_prepared_stmt_count;
 */
 mysql_mutex_t LOCK_sql_replica_skip_counter;
 mysql_mutex_t LOCK_replica_net_timeout;
-mysql_mutex_t LOCK_slave_trans_dep_tracker;
+mysql_mutex_t LOCK_replica_trans_dep_tracker;
 mysql_mutex_t LOCK_log_throttle_qni;
 mysql_rwlock_t LOCK_sys_init_connect, LOCK_sys_init_replica;
 mysql_rwlock_t LOCK_system_variables_hash;
@@ -2627,7 +2627,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_sql_replica_skip_counter);
   mysql_mutex_destroy(&LOCK_replica_net_timeout);
-  mysql_mutex_destroy(&LOCK_slave_trans_dep_tracker);
+  mysql_mutex_destroy(&LOCK_replica_trans_dep_tracker);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_mutex_destroy(&LOCK_default_password_lifetime);
   mysql_mutex_destroy(&LOCK_mandatory_roles);
@@ -5040,8 +5040,8 @@ static int init_thread_environment() {
                    &LOCK_sql_replica_skip_counter, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_replica_net_timeout, &LOCK_replica_net_timeout,
                    MY_MUTEX_INIT_FAST);
-  mysql_mutex_init(key_LOCK_slave_trans_dep_tracker,
-                   &LOCK_slave_trans_dep_tracker, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_replica_trans_dep_tracker,
+                   &LOCK_replica_trans_dep_tracker, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_error_messages, &LOCK_error_messages,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_uuid_generator, &LOCK_uuid_generator,
@@ -11009,12 +11009,12 @@ PSI_mutex_key key_LOCK_thd_data;
 PSI_mutex_key key_LOCK_thd_sysvar;
 PSI_mutex_key key_LOCK_thd_protocol;
 PSI_mutex_key key_LOG_LOCK_log;
-PSI_mutex_key key_master_info_data_lock;
-PSI_mutex_key key_master_info_run_lock;
-PSI_mutex_key key_master_info_sleep_lock;
-PSI_mutex_key key_master_info_thd_lock;
-PSI_mutex_key key_master_info_rotate_lock;
-PSI_mutex_key key_mutex_slave_reporting_capability_err_lock;
+PSI_mutex_key key_source_info_data_lock;
+PSI_mutex_key key_source_info_run_lock;
+PSI_mutex_key key_source_info_sleep_lock;
+PSI_mutex_key key_source_info_thd_lock;
+PSI_mutex_key key_source_info_rotate_lock;
+PSI_mutex_key key_mutex_replica_reporting_capability_err_lock;
 PSI_mutex_key key_relay_log_info_data_lock;
 PSI_mutex_key key_relay_log_info_sleep_lock;
 PSI_mutex_key key_relay_log_info_thd_lock;
@@ -11038,11 +11038,11 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_object_cache_mutex;  // TODO need to initialize
 PSI_cond_key key_object_loading_cond;  // TODO need to initialize
-PSI_mutex_key key_mts_temp_table_LOCK;
-PSI_mutex_key key_mts_gaq_LOCK;
+PSI_mutex_key key_mta_temp_table_LOCK;
+PSI_mutex_key key_mta_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 PSI_mutex_key key_commit_order_manager_mutex;
-PSI_mutex_key key_mutex_slave_worker_hash;
+PSI_mutex_key key_mutex_replica_worker_hash;
 PSI_mutex_key key_monitor_info_run_lock;
 
 /* clang-format off */
@@ -11077,7 +11077,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_sql_replica_skip_counter, "LOCK_sql_replica_skip_counter", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_replica_net_timeout, "LOCK_replica_net_timeout", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_slave_trans_dep_tracker, "LOCK_slave_trans_dep_tracker", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_replica_trans_dep_tracker, "LOCK_replica_trans_dep_tracker", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_server_started, "LOCK_server_started", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #if !defined(_WIN32)
   { &key_LOCK_socket_listener_active, "LOCK_socket_listener_active", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -11092,12 +11092,12 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_uuid_generator, "LOCK_uuid_generator", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_sql_rand, "LOCK_sql_rand", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOG_LOCK_log, "LOG::LOCK_log", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_data_lock, "Master_info::data_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_run_lock, "Master_info::run_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_sleep_lock, "Master_info::sleep_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_thd_lock, "Master_info::info_thd_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_master_info_rotate_lock, "Master_info::rotate_lock", 0, 0, PSI_DOCUMENT_ME},
-  { &key_mutex_slave_reporting_capability_err_lock, "Slave_reporting_capability::err_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_data_lock, "Source_info::data_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_run_lock, "Source_info::run_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_sleep_lock, "Source_info::sleep_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_thd_lock, "Source_info::info_thd_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_source_info_rotate_lock, "Source_info::rotate_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_mutex_replica_reporting_capability_err_lock, "Replica_reporting_capability::err_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_data_lock, "Relay_log_info::data_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_sleep_lock, "Relay_log_info::sleep_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_relay_log_info_thd_lock, "Relay_log_info::info_thd_lock", 0, 0, PSI_DOCUMENT_ME},
@@ -11113,14 +11113,14 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0, PSI_VOLATILITY_SESSION, PSI_DOCUMENT_ME},
   { &key_LOCK_cost_const, "Cost_constant_cache::LOCK_cost_const", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_current_cond, "THD::LOCK_current_cond", 0, PSI_VOLATILITY_SESSION, PSI_DOCUMENT_ME},
-  { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK", 0, 0, PSI_DOCUMENT_ME},
+  { &key_mta_temp_table_LOCK, "key_mta_temp_table_LOCK", 0, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_reset_gtid_table, "LOCK_reset_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_collect_instance_log, "LOCK_collect_instance_log", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_mts_gaq_LOCK, "key_mts_gaq_LOCK", 0, 0, PSI_DOCUMENT_ME},
+  { &key_mta_gaq_LOCK, "key_mta_gaq_LOCK", 0, 0, PSI_DOCUMENT_ME},
   { &key_thd_timer_mutex, "thd_timer_mutex", 0, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0, 0, PSI_DOCUMENT_ME},
-  { &key_mutex_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_mutex_replica_worker_hash, "Relay_log_info::replica_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_default_password_lifetime, "LOCK_default_password_lifetime", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_mandatory_roles, "LOCK_mandatory_roles", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_password_history, "LOCK_password_history", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -11238,7 +11238,7 @@ static PSI_cond_info all_server_conds[]=
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_cond_slave_worker_hash, "Relay_log_info::replica_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_monitor_info_run_cond, "Source_IO_monitor::run_cond", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
