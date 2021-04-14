@@ -168,8 +168,8 @@ static const char *command_names[] = {"create",
                                       "extended-status",
                                       "flush-status",
                                       "flush-privileges",
-                                      "start-slave",
-                                      "stop-slave",
+                                      "start-replica",
+                                      "stop-replica",
                                       "flush-threads",
                                       NullS};
 
@@ -1227,8 +1227,8 @@ static void usage(void) {
   refresh		Flush all tables and close and open logfiles\n\
   shutdown		Take server down\n\
   status		Gives a short status message from the server\n\
-  start-slave		Start slave\n\
-  stop-slave		Stop slave\n\
+  start-replica		Start slave\n\
+  stop-replica		Stop slave\n\
   variables             Prints variables available\n\
   version		Get version info from server");
 }
