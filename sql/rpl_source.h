@@ -1,5 +1,5 @@
-#ifndef RPL_MASTER_H_INCLUDED
-#define RPL_MASTER_H_INCLUDED
+#ifndef RPL_SOURCE_H_INCLUDED
+#define RPL_SOURCE_H_INCLUDED
 
 /* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
@@ -115,4 +115,4 @@ void mysql_binlog_send(THD *thd, char *log_ident, my_off_t pos,
 
 bool reset_master(THD *thd, bool unlock_read_lock);
 
-#endif /* RPL_MASTER_H_INCLUDED */
+#endif /* RPL_SOURCE_H_INCLUDED */

@@ -19,8 +19,8 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
-#ifndef MTS_SUBMODE_H
-#define MTS_SUBMODE_H
+#ifndef MTA_SUBMODE_H
+#define MTA_SUBMODE_H
 
 #include <stddef.h>
 #include <sys/types.h>
@@ -208,4 +208,4 @@ class Mts_submode_logical_clock : public Mts_submode {
   ~Mts_submode_logical_clock() override = default;
 };
 
-#endif /*MTS_SUBMODE_H*/
+#endif /*MTA_SUBMODE_H*/

@@ -21,8 +21,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SEMISYNC_MASTER_H
-#define SEMISYNC_MASTER_H
+#ifndef SEMISYNC_SOURCE_H
+#define SEMISYNC_SOURCE_H
 
 #include <assert.h>
 #include <sys/types.h>
@@ -858,4 +858,4 @@ extern unsigned long long rpl_semi_sync_master_trx_wait_time;
      1 (default) : keep waiting until timeout even no available semi-sync slave.
 */
 extern bool rpl_semi_sync_master_wait_no_slave;
-#endif /* SEMISYNC_MASTER_H */
+#endif /* SEMISYNC_SOURCE_H */
