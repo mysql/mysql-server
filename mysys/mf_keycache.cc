@@ -38,11 +38,11 @@
   When a new block is required it is first tried to pop one from the stack.
   If the stack is empty, it is tried to get a never-used block from the pool.
   If this is empty too, then a block is taken from the LRU ring, flushing it
-  to disk, if neccessary. This is handled in find_key_block().
+  to disk, if necessary. This is handled in find_key_block().
   With the new free list, the blocks can have three temperatures:
   hot, warm and cold (which is free). This is remembered in the block header
   by the enum BLOCK_TEMPERATURE temperature variable. Remembering the
-  temperature is neccessary to correctly count the number of warm blocks,
+  temperature is necessary to correctly count the number of warm blocks,
   which is required to decide when blocks are allowed to become hot. Whenever
   a block is inserted to another (sub-)chain, we take the old and new
   temperature into account to decide if we got one more or less warm block.

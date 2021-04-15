@@ -5962,7 +5962,7 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param, Item *predicand,
   imerge_list_or_tree()). When this happens, the range optimizer may
   choose to ignore conjunctions (any condition connected with AND). The
   effect of this is that the result includes a "bigger" solution than
-  neccessary. This is OK since all conditions will be used as filters
+  necessary. This is OK since all conditions will be used as filters
   after row retrieval.
 
   @see SEL_TREE::keys and SEL_TREE::merges for details of how single

@@ -2742,7 +2742,7 @@ NdbDictionaryImpl::getBlobTables(NdbTableImpl &t)
   unsigned n= t.m_noOfBlobs;
   DBUG_ENTER("NdbDictionaryImpl::getBlobTables");
   // optimized for blob column being the last one
-  // and not looking for more than one if not neccessary
+  // and not looking for more than one if not necessary
   for (unsigned i = t.m_columns.size(); i > 0 && n > 0;) {
     i--;
     NdbColumnImpl & c = *t.m_columns[i];

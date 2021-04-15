@@ -1129,7 +1129,7 @@ static trx_rseg_t *get_next_redo_rseg_from_trx_sys() {
   trx_rseg_t *rseg = trx_sys->rsegs.at(slot);
   trx_sys->rsegs.s_unlock();
 
-  /* It is not neccessary to s_lock Rsegs::m_latch here because the
+  /* It is not necessary to s_lock Rsegs::m_latch here because the
   system tablespace is never truncated like other undo tablespaces. */
   rseg->trx_ref_count++;
 

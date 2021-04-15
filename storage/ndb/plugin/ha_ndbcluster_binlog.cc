@@ -5610,7 +5610,7 @@ void Ndb_binlog_client::drop_events_for_table(THD *thd, Ndb *ndb,
   during a drop table
 
   Syncronized drop between client and injector thread is
-  neccessary in order to maintain ordering in the binlog,
+  necessary in order to maintain ordering in the binlog,
   such that the drop occurs _after_ any inserts/updates/deletes.
 
   Also the injector thread need to be given time to detect the

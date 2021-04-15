@@ -877,7 +877,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       Item *value = args[between && max_fl ? 2 : 1];
 
       /*
-        A perfect save is neccessary. Truncated / incorrect value can result
+        A perfect save is necessary. Truncated / incorrect value can result
         in an incorrect index lookup. Truncation of trailing space is ignored
         since that is expected for strings even in other cases.
       */

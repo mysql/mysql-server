@@ -479,7 +479,7 @@ int Partition_helper::ph_write_row(uchar *buf) {
     /*
       If we have failed to set the auto-increment value for this row,
       it is highly likely that we will not be able to insert it into
-      the correct partition. We must check and fail if neccessary.
+      the correct partition. We must check and fail if necessary.
     */
     if (error) return error;
 

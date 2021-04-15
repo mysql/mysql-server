@@ -5081,7 +5081,7 @@ static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *mpv, const uchar *pkt,
   to send data to the server.
 
   It transparently wraps the data into a change user or authentication
-  handshake packet, if neccessary.
+  handshake packet, if necessary.
 */
 static int client_mpvio_write_packet(MYSQL_PLUGIN_VIO *mpv, const uchar *pkt,
                                      int pkt_len) {

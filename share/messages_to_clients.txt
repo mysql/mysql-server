@@ -7700,7 +7700,7 @@ ER_CANNOT_CREATE_VIRTUAL_INDEX_CONSTRAINT
   eng "Cannot create index on virtual column whose base column has foreign constraint."
 
 ER_ERROR_ON_MODIFYING_GTID_EXECUTED_TABLE
-  eng "Please do not modify the %s table with an XA transaction. This is an internal system table used to store GTIDs for committed transactions. Although modifying it can lead to an inconsistent GTID state, if neccessary you can modify it with a non-XA transaction."
+  eng "Please do not modify the %s table with an XA transaction. This is an internal system table used to store GTIDs for committed transactions. Although modifying it can lead to an inconsistent GTID state, if necessary you can modify it with a non-XA transaction."
 
 ER_LOCK_REFUSED_BY_ENGINE
   eng "Lock acquisition refused by storage engine."

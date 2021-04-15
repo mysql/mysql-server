@@ -4076,7 +4076,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
       thd->binlog_invoker();
 
       if (!(res = sp_create_routine(thd, lex->sphead, thd->lex->definer))) {
-        /* only add privileges if really neccessary */
+        /* only add privileges if really necessary */
 
         Security_context security_context;
         bool restore_backup_context = false;
