@@ -258,26 +258,39 @@ ProcessWrapper &ProcessManager::Spawner::launch_command_and_wait(
   if (command.empty())
     throw std::logic_error("path to launchable executable must not be empty");
 
-  if (wait_for_notify_ready_ >= 0ms) {
-    net::io_context io_ctx;
-
-    ProcessManager::wait_socket_t notify_socket{io_ctx};
-
-    const std::string socket_node = notify_socket_path_;
-
-    EXPECT_NO_ERROR(notify_socket.open());
-    EXPECT_NO_ERROR(notify_socket.bind({socket_node}));
-
-    env_vars.emplace_back("NOTIFY_SOCKET", socket_node);
-
-    auto &result = launch_command(command, params, env_vars);
-
-    EXPECT_TRUE(wait_for_notified_ready(notify_socket, wait_for_notify_ready_));
-
-    return result;
-  } else {
+  if (sync_point_ == SyncPoint::NONE || sync_point_timeout_ < 0s) {
     return launch_command(command, params, env_vars);
   }
+
+  net::io_context io_ctx;
+
+  ProcessManager::wait_socket_t notify_socket{io_ctx};
+
+  const std::string socket_node = notify_socket_path_;
+
+  EXPECT_NO_ERROR(notify_socket.open());
+  EXPECT_NO_ERROR(notify_socket.bind({socket_node}));
+
+  env_vars.emplace_back("NOTIFY_SOCKET", socket_node);
+
+  auto &result = launch_command(command, params, env_vars);
+
+  switch (sync_point_) {
+    case SyncPoint::READY:
+      EXPECT_TRUE(wait_for_notified_ready(notify_socket, sync_point_timeout_))
+          << "socket: " << socket_node;
+      break;
+    case SyncPoint::RUNNING:
+      EXPECT_TRUE(wait_for_notified(notify_socket, "STATUS=running",
+                                    sync_point_timeout_))
+          << "socket: " << socket_node;
+      break;
+    case SyncPoint::NONE:
+      // nothing to do.
+      break;
+  }
+
+  return result;
 }
 
 static std::vector<std::string> build_exec_args(

@@ -73,6 +73,12 @@ class ProcessManager {
 
   class Spawner {
    public:
+    enum class SyncPoint {
+      NONE,
+      RUNNING,  // signal handler, reopen, plugins started.
+      READY,    // all services are "READY"
+    };
+
     Spawner &catch_stderr(bool v) {
       catch_stderr_ = v;
       return *this;
@@ -84,12 +90,17 @@ class ProcessManager {
     }
 
     Spawner &wait_for_notify_ready(std::chrono::milliseconds v) {
-      wait_for_notify_ready_ = std::move(v);
+      sync_point_timeout_ = std::move(v);
       return *this;
     }
 
     Spawner &expected_exit_code(int v) {
       expected_exit_code_ = v;
+      return *this;
+    }
+
+    Spawner &wait_for_sync_point(SyncPoint sync_point) {
+      sync_point_ = sync_point;
       return *this;
     }
 
@@ -134,7 +145,8 @@ class ProcessManager {
 
     bool with_sudo_{false};
     bool catch_stderr_{true};
-    std::chrono::milliseconds wait_for_notify_ready_{5000};
+    std::chrono::milliseconds sync_point_timeout_{5000};
+    SyncPoint sync_point_{SyncPoint::READY};
 
     std::string logging_dir_;
     std::string notify_socket_path_;

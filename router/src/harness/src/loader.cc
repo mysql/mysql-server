@@ -1116,11 +1116,7 @@ void Loader::start_all() {
  * @retval nullptr if no exception was returned
  */
 std::exception_ptr Loader::main_loop() {
-  // RouterRoutingTest::RoutingPluginCantSpawnMoreThreads is waiting for this
-  // log-message to appear in the log to get a predictible test-scenario.
-  //
-  // Changing or moving this message, will break that test.
-  log_debug("Running.");
+  notify_status("running");
 
   std::exception_ptr first_eptr;
   // wait for a reason to shutdown
