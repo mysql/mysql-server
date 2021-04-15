@@ -1775,6 +1775,17 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised) {
   bool trx_sys_latch_is_needed =
       (trx->id > 0) || trx_state_eq(trx, TRX_STATE_PREPARED);
 
+  /* Check and get GTID to be persisted. Do it outside mutex. It must be done
+  before trx->state is changed to TRX_STATE_COMMITTED_IN_MEMORY, because the
+  gtid_persistor.get_gtid_info() calls gtid_persistor.has_gtid() which checks
+  if trx->state is TRX_STATE_PREPARED when thd == nullptr, and updates the thd
+  with thd_get_current_thd() in such case. */
+  Gtid_desc gtid_desc;
+  if (serialised) {
+    auto &gtid_persistor = clone_sys->get_gtid_persistor();
+    gtid_persistor.get_gtid_info(trx, gtid_desc);
+  }
+
   if (trx_sys_latch_is_needed) {
     trx_sys_mutex_enter();
   }
@@ -1823,11 +1834,6 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised) {
   become purged (because trx->no would no longer protect them). */
 
   if (serialised) {
-    /* Check and get GTID to be persisted. Do it outside mutex. */
-    Gtid_desc gtid_desc;
-    auto &gtid_persistor = clone_sys->get_gtid_persistor();
-    gtid_persistor.get_gtid_info(trx, gtid_desc);
-
     trx_sys_serialisation_mutex_enter();
 
     /* Add GTID to be persisted to disk table. It must be done ...
