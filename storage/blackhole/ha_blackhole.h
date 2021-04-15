@@ -71,7 +71,7 @@ class ha_blackhole : public handler {
   /* The following defines can be increased if necessary */
 #define BLACKHOLE_MAX_KEY 64     /* Max allowed keys */
 #define BLACKHOLE_MAX_KEY_SEG 16 /* Max segments for key */
-#define BLACKHOLE_MAX_KEY_LENGTH 1000
+#define BLACKHOLE_MAX_KEY_LENGTH 3072
   uint max_supported_keys() const override { return BLACKHOLE_MAX_KEY; }
   uint max_supported_key_length() const override {
     return BLACKHOLE_MAX_KEY_LENGTH;
