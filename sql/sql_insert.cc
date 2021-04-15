@@ -1287,9 +1287,15 @@ bool Sql_cmd_insert_base::prepare_inner(THD *thd) {
   } else {
     ulong added_options = SELECT_NO_UNLOCK;
 
-    // Is inserted table used somewhere in other parts of query
-    if (unique_table(lex->insert_table_leaf, table_list->next_global, false)) {
-      // Using same table for INSERT and SELECT, buffer the selection
+    // The result needs to be buffered if the target table is used somewhere
+    // in other parts of query.
+    // This is not an issue if a secondary engine is involved, as the target
+    // table will always be in the primary engine, and the source table will
+    // be in the secondary engine, so they are always different for this
+    // particular case.
+    if (unique_table(lex->insert_table_leaf, table_list->next_global, false) &&
+        thd->secondary_engine_optimization() !=
+            Secondary_engine_optimization::SECONDARY) {
       added_options |= OPTION_BUFFER_RESULT;
     }
     /*
