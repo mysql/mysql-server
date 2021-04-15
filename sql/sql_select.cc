@@ -296,12 +296,13 @@ static bool validate_use_secondary_engine(const LEX *lex) {
     return false;
   }
 
-  // A query must be executed in secondary engine if all of these conditions are
-  // met:
+  // A query must be executed in secondary engine if these conditions are met:
   //
   // 1) use_secondary_engine is FORCED
+  // and either
   // 2) Is a SELECT statement that accesses one or more base tables.
-  // 3) Is a INSERT SELECT statement that accesses two or more base tables
+  // or
+  // 3) Is an INSERT SELECT statement that accesses two or more base tables
   if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED &&  // 1
       ((sql_cmd->sql_command_code() == SQLCOM_SELECT &&
         lex->table_count >= 1) ||  // 2
