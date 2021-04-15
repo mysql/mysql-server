@@ -22035,6 +22035,32 @@ static void test_bug31691060_2() {
   rc = mysql_stmt_close(stmt);
 }
 
+static void test_bug32372038() {
+  myheader("bug32372038");
+#ifndef NDEBUG
+  MYSQL *mysql_local;
+  DBUG_SET("+d,bug32372038");
+
+  if (!(mysql_local = mysql_client_init(NULL))) {
+    fprintf(stderr, "\n mysql_client_init() failed");
+    exit(1);
+  }
+
+  net_async_status status;
+  bool exit_loop = false;
+  do {
+    status = mysql_real_connect_nonblocking(
+        mysql_local, opt_host, opt_user, opt_password, current_db, opt_port,
+        opt_unix_socket, CLIENT_MULTI_STATEMENTS);
+    DBUG_EXECUTE_IF("bug32372038_ssl_started", { exit_loop = true; });
+  } while (status == NET_ASYNC_NOT_READY && !exit_loop);
+
+  mysql_close(mysql_local);
+  DBUG_SET("-d,bug32372038");
+  DBUG_SET("-d,bug32372038_ssl_started");
+#endif
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -22335,6 +22361,7 @@ static struct my_tests_st my_tests[] = {
     {"test_wl12542", test_wl12542},
     {"test_bug31691060_1", test_bug31691060_1},
     {"test_bug31691060_2", test_bug31691060_2},
+    {"test_bug32372038", test_bug32372038},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

@@ -438,6 +438,11 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
     /* Process the SSL I/O error. */
     if (!ssl_should_retry(vio, handshake_ret, &event, ssl_errno_holder)) break;
 
+    DBUG_EXECUTE_IF("bug32372038", {
+      DBUG_SET("+d,bug32372038_ssl_started");
+      return VIO_SOCKET_WANT_READ;
+    };);
+
     if (!vio->is_blocking_flag) {
       switch (event) {
         case VIO_IO_EVENT_READ:
