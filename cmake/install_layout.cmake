@@ -442,7 +442,7 @@ SET(ROUTER_INSTALL_LOGROTATEFILE_RPM "mysqlrouter")
 SET(ROUTER_INSTALL_CONFIGDIR_DEB  "/etc/mysqlrouter")
 SET(ROUTER_INSTALL_DATADIR_DEB    "/var/lib/mysqlrouter")
 SET(ROUTER_INSTALL_LOGDIR_DEB     "/var/log/mysqlrouter")
-SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/var/run/mysqlrouter")
+SET(ROUTER_INSTALL_RUNTIMEDIR_DEB "/run/mysqlrouter")
 
 SET(ROUTER_INSTALL_BINDIR_DEB     "bin")
 SET(ROUTER_INSTALL_LIBDIR_DEB     "lib/mysqlrouter/private")
