@@ -31,16 +31,23 @@
 --let $messages = The syntax.*show-.*-auth-info.*is deprecated
 --source include/suppress_messages.inc
 
+--let $restart = $MYSQL_TMP_DIR/restart.inc
+--write_file $restart END_OF_PROCEDURE
+  --source include/rpl_connection_slave.inc
+  --source include/stop_slave.inc
+  --let $rpl_server_number = 1
+  --source include/rpl_restart_server.inc
+  --source include/rpl_connection_slave.inc
+  --source include/start_slave.inc
+  --source include/rpl_connection_master.inc
+END_OF_PROCEDURE
+
 --source include/save_error_log_position.inc
 
 --echo ==== R2: show-replica-auth-info ====
 
 --let $rpl_server_parameters = --show-replica-auth-info
---let $rpl_server_number = 1
---source include/rpl_restart_server.inc
---source include/rpl_connection_slave.inc
---source include/wait_for_slave_to_start.inc
---source include/rpl_connection_master.inc
+--source $restart
 
 --echo * R2.1: No deprecation warning
 --let $error_pattern = NONE
@@ -60,11 +67,7 @@ SHOW SLAVE HOSTS;
 --source include/assert_error_log.inc
 
 --let $rpl_server_parameters = --show-slave-auth-info
---let $rpl_server_number = 1
---source include/rpl_restart_server.inc
---source include/rpl_connection_slave.inc
---source include/wait_for_slave_to_start.inc
---source include/rpl_connection_master.inc
+--source $restart
 
 --echo * R3.1: Deprecation warning
 --let $error_pattern = The syntax 'show-slave-auth-info' is deprecated and will be removed in a future release. Please use show-replica-auth-info instead.
@@ -79,11 +82,7 @@ SHOW SLAVE HOSTS;
 --echo ==== R1: no command-line options ====
 
 --let $rpl_server_parameters =
---let $rpl_server_number = 1
---source include/rpl_restart_server.inc
---source include/rpl_connection_slave.inc
---source include/wait_for_slave_to_start.inc
---source include/rpl_connection_master.inc
+--source $restart
 
 --echo * R1.1: No deprecation warning
 --let $error_pattern = NONE
@@ -97,4 +96,5 @@ SHOW SLAVE HOSTS;
 
 --echo ==== Clean up ====
 
+--remove_file $restart
 --source include/rpl_end.inc
