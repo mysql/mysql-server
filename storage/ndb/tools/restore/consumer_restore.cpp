@@ -2164,7 +2164,25 @@ BackupRestore::column_compatible_check(const char* tableName,
     info << "Column " << tableName << "." << backupCol->getName()
          << (dbCol->getNullable()?" is":" is not")
          << " nullable in the DB." << endl;
-    similarEnough = false;
+    if (dbCol->getNullable()) // nullable -> not null conversion
+      similarEnough = ((m_tableChangesMask & TCM_ATTRIBUTE_PROMOTION) != 0);
+    else if (backupCol->getNullable()) // not null -> nullable conversion
+      similarEnough = ((m_tableChangesMask & TCM_ATTRIBUTE_DEMOTION) != 0);
+    if (!similarEnough)
+    {
+      if (backupCol->getNullable())
+      {
+        err << "Conversion of nullable column in backup to non-nullable column"
+            << " in DB is possible, but cannot be done because option"
+            << " --lossy-conversions is not specified" << endl;
+      }
+      else
+      {
+        err << "Conversion of non-nullable column in backup to nullable column"
+            << " in DB is possible, but cannot be done because option "
+            << "--promote-attributes is not specified" << endl;
+      }
+    }
   }
 
   if (backupCol->getPrecision() != dbCol->getPrecision())
