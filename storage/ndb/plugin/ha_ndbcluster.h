@@ -635,6 +635,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
                                                    const NdbOperation *,
                                                    uint *ignore_count);
   friend int ndbcluster_commit(handlerton *, THD *thd, bool all);
+
+  static int init_trans_table_stats(Thd_ndb *, ha_ndbcluster *handler);
   int start_statement(THD *thd, Thd_ndb *thd_ndb, uint table_count);
   int init_handler_for_statement(THD *thd);
   /*
@@ -752,7 +754,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   NdbIndexScanOperation *m_multi_cursor;
 
   int update_stats(THD *thd, bool do_read_stat);
-  int add_handler_to_open_tables(THD *, Thd_ndb *, ha_ndbcluster *handler);
 };
 
 // Global handler synchronization

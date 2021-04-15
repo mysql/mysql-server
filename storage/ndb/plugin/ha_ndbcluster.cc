@@ -7242,7 +7242,7 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
        *  add handler to thd_ndb->open_tables like it would
        *  have done "normally"
        */
-      add_handler_to_open_tables(thd, thd_ndb, handler);
+      init_trans_table_stats(thd_ndb, handler);
     }
   }
   if (!trans && table_count == 0) {
@@ -7263,33 +7263,56 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
   return 0;
 }
 
-int ha_ndbcluster::add_handler_to_open_tables(THD *thd, Thd_ndb *thd_ndb,
-                                              ha_ndbcluster *handler) {
+/**
+  Register table stats from NDB_SHARE pointer.
+
+  @param share   The NDB_SHARE pointer to find or create table stats for.
+
+  @note Usage of the NDB_SHARE pointer as key means that all ha_ndbcluster
+  instances which has been opened for same table in same transaction uses the
+  same table stats instance.
+
+  @return Pointer to table stats or nullptr
+*/
+Ndb_local_table_statistics *Thd_ndb::trans_register_table_stats(
+    NDB_SHARE *share) {
   DBUG_TRACE;
-  DBUG_PRINT("info", ("Adding %s", handler->m_share->key_string()));
 
-  /**
-   * thd_ndb->open_tables is only used iff thd_ndb->m_handler is not
-   */
-  assert(thd_ndb->m_handler == NULL);
-  const void *key = handler->m_share;
+  // The open_tables list is currently only used when m_handler is not
+  assert(m_handler == nullptr);
 
-  // Registering stats entry for each _unique_ NDB_SHARE pointer
-  THD_NDB_SHARE *thd_ndb_share = find_or_nullptr(thd_ndb->open_tables, key);
+  const void *key = share;
+  THD_NDB_SHARE *thd_ndb_share = find_or_nullptr(open_tables, key);
   if (thd_ndb_share == nullptr) {
-    thd_ndb_share = (THD_NDB_SHARE *)thd->get_transaction()->allocate_memory(
+    thd_ndb_share = (THD_NDB_SHARE *)m_thd->get_transaction()->allocate_memory(
         sizeof(THD_NDB_SHARE));
     if (!thd_ndb_share) {
       mem_alloc_error(sizeof(THD_NDB_SHARE));
-      return 1;
+      return nullptr;
     }
     thd_ndb_share->key = key;
     thd_ndb_share->stat.no_uncommitted_rows_count = 0;
     thd_ndb_share->stat.records = ~(ha_rows)0;
-    thd_ndb->open_tables.emplace(thd_ndb_share->key, thd_ndb_share);
+    open_tables.emplace(key, thd_ndb_share);
   }
 
-  handler->m_table_info = &thd_ndb_share->stat;
+  return &(thd_ndb_share->stat);
+}
+
+int ha_ndbcluster::init_trans_table_stats(Thd_ndb *thd_ndb,
+                                          ha_ndbcluster *handler) {
+  DBUG_TRACE;
+  assert(thd_ndb->m_handler == nullptr);
+
+  // Register table stats for transaction
+  Ndb_local_table_statistics *const stat_ptr =
+      thd_ndb->trans_register_table_stats(handler->m_share);
+  if (stat_ptr == nullptr) {
+    return 1;
+  }
+
+  // Save pointer to trans table stats
+  handler->m_table_info = stat_ptr;
   return 0;
 }
 
@@ -7316,17 +7339,16 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
     m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
   }
 
-  int ret = 0;
   if (m_thd_ndb->m_handler == nullptr) {
     assert(m_share);
-    ret = add_handler_to_open_tables(thd, m_thd_ndb, this);
-  } else {
-    // Initialize table info instance and use it
-    m_table_info_instance.no_uncommitted_rows_count = 0;
-    m_table_info_instance.records = ~(ha_rows)0;
-    m_table_info = &m_table_info_instance;
+    return init_trans_table_stats(m_thd_ndb, this);
   }
-  return ret;
+
+  // Initialize table info instance and use it
+  m_table_info_instance.no_uncommitted_rows_count = 0;
+  m_table_info_instance.records = ~(ha_rows)0;
+  m_table_info = &m_table_info_instance;
+  return 0;
 }
 
 /*

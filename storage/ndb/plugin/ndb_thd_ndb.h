@@ -60,6 +60,7 @@ class Thd_ndb {
   static void release(Thd_ndb *thd_ndb);
 
   void init_open_tables();
+  Ndb_local_table_statistics *trans_register_table_stats(NDB_SHARE *share);
   void trans_reset_table_stats();  // Uses open_tables
 
   class Ndb_cluster_connection *connection;
