@@ -7353,7 +7353,7 @@ Item *Item::cache_const_expr_transformer(uchar *arg) {
 }
 
 bool Item_field::send(Protocol *protocol, String *) {
-  return protocol->store_field(result_field);
+  return protocol->store_field(field);
 }
 
 /**
@@ -7879,7 +7879,6 @@ void Item_ref::print(const THD *thd, String *str,
 }
 
 bool Item_ref::send(Protocol *prot, String *tmp) {
-  if (result_field != nullptr) return prot->store_field(result_field);
   return (*ref)->send(prot, tmp);
 }
 
