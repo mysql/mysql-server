@@ -404,8 +404,7 @@ inline void dbug_restore_all_columns(std::map<TABLE *, my_bitmap_map *> &map) {
 
   @param thd       The current thread
   @param w         The current window
-  @param out_param OUT table; if not nullptr, does copy_funcs() to OUT
-                   (fields only)
+  @param out_param OUT table; only for legacy reasons, will be removed soon
   @param rowno     The row number (in the partition) to set up
   @param reason    What kind of row to retrieve
   @param fno       Used with NTH_VALUE and LEAD/LAG to specify which
@@ -469,7 +468,7 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 
 #if !defined(NDEBUG)
   /*
-    Since we are copying back a row from the frame buffer to the input table's
+    Since we are copying back a row from the frame buffer to the output table's
     buffer, we will be copying into fields that are not necessarily marked as
     writeable. To eliminate problems with ASSERT_COLUMN_MARKED_FOR_WRITE, we
     set all fields writeable. This is only
@@ -492,11 +491,11 @@ bool bring_back_frame_row(THD *thd, Window *w, Temp_table_param *out_param,
 
   if (!rc) {
     if (out_param) {
-      if (copy_funcs(out_param, thd, CFT_FIELDS)) return true;
-      // fields are in IN and in OUT
+      // fields are in OUT
       if (rowno >= 1) w->set_row_has_fields_in_out_table(rowno);
     } else
       // we only wrote IN record, so OUT and IN are inconsistent
+      // TODO(sgunders): Is this still needed?
       w->set_row_has_fields_in_out_table(0);
   }
 

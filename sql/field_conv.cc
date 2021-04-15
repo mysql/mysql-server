@@ -87,15 +87,6 @@ static void set_to_is_null(Field *to_field, bool is_null) {
     } else {
       to_field->set_notnull();
     }
-  } else {
-    // This is used in the case of window functions, where
-    // bring_back_frame_row() may want to set TABLE::null_row to be what it was
-    // when the row was buffered.
-    if (is_null) {
-      to_field->table->set_null_row();
-    } else {
-      to_field->table->reset_null_row();
-    }
   }
 }
 

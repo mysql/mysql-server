@@ -16605,12 +16605,18 @@ join_optimization": {
                 "adding_tmp_table_in_plan_at_position": 2,
                 "cause": "output_for_window_functions",
                 "with_buffer": false,
-                "write_method": "write_all_rows",
-                "adding_sort_to_previous_table": {
-                  "filesort": {
-                    "adding_sort_to_table": ""
-                  }
+                "write_method": "write_all_rows"
+              },
+              {
+                "filesort": {
+                  "adding_sort_to_table": ""
                 }
+              },
+              {
+                "adding_tmp_table_in_plan_at_position": 3,
+                "cause": "output_for_window_functions",
+                "with_buffer": true,
+                "write_method": "write_all_rows"
               },
               {
                 "creating_tmp_table": {
@@ -16627,18 +16633,12 @@ join_optimization": {
                 }
               },
               {
-                "adding_tmp_table_in_plan_at_position": 3,
-                "cause": "output_for_window_functions",
-                "with_buffer": true,
-                "write_method": "write_all_rows",
-                "adding_sort_to_previous_table": {
-                  "filesort": {
-                    "adding_sort_to_table": ""
-                  }
-                },
                 "filesort": {
                   "adding_sort_to_table": ""
                 }
+              },
+              {
+                "adding_sort_to_table": ""
               }
             ]
           }

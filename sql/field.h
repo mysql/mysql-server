@@ -4643,9 +4643,9 @@ class Copy_field {
   void invoke_do_copy(bool reverse = false);
   void invoke_do_copy2(const Field *from_field, Field *to_field);
 
-  Field *from_field() { return m_from_field; }
+  Field *from_field() const { return m_from_field; }
 
-  Field *to_field() { return m_to_field; }
+  Field *to_field() const { return m_to_field; }
 };
 
 enum_field_types get_blob_type_from_length(size_t length);

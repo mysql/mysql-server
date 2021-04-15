@@ -136,6 +136,69 @@ class WindowIterator final : public RowIterator {
 /**
   BufferingWindowIterator is like WindowIterator, but deals with window
   functions that need to buffer rows.
+
+  If we don't need to buffer rows to evaluate the window functions, execution
+  is simple; see WindowIterator for details. In that case, we can just evaluate
+  the window functions as we go here, similar to the non-windowing flow.
+
+  If we do need buffering, though, we buffer the row in Read(). Next, we enter a
+  loop calling process_buffered_windowing_record, and conditionally return
+  the row. That is, if process_buffered_windowing_record was able to complete
+  evaluation of a row (cf. output_row_ready), including its window functions
+  given how much has already been buffered, we return a row, else we read more
+  rows, and postpone evaluation and returning till we have enough rows in the
+  buffer.
+
+  When we have read a full partition (or reach EOF), we evaluate any remaining
+  rows. Note that since we have to read one row past the current partition to
+  detect that that previous row was indeed the last row in a partition, we
+  need to re-establish the first row of the next partition when we are done
+  processing the current one. This is because the record will be overwritten
+  (many times) during evaluation of window functions in the current partition.
+
+  Usually [1], for window execution we have two or three tmp tables per
+  windowing step involved (although not all are always materialized;
+  they may be just streaming through StreamingIterator):
+
+  - The input table, corresponding to the parent iterator. Holds (possibly
+    sorted) records ready for windowing, sorted on expressions concatenated from
+    any PARTITION BY and ORDER BY clauses.
+
+  - The output table, as given by temp_table_param: where we write the evaluated
+    records from this step. Note that we may optimize away this last write if
+    we have no final ORDER BY or DISTINCT.
+
+  - If we have buffering, the frame buffer, held by
+    Window::m_frame_buffer[_param].
+
+  [1] This is not always the case. For the first window, if we have no
+  PARTITION BY or ORDER BY in the window, and there is more than one table
+  in the join, the logical input can consist of more than one table
+  (e.g. a NestedLoopIterator).
+
+  The first thing we do in Read() is:
+  We copy fields from IN to OUT (copy_fields), and evaluate non-WF functions
+  (copy_funcs): those functions then read their arguments from IN and store
+  their result into their result_field which is a field in OUT.
+
+  Then, let's take SUM(A+FLOOR(B)) OVER (ROWS 2 FOLLOWING) as example. Above,
+  we have stored A and the result of FLOOR in OUT. Now we buffer (save) the row
+  from OUT into the FB: For that, we copy both field A and FLOOR's result_field
+  from OUT to FB; a single copy_fields() call handles both copy jobs. Then we
+  look at the rows we have buffered and may realize that we have enough of the
+  frame to calculate SUM for a certain row (not necessarily the one we just
+  buffered; might be an earlier row, in our example it is the row which is 2
+  rows above the buffered row). If we do, to calculate WFs, we bring back the
+  frame's rows; which is done by: first copying field A and FLOOR's result_field
+  back from FB to OUT, thus getting in OUT all that SUM needs (A and FLOOR),
+  then giving that OUT row to SUM (SUM will then add the row's value to its
+  total; that happens in copy_funcs). After we have done that on all rows of the
+  frame, we have the values of SUM ready in OUT, we also restore the row which
+  owns this SUM value, in the same way as we restored the frame's rows, and we
+  return from Read() - we're done for this row. However, on the next Read()
+  call, we loop to check if we can calculate one more row with the frame
+  we have, and if so, we do, until we can't calculate any more rows -- in which
+  case we're back to just buffering.
  */
 class BufferingWindowIterator final : public RowIterator {
  public:

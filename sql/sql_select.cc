@@ -108,6 +108,7 @@
 #include "sql/sql_optimizer.h"  // JOIN
 #include "sql/sql_parse.h"      // bind_fields
 #include "sql/sql_planner.h"    // calculate_condition_filter
+#include "sql/sql_resolver.h"
 #include "sql/sql_test.h"       // misc. debug printing utilities
 #include "sql/sql_timer.h"      // thd_timer_set
 #include "sql/sql_tmp_table.h"  // tmp tables
@@ -4092,6 +4093,30 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
   return false;
 }
 
+// For window functions, replace every field parameter in them with the
+// corresponding field in the temporary table, so that they can be safely
+// evaluated after restoring fields from the framebuffer (which go into
+// the output table, not the input table). We find out which input fields
+// correspond to which output fields by searching in the given items_to_copy.
+static void ReplaceTable(THD *thd, Item *item, TABLE *src_table,
+                         const Func_ptr_array &items_to_copy) {
+  WalkAndReplace(
+      thd, item,
+      [src_table, &items_to_copy](Item *sub_item, Item *,
+                                  unsigned) -> ReplaceResult {
+        if (sub_item->type() == Item::FIELD_ITEM &&
+            down_cast<Item_field *>(sub_item)->field->table == src_table) {
+          for (const Func_ptr &func : items_to_copy) {
+            if (sub_item->eq(func.func(), /*binary_cmp=*/true)) {
+              return {ReplaceResult::REPLACE, func.result_item()};
+            }
+          }
+          // We didn't find the field, so just leave it alone.
+        }
+        return {ReplaceResult::KEEP_TRAVERSING, nullptr};
+      });
+}
+
 /**
   Init tmp tables usage info.
 
@@ -4585,6 +4610,31 @@ bool JOIN::make_tmp_tables_info() {
       m_windows[wno]->set_needs_restore_input_row(
           wno == 0 && qep_tab[primary_tables - 1].type() == JT_EQ_REF);
 
+      QEP_TAB *tab = &qep_tab[curr_tmp_table];
+      mem_root_deque<Item *> *orig_fields = curr_fields;
+      {
+        Opt_trace_object trace_this_tbl(trace);
+        trace_this_tbl
+            .add("adding_tmp_table_in_plan_at_position", curr_tmp_table)
+            .add_alnum("cause", "output_for_window_functions")
+            .add("with_buffer", m_windows[wno]->needs_buffering());
+
+        if (create_intermediate_table(tab, *curr_fields, dummy, false))
+          return true;
+
+        if (alloc_ref_item_slice(thd, widx)) return true;
+
+        if (change_to_use_tmp_fields(curr_fields, thd, ref_items[widx],
+                                     &tmp_fields[widx],
+                                     query_block->m_added_non_hidden_fields))
+          return true;
+
+        curr_fields = &tmp_fields[widx];
+        set_ref_item_slice(widx);
+        tab->ref_item_slice = widx;
+        setup_tmptable_write_func(tab, &trace_this_tbl);
+      }
+
       if (m_windows[wno]->needs_buffering()) {
         /*
           Create the window frame buffer tmp table.  We create a
@@ -4597,37 +4647,52 @@ bool JOIN::make_tmp_tables_info() {
         Temp_table_param *par =
             new (thd->mem_root) Temp_table_param(tmp_table_param);
         par->m_window_frame_buffer = true;
+
+        // Don't include temporary fields that originally came from
+        // a window function (or an expression containing a window function).
+        // Window functions are not relevant to store in the framebuffer,
+        // and in fact, trying to restore them would often overwrite
+        // good data we shouldn't.
+        //
+        // Not that the regular filtering in create_tmp_table() cannot do this
+        // for us, as it only sees the Item_field, not where it came from.
+        mem_root_deque<Item *> fb_fields(*curr_fields);
+        for (size_t i = 0; i < fb_fields.size(); ++i) {
+          Item *orig_item = (*orig_fields)[i];
+          if (orig_item->has_wf()) {
+            fb_fields[i] = nullptr;
+          }
+        }
+        fb_fields.erase(
+            std::remove(fb_fields.begin(), fb_fields.end(), nullptr),
+            fb_fields.end());
+        count_field_types(query_block, par, fb_fields, false, false);
+
         TABLE *table =
-            create_tmp_table(thd, par, *curr_fields, nullptr, false, false,
+            create_tmp_table(thd, par, fb_fields, nullptr, false, false,
                              query_block->active_options(), HA_POS_ERROR, "");
         if (table == nullptr) return true;
 
         m_windows[wno]->set_frame_buffer_param(par);
         m_windows[wno]->set_frame_buffer(table);
-      }
 
-      Opt_trace_object trace_this_tbl(trace);
-      trace_this_tbl.add("adding_tmp_table_in_plan_at_position", curr_tmp_table)
-          .add_alnum("cause", "output_for_window_functions")
-          .add("with_buffer", m_windows[wno]->needs_buffering());
-      QEP_TAB *tab = &qep_tab[curr_tmp_table];
-      if (create_intermediate_table(tab, *curr_fields, dummy, false))
-        return true;
+        // For window function expressions we are to evaluate after
+        // framebuffering, we need to replace their arguments to point to the
+        // output table instead of the input table (we could probably also have
+        // used the framebuffer if we wanted). E.g., if our input is t1 and our
+        // output is <temporary>, we need to rewrite 1 + SUM(t1.x) OVER w into
+        // 1 + SUM(<temporary>.x) OVER w.
+        TABLE *src_table = tab[-1].table();
+        for (Func_ptr &ptr : *tab->tmp_table_param->items_to_copy) {
+          if (ptr.func()->has_wf()) {
+            ReplaceTable(thd, ptr.func(), src_table,
+                         *tab->tmp_table_param->items_to_copy);
+          }
+        }
+      }
 
       if (m_windows[wno]->make_special_rows_cache(thd, tab->table()))
         return true;
-
-      if (alloc_ref_item_slice(thd, widx)) return true;
-
-      if (change_to_use_tmp_fields(curr_fields, thd, ref_items[widx],
-                                   &tmp_fields[widx],
-                                   query_block->m_added_non_hidden_fields))
-        return true;
-
-      curr_fields = &tmp_fields[widx];
-      set_ref_item_slice(widx);
-      tab->ref_item_slice = widx;
-      setup_tmptable_write_func(tab, &trace_this_tbl);
 
       ORDER_with_src w_partition(m_windows[wno]->sorting_order(),
                                  ESC_WINDOWING);

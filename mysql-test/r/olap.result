@@ -1564,7 +1564,7 @@ EXPLAIN
 -> Sort: i
     -> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
         -> Temporary table  (cost=2.50..2.50 rows=0)
-            -> Window aggregate with buffering: avg(t1.j) OVER () 
+            -> Window aggregate with buffering: avg(j) OVER () 
                 -> Filter: ((rollup_group_item(t1.i,0) + rollup_group_item(t1.j,1)) is null)
                     -> Table scan on <temporary>  (cost=2.50..2.50 rows=0)
                         -> Temporary table  (cost=2.50..2.50 rows=0)
@@ -2020,7 +2020,7 @@ SELECT (((@e:=`b`)) NOT BETWEEN 0x0b5f09 AND (CHAR(md5(@pub1),
 FROM t GROUP BY b,a WITH ROLLUP;
 (((@e:=`b`)) NOT BETWEEN 0x0b5f09 AND (CHAR(md5(@pub1),
 (CONNECTION_ID()+LEAD(5225.750000,110) RESPECT NULLS OVER(ORDER BY b, a)))))
-NULL
+1
 1
 1
 1

@@ -4725,7 +4725,7 @@ static size_t compute_ria_idx(const mem_root_deque<Item *> &fields, size_t i,
   @param param     Represents the current temporary file being produced
   @param thd       The current thread
   @param reverse_copy   If true, copies fields *back* from the frame buffer
-                        tmp table to the input table's buffer,
+                        tmp table to the output table's buffer,
                         cf. #bring_back_frame_row.
 
   @returns false if OK, true on error.
