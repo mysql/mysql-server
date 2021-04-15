@@ -7585,7 +7585,6 @@ static Field *find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref,
 
   @param table           table where to search for the field
   @param name            name of field
-  @param length          length of name
   @param allow_rowid     do allow finding of "_rowid" field?
   @param[out] field_index_ptr position in field list (used to speedup
                               lookup for fields in prepared tables)
@@ -7594,27 +7593,22 @@ static Field *find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref,
   @retval != NULL        pointer to field
 */
 
-Field *find_field_in_table(TABLE *table, const char *name, size_t length,
-                           bool allow_rowid, uint *field_index_ptr) {
+Field *find_field_in_table(TABLE *table, const char *name, bool allow_rowid,
+                           uint *field_index_ptr) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: '%s', field name: '%s'", table->alias, name));
 
   Field **field_ptr = nullptr, *field;
 
-  if (table->s->name_hash != nullptr) {
-    const auto it = table->s->name_hash->find(std::string(name, length));
-    if (it != table->s->name_hash->end()) {
-      /*
-        field_ptr points to field in TABLE_SHARE. Convert it to the matching
-        field in table
-      */
-      field_ptr = (table->field + (it->second - table->s->field));
-    }
-  } else {
-    if (!(field_ptr = table->field)) return (Field *)nullptr;
-    for (; *field_ptr; ++field_ptr)
-      if (!my_strcasecmp(system_charset_info, (*field_ptr)->field_name, name))
-        break;
+  if (!(field_ptr = table->field)) return nullptr;
+  for (; *field_ptr; ++field_ptr) {
+    // NOTE: This should probably be strncollsp() instead of my_strcasecmp();
+    // in particular, Ñ != N for my_strcasecmp(), which is not according to the
+    // usual ai_ci rules. However, changing it would risk breaking existing
+    // table definitions (which don't distinguish between N and Ñ), so we can
+    // only do this when actually changing the system collation.
+    if (!my_strcasecmp(system_charset_info, (*field_ptr)->field_name, name))
+      break;
   }
 
   if (field_ptr && *field_ptr) {
@@ -7733,7 +7727,7 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
   } else if (!table_list->nested_join) {
     /* 'table_list' is a stored table. */
     assert(table_list->table);
-    if ((fld = find_field_in_table(table_list->table, name, length, allow_rowid,
+    if ((fld = find_field_in_table(table_list->table, name, allow_rowid,
                                    field_index_ptr)))
       *actual_table = table_list;
   } else {
@@ -7813,20 +7807,11 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
 
 Field *find_field_in_table_sef(TABLE *table, const char *name) {
   Field **field_ptr = nullptr;
-  if (table->s->name_hash != nullptr) {
-    const auto it = table->s->name_hash->find(name);
-    if (it != table->s->name_hash->end()) {
-      /*
-        field_ptr points to field in TABLE_SHARE. Convert it to the matching
-        field in table
-      */
-      field_ptr = (table->field + (it->second - table->s->field));
-    }
-  } else {
-    if (!(field_ptr = table->field)) return (Field *)nullptr;
-    for (; *field_ptr; ++field_ptr)
-      if (!my_strcasecmp(system_charset_info, (*field_ptr)->field_name, name))
-        break;
+  if (!(field_ptr = table->field)) return nullptr;
+  for (; *field_ptr; ++field_ptr) {
+    // NOTE: See comment on the same call in find_field_in_table().
+    if (!my_strcasecmp(system_charset_info, (*field_ptr)->field_name, name))
+      break;
   }
   if (field_ptr)
     return *field_ptr;
@@ -7918,8 +7903,7 @@ Field *find_field_in_tables(THD *thd, Item_ident *item, TABLE_LIST *first_table,
     */
 
     if (table_ref->table && !table_ref->is_view()) {
-      found = find_field_in_table(table_ref->table, name, length, true,
-                                  &field_index);
+      found = find_field_in_table(table_ref->table, name, true, &field_index);
       // Check if there are sufficient privileges to the found field.
       if (found && want_privilege &&
           check_column_grant_in_table_ref(thd, table_ref, name, length,

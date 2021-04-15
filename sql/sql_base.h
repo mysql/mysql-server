@@ -254,8 +254,8 @@ Field *find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
                                uint *cached_field_index_ptr,
                                bool register_tree_change,
                                TABLE_LIST **actual_table);
-Field *find_field_in_table(TABLE *table, const char *name, size_t length,
-                           bool allow_rowid, uint *cached_field_index_ptr);
+Field *find_field_in_table(TABLE *table, const char *name, bool allow_rowid,
+                           uint *cached_field_index_ptr);
 Field *find_field_in_table_sef(TABLE *table, const char *name);
 Item **find_item_in_list(THD *thd, Item *item, mem_root_deque<Item *> *items,
                          uint *counter,

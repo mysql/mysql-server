@@ -260,7 +260,6 @@ bool is_suitable_for_primary_key(KEY_PART_INFO *key_part, Field *table_field) {
 static bool prepare_share(THD *thd, TABLE_SHARE *share,
                           const dd::Table *table_def) {
   my_bitmap_map *bitmaps;
-  bool use_hash;
   handler *handler_file = nullptr;
 
   // Mark 'system' tables (tables with one row) to help the Optimizer.
@@ -269,18 +268,6 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
 
   bool use_extended_sk = ha_check_storage_engine_flag(
       share->db_type(), HTON_SUPPORTS_EXTENDED_KEYS);
-  // Setup name_hash for quick look-up
-  use_hash = share->fields >= MAX_FIELDS_BEFORE_HASH;
-  if (use_hash) {
-    Field **field_ptr = share->field;
-    share->name_hash = new collation_unordered_map<std::string, Field **>(
-        system_charset_info, PSI_INSTRUMENT_ME);
-    share->name_hash->reserve(share->fields);
-
-    for (uint i = 0; i < share->fields; i++, field_ptr++) {
-      share->name_hash->emplace((*field_ptr)->field_name, field_ptr);
-    }
-  }
 
   share->m_histograms =
       new malloc_unordered_map<uint, const histograms::Histogram *>(

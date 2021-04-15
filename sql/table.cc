@@ -543,8 +543,6 @@ void TABLE_SHARE::destroy() {
   }
   /* The mutex is initialized only for shares that are part of the TDC */
   if (tmp_table == NO_TMP_TABLE) mysql_mutex_destroy(&LOCK_ha_data);
-  delete name_hash;
-  name_hash = nullptr;
 
   delete m_histograms;
   m_histograms = nullptr;
@@ -1139,8 +1137,6 @@ static ulong get_form_pos(File file, uchar *head) {
   @param         frm_context           FRM_context for the structures removed
                                        from TABLE_SHARE.
   @param         new_frm_ver           .FRM file version.
-  @param         use_hash              Indicates whether we use hash or linear
-                                       search to lookup fields by name.
   @param         field_idx             Field index in TABLE_SHARE::field array.
   @param         strpos                Pointer to part of .FRM's screens
                                        section describing the field to be
@@ -1173,7 +1169,7 @@ static ulong get_form_pos(File file, uchar *head) {
 
 static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
                                FRM_context *frm_context, uint new_frm_ver,
-                               bool use_hash, uint field_idx, uchar *strpos,
+                               uint field_idx, uchar *strpos,
                                uchar *format_section_fields, char **comment_pos,
                                char **gcol_screen_pos, uchar **null_pos,
                                uint *null_bit_pos, int *errarg) {
@@ -1356,11 +1352,6 @@ static int make_field_from_frm(THD *thd, TABLE_SHARE *share,
   if (unireg == FRM_context::NEXT_NUMBER)
     share->found_next_number_field = share->field + field_idx;
 
-  if (use_hash) {
-    Field **field = share->field + field_idx;
-    share->name_hash->emplace((*field)->field_name, field);
-  }
-
   if (format_section_fields) {
     const uchar field_flags = format_section_fields[field_idx];
     const uchar field_storage = (field_flags & STORAGE_TYPE_MASK);
@@ -1411,7 +1402,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
   uint extra_rec_buf_length;
   uint i, j;
   bool use_extended_sk;  // Supported extending of secondary keys with PK parts
-  bool use_hash;
   char *keynames, *names, *comment_pos, *gcol_screen_pos;
   char *orig_comment_pos, *orig_gcol_screen_pos;
   uchar forminfo[288];
@@ -1945,11 +1935,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
     null_bit_pos = 0;
   }
 
-  use_hash = share->fields >= MAX_FIELDS_BEFORE_HASH;
-  if (use_hash)
-    share->name_hash = new collation_unordered_map<std::string, Field **>(
-        system_charset_info, PSI_INSTRUMENT_ME);
-
   for (i = 0; i < share->fields; i++, strpos += field_pack_length) {
     if (new_frm_ver >= 3 &&
         (strpos[10] &
@@ -1966,10 +1951,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
       gcol_screen_pos += uint2korr(gcol_screen_pos + 1) + FRM_GCOL_HEADER_SIZE;
       has_vgc = true;
     } else {
-      if ((error = make_field_from_frm(
-               thd, share, frm_context, new_frm_ver, use_hash, i, strpos,
-               format_section_fields, &comment_pos, &gcol_screen_pos, &null_pos,
-               &null_bit_pos, &errarg)))
+      if ((error = make_field_from_frm(thd, share, frm_context, new_frm_ver, i,
+                                       strpos, format_section_fields,
+                                       &comment_pos, &gcol_screen_pos,
+                                       &null_pos, &null_bit_pos, &errarg)))
         goto err;
     }
   }
@@ -1990,10 +1975,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share,
            FRM_context::GENERATED_FIELD) &&   // former Field::unireg_check
           !(bool)(uint)(gcol_screen_pos[3]))  // Field::stored_in_db
       {
-        if ((error = make_field_from_frm(
-                 thd, share, frm_context, new_frm_ver, use_hash, i, strpos,
-                 format_section_fields, &comment_pos, &gcol_screen_pos,
-                 &null_pos, &null_bit_pos, &errarg)))
+        if ((error = make_field_from_frm(thd, share, frm_context, new_frm_ver,
+                                         i, strpos, format_section_fields,
+                                         &comment_pos, &gcol_screen_pos,
+                                         &null_pos, &null_bit_pos, &errarg)))
           goto err;
       } else {
         /*
@@ -2249,8 +2234,6 @@ err:
   my_free(disk_buff);
   my_free(extra_segment_buff);
   destroy(handler_file);
-  delete share->name_hash;
-  share->name_hash = nullptr;
 
   open_table_error(thd, share, error, my_errno());
   return error;

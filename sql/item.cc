@@ -8580,7 +8580,7 @@ void Item_trigger_field::setup_field(
     set field_idx properly.
   */
   (void)find_field_in_table(table_triggers->get_subject_table(), field_name,
-                            strlen(field_name), false, &field_idx);
+                            false, &field_idx);
   triggers = table_triggers;
   table_grants = table_grant_info;
 }

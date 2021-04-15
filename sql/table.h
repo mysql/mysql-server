@@ -716,8 +716,6 @@ struct TABLE_SHARE {
   /** Category of this table. */
   TABLE_CATEGORY table_category{TABLE_UNKNOWN_CATEGORY};
 
-  /* hash of field names (contains pointers to elements of field array) */
-  collation_unordered_map<std::string, Field **> *name_hash{nullptr};
   MEM_ROOT mem_root;
   /**
     Used to allocate new handler for internal temporary table when the
