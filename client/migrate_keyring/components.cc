@@ -181,13 +181,9 @@ Destination_keyring_services::~Destination_keyring_services() {
 Keyring_migrate::Keyring_migrate(Source_keyring_services &src,
                                  Destination_keyring_services &dst,
                                  bool online_migration)
-    : src_(src),
-      dst_(dst),
-      iterator_(nullptr),
-      mysql_connection_(online_migration),
-      ok_(false),
-      maximum_size_(16384) {
+    : src_(src), dst_(dst), mysql_connection_(online_migration) {
   if (!src_.ok() || !dst_.ok()) return;
+  if (online_migration && !mysql_connection_.ok()) return;
   if (lock_source_keyring() == false) {
     log_error << "Failed to lock source keyring" << std::endl;
     return;
@@ -202,12 +198,14 @@ Keyring_migrate::Keyring_migrate(Source_keyring_services &src,
 
 bool Keyring_migrate::lock_source_keyring() {
   if (Options::s_online_migration == false) return true;
+  if (!mysql_connection_.ok()) return false;
   std::string lock_statement("SET GLOBAL KEYRING_OPERATIONS=0");
   return mysql_connection_.execute(lock_statement);
 }
 
 bool Keyring_migrate::unlock_source_keyring() {
-  if (Options::s_online_migration == false) return true;
+  if (Options::s_online_migration == false || !mysql_connection_.ok())
+    return true;
   std::string unlock_statement("SET GLOBAL KEYRING_OPERATIONS=1");
   return mysql_connection_.execute(unlock_statement);
 }
