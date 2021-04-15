@@ -23,10 +23,8 @@
 #ifndef BASE_MOCK_FIELD_INCLUDED
 #define BASE_MOCK_FIELD_INCLUDED
 
-// First include (the generated) my_config.h, to get correct platform defines.
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-#include "my_config.h"
 
 #include "sql/field.h"
 #include "sql/json_dom.h"

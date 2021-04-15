@@ -23,9 +23,6 @@
 #ifndef DD_INCLUDED
 #define DD_INCLUDED
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
