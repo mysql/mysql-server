@@ -348,6 +348,13 @@ static int mgmd_main(int argc, char** argv)
   if ((ho_error=ndb_opts.handle_options()))
     mgmd_exit(ho_error);
 
+  /**
+    config_filename is set to nullptr when --skip-config-file is specified
+   */
+  if (opts.config_filename == disabled_my_option) {
+    opts.config_filename = nullptr;
+  }
+
   if (opts.interactive ||
       opts.non_interactive ||
       opts.print_full_config) {
@@ -360,7 +367,11 @@ static int mgmd_main(int argc, char** argv)
     mgmd_exit(1);
   }
 
-  if (opts.config_filename && !(opts.initial || opts.reload)) {
+  /**
+    validation for initial or reload options is skipped when
+    config file is not specified.
+   */
+  if (opts.config_filename != nullptr && !(opts.initial || opts.reload)) {
     fprintf(stderr,
             "ERROR: Cannot start management node without --initial or --reload "
             "when config-file(or -f) option is specified.\n");

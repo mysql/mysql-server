@@ -24,9 +24,52 @@
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgmd_dump_file.txt;
 --error 1
 --exec $NDB_MGMD_EXE -f config.ini > $dump_file 2>&1
---echo # verify that mgmd fails without initial or reload when started with -f option
+--echo # verify that mgmd fails without initial or reload when started with
+--echo # -f option
 --let $assert_text= Enforce using initial or reload with -f option
 --let $assert_select= ERROR: Cannot start management node without --initial or --reload when config-file\(or -f\) option is specified
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--echo Bug32706682
+--error 1
+--exec $NDB_MGMD_EXE --skip-config-file -f config.ini > $dump_file 2>&1
+--echo # verify that mgmd fails without initial or reload when skip-config-file
+--echo # followed by -f option is provided
+--let $assert_text= Verify mgmd fails without initial or reload when -f is provided after --skip-config-file
+--let $assert_select= ERROR: Cannot start management node without --initial or --reload when config-file\(or -f\) option is specified
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--error 1
+# skip-config-cache is added to prevent starting of mgmd with left over binary configs.
+--exec $NDB_MGMD_EXE --skip-config-cache > $dump_file 2>&1
+--echo # verify that mgmd skips initial or reload validation when config-file
+--echo # is not specified.
+--let $assert_text= Skip initial or reload option validation when config-file option is not specified
+--let $assert_select= ERROR    -- Could not determine which nodeid to use for this node. Specify it with --ndb-nodeid=<nodeid> on command line
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--error 1
+--exec $NDB_MGMD_EXE -f config.ini --skip-config-file --skip-config-cache > $dump_file 2>&1
+--echo # verify that mgmd skips initial or reload validation when
+--echo # skip-config-file is specified.
+--let $assert_text= Skip initial or reload option validation when --skip-config-file is specified.
+--let $assert_select= ERROR    -- Could not determine which nodeid to use for this node. Specify it with --ndb-nodeid=<nodeid> on command line
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+# To validate Mgmd fails when started with both -f and --mycnf
+--error 1
+--exec $NDB_MGMD_EXE -f config.ini --mycnf > $dump_file 2>&1
+--echo # verify that mgmd fails when started with both -f and --mycnf.
+--let $assert_text= Verify mgmd fails when started with both -f and --mycnf
+--let $assert_select= ERROR: Both --mycnf and -f is not supported
 --let $assert_file= $dump_file
 --let $assert_count= 1
 --source include/assert_grep.inc
