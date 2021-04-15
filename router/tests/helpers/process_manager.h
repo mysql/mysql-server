@@ -242,6 +242,67 @@ class ProcessManager {
    */
   std::map<std::string, std::string> get_DEFAULT_defaults() const;
 
+  class ConfigWriter {
+   public:
+    using section_type = std::map<std::string, std::string>;
+
+    using sections_type = std::map<std::string, section_type>;
+
+    ConfigWriter(std::string directory, sections_type sections)
+        : directory_{std::move(directory)}, sections_{std::move(sections)} {}
+
+    /**
+     * set a section by name and key-value pairs.
+     *
+     * @param name section name
+     * @param section section's key-value pairs
+     */
+    ConfigWriter &section(const std::string &name, section_type section) {
+      sections_[name] = std::move(section);
+
+      return *this;
+    }
+
+    /**
+     * set a section by pair.first name and pair.second value.
+     *
+     * @param section pair of section-name and section-key-value pairs
+     */
+    ConfigWriter &section(std::pair<std::string, section_type> section) {
+      sections_[section.first] = std::move(section.second);
+
+      return *this;
+    }
+
+    // directory that's set
+    std::string directory() const { return directory_; }
+
+    // allow to modify the sections
+    sections_type &sections() { return sections_; }
+
+    // write config to file.
+    std::string write(const std::string &name = "mysqlrouter.conf");
+
+   private:
+    std::string directory_;
+    sections_type sections_;
+  };
+
+  /**
+   * create writer for structured config.
+   *
+   * Allows to build the config fluently:
+   *
+   * @code{.cc}
+   * // write config to ${dir}/mysqlrouter.conf
+   * config_writer(dir)
+   *   .section("logger", {{"level", "DEBUG"}})
+   *   .section("routing", {{"bind_port", "6446"}})
+   *   .write();
+   * @endcode
+   */
+  ConfigWriter config_writer(const std::string &directory);
+
   /** @brief create config file
    *
    * @param directory directory in which the config file will be created
