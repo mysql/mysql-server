@@ -629,6 +629,25 @@ OPTION(WITH_AUTHENTICATION_KERBEROS
   "Report error if the Kerberos authentication plugin cannot be built."
   ${WITH_AUTHENTICATION_KERBEROS_DEFAULT})
 
+# Default ON if we are building server-side plugins.
+# Also default ON in pushbuild, for our community builds.
+IF(WITH_AUTHENTICATION_KERBEROS OR
+    WITH_AUTHENTICATION_LDAP OR
+    DEFINED ENV{PB2WORKDIR})
+  SET(WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT ON)
+ELSE()
+  SET(WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT OFF)
+ENDIF()
+
+# Enable building of
+# The KERBEROS client authentication plugin
+#   authentication_kerberos_client.so
+# The LDAP client authentication plugin
+#   authentication_ldap_sasl_client.so
+OPTION(WITH_AUTHENTICATION_CLIENT_PLUGINS
+  "Build client-side authentication plugins, even if server-side are disabled"
+  ${WITH_AUTHENTICATION_CLIENT_PLUGINS_DEFAULT})
+
 # On windows we need a non-standard package for CURL.
 IF(WITH_INTERNAL AND UNIX)
   SET(WITH_CURL_DEFAULT "system")

@@ -27,6 +27,12 @@
 # The client authentication plug-in is part of the community build.
 # Build it if we have found the necessary libraries.
 
+# Skip it if disabled.
+IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
+  MESSAGE(STATUS "Skipping the KERBEROS client authentication plugin.")
+  RETURN()
+ENDIF()
+
 MESSAGE(STATUS "GSSAPI_LIBRARIES  ${GSSAPI_LIBRARIES}")
 MESSAGE(STATUS "KERBEROS_LIBRARIES  ${KERBEROS_LIBRARIES}")
 MESSAGE(STATUS "GSSAPI_INCLUDE_DIR  ${GSSAPI_INCLUDE_DIR}")
@@ -43,8 +49,8 @@ IF(KERBEROS_INCLUDE_DIR AND GSSAPI_INCLUDE_DIR)
   ENDIF()
   SET(MY_SQL "mysqlclient")
 ELSE()
-  MESSAGE(STATUS
-    "Skipping authentication_kerberos plug-in.")
+  MESSAGE(WARNING
+    "Skipping the KERBEROS client authentication plugin.")
   RETURN()
 ENDIF()
 
