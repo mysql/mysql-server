@@ -986,6 +986,8 @@ CREATE TABLE t1 (
   o_id int unsigned NOT NULL AUTO_INCREMENT COMMENT 'Primary Key',
   PRIMARY KEY (o_id)
 );
+# 32-bit executable may issue warnings with max_length greater than 2^32
+--disable_warnings
 set group_concat_max_len = 1024;
 PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
 EXECUTE ps;
@@ -998,4 +1000,5 @@ EXECUTE ps;
 set group_concat_max_len = 18446744073709551615;
 PREPARE ps FROM "SELECT GROUP_CONCAT(o_id) FROM t1;";
 EXECUTE ps;
+--enable_warnings
 DROP TABLE t1;
