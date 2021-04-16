@@ -172,7 +172,7 @@ INSERT INTO gis_geometrycollection VALUES
  (315,ST_GEOMFROMTEXT(@star_collection_elems_2));
 --enable_warnings
 
---echo #INSERT seperate star
+--echo #INSERT separate star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
  (400,ST_GEOMFROMTEXT(@star_3)),

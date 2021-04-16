@@ -34,7 +34,7 @@
 
 // operator<< for std::expected
 //
-// the functions are kept in a seperate header as it
+// the functions are kept in a separate header as it
 //
 // - isn't part of the std-proposal
 // - includes <ostream> which isn't need for stdx::expected<> itself

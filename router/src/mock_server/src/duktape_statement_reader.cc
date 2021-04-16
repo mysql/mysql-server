@@ -66,7 +66,7 @@ duk_int_t duk_pcompile_file(duk_context *ctx, const char *path,
 /*
  * get the names of the type.
  *
- * returns a comma-seperated string
+ * returns a comma-separated string
  *
  * useful for debugging
  */

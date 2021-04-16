@@ -24,7 +24,7 @@
 /**************************************************************
  *
  * NOTE THAT THIS TOOL CAN ONLY BE RUN AGAINST THE EMPLOYEES DATABASE 
- * TABLES WHICH IS A SEPERATE DOWNLOAD AVAILABLE AT WWW.MYSQL.COM.
+ * TABLES WHICH IS A SEPARATE DOWNLOAD AVAILABLE AT WWW.MYSQL.COM.
  **************************************************************/
 
 

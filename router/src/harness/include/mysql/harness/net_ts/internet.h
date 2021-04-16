@@ -385,7 +385,7 @@ inline stdx::expected<address_v6, std::error_code> make_address_v6(
 
   scope_id_type scope_id{0};
   int inet_pton_res;
-  // parse the scope_id seperately as inet_pton() doesn't know about it.
+  // parse the scope_id separately as inet_pton() doesn't know about it.
   //
   // only numeric IDs though. For named scope-ids like "lo", getifaddrs() is
   // needed

@@ -157,7 +157,7 @@ INSERT INTO gis_geometrycollection VALUES
  (314,ST_GEOMFROMTEXT(@star_lines_near_vertical_2));
 --enable_warnings
 
---echo #INSERT seperate star
+--echo #INSERT separate star
 --disable_warnings
 INSERT INTO gis_geometrycollection VALUES
  (400,ST_GEOMFROMTEXT(@star_3)),

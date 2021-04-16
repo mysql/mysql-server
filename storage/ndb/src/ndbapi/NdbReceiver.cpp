@@ -585,7 +585,7 @@ Uint32 packed_rowsize(const NdbRecord *result_record,
     sizeInWords += 3;
   }
 
-  // KeyInfo is transfered in a seperate signal,
+  // KeyInfo is transfered in a separate signal,
   // and is stored in the packed buffer together with 'info' word
   if (keySizeWords > 0)
   {

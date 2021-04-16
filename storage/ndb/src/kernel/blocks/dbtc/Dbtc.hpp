@@ -1860,7 +1860,7 @@ public:
 
     /**
      * Use 4 or 5 word extended conf signal, where opcount, total_len & active
-     * are sent as seperate words. 4 or 5 word extended format is decided
+     * are sent as separate words. 4 or 5 word extended format is decided
      * based on 'ndbd_send_active_bitmask(<version>)'
      */
     bool m_extended_conf;

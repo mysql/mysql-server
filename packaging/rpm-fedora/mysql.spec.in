@@ -1881,7 +1881,7 @@ rm -r $(readlink var) var
 - Save the perror binary built during Max build so it supports the NDB
   error codes (BUG#13740)
 - added a separate macro "mysqld_group" to be able to define the
-  user group of the mysql user seperately, if desired.
+  user group of the mysql user separately, if desired.
 
 * Thu Sep 29 2005 Lenz Grimmer <lenz@mysql.com>
 
@@ -1937,7 +1937,7 @@ rm -r $(readlink var) var
 * Wed Apr 13 2005 Lenz Grimmer <lenz@mysql.com>
 
 - removed the MySQL manual files (html/ps/texi) - they have been removed
-  from the MySQL sources and are now available seperately.
+  from the MySQL sources and are now available separately.
 
 * Mon Apr 4 2005 Petr Chardin <petr@mysql.com>
 

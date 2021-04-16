@@ -122,7 +122,7 @@ struct Join<Container, const char *> {
 }  // namespace detail
 
 /**
- * join elements of an container into a string seperated by a delimiter.
+ * join elements of an container into a string separated by a delimiter.
  *
  * Container MUST:
  *
@@ -138,7 +138,7 @@ struct Join<Container, const char *> {
  *
  * @param cont a container
  * @param delim delimiter
- * @returns string of elements of container seperated by delim
+ * @returns string of elements of container separated by delim
  */
 template <class Container>
 std::string join(Container cont, const std::string &delim) {

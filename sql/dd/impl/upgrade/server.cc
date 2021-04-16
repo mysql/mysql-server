@@ -223,7 +223,7 @@ class MySQL_check {
     return res;
   }
 
-  void comma_seperated_join(std::vector<dd::String_type> &list,
+  void comma_separated_join(std::vector<dd::String_type> &list,
                             dd::String_type &dest) {
     dest = list[0];
     for (auto it = list.begin() + 1; it != list.end(); it++) dest += "," + *it;
@@ -351,7 +351,7 @@ class MySQL_check {
 
     if (repairs.size() == 0) return false;
     dd::String_type tables;
-    comma_seperated_join(repairs, tables);
+    comma_separated_join(repairs, tables);
 
     Ed_connection con(thd);
     LEX_STRING str;
