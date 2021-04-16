@@ -3007,7 +3007,15 @@ static bool drop_base_table(THD *thd, const Drop_tables_ctx &drop_ctx,
   bool result = dd::drop_table(thd, table->db, table->table_name, *table_def);
 
   if (!atomic) result = trans_intermediate_ddl_commit(thd, result);
-  result |= update_referencing_views_metadata(thd, table, !atomic, nullptr);
+
+  /*
+    In DROP DATABASE we can safely skip updating dependent views belonging
+    to the same database if we know that they will be dropped atomically
+    with our table.
+  */
+  result |= mark_referencing_views_invalid(thd, table,
+                                           (drop_ctx.drop_database && atomic),
+                                           !atomic, foreach_table_root);
 
   return result;
 }
@@ -3137,7 +3145,7 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
     default_db_doesnt_exist = !exists;
   }
 
-  MEM_ROOT foreach_table_root(key_memory_rm_table_foreach_table_root,
+  MEM_ROOT foreach_table_root(key_memory_rm_table_foreach_root,
                               MEM_ROOT_BLOCK_SIZE);
 
   if (drop_ctx.has_base_non_atomic_tables()) {
@@ -3296,15 +3304,20 @@ bool mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       if (thd->dd_client()->acquire(table->db, table->table_name, &view))
         goto err_with_rollback;
 
-      if (thd->dd_client()->drop(view) ||
-          update_referencing_views_metadata(thd, table, false, nullptr))
-        goto err_with_rollback;
-
       /*
-        No need to log anything since we drop views here only if called by
-        DROP DATABASE implementation.
+        Since we drop views here only if called by DROP DATABASE:
+        - We can safely skip marking depending views as invalid if they
+          belong to the same database.
+        - No need to log anything.
       */
       assert(drop_ctx.drop_database);
+
+      if (thd->dd_client()->drop(view) ||
+          mark_referencing_views_invalid(thd, table, true, false,
+                                         &foreach_table_root))
+        goto err_with_rollback;
+
+      free_root(&foreach_table_root, MYF(MY_MARK_BLOCKS_FREE));
     }
 
 #ifndef NDEBUG
