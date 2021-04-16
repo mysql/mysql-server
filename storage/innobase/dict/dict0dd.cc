@@ -3199,7 +3199,7 @@ bool dd_create_implicit_tablespace(dd::cache::Dictionary_client *dd_client,
 @retval true    On failure */
 bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
                         dd::Object_id dd_space_id) {
-  dd::Tablespace *dd_space = nullptr;
+  std::unique_ptr<dd::Tablespace> dd_space;
 
   if (dd_client->acquire_uncached_uncommitted(dd_space_id, &dd_space) ||
       dd_space == nullptr) {
@@ -3222,7 +3222,7 @@ bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
     return true;
   }
 
-  bool error = dd_client->drop(dd_space);
+  bool error = dd_client->drop(dd_space.get());
   DBUG_EXECUTE_IF("fail_while_dropping_dd_object", error = true;);
 
   if (error) {
@@ -3234,31 +3234,22 @@ bool dd_drop_tablespace(dd::cache::Dictionary_client *dd_client, THD *thd,
 }
 
 /** Determine if a tablespace is implicit.
-@param[in,out]	client		data dictionary client
-@param[in]	dd_space_id	dd tablespace id
+@param[in]	dd_space	DD space object
 @param[out]	implicit	whether the tablespace is implicit tablespace
-@param[out]	dd_space	DD space object
 @retval false	on success
-@retval true	on failure */
-bool dd_tablespace_is_implicit(dd::cache::Dictionary_client *client,
-                               dd::Object_id dd_space_id, bool *implicit,
-                               dd::Tablespace **dd_space) {
+@retval true	on failure (corrupt tablespace object). */
+bool dd_tablespace_is_implicit(const dd::Tablespace *dd_space, bool *implicit) {
   space_id_t id = 0;
   uint32 flags;
 
-  const bool fail = client->acquire_uncached_uncommitted<dd::Tablespace>(
-                        dd_space_id, dd_space) ||
-                    (*dd_space) == nullptr ||
-                    (*dd_space)->se_private_data().get(
-                        dd_space_key_strings[DD_SPACE_ID], &id);
-
-  if (!fail) {
-    (*dd_space)->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS],
-                                       &flags);
-    *implicit = fsp_is_file_per_table(id, flags);
+  if (dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_ID], &id)) {
+    return true;
   }
 
-  return fail;
+  dd_space->se_private_data().get(dd_space_key_strings[DD_SPACE_FLAGS], &flags);
+  *implicit = fsp_is_file_per_table(id, flags);
+
+  return false;
 }
 
 bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
@@ -3297,9 +3288,10 @@ bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
   dd::Tablespace *dd_space = nullptr;
   bool is_implicit{};
 
-  if (dd_tablespace_is_implicit(dd_client, dd_space_id, &is_implicit,
-                                &dd_space) ||
-      !is_implicit) {
+  if (dd_client->acquire_uncached_uncommitted<dd::Tablespace>(dd_space_id,
+                                                              &dd_space) ||
+      dd_space == nullptr ||
+      dd_tablespace_is_implicit(dd_space, &is_implicit) || !is_implicit) {
     /* purecov: begin inspected */
     my_error(ER_INTERNAL_ERROR, MYF(0),
              " InnoDB: Can't get tablespace object for space ", dd_space_id);
@@ -4161,16 +4153,23 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
   ut_ad(dd_table != nullptr);
 
   bool implicit;
-  dd::Tablespace *dd_space = nullptr;
+  std::unique_ptr<dd::Tablespace> dd_space;
 
   if (dd_table->tablespace_id() == dict_sys_t::s_dd_dict_space_id) {
     /* DD tables are in shared DD tablespace */
     implicit = false;
-  } else if (dd_tablespace_is_implicit(
-                 client, dd_first_index(dd_table)->tablespace_id(), &implicit,
-                 &dd_space)) {
-    /* Tablespace no longer exist, it could be already dropped */
-    return nullptr;
+  } else {
+    if (client->acquire_uncached_uncommitted<dd::Tablespace>(
+            dd_first_index(dd_table)->tablespace_id(), &dd_space) ||
+        dd_space == nullptr) {
+      /* Tablespace no longer exist, it could be already dropped */
+      return nullptr;
+    }
+
+    if (dd_tablespace_is_implicit(dd_space.get(), &implicit)) {
+      /* Corrupt tablespace info. */
+      return nullptr;
+    }
   }
 
   const bool zip_allowed = srv_page_size <= UNIV_ZIP_SIZE_MAX;
