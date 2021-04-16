@@ -3933,12 +3933,12 @@ static int check_clone_threshold(MYSQL_THD, SYS_VAR *var, void *save,
     is_negative = true;
   }
 
-  if (is_negative || in_val > MAX_GNO || in_val < 1) {
+  if (is_negative || in_val > GNO_END || in_val < 1) {
     std::stringstream ss;
     ss << "The value "
        << (is_negative ? std::to_string(orig) : std::to_string(in_val))
        << " is not within the range of accepted values for the option "
-       << var->name << ". The value must be between 1 and " << MAX_GNO
+       << var->name << ". The value must be between 1 and " << GNO_END
        << " inclusive.";
     my_message(ER_WRONG_VALUE_FOR_VAR, ss.str().c_str(), MYF(0));
     mysql_mutex_unlock(&lv.plugin_running_mutex);
@@ -4698,9 +4698,9 @@ static MYSQL_SYSVAR_ULONGLONG(
     "the clone procedure.",
     check_clone_threshold,  /* check func. */
     update_clone_threshold, /* update func. */
-    MAX_GNO,                /* default */
+    GNO_END,                /* default */
     1,                      /* min */
-    MAX_GNO,                /* max */
+    GNO_END,                /* max */
     0                       /* block */
 );
 

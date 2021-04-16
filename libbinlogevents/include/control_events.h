@@ -1102,8 +1102,8 @@ class Gtid_event : public Binary_log_event {
 
   /* Minimum GNO expected in a serialized GTID event */
   static const int64_t MIN_GNO = 1;
-  /* Maximum GNO expected in a serialized GTID event */
-  static const int64_t MAX_GNO = LLONG_MAX;
+  /// One-past-the-max value of GNO
+  static const std::int64_t GNO_END = INT64_MAX;
 
  public:
   /// Total length of post header

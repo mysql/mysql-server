@@ -345,6 +345,7 @@ void Clone_persist_gtid::get_gtid_info(trx_t *trx, Gtid_desc &gtid_desc) {
 
   ut_ad(trx_gtid.sidno > 0);
   ut_ad(trx_gtid.gno > 0);
+  ut_ad(trx_gtid.gno < GNO_END);
 
   /* Build GTID string. */
   gtid_desc.m_info.fill(0);

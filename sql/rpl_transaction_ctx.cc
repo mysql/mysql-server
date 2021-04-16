@@ -30,7 +30,6 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysqld_error.h"
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
-#include "sql/rpl_gtid.h"            // rpl_sidno
 #include "sql/sql_class.h"           // THD
 #include "sql/transaction_info.h"
 
@@ -92,7 +91,7 @@ int set_transaction_ctx(
     Transaction_termination_ctx transaction_termination_ctx) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("thread_id=%lu, rollback_transaction=%d, "
-                       "generated_gtid=%d, sidno=%d, gno=%lld",
+                       "generated_gtid=%d, sidno=%d, gno=%" PRId64,
                        transaction_termination_ctx.m_thread_id,
                        transaction_termination_ctx.m_rollback_transaction,
                        transaction_termination_ctx.m_generated_gtid,

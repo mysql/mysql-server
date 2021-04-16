@@ -100,8 +100,9 @@ enum_return_status Gtid::parse(Sid_map *sid_map, const char *text) {
                               "at char %d in '%s'",
                               s, (int)(s - text), text));
       } else
-        DBUG_PRINT("info", ("GNO was zero or invalid (%lld) at char %d in '%s'",
-                            gno_var, (int)(s - text), text));
+        DBUG_PRINT("info",
+                   ("GNO was zero or invalid (%" PRId64 ") at char %d in '%s'",
+                    gno_var, (int)(s - text), text));
     } else
       DBUG_PRINT("info",
                  ("missing colon at char %d in '%s'", (int)(s - text), text));
@@ -147,7 +148,7 @@ int Gtid::to_string(const Sid_map *sid_map, char *buf, bool need_lock) const {
     */
     abort();
 #endif
-    ret = sprintf(buf, "%d:%lld", sidno, gno);
+    ret = sprintf(buf, "%d:%" PRId64, sidno, gno);
   }
   return ret;
 }

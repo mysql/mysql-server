@@ -505,11 +505,10 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
   gtid_info_struct.rpl_gtid_sidno = -1;
 
   READER_TRY_SET(gtid_info_struct.rpl_gtid_gno, read_and_letoh<int64_t>);
-
   /* GNO sanity check */
   if (header()->type_code == GTID_LOG_EVENT) {
     if (gtid_info_struct.rpl_gtid_gno < MIN_GNO ||
-        gtid_info_struct.rpl_gtid_gno > MAX_GNO)
+        gtid_info_struct.rpl_gtid_gno >= GNO_END)
       READER_THROW("Invalid GNO");
   } else { /* Assume this is an ANONYMOUS_GTID_LOG_EVENT */
     BAPI_ASSERT(header()->type_code == ANONYMOUS_GTID_LOG_EVENT);
