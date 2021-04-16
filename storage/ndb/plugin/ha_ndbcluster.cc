@@ -1235,18 +1235,18 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure() {
   if (m_thd_ndb->m_handler) {
     // Only one handler involved, reset its stats
     assert(m_thd_ndb->m_handler == this);
-    m_table_info->no_uncommitted_rows_count = 0;
+    m_trans_table_stats->uncommitted_rows = 0;
     return;
   }
   // Reset all registered table stats
-  m_thd_ndb->trans_reset_table_stats();
+  m_thd_ndb->trans_tables.reset_stats();
 }
 
 void ha_ndbcluster::no_uncommitted_rows_update(int changed_rows) {
   DBUG_TRACE;
-  m_table_info->no_uncommitted_rows_count += changed_rows;
+  m_trans_table_stats->uncommitted_rows += changed_rows;
   DBUG_PRINT("info", ("changed_rows: %d -> new value: %d", changed_rows,
-                      m_table_info->no_uncommitted_rows_count));
+                      m_trans_table_stats->uncommitted_rows));
 }
 
 int ha_ndbcluster::ndb_err(NdbTransaction *trans) {
@@ -1896,7 +1896,7 @@ int ha_ndbcluster::get_metadata(Ndb *ndb, const char *dbname,
 
   // The NDB table should not be open
   assert(m_table == nullptr);
-  assert(m_table_info == NULL);
+  assert(m_trans_table_stats == nullptr);
 
   int object_id, object_version;
   if (!ndb_dd_table_get_object_id_and_version(table_def, object_id,
@@ -2674,7 +2674,7 @@ void ha_ndbcluster::release_metadata(NdbDictionary::Dictionary *dict,
 
   release_indexes(dict, invalidate);
 
-  m_table_info = NULL;
+  m_trans_table_stats = nullptr;
 
   //  Release field to column map
   delete m_table_map;
@@ -6701,35 +6701,35 @@ int ha_ndbcluster::info(uint flag) {
     if (!thd) thd = current_thd;
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
 
-    if (!m_table_info) {
+    if (!m_trans_table_stats) {
       if (check_ndb_connection(thd)) return HA_ERR_NO_CONNECTION;
     }
 
     /*
       May need to update local copy of statistics in
-      'm_table_info', either directly from datanodes,
+      'm_trans_table_stats', either directly from datanodes,
       or from shared (mutex protected) cached copy, if:
        1) 'use_exact_count' has been set (by config or user).
        2) HA_STATUS_NO_LOCK -> read from shared cached copy.
        3) Local copy is invalid.
     */
     const bool exact_count = THDVAR(thd, use_exact_count);
-    if (exact_count ||                         // 1)
-        !(flag & HA_STATUS_NO_LOCK) ||         // 2)
-        m_table_info == NULL ||                // 3)
-        m_table_info->records == ~(ha_rows)0)  // 3)
+    if (exact_count ||                                // 1)
+        !(flag & HA_STATUS_NO_LOCK) ||                // 2)
+        m_trans_table_stats == nullptr ||             // 3)
+        m_trans_table_stats->records == ~(ha_rows)0)  // 3)
     {
       const int result =
           update_stats(thd, (exact_count || !(flag & HA_STATUS_NO_LOCK)));
       if (result) return result;
     } else {
-      /* Read from local statistics, fast and fuzzy, wo/ locks */
-      assert(m_table_info->records != ~(ha_rows)0);
+      /* Read from trans table stats, fast and fuzzy, wo/ locks */
+      assert(m_trans_table_stats->records != ~(ha_rows)0);
       // This is doing almost the same thing as in update_stats()
       // i.e the number of records in active transaction plus number of
       // uncommitted are assigned to stats.records
       stats.records =
-          m_table_info->records + m_table_info->no_uncommitted_rows_count;
+          m_trans_table_stats->records + m_trans_table_stats->uncommitted_rows;
     }
 
     if (thd->lex->sql_command != SQLCOM_SHOW_TABLE_STATUS &&
@@ -7254,7 +7254,7 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
     if (!(opti_node_select & 2) || thd->lex->sql_command == SQLCOM_LOAD)
       if (unlikely(!start_transaction(error))) return error;
 
-    thd_ndb->init_open_tables();
+    thd_ndb->trans_tables.clear();
     if (!(thd_test_options(thd, OPTION_BIN_LOG)) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT) {
       thd_ndb->set_trans_option(Thd_ndb::TRANS_NO_LOGGING);
@@ -7269,14 +7269,14 @@ int ha_ndbcluster::init_trans_table_stats(Thd_ndb *thd_ndb,
   assert(thd_ndb->m_handler == nullptr);
 
   // Register table stats for transaction
-  Ndb_local_table_statistics *const stat_ptr =
-      thd_ndb->trans_register_table_stats(handler->m_share);
+  Thd_ndb::Trans_tables::Stats *const stat_ptr =
+      thd_ndb->trans_tables.register_stats(handler->m_share);
   if (stat_ptr == nullptr) {
     return 1;
   }
 
   // Save pointer to trans table stats
-  handler->m_table_info = stat_ptr;
+  handler->m_trans_table_stats = stat_ptr;
   return 0;
 }
 
@@ -7309,9 +7309,9 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
   }
 
   // Initialize table info instance and use it
-  m_table_info_instance.no_uncommitted_rows_count = 0;
+  m_table_info_instance.uncommitted_rows = 0;
   m_table_info_instance.records = ~(ha_rows)0;
-  m_table_info = &m_table_info_instance;
+  m_trans_table_stats = &m_table_info_instance;
   return 0;
 }
 
@@ -7388,7 +7388,8 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
         thd_ndb->m_handler = nullptr;
       }
     }
-    m_table_info = NULL;
+
+    m_trans_table_stats = nullptr;
 
     /*
       This is the place to make sure this handler instance
@@ -7754,24 +7755,25 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
       // The if statement below looks fishy
       // Is it really possible to commit transaction without:
       // 1) m_share, which _must_ be acquired in open() or
-      // 2) m_table_info which is assigned when statement is started
+      // 2) m_trans_table_stats which is assigned when statement is started
       const ha_ndbcluster *handler = thd_ndb->m_handler;
       assert(handler->m_share);
-      assert(handler->m_table_info);
+      assert(handler->m_trans_table_stats);
     }
 #endif
     // Update cached row count for modified tables
     if (thd_ndb->m_handler &&  // Autocommit Txn
-        thd_ndb->m_handler->m_share && thd_ndb->m_handler->m_table_info) {
+        thd_ndb->m_handler->m_share &&
+        thd_ndb->m_handler->m_trans_table_stats) {
       NDB_SHARE *share = thd_ndb->m_handler->m_share;
       share->update_cached_row_count(
-          thd_ndb->m_handler->m_table_info->no_uncommitted_rows_count);
-      thd_ndb->m_handler->m_table_info->no_uncommitted_rows_count = 0;
+          thd_ndb->m_handler->m_trans_table_stats->uncommitted_rows);
+      thd_ndb->m_handler->m_trans_table_stats->uncommitted_rows = 0;
     }
 
     // Manual commit: Update cached table stats for NDB_SHARE's registered as
     // being part of transaction
-    thd_ndb->trans_update_cached_table_stats();
+    thd_ndb->trans_tables.update_cached_stats_with_committed();
   }
 
   ndb->closeTransaction(trans);
@@ -12831,7 +12833,7 @@ bool ha_ndbcluster::low_byte_first() const {
    do_read_stat argument.
 
    Those table stats will then be used to update the
-   Ndb_local_table_statistics::records value as well as values in
+   Thd_ndb::Trans_table::Stats::records value as well as values in
    handler::stats.
 
    @param thd           The THD pointer
@@ -12875,15 +12877,15 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat) {
   }
 
   int active_rows = 0;  // Active uncommitted rows
-  if (m_table_info) {
+  if (m_trans_table_stats) {
     // There is an active statement or transaction
 
     // Use also the uncommitted rows when updating stats.records further down
-    active_rows = m_table_info->no_uncommitted_rows_count;
+    active_rows = m_trans_table_stats->uncommitted_rows;
     DBUG_PRINT("info", ("active_rows: %d", active_rows));
 
     // Update "records" for the "active" statement or transaction
-    m_table_info->records = table_stats.row_count;
+    m_trans_table_stats->records = table_stats.row_count;
   }
   // Update values in handler::stats (another "records")
   stats.mean_rec_length = static_cast<ulong>(table_stats.row_size);

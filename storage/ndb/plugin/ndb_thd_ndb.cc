@@ -111,33 +111,31 @@ bool Thd_ndb::valid_ndb(void) const {
   return true;
 }
 
-void Thd_ndb::dbug_print_open_table_elem(
-    const std::pair<NDB_SHARE *, Ndb_local_table_statistics> &elem,
-    bool check_committed_zero) const {
-  const NDB_SHARE *share = elem.first;
-  const Ndb_local_table_statistics &stat = elem.second;
+void Thd_ndb::Trans_tables::dbug_print_elem(
+    const std::pair<NDB_SHARE *, Stats> &elem, bool check_reset) const {
+  const Stats &stat = elem.second;
 
   std::string records("<invalid>");
   if (stat.records != ~(ha_rows)0) {
     records = std::to_string(stat.records);
   }
 
-  DBUG_PRINT("share", ("%p = { records: %s, uncommitted: %d }", share,
-                       records.c_str(), stat.no_uncommitted_rows_count));
-  assert(check_committed_zero == false || stat.no_uncommitted_rows_count == 0);
+  DBUG_PRINT("share", ("%p = { records: %s, uncommitted: %d }", elem.first,
+                       records.c_str(), stat.uncommitted_rows));
+  if (check_reset) assert(stat.uncommitted_rows == 0);
 }
 
-void Thd_ndb::dbug_print_open_tables(bool check_committed_zero) const {
+void Thd_ndb::Trans_tables::dbug_print(bool check_reset) const {
   DBUG_TRACE;
-  for (const auto &key_and_value : open_tables) {
-    dbug_print_open_table_elem(key_and_value, check_committed_zero);
+  for (const auto &key_and_value : m_map) {
+    dbug_print_elem(key_and_value, check_reset);
   }
 }
 
-void Thd_ndb::init_open_tables() { open_tables.clear(); }
+void Thd_ndb::Trans_tables::clear() { m_map.clear(); }
 
 /**
-  Register table stats from NDB_SHARE pointer.
+  Register table stats for NDB_SHARE pointer.
 
   @param share   The NDB_SHARE pointer to find or create table stats for.
 
@@ -147,66 +145,60 @@ void Thd_ndb::init_open_tables() { open_tables.clear(); }
 
   @return Pointer to table stats or nullptr
 */
-Ndb_local_table_statistics *Thd_ndb::trans_register_table_stats(
+Thd_ndb::Trans_tables::Stats *Thd_ndb::Trans_tables::register_stats(
     NDB_SHARE *share) {
   DBUG_TRACE;
 
-  // The open_tables list is currently only used when m_handler is not
-  assert(m_handler == nullptr);
-
-  const auto emplace_res =
-      open_tables.emplace(share, Ndb_local_table_statistics());
+  const auto emplace_res = m_map.emplace(share, Stats());
   if (emplace_res.second) {
     // New element inserted, double check initial values
-    const auto new_elem = emplace_res.first;
     DBUG_PRINT("info", ("New element inserted for share: %p", share));
-    assert(new_elem->first == share);
-    assert(new_elem->second.records == ~(ha_rows)0);
-    assert(new_elem->second.no_uncommitted_rows_count == 0);
+    assert(emplace_res.first->first == share);
+    assert(emplace_res.first->second.records == ~(ha_rows)0);
+    assert(emplace_res.first->second.uncommitted_rows == 0);
   } else {
     DBUG_PRINT("info", ("Existing element found for share: %p", share));
-    dbug_print_open_table_elem(*emplace_res.first, false);
+    dbug_print_elem(*emplace_res.first, false);
   }
 
-  dbug_print_open_tables();
+  dbug_print();
 
   // Return pointer to table stat
   const auto elem = emplace_res.first;
-  Ndb_local_table_statistics *stat_ptr = &(elem->second);
+  Stats *stat_ptr = &(elem->second);
   return stat_ptr;
 }
 
 /**
-   Reset counters for all 'Ndb_local_table_statistics' which has been registered
-   as taking part in the transaction.
+   Reset counters for all Stats registered as taking part in the transaction.
 
    This is normally done when failure to execute the NDB transaction has
    occurred and caused all changes in whole transaction have been aborted. The
    counters will then be invalid.
  */
-void Thd_ndb::trans_reset_table_stats() {
+void Thd_ndb::Trans_tables::reset_stats() {
   DBUG_TRACE;
-  for (auto &key_and_value : open_tables) {
-    Ndb_local_table_statistics &stat = key_and_value.second;
-    stat.no_uncommitted_rows_count = 0;
+  for (auto &key_and_value : m_map) {
+    Stats &stat = key_and_value.second;
+    stat.uncommitted_rows = 0;
   }
-  dbug_print_open_tables(true);
+  dbug_print(true);
 }
 
 /**
-   Update cached tables stats in NDB_SHARE for all registered as taking part in
+   Update cached tables stats for all NDB_SHARE's registered as taking part in
    the transaction. Reset number of uncommitted rows.
 */
-void Thd_ndb::trans_update_cached_table_stats() {
+void Thd_ndb::Trans_tables::update_cached_stats_with_committed() {
   DBUG_TRACE;
-  dbug_print_open_tables();
-  for (auto &key_and_value : open_tables) {
+  dbug_print();
+  for (auto &key_and_value : m_map) {
     NDB_SHARE *share = key_and_value.first;
-    Ndb_local_table_statistics &stat = key_and_value.second;
-    share->update_cached_row_count(stat.no_uncommitted_rows_count);
-    stat.no_uncommitted_rows_count = 0;
+    Stats &stat = key_and_value.second;
+    share->update_cached_row_count(stat.uncommitted_rows);
+    stat.uncommitted_rows = 0;
   }
-  dbug_print_open_tables(true);
+  dbug_print(true);
 }
 
 bool Thd_ndb::check_option(Options option) const { return (options & option); }

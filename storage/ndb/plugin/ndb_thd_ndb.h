@@ -31,11 +31,6 @@
 
 class THD;
 
-struct Ndb_local_table_statistics {
-  int no_uncommitted_rows_count{0};
-  ha_rows records{~(ha_rows)0};
-};
-
 /*
   Class for ndbcluster thread specific data
 */
@@ -54,18 +49,24 @@ class Thd_ndb {
   static Thd_ndb *seize(THD *);
   static void release(Thd_ndb *thd_ndb);
 
- private:
-  std::unordered_map<NDB_SHARE *, Ndb_local_table_statistics> open_tables;
-  void dbug_print_open_table_elem(
-      const std::pair<NDB_SHARE *, Ndb_local_table_statistics> &elem,
-      bool check_committed_zero) const;
-  void dbug_print_open_tables(bool check_committed_zero = false) const;
+  // Keeps track of stats for tables taking part in transaction
+  class Trans_tables {
+   public:
+    struct Stats {
+      int uncommitted_rows{0};
+      ha_rows records{~(ha_rows)0};
+    };
+    void clear();
+    Stats *register_stats(NDB_SHARE *share);
+    void reset_stats();
+    void update_cached_stats_with_committed();
 
- public:
-  void init_open_tables();
-  Ndb_local_table_statistics *trans_register_table_stats(NDB_SHARE *share);
-  void trans_reset_table_stats();          // Uses open_tables
-  void trans_update_cached_table_stats();  // Uses open_tables
+   private:
+    std::unordered_map<NDB_SHARE *, Stats> m_map;
+    void dbug_print_elem(const std::pair<NDB_SHARE *, Stats> &elem,
+                         bool check_reset) const;
+    void dbug_print(bool check_reset = false) const;
+  } trans_tables;
 
   class Ndb_cluster_connection *connection;
   class Ndb *ndb;

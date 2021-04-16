@@ -678,8 +678,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   // Since all NDB table have primary key, the bitmap buffer is preallocated
   Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> m_pk_bitmap_buf;
 
-  Ndb_local_table_statistics *m_table_info{nullptr};
-  Ndb_local_table_statistics m_table_info_instance;
+  Thd_ndb::Trans_tables::Stats *m_trans_table_stats{nullptr};
+  Thd_ndb::Trans_tables::Stats m_table_info_instance;
 
   THR_LOCK_DATA m_lock;
   bool m_lock_tuple;
