@@ -32,13 +32,8 @@
 class THD;
 
 struct Ndb_local_table_statistics {
-  int no_uncommitted_rows_count;
-  ha_rows records;
-};
-
-struct THD_NDB_SHARE {
-  const void *key;
-  Ndb_local_table_statistics stat;
+  int no_uncommitted_rows_count{0};
+  ha_rows records{~(ha_rows)0};
 };
 
 /*
@@ -59,9 +54,18 @@ class Thd_ndb {
   static Thd_ndb *seize(THD *);
   static void release(Thd_ndb *thd_ndb);
 
+ private:
+  std::unordered_map<NDB_SHARE *, Ndb_local_table_statistics> open_tables;
+  void dbug_print_open_table_elem(
+      const std::pair<NDB_SHARE *, Ndb_local_table_statistics> &elem,
+      bool check_committed_zero) const;
+  void dbug_print_open_tables(bool check_committed_zero = false) const;
+
+ public:
   void init_open_tables();
   Ndb_local_table_statistics *trans_register_table_stats(NDB_SHARE *share);
-  void trans_reset_table_stats();  // Uses open_tables
+  void trans_reset_table_stats();          // Uses open_tables
+  void trans_update_cached_table_stats();  // Uses open_tables
 
   class Ndb_cluster_connection *connection;
   class Ndb *ndb;
@@ -175,8 +179,7 @@ class Thd_ndb {
   // Start of transaction check, to automatically detect which
   // trans options should be enabled
   void transaction_checks(void);
-  malloc_unordered_map<const void *, THD_NDB_SHARE *> open_tables{
-      PSI_INSTRUMENT_ME};
+
   /*
     This is a memroot used to buffer rows for batched execution.
     It is reset after every execute().

@@ -7263,42 +7263,6 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
   return 0;
 }
 
-/**
-  Register table stats from NDB_SHARE pointer.
-
-  @param share   The NDB_SHARE pointer to find or create table stats for.
-
-  @note Usage of the NDB_SHARE pointer as key means that all ha_ndbcluster
-  instances which has been opened for same table in same transaction uses the
-  same table stats instance.
-
-  @return Pointer to table stats or nullptr
-*/
-Ndb_local_table_statistics *Thd_ndb::trans_register_table_stats(
-    NDB_SHARE *share) {
-  DBUG_TRACE;
-
-  // The open_tables list is currently only used when m_handler is not
-  assert(m_handler == nullptr);
-
-  const void *key = share;
-  THD_NDB_SHARE *thd_ndb_share = find_or_nullptr(open_tables, key);
-  if (thd_ndb_share == nullptr) {
-    thd_ndb_share = (THD_NDB_SHARE *)m_thd->get_transaction()->allocate_memory(
-        sizeof(THD_NDB_SHARE));
-    if (!thd_ndb_share) {
-      mem_alloc_error(sizeof(THD_NDB_SHARE));
-      return nullptr;
-    }
-    thd_ndb_share->key = key;
-    thd_ndb_share->stat.no_uncommitted_rows_count = 0;
-    thd_ndb_share->stat.records = ~(ha_rows)0;
-    open_tables.emplace(key, thd_ndb_share);
-  }
-
-  return &(thd_ndb_share->stat);
-}
-
 int ha_ndbcluster::init_trans_table_stats(Thd_ndb *thd_ndb,
                                           ha_ndbcluster *handler) {
   DBUG_TRACE;
@@ -7805,19 +7769,9 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
       thd_ndb->m_handler->m_table_info->no_uncommitted_rows_count = 0;
     }
 
-    // Manual commit: Update cached row count for all affected NDB_SHAREs found
-    // in 'open_tables'
-    // Traversing to:
-    //  1) update row count in NDB_SHARE
-    //  2) reset counters for all 'Ndb_local_table_statistics' which has been
-    //     registered as taking part in the transaction.
-    for (const auto &key_and_value : thd_ndb->open_tables) {
-      THD_NDB_SHARE *thd_share = key_and_value.second;
-      NDB_SHARE *share = const_cast<NDB_SHARE *>(
-          static_cast<const NDB_SHARE *>(thd_share->key));
-      share->update_cached_row_count(thd_share->stat.no_uncommitted_rows_count);
-      thd_share->stat.no_uncommitted_rows_count = 0;
-    }
+    // Manual commit: Update cached table stats for NDB_SHARE's registered as
+    // being part of transaction
+    thd_ndb->trans_update_cached_table_stats();
   }
 
   ndb->closeTransaction(trans);
