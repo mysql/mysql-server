@@ -45,6 +45,7 @@
 #include "sql/sql_const.h"
 #include "sql/sql_opt_exec_shared.h"  // join_type
 
+class Func_ptr;
 class Item;
 class Item_func;
 class JOIN_TAB;
@@ -64,8 +65,10 @@ struct ORDER;
 struct SJ_TMP_TABLE_TAB;
 struct TABLE;
 struct TABLE_LIST;
+class Window;
 
 typedef ulonglong nested_join_map;
+typedef Mem_root_array<Func_ptr> Func_ptr_array;
 
 class Sql_cmd_select : public Sql_cmd_dml {
  public:
@@ -996,5 +999,12 @@ bool equality_determines_uniqueness(const Item_func_comparison *func,
  */
 bool equality_has_no_implicit_casts(const Item_func_comparison *func,
                                     const Item *item1, const Item *item2);
+
+bool CreateFramebufferTable(
+    THD *thd, const Temp_table_param &tmp_table_param,
+    const Query_block &query_block, const TABLE *src_table,
+    const mem_root_deque<Item *> &source_fields,
+    const mem_root_deque<Item *> &window_output_fields,
+    Func_ptr_array *mapping_from_source_to_window_output, Window *window);
 
 #endif /* SQL_SELECT_INCLUDED */

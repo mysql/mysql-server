@@ -4098,7 +4098,7 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
 // evaluated after restoring fields from the framebuffer (which go into
 // the output table, not the input table). We find out which input fields
 // correspond to which output fields by searching in the given items_to_copy.
-static void ReplaceTable(THD *thd, Item *item, TABLE *src_table,
+static void ReplaceTable(THD *thd, Item *item, const TABLE *src_table,
                          const Func_ptr_array &items_to_copy) {
   WalkAndReplace(
       thd, item,
@@ -4115,6 +4115,65 @@ static void ReplaceTable(THD *thd, Item *item, TABLE *src_table,
         }
         return {ReplaceResult::KEEP_TRAVERSING, nullptr};
       });
+}
+
+bool CreateFramebufferTable(
+    THD *thd, const Temp_table_param &tmp_table_param,
+    const Query_block &query_block, const TABLE *src_table,
+    const mem_root_deque<Item *> &source_fields,
+    const mem_root_deque<Item *> &window_output_fields,
+    Func_ptr_array *mapping_from_source_to_window_output, Window *window) {
+  /*
+    Create the window frame buffer tmp table.  We create a
+    temporary table with same contents as the output tmp table
+    in the windowing pipeline (columns defined by
+    curr_all_fields), but used for intermediate storage, saving
+    the window's frame buffer now that we know the window needs
+    buffering.
+  */
+  Temp_table_param *par = new (thd->mem_root) Temp_table_param(tmp_table_param);
+  par->m_window_frame_buffer = true;
+
+  // Don't include temporary fields that originally came from
+  // a window function (or an expression containing a window function).
+  // Window functions are not relevant to store in the framebuffer,
+  // and in fact, trying to restore them would often overwrite
+  // good data we shouldn't.
+  //
+  // Not that the regular filtering in create_tmp_table() cannot do this
+  // for us, as it only sees the Item_field, not where it came from.
+  mem_root_deque<Item *> fb_fields(window_output_fields);
+  for (size_t i = 0; i < fb_fields.size(); ++i) {
+    Item *orig_item = source_fields[i];
+    if (orig_item->has_wf()) {
+      fb_fields[i] = nullptr;
+    }
+  }
+  fb_fields.erase(std::remove(fb_fields.begin(), fb_fields.end(), nullptr),
+                  fb_fields.end());
+  count_field_types(&query_block, par, fb_fields, false, false);
+
+  TABLE *table =
+      create_tmp_table(thd, par, fb_fields, nullptr, false, false,
+                       query_block.active_options(), HA_POS_ERROR, "");
+  if (table == nullptr) return true;
+
+  window->set_frame_buffer_param(par);
+  window->set_frame_buffer(table);
+
+  // For window function expressions we are to evaluate after
+  // framebuffering, we need to replace their arguments to point to the
+  // output table instead of the input table (we could probably also have
+  // used the framebuffer if we wanted). E.g., if our input is t1 and our
+  // output is <temporary>, we need to rewrite 1 + SUM(t1.x) OVER w into
+  // 1 + SUM(<temporary>.x) OVER w.
+  for (Func_ptr &ptr : *mapping_from_source_to_window_output) {
+    if (ptr.func()->has_wf()) {
+      ReplaceTable(thd, ptr.func(), src_table,
+                   *mapping_from_source_to_window_output);
+    }
+  }
+  return false;
 }
 
 /**
@@ -4634,58 +4693,11 @@ bool JOIN::make_tmp_tables_info() {
       }
 
       if (m_windows[wno]->needs_buffering()) {
-        /*
-          Create the window frame buffer tmp table.  We create a
-          temporary table with same contents as the output tmp table
-          in the windowing pipeline (columns defined by
-          curr_all_fields), but used for intermediate storage, saving
-          the window's frame buffer now that we know the window needs
-          buffering.
-        */
-        Temp_table_param *par =
-            new (thd->mem_root) Temp_table_param(tmp_table_param);
-        par->m_window_frame_buffer = true;
-
-        // Don't include temporary fields that originally came from
-        // a window function (or an expression containing a window function).
-        // Window functions are not relevant to store in the framebuffer,
-        // and in fact, trying to restore them would often overwrite
-        // good data we shouldn't.
-        //
-        // Not that the regular filtering in create_tmp_table() cannot do this
-        // for us, as it only sees the Item_field, not where it came from.
-        mem_root_deque<Item *> fb_fields(*curr_fields);
-        for (size_t i = 0; i < fb_fields.size(); ++i) {
-          Item *orig_item = (*orig_fields)[i];
-          if (orig_item->has_wf()) {
-            fb_fields[i] = nullptr;
-          }
-        }
-        fb_fields.erase(
-            std::remove(fb_fields.begin(), fb_fields.end(), nullptr),
-            fb_fields.end());
-        count_field_types(query_block, par, fb_fields, false, false);
-
-        TABLE *table =
-            create_tmp_table(thd, par, fb_fields, nullptr, false, false,
-                             query_block->active_options(), HA_POS_ERROR, "");
-        if (table == nullptr) return true;
-
-        m_windows[wno]->set_frame_buffer_param(par);
-        m_windows[wno]->set_frame_buffer(table);
-
-        // For window function expressions we are to evaluate after
-        // framebuffering, we need to replace their arguments to point to the
-        // output table instead of the input table (we could probably also have
-        // used the framebuffer if we wanted). E.g., if our input is t1 and our
-        // output is <temporary>, we need to rewrite 1 + SUM(t1.x) OVER w into
-        // 1 + SUM(<temporary>.x) OVER w.
-        TABLE *src_table = tab[-1].table();
-        for (Func_ptr &ptr : *tab->tmp_table_param->items_to_copy) {
-          if (ptr.func()->has_wf()) {
-            ReplaceTable(thd, ptr.func(), src_table,
-                         *tab->tmp_table_param->items_to_copy);
-          }
+        if (CreateFramebufferTable(thd, tmp_table_param, *query_block,
+                                   tab[-1].table(), *orig_fields, *curr_fields,
+                                   tab->tmp_table_param->items_to_copy,
+                                   m_windows[wno])) {
+          return true;
         }
       }
 
