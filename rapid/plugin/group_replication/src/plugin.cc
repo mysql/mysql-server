@@ -193,7 +193,7 @@ ulong compression_threshold_var= DEFAULT_COMPRESSION_THRESHOLD;
 /* GTID assignment block size options */
 #define DEFAULT_GTID_ASSIGNMENT_BLOCK_SIZE 1000000
 #define MIN_GTID_ASSIGNMENT_BLOCK_SIZE 1
-#define MAX_GTID_ASSIGNMENT_BLOCK_SIZE MAX_GNO
+#define MAX_GTID_ASSIGNMENT_BLOCK_SIZE GNO_END
 ulonglong gtid_assignment_block_size_var= DEFAULT_GTID_ASSIGNMENT_BLOCK_SIZE;
 
 /* Flow control options */

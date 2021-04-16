@@ -13405,7 +13405,20 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
              ANONYMOUS_GROUP : GTID_GROUP;
   sid.copy_from((uchar *)Uuid_parent_struct.bytes);
   spec.gtid.sidno= gtid_info_struct.rpl_gtid_sidno;
+  //GNO sanity check
+  if (spec.type == GTID_GROUP) {
+    if (gtid_info_struct.rpl_gtid_gno <= 0 || gtid_info_struct.rpl_gtid_gno >= GNO_END)
+      goto err;
+  } else { //ANONYMOUS_GTID_LOG_EVENT
+    if (gtid_info_struct.rpl_gtid_gno != 0)
+      goto err;
+  }
   spec.gtid.gno= gtid_info_struct.rpl_gtid_gno;
+
+  DBUG_VOID_RETURN;
+
+err:
+  is_valid_param= false;
   DBUG_VOID_RETURN;
 }
 
@@ -13464,10 +13477,15 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   DBUG_ENTER("Gtid_log_event::Gtid_log_event(uint32, bool, int64, int64, const Gtid_specification)");
   server_id= server_id_arg;
   common_header->unmasked_server_id= server_id_arg;
+  is_valid_param= true;
 
   if (spec_arg.type == GTID_GROUP)
   {
-    assert(spec_arg.gtid.sidno > 0 && spec_arg.gtid.gno > 0);
+    assert(spec_arg.gtid.sidno > 0);
+    assert(spec_arg.gtid.gno > 0);
+    assert(spec_arg.gtid.gno < GNO_END);
+    if (spec_arg.gtid.gno <= 0 || spec_arg.gtid.gno >= GNO_END)
+      is_valid_param= false;
     spec.set(spec_arg.gtid);
     global_sid_lock->rdlock();
     sid= global_sid_map->sidno_to_sid(spec_arg.gtid.sidno);
@@ -13492,7 +13510,6 @@ Gtid_log_event::Gtid_log_event(uint32 server_id_arg, bool using_trans,
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
 #endif
-  is_valid_param= true;
   DBUG_VOID_RETURN;
 }
 #endif
@@ -13580,6 +13597,11 @@ uint32 Gtid_log_event::write_data_header_to_memory(uchar *buffer)
   sid.copy_to(ptr_buffer);
   ptr_buffer+= ENCODED_SID_LENGTH;
 
+#ifndef NDEBUG
+  if (DBUG_EVALUATE_IF("send_invalid_gno_to_replica", true, false))
+    int8store(ptr_buffer, GNO_END);
+  else
+#endif
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
 
