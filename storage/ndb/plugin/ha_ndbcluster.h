@@ -602,7 +602,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
   int check_ndb_connection(THD *thd) const;
 
   void set_rec_per_key(THD *thd);
-  void no_uncommitted_rows_execute_failure();
 
   /* Ordered index statistics v4 */
   int ndb_index_stat_query(uint inx, const key_range *min_key,
@@ -635,7 +634,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
                                                    uint *ignore_count);
   friend int ndbcluster_commit(handlerton *, THD *thd, bool all);
 
-  static int init_trans_table_stats(Thd_ndb *, ha_ndbcluster *handler);
   int start_statement(THD *thd, Thd_ndb *thd_ndb, uint table_count);
   /*
     Implementing Partition_handler API.
@@ -676,8 +674,8 @@ class ha_ndbcluster : public handler, public Partition_handler {
   // Since all NDB table have primary key, the bitmap buffer is preallocated
   Ndb_bitmap_buf<NDB_MAX_ATTRIBUTES_IN_TABLE> m_pk_bitmap_buf;
 
+  // Pointer to table stats for transaction
   Thd_ndb::Trans_tables::Stats *m_trans_table_stats{nullptr};
-  Thd_ndb::Trans_tables::Stats m_table_info_instance;
 
   THR_LOCK_DATA m_lock;
   bool m_lock_tuple;

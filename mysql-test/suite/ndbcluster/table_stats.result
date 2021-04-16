@@ -101,3 +101,17 @@ count should be 5
 5
 DROP TABLE t2;
 DROP TABLE t1;
+# ###################################################################
+#
+# Test table stats with several tables updated in transaction.
+# - when transaction is committed the "cached table stats" for all
+#   tables registered in the transaction will be updated with number
+#   of rows changed by transaction, nothing is updated during rollback.
+# - This test exercise the logic for maintaining "cached table stats"
+#   by using 32 different tables in same transaction, however
+#   it's not possible to check the value from SQL level
+#
+# Create tables and load data
+# Run transaction with update of all tables, commit
+# Run transaction with update of all tables, rollback
+# Drop tables

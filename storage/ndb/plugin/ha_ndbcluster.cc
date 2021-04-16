@@ -1229,19 +1229,6 @@ int ha_ndbcluster::records(ha_rows *num_rows) {
   return 0;
 }
 
-void ha_ndbcluster::no_uncommitted_rows_execute_failure() {
-  DBUG_TRACE;
-
-  if (m_thd_ndb->m_handler) {
-    // Only one handler involved, reset its stats
-    assert(m_thd_ndb->m_handler == this);
-    m_trans_table_stats->uncommitted_rows = 0;
-    return;
-  }
-  // Reset all registered table stats
-  m_thd_ndb->trans_tables.reset_stats();
-}
-
 int ha_ndbcluster::ndb_err(NdbTransaction *trans) {
   DBUG_TRACE;
 
@@ -2667,6 +2654,7 @@ void ha_ndbcluster::release_metadata(NdbDictionary::Dictionary *dict,
 
   release_indexes(dict, invalidate);
 
+  // NOTE! Sometimes set here but should really be reset only by trans logic
   m_trans_table_stats = nullptr;
 
   //  Release field to column map
@@ -5415,7 +5403,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found) {
     const int ignore_error = 1;
     if (execute_commit(m_thd_ndb, trans, m_thd_ndb->m_force_send, ignore_error,
                        &ignore_count) != 0) {
-      no_uncommitted_rows_execute_failure();
+      m_thd_ndb->trans_tables.reset_stats();
       return ndb_err(trans);
     }
     THD *thd = table->in_use;
@@ -5451,7 +5439,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found) {
   if (execute_no_commit(m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0) {
-    no_uncommitted_rows_execute_failure();
+    m_thd_ndb->trans_tables.reset_stats();
     return ndb_err(trans);
   }
   THD *thd = table->in_use;
@@ -5745,7 +5733,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
     if (execute_no_commit(m_thd_ndb, trans,
                           m_ignore_no_key || m_read_before_write_removal_used,
                           &ignore_count) != 0) {
-      no_uncommitted_rows_execute_failure();
+      m_thd_ndb->trans_tables.reset_stats();
       return ndb_err(trans);
     }
   } else if (blob_count > 0)
@@ -5804,7 +5792,7 @@ int ha_ndbcluster::end_bulk_delete() {
     const int ignore_error = 1;
     if (execute_commit(m_thd_ndb, trans, m_thd_ndb->m_force_send, ignore_error,
                        &ignore_count) != 0) {
-      no_uncommitted_rows_execute_failure();
+      m_thd_ndb->trans_tables.reset_stats();
       m_rows_deleted = 0;
       return ndb_err(trans);
     }
@@ -5841,7 +5829,7 @@ int ha_ndbcluster::end_bulk_delete() {
   if (execute_no_commit(m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0) {
-    no_uncommitted_rows_execute_failure();
+    m_thd_ndb->trans_tables.reset_stats();
     return ndb_err(trans);
   }
 
@@ -6039,7 +6027,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   if (execute_no_commit(m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0) {
-    no_uncommitted_rows_execute_failure();
+    m_thd_ndb->trans_tables.reset_stats();
     return ndb_err(trans);
   }
   if (!primary_key_update) {
@@ -6462,7 +6450,7 @@ int ha_ndbcluster::close_scan() {
     DBUG_PRINT("info", ("thd_ndb->m_unsent_bytes: %ld",
                         (long)m_thd_ndb->m_unsent_bytes));
     if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0) {
-      no_uncommitted_rows_execute_failure();
+      m_thd_ndb->trans_tables.reset_stats();
       return ndb_err(trans);
     }
   }
@@ -6981,7 +6969,7 @@ int ha_ndbcluster::flush_bulk_insert(bool allow_batch) {
         Transaction_ctx::STMT);
     if (execute_commit(m_thd_ndb, trans, m_thd_ndb->m_force_send,
                        m_ignore_no_key) != 0) {
-      no_uncommitted_rows_execute_failure();
+      m_thd_ndb->trans_tables.reset_stats();
       return ndb_err(trans);
     }
     if (trans->restart() != 0) {
@@ -6993,7 +6981,7 @@ int ha_ndbcluster::flush_bulk_insert(bool allow_batch) {
 
   if (!allow_batch &&
       execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0) {
-    no_uncommitted_rows_execute_failure();
+    m_thd_ndb->trans_tables.reset_stats();
     return ndb_err(trans);
   }
 
@@ -7211,32 +7199,17 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
 
   if (table_count == 0) {
     ndb_thd_register_trans(thd, trans == nullptr);
+
     if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
-      thd_ndb->m_handler = NULL;
+      m_thd_ndb->m_handler = nullptr;
     } else {
-      /*
-        this is an autocommit, we may keep a reference to the
-        handler to be used in the commit phase for optimization
-        reasons, defering execute
-      */
-      thd_ndb->m_handler = this;
+      // This is an autocommit, setup reference to this handler for use in
+      // the commit phase, defering execute for optimization reasons
+      m_thd_ndb->m_handler = this;
     }
   } else {
-    /*
-      there is more than one handler involved, execute deferal
-      not possible
-    */
-    ha_ndbcluster *handler = thd_ndb->m_handler;
-    thd_ndb->m_handler = NULL;
-    if (handler != NULL) {
-      /**
-       * If we initially belived that this could be run
-       *  using execute deferal...but changed out mind
-       *  add handler to thd_ndb->open_tables like it would
-       *  have done "normally"
-       */
-      init_trans_table_stats(thd_ndb, handler);
-    }
+    // There are more than one handler involved, execute deferal not possible
+    m_thd_ndb->m_handler = nullptr;
   }
   if (!trans && table_count == 0) {
     thd_ndb->reset_trans_options();
@@ -7267,32 +7240,12 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
     m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
   }
 
-  if (m_thd_ndb->m_handler == nullptr) {
-    assert(m_share);
-    return init_trans_table_stats(m_thd_ndb, this);
-  }
-
-  // Initialize table info instance and use it
-  m_table_info_instance.uncommitted_rows = 0;
-  m_table_info_instance.records = ~(ha_rows)0;
-  m_trans_table_stats = &m_table_info_instance;
-  return 0;
-}
-
-int ha_ndbcluster::init_trans_table_stats(Thd_ndb *thd_ndb,
-                                          ha_ndbcluster *handler) {
-  DBUG_TRACE;
-  assert(thd_ndb->m_handler == nullptr);
-
   // Register table stats for transaction
-  Thd_ndb::Trans_tables::Stats *const stat_ptr =
-      thd_ndb->trans_tables.register_stats(handler->m_share);
-  if (stat_ptr == nullptr) {
+  m_trans_table_stats = m_thd_ndb->trans_tables.register_stats(m_share);
+  if (m_trans_table_stats == nullptr) {
     return 1;
   }
 
-  // Save pointer to trans table stats
-  handler->m_trans_table_stats = stat_ptr;
   return 0;
 }
 
@@ -7370,6 +7323,9 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
       }
     }
 
+    // Disconnect from transaction table stats
+    // NOTE! The actual stats are not released until next trans starts, could
+    // perhaps be done earlier
     m_trans_table_stats = nullptr;
 
     /*
@@ -7598,7 +7554,6 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
   Ndb *ndb = thd_ndb->ndb;
   NdbTransaction *trans = thd_ndb->trans;
   bool retry_slave_trans = false;
-  (void)retry_slave_trans;
 
   DBUG_TRACE;
   assert(ndb);
@@ -7728,29 +7683,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
       res = ndbcluster_print_error(trans, thd_ndb->m_handler);
     }
   } else {
-#ifndef NDEBUG
-    if (thd_ndb->m_handler) {
-      // The if statement below looks fishy
-      // Is it really possible to commit transaction without:
-      // 1) m_share, which _must_ be acquired in open() or
-      // 2) m_trans_table_stats which is assigned when statement is started
-      const ha_ndbcluster *handler = thd_ndb->m_handler;
-      assert(handler->m_share);
-      assert(handler->m_trans_table_stats);
-    }
-#endif
-    // Update cached row count for modified tables
-    if (thd_ndb->m_handler &&  // Autocommit Txn
-        thd_ndb->m_handler->m_share &&
-        thd_ndb->m_handler->m_trans_table_stats) {
-      NDB_SHARE *share = thd_ndb->m_handler->m_share;
-      share->update_cached_row_count(
-          thd_ndb->m_handler->m_trans_table_stats->uncommitted_rows);
-      thd_ndb->m_handler->m_trans_table_stats->uncommitted_rows = 0;
-    }
-
-    // Manual commit: Update cached table stats for NDB_SHARE's registered as
-    // being part of transaction
+    // Update cached table stats for tables being part of transaction
     thd_ndb->trans_tables.update_cached_stats_with_committed();
   }
 

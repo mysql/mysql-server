@@ -91,3 +91,65 @@ SELECT COUNT(*) as "count should be 5" FROM t2;
 DROP TABLE t2;
 
 DROP TABLE t1;
+
+
+--echo # ###################################################################
+--echo #
+--echo # Test table stats with several tables updated in transaction.
+--echo # - when transaction is committed the "cached table stats" for all
+--echo #   tables registered in the transaction will be updated with number
+--echo #   of rows changed by transaction, nothing is updated during rollback.
+--echo # - This test exercise the logic for maintaining "cached table stats"
+--echo #   by using 32 different tables in same transaction, however
+--echo #   it's not possible to check the value from SQL level
+--echo #
+
+# No need to fill up result file with anything but the printous of this test
+--disable_query_log
+--disable_result_log
+
+let $num_tables = 32;
+
+--echo # Create tables and load data
+let $i = $num_tables;
+while ($i) {
+  let $tab_name = t$i;
+  --error 0,1005
+  eval CREATE TABLE $tab_name (pk int PRIMARY KEY, b int) engine = ndbcluster;
+  if ($mysql_errno) {
+   SHOW WARNINGS;
+  }
+  eval INSERT INTO $tab_name VALUES
+    (1,2),(2,2),(3,2),(4,2),(5,2),(6,2),(7,2),(8,2),(9,2),(10,2);
+  dec $i;
+}
+
+--echo # Run transaction with update of all tables, commit
+let $i = $num_tables;
+BEGIN;
+  while ($i) {
+    let $tab_name = t$i;
+    eval UPDATE $tab_name SET b = 3 WHERE pk = 4;
+    dec $i;
+  }
+COMMIT;
+
+--echo # Run transaction with update of all tables, rollback
+let $i = $num_tables;
+BEGIN;
+  while ($i) {
+    let $tab_name = t$i;
+    eval UPDATE $tab_name SET b = 5 WHERE pk = 2;
+    dec $i;
+  }
+ROLLBACK;
+
+--echo # Drop tables
+let $i = $num_tables;
+while ($i) {
+  eval DROP TABLE t$i;
+  dec $i;
+}
+--enable_query_log
+--enable_result_log
+
