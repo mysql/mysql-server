@@ -332,7 +332,8 @@ void udf_read_functions_table() {
   table->invalidate_dict();  // Force close to free memory
 
 end:
-  close_trans_system_tables(new_thd);
+  if (new_thd->is_attachable_ro_transaction_active())
+    close_trans_system_tables(new_thd);
   delete new_thd;
 }
 
