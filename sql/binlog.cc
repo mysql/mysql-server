@@ -3979,11 +3979,12 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
         GTID(1) transaction is not complete.
       */
       if (partial_trx->is_processing_trx_set()) {
-        DBUG_PRINT("info", ("Discarding Gtid(%d, %lld) as the transaction "
-                            "wasn't complete and we found an error in the"
-                            "transaction boundary parser.",
-                            partial_trx->get_processing_trx_gtid()->sidno,
-                            partial_trx->get_processing_trx_gtid()->gno));
+        DBUG_PRINT("info",
+                   ("Discarding Gtid(%d, %" PRId64 ") as the transaction "
+                    "wasn't complete and we found an error in the"
+                    "transaction boundary parser.",
+                    partial_trx->get_processing_trx_gtid()->sidno,
+                    partial_trx->get_processing_trx_gtid()->gno));
         partial_trx->clear_processing_trx();
       }
     }
@@ -4045,9 +4046,10 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
             partial_trx->start(gtid, original_commit_timestamp,
                                immediate_commit_timestamp);
           }
-          DBUG_PRINT("info",
-                     ("Found Gtid in relaylog file '%s': Gtid(%d, %lld).",
-                      filename, sidno, gtid_ev->get_gno()));
+          DBUG_PRINT(
+              "info",
+              ("Found Gtid in relaylog file '%s': Gtid(%d, %" PRId64 ").",
+               filename, sidno, gtid_ev->get_gno()));
         }
         break;
       }
@@ -4065,7 +4067,7 @@ static bool read_gtids_and_update_trx_parser_from_relaylog(
             fully_retrieved_gtid = partial_trx->get_processing_trx_gtid();
             DBUG_PRINT("info", ("Adding Gtid to Retrieved_Gtid_Set as the "
                                 "transaction was completed at "
-                                "relaylog file '%s': Gtid(%d, %lld).",
+                                "relaylog file '%s': Gtid(%d, %" PRId64 ").",
                                 filename, fully_retrieved_gtid->sidno,
                                 fully_retrieved_gtid->gno));
             retrieved_gtids->_add_gtid(*fully_retrieved_gtid);
@@ -4262,8 +4264,9 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
               if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
                 ret = ERROR, done = true;
               all_gtids->_add_gtid(sidno, gtid_ev->get_gno());
-              DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
-                                  filename, sidno, gtid_ev->get_gno()));
+              DBUG_PRINT("info",
+                         ("Got Gtid from file '%s': Gtid(%d, %" PRId64 ").",
+                          filename, sidno, gtid_ev->get_gno()));
             }
 
             /* If the first GTID was requested, stores it */

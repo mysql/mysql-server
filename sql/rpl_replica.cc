@@ -7934,6 +7934,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
         goto err;
       }
       Gtid_log_event gtid_ev(buf, mi->get_mi_description_event());
+      if (!gtid_ev.is_valid()) goto err;
       rli->get_sid_lock()->rdlock();
       gtid.sidno = gtid_ev.get_sidno(rli->get_gtid_set()->get_sid_map());
       rli->get_sid_lock()->unlock();
@@ -8112,11 +8113,12 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
 #ifndef NDEBUG
       if (event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT) {
         if (!mi->get_queueing_trx_gtid()->is_empty()) {
-          DBUG_PRINT("info", ("Discarding Gtid(%d, %lld) as the transaction "
-                              "wasn't complete and we found an "
-                              "ANONYMOUS_GTID_LOG_EVENT.",
-                              mi->get_queueing_trx_gtid()->sidno,
-                              mi->get_queueing_trx_gtid()->gno));
+          DBUG_PRINT("info",
+                     ("Discarding Gtid(%d, %" PRId64 ") as the transaction "
+                      "wasn't complete and we found an "
+                      "ANONYMOUS_GTID_LOG_EVENT.",
+                      mi->get_queueing_trx_gtid()->sidno,
+                      mi->get_queueing_trx_gtid()->gno));
         }
       }
 #endif

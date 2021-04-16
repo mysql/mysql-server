@@ -49,7 +49,8 @@ Transaction_consistency_info::Transaction_consistency_info(
   assert(nullptr != m_members_that_must_prepare_the_transaction);
   DBUG_PRINT(
       "info",
-      ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
+      ("thread_id: %u; local_transaction: %d; gtid: %d:%" PRId64
+       "; sid_specified: "
        "%d; consistency_level: %d; "
        "transaction_prepared_locally: %d; transaction_prepared_remotely: %d",
        m_thread_id, m_local_transaction, m_sidno, m_gno, m_sid_specified,
@@ -111,7 +112,8 @@ int Transaction_consistency_info::after_applier_prepare(
 
   DBUG_PRINT(
       "info",
-      ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
+      ("thread_id: %u; local_transaction: %d; gtid: %d:%" PRId64
+       "; sid_specified: "
        "%d; consistency_level: %d; "
        "transaction_prepared_locally: %d; transaction_prepared_remotely: %d; "
        "member_status: %d",
@@ -163,7 +165,8 @@ int Transaction_consistency_info::handle_remote_prepare(
   DBUG_TRACE;
   DBUG_PRINT(
       "info",
-      ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
+      ("thread_id: %u; local_transaction: %d; gtid: %d:%" PRId64
+       "; sid_specified: "
        "%d; consistency_level: %d; "
        "transaction_prepared_locally: %d; transaction_prepared_remotely: %d",
        m_thread_id, m_local_transaction, m_sidno, m_gno, m_sid_specified,
@@ -206,7 +209,8 @@ int Transaction_consistency_info::handle_member_leave(
 
   DBUG_PRINT(
       "info",
-      ("thread_id: %u; local_transaction: %d; gtid: %d:%llu; sid_specified: "
+      ("thread_id: %u; local_transaction: %d; gtid: %d:%" PRId64
+       "; sid_specified: "
        "%d; consistency_level: %d; "
        "transaction_prepared_locally: %d; transaction_prepared_remotely: %d; "
        "error: %d",
@@ -305,10 +309,10 @@ int Transaction_consistency_manager::after_certification(
     /* purecov: end */
   }
 
-  DBUG_PRINT(
-      "info",
-      ("gtid: %d:%llu; consistency_level: %d; ", transaction_info->get_sidno(),
-       transaction_info->get_gno(), transaction_info->get_consistency_level()));
+  DBUG_PRINT("info",
+             ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
+              transaction_info->get_sidno(), transaction_info->get_gno(),
+              transaction_info->get_consistency_level()));
 
   m_map_lock->unlock();
   return error;
@@ -344,10 +348,10 @@ int Transaction_consistency_manager::after_applier_prepare(
     /* purecov: end */
   }
 
-  DBUG_PRINT(
-      "info",
-      ("gtid: %d:%llu; consistency_level: %d; ", transaction_info->get_sidno(),
-       transaction_info->get_gno(), transaction_info->get_consistency_level()));
+  DBUG_PRINT("info",
+             ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
+              transaction_info->get_sidno(), transaction_info->get_gno(),
+              transaction_info->get_consistency_level()));
 
   // Mark the transaction as prepared for consistent reads.
   m_prepared_transactions_on_my_applier_lock->wrlock();
@@ -460,10 +464,10 @@ int Transaction_consistency_manager::handle_remote_prepare(
 
   Transaction_consistency_info *transaction_info = it->second;
 
-  DBUG_PRINT(
-      "info",
-      ("gtid: %d:%llu; consistency_level: %d; ", transaction_info->get_sidno(),
-       transaction_info->get_gno(), transaction_info->get_consistency_level()));
+  DBUG_PRINT("info",
+             ("gtid: %d:%" PRId64 "; consistency_level: %d; ",
+              transaction_info->get_sidno(), transaction_info->get_gno(),
+              transaction_info->get_consistency_level()));
 
   int result = transaction_info->handle_remote_prepare(gcs_member_id);
   if (CONSISTENCY_INFO_OUTCOME_ERROR == result) {
@@ -517,7 +521,7 @@ int Transaction_consistency_manager::handle_member_leave(
 int Transaction_consistency_manager::after_commit(my_thread_id, rpl_sidno sidno,
                                                   rpl_gno gno) {
   DBUG_TRACE;
-  DBUG_PRINT("info", ("gtid: %d:%llu", sidno, gno));
+  DBUG_PRINT("info", ("gtid: %d:%" PRId64, sidno, gno));
   int error = 0;
 
   // Only acquire a write lock if really needed.
@@ -764,7 +768,7 @@ int Transaction_consistency_manager::remove_prepared_transaction(
   DBUG_TRACE;
   int error = 0;
 
-  DBUG_PRINT("info", ("gtid: %d:%llu", key.first, key.second));
+  DBUG_PRINT("info", ("gtid: %d:%" PRId64, key.first, key.second));
 
   m_prepared_transactions_on_my_applier_lock->wrlock();
   if (key.first > 0 && key.second > 0) {

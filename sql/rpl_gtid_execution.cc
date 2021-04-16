@@ -101,6 +101,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
     case ASSIGNED_GTID:
       assert(spec.gtid.sidno >= 1);
       assert(spec.gtid.gno >= 1);
+      assert(spec.gtid.gno < GNO_END);
       while (true) {
         // loop invariant: we should always hold global_sid_lock.rdlock
         assert(lock_count == 1);
@@ -131,6 +132,7 @@ bool set_gtid_next(THD *thd, const Gtid_specification &spec) {
           thd->variables.gtid_next = spec;
           assert(thd->owned_gtid.sidno >= 1);
           assert(thd->owned_gtid.gno >= 1);
+          assert(thd->owned_gtid.gno < GNO_END);
           break;
         }
         // GTID owned by someone (other thread)
@@ -447,7 +449,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd) {
 
   DBUG_PRINT("info",
              ("gtid_next->type=%d "
-              "owned_gtid.{sidno,gno}={%d,%lld}",
+              "owned_gtid.{sidno,gno}={%d,%" PRId64 "}",
               gtid_next->type, thd->owned_gtid.sidno, thd->owned_gtid.gno));
   assert(gtid_next->type != AUTOMATIC_GTID || thd->owned_gtid_is_empty());
 
@@ -510,7 +512,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd) {
   const Gtid_set *gtid_next_list = thd->get_gtid_next_list_const();
 
   DBUG_PRINT("info", ("gtid_next_list=%p gtid_next->type=%d "
-                      "thd->owned_gtid.gtid.{sidno,gno}={%d,%lld} "
+                      "thd->owned_gtid.gtid.{sidno,gno}={%d,%" PRId64 "} "
                       "thd->thread_id=%u",
                       gtid_next_list, gtid_next->type, thd->owned_gtid.sidno,
                       thd->owned_gtid.gno, thd->thread_id()));

@@ -12735,9 +12735,14 @@ Gtid_log_event::Gtid_log_event(
   DBUG_TRACE;
   server_id = server_id_arg;
   common_header->unmasked_server_id = server_id_arg;
+  common_header->set_is_valid(true);
 
   if (spec_arg.type == ASSIGNED_GTID) {
-    assert(spec_arg.gtid.sidno > 0 && spec_arg.gtid.gno > 0);
+    assert(spec_arg.gtid.sidno > 0);
+    assert(spec_arg.gtid.gno > 0);
+    assert(spec_arg.gtid.gno < GNO_END);
+    if (spec_arg.gtid.gno <= 0 || spec_arg.gtid.gno >= GNO_END)
+      common_header->set_is_valid(false);
     spec.set(spec_arg.gtid);
     global_sid_lock->rdlock();
     sid = global_sid_map->sidno_to_sid(spec_arg.gtid.sidno);
@@ -12760,7 +12765,6 @@ Gtid_log_event::Gtid_log_event(
   to_string(buf);
   DBUG_PRINT("info", ("%s", buf));
 #endif
-  common_header->set_is_valid(true);
 }
 
 int Gtid_log_event::pack_info(Protocol *protocol) {
@@ -12871,14 +12875,19 @@ uint32 Gtid_log_event::write_post_header_to_memory(uchar *buffer) {
 #ifndef NDEBUG
   char buf[binary_log::Uuid::TEXT_LENGTH + 1];
   sid.to_string(buf);
-  DBUG_PRINT("info",
-             ("sid=%s sidno=%d gno=%lld", buf, spec.gtid.sidno, spec.gtid.gno));
+  DBUG_PRINT("info", ("sid=%s sidno=%d gno=%" PRId64, buf, spec.gtid.sidno,
+                      spec.gtid.gno));
 #endif
 
   sid.copy_to(ptr_buffer);
   ptr_buffer += ENCODED_SID_LENGTH;
 
-  int8store(ptr_buffer, spec.gtid.gno);
+#ifndef NDEBUG
+  if (DBUG_EVALUATE_IF("send_invalid_gno_to_replica", true, false))
+    int8store(ptr_buffer, GNO_END);
+  else
+#endif
+    int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer += ENCODED_GNO_LENGTH;
 
   *ptr_buffer = LOGICAL_TIMESTAMP_TYPECODE;

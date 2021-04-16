@@ -481,13 +481,13 @@ void Certifier::compute_group_available_gtid_intervals() {
   }
 
   // For each used interval find the upper bound and from there
-  // add the free GTIDs up to the next interval or MAX_GNO.
+  // add the free GTIDs up to the next interval or GNO_END.
   while ((iv = ivit.get()) != nullptr) {
     ivit.next();
     iv_next = ivit.get();
 
     rpl_gno start = iv->end;
-    rpl_gno end = MAX_GNO;
+    rpl_gno end = GNO_END;
     if (iv_next != nullptr) end = iv_next->start - 1;
 
     assert(start <= end);
@@ -497,7 +497,7 @@ void Certifier::compute_group_available_gtid_intervals() {
 
   // No GTIDs used, so the available interval is the complete set.
   if (group_available_gtid_intervals.size() == 0) {
-    Gtid_set::Interval interval = {1, MAX_GNO, nullptr};
+    Gtid_set::Interval interval = {1, GNO_END, nullptr};
     group_available_gtid_intervals.push_back(interval);
   }
 }
@@ -743,7 +743,7 @@ rpl_gno Certifier::certify(Gtid_set *snapshot_version,
     last_conflict_free_transaction.set(group_gtid_sid_map_group_sidno, result);
 
     DBUG_PRINT("info", ("Group replication Certifier: generated transaction "
-                        "identifier: %llu",
+                        "identifier: %" PRId64,
                         result));
   } else {
     /*
@@ -882,8 +882,9 @@ end:
   update_certified_transaction_count(result > 0, local_transaction);
 
   mysql_mutex_unlock(&LOCK_certification_info);
-  DBUG_PRINT("info", ("Group replication Certifier: certification result: %llu",
-                      result));
+  DBUG_PRINT(
+      "info",
+      ("Group replication Certifier: certification result: %" PRId64, result));
   return result;
 }
 
@@ -960,7 +961,7 @@ rpl_gno Certifier::get_next_available_gtid(const char *member_uuid,
   rpl_gno result = 0;
 
   if (member_uuid == nullptr || gtid_assignment_block_size <= 1) {
-    result = get_next_available_gtid_candidate(sidno, 1, MAX_GNO);
+    result = get_next_available_gtid_candidate(sidno, 1, GNO_END);
     if (result < 0) {
       assert(result == -1);
       return result;
@@ -1046,7 +1047,7 @@ rpl_gno Certifier::get_next_available_gtid_candidate(rpl_sidno sidno,
   while (true) {
     assert(candidate >= start);
     const Gtid_set::Interval *iv = ivit.get();
-    rpl_gno next_interval_start = iv != nullptr ? iv->start : MAX_GNO;
+    rpl_gno next_interval_start = iv != nullptr ? iv->start : GNO_END;
 
     // Correct interval.
     if (candidate < next_interval_start) {
