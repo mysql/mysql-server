@@ -7190,14 +7190,15 @@ void Thd_ndb::transaction_checks() {
 
 int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
                                    uint table_count) {
-  NdbTransaction *trans = thd_ndb->trans;
-  int error;
   DBUG_TRACE;
 
+  // Setup m_thd_ndb for quick access, to be used in all functions during trans
   m_thd_ndb = thd_ndb;
+
   m_thd_ndb->transaction_checks();
 
   if (table_count == 0) {
+    const NdbTransaction *const trans = m_thd_ndb->trans;
     ndb_thd_register_trans(thd, trans == nullptr);
 
     if (thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
@@ -7207,28 +7208,33 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
       // the commit phase, defering execute for optimization reasons
       m_thd_ndb->m_handler = this;
     }
-  } else {
-    // There are more than one handler involved, execute deferal not possible
-    m_thd_ndb->m_handler = nullptr;
-  }
-  if (!trans && table_count == 0) {
-    thd_ndb->reset_trans_options();
 
-    DBUG_PRINT("trans", ("Possibly starting transaction"));
-    const uint opti_node_select = THDVAR(thd, optimized_node_selection);
-    DBUG_PRINT("enter", ("optimized_node_selection: %u", opti_node_select));
-    if (!(opti_node_select & 2) || thd->lex->sql_command == SQLCOM_LOAD) {
-      if (unlikely(!start_transaction(error))) {
-        return error;
+    if (trans == nullptr) {
+      // Reset trans options
+      m_thd_ndb->reset_trans_options();
+
+      // Reset trans table stats
+      m_thd_ndb->trans_tables.clear();
+
+      // Check if NDB transaction should be started early
+      const uint opti_node_select = THDVAR(thd, optimized_node_selection);
+      DBUG_PRINT("enter", ("optimized_node_selection: %u", opti_node_select));
+      if (!(opti_node_select & 2) || thd_sql_command(thd) == SQLCOM_LOAD) {
+        int error;
+        if (unlikely(!start_transaction(error))) {
+          return error;
+        }
+      }
+
+      if (!(thd_test_options(thd, OPTION_BIN_LOG)) ||
+          thd->variables.binlog_format == BINLOG_FORMAT_STMT) {
+        m_thd_ndb->set_trans_option(Thd_ndb::TRANS_NO_LOGGING);
       }
     }
 
-    thd_ndb->trans_tables.clear();
-
-    if (!(thd_test_options(thd, OPTION_BIN_LOG)) ||
-        thd->variables.binlog_format == BINLOG_FORMAT_STMT) {
-      thd_ndb->set_trans_option(Thd_ndb::TRANS_NO_LOGGING);
-    }
+  } else {
+    // There are more than one handler involved, execute deferal not possible
+    m_thd_ndb->m_handler = nullptr;
   }
 
   // store thread specific data first to set the right context
