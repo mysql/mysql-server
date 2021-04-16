@@ -7251,15 +7251,38 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
     DBUG_PRINT("trans", ("Possibly starting transaction"));
     const uint opti_node_select = THDVAR(thd, optimized_node_selection);
     DBUG_PRINT("enter", ("optimized_node_selection: %u", opti_node_select));
-    if (!(opti_node_select & 2) || thd->lex->sql_command == SQLCOM_LOAD)
-      if (unlikely(!start_transaction(error))) return error;
+    if (!(opti_node_select & 2) || thd->lex->sql_command == SQLCOM_LOAD) {
+      if (unlikely(!start_transaction(error))) {
+        return error;
+      }
+    }
 
     thd_ndb->trans_tables.clear();
+
     if (!(thd_test_options(thd, OPTION_BIN_LOG)) ||
         thd->variables.binlog_format == BINLOG_FORMAT_STMT) {
       thd_ndb->set_trans_option(Thd_ndb::TRANS_NO_LOGGING);
     }
   }
+
+  // store thread specific data first to set the right context
+  m_autoincrement_prefetch = THDVAR(thd, autoincrement_prefetch_sz);
+
+  release_blobs_buffer();
+
+  if (m_share == ndb_apply_status_share && m_thd_ndb->is_slave_thread()) {
+    m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
+  }
+
+  if (m_thd_ndb->m_handler == nullptr) {
+    assert(m_share);
+    return init_trans_table_stats(m_thd_ndb, this);
+  }
+
+  // Initialize table info instance and use it
+  m_table_info_instance.uncommitted_rows = 0;
+  m_table_info_instance.records = ~(ha_rows)0;
+  m_trans_table_stats = &m_table_info_instance;
   return 0;
 }
 
@@ -7277,41 +7300,6 @@ int ha_ndbcluster::init_trans_table_stats(Thd_ndb *thd_ndb,
 
   // Save pointer to trans table stats
   handler->m_trans_table_stats = stat_ptr;
-  return 0;
-}
-
-int ha_ndbcluster::init_handler_for_statement(THD *thd) {
-  /*
-    This is the place to make sure this handler instance
-    has a started transaction.
-
-    The transaction is started by the first handler on which
-    MySQL Server calls external lock
-
-    Other handlers in the same stmt or transaction should use
-    the same NDB transaction. This is done by setting up the m_thd_ndb
-    pointer to point to the NDB transaction object.
-   */
-
-  DBUG_TRACE;
-
-  // store thread specific data first to set the right context
-  m_autoincrement_prefetch = THDVAR(thd, autoincrement_prefetch_sz);
-  release_blobs_buffer();
-
-  if (m_share == ndb_apply_status_share && m_thd_ndb->is_slave_thread()) {
-    m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
-  }
-
-  if (m_thd_ndb->m_handler == nullptr) {
-    assert(m_share);
-    return init_trans_table_stats(m_thd_ndb, this);
-  }
-
-  // Initialize table info instance and use it
-  m_table_info_instance.uncommitted_rows = 0;
-  m_table_info_instance.records = ~(ha_rows)0;
-  m_trans_table_stats = &m_table_info_instance;
   return 0;
 }
 
@@ -7334,12 +7322,13 @@ int ha_ndbcluster::init_handler_for_statement(THD *thd) {
 int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
   DBUG_TRACE;
   if (lock_type != F_UNLCK) {
-    int error;
     /*
       Check that this handler instance has a connection
       set up to the Ndb object of thd
     */
-    if (check_ndb_connection(thd)) return 1;
+    if (check_ndb_connection(thd)) {
+      return 1;
+    }
     Thd_ndb *thd_ndb = get_thd_ndb(thd);
 
     DBUG_PRINT("enter", ("lock_type != F_UNLCK "
@@ -7347,10 +7336,9 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type) {
                          "thd_ndb->external_lock_count: %d",
                          this, thd, thd_ndb, thd_ndb->external_lock_count));
 
-    if ((error = start_statement(thd, thd_ndb, thd_ndb->external_lock_count))) {
-      return error;
-    }
-    if ((error = init_handler_for_statement(thd))) {
+    const int error =
+        start_statement(thd, thd_ndb, thd_ndb->external_lock_count);
+    if (error != 0) {
       return error;
     }
     thd_ndb->external_lock_count++;
@@ -7456,16 +7444,13 @@ int ha_ndbcluster::start_stmt(THD *thd, thr_lock_type) {
   DBUG_TRACE;
   assert(thd == table->in_use);
 
-  int error;
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
-  if ((error = start_statement(thd, thd_ndb, thd_ndb->start_stmt_count))) {
-    return error;
-  }
-  if ((error = init_handler_for_statement(thd))) {
+
+  const int error = start_statement(thd, thd_ndb, thd_ndb->start_stmt_count);
+  if (error != 0) {
     return error;
   }
   thd_ndb->start_stmt_count++;
-
   return 0;
 }
 

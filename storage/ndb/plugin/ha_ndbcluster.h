@@ -638,7 +638,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   static int init_trans_table_stats(Thd_ndb *, ha_ndbcluster *handler);
   int start_statement(THD *thd, Thd_ndb *thd_ndb, uint table_count);
-  int init_handler_for_statement(THD *thd);
   /*
     Implementing Partition_handler API.
   */
