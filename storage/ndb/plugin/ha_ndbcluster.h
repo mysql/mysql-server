@@ -603,7 +603,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   void set_rec_per_key(THD *thd);
   void no_uncommitted_rows_execute_failure();
-  void no_uncommitted_rows_update(int changed_rows);
 
   /* Ordered index statistics v4 */
   int ndb_index_stat_query(uint inx, const key_range *min_key,

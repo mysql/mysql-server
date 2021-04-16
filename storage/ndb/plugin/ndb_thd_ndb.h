@@ -55,6 +55,13 @@ class Thd_ndb {
     struct Stats {
       int uncommitted_rows{0};
       ha_rows records{~(ha_rows)0};
+
+      void update_uncommitted_rows(int changed_rows) {
+        DBUG_TRACE;
+        uncommitted_rows += changed_rows;
+        DBUG_PRINT("info", ("changed_rows: %d -> new value: %d", changed_rows,
+                            uncommitted_rows));
+      }
     };
     void clear();
     Stats *register_stats(NDB_SHARE *share);

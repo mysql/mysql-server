@@ -1242,13 +1242,6 @@ void ha_ndbcluster::no_uncommitted_rows_execute_failure() {
   m_thd_ndb->trans_tables.reset_stats();
 }
 
-void ha_ndbcluster::no_uncommitted_rows_update(int changed_rows) {
-  DBUG_TRACE;
-  m_trans_table_stats->uncommitted_rows += changed_rows;
-  DBUG_PRINT("info", ("changed_rows: %d -> new value: %d", changed_rows,
-                      m_trans_table_stats->uncommitted_rows));
-}
-
 int ha_ndbcluster::ndb_err(NdbTransaction *trans) {
   DBUG_TRACE;
 
@@ -5081,7 +5074,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record, bool primary_key_update,
   /*
     Execute operation
   */
-  no_uncommitted_rows_update(1);
+  m_trans_table_stats->update_uncommitted_rows(1);
   if (will_batch) {
     if (uses_blobs) {
       m_thd_ndb->m_unsent_bytes += 12;
@@ -5856,7 +5849,7 @@ int ha_ndbcluster::end_bulk_delete() {
   if (!applying_binlog(thd)) {
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted -= ignore_count;
-    no_uncommitted_rows_update(ignore_count);
+    m_trans_table_stats->update_uncommitted_rows(ignore_count);
   }
   return 0;
 }
@@ -5959,7 +5952,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     m_lock_tuple = false;
     thd_ndb->m_unsent_bytes += 12;
 
-    no_uncommitted_rows_update(-1);
+    m_trans_table_stats->update_uncommitted_rows(-1);
     m_rows_deleted++;
 
     if (!(primary_key_update || m_delete_cannot_batch)) {
@@ -6011,7 +6004,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
                                   sizeof(NdbOperation::OperationOptions))))
       ERR_RETURN(trans->getNdbError());
 
-    no_uncommitted_rows_update(-1);
+    m_trans_table_stats->update_uncommitted_rows(-1);
     m_rows_deleted++;
 
     /*
@@ -6053,7 +6046,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     if (!applying_binlog(thd)) {
       assert(m_rows_deleted >= ignore_count);
       m_rows_deleted -= ignore_count;
-      no_uncommitted_rows_update(ignore_count);
+      m_trans_table_stats->update_uncommitted_rows(ignore_count);
     }
   }
   return 0;
