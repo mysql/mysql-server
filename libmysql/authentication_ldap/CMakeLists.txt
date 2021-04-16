@@ -24,6 +24,12 @@
 # Configuration for building LDAP SASL Authentication Plugin (client-side)
 #
 
+# Skip it if disabled.
+IF(NOT WITH_AUTHENTICATION_CLIENT_PLUGINS)
+  MESSAGE(STATUS "Skipping the LDAP client authentication plugin")
+  RETURN()
+ENDIF()
+
 # The client authentication plugin is part of the community build.
 # Build it if we have found the necessary libraries.
 IF(NOT SASL_FOUND OR NOT LDAP_FOUND)
