@@ -10719,11 +10719,16 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
   ut_a(offset > 0);
   os_offset_t initial_fsize = os_file_get_size(file->handle);
   ut_a(offset <= initial_fsize);
-  ut_a(initial_fsize == (file->size * phy_page_size));
+  /* file->size unit is FSP_EXTENT_SIZE.
+  Disk-full might cause partial FSP_EXTENT_SIZE extension. */
+  ut_a(initial_fsize / (phy_page_size * FSP_EXTENT_SIZE) ==
+       file->size / FSP_EXTENT_SIZE);
 
-  /* Tablespace is extended by adding pages. Hence, offset
-  should be aligned to the page boundary */
-  ut_a((offset % phy_page_size) == 0);
+  /* Because punch_hole flush might recover disk-full situation.
+  We might be able to extend from the partial extension at the
+  previous disk-full. So, offset might not be at boundary.
+  But target is aligned to the page boundary */
+  ut_a(((offset + size) % phy_page_size) == 0);
 
   /* If the physical size of the file is greater than or equal to the
   expected size (offset + size), it means that posix_fallocate was
@@ -10765,8 +10770,8 @@ byte *fil_tablespace_redo_extend(byte *ptr, const byte *end,
     /* Error writing zeros to the file. */
     ib::warn(ER_IB_MSG_320) << "Error while writing " << size << " zeroes to "
                             << file->name << " starting at offset " << offset;
-    fil_space_close(space->id);
-    return nullptr;
+    /* Should return normally. If "return nullptr", it means "broken log"
+    and will skip to apply the all of following logs. */
   }
 
   /* Get the final size of the file and adjust file->size accordingly. */
