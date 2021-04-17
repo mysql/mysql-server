@@ -3067,6 +3067,8 @@ template bool Dictionary_client::acquire_for_modification(Object_id, Schema **);
 template bool Dictionary_client::acquire_uncached(Object_id, Schema **);
 template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
                                                               Schema **);
+template bool Dictionary_client::acquire_uncached_uncommitted(
+    Object_id, std::unique_ptr<Schema> *);
 template bool Dictionary_client::acquire_for_modification(const String_type &,
                                                           Schema **);
 template void Dictionary_client::remove_uncommitted_objects<Schema>(bool);
@@ -3137,6 +3139,8 @@ template void Dictionary_client::dump<Tablespace>() const;
 template bool Dictionary_client::acquire_uncached(Object_id, View **);
 template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
                                                               View **);
+template bool Dictionary_client::acquire_uncached_uncommitted(
+    Object_id, std::unique_ptr<View> *);
 template bool Dictionary_client::acquire(Object_id, const View **);
 template bool Dictionary_client::acquire_for_modification(Object_id, View **);
 template bool Dictionary_client::acquire(const String_type &,

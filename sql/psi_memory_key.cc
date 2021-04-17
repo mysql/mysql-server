@@ -129,7 +129,7 @@ PSI_memory_key key_memory_quick_range_select_root;
 PSI_memory_key key_memory_quick_ror_intersect_select_root;
 PSI_memory_key key_memory_quick_ror_union_select_root;
 PSI_memory_key key_memory_rm_db_mdl_reqs_root;
-PSI_memory_key key_memory_rm_table_foreach_table_root;
+PSI_memory_key key_memory_rm_table_foreach_root;
 PSI_memory_key key_memory_rpl_filter;
 PSI_memory_key key_memory_rpl_replica_check_temp_dir;
 PSI_memory_key key_memory_servers;
@@ -380,9 +380,10 @@ static PSI_memory_info all_server_memory[] = {
      PSI_DOCUMENT_ME},
     {&key_memory_histograms, "histograms", 0, 0, PSI_DOCUMENT_ME},
     {&key_memory_hash_join, "hash_join", 0, 0, PSI_DOCUMENT_ME},
-    {&key_memory_rm_table_foreach_table_root, "rm_table::foreach_table_root",
+    {&key_memory_rm_table_foreach_root, "rm_table::foreach_root",
      PSI_FLAG_THREAD, 0,
-     "Mem root for temporary objects allocated while dropping tables."},
+     "Mem root for temporary objects allocated while dropping tables or the "
+     "whole database."},
     {&key_memory_rm_db_mdl_reqs_root, "rm_db::mdl_reqs_root", PSI_FLAG_THREAD,
      0, "Mem root for allocating MDL requests while dropping datbase."}};
 

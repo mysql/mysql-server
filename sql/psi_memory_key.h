@@ -153,7 +153,7 @@ extern PSI_memory_key key_memory_quick_range_select_root;
 extern PSI_memory_key key_memory_quick_ror_intersect_select_root;
 extern PSI_memory_key key_memory_quick_ror_union_select_root;
 extern PSI_memory_key key_memory_rm_db_mdl_reqs_root;
-extern PSI_memory_key key_memory_rm_table_foreach_table_root;
+extern PSI_memory_key key_memory_rm_table_foreach_root;
 extern PSI_memory_key key_memory_rpl_filter;
 extern PSI_memory_key key_memory_rpl_replica_check_temp_dir;
 extern PSI_memory_key key_memory_servers;

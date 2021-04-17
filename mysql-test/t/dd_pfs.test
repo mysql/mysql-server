@@ -389,6 +389,162 @@ let $object_count= -1601;
 let $operation= DROP SCHEMA s;
 --source include/dd_pfs_report_state.inc
 
+#
+# Coverage for optimization of marking referencing views as invalid during
+# DROP DATABASE which was implemented as part of fixing bug#29634540 "DROP
+# DATABASE OF 1 MILLION TABLES RESULTED CRASH OF MYSQLD".
+#
+
+# I) View in the database being dropped dependent on MyISAM table in it.
+#    Optimization doesn't apply.
+CREATE SCHEMA s1;
+CREATE TABLE s1.t_myisam(i INT) ENGINE=MYISAM;
+CREATE VIEW s1.v1 AS SELECT * FROM s1.t_myisam;
+SELECT * FROM s1.v1;
+--source include/dd_pfs_save_state.inc
+#
+# 1) We allocate placeholder object for table being dropped (+1) and
+# remove table object and its sub-objects from cache (-2). Table is
+# removed from DD. Intermediate commit happens, so placeholder is
+# removed (-1).
+# 2) We mark view as invalid:
+#   a) We retrieve db and name of dependent view. To do this we create
+#      uncached uncommitted view object (with subobjects +3) and
+#      uncached uncommitted schema object (+1), which are immediately
+#      released (-4).
+#   b) Acquire MDL on db and name combo and retrieve them once again
+#      in the same way to prevent possible races (+4, -4).
+#   c) Create copy of cached view object with subobject to mark it
+#      invalid (+3), store it in DD, delete new (-3) and cached object
+#      (-3).
+# 3) We delete view, in the process we load view object into cache (+3),
+#    create placeholder for it (+1), delete cached object (-3), remove
+#    view from DD.
+# 4) We remove TABLE_SHARE entry for view from TDC. It has DD view
+#    object bound to it which gets deleted (-3).
+# 5) Create placeholder object for schema (+1), delete cached schema
+#    object (-1), delete schema from DD.
+# 6) Delete placeholder objects for view (-1) and schema (-1) during
+#    commit.
+# So in total we do 17 allocations and 26 deletions of objects.
+let $object_alloc= 17;
+let $object_free= 26;
+let $object_count= -9;
+let $operation= DROP SCHEMA s1;
+--source include/dd_pfs_report_state.inc
+
+# II) View on InnoDB table in other database than one being dropped.
+#     Optimization doesn't apply either.
+CREATE SCHEMA s2;
+CREATE TABLE s2.t_innodb(i INT) TABLESPACE=innodb_system;
+CREATE VIEW v2 AS SELECT * FROM s2.t_innodb;
+SELECT * FROM v2;
+--source include/dd_pfs_save_state.inc
+#
+# 1) We lock tablespaces referred by the table and index to do this
+#    we get their names, allocating tablespace and file objects uncached
+#    twice (+4). These are then freed (-4).
+# 2) When updating the SDI, the tablespace and file objects are allocated
+#    uncached again (+2) and then freed eventually (-2).
+# 3) We allocate placeholder object for table being dropped (+1) and
+#    remove table object and its sub-objects from cache (-10).
+#    Table is removed from DD.
+# 4) Then we mark view as invalid:
+#   a) We retrieve db and name of dependent view. To do this we create
+#      uncached uncommitted view object (with subobjects +3) and
+#      uncached uncommitted schema object (+1), which are immediately
+#      released (-4).
+#   b) Acquire MDL on db and name combo and retrieve them once again
+#      in the same way to prevent possible races (+4, -4).
+#   c) Create copy of cached view object with subobject to mark it
+#      invalid (+3), store it in DD, delete cached object (-3).
+# 5) Create placeholder object for schema (+1), delete cached schema
+#    object (-1), delete schema from DD.
+# 6) Delete placeholder objects for table (-1) and schema (-1) and new
+#    version of view object (-3) during commit.
+#
+# So in total we do 19 allocations and 33 deletions of objects.
+let $object_alloc= 19;
+let $object_free= 33;
+let $object_count= -14;
+let $operation= DROP SCHEMA s2;
+--source include/dd_pfs_report_state.inc
+DROP VIEW v2;
+
+# III) View on InnoDB table in the same database as one being dropped.
+#      Optimization should apply.
+CREATE SCHEMA s3;
+CREATE TABLE s3.t_innodb(i INT) TABLESPACE=innodb_system;
+CREATE VIEW s3.v3 AS SELECT * FROM s3.t_innodb;
+SELECT * FROM s3.v3;
+--source include/dd_pfs_save_state.inc
+#
+# 1) We lock tablespaces referred by the table and index to do this
+#    we get their names, allocating tablespace and file objects uncached
+#    twice (+4). These are then freed (-4).
+# 2) When updating the SDI, the tablespace and file objects are allocated
+#    uncached again (+2) and then freed eventually (-2).
+# 3) We allocate placeholder object for table being dropped (+1) and
+#    remove table object and its sub-objects from cache (-10).
+#    Table is removed from DD.
+# 4) Then we consider whether we need to mark view as invalid:
+#   a) We retrieve db and name of dependent view. To do this we create
+#      uncached uncommitted view object (with subobjects +3) and
+#      uncached uncommitted schema object (+1), which are immediately
+#      released (-4).
+#   b) Since view belongs to the database being dropped we ignore it.
+# 5) Create placeholder object for view (+1), delete cached objects
+#    for it from the cache (-3), remove it from DD.
+# 6) We remove TABLE_SHARE entry for view from TDC. It has DD view
+#    object bound to it which gets deleted (-3).
+# 7) Create placeholder object for schema (+1), delete cached schema
+#    object (-1), delete schema from DD.
+# 8) Delete placeholder objects for table (-1), view (-1) and schema (-1)
+#    during commit.
+#
+# So in total we do 13 allocations and 27 deletions of objects.
+let $object_alloc= 13;
+let $object_free= 30;
+let $object_count= -17;
+let $operation= DROP SCHEMA s3;
+--source include/dd_pfs_report_state.inc
+
+# IV) View on view in the same database as one being dropped.
+#     Optimization should apply as well.
+CREATE SCHEMA s4;
+CREATE VIEW s4.v4 AS SELECT 1 AS i;
+CREATE VIEW s4.v5 AS SELECT * FROM s4.v4;
+SELECT * FROM s4.v5;
+--source include/dd_pfs_save_state.inc
+# 1) We allocate placeholder object for the first view dropped (+1)
+#    and remove view object and its sub-objects from cache (-2).
+#    View is removed from DD.
+# 2) We remove TABLE_SHARE entry for view from TDC. Associated DD
+#    object is deleted (-2).
+# 3) Then we consider whether we need to mark the dependent view
+#    as invalid:
+#   a) We retrieve db and name of dependent view. To do this we create
+#      uncached uncommitted view object (with subobjects +3) and
+#      uncached uncommitted schema object (+1), which are immediately
+#      released (-4).
+#   b) Since view belongs to the database being dropped we ignore it.
+# 4) Create placeholder object for second view (+1), delete cached
+#    object for it from the cache (-3), remove it from DD.
+# 5) We remove TABLE_SHARE entry for view from TDC. It has DD view
+#    object bound to it which gets deleted (-3).
+# 6) Create placeholder object for schema (+1), delete cached schema
+#    object (-1), delete schema from DD.
+# 7) Delete placeholder objects for the first (-1) and the second (-1)
+#    views and schema (-1) during commit.
+#
+# So in total we do 7 allocations and 18 deletions of objects.
+let $object_alloc= 7;
+let $object_free= 18;
+let $object_count= -11;
+let $operation= DROP SCHEMA s4;
+--source include/dd_pfs_report_state.inc
+
+
 ###############################################################################
 # Cleanup.
 

@@ -1159,6 +1159,9 @@ bool sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
           &schema, &proc_names))
     return true;
 
+  MEM_ROOT foreach_fn_root(key_memory_rm_table_foreach_root,
+                           MEM_ROOT_BLOCK_SIZE);
+
   auto drop_routines_by_names = [&](enum_sp_type type,
                                     const std::vector<dd::String_type> &names) {
     for (const dd::String_type &name : names) {
@@ -1193,7 +1196,10 @@ bool sp_drop_db_routines(THD *thd, const dd::Schema &schema) {
                         {const_cast<char *>(name.c_str()), name.length()},
                         false);
 
-        if (update_referencing_views_metadata(thd, &fn_name)) return true;
+        if (mark_referencing_views_invalid(thd, &fn_name, &foreach_fn_root))
+          return true;
+
+        free_root(&foreach_fn_root, MYF(MY_MARK_BLOCKS_FREE));
       }
 
       is_routine_dropped = true;
