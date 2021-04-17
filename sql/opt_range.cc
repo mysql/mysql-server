@@ -7806,6 +7806,9 @@ SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2) {
         */
         cur_key1->merge_flags(cur_key2);    // Copy maybe flags
         cur_key2->release_next_key_part();  // Free not used tree
+        // Move to the next range in cur_key2
+        cur_key2 = cur_key2->next;
+        continue;
       } else {
         SEL_ARG *last = cur_key1;
         SEL_ARG *first = cur_key1;
