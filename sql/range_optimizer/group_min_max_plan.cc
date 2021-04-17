@@ -127,7 +127,8 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
                                uint group_key_parts, SEL_TREE *range_tree,
                                ha_rows quick_prefix_records, bool have_min,
                                bool have_max, uint infix_factor,
-                               Cost_estimate *cost_est, ha_rows *records);
+                               Cost_estimate *cost_est, ha_rows *records,
+                               bool single_group);
 
 /**
   Test if this access method is applicable to a GROUP query with MIN/MAX
@@ -461,6 +462,9 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
     uint cur_key_infix_len = 0;
     uint cur_used_key_parts;
     KEY_PART_INFO *cur_min_max_arg_part = nullptr;
+    // Set to true if the query has equality predicate on the grouping
+    // attributes.
+    bool is_eq_range_pred = false;
 
     /* Check (B1) - if current index is covering. */
     if (!table->covering_keys.is_set(cur_index)) {
@@ -496,11 +500,14 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
     trace_idx.add("covering", true);
 
     /*
-      Check (GA1) for GROUP BY queries.
+      Check (GA1) for GROUP BY queries. While at it, check if the query produces
+      only one group.
     */
     if (!join->group_list.empty()) {
       cur_part = cur_index_info->key_part;
       end_part = cur_part + actual_key_parts(cur_index_info);
+      SEL_ROOT *cur_tree = nullptr;
+      if (tree) cur_tree = get_index_range_tree(cur_index, tree, param);
       /* Iterate in parallel over the GROUP list and the index parts. */
       for (tmp_group = join->group_list.order;
            tmp_group && (cur_part != end_part);
@@ -522,6 +529,30 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
           cause = "group_attribute_not_prefix_in_index";
           goto next_index;
         }
+        // Special case (determine if the query produces only one group):
+        // If all the grouping attributes have an equality predicate or
+        // have NULL range (IS NULL), query produces only one group.
+        // Determining this will help in cost calculation for using this
+        // index.
+        if (cur_tree &&
+            // Check if the range tree is for the key part that is being looked
+            // into.
+            (cur_tree->root->part == cur_part - cur_index_info->key_part) &&
+            // There should not be any disjuntive predicates on the key part.
+            cur_tree->root->first()->next == nullptr) {
+          SEL_ARG *range = cur_tree->root->first();
+          const uint is_open_range =
+              (NO_MIN_RANGE | NO_MAX_RANGE | NEAR_MIN | NEAR_MAX | GEOM_FLAG);
+          is_eq_range_pred = !(range->min_flag & is_open_range) &&
+                             !(range->max_flag & is_open_range) &&
+                             ((range->maybe_null() && range->min_value[0] &&
+                               range->max_value[0]) ||
+                              memcmp(range->min_value, range->max_value,
+                                     cur_part->store_length) == 0);
+        } else
+          is_eq_range_pred = false;
+        cur_tree =
+            is_eq_range_pred ? cur_tree->root->first()->next_key_part : nullptr;
       }
     }
 
@@ -743,7 +774,7 @@ TRP_GROUP_MIN_MAX *get_best_group_min_max(THD *thd, RANGE_OPT_PARAM *param,
     cost_group_min_max(table, cur_index, cur_used_key_parts,
                        cur_group_key_parts, tree, cur_quick_prefix_records,
                        have_min, have_max, cur_infix_factor, &cur_read_cost,
-                       &cur_records);
+                       &cur_records, is_eq_range_pred);
     /*
       If cur_read_cost is lower than best_read_cost use cur_index.
       Do not compare doubles directly because they may have different
@@ -1245,6 +1276,9 @@ static inline uint get_field_keypart(KEY *index, const Field *field) {
                               can be possible (increases the number of groups).
     cost_est            [out] The cost to retrieve rows via this quick select
     records             [out] The number of rows retrieved
+    single_group         [in] True if this query produces only one group because
+                              there are equality predicates on grouping
+                              attributes.
 
   DESCRIPTION
     This method computes the access cost of a TRP_GROUP_MIN_MAX instance and
@@ -1303,7 +1337,8 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
                                uint group_key_parts, SEL_TREE *range_tree,
                                ha_rows quick_prefix_records, bool have_min,
                                bool have_max, uint infix_factor,
-                               Cost_estimate *cost_est, ha_rows *records) {
+                               Cost_estimate *cost_est, ha_rows *records,
+                               bool single_group) {
   ha_rows table_records;
   uint num_groups;
   uint num_blocks;
@@ -1330,14 +1365,20 @@ static void cost_group_min_max(TABLE *table, uint key, uint used_key_parts,
     /* If there is no statistics try to guess */
     keys_per_group = guess_rec_per_key(table, index_info, group_key_parts);
 
-  num_groups = (uint)(table_records / keys_per_group) + 1;
+  if (single_group)
+    // Pre-determined in the calling function that the query will have
+    // only one group.
+    num_groups = 1;
+  else {
+    num_groups = (uint)(table_records / keys_per_group) + 1;
 
-  /* Apply the selectivity of the quick select for group prefixes. */
-  if (range_tree && (quick_prefix_records != HA_POS_ERROR)) {
-    quick_prefix_selectivity =
-        (double)quick_prefix_records / (double)table_records;
-    num_groups = (uint)rint(num_groups * quick_prefix_selectivity);
-    num_groups = std::max(num_groups, 1U);
+    /* Apply the selectivity of the quick select for group prefixes. */
+    if (range_tree && (quick_prefix_records != HA_POS_ERROR)) {
+      quick_prefix_selectivity =
+          (double)quick_prefix_records / (double)table_records;
+      num_groups = (uint)rint(num_groups * quick_prefix_selectivity);
+      num_groups = std::max(num_groups, 1U);
+    }
   }
 
   if (used_key_parts > group_key_parts) {
