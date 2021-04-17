@@ -641,8 +641,6 @@ using Pointfromwkb_instantiator = G_i<I_wkb, wkb_ft::POINTFROMWKB>;
 using Polyfromwkb_instantiator = G_i<I_wkb, wkb_ft::POLYFROMWKB>;
 using Polygonfromwkb_instantiator = G_i<I_wkb, wkb_ft::POLYGONFROMWKB>;
 
-}  // namespace
-
 class Bin_instantiator {
  public:
   static const uint Min_argcount = 1;
@@ -934,6 +932,27 @@ class Make_set_instantiator {
   }
 };
 
+/// Instantiates a call to JSON_LENGTH, which may take either one or
+/// two arguments. The two-argument variant is rewritten from
+/// JSON_LENGTH(doc, path) to JSON_LENGTH(JSON_EXTRACT(doc, path)).
+class Json_length_instantiator {
+ public:
+  static constexpr int Min_argcount = 1;
+  static constexpr int Max_argcount = 2;
+
+  Item *instantiate(THD *thd, PT_item_list *args) {
+    if (args->elements() == 1) {
+      return new (thd->mem_root) Item_func_json_length(POS(), (*args)[0]);
+    } else {
+      assert(args->elements() == 2);
+      auto arg = new (thd->mem_root)
+          Item_func_json_extract(thd, POS(), (*args)[0], (*args)[1]);
+      if (arg == nullptr) return nullptr;
+      return new (thd->mem_root) Item_func_json_length(POS(), arg);
+    }
+  }
+};
+
 /// @} (end of group Instantiators)
 
 uint arglist_length(const PT_item_list *args) {
@@ -951,8 +970,6 @@ bool check_argcount_bounds(THD *, LEX_STRING function_name,
   }
   return false;
 }
-
-namespace {
 
 /**
   Factory for creating function objects. Performs validation check that the
@@ -1175,7 +1192,7 @@ Item *Create_sp_func::create(THD *thd, LEX_STRING db, LEX_STRING name,
 
 /**
   Shorthand macro to reference the singleton instance when there is a
-  specialized intantiatior.
+  specialized instantiator.
 
   @param INSTANTIATOR The instantiator class.
 */
@@ -1384,7 +1401,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"JSON_CONTAINS", SQL_FN_V_LIST_THD(Item_func_json_contains, 2, 3)},
     {"JSON_CONTAINS_PATH",
      SQL_FN_V_THD(Item_func_json_contains_path, 3, MAX_ARGLIST_SIZE)},
-    {"JSON_LENGTH", SQL_FN_V_THD(Item_func_json_length, 1, 2)},
+    {"JSON_LENGTH", SQL_FACTORY(Json_length_instantiator)},
     {"JSON_DEPTH", SQL_FN(Item_func_json_depth, 1)},
     {"JSON_PRETTY", SQL_FN(Item_func_json_pretty, 1)},
     {"JSON_TYPE", SQL_FN(Item_func_json_type, 1)},
