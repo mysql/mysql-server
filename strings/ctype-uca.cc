@@ -4635,7 +4635,7 @@ static int my_prepare_reorder(CHARSET_INFO *cs) {
     return 0;
   /*
     For each group of character, for example, latin characters,
-    their weights are in a seperate range. The default sequence
+    their weights are in a separate range. The default sequence
     of these groups is: Latin, Greek, Coptic, Cyrillic, and so
     on. Some languages want to change the default sequence. For
     example, Croatian wants to put Cyrillic to just behind Latin.

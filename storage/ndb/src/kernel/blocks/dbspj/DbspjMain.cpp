@@ -1591,7 +1591,7 @@ Dbspj::build(Build_context& ctx,
        * Convert the deprecated SCAN_INDEX_v1 node+param to new SCAN_FRAG:
        *  - The 'node' formats are identical, no conversion needed.
        *  - The QN_ScanIndexParameters has split the single batchSize into
-       *    two seperate 'batch_size' members and introduced an additional
+       *    two separate 'batch_size' members and introduced an additional
        *    three unused Uint32 members for future use. (Total 4)
        *    Extend entire param block to make room for it,
        *    fill in from old batchSize argument.
@@ -7545,7 +7545,7 @@ Dbspj::scanFrag_send(Signal* signal,
        * - Only the rootNode is ONE_SHOT.
        * - keyInfo comes from either m_send.m_keyInfoPtrI or
        *   fragPtr.p->m_rangePtrI (not both! - 'XOR').
-       * - If the child scan is pruned, a seperate 'rangePtr' is
+       * - If the child scan is pruned, a separate 'rangePtr' is
        *   build for each frag - Non-pruned scan store the 'rangePtr'
        *   in the first frag, which is reused for all the frags.
        * - Child nodes can possibly be 'repeatable', which implies

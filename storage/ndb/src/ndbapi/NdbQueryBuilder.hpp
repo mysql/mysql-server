@@ -197,7 +197,7 @@ public:
    *
    * Specifying a 'FirstInnerJoin' is only required when the firstInner
    * is not an ancestor Op. of this Op in the tree of QueryOperations.
-   * That is if firstInner and this Op are in seperate branches of the
+   * That is if firstInner and this Op are in separate branches of the
    * QueryTree -> This Op has no linkedValue dependencies on other Ops
    * in the nest starting with firstInner.
    */

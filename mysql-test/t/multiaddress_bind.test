@@ -95,7 +95,7 @@ SELECT @@global.bind_address;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/shutdown_mysqld.inc
 
---echo # Check seperators not being ','.
+--echo # Check separators not being ','.
 --error 1
 --exec $MYSQLD $DEFARGS --bind-address=127.0.0.1 ::1
 

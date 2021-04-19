@@ -142,7 +142,7 @@ while($var_id <= $count_vars)
   --inc $var_id
 }
 # Below 4 tests have default value as "" and these variables can't be set to
-# empty value. Hence, setting them seperately.
+# empty value. Hence, setting them separately.
 SET PERSIST innodb_monitor_enable="latch";
 SET PERSIST innodb_monitor_disable="latch";
 SET PERSIST innodb_monitor_reset="latch";

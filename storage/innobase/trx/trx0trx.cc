@@ -1742,7 +1742,7 @@ static void trx_erase_lists(trx_t *trx) {
   ut_ad(*it == trx->id);
   trx_sys->rw_trx_ids.erase(it);
 
-  /* We update min_active_trx_id only if needed (seperate cache line). */
+  /* We update min_active_trx_id only if needed (separate cache line). */
   if (update_min_active) {
     trx_id_t min_id = trx_sys->rw_trx_ids.empty() ? trx_sys->rw_max_trx_id + 1
                                                   : trx_sys->rw_trx_ids.front();

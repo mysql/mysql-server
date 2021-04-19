@@ -418,7 +418,7 @@ char *my_crypt_genhash(char *ctbuffer, size_t ctbufflen, const char *plaintext,
 }
 
 /**
-  Generate a random string using ASCII characters but avoid seperator character.
+  Generate a random string using ASCII characters but avoid separator character.
   Stdlib rand and srand are used to produce pseudo random numbers between
   with about 7 bit worth of entropty between 1-127.
 */

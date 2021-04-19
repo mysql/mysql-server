@@ -43,7 +43,7 @@ SELECT @@global.bind_address;
 @@global.bind_address
 ::
 # Stop DB server which was created by MTR default
-# Check seperators not being ','.
+# Check separators not being ','.
 # Check that specially treated value :: is not allowed as part of
 # multi-value option bind-address.
 Pattern "Invalid value for command line option bind-addresses:" found

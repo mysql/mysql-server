@@ -5284,7 +5284,7 @@ static int flush_auto_options(const char *fname) {
   only allowed to trigger (re)evaluation.
   For instance, 'server_uuid' value will be evaluated and stored if there is
   no corresponding line in the file.
-  Because of the specifics of the auto-options, they need a seperate storage.
+  Because of the specifics of the auto-options, they need separate storage.
   Meanwhile, it is the 'auto.cnf' that has the same structure as 'my.cnf'.
 
   @todo consider to implement sql-query-able persistent storage by WL#5279.
@@ -10670,7 +10670,7 @@ static bool check_secure_file_priv_path() {
   opt_secure_file_priv_len = strlen(opt_secure_file_priv);
 
   /*
-    Adds dir seperator at the end.
+    Adds dir separator at the end.
     This is required in subsequent comparison
   */
   convert_dirname(datadir_buffer, mysql_unpacked_real_data_home, NullS);

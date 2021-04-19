@@ -235,7 +235,7 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
   of log block. In future we could get rid of this assumption, but
   we would need to ensure that recovery handles that properly.
 
-  For that we would better refactor log0recv.cc and seperate two
+  For that, we would better refactor log0recv.cc and separate two
   phases:
           1. Looking for the proper mtr boundary to start at (only parse).
           2. Actual parsing and applying changes. */

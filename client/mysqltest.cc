@@ -7688,7 +7688,7 @@ static struct my_option my_long_options[] = {
     {"no-skip", OPT_NO_SKIP, "Force the test to run without skip.", &no_skip,
      &no_skip, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-skip-exclude-list", 'n',
-     "Contains comma seperated list of to be excluded inc files.",
+     "Contains comma-separated list of to be excluded inc files.",
      &excluded_string, &excluded_string, nullptr, GET_STR, REQUIRED_ARG, 0, 0,
      0, nullptr, 0, nullptr},
     {"offload-count-file", OPT_OFFLOAD_COUNT_FILE, "Offload count report file",
