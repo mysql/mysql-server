@@ -490,12 +490,15 @@ CREATE TABLE t1 ( f1 INTEGER );
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
 WHERE f1 <= ANY ( SELECT f1 FROM t1 ) ORDER BY f1;
 EXPLAIN
--> Sort: alias1.f1
-    -> Filter: <nop>((alias1.f1 <= (select #3)))  (cost=2.62 rows=2) [other sub-iterators not shown]
+-> Sort: alias1.f1  (cost=0.35..0.35 rows=0)
+    -> Filter: <nop>((alias1.f1 <= (select #3)))  (cost=2.62 rows=2)
         -> Table scan on alias1  (cost=2.62 rows=2)
             -> Materialize  (cost=0.35..0.35 rows=0)
                 -> Limit/Offset: 2/1 row(s)  (cost=0.35 rows=0)
                     -> Table scan on t1  (cost=0.35 rows=1)
+        -> Select #3 (subquery in condition; run only once)
+            -> Aggregate: max(t1.f1)  (cost=0.45 rows=1)
+                -> Table scan on t1  (cost=0.35 rows=1)
 
 DROP TABLE t1;
 CREATE TABLE t1 ( f1 INT );

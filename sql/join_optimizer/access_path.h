@@ -830,6 +830,9 @@ struct AccessPath {
       int ref_slice;
     } stream;
     struct {
+      // NOTE: The only legal access paths within table_path are
+      // TABLE_SCAN, REF, REF_OR_NULL, EQ_REF, ALTERNATIVE and
+      // CONST_TABLE (the latter is somewhat nonsensical).
       AccessPath *table_path;
 
       // Large, and has nontrivial destructors, so split out

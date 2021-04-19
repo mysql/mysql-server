@@ -268,10 +268,8 @@ EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN (
 ) ON t1.a = t4d.a;
 DROP TABLE t1, t2, t3, t4;
 
-# Demonstrate a shortcoming in printing table iterators on MaterializeIterator;
-# we're not showing the sub-iterator for the WHERE subquery, just marking it as
-# “other sub-iterators not shown”. See MaterializeIterator::DebugString() for
-# more information.
+# Demontrate that we can print the sub-iterator for the WHERE subquery
+# that originally came from a table path.
 CREATE TABLE t1 ( f1 INTEGER );
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT * FROM t1 LIMIT 2 OFFSET 1 ) AS alias1
   WHERE f1 <= ANY ( SELECT f1 FROM t1 ) ORDER BY f1;

@@ -78,6 +78,7 @@
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/relational_expression.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/join_type.h"
 #include "sql/json_dom.h"  // Json_wrapper
 #include "sql/key.h"       // key_cmp
@@ -1391,6 +1392,69 @@ AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
       qep_tab->invalidators, /*need_rowid=*/false, table_path);
 }
 
+AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path) {
+  AccessPath *table_path = path->materialize().table_path;
+  AccessPath *bottom_of_table_path = nullptr;
+  const auto scan_functor = [&bottom_of_table_path, path](AccessPath *sub_path,
+                                                          const JOIN *) {
+    switch (sub_path->type) {
+      case AccessPath::TABLE_SCAN:
+      case AccessPath::REF:
+      case AccessPath::REF_OR_NULL:
+      case AccessPath::EQ_REF:
+      case AccessPath::ALTERNATIVE:
+      case AccessPath::CONST_TABLE:
+        // We found our real bottom.
+        path->materialize().table_path = sub_path;
+        return true;
+      default:
+        // New possible bottom, so keep going.
+        bottom_of_table_path = sub_path;
+        return false;
+    }
+  };
+  WalkAccessPaths(table_path, /*join=*/nullptr,
+                  WalkAccessPathPolicy::ENTIRE_TREE, scan_functor);
+  if (bottom_of_table_path != nullptr) {
+    switch (bottom_of_table_path->type) {
+      case AccessPath::FILTER:
+        bottom_of_table_path->filter().child = path;
+        break;
+      case AccessPath::SORT:
+        bottom_of_table_path->sort().child = path;
+        break;
+      case AccessPath::LIMIT_OFFSET:
+        bottom_of_table_path->limit_offset().child = path;
+        break;
+
+      // It's a bit odd to have STREAM and MATERIALIZE nodes
+      // inside table_path, but it happens when we have UNION with
+      // with ORDER BY on nondeterminisic predicates, or INSERT
+      // which requires buffering. It should be safe move it
+      // out of table_path nevertheless.
+      case AccessPath::STREAM:
+        bottom_of_table_path->stream().child = path;
+        break;
+      case AccessPath::MATERIALIZE:
+        assert(bottom_of_table_path->materialize().param->query_blocks.size() ==
+               1);
+        bottom_of_table_path->materialize()
+            .param->query_blocks[0]
+            .subquery_path = path;
+        break;
+      default:
+        assert(false);
+    }
+
+    // This isn't strictly accurate, but helps propagate information
+    // better throughout the tree nevertheless.
+    CopyBasicProperties(*path, table_path);
+
+    path = table_path;
+  }
+  return path;
+}
+
 AccessPath *GetAccessPathForDerivedTable(
     THD *thd, TABLE_LIST *table_ref, TABLE *table, bool rematerialize,
     Mem_root_array<const AccessPath *> *invalidators, bool need_rowid,
@@ -1444,6 +1508,7 @@ AccessPath *GetAccessPathForDerivedTable(
             ? query_expression->m_reject_multiple_rows
             : false);
     EstimateMaterializeCost(path);
+    path = MoveCompositeIteratorsFromTablePath(path);
     if (query_expression->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
       // SQL_CALC_FOUND_ROWS cannot occur in a derived table's definition.
@@ -1485,6 +1550,7 @@ AccessPath *GetAccessPathForDerivedTable(
         /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
         query_expression->m_reject_multiple_rows);
     EstimateMaterializeCost(path);
+    path = MoveCompositeIteratorsFromTablePath(path);
   }
 
   path->cost_before_filter = path->cost;

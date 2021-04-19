@@ -552,6 +552,18 @@ void SplitConditions(Item *condition, QEP_TAB *current_table,
                      std::vector<PendingCondition> *predicates_above_join,
                      std::vector<PendingCondition> *join_conditions);
 
+/**
+  For a MATERIALIZE access path, move any non-basic iterators (e.g. sorts and
+  filters) from table_path to above the path, for easier EXPLAIN and generally
+  simpler structure. Note the assert in CreateIteratorFromAccessPath() that we
+  succeeded. (ALTERNATIVE counts as a basic iterator in this regard.)
+
+  We do this by finding the second-bottommost access path, and inserting our
+  materialize node as it child. The bottommost one becomes the actual table
+  access path.
+ */
+AccessPath *MoveCompositeIteratorsFromTablePath(AccessPath *path);
+
 AccessPath *GetAccessPathForDerivedTable(THD *thd, QEP_TAB *qep_tab,
                                          AccessPath *table_path);
 AccessPath *GetAccessPathForDerivedTable(

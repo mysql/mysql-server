@@ -1464,7 +1464,7 @@ EXPLAIN
         -> Filter: (<in_optimizer>((t1.col_int_key + 6),(t1.col_int_key + 6) in (select #2) is false) and (t1.col_int_key is not null))  (cost=0.35 rows=1)
             -> Table scan on t1  (cost=0.35 rows=1)
             -> Select #2 (subquery in condition; run only once)
-                -> Filter: (((t1.col_int_key + 6) = `<materialized_subquery>`.field4))
+                -> Filter: (((t1.col_int_key + 6) = `<materialized_subquery>`.field4))  (cost=3.45..3.45 rows=16)
                     -> Limit: 1 row(s)
                         -> Index lookup on <materialized_subquery> using <auto_distinct_key> (field4=(t1.col_int_key + 6))
                             -> Materialize with deduplication  (cost=3.45..3.45 rows=16)

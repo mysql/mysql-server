@@ -171,24 +171,16 @@ vector<ExplainData::Child> GetAccessPathsFromSelectList(JOIN *join) {
 
 ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join);
 
-// The table iterator could be a whole string of iterators
-// (sort, filter, etc.) due to add_sorting_to_table(), so show them all.
-//
-// TODO(sgunders): Make the optimizer put these on top of the
-// MaterializeIterator instead (or perhaps better yet, on the subquery
-// iterator), so that table_iterator is always just a single basic iterator.
+// The table iterator could be a slightly more complicated iterator than
+// the basic iterators (in particular, ALTERNATIVE), so show the entire
+// thing.
 static void AddTableIteratorDescription(const AccessPath *path, JOIN *join,
                                         vector<string> *description) {
   const AccessPath *subpath = path;
   for (;;) {
     ExplainData explain = ExplainAccessPath(subpath, join);
     for (string str : explain.description) {
-      if (explain.children.size() > 1) {
-        // This can happen if e.g. a filter has subqueries in it.
-        // TODO(sgunders): Consider having a RowIterator::parent(),
-        // so that we can show the entire tree.
-        str += " [other sub-iterators not shown]";
-      }
+      assert(explain.children.size() <= 1);
       description->push_back(str);
     }
     if (explain.children.empty()) break;

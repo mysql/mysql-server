@@ -508,6 +508,15 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       break;
     }
     case AccessPath::MATERIALIZE: {
+      // The table access path should be a single iterator, not a tree.
+      // (ALTERNATIVE counts as a single iterator in this regard.)
+      assert(path->materialize().table_path->type == AccessPath::TABLE_SCAN ||
+             path->materialize().table_path->type == AccessPath::REF ||
+             path->materialize().table_path->type == AccessPath::REF_OR_NULL ||
+             path->materialize().table_path->type == AccessPath::EQ_REF ||
+             path->materialize().table_path->type == AccessPath::ALTERNATIVE ||
+             path->materialize().table_path->type == AccessPath::CONST_TABLE);
+
       unique_ptr_destroy_only<RowIterator> table_iterator =
           CreateIteratorFromAccessPath(thd, path->materialize().table_path,
                                        join, eligible_for_batch_mode);
