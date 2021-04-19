@@ -997,11 +997,20 @@ enum enum_resultset_metadata {
   RESULTSET_METADATA_FULL = 1
 };
 
+/**
+  The flags used in COM_STMT_EXECUTE.
+  @sa @ref Protocol_classic::parse_packet, @ref mysql_int_serialize_param_data
+*/
 enum enum_cursor_type {
   CURSOR_TYPE_NO_CURSOR = 0,
   CURSOR_TYPE_READ_ONLY = 1,
   CURSOR_TYPE_FOR_UPDATE = 2,
-  CURSOR_TYPE_SCROLLABLE = 4
+  CURSOR_TYPE_SCROLLABLE = 4,
+  /**
+    On when the client will send the parameter count
+    even for 0 parameters.
+  */
+  PARAMETER_COUNT_AVAILABLE = 8
 };
 
 /** options for ::mysql_options() */
