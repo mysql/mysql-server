@@ -36,6 +36,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <memory>
 
 #include "my_byteorder.h"
 #include "my_compiler.h"
@@ -22061,6 +22062,60 @@ static void test_bug32372038() {
 #endif
 }
 
+static void test_bug32558782() {
+  myheader("test_bug32558782");
+  int rc;
+
+  rc = mysql_query(mysql, "DROP TABLE IF EXISTS test_tab");
+  myquery(rc);
+
+  rc = mysql_query(mysql,
+                   "CREATE TABLE test_tab("
+                   "col1 MEDIUMBLOB NOT NULL,"
+                   "col2 TINYINT DEFAULT NULL"
+                   ") Engine=InnoDB;");
+  myquery(rc);
+
+  MYSQL_STMT *stmt = mysql_stmt_init(mysql);
+  const char *query = "INSERT INTO test_tab (col1, col2) VALUES (?,?)";
+  rc = mysql_stmt_prepare(stmt, query, (ulong)strlen(query));
+  check_execute(stmt, rc);
+
+  MYSQL_BIND bind[2];
+
+  long int_data = 0;
+  bool is_null = true;
+  /* should be longer than initial NET buffer size of 8k */
+  unsigned long buflen = 20000;
+  unsigned long len = buflen;
+  std::unique_ptr<char> data_buf(new char[buflen]);
+  memset(data_buf.get(), 'A', buflen);
+
+  /* BLOB COLUMN */
+  bind[0].buffer_type = MYSQL_TYPE_BLOB;  // Same thing with MYSQL_TYPE_STRING
+  bind[0].buffer = data_buf.get();
+  bind[0].buffer_length = buflen;
+  bind[0].is_null = 0;
+  bind[0].length = &len;
+
+  /* INT COLUMN */
+  bind[1].buffer_type = MYSQL_TYPE_LONG;
+  bind[1].buffer = (char *)&int_data;
+  bind[1].is_null = &is_null;
+
+  rc = mysql_stmt_bind_param(stmt, bind);
+  check_execute(stmt, rc);
+
+  /* success criteria: should complete */
+  rc = mysql_stmt_execute(stmt);
+  check_execute(stmt, rc);
+
+  /* cleanup */
+  mysql_stmt_close(stmt);
+  rc = mysql_query(mysql, "DROP TABLE test_tab");
+  myquery(rc);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -22362,6 +22417,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug31691060_1", test_bug31691060_1},
     {"test_bug31691060_2", test_bug31691060_2},
     {"test_bug32372038", test_bug32372038},
+    {"test_bug32558782", test_bug32558782},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
