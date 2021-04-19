@@ -522,6 +522,10 @@ struct force_constexpr {
 
 #endif /* __GNUG__ == 5 */
 
+#else
+
+#define UT_NEW_THIS_FILE_PSI_KEY PSI_NOT_INSTRUMENTED
+
 #endif /* UNIV_PFS_MEMORY */
 
 /** A structure that holds the necessary data for performance schema
@@ -587,7 +591,7 @@ class ut_allocator {
                 "aligned_memory or another similar allocator for this type.");
   /** Default constructor.
   @param[in] key  performance schema key. */
-  explicit ut_allocator(PSI_memory_key key = PSI_NOT_INSTRUMENTED)
+  explicit ut_allocator(PSI_memory_key key = UT_NEW_THIS_FILE_PSI_KEY)
       :
 #ifdef UNIV_PFS_MEMORY
         m_key(key),
@@ -939,7 +943,7 @@ class ut_allocator {
 
 #ifdef UNIV_PFS_MEMORY
   /** Performance schema key. */
-  PSI_memory_key m_key;
+  const PSI_memory_key m_key;
 #endif /* UNIV_PFS_MEMORY */
 
   /** A flag to indicate whether out of memory (OOM) error is considered
