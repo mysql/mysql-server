@@ -244,7 +244,17 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
         /* We get here in cases like "t.unsigned NOT IN (-1,-2,-3) */
         return nullptr;
       SEL_TREE *tree2 = nullptr;
+      Item_basic_constant *previous_range_value =
+          op->array->create_item(thd->mem_root);
       for (; i < op->array->used_count; i++) {
+        // Check if the value stored in the field for the previous range
+        // is greater, lesser or equal to the actual value specified in the
+        // query. Used further down to set the flags for the current range
+        // correctly (as the max value for the previous range will become
+        // the min value for the current range).
+        op->array->value_to_item(i - 1, previous_range_value);
+        int cmp_value =
+            stored_field_cmp_to_item(thd, field, previous_range_value);
         if (op->array->compare_elems(i, i - 1)) {
           /* Get a SEL_TREE for "-inf < X < c_i" interval */
           op->array->value_to_item(i, value_item);
@@ -267,7 +277,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
               // this value:
               // For ex: If the range is "not in (1,2)" we first construct
               // X < 1 before this loop and add 1 < X < 2 in this loop and
-              // follow it up with X > 2 below.
+              // follow it up with 2 < X below.
               // While fetching values for the second interval, we set
               // "NEAR_MIN" flag so that we fetch values higher than "1".
               // However, when the values specified are not compatible
@@ -278,12 +288,10 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(
               // a case, setting the flag to "NEAR_MIN" is not right. Because
               // we need values higher than "0.9" not "1". We check this
               // before we set the flag below.
-              Item_basic_constant *val_item =
-                  op->array->create_item(thd->mem_root);
-              op->array->value_to_item(i - 1, val_item);
-              const int cmp_value =
-                  stored_field_cmp_to_item(thd, field, val_item);
-              if (cmp_value <= 0) new_interval->min_flag = NEAR_MIN;
+              if (cmp_value <= 0)
+                new_interval->min_flag = NEAR_MIN;
+              else
+                new_interval->min_flag = 0;
 
               /*
                 If the interval is over a partial keypart, the
