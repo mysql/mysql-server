@@ -9659,7 +9659,6 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
       if (found &&
           opRecPtr.p->m_op_bits != Operationrec::OP_INITIAL)
       {
-        g_eventLogger->info("ACC_OP(3): %u", opRecPtr.i);
         jam();
 
         FragmentrecPtr fp;
