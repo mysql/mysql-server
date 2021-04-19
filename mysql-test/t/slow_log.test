@@ -1,3 +1,5 @@
+--source include/not_parallel.inc
+
 SET @save_sqlf=@@global.slow_query_log_file;
 
 --replace_result $MYSQL_TMP_DIR ...
@@ -33,3 +35,127 @@ EOF
 SET @@global.slow_query_log_file=@save_sqlf;
 
 --remove_file $MYSQL_TMP_DIR/my_slow.log
+
+
+--echo
+--echo #
+--echo # Bug#30789032: INCONSISTENT BEHAVIOR WHILE LOGGING A KILLED QUERY IN THE SLOW QUERY LOG
+--echo #
+--echo
+
+SET @old_slow_query_log_file= @@global.slow_query_log_file;
+SET @old_log_output         = @@global.log_output;
+
+--replace_result $MYSQL_TMP_DIR ...
+eval SET GLOBAL slow_query_log_file= '$MYSQL_TMP_DIR/my_slow.log';
+
+# SET timestamp=10;
+SET @main_thd_id=CONNECTION_ID();
+
+# Set slow log output to table
+SET GLOBAL log_output=        'TABLE,FILE';
+SET GLOBAL slow_query_log=    1;
+
+SET SESSION long_query_time=  0;
+
+--echo #
+--echo # LOG OUTPUT TO TABLE WITH KILL THREAD
+--echo # Should not write to the slow log.
+--echo #
+
+--echo # "long query" connection (killee)
+connect (con1, localhost, root,,);
+--connection con1
+--disable_reconnect
+TRUNCATE mysql.slow_log;
+--let $id= `SELECT CONNECTION_ID()`
+
+--echo # Check variables:
+SET SESSION long_query_time= 0;
+SELECT @@log_output,@@slow_query_log,@@long_query_time;
+
+# Wait in 'before_do_command_net_read' until killed.
+--send /* KILL CONNECTION: should not be logged */ SELECT SLEEP(1001)
+
+--echo # default connection (from whence we use KILL CONNECTION)
+--connection default
+let $wait_condition= SELECT COUNT(processlist_info) FROM performance_schema.threads WHERE processlist_state="User sleep";
+--source include/wait_condition.inc
+--replace_result $id <CONNECTION_ID>
+--eval KILL CONNECTION $id
+
+--echo # show rows in slow_log:
+SELECT "1>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
+  FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
+
+--echo # error indicates that the connection's gone (as expected):
+--connection con1
+# These are client-library errors, not ER_*, so we're using the numeric value.
+--error 1317,2013
+--reap
+# clean up
+--disconnect con1
+
+--echo #
+--echo # LOG OUTPUT TO TABLE WITH KILL QUERY
+--echo # Should write to the slow log.
+--echo #
+
+connect (con1, localhost, root,,);
+--connection con1
+--disable_reconnect
+TRUNCATE mysql.slow_log;
+--let $id= `SELECT CONNECTION_ID()`
+
+--echo # Check variables:
+SET SESSION long_query_time= 0;
+SELECT @@log_output,@@slow_query_log,@@long_query_time;
+
+# Wait in 'before_do_command_net_read' until killed.
+--send /* KILL QUERY: should be logged */ SELECT SLEEP(1002)
+
+# --echo # default connection (from whence we use KILL QUERY)
+--connection default
+let $wait_condition= SELECT COUNT(processlist_info) FROM performance_schema.threads WHERE processlist_state="User sleep";
+--source include/wait_condition.inc
+--replace_result $id <CONNECTION_ID>
+--eval KILL QUERY $id
+
+--echo # show rows in slow_log:
+SELECT "2>",IF(thread_id=@main_thd_id,"KILLER","killee"),sql_text
+  FROM mysql.slow_log WHERE INSTR(sql_text,"SLEEP(10")>0 ORDER BY start_time;
+
+# show that the connection's gone:
+--connection con1
+--reap
+SELECT "con1 is still here.";
+
+# clean up
+--disconnect con1
+
+--connection default
+
+# show file log:
+let SLOW_LOG= `SELECT @@global.slow_query_log_file`;
+
+--perl
+   use strict;
+
+   my $file= $ENV{'SLOW_LOG'} or die("slow log not set");
+
+   open(FILE, "$file") or die("Unable to open $file: $!");
+   while (<FILE>) {
+     my $line = $_;
+     if ($line =~ /SELECT SLEEP\(10/) {
+       print "F>".$line; }
+   }
+   close(FILE);
+EOF
+
+SET @@global.slow_query_log_file= @old_slow_query_log_file;
+SET @@global.log_output         = @old_log_output;
+
+--remove_file $MYSQL_TMP_DIR/my_slow.log
+
+--echo #
+--echo # Done.
