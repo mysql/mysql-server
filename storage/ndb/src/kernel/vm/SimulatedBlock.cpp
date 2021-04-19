@@ -4664,8 +4664,20 @@ SimulatedBlock::ndbinfo_send_scan_break(Signal* signal,
 
   Ndbinfo::ScanCursor::setHasMoreData(cursor->flags, true);
 
-  sendSignal(cursor->senderRef, GSN_DBINFO_SCANCONF, signal,
-             signal_length, JBB);
+  if (rl.rows > 0)
+  {
+    jam();
+    /* Send what we have so far back to requestor */
+    sendSignal(cursor->senderRef, GSN_DBINFO_SCANCONF, signal,
+               signal_length, JBB);
+  }
+  else
+  {
+    jam();
+    /* We have nothing yet, take a RTB, but keep scanning */
+    sendSignal(reference(), GSN_DBINFO_SCANREQ, signal,
+               signal_length, JBB);
+  }
 }
 
 void
