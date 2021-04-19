@@ -226,11 +226,12 @@ TEST(ut0new, edgecases) {
 #ifdef UNIV_PFS_MEMORY
   ret = alloc1.allocate(16);
   ASSERT_TRUE(ret != nullptr);
+
   ret = alloc1.reallocate(ret, 0, UT_NEW_THIS_FILE_PSI_KEY);
   EXPECT_EQ(null_ptr, ret);
 
   ret = UT_NEW_ARRAY_NOKEY(byte, 0);
-  EXPECT_EQ(null_ptr, ret);
+  EXPECT_NE(null_ptr, ret);
 #endif /* UNIV_PFS_MEMORY */
 
   ut_allocator<big_t> alloc2(mem_key_buf_buf_pool);
@@ -252,7 +253,6 @@ TEST(ut0new, edgecases) {
 #endif /* UNIV_PFS_MEMORY */
 
   bool threw = false;
-
   try {
     ret = alloc2.allocate(too_many_elements);
   } catch (...) {
@@ -260,9 +260,14 @@ TEST(ut0new, edgecases) {
   }
   EXPECT_TRUE(threw);
 
-  ret = alloc2.allocate(too_many_elements, nullptr, PSI_NOT_INSTRUMENTED, false,
-                        false);
-  EXPECT_EQ(null_ptr, ret);
+  threw = false;
+  try {
+    ret = alloc2.allocate(too_many_elements, nullptr, PSI_NOT_INSTRUMENTED,
+                          false);
+  } catch (std::bad_array_new_length &e) {
+    threw = true;
+  }
+  EXPECT_TRUE(threw);
 
   threw = false;
   try {
