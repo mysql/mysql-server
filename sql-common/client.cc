@@ -7320,7 +7320,7 @@ static int mysql_prepare_com_query_parameters(MYSQL *mysql,
     if (mysql_int_serialize_param_data(
             &mysql->net, ext->bind_info.n_params, ext->bind_info.bind,
             const_cast<const char **>(ext->bind_info.names), 1, pret_data,
-            pret_data_length, 1, true, true)) {
+            pret_data_length, 1, true, true, true)) {
       set_mysql_error(mysql, mysql->net.last_errno, mysql->net.sqlstate);
       return 1;
     }

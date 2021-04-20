@@ -1728,12 +1728,22 @@ static inline int add_binary_row(NET *net, MYSQL_STMT *stmt, ulong pkt_len,
   return 0;
 }
 
-/*
+/**
   Auxilary function to send COM_STMT_EXECUTE packet to server and read reply.
-  Used from cli_stmt_execute, which is in turn used by mysql_stmt_execute.
-*/
 
-static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
+  Used from @ref cli_stmt_execute, which is in turn used by
+  @ref mysql_stmt_execute.
+
+  @param stmt the stmt to execute
+  @param packet the data for the parameters
+  @param length number of bytes in the buffer "data"
+  @param send_param_count ON if the server properly processes the
+     PARAMETER_COUNT_AVAILABLE flag, so we can send it.
+  @retval false success
+  @retval true failure. error set
+*/
+static bool execute(MYSQL_STMT *stmt, char *packet, ulong length,
+                    bool send_param_count) {
   MYSQL *mysql = stmt->mysql;
   NET *net = &mysql->net;
   uchar buff[4 /* size of stmt id */ + 5 /* execution flags */];
@@ -1750,10 +1760,16 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length) {
   /*
     If the server supports query attributes raise the flag that we
     are going to be sending the parameter block.
+    Unfortunately there's a bug in processing the flags in servers
+    earlier than 8.0.25 that conflates all the flags into a single
+    boolean. Thus we need to cut off sending PARAMETER_COUNT_AVAILABLE
+    for these
   */
-  if ((mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0)
+  if ((mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0 &&
+      send_param_count) {
+    DBUG_PRINT("prep_stmt_exec", ("Setting PARAMETER_COUNT_AVAILABLE"));
     flags |= PARAMETER_COUNT_AVAILABLE;
-
+  }
   buff[4] = (char)(flags);
   int4store(buff + 5, 1); /* iteration count */
 
@@ -1834,12 +1850,13 @@ int cli_stmt_execute(MYSQL_STMT *stmt) {
   MYSQL *mysql = stmt->mysql;
   bool send_named_params =
       (mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0;
+  bool can_deal_with_flags =
+      mysql->server_version && mysql_get_server_version(mysql) >= 80025;
   /*
-    We should send the 0 param count even when there's no parameters
-    when the server supports named parameters to signify there's no
-    query attributes either.
-    We are setting the PARAMETER_COUNT_AVAILABLE later on the same
-    condition in execute()
+    When the server can deal with flags properly we should send the 0 param
+    count even when there's no parameters when the server supports named
+    parameters to signify there's no query attributes either. We are setting the
+    PARAMETER_COUNT_AVAILABLE later on the same condition in execute()
   */
   if (stmt->param_count || send_named_params) {
     uchar *param_data = nullptr;
@@ -1866,18 +1883,19 @@ int cli_stmt_execute(MYSQL_STMT *stmt) {
 
     if (mysql_int_serialize_param_data(
             &mysql->net, stmt->param_count, stmt->params, NULL, 1, &param_data,
-            &param_length, stmt->send_types_to_server, send_named_params,
-            false)) {
+            &param_length, stmt->send_types_to_server, send_named_params, false,
+            can_deal_with_flags)) {
       set_stmt_errmsg(stmt, &mysql->net);
       return 1;
     }
 
-    result = execute(stmt, pointer_cast<char *>(param_data), param_length);
+    result = execute(stmt, pointer_cast<char *>(param_data), param_length,
+                     can_deal_with_flags);
     stmt->send_types_to_server = false;
     my_free(param_data);
     return result;
   }
-  return (int)execute(stmt, nullptr, 0);
+  return (int)execute(stmt, nullptr, 0, can_deal_with_flags);
 }
 
 /*
