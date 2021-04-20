@@ -84,6 +84,16 @@
 #     Asserts that SHOW WARNINGS returns the expected set of warnings
 #     (possibly none).
 
+
+# This test checks the behavior of configuration variables.  If the
+# test is invoked with some of those variables set to specific values,
+# that interferes with the test.  So we disable runs that set the
+# tested variables.
+
+# Binlog-less runs use --skip-log-replica-updates.
+--source include/have_log_bin.inc
+
+
 --echo #### Initialize ####
 
 --let $assert_escape = 1
