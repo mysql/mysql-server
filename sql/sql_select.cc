@@ -76,6 +76,7 @@
 #include "sql/item_sum.h"  // Item_sum
 #include "sql/join_optimizer/access_path.h"
 #include "sql/join_optimizer/join_optimizer.h"
+#include "sql/join_optimizer/replace_item.h"
 #include "sql/json_dom.h"
 #include "sql/key.h"  // key_copy, key_cmp, key_cmp_if_same
 #include "sql/key_spec.h"
@@ -4093,34 +4094,9 @@ bool JOIN::add_having_as_tmp_table_cond(uint curr_tmp_table) {
   return false;
 }
 
-// For window functions, replace every field parameter in them with the
-// corresponding field in the temporary table, so that they can be safely
-// evaluated after restoring fields from the framebuffer (which go into
-// the output table, not the input table). We find out which input fields
-// correspond to which output fields by searching in the given items_to_copy.
-static void ReplaceTable(THD *thd, Item *item, const TABLE *src_table,
-                         const Func_ptr_array &items_to_copy) {
-  WalkAndReplace(
-      thd, item,
-      [src_table, &items_to_copy](Item *sub_item, Item *,
-                                  unsigned) -> ReplaceResult {
-        if (sub_item->type() == Item::FIELD_ITEM &&
-            down_cast<Item_field *>(sub_item)->field->table == src_table) {
-          for (const Func_ptr &func : items_to_copy) {
-            if (sub_item->eq(func.func(), /*binary_cmp=*/true)) {
-              return {ReplaceResult::REPLACE, func.result_item()};
-            }
-          }
-          // We didn't find the field, so just leave it alone.
-        }
-        return {ReplaceResult::KEEP_TRAVERSING, nullptr};
-      });
-}
-
 bool CreateFramebufferTable(
     THD *thd, const Temp_table_param &tmp_table_param,
-    const Query_block &query_block, const TABLE *src_table,
-    const mem_root_deque<Item *> &source_fields,
+    const Query_block &query_block, const mem_root_deque<Item *> &source_fields,
     const mem_root_deque<Item *> &window_output_fields,
     Func_ptr_array *mapping_from_source_to_window_output, Window *window) {
   /*
@@ -4169,8 +4145,9 @@ bool CreateFramebufferTable(
   // 1 + SUM(<temporary>.x) OVER w.
   for (Func_ptr &ptr : *mapping_from_source_to_window_output) {
     if (ptr.func()->has_wf()) {
-      ReplaceTable(thd, ptr.func(), src_table,
-                   *mapping_from_source_to_window_output);
+      ReplaceMaterializedItems(thd, ptr.func(),
+                               *mapping_from_source_to_window_output,
+                               /*need_exact_match=*/false);
     }
   }
   return false;
@@ -4693,10 +4670,9 @@ bool JOIN::make_tmp_tables_info() {
       }
 
       if (m_windows[wno]->needs_buffering()) {
-        if (CreateFramebufferTable(thd, tmp_table_param, *query_block,
-                                   tab[-1].table(), *orig_fields, *curr_fields,
-                                   tab->tmp_table_param->items_to_copy,
-                                   m_windows[wno])) {
+        if (CreateFramebufferTable(
+                thd, tmp_table_param, *query_block, *orig_fields, *curr_fields,
+                tab->tmp_table_param->items_to_copy, m_windows[wno])) {
           return true;
         }
       }

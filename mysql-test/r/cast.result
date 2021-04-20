@@ -870,7 +870,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using filesort
 Warnings:
 Note	3598	To get information about window functions use EXPLAIN FORMAT=JSON
-Note	1003	/* select#1 */ select `test`.`t1`.`date` AS `date`,(cast(`test`.`t1`.`spID` as double) = cast(first_value(`test`.`t1`.`date`) OVER (ORDER BY `test`.`t1`.`date` )  as double)) AS `spid = FIRST_VALUE(date) OVER (ORDER BY date )` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`date` AS `date`,(cast(`test`.`t1`.`spid` as double) = cast(first_value(`test`.`t1`.`date`) OVER (ORDER BY `test`.`t1`.`date` )  as double)) AS `spid = FIRST_VALUE(date) OVER (ORDER BY date )` from `test`.`t1`
 #
 # No casts when constants or constant functions are involved
 #

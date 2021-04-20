@@ -58,6 +58,7 @@
 #include "sql/join_optimizer/make_join_hypergraph.h"
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/join_optimizer/relational_expression.h"
+#include "sql/join_optimizer/replace_item.h"
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/mem_root_array.h"
@@ -109,9 +110,9 @@ TABLE *CreateTemporaryTableFromSelectList(
     Temp_table_param **temp_table_param_arg);
 
 void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
-                                          Temp_table_param *temp_table_param);
+                                          const Func_ptr_array &items_to_copy);
 void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
-                                          Temp_table_param *temp_table_param);
+                                          const Func_ptr_array &items_to_copy);
 
 AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
                                       TABLE *temp_table,
@@ -2282,90 +2283,16 @@ TABLE *CreateTemporaryTableFromSelectList(
 }
 
 /**
-  Check what field the given item will be materialized into under the given
-  temporary table parameters.
-
-  If the item is materialized (ie., found in items_to_copy), we return a
-  canonical Item_field for that field; ie., the same every time. This means
-  that you can do the same replacement in a SELECT list and then in
-  items_to_copy itself, and still have them match. This is used in particular
-  when updating Temp_table_param itself, in FinalizePlanForQueryBlock().
- */
-Item_field *FindReplacementItem(Item *item,
-                                Temp_table_param *temp_table_param) {
-  for (const Func_ptr &func : *temp_table_param->items_to_copy) {
-    // For nearly all cases, just comparing the items (by pointer) would
-    // be sufficent, but in rare cases involving CTEs (see e.g. the test for
-    // bug #26907753), we can have a ref in func.func(), so we need to call
-    // real_item() before comparing.
-    if (func.func()->hidden == item->hidden &&
-        func.func()->real_item() == item->real_item()) {
-      Item_field *item_field = func.result_item();
-      if (item_field == nullptr) return nullptr;
-      item_field->hidden = item->hidden;
-      return item_field;
-    }
-  }
-  return nullptr;
-}
-
-/**
-  Return a new item that is to be used after materialization (as given by
-  temp_table_param->items_to_copy). There are three main cases:
-
-    1. The item isn't touched by materialization (e.g., because it's constant,
-       or because we're not ready to compute it yet).
-    2. The item is directly in the items_to_copy list, so it has its own field
-       in the resulting temporary table; the corresponding new Item_field
-       is returned.
-    3. A _part_ of the item is in the items_to_copy list; e.g. say that we
-       have an item (t1.x + 1), and t1.x is materialized into <temporary>.x.
-       (In particular, this happens when having expressions that contain
-       aggregate functions _and_ non-aggregates.) In this case, we go in and
-       modify the item in-place, so that the appropriate sub-expressions are
-       replaced; in this case, to (<temporary>.x + 1). This assumes that we
-       never use the same item before and after a materialization in the
-       query plan!
- */
-Item *FindOrModifyReplacementItem(THD *thd, Item *item,
-                                  Temp_table_param *temp_table_param) {
-  const auto replace_functor = [temp_table_param](Item *sub_item, Item *,
-                                                  unsigned) -> ReplaceResult {
-    if (sub_item->const_for_execution()) {
-      // Stop traversing (which we do with a fake replacement with ourselves).
-      return {ReplaceResult::REPLACE, sub_item};
-    }
-    Item *replacement =
-        FindReplacementItem(sub_item->real_item(), temp_table_param);
-    if (replacement != nullptr) {
-      return {ReplaceResult::REPLACE, replacement};
-    } else {
-      return {ReplaceResult::KEEP_TRAVERSING, nullptr};
-    }
-  };
-
-  if (item->const_for_execution()) {
-    return item;
-  }
-
-  Item *replacement = FindReplacementItem(item, temp_table_param);
-  if (replacement != nullptr) {
-    return replacement;
-  } else {
-    WalkAndReplace(thd, item, std::move(replace_functor));
-    return item;
-  }
-}
-
-/**
   Replaces the items in the SELECT list with items that point to fields in a
   temporary table. See FinalizePlanForQueryBlock() for more information.
  */
 void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
-                                          Temp_table_param *temp_table_param) {
+                                          const Func_ptr_array &items_to_copy) {
   auto fields = new (thd->mem_root) mem_root_deque<Item *>(thd->mem_root);
   for (Item *item : *join->fields) {
-    fields->push_back(FindOrModifyReplacementItem(thd, item, temp_table_param));
+    fields->push_back(
+        FindReplacementOrReplaceMaterializedItems(thd, item, items_to_copy,
+                                                  /*need_exact_match=*/true));
   }
   join->fields = fields;
 }
@@ -2375,10 +2302,10 @@ void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
 // value anyway -- although possibly with some extra calculations),
 // but it is for materialization.
 void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
-                                          Temp_table_param *temp_table_param) {
+                                          const Func_ptr_array &items_to_copy) {
   for (; order != nullptr; order = order->next) {
-    Item *temp_field_item =
-        FindOrModifyReplacementItem(thd, *order->item, temp_table_param);
+    Item *temp_field_item = FindReplacementOrReplaceMaterializedItems(
+        thd, *order->item, items_to_copy, /*need_exact_match=*/true);
     if (temp_field_item != *order->item) {
       // *order->item points into a memory area (the “base ref slice”)
       // where HAVING might expect to find items _not_ pointing into the
@@ -3522,25 +3449,27 @@ Temp_table_param *GetMaterialization(AccessPath *path) {
  */
 void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
                                AccessPath *root_path) {
-  Mem_root_array<Temp_table_param *> applied_temp_tables(thd->mem_root);
+  Mem_root_array<const Func_ptr_array *> applied_replacements(thd->mem_root);
   WalkAccessPaths(
       root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [thd, query_block, &applied_temp_tables](AccessPath *path, JOIN *join) {
+      [thd, query_block, &applied_replacements](AccessPath *path, JOIN *join) {
         Temp_table_param *temp_table_param = GetMaterialization(path);
         if (temp_table_param != nullptr) {
           // Update source references in this materialization.
-          for (Temp_table_param *earlier_temp_table_param :
-               applied_temp_tables) {
+          for (const Func_ptr_array *earlier_replacement :
+               applied_replacements) {
             for (Func_ptr &func : *temp_table_param->items_to_copy) {
-              func.set_func(FindOrModifyReplacementItem(
-                  thd, func.func(), earlier_temp_table_param));
+              func.set_func(FindReplacementOrReplaceMaterializedItems(
+                  thd, func.func(), *earlier_replacement,
+                  /*need_exact_match=*/true));
             }
           }
-          applied_temp_tables.push_back(temp_table_param);
+          applied_replacements.push_back(temp_table_param->items_to_copy);
 
           // Update SELECT list and IODKU references.
           const mem_root_deque<Item *> *original_fields = join->fields;
-          ReplaceSelectListWithTempTableFields(thd, join, temp_table_param);
+          ReplaceSelectListWithTempTableFields(
+              thd, join, *temp_table_param->items_to_copy);
           if (thd->lex->sql_command == SQLCOM_INSERT_SELECT) {
             ReplaceUpdateValuesWithTempTableFields(
                 down_cast<Sql_cmd_insert_select *>(thd->lex->m_sql_cmd),
@@ -3548,10 +3477,10 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
           }
         } else if (path->type == AccessPath::SORT) {
           assert(path->sort().filesort == nullptr);
-          for (Temp_table_param *earlier_temp_table_param :
-               applied_temp_tables) {
+          for (const Func_ptr_array *earlier_replacement :
+               applied_replacements) {
             ReplaceOrderItemsWithTempTableFields(thd, path->sort().order,
-                                                 earlier_temp_table_param);
+                                                 *earlier_replacement);
           }
 
           // Set up a Filesort object for this sort.

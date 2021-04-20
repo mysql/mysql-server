@@ -4855,15 +4855,6 @@ bool change_to_use_tmp_fields(mem_root_deque<Item *> *fields, THD *thd,
         down_cast<Item_field *>(new_item)->set_orig_table_name(
             orig_field->orig_table_name());
       }
-#ifndef NDEBUG
-      if (!new_item->item_name.is_set()) {
-        char buff[256];
-        String str(buff, sizeof(buff), &my_charset_bin);
-        str.length(0);
-        item->print(thd, &str, QT_ORDINARY);
-        new_item->item_name.copy(str.ptr(), str.length());
-      }
-#endif
     } else {
       new_item = item;
       replace_embedded_rollup_references_with_tmp_fields(thd, item, fields);

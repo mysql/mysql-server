@@ -414,6 +414,7 @@ SET(SQL_SHARED_SOURCES
   join_optimizer/join_optimizer.cc
   join_optimizer/make_join_hypergraph.cc
   join_optimizer/print_utils.cc
+  join_optimizer/replace_item.cc
   json_binary.cc
   json_diff.cc
   json_dom.cc

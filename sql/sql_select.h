@@ -1002,8 +1002,7 @@ bool equality_has_no_implicit_casts(const Item_func_comparison *func,
 
 bool CreateFramebufferTable(
     THD *thd, const Temp_table_param &tmp_table_param,
-    const Query_block &query_block, const TABLE *src_table,
-    const mem_root_deque<Item *> &source_fields,
+    const Query_block &query_block, const mem_root_deque<Item *> &source_fields,
     const mem_root_deque<Item *> &window_output_fields,
     Func_ptr_array *mapping_from_source_to_window_output, Window *window);
 
