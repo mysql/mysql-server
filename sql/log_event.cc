@@ -9281,7 +9281,8 @@ int Rows_log_event::do_scan_and_update(Relay_log_info const *rli) {
               do_post_row_operations(rli, error);
             }
           }
-        } while (this->get_type_code() == binary_log::UPDATE_ROWS_EVENT &&
+        } while (this->get_general_type_code() ==
+                     binary_log::UPDATE_ROWS_EVENT &&
                  table->s->primary_key >= MAX_KEY &&
                  (entry = m_hash.get(table, &m_cols)));
       } break;
