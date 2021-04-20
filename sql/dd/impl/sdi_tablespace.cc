@@ -101,7 +101,7 @@ ReturnValueOrError<const dd::Tablespace *> fetch_tablespace(
   }
   // The tablespace object may not have MDL
   // Need to use acquire_uncached_uncommitted to get name for MDL
-  dd::Tablespace *tblspc_ = nullptr;
+  std::unique_ptr<dd::Tablespace> tblspc_;
   if (thd->dd_client()->acquire_uncached_uncommitted(tsid, &tblspc_)) {
     return {nullptr, true};
   }
