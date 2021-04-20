@@ -3221,6 +3221,9 @@ longlong Field_boolean::val_int() const {
   return (longlong)tmp;
 }
 
+// #TODO ask about string rep. 0 or 1, or FALSE or TRUE?
+//Test both ways
+//Use static_cast or eliminiate casting
 String *Field_boolean::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_numeric;
@@ -3229,7 +3232,7 @@ String *Field_boolean::val_str(String *val_buffer, String *) const {
   val_buffer->alloc(mlength);
   char *to = val_buffer->ptr();
 
-  length = static_cast<uint>(cs->cset->long10_to_str(cs, to, mlength, -10, static_cast<long *>(static_cast<signed char *>(ptr)));
+  length = static_cast<uint>(cs->cset->long10_to_str(cs, to, mlength, -10, (long)*((signed char *)ptr)));
 
   val_buffer->length(length);
   val_buffer->set_charset(cs);
