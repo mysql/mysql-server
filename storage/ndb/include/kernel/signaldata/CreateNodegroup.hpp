@@ -87,7 +87,8 @@ struct CreateNodegroupRef {
     NodeAlreadyInNodegroup = 322,
     NodegroupInUse = 323,
     NoNodeAlive = 324,
-    NodeNotDefined = 325
+    NodeNotDefined = 325,
+    SameNodeRepeated = 326
   };
 
   Uint32 senderData;

@@ -29688,6 +29688,14 @@ Dbdih::execCREATE_NODEGROUP_IMPL_REQ(Signal* signal)
         err = CreateNodegroupRef::NodeAlreadyInNodegroup;
         goto error;
       }
+
+      for (Uint32 j = 0; j < i; j++) {
+        if (req->nodes[i] == req->nodes[j]) {
+          jam();
+          err = CreateNodegroupRef::SameNodeRepeated;
+          goto error;
+        }
+      }
     }
 
     if (cnt != cnoReplicas)
