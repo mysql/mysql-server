@@ -3510,8 +3510,7 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
   Mem_root_array<Temp_table_param *> applied_temp_tables(thd->mem_root);
   WalkAccessPaths(
       root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [thd, query_block, &applied_temp_tables](AccessPath *path,
-                                               const JOIN *join) {
+      [thd, query_block, &applied_temp_tables](AccessPath *path, JOIN *join) {
         Temp_table_param *temp_table_param = GetMaterialization(path);
         if (temp_table_param != nullptr) {
           // Update source references in this materialization.
@@ -3526,8 +3525,7 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
 
           // Update SELECT list and IODKU references.
           const mem_root_deque<Item *> *original_fields = join->fields;
-          ReplaceSelectListWithTempTableFields(thd, const_cast<JOIN *>(join),
-                                               temp_table_param);
+          ReplaceSelectListWithTempTableFields(thd, join, temp_table_param);
           if (thd->lex->sql_command == SQLCOM_INSERT_SELECT) {
             ReplaceUpdateValuesWithTempTableFields(
                 down_cast<Sql_cmd_insert_select *>(thd->lex->m_sql_cmd),
@@ -3549,8 +3547,7 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
               /*limit_arg=*/HA_POS_ERROR,
               /*force_stable_sort=*/false, path->sort().remove_duplicates,
               /*force_sort_positions=*/false, path->sort().unwrap_rollup);
-          query_block->join->filesorts_to_cleanup.push_back(
-              path->sort().filesort);
+          join->filesorts_to_cleanup.push_back(path->sort().filesort);
           if (!path->sort().filesort->using_addon_fields()) {
             FindTablesToGetRowidFor(path);
           }

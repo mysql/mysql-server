@@ -23,6 +23,8 @@
 #ifndef SQL_JOIN_OPTIMIZER_WALK_ACCESS_PATHS_H
 #define SQL_JOIN_OPTIMIZER_WALK_ACCESS_PATHS_H
 
+#include <type_traits>
+
 #include "sql/join_optimizer/access_path.h"
 
 enum class WalkAccessPathPolicy {
@@ -49,15 +51,17 @@ enum class WalkAccessPathPolicy {
   will give the correct value to the func() callback. It is only used by
   WalkAccesspath() itself if the policy is ENTIRE_QUERY_BLOCK; if not, it is
   only used for the func() callback, and you can set it to nullptr if you wish.
-  func() must have signature func(AccessPath *, const JOIN *).
-
-  Nothing currently uses post-order traversal, but it has been requested for
-  future use.
+  func() must have signature func(AccessPath *, const JOIN *), or it could be
+  JOIN * if a non-const JOIN is given in.
  */
-template <class Func>
-void WalkAccessPaths(AccessPath *path, const JOIN *join,
+template <class Func, class JoinPtr>
+void WalkAccessPaths(AccessPath *path, JoinPtr join,
                      WalkAccessPathPolicy cross_query_blocks, Func &&func,
                      bool post_order_traversal = false) {
+  static_assert(
+      std::is_convertible<JoinPtr, const JOIN *>::value,
+      "The “join” argument must be JOIN * or const JOIN * (or nullptr).");
+
   if (cross_query_blocks == WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK) {
     assert(join != nullptr);
   }
@@ -87,7 +91,7 @@ void WalkAccessPaths(AccessPath *path, const JOIN *join,
     case AccessPath::MATERIALIZED_TABLE_FUNCTION:
     case AccessPath::UNQUALIFIED_COUNT:
       // No children.
-      return;
+      break;
     case AccessPath::NESTED_LOOP_JOIN:
       WalkAccessPaths(path->nested_loop_join().outer, join, cross_query_blocks,
                       std::forward<Func &&>(func), post_order_traversal);
