@@ -333,6 +333,10 @@ class CostingReceiver {
   void ProposeAccessPathForBaseTable(int node_idx,
                                      const char *description_for_trace,
                                      AccessPath *path);
+  void ProposeAccessPathForIndex(int node_idx, uint64_t applied_predicates,
+                                 uint64_t subsumed_predicates,
+                                 const char *description_for_trace,
+                                 AccessPath *path);
   void ProposeAccessPathWithOrderings(NodeMap nodes,
                                       FunctionalDependencySet fd_set,
                                       OrderingSet obsolete_orderings,
@@ -798,29 +802,35 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
       parameter_tables & ~table->pos_in_table_list->map(),
       m_graph.table_num_to_node_num);
 
+  ProposeAccessPathForIndex(node_idx, applied_predicates, subsumed_predicates,
+                            key->name, &path);
+  return false;
+}
+
+void CostingReceiver::ProposeAccessPathForIndex(
+    int node_idx, uint64_t applied_predicates, uint64_t subsumed_predicates,
+    const char *description_for_trace, AccessPath *path) {
   for (bool materialize_subqueries : {false, true}) {
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, applied_predicates,
                                 subsumed_predicates, materialize_subqueries,
-                                &path, &new_fd_set);
-    path.ordering_state =
-        m_orderings->ApplyFDs(path.ordering_state, new_fd_set);
-    path.applied_sargable_join_predicates |=
+                                path, &new_fd_set);
+    path->ordering_state =
+        m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
+    path->applied_sargable_join_predicates |=
         applied_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
-    path.subsumed_sargable_join_predicates |=
+    path->subsumed_sargable_join_predicates |=
         subsumed_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
 
     ProposeAccessPathWithOrderings(
-        TableBitmap(node_idx), new_fd_set, /*new_obsolete_orderings=*/0, &path,
-        materialize_subqueries ? "mat. subq" : key->name);
+        TableBitmap(node_idx), new_fd_set, /*new_obsolete_orderings=*/0, path,
+        materialize_subqueries ? "mat. subq" : description_for_trace);
 
-    if (!Overlaps(path.filter_predicates, m_graph.materializable_predicates)) {
+    if (!Overlaps(path->filter_predicates, m_graph.materializable_predicates)) {
       // Nothing to try to materialize.
       break;
     }
   }
-
-  return false;
 }
 
 bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
