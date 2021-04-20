@@ -55,7 +55,7 @@ class Func_ptr {
   Item *func() const { return m_func; }
   void set_func(Item *func);
   Field *result_field() const { return m_result_field; }
-  Item_field *result_item() const { return m_result_item; }
+  Item_field *result_item() const;
   bool should_copy(Copy_func_type type) const {
     return m_func_bits & (1 << type);
   }
@@ -73,7 +73,10 @@ class Func_ptr {
   //    (in FindReplacementItem(), where ->eq would have a metadata issues).
   //    This is important if we are to replace it with something else again
   //    later.
-  Item_field *m_result_item;
+  //
+  // It is created on-demand to avoid getting into the thd->stmt_arena field
+  // list for a temporary table that is freed later anyway.
+  mutable Item_field *m_result_item = nullptr;
 
   // A bitmap where all CFT_* enums are bit indexes, and we have a 1 if m_func
   // is of the type given by that enum. E.g., if m_func is an Item_field,
