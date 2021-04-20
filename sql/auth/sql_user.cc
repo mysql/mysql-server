@@ -286,6 +286,12 @@ bool mysql_show_create_user(THD *thd, LEX_USER *user_name,
     return true;
   }
 
+  Acl_table_intact table_intact(thd);
+  if (table_intact.check(table_list.table, ACL_TABLES::TABLE_USER)) {
+    close_thread_tables(thd);
+    return true;
+  }
+
   if (!(acl_user =
             find_acl_user(user_name->host.str, user_name->user.str, true))) {
     String wrong_users;
