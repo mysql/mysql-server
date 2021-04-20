@@ -1,0 +1,62 @@
+SELECT FALSE, TRUE;
+FALSE	TRUE
+0	1
+CREATE TABLE t1 (b1 BOOLEAN, b2 BOOL);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b1` boolean DEFAULT NULL,
+  `b2` boolean DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+CREATE TABLE t1 (b BOOLEAN);
+INSERT INTO t1 VALUES (FALSE), (TRUE), (NULL);
+SELECT * FROM t1;
+b
+0
+1
+NULL
+SELECT * FROM t1 WHERE b;
+b
+1
+SELECT * FROM t1 WHERE NOT b;
+b
+0
+SELECT * FROM t1 WHERE b IS NULL;
+b
+NULL
+SELECT * FROM t1 WHERE b IS NOT NULL;
+b
+0
+1
+UPDATE t1 SET b = b + 1 WHERE NOT b;
+INSERT INTO t1 VALUES (0.2);
+SELECT * FROM t1;
+b
+1
+1
+NULL
+1
+INSERT INTO t1 VALUES (2);
+SELECT * FROM t1;
+b
+1
+1
+NULL
+1
+1
+DROP TABLE t1;
+CREATE TABLE t1 (a BOOLEAN, b BOOLEAN);
+insert into t1 values(null, null), (0, null), (1, null), (null, 0), (null, 1), (0, 0), (0, 1), (1, 0), (1, 1);
+select ifnull(A, 'N') as A, ifnull(B, 'N') as B, ifnull(not A, 'N') as nA, ifnull(not B, 'N') as nB, ifnull(A and B, 'N') as AB, ifnull(not (A and B), 'N') as `n(AB)`, ifnull((not A or not B), 'N') as nAonB, ifnull(A or B, 'N') as AoB, ifnull(not(A or B), 'N') as `n(AoB)`, ifnull(not A and not B, 'N') as nAnB from t1;
+A	B	nA	nB	AB	n(AB)	nAonB	AoB	n(AoB)	nAnB
+N	N	N	N	N	N	N	N	N	N
+0	N	1	N	0	1	1	N	N	N
+1	N	0	N	N	N	N	1	0	0
+N	0	N	1	0	1	1	N	N	N
+N	1	N	0	N	N	N	1	0	0
+0	0	1	1	0	1	1	0	1	1
+0	1	1	0	0	1	1	1	0	0
+1	0	0	1	0	1	1	1	0	0
+1	1	0	0	1	0	0	1	0	0
+DROP TABLE t1;
