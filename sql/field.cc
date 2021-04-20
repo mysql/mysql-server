@@ -3190,18 +3190,14 @@ type_conversion_status Field_boolean::store(const char *from, size_t len,
 
 type_conversion_status Field_boolean::store(double nr) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  return store(nr ? 1 : 0, 0);
+  return store(nr != 0.0e0, 0);
 }
 
-type_conversion_status Field_boolean::store(longlong nr, bool unsigned_val) {
+type_conversion_status Field_boolean::store(longlong nr, bool) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error = TYPE_OK;
   if(nr != 0) {
     *ptr = 1;
-    if (nr != 1){
-      set_warning(Sql_condition::SL_NOTE, ER_WARN_DATA_OUT_OF_RANGE, 1);
-      error = TYPE_WARN_OUT_OF_RANGE;
-    }
   } else {
     *ptr = 0;
   }
