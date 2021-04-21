@@ -2802,9 +2802,8 @@ dberr_t btr_cur_optimistic_insert(
     const rec_t *page_cursor_rec = page_cur_get_rec(page_cursor);
 
     if (index->table->is_intrinsic()) {
-      index->rec_cache.rec_size = rec_size;
-
-      *rec = page_cur_tuple_direct_insert(page_cursor, entry, index, mtr);
+      *rec = page_cur_tuple_direct_insert(page_cursor, entry, index, mtr,
+                                          rec_size);
     } else {
       /* Check locks and write to the undo log,
       if specified */

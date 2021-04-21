@@ -1636,8 +1636,11 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
 
   m_table->set_instant_cols(m_table->get_n_user_cols() - m_n_instant_cols);
   ut_ad(m_table->has_instant_cols());
-  m_table->first_index()->instant_cols = true;
-  m_table->first_index()->n_instant_nullable = m_n_instant_nullable;
+  dict_index_t &first_index = *m_table->first_index();
+  first_index.instant_cols = true;
+  first_index.rec_cache.offsets = nullptr;
+  first_index.rec_cache.nullable_cols = 0;
+  first_index.n_instant_nullable = m_n_instant_nullable;
   /* FIXME: Force to discard the table, in case of any rollback later. */
   //	m_table->discard_after_ddl = true;
 

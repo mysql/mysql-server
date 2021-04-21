@@ -256,18 +256,17 @@ the page from tuple without creating intermediate copy of the record.
 @param[in]	tuple	Pointer to a data tuple
 @param[in]	index	Record descriptor
 @param[in]	mtr	Mini-transaction handle, or NULL
+@param[in]      rec_size  The size of new record
 
 @return pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t *page_cur_tuple_direct_insert(page_cur_t *cursor, const dtuple_t *tuple,
-                                    dict_index_t *index, mtr_t *mtr) {
-  rec_t *rec;
-
+                                    dict_index_t *index, mtr_t *mtr,
+                                    ulint rec_size) {
   ut_ad(index->table->is_intrinsic());
 
-  rec = page_cur_direct_insert_rec_low(cursor->rec, index, tuple, mtr);
-
-  return (rec);
+  return page_cur_direct_insert_rec_low(cursor->rec, index, tuple, mtr,
+                                        rec_size);
 }
 #endif /* !UNIV_HOTBACKUP */
 
