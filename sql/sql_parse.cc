@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1851,7 +1851,7 @@ done:
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
   thd->m_digest= NULL;
-
+  thd->reset_query_for_display();
   dec_thread_running();
   thd->packet.shrink(thd->variables.net_buffer_length);	// Reclaim some memory
   free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
@@ -6444,6 +6444,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                       ? (found_semicolon - thd->query())
                       : thd->query_length();
 
+    DEBUG_SYNC_C("sql_parse_before_rewrite");
     if (!err)
     {
       /*
@@ -6489,6 +6490,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
           general_log_write(thd, COM_QUERY, thd->query(), qlen);
       }
     }
+
+    DEBUG_SYNC_C("sql_parse_after_rewrite");
 
     if (!err)
     {

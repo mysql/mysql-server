@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -2243,7 +2243,7 @@ public:
 
 private:
   unsigned int m_current_stage_key;
-
+  volatile int32 m_safe_to_display;
 public:
   void enter_stage(const PSI_stage_info *stage,
                    PSI_stage_info *old_stage,
@@ -4040,8 +4040,27 @@ public:
 #ifdef HAVE_PSI_THREAD_INTERFACE
     PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
 #endif
+    set_safe_display(true);
   }
-  void reset_query_for_display(void) { set_query_for_display(NULL, 0); }
+  /**
+    Reset query string to be displayed in PFS. Also reset the safety flag
+    for information_schema.process_list for next query.
+  */
+  void reset_query_for_display(void) {
+    set_query_for_display(NULL, 0);
+    my_atomic_store32(&m_safe_to_display, 0);
+  }
+
+  /** Set if the query string to be safe to display.
+  @param[in]  safe  if it is safe to display query string */
+  void set_safe_display(bool safe) {
+    int32 value = safe ? 1 : 0;
+    my_atomic_store32(&m_safe_to_display, value);
+  }
+
+   /** @return true, if safe to display the query string. */
+  int32 safe_to_display() { return my_atomic_load32(&m_safe_to_display);}
+
   void set_query(char *query_arg, uint32 query_length_arg,
                  const CHARSET_INFO *cs_arg)
   {
