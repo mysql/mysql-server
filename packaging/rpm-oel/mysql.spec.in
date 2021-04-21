@@ -1192,7 +1192,6 @@ fi
 %attr(755, root, root) %{_bindir}/ndb_waiter
 %attr(755, root, root) %{_bindir}/ndbinfo_select_all
 
-%attr(644, root, root) %{_mandir}/man1/ndb-common-options.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_blob_tool.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_config.1*
 %attr(644, root, root) %{_mandir}/man1/ndb_cpcd.1*
