@@ -7412,7 +7412,14 @@ int mysqld_main(int argc, char **argv)
     LogErr(WARNING_LEVEL, ER_PERSISTENT_PRIVILEGES_BOOTSTRAP);
   }
 
-  if (!opt_initialize) servers_init(false);
+  /*
+    In the case of upgrade, the bootstrap thread would have already initialized
+    the structures necessary for federated server from mysql.servers table.
+    Hence we need not initialize them again here.
+  */
+  if (!opt_initialize && (dd::upgrade::no_server_upgrade_required() ||
+                          opt_upgrade_mode == UPGRADE_MINIMAL))
+    servers_init(nullptr);
 
   if (!opt_noacl) {
     udf_read_functions_table();
