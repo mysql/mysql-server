@@ -191,6 +191,7 @@ SET(TESTS
   strings_strnxfrm
   strings_utf8
   strings_valid_check
+  strtod
   strtoll
   template_utils
   thread_utils
