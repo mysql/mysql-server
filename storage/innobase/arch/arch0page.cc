@@ -1492,8 +1492,8 @@ bool ArchPageData::init() {
   alloc_size += m_block_size;
 
   /* Allocate buffer for memory blocks. */
-  m_buffer = static_cast<byte *>(
-      ut::aligned_zalloc_withkey(mem_key_archive, alloc_size, m_block_size));
+  m_buffer = static_cast<byte *>(ut::aligned_zalloc_withkey(
+      ut::make_psi_memory_key(mem_key_archive), alloc_size, m_block_size));
 
   if (m_buffer == nullptr) {
     return (false);

@@ -377,8 +377,8 @@ TYPED_TEST_P(aligned_alloc_free_fundamental_types, fundamental_types) {
        alignment < 1024 * 1024 + 1; alignment *= 2) {
     type *ptr =
         with_pfs
-            ? static_cast<type *>(
-                  ut::aligned_alloc_withkey(pfs_key, sizeof(type), alignment))
+            ? static_cast<type *>(ut::aligned_alloc_withkey(
+                  ut::make_psi_memory_key(pfs_key), sizeof(type), alignment))
             : static_cast<type *>(ut::aligned_alloc(sizeof(type), alignment));
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
     ut::aligned_free(ptr);
@@ -400,8 +400,8 @@ TYPED_TEST_P(aligned_alloc_free_pod_types, pod_types) {
   auto alignment = 4 * 1024;
   type *ptr =
       with_pfs
-          ? static_cast<type *>(
-                ut::aligned_alloc_withkey(pfs_key, sizeof(type), alignment))
+          ? static_cast<type *>(ut::aligned_alloc_withkey(
+                ut::make_psi_memory_key(pfs_key), sizeof(type), alignment))
           : static_cast<type *>(ut::aligned_alloc(sizeof(type), alignment));
   EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
   ut::aligned_free(ptr);
@@ -420,8 +420,8 @@ TYPED_TEST_P(aligned_alloc_free_non_pod_types, non_pod_types) {
   auto alignment = 4 * 1024;
   type *ptr =
       with_pfs
-          ? static_cast<type *>(
-                ut::aligned_alloc_withkey(pfs_key, sizeof(type), alignment))
+          ? static_cast<type *>(ut::aligned_alloc_withkey(
+                ut::make_psi_memory_key(pfs_key), sizeof(type), alignment))
           : static_cast<type *>(ut::aligned_alloc(sizeof(type), alignment));
   EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
   // Referencing non-pod type members through returned pointer is UB.
@@ -446,7 +446,8 @@ TYPED_TEST_P(aligned_new_delete_fundamental_types, fundamental_types) {
   auto with_pfs = TypeParam::with_pfs;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
-    type *ptr = with_pfs ? ut::aligned_new_withkey<type>(pfs_key, alignment, 1)
+    type *ptr = with_pfs ? ut::aligned_new_withkey<type>(
+                               ut::make_psi_memory_key(pfs_key), alignment, 1)
                          : ut::aligned_new<type>(alignment, 1);
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
     EXPECT_EQ(*ptr, 1);
@@ -469,7 +470,8 @@ TYPED_TEST_P(aligned_new_delete_pod_types, pod_types) {
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
     type *ptr = with_pfs
-                    ? ut::aligned_new_withkey<type>(pfs_key, alignment, 2, 5)
+                    ? ut::aligned_new_withkey<type>(
+                          ut::make_psi_memory_key(pfs_key), alignment, 2, 5)
                     : ut::aligned_new<type>(alignment, 2, 5);
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
     EXPECT_EQ(ptr->x, 2);
@@ -489,10 +491,12 @@ TYPED_TEST_P(aligned_new_delete_non_pod_types, non_pod_types) {
   auto with_pfs = TypeParam::with_pfs;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
-    type *ptr = with_pfs ? ut::aligned_new_withkey<type>(
-                               pfs_key, alignment, 2, 5, std::string("non-pod"))
-                         : ut::aligned_new<type>(alignment, 2, 5,
-                                                 std::string("non-pod"));
+    type *ptr =
+        with_pfs
+            ? ut::aligned_new_withkey<type>(ut::make_psi_memory_key(pfs_key),
+                                            alignment, 2, 5,
+                                            std::string("non-pod"))
+            : ut::aligned_new<type>(alignment, 2, 5, std::string("non-pod"));
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
     EXPECT_EQ(ptr->x, 2);
     EXPECT_EQ(ptr->y, 5);
@@ -516,7 +520,8 @@ TYPED_TEST_P(aligned_new_delete_fundamental_types_arr, fundamental_types) {
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
     type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type, n_elements>(
-                               pfs_key, alignment, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+                               ut::make_psi_memory_key(pfs_key), alignment, 0,
+                               1, 2, 3, 4, 5, 6, 7, 8, 9)
                          : ut::aligned_new_arr<type, n_elements>(
                                alignment, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
@@ -543,7 +548,8 @@ TYPED_TEST_P(aligned_new_delete_pod_types_arr, pod_types) {
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
     type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type, n_elements>(
-                               pfs_key, alignment, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9)
+                               ut::make_psi_memory_key(pfs_key), alignment, 0,
+                               1, 2, 3, 4, 5, 6, 7, 8, 9)
                          : ut::aligned_new_arr<type, n_elements>(
                                alignment, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
 
@@ -571,9 +577,10 @@ TYPED_TEST_P(aligned_new_delete_non_pod_types_arr, non_pod_types) {
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
     type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type, n_elements>(
-                               pfs_key, alignment, 1, 2, std::string("a"), 3, 4,
-                               std::string("b"), 5, 6, std::string("c"), 7, 8,
-                               std::string("d"), 9, 10, std::string("e"))
+                               ut::make_psi_memory_key(pfs_key), alignment, 1,
+                               2, std::string("a"), 3, 4, std::string("b"), 5,
+                               6, std::string("c"), 7, 8, std::string("d"), 9,
+                               10, std::string("e"))
                          : ut::aligned_new_arr<type, n_elements>(
                                alignment, 1, 2, std::string("a"), 3, 4,
                                std::string("b"), 5, 6, std::string("c"), 7, 8,
@@ -628,9 +635,10 @@ TYPED_TEST_P(aligned_new_delete_default_constructible_fundamental_types_arr,
   constexpr size_t n_elements = 5;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
-    type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type>(pfs_key, alignment,
-                                                             n_elements)
-                         : ut::aligned_new_arr<type>(alignment, n_elements);
+    type *ptr =
+        with_pfs ? ut::aligned_new_arr_withkey<type>(
+                       ut::make_psi_memory_key(pfs_key), alignment, n_elements)
+                 : ut::aligned_new_arr<type>(alignment, n_elements);
 
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
@@ -659,9 +667,10 @@ TYPED_TEST_P(aligned_new_delete_default_constructible_pod_types_arr,
   constexpr size_t n_elements = 5;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
-    type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type>(pfs_key, alignment,
-                                                             n_elements)
-                         : ut::aligned_new_arr<type>(alignment, n_elements);
+    type *ptr =
+        with_pfs ? ut::aligned_new_arr_withkey<type>(
+                       ut::make_psi_memory_key(pfs_key), alignment, n_elements)
+                 : ut::aligned_new_arr<type>(alignment, n_elements);
 
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
@@ -691,9 +700,10 @@ TYPED_TEST_P(aligned_new_delete_default_constructible_non_pod_types_arr,
   constexpr size_t n_elements = 5;
   for (auto alignment = 2 * alignof(std::max_align_t);
        alignment < 1024 * 1024 + 1; alignment *= 2) {
-    type *ptr = with_pfs ? ut::aligned_new_arr_withkey<type>(pfs_key, alignment,
-                                                             n_elements)
-                         : ut::aligned_new_arr<type>(alignment, n_elements);
+    type *ptr =
+        with_pfs ? ut::aligned_new_arr_withkey<type>(
+                       ut::make_psi_memory_key(pfs_key), alignment, n_elements)
+                 : ut::aligned_new_arr<type>(alignment, n_elements);
 
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ptr) % alignment == 0);
 
