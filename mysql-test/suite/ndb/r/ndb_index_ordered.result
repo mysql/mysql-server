@@ -699,11 +699,11 @@ calories smallint unsigned DEFAULT NULL,
 PRIMARY KEY (DishID),
 INDEX i USING HASH (countrycode,calories)
 ) ENGINE=ndbcluster;
-ERROR HY000: Can't create table 'nationaldish'
+ERROR HY000: Can't create table 'nationaldish' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	Table storage engine 'ndbcluster' does not support the create option 'Ndb does not support non-unique hash based indexes'
-Error	1005	Can't create table 'nationaldish'
+Error	1005	Can't create table 'nationaldish' (use SHOW WARNINGS for more info).
 create table nationaldish (DishID int unsigned NOT NULL AUTO_INCREMENT,
 CountryCode char(3) NOT NULL,
 DishTitle varchar(64) NOT NULL,

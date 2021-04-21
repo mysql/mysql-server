@@ -137,11 +137,11 @@ drop logfile group lg1 engine=ndb;
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 create table t1(id int primary key, val int)engine=ndb;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 SET SESSION debug=@save_debug;
 # mysqld gets timeout error 4008 on ALTER_TAB_REQ
 create table t1(id int primary key, val int) engine=ndb;
@@ -278,11 +278,11 @@ drop logfile group lg1 engine=ndb;
 set @save_debug = @@session.debug;
 SET SESSION debug="+d,ndb_dictsignal_timeout";
 create table t1(id int primary key, val int) engine=ndb;
-ERROR HY000: Can't create table 't1'
+ERROR HY000: Can't create table 't1' (use SHOW WARNINGS for more info).
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 4008 'Receive from NDB failed' from NDB
-Error	1005	Can't create table 't1'
+Error	1005	Can't create table 't1' (use SHOW WARNINGS for more info).
 SET SESSION debug=@save_debug;
 # mysqld gets timeout error 4008 on LIST_TABLES_REQ
 create table t1(id int primary key, val int) engine=ndb;
