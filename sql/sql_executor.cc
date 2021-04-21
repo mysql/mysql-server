@@ -737,6 +737,27 @@ void ExtractConditions(Item *condition,
 }
 
 /**
+  See if “path” has any MRR nodes; if so, we cannot optimize them away
+  in PossiblyAttachFilter(), as the BKA iterator expects there to be a
+  corresponding MRR iterator. (This is a very rare case, so all we care about
+  is that it should not crash.)
+ */
+static bool ContainsAnyMRRPaths(AccessPath *path) {
+  bool any_mrr_paths = false;
+  WalkAccessPaths(path, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                  [&any_mrr_paths](const AccessPath *sub_path, const JOIN *) {
+                    if (sub_path->type == AccessPath::MRR) {
+                      any_mrr_paths = true;
+                      return true;
+                    } else {
+                      return false;
+                    }
+                  });
+  return any_mrr_paths;
+}
+
+/**
   Return a new iterator that wraps "iterator" and that tests all of the given
   conditions (if any), ANDed together. If there are no conditions, just return
   the given iterator back.
@@ -750,11 +771,16 @@ AccessPath *PossiblyAttachFilter(AccessPath *path,
   for (Item *cond : conditions) {
     if (cond->const_item()) {
       if (cond->val_int() == 0) {
-        AccessPath *zero_path =
-            NewZeroRowsAccessPath(thd, path, "Impossible filter");
-        zero_path->num_output_rows = 0.0;
-        zero_path->cost = 0.0;
-        return zero_path;
+        if (ContainsAnyMRRPaths(path)) {
+          // Keep the condition. See comment on ContainsAnyMRRPaths().
+          items.push_back(cond);
+        } else {
+          AccessPath *zero_path =
+              NewZeroRowsAccessPath(thd, path, "Impossible filter");
+          zero_path->num_output_rows = 0.0;
+          zero_path->cost = 0.0;
+          return zero_path;
+        }
       } else {
         // Known to be always true, so skip it.
       }
