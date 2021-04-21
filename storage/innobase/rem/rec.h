@@ -505,7 +505,13 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
   ulint comp = *rec_offs_base(offsets) & REC_OFFS_COMPACT;
 
   if (rec) {
-    ut_ad((ulint)rec == offsets[2]);
+    /* The offsets array might be:
+    - specific to the `rec`, in which case its address is stored in offsets[2],
+    - cached and shared by many records, in which case we've passed rec=nullptr
+      when preparing the offsets array.
+    We use caching only for the ROW_FORMAT=COMPACT format. */
+    ut_ad((ulint)rec == offsets[2] || ((ulint) nullptr == offsets[2] &&
+                                       offsets == index->rec_cache.offsets));
     if (!comp && index != nullptr) {
       ut_a(rec_get_n_fields_old(rec, index) >= i);
     }
@@ -556,10 +562,12 @@ void rec_offs_make_valid(
     ulint *offsets)            /*!< in: array returned by
                                rec_get_offsets() */
 {
-  ut_ad(rec);
+  /* offsets are either intended for this particular rec, or to be cached */
+  ut_ad(rec || offsets == index->rec_cache.offsets);
   ut_ad(index);
   ut_ad(offsets);
-  ut_ad(rec_get_n_fields(rec, index) >= rec_offs_n_fields(offsets));
+  ut_ad(rec == nullptr ||
+        rec_get_n_fields(rec, index) >= rec_offs_n_fields(offsets));
   offsets[2] = (ulint)rec;
   offsets[3] = (ulint)index;
 }
@@ -578,6 +586,29 @@ std::ostream &rec_offs_print(std::ostream &out, const ulint *offsets);
 #else
 #define rec_offs_make_valid(rec, index, offsets) ((void)0)
 #endif /* UNIV_DEBUG */
+
+/** A simplified variant rec_init_offsets(rec, index, offsets) for the case in
+which the rec contains only fixed-length columns and non-NULL values in them,
+thus we can compute the offsets without looking at the rec. Such offsets can be
+cached and reused for many recs which don't contain NULLs.
+@see rec_init_offsets for more details
+@param[in]     index The index for which we want to cache the fixed offsets
+@param[in,out] offsets The already allocated array to store the offsets.
+                       It should already have been initialized with
+                       rec_offs_set_n_alloc() and rec_offs_set_n_fields() before
+                       the call.
+                       This function will fill all the other elements. */
+inline void rec_init_fixed_offsets(const dict_index_t *index, ulint *offsets) {
+  rec_offs_make_valid(nullptr, index, offsets);
+  rec_offs_base(offsets)[0] =
+      (REC_N_NEW_EXTRA_BYTES + UT_BITS_IN_BYTES(index->n_instant_nullable)) |
+      REC_OFFS_COMPACT;
+  const auto n_fields = rec_offs_n_fields(offsets);
+  auto field_end = rec_offs_base(offsets) + 1;
+  for (size_t i = 0; i < n_fields; i++) {
+    field_end[i] = (i ? field_end[i - 1] : 0) + index->get_field(i)->fixed_len;
+  }
+}
 
 /** The following function tells if a new-style record is instant record or not
 @param[in]	rec	new-style record

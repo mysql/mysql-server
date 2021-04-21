@@ -168,10 +168,12 @@ rec_t *page_cur_insert_rec_low(
 @param[in]	index		Record descriptor
 @param[in]	tuple		Pointer to a data tuple
 @param[in]	mtr		Mini-transaction handle, or NULL
+@param[in]      rec_size        The size of new record
 
 @return pointer to record if succeed, NULL otherwise */
 rec_t *page_cur_direct_insert_rec_low(rec_t *current_rec, dict_index_t *index,
-                                      const dtuple_t *tuple, mtr_t *mtr);
+                                      const dtuple_t *tuple, mtr_t *mtr,
+                                      ulint rec_size);
 
 /** Inserts a record next to page cursor on a compressed and uncompressed
  page. Returns pointer to inserted record if succeed, i.e.,

@@ -2327,6 +2327,69 @@ void dict_index_remove_from_v_col_list(dict_index_t *index) {
     }
   }
 }
+/** Check if key part of the index has fixed len and thus rec offsets can be
+cached. If so, it initializes rec_cache.offsets and rec_cache.nullable_cols, so
+that we can avoid calling the costly rec_get_offsets() in many cases. That is:
+- offsets will contain offsets of the first n columns within a rec, assuming
+  that none of them contains NULL, where n is chosen to be sufficient for the
+  most common use case, which is a binary search within a B-tree page,
+- nullable_cols will be the number of columns among those first n columns, which
+  are NULLable at all, so that before using the rec_cache.offset we know how
+  many initial bits of the rec's NULL mask need to be zero, to ensure that the
+  rec doesn't have NULLs in the n first columns and thus rec_cache.offsets is
+  indeed corresponding to its layout and can be used for this rec.
+@param[in]  index   The index instance for which rec_cache should be computed
+*/
+static void dict_index_try_cache_rec_offsets(dict_index_t *index) {
+  ut_ad(index->rec_cache.offsets == nullptr);
+  ut_ad(index->rec_cache.nullable_cols == 0);
+
+  const auto n_unique_in_tree = dict_index_get_n_unique_in_tree(index);
+  ut_a(0 < n_unique_in_tree);
+#ifdef UNIV_DEBUG
+  /* Check for backward compatibility - in the past we used cache only for
+  intrinsic tables, and assumed that it is sufficient to check only if the
+  first n_uniq fields are fixed length. We'd like to ensure that the new code
+  uses cache for intrinsic tables at least in these cases it used to before.
+  But the loop below now checks n_unique_in_tree columns, not just n_unique.
+  Following assert makes sure that when n_unique < n_unique_in_tree, we still
+  use cache, because it only happens when n_unique_in_tree has one more column
+  which is the primary key reference and has a fixed length, so should not
+  affect the decision of the loop.
+  Note: in general primary keys can have more than one column, don't have to be
+  fixed length, etc. It just never happens for intrinsic tables in our testing.
+  This is not an assert crucial for correctness. It's just to show that there's
+  no obvious regression w.r.t intrinsic tables. */
+  if (index->table->is_intrinsic() && index->n_uniq != n_unique_in_tree) {
+    ut_a(index->n_uniq == n_unique_in_tree - 1);
+    ut_a(!index->is_clustered());
+    ut_a(index->get_field(n_unique_in_tree - 1)->fixed_len);
+  }
+#endif
+  for (size_t i = 0; i < n_unique_in_tree; i++) {
+    if (!index->get_field(i)->fixed_len) {
+      return;
+    }
+  }
+  /* inlined rec_get_offsets_func() and rec_init_offsets()'s fast-path without
+  referencing rec follows: */
+
+  const auto offsets_len = n_unique_in_tree + (1 + REC_OFFS_HEADER_SIZE);
+  auto *const offsets = static_cast<ulint *>(
+      mem_heap_alloc(index->heap, sizeof(ulint) * offsets_len));
+
+  index->rec_cache.offsets = offsets;
+  rec_offs_set_n_alloc(offsets, offsets_len);
+  rec_offs_set_n_fields(offsets, n_unique_in_tree);
+  rec_init_fixed_offsets(index, offsets);
+
+  for (size_t i = 0; i < n_unique_in_tree; i++) {
+    if (!(index->get_field(i)->col->prtype & DATA_NOT_NULL)) {
+      index->rec_cache.nullable_cols++;
+    }
+  }
+  ut_a(index->rec_cache.nullable_cols <= index->n_nullable);
+}
 
 /** Adds an index to the dictionary cache, with possible indexing newly
 added column.
@@ -2452,6 +2515,18 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   new_index->page = page_no;
   rw_lock_create(index_tree_rw_lock_key, &new_index->lock, SYNC_INDEX_TREE);
 
+  /* The conditions listed here correspond to the simplest call-path through
+  rec_get_offsets(). If they are met now, we can cache rec offsets and use the
+  cache as long they are met. We assert before using the rec_cache that they are
+  still met, and clear the rec_cache.offsets when they change. */
+  if (dict_table_is_comp(table) && !dict_index_has_virtual(index) &&
+      !table->has_instant_cols() && !dict_index_is_spatial(index)) {
+    dict_index_try_cache_rec_offsets(new_index);
+  } else {
+    /* The rules should not prevent caching for intrinsic tables */
+    ut_ad(!table->is_intrinsic());
+  }
+
   mutex_enter(&dict_sys->mutex);
 
   /* Add the new index as the last index for the table */
@@ -2464,31 +2539,6 @@ dberr_t dict_index_add_to_cache_w_vcol(dict_table_t *table, dict_index_t *index,
   }
 
   mutex_exit(&dict_sys->mutex);
-
-  /* Check if key part of the index is unique. */
-  if (table->is_intrinsic()) {
-    new_index->rec_cache.fixed_len_key = true;
-    for (i = 0; i < new_index->n_uniq; i++) {
-      const dict_field_t *field;
-      field = new_index->get_field(i);
-
-      if (!field->fixed_len) {
-        new_index->rec_cache.fixed_len_key = false;
-        break;
-      }
-    }
-
-    new_index->rec_cache.key_has_null_cols = false;
-    for (i = 0; i < new_index->n_uniq; i++) {
-      const dict_field_t *field;
-      field = new_index->get_field(i);
-
-      if (!(field->col->prtype & DATA_NOT_NULL)) {
-        new_index->rec_cache.key_has_null_cols = true;
-        break;
-      }
-    }
-  }
 
   if (dict_index_has_virtual(index)) {
     const dict_col_t *col;
