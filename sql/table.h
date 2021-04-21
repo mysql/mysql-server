@@ -83,6 +83,7 @@ class Item_field;
 class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
+class Name_resolution_context;
 class Opt_hints_qb;
 class Opt_hints_table;
 class Query_result_union;
@@ -3103,8 +3104,10 @@ struct TABLE_LIST {
   /// Get derived table expression
   Item *get_derived_expr(uint expr_index);
 
-  /// Get cloned item for a derived table column. This creates the clone.
-  Item *get_clone_for_derived_expr(THD *thd, Item *item);
+  /// Get cloned item for a derived table column. This creates the clone
+  /// and resolves it in the context provided.
+  Item *get_clone_for_derived_expr(THD *thd, Item *item,
+                                   Name_resolution_context *context);
 
   /// Clean up the query expression for a materialized derived table
   void cleanup_derived(THD *thd);

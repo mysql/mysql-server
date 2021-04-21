@@ -2858,6 +2858,17 @@ class Item : public Parse_tree_node {
       uchar *arg MY_ATTRIBUTE((unused))) {
     return this;
   }
+  /**
+    Assuming this expression is part of a condition that would be pushed to a
+    materialized derived table, replace, in this expression, each view reference
+    with a clone of the expression in merged derived table's definition.
+    We replace with a clone, because the referenced item in a view reference
+    is shared by all the view references to that expression.
+  */
+  virtual Item *replace_view_refs_with_clone(
+      uchar *arg MY_ATTRIBUTE((unused))) {
+    return this;
+  }
   /*
     For SP local variable returns pointer to Item representing its
     current value and pointer to current Item otherwise.
@@ -5778,6 +5789,7 @@ class Item_view_ref final : public Item_ref {
   bool send(Protocol *prot, String *tmp) override;
   bool collect_item_field_or_view_ref_processor(uchar *arg) override;
   Item *replace_item_view_ref(uchar *arg) override;
+  Item *replace_view_refs_with_clone(uchar *arg) override;
 
  protected:
   type_conversion_status save_in_field_inner(Field *field,
