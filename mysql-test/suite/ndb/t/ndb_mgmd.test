@@ -74,4 +74,19 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgmd_dump_file.txt;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
+# To validate Mgmd throws warning when connectstring option is specified
+# when starting mgmd with -f or binary config.
+--echo #
+--echo # Bug32554779 DO NOT ACCEPT -C OPTION WHEN STARTING WITH -F OR
+--echo # BINARY CONFIG
+--echo #
+--error 1
+--exec $NDB_MGMD_EXE -f config.ini -c hostname --initial --nowait-nodes=0 > $dump_file 2>&1
+--echo # verify that mgmd throws warning when -c option is provided along with -f
+--let $assert_text= Do not accept -c option when starting with -f
+--let $assert_select= WARNING: --ndb-connectstring is ignored when mgmd is started with -f or config-file.
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
 --remove_file $dump_file

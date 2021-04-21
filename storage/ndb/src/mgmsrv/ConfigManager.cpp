@@ -394,6 +394,16 @@ ConfigManager::init(void)
   BaseString config_bin_name;
   if (saved_config_exists(config_bin_name))
   {
+    /**
+     * ndb-connectstring is ignored when mgmd is started from binary
+     * config
+     */
+    if (!(m_opts.config_filename || m_opts.mycnf) && opt_ndb_connectstring) {
+      g_eventLogger->warning(
+          "--ndb-connectstring is ignored when mgmd is started from binary "
+          "config.");
+    }
+
     Config* conf = NULL;
     if (!(conf = load_saved_config(config_bin_name)))
       DBUG_RETURN(false);

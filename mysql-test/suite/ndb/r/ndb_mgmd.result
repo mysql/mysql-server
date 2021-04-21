@@ -22,3 +22,9 @@ include/assert_grep.inc [Skip initial or reload option validation when config-fi
 include/assert_grep.inc [Skip initial or reload option validation when --skip-config-file is specified.]
 # verify that mgmd fails when started with both -f and --mycnf.
 include/assert_grep.inc [Verify mgmd fails when started with both -f and --mycnf]
+#
+# Bug32554779 DO NOT ACCEPT -C OPTION WHEN STARTING WITH -F OR
+# BINARY CONFIG
+#
+# verify that mgmd throws warning when -c option is provided along with -f
+include/assert_grep.inc [Do not accept -c option when starting with -f]

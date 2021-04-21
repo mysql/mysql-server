@@ -390,6 +390,13 @@ static int mgmd_main(int argc, char** argv)
           " '/'\n");
       mgmd_exit(1);
     }
+
+    // ndb-connectstring is ignored when config file option is provided
+    if (opts.config_filename) {
+      fprintf(stderr,
+              "WARNING: --ndb-connectstring is ignored when mgmd is started "
+              "with -f or config-file.\n");
+    }
   }
 
   if (opt_nowait_nodes)
