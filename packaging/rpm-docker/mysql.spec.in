@@ -227,7 +227,7 @@ rm -rf %{buildroot}%{_libdir}/mysql/libmysql*
 
 # Removing some tools
 for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
-         my_safe_process mysqlbinlog mysqlcheck mysql_client_test \
+         my_safe_process %{!?cluster:mysqlbinlog} mysqlcheck mysql_client_test \
          mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqltest_safe_process mysqlxtest \
          comp_err perror lz4_decompress zlib_decompress mysql_keyring_encryption_test; do
@@ -362,6 +362,7 @@ rm -r $(readlink var) var
 %dir %{_sysconfdir}/my.cnf.d
 
 %if 0%{?cluster}
+%attr(755, root, root) %{_bindir}/mysqlbinlog
 %attr(755, root, root) %{_bindir}/ndb_blob_tool
 %attr(755, root, root) %{_bindir}/ndb_config
 %attr(755, root, root) %{_bindir}/ndb_delete_all
