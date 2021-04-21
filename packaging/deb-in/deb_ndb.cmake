@@ -99,7 +99,6 @@ Description: Java connector
 /usr/bin/ndb_waiter
 /usr/bin/ndbinfo_select_all
 
-/usr/share/man/man1/ndb-common-options.1*
 /usr/share/man/man1/ndb_blob_tool.1*
 /usr/share/man/man1/ndb_config.1*
 /usr/share/man/man1/ndb_cpcd.1*
