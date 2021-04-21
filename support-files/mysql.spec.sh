@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -1102,7 +1102,6 @@ echo "====="                                                       >> $STATUS_HI
 %doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
 %doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
 %doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
-%doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
 
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
