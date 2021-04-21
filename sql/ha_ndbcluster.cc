@@ -19771,8 +19771,10 @@ bool ha_ndbcluster::get_num_parts(const char *name, uint *num_parts)
     DBUG_RETURN(FALSE);
   }
 
-  print_error(err, MYF(0));
-  DBUG_RETURN(TRUE);
+  // Failed to get table from NDB, defer failure handling until later by
+  // reporting zero partitions and returning success
+  *num_parts = 0;
+  DBUG_RETURN(false);
 }
 
 static int ndbcluster_fill_files_table(handlerton *hton, 
