@@ -2895,10 +2895,16 @@ static int FindCopyBitmap(Item *item) {
 Func_ptr::Func_ptr(Item *item, Field *result_field)
     : m_func(item),
       m_result_field(result_field),
-      m_result_item(new Item_field(result_field)),
       m_func_bits(FindCopyBitmap(item)) {}
 
 void Func_ptr::set_func(Item *func) {
   m_func = func;
   m_func_bits = FindCopyBitmap(func);
+}
+
+Item_field *Func_ptr::result_item() const {
+  if (m_result_item == nullptr) {
+    m_result_item = new Item_field(m_result_field);
+  }
+  return m_result_item;
 }
