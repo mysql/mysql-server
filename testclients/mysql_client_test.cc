@@ -22088,7 +22088,7 @@ static void test_bug32558782() {
   /* should be longer than initial NET buffer size of 8k */
   unsigned long buflen = 20000;
   unsigned long len = buflen;
-  std::unique_ptr<char> data_buf(new char[buflen]);
+  auto data_buf = std::make_unique<char[]>(buflen);
   memset(data_buf.get(), 'A', buflen);
 
   /* BLOB COLUMN */
