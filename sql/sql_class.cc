@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1010,6 +1010,7 @@ THD::THD(bool enable_plugins)
 #ifdef SIGNAL_WITH_VIO_SHUTDOWN
   active_vio = 0;
 #endif
+  my_atomic_store32(&m_safe_to_display, 0);
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
