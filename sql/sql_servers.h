@@ -55,7 +55,7 @@ class FOREIGN_SERVER {
 };
 
 /* cache handlers */
-bool servers_init(bool dont_read_server_table);
+bool servers_init(THD *thd);
 bool servers_reload(THD *thd);
 void servers_free(bool end = false);
 

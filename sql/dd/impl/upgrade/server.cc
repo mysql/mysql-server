@@ -830,18 +830,23 @@ bool upgrade_system_schemas(THD *thd) {
 
   bootstrap_error_handler.set_log_error(false);
   bool err =
-      fix_mysql_tables(thd) || fix_sys_schema(thd) ||
-      upgrade_help_tables(thd) ||
-      (DBUG_EVALUATE_IF(
-           "force_fix_user_schemas", true,
-           dd::bootstrap::DD_bootstrap_ctx::instance()
-               .is_server_upgrade_from_before(bootstrap::SERVER_VERSION_80011))
-           ? check.check_all_schemas(thd)
-           : check.check_system_schemas(thd)) ||
-      check.repair_tables(thd) ||
-      dd::tables::DD_properties::instance().set(thd, "MYSQLD_VERSION_UPGRADED",
-                                                MYSQL_VERSION_ID);
-
+      fix_mysql_tables(thd) || fix_sys_schema(thd) || upgrade_help_tables(thd);
+  if (!err) {
+    /*
+      Initialize structures necessary for federated server from mysql.servers
+      table.
+    */
+    servers_init(thd);
+    err = (DBUG_EVALUATE_IF("force_fix_user_schemas", true,
+                            dd::bootstrap::DD_bootstrap_ctx::instance()
+                                .is_server_upgrade_from_before(
+                                    bootstrap::SERVER_VERSION_80011))
+               ? check.check_all_schemas(thd)
+               : check.check_system_schemas(thd)) ||
+          check.repair_tables(thd) ||
+          dd::tables::DD_properties::instance().set(
+              thd, "MYSQLD_VERSION_UPGRADED", MYSQL_VERSION_ID);
+  }
   create_upgrade_file();
   bootstrap_error_handler.set_log_error(true);
 
