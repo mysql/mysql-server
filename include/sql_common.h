@@ -265,13 +265,11 @@ int is_file_or_dir_world_writable(const char *filepath);
 void read_ok_ex(MYSQL *mysql, unsigned long len);
 
 bool fix_param_bind(MYSQL_BIND *param, uint idx);
-bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
-                                    MYSQL_BIND *params, const char **names,
-                                    unsigned long n_param_sets,
-                                    uchar **ret_data, ulong *ret_length,
-                                    uchar send_types_to_server,
-                                    bool send_named_params,
-                                    bool send_parameter_set_count);
+bool mysql_int_serialize_param_data(
+    NET *net, unsigned int param_count, MYSQL_BIND *params, const char **names,
+    unsigned long n_param_sets, uchar **ret_data, ulong *ret_length,
+    uchar send_types_to_server, bool send_named_params,
+    bool send_parameter_set_count, bool send_parameter_count_when_zero);
 
 #ifdef __cplusplus
 }

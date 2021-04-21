@@ -302,16 +302,16 @@ static bool store_param(NET *net, MYSQL_BIND *param, my_off_t null_pos_ofs) {
   server or not
   @param send_named_params : whether the names of the parameters should be sent
   @param send_parameter_set_count : whether to send 1 as parameter count or not
+  @param send_parameter_count_when_zero ON to send the param count even when
+     it's zero
   @retval true execution failed. Error in NET
   @retval false execution succeeded
 */
-bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
-                                    MYSQL_BIND *params, const char **names,
-                                    unsigned long n_param_sets,
-                                    uchar **ret_data, ulong *ret_length,
-                                    uchar send_types_to_server,
-                                    bool send_named_params,
-                                    bool send_parameter_set_count) {
+bool mysql_int_serialize_param_data(
+    NET *net, unsigned int param_count, MYSQL_BIND *params, const char **names,
+    unsigned long n_param_sets, uchar **ret_data, ulong *ret_length,
+    uchar send_types_to_server, bool send_named_params,
+    bool send_parameter_set_count, bool send_parameter_count_when_zero) {
   uint null_count;
   MYSQL_BIND *param, *param_end;
   const char **names_ptr = names;
@@ -322,10 +322,14 @@ bool mysql_int_serialize_param_data(NET *net, unsigned int param_count,
   net_clear(net, true); /* Sets net->write_pos */
 
   if (send_named_params) {
-    /* send the number of params */
-    my_realloc_str(net, net_length_size(param_count));
-    uchar *to = net_store_length(net->write_pos, param_count);
-    net->write_pos = to;
+    uchar *to;
+    if (param_count > 0 || send_parameter_count_when_zero) {
+      DBUG_PRINT("prep_stmt_exec", ("Sending param_count=%u", param_count));
+      /* send the number of params */
+      my_realloc_str(net, net_length_size(param_count));
+      to = net_store_length(net->write_pos, param_count);
+      net->write_pos = to;
+    }
 
     /* also send the number of parameter data sets */
     assert(n_param_sets == 1);  // reserved for now
