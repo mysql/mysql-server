@@ -983,7 +983,10 @@ Item *Item_field::replace_with_derived_expr(uchar *arg) {
   // is being pushed down). There is no need to do anything in such a case.
   return (dt == table_ref)
              ? dt->get_clone_for_derived_expr(
-                   current_thd, dt->get_derived_expr(field->field_index()))
+                   current_thd, dt->get_derived_expr(field->field_index()),
+                   &dt->derived_query_expression()
+                        ->first_query_block()
+                        ->context)
              : this;
 }
 
@@ -8291,6 +8294,28 @@ Item *Item_view_ref::replace_item_view_ref(uchar *arg) {
     return new_field;
   }
   return this;
+}
+
+Item *Item_view_ref::replace_view_refs_with_clone(uchar *arg) {
+  TABLE_LIST *dt = pointer_cast<TABLE_LIST *>(arg);
+  // Replace the view ref with a clone to the referenced item.
+  // We use a different context to resolve the clone from that of
+  // the derived table conetext.
+  // For Ex:
+  // SELECT * FROM
+  // (SELECT f1 FROM (SELECT f1 FROM t1 GROUP BY f1) AS dt1) AS dt2
+  // WHERE f1 > 3 GROUP BY f1;
+  // Here dt2 gets merged with the outer query block. As a result, "f1"
+  // in the outer query block (in select list, where clause and group by)
+  // will be a view reference. The underlying field for all three
+  // view references is shared. Therefore, when "f1>3" needs to be
+  // pushed down to dt1, we need to clone the referenced item (dt2.f1).
+  // Since the query block having dt2 is merged with the outer query
+  // block, the context to resolve the field will be different than
+  // the derived table context (dt1).
+  return dt->get_clone_for_derived_expr(
+      current_thd, *ref,
+      dt->derived_query_expression()->outer_query_block()->first_context);
 }
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res) {
