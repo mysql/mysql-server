@@ -1168,43 +1168,43 @@ Thd_ndb::~Thd_ndb() {
   free_root(&m_batch_mem_root, MYF(0));
 }
 
-/*
- * manage uncommitted insert/deletes during transactio to get records correct
- */
-
-void ha_ndbcluster::set_rec_per_key() {
+void ha_ndbcluster::set_rec_per_key(THD *thd) {
   DBUG_TRACE;
   /*
-    Set up the 'rec_per_key[]' for keys which we have good knowledge
-    about the distribution. 'rec_per_key[]' is init'ed to '0' by
-    open_binary_frm(), which is interpreted as 'unknown' by optimizer.
-    -> Not setting 'rec_per_key[]' will force the optimizer to use
-    its own heuristic to estimate 'records pr. key'.
+    Set up the 'records per key' value for keys which there are good knowledge
+    about the distribution. The default value for 'records per key' is otherwise
+    0 (interpreted as 'unknown' by optimizer), which would force the optimizer
+    to use its own heuristic to estimate 'records per key'.
   */
   for (uint i = 0; i < table_share->keys; i++) {
-    bool is_unique_index = false;
-    KEY *key_info = table->key_info + i;
+    KEY *const key_info = table->key_info + i;
     switch (get_index_type(i)) {
       case UNIQUE_INDEX:
       case PRIMARY_KEY_INDEX: {
         // Index is unique when all 'key_parts' are specified,
         // else distribution is unknown and not specified here.
-        is_unique_index = true;
+
+        // Set 'records per key' to 1 for complete key given
+        key_info->set_records_per_key(key_info->user_defined_key_parts - 1,
+                                      1.0F);
         break;
       }
       case UNIQUE_ORDERED_INDEX:
       case PRIMARY_KEY_ORDERED_INDEX:
-        is_unique_index = true;
+        // Set 'records per key' to 1 for complete key given
+        key_info->set_records_per_key(key_info->user_defined_key_parts - 1,
+                                      1.0F);
+
         // intentional fall thru to logic for ordered index
       case ORDERED_INDEX:
-        // 'Records pr. key' are unknown for non-unique indexes.
-        // (May change when we get better index statistics.)
+        // 'records per key' are unknown for non-unique indexes (may change when
+        // we get better index statistics).
+
         {
-          THD *thd = current_thd;
-          const bool index_stat_enable =
-              THDVAR(NULL, index_stat_enable) && THDVAR(thd, index_stat_enable);
+          const bool index_stat_enable = THDVAR(nullptr, index_stat_enable) &&
+                                         THDVAR(thd, index_stat_enable);
           if (index_stat_enable) {
-            int err = ndb_index_stat_set_rpk(i);
+            const int err = ndb_index_stat_set_rpk(i);
             if (err != 0 &&
                 /* no stats is not unexpected error */
                 err != NdbIndexStat::NoIndexStats &&
@@ -1213,7 +1213,7 @@ void ha_ndbcluster::set_rec_per_key() {
                 /* stats thread aborted request */
                 err != NdbIndexStat::MyAbortReq) {
               push_warning_printf(thd, Sql_condition::SL_WARNING,
-                                  ER_CANT_GET_STAT, /* pun? */
+                                  ER_CANT_GET_STAT,
                                   "index stats (RPK) for key %s:"
                                   " unexpected error %d",
                                   key_info->name, err);
@@ -1224,10 +1224,6 @@ void ha_ndbcluster::set_rec_per_key() {
         }
       default:
         assert(false);
-    }
-    // set rows per key to 1 for complete key given for unique/primary index
-    if (is_unique_index) {
-      key_info->set_records_per_key(key_info->user_defined_key_parts - 1, 1.0f);
     }
   }
 }
@@ -6712,7 +6708,7 @@ int ha_ndbcluster::info(uint flag) {
         multi_range_fixed_size(1) +
         multi_range_max_entry(PRIMARY_KEY_INDEX, table_share->reclength);
   }
-  while (flag & HA_STATUS_VARIABLE) {
+  if (flag & HA_STATUS_VARIABLE) {
     if (!thd) thd = current_thd;
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
 
@@ -6753,13 +6749,7 @@ int ha_ndbcluster::info(uint flag) {
       */
       if (stats.records < 2) stats.records = 2;
     }
-    break;
-  }
-  /* RPK moved to variable part */
-  if (flag & HA_STATUS_VARIABLE) {
-    /* No meaningful way to return error */
-    DBUG_PRINT("info", ("rec_per_key"));
-    set_rec_per_key();
+    set_rec_per_key(thd);
   }
   if (flag & HA_STATUS_ERRKEY) {
     DBUG_PRINT("info", ("HA_STATUS_ERRKEY dupkey=%u", m_dupkey));

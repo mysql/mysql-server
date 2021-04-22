@@ -608,7 +608,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
 
   int check_ndb_connection(THD *thd) const;
 
-  void set_rec_per_key();
+  void set_rec_per_key(THD *thd);
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
 
