@@ -1317,10 +1317,10 @@ class Fil_shard {
   using Pair = std::pair<space_id_t, fil_space_t *>;
   using Deleted_spaces = std::vector<Pair, ut_allocator<Pair>>;
 
-  /** Deleted tablespaces.  All pages for these tablespaces in the buffer
-  pool will be passively deleted.  They need not be written. Once the
-  reference count is zero, this fil_space_t can be deleted from
-  m_deleted_spaces and removed from memory. */
+  /** Deleted tablespaces. All pages for these tablespaces in the buffer pool
+  will be passively deleted. They need not be written. Once the reference count
+  is zero, this fil_space_t can be deleted from m_deleted_spaces and removed
+  from memory. All reads and writes must be done under the shard mutex. */
   Deleted_spaces m_deleted_spaces;
 #endif /* !UNIV_HOTBACKUP */
 
@@ -7754,18 +7754,20 @@ dberr_t Fil_shard::do_io(const IORequest &type, bool sync,
     }
 
 #ifdef UNIV_DEBUG
+    mutex_acquire();
     /* Should never attempt to read from a deleted tablespace, unless we
     are also importing the tablespace. By the time we get here in the final
     phase of import the state has changed. Therefore we check if there is
     an active fil_space_t instance with the same ID. */
     for (auto pair : m_deleted_spaces) {
       if (pair.first == page_id.space()) {
-        auto space = fil_space_get(page_id.space());
+        auto space = get_space_by_id(page_id.space());
         if (space != nullptr) {
           ut_a(pair.second != space);
         }
       }
     }
+    mutex_release();
 #endif /* UNIV_DEBUG && !UNIV_HOTBACKUP */
 
   } else if (req_type.is_write()) {
