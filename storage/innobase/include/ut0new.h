@@ -1180,7 +1180,7 @@ namespace ut {
       aligned_alloc_withkey(make_psi_memory_key(key), 10*sizeof(int), 64))
  */
 struct PSI_memory_key_t {
-  explicit PSI_memory_key_t(PSI_memory_key key) : m_key(key){};
+  explicit PSI_memory_key_t(PSI_memory_key key) : m_key(key) {}
   PSI_memory_key operator()() const { return m_key; }
   PSI_memory_key m_key;
 };
