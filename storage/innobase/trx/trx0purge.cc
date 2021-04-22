@@ -1374,9 +1374,11 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
 
   /* Get the undo space pointer again. */
-  undo::spaces->x_lock();
+  undo::spaces->s_lock();
 
   undo::Tablespace *marked_space = undo::spaces->find(space_num);
+
+  undo::spaces->s_unlock();
 
 #ifdef UNIV_DEBUG
   static undo::Inject_failure_once inject_marked_space(
@@ -1387,7 +1389,6 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
 #endif /* UNIV_DEBUG */
 
   if (marked_space == nullptr) {
-    undo::spaces->x_unlock();
     return (false);
   }
 
@@ -1397,7 +1398,6 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
   dberr_t err = undo::start_logging(marked_space);
   if (err != DB_SUCCESS) {
     ib::error(ER_IB_MSG_UNDO_TRUNCATE_DELAY_BY_LOG_CREATE, space_name.c_str());
-    undo::spaces->x_unlock();
     return (false);
   }
   ut_ad(err == DB_SUCCESS);
@@ -1417,14 +1417,11 @@ static bool trx_purge_truncate_marked_undo_low(space_id_t space_num,
 #endif /* UNIV_DEBUG */
 
   if (in_fast_shutdown) {
-    undo::spaces->x_unlock();
     return (false);
   }
 
   /* Do the truncate.  This will change the space_id of the marked_space. */
   bool success = trx_undo_truncate_tablespace(marked_space);
-
-  undo::spaces->x_unlock();
 
   if (!success) {
     /* Note: In case of error we don't enable the rsegs nor unmark the
