@@ -30,7 +30,6 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/regex 
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
-  ${LZ4_INCLUDE_DIR}
 )
 
 SET(CONF_SOURCES
@@ -264,7 +263,7 @@ SET(SQL_SOURCE
   ${GEN_DIGEST_SOURCES}
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
-  ../extra/lz4/xxhash.c
+  ${BUNDLED_LZ4_PATH}/xxhash.c
   ../libmysql/errmsg.c
   ../sql-common/client.c
   ../sql-common/client_plugin.c
@@ -319,9 +318,14 @@ INCLUDE_DIRECTORIES(SYSTEM
   )
 
 ADD_COMPILE_FLAGS(
-  ../extra/lz4/xxhash.c
-  COMPILE_FLAGS -DXXH_NAMESPACE=MY_
+  ${BUNDLED_LZ4_PATH}/xxhash.c
+  COMPILE_FLAGS -DXXH_NAMESPACE=MY_ -I${BUNDLED_LZ4_PATH}
 )
+
+ADD_COMPILE_FLAGS(
+  rpl_write_set_handler.cc
+  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
+  )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32 AND CMAKE_SIZEOF_VOID_P MATCHES 8)

@@ -8660,29 +8660,11 @@ Compression::deserialize(
 
 	case Compression::LZ4:
 
-		if (dblwr_recover) {
-
-			ret = LZ4_decompress_safe(
-				reinterpret_cast<char*>(ptr),
-				reinterpret_cast<char*>(dst),
-				header.m_compressed_size,
-				header.m_original_size);
-
-		} else {
-
-			/* This can potentially read beyond the input
-			buffer if the data is malformed. According to
-			the LZ4 documentation it is a little faster
-			than the above function. When recovering from
-			the double write buffer we can afford to us the
-			slower function above. */
-
-			ret = LZ4_decompress_fast(
-				reinterpret_cast<char*>(ptr),
-				reinterpret_cast<char*>(dst),
-				header.m_original_size);
-		}
-
+                ret = LZ4_decompress_safe(
+                        reinterpret_cast<char*>(ptr),
+                        reinterpret_cast<char*>(dst),
+                        header.m_compressed_size,
+                        header.m_original_size);
 		if (ret < 0) {
 
 			if (block != NULL) {

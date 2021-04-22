@@ -31,7 +31,7 @@
 #include "rpl_handler.h"
 
 #include "my_murmur3.h"    // murmur3_32
-#include "../extra/lz4/my_xxhash.h" // xxHash
+#include "my_xxhash.h" // xxHash
 
 #include <map>
 #include <string>
