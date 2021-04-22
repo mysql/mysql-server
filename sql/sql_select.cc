@@ -2334,49 +2334,21 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   return thd->is_error();
 }
 
-store_key_field::store_key_field(THD *thd, Field *to_field_arg, uchar *ptr,
-                                 uchar *null_ptr_arg, uint length,
-                                 Field *from_field, const char *name_arg)
-    : store_key(thd, to_field_arg, ptr, null_ptr_arg, length),
-      m_field_name(name_arg) {
-  // If from_field is nullable but we cannot store null, make
-  // to_field temporary nullable so we can check in copy_inner()
-  // if we end up with an illegal null value.
-  if (!to_field->is_nullable() &&
-      (from_field->is_nullable() || from_field->table->is_nullable()))
-    to_field->set_tmp_nullable();
-  m_copy_field.set(to_field, from_field);
-}
-
-enum store_key::store_key_result store_key_field::copy_inner() {
-  TABLE *table = to_field->table;
-  my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
-  m_copy_field.invoke_do_copy();
-  dbug_tmp_restore_column_map(table->write_set, old_map);
-  null_key = to_field->is_null();
-  return to_field->is_tmp_null() ? STORE_KEY_FATAL : STORE_KEY_OK;
-}
-
-void store_key_field::replace_from_field(Field *from_field) {
-  m_copy_field.set(to_field, from_field);
-}
-
 namespace {
 
-class store_key_const_item final : public store_key_item {
+class store_key_const_item final : public store_key {
   int cached_result = -1;
 
  public:
   store_key_const_item(THD *thd, Field *to_field_arg, uchar *ptr,
                        uchar *null_ptr_arg, uint length, Item *item_arg)
-      : store_key_item(thd, to_field_arg, ptr, null_ptr_arg, length, item_arg) {
-  }
+      : store_key(thd, to_field_arg, ptr, null_ptr_arg, length, item_arg) {}
   const char *name() const override { return STORE_KEY_CONST_NAME; }
 
  protected:
   enum store_key_result copy_inner() override {
     if (cached_result == -1) {
-      cached_result = store_key_item::copy_inner();
+      cached_result = store_key::copy_inner();
     }
     return static_cast<store_key_result>(cached_result);
   }
@@ -2387,7 +2359,7 @@ class store_key_const_item final : public store_key_item {
   obtained from val_json() method and then converted according to field's
   result type and saved. This allows proper handling of temporal values.
 */
-class store_key_json_item final : public store_key_item {
+class store_key_json_item final : public store_key {
   /// Whether the key is constant.
   const bool m_const_key{false};
   /// Whether the key was already copied.
@@ -2397,7 +2369,7 @@ class store_key_json_item final : public store_key_item {
   store_key_json_item(THD *thd, Field *to_field_arg, uchar *ptr,
                       uchar *null_ptr_arg, uint length, Item *item_arg,
                       bool const_key_arg)
-      : store_key_item(thd, to_field_arg, ptr, null_ptr_arg, length, item_arg),
+      : store_key(thd, to_field_arg, ptr, null_ptr_arg, length, item_arg),
         m_const_key(const_key_arg) {}
 
   const char *name() const override {
@@ -2426,30 +2398,14 @@ static store_key *get_store_key(THD *thd, Item *val, table_map used_tables,
         thd, key_part->field, key_buff + maybe_null,
         maybe_null ? key_buff : nullptr, key_part->length, val);
   }
-
-  Item_field *field_item = nullptr;
-  if (val->type() == Item::FIELD_ITEM)
-    field_item = down_cast<Item_field *>(val->real_item());
-  else if (val->type() == Item::REF_ITEM) {
-    Item_ref *item_ref = down_cast<Item_ref *>(val);
-    if (item_ref->ref_type() == Item_ref::OUTER_REF) {
-      if ((*item_ref->ref)->type() == Item::FIELD_ITEM)
-        field_item = down_cast<Item_field *>(item_ref->real_item());
-    }
-  }
-  if (field_item)
-    return new (thd->mem_root)
-        store_key_field(thd, key_part->field, key_buff + maybe_null,
-                        maybe_null ? key_buff : nullptr, key_part->length,
-                        field_item->field, val->full_name());
-
   return new (thd->mem_root)
-      store_key_item(thd, key_part->field, key_buff + maybe_null,
-                     maybe_null ? key_buff : nullptr, key_part->length, val);
+      store_key(thd, key_part->field, key_buff + maybe_null,
+                maybe_null ? key_buff : nullptr, key_part->length, val);
 }
 
 store_key::store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null,
-                     uint length) {
+                     uint length, Item *item_arg)
+    : item(item_arg) {
   if (field_arg->type() == MYSQL_TYPE_BLOB ||
       field_arg->type() == MYSQL_TYPE_GEOMETRY) {
     /*
@@ -2463,6 +2419,12 @@ store_key::store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null,
   } else
     to_field =
         field_arg->new_key_field(thd->mem_root, field_arg->table, ptr, null, 1);
+
+  // If the item is nullable, but we cannot store null, make
+  // to_field temporary nullable so that we can check in copy_inner()
+  // if we end up with an illegal null value.
+  if (!to_field->is_nullable() && item->is_nullable())
+    to_field->set_tmp_nullable();
 }
 
 store_key::store_key_result store_key::copy() {
@@ -2484,7 +2446,7 @@ store_key::store_key_result store_key::copy() {
 }
 
 enum store_key::store_key_result store_key_hash_item::copy_inner() {
-  enum store_key_result res = store_key_item::copy_inner();
+  enum store_key_result res = store_key::copy_inner();
   if (res != STORE_KEY_FATAL) {
     // Convert to and from little endian, since that is what gets
     // stored in the hash field we are lookup up against.
@@ -2550,17 +2512,7 @@ static store_key::store_key_result type_conversion_status_to_store_key(
   return store_key::STORE_KEY_FATAL;
 }
 
-store_key_item::store_key_item(THD *thd, Field *to_field_arg, uchar *ptr,
-                               uchar *null_ptr_arg, uint length, Item *item_arg)
-    : store_key(thd, to_field_arg, ptr, null_ptr_arg, length), item(item_arg) {
-  // If the item is nullable, but we cannot store null, make
-  // to_field temporary nullable so that we can check in copy_inner()
-  // if we end up with an illegal null value.
-  if (!to_field->is_nullable() && item->is_nullable())
-    to_field->set_tmp_nullable();
-}
-
-enum store_key::store_key_result store_key_item::copy_inner() {
+enum store_key::store_key_result store_key::copy_inner() {
   THD *thd = current_thd;
   TABLE *table = to_field->table;
   my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);

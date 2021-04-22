@@ -3272,7 +3272,7 @@ bool subselect_hash_sj_engine::setup(
           thd, field, cur_ref_buff, nullptr, field->pack_length(),
           tab->ref().items[part_no], &hash);
     } else {
-      tab->ref().key_copy[part_no] = new (thd->mem_root) store_key_item(
+      tab->ref().key_copy[part_no] = new (thd->mem_root) store_key(
           thd, field,
           /* TODO:
              the NULL byte is taken into account in

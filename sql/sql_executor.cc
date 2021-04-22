@@ -877,12 +877,6 @@ AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
                                                          right_table_map);
       }
     } else if (item->type() == Item::FIELD_ITEM) {
-      if (ref->key_copy[part_no] == nullptr ||
-          ref->key_copy[part_no]->name() == STORE_KEY_CONST_NAME) {
-        // A constant, so no need to propagate.
-        continue;
-      }
-
       bool dummy;
       Item_equal *item_eq = find_item_equal(
           table_list->cond_equal, down_cast<Item_field *>(item), &dummy);
@@ -893,8 +887,6 @@ AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
 
       item->walk(&Item::ensure_multi_equality_fields_are_available_walker,
                  enum_walk::POSTFIX, pointer_cast<uchar *>(&left_table_map));
-      down_cast<store_key_field *>(ref->key_copy[part_no])
-          ->replace_from_field(down_cast<Item_field *>(item)->field);
     }
   }
 

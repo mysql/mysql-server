@@ -1524,7 +1524,7 @@ class materialize_ctx : public joinable_ctx,
 
     /*
       Currently K-REF/col_ref is not shown; it would always be "func", since
-      {subquery,semijoin} materialization use store_key_item; using
+      {subquery,semijoin} materialization use store_key; using
       get_store_key() instead would allow "const" and outer column's name,
       if applicable.
       The looked up expression can anyway be inferred from the condition:
