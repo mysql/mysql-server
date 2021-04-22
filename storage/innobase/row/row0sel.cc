@@ -244,9 +244,9 @@ static dberr_t row_sel_sec_rec_is_for_clust_rec(
 
       if (vfield == nullptr) {
         /* This may happen e.g. when this statement is executed in
-         * read-uncommited isolation and value (like json function)
-         * depends on an externally stored lob (like json) which
-         * was not written yet. */
+        read-uncommited isolation and value (like json function)
+        depends on an externally stored lob (like json) which
+        was not written yet. */
         err = DB_COMPUTE_VALUE_FAILED;
         goto func_exit;
       }
@@ -502,9 +502,9 @@ static void row_sel_fetch_columns(trx_t *trx, dict_index_t *index,
         if (data == nullptr) {
           /* This means that the externally stored field was not written yet.
           This record should only be seen by following situations:
-           * Read uncommitted transactions (TRX_ISO_READ_UNCOMMITTED)
-           * During crash recovery [trx_rollback_or_clean_all_recovered().]
-           * During lock-less consistent read, when the trx reads LOB even
+          - Read uncommitted transactions (TRX_ISO_READ_UNCOMMITTED)
+          - During crash recovery [trx_rollback_or_clean_all_recovered().]
+          - During lock-less consistent read, when the trx reads LOB even
              though the clust_rec is not to be seen. */
           ut_ad(allow_null_lob);
           len = UNIV_SQL_NULL;
@@ -1169,12 +1169,9 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
   block = btr_pcur_get_block(pcur);
 
   trx = thr_get_trx(thr);
-  trx_mutex_enter(trx);
   ut_ad(trx_can_be_handled_by_current_thread(trx));
-  bool too_many_locks = (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000);
-  trx_mutex_exit(trx);
 
-  if (too_many_locks) {
+  if (UT_LIST_GET_LEN(trx->lock.trx_locks) > 10000) {
     if (buf_LRU_buf_pool_running_out()) {
       return (DB_LOCK_TABLE_FULL);
     }

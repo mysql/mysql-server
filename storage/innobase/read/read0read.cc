@@ -328,10 +328,8 @@ ReadView::~ReadView() {
 
 /** Constructor
 @param size		Number of views to pre-allocate */
-MVCC::MVCC(ulint size) {
-  UT_LIST_INIT(m_free, &ReadView::m_view_list);
-  UT_LIST_INIT(m_views, &ReadView::m_view_list);
-
+MVCC::MVCC(ulint size)
+    : m_free(&ReadView::m_view_list), m_views(&ReadView::m_view_list) {
   for (ulint i = 0; i < size; ++i) {
     ReadView *view = UT_NEW_NOKEY(ReadView());
 

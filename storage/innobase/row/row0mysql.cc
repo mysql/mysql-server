@@ -103,7 +103,8 @@ struct row_mysql_drop_t {
 ALTER TABLE in MySQL requires that the table handler can drop the
 table in background when there are no queries to it any
 more.  Protected by row_drop_list_mutex. */
-static UT_LIST_BASE_NODE_T(row_mysql_drop_t) row_mysql_drop_list;
+static UT_LIST_BASE_NODE_T(row_mysql_drop_t) row_mysql_drop_list{
+    &row_mysql_drop_t::row_mysql_drop_list};
 
 /** Mutex protecting the background table drop list. */
 static ib_mutex_t row_drop_list_mutex;
@@ -123,13 +124,13 @@ static ibool row_add_table_to_background_drop_list(
 #ifdef UNIV_DEBUG
 /** Wait for the background drop list to become empty. */
 void row_wait_for_background_drop_list_empty() {
-  bool empty = false;
-  while (!empty) {
-    mutex_enter(&row_drop_list_mutex);
-    empty = (UT_LIST_GET_LEN(row_mysql_drop_list) == 0);
-    mutex_exit(&row_drop_list_mutex);
+  while (UT_LIST_GET_LEN(row_mysql_drop_list) > 0) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+  /* At this point we know the drops were already processed without a need for
+  the mutex. The length is acquiring memory released in
+  row_drop_tables_for_mysql_in_background on UT_LIST_REMOVE, which is after
+  the drop processing is done. */
 }
 #endif /* UNIV_DEBUG */
 
@@ -3235,6 +3236,9 @@ loop:
 already_dropped:
   mutex_enter(&row_drop_list_mutex);
 
+  /* This can't be moved earlier, as row_wait_for_background_drop_list_empty()
+  expects the item be removed from list only after the drop processing is
+  completed.*/
   UT_LIST_REMOVE(row_mysql_drop_list, drop);
 
   MONITOR_DEC(MONITOR_BACKGROUND_DROP_TABLE);
@@ -3250,23 +3254,6 @@ already_dropped:
   mutex_exit(&row_drop_list_mutex);
 
   goto loop;
-}
-
-/** Get the background drop list length. NOTE: the caller must own the
- drop list mutex!
- @return how many tables in list */
-ulint row_get_background_drop_list_len_low(void) {
-  ulint len;
-
-  mutex_enter(&row_drop_list_mutex);
-
-  ut_a(row_mysql_drop_list_inited);
-
-  len = UT_LIST_GET_LEN(row_mysql_drop_list);
-
-  mutex_exit(&row_drop_list_mutex);
-
-  return (len);
 }
 
 /** If a table is not yet in the drop list, adds the table to the list of tables
@@ -4827,8 +4814,6 @@ next_rec:
 /** Initialize this module */
 void row_mysql_init(void) {
   mutex_create(LATCH_ID_ROW_DROP_LIST, &row_drop_list_mutex);
-
-  UT_LIST_INIT(row_mysql_drop_list, &row_mysql_drop_t::row_mysql_drop_list);
 
   row_mysql_drop_list_inited = TRUE;
 }

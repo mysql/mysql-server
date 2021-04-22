@@ -508,6 +508,23 @@ void rw_lock_debug_print(FILE *f, const rw_lock_debug_t *info);
 
 #endif /* !UNIV_LIBRARY */
 
+#ifdef UNIV_DEBUG
+/** The structure for storing debug info of an rw-lock.  All access to this
+structure must be protected by rw_lock_debug_mutex_enter(). */
+struct rw_lock_debug_t {
+  std::thread::id thread_id; /*!< The thread id of the thread which
+                         locked the rw-lock */
+  ulint pass;                /*!< Pass value given in the lock operation */
+  ulint lock_type;           /*!< Type of the lock: RW_LOCK_X,
+                             RW_LOCK_S, RW_LOCK_X_WAIT */
+  const char *file_name;     /*!< File name where the lock was obtained */
+  ulint line;                /*!< Line where the rw-lock was locked */
+  UT_LIST_NODE_T(rw_lock_debug_t) list;
+  /*!< Debug structs are linked in a two-way
+  list */
+};
+#endif /* UNIV_DEBUG */
+
 /* NOTE! The structure appears here only for the compiler to know its size.
 Do not use its fields directly! */
 
@@ -524,7 +541,12 @@ struct rw_lock_t
     : public latch_t
 #endif /* UNIV_DEBUG */
 {
-  rw_lock_t() = default;
+  rw_lock_t()
+#ifdef UNIV_DEBUG
+      : debug_list(&rw_lock_debug_t::list)
+#endif
+  {
+  }
 
   /** rw_lock_t is not a copyable object, the reasoning
   behind this is the same as the reasoning behind why
@@ -629,22 +651,6 @@ struct rw_lock_t
   latch_level_t level;
 #endif /* UNIV_DEBUG */
 };
-#ifdef UNIV_DEBUG
-/** The structure for storing debug info of an rw-lock.  All access to this
-structure must be protected by rw_lock_debug_mutex_enter(). */
-struct rw_lock_debug_t {
-  std::thread::id thread_id; /*!< The thread id of the thread which
-                         locked the rw-lock */
-  ulint pass;                /*!< Pass value given in the lock operation */
-  ulint lock_type;           /*!< Type of the lock: RW_LOCK_X,
-                             RW_LOCK_S, RW_LOCK_X_WAIT */
-  const char *file_name;     /*!< File name where the lock was obtained */
-  ulint line;                /*!< Line where the rw-lock was locked */
-  UT_LIST_NODE_T(rw_lock_debug_t) list;
-  /*!< Debug structs are linked in a two-way
-  list */
-};
-#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_LIBRARY
 #ifndef UNIV_HOTBACKUP

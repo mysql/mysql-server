@@ -560,6 +560,9 @@ typedef std::vector<ib_lock_t *, ut_allocator<ib_lock_t *>> lock_pool_t;
 Protected by exclusive lock_sys latch or trx->mutex combined with shared
 lock_sys latch (unless stated otherwise for particular field). */
 struct trx_lock_t {
+  /** Default constructor. */
+  trx_lock_t();
+
   ulint n_active_thrs; /*!< number of active query threads */
 
   trx_que_t que_state; /*!< valid when trx->state
@@ -856,6 +859,9 @@ struct trx_t {
     SERIALIZABLE
   };
 
+  /** Default constructor */
+  trx_t();
+
   /** Mutex protecting the fields `state` and `lock` (except some fields of
   `lock`,  which are protected by lock_sys latches) */
   mutable TrxMutex mutex;
@@ -1128,8 +1134,7 @@ struct trx_t {
                                    WORK statement, for instance */
   /*------------------------------*/
   UT_LIST_BASE_NODE_T(trx_named_savept_t)
-  trx_savepoints; /*!< savepoints set with SAVEPOINT ...,
-                  oldest first */
+  trx_savepoints; /*!< savepoints set with SAVEPOINT ..., oldest first */
   /*------------------------------*/
   UndoMutex undo_mutex; /*!< mutex protecting the fields in this
                         section (down to undo_no_arr), EXCEPT

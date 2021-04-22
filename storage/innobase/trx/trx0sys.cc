@@ -699,9 +699,7 @@ void trx_sys_after_pre_dd_shutdown_validate() {
 void trx_sys_after_background_threads_shutdown_validate() {
   trx_sys_after_pre_dd_shutdown_validate();
 
-  trx_sys_mutex_enter();
   ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
-  trx_sys_mutex_exit();
 }
 
 size_t trx_sys_recovered_active_trxs_count() {
