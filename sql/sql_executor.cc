@@ -877,7 +877,8 @@ AccessPath *CreateBKAAccessPath(THD *thd, JOIN *join, AccessPath *outer_path,
                                                          right_table_map);
       }
     } else if (item->type() == Item::FIELD_ITEM) {
-      if (ref->key_copy[part_no] == nullptr) {
+      if (ref->key_copy[part_no] == nullptr ||
+          ref->key_copy[part_no]->name() == STORE_KEY_CONST_NAME) {
         // A constant, so no need to propagate.
         continue;
       }
