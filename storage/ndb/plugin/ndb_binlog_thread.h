@@ -44,11 +44,17 @@ struct TABLE;
 union NdbValue;
 struct MY_BITMAP;
 class Ndb_blobs_buffer;
+struct NDB_SHARE;
 
 class Ndb_binlog_thread : public Ndb_component {
   Ndb_binlog_hooks binlog_hooks;
   static int do_after_reset_master(void *);
   Ndb_metadata_sync metadata_sync;
+
+  // Holds reference to share for ndb_apply_status table
+  NDB_SHARE *m_apply_status_share{nullptr};
+  bool acquire_apply_status_reference();
+  void release_apply_status_reference();
 
  public:
   Ndb_binlog_thread();
@@ -212,19 +218,16 @@ class Ndb_binlog_thread : public Ndb_component {
 
      @param ndb The Ndb object to remove event operations from
   */
-  void remove_event_operations(Ndb *ndb) const;
+  static void remove_event_operations(Ndb *ndb);
 
   /**
-     @brief Remove event operations belonging to the two different Ndb objects
-     owned by the binlog thread
-
-     @note The function also release references to NDB_SHARE's owned by the
-     binlog thread
+     @brief Remove event operations belonging to the different Ndb objects
+     (owned by the binlog thread)
 
      @param s_ndb The schema Ndb object to remove event operations from
      @param i_ndb The injector Ndb object to remove event operations from
   */
-  void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb) const;
+  static void remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb);
 
   /**
      @brief Synchronize the object that is currently at the front of the queue
@@ -253,14 +256,14 @@ class Ndb_binlog_thread : public Ndb_component {
                                  MY_BITMAP *defined, uchar *buf) const;
   int handle_error(NdbEventOperation *pOp) const;
   void handle_non_data_event(THD *thd, NdbEventOperation *pOp,
-                             ndb_binlog_index_row &row) const;
+                             ndb_binlog_index_row &row);
   int handle_data_event(const NdbEventOperation *pOp,
                         ndb_binlog_index_row **rows,
                         injector_transaction &trans, unsigned &trans_row_count,
                         unsigned &replicated_row_count) const;
   bool handle_events_for_epoch(THD *thd, injector *inj, Ndb *i_ndb,
                                NdbEventOperation *&i_pOp,
-                               const Uint64 current_epoch) const;
+                               const Uint64 current_epoch);
 
   // Functions for injecting events
   bool inject_apply_status_write(injector_transaction &trans,

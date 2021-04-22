@@ -4210,8 +4210,6 @@ static inline void eventSetAnyValue(Thd_ndb *thd_ndb,
 #endif
 }
 
-extern NDB_SHARE *ndb_apply_status_share;
-
 /**
    prepare_conflict_detection
 
@@ -4240,11 +4238,8 @@ int ha_ndbcluster::prepare_conflict_detection(
 
   conflict_handled = false;
 
-  /*
-    Special check for apply_status table, as we really don't want
-    to do any special handling with it
-  */
-  if (unlikely(m_share == ndb_apply_status_share)) {
+  if (unlikely(m_share->is_apply_status_table())) {
+    // The ndb_apply_status table should not have any conflict detection
     return 0;
   }
 
@@ -4769,20 +4764,23 @@ static bool is_serverid_local(Uint32 serverid) {
 int ha_ndbcluster::write_row(uchar *record) {
   DBUG_TRACE;
 
-  if (m_share == ndb_apply_status_share && table->in_use->slave_thread) {
-    uint32 row_server_id, master_server_id = ndb_mi_get_master_server_id();
-    uint64 row_epoch;
+  if (m_share->is_apply_status_table() && m_thd_ndb->is_slave_thread()) {
+    // The applier thread is writing to ndb_apply_status table
+    const uint32 master_server_id = ndb_mi_get_master_server_id();
+    uint32 row_server_id;
     memcpy(&row_server_id,
            table->field[0]->field_ptr() + (record - table->record[0]),
            sizeof(row_server_id));
+    uint64 row_epoch;
     memcpy(&row_epoch,
            table->field[1]->field_ptr() + (record - table->record[0]),
            sizeof(row_epoch));
-    int rc = g_ndb_slave_state.atApplyStatusWrite(
+
+    const int rc = g_ndb_slave_state.atApplyStatusWrite(
         master_server_id, row_server_id, row_epoch,
         is_serverid_local(row_server_id));
     if (rc != 0) {
-      /* Stop Slave */
+      /* Stop applier */
       return rc;
     }
   }
@@ -7327,7 +7325,7 @@ int ha_ndbcluster::start_statement(THD *thd, Thd_ndb *thd_ndb,
 
   release_blobs_buffer();
 
-  if (m_share == ndb_apply_status_share && m_thd_ndb->is_slave_thread()) {
+  if (m_share->is_apply_status_table() && m_thd_ndb->is_slave_thread()) {
     m_thd_ndb->set_trans_option(Thd_ndb::TRANS_INJECTED_APPLY_STATUS);
   }
 

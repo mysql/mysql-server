@@ -231,8 +231,6 @@ static ulonglong ndb_latest_applied_binlog_epoch = 0;
 static ulonglong ndb_latest_handled_binlog_epoch = 0;
 static ulonglong ndb_latest_received_binlog_epoch = 0;
 
-NDB_SHARE *ndb_apply_status_share = NULL;
-
 extern bool opt_log_replica_updates;
 static bool g_ndb_log_replica_updates;
 
@@ -813,8 +811,6 @@ class Ndb_binlog_setup {
       ndb_log_info(" <- sleep");
     }
 
-    assert(ndb_apply_status_share == nullptr);
-
     // Protect the schema synchronization with GSL(Global Schema Lock)
     Ndb_global_schema_lock_guard global_schema_lock_guard(m_thd);
     if (global_schema_lock_guard.lock()) {
@@ -914,9 +910,6 @@ class Ndb_binlog_setup {
       ndb_log_verbose(9, "Failed to synchronize DD with NDB");
       return false;
     }
-
-    // Check that references for ndb_apply_status has been created
-    assert(!ndb_binlog_running || ndb_apply_status_share);
 
     if (!Ndb_stored_grants::setup(m_thd, thd_ndb)) {
       ndb_log_warning("Failed to setup synchronized privileges");
@@ -5335,12 +5328,6 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
       Ndb_schema_dist_client::is_schema_dist_result_table(share->db,
                                                           share->table_name);
 
-  // Check if this is the event operation on mysql.ndb_apply_status
-  // as it need special processing
-  const bool do_ndb_apply_status_share =
-      Ndb_apply_status_table::is_apply_status_table(share->db,
-                                                    share->table_name);
-
   const std::string event_name =
       event_name_for_table(m_dbname, m_tabname, share->get_binlog_full());
 
@@ -5393,13 +5380,6 @@ int Ndb_binlog_client::create_event_op(NDB_SHARE *share,
     // Acquire share reference for event_data
     (void)NDB_SHARE::acquire_reference_on_existing(event_data->share,
                                                    "event_data");
-  }
-
-  // NOTE! Setup of ndb_apply_status_share does not really belong here
-  if (do_ndb_apply_status_share) {
-    ndb_apply_status_share = NDB_SHARE::acquire_reference_on_existing(
-        share, "ndb_apply_status_share");
-    assert(get_thd_ndb(m_thd)->check_option(Thd_ndb::ALLOW_BINLOG_SETUP));
   }
 
   // This MySQL Server are now logging changes for the table
@@ -5925,7 +5905,7 @@ void Ndb_binlog_thread::inject_incident(
 
  */
 void Ndb_binlog_thread::handle_non_data_event(THD *thd, NdbEventOperation *pOp,
-                                              ndb_binlog_index_row &row) const {
+                                              ndb_binlog_index_row &row) {
   const NDBEVENT::TableEvent type = pOp->getEventType();
 
   DBUG_TRACE;
@@ -5945,14 +5925,11 @@ void Ndb_binlog_thread::handle_non_data_event(THD *thd, NdbEventOperation *pOp,
                   (uint)(pOp->getGCI() >> 32), (uint)(pOp->getGCI()));
       // fallthrough
     case NDBEVENT::TE_DROP:
-      if (ndb_apply_status_share == share) {
+      if (m_apply_status_share == share) {
         if (ndb_binlog_tables_inited && ndb_binlog_running)
           log_verbose(1, "util tables need to reinitialize");
 
-        /* release the ndb_apply_status_share */
-        NDB_SHARE::release_reference(ndb_apply_status_share,
-                                     "ndb_apply_status_share");
-        ndb_apply_status_share = NULL;
+        release_apply_status_reference();
 
         Mutex_guard injector_g(injector_data_mutex);
         ndb_binlog_tables_inited = false;
@@ -6084,7 +6061,7 @@ int Ndb_binlog_thread::handle_data_event(const NdbEventOperation *pOp,
   bool log_this_slave_update = g_ndb_log_replica_updates;
   bool count_this_event = true;
 
-  if (share == ndb_apply_status_share) {
+  if (share == m_apply_status_share) {
     /*
        Note that option values are read without synchronisation w.r.t.
        thread setting option variable or epoch boundaries.
@@ -6449,9 +6426,10 @@ static bool check_event_list_consistency(Ndb *ndb,
 
    @return true for success and false for error
 */
-bool Ndb_binlog_thread::handle_events_for_epoch(
-    THD *thd, injector *inj, Ndb *i_ndb, NdbEventOperation *&i_pOp,
-    const Uint64 current_epoch) const {
+bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
+                                                Ndb *i_ndb,
+                                                NdbEventOperation *&i_pOp,
+                                                const Uint64 current_epoch) {
   DBUG_TRACE;
   const NDBEVENT::TableEvent event_type = i_pOp->getEventType2();
 
@@ -6563,7 +6541,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(
   return true;  // OK
 }
 
-void Ndb_binlog_thread::remove_event_operations(Ndb *ndb) const {
+void Ndb_binlog_thread::remove_event_operations(Ndb *ndb) {
   DBUG_TRACE;
   NdbEventOperation *op;
   while ((op = ndb->getEventOperation())) {
@@ -6590,15 +6568,8 @@ void Ndb_binlog_thread::remove_event_operations(Ndb *ndb) const {
   }
 }
 
-void Ndb_binlog_thread::remove_all_event_operations(Ndb *s_ndb,
-                                                    Ndb *i_ndb) const {
+void Ndb_binlog_thread::remove_all_event_operations(Ndb *s_ndb, Ndb *i_ndb) {
   DBUG_TRACE;
-
-  if (ndb_apply_status_share) {
-    NDB_SHARE::release_reference(ndb_apply_status_share,
-                                 "ndb_apply_status_share");
-    ndb_apply_status_share = NULL;
-  }
 
   if (s_ndb) remove_event_operations(s_ndb);
 
@@ -6655,9 +6626,9 @@ int show_ndb_status_injector(THD *, SHOW_VAR *var, char *) {
 bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
                                                   ulonglong gci) const {
   DBUG_TRACE;
-  if (ndb_apply_status_share == NULL) {
+  if (m_apply_status_share == nullptr) {
     log_error("Could not get apply status share");
-    assert(ndb_apply_status_share != NULL);
+    assert(m_apply_status_share != nullptr);
     return false;
   }
 
@@ -6692,9 +6663,9 @@ bool Ndb_binlog_thread::inject_apply_status_write(injector_transaction &trans,
   {
     // NOTE! Getting the TABLE* from "share->op->event_data->shadow_table"
     // without holding any mutex
-    const NdbEventOperation *op = ndb_apply_status_share->op;
+    const NdbEventOperation *op = m_apply_status_share->op;
     const Ndb_event_data *event_data = Ndb_event_data::get_event_data(
-        op->getCustomData(), ndb_apply_status_share);
+        op->getCustomData(), m_apply_status_share);
     assert(event_data);
     assert(event_data->shadow_table);
     apply_status_table = event_data->shadow_table;
@@ -6953,7 +6924,7 @@ void Ndb_binlog_thread::inject_table_map(injector_transaction &trans,
     }
 
     const NDB_SHARE *const share = event_data->share;
-    if (share == ndb_apply_status_share) {
+    if (share == m_apply_status_share) {
       // skip this table, it is handled specially
       continue;
     }
@@ -7132,10 +7103,14 @@ restart_cluster_failure:
     log_verbose(1, "Wait for cluster to start");
     thd->proc_info = "Waiting for ndbcluster to start";
 
+    assert(m_apply_status_share == nullptr);
+
     while (!ndbcluster_is_connected(1) || !binlog_setup.setup(thd_ndb)) {
       // Failed to complete binlog_setup, remove all existing event
       // operations from potential partial setup
       remove_all_event_operations(s_ndb, i_ndb);
+
+      release_apply_status_reference();
 
       // Fail any schema operations that has been registered but
       // never reached the coordinator
@@ -7173,6 +7148,12 @@ restart_cluster_failure:
     log_and_clear_thd_conditions(thd, condition_logging_level::WARNING);
 
     assert(ndbcluster_hton->slot != ~(uint)0);
+  }
+
+  // Setup reference to ndb_apply_status share
+  if (!acquire_apply_status_reference()) {
+    ndb_log_error("Failed to acquire ndb_apply_status reference");
+    goto err;
   }
 
   /* Apply privilege statements stored in snapshot */
@@ -7569,6 +7550,8 @@ err:
 
   thd->reset_db(NULL_CSTR);  // as not to try to free memory
   remove_all_event_operations(s_ndb, i_ndb);
+
+  release_apply_status_reference();
 
   schema_dist_data.release();
 

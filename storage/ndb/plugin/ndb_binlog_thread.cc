@@ -33,10 +33,12 @@
 #include "mysql/status_var.h"  // enum_mysql_show_type
 #include "sql/current_thd.h"   // current_thd
 #include "storage/ndb/include/ndbapi/NdbError.hpp"
+#include "storage/ndb/plugin/ndb_apply_status_table.h"
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"  // Ndb_global_schema_lock_guard
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_metadata_change_monitor.h"
+#include "storage/ndb/plugin/ndb_share.h"
 
 int Ndb_binlog_thread::do_init() {
   if (!binlog_hooks.register_hooks(do_after_reset_master)) {
@@ -289,4 +291,22 @@ void Ndb_binlog_thread::dbug_sync_setting() const {
 
 void Ndb_binlog_thread::log_ndb_error(const NdbError &ndberr) const {
   log_error("Got NDB error '%d - %s'", ndberr.code, ndberr.message);
+}
+
+bool Ndb_binlog_thread::acquire_apply_status_reference() {
+  DBUG_TRACE;
+
+  m_apply_status_share = NDB_SHARE::acquire_reference(
+      Ndb_apply_status_table::DB_NAME.c_str(),
+      Ndb_apply_status_table::TABLE_NAME.c_str(), "m_apply_status_share");
+  return m_apply_status_share != nullptr;
+}
+
+void Ndb_binlog_thread::release_apply_status_reference() {
+  DBUG_TRACE;
+
+  if (m_apply_status_share != nullptr) {
+    NDB_SHARE::release_reference(m_apply_status_share, "m_apply_status_share");
+    m_apply_status_share = nullptr;
+  }
 }

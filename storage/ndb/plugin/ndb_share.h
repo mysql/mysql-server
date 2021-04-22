@@ -122,6 +122,12 @@ struct NDB_SHARE {
     // NOTE! The decision wheter or not a table have event is decided
     // only once by Ndb_binlog_client::table_should_have_event()
     FLAG_TABLE_HAVE_EVENT = 1UL << 6,
+
+    // Flag describing if this is the share for ndb_apply_status table. It's
+    // primarily used in performance sensitive code as a quick way to check if
+    // special case should be activated, for example to write ndb_apply_status
+    // rows while applying rows from the binlog.
+    FLAG_TABLE_IS_APPLY_STATUS = 1UL << 7
   };
 
   uint flags;
@@ -145,6 +151,10 @@ struct NDB_SHARE {
   void set_have_event() { flags |= NDB_SHARE::FLAG_TABLE_HAVE_EVENT; }
   bool get_have_event() const {
     return flags & NDB_SHARE::FLAG_TABLE_HAVE_EVENT;
+  }
+
+  bool is_apply_status_table() const {
+    return flags & FLAG_TABLE_IS_APPLY_STATUS;
   }
 
   struct NDB_CONFLICT_FN_SHARE *m_cfn_share;

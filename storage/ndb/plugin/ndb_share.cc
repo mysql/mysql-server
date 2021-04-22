@@ -102,6 +102,13 @@ NDB_SHARE *NDB_SHARE::create(const char *key) {
 
   share->inplace_alter_new_table_def = nullptr;
 
+  // Turn on special flag for mysql.ndb_apply_status table
+  if (strcmp(share->db, "mysql") == 0 &&
+      strcmp(share->table_name, "ndb_apply_status") == 0) {
+    DBUG_PRINT("info", ("Setting FLAG_TABLE_IS_APPLY_STATUS"));
+    share->flags |= FLAG_TABLE_IS_APPLY_STATUS;
+  }
+
   return share;
 }
 
