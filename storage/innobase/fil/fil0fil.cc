@@ -2067,12 +2067,13 @@ bool Fil_system::space_belongs_in_LRU(const fil_space_t *space) {
 /** Constructor
 @param[in]	shard_id	Shard ID  */
 Fil_shard::Fil_shard(size_t shard_id)
-    : m_id(shard_id), m_spaces(), m_names(), m_modification_counter() {
+    : m_id(shard_id),
+      m_spaces(),
+      m_names(),
+      m_LRU(&fil_node_t::LRU),
+      m_unflushed_spaces(&fil_space_t::unflushed_spaces),
+      m_modification_counter() {
   mutex_create(LATCH_ID_FIL_SHARD, &m_mutex);
-
-  UT_LIST_INIT(m_LRU, &fil_node_t::LRU);
-
-  UT_LIST_INIT(m_unflushed_spaces, &fil_space_t::unflushed_spaces);
 }
 
 /** Wait for an empty slot to reserve for opening a file.

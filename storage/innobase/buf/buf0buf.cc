@@ -1751,9 +1751,7 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
   /* Minimize buf_pool->zip_free[i] lists */
   buf_buddy_condense_free(buf_pool);
 
-  mutex_enter(&buf_pool->LRU_list_mutex);
   lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
-  mutex_exit(&buf_pool->LRU_list_mutex);
 
   mutex_enter(&buf_pool->free_list_mutex);
   while (UT_LIST_GET_LEN(buf_pool->withdraw) < buf_pool->withdraw_target) {
@@ -1866,7 +1864,7 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
 
     mutex_enter(&buf_pool->free_list_mutex);
 
-    buf_resize_status("buffer pool %lu : withdrawing blocks. (%lu/%lu)", i,
+    buf_resize_status("buffer pool %lu : withdrawing blocks. (%zu/%lu)", i,
                       UT_LIST_GET_LEN(buf_pool->withdraw),
                       buf_pool->withdraw_target);
 
@@ -1907,10 +1905,8 @@ static bool buf_pool_withdraw_blocks(buf_pool_t *buf_pool) {
     ++chunk;
   }
 
-  mutex_enter(&buf_pool->free_list_mutex);
   ib::info(ER_IB_MSG_59) << "buffer pool " << i << " : withdrawn target "
                          << UT_LIST_GET_LEN(buf_pool->withdraw) << " blocks.";
-  mutex_exit(&buf_pool->free_list_mutex);
 
   /* retry is not needed */
   os_wmb;
@@ -2076,9 +2072,7 @@ static void buf_pool_resize() {
     ut_ad(buf_pool->curr_size == buf_pool->old_size);
     ut_ad(buf_pool->n_chunks_new == buf_pool->n_chunks);
 #ifdef UNIV_DEBUG
-    mutex_enter(&buf_pool->free_list_mutex);
     ut_ad(UT_LIST_GET_LEN(buf_pool->withdraw) == 0);
-    mutex_exit(&buf_pool->free_list_mutex);
 
     buf_flush_list_mutex_enter(buf_pool);
     ut_ad(buf_pool->flush_rbt == nullptr);
@@ -6685,26 +6679,6 @@ ulint buf_pool_check_no_pending_io(void) {
 
   return (pending_io);
 }
-
-#if 0
-Code currently not used
-/*********************************************************************//**
-Gets the current length of the free list of buffer blocks.
-@return length of the free list */
-ulint
-buf_get_free_list_len(void)
-{
-	ulint	len;
-
-	mutex_enter(&buf_pool->free_list_mutex);
-
-	len = UT_LIST_GET_LEN(buf_pool->free);
-
-	mutex_exit(&buf_pool->free_list_mutex);
-
-	return(len);
-}
-#endif
 
 #else /* !UNIV_HOTBACKUP */
 

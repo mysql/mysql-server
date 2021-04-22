@@ -159,8 +159,7 @@ class dyn_buf_t {
   static constexpr auto MAX_DATA_SIZE = block_t::MAX_DATA_SIZE;
 
   /** Default constructor */
-  dyn_buf_t() : m_heap(), m_size() {
-    UT_LIST_INIT(m_list, &block_t::m_node);
+  dyn_buf_t() : m_heap(), m_list(&block_t::m_node), m_size() {
     push_back(&m_first_block);
   }
 
@@ -174,7 +173,7 @@ class dyn_buf_t {
       m_heap = nullptr;
 
       /* Initialise the list and add the first block. */
-      UT_LIST_INIT(m_list, &block_t::m_node);
+      m_list.clear();
       push_back(&m_first_block);
     } else {
       m_first_block.init();

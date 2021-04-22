@@ -2592,7 +2592,7 @@ void lock_move_reorganize_page(
                                reorganized page */
 {
   lock_t *lock;
-  UT_LIST_BASE_NODE_T(lock_t) old_locks;
+  UT_LIST_BASE_NODE_T(lock_t) old_locks(&lock_t::trx_locks);
   mem_heap_t *heap = nullptr;
   ulint comp;
   {
@@ -2611,8 +2611,6 @@ void lock_move_reorganize_page(
     /* Copy first all the locks on the page to heap and reset the
     bitmaps in the original locks; chain the copies of the locks
     using the trx_locks field in them. */
-
-    UT_LIST_INIT(old_locks, &lock_t::trx_locks);
 
     do {
       /* Make a copy of the lock */
@@ -5849,6 +5847,8 @@ void lock_get_psi_event(const lock_t *lock, ulonglong *thread_id,
 #endif
 }
 
+trx_lock_t::trx_lock_t() : trx_locks{&lock_t::trx_locks} {}
+
 /** Get the first lock of a trx lock list.
 @param[in]	trx_lock	the trx lock
 @return The first lock
@@ -6264,6 +6264,8 @@ bool lock_table_has_locks(const dict_table_t *table) {
 
   bool has_locks = table->n_rec_locks.load() > 0;
   if (!has_locks) {
+    /* TBD: can we remove latch protection despite
+    lock_trx_table_locks_remove(lock) possibly still going on? */
     locksys::Shard_latch_guard table_latch_guard{UT_LOCATION_HERE, *table};
     has_locks = UT_LIST_GET_LEN(table->locks) > 0;
   }
@@ -6286,13 +6288,6 @@ bool lock_table_has_locks(const dict_table_t *table) {
 @param[out] lock_list List to initialise */
 void lock_table_lock_list_init(table_lock_list_t *lock_list) {
   UT_LIST_INIT(*lock_list, &lock_table_t::locks);
-}
-
-/** Initialise the trx lock list. */
-void lock_trx_lock_list_init(
-    trx_lock_list_t *lock_list) /*!< List to initialise */
-{
-  UT_LIST_INIT(*lock_list, &lock_t::trx_locks);
 }
 
 /** Set the lock system timeout event. */

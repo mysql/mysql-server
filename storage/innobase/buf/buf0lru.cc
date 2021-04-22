@@ -1357,6 +1357,16 @@ loop:
   goto loop;
 }
 
+/** Calculates the desired number for the old blocks list.
+@param[in]	buf_pool	buffer pool instance */
+static size_t calculate_desired_LRU_old_size(const buf_pool_t *buf_pool) {
+  return ut_min(UT_LIST_GET_LEN(buf_pool->LRU) *
+                    static_cast<size_t>(buf_pool->LRU_old_ratio) /
+                    BUF_LRU_OLD_RATIO_DIV,
+                UT_LIST_GET_LEN(buf_pool->LRU) -
+                    (BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN));
+}
+
 /** Moves the LRU_old pointer so that the length of the old blocks list
 is inside the allowed limits.
 @param[in]	buf_pool	buffer pool instance */
@@ -1385,10 +1395,7 @@ void buf_LRU_old_adjust_len(buf_pool_t *buf_pool) {
 #endif /* UNIV_LRU_DEBUG */
 
   old_len = buf_pool->LRU_old_len;
-  new_len = ut_min(UT_LIST_GET_LEN(buf_pool->LRU) * buf_pool->LRU_old_ratio /
-                       BUF_LRU_OLD_RATIO_DIV,
-                   UT_LIST_GET_LEN(buf_pool->LRU) -
-                       (BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN));
+  new_len = calculate_desired_LRU_old_size(buf_pool);
 
   for (;;) {
     buf_page_t *LRU_old = buf_pool->LRU_old;
@@ -2384,27 +2391,20 @@ func_exit:
 /** Validates the LRU list for one buffer pool instance.
 @param[in]	buf_pool	buffer pool instance */
 static void buf_LRU_validate_instance(buf_pool_t *buf_pool) {
-  ulint old_len;
-  ulint new_len;
-
   mutex_enter(&buf_pool->LRU_list_mutex);
 
   if (UT_LIST_GET_LEN(buf_pool->LRU) >= BUF_LRU_OLD_MIN_LEN) {
     ut_a(buf_pool->LRU_old);
-    old_len = buf_pool->LRU_old_len;
 
-    new_len = ut_min(UT_LIST_GET_LEN(buf_pool->LRU) * buf_pool->LRU_old_ratio /
-                         BUF_LRU_OLD_RATIO_DIV,
-                     UT_LIST_GET_LEN(buf_pool->LRU) -
-                         (BUF_LRU_OLD_TOLERANCE + BUF_LRU_NON_OLD_MIN_LEN));
+    const size_t new_len = calculate_desired_LRU_old_size(buf_pool);
 
-    ut_a(old_len >= new_len - BUF_LRU_OLD_TOLERANCE);
-    ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
+    ut_a(buf_pool->LRU_old_len >= new_len - BUF_LRU_OLD_TOLERANCE);
+    ut_a(buf_pool->LRU_old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
   }
 
   CheckInLRUList::validate(buf_pool);
 
-  old_len = 0;
+  ulint old_len = 0;
 
   for (buf_page_t *bpage = UT_LIST_GET_FIRST(buf_pool->LRU); bpage != nullptr;
        bpage = UT_LIST_GET_NEXT(LRU, bpage)) {

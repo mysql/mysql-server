@@ -136,6 +136,8 @@ void trx_set_detailed_error_from_file(
   os_file_read_string(file, trx->detailed_error, MAX_DETAILED_ERROR_LEN);
 }
 
+trx_t::trx_t() : trx_savepoints{&trx_named_savept_t::trx_savepoints} {}
+
 /** Initialize transaction object.
  @param trx trx to initialize */
 static void trx_init(trx_t *trx) {
@@ -244,11 +246,7 @@ struct TrxFactory {
     allocated object. trx_t objects are allocated by
     ut_zalloc() in Pool::Pool() which would not call
     the constructors of the trx_t members. */
-    new (&trx->mod_tables) trx_mod_tables_t();
-
-    new (&trx->lock.rec_pool) lock_pool_t();
-
-    new (&trx->lock.table_pool) lock_pool_t();
+    new (trx) trx_t();
 
     trx_init(trx);
 
@@ -262,10 +260,6 @@ struct TrxFactory {
         reinterpret_cast<char *>(ut_zalloc_nokey(MAX_DETAILED_ERROR_LEN));
 
     trx->lock.lock_heap = mem_heap_create_typed(1024, MEM_HEAP_FOR_LOCK_HEAP);
-
-    lock_trx_lock_list_init(&trx->lock.trx_locks);
-
-    UT_LIST_INIT(trx->trx_savepoints, &trx_named_savept_t::trx_savepoints);
 
     mutex_create(LATCH_ID_TRX, &trx->mutex);
     mutex_create(LATCH_ID_TRX_UNDO, &trx->undo_mutex);
@@ -604,9 +598,6 @@ void trx_free_prepared_or_active_recovered(trx_t *trx) {
   ut_a(!trx->read_only);
 
   trx->state = TRX_STATE_NOT_STARTED;
-
-  /* Undo trx_resurrect_table_locks(). */
-  lock_trx_lock_list_init(&trx->lock.trx_locks);
 
   trx_free(trx);
 }

@@ -473,8 +473,6 @@ static ibool row_merge_fts_doc_tokenize(
 
     if (parser != nullptr) {
       if (t_ctx->processed_len == 0) {
-        UT_LIST_INIT(t_ctx->fts_token_list, &row_fts_token_t::token_list);
-
         /* Parse the whole doc and cache tokens */
         row_merge_fts_doc_tokenize_by_parser(doc, parser, t_ctx);
 

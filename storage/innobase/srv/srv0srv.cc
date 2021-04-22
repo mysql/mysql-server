@@ -2882,6 +2882,10 @@ static bool srv_task_execute(void) {
   ut_ad(!srv_read_only_mode);
   ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
+  if (UT_LIST_GET_LEN(srv_sys->tasks) == 0) {
+    return false;
+  }
+
   mutex_enter(&srv_sys->tasks_mutex);
 
   if (UT_LIST_GET_LEN(srv_sys->tasks) > 0) {
@@ -3293,17 +3297,9 @@ void srv_que_task_enqueue_low(que_thr_t *thr) /*!< in: query thread */
 /** Get count of tasks in the queue.
  @return number of tasks in queue */
 ulint srv_get_task_queue_length(void) {
-  ulint n_tasks;
-
   ut_ad(!srv_read_only_mode);
 
-  mutex_enter(&srv_sys->tasks_mutex);
-
-  n_tasks = UT_LIST_GET_LEN(srv_sys->tasks);
-
-  mutex_exit(&srv_sys->tasks_mutex);
-
-  return (n_tasks);
+  return UT_LIST_GET_LEN(srv_sys->tasks);
 }
 
 /** Wakeup the purge threads. */

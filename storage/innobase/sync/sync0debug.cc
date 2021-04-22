@@ -1675,9 +1675,7 @@ void sync_check_init(size_t max_threads) {
 
   sync_latch_meta_init();
 
-  /* Init the rw-lock & mutex list and create the mutex to protect it. */
-
-  UT_LIST_INIT(rw_lock_list, &rw_lock_t::list);
+  /* Init the mutex list and create the mutex to protect it. */
 
   mutex_create(LATCH_ID_RW_LOCK_LIST, &rw_lock_list_mutex);
 

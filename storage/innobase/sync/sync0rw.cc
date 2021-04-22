@@ -166,8 +166,8 @@ wait_ex_event:	A thread may only wait on the wait_ex_event after it has
                    Verify lock_word == 0 (waiting thread holds x_lock)
 */
 
-/* The global list of rw-locks */
-rw_lock_list_t rw_lock_list;
+/** The global list of rw-locks */
+rw_lock_list_t rw_lock_list{&rw_lock_t::list};
 ib_mutex_t rw_lock_list_mutex;
 
 #ifdef UNIV_DEBUG
@@ -221,8 +221,6 @@ void rw_lock_create_func(
 
 #ifdef UNIV_DEBUG
   lock->m_rw_lock = true;
-
-  UT_LIST_INIT(lock->debug_list, &rw_lock_debug_t::list);
 
   lock->m_id = sync_latch_get_id(sync_latch_get_name(level));
   ut_a(lock->m_id != LATCH_ID_NONE);

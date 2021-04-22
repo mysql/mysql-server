@@ -36,6 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Do not include univ.i because univ.i includes this. */
 
+#include <atomic>
 #include "ut0dbg.h"
 
 /* This module implements the two-way linear list. Note that a single
@@ -61,6 +62,12 @@ struct ut_list_node {
 /** Macro used for legacy reasons */
 #define UT_LIST_NODE_T(t) ut_list_node<t>
 
+#ifdef UNIV_DEBUG
+#define UT_LIST_INITIALISED 0xCAFE
+#endif /* UNIV_DEBUG */
+
+#define UT_LIST_IS_INITIALISED(b) ((b).init == UT_LIST_INITIALISED)
+
 /** The two-way list base node. The base node contains pointers to both ends
  of the list and a count of nodes in the list (excluding the base node
  from the count). We also store a pointer to the member field so that it
@@ -73,53 +80,73 @@ struct ut_list_base {
   typedef NodePtr node_ptr;
   typedef ut_list_node<Type> node_type;
 
-  ulint count{0};            /*!< count of nodes in list */
-  elem_type *start{nullptr}; /*!< pointer to list start,
-                             NULL if empty */
-  elem_type *end{nullptr};   /*!< pointer to list end,
-                             NULL if empty */
-  node_ptr node{nullptr};    /*!< Pointer to member field
-                             that is used as a link node */
+  ut_list_base() = delete;
+  ut_list_base(node_ptr node_member_ptr)
+      : node(node_member_ptr)
 #ifdef UNIV_DEBUG
-  ulint init{0}; /*!< UT_LIST_INITIALISED if
-                 the list was initialised with
-                 UT_LIST_INIT() */
-#endif           /* UNIV_DEBUG */
+        ,
+        init(UT_LIST_INITIALISED)
+#endif
+  {
+  }
+
+  /** Pointer to list start, NULL if empty. */
+  elem_type *start{nullptr};
+  /** Pointer to list end, NULL if empty. */
+  elem_type *end{nullptr};
+  /** Pointer to member field that is used as a link node. */
+  node_ptr node{nullptr};
+#ifdef UNIV_DEBUG
+  /** UT_LIST_INITIALISED if the list was initialised with the constructor. It
+  is used to detect if the ut_list_base object is used directly after
+  allocating memory from malloc-like calls that do not run constructor. */
+  ulint init{0};
+#endif /* UNIV_DEBUG */
+
+  /** Returns number of nodes currently present in the list. */
+  size_t get_length() const {
+    ut_ad(UT_LIST_IS_INITIALISED(*this));
+    return count.load(std::memory_order_acquire);
+  }
+
+  /** Updates the length of the list by the amount specified.
+   @param diff the value by which to increase the length. Can be negative. */
+  void update_length(int diff) {
+    ut_ad(diff > 0 || static_cast<size_t>(-diff) <= get_length());
+    count.store(get_length() + diff, std::memory_order_release);
+  }
+
+  void clear() {
+    start = nullptr;
+    end = nullptr;
+    count.store(0);
+  }
 
   void reverse() {
     Type *tmp = start;
     start = end;
     end = tmp;
   }
+
+ private:
+  /** Number of nodes in list. It is atomic to allow unprotected reads. Writes
+  must be protected by some external latch. */
+  std::atomic<size_t> count{0};
 };
 
 #define UT_LIST_BASE_NODE_T(t) ut_list_base<t, ut_list_node<t> t::*>
 
-#ifdef UNIV_DEBUG
-#define UT_LIST_INITIALISED 0xCAFE
-#define UT_LIST_INITIALISE(b) (b).init = UT_LIST_INITIALISED
-#define UT_LIST_IS_INITIALISED(b) ut_a(((b).init == UT_LIST_INITIALISED))
-#else
-#define UT_LIST_INITIALISE(b)
-#define UT_LIST_IS_INITIALISED(b)
-#endif /* UNIV_DEBUG */
-
-/** Note: This is really the list constructor. We should be able to use
- placement new here.
- Initializes the base node of a two-way list.
+/** Initializes the base node of a two-way list.
  @param b the list base node
  @param pmf point to member field that will be used as the link node */
-#define UT_LIST_INIT(b, pmf) \
-  {                          \
-    (b).count = 0;           \
-    (b).start = 0;           \
-    (b).end = 0;             \
-    (b).node = pmf;          \
-    UT_LIST_INITIALISE(b);   \
+#define UT_LIST_INIT(b, pmf)                                          \
+  {                                                                   \
+    auto &list_ref = (b);                                             \
+    new (&list_ref) std::remove_reference_t<decltype(list_ref)>(pmf); \
   }
 
 /** Functor for accessing the embedded node within a list element. This is
-required because some lists can have the node emebedded inside a nested
+required because some lists can have the node embedded inside a nested
 struct/union. See lock0priv.h (table locks) for an example. It provides a
 specialised functor to grant access to the list node. */
 template <typename Type>
@@ -140,7 +167,7 @@ template <typename List>
 void ut_list_prepend(List &list, typename List::elem_type *elem) {
   typename List::node_type &elem_node = elem->*list.node;
 
-  UT_LIST_IS_INITIALISED(list);
+  ut_ad(UT_LIST_IS_INITIALISED(list));
 
   elem_node.prev = nullptr;
   elem_node.next = list.start;
@@ -159,7 +186,7 @@ void ut_list_prepend(List &list, typename List::elem_type *elem) {
     list.end = elem;
   }
 
-  ++list.count;
+  list.update_length(1);
 }
 
 /** Adds the node as the first element in a two-way linked list.
@@ -176,7 +203,7 @@ void ut_list_append(List &list, typename List::elem_type *elem,
                     Functor get_node) {
   typename List::node_type &node = get_node(*elem);
 
-  UT_LIST_IS_INITIALISED(list);
+  ut_ad(UT_LIST_IS_INITIALISED(list));
 
   node.next = nullptr;
   node.prev = list.end;
@@ -195,7 +222,7 @@ void ut_list_append(List &list, typename List::elem_type *elem,
     list.start = elem;
   }
 
-  ++list.count;
+  list.update_length(1);
 }
 
 /** Adds the node as the last element in a two-way linked list.
@@ -220,7 +247,7 @@ template <typename List>
 void ut_list_insert(List &list, typename List::elem_type *elem1,
                     typename List::elem_type *elem2) {
   ut_ad(elem1 != elem2);
-  UT_LIST_IS_INITIALISED(list);
+  ut_ad(UT_LIST_IS_INITIALISED(list));
 
   typename List::node_type &elem1_node = elem1->*list.node;
   typename List::node_type &elem2_node = elem2->*list.node;
@@ -240,7 +267,7 @@ void ut_list_insert(List &list, typename List::elem_type *elem1,
     list.end = elem2;
   }
 
-  ++list.count;
+  list.update_length(1);
 }
 
 /** Inserts a ELEM2 after ELEM1 in a list.
@@ -257,8 +284,8 @@ void ut_list_insert(List &list, typename List::elem_type *elem1,
 template <typename List, typename Functor>
 void ut_list_remove(List &list, typename List::node_type &node,
                     Functor get_node) {
-  ut_a(list.count > 0);
-  UT_LIST_IS_INITIALISED(list);
+  ut_a(list.get_length() > 0);
+  ut_ad(UT_LIST_IS_INITIALISED(list));
 
   if (node.next != nullptr) {
     typename List::node_type &next_node = get_node(*node.next);
@@ -279,7 +306,7 @@ void ut_list_remove(List &list, typename List::node_type &node,
   node.next = nullptr;
   node.prev = nullptr;
 
-  --list.count;
+  list.update_length(-1);
 }
 
 /** Removes a node from a two-way linked list.
@@ -322,7 +349,7 @@ void ut_list_remove(List &list, typename List::elem_type *elem) {
  its length.
  @param BASE the base node (not a pointer to it).
  @return the number of nodes in the list */
-#define UT_LIST_GET_LEN(BASE) (BASE).count
+#define UT_LIST_GET_LEN(BASE) (BASE).get_length()
 
 /** Gets the first node in a two-way list.
  @param BASE the base node (not a pointer to it)
@@ -343,21 +370,21 @@ struct NullValidate {
  @param[in,out]	functor	Functor that is called for each element in the list */
 template <typename List, class Functor>
 void ut_list_map(const List &list, Functor &functor) {
-  ulint count = 0;
+  size_t count = 0;
 
-  UT_LIST_IS_INITIALISED(list);
+  ut_ad(UT_LIST_IS_INITIALISED(list));
 
   for (typename List::elem_type *elem = list.start; elem != nullptr;
        elem = (elem->*list.node).next, ++count) {
     functor(elem);
   }
 
-  ut_a(count == list.count);
+  ut_a(count == list.get_length());
 }
 
 template <typename List>
 void ut_list_reverse(List &list) {
-  UT_LIST_IS_INITIALISED(list);
+  ut_ad(UT_LIST_IS_INITIALISED(list));
 
   for (typename List::elem_type *elem = list.start; elem != nullptr;
        elem = (elem->*list.node).prev) {
@@ -378,14 +405,14 @@ void ut_list_validate(const List &list, Functor &functor) {
   ut_list_map(list, functor);
 
   /* Validate the list backwards. */
-  ulint count = 0;
+  size_t count = 0;
 
   for (typename List::elem_type *elem = list.end; elem != nullptr;
        elem = (elem->*list.node).prev) {
     ++count;
   }
 
-  ut_a(count == list.count);
+  ut_a(count == list.get_length());
 }
 
 /** Check the consistency of a two-way list.
@@ -417,6 +444,8 @@ void ut_list_move_to_front(List &list, typename List::elem_type *elem) {
 template <typename List>
 bool ut_list_exists(List &list, typename List::elem_type *elem) {
   typename List::elem_type *e1;
+
+  ut_ad(UT_LIST_IS_INITIALISED(list));
 
   for (e1 = UT_LIST_GET_FIRST(list); e1 != nullptr;
        e1 = (e1->*list.node).next) {

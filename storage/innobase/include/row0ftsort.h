@@ -122,7 +122,7 @@ struct fts_tokenize_ctx {
   ib_rbt_t *cached_stopword{nullptr}; /*!< in: stopword list */
   dfield_t sort_field[FTS_NUM_FIELDS_SORT];
   /*!< in: sort field */
-  fts_token_list_t fts_token_list;
+  fts_token_list_t fts_token_list{&row_fts_token_t::token_list};
 };
 
 typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;

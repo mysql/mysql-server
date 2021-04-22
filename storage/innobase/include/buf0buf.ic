@@ -1198,9 +1198,7 @@ UNIV_INLINE
 ulint buf_get_withdraw_depth(buf_pool_t *buf_pool) {
   os_rmb;
   if (buf_pool->curr_size >= buf_pool->old_size) return 0;
-  mutex_enter(&buf_pool->free_list_mutex);
   ulint withdraw_len = UT_LIST_GET_LEN(buf_pool->withdraw);
-  mutex_exit(&buf_pool->free_list_mutex);
   return (buf_pool->withdraw_target > withdraw_len
               ? buf_pool->withdraw_target - withdraw_len
               : 0);

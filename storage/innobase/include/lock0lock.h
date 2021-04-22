@@ -828,9 +828,6 @@ void lock_unlock_table_autoinc(trx_t *trx); /*!< in/out: transaction */
  the wait lock.
  @return DB_DEADLOCK, DB_LOCK_WAIT or DB_SUCCESS */
 dberr_t lock_trx_handle_wait(trx_t *trx); /*!< in/out: trx lock state */
-/** Initialise the trx lock list. */
-void lock_trx_lock_list_init(
-    trx_lock_list_t *lock_list); /*!< List to initialise */
 
 /** Set the lock system timeout event. */
 void lock_set_timeout_event();

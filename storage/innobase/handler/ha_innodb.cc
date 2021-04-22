@@ -5768,13 +5768,9 @@ static bool innobase_rollback_to_savepoint_can_release_mdl(
 
   TrxInInnoDB trx_in_innodb(trx);
 
-  trx_mutex_enter(trx);
   ut_ad(thd == current_thd);
   ut_ad(trx->lock.wait_lock == nullptr);
-  const bool has_no_locks = (UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-  trx_mutex_exit(trx);
-
-  return has_no_locks;
+  return UT_LIST_GET_LEN(trx->lock.trx_locks) == 0;
 }
 
 /** Release transaction savepoint name.
