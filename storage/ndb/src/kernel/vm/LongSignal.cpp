@@ -65,7 +65,9 @@ verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
    * Nature abhors a segmented section with length 0
    */
   //assert(totalSize != 0);
+#ifdef VM_TRACE
   assert(lastSegIVal != RNIL); /* Should never be == RNIL */
+#endif
   /* We ignore m_ownerRef */
 
   if (totalSize <= SectionSegment::DataLength)
@@ -97,7 +99,9 @@ verifySection(Uint32 firstIVal, SectionSegmentPool& thePool)
     /* Once we are here, we are on the last Segment of this Section
      * Check that last segment is as stated in the first segment
      */
+#ifdef VM_TRACE
     assert(currIVal == lastSegIVal);
+#endif
     // m_nextSegment not always set properly on last segment
     //assert(curr->m_nextSegment == RNIL);
     /* Ignore m_ownerRef, m_sz, m_lastSegment of last segment */
