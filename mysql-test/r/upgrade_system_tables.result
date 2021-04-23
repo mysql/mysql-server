@@ -1,3 +1,6 @@
+# Create and initialize new data directory
+# Restart server on the newly initialized data directory.
+# restart: --datadir=MYSQLD_DATADIR --log-error=MYSQLD_ERROR_LOG
 
 # Dump system table information for the newly initialized data directory
 # Adding debug point 'skip_dd_table_access_check' to @@GLOBAL.debug
@@ -53,7 +56,7 @@ include/filter_file.inc
 
 # Compare fresh and upgraded columns
 
-# Cleanup.
+# Stop server and cleanup.
 # Copy the 5.7 data zip file to working directory and check it exists.
 # Unzip 5.7 data directory.
 # Set data directory and log file
@@ -63,6 +66,6 @@ include/filter_file.inc
 # Check for errors in the error log.
 Pattern "\[ERROR\]" not found
 # Check for mysql_upgrade_info file in data directory.
-# Cleanup.
+# Stop server and cleanup.
 # Restart the server with default options.
 # restart
