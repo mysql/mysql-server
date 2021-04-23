@@ -136,7 +136,7 @@ SET(GCS_SOURCES
   src/bindings/xcom/gcs_xcom_statistics_interface.cc
   src/bindings/xcom/gcs_xcom_proxy.cc
   src/bindings/xcom/gcs_xcom_communication_protocol_changer.cc
-  ../../../extra/lz4/xxhash.c # required by gcs_message_stage_split
+  ${BUNDLED_LZ4_PATH}/xxhash.c # required by gcs_message_stage_split
   src/bindings/xcom/gcs_message_stage_split.cc
   src/bindings/xcom/gcs_xcom_synode.cc
   src/bindings/xcom/gcs_xcom_expels_in_progress.cc)
@@ -193,7 +193,9 @@ ADD_COMPILE_DEFINITIONS(
   ${GCS_SOURCES}
   COMPILE_DEFINITIONS MYSQL_DYNAMIC_PLUGIN)
 
-ADD_COMPILE_DEFINITIONS(../../../extra/lz4/xxhash.c
+INCLUDE_DIRECTORIES(${BUNDLED_LZ4_PATH})
+
+ADD_COMPILE_DEFINITIONS(${BUNDLED_LZ4_PATH}/xxhash.c
   COMPILE_DEFINITIONS "XXH_NAMESPACE=GCS_")
 
 # Warn about variable shadowing

@@ -26,9 +26,9 @@
 #include <unordered_set>
 #include <vector>
 
-#include "extra/lz4/my_xxhash.h"
 #include "include/my_murmur3.h"
 #include "my_alloc.h"
+#include "my_xxhash.h"
 #include "sql/hash_join_buffer.h"
 #include "sql/hash_join_iterator.h"
 #include "sql/item_cmpfunc.h"

@@ -704,7 +704,7 @@ SET(SQL_SOURCE
   ${CONF_SOURCES}
   ${SQL_SHARED_SOURCES}
   ${SQL_HEADERS}
-  ../extra/lz4/xxhash.c
+  ${BUNDLED_LZ4_PATH}/xxhash.c
   ../libmysql/errmsg.cc
   ../sql-common/client.cc
   ../sql-common/client_plugin.cc
@@ -759,9 +759,16 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
 ENDIF()
 
 ADD_COMPILE_DEFINITIONS(
-  ../extra/lz4/xxhash.c
+  ${BUNDLED_LZ4_PATH}/xxhash.c
   COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
-)
+  )
+
+ADD_COMPILE_FLAGS(
+  ${BUNDLED_LZ4_PATH}/xxhash.c
+  hash_join_iterator.cc
+  rpl_write_set_handler.cc
+  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
+  )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC
 IF(WIN32)
