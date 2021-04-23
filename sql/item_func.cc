@@ -6498,6 +6498,18 @@ void Item_func_set_user_var::print(const THD *thd, String *str,
   str->append(STRING_WITH_LEN(")"));
 }
 
+bool Item_func_set_user_var::send(Protocol *protocol, String *str_arg) {
+  if (result_field) {
+    check(true);
+    update();
+    /*
+      TODO This func have to be changed to avoid sending data as a field.
+    */
+    return protocol->store_field(result_field);
+  }
+  return Item::send(protocol, str_arg);
+}
+
 void Item_func_set_user_var::make_field(Send_field *tmp_field) {
   if (result_field) {
     result_field->make_send_field(tmp_field);
