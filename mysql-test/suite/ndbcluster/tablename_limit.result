@@ -24,9 +24,9 @@ use abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm;
 CREATE TABLE abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm (
 a int primary key
 ) engine = NDB;
-ERROR HY000: Can't create table 'abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm'
+ERROR HY000: Can't create table 'abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm' (use SHOW WARNINGS for more info).
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1296	Got error 283 'Table is being dropped' from NDB
-Error	1005	Can't create table 'abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm'
+Error	1005	Can't create table 'abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm' (use SHOW WARNINGS for more info).
 DROP DATABASE abcdefghijklmnopqrstuvxyzabcdefghijklmnopqrstuvxyzabcdefghijklm;

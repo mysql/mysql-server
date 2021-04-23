@@ -35,7 +35,7 @@ set GLOBAL debug="+d,ndb_schema_dist_client_killed_before_write";
 CREATE TABLE t2 (
 a int primary key
 ) engine NDB;
-ERROR HY000: Can't create table 't2'
+ERROR HY000: Can't create table 't2' (use SHOW WARNINGS for more info).
 # ALTER TABLE should abort the distribution but succeed with warnings
 ALTER TABLE t1 ADD COLUMN b int, algorithm = COPY;
 Warnings:
