@@ -129,7 +129,8 @@ SET(TESTS
   bounds_checked_array
   byteorder
   calloc
-# charset_bug28956360 TODO(tdidriks) DISABLE until Bug #32788301 is fixed.
+  charset_bug28956360
+  charset_bug32788301
   collation_loader
   cost_estimate
   dbug
