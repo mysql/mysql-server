@@ -28,11 +28,11 @@
 #include <utility>
 #include <vector>
 
-#include "extra/lz4/my_xxhash.h"
 #include "extra/robin-hood-hashing/robin_hood.h"
 #include "field_types.h"
 #include "my_alloc.h"
 #include "my_bit.h"
+#include "my_xxhash.h"
 
 #include "my_inttypes.h"
 #include "my_sys.h"

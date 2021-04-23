@@ -31,13 +31,13 @@
 #include <utility>
 #include <vector>
 
-#include "../extra/lz4/my_xxhash.h"  // IWYU pragma: keep
 #include "lex_string.h"
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_murmur3.h"  // murmur3_32
+#include "my_xxhash.h"   // IWYU pragma: keep
 #include "mysql_com.h"
 #include "sql/field.h"  // Field
 #include "sql/json_binary.h"
