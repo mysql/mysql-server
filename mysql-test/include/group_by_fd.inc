@@ -306,22 +306,27 @@ let $source_no_alias=($source_query);
 eval select sin(a) as z from $source group by b;
 --error ER_WRONG_FIELD_WITH_GROUP
 eval select sin(a) as z from $source group by d,b;
+--replace_numeric_round 15
 eval select sin(a) as z from $source group by c,b;
 --error ER_WRONG_FIELD_WITH_GROUP
 eval select (select sin(a)) as z from $source group by d,b;
+--replace_numeric_round 15
 eval select (select sin(a)) as z from $source group by c,b;
 --error ER_WRONG_FIELD_WITH_GROUP
 eval select sin(a) as z from t1 group by c*2,b*2;
+--replace_numeric_round 15
 eval select sin(a+b*c) as z from $source group by c,b;
 eval $show_trace;
 
 eval select sin(a) as z from $source where b=2 group by c;
 
 --echo # {v1.b,v1.c}->v1.a->t2.a
+--replace_numeric_round 15
 eval select sin(t2.a) as z from $source, $source_no_alias as t2
  where t2.a=v1.a group by v1.b,v1.c;
 eval $show_trace;
 
+--replace_numeric_round 15
 eval select sin(t2.a) as z from $source, $source_no_alias as t2
  where t2.b=v1.b and t2.c=v1.c group by v1.b,v1.c;
 
