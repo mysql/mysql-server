@@ -11066,6 +11066,7 @@ Warnings:
 Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'
+Warning	1292	Truncated incorrect INTEGER value: 'c'
 select count(*) from information_schema.OPTIMIZER_TRACE;
 count(*)
 1
@@ -11179,7 +11180,7 @@ select @trace;
               {
                 "table": "`t1`",
                 "original_table_condition": "(`t1`.`data` = 'c')",
-                "final_table_condition   ": "(`t1`.`data` = <cache>('c'))"
+                "final_table_condition   ": "(`t1`.`data` = 'c')"
               }
             ] /* finalizing_table_conditions */
           },
@@ -11211,6 +11212,7 @@ execute stmt using @param;
 count(*)
 0
 Warnings:
+Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'
 Warning	1292	Truncated incorrect INTEGER value: 'c'

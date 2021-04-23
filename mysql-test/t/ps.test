@@ -3504,3 +3504,17 @@ CREATE TABLE t1 (a INTEGER);
 PREPARE s FROM 'SELECT 1 FROM t1 WHERE TRUE OR ( SELECT 1 FROM (SELECT a) q ) = 1';
 EXECUTE s;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32808790: DON'T ADD CACHES AROUND PREPARED STATEMENT PARAMETERS
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER NOT NULL, a INTEGER );
+
+# Verify there's no <cache> around the 2.
+PREPARE q FROM 'EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk = ?';
+SET @v = 2;
+--replace_regex /  \(cost=.*//
+EXECUTE q USING @v;
+
+DROP TABLE t1;
