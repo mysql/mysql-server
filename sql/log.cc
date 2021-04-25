@@ -1960,18 +1960,37 @@ void destroy_error_log() {
 }
 
 bool reopen_error_log() {
+  int component_failures;
   bool result = false;
 
   assert(error_log_initialized);
 
-  // reload all error logging services
-  log_builtins_error_stack_flush();
+  // call flush function in all logging services
+  if ((component_failures = log_builtins_error_stack_flush()) < 0) {
+    // If flushing failed and there is a user session, alert the user.
+    if (current_thd)
+      push_warning_printf(
+          current_thd, Sql_condition::SL_WARNING,
+          ER_DA_ERROR_LOG_COMPONENT_FLUSH_FAILED,
+          ER_THD(current_thd, ER_DA_ERROR_LOG_COMPONENT_FLUSH_FAILED),
+          -component_failures);
+
+    // Log failure to error-log.
+    LogErr(ERROR_LEVEL, ER_LOG_COMPONENT_FLUSH_FAILED, -component_failures);
+  }
 
   if (error_log_file) {
     mysql_mutex_lock(&LOCK_error_log);
     result = open_error_log(error_log_file, true);
     mysql_mutex_unlock(&LOCK_error_log);
 
+    /*
+      This may in theory get bounced to the error log if no session
+      is attached to this thread (e.g. when flush/reload is called
+      by SIGHUP). That's OK though as we don't hold an X-lock on
+      THR_LOCK_log_stack here the way we did during
+      log_builtins_error_stack_flush() above.
+    */
     if (result)
       my_error(ER_DA_CANT_OPEN_ERROR_LOG, MYF(0), error_log_file, ".",
                ""); /* purecov: inspected */

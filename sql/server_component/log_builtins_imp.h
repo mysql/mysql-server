@@ -153,6 +153,9 @@ class log_builtins_imp {
 
   static DEFINE_METHOD(log_service_error, close_errstream,
                        (void **my_errstream));
+
+  static DEFINE_METHOD(log_service_error, reopen_errstream,
+                       (const char *file, void **my_errstream));
 };
 
 /**

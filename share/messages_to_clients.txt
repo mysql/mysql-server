@@ -9565,6 +9565,9 @@ ER_KERBEROS_CREATE_USER
 ER_INSTALL_PLUGIN_CONFLICT_CLIENT
   eng "Cannot install the %.192s plugin when the %.192s plugin is installed."
 
+ER_DA_ERROR_LOG_COMPONENT_FLUSH_FAILED
+  eng "%d error logging component(s) failed to flush. For file-based logs this can happen when the path or permissions of the log-file have changed. Failure to flush filed-based logs may affect log-rotation."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
