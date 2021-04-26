@@ -891,12 +891,12 @@ class Item : public Parse_tree_node {
   // Return the default result type for a given data type
   static Item_result type_to_result(enum_field_types type) {
     switch (type) {
+      case MYSQL_TYPE_BOOL:
       case MYSQL_TYPE_TINY:
       case MYSQL_TYPE_SHORT:
       case MYSQL_TYPE_INT24:
       case MYSQL_TYPE_LONG:
       case MYSQL_TYPE_LONGLONG:
-      case MYSQL_TYPE_BOOL:
       case MYSQL_TYPE_BIT:
       case MYSQL_TYPE_YEAR:
         return INT_RESULT;

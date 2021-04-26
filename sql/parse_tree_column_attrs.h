@@ -619,12 +619,12 @@ class PT_bit_type : public PT_type {
   const char *get_length() const override { return length; }
 };
 
-// Does this need to be PT_numeric_type?
 /**
   Node for the BOOL/BOOLEAN type
 
   @ingroup ptn_column_types
 */
+// Does this need to be PT_numeric_type?
 class PT_boolean_type : public PT_type {
  public:
   PT_boolean_type() : PT_type(MYSQL_TYPE_BOOL) {}

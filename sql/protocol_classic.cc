@@ -3786,7 +3786,7 @@ bool Protocol_binary::store_boolean(longlong from) {
   assert(field_types == nullptr ||
               field_types[field_pos] == MYSQL_TYPE_BOOL);
   field_pos++;
-  buff[0] = (char)from;
+  buff[0] = static_cast<char>(from);
   return packet->append(buff, sizeof(buff), PACKET_BUFFER_EXTRA_ALLOC);
 }
 

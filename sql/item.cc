@@ -6768,7 +6768,7 @@ bool Item::send(Protocol *protocol, String *buffer) {
                                       res->charset());
       break;
     }
-    case MYSQL_TYPE_BOOL:{
+    case MYSQL_TYPE_BOOL: {
       longlong nr = val_int();
       if (!null_value) return protocol->store_boolean(nr);
       break;
