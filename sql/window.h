@@ -916,7 +916,7 @@ class Window {
   static bool setup_windows1(THD *thd, Query_block *select,
                              Ref_item_array ref_item_array, TABLE_LIST *tables,
                              mem_root_deque<Item *> *fields,
-                             List<Window> &windows);
+                             List<Window> *windows);
   /**
     Like setup_windows1() but contains operations which must wait until
     the start of the execution phase.
@@ -926,7 +926,7 @@ class Window {
 
     @return false if success, true if error
   */
-  static bool setup_windows2(THD *thd, List<Window> &windows);
+  static bool setup_windows2(THD *thd, List<Window> *windows);
 
   /**
     Check window definitions to remove unused windows. We do this
@@ -935,7 +935,7 @@ class Window {
 
     @param windows         The list of windows defined for this select
   */
-  static void eliminate_unused_objects(List<Window> &windows);
+  static void eliminate_unused_objects(List<Window> *windows);
 
   /**
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.
@@ -956,7 +956,7 @@ class Window {
   /**
     Return true if this window's name is not unique in windows
   */
-  bool check_unique_name(List<Window> &windows);
+  bool check_unique_name(const List<Window> &windows);
 
   /**
     Set up cached items for an partition or an order by list
@@ -1366,7 +1366,7 @@ class Window {
 
     @returns the aggregated sorting costs of the windowing
   */
-  static double compute_cost(double cost, List<Window> &windows);
+  static double compute_cost(double cost, const List<Window> &windows);
 
  private:
   /**
@@ -1393,7 +1393,7 @@ class Window {
 
     @param windows     list of windows
   */
-  static void reorder_and_eliminate_sorts(List<Window> &windows);
+  static void reorder_and_eliminate_sorts(List<Window> *windows);
 
   /**
     Return true of the physical[1] sort orderings for the two windows are the

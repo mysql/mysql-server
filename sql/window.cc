@@ -115,9 +115,6 @@ ORDER *Window::first_order_by() const {
 }
 
 bool Window::check_window_functions1(THD *thd, Query_block *select) {
-  List_iterator<Item_sum> li(m_functions);
-  Item *wf;
-
   m_static_aggregates =
       (m_frame->m_from->m_border_type == WBT_UNBOUNDED_PRECEDING &&
        m_frame->m_to->m_border_type == WBT_UNBOUNDED_FOLLOWING);
@@ -128,11 +125,10 @@ bool Window::check_window_functions1(THD *thd, Query_block *select) {
   m_range_optimizable =
       (m_frame->m_query_expression == WFU_RANGE) && !m_static_aggregates;
 
-  while ((wf = li++)) {
+  for (Item_sum &wf : m_functions) {
     Window_evaluation_requirements reqs;
 
-    Item_sum *wfs = down_cast<Item_sum *>(wf);
-    if (wfs->check_wf_semantics1(thd, select, &reqs)) return true;
+    if (wf.check_wf_semantics1(thd, select, &reqs)) return true;
 
     // [Not] buffering depends only on facts known at resolution time
     m_needs_frame_buffering |= reqs.needs_buffer;
@@ -142,15 +138,15 @@ bool Window::check_window_functions1(THD *thd, Query_block *select) {
         the peers, but it's irrelevant: what matters is the frame's set, not
         the peer set in itself).
       */
-      assert(!wfs->framing());
+      assert(!wf.framing());
       m_needs_peerset = true;
     }
     if (reqs.needs_last_peer_in_frame) {
-      assert(wfs->framing());
+      assert(wf.framing());
       m_needs_last_peer_in_frame = true;
     }
-    if (wfs->needs_partition_cardinality()) {
-      assert(!wfs->framing());
+    if (wf.needs_partition_cardinality()) {
+      assert(!wf.framing());
       m_needs_partition_cardinality = true;
     }
     m_opt_first_row |= reqs.opt_first_row;
@@ -159,7 +155,7 @@ bool Window::check_window_functions1(THD *thd, Query_block *select) {
     m_range_optimizable &= reqs.range_optimizable;
 
     if (thd->lex->is_explain() && !m_frame->m_originally_absent &&
-        !wfs->framing()) {
+        !wf.framing()) {
       /*
         SQL2014 <window clause> SR6b: functions which do not respect frames
         shouldn't have any frame specification in their window; we are more
@@ -170,7 +166,7 @@ bool Window::check_window_functions1(THD *thd, Query_block *select) {
       push_warning_printf(thd, Sql_condition::SL_NOTE,
                           ER_WINDOW_FUNCTION_IGNORES_FRAME,
                           ER_THD(thd, ER_WINDOW_FUNCTION_IGNORES_FRAME),
-                          wfs->func_name(), printable_name());
+                          wf.func_name(), printable_name());
     }
   }
 
@@ -260,7 +256,7 @@ bool Window::setup_range_expressions(THD *thd) {
           Frame uses RANGE <value>, require ORDER BY with one column
           cf. SQL 2014 7.15 <window clause>, SR 13.a.ii
         */
-        if (!o || o->value.elements != 1) {
+        if (!o || o->value.size() != 1) {
           my_error(ER_WINDOW_RANGE_FRAME_ORDER_TYPE, MYF(0), printable_name());
           return true;
         }
@@ -297,7 +293,7 @@ bool Window::setup_range_expressions(THD *thd) {
         inv_cmp = new Item_func_false();
 
         // Build OR tree from bottom up, so left most expression ends up on top
-        for (int i = o->value.elements - 1; i >= 0; i--) {
+        for (int i = o->value.size() - 1; i >= 0; i--) {
           bool asc = elt(o->value, i)->direction == ORDER_ASC;
           Item *nr = m_order_by_items[i]->get_item();
 
@@ -443,17 +439,15 @@ bool Window::resolve_reference(THD *thd, Item_sum *wf, PT_window **m_window) {
 
   Query_block *curr = thd->lex->current_query_block();
 
-  List_iterator<Window> wi(curr->m_windows);
-  Window *w;
-  while ((w = wi++)) {
-    if (w->name() == nullptr) continue;
+  for (Window &w : curr->m_windows) {
+    if (w.name() == nullptr) continue;
 
     if (my_strcasecmp(system_charset_info, (*m_window)->printable_name(),
-                      w->printable_name()) == 0) {
+                      w.printable_name()) == 0) {
       (*m_window)->~PT_window();  // destroy the reference, no further need
 
       /* Replace with pointer to the definition */
-      (*m_window) = static_cast<PT_window *>(w);
+      (*m_window) = static_cast<PT_window *>(&w);
       (*m_window)->m_functions.base_list::push_back(wf);
       return false;
     }
@@ -472,15 +466,12 @@ void Window::check_partition_boundary() {
     anything_changed = true;
   }
 
-  List_iterator<Cached_item> li(m_partition_items);
-  Cached_item *item;
-
   /**
     If we have partitioning and any one of the partitioning columns have
     changed since last row, we have a new partition.
   */
-  while ((item = li++)) {
-    anything_changed |= item->cmp();
+  for (Cached_item &item : m_partition_items) {
+    anything_changed |= item.cmp();
   }
 
   m_partition_border = anything_changed;
@@ -496,15 +487,12 @@ void Window::check_partition_boundary() {
 void Window::reset_order_by_peer_set() {
   DBUG_TRACE;
 
-  List_iterator<Cached_item> li(m_order_by_items);
-  Cached_item *item;
-
-  while ((item = li++)) {
+  for (Cached_item &item : m_order_by_items) {
     /*
       A side-effect of doing this comparison, is to update the cache, so that
       when we compare the new value to itself later, it is in its peer set.
     */
-    (void)item->cmp();
+    (void)item.cmp();
   }
 }
 
@@ -512,11 +500,8 @@ bool Window::in_new_order_by_peer_set(bool compare_all_order_by_items) {
   DBUG_TRACE;
   bool anything_changed = false;
 
-  List_iterator<Cached_item> li(m_order_by_items);
-  Cached_item *item;
-
-  while ((item = li++)) {
-    anything_changed |= item->cmp();
+  for (Cached_item &item : m_order_by_items) {
+    anything_changed |= item.cmp();
     if (!compare_all_order_by_items) break;
   }
 
@@ -544,11 +529,9 @@ bool Window::before_or_after_frame(bool before) {
   */
   assert(
       border_type == WBT_CURRENT_ROW ||
-      (m_order_by_items.elements == 1 && (border_type == WBT_VALUE_PRECEDING ||
-                                          border_type == WBT_VALUE_FOLLOWING)));
+      (m_order_by_items.size() == 1 && (border_type == WBT_VALUE_PRECEDING ||
+                                        border_type == WBT_VALUE_FOLLOWING)));
 
-  List_iterator<Cached_item> li(m_order_by_items);
-  Cached_item *cur_row;
   uint i = 0, j = 0;
   Item_func *comparator = m_comparators[border_type][!before];
   Item_func *inv_comparator = m_inverse_comparators[border_type][!before];
@@ -559,11 +542,11 @@ bool Window::before_or_after_frame(bool before) {
   List<Item> &args = *down_cast<Item_cond_or *>(comparator)->argument_list();
   List<Item> &inv_args =
       *down_cast<Item_cond_or *>(inv_comparator)->argument_list();
-  const PT_order_list *eff_ob = effective_order_by();
-  const SQL_I_List<ORDER> order = eff_ob->value;
-  ORDER *o_expr = order.first;
+  ORDER *o_expr = effective_order_by()->value.first;
 
-  while ((cur_row = li++)) {
+  for (auto it = m_order_by_items.begin(); it != m_order_by_items.end();
+       ++it, o_expr = o_expr->next) {
+    Cached_item *cur_row = &*it;
     /*
       'cur_row' represents the value of the current row's windowing ORDER BY
       expression, and 'candidate' represents the same expression in the
@@ -578,7 +561,6 @@ bool Window::before_or_after_frame(bool before) {
     if (candidate->update_null_value()) return true;
 
     const bool asc = o_expr->direction == ORDER_ASC;
-    o_expr = o_expr->next;
 
     const bool nulls_at_infinity =  // true if NULLs stick to 'infinity'
         before ? asc : !asc;
@@ -639,22 +621,20 @@ bool Window::before_or_after_frame(bool before) {
       cases, we know that x>=y is true and can return "no" without more
       testing.
     */
-    if (!li.is_last())
+    if (std::next(it) != m_order_by_items.end()) {
       if (inv_func->val_int()) return false;
+    }
   }
   return false;
 }
 
-bool Window::check_unique_name(List<Window> &windows) {
-  List_iterator<Window> w_it(windows);
-  Window *w;
-
+bool Window::check_unique_name(const List<Window> &windows) {
   if (m_name == nullptr) return false;
 
-  while ((w = w_it++)) {
-    if (w->name() == nullptr) continue;
+  for (const Window &w : windows) {
+    if (w.name() == nullptr) continue;
 
-    if (w != this && m_name->eq(w->name(), false)) {
+    if (&w != this && m_name->eq(w.name(), false)) {
       my_error(ER_WINDOW_DUPLICATE_NAME, MYF(0), printable_name());
       return true;
     }
@@ -771,15 +751,15 @@ bool Window::equal_sort(Window *w1, Window *w2) {
   return o1 == nullptr && o2 == nullptr;  // equal so far, now also same length
 }
 
-void Window::reorder_and_eliminate_sorts(List<Window> &windows) {
-  const size_t n = windows.elements;
+void Window::reorder_and_eliminate_sorts(List<Window> *windows) {
+  const size_t n = windows->size();
   std::vector<bool> redundant(n, false);
   for (uint i = 0; i < n - 1; i++) {
     for (uint j = i + 1; j < n; j++) {
-      if (equal_sort(windows[i], windows[j])) {
+      if (equal_sort((*windows)[i], (*windows)[j])) {
         if (j > i + 1) {
           // move up to right after window[i], so we can share sort
-          windows.swap_elts(i + 1, j);
+          windows->swap_elts(i + 1, j);
         }  // else already in right place
         redundant[i + 1] = true;
         break;
@@ -788,7 +768,7 @@ void Window::reorder_and_eliminate_sorts(List<Window> &windows) {
   }
 
   for (uint i = 0; i < n; i++)
-    if (redundant[i]) windows[i]->m_sorting_order = nullptr;
+    if (redundant[i]) (*windows)[i]->m_sorting_order = nullptr;
 }
 
 bool Window::check_constant_bound(THD *thd, PT_border *border) {
@@ -1043,28 +1023,27 @@ class AdjacencyList {
   }
 };
 
-void Window::eliminate_unused_objects(List<Window> &windows) {
+void Window::eliminate_unused_objects(List<Window> *windows) {
   /*
     Go through the list. Check if a window is used by any function. If not,
     check if any other window (used by window functions) is actually inheriting
     from this window. If not, remove this window definition.
   */
-  List_iterator<Window> wi1(windows);
+  List_iterator<Window> wi1(*windows);
   for (Window *w1 = wi1++; w1 != nullptr; w1 = wi1++) {
-    if (w1->m_functions.elements == 0) {
+    if (w1->m_functions.is_empty()) {
       /*
         No window functions use this window, so check if other used window
         definitions inherit from this window.
       */
       bool window_used = false;
-      List_iterator<Window> wi2(windows);
-      for (const Window *w2 = wi2++; w2 != nullptr; w2 = wi2++) {
-        if (w2->m_functions.elements > 0) {
+      for (const Window &w2 : *windows) {
+        if (!w2.m_functions.is_empty()) {
           /*
             Go through the ancestor list and see if the current window
             definition is used by this window.
           */
-          for (const Window *w_a = w2->m_ancestor; w_a != nullptr;
+          for (const Window *w_a = w2.m_ancestor; w_a != nullptr;
                w_a = w_a->m_ancestor) {
             // Can't inherit from unnamed window:
             assert(w_a->m_name != nullptr);
@@ -1103,17 +1082,17 @@ void Window::eliminate_unused_objects(List<Window> &windows) {
   // Eliminate redundant ordering after unused window definitions are removed.
   // Otherwise we risk removing order for a window based on ordering of an
   // unused window.
-  if (windows.elements > 0) {
+  if (!windows->is_empty()) {
     reorder_and_eliminate_sorts(windows);
     /* Do this last, after any re-ordering */
-    windows[windows.elements - 1]->m_last = true;
+    (*windows)[windows->size() - 1]->m_last = true;
   }
 }
 
 bool Window::setup_windows1(THD *thd, Query_block *select,
                             Ref_item_array ref_item_array, TABLE_LIST *tables,
                             mem_root_deque<Item *> *fields,
-                            List<Window> &windows) {
+                            List<Window> *windows) {
   // Only possible at resolution time.
   assert(thd->lex->current_query_block()->first_execution);
   /*
@@ -1123,19 +1102,17 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
   nesting_map save_allow_sum_func = thd->lex->allow_sum_func;
   thd->lex->allow_sum_func |= (nesting_map)1 << select->nest_level;
 
-  List_iterator<Window> w_it(windows);
-  Window *w;
-  while ((w = w_it++)) {
-    w->m_query_block = select;
+  for (Window &w : *windows) {
+    w.m_query_block = select;
 
-    if (w->m_partition_by != nullptr &&
-        w->resolve_window_ordering(thd, ref_item_array, tables, fields,
-                                   w->m_partition_by->value.first, true))
+    if (w.m_partition_by != nullptr &&
+        w.resolve_window_ordering(thd, ref_item_array, tables, fields,
+                                  w.m_partition_by->value.first, true))
       return true;
 
-    if (w->m_order_by != nullptr &&
-        w->resolve_window_ordering(thd, ref_item_array, tables, fields,
-                                   w->m_order_by->value.first, false))
+    if (w.m_order_by != nullptr &&
+        w.resolve_window_ordering(thd, ref_item_array, tables, fields,
+                                  w.m_order_by->value.first, false))
       return true;
   }
 
@@ -1148,17 +1125,17 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
       we add the relation n->m to the adjacency list, cf.
       w1->set_ancestor(w2) vs. adj.add(i, j) below.
     */
-    AdjacencyList adj(windows.elements);
+    AdjacencyList adj(windows->size());
 
     /* Resolve inter-window references */
-    List_iterator<Window> wi1(windows);
-    Window *w1 = wi1++;
-    for (uint i = 0; i < windows.elements; i++, (w1 = wi1++)) {
+    uint i = 0;
+    for (auto wi1 = windows->begin(); wi1 != windows->end(); ++wi1, ++i) {
+      Window *w1 = &*wi1;
       if (w1->m_inherit_from != nullptr) {
         bool resolved = false;
-        List_iterator<Window> wi2(windows);
-        Window *w2 = wi2++;
-        for (uint j = 0; j < windows.elements; j++, (w2 = wi2++)) {
+        uint j = 0;
+        for (auto wi2 = windows->begin(); wi2 != windows->end(); ++wi2, ++j) {
+          Window *w2 = &*wi2;
           if (w2->m_name == nullptr) continue;
           String str;
           if (my_strcasecmp(system_charset_info,
@@ -1186,10 +1163,10 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
     }
 
     /* We now know all references are resolved and they form a DAG */
-    for (uint i = 0; i < windows.elements; i++) {
+    for (uint i = 0; i < windows->size(); i++) {
       if (adj.out_degree(i) != 0) {
         /* Only the root can specify partition. SR 10.c) */
-        const Window *const non_root = windows[i];
+        const Window *const non_root = (*windows)[i];
 
         if (non_root->m_partition_by != nullptr) {
           my_error(ER_WINDOW_NO_CHILD_PARTITIONING, MYF(0));
@@ -1199,7 +1176,7 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
 
       if (adj.in_degree(i) == 0) {
         /* All windows that nobody depend on (leaves in DAG tree). */
-        const Window *const leaf = windows[i];
+        const Window *const leaf = (*windows)[i];
         const Window *seen_orderer = nullptr;
 
         /* SR 10.d) No redefines of ORDER BY along inheritance path */
@@ -1219,7 +1196,7 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
           This window has at least one dependant SQL 2014 section
           7.15 <window clause> SR 10.e
         */
-        const Window *const ancestor = windows[i];
+        const Window *const ancestor = (*windows)[i];
         if (!ancestor->m_frame->m_originally_absent) {
           my_error(ER_WINDOW_NO_INHERIT_FRAME, MYF(0),
                    ancestor->printable_name());
@@ -1234,38 +1211,37 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
     /* purecov: end */
   }
 
-  w_it.rewind();
-  while ((w = w_it++)) {
-    const PT_frame *f = w->frame();
-    const PT_order_list *o = w->effective_order_by();
+  for (Window &w : *windows) {
+    const PT_frame *f = w.frame();
+    const PT_order_list *o = w.effective_order_by();
 
-    if (w->m_order_by == nullptr && o != nullptr &&
-        w->m_frame->m_originally_absent) {
+    if (w.m_order_by == nullptr && o != nullptr &&
+        w.m_frame->m_originally_absent) {
       /*
         Since we had an empty frame specification, but inherit an ORDER BY (we
         cannot inherit a frame specification), we need to adjust the a priori
         border type now that we know what we inherit (not known before binding
         above).
       */
-      assert(w->m_frame->m_query_expression == WFU_RANGE);
-      w->m_frame->m_to->m_border_type = WBT_CURRENT_ROW;
+      assert(w.m_frame->m_query_expression == WFU_RANGE);
+      w.m_frame->m_to->m_border_type = WBT_CURRENT_ROW;
     }
 
-    if (w->check_unique_name(windows)) return true;
+    if (w.check_unique_name(*windows)) return true;
 
-    if (w->setup_ordering_cached_items(thd, select, o, false)) return true;
+    if (w.setup_ordering_cached_items(thd, select, o, false)) return true;
 
-    if (w->setup_ordering_cached_items(thd, select, w->effective_partition_by(),
-                                       true))
+    if (w.setup_ordering_cached_items(thd, select, w.effective_partition_by(),
+                                      true))
       return true;
 
-    if (w->check_window_functions1(thd, select)) return true;
+    if (w.check_window_functions1(thd, select)) return true;
 
     /*
       initialize the physical sorting order by merging the partition clause
       and the ordering clause of the window specification.
     */
-    (void)w->sorting_order(thd, select->is_implicitly_grouped());
+    (void)w.sorting_order(thd, select->is_implicitly_grouped());
 
     /* For now, we do not support EXCLUDE */
     if (f->m_exclusion != nullptr) {
@@ -1281,28 +1257,24 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
     /*
       So we can determine if a row's value falls within range of current row
     */
-    if (f->m_query_expression == WFU_RANGE && w->setup_range_expressions(thd))
+    if (f->m_query_expression == WFU_RANGE && w.setup_range_expressions(thd))
       return true;
 
-    if (w->check_border_sanity1(thd)) return true;
+    if (w.check_border_sanity1(thd)) return true;
   }
 
   return false;
 }
 
 bool Window::check_window_functions2(THD *thd) {
-  List_iterator<Item_sum> li(m_functions);
-  Item *wf;
-
   m_opt_nth_row.m_offsets.clear();
   m_opt_lead_lag.m_offsets.clear();
   m_opt_nth_row.m_offsets.init(thd->mem_root);
   m_opt_lead_lag.m_offsets.init(thd->mem_root);
 
-  while ((wf = li++)) {
+  for (Item_sum &wf : m_functions) {
     Window_evaluation_requirements reqs;
-    Item_sum *wfs = down_cast<Item_sum *>(wf);
-    if (wfs->check_wf_semantics2(&reqs)) return true;
+    if (wf.check_wf_semantics2(&reqs)) return true;
     if (reqs.opt_nth_row.m_rowno > 0)
       m_opt_nth_row.m_offsets.push_back(reqs.opt_nth_row);
     /*
@@ -1327,15 +1299,13 @@ bool Window::check_window_functions2(THD *thd) {
   return false;
 }
 
-bool Window::setup_windows2(THD *thd, List<Window> &windows) {
-  List_iterator<Window> w_it(windows);
-  Window *w;
-  while ((w = w_it++)) {
+bool Window::setup_windows2(THD *thd, List<Window> *windows) {
+  for (Window &w : *windows) {
     /*
       In execution of PS we need to check again in case ? parameters are used
       for window borders, or for offsets in window functions..
     */
-    if (w->check_border_sanity2(thd) || w->check_window_functions2(thd))
+    if (w.check_border_sanity2(thd) || w.check_window_functions2(thd))
       return true;
   }
   return false;
@@ -1380,12 +1350,10 @@ void Window::destroy()  // called only at stmt destruction
 }
 
 void Window::reset_lead_lag() {
-  List_iterator<Item_sum> li(m_functions);
-  Item_sum *f;
-  while ((f = li++)) {
-    if (f->sum_func() == Item_sum::LEAD_LAG_FUNC) {
-      down_cast<Item_lead_lag *>(f)->set_has_value(false);
-      down_cast<Item_lead_lag *>(f)->set_use_default(false);
+  for (Item_sum &f : m_functions) {
+    if (f.sum_func() == Item_sum::LEAD_LAG_FUNC) {
+      down_cast<Item_lead_lag &>(f).set_has_value(false);
+      down_cast<Item_lead_lag &>(f).set_use_default(false);
     }
   }
 }
@@ -1532,11 +1500,10 @@ const char *Window::printable_name() const {
 }
 
 void Window::reset_all_wf_state() {
-  List_iterator<Item_sum> ls(m_functions);
-  Item_sum *sum;
-  while ((sum = ls++)) {
-    for (bool f : {false, true}) {
-      (void)sum->walk(&Item::reset_wf_state, enum_walk::POSTFIX, (uchar *)&f);
+  for (Item_sum &sum : m_functions) {
+    for (bool framing : {false, true}) {
+      (void)sum.walk(&Item::reset_wf_state, enum_walk::POSTFIX,
+                     (uchar *)&framing);
     }
   }
 }
@@ -1546,11 +1513,9 @@ bool Window::has_windowing_steps() const {
          m_query_block->join->m_windowing_steps;
 }
 
-double Window::compute_cost(double cost, List<Window> &windows) {
+double Window::compute_cost(double cost, const List<Window> &windows) {
   double total_cost = 0.0;
-  List_iterator<Window> li(windows);
-  Window *w;
-  while ((w = li++))
-    if (w->needs_sorting()) total_cost += cost;
+  for (const Window &w : windows)
+    if (w.needs_sorting()) total_cost += cost;
   return total_cost;
 }

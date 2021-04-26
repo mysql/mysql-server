@@ -389,7 +389,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   */
   if (m_windows.elements != 0 &&
       Window::setup_windows1(thd, this, base_ref_items, get_table_list(),
-                             &fields, m_windows))
+                             &fields, &m_windows))
     return true;
 
   bool added_new_sum_funcs = false;
@@ -573,7 +573,7 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
   }
 
   // Eliminate unused window definitions, redundant sorts etc.
-  if (m_windows.elements != 0) Window::eliminate_unused_objects(m_windows);
+  if (!m_windows.is_empty()) Window::eliminate_unused_objects(&m_windows);
 
   // Replace group by field references inside window functions with references
   // in the presence of ROLLUP.
