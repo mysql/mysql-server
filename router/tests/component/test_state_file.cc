@@ -22,35 +22,40 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <chrono>
+#include <cstdint>
+#include <fstream>
+#include <stdexcept>
+#include <thread>
+
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
 // globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
 #include <rapidjson/filereadstream.h>
 #include <rapidjson/prettywriter.h>
 #include <rapidjson/schema.h>
 #include <rapidjson/stringbuffer.h>
-#include "gmock/gmock.h"
+
+#include "config_builder.h"
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
 #include "mysql_session.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/rest_client.h"
+#include "process_manager.h"
 #include "router_component_system_layout.h"
 #include "router_component_test.h"
 #include "router_component_testutils.h"
+#include "router_test_helpers.h"
 #include "tcp_port_pool.h"
-
-#include <chrono>
-#include <cstdint>
-#include <fstream>
-#include <stdexcept>
-#include <thread>
 
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
@@ -79,46 +84,63 @@ class StateFileTest : public RouterComponentTest {
     ProcessManager::set_origin(g_origin_path);
   }
 
+  std::pair<std::string, std::map<std::string, std::string>>
+  metadata_cache_section(uint16_t metadata_server_port = 0,
+                         const std::chrono::milliseconds ttl = kTTL,
+                         ClusterType cluster_type = ClusterType::GR_V2) {
+    std::map<std::string, std::string> options{
+        {"cluster_type", (cluster_type == ClusterType::RS_V2) ? "rs" : "gr"},
+        {"router_id", "1"},
+        {"user", "mysql_router1_user"},
+        {"metadata_cluster", "test"},
+        {"connect_timeout", "1"},
+        {"ttl", std::to_string(std::chrono::duration<double>(ttl).count())},
+    };
+
+    if (metadata_server_port != 0) {
+      options["bootstrap_server_addresses"] =
+          "mysql://localhost:" + std::to_string(metadata_server_port);
+    };
+
+    return {"metadata_cache:test", options};
+  }
+
   std::string get_metadata_cache_section(
       uint16_t metadata_server_port = 0,
       const std::chrono::milliseconds ttl = kTTL,
       ClusterType cluster_type = ClusterType::GR_V2) {
-    auto ttl_str = std::to_string(std::chrono::duration<double>(ttl).count());
-    const std::string cluster_type_str =
-        (cluster_type == ClusterType::RS_V2) ? "rs" : "gr";
+    auto section =
+        metadata_cache_section(metadata_server_port, ttl, cluster_type);
+    return mysql_harness::ConfigBuilder::build_section(section.first,
+                                                       section.second) +
+           "\n";
+  }
 
-    return "[metadata_cache:test]\n"
-           "cluster_type=" +
-           cluster_type_str +
-           "\n"
-           "router_id=1\n" +
-           ((metadata_server_port == 0)
-                ? ""
-                : "bootstrap_server_addresses=mysql://localhost:" +
-                      std::to_string(metadata_server_port) + "\n") +
-           "user=mysql_router1_user\n"
-           "metadata_cluster=test\n"
-           "connect_timeout=1\n"
-           "ttl=" +
-           ttl_str + "\n\n";
+  std::pair<std::string, std::map<std::string, std::string>>
+  metadata_cache_routing_section(uint16_t router_port, const std::string &role,
+                                 const std::string &strategy,
+                                 const std::string &mode = "") {
+    std::map<std::string, std::string> options{
+        {"bind_port", std::to_string(router_port)},
+        {"destinations", "metadata-cache://test/default?role=" + role},
+        {"protocol", "classic"},
+    };
+
+    if (!strategy.empty()) options["routing_strategy"] = strategy;
+    if (!mode.empty()) options["mode"] = mode;
+
+    return {"routing:test_default", options};
   }
 
   std::string get_metadata_cache_routing_section(uint16_t router_port,
                                                  const std::string &role,
                                                  const std::string &strategy,
                                                  const std::string &mode = "") {
-    std::string result =
-        "[routing:test_default]\n"
-        "bind_port=" +
-        std::to_string(router_port) + "\n" +
-        "destinations=metadata-cache://test/default?role=" + role + "\n" +
-        "protocol=classic\n";
-
-    if (!strategy.empty())
-      result += std::string("routing_strategy=" + strategy + "\n");
-    if (!mode.empty()) result += std::string("mode=" + mode + "\n");
-
-    return result;
+    auto section =
+        metadata_cache_routing_section(router_port, role, strategy, mode);
+    return mysql_harness::ConfigBuilder::build_section(section.first,
+                                                       section.second) +
+           "\n";
   }
 
   auto &launch_router(const std::string &temp_test_dir,
@@ -198,8 +220,6 @@ class StateFileTest : public RouterComponentTest {
 
 class StateFileDynamicChangesTest : public StateFileTest {
  protected:
-  void SetUp() override { StateFileTest::SetUp(); }
-
   void kill_server(ProcessWrapper *server) { EXPECT_NO_THROW(server->kill()); }
 };
 
@@ -727,16 +747,7 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
 
   TempDirectory temp_test_dir;
 
-  const uint16_t md_server_port =
-      test_params.use_static_server_list ? port_pool_.get_next_available() : 0;
   const uint16_t router_port = port_pool_.get_next_available();
-
-  // launch the router with static metadata-cache configuration and
-  // dynamic state file configured via test parameter
-  const std::string metadata_cache_section = get_metadata_cache_section(
-      md_server_port, kTTL, test_params.cluster_type);
-  const std::string routing_section = get_metadata_cache_routing_section(
-      router_port, "PRIMARY", "first-available");
 
   const std::string state_file =
       test_params.create_state_file_from_content
@@ -744,12 +755,29 @@ TEST_P(StateFileSchemaTest, ParametrizedStateFileSchemaTest) {
                               test_params.state_file_content)
           : test_params.state_file_path;
 
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_FAILURE, -1s);
+  auto writer =
+      config_writer(temp_test_dir.name())
+          .section(metadata_cache_section(test_params.use_static_server_list
+                                              ? port_pool_.get_next_available()
+                                              : 0,
+                                          kTTL, test_params.cluster_type))
+          .section(metadata_cache_routing_section(router_port, "PRIMARY",
+                                                  "first-available"));
+
+  auto &default_section = writer.sections()["DEFAULT"];
+
+  init_keyring(default_section, temp_test_dir.name());
+
+  default_section["dynamic_state"] = state_file;
+
+  auto &router =
+      router_spawner()
+          .expected_exit_code(EXIT_FAILURE)
+          .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::RUNNING)
+          .spawn({"-c", writer.write()});
 
   // the router should close with non-0 return value
-  check_exit_code(router, EXIT_FAILURE);
-  EXPECT_THAT(router.exit_code(), testing::Ne(0));
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   // proper log should get logged
   auto log_content = router.get_full_logfile();
@@ -1019,9 +1047,6 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
 
   // launch the router with static metadata-cache configuration and
   // dynamic state file configured via test parameter
-  const std::string metadata_cache_section = get_metadata_cache_section();
-  const std::string routing_section = get_metadata_cache_routing_section(
-      router_port, "PRIMARY", "first-available");
 
   const std::string state_file = create_state_file(
       temp_test_dir.name(), create_state_file_content("000-000", {10000}));
@@ -1030,12 +1055,25 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
   if (test_params.write_access) file_mode |= S_IWUSR;
   chmod(state_file.c_str(), file_mode);
 
-  auto &router = launch_router(temp_test_dir.name(), metadata_cache_section,
-                               routing_section, state_file, EXIT_FAILURE, -1s);
+  auto writer = config_writer(temp_test_dir.name())
+                    .section(metadata_cache_section())
+                    .section(metadata_cache_routing_section(
+                        router_port, "PRIMARY", "first-available"));
+
+  auto &default_section = writer.sections()["DEFAULT"];
+
+  init_keyring(default_section, temp_test_dir.name());
+
+  default_section["dynamic_state"] = state_file;
+
+  auto &router =
+      router_spawner()
+          .expected_exit_code(EXIT_FAILURE)
+          .wait_for_sync_point(ProcessManager::Spawner::SyncPoint::NONE)
+          .spawn({"-c", writer.write()});
 
   // the router should close with non-0 return value
-  check_exit_code(router, EXIT_FAILURE);
-  EXPECT_THAT(router.exit_code(), testing::Ne(0));
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   // proper error should get logged
   const bool found = find_in_file(
@@ -1093,7 +1131,7 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  check_exit_code(router, EXIT_SUCCESS, 5s);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 5s));
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
@@ -1158,7 +1196,7 @@ TEST_F(StateFileSystemBootstrapTest, SystemBootstrapTest) {
   router.register_response("Please enter MySQL password for root: ",
                            "fake-pass\n");
 
-  check_exit_code(router, EXIT_SUCCESS, 5s);
+  ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_SUCCESS, 5s));
 
   // check the state file that was produced, if it constains
   // what the bootstrap server has reported
