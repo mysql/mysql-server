@@ -37,7 +37,7 @@
 
 /* C++ initializes this to zeros:
 */
-EncoderCharset * csinfo_table[MY_CS_CTYPE_TABLE_SIZE];
+EncoderCharset * csinfo_table[MY_ALL_CHARSETS_SIZE];
 
 
 inline bool colIsUtf16le(const NdbDictionary::Column *col) {
