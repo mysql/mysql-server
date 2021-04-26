@@ -1604,6 +1604,8 @@ bool log_slow_applicable(THD *thd) {
   */
   if (unlikely(thd->in_sub_stmt)) return false;  // Don't set time for sub stmt
 
+  if (unlikely(thd->killed == THD::KILL_CONNECTION)) return false;
+
   /*
     Do not log administrative statements unless the appropriate option is
     set.
