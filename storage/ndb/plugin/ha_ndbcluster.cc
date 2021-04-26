@@ -6713,14 +6713,22 @@ int ha_ndbcluster::info(uint flag) {
           m_trans_table_stats->records + m_trans_table_stats->uncommitted_rows;
     }
 
-    if (thd->lex->sql_command != SQLCOM_SHOW_TABLE_STATUS &&
-        thd->lex->sql_command != SQLCOM_SHOW_KEYS) {
-      /*
-        just use whatever stats we have. However,
-        optimizer interprets the values 0 and 1 as EXACT:
-          -> < 2 should not be returned.
-      */
-      if (stats.records < 2) stats.records = 2;
+    const int sql_command = thd_sql_command(thd);
+    if (sql_command == SQLCOM_SHOW_TABLE_STATUS ||
+        sql_command == SQLCOM_SHOW_KEYS) {
+      DBUG_PRINT("table_stats",
+                 ("Special case for showing actual number of records: %llu",
+                  stats.records));
+    } else {
+      // Adjust `stats.records` to never be < 2 since optimizer interprets the
+      // values 0 and 1 as EXACT.
+      // NOTE! It looks like the above statement is correct only when
+      // HA_STATS_RECORDS_IS_EXACT is returned from table_flags(), something
+      // which ndbcluster does not.
+      if (stats.records < 2) {
+        DBUG_PRINT("table_stats", ("adjust records %llu -> 2", stats.records));
+        stats.records = 2;
+      }
     }
     set_rec_per_key(thd);
   }
@@ -7093,7 +7101,7 @@ THR_LOCK_DATA **ha_ndbcluster::store_lock(THD *thd, THR_LOCK_DATA **to,
        this is treated as a ordinary lock */
 
     const bool in_lock_tables = thd_in_lock_tables(thd);
-    const uint sql_command = thd_sql_command(thd);
+    const int sql_command = thd_sql_command(thd);
     if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) &&
         !(in_lock_tables && sql_command == SQLCOM_LOCK_TABLES))
       lock_type = TL_WRITE_ALLOW_WRITE;

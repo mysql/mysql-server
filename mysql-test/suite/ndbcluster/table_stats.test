@@ -92,6 +92,77 @@ DROP TABLE t2;
 
 DROP TABLE t1;
 
+--echo # ###################################################################
+--echo # Test I_S and SHOW commands that present table stats
+--echo #
+--echo # Test with 0, 1, 2 and 10 rows in the table since special case exists
+--echo # for masking out 0 and 1 row for other queries.
+--echo #
+--echo # NOTE! This test shows that only SHOW INDEX and SHOW TABLE STATUS
+--echo # bypass the "records = min(records, 2)" while all the I_S queries
+--echo # never show less than 2 rows.
+--echo #
+--echo # Turn off "cached statistics" in INFORMATION_SCHEMA to always fetch
+--echo # latest stats from storage engine
+set @save_information_schema_stats_expiry = @@information_schema_stats_expiry;
+set @@information_schema_stats_expiry=0;
+
+--echo #
+--echo # Create table with only one primary key index
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255),
+  c int NOT NULL
+) ENGINE = NDB;
+
+let $loop = 0;
+while ($loop <= 4)
+{
+  --echo #### TEST LOOP $loop ####
+  SELECT COUNT(*) as "rows in table" FROM t1;
+
+  --echo # SELECT .. FROM INFORMATION_SCHEMA.TABLES
+  # The stats.records value is visible as TABLE_ROWS
+  SELECT TABLE_ROWS FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+  --echo # SHOW TABLE STATUS
+  # Implemented as query from SELECT ... FROM I_S.TABLES
+  # The stats.records value is visible as Rows
+  let $table_rows =
+    query_get_value(SHOW TABLE STATUS FROM test LIKE 't1', Rows, 1);
+  echo Rows: $table_rows;
+
+  --echo # SELECT ... FROM INFORMATION_SCHEMA.STATISTICS
+  # Cardinality is calculated by dividing stats.records with "records per key"
+  # (which is 1 for unique index) -> records
+  SELECT CARDINALITY FROM INFORMATION_SCHEMA.STATISTICS
+    WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 't1';
+
+  --echo # SHOW INDEX (aka. SHOW INDEXES or SHOW KEYS)
+  # Implemented as query from SELECT ... FROM I_S.STATISTICS
+  let $index_cardinality =
+    query_get_value(SHOW INDEX FROM test.t1, Cardinality, 1);
+  echo Cardinality: $index_cardinality;
+
+  # Insert more rows for next lap
+  eval INSERT INTO t1 VALUES ($loop, "Row $loop", 37+$loop);
+
+  if ($loop == 3)
+  {
+    # Insert extra rows for last lap
+    INSERT INTO t1 VALUES
+      (14, "extra row 4", 44), (15, "extra row 5", 45), (16, "extra row 6", 46),
+      (17, "extra row 7", 47), (18, "extra row 8", 48), (19, "extra row 9", 49);
+  }
+
+  inc $loop;
+}
+
+DROP TABLE t1;
+
+# Restore setting for "cached statistics" in information_schema
+set @@information_schema_stats_expiry = @save_information_schema_stats_expiry;
 
 --echo # ###################################################################
 --echo #
