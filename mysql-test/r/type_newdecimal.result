@@ -2350,3 +2350,12 @@ FROM cte1,cte2
 WHERE cte1.a1 >= cte2.a2;
 ERROR HY000: Cannot convert string '\xFA' from binary to utf8mb4
 DROP TABLE t;
+# Bug#32802251: decimal_bin_size_inline: assertion `scale >= 0 &&
+#               precision > 0 && scale <= precision' failed
+CREATE TABLE t(a DECIMAL(14,14) DEFAULT NULL);
+INSERT INTO t VALUES
+(-0.99999999999999), (-0.99999999999999), (0.15610000000000);
+SELECT WEIGHT_STRING(TRUNCATE((SELECT a FROM t), -17410));
+WEIGHT_STRING(TRUNCATE((SELECT a FROM t), -17410))
+NULL
+DROP TABLE t;

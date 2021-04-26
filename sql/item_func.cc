@@ -3340,6 +3340,7 @@ bool Item_func_round::resolve_type(THD *thd) {
         Example: ROUND(99.999, 2). Here, the type of the argument is
         DECIMAL(5, 3). The type of the result is DECIMAL(5,2), since the
         result of this operation is 100.00.
+        Also make sure that precision is greater than zero.
       */
       longlong val1;
       if (args[1]->const_item()) {
@@ -3369,6 +3370,7 @@ bool Item_func_round::resolve_type(THD *thd) {
         if (!truncate) precision += 1;
         new_scale = val1;
       }
+      if (precision == 0) precision = 1;
       set_data_type_decimal(precision, new_scale);
       hybrid_type = DECIMAL_RESULT;
       break;

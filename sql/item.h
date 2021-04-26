@@ -1351,14 +1351,14 @@ class Item : public Parse_tree_node {
     The unsigned property must have been set before calling this function.
 
     @param precision Number of digits of precision
-    @param dec       Number of digits after decimal point.
+    @param scale     Number of digits after decimal point.
   */
-  inline void set_data_type_decimal(uint8 precision, uint8 dec) {
+  inline void set_data_type_decimal(uint8 precision, uint8 scale) {
     set_data_type(MYSQL_TYPE_NEWDECIMAL);
     collation.set_numeric();
-    decimals = dec;
+    decimals = scale;
     fix_char_length(my_decimal_precision_to_length_no_truncation(
-        precision, dec, unsigned_flag));
+        precision, scale, unsigned_flag));
   }
 
   /// Set the data type of the Item to be double precision floating point.

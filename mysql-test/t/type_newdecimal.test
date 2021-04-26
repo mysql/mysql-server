@@ -1891,3 +1891,12 @@ SELECT cte1.a1
 FROM cte1,cte2
 WHERE cte1.a1 >= cte2.a2;
 DROP TABLE t;
+
+--echo # Bug#32802251: decimal_bin_size_inline: assertion `scale >= 0 &&
+--echo #               precision > 0 && scale <= precision' failed
+
+CREATE TABLE t(a DECIMAL(14,14) DEFAULT NULL);
+INSERT INTO t VALUES
+ (-0.99999999999999), (-0.99999999999999), (0.15610000000000);
+SELECT WEIGHT_STRING(TRUNCATE((SELECT a FROM t), -17410));
+DROP TABLE t;
