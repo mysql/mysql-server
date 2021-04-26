@@ -458,9 +458,17 @@ void first_page_t::dealloc() {
 }
 
 void first_page_t::destroy() {
+  make_empty();
+  dealloc();
+}
+
+void first_page_t::make_empty() {
   free_all_data_pages();
   free_all_index_pages();
-  dealloc();
+  byte *free_lst = free_list();
+  byte *index_lst = index_list();
+  flst_init(index_lst, m_mtr);
+  flst_init(free_lst, m_mtr);
 }
 
 }  // namespace lob

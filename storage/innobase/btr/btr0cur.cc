@@ -4625,7 +4625,7 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
                                  btr_cur_t *cursor, uint32_t flags,
                                  bool rollback, trx_id_t trx_id,
                                  undo_no_t undo_no, ulint rec_type, mtr_t *mtr,
-                                 btr_pcur_t *pcur) {
+                                 btr_pcur_t *pcur, purge_node_t *node) {
   DBUG_TRACE;
 
   buf_block_t *block;
@@ -4670,7 +4670,8 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
 
     /* The following call will restart the btr_mtr, which could change the
     cursor position. */
-    btr_ctx.free_externally_stored_fields(trx_id, undo_no, rollback, rec_type);
+    btr_ctx.free_externally_stored_fields(trx_id, undo_no, rollback, rec_type,
+                                          node);
 
     /* The cursor position could have changed now. */
     if (pcur != nullptr) {

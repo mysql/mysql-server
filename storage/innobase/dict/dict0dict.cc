@@ -5368,7 +5368,8 @@ dberr_t DDTableBuffer::remove(table_id_t id) {
     DEBUG_SYNC_C("delete_metadata_before");
 
     btr_cur_pessimistic_delete(&error, false, btr_pcur_get_btr_cur(&pcur),
-                               BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
+                               BTR_CREATE_FLAG, false, 0, 0, 0, &mtr, nullptr,
+                               nullptr);
     ut_ad(error == DB_SUCCESS);
   }
 

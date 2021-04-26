@@ -1633,8 +1633,9 @@ void rtr_node_ptr_delete(dict_index_t *index, btr_cur_t *sea_cur,
   ibool compressed;
   dberr_t err;
 
-  compressed = btr_cur_pessimistic_delete(&err, TRUE, sea_cur, BTR_CREATE_FLAG,
-                                          false, 0, 0, 0, mtr);
+  compressed =
+      btr_cur_pessimistic_delete(&err, TRUE, sea_cur, BTR_CREATE_FLAG, false, 0,
+                                 0, 0, mtr, nullptr, nullptr);
   ut_a(err == DB_SUCCESS);
 
   if (!compressed) {

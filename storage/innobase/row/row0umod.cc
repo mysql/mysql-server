@@ -231,7 +231,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_undo_mod_remove_clust_low(
     are passing rollback=false, just like purge does. */
 
     btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, node->trx->id,
-                               node->undo_no, node->rec_type, mtr);
+                               node->undo_no, node->rec_type, mtr, &node->pcur,
+                               nullptr);
 
     /* The delete operation may fail if we have little
     file space left: TODO: easiest to crash the database
@@ -510,7 +511,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       record that contains externally stored columns. */
       ut_ad(!index->is_clustered());
       btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, node->trx->id,
-                                 node->undo_no, node->rec_type, &mtr);
+                                 node->undo_no, node->rec_type, &mtr,
+                                 &node->pcur, nullptr);
       /* The delete operation may fail if we have little
       file space left: TODO: easiest to crash the database
       and restart with more file space */

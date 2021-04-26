@@ -1052,7 +1052,9 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
       byte *field_ref = data + len - BTR_EXTERN_FIELD_REF_SIZE;
 
       DeleteContext ctx(*this, field_ref, ufield->field_no, rollback);
-      lob::purge(&ctx, m_index, trx_id, undo_no, 0, ufield);
+
+      /* Last argument is nullptr because this is rollback. */
+      lob::purge(&ctx, m_index, trx_id, undo_no, 0, ufield, nullptr);
       if (need_recalc()) {
         recalc();
       }
@@ -1137,10 +1139,12 @@ ulint btr_rec_get_externally_stored_len(const rec_t *rec,
 @param[in]	undo_no		undo number within a transaction whose
                                 LOB is being freed.
 @param[in]	rollback	performing rollback?
-@param[in]	rec_type	undo record type.*/
+@param[in]	rec_type	undo record type.
+@param[in]	node        purge node or nullptr */
 void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
                                                undo_no_t undo_no, bool rollback,
-                                               ulint rec_type) {
+                                               ulint rec_type,
+                                               purge_node_t *node) {
   ut_ad(rec_offs_validate());
   ut_ad(mtr_is_page_fix(m_mtr, m_rec, MTR_MEMO_PAGE_X_FIX, m_index->table));
   /* Assert that the cursor position and the record are matching. */
@@ -1157,7 +1161,7 @@ void BtrContext::free_externally_stored_fields(trx_id_t trx_id,
       DeleteContext ctx(*this, field_ref, i, rollback);
 
       upd_field_t *uf = nullptr;
-      lob::purge(&ctx, m_index, trx_id, undo_no, rec_type, uf);
+      lob::purge(&ctx, m_index, trx_id, undo_no, rec_type, uf, node);
       if (need_recalc()) {
         recalc();
       }

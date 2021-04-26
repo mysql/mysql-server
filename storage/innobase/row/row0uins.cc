@@ -134,7 +134,8 @@ retry:
   ut_a(success);
 
   btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, true, node->trx->id,
-                             node->undo_no, node->rec_type, &mtr, &node->pcur);
+                             node->undo_no, node->rec_type, &mtr, &node->pcur,
+                             nullptr);
 
   /* The delete operation may fail if we have little
   file space left: TODO: easiest to crash the database
@@ -250,7 +251,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     only matters when deleting a record that contains
     externally stored columns. */
     ut_ad(!index->is_clustered());
-    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, 0, 0, &mtr);
+    btr_cur_pessimistic_delete(&err, FALSE, btr_cur, 0, false, 0, 0, 0, &mtr,
+                               &pcur, nullptr);
   }
 func_exit:
   btr_pcur_close(&pcur);

@@ -670,6 +670,17 @@ class BtrContext {
         m_btr_page_no(FIL_NULL) {}
 
   /** Constructor **/
+  BtrContext(mtr_t *mtr, dict_index_t *index, buf_block_t *block)
+      : m_mtr(mtr),
+        m_pcur(nullptr),
+        m_index(index),
+        m_rec(nullptr),
+        m_offsets(nullptr),
+        m_block(block),
+        m_op(OPCODE_UNKNOWN),
+        m_btr_page_no(FIL_NULL) {}
+
+  /** Constructor **/
   BtrContext(mtr_t *mtr, btr_pcur_t *pcur, dict_index_t *index, rec_t *rec,
              ulint *offsets, buf_block_t *block)
       : m_mtr(mtr),
@@ -774,9 +785,11 @@ class BtrContext {
   @param[in]	undo_no		undo number within a transaction whose
                                   LOB is being freed.
   @param[in]	rollback	performing rollback?
-  @param[in]	rec_type	undo record type.*/
+  @param[in]	rec_type	undo record type.
+  @param[in]	node		purge node or nullptr */
   void free_externally_stored_fields(trx_id_t trx_id, undo_no_t undo_no,
-                                     bool rollback, ulint rec_type);
+                                     bool rollback, ulint rec_type,
+                                     purge_node_t *node);
 
   /** Frees the externally stored fields for a record, if the field
   is mentioned in the update vector.
@@ -1570,9 +1583,11 @@ ulint btr_rec_get_externally_stored_len(const rec_t *rec, const ulint *offsets);
 @param[in]	undo_no		during rollback to savepoint, purge only upto
                                 this undo number.
 @param[in]	rec_type	undo record type.
-@param[in]	uf		the update vector for the field. */
+@param[in]	uf		the update vector for the field.
+@param[in]	node		the purge node or nullptr. */
 void purge(lob::DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
-           undo_no_t undo_no, ulint rec_type, const upd_field_t *uf);
+           undo_no_t undo_no, ulint rec_type, const upd_field_t *uf,
+           purge_node_t *node);
 
 /** Update a portion of the given LOB.
 @param[in]	ctx		update operation context information.

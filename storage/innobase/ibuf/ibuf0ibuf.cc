@@ -4014,7 +4014,7 @@ static MY_ATTRIBUTE((warn_unused_result)) ibool ibuf_delete_rec(
   root = ibuf_tree_root_get(mtr);
 
   btr_cur_pessimistic_delete(&err, TRUE, btr_pcur_get_btr_cur(pcur), 0, false,
-                             0, 0, 0, mtr);
+                             0, 0, 0, mtr, nullptr, nullptr);
   ut_a(err == DB_SUCCESS);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG

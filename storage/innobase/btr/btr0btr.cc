@@ -2269,7 +2269,8 @@ static rec_t *btr_insert_into_right_sibling(uint32_t flags, btr_cur_t *cursor,
   /* We have to change the parent node pointer */
 
   compressed = btr_cur_pessimistic_delete(&err, TRUE, &next_father_cursor,
-                                          BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
+                                          BTR_CREATE_FLAG, false, 0, 0, 0, mtr,
+                                          nullptr, nullptr);
 
   ut_a(err == DB_SUCCESS);
 
@@ -2826,8 +2827,9 @@ void btr_node_ptr_delete(dict_index_t *index, buf_block_t *block, mtr_t *mtr) {
   /* Delete node pointer on father page */
   btr_page_get_father(index, block, mtr, &cursor);
 
-  compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor, BTR_CREATE_FLAG,
-                                          false, 0, 0, 0, mtr);
+  compressed =
+      btr_cur_pessimistic_delete(&err, TRUE, &cursor, BTR_CREATE_FLAG, false, 0,
+                                 0, 0, mtr, nullptr, nullptr);
   ut_a(err == DB_SUCCESS);
 
   if (!compressed) {
@@ -3374,8 +3376,9 @@ retry:
       lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
       lock_rec_free_all_from_discard_page(block);
     } else {
-      compressed = btr_cur_pessimistic_delete(
-          &err, TRUE, &cursor2, BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
+      compressed =
+          btr_cur_pessimistic_delete(&err, TRUE, &cursor2, BTR_CREATE_FLAG,
+                                     false, 0, 0, 0, mtr, nullptr, nullptr);
       ut_a(err == DB_SUCCESS);
 
       if (!compressed) {

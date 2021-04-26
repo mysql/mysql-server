@@ -1639,7 +1639,8 @@ flag_ok:
   }
 
   btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(pcur),
-                             BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
+                             BTR_CREATE_FLAG, false, 0, 0, 0, &mtr, pcur,
+                             nullptr);
   mtr_commit(&mtr);
 
   return (error);
@@ -1711,7 +1712,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   }
 
   btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(pcur),
-                             BTR_CREATE_FLAG, false, 0, 0, 0, mtr);
+                             BTR_CREATE_FLAG, false, 0, 0, 0, mtr, pcur,
+                             nullptr);
   mtr_commit(mtr);
 
   if (error != DB_SUCCESS) {
@@ -1908,7 +1910,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
       }
 
       btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(&pcur),
-                                 BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
+                                 BTR_CREATE_FLAG, false, 0, 0, 0, &mtr, &pcur,
+                                 nullptr);
 
       if (error != DB_SUCCESS) {
         return (error);
@@ -2279,7 +2282,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
     }
 
     btr_cur_pessimistic_delete(&error, FALSE, btr_pcur_get_btr_cur(&pcur),
-                               BTR_CREATE_FLAG, false, 0, 0, 0, &mtr);
+                               BTR_CREATE_FLAG, false, 0, 0, 0, &mtr, &pcur,
+                               nullptr);
 
     if (error != DB_SUCCESS) {
       break;
@@ -3218,7 +3222,7 @@ static void row_log_apply_op_low(
         rollback=false will be ignored. */
 
         btr_cur_pessimistic_delete(error, FALSE, &cursor, BTR_CREATE_FLAG,
-                                   false, 0, 0, 0, &mtr);
+                                   false, 0, 0, 0, &mtr, nullptr, nullptr);
         break;
       case ROW_OP_INSERT:
         if (exists) {
