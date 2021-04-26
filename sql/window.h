@@ -230,10 +230,12 @@ class Window {
   st_lead_lag m_opt_lead_lag;
 
  protected:
-  const Window *m_ancestor;             ///< resolved from existing window name
-  List<Item_sum> m_functions;           ///< window functions based on 'this'
-  List<Cached_item> m_partition_items;  ///< items for the PARTITION BY columns
-  List<Cached_item> m_order_by_items;   ///< items for the ORDER BY exprs.
+  const Window *m_ancestor;    ///< resolved from existing window name
+  List<Item_sum> m_functions;  ///< window functions based on 'this'
+  Mem_root_array<Cached_item *>
+      m_partition_items;  ///< items for the PARTITION BY columns
+  Mem_root_array<Cached_item *>
+      m_order_by_items;  ///< items for the ORDER BY exprs.
 
   /*------------------------------------------------------------------------
    *
@@ -623,6 +625,8 @@ class Window {
         m_needs_restore_input_row(false),
         m_last(false),
         m_ancestor(nullptr),
+        m_partition_items(*THR_MALLOC),
+        m_order_by_items(*THR_MALLOC),
         m_tmp_pos(nullptr, -1),
         m_frame_buffer_param(nullptr),
         m_frame_buffer(nullptr),

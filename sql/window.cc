@@ -470,8 +470,8 @@ void Window::check_partition_boundary() {
     If we have partitioning and any one of the partitioning columns have
     changed since last row, we have a new partition.
   */
-  for (Cached_item &item : m_partition_items) {
-    anything_changed |= item.cmp();
+  for (Cached_item *item : m_partition_items) {
+    anything_changed |= item->cmp();
   }
 
   m_partition_border = anything_changed;
@@ -487,12 +487,12 @@ void Window::check_partition_boundary() {
 void Window::reset_order_by_peer_set() {
   DBUG_TRACE;
 
-  for (Cached_item &item : m_order_by_items) {
+  for (Cached_item *item : m_order_by_items) {
     /*
       A side-effect of doing this comparison, is to update the cache, so that
       when we compare the new value to itself later, it is in its peer set.
     */
-    (void)item.cmp();
+    (void)item->cmp();
   }
 }
 
@@ -500,8 +500,8 @@ bool Window::in_new_order_by_peer_set(bool compare_all_order_by_items) {
   DBUG_TRACE;
   bool anything_changed = false;
 
-  for (Cached_item &item : m_order_by_items) {
-    anything_changed |= item.cmp();
+  for (Cached_item *item : m_order_by_items) {
+    anything_changed |= item->cmp();
     if (!compare_all_order_by_items) break;
   }
 
@@ -546,7 +546,7 @@ bool Window::before_or_after_frame(bool before) {
 
   for (auto it = m_order_by_items.begin(); it != m_order_by_items.end();
        ++it, o_expr = o_expr->next) {
-    Cached_item *cur_row = &*it;
+    Cached_item *cur_row = *it;
     /*
       'cur_row' represents the value of the current row's windowing ORDER BY
       expression, and 'candidate' represents the same expression in the
@@ -1340,14 +1340,11 @@ void Window::cleanup() {
 
 void Window::destroy()  // called only at stmt destruction
 {
-  List_iterator<Cached_item> order_by_iter(m_order_by_items);
-  List_iterator<Cached_item> partition_iter(m_partition_items);
-  Cached_item *ci;
-  while ((ci = order_by_iter++)) {
-    if (ci != nullptr) ci->~Cached_item();
+  for (Cached_item *ci : m_order_by_items) {
+    ::destroy(ci);
   }
-  while ((ci = partition_iter++)) {
-    if (ci != nullptr) ci->~Cached_item();
+  for (Cached_item *ci : m_partition_items) {
+    ::destroy(ci);
   }
 }
 
