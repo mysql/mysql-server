@@ -1329,19 +1329,13 @@ class Window {
   void reset_round() { reset_execution_state(RL_ROUND); }
 
   /**
-    Reset resolution and execution state to prepare for next execution of a
-    prepared statement.
-  */
-  void reinit_before_use() { reset_execution_state(RL_FULL); }
-
-  /**
     Reset execution state for LEAD/LAG for the current row in partition.
   */
   void reset_lead_lag();
 
-  enum Reset_level { RL_FULL, RL_ROUND, RL_PARTITION };
-
  private:
+  enum Reset_level { RL_ROUND, RL_PARTITION };
+
   /// Common function for all types of resetting
   void reset_execution_state(Reset_level level);
 

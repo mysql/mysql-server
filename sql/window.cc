@@ -1360,12 +1360,6 @@ void Window::reset_lead_lag() {
 
 void Window::reset_execution_state(Reset_level level) {
   switch (level) {
-    case RL_FULL:
-      // Prepare a clean sheet for any new query resolution:
-      m_partition_items.clear();
-      m_order_by_items.clear();
-      m_sorting_order = nullptr;
-    // fall-through
     case RL_ROUND:
       if (m_frame_buffer != nullptr) (void)m_frame_buffer->empty_result_table();
       m_frame_buffer_total_rows = 0;
