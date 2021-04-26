@@ -58,17 +58,22 @@ void IB_thread::start() {
   ut_a(state() == State::NOT_STARTED);
   m_state->store(State::ALLOWED_TO_START);
 
+#ifdef _WIN32
   unsigned int cnt = 0;
+#endif /* _WIN32 */
 
   while (state() == State::ALLOWED_TO_START) {
     UT_RELAX_CPU();
 
-    /** Release the thread slice allotted to the thread if we have waited for
-    too long.
-    @note the number 500 has been derived heurestically. */
+#ifdef _WIN32
+    /* When the number of threads to be spawned exceeds the number of cores of
+    a machine, it's seen that we cannot just rely on UT_RELAX_CPU(). So in such
+    a case, allow the thread to release its time slice to any thread wanting
+    control. */
     if (++cnt > 500) {
       std::this_thread::yield();
     }
+#endif /* _WIN32 */
   }
   const auto state_after_start = state();
 
@@ -82,18 +87,8 @@ void IB_thread::wait(State state_to_wait_for) {
   if (state_to_wait_for >= State::STOPPED) {
     m_shared_future.wait();
   }
-
-  unsigned int cnt = 0;
-
   while (state() < state_to_wait_for) {
     UT_RELAX_CPU();
-
-    /** Release the thread slice allotted to the thread if we have waited for
-    too long.
-    @note the number 500 has been derived heurestically. */
-    if (++cnt > 500) {
-      std::this_thread::yield();
-    }
   }
 }
 
