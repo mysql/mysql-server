@@ -1733,17 +1733,17 @@ int Relay_log_info::rli_init_info(bool skip_received_gtid_set_recovery) {
       bool is_group_replication_channel =
           channel_map.is_group_replication_channel_name(channel_name);
       if (is_group_replication_channel) {
-        if (clear_info()) {
-          msg =
-              "Error cleaning relay log configuration for group replication "
-              "after clone";
-          error = 1;
-          goto err;
-        }
         if (Rpl_info_factory::reset_workers(this)) {
           msg =
               "Error cleaning relay log worker configuration for group "
               "replication after clone";
+          error = 1;
+          goto err;
+        }
+        if (clear_info()) {
+          msg =
+              "Error cleaning relay log configuration for group replication "
+              "after clone";
           error = 1;
           goto err;
         }
