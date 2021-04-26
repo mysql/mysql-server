@@ -1874,3 +1874,20 @@ CREATE TABLE t1(a DECIMAL(10,0));
 INSERT INTO t1 VALUES(0);
 SELECT * FROM t1 AS alias1 NATURAL JOIN t1 AS alias2;
 DROP TABLE t1;
+
+--echo # Bug#32785804: Failure in decimal_intg
+
+CREATE TABLE t(a DECIMAL(10,4));
+INSERT INTO t VALUES(-1),(1),(100);
+SET @d:=' ';
+--error ER_CANNOT_CONVERT_STRING
+WITH RECURSIVE cte1 AS (
+  SELECT a AS a1 FROM  t
+),
+cte2 AS (
+  SELECT (0xfa > @d) AS a2 FROM t
+)
+SELECT cte1.a1
+FROM cte1,cte2
+WHERE cte1.a1 >= cte2.a2;
+DROP TABLE t;

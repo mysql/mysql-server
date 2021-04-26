@@ -481,6 +481,8 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
     case INT_RESULT: {
       my_decimal tmp;
       const auto *const d = (*const_val)->val_decimal(&tmp);
+      if (thd->is_error()) return true;
+      assert(d != nullptr);
       assert(decimal_actual_fraction(d) == 0);
       const int actual_intg = decimal_intg(d);
 

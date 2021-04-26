@@ -2335,3 +2335,18 @@ SELECT * FROM t1 AS alias1 NATURAL JOIN t1 AS alias2;
 a
 0
 DROP TABLE t1;
+# Bug#32785804: Failure in decimal_intg
+CREATE TABLE t(a DECIMAL(10,4));
+INSERT INTO t VALUES(-1),(1),(100);
+SET @d:=' ';
+WITH RECURSIVE cte1 AS (
+SELECT a AS a1 FROM  t
+),
+cte2 AS (
+SELECT (0xfa > @d) AS a2 FROM t
+)
+SELECT cte1.a1
+FROM cte1,cte2
+WHERE cte1.a1 >= cte2.a2;
+ERROR HY000: Cannot convert string '\xFA' from binary to utf8mb4
+DROP TABLE t;
