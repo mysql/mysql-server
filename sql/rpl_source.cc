@@ -100,40 +100,6 @@ extern TYPELIB binlog_checksum_typelib;
     p += len;                                    \
   }
 
-static mysql_mutex_t LOCK_replica_list;
-static bool slave_list_inited = false;
-#ifdef HAVE_PSI_INTERFACE
-static PSI_mutex_key key_LOCK_replica_list;
-
-static PSI_mutex_info all_slave_list_mutexes[] = {
-    {&key_LOCK_replica_list, "LOCK_replica_list", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME}};
-
-static void init_all_slave_list_mutexes(void) {
-  int count;
-
-  count = static_cast<int>(array_elements(all_slave_list_mutexes));
-  mysql_mutex_register("sql", all_slave_list_mutexes, count);
-}
-#endif /* HAVE_PSI_INTERFACE */
-
-void init_replica_list() {
-#ifdef HAVE_PSI_INTERFACE
-  init_all_slave_list_mutexes();
-#endif
-
-  mysql_mutex_init(key_LOCK_replica_list, &LOCK_replica_list,
-                   MY_MUTEX_INIT_FAST);
-  slave_list_inited = true;
-}
-
-void end_slave_list() {
-  if (slave_list_inited) {
-    mysql_mutex_destroy(&LOCK_replica_list);
-    slave_list_inited = false;
-  }
-}
-
 /**
   Register slave in 'slave_list' hash table.
 
@@ -192,7 +158,7 @@ err:
 }
 
 void unregister_slave(THD *thd, bool only_mine, bool need_lock_slave_list) {
-  if (thd->server_id && slave_list_inited) {
+  if (thd->server_id) {
     if (need_lock_slave_list)
       mysql_mutex_lock(&LOCK_replica_list);
     else

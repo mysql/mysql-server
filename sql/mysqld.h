@@ -668,6 +668,7 @@ extern mysql_mutex_t LOCK_global_system_variables;
 extern mysql_mutex_t LOCK_user_conn;
 extern mysql_mutex_t LOCK_log_throttle_qni;
 extern mysql_mutex_t LOCK_prepared_stmt_count;
+extern mysql_mutex_t LOCK_replica_list;
 extern mysql_mutex_t LOCK_error_messages;
 extern mysql_mutex_t LOCK_sql_replica_skip_counter;
 extern mysql_mutex_t LOCK_replica_net_timeout;
