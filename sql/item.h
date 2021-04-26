@@ -6085,19 +6085,18 @@ class Item_cache;
 class Cached_item {
  protected:
   Item *item;  ///< The item whose value to cache.
+  explicit Cached_item(Item *i) : item(i), null_value(false) {}
+
  public:
   bool null_value;
-  Cached_item(Item *i) : item(i), null_value(false) {}
+  virtual ~Cached_item() = default;
   /**
     If cached value is different from item's, returns true and updates
     cached value with item's.
   */
   virtual bool cmp() = 0;
-  virtual ~Cached_item(); /*line -e1509 */
   Item *get_item() { return item; }
-  virtual void copy_to_Item_cache(Item_cache *i_c MY_ATTRIBUTE((unused))) {
-    assert(false); /* purecov: inspected */
-  }
+  virtual void copy_to_Item_cache(Item_cache *i_c) = 0;
 };
 
 class Cached_item_str : public Cached_item {
