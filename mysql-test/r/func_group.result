@@ -2134,3 +2134,88 @@ f1	STD(f2)
 3	0
 NULL	16.99673171197595
 DROP TABLE t1;
+# Bug#32713860: Executing prepare returns wrong result
+CREATE TABLE t1 (
+i8 BIGINT UNIQUE,
+dc DECIMAL(10,4) UNIQUE,
+f8 DOUBLE UNIQUE,
+vc VARCHAR(10) UNIQUE
+);
+INSERT INTO t1 VALUES(123456, 123456.7890, 123456, '123456');
+SET @i8=123456;
+SET @dc='123456.7890';
+SET @f8=123456.0E0;
+SET @vc='123456';
+PREPARE si8 FROM 'SELECT MAX(i8) FROM t1 WHERE i8 > ?';
+PREPARE ei8 FROM 'EXPLAIN SELECT MAX(i8) FROM t1 WHERE i8 > ?';
+PREPARE sdc FROM 'SELECT MAX(dc) FROM t1 WHERE dc > ?';
+PREPARE edc FROM 'EXPLAIN SELECT MAX(dc) FROM t1 WHERE dc > ?';
+PREPARE sf8 FROM 'SELECT MAX(f8) FROM t1 WHERE f8 > ?';
+PREPARE ef8 FROM 'EXPLAIN SELECT MAX(f8) FROM t1 WHERE f8 > ?';
+PREPARE svc FROM 'SELECT MAX(vc) FROM t1 WHERE vc > ?';
+PREPARE evc FROM 'EXPLAIN SELECT MAX(vc) FROM t1 WHERE vc > ?';
+SELECT MAX(i8) FROM t1 WHERE i8 > 123456;
+MAX(i8)
+NULL
+EXECUTE si8 USING @i8;
+MAX(i8)
+NULL
+EXPLAIN SELECT MAX(i8) FROM t1 WHERE i8 > 123456;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`i8`) AS `MAX(i8)` from `test`.`t1` where (`test`.`t1`.`i8` > 123456)
+EXECUTE ei8 USING @i8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`i8`) AS `MAX(i8)` from `test`.`t1` where (`test`.`t1`.`i8` > 123456)
+SELECT MAX(dc) FROM t1 WHERE dc > 123456.7890;
+MAX(dc)
+NULL
+EXECUTE sdc USING @dc;
+MAX(dc)
+NULL
+EXPLAIN SELECT MAX(dc) FROM t1 WHERE dc > 123456.7890;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`dc`) AS `MAX(dc)` from `test`.`t1` where (`test`.`t1`.`dc` > 123456.7890)
+EXECUTE edc USING @dc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`dc`) AS `MAX(dc)` from `test`.`t1` where (`test`.`t1`.`dc` > 123456.7890)
+SELECT MAX(f8) FROM t1 WHERE f8 > 123456e0;
+MAX(f8)
+NULL
+EXECUTE sf8 USING @f8;
+MAX(f8)
+NULL
+EXPLAIN SELECT MAX(f8) FROM t1 WHERE f8 > 123456e0;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`f8`) AS `MAX(f8)` from `test`.`t1` where (`test`.`t1`.`f8` > 123456e0)
+EXECUTE ef8 USING @f8;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`f8`) AS `MAX(f8)` from `test`.`t1` where (`test`.`t1`.`f8` > 123456)
+SELECT MAX(vc) FROM t1 WHERE vc > '123456';
+MAX(vc)
+NULL
+EXECUTE svc USING @vc;
+MAX(vc)
+NULL
+EXPLAIN SELECT MAX(vc) FROM t1 WHERE vc > '123456';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`vc`) AS `MAX(vc)` from `test`.`t1` where (`test`.`t1`.`vc` > '123456')
+EXECUTE evc USING @vc;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
+Warnings:
+Note	1003	/* select#1 */ select max(`test`.`t1`.`vc`) AS `MAX(vc)` from `test`.`t1` where (`test`.`t1`.`vc` > '123456')
+DROP TABLE t1;
