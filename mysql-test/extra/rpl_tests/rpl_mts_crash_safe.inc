@@ -120,8 +120,10 @@ if ($commands == recovery)
     --let $rpl_server_parameters= --skip-replica-start --relay-log-recovery=0 --replica-parallel-workers=0
 
     --source include/rpl_start_server.inc
-
+    # Disable warnings as with GTIDS the clause SQL_AFTER_MTS_GAPS has no effect
+    --disable_warnings
     START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
+    --enable_warnings
     --let $slave_param= Until_Condition
     --let $slave_param_value= DONE
     --source include/wait_for_slave_param.inc

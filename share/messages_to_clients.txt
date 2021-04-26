@@ -9568,6 +9568,9 @@ ER_INSTALL_PLUGIN_CONFLICT_CLIENT
 ER_DA_ERROR_LOG_COMPONENT_FLUSH_FAILED
   eng "%d error logging component(s) failed to flush. For file-based logs this can happen when the path or permissions of the log-file have changed. Failure to flush filed-based logs may affect log-rotation."
 
+ER_WARN_SQL_AFTER_MTS_GAPS_GAP_NOT_CALCULATED
+  eng "The until clause SQL_AFTER_MTS_GAPS is being used for channel '%.192s' when GTID_MODE = ON and SOURCE_AUTO_POSITION=1 meaning the server did not compute internally what gaps may exist in the relay log transaction execution. To close any execution gaps use either the SQL_BEFORE_GTIDS or SQL_AFTER_GTIDS until clause."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

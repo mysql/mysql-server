@@ -5644,6 +5644,16 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli) {
   DBUG_PRINT("info", ("new_log_ident: %s", this->new_log_ident));
   DBUG_PRINT("info", ("pos: %s", llstr(this->pos, buf)));
 
+  DBUG_EXECUTE_IF("block_on_master_pos_4_rotate", {
+    if (server_id == 1 && pos == 4) {
+      std::string action =
+          "now signal signal.reach_pos_4_rotate_event wait_for "
+          "signal.rotate_event_continue";
+      assert(
+          !debug_sync_set_action(current_thd, action.c_str(), action.size()));
+    }
+  });
+
   /*
     If we are in a transaction or in a group: the only normal case is
     when the I/O thread was copying a big transaction, then it was

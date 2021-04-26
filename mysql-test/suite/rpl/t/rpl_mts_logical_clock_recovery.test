@@ -87,7 +87,9 @@ START SLAVE;
 -- echo # Reconnecting to the slave server
 -- source include/wait_until_connected_again.inc
 -- connection slave
+--disable_warnings
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+--enable_warnings
 
 # we need to send an additional event since the UNTIL CONDITION
 # needs an aditional event after the failed group to stop the slave
