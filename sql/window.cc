@@ -1128,31 +1128,33 @@ bool Window::setup_windows1(THD *thd, Query_block *select,
     AdjacencyList adj(windows->size());
 
     /* Resolve inter-window references */
-    uint i = 0;
-    for (auto wi1 = windows->begin(); wi1 != windows->end(); ++wi1, ++i) {
-      Window *w1 = &*wi1;
-      if (w1->m_inherit_from != nullptr) {
-        bool resolved = false;
-        uint j = 0;
-        for (auto wi2 = windows->begin(); wi2 != windows->end(); ++wi2, ++j) {
-          Window *w2 = &*wi2;
-          if (w2->m_name == nullptr) continue;
-          String str;
-          if (my_strcasecmp(system_charset_info,
-                            w1->m_inherit_from->val_str(&str)->ptr(),
-                            w2->printable_name()) == 0) {
-            w1->set_ancestor(w2);
-            resolved = true;
-            adj.add(i, j);
-            break;
+    {
+      uint i = 0;
+      for (auto wi1 = windows->begin(); wi1 != windows->end(); ++wi1, ++i) {
+        Window *w1 = &*wi1;
+        if (w1->m_inherit_from != nullptr) {
+          bool resolved = false;
+          uint j = 0;
+          for (auto wi2 = windows->begin(); wi2 != windows->end(); ++wi2, ++j) {
+            Window *w2 = &*wi2;
+            if (w2->m_name == nullptr) continue;
+            String str;
+            if (my_strcasecmp(system_charset_info,
+                              w1->m_inherit_from->val_str(&str)->ptr(),
+                              w2->printable_name()) == 0) {
+              w1->set_ancestor(w2);
+              resolved = true;
+              adj.add(i, j);
+              break;
+            }
           }
-        }
 
-        if (!resolved) {
-          String str;
-          my_error(ER_WINDOW_NO_SUCH_WINDOW, MYF(0),
-                   w1->m_inherit_from->val_str(&str)->ptr());
-          return true;
+          if (!resolved) {
+            String str;
+            my_error(ER_WINDOW_NO_SUCH_WINDOW, MYF(0),
+                     w1->m_inherit_from->val_str(&str)->ptr());
+            return true;
+          }
         }
       }
     }
