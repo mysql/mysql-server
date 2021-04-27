@@ -945,15 +945,8 @@ bool Ndb_metadata::compare_table_def(const dd::Table *t1,
     const dd::Column *column2 = t2->get_column(column1->name());
     if (column2 == nullptr) continue;
 
-    /*
-      Diff in 'column_name' detected, 'D' != 'd'
-
-      ALTER TABLE t8 CHANGE D d INT UNSIGNED causes the above. Only an issue
-      with the same character with different case. For example,
-      ALTER TABLE t8 CHANGE D c INT UNSIGNED works perfectly well.
-      Bug#31958327 has been filed
-    */
-    // ctx.compare("column_name", column1->name(), column2->name());
+    // column name
+    ctx.compare("column_name", column1->name(), column2->name());
 
     const char *column_name = column1->name().c_str();
 
