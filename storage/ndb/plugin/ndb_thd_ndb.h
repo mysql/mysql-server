@@ -53,8 +53,16 @@ class Thd_ndb {
   class Trans_tables {
    public:
     struct Stats {
+     private:
+      static constexpr ha_rows INVALID_TABLE_ROWS = ~0;
+
+     public:
       int uncommitted_rows{0};
-      ha_rows records{~(ha_rows)0};
+      ha_rows table_rows{INVALID_TABLE_ROWS};
+
+      // Check if stats are invalid, i.e has never been updated with number of
+      // rows in the table (from NDB or other (potentially cached) source)
+      bool invalid() const { return table_rows == INVALID_TABLE_ROWS; }
 
       void update_uncommitted_rows(int changed_rows) {
         DBUG_TRACE;

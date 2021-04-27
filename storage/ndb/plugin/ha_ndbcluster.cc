@@ -6679,8 +6679,11 @@ int ha_ndbcluster::info(uint flag) {
         multi_range_max_entry(PRIMARY_KEY_INDEX, table_share->reclength);
   }
   if (flag & HA_STATUS_VARIABLE) {
-    if (!thd) thd = current_thd;
     DBUG_PRINT("info", ("HA_STATUS_VARIABLE"));
+
+    if (!thd) {
+      thd = current_thd;
+    }
 
     if (!m_trans_table_stats) {
       if (check_ndb_connection(thd)) return HA_ERR_NO_CONNECTION;
@@ -6689,28 +6692,40 @@ int ha_ndbcluster::info(uint flag) {
     /*
       May need to update local copy of statistics in
       'm_trans_table_stats', either directly from datanodes,
-      or from shared (mutex protected) cached copy, if:
-       1) 'use_exact_count' has been set (by config or user).
-       2) HA_STATUS_NO_LOCK -> read from shared cached copy.
+      or from NDB_SHARE cached copy (mutex protected), if:
+       1) 'ndb_use_exact_count' has been set (by config or user).
+       2) HA_STATUS_NO_LOCK -> read from NDB_SHARE cached copy.
        3) Local copy is invalid.
     */
     const bool exact_count = THDVAR(thd, use_exact_count);
-    if (exact_count ||                                // 1)
-        !(flag & HA_STATUS_NO_LOCK) ||                // 2)
-        m_trans_table_stats == nullptr ||             // 3)
-        m_trans_table_stats->records == ~(ha_rows)0)  // 3)
+    DBUG_PRINT("info", ("exact_count: %d", exact_count));
+
+    const bool no_lock_flag = flag & HA_STATUS_NO_LOCK;
+    DBUG_PRINT("info", ("no_lock: %d", no_lock_flag));
+
+    if (exact_count ||                     // 1)
+        !no_lock_flag ||                   // 2)
+        m_trans_table_stats == nullptr ||  // 3) no trans stats registered
+        m_trans_table_stats->invalid())    // 3)
     {
-      const int result =
-          update_stats(thd, (exact_count || !(flag & HA_STATUS_NO_LOCK)));
-      if (result) return result;
+      const int result = update_stats(thd, exact_count || !no_lock_flag);
+      if (result) {
+        return result;
+      }
     } else {
-      /* Read from trans table stats, fast and fuzzy, wo/ locks */
-      assert(m_trans_table_stats->records != ~(ha_rows)0);
+      // Use transaction table stats, these stats are only used by this thread
+      // so no locks are required. Just double check that the stats have been
+      // updated previously.
+      assert(!m_trans_table_stats->invalid());
+
+      // Update handler::stats with rows in table plus rows changed by trans
       // This is doing almost the same thing as in update_stats()
       // i.e the number of records in active transaction plus number of
       // uncommitted are assigned to stats.records
-      stats.records =
-          m_trans_table_stats->records + m_trans_table_stats->uncommitted_rows;
+      stats.records = m_trans_table_stats->table_rows +
+                      m_trans_table_stats->uncommitted_rows;
+      DBUG_PRINT("table_stats",
+                 ("records updated from trans stats: %llu ", stats.records));
     }
 
     const int sql_command = thd_sql_command(thd);
@@ -12769,6 +12784,7 @@ bool ha_ndbcluster::low_byte_first() const {
 int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat) {
   Thd_ndb *thd_ndb = get_thd_ndb(thd);
   DBUG_TRACE;
+  DBUG_PRINT("enter", ("read_stat: %d", do_read_stat));
 
   Ndb_table_stats table_stats;
   if (!do_read_stat) {
@@ -12810,7 +12826,7 @@ int ha_ndbcluster::update_stats(THD *thd, bool do_read_stat) {
     DBUG_PRINT("info", ("active_rows: %d", active_rows));
 
     // Update "records" for the "active" statement or transaction
-    m_trans_table_stats->records = table_stats.row_count;
+    m_trans_table_stats->table_rows = table_stats.row_count;
   }
   // Update values in handler::stats (another "records")
   stats.mean_rec_length = static_cast<ulong>(table_stats.row_size);

@@ -116,8 +116,8 @@ void Thd_ndb::Trans_tables::dbug_print_elem(
   const Stats &stat = elem.second;
 
   std::string records("<invalid>");
-  if (stat.records != ~(ha_rows)0) {
-    records = std::to_string(stat.records);
+  if (!stat.invalid()) {
+    records = std::to_string(stat.table_rows);
   }
 
   DBUG_PRINT("share", ("%p = { records: %s, uncommitted: %d }", elem.first,
@@ -154,7 +154,7 @@ Thd_ndb::Trans_tables::Stats *Thd_ndb::Trans_tables::register_stats(
     // New element inserted, double check initial values
     DBUG_PRINT("info", ("New element inserted for share: %p", share));
     assert(emplace_res.first->first == share);
-    assert(emplace_res.first->second.records == ~(ha_rows)0);
+    assert(emplace_res.first->second.invalid());
     assert(emplace_res.first->second.uncommitted_rows == 0);
   } else {
     DBUG_PRINT("info", ("Existing element found for share: %p", share));
