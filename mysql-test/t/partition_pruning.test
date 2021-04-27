@@ -2319,3 +2319,40 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 4;
 --replace_column 10 #
 EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 > 4;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#32134145 - PARTITION PRUNING FAILS WITH EXPLICIT TIME_ZONE
+--echo # OFFSET IN DATETIME LITERAL
+--echo #
+# Table with 2 partitions, p1 < 2020-02-01 and p2 < 2020-03-01
+CREATE TABLE tp (
+  id int unsigned NOT NULL,
+  ts timestamp NOT NULL,
+  PRIMARY KEY (id, ts)
+)
+PARTITION BY RANGE (unix_timestamp(ts))
+(
+ PARTITION p1 VALUES LESS THAN (1580515200),
+ PARTITION p2 VALUES LESS THAN (1583020800)
+);
+
+SET time_zone = '+00:00';
+
+#Insert one row in each parition
+INSERT INTO tp VALUES (1, '2020-01-01');
+INSERT INTO tp VALUES (1, '2020-02-01');
+
+SELECT COUNT(*) FROM tp PARTITION(p1);
+SELECT COUNT(*) FROM tp PARTITION(p2);
+
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+
+SET time_zone = '+01:00';
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+
+#expect the same result even without partitioning
+ALTER TABLE tp REMOVE PARTITIONING;
+SELECT * FROM tp WHERE ts >= '2020-01-01 00:00:00+00:00' AND ts <='2020-02-01 00:00:00+00:00';
+
+SET time_zone = DEFAULT;
+DROP TABLE tp;
