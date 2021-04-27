@@ -13,7 +13,7 @@ let $tmp_dir = $MYSQLTEST_VARDIR/tmp;
 let $MYSQLD_DATADIR = $tmp_dir/max_trx_id;
 let $MYSQLD_ERROR_LOG = $tmp_dir/my_restart.err;
 let $MYSQLD_EXTRA_ARGS = --debug="d,trx_sys_low_trx_id_write_margin" --innodb-log-file-size=4M;
---source ../include/initialize_datadir.inc
+--source include/initialize_datadir.inc
 
 --echo # Restart MySQL using the new data directory.
 let $restart_parameters = restart: --datadir=$MYSQLD_DATADIR --log-error=$MYSQLD_ERROR_LOG $MYSQLD_EXTRA_ARGS;
