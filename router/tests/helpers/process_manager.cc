@@ -536,7 +536,8 @@ void ProcessManager::check_exit_code(ProcessWrapper &process,
   try {
     result = process.wait_for_exit(timeout);
   } catch (const std::exception &e) {
-    FAIL() << "Process wait for exit failed. " << e.what();
+    FAIL() << "waiting for " << timeout.count() << "ms for PID "
+           << process.get_pid() << " to exit failed: " << e.what();
   }
 
   ASSERT_EQ(expected_exit_code, result);

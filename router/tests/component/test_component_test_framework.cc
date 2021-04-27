@@ -265,7 +265,7 @@ TEST_F(ComponentTestFrameworkTest, wait_for_exit_with_low_timeout_tester) {
   // wait with very short timeout
   EXPECT_THROW_LIKE(testee.wait_for_exit(std::chrono::seconds(0)),
                     std::system_error,
-                    "Timed out waiting 0 ms for the process");
+                    make_error_code(std::errc::timed_out).message());
 
   // now let's just wait for the process to shut down naturally (test cleanup)
   EXPECT_EQ(testee.wait_for_exit(kSleepDuration + kSleepDuration / 2), 0);

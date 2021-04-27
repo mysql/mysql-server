@@ -266,11 +266,7 @@ int ProcessLauncher::wait(std::chrono::milliseconds timeout) {
           get_ret = GetExitCodeProcess(pi.hProcess, &dwExit);
           break;
         case WAIT_TIMEOUT:
-          throw std::system_error(std::make_error_code(std::errc::timed_out),
-                                  std::string("Timed out waiting " +
-                                              std::to_string(timeout.count()) +
-                                              " ms for the process '" +
-                                              executable_path + "' to exit"));
+          throw std::system_error(std::make_error_code(std::errc::timed_out));
         case WAIT_FAILED:
           throw std::system_error(last_error_code());
         default:
@@ -653,16 +649,10 @@ int ProcessLauncher::wait(const std::chrono::milliseconds timeout) {
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_for));
         wait_time -= sleep_for;
       } else {
-        throw std::system_error(std::make_error_code(std::errc::timed_out),
-                                std::string("Timed out waiting ") +
-                                    std::to_string(timeout.count()) +
-                                    " ms for the process " +
-                                    std::to_string(childpid) + " to exit");
+        throw std::system_error(std::make_error_code(std::errc::timed_out));
       }
     } else if (ret == -1) {
-      throw std::system_error(
-          last_error_code(),
-          std::string("waiting for process '" + executable_path + "' failed"));
+      throw std::system_error(last_error_code());
     } else {
       if (WIFEXITED(status)) {
         return WEXITSTATUS(status);
