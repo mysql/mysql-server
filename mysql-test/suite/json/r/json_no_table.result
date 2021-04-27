@@ -4265,3 +4265,9 @@ JSON_SEARCH('["abc"]', 'one', CAST('abc' AS CHAR CHARSET utf16))
 SELECT JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16));
 JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16))
 "$[0]"
+# Bug32787464: Json_wrapper::compare const: assertion
+#              `other_type != enum_json_type::J_ERROR' failed
+DO NULLIF(NULLIF(JSON_OBJECTAGG('ab',' *. b$_ 7?C **c3'),
+EXTRACT(MINUTE_MICROSECOND FROM json_storage_size('* .$B7$'))
+), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 0.

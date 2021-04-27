@@ -3574,7 +3574,12 @@ my_decimal *Item_func_nullif::val_decimal(my_decimal *decimal_value) {
 
 bool Item_func_nullif::val_json(Json_wrapper *wr) {
   assert(fixed);
-  if (cmp.compare() == 0) {
+  const int cmp_result = cmp.compare();
+  // compare() calls val functions and may raise errors.
+  if (current_thd->is_error()) {
+    return error_json();
+  }
+  if (cmp_result == 0) {
     null_value = true;
     return false;
   }
