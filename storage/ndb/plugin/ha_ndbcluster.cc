@@ -10385,6 +10385,9 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   // Load the altered table
   Ndb_table_guard ndbtab_g(ndb, new_dbname, new_tabname);
   const NDBTAB *ndbtab = ndbtab_g.get_table();
+  if (!ndbtab) {
+    ERR_RETURN(ndbtab_g.getNdbError());
+  }
 
   if (!rollback_in_progress) {
     // This is an actual rename and not a rollback of the rename
@@ -10417,6 +10420,9 @@ int rename_table_impl(THD *thd, Ndb *ndb,
   if (create_events) {
     Ndb_table_guard ndbtab_g2(ndb, new_dbname, new_tabname);
     const NDBTAB *ndbtab = ndbtab_g2.get_table();
+    if (!ndbtab) {
+      ERR_RETURN(ndbtab_g2.getNdbError());
+    }
 
     // NOTE! Should check error and fail the rename
     (void)binlog_client.read_and_apply_replication_info(ndb, share, ndbtab,

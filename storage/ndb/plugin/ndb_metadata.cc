@@ -552,6 +552,14 @@ bool Ndb_metadata::create_foreign_keys(Ndb *ndb, dd::Table *table_def) const {
 
     Ndb_table_guard ndb_table_guard(ndb, parent_db, parent_name);
     const NdbDictionary::Table *parent_table = ndb_table_guard.get_table();
+    if (!parent_table) {
+      // Failed to open the table from NDB
+      ndb_log_error("Got error '%d: %s' from NDB",
+                    ndb_table_guard.getNdbError().code,
+                    ndb_table_guard.getNdbError().message);
+      ndb_log_error("Failed to open table '%s.%s'", parent_db, parent_name);
+      return false;
+    }
     for (unsigned int j = 0; j < ndb_fk.getChildColumnCount(); j++) {
       // Create FK element(s) for child columns
       dd::Foreign_key_element *fk_element = dd_fk->add_element();
