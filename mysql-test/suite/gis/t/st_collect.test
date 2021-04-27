@@ -27,6 +27,7 @@ table_simple_aggregation) , ST_GEOMFROMTEXT('MULTIPOINT((0 0),(1 0),(2 0),(3
 --echo # result shall be
 --echo # MULTIPOINT((0 0),(1 0),(3 0))
 --echo # MULTIPOINT((2 0),(0 0))
+--sorted_result
 SELECT ST_ASTEXT(ST_COLLECT( DISTINCT location )) AS t FROM
 table_simple_aggregation GROUP BY grouping_condition;
 
@@ -65,13 +66,17 @@ CURRENT ROW))  FROM table_simple_aggregation;
 
 
 --echo Excercising multiple code paths.
+--sorted_result
 SELECT ST_ASTEXT(ST_COLLECT(DISTINCT location)) AS geo, SUM(running_number)
 OVER()  FROM table_simple_aggregation GROUP BY running_number;
+--sorted_result
 SELECT ST_ASTEXT(ST_COLLECT(DISTINCT location)) AS geo, SUM(grouping_condition)
 OVER(), grouping_condition FROM table_simple_aggregation GROUP BY
 grouping_condition;
+--sorted_result
 SELECT ST_ASTEXT(ST_COLLECT(location)) AS geo, SUM(grouping_condition) OVER(),
 grouping_condition FROM table_simple_aggregation GROUP BY grouping_condition;
+--sorted_result
 SELECT ST_ASTEXT(ST_COLLECT(location)) AS geo, SUM(running_number) OVER()  FROM
 table_simple_aggregation GROUP BY running_number;
 

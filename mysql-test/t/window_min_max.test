@@ -509,14 +509,21 @@ CREATE TABLE tj2 AS SELECT * FROM tj;
 UPDATE tj2 SET i=MOD(i,3);
 SELECT * FROM tj2;
 --echo With GROUP BY
+--sorted_result
 SELECT          COUNT(*) OVER (), MOD(MIN(i),2) FROM tj2 GROUP BY i ;
+--sorted_result
 SELECT DISTINCT COUNT(*) OVER (), MOD(MAX(i),2) FROM tj2 GROUP BY i ;
 
 --echo Bug fix GROUP BY with window function referring column used in grouping expression
+--sorted_result
 SELECT i, MIN(i) OVER (), MOD(MIN(i),2) FROM tj2 GROUP BY i ;
+--sorted_result
 SELECT i, MAX(MAX(i)) OVER (), MAX(i) OVER (ORDER BY i), MOD(MAX(i),2), MAX(i) FROM tj2 GROUP BY i ;
+--sorted_result
 SELECT i, MIN(i) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, MIN(i) OVER (ORDER BY i) FROM tj;
+--sorted_result
 SELECT j,CAST(MIN(j) OVER (PARTITION BY i) AS JSON), CAST(MAX(j) OVER () AS JSON) FROM tj;
+--sorted_result
 SELECT j,CAST(MIN(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(MAX(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
 
 DROP TABLE tj,tj2;
