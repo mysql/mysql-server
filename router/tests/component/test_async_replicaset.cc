@@ -1620,8 +1620,7 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
 
   SCOPED_TRACE("// Launch the router with the initial state file");
   launch_router(temp_test_dir.name(), metadata_cache_section, routing_section,
-                state_file, EXIT_SUCCESS,
-                /*wait_for_notify_ready=*/-1s);
+                state_file);
 
   SCOPED_TRACE("// Wait until the router at least once queried the metadata");
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));

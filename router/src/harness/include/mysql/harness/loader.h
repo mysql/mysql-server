@@ -1095,7 +1095,7 @@ class LogReopenThread {
    */
   static void log_reopen_thread_function(LogReopenThread *t);
 
-  /*
+  /**
    * request reopen
    *
    * @note Empty dst will cause reopen only, and the old content will not be
@@ -1108,7 +1108,7 @@ class LogReopenThread {
    * @param dst filename to use for old log file during reopen
    * @throws std::system_error same as std::unique_lock::lock does
    */
-  void request_reopen(const std::string dst = "");
+  void request_reopen(const std::string &dst = "");
 
   /* Log reopen state triplet */
   enum LogReopenState { REOPEN_NONE, REOPEN_REQUESTED, REOPEN_ACTIVE };
@@ -1181,7 +1181,7 @@ void request_application_shutdown(
  * @throws std::system_error same as std::unique_lock::lock does
  */
 HARNESS_EXPORT
-void request_log_reopen(const std::string dst = "");
+void request_log_reopen(const std::string &dst = "");
 
 /**
  * check reopen completed

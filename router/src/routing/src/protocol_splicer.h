@@ -412,7 +412,7 @@ class Splicer : public std::enable_shared_from_this<
                 BasicSplicer::state_to_string(splicer_->state()));
 #endif
 
-      const auto before_state = splicer_->state();
+      auto before_state = splicer_->state();
 
       switch (before_state) {
         case State::SERVER_GREETING:
@@ -439,6 +439,11 @@ class Splicer : public std::enable_shared_from_this<
               conn_->client_endpoint());
 
           splicer_->state(State::SPLICE);
+          // adjust the "before_state" to get the circuit-breaker working
+          // correctly below.
+          //
+          // not adjusting state would lead to an infinite loop.
+          before_state = splicer_->state();
 
           splicer_->state(splicer_->splice<true>());
           splicer_->state(splicer_->splice<false>());
@@ -601,8 +606,9 @@ class Splicer : public std::enable_shared_from_this<
     // set the initial state of the state-machine.
     splicer_->start();
 
-    // run the state-machine until it has to block.
-    run();
+    net::defer(conn_->client_socket().get_executor(),
+               std::bind(&Splicer<ClientProtocol, ServerProtocol>::run,
+                         this->shared_from_this()));
   }
 
  private:

@@ -47,6 +47,7 @@
 
 #include <fcntl.h>
 
+#include "config_builder.h"
 #include "dim.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/io_context.h"
@@ -418,6 +419,35 @@ std::string ProcessManager::make_DEFAULT_section(
                       "runtime_folder = " + origin_dir_.str() + "\n" +
                       "config_folder = " + origin_dir_.str() + "\n" +
                       "data_folder = " + origin_dir_.str() + "\n\n";
+}
+
+std::string ProcessManager::ConfigWriter::write(const std::string &name) {
+  const auto file_path = Path(directory_).join(name).str();
+  std::ofstream ofs(file_path);
+
+  if (!ofs.good()) {
+    throw(std::runtime_error("Could not create config file " + file_path));
+  }
+
+  for (auto const &section : sections_) {
+    ofs << mysql_harness::ConfigBuilder::build_section(section.first,
+                                                       section.second)
+        << "\n";
+  }
+
+  return file_path;
+}
+
+ProcessManager::ConfigWriter ProcessManager::config_writer(
+    const std::string &directory) {
+  ConfigWriter::sections_type sections;
+
+  sections["DEFAULT"] = get_DEFAULT_defaults();
+  sections["io"] = {{"threads", "1"}};
+  sections["logger"] = {{"level", "DEBUG"},
+                        {"timestamp_precision", "millisecond"}};
+
+  return {directory, std::move(sections)};
 }
 
 std::string ProcessManager::create_config_file(
