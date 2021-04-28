@@ -52,7 +52,7 @@ class Storing_auto_THD {
  public:
   Storing_auto_THD() {
     m_previous_thd = current_thd;
-    thd = create_thd(false, true, false, 0);
+    thd = create_internal_thd();
   }
 
   ~Storing_auto_THD() {
@@ -67,7 +67,7 @@ class Storing_auto_THD {
 
       prev_da->copy_sql_conditions_from_da(m_previous_thd, curr_da);
     }
-    destroy_thd(thd);
+    destroy_internal_thd(thd);
     if (m_previous_thd) m_previous_thd->store_globals();
   }
   THD *get_THD() { return thd; }

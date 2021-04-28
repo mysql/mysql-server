@@ -6472,7 +6472,8 @@ void *lo_spawn_thread_fct(void *arg) {
   return nullptr;
 }
 
-static int lo_spawn_thread(PSI_thread_key key, my_thread_handle *thread,
+static int lo_spawn_thread(PSI_thread_key key, PSI_thread_seqnum seqnum,
+                           my_thread_handle *thread,
                            const my_thread_attr_t *attr,
                            void *(*start_routine)(void *), void *arg) {
   LO_spawn_thread_arg *psi_arg;
@@ -6499,7 +6500,7 @@ static int lo_spawn_thread(PSI_thread_key key, my_thread_handle *thread,
     result = my_thread_create(thread, attr, lo_spawn_thread_fct, psi_arg);
   } else {
     /* [1] Start the thread in the chained instrumentation. */
-    result = g_thread_chain->spawn_thread(chain_key, thread, attr,
+    result = g_thread_chain->spawn_thread(chain_key, seqnum, thread, attr,
                                           lo_spawn_thread_fct, psi_arg);
   }
 
@@ -6509,7 +6510,8 @@ static int lo_spawn_thread(PSI_thread_key key, my_thread_handle *thread,
   return result;
 }
 
-static PSI_thread *lo_new_thread(PSI_thread_key key, const void *identity,
+static PSI_thread *lo_new_thread(PSI_thread_key key, PSI_thread_seqnum seqnum,
+                                 const void *identity,
                                  ulonglong processlist_id) {
   native_mutex_lock(&serialize);
 
@@ -6522,8 +6524,8 @@ static PSI_thread *lo_new_thread(PSI_thread_key key, const void *identity,
     LO_thread::g_threads.push_back(lo);
 
     if (g_thread_chain != nullptr) {
-      lo->m_chain = g_thread_chain->new_thread(klass->get_chain_key(), identity,
-                                               processlist_id);
+      lo->m_chain = g_thread_chain->new_thread(klass->get_chain_key(), seqnum,
+                                               identity, processlist_id);
     }
   }
 
@@ -7719,7 +7721,7 @@ static void lo_notify_session_change_user(PSI_thread *thread) {
   }
 }
 
-PSI_thread_service_v4 LO_thread_v4 = {lo_register_thread,
+PSI_thread_service_v5 LO_thread_v5 = {lo_register_thread,
                                       lo_spawn_thread,
                                       lo_new_thread,
                                       lo_set_thread_id,
@@ -7763,7 +7765,9 @@ static void *lo_get_thread_interface(int version) {
     case PSI_THREAD_VERSION_3:
       return nullptr;
     case PSI_THREAD_VERSION_4:
-      return &LO_thread_v4;
+      return nullptr;
+    case PSI_THREAD_VERSION_5:
+      return &LO_thread_v5;
     default:
       return nullptr;
   }

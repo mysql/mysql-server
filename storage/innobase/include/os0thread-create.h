@@ -72,12 +72,17 @@ class Runnable {
  public:
 #ifdef UNIV_PFS_THREAD
   /** Constructor for the Runnable object.
-  @param[in]	pfs_key		Performance schema key */
-  explicit Runnable(mysql_pfs_key_t pfs_key) : m_pfs_key(pfs_key) { init(); }
+  @param[in]	pfs_key		Performance schema key
+  @param[in]	pfs_seqnum	Performance schema sequence number */
+  explicit Runnable(mysql_pfs_key_t pfs_key, PSI_thread_seqnum pfs_seqnum)
+      : m_pfs_key(pfs_key), m_pfs_seqnum(pfs_seqnum) {
+    init();
+  }
 #else
   /** Constructor for the Runnable object.
-  @param[in]	pfs_key		Performance schema key (ignored) */
-  explicit Runnable(mysql_pfs_key_t) { init(); }
+  @param[in]	pfs_key		Performance schema key (ignored)
+  @param[in]	pfs_seqnum	Performance schema sequence number (ignored) */
+  explicit Runnable(mysql_pfs_key_t, PSI_thread_seqnum) { init(); }
 #endif /* UNIV_PFS_THREAD */
 
  public:
@@ -116,7 +121,8 @@ class Runnable {
     if (m_pfs_key.m_value != PFS_NOT_INSTRUMENTED.m_value) {
       PSI_thread *psi;
 
-      psi = PSI_THREAD_CALL(new_thread)(m_pfs_key.m_value, nullptr, 0);
+      psi =
+          PSI_THREAD_CALL(new_thread)(m_pfs_key.m_value, m_pfs_seqnum, this, 0);
 
       PSI_THREAD_CALL(set_thread_os_id)(psi);
       PSI_THREAD_CALL(set_thread)(psi);
@@ -156,6 +162,8 @@ class Runnable {
 #ifdef UNIV_PFS_THREAD
   /** Performance schema key */
   const mysql_pfs_key_t m_pfs_key;
+  /** Performance schema sequence number */
+  PSI_thread_seqnum m_pfs_seqnum;
 #endif /* UNIV_PFS_THREAD */
 
   /** Promise which is set when task is done. */
@@ -225,14 +233,16 @@ access to check thread's state. You are allowed to either move or copy that
 object (any number of copies is allowed). After assigning you are allowed to
 start the thread by calling start() on any of those objects.
 @param[in]	pfs_key   Performance schema thread key
+@param[in]	pfs_seqnum  Performance schema thread sequence number
 @param[in]	f         Callable instance
 @param[in]	args      Zero or more args
 @return Object which allows to start the created thread, monitor its state and
         wait until the thread is finished. */
 template <typename F, typename... Args>
-IB_thread create_detached_thread(mysql_pfs_key_t pfs_key, F &&f,
+IB_thread create_detached_thread(mysql_pfs_key_t pfs_key,
+                                 PSI_thread_seqnum pfs_seqnum, F &&f,
                                  Args &&... args) {
-  Runnable runnable{pfs_key};
+  Runnable runnable{pfs_key, pfs_seqnum};
 
   auto thread = runnable.thread();
 
@@ -250,7 +260,7 @@ IB_thread create_detached_thread(mysql_pfs_key_t pfs_key, F &&f,
 #ifdef UNIV_PFS_THREAD
 #define os_thread_create(...) create_detached_thread(__VA_ARGS__)
 #else
-#define os_thread_create(k, ...) create_detached_thread(0, __VA_ARGS__)
+#define os_thread_create(k, s, ...) create_detached_thread(0, 0, __VA_ARGS__)
 #endif /* UNIV_PFS_THREAD */
 
 /** Parallel for loop over a container.
@@ -278,7 +288,7 @@ void par_for(mysql_pfs_key_t pfs_key, const Container &c, size_t n, F &&f,
     auto b = c.begin() + (i * slice);
     auto e = b + slice;
 
-    auto worker = os_thread_create(pfs_key, f, b, e, i, args...);
+    auto worker = os_thread_create(pfs_key, i, f, b, e, i, args...);
     worker.start();
 
     workers.push_back(std::move(worker));

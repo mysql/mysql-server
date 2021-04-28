@@ -155,7 +155,7 @@ void Sql_data_context::deinit() {
   PSI_THREAD_CALL(delete_current_thread)();
 
   PSI_thread *psi =
-      PSI_THREAD_CALL(new_thread)(KEY_thread_x_worker, nullptr, 0);
+      PSI_THREAD_CALL(new_thread)(KEY_thread_x_worker, 0, nullptr, 0);
   PSI_THREAD_CALL(set_thread_os_id)(psi);
   PSI_THREAD_CALL(set_thread)(psi);
 #endif /* HAVE_PSI_THREAD_INTERFACE */

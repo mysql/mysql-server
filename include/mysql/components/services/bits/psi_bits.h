@@ -114,6 +114,18 @@ static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
 */
 #define PSI_FLAG_THREAD_SYSTEM (1 << 9)
 
+/**
+  Automatic sequence number flag.
+  Generate thread instances names automatically.
+*/
+#define PSI_FLAG_AUTO_SEQNUM (1 << 10)
+
+/**
+  No sequence number flag.
+  Use thread instances names without sequence numbers.
+*/
+#define PSI_FLAG_NO_SEQNUM (1 << 11)
+
 #define PSI_VOLATILITY_UNKNOWN 0
 #define PSI_VOLATILITY_PERMANENT 1
 #define PSI_VOLATILITY_PROVISIONING 2

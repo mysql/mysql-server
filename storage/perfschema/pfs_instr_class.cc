@@ -1285,10 +1285,31 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
     entry->m_history = true;
 
     entry->enforce_valid_flags(PSI_FLAG_SINGLETON | PSI_FLAG_USER |
-                               PSI_FLAG_THREAD_SYSTEM);
+                               PSI_FLAG_THREAD_SYSTEM | PSI_FLAG_AUTO_SEQNUM |
+                               PSI_FLAG_NO_SEQNUM);
 
     configure_instr_class(entry);
     ++thread_class_allocated_count;
+
+    entry->m_seqnum.store(1);
+
+    if (entry->has_seqnum()) {
+      /*
+        Ensure room for "-%d" suffix with 2 digits minimum,
+        so that:
+        - the "-%d" format fits into the class
+        - the "-NN" suffix fits into the instance
+      */
+      assert(strlen(info->m_os_name) < PFS_MAX_OS_NAME_LENGTH - 3);
+
+      snprintf(entry->m_os_name, PFS_MAX_OS_NAME_LENGTH, "%s-%%d",
+               info->m_os_name);
+    } else {
+      assert(strlen(info->m_os_name) < PFS_MAX_OS_NAME_LENGTH);
+      strncpy(entry->m_os_name, info->m_os_name, PFS_MAX_OS_NAME_LENGTH);
+    }
+    entry->m_os_name[PFS_MAX_OS_NAME_LENGTH - 1] = '\0';
+
     return (index + 1);
   }
 

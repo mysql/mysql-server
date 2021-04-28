@@ -58,12 +58,12 @@ class THD;
 void pfs_register_thread_vc(const char *category, PSI_thread_info *info,
                             int count);
 
-int pfs_spawn_thread_vc(PSI_thread_key key, my_thread_handle *thread,
-                        const my_thread_attr_t *attr,
+int pfs_spawn_thread_vc(PSI_thread_key key, unsigned int sequence_number,
+                        my_thread_handle *thread, const my_thread_attr_t *attr,
                         void *(*start_routine)(void *), void *arg);
 
-PSI_thread *pfs_new_thread_vc(PSI_thread_key key, const void *identity,
-                              ulonglong processlist_id);
+PSI_thread *pfs_new_thread_vc(PSI_thread_key key, unsigned int sequence_number,
+                              const void *identity, ulonglong processlist_id);
 
 void pfs_set_thread_id_vc(PSI_thread *thread, ulonglong processlist_id);
 

@@ -461,13 +461,13 @@ static PSI_thread_key key_thread_replica_io, key_thread_replica_sql,
     key_thread_replica_worker, key_thread_replica_monitor_io;
 
 static PSI_thread_info all_slave_threads[] = {
-    {&key_thread_replica_io, "replica_io",
-     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
-    {&key_thread_replica_sql, "replica_sql",
-     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
-    {&key_thread_replica_worker, "replica_worker",
-     PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
-    {&key_thread_replica_monitor_io, "replica_monitor",
+    {&key_thread_replica_io, "replica_io", "rpl_rca_io", PSI_FLAG_THREAD_SYSTEM,
+     0, PSI_DOCUMENT_ME},
+    {&key_thread_replica_sql, "replica_sql", "rpl_rca_sql",
+     PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_thread_replica_worker, "replica_worker", "rpl_rca_wkr",
+     PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME},
+    {&key_thread_replica_monitor_io, "replica_monitor", "rpl_rca_mon",
      PSI_FLAG_SINGLETON | PSI_FLAG_THREAD_SYSTEM, 0, PSI_DOCUMENT_ME}};
 
 static PSI_memory_info all_slave_memory[] = {{&key_memory_rli_mta_coor,

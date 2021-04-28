@@ -36,7 +36,7 @@
 #include "sql/current_thd.h"
 #include "sql/protocol_classic.h"
 #include "sql/sql_class.h"
-#include "sql/sql_thd_internal_api.h"  // create_thd
+#include "sql/sql_thd_internal_api.h"  // create_internal_thd
 
 #define MY_SVC_TRUE 1
 #define MY_SVC_FALSE 0
@@ -176,7 +176,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
   THD *tmp_thd = nullptr;
   bool retval;
   if (current_thd == nullptr) {
-    tmp_thd = create_thd(false, true, false, PSI_NOT_INSTRUMENTED);
+    tmp_thd = create_internal_thd();
     if (!tmp_thd) return true;
   }
 
@@ -191,7 +191,7 @@ my_svc_bool security_context_lookup(MYSQL_SECURITY_CONTEXT ctx,
   if (sctx_thd) set_system_user_flag(sctx_thd);
 
   if (tmp_thd) {
-    destroy_thd(tmp_thd);
+    destroy_internal_thd(tmp_thd);
     tmp_thd = nullptr;
   }
   return retval;

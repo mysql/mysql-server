@@ -1120,8 +1120,8 @@ void Parallel_reader::parallel_read() {
       }
       m_thread_ctxs.emplace_back(ptr);
       m_parallel_read_threads.emplace_back(
-          os_thread_create(parallel_read_thread_key, &Parallel_reader::worker,
-                           this, m_thread_ctxs[i]));
+          os_thread_create(parallel_read_thread_key, i + 1,
+                           &Parallel_reader::worker, this, m_thread_ctxs[i]));
       m_parallel_read_threads.back().start();
     } catch (...) {
       err = DB_OUT_OF_RESOURCES;

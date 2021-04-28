@@ -513,7 +513,7 @@ int start_log_archiver_background() {
 
   if (ret) {
     srv_threads.m_log_archiver =
-        os_thread_create(log_archiver_thread_key, log_archiver_thread);
+        os_thread_create(log_archiver_thread_key, 0, log_archiver_thread);
 
     srv_threads.m_log_archiver.start();
 
@@ -535,7 +535,7 @@ int start_page_archiver_background() {
 
   if (ret) {
     srv_threads.m_page_archiver =
-        os_thread_create(page_archiver_thread_key, page_archiver_thread);
+        os_thread_create(page_archiver_thread_key, 0, page_archiver_thread);
 
     srv_threads.m_page_archiver.start();
 

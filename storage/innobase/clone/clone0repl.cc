@@ -554,7 +554,7 @@ bool Clone_persist_gtid::check_max_gtid_threshold() {
 }
 
 void Clone_persist_gtid::periodic_write() {
-  auto thd = create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
+  auto thd = create_internal_thd();
 
   /* Allow GTID to be persisted on read only server. */
   thd->set_skip_readonly_check();
@@ -613,7 +613,7 @@ void Clone_persist_gtid::periodic_write() {
   }
 
   m_active.store(false);
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
   m_thread_active.store(false);
 }
 
@@ -692,7 +692,7 @@ bool Clone_persist_gtid::start() {
   }
 
   srv_threads.m_gtid_persister =
-      os_thread_create(clone_gtid_thread_key, clone_gtid_thread, this);
+      os_thread_create(clone_gtid_thread_key, 0, clone_gtid_thread, this);
   srv_threads.m_gtid_persister.start();
 
   if (!wait_thread(true, false, 0, false, false, nullptr)) {

@@ -549,8 +549,8 @@ static PSI_memory_info all_mysys_memory[] = {
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
 static PSI_thread_info all_mysys_thread[] = {
-    {&key_thread_timer_notifier, "thread_timer_notifier", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME}};
+    {&key_thread_timer_notifier, "thread_timer_notifier", "timer_notifier",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #ifdef HAVE_PSI_INTERFACE

@@ -2803,7 +2803,7 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
 
   ut_ad(!srv_read_only_mode);
 
-  THD *thd = create_thd(false, true, true, 0);
+  THD *thd = create_internal_thd();
 
   heap = mem_heap_create(sizeof(dict_table_t *) * 64);
   heap_alloc = ib_heap_allocator_create(heap);
@@ -2924,7 +2924,7 @@ static void fts_optimize_thread(ib_wqueue_t *wq) {
 
   ib::info(ER_IB_MSG_505) << "FTS optimize thread exiting.";
 
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 /** Startup the optimize thread and create the work queue. */
@@ -2939,7 +2939,7 @@ void fts_optimize_init(void) {
   last_check_sync_time = ut_time_monotonic();
 
   srv_threads.m_fts_optimize = os_thread_create(
-      fts_optimize_thread_key, fts_optimize_thread, fts_optimize_wq);
+      fts_optimize_thread_key, 0, fts_optimize_thread, fts_optimize_wq);
 
   srv_threads.m_fts_optimize.start();
 }

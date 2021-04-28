@@ -105,8 +105,9 @@ static PSI_memory_info clone_memory[] = {
 
 /** Clone thread key for performance schema */
 static PSI_thread_info clone_threads[] = {
-    {&clone_local_thd_key, "local-task", 0, 0, PSI_DOCUMENT_ME},
-    {&clone_client_thd_key, "client-task", 0, 0, PSI_DOCUMENT_ME}};
+    {&clone_local_thd_key, "local-task", "clone_local", 0, 0, PSI_DOCUMENT_ME},
+    {&clone_client_thd_key, "client-task", "clone_client", 0, 0,
+     PSI_DOCUMENT_ME}};
 
 static PSI_statement_info clone_stmts[] = {{0, "local", 0, PSI_DOCUMENT_ME},
                                            {0, "client", 0, PSI_DOCUMENT_ME},

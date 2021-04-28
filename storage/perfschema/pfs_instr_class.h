@@ -55,6 +55,14 @@ struct TABLE_SHARE;
 #define PFS_MAX_INFO_NAME_LENGTH 128
 
 /**
+  Maximum length of the thread os name.
+  Must include a terminating NUL character.
+  Length is 16 because of linux pthread_setname_np(3)
+  @see my_thread_self_setname()
+*/
+#define PFS_MAX_OS_NAME_LENGTH 16
+
+/**
   Maximum length of the 'full' prefix of an instrument name.
   For example, for the instrument name 'wait/sync/mutex/sql/LOCK_open',
   the full prefix is 'wait/sync/mutex/sql/', which in turn derives from
@@ -187,6 +195,12 @@ struct PFS_instr_class {
 
   bool is_global() const { return m_flags & PSI_FLAG_ONLY_GLOBAL_STAT; }
 
+  bool has_seqnum() const {
+    return (m_flags & (PSI_FLAG_SINGLETON | PSI_FLAG_NO_SEQNUM)) == 0;
+  }
+
+  bool has_auto_seqnum() const { return m_flags & PSI_FLAG_AUTO_SEQNUM; }
+
   void enforce_valid_flags(uint allowed_flags) {
     /* Reserved for future use. */
     allowed_flags |= PSI_FLAG_THREAD | PSI_FLAG_TRANSFER;
@@ -268,6 +282,10 @@ struct PFS_ALIGNED PFS_thread_class : public PFS_instr_class {
   PFS_thread *m_singleton;
   /** Thread history instrumentation flag. */
   bool m_history{false};
+  /** Thread os name. */
+  char m_os_name[PFS_MAX_OS_NAME_LENGTH];
+  /** Thread instance sequence number counter. */
+  std::atomic<unsigned int> m_seqnum;
 };
 
 /** Key identifying a table share. */

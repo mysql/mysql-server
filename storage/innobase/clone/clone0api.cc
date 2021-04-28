@@ -1950,7 +1950,7 @@ void Fixup_data::fix_objects(THD *thd, const DD_Objs_Iter<T> &begin,
 
   /* For newly spawned threads, create server THD */
   if (thread_number != get_num_tasks()) {
-    thd = create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
+    thd = create_internal_thd();
     thread_created = true;
   }
 
@@ -1998,7 +1998,7 @@ void Fixup_data::fix_objects(THD *thd, const DD_Objs_Iter<T> &begin,
 
   /* Destroy thread if newly spawned task */
   if (thread_created) {
-    destroy_thd(thd);
+    destroy_internal_thd(thd);
   }
 }
 

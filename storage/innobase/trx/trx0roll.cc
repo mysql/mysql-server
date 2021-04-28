@@ -755,12 +755,7 @@ committed, then we clean up a possible insert undo log. If the
 transaction was not yet committed, then we roll it back.
 Note: this is done in a background thread. */
 void trx_recovery_rollback_thread() {
-#ifdef UNIV_PFS_THREAD
-  THD *thd =
-      create_thd(false, true, true, trx_recovery_rollback_thread_key.m_value);
-#else
-  THD *thd = create_thd(false, true, true, 0);
-#endif /* UNIV_PFS_THREAD */
+  THD *thd = create_internal_thd();
 
   ut_ad(!srv_read_only_mode);
 
@@ -773,7 +768,7 @@ void trx_recovery_rollback_thread() {
 
   trx_rollback_or_clean_recovered(TRUE);
 
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 /** Tries truncate the undo logs. */

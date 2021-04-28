@@ -1303,7 +1303,7 @@ static bool redo_log_archive_start(THD *thd, const char *label,
   redo_log_archive_active = true;
 
   srv_threads.m_backup_log_archiver = os_thread_create(
-      redo_log_archive_consumer_thread_key, redo_log_archive_consumer);
+      redo_log_archive_consumer_thread_key, 0, redo_log_archive_consumer);
 
   mutex_exit(&redo_log_archive_admin_mutex);
 

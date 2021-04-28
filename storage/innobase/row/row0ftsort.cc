@@ -984,7 +984,7 @@ void row_fts_start_psort(fts_psort_t *psort_info) {
     psort_info[i].psort_id = i;
 
     auto thread =
-        os_thread_create(fts_parallel_tokenization_thread_key,
+        os_thread_create(fts_parallel_tokenization_thread_key, i + 1,
                          fts_parallel_tokenization_thread, &psort_info[i]);
 
     thread.start();
@@ -1013,7 +1013,7 @@ void row_fts_start_parallel_merge(fts_psort_t *merge_info) {
     merge_info[i].psort_id = i;
     merge_info[i].child_status = 0;
 
-    auto thread = os_thread_create(fts_parallel_merge_thread_key,
+    auto thread = os_thread_create(fts_parallel_merge_thread_key, i + 1,
                                    fts_parallel_merge_thread, &merge_info[i]);
 
     thread.start();

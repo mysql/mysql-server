@@ -2843,7 +2843,7 @@ void buf_flush_page_cleaner_init(size_t n_page_cleaners) {
   page_cleaner->is_running = true;
 
   srv_threads.m_page_cleaner_coordinator =
-      os_thread_create(page_flush_coordinator_thread_key,
+      os_thread_create(page_flush_coordinator_thread_key, 0,
                        buf_flush_page_coordinator_thread, n_page_cleaners);
 
   srv_threads.m_page_cleaner_workers[0] =
@@ -3196,7 +3196,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   ulint last_activity = srv_get_activity_count();
   ulint last_pages = 0;
 
-  THD *thd = create_thd(false, true, true, 0);
+  THD *thd = create_internal_thd();
 
 #ifdef UNIV_LINUX
   /* linux might be able to set different setting for each thread.
@@ -3214,8 +3214,8 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
   /* We start from 1 because the coordinator thread is part of the
   same set */
   for (size_t i = 1; i < srv_threads.m_page_cleaner_workers_n; ++i) {
-    srv_threads.m_page_cleaner_workers[i] =
-        os_thread_create(page_flush_thread_key, buf_flush_page_cleaner_thread);
+    srv_threads.m_page_cleaner_workers[i] = os_thread_create(
+        page_flush_thread_key, i, buf_flush_page_cleaner_thread);
 
     srv_threads.m_page_cleaner_workers[i].start();
   }
@@ -3572,7 +3572,7 @@ thread_exit:
 
   buf_flush_page_cleaner_close();
 
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 /** Worker thread of page_cleaner. */

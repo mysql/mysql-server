@@ -189,10 +189,10 @@ static void test_no_instances() {
   ok(cond == nullptr, "no cond");
   ok(global_cond_container.m_lost == 2, "lost 2");
 
-  thread = create_thread(&dummy_thread_class, nullptr, 0);
+  thread = create_thread(&dummy_thread_class, 0, nullptr, 0);
   ok(thread == nullptr, "no thread");
   ok(global_thread_container.m_lost == 1, "lost 1");
-  thread = create_thread(&dummy_thread_class, nullptr, 0);
+  thread = create_thread(&dummy_thread_class, 0, nullptr, 0);
   ok(thread == nullptr, "no thread");
   ok(global_thread_container.m_lost == 2, "lost 2");
 
@@ -382,17 +382,17 @@ static void test_with_instances() {
   ok(cond_2 != nullptr, "cond");
   ok(global_cond_container.m_lost == 1, "no new loss");
 
-  thread_1 = create_thread(&dummy_thread_class, nullptr, 0);
+  thread_1 = create_thread(&dummy_thread_class, 0, nullptr, 0);
   ok(thread_1 != nullptr, "thread");
   ok(global_thread_container.m_lost == 0, "not lost");
-  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
+  thread_2 = create_thread(&dummy_thread_class, 0, nullptr, 0);
   ok(thread_2 != nullptr, "thread");
   ok(global_thread_container.m_lost == 0, "not lost");
-  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
+  thread_2 = create_thread(&dummy_thread_class, 0, nullptr, 0);
   ok(thread_2 == nullptr, "no thread");
   ok(global_thread_container.m_lost == 1, "lost 1");
   destroy_thread(thread_1);
-  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
+  thread_2 = create_thread(&dummy_thread_class, 0, nullptr, 0);
   ok(thread_2 != nullptr, "thread");
   ok(global_thread_container.m_lost == 1, "no new loss");
 

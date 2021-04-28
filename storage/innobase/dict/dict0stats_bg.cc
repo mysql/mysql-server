@@ -356,7 +356,7 @@ the auto recalc list and proceeds them, eventually recalculating their
 statistics. */
 void dict_stats_thread() {
   ut_a(!srv_read_only_mode);
-  THD *thd = create_thd(false, true, true, 0);
+  THD *thd = create_internal_thd();
 
   while (!SHUTTING_DOWN()) {
     /* Wake up periodically even if not signaled. This is
@@ -385,7 +385,7 @@ void dict_stats_thread() {
     os_event_reset(dict_stats_event);
   }
 
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 /** Shutdown the dict stats thread. */

@@ -2814,7 +2814,7 @@ void srv_master_thread() {
 
   srv_slot_t *slot;
 
-  THD *thd = create_thd(false, true, true, 0);
+  THD *thd = create_internal_thd();
 
   ut_ad(!srv_read_only_mode);
 
@@ -2840,7 +2840,7 @@ void srv_master_thread() {
   srv_master_shutdown_loop();
 
   srv_main_thread_op_info = "exiting";
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 /**
@@ -2914,11 +2914,7 @@ void srv_worker_thread() {
   ut_ad(!srv_read_only_mode);
   ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
-#ifdef UNIV_PFS_THREAD
-  THD *thd = create_thd(false, true, true, srv_worker_thread_key.m_value);
-#else
-  THD *thd = create_thd(false, true, true, 0);
-#endif
+  THD *thd = create_internal_thd();
 
   rw_lock_x_lock(&purge_sys->latch);
 
@@ -2966,7 +2962,7 @@ void srv_worker_thread() {
 
   rw_lock_x_unlock(&purge_sys->latch);
 
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 /** Do the actual purge operation.
@@ -3162,11 +3158,7 @@ static void srv_purge_coordinator_suspend(
 void srv_purge_coordinator_thread() {
   srv_slot_t *slot;
 
-#ifdef UNIV_PFS_THREAD
-  THD *thd = create_thd(false, true, true, srv_purge_thread_key.m_value);
-#else
-  THD *thd = create_thd(false, true, true, 0);
-#endif
+  THD *thd = create_internal_thd();
 
   rw_lock_x_lock(&purge_sys->latch);
 
@@ -3277,7 +3269,7 @@ void srv_purge_coordinator_thread() {
   For explanation look at comment for similar usage above. */
   srv_thread_delay_cleanup_if_needed(false);
 
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 /** Enqueues a task to server task queue and releases a worker thread, if there

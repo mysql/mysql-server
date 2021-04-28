@@ -276,6 +276,7 @@ static void *handle_connection(void *arg) {
         and attach it to this running pthread.
       */
       PSI_thread *psi = PSI_THREAD_CALL(new_thread)(key_thread_one_connection,
+                                                    0 /* no sequence number */,
                                                     thd, thd->thread_id());
       PSI_THREAD_CALL(set_thread_os_id)(psi);
       PSI_THREAD_CALL(set_thread)(psi);

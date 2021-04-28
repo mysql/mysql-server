@@ -2143,23 +2143,33 @@ dberr_t srv_start(bool create_new_db) {
   Please see innobase_start_or_create_for_mysql() */
   ulint start = (srv_read_only_mode) ? 0 : 2;
 
+  /* Sequence number displayed in the thread os name. */
+  PSI_thread_seqnum pfs_seqnum;
+
   for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
     IB_thread thread;
     if (t < start) {
       if (t == 0) {
-        thread = os_thread_create(io_ibuf_thread_key, io_handler_thread, t);
+        thread = os_thread_create(io_ibuf_thread_key, 0, io_handler_thread, t);
       } else {
         ut_ad(t == 1);
-        thread = os_thread_create(io_log_thread_key, io_handler_thread, t);
+        thread = os_thread_create(io_log_thread_key, 0, io_handler_thread, t);
       }
     } else if (t >= start && t < (start + srv_n_read_io_threads)) {
-      thread = os_thread_create(io_read_thread_key, io_handler_thread, t);
+      /* Numbering for ib_io_rd-NN starts with N=1. */
+      pfs_seqnum = t + 1 - start;
+      thread = os_thread_create(io_read_thread_key, pfs_seqnum,
+                                io_handler_thread, t);
 
     } else if (t >= (start + srv_n_read_io_threads) &&
                t < (start + srv_n_read_io_threads + srv_n_write_io_threads)) {
-      thread = os_thread_create(io_write_thread_key, io_handler_thread, t);
+      /* Numbering for ib_io_wr-NN starts with N=1. */
+      pfs_seqnum = t + 1 - start - srv_n_read_io_threads;
+      thread = os_thread_create(io_write_thread_key, pfs_seqnum,
+                                io_handler_thread, t);
     } else {
-      thread = os_thread_create(io_handler_thread_key, io_handler_thread, t);
+      /* Dead code ? */
+      thread = os_thread_create(io_handler_thread_key, t, io_handler_thread, t);
     }
     thread.start();
   }
@@ -2774,20 +2784,20 @@ files_checked:
 
     /* Create the thread which watches the timeouts
     for lock waits */
-    srv_threads.m_lock_wait_timeout =
-        os_thread_create(srv_lock_timeout_thread_key, lock_wait_timeout_thread);
+    srv_threads.m_lock_wait_timeout = os_thread_create(
+        srv_lock_timeout_thread_key, 0, lock_wait_timeout_thread);
 
     srv_threads.m_lock_wait_timeout.start();
 
     /* Create the thread which warns of long semaphore waits */
     srv_threads.m_error_monitor = os_thread_create(srv_error_monitor_thread_key,
-                                                   srv_error_monitor_thread);
+                                                   0, srv_error_monitor_thread);
 
     srv_threads.m_error_monitor.start();
 
     /* Create the thread which prints InnoDB monitor info */
     srv_threads.m_monitor =
-        os_thread_create(srv_monitor_thread_key, srv_monitor_thread);
+        os_thread_create(srv_monitor_thread_key, 0, srv_monitor_thread);
 
     srv_threads.m_monitor.start();
 
@@ -2930,14 +2940,14 @@ void srv_start_purge_threads() {
   }
 
   srv_threads.m_purge_coordinator =
-      os_thread_create(srv_purge_thread_key, srv_purge_coordinator_thread);
+      os_thread_create(srv_purge_thread_key, 0, srv_purge_coordinator_thread);
 
   srv_threads.m_purge_workers[0] = srv_threads.m_purge_coordinator;
 
   /* We've already created the purge coordinator thread above. */
   for (size_t i = 1; i < srv_threads.m_purge_workers_n; ++i) {
     srv_threads.m_purge_workers[i] =
-        os_thread_create(srv_worker_thread_key, srv_worker_thread);
+        os_thread_create(srv_worker_thread_key, i, srv_worker_thread);
   }
 
   for (size_t i = 0; i < srv_threads.m_purge_workers_n; ++i) {
@@ -2975,7 +2985,7 @@ void srv_start_threads(bool bootstrap) {
   }
 
   srv_threads.m_buf_resize =
-      os_thread_create(buf_resize_thread_key, buf_resize_thread);
+      os_thread_create(buf_resize_thread_key, 0, buf_resize_thread);
 
   srv_threads.m_buf_resize.start();
 
@@ -2989,7 +2999,7 @@ void srv_start_threads(bool bootstrap) {
     /* Rollback all recovered transactions that are
     not in committed nor in XA PREPARE state. */
     srv_threads.m_trx_recovery_rollback = os_thread_create(
-        trx_recovery_rollback_thread_key, trx_recovery_rollback_thread);
+        trx_recovery_rollback_thread_key, 0, trx_recovery_rollback_thread);
 
     srv_threads.m_trx_recovery_rollback.start();
   }
@@ -2997,7 +3007,7 @@ void srv_start_threads(bool bootstrap) {
   /* Create the master thread which does purge and other utility
   operations */
   srv_threads.m_master =
-      os_thread_create(srv_master_thread_key, srv_master_thread);
+      os_thread_create(srv_master_thread_key, 0, srv_master_thread);
 
   srv_start_state_set(SRV_START_STATE_MASTER);
 
@@ -3014,7 +3024,7 @@ void srv_start_threads(bool bootstrap) {
 
   /* Create the dict stats gathering thread */
   srv_threads.m_dict_stats =
-      os_thread_create(dict_stats_thread_key, dict_stats_thread);
+      os_thread_create(dict_stats_thread_key, 0, dict_stats_thread);
 
   dict_stats_thread_init();
 
@@ -3030,14 +3040,14 @@ void srv_start_threads_after_ddl_recovery() {
   /* Start the buffer pool dump/load thread, which will access spaces thus
         must wait for DDL recovery */
   srv_threads.m_buf_dump =
-      os_thread_create(buf_dump_thread_key, buf_dump_thread);
+      os_thread_create(buf_dump_thread_key, 0, buf_dump_thread);
 
   srv_threads.m_buf_dump.start();
 
   /* Resume unfinished (un)encryption process in background thread. */
   if (!ts_encrypt_ddl_records.empty()) {
     srv_threads.m_ts_alter_encrypt =
-        os_thread_create(srv_ts_alter_encrypt_thread_key,
+        os_thread_create(srv_ts_alter_encrypt_thread_key, 0,
                          fsp_init_resume_alter_encrypt_tablespace);
 
     mysql_mutex_lock(&resume_encryption_cond_m);

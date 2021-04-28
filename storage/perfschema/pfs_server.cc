@@ -66,6 +66,8 @@ static void cleanup_performance_schema(void);
 void cleanup_instrument_config(void);
 
 void pre_initialize_performance_schema() {
+  record_main_thread_id();
+
   pfs_initialized = false;
 
   init_all_builtin_memory_class();

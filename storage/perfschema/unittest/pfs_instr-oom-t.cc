@@ -40,7 +40,7 @@
 #include "unittest/mytap/tap.h"
 
 PSI_thread_key thread_key_1;
-PSI_thread_info all_thread[] = {{&thread_key_1, "T-1", 0, 0, ""}};
+PSI_thread_info all_thread[] = {{&thread_key_1, "T-1", "T-1", 0, 0, ""}};
 
 /** Simulate initialize_performance_schema(). */
 
@@ -282,13 +282,13 @@ static void test_oom() {
   /* Create thread. */
   stub_alloc_always_fails = false;
   rc = init_instruments(&param);
-  thread_1 = create_thread(&dummy_thread_class, nullptr, 0);
+  thread_1 = create_thread(&dummy_thread_class, 12, nullptr, 0);
   ok(thread_1 != nullptr, "create thread");
   destroy_thread(thread_1);
   cleanup_instruments();
 
   stub_alloc_always_fails = true;
-  thread_2 = create_thread(&dummy_thread_class, nullptr, 0);
+  thread_2 = create_thread(&dummy_thread_class, 12, nullptr, 0);
   ok(thread_2 == nullptr, "oom (create thread)");
 
   PSI_thread *thread;
@@ -301,7 +301,7 @@ static void test_oom() {
   param.m_file_class_sizing = 50;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 2;
-  thread = thread_service->new_thread(thread_key_1, nullptr, 0);
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
   ok(thread == nullptr, "oom (per thread wait)");
 
   cleanup_sync_class();
@@ -315,7 +315,7 @@ static void test_oom() {
   param.m_events_waits_history_sizing = 10;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, nullptr, 0);
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
   ok(thread == nullptr, "oom (thread waits history sizing)");
 
   cleanup_thread_class();
@@ -326,7 +326,7 @@ static void test_oom() {
   param.m_stage_class_sizing = 50;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, nullptr, 0);
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
   ok(thread == nullptr, "oom (per thread stages)");
 
   cleanup_stage_class();
@@ -338,7 +338,7 @@ static void test_oom() {
   param.m_events_stages_history_sizing = 10;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, nullptr, 0);
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
   ok(thread == nullptr, "oom (thread stages history sizing)");
 
   cleanup_instruments();
@@ -350,7 +350,7 @@ static void test_oom() {
   thread_service = initialize_performance_schema_helper(&param);
   init_statement_class(param.m_statement_class_sizing);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, nullptr, 0);
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
   ok(thread == nullptr, "oom (per thread statements)");
 
   cleanup_stage_class();
@@ -363,7 +363,7 @@ static void test_oom() {
   param.m_events_statements_history_sizing = 10;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, nullptr, 0);
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
   ok(thread == nullptr, "oom (thread statements history sizing)");
 
   cleanup_thread_class();
@@ -374,7 +374,7 @@ static void test_oom() {
   thread_service = initialize_performance_schema_helper(&param);
   transaction_class_max = 1;  // set by register_global_classes();
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, nullptr, 0);
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
   ok(thread == nullptr, "oom (per thread transactions)");
   transaction_class_max = 0;
 
@@ -386,7 +386,7 @@ static void test_oom() {
   param.m_events_transactions_history_sizing = 10;
   thread_service = initialize_performance_schema_helper(&param);
   stub_alloc_fails_after_count = 3;
-  thread = thread_service->new_thread(thread_key_1, nullptr, 0);
+  thread = thread_service->new_thread(thread_key_1, 12, nullptr, 0);
   ok(thread == nullptr, "oom (thread transactions history sizing)");
 
   cleanup_thread_class();

@@ -4742,16 +4742,11 @@ static void resume_alter_encrypt_tablespace(THD *thd) {
 
 /* Initiate roll-forward of alter encrypt in background thread */
 void fsp_init_resume_alter_encrypt_tablespace() {
-#ifdef UNIV_PFS_THREAD
-  THD *thd =
-      create_thd(false, true, true, srv_ts_alter_encrypt_thread_key.m_value);
-#else
-  THD *thd = create_thd(false, true, true, 0);
-#endif
+  THD *thd = create_internal_thd();
 
   resume_alter_encrypt_tablespace(thd);
 
-  destroy_thd(thd);
+  destroy_internal_thd(thd);
 }
 
 void File_segment_inode::write_not_full_n_used(uint32_t n_used) {

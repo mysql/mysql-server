@@ -768,19 +768,19 @@ void log_start_background_threads(log_t &log) {
   log.writer_threads_paused.store(false);
 
   srv_threads.m_log_checkpointer =
-      os_thread_create(log_checkpointer_thread_key, log_checkpointer, &log);
+      os_thread_create(log_checkpointer_thread_key, 0, log_checkpointer, &log);
 
-  srv_threads.m_log_flush_notifier =
-      os_thread_create(log_flush_notifier_thread_key, log_flush_notifier, &log);
+  srv_threads.m_log_flush_notifier = os_thread_create(
+      log_flush_notifier_thread_key, 0, log_flush_notifier, &log);
 
   srv_threads.m_log_flusher =
-      os_thread_create(log_flusher_thread_key, log_flusher, &log);
+      os_thread_create(log_flusher_thread_key, 0, log_flusher, &log);
 
-  srv_threads.m_log_write_notifier =
-      os_thread_create(log_write_notifier_thread_key, log_write_notifier, &log);
+  srv_threads.m_log_write_notifier = os_thread_create(
+      log_write_notifier_thread_key, 0, log_write_notifier, &log);
 
   srv_threads.m_log_writer =
-      os_thread_create(log_writer_thread_key, log_writer, &log);
+      os_thread_create(log_writer_thread_key, 0, log_writer, &log);
 
   srv_threads.m_log_checkpointer.start();
   srv_threads.m_log_flush_notifier.start();

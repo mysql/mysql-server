@@ -163,6 +163,8 @@ int my_thread_join(my_thread_handle *thread, void **value_ptr);
 int my_thread_cancel(my_thread_handle *thread);
 void my_thread_exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
 
+void my_thread_self_setname(const char *name);
+
 extern bool my_thread_global_init();
 extern void my_thread_global_reinit();
 extern void my_thread_global_end();

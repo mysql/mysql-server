@@ -114,10 +114,11 @@ static void test_oom() {
       PSI_CURRENT_THREAD_VERSION);
 
   PSI_thread_key thread_key_1;
-  PSI_thread_info all_thread[] = {{&thread_key_1, "T-1", 0, 0, ""}};
+  PSI_thread_info all_thread[] = {{&thread_key_1, "T-1", "T-1", 0, 0, ""}};
   thread_service->register_thread("test", all_thread, 1);
 
-  PSI_thread *thread_1 = thread_service->new_thread(thread_key_1, nullptr, 0);
+  PSI_thread *thread_1 =
+      thread_service->new_thread(thread_key_1, 0, nullptr, 0);
   thread_service->set_thread(thread_1);
 
   /* Tests */

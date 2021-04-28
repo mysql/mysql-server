@@ -64,8 +64,54 @@
 struct mysql_cond_t;
 struct mysql_mutex_t;
 
+THD *create_internal_thd() {
+  /* For internal threads, use enabled_plugins = false. */
+  THD *thd = new THD(false);
+  thd->system_thread = SYSTEM_THREAD_BACKGROUND;
+  // Skip grants and set the system_user flag in THD.
+  thd->security_context()->skip_grants();
+  thd->thread_stack = reinterpret_cast<char *>(&thd);
+  thd->store_globals();
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi;
+  psi = PSI_THREAD_CALL(get_thread)();
+  if (psi != nullptr) {
+    /*
+      Associate this THD to the background thread instrumentation,
+      so that system variables and status variables
+      are visible for the background thread.
+    */
+    PSI_THREAD_CALL(set_thread_THD)(psi, thd);
+    thd->set_psi(psi);
+  }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  return thd;
+}
+
+void destroy_internal_thd(THD *thd) {
+  assert(thd->system_thread == SYSTEM_THREAD_BACKGROUND);
+
+#ifdef HAVE_PSI_THREAD_INTERFACE
+  PSI_thread *psi;
+  psi = PSI_THREAD_CALL(get_thread)();
+  if (psi != nullptr) {
+    /*
+      Dissociate this THD from the background thread instrumentation.
+    */
+    PSI_THREAD_CALL(set_thread_THD)(psi, nullptr);
+    thd->set_psi(nullptr);
+  }
+#endif /* HAVE_PSI_THREAD_INTERFACE */
+
+  thd->release_resources();
+  delete thd;
+}
+
 void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
-              PSI_thread_key psi_key MY_ATTRIBUTE((unused))) {
+              PSI_thread_key psi_key MY_ATTRIBUTE((unused)),
+              unsigned int psi_seqnum MY_ATTRIBUTE((unused))) {
   DBUG_TRACE;
   // TODO: Purge threads currently terminate too late for them to be added.
   // Note that P_S interprets all threads with thread_id != 0 as
@@ -78,7 +124,7 @@ void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
   }
 #ifdef HAVE_PSI_THREAD_INTERFACE
   PSI_thread *psi;
-  psi = PSI_THREAD_CALL(new_thread)(psi_key, thd, thd->thread_id());
+  psi = PSI_THREAD_CALL(new_thread)(psi_key, psi_seqnum, thd, thd->thread_id());
   if (bound) {
     PSI_THREAD_CALL(set_thread_os_id)(psi);
   }
@@ -98,14 +144,15 @@ void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
 }
 
 THD *create_thd(bool enable_plugins, bool background_thread, bool bound,
-                PSI_thread_key psi_key) {
+                PSI_thread_key psi_key, unsigned int psi_seqnum) {
   THD *thd = new THD(enable_plugins);
   if (background_thread) {
     thd->system_thread = SYSTEM_THREAD_BACKGROUND;
     // Skip grants and set the system_user flag in THD.
     thd->security_context()->skip_grants();
   }
-  (void)thd_init(thd, reinterpret_cast<char *>(&thd), bound, psi_key);
+  (void)thd_init(thd, reinterpret_cast<char *>(&thd), bound, psi_key,
+                 psi_seqnum);
   return thd;
 }
 

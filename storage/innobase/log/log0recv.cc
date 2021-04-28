@@ -3721,7 +3721,7 @@ static void recv_init_crash_recovery() {
     from the buffer pools. */
 
     srv_threads.m_recv_writer =
-        os_thread_create(recv_writer_thread_key, recv_writer_thread);
+        os_thread_create(recv_writer_thread_key, 0, recv_writer_thread);
 
     srv_threads.m_recv_writer.start();
   }

@@ -620,6 +620,44 @@ HAVE_INTEGER_PTHREAD_SELF
 FAIL_REGEX "warning: incompatible pointer to integer conversion"
 )
 
+# Check for pthread_setname_np() on linux
+CHECK_C_SOURCE_COMPILES("
+#define _GNU_SOURCE
+#include <pthread.h>
+int main(int argc, char **argv)
+{
+  pthread_t tid = 0;
+  const char *name = NULL;
+  return pthread_setname_np(tid, name);
+}"
+HAVE_PTHREAD_SETNAME_NP_LINUX)
+
+# Check for pthread_setname_np() on macos
+CHECK_C_SOURCE_COMPILES("
+#include <pthread.h>
+int main(int argc, char **argv)
+{
+  char name[16] = {0};
+  return pthread_setname_np(name);
+}"
+HAVE_PTHREAD_SETNAME_NP_MACOS)
+
+# Check for SetThreadDescription() on Windows
+CHECK_C_SOURCE_COMPILES("
+#include <windows.h>
+#include <processthreadsapi.h>
+int main(int argc, char **argv)
+{
+    HRESULT r;
+    const wchar_t *name = NULL;
+    r = SetThreadDescription(
+        GetCurrentThread(),
+        name);
+    return 0;
+}
+"
+HAVE_SET_THREAD_DESCRIPTION)
+
 #--------------------------------------------------------------------
 # Check for IPv6 support
 #--------------------------------------------------------------------

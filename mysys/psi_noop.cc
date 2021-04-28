@@ -91,13 +91,15 @@ static void register_thread_noop(const char *, PSI_thread_info *, int) {
   return;
 }
 
-static int spawn_thread_noop(PSI_thread_key, my_thread_handle *thread,
+static int spawn_thread_noop(PSI_thread_key, unsigned int,
+                             my_thread_handle *thread,
                              const my_thread_attr_t *attr,
                              my_start_routine start_routine, void *arg) {
   return my_thread_create(thread, attr, start_routine, arg);
 }
 
-static PSI_thread *new_thread_noop(PSI_thread_key, const void *, ulonglong) {
+static PSI_thread *new_thread_noop(PSI_thread_key, unsigned int, const void *,
+                                   ulonglong) {
   return nullptr;
 }
 

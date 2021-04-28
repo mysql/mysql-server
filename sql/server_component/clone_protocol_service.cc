@@ -95,7 +95,7 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
     my_thread_init();
 
     /* Create thread with input key for PFS */
-    thd = create_thd(true, true, true, thread_key);
+    thd = create_thd(true, true, true, thread_key, 0);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     thd_created = true;
 #endif

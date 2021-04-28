@@ -1016,9 +1016,10 @@ static PSI_cond_info all_events_conds[] = {
 PSI_thread_key key_thread_event_scheduler, key_thread_event_worker;
 
 static PSI_thread_info all_events_threads[] = {
-    {&key_thread_event_scheduler, "event_scheduler", PSI_FLAG_SINGLETON, 0,
-     PSI_DOCUMENT_ME},
-    {&key_thread_event_worker, "event_worker", 0, 0, PSI_DOCUMENT_ME}};
+    {&key_thread_event_scheduler, "event_scheduler", "evt_sched",
+     PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+    {&key_thread_event_worker, "event_worker", "evt_wkr", 0, 0,
+     PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_INTERFACE */
 
 PSI_stage_info stage_waiting_on_empty_queue = {0, "Waiting on empty queue", 0,

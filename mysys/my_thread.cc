@@ -29,8 +29,31 @@
   @file mysys/my_thread.cc
 */
 
+#include "my_config.h"
+
+#ifdef HAVE_PTHREAD_SETNAME_NP_LINUX
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+#include <pthread.h>
+#endif /* HAVE_PTHREAD_SETNAME_NP_LINUX */
+
+#ifdef HAVE_PTHREAD_SETNAME_NP_MACOS
+#include <pthread.h>
+#endif /* HAVE_PTHREAD_SETNAME_NP_MACOS */
+
+#ifdef HAVE_SET_THREAD_DESCRIPTION
+#include <windows.h>
+
+#include <processthreadsapi.h>
+
+#include <stringapiset.h>
+#endif /* HAVE_SET_THREAD_DESCRIPTION */
+
 #include "my_thread.h"
 #include "mysql/components/services/my_thread_bits.h"
+
+#include <string.h>
 
 #ifdef _WIN32
 #include <errno.h>
@@ -137,4 +160,45 @@ void my_thread_exit(void *value_ptr) {
 #else
   _endthreadex(0);
 #endif
+}
+
+/**
+  Maximum name length used for my_thread_self_setname(),
+  including the terminating NUL character.
+  Linux pthread_setname_np(3) is restricted to 15+1 chars,
+  so we use the same limit on all platforms.
+*/
+#define SETNAME_MAX_LENGTH 16
+
+void my_thread_self_setname(const char *name MY_ATTRIBUTE((unused))) {
+#ifdef HAVE_PTHREAD_SETNAME_NP_LINUX
+  /*
+    GNU extension, see pthread_setname_np(3)
+  */
+  char truncated_name[SETNAME_MAX_LENGTH];
+  strncpy(truncated_name, name, sizeof(truncated_name) - 1);
+  truncated_name[sizeof(truncated_name) - 1] = '\0';
+  pthread_setname_np(pthread_self(), truncated_name);
+#else
+#ifdef HAVE_PTHREAD_SETNAME_NP_MACOS
+  pthread_setname_np(name);
+#else
+#if HAVE_SET_THREAD_DESCRIPTION
+  /* Windows 10. */
+  wchar_t w_name[SETNAME_MAX_LENGTH];
+  int size;
+
+  size = MultiByteToWideChar(CP_UTF8, 0, name, -1, w_name, SETNAME_MAX_LENGTH);
+  if (size <= 0 || size > SETNAME_MAX_LENGTH) {
+    return;
+  }
+  /* Make sure w_name is NUL terminated when truncated. */
+  w_name[SETNAME_MAX_LENGTH - 1] = 0;
+  SetThreadDescription(GetCurrentThread(), w_name);
+#else
+  /* Do nothing for this platform. */
+  return;
+#endif /* HAVE_SET_THREAD_DESCRIPTION */
+#endif /* HAVE_PTHREAD_SETNAME_NP_MACOS */
+#endif /* HAVE_PTHREAD_SETNAME_NP_LINUX */
 }

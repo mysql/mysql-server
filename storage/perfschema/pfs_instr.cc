@@ -548,13 +548,14 @@ void carry_global_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
 /**
   Create instrumentation for a thread instance.
   @param klass                        the thread class
+  @param seqnum                       the thread instance sequence number
   @param identity                     the thread address,
     or a value characteristic of this thread
   @param processlist_id               the PROCESSLIST id,
     or 0 if unknown
   @return a thread instance, or NULL
 */
-PFS_thread *create_thread(PFS_thread_class *klass,
+PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
                           const void *identity MY_ATTRIBUTE((unused)),
                           ulonglong processlist_id) {
   PFS_thread *pfs;
@@ -639,6 +640,24 @@ PFS_thread *create_thread(PFS_thread_class *klass,
 
     pfs->m_events_statements_count = 0;
     pfs->m_transaction_current.m_event_id = 0;
+
+    if (klass->is_singleton()) {
+      assert(klass->m_singleton == nullptr);
+      klass->m_singleton = pfs;
+    }
+
+    if (klass->has_seqnum()) {
+      if (klass->has_auto_seqnum()) {
+        seqnum = klass->m_seqnum++;
+      }
+
+      /* Possible truncation */
+      snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH - 1, klass->m_os_name,
+               seqnum);
+    } else {
+      strncpy(pfs->m_os_name, klass->m_os_name, PFS_MAX_OS_NAME_LENGTH - 1);
+    }
+    pfs->m_os_name[PFS_MAX_OS_NAME_LENGTH - 1] = '\0';
 
     pfs->m_lock.dirty_to_allocated(&dirty_state);
   }
@@ -740,6 +759,12 @@ void destroy_thread(PFS_thread *pfs) {
   assert(pfs != nullptr);
   pfs->reset_session_connect_attrs();
   pfs->m_thd = nullptr;
+
+  PFS_thread_class *klass = pfs->m_class;
+  if (klass->is_singleton()) {
+    assert(klass->m_singleton == pfs);
+    klass->m_singleton = nullptr;
+  }
 
   if (pfs->m_account != nullptr) {
     pfs->m_account->release();

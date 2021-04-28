@@ -364,10 +364,10 @@ void lock_sys_resize(ulint n_cells) {
     TBD: if buf_resize_thread() were to use create_thd() then should it be
     instrumented (together or instead of os_thread_create instrumentation)? */
     ut_ad(current_thd == nullptr);
-    THD *thd = create_thd(false, true, true, PSI_NOT_INSTRUMENTED);
+    THD *thd = create_internal_thd();
     ut_ad(current_thd == thd);
     CONDITIONAL_SYNC_POINT("after_lock_sys_resize_rec_hash");
-    destroy_thd(thd);
+    destroy_internal_thd(thd);
     ut_ad(current_thd == nullptr);
   });
 

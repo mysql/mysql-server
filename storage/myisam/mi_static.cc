@@ -167,8 +167,9 @@ static PSI_file_info all_myisam_files[] = {
 PSI_thread_key mi_key_thread_find_all_keys;
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-static PSI_thread_info all_myisam_threads[] = {
-    {&mi_key_thread_find_all_keys, "find_all_keys", 0, 0, PSI_DOCUMENT_ME}};
+static PSI_thread_info all_myisam_threads[] = {{&mi_key_thread_find_all_keys,
+                                                "find_all_keys", "mi_all_keys",
+                                                0, 0, PSI_DOCUMENT_ME}};
 #endif /* HAVE_PSI_THREAD_INTERFACE */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
