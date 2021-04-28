@@ -825,6 +825,8 @@ is the global server default. */
 #define HA_ERR_RECORD_CHANGED 123
 /** Wrong index given to function */
 #define HA_ERR_WRONG_INDEX 124
+/** Transaction has been rolled back */
+#define HA_ERR_ROLLED_BACK 125
 /** Indexfile is crashed */
 #define HA_ERR_CRASHED 126
 /** Record-file is crashed */

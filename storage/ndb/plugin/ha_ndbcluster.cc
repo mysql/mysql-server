@@ -7736,6 +7736,7 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
   }
 
   if (res != 0) {
+    const NdbError &trans_error = trans->getNdbError();
     if (retry_slave_trans) {
       if (st_ndb_slave_state::MAX_RETRY_TRANS_COUNT >
           g_ndb_slave_state.retry_trans_count++) {
@@ -7766,10 +7767,13 @@ int ndbcluster_commit(handlerton *, THD *thd, bool all) {
             st_ndb_slave_state::MAX_RETRY_TRANS_COUNT);
       }
       res = ER_GET_TEMPORARY_ERRMSG;
+    } else if (trans_error.code == 4350) {  // Transaction already aborted
+      thd_ndb->push_ndb_error_warning(trans_error);
+      res = HA_ERR_ROLLED_BACK;
     } else {
       res = ndbcluster_print_error(trans, thd_ndb->m_handler);
     }
-  } else {
+  } else { /* res == 0: success */
     /* Update shared statistics for tables inserted into / deleted from*/
     if (thd_ndb->m_handler &&  // Autocommit Txn
         thd_ndb->m_handler->m_share && thd_ndb->m_handler->m_table_info) {
