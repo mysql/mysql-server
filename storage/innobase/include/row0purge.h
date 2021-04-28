@@ -175,10 +175,9 @@ struct purge_node_t {
   void init() { new (&m_lob_pages) LOB_free_set(); }
 
   /** Add an LOB page to the list of pages that will be freed at the end of a
-   * purge batch.
+  purge batch.
    @param[in]    index       the clust index to which the LOB belongs.
-   @param[in]    page_id     the page_id of the first page of the LOB.
-   @param[in]    page_size   The page size of the tablespace. */
+   @param[in]    page_id     the page_id of the first page of the LOB. */
   void add_lob_page(dict_index_t *index, const page_id_t &page_id) {
     const index_id_t id(page_id.space(), index->id);
     const auto tup = std::make_tuple(id, page_id);
