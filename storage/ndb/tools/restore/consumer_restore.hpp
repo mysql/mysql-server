@@ -153,6 +153,7 @@ public:
   bool tryCreatePkMappingIndex(TableS* table,
                                const char* table_name);
   bool dropPkMappingIndex(const TableS* table);
+  bool handle_index_stat_tables() override;
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
                                          const NDBCOL &new_col);

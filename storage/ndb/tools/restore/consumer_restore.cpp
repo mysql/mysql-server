@@ -24,6 +24,7 @@
 
 #include "consumer_restore.hpp"
 #include <kernel/ndb_limits.h>
+#include <NdbIndexStat.hpp>
 #include <NdbSleep.h>
 #include <NdbTick.h>
 #include <NdbToolsProgramExitCodes.hpp>
@@ -3059,6 +3060,31 @@ BackupRestore::createSystable(const TableS & tables){
     return true;
   }
   return table(tables);
+}
+
+bool
+BackupRestore::handle_index_stat_tables() {
+  if (!m_restore_meta) return true;
+
+  m_ndb->setDatabaseName(NDB_REP_DB);
+  m_ndb->setSchemaName("def");
+
+  NdbIndexStat index_stat;
+
+  if (index_stat.check_systables(m_ndb) == 0) {
+    restoreLogger.log_debug("Index stat tables exist");
+    return true;
+  }
+
+  if (index_stat.create_systables(m_ndb) == 0) {
+    restoreLogger.log_debug("Index stat tables created");
+    return true;
+  }
+
+  restoreLogger.log_error("Creation of index stat tables failed: %d: %s",
+                          index_stat.getNdbError().code,
+                          index_stat.getNdbError().message);
+  return false;
 }
 
 bool

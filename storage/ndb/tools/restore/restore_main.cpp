@@ -2457,6 +2457,17 @@ int do_restore(RestoreThreadData *thrdata)
     }
   }
 
+  restoreLogger.log_debug("Handling index stat tables");
+  for (i = 0; i < g_consumers.size(); i++)
+  {
+    if (!g_consumers[i]->handle_index_stat_tables())
+    {
+      restoreLogger.log_error(
+          "Restore: Failed to handle index stat tables ... Exiting ");
+      return NdbToolsProgramExitCode::FAILED;
+    }
+  }
+
   Vector<OutputStream *> table_output(metaData.getNoOfTables());
   restoreLogger.log_debug("Restoring tables");
   Logger::format_timestamp(time(NULL), timestamp, sizeof(timestamp));

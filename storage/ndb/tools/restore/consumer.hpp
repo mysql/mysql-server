@@ -70,6 +70,7 @@ public:
   virtual bool table_equal(const TableS &) { return true; }
   virtual bool table_compatible_check(TableS &) {return true;}
   virtual bool check_blobs(TableS &) {return true;}
+  virtual bool handle_index_stat_tables() {return true;}
 #ifdef ERROR_INSERT
   virtual void error_insert(unsigned int code) {}
 #endif
