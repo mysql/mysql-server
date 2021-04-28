@@ -3640,18 +3640,18 @@ CALL test_all(">=");
 Test combinations using the 'variant' columns.
 Even if the base type is the same for these conditions,
 different precision, length, scale etc. should prevent pushing:
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string4",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE vstring1 = vstring3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE bin1 = bin3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE vbin1 = vbin3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE bits1 = bits3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE options1 = options3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE flags1 = flags3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_field1 = time_field3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE date_time1 = date_time3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string4",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vstring1 = vstring3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bin1 = bin3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vbin1 = vbin3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bits1 = bits3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE options1 = options3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE flags1 = flags3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_field1 = time_field3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE date_time1 = date_time3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
 Test that <col1> like <col2> is not pushed, - even if types are comparable
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string1",false);
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string1",false);

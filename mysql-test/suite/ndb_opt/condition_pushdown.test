@@ -2574,22 +2574,20 @@ drop table t1;
 
 create table t1
 (
-  a int,
-  b varchar(30),
-  primary key(a)
+  b varchar(30)
 ) engine = ndb ;
 
-insert into t1 values (1,'one');
-insert into t1 values (2,'two');
-insert into t1 values (3,'three');
-insert into t1 values (4,'four');
-insert into t1 values (5,'five');
-insert into t1 values(0,NULL);
-insert into t1 values(10,NULL);
-insert into t1 values(20,NULL);
-insert into t1 values(30,NULL);
-insert into t1 values(40,NULL);
-insert into t1 values(50,NULL);
+insert into t1 values ('one');
+insert into t1 values ('two');
+insert into t1 values ('three');
+insert into t1 values ('four');
+insert into t1 values ('five');
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
+insert into t1 values(NULL);
 
 let $prepare =
   select @read_cnt:=variable_value
@@ -2597,7 +2595,7 @@ let $prepare =
     where variable_name = 'Ndb_api_read_row_count';
 
 # Verify that number of rows in result is same as
-# number of rows retuned by the ScanFilter.
+# number of rows returned by the ScanFilter.
 let $verify_row_count =
   select
     @count as result_rows,
@@ -3603,7 +3601,7 @@ DROP TABLE t1;
 #   pushed when compared against the other similar columns.
 
 CREATE TABLE t1 (
-  pk int unsigned NOT NULL PRIMARY KEY,
+  k int unsigned NOT NULL,
 
   string1 char(10),
   vstring1 varchar(10),
@@ -3779,17 +3777,6 @@ END //
 DELIMITER ;//
 
 
-# Construct a test query fetching a single rows pk.
-DELIMITER //;
-CREATE FUNCTION get_pk_query(col1 int, op varchar(4), col2 int) RETURNS TEXT DETERMINISTIC
-BEGIN
-  SET @column1 = CONCAT(get_column(col1),"1");
-  SET @column2 = CONCAT(get_column(col2),"2");
-  RETURN CONCAT("SELECT pk INTO @res FROM t1 WHERE ", @column1, op, @column2);
-END //
-DELIMITER ;//
-
-
 # Construct a test query fetching the count(*) of rows qualifying the condition
 DELIMITER //;
 CREATE FUNCTION get_count_query(col1 int, op varchar(4), col2 int) RETURNS TEXT DETERMINISTIC
@@ -3914,20 +3901,20 @@ CALL test_all(">=");
 --echo Even if the base type is the same for these conditions,
 --echo different precision, length, scale etc. should prevent pushing:
 
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE string1 = string4",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE vstring1 = vstring3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE bin1 = bin3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE vbin1 = vbin3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE string1 = string4",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vstring1 = vstring3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bin1 = bin3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE vbin1 = vbin3",false);
 
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE bits1 = bits3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE options1 = options3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE flags1 = flags3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE real_decimal1 = real_decimal3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE bits1 = bits3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE options1 = options3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE flags1 = flags3",false);
 
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_field1 = time_field3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE date_time1 = date_time3",false);
-CALL test_query("SELECT pk INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_field1 = time_field3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE date_time1 = date_time3",false);
+CALL test_query("SELECT k INTO @res FROM t1 WHERE time_stamp1 = time_stamp3",false);
 
 
 --echo Test that <col1> like <col2> is not pushed, - even if types are comparable
@@ -3943,7 +3930,6 @@ CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string
 --disable_query_log
 DROP PROCEDURE test_all;
 DROP PROCEDURE test_query;
-DROP FUNCTION get_pk_query;
 DROP FUNCTION get_count_query;
 DROP FUNCTION get_column;
 
