@@ -2842,13 +2842,13 @@ runBug56829(NDBT_Context* ctx, NDBT_Step* step)
      * Even after dropping all rows, we might still have data memory pages
      * allocated for fragment page maps. So only after dropping both index
      * and tables can we rely on all memory allocated for a table to be
-     * dropped. But we can assume that create table, create index will not
-     * allocate any pages.
+     * dropped. But we can assume that create table will not allocate any pages.
+     * Create index on the other hand will allocate pages for auto index stats.
      */
     CHECK2(pages[1] == pages[0], "pages after create table " << pages[1]
                                   << " not == initial pages " << pages[0]);
-    CHECK2(pages[2] == pages[0], "pages after create index " << pages[2]
-                                  << " not == initial pages " << pages[0]);
+    CHECK2(pages[2] > pages[0], "pages after create index " << pages[2]
+                                  << " not > initial pages " << pages[0]);
     CHECK2(pages[3] >  pages[0], "pages after load " << pages[3]
                                   << " not >  initial pages " << pages[0]);
     CHECK2(pages[4] < pages[3], "pages after delete " << pages[4]
