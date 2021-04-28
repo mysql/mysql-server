@@ -6605,7 +6605,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
     if (!field_or_ref->is_outer_reference()) {
       // Add non-correlated fields in WHERE clause to select_list if not
       // already present
-      if (selected_field == nullptr || !f->eq(selected_field, true)) {
+      if (selected_field == nullptr || f->field != selected_field->field) {
         m_added_non_hidden_fields++;
 
         // If f->hidden, f should be among the hidden fields in 'fields'.
