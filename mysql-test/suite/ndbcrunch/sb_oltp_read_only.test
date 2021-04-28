@@ -1,0 +1,17 @@
+# Run benchmark oltp_read_only
+#
+# - point selects, "SELECT c WHERE id = "
+# - simple ranges, "SELECT c WHERE id BETWEEN "
+# - sum ranges, "SELECT SUM(k) WHERE id BETWEEN "
+# - order ranges, "SELECT c WHERE id BETWEEN ... ORDER BY c"
+# - distint ranges, "SELECT DISTINCT c WHERE id BETWEEN .. ORDER BY c"
+#
+--source sb_init.inc
+
+let $bench_name = oltp_read_only;
+# NOTE! Run with only 256 threads for now, otherwise max number
+# of scans are exceeded
+let $bench_threads = 256;
+--source sb_run.inc
+
+--source sb_cleanup.inc

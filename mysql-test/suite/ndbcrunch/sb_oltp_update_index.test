@@ -1,0 +1,10 @@
+# Run benchmark oltp_update_index
+#
+# - index updates, "UPDATE k WHERE id=?"
+#
+--source sb_init.inc
+
+let $bench_name = oltp_update_index;
+--source sb_run.inc
+
+--source sb_cleanup.inc

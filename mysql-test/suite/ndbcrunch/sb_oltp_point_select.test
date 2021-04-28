@@ -1,0 +1,11 @@
+# Run benchmark oltp_point_select
+# - this will make the MySQL Server do primary key reads
+#
+# - point selects, "SELECT c WHERE id = "
+#
+--source sb_init.inc
+
+let $bench_name = oltp_point_select;
+--source sb_run.inc
+
+--source sb_cleanup.inc

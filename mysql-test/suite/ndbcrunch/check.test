@@ -1,0 +1,36 @@
+--source include/not_parallel.inc
+--source include/have_ndb.inc
+
+#
+# Basic test of the crunch cluster setup
+#
+
+--echo # ##################################################
+--echo # Show configured data nodes
+SELECT node_id, status FROM ndbinfo.nodes ORDER BY node_id;
+
+--echo # ##################################################
+--echo # Run traditional basic.test snippet
+CREATE TABLE t1 (
+  a int PRIMARY KEY,
+  b varchar(255)
+) ENGINE = NDB;
+INSERT INTO t1 VALUES (1, "MySQL Server with NDB");
+INSERT INTO t1 (a, b) VALUES (11, "Barrier effect");
+INSERT INTO t1 (a, b) VALUES
+  (12, "The third row"),
+  (37, "And of course number 37");
+SELECT * FROM t1 WHERE a = 1;
+UPDATE t1 SET b = CONCAT(b, " test") WHERE a = 1;
+SELECT * FROM t1 WHERE a = 1;
+REPLACE t1 (a, b) VALUES (12, "Another layer");
+SELECT * FROM t1 WHERE a = 12 ORDER BY a;
+DELETE FROM t1 WHERE a = 11;
+SELECT COUNT(*) FROM t1;
+SELECT b FROM t1 WHERE b LIKE "MySQL%";
+DELETE FROM t1 ORDER BY b DESC;
+DROP TABLE t1;
+
+#
+# NOTE! Don't add any more tests here, this is the _basic_ test, not test all!
+#

@@ -1,0 +1,14 @@
+# Run benchmark oltp_write_only with one table
+#
+# - see query description in sb_oltp_write_only.test
+# - using one table put stress on the MySQL Server when concurrent threads
+#   compete for resources related to the same table, for example the table
+#   statistics that need to be updated if number of rows in the table changes.
+#
+--source sb_init.inc
+
+let $bench_name = oltp_write_only;
+let $bench_tables = 1;
+--source sb_run.inc
+
+--source sb_cleanup.inc

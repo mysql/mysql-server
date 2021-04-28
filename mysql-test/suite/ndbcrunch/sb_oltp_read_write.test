@@ -1,0 +1,18 @@
+# Run benchmark oltp_read_write
+#
+# - simple ranges, "SELECT c WHERE id BETWEEN "
+# - sum ranges, "SELECT SUM(k) WHERE id BETWEEN "
+# - order ranges, "SELECT c WHERE id BETWEEN ... ORDER BY c"
+# - distint ranges, "SELECT DISTINCT c WHERE id BETWEEN .. ORDER BY c"
+# - index updates, "UPDATE k WHERE id=?"
+# - non index updates, "UPDATE c WHERE id = ?"
+# - delete+insert, "DELETE .. WHERE id = ?" + "INSERT" again, no actual change.
+--source sb_init.inc
+
+let $bench_name = oltp_read_write;
+# NOTE! Run with only 256 threads for now, otherwise max number
+# of scans are exceeded
+let $bench_threads = 256;
+--source sb_run.inc
+
+--source sb_cleanup.inc
