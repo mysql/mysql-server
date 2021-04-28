@@ -6572,6 +6572,13 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
   const uint first_non_hidden = hidden_fields;
   assert((fields.size() - hidden_fields) == 1);  // scalar subquery
 
+#ifndef NDEBUG
+  // Hidden fields should come before non-hidden.
+  for (uint i = 0; i < fields.size(); i++) {
+    assert((fields[i]->hidden) != (i >= hidden_fields));
+  }
+#endif
+
   Item_field *selected_field = nullptr;
   if (fields[first_non_hidden]->type() == Item::FIELD_ITEM) {
     selected_field = down_cast<Item_field *>(fields[first_non_hidden]);
@@ -6594,34 +6601,44 @@ bool Query_block::decorrelate_derived_scalar_subquery_pre(
   List_iterator<Item> li(lifted_fields->m_fields);
 
   while ((field_or_ref = li++)) {
-    Item_field *f = down_cast<Item_field *>(field_or_ref->real_item());
+    Item_field *const f = down_cast<Item_field *>(field_or_ref->real_item());
     if (!field_or_ref->is_outer_reference()) {
       // Add non-correlated fields in WHERE clause to select_list if not
       // already present
-      if (selected_field == nullptr || f->field != selected_field->field) {
+      if (selected_field == nullptr || !f->eq(selected_field, true)) {
         m_added_non_hidden_fields++;
-        // Mark the field as visible field. An earlier transformation could
-        // have added this as a hidden item to the fields list.
-        f->hidden = false;
+
+        // If f->hidden, f should be among the hidden fields in 'fields'.
+        assert(std::any_of(fields.cbegin(), fields.cbegin() + first_non_hidden,
+                           [&f](const Item *item) { return f == item; }) ==
+               f->hidden);
+
+        Item_field *inner_field;
+
+        if (f->hidden) {
+          // Make a new Item_field to avoid changing the set of hidden
+          // Item_fields.
+          inner_field = new (thd->mem_root) Item_field(thd, f);
+          assert(!inner_field->hidden);
+        } else {
+          inner_field = f;
+        }
 
         // select_n_where_fields is counted, so safe to add to base_ref_items
-        base_ref_items[fields.size()] = f;
+        base_ref_items[fields.size()] = inner_field;
 
         // Compute position in resulting derived table (TABLE::fields)
-        // We are adding visible fields after hidden fields, which breaks
-        // an earlier invariant. Hard to avoid here.
         // Note the corresponding slice position calculation performed in
-        //     - change_to_use_tmp_fields_except_sums  (example figure expanded)
-        //     - setup_copy_fields
+        //     - change_to_use_tmp_fields_except_sums  (example figure
+        //     expanded)
         //     - change_to_use_tmp_fields
         // takes this new situation into account.
         lifted_fields->m_field_positions.push_back(fields.size() -
                                                    hidden_fields);
-        fields.push_back(f);
-
+        fields.push_back(inner_field);
         // We have added to fields; master_query_expression->types must
         // always be equal to it;
-        master_query_expression()->types.push_back(f);
+        master_query_expression()->types.push_back(inner_field);
       } else {
         // This is the field present in the scalar subquery initially, so it
         // will be first in the derived table's set of fields.
@@ -6739,6 +6756,7 @@ bool Query_block::decorrelate_derived_scalar_subquery_post(
       Field *field_in_derived = derived->table->field[pos_in_fields];
       auto replaces_field = new (thd->mem_root) Item_field(field_in_derived);
       if (replaces_field == nullptr) return true;
+      assert(replaces_field->data_type() == f->data_type());
 
       Item::Item_field_replacement info(f->field, replaces_field, this);
       Item *new_item = derived->join_cond()->transform(
