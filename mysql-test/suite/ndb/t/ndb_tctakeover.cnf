@@ -6,6 +6,13 @@ ndbd=,,,
 #MaxDMLOperationsPerTransaction=4294967039
 MaxDMLOperationsPerTransaction=32
 MaxNoOfLocalOperations=1024
+# Disable auto create index stats. This ensures that
+# the error inserted in the test fails at the expected
+# place i.e. during TCCOMMITREQ and not TCKEYREQ as is
+# the case with auto index stats. The latter leads to a
+# small Result Content Mismatch with an additional NdbApi
+# message being written
+IndexStatAutoCreate=0
 
 [cluster_config.ndbd.1.1]
 NodeId=1
