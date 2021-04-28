@@ -647,6 +647,8 @@ void Ndb_index_stat_glob::set_status() {
   mysql_mutex_unlock(&LOCK_global_system_variables);
 }
 
+static long g_ndb_status_index_stat_event_count = 0;
+
 /* Zero accumulating counters */
 void Ndb_index_stat_glob::zero_total() {
   analyze_count = 0;
@@ -664,6 +666,7 @@ void Ndb_index_stat_glob::zero_total() {
   evict_count = 0;
   /* Reset highest use seen to current */
   cache_high_bytes = cache_query_bytes + cache_clean_bytes;
+  g_ndb_status_index_stat_event_count = 0;
 }
 
 /* Shared index entries */
@@ -1772,6 +1775,12 @@ static void ndb_index_stat_proc_event(Ndb_index_stat_proc &pr) {
     DBUG_PRINT("index_stat", ("next_listener eventType: %d indexId: %u",
                               head.m_eventType, head.m_indexId));
 
+    if (head.m_eventType == 4) {
+      // Event that denotes that the stats have been updated in the kernel
+      g_ndb_status_index_stat_event_count++;
+      DBUG_PRINT("index_stat", ("Incremented stat_event_count to %ld",
+                                g_ndb_status_index_stat_event_count));
+    }
     Ndb_index_stat *st = find_entry(head.m_indexId, head.m_indexVersion);
     /*
       Another process can update stats for an index which is not found
@@ -2730,6 +2739,8 @@ static SHOW_VAR ndb_status_vars_index_stat[] = {
     {"cache_query", (char *)&g_ndb_status_index_stat_cache_query, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"cache_clean", (char *)&g_ndb_status_index_stat_cache_clean, SHOW_LONG,
+     SHOW_SCOPE_GLOBAL},
+    {"event_count", (char *)&g_ndb_status_index_stat_event_count, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_GLOBAL}};
 

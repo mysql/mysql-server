@@ -116,6 +116,7 @@ Ndb_connect_count	#
 Ndb_execute_count	#
 Ndb_index_stat_cache_clean	#
 Ndb_index_stat_cache_query	#
+Ndb_index_stat_event_count	#
 Ndb_index_stat_status	#
 Ndb_last_commit_epoch_server	#
 Ndb_last_commit_epoch_session	#
