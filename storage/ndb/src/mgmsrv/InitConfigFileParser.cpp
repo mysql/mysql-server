@@ -356,7 +356,7 @@ InitConfigFileParser::storeNameValuePair(Context& ctx,
     if(desc && desc[0]){
       ctx.reportWarning("[%s] %s is deprecated, will use %s instead",
 			ctx.fname, fname, desc);
-    } else if (desc == 0){
+    } else {
       ctx.reportWarning("[%s] %s is deprecated", ctx.fname, fname);
     }
   }
