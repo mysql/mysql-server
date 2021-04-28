@@ -22082,6 +22082,7 @@ static void test_bug32558782() {
   check_execute(stmt, rc);
 
   MYSQL_BIND bind[2];
+  memset(bind, 0, sizeof(bind));
 
   long int_data = 0;
   bool is_null = true;
