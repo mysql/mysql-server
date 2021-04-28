@@ -1994,10 +1994,8 @@ int Ndb_index_stat_thread::check_or_create_systables(Ndb_index_stat_proc &pr) {
     return 0;
   }
 
-  if (is->getNdbError().code == 721 || is->getNdbError().code == 4244 ||
-      is->getNdbError().code == 4009)  // no connection
-  {
-    // probably race between mysqlds
+  if (is->getNdbError().code == 4009) {
+    // No connection
     DBUG_PRINT("index_stat",
                ("create index stats tables failed: error %d line %d",
                 is->getNdbError().code, is->getNdbError().line));
@@ -2180,9 +2178,33 @@ void Ndb_index_stat_thread::do_run() {
   bool enable_ok;
   enable_ok = false;
 
-  // do we need to check or re-check sys objects (expensive)
+  // Set up Ndb object, stats tables and events, and the listener. This is done
+  // as an initial step. They could be re-created later after an initial start.
+  // See the check_sys flag used below
+  if (create_ndb(pr, g_ndb_cluster_connection) == -1) {
+    log_error("Could not create Ndb object");
+    mysql_mutex_lock(&LOCK_client_waiting);
+    goto ndb_index_stat_thread_end;
+  }
+
+  // Check or create stats tables and events
+  if (check_or_create_systables(pr) == -1 ||
+      check_or_create_sysevents(pr) == -1) {
+    log_error("Could not create index stat system tables");
+    mysql_mutex_lock(&LOCK_client_waiting);
+    goto ndb_index_stat_thread_end;
+  }
+
+  // Listener is not critical. There's a reattempt to start it as part of the
+  // normal processing below should it fail here
+  if (start_listener(pr) == -1) {
+    log_info("Could not start listener");
+  }
+
+  // Flag used to indicate if there's a need to check for creation of index
+  // stat tables and events. Initially off since they've just been created
   bool check_sys;
-  check_sys = true;
+  check_sys = false;
 
   struct timespec abstime;
   set_timespec(&abstime, 0);

@@ -295,8 +295,16 @@ int
 NdbIndexStat::create_systables(Ndb* ndb)
 {
   DBUG_ENTER("NdbIndexStat::create_systables");
-  if (m_impl.create_systables(ndb) == -1)
+  if (m_impl.create_systables(ndb) == -1) {
+    if (getNdbError().code == 721 || getNdbError().code == 4244) {
+      // Probably a race between applications which this app has lost. Check if
+      // the tables have been created either way and treat it as success
+      if (check_systables(ndb) == 0) {
+        DBUG_RETURN(0);
+      }
+    }
     DBUG_RETURN(-1);
+  }
   DBUG_RETURN(0);
 }
 

@@ -14741,6 +14741,16 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
       alterIndexPtr.p->m_sub_index_stat_mon = true;
     }
 
+    // Disable stats if the __at_restart_skip_indexes option is enabled. Indexes
+    // are not created during system restart with this option. This includes the
+    // index belonging to the ndb_index_stat_sample table which leads to
+    // subsequent failures during index stat update
+    if (c_at_restart_skip_indexes) {
+      jam();
+      D("skip index stats ops since indexes have been skipped at restart");
+      alterIndexPtr.p->m_sub_index_stat_dml = true;
+    }
+
     // disable update/delete if db not up
     if (getNodeState().startLevel != NodeState::SL_STARTED &&
         getNodeState().startLevel != NodeState::SL_SINGLEUSER) {
