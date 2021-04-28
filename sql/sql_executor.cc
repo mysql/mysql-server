@@ -3323,11 +3323,12 @@ int report_handler_error(TABLE *table, int error) {
   }
   /*
     Do not spam the error log with these temporary errors:
-       LOCK_DEADLOCK LOCK_WAIT_TIMEOUT TABLE_DEF_CHANGED
+       LOCK_DEADLOCK LOCK_WAIT_TIMEOUT TABLE_DEF_CHANGED LOCK_NOWAIT
     Also skip printing to error log if the current thread has been killed.
   */
   if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT &&
-      error != HA_ERR_TABLE_DEF_CHANGED && !current_thd->killed)
+      error != HA_ERR_TABLE_DEF_CHANGED && error != HA_ERR_NO_WAIT_LOCK &&
+      !current_thd->killed)
     LogErr(ERROR_LEVEL, ER_READING_TABLE_FAILED, error, table->s->path.str);
   table->file->print_error(error, MYF(0));
   return 1;

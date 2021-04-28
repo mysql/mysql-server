@@ -147,12 +147,32 @@ INSERT INTO global_suppressions VALUES
  ("innodb-page-size has been changed"),
 
  /*
+   TODO(tdidriks) Move most of these to individual test cases.
+   OS error code 1:  Operation not permitted
+   MY-000131 (handler): Command not supported by database
+   MY-000155 (handler): The table does not exist in engine
+   MY-000160 (handler): There's no partition in table for the given value
+   MY-000168 (handler): Unknown (generic) error from engine
+   MY-000180 (handler): Index corrupted
+   MY-000196 (handler): Query interrupted
+   MY-003044 (ER_STD_BAD_ALLOC_ERROR):
+                        Memory allocation error: %-.256s in function %s.
+  */
+ ("Got error 1 when reading table"),
+ ("Got error 131 when reading table"),
+ ("Got error 155 when reading table"),
+ ("Got error 160 when reading table"),
+ ("Got error 168 when reading table"),
+ ("Got error 180 when reading table"),
+ ("Got error 196 when reading table"),
+ ("Got error 3044 when reading table"),
+
+ /*
    Due to timing issues, it might be that this warning
    is printed when the server shuts down and the
    computer is loaded.
  */
 
- ("Got error [0-9]* when reading table"),
  ("Lock wait timeout exceeded"),
  ("Log entry on master is longer than max_allowed_packet"),
  ("unknown option '--loose-"),
