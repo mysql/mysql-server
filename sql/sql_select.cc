@@ -5252,6 +5252,8 @@ join_type calc_join_type(int quick_type) {
     return JT_RANGE;
 }
 
+const char *STORE_KEY_CONST_NAME = "const";
+
 /**
   @} (end of group Query_Optimizer)
 */

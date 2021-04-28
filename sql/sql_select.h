@@ -778,7 +778,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
 extern "C" int refpos_order_cmp(const void *arg, const void *a, const void *b);
 
 /// The name of store_key instances that represent constant items.
-constexpr const char *STORE_KEY_CONST_NAME = "const";
+extern const char *STORE_KEY_CONST_NAME;
 
 /// Check privileges for all columns referenced from join expression
 bool check_privileges_for_join(THD *thd, mem_root_deque<TABLE_LIST *> *tables);
