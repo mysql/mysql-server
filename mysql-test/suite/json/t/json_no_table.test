@@ -2944,3 +2944,11 @@ do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
 --echo #
 SELECT JSON_SEARCH('["abc"]', 'one', CAST('abc' AS CHAR CHARSET utf16));
 SELECT JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16));
+
+--echo # Bug32787464: Json_wrapper::compare const: assertion
+--echo #              `other_type != enum_json_type::J_ERROR' failed
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO NULLIF(NULLIF(JSON_OBJECTAGG('ab',' *. b$_ 7?C **c3'),
+                 EXTRACT(MINUTE_MICROSECOND FROM json_storage_size('* .$B7$'))
+                ), 1);
