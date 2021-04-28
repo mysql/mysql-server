@@ -18,7 +18,7 @@ Variable_name	Value
 ndb_index_stat_enable	ON
 create table record_in_range(no int primary key auto_increment,
 query varchar(256), part_count int, 
-explain_rows int, count_rows int) engine = myisam;
+explain_rows int, count_rows int) engine = innodb;
 CREATE TABLE t1(
 K INT NOT NULL AUTO_INCREMENT,
 I INT,
