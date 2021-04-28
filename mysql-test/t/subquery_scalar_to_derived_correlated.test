@@ -598,6 +598,16 @@ SELECT f1 FROM t1 AS table1
 eval explain $query;
 eval $query;
 
+INSERT INTO t1 VALUES (-1, 0, -1, -1);
+INSERT INTO t1 VALUES (1, 0, 1, 1);
+ANALYZE TABLE t1;
+
+eval explain $query;
+
+# First subquery returns more than one row.
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+
 DROP TABLE t1;
 
 --echo #
