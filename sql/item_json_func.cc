@@ -4298,7 +4298,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       const int64_t value =
           cs->cset->strtoll10(cs, start, &end_of_number, &error);
       if (end_of_number != end_of_string) {
-        ErrConvString err(start, cs);
+        ErrConvString err(string_value);
         my_error(ER_TRUNCATED_WRONG_VALUE, MYF(0),
                  unsigned_flag ? "INTEGER UNSIGNED" : "INTEGER SIGNED",
                  err.ptr());
@@ -4337,7 +4337,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       const int64_t value =
           cs->cset->strtoll10(cs, start, &end_of_number, &error);
       if (end_of_number != end_of_string) {
-        ErrConvString err(start, cs);
+        ErrConvString err(string_value);
         my_error(ER_TRUNCATED_WRONG_VALUE, MYF(0), "YEAR", err.ptr());
         return nullptr;
       }
