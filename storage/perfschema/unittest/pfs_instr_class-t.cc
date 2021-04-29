@@ -240,8 +240,8 @@ static void test_mutex_registration() {
   ok(mutex == nullptr, "no key 0");
   mutex = find_mutex_class(3);
   ok(mutex != nullptr, "found key 3");
-  ok(strncmp(mutex->m_name, "M-3", 3) == 0, "key 3 is M-3");
-  ok(mutex->m_name_length == 3, "name length 3");
+  ok(strncmp(mutex->m_name.str(), "M-3", 3) == 0, "key 3 is M-3");
+  ok(mutex->m_name.length() == 3, "name length 3");
   mutex = find_mutex_class(9999);
   ok(mutex == nullptr, "no key 9999");
 
@@ -283,8 +283,8 @@ static void test_rwlock_registration() {
   ok(rwlock == nullptr, "no key 0");
   rwlock = find_rwlock_class(3);
   ok(rwlock != nullptr, "found key 3");
-  ok(strncmp(rwlock->m_name, "RW-3", 4) == 0, "key 3 is RW-3");
-  ok(rwlock->m_name_length == 4, "name length 4");
+  ok(strncmp(rwlock->m_name.str(), "RW-3", 4) == 0, "key 3 is RW-3");
+  ok(rwlock->m_name.length() == 4, "name length 4");
   rwlock = find_rwlock_class(9999);
   ok(rwlock == nullptr, "no key 9999");
 
@@ -326,8 +326,8 @@ static void test_cond_registration() {
   ok(cond == nullptr, "no key 0");
   cond = find_cond_class(3);
   ok(cond != nullptr, "found key 3");
-  ok(strncmp(cond->m_name, "C-3", 3) == 0, "key 3 is C-3");
-  ok(cond->m_name_length == 3, "name length 3");
+  ok(strncmp(cond->m_name.str(), "C-3", 3) == 0, "key 3 is C-3");
+  ok(cond->m_name.length() == 3, "name length 3");
   cond = find_cond_class(9999);
   ok(cond == nullptr, "no key 9999");
 
@@ -369,8 +369,8 @@ static void test_thread_registration() {
   ok(thread == nullptr, "no key 0");
   thread = find_thread_class(3);
   ok(thread != nullptr, "found key 3");
-  ok(strncmp(thread->m_name, "Thread-3", 8) == 0, "key 3 is Thread-3");
-  ok(thread->m_name_length == 8, "name length 8");
+  ok(strncmp(thread->m_name.str(), "Thread-3", 8) == 0, "key 3 is Thread-3");
+  ok(thread->m_name.length() == 8, "name length 8");
   thread = find_thread_class(9999);
   ok(thread == nullptr, "no key 9999");
 
@@ -412,8 +412,8 @@ static void test_file_registration() {
   ok(file == nullptr, "no key 0");
   file = find_file_class(3);
   ok(file != nullptr, "found key 3");
-  ok(strncmp(file->m_name, "File-3", 6) == 0, "key 3 is File-3");
-  ok(file->m_name_length == 6, "name length 6");
+  ok(strncmp(file->m_name.str(), "File-3", 6) == 0, "key 3 is File-3");
+  ok(file->m_name.length() == 6, "name length 6");
   file = find_file_class(9999);
   ok(file == nullptr, "no key 9999");
 
@@ -460,8 +460,8 @@ static void test_socket_registration() {
   ok(socket == nullptr, "no key 0");
   socket = find_socket_class(3);
   ok(socket != nullptr, "found key 3");
-  ok(strncmp(socket->m_name, "Socket-3", 8) == 0, "key 3 is Socket-3");
-  ok(socket->m_name_length == 8, "name length 3");
+  ok(strncmp(socket->m_name.str(), "Socket-3", 8) == 0, "key 3 is Socket-3");
+  ok(socket->m_name.length() == 8, "name length 3");
   socket = find_socket_class(9999);
   ok(socket == nullptr, "no key 9999");
 
@@ -577,8 +577,8 @@ static void test_memory_registration() {
   ok(memory == nullptr, "no key 0");
   memory = find_memory_class(3);
   ok(memory != nullptr, "found key 3");
-  ok(strncmp(memory->m_name, "Memory-3", 8) == 0, "key 3 is Memory-3");
-  ok(memory->m_name_length == 8, "name length 3");
+  ok(strncmp(memory->m_name.str(), "Memory-3", 8) == 0, "key 3 is Memory-3");
+  ok(memory->m_name.length() == 8, "name length 3");
   memory = find_memory_class(9999);
   ok(memory == nullptr, "no key 9999");
 

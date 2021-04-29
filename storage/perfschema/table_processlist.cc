@@ -279,9 +279,9 @@ int table_processlist::make_row(PFS_thread *pfs) {
   stage_class = find_stage_class(pfs->m_stage);
   if (stage_class != nullptr) {
     m_row.m_processlist_state_ptr =
-        stage_class->m_name + stage_class->m_prefix_length;
+        stage_class->m_name.str() + stage_class->m_prefix_length;
     m_row.m_processlist_state_length =
-        stage_class->m_name_length - stage_class->m_prefix_length;
+        stage_class->m_name.length() - stage_class->m_prefix_length;
     if (m_row.m_processlist_state_length > 64) {
       /*
         Column STATE is VARCHAR(64)

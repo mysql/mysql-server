@@ -1782,11 +1782,11 @@ bool PFS_key_thread_name::match(const PFS_thread *pfs) {
 }
 
 bool PFS_key_thread_name::match(const PFS_thread_class *klass) {
-  return do_match(false, klass->m_name, klass->m_name_length);
+  return do_match(false, klass->m_name.str(), klass->m_name.length());
 }
 
 bool PFS_key_event_name::match(const PFS_instr_class *pfs) {
-  return do_match(false, pfs->m_name, pfs->m_name_length);
+  return do_match(false, pfs->m_name.str(), pfs->m_name.length());
 }
 
 bool PFS_key_event_name::match(const PFS_mutex *pfs) {
@@ -1795,7 +1795,7 @@ bool PFS_key_event_name::match(const PFS_mutex *pfs) {
     return false;
   }
 
-  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+  return do_match(false, safe_class->m_name.str(), safe_class->m_name.length());
 }
 
 bool PFS_key_event_name::match(const PFS_rwlock *pfs) {
@@ -1803,7 +1803,7 @@ bool PFS_key_event_name::match(const PFS_rwlock *pfs) {
   if (unlikely(safe_class == nullptr)) {
     return false;
   }
-  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+  return do_match(false, safe_class->m_name.str(), safe_class->m_name.length());
 }
 
 bool PFS_key_event_name::match(const PFS_cond *pfs) {
@@ -1811,7 +1811,7 @@ bool PFS_key_event_name::match(const PFS_cond *pfs) {
   if (unlikely(safe_class == nullptr)) {
     return false;
   }
-  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+  return do_match(false, safe_class->m_name.str(), safe_class->m_name.length());
 }
 
 bool PFS_key_event_name::match(const PFS_file *pfs) {
@@ -1819,7 +1819,7 @@ bool PFS_key_event_name::match(const PFS_file *pfs) {
   if (unlikely(safe_class == nullptr)) {
     return false;
   }
-  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+  return do_match(false, safe_class->m_name.str(), safe_class->m_name.length());
 }
 
 bool PFS_key_event_name::match(const PFS_socket *pfs) {
@@ -1827,7 +1827,7 @@ bool PFS_key_event_name::match(const PFS_socket *pfs) {
   if (unlikely(safe_class == nullptr)) {
     return false;
   }
-  return do_match(false, safe_class->m_name, safe_class->m_name_length);
+  return do_match(false, safe_class->m_name.str(), safe_class->m_name.length());
 }
 
 bool PFS_key_event_name::match_view(uint view) {

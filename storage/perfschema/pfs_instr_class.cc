@@ -956,8 +956,7 @@ static void init_instr_class(PFS_instr_class *klass, const char *name,
                              PFS_class_type class_type) {
   assert(name_length <= PFS_MAX_INFO_NAME_LENGTH);
   memset(klass, 0, sizeof(PFS_instr_class));
-  strncpy(klass->m_name, name, name_length);
-  klass->m_name_length = name_length;
+  klass->m_name.set(name, name_length);
   klass->m_flags = flags;
   klass->m_volatility = volatility;
   klass->m_enabled = true;
@@ -996,8 +995,8 @@ static void configure_instr_class(PFS_instr_class *entry) {
 
       Consecutive wildcards affect the count.
     */
-    if (!my_wildcmp(&my_charset_latin1, entry->m_name,
-                    entry->m_name + entry->m_name_length, e->m_name,
+    if (!my_wildcmp(&my_charset_latin1, entry->m_name.str(),
+                    entry->m_name.str() + entry->m_name.length(), e->m_name,
                     e->m_name + e->m_name_length, '\\', '?', '%')) {
       if (e->m_name_length >= match_length) {
         entry->m_enabled = e->m_enabled;
@@ -1009,10 +1008,10 @@ static void configure_instr_class(PFS_instr_class *entry) {
 }
 
 #define REGISTER_CLASS_BODY_PART(INDEX, ARRAY, MAX, NAME, NAME_LENGTH) \
-  for (INDEX = 0; INDEX < MAX; INDEX++) {                              \
+  for (INDEX = 0; INDEX < MAX; ++INDEX) {                              \
     entry = &ARRAY[INDEX];                                             \
-    if ((entry->m_name_length == NAME_LENGTH) &&                       \
-        (strncmp(entry->m_name, NAME, NAME_LENGTH) == 0)) {            \
+    if ((entry->m_name.length() == NAME_LENGTH) &&                     \
+        (strncmp(entry->m_name.str(), NAME, NAME_LENGTH) == 0)) {      \
       assert(entry->m_flags == info->m_flags);                         \
       return (INDEX + 1);                                              \
     }                                                                  \
@@ -1264,14 +1263,8 @@ PFS_thread_key register_thread_class(const char *name, uint name_length,
   uint32 index;
   PFS_thread_class *entry;
 
-  for (index = 0; index < thread_class_max; index++) {
-    entry = &thread_class_array[index];
-
-    if ((entry->m_name_length == name_length) &&
-        (strncmp(entry->m_name, name, name_length) == 0)) {
-      return (index + 1);
-    }
-  }
+  REGISTER_CLASS_BODY_PART(index, thread_class_array, thread_class_max, name,
+                           name_length);
 
   index = thread_class_dirty_count++;
 
