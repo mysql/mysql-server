@@ -1260,6 +1260,9 @@ PFS_cond_class *sanitize_cond_class(PFS_cond_class *unsafe) {
 */
 PFS_thread_key register_thread_class(const char *name, uint name_length,
                                      PSI_thread_info *info) {
+  assert(info != nullptr);
+  assert(info->m_os_name != nullptr);
+
   /* See comments in register_mutex_class */
   uint32 index;
   PFS_thread_class *entry;
