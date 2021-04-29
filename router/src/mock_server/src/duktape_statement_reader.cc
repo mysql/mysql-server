@@ -23,7 +23,6 @@
 */
 
 #include <chrono>
-#include <functional>
 #include <map>
 #include <stdexcept>
 #include <string>
@@ -711,28 +710,6 @@ static duk_int_t process_set_shared(duk_context *ctx) {
 
   return 0;
 }
-
-/**
- * dismissable scope guard.
- *
- * used with RAII to call cleanup function if not dismissed
- *
- * allows to release resources in case exceptions are thrown
- */
-class ScopeGuard {
- public:
-  template <class Callable>
-  ScopeGuard(Callable &&undo_func)
-      : undo_func_{std::forward<Callable>(undo_func)} {}
-
-  void dismiss() { undo_func_ = nullptr; }
-  ~ScopeGuard() {
-    if (undo_func_) undo_func_();
-  }
-
- private:
-  std::function<void()> undo_func_;
-};
 
 static void check_stmts_section(duk_context *ctx) {
   duk_get_prop_string(ctx, -1, "stmts");

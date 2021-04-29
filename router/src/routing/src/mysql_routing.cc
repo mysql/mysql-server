@@ -37,7 +37,7 @@
 
 #include <sys/types.h>
 
-#include "common.h"  // rename_thread
+#include "common.h"  // rename_thread, ScopeGuard
 #include "connection.h"
 #include "dest_first_available.h"
 #include "dest_metadata_cache.h"
@@ -1084,6 +1084,11 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   destination_->register_stop_router_socket_acceptor(
       [&]() { stop_socket_acceptors(); });
 
+  // make sure to stop the acceptors in case of possible exceptions, otherwise
+  // we can deadlock the process
+  mysql_harness::ScopeGuard stop_acceptors_guard(
+      [&]() { stop_socket_acceptors(); });
+
   if (!destinations()->empty() ||
       (routing_strategy_ == RoutingStrategy::kFirstAvailable &&
        is_destination_standalone)) {
@@ -1147,6 +1152,7 @@ stdx::expected<void, std::error_code> MySQLRouting::start_acceptor(
   mysql_harness::wait_for_stop(env, 0);
   routing_stopped_ = true;
 
+  stop_acceptors_guard.dismiss();
   // routing is no longer running, lets close listening socket
   stop_socket_acceptors();
 
