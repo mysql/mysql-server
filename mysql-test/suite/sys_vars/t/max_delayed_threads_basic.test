@@ -226,6 +226,27 @@ SELECT session.max_delayed_threads;
 --Error ER_BAD_FIELD_ERROR
 SELECT max_delayed_threads = @@session.max_delayed_threads;
 
+--echo '#---------------------FN_DYNVARS_001_12----------------------#'
+######################################################################################
+#   Check if changing session variable throws error without sufficient privileges    #
+######################################################################################
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+--let $conn_name = foo_connection
+--connect($conn_name, localhost, foo,,,)
+SELECT @@session.max_delayed_threads;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.max_delayed_threads = 2048;
+--connection default
+disconnect $conn_name;
+--let $conn_name = bar_connection
+--connect($conn_name, localhost, bar,,,)
+SELECT @@session.max_delayed_threads;
+SET @@session.max_delayed_threads = 2048;
+SELECT @@session.max_delayed_threads;
+--connection default
+disconnect $conn_name;
+DROP USER foo, bar;
 
 ####################################
 #     Restore initial value        #

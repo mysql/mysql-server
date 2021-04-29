@@ -251,5 +251,27 @@ disconnect con1;
 drop view v1;
 DROP TABLE t1;
 
+######################################################################################
+#   Check if changing session variable throws error without sufficient privileges    #
+######################################################################################
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+--let $conn_name = foo_connection
+--connect($conn_name, localhost, foo,,,)
+SELECT @@session.low_priority_updates;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.low_priority_updates = TRUE;
+--connection default
+disconnect $conn_name;
+--let $conn_name = bar_connection
+--connect($conn_name, localhost, bar,,,)
+SELECT @@session.low_priority_updates;
+SET @@session.low_priority_updates = TRUE;
+SELECT @@session.low_priority_updates;
+--connection default
+disconnect $conn_name;
+DROP USER foo, bar;
+
+
 SET @@GLOBAL.low_priority_updates = @global_low_priority_updates;
 SET @@SESSION.low_priority_updates = @session_low_priority_updates;
