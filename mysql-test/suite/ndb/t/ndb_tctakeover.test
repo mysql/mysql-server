@@ -24,7 +24,6 @@ insert into t select x + 80, y + 80 from t;
 exec $NDB_MGM -e "2 error 8030";
 --error ER_ERROR_DURING_COMMIT
 commit;
-replace_regex /- '.*'/- ERROR_MESSAGE/;
 show warnings;
 
 exec $NDB_SELECT_ALL --rowid -d test t;
