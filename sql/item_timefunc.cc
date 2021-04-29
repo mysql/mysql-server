@@ -1543,7 +1543,7 @@ longlong Item_typecast_year::val_int() {
       // Report here the error as we have access to the string value
       // extracted by val_str.
       if (error != 0) {
-        ErrConvString err(start, cs);
+        ErrConvString err(string_value);
         push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_WRONG_VALUE, ER_THD(current_thd, ER_WRONG_VALUE),
                             "YEAR", err.ptr());
@@ -1551,7 +1551,7 @@ longlong Item_typecast_year::val_int() {
         return 0;
       }
       if (end_of_number != end_of_string) {
-        ErrConvString err(start, cs);
+        ErrConvString err(string_value);
         push_warning_printf(
             thd, Sql_condition::SL_WARNING, ER_TRUNCATED_WRONG_VALUE,
             ER_THD(current_thd, ER_TRUNCATED_WRONG_VALUE), "YEAR", err.ptr());

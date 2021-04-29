@@ -2486,7 +2486,7 @@ void THD::vsyntax_error_at(const char *pos_in_lexer_raw_buffer,
           ? m_parser_state->m_lip.get_lineno(pos_in_lexer_raw_buffer)
           : 1;
   const char *pos = pos_in_lexer_raw_buffer ? pos_in_lexer_raw_buffer : "";
-  ErrConvString err(pos, variables.character_set_client);
+  ErrConvString err(pos, strlen(pos), variables.character_set_client);
   (void)vsnprintf(buff, sizeof(buff), format, args);
   my_printf_error(ER_PARSE_ERROR, ER_THD(this, ER_PARSE_ERROR), MYF(0), buff,
                   err.ptr(), lineno);

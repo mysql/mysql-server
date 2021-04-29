@@ -228,10 +228,6 @@ class ErrConvString {
                           str->length(), str->charset());
   }
 
-  ErrConvString(const char *str, const CHARSET_INFO *cs) {
-    buf_length = err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
-  }
-
   ErrConvString(const char *str, size_t length) {
     buf_length = err_conv(err_buffer, sizeof(err_buffer), str, length,
                           &my_charset_latin1);

@@ -4899,7 +4899,7 @@ CHARSET_INFO *mysqld_collation_get_by_name(const char *name,
   char error[1024];
   my_charset_loader_init_mysys(&loader);
   if (!(cs = my_collation_get_by_name(&loader, name, MYF(0)))) {
-    ErrConvString err(name, name_cs);
+    ErrConvString err(name, strlen(name), name_cs);
     my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
     if (loader.errcode) {
       snprintf(error, sizeof(error) - 1, EE(loader.errcode), loader.errarg);
