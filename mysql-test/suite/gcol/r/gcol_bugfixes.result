@@ -1489,3 +1489,20 @@ INSERT INTO t(i) VALUES (5853267), (32766);
 SELECT * FROM t WHERE i > 123 AND i * FROM_UNIXTIME(1536999224);
 ERROR 22003: BIGINT value is out of range in '(`test`.`t`.`i` * <cache>(from_unixtime(1536999224)))'
 DROP TABLE t;
+# Bug#32824978: Generated columns inconsistency
+CREATE TABLE t1 (
+id INTEGER NOT NULL,
+mac BIGINT UNSIGNED DEFAULT NULL,
+str CHAR(12) AS (LPAD(CONVERT(HEX(mac) USING utf8mb4), 12,_utf8mb4'0')) VIRTUAL,
+separated CHAR(17) AS (INSERT(INSERT(INSERT(INSERT(INSERT(str, 11, 0, _utf8mb4':'), 9, 0, _utf8mb4':'), 7, 0, _utf8mb4':'), 5, 0, _utf8mb4':'), 3, 0, _utf8mb4':')) VIRTUAL,
+PRIMARY KEY (id)
+);
+INSERT INTO t1 (id, mac) VALUES
+(1, 10), (2, 564685488), (3, NULL), (4, 684756486);
+SELECT * FROM t1;
+id	mac	str	separated
+1	10	00000000000A	00:00:00:00:00:0A
+2	564685488	000021A86AB0	00:00:21:A8:6A:B0
+3	NULL	NULL	NULL
+4	684756486	000028D08E06	00:00:28:D0:8E:06
+DROP TABLE t1;
