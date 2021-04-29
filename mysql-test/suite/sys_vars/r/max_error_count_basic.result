@@ -181,6 +181,22 @@ SELECT session.max_error_count;
 ERROR 42S02: Unknown table 'session' in field list
 SELECT max_error_count = @@session.max_error_count;
 ERROR 42S22: Unknown column 'max_error_count' in 'field list'
+'#---------------------FN_DYNVARS_001_12----------------------#'
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+SELECT @@session.max_error_count;
+@@session.max_error_count
+2048
+SET @@session.max_error_count = 2048;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.max_error_count;
+@@session.max_error_count
+2048
+SET @@session.max_error_count = 2048;
+SELECT @@session.max_error_count;
+@@session.max_error_count
+2048
+DROP USER foo, bar;
 SET @@global.max_error_count = @start_global_value;
 SELECT @@global.max_error_count;
 @@global.max_error_count

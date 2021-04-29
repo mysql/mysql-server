@@ -168,6 +168,30 @@ SELECT session.select_into_disk_sync_delay;
 --Error ER_BAD_FIELD_ERROR
 SELECT select_into_disk_sync_delay = @@session.select_into_disk_sync_delay;
 
+--echo '#---------------------FN_DYNVARS_001_12----------------------#'
+######################################################################################
+#   Check if changing session variable throws error without sufficient privileges    #
+######################################################################################
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+--let $conn_name = foo_connection
+--connect($conn_name, localhost, foo,,,)
+SELECT @@session.select_into_disk_sync_delay;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@session.select_into_disk_sync_delay = 2000;
+--connection default
+disconnect $conn_name;
+--let $conn_name = bar_connection
+--connect($conn_name, localhost, bar,,,)
+SELECT @@session.select_into_disk_sync_delay;
+SET @@session.select_into_disk_sync_delay = 2000;
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET @@global.select_into_disk_sync_delay = 2000;
+SELECT @@session.select_into_disk_sync_delay;
+--connection default
+disconnect $conn_name;
+DROP USER foo, bar;
+
 
 ####################################
 #     Restore initial value        #

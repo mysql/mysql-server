@@ -875,6 +875,9 @@ for each api function.
 static ib_cb_t innodb_api_cb[] = {
     FOR_EACH_API_METHOD_NAME_STEM(INNODB_API_CB_ARRAY_ELEMENT_TRANSFORM)};
 
+static int innodb_check_session_admin(THD *thd, SYS_VAR *self, void *save,
+                                      struct st_mysql_value *value);
+
 /**Check whether valid argument given to innobase_*_stopword_table.
 This function is registered as a callback with MySQL.
 @param[in]	thd		thread handle
@@ -974,12 +977,13 @@ static inline uint get_field_offset(const TABLE *table, const Field *field);
 
 static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
                          "Enable InnoDB locking in LOCK TABLES",
-                         /* check_func */ nullptr, /* update_func */ nullptr,
+                         innodb_check_session_admin,
+                         /* update_func */ nullptr,
                          /* default */ TRUE);
 
 static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,
                          "Use strict mode when evaluating create options.",
-                         nullptr, nullptr, TRUE);
+                         innodb_check_session_admin, nullptr, TRUE);
 
 static MYSQL_THDVAR_BOOL(ft_enable_stopword, PLUGIN_VAR_OPCMDARG,
                          "Create FTS index with stopword.", nullptr, nullptr,
@@ -19828,6 +19832,69 @@ static int innodb_stopword_table_validate(THD *thd, SYS_VAR *var, void *save,
   }
 
   return (ret);
+}
+
+/**
+  Utility method that checks if user provided valid value.
+  If yes, then store that in the save variable.
+  @return 0 on success, 1 on failure.
+*/
+static int check_func_bool(THD *, SYS_VAR *, void *save,
+                           st_mysql_value *value) {
+  int result;
+  if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
+    char buff[STRING_BUFFER_USUAL_SIZE];
+    int length = sizeof(buff);
+    const char *str = value->val_str(value, buff, &length);
+    result = find_type(&bool_typelib, str, length, true) - 1;
+    if (str == nullptr || result < 0) return 1;
+  } else {
+    long long tmp;
+    if (value->val_int(value, &tmp) < 0) return 1;
+    if (tmp > 1 || tmp < 0) return 1;
+    result = static_cast<int>(tmp);
+  }
+  *(bool *)save = result ? true : false;
+  return 0;
+}
+
+/**
+  Utility method that checks if user has correct session administrative
+  dynamic privileges.
+  @return 0 on success, 1 on failure.
+*/
+static int check_session_admin(THD *thd) {
+  Security_context *sctx = thd->security_context();
+  if (!sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
+           .first &&
+      !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+           .first) {
+    return 1;
+  }
+  return 0;
+}
+
+/**
+  Check if SESSION_VARIABLES_ADMIN granted. Throw SQL error if not.
+  We also accept SYSTEM_VARIABLES_ADMIN since it doesn't make a lot of
+  sense to be allowed to set the global variable and not the session ones.
+
+  @param thd the session context
+  @param var the system variable to set value for
+  @param save set the updated value
+  @param value A struct that reads us the values from mysqld
+
+  @retval   1   failure
+  @retval   0   success
+ */
+static int innodb_check_session_admin(THD *thd, SYS_VAR *var, void *save,
+                                      struct st_mysql_value *value) {
+  if (check_session_admin(thd)) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
+             "SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
+    return 1;
+  }
+  return check_func_bool(thd, var, save, value);
 }
 
 static void innodb_srv_buffer_pool_in_core_file_update(THD *thd, SYS_VAR *var,

@@ -110,5 +110,20 @@ Disconnecting Connections con_int1, con_int2
 Disconnecting Connections con0, con1
 drop view v1;
 DROP TABLE t1;
+CREATE USER foo, bar;
+GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
+SELECT @@session.low_priority_updates;
+@@session.low_priority_updates
+0
+SET @@session.low_priority_updates = TRUE;
+ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SELECT @@session.low_priority_updates;
+@@session.low_priority_updates
+0
+SET @@session.low_priority_updates = TRUE;
+SELECT @@session.low_priority_updates;
+@@session.low_priority_updates
+1
+DROP USER foo, bar;
 SET @@GLOBAL.low_priority_updates = @global_low_priority_updates;
 SET @@SESSION.low_priority_updates = @session_low_priority_updates;
