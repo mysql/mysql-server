@@ -104,7 +104,11 @@ class Schema;
     column. In case the name that was created this way already exists, we
     add a numeric postfix to its end (i.e. "1") and increase the number
     until the name becomes unique. If the generated name is longer than
-    NAME_LEN, it is truncated.
+    NAME_CHAR_LEN code points, it is truncated.
+
+    We truncate to the nearest code point, which means that in rare
+    cases we may truncate in the middle of some grapheme cluster, but
+    the result is still treated as a valid name by the data dictionary.
 */
 
 static void make_unique_view_field_name(Item *target,
@@ -125,6 +129,15 @@ static void make_unique_view_field_name(Item *target,
           snprintf(buff, NAME_LEN, SYNTHETIC_FIELD_NAME "%d_%s", attempt, name);
     else
       name_len = snprintf(buff, NAME_LEN, SYNTHETIC_FIELD_NAME "%s", name);
+
+    size_t name_len_mb = system_charset_info->cset->numchars(
+        system_charset_info, buff, buff + name_len);
+    if (name_len_mb > NAME_CHAR_LEN) {
+      size_t num_bytes = system_charset_info->cset->charpos(
+          system_charset_info, buff, buff + name_len, NAME_CHAR_LEN);
+      buff[num_bytes] = '\0';
+      name_len = num_bytes;
+    }
 
     auto itc = item_list.begin();
     do {
