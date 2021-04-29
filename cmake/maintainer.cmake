@@ -71,6 +71,8 @@ IF(MY_COMPILER_IS_GNU)
   ENDIF()
   MY_ADD_C_WARNING_FLAG("Wmissing-include-dirs")
   MY_ADD_CXX_WARNING_FLAG("Wmissing-include-dirs")
+
+  MY_ADD_CXX_WARNING_FLAG("Wextra-semi") # For gcc8 and up
 ENDIF()
 
 #
