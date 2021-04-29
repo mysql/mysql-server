@@ -655,7 +655,7 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
       snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH - 1, klass->m_os_name,
                seqnum);
     } else {
-      strncpy(pfs->m_os_name, klass->m_os_name, PFS_MAX_OS_NAME_LENGTH - 1);
+      snprintf(pfs->m_os_name, PFS_MAX_OS_NAME_LENGTH, "%s", klass->m_os_name);
     }
     pfs->m_os_name[PFS_MAX_OS_NAME_LENGTH - 1] = '\0';
 

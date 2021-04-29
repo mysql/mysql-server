@@ -203,8 +203,8 @@ class Trigger {
 
   void set_parse_error_message(const char *error_message) {
     m_has_parse_error = true;
-    strncpy(m_parse_error_message, error_message,
-            sizeof(m_parse_error_message));
+    snprintf(m_parse_error_message, sizeof(m_parse_error_message), "%s",
+             error_message);
   }
 
   /**
