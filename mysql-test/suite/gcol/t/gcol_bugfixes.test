@@ -1425,3 +1425,20 @@ INSERT INTO t(i) VALUES (5853267), (32766);
 --error ER_DATA_OUT_OF_RANGE
 SELECT * FROM t WHERE i > 123 AND i * FROM_UNIXTIME(1536999224);
 DROP TABLE t;
+
+--echo # Bug#32824978: Generated columns inconsistency
+
+CREATE TABLE t1 (
+  id INTEGER NOT NULL,
+  mac BIGINT UNSIGNED DEFAULT NULL,
+  str CHAR(12) AS (LPAD(CONVERT(HEX(mac) USING utf8mb4), 12,_utf8mb4'0')) VIRTUAL,
+  separated CHAR(17) AS (INSERT(INSERT(INSERT(INSERT(INSERT(str, 11, 0, _utf8mb4':'), 9, 0, _utf8mb4':'), 7, 0, _utf8mb4':'), 5, 0, _utf8mb4':'), 3, 0, _utf8mb4':')) VIRTUAL,
+  PRIMARY KEY (id)
+);
+
+INSERT INTO t1 (id, mac) VALUES
+ (1, 10), (2, 564685488), (3, NULL), (4, 684756486);
+
+SELECT * FROM t1;
+
+DROP TABLE t1;

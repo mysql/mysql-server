@@ -1170,6 +1170,8 @@ bool Item_func_replace::resolve_type(THD *thd) {
 String *Item_func_insert::val_str(String *str) {
   assert(fixed);
 
+  null_value = false;
+
   String *res = eval_string_arg(collation.collation, args[0], str);
   if (res == nullptr) return error_str();
 
