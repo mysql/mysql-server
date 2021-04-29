@@ -46,11 +46,12 @@
 
 let $messages =
 Recovery from master pos .* and file .* for channel ''*
-Error looking for file after ./slave-relay-bin.000007.*
+Error looking for file after .*slave-relay-bin.000007.*
 Slave: Failed to initialize the master info structure for channel .* its record may still be present in*
 Failed to create or recover replication info repositories.*
 Slave SQL for channel .* Slave failed to initialize relay log info structure from the repository, Error_code*
 ;
+--let $suppress_on_current_connection = 1
 --source include/suppress_messages.inc
 
 --let $restart_server_with_gaps_file = $MYSQL_TMP_DIR/restart_server_with_gaps.inc
