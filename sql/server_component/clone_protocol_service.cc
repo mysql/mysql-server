@@ -240,6 +240,44 @@ DEFINE_METHOD(int, mysql_clone_get_configs,
   return (err);
 }
 
+/**
+ Says whether a character is a digit or a dot.
+ @param c character
+ @return true if c is a digit or a dot, otherwise false
+ */
+inline bool is_digit_or_dot(char c) { return std::isdigit(c) || c == '.'; }
+
+/**
+ Compares versions, ignoring suffixes, i.e. 8.0.25 should be the same
+ as 8.0.25-debug, but 8.0.25 isn't the same as 8.0.251.
+ @param ver1 version1 string
+ @param ver2 version2 string
+ @return true if versions match (ignoring suffixes), false otherwise
+ */
+inline bool compare_prefix_version(std::string ver1, std::string ver2) {
+  size_t i;
+  /* we iterate  over both versions */
+  for (i = 0; i < ver1.size() && i < ver2.size(); i++) {
+    if (!is_digit_or_dot(ver1[i])) {
+      /*  If in one version we have something else than digit or dot,
+      we check what's in other version - if we also have a suffix or still
+      a version. */
+      return !is_digit_or_dot(ver2[i]);
+    }
+    /* We still compare version, and have a difference */
+    if (ver1[i] != ver2[i]) return false;
+  }
+  if (i < ver1.size()) {
+    /* we finished iterate over ver2, but still have some digits in ver1 */
+    return !std::isdigit(ver1[i]);
+  }
+  if (i < ver2.size()) {
+    /* we finished iterate over ver1, but still have some digits in ver2 */
+    return !std::isdigit(ver2[i]);
+  }
+  return true;
+}
+
 DEFINE_METHOD(int, mysql_clone_validate_configs,
               (THD * thd, Mysql_Clone_Key_Values &configs)) {
   int last_error = 0;
@@ -270,6 +308,11 @@ DEFINE_METHOD(int, mysql_clone_validate_configs,
     if (config_name.compare("version_compile_os") == 0) {
       critical_error = ER_CLONE_OS;
     } else if (config_name.compare("version") == 0) {
+      /* we want to allow to add some suffix to the version and still match
+      i.e. 8.0.25 should be the same as 8.0.25-debug */
+      if (compare_prefix_version(config_val, donor_val)) {
+        continue;
+      }
       critical_error = ER_CLONE_DONOR_VERSION;
     } else if (config_name.compare("version_compile_machine") == 0) {
       critical_error = ER_CLONE_PLATFORM;
