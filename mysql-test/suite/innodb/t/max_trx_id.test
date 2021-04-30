@@ -1,5 +1,6 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/not_valgrind.inc
 --source include/count_sessions.inc
 
 --echo # Initialize new data directory and restart MySQL on that data directory.

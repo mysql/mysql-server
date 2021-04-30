@@ -1,5 +1,6 @@
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
+--source include/not_valgrind.inc
 
 create table t1 (f1 int, f2 blob) ENCRYPTION='Y';
 

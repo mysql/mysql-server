@@ -1,6 +1,8 @@
 --source include/big_test.inc
 --source include/have_innodb_16k.inc
 --source include/have_debug.inc
+--source include/not_valgrind.inc
+
 
 --echo # Ensure that there is not already lot of data to be purged.
 --echo # If timeout happens here, then check the chain of previously

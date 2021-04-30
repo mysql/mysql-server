@@ -1,4 +1,5 @@
 --source include/big_test.inc
+--source include/not_valgrind.inc
 
 --echo #
 --echo # Bug #30664660 GCOLS, CRASH AND CORRUPTIONS WITH DELETE IGNORE + JSON
