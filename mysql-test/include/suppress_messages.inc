@@ -73,6 +73,10 @@ if ($rpl_inited) {
     --let $_sm_last_server_number = $rpl_server_count
     --let $_sm_change_connection = 1
   }
+  if ($suppress_on_current_connection) {
+    --let $_sm_server_number = `SELECT @@global.server_id`
+    --let $_sm_last_server_number = $_sm_server_number
+  }
 }
 
 --let $_sm_message_list = escape(\',$messages)
