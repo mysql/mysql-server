@@ -176,26 +176,49 @@ static void test_oom() {
   rc = init_instruments(&param);
   ok(rc == 0, "instances init");
 
+  memset(&dummy_mutex_class, 0xFF, sizeof(dummy_mutex_class));
   dummy_mutex_class.m_event_name_index = 0;
   dummy_mutex_class.m_flags = 0;
   dummy_mutex_class.m_enabled = true;
+  dummy_mutex_class.m_timed = true;
   dummy_mutex_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
+  memset(&dummy_rwlock_class, 0xFF, sizeof(dummy_rwlock_class));
   dummy_rwlock_class.m_event_name_index = 1;
   dummy_rwlock_class.m_flags = 0;
   dummy_rwlock_class.m_enabled = true;
+  dummy_rwlock_class.m_timed = true;
   dummy_rwlock_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
+  memset(&dummy_thread_class, 0xFF, sizeof(dummy_thread_class));
+  dummy_thread_class.m_enabled = 0;
+  dummy_thread_class.m_flags = 0;
+  dummy_thread_class.m_singleton = nullptr;
+  dummy_thread_class.m_history = 0;
+  snprintf(dummy_thread_class.m_os_name, PFS_MAX_OS_NAME_LENGTH, "OS_NAME");
+
+  memset(&dummy_cond_class, 0xFF, sizeof(dummy_cond_class));
   dummy_cond_class.m_event_name_index = 2;
   dummy_cond_class.m_flags = 0;
   dummy_cond_class.m_enabled = true;
+  dummy_cond_class.m_timed = true;
   dummy_cond_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
+  memset(&dummy_file_class, 0xFF, sizeof(dummy_file_class));
   dummy_file_class.m_event_name_index = 3;
   dummy_file_class.m_flags = 0;
   dummy_file_class.m_enabled = true;
+  dummy_file_class.m_timed = true;
   dummy_file_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
+  memset(&dummy_socket_class, 0xFF, sizeof(dummy_socket_class));
   dummy_socket_class.m_event_name_index = 4;
   dummy_socket_class.m_flags = 0;
   dummy_socket_class.m_enabled = true;
+  dummy_socket_class.m_timed = true;
   dummy_socket_class.m_volatility = PSI_VOLATILITY_UNKNOWN;
+
+  memset(&dummy_table_share, 0xFF, sizeof(dummy_table_share));
   dummy_table_share.m_enabled = true;
   dummy_table_share.m_timed = true;
 
@@ -237,21 +260,22 @@ static void test_oom() {
   ok(cond_2 == nullptr, "oom (create cond)");
 
   /* Create file. */
+  stub_alloc_always_fails = false;
   PFS_thread fake_thread;
+  memset(&fake_thread, 0xFF, sizeof(fake_thread));
   rc = init_instruments(&param);
+  ok(rc == 0, "instances init");
   fake_thread.m_filename_hash_pins = nullptr;
   init_file_hash(&param);
+  file_1 =
+      find_or_create_file(&fake_thread, &dummy_file_class, "dummy1", 6, true);
+  ok(file_1 != nullptr, "create file");
+  release_file(file_1);
 
   stub_alloc_always_fails = true;
   file_2 =
-      find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
+      find_or_create_file(&fake_thread, &dummy_file_class, "dummy2", 6, true);
   ok(file_2 == nullptr, "oom (create file)");
-
-  stub_alloc_always_fails = false;
-  file_1 =
-      find_or_create_file(&fake_thread, &dummy_file_class, "dummy", 5, true);
-  ok(file_1 != nullptr, "create file");
-  release_file(file_1);
   cleanup_instruments();
 
   /* Create socket. */
@@ -444,7 +468,7 @@ static void test_oom() {
 static void do_all_tests() { test_oom(); }
 
 int main(int, char **) {
-  plan(32);
+  plan(33);
   MY_INIT("pfs_instr-oom-t");
   do_all_tests();
   my_end(0);
