@@ -13426,6 +13426,10 @@ size_t Transaction_context_log_event::get_data_size() {
   return size;
 }
 
+size_t Transaction_context_log_event::get_event_length() {
+  return LOG_EVENT_HEADER_LEN + get_data_size();
+}
+
 #ifdef MYSQL_SERVER
 bool Transaction_context_log_event::write_data_header(Basic_ostream *ostream) {
   DBUG_TRACE;
