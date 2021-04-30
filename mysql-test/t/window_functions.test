@@ -31,6 +31,7 @@ let $query=
 SELECT i, j, SUM(i+j) OVER (ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY NULL DESC;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Creates a temporary table, even though it does not materialize into it.
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -846,6 +847,7 @@ SELECT t.*, SUM(id + r00 + r01) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING) AS s
 
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Creates two extra temporary tables that are not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
 
 --echo Show sort elimination for the above
@@ -1237,6 +1239,7 @@ SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEE
 SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t ROWS  BETWEEN 2 FOLLOWING AND 3 FOLLOWING);
 SELECT t, FIRST_VALUE(t) OVER w FROM t_time WINDOW w AS (ORDER BY t RANGE BETWEEN INTERVAL 2 HOUR FOLLOWING AND INTERVAL 3 HOUR FOLLOWING);
 
+--sorted_result
 SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p );
 SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t);
 SELECT p, t, FIRST_VALUE(t) OVER w FROM t_time2 WINDOW w AS (PARTITION by p ORDER BY t DESC);
@@ -1381,6 +1384,7 @@ SELECT i, LAST_VALUE((CAST(j AS UNSIGNED))) OVER w, FIRST_VALUE(CAST(j AS UNSIGN
     WINDOW w AS (PARTITION BY i ORDER BY CAST(j AS UNSIGNED) RANGE UNBOUNDED PRECEDING);
 --echo Fix for lineno in warnings buffered and unbuffered windows
 SELECT j,CAST(SUM(j) OVER (PARTITION BY i) AS JSON), CAST(SUM(j) OVER () AS JSON) FROM tj;
+--skip_if_hypergraph  # Different line numbers in warnings in hypergraph optimizer, since it does not use a temporary table here.
 SELECT j,CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
 
 --echo Bug fix for UNION
@@ -2031,6 +2035,7 @@ let $query=
 SELECT a,b, RANK() OVER (ORDER BY a), RANK() OVER (ORDER BY b) FROM t1;
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Creates an extra temporary table that is not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -2069,6 +2074,7 @@ SELECT * FROM t upper
                  WHERE rn > upper.a);
 FLUSH STATUS;
 eval $query;
+--skip_if_hypergraph  # Creates an extra temporary table that is not used.
 SHOW STATUS LIKE 'Created_tmp_tables';
 eval EXPLAIN FORMAT=JSON $query;
 
@@ -2886,6 +2892,7 @@ INSERT INTO a VALUES (6, 's');
 CREATE TABLE b (pk int PRIMARY KEY,  c varchar(255));
 INSERT INTO b VALUES (9,'s');
 
+--skip_if_hypergraph  # Does not currently push the sort, so gets a different plan.
 EXPLAIN FORMAT=tree SELECT ROW_NUMBER() OVER (ORDER BY a.c)
 FROM  a LEFT JOIN b
       ON a.c = b.c
@@ -3360,8 +3367,13 @@ BEGIN
   RETURN ret;
 END!
 DELIMITER ;!
+# Dropping the decimals is bug #32831386, which the hypergraph optimizer is not affected by.
+# Adjust its output, so that the test passes. Remove the replacements when #32831386 is fixed.
+--replace_result 1351614464.0000 1351614464
 SELECT f1();
+--replace_result 1351614464.0000 1351614464
 SELECT f1();
+--replace_result 1351614464.0000 1351614464
 SELECT f1();
 
 DROP FUNCTION f1;

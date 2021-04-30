@@ -1387,11 +1387,6 @@ NULL	NULL	NULL
 3.14	0.06599663291074434	0.004355555555555542
 4	0.0	0.0
 5	0.0	0.0
-Warnings:
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 1
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 4
-Warning	3156	Invalid JSON value for CAST to DOUBLE from column j at row 5
 DROP TABLE tj,tj2;
 CREATE TABLE t1 (i INTEGER, j INTEGER);
 INSERT INTO t1 VALUES (NULL,3),(NULL,3),(NULL,30),(NULL,30),(4,3),
