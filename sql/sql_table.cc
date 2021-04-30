@@ -11624,7 +11624,8 @@ static bool fill_alter_inplace_info(THD *thd, TABLE *table,
         Note: strcmp branch is to be removed in future when we fix it
         in InnoDB.
       */
-      if (ha_alter_info->create_info->db_type->db_type == DB_TYPE_INNODB)
+      if (ha_alter_info->create_info->db_type->db_type == DB_TYPE_INNODB ||
+          ha_alter_info->create_info->db_type->db_type == DB_TYPE_NDBCLUSTER)
         field_renamed = strcmp(field->field_name, new_field->field_name);
       else
         field_renamed = my_strcasecmp(system_charset_info, field->field_name,
