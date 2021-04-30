@@ -4059,12 +4059,13 @@ bool QEP_TAB::use_order() const {
 FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
                                                TABLE_REF *ref,
                                                Item_func_match *ft_func,
-                                               bool use_order,
+                                               bool use_order, bool use_limit,
                                                ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_ref(ref),
       m_ft_func(ft_func),
       m_use_order(use_order),
+      m_use_limit(use_limit),
       m_examined_rows(examined_rows) {
   // Mark the full-text search function as used for index scan, if using the
   // hypergraph optimizer. The old optimizer uses heuristics to determine if a
@@ -4085,6 +4086,12 @@ FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
     // Enable ordering of the results on relevance, if requested.
     if (use_order) {
       ft_func->get_hints()->set_hint_flag(FT_SORTED);
+    }
+
+    // Propagate the limit to the storage engine, if requested.
+    if (use_limit) {
+      ft_func->get_hints()->set_hint_limit(
+          ft_func->table_ref->query_block->join->m_select_limit);
     }
   }
 
@@ -4283,9 +4290,10 @@ AccessPath *QEP_TAB::access_path() {
       break;
 
     case JT_FT:
-      path = NewFullTextSearchAccessPath(join()->thd, table(), &ref(),
-                                         ft_func(), use_order(),
-                                         /*count_examined_rows=*/true);
+      path = NewFullTextSearchAccessPath(
+          join()->thd, table(), &ref(), ft_func(), use_order(),
+          ft_func()->get_hints()->get_limit() != HA_POS_ERROR,
+          /*count_examined_rows=*/true);
       used_ref = &ref();
       break;
 

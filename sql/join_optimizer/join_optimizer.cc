@@ -1158,6 +1158,59 @@ bool IsSubsumableFullTextPredicate(Item_func *condition) {
   }
 }
 
+// Assuming that we have chosen a full-text index scan on the given predicate,
+// can we pass the LIMIT of the query block as a hint to the storage engine?
+//
+// We can do this if we know that the number of rows seen before the LIMIT
+// clause is processed, is the same number of rows as returned by the index
+// scan. This is the case when:
+//
+// 1) It is a single-table query. No joins.
+//
+// 2) There is no aggregation or DISTINCT which could reduce the number of rows.
+//
+// 3) There is no filtering of the rows returned from the index. That is, there
+// is no HAVING clause, and the WHERE clause contains no predicates apart from
+// those that can be subsumed by the index.
+bool IsLimitHintPushableToFullTextSearch(const Item_func_match *match,
+                                         const JoinHypergraph &graph,
+                                         uint64_t fulltext_predicates) {
+  const Query_block *query_block = graph.query_block();
+  assert(query_block->has_ft_funcs());
+
+  // The query has a LIMIT clause.
+  if (query_block->join->m_select_limit == HA_POS_ERROR) {
+    return false;
+  }
+
+  // A single table, no joins.
+  if (graph.nodes.size() != 1) {
+    return false;
+  }
+
+  // No aggregation, DISTINCT or HAVING.
+  if (query_block->is_grouped() || query_block->is_distinct() ||
+      query_block->join->having_cond != nullptr) {
+    return false;
+  }
+
+  // The WHERE clause contains full-text predicates only.
+  if (fulltext_predicates != BitsBetween(0, graph.predicates.size())) {
+    return false;
+  }
+
+  // And all the full-text predicates must be subsumed by the index scan.
+  for (const Predicate &predicate : graph.predicates) {
+    Item_func_match *cond = GetSargableFullTextPredicate(predicate);
+    if (cond != match || !IsSubsumableFullTextPredicate(
+                             down_cast<Item_func *>(predicate.condition))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // Propose full-text index scans for all full-text predicates found in the
 // WHERE clause, if any. If an interesting order can be satisfied by an ordered
 // full-text index scan using one of the predicates, propose an ordered scan.
@@ -1256,9 +1309,11 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
 
   const bool use_order = ordering_state != 0;
 
-  AccessPath *path =
-      NewFullTextSearchAccessPath(m_thd, table, ref, match, use_order,
-                                  /*count_examined_rows=*/true);
+  AccessPath *path = NewFullTextSearchAccessPath(
+      m_thd, table, ref, match, use_order,
+      IsLimitHintPushableToFullTextSearch(match, m_graph,
+                                          m_sargable_fulltext_predicates),
+      /*count_examined_rows=*/true);
   path->num_output_rows_before_filter = num_output_rows_from_index;
   path->num_output_rows = num_output_rows_from_filter;
   path->cost = path->cost_before_filter = cost;
