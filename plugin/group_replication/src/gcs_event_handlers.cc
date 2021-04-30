@@ -715,17 +715,11 @@ void Plugin_gcs_events_handler::on_view_changed(
   }
 
   if (!is_leaving) {
-    std::string view_id_representation = "";
-    Gcs_view *view = gcs_module->get_current_view();
-    if (view != nullptr) {
-      view_id_representation = view->get_view_id().get_representation();
-      delete view;
-    }
     disable_read_mode_for_compatible_members();
     LogPluginErr(
         SYSTEM_LEVEL, ER_GRP_RPL_MEMBER_CHANGE,
         group_member_mgr->get_string_current_view_active_hosts().c_str(),
-        view_id_representation.c_str());
+        new_view.get_view_id().get_representation().c_str());
   } else {
     LogPluginErr(SYSTEM_LEVEL, ER_GRP_RPL_MEMBER_LEFT_GRP);
   }
