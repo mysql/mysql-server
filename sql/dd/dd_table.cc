@@ -555,30 +555,6 @@ bool fill_dd_columns_from_create_fields(THD *thd, dd::Abstract_table *tab_obj,
 
     col_obj->set_name(field.field_name);
 
-    // Tried setting boolean type fields to tinyint temporarily for ndb. Did not work
-    /* 
-    if (field.sql_type == MYSQL_TYPE_BOOL && strcmp(typeid(tab_obj).name(), "Table_impl *") == 0 && strcmp((dynamic_cast<Table *>(dynamic_cast<Abstract_table *>(tab_obj)))->engine().c_str(), "ndbcluster") == 0)
-      field.set = MYSQL_TYPE_TINY;
-
-    // Change to set field.sql_type instead
-    if (field.sql_type == MYSQL_TYPE_BOOL){
-      String_type engine;
-      if(strcmp(typeid(tab_obj).name(), "Table_impl *") == 0) {
-        engine = (dynamic_cast<Table *>(dynamic_cast<Abstract_table *>(tab_obj)))->engine();
-      }
-      else {
-        engine = "";
-      }
-      if (strcmp(engine.c_str(), "ndbcluster") == 0) {
-        col_obj->set_type(dd::get_new_field_type(MYSQL_TYPE_TINY));
-      }
-      else {
-        col_obj->set_type(dd::get_new_field_type(field.sql_type));
-      }
-    }
-    else {
-      col_obj->set_type(dd::get_new_field_type(field.sql_type));
-    }*/
     col_obj->set_type(dd::get_new_field_type(field.sql_type));
 
     col_obj->set_char_length(field.max_display_width_in_bytes());
