@@ -82,8 +82,7 @@ PSI_thread_key key_GR_THD_applier_module_receiver,
 PSI_rwlock_key key_GR_RWLOCK_cert_stable_gtid_set,
                key_GR_RWLOCK_io_cache_unused_list,
                key_GR_RWLOCK_plugin_stop,
-               key_GR_RWLOCK_gcs_operations,
-               key_GR_RWLOCK_gcs_operations_finalize_ongoing;
+               key_GR_RWLOCK_gcs_operations;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_info all_group_replication_psi_mutex_keys[]=
@@ -156,8 +155,7 @@ static PSI_rwlock_info all_group_replication_psi_rwlock_keys[]=
   {&key_GR_RWLOCK_cert_stable_gtid_set, "RWLOCK_certifier_stable_gtid_set", PSI_FLAG_GLOBAL},
   {&key_GR_RWLOCK_io_cache_unused_list , "RWLOCK_io_cache_unused_list", PSI_FLAG_GLOBAL},
   {&key_GR_RWLOCK_plugin_stop, "RWLOCK_plugin_stop", PSI_FLAG_GLOBAL},
-  {&key_GR_RWLOCK_gcs_operations, "RWLOCK_gcs_operations", PSI_FLAG_GLOBAL},
-  {&key_GR_RWLOCK_gcs_operations_finalize_ongoing, "RWLOCK_gcs_operations_finalize_ongoing", PSI_FLAG_GLOBAL}
+  {&key_GR_RWLOCK_gcs_operations, "RWLOCK_gcs_operations", PSI_FLAG_GLOBAL}
 };
 
 void register_group_replication_mutex_psi_keys(PSI_mutex_info mutexes[],
