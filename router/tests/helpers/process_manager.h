@@ -71,6 +71,93 @@ class ProcessManager {
    */
   static void set_origin(const Path &dir);
 
+  class Spawner {
+   public:
+    enum class SyncPoint {
+      NONE,
+      RUNNING,  // signal handler, reopen, plugins started.
+      READY,    // all services are "READY"
+    };
+
+    Spawner &catch_stderr(bool v) {
+      catch_stderr_ = v;
+      return *this;
+    }
+
+    Spawner &with_sudo(bool v) {
+      with_sudo_ = v;
+      return *this;
+    }
+
+    Spawner &wait_for_notify_ready(std::chrono::milliseconds v) {
+      sync_point_timeout_ = std::move(v);
+      return *this;
+    }
+
+    Spawner &expected_exit_code(int v) {
+      expected_exit_code_ = v;
+      return *this;
+    }
+
+    Spawner &wait_for_sync_point(SyncPoint sync_point) {
+      sync_point_ = sync_point;
+      return *this;
+    }
+
+    ProcessWrapper &spawn(
+        const std::vector<std::string> &params,
+        const std::vector<std::pair<std::string, std::string>> &env_vars);
+
+    ProcessWrapper &spawn(const std::vector<std::string> &params) {
+      return spawn(params, {});
+    }
+
+    friend class ProcessManager;
+
+   private:
+    Spawner(std::string executable, std::string logging_dir,
+            std::string notify_socket_path,
+            std::list<std::tuple<ProcessWrapper, int>> &processes)
+        : executable_{std::move(executable)},
+          logging_dir_{std::move(logging_dir)},
+          notify_socket_path_{std::move(notify_socket_path)},
+          processes_(processes) {}
+
+    ProcessWrapper &launch_command(
+        const std::string &command, const std::vector<std::string> &params,
+        const std::vector<std::pair<std::string, std::string>> &env_vars);
+
+    ProcessWrapper &launch_command_and_wait(
+        const std::string &command, const std::vector<std::string> &params,
+        std::vector<std::pair<std::string, std::string>> env_vars);
+
+    static stdx::expected<void, std::error_code> wait_for_notified(
+        wait_socket_t &sock, const std::string &expected_notification,
+        std::chrono::milliseconds timeout);
+
+    static stdx::expected<void, std::error_code> wait_for_notified_ready(
+        wait_socket_t &sock, std::chrono::milliseconds timeout);
+    static stdx::expected<void, std::error_code> wait_for_notified_stopping(
+        wait_socket_t &sock, std::chrono::milliseconds timeout);
+
+    std::string executable_;
+    int expected_exit_code_{EXIT_SUCCESS};
+
+    bool with_sudo_{false};
+    bool catch_stderr_{true};
+    std::chrono::milliseconds sync_point_timeout_{5000};
+    SyncPoint sync_point_{SyncPoint::READY};
+
+    std::string logging_dir_;
+    std::string notify_socket_path_;
+
+    std::list<std::tuple<ProcessWrapper, int>> &processes_;
+  };
+
+  Spawner spawner(std::string executable);
+
+  Spawner router_spawner() { return spawner(mysqlrouter_exec_.str()); }
+
  protected:
   virtual ~ProcessManager() = default;
 
@@ -214,7 +301,7 @@ class ProcessManager {
    * executable
    * @param catch_stderr  if true stderr will also be captured (combined with
    * stdout)
-   * @param wait_notified_ready if >=0 time in milliseconds - how long the
+   * @param wait_notify_ready if >=0 time in milliseconds - how long the
    * launching command should wait for the process to notify it is ready.
    * Otherwise the caller does not want to wait for the notification.
    *
@@ -224,7 +311,7 @@ class ProcessManager {
                                  const std::vector<std::string> &params,
                                  int expected_exit_code = 0,
                                  bool catch_stderr = true,
-                                 std::chrono::milliseconds wait_notified_ready =
+                                 std::chrono::milliseconds wait_notify_ready =
                                      std::chrono::milliseconds(-1));
 
   /** @brief Gets path to the directory containing testing data

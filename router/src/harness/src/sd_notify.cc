@@ -165,6 +165,8 @@ static bool notify(const std::string &msg) {
   return true;
 }
 
+bool notify_status(const std::string &msg) { return notify("STATUS=" + msg); }
+
 bool notify_ready() { return notify("READY=1"); }
 
 bool notify_stopping() {

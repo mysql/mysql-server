@@ -27,8 +27,11 @@
 
 #include "harness_export.h"
 
+#include <string>
+
 namespace mysql_harness {
 
+bool HARNESS_EXPORT notify_status(const std::string &msg);
 bool HARNESS_EXPORT notify_ready();
 bool HARNESS_EXPORT notify_stopping();
 
