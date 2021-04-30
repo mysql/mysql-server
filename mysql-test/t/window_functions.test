@@ -49,6 +49,7 @@ SELECT i, SUM(i) OVER (ORDER BY i ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) FROM
 DROP TABLE t1;
 
 --echo Single ordered partition
+# NOTE: V... means queries that are deterministic and have been verified against Oracle.
 #V...
 SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t;
 SELECT i, j, SUM(i+j) OVER (ORDER BY j ROWS UNBOUNDED PRECEDING) foo FROM t ORDER BY foo;
@@ -476,13 +477,16 @@ SELECT id, sex, PERCENT_RANK() OVER (ORDER BY sex DESC) FROM t1 ORDER BY id;
 SELECT id, sex, CUME_DIST() OVER (ORDER BY sex DESC) FROM t1 ORDER BY id;
 #...V
 
+# NOTE: The LEFT JOIN is to force the join order,
+# which helps in making the query somewhat more deterministic.
+# (It still is nondeterministic, though.)
 SELECT id value,
        SUM(id) OVER (ROWS UNBOUNDED PRECEDING)
-       FROM t1 u, t2 WHERE t2.user_id = u.id;
+       FROM t1 u LEFT JOIN t2 ON t2.user_id = u.id;
 
 --echo Aggregate with GROUP BY arguments to window function
 SELECT AVG(id) average,
-       SUM(AVG(id)) OVER (ROWS UNBOUNDED PRECEDING)
+       SUM(AVG(id)) OVER (ORDER BY sex DESC ROWS UNBOUNDED PRECEDING)
        FROM t1 u, t2 WHERE t2.user_id = u.id GROUP BY sex;
 
 --echo Aggregate with GROUP BY in window's ORDER BY clause, with aggregate present in

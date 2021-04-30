@@ -905,20 +905,22 @@ id	sex	CUME_DIST() OVER (ORDER BY sex DESC)
 11	NULL	1
 SELECT id value,
 SUM(id) OVER (ROWS UNBOUNDED PRECEDING)
-FROM t1 u, t2 WHERE t2.user_id = u.id;
+FROM t1 u LEFT JOIN t2 ON t2.user_id = u.id;
 value	SUM(id) OVER (ROWS UNBOUNDED PRECEDING)
 1	1
-2	3
-1	4
+1	2
+2	4
 3	7
 4	11
 4	15
 5	20
+10	30
+11	41
 Aggregate with GROUP BY arguments to window function
 SELECT AVG(id) average,
-SUM(AVG(id)) OVER (ROWS UNBOUNDED PRECEDING)
+SUM(AVG(id)) OVER (ORDER BY sex DESC ROWS UNBOUNDED PRECEDING)
 FROM t1 u, t2 WHERE t2.user_id = u.id GROUP BY sex;
-average	SUM(AVG(id)) OVER (ROWS UNBOUNDED PRECEDING)
+average	SUM(AVG(id)) OVER (ORDER BY sex DESC ROWS UNBOUNDED PRECEDING)
 2.3333	2.3333
 3.2500	5.5833
 Aggregate with GROUP BY in window's ORDER BY clause, with aggregate present in

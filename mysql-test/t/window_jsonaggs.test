@@ -220,7 +220,10 @@ SELECT i, j, f, JSON_OBJECTAGG(i,f) OVER w jobject_i FROM t1
 DROP TABLE t1;
 
 # Coverage tests for Item_sum_json::val_*
+# Different warnings in the hypergraph optimizer.
+--disable_warnings
 SELECT 0 & (JSON_ARRAYAGG(1) OVER w) FROM (select 1) as dt  WINDOW w as ();
+--enable_warnings
 SELECT MAKETIME(((1)<=> (JSON_OBJECTAGG('1',1)OVER())),'1',1);
 SELECT MAKETIME(((1)<=> (2*JSON_OBJECTAGG('1',1)OVER())),'1',1);
 SELECT (1 + CAST(JSON_OBJECTAGG(1,2) OVER () AS DECIMAL));

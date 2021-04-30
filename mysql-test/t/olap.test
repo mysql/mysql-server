@@ -881,6 +881,7 @@ ORDER BY i,j;
 
 #Bug#31073133 - The plan below should not have sorting on "i" before rollup
 #is processed.
+--skip_if_hypergraph  # Has fewer temporary tables in the plan.
 EXPLAIN FORMAT=tree SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j
 WITH ROLLUP HAVING i+j is NULL ORDER BY i;
 SELECT i, j, i+j, AVG(j) over () from t1 GROUP BY i,j WITH ROLLUP

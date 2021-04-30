@@ -246,8 +246,10 @@ select value,description,bug_id from t2 left join t1 on t2.program=t1.product an
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value;
 --sorted_result
 select value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
+# NOTE: The DISTINCT is to force sort-based aggregation, making the query somewhat
+# more deterministic between the hypergraph and non-hypergraph optimizers.
 --sorted_result
-select row_number() over (), value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
+select row_number() over (), value,description,COUNT(DISTINCT bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(DISTINCT bug_id) IN (0,2);
 
 --source include/restore_sql_mode_after_turn_off_only_full_group_by.inc
 drop table t1,t2;

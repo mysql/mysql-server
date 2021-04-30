@@ -852,8 +852,6 @@ DROP TABLE t1;
 SELECT 0 & (JSON_ARRAYAGG(1) OVER w) FROM (select 1) as dt  WINDOW w as ();
 0 & (JSON_ARRAYAGG(1) OVER w)
 0
-Warnings:
-Warning	3156	Invalid JSON value for CAST to INTEGER from column json_arrayagg at row 1
 SELECT MAKETIME(((1)<=> (JSON_OBJECTAGG('1',1)OVER())),'1',1);
 MAKETIME(((1)<=> (JSON_OBJECTAGG('1',1)OVER())),'1',1)
 00:01:01

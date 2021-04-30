@@ -277,14 +277,14 @@ BBBBBBBBBBBBB - generic		2
 Documentation		0
 Host communication		0
 Test Procedures		0
-select row_number() over (), value,description,COUNT(bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(bug_id) IN (0,2);
-row_number() over ()	value	description	COUNT(bug_id)
+select row_number() over (), value,description,COUNT(DISTINCT bug_id) from t2 left join t1 on t2.program=t1.product and t2.value=t1.component where program="AAAAA" group by value having COUNT(DISTINCT bug_id) IN (0,2);
+row_number() over ()	value	description	COUNT(DISTINCT bug_id)
 1	BBBBBBBBBBBBB - conversion		2
-2	BBBBBBBBBBBBB - generic		2
-3	BBBBBBBBBBBBB - eeeeeeeee		0
-4	Test Procedures		0
-5	Documentation		0
-6	Host communication		0
+2	BBBBBBBBBBBBB - eeeeeeeee		0
+3	BBBBBBBBBBBBB - generic		2
+4	Documentation		0
+5	Host communication		0
+6	Test Procedures		0
 drop table t1,t2;
 create table t1 (foo int);
 insert into t1 values (1);
