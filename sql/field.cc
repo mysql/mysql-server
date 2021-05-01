@@ -3180,12 +3180,19 @@ bool Field_new_decimal::send_to_protocol(Protocol *protocol) const {
 type_conversion_status Field_boolean::store(const char *from, size_t len,
                                             const CHARSET_INFO *cs) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
-  longlong rnd;
-
-  const type_conversion_status error = 
-      get_int(cs, from, len, &rnd, 1, 0, 1);
-  ptr[0] = (bool)rnd;
-  return error;
+  int conv_error;
+  type_conversion_status err = TYPE_OK;
+  const char *end;
+  double nr = my_strntod(cs, from, len, &end, &conv_error);
+  if (conv_error || (!len || (static_cast<uint>(end - from) != len &&
+                              table->in_use->check_for_truncated_fields))) {
+    set_warning(Sql_condition::SL_WARNING,
+                (conv_error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED),
+                1);
+    err = conv_error ? TYPE_WARN_OUT_OF_RANGE : TYPE_WARN_TRUNCATED;
+  }
+  store(nr);
+  return err;
 }     
 
 type_conversion_status Field_boolean::store(double nr) {
@@ -3221,9 +3228,6 @@ longlong Field_boolean::val_int() const {
   return static_cast<longlong>(tmp);
 }
 
-// #TODO ask about string rep. 0 or 1, or FALSE or TRUE?
-//Test both ways
-//Use static_cast or eliminiate casting
 String *Field_boolean::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_numeric;
@@ -3251,7 +3255,6 @@ int Field_boolean::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-//DEBUG_ASSERT is now assert
 size_t Field_boolean::make_sort_key(uchar *to,
                                  size_t length MY_ATTRIBUTE((unused))) const {
   assert(length == 1);
