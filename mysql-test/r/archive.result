@@ -12687,13 +12687,15 @@ CREATE TABLE `t7` (b BOOLEAN, t TINYINT(1)) ENGINE=ARCHIVE;
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO t7 VALUES(TRUE, 5);
-INSERT INTO t7 VALUES(FALSE, 1);
-SHOW CREATE TABLE t7;
-Table	Create Table
-t7	CREATE TABLE `t7` (
-  `b` boolean DEFAULT NULL,
-  `t` tinyint(1) DEFAULT NULL
-) ENGINE=ARCHIVE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t7 VALUES(0.001, 1);
+SELECT * FROM t7;
+b	t
+1	5
+1	1
+SHOW COLUMNS FROM t7;
+Field	Type	Null	Key	Default	Extra
+b	boolean	YES		NULL	
+t	tinyint(1)	YES		NULL	
 DROP TABLE t7;
 create table t1 (i int) engine=archive;
 insert into t1 values (1);

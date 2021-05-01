@@ -17,3 +17,15 @@ SELECT 0 FROM t1 FORCE INDEX FOR GROUP BY(a) WHERE a = 0 OR b = 0 AND c = 0;
 0
 DROP TABLE t1;
 End of 5.6 tests
+#
+# Test for BOOLEAN data type
+#
+CREATE TABLE t1(b BOOLEAN, t TINYINT(1)) ENGINE = BLACKHOLE;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (5, 5), (TRUE, 1);
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+b	boolean	YES		NULL	
+t	tinyint(1)	YES		NULL	
+DROP TABLE t1;
