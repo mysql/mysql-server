@@ -545,3 +545,17 @@ SELECT * FROM t1 WHERE c1='bar2';
 SELECT * FROM t1 IGNORE INDEX (i1) WHERE c1='bar2';
 --echo #should show one tuple!
 DROP TABLE t1;
+
+
+#
+#BOOLEAN data type insert test
+#
+
+CREATE TABLE t1(b BOOLEAN, i INTEGER) ENGINE=heap;
+INSERT INTO t1 VALUES (0.001, 0.001), (FALSE, 1);
+
+SHOW COLUMNS FROM t1;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;

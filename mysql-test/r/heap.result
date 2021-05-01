@@ -847,3 +847,14 @@ c1
 bar2
 #should show one tuple!
 DROP TABLE t1;
+CREATE TABLE t1(b BOOLEAN, i INTEGER) ENGINE=heap;
+INSERT INTO t1 VALUES (0.001, 0.001), (FALSE, 1);
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+b	boolean	YES		NULL	
+i	int	YES		NULL	
+SELECT * FROM t1;
+b	i
+1	0
+0	1
+DROP TABLE t1;
