@@ -218,7 +218,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `c0` int DEFAULT NULL,
   `c1` bit(7) DEFAULT NULL /*!80023 INVISIBLE */,
-  `c2` tinyint(1) DEFAULT NULL /*!80023 INVISIBLE */,
+  `c2` boolean DEFAULT NULL /*!80023 INVISIBLE */,
   `c3` tinyint DEFAULT NULL /*!80023 INVISIBLE */,
   `c4` smallint DEFAULT NULL /*!80023 INVISIBLE */,
   `c5` mediumint DEFAULT NULL /*!80023 INVISIBLE */,
@@ -257,7 +257,7 @@ SHOW COLUMNS FROM t1;
 Field	Type	Null	Key	Default	Extra
 c0	int	YES		NULL	
 c1	bit(7)	YES		NULL	INVISIBLE
-c2	tinyint(1)	YES		NULL	INVISIBLE
+c2	boolean	YES		NULL	INVISIBLE
 c3	tinyint	YES		NULL	INVISIBLE
 c4	smallint	YES		NULL	INVISIBLE
 c5	mediumint	YES		NULL	INVISIBLE
