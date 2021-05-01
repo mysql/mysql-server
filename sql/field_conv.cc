@@ -369,6 +369,11 @@ static void do_field_varbinary_pre50(Copy_field *copy, const Field *from_field,
   to_field->store(copy->tmp.c_ptr_quick(), length, copy->tmp.charset());
 }
 
+static void do_field_boolean(Copy_field *, const Field *from_field,
+                         Field *to_field) {
+  to_field->store(from_field->val_real());
+}
+
 static void do_field_int(Copy_field *, const Field *from_field,
                          Field *to_field) {
   longlong value = from_field->val_int();
@@ -655,7 +660,7 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
         if (is_temporal_type(m_to_field->type())) {
           return do_field_time;
         } else {
-          if (m_to_field->result_type() == INT_RESULT) return do_field_int;
+          if (m_to_field->result_type() == INT_RESULT) return m_to_field->type() == MYSQL_TYPE_BOOL ? do_field_boolean : do_field_int;
           if (m_to_field->result_type() == REAL_RESULT) return do_field_real;
           /* Note: conversion from any to DECIMAL_RESULT is handled earlier */
         }
@@ -721,14 +726,14 @@ Copy_field::Copy_func *Copy_field::get_copy_func(bool save) {
       if (m_to_field->real_type() == MYSQL_TYPE_DECIMAL ||
           m_to_field->result_type() == STRING_RESULT)
         return do_field_string;
-      if (m_to_field->result_type() == INT_RESULT) return do_field_int;
+      if (m_to_field->result_type() == INT_RESULT) return m_to_field->type() == MYSQL_TYPE_BOOL ? do_field_boolean : do_field_int;
       return do_field_real;
     } else {
       if (!m_to_field->eq_def(m_from_field) || !compatible_db_low_byte_first) {
         if (m_to_field->real_type() == MYSQL_TYPE_DECIMAL)
           return do_field_string;
         if (m_to_field->result_type() == INT_RESULT)
-          return do_field_int;
+          return m_to_field->type() == MYSQL_TYPE_BOOL ? do_field_boolean : do_field_int;
         else
           return do_field_real;
       }
