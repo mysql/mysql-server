@@ -1854,3 +1854,13 @@ DELETE FROM t1 WHERE col1= '5cm' AND col1_dummy= '5cm';
 SELECT count(*) FROM t1 WHERE col1= '5cm';
 DROP TABLE t1;
 SET sql_mode = default;
+
+#
+#BOOLEAN data type insert test
+#
+
+CREATE TABLE t1(b BOOLEAN, i INTEGER) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (0.001, 0.001), (TRUE, 1);
+SHOW COLUMNS FROM t1;
+SELECT * FROM t1;
+DROP TABLE t1;
