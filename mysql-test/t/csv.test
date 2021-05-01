@@ -1881,3 +1881,13 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 --echo End of 5.1 tests
+
+--echo #
+--echo # Test for BOOLEAN data type
+--echo #
+
+CREATE TABLE t1(b BOOLEAN NOT NULL, t TINYINT(1) NOT NULL) ENGINE = CSV;
+INSERT INTO t1 VALUES (5, 5), (TRUE, 1);
+SHOW COLUMNS FROM t1;
+SELECT * FROM t1;
+DROP TABLE t1;

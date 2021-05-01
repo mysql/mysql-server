@@ -5487,3 +5487,19 @@ SELECT * FROM t1;
 ERROR HY000: Table 't1' is marked as crashed and should be repaired
 DROP TABLE t1;
 End of 5.1 tests
+#
+# Test for BOOLEAN data type
+#
+CREATE TABLE t1(b BOOLEAN NOT NULL, t TINYINT(1) NOT NULL) ENGINE = CSV;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES (5, 5), (TRUE, 1);
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+b	boolean	NO		NULL	
+t	tinyint(1)	NO		NULL	
+SELECT * FROM t1;
+b	t
+1	5
+1	1
+DROP TABLE t1;
