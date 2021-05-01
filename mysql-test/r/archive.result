@@ -12694,6 +12694,7 @@ t7	CREATE TABLE `t7` (
   `b` boolean DEFAULT NULL,
   `t` tinyint(1) DEFAULT NULL
 ) ENGINE=ARCHIVE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t7;
 create table t1 (i int) engine=archive;
 insert into t1 values (1);
 repair table t1 use_frm;
