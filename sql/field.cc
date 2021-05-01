@@ -3186,7 +3186,7 @@ type_conversion_status Field_boolean::store(const char *from, size_t len,
       get_int(cs, from, len, &rnd, 1, 0, 1);
   ptr[0] = (bool)rnd;
   return error;
-}
+}     
 
 type_conversion_status Field_boolean::store(double nr) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
@@ -3211,14 +3211,14 @@ type_conversion_status Field_boolean::store_decimal(const my_decimal *val) {
 
 double Field_boolean::val_real() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  bool tmp = (bool)ptr[0];
-  return (double)tmp;
+  bool tmp = static_cast<bool>(ptr[0]);
+  return static_cast<double>(tmp);
 }
 
 longlong Field_boolean::val_int() const {
   ASSERT_COLUMN_MARKED_FOR_READ;
-  bool tmp = (bool)ptr[0];
-  return (longlong)tmp;
+  bool tmp = static_cast<bool>(ptr[0]);
+  return static_cast<longlong>(tmp);
 }
 
 // #TODO ask about string rep. 0 or 1, or FALSE or TRUE?
