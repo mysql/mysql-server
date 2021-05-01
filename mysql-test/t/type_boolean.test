@@ -1,9 +1,18 @@
 #
 # Test BOOLEAN data type 
 #
+
+#
 # FALSE, TRUE, and UNKNOWN will be substitutes for 0, 1, and NULL
+# UNKNOWN is not implemented as NULL yet. Run below SELECT if implemented
 # SELECT FALSE, TRUE, UNKNOWN;
+#
+
 SELECT FALSE, TRUE;
+
+#
+# Check if boolean columns get created correctly with BOOL or BOOLEAN
+#
 
 CREATE TABLE t1 (b1 BOOLEAN, b2 BOOL);
 SHOW CREATE TABLE t1;
@@ -13,24 +22,15 @@ DROP TABLE t1;
 CREATE TABLE t1 (b BOOLEAN);
 INSERT INTO t1 VALUES (FALSE), (TRUE), (NULL);
 
+# Check values get fetched correctly
 SELECT * FROM t1;
 SELECT * FROM t1 WHERE b;
 SELECT * FROM t1 WHERE NOT b;
 SELECT * FROM t1 WHERE b IS NULL;
 SELECT * FROM t1 WHERE b IS NOT NULL;
 
-UPDATE t1 SET b = b + 1 WHERE NOT b;
-
-INSERT INTO t1 VALUES (0.2);
+# Insert values that should all be TRUE/1
+INSERT INTO t1 VALUES (0.2), (3), (-1), (-1.5), ("0.1");
 SELECT * FROM t1;
-
-INSERT INTO t1 VALUES (2);
-SELECT * FROM t1;
-
-DROP TABLE t1;
-
-CREATE TABLE t1 (a BOOLEAN, b BOOLEAN);
-insert into t1 values(null, null), (0, null), (1, null), (null, 0), (null, 1), (0, 0), (0, 1), (1, 0), (1, 1);
-select ifnull(A, 'N') as A, ifnull(B, 'N') as B, ifnull(not A, 'N') as nA, ifnull(not B, 'N') as nB, ifnull(A and B, 'N') as AB, ifnull(not (A and B), 'N') as `n(AB)`, ifnull((not A or not B), 'N') as nAonB, ifnull(A or B, 'N') as AoB, ifnull(not(A or B), 'N') as `n(AoB)`, ifnull(not A and not B, 'N') as nAnB from t1;
 
 DROP TABLE t1;

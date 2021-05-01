@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS t1;
 SELECT IF(NULL AND 1, 1, 2), IF(1 AND NULL, 1, 2);
 SELECT NULL AND 1, 1 AND NULL, 0 AND NULL, NULL and 0;
 
-create table t1 (a int);
+create table t1 (a BOOLEAN);
 insert into t1 values (0),(1),(NULL);
 SELECT * FROM t1 WHERE IF(a AND 1, 0, 1);
 SELECT * FROM t1 WHERE IF(1 AND a, 0, 1);
@@ -44,7 +44,7 @@ DROP TABLE t1;
 # Read nA as !A, AB as A && B, AoB as A || B
 # Result table makes ANSI happy
 
-create table t1 (a int, b int);
+create table t1 (a BOOLEAN, b BOOLEAN);
 insert into t1 values(null, null), (0, null), (1, null), (null, 0), (null, 1), (0, 0), (0, 1), (1, 0), (1, 1);
 
 # Below test is valid untill we have True/False implemented as 1/0
