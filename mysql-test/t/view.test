@@ -6220,3 +6220,19 @@ CREATE VIEW v AS SELECT null AS 'c' UNION SELECT 'a' AS 'c';
 --echo # varchar(1). With fix type is listed correctly.
 SHOW FIELDS FROM v;
 DROP VIEW v;
+
+
+#
+#BOOLEAN data type column in view
+#
+
+CREATE TABLE t1(b BOOLEAN, i INTEGER);
+CREATE TABLE t2(b2 BOOLEAN);
+INSERT INTO t1 VALUES (0.001, 0.001), (FALSE, 1);
+INSERT INTO t2 VALUES (TRUE), (0.0);
+CREATE VIEW v AS SELECT * FROM t1 JOIN t2 ON t1.b = t2.b2; 
+SHOW FIELDS FROM v;
+INSERT INTO v (b, i) VALUES (100, 100);
+SELECT * FROM v;
+DROP TABLE t1, t2;
+DROP View v;
