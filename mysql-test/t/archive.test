@@ -1535,6 +1535,16 @@ DROP TABLE t1, t2, t4, t5, t6;
 --enable_warnings
 
 #
+#BOOLEAN data type test
+#
+
+CREATE TABLE `t7` (b BOOLEAN, t TINYINT(1)) ENGINE=ARCHIVE; 
+INSERT INTO t7 VALUES(TRUE, 5);
+INSERT INTO t7 VALUES(FALSE, 1);
+
+SHOW CREATE TABLE t7;
+
+#
 # BUG#26138 - REPAIR TABLE with option USE_FRM erases all records in ARCHIVE
 #             table
 #

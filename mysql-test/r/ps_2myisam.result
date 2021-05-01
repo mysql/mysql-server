@@ -68,7 +68,7 @@ def	test	t9	t9	c15	c15	7	19	19	N	9345	0	63
 def	test	t9	t9	c16	c16	11	10	8	Y	128	0	63
 def	test	t9	t9	c17	c17	13	4	4	Y	32864	0	63
 def	test	t9	t9	c18	c18	1	4	1	Y	32768	0	63
-def	test	t9	t9	c19	c19	1	1	1	Y	32768	0	63
+def	test	t9	t9	c19	c19	244	1	1	Y	0	0	63
 def	test	t9	t9	c20	c20	254	4	1	Y	0	0	255
 def	test	t9	t9	c21	c21	254	40	10	Y	0	0	255
 def	test	t9	t9	c22	c22	253	120	30	Y	0	0	255
