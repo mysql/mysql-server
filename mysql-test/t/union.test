@@ -373,9 +373,17 @@ select * from t1;
 show create table t1;
 drop table t1;
 
-create table t2 (it1 tinyint, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
-insert into t2 values (NULL, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest', 'teeeeeeeeeeeest');
+create table t2 (it1 tinyint, bo boolean not null, it2 tinyint not null, i int not null, ib bigint, f float, d double, y year, da date, dt datetime, sc char(10), sv varchar(10), b blob, tx text);
+insert into t2 values (NULL, TRUE, 1, 3, 4, 1.5, 2.5, 1972, '1972-10-22', '1972-10-22 11:50', 'testc', 'testv', 'tetetetetest', 'teeeeeeeeeeeest');
 
+create table t1 SELECT bo from t2 UNION select it1 from t2;
+select * from t1;
+show create table t1;
+drop table t1;
+create table t1 SELECT bo from t2 UNION select it2 from t2;
+select * from t1;
+show create table t1;
+drop table t1;
 create table t1 SELECT it2 from t2 UNION select it1 from t2;
 select * from t1;
 show create table t1;
@@ -2304,3 +2312,16 @@ DESCRIBE t2;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # WL#3554 Boolean data type
+--echo #
+# Check boolean union boolean creates boolean column
+CREATE TABLE t1 (b BOOLEAN);
+CREATE TABLE t2 (b BOOLEAN);
+# Populate the tables with anything
+INSERT INTO t1 VALUES (FALSE), (TRUE), (NULL);
+INSERT INTO t2 VALUES (FALSE), (TRUE), (NULL);
+CREATE TABLE t3 SELECT b FROM t1 UNION ALL SELECT b FROM t2;
+SELECT * FROM t3;
+SHOW CREATE TABLE t3;
+DROP TABLE t1, t2, t3;
