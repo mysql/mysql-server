@@ -1212,3 +1212,35 @@ SELECT iu,bu FROM t1;
 
 DROP TABLE t1;
 SET sql_mode = DEFAULT;
+
+
+
+--echo #
+--echo # WL#3554 Boolean data type
+--echo #
+
+CREATE TABLE t1 (b BOOLEAN);
+CREATE TABLE t2 (b2 BOOLEAN);
+
+INSERT INTO t1 VALUES (TRUE), (FALSE);
+INSERT INTO t2 VALUES (TRUE), (FALSE);
+
+--echo # boolean and number
+SELECT b+10 FROM t1;
+SELECT b-10 FROM t1;
+SELECT -b-10 FROM t1;
+SELECT b*10 FROM t1;
+SELECT b/10 FROM t1;
+SELECT b DIV 10 FROM t1;
+SELECT b % 10 FROM t1;
+
+--echo # boolean and another boolean
+SELECT b+b2 FROM t1, t2;
+SELECT b-b2 FROM t1, t2;
+SELECT -b-b2 FROM t1, t2;
+SELECT b*b2 FROM t1, t2;
+SELECT b/b2 FROM t1, t2;
+SELECT b DIV b2 FROM t1, t2;
+SELECT b % b2 FROM t1, t2;
+
+DROP TABLE t1, t2;
