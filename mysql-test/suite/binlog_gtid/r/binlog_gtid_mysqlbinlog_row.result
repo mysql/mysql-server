@@ -1158,7 +1158,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
 ### INSERT INTO `test`.`t1`
 ### SET
-###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @1=1 /* BOOL meta=0 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
@@ -1182,7 +1182,7 @@ BEGIN
 # # server id #  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
 ### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @1=1 /* BOOL meta=0 nullable=1 is_null=0 */
 # at #
 # # server id #  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;

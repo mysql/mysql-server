@@ -2472,7 +2472,7 @@ BEGIN
 ###   @3=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=0 /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=0 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=0 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=-32768 (32768) /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -2576,7 +2576,7 @@ BEGIN
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=1 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -2680,7 +2680,7 @@ BEGIN
 ###   @3=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
 ###   @4=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
 ###   @5=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
-###   @6=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @6=NULL /* BOOL meta=0 nullable=1 is_null=1 */
 ###   @7=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
 ###   @8=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
 ###   @9=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
@@ -2761,7 +2761,7 @@ BEGIN
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=1 /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=1 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=1 /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -2865,7 +2865,7 @@ BEGIN
 ###   @3=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=0 /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=0 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=0 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=-32768 (32768) /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -2945,7 +2945,7 @@ BEGIN
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=1 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -3049,7 +3049,7 @@ BEGIN
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=1 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -3129,7 +3129,7 @@ BEGIN
 ###   @3=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=0 /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=0 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=0 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=-32768 (32768) /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -3233,7 +3233,7 @@ BEGIN
 ###   @3=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
 ###   @4=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
 ###   @5=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
-###   @6=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @6=NULL /* BOOL meta=0 nullable=1 is_null=1 */
 ###   @7=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
 ###   @8=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
 ###   @9=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
@@ -3313,7 +3313,7 @@ BEGIN
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=1 /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=1 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=1 /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -3417,7 +3417,7 @@ BEGIN
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=1 /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=1 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=1 /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -3497,7 +3497,7 @@ BEGIN
 ###   @3=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
 ###   @4=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
 ###   @5=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
-###   @6=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @6=NULL /* BOOL meta=0 nullable=1 is_null=1 */
 ###   @7=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
 ###   @8=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
 ###   @9=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
@@ -3601,7 +3601,7 @@ BEGIN
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=1 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -3705,7 +3705,7 @@ BEGIN
 ###   @3=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=0 /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=0 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=0 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=-32768 (32768) /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -3809,7 +3809,7 @@ BEGIN
 ###   @3=127 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @4=0 /* TINYINT meta=0 nullable=1 is_null=0 */
 ###   @5=1 /* TINYINT meta=0 nullable=1 is_null=0 */
-###   @6=1 /* TINYINT meta=0 nullable=1 is_null=0 */
+###   @6=1 /* BOOL meta=0 nullable=1 is_null=0 */
 ###   @7=32767 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @8=0 /* SHORTINT meta=0 nullable=1 is_null=0 */
 ###   @9=1 /* SHORTINT meta=0 nullable=1 is_null=0 */
@@ -3913,7 +3913,7 @@ BEGIN
 ###   @3=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
 ###   @4=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
 ###   @5=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
-###   @6=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @6=NULL /* BOOL meta=0 nullable=1 is_null=1 */
 ###   @7=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
 ###   @8=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
 ###   @9=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
