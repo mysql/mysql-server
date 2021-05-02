@@ -2959,33 +2959,33 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `a` tinyint(1) DEFAULT NULL,
+  `a` boolean DEFAULT NULL,
   `b` tinyint(1) DEFAULT NULL,
   `c` tinyint unsigned DEFAULT NULL,
   `d` tinyint(1) unsigned zerofill DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
-def	test	t1	a	1	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references			NULL
+def	test	t1	a	1	NULL	YES	boolean	NULL	NULL	NULL	NULL	NULL	NULL	NULL	boolean			select,insert,update,references			NULL
 def	test	t1	b	2	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references			NULL
 def	test	t1	c	3	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint unsigned			select,insert,update,references			NULL
 def	test	t1	d	4	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1) unsigned zerofill			select,insert,update,references			NULL
 DESCRIBE t1;
 Field	Type	Null	Key	Default	Extra
-a	tinyint(1)	YES		NULL	
+a	boolean	YES		NULL	
 b	tinyint(1)	YES		NULL	
 c	tinyint unsigned	YES		NULL	
 d	tinyint(1) unsigned zerofill	YES		NULL	
 CREATE VIEW v1 AS SELECT * FROM t1;
 SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
 COLUMN_TYPE
+boolean
 tinyint unsigned
-tinyint(1)
 tinyint(1)
 tinyint(1) unsigned zerofill
 DESCRIBE v1;
 Field	Type	Null	Key	Default	Extra
-a	tinyint(1)	YES		NULL	
+a	boolean	YES		NULL	
 b	tinyint(1)	YES		NULL	
 c	tinyint unsigned	YES		NULL	
 d	tinyint(1) unsigned zerofill	YES		NULL	
@@ -3001,16 +3001,16 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 SHOW CREATE FUNCTION f1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
 f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED,
-d TINYINT(1) ZEROFILL) RETURNS tinyint(1)
+d TINYINT(1) ZEROFILL) RETURNS boolean
 RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
 DTD_IDENTIFIER
-tinyint(1)
+boolean
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
 DTD_IDENTIFIER
+boolean
+boolean
 tinyint unsigned
-tinyint(1)
-tinyint(1)
 tinyint(1)
 tinyint(1) unsigned zerofill
 DROP FUNCTION f1;
@@ -3028,8 +3028,8 @@ d TINYINT(1) ZEROFILL)
 BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
 DTD_IDENTIFIER
+boolean
 tinyint unsigned
-tinyint(1)
 tinyint(1)
 tinyint(1) unsigned zerofill
 DROP PROCEDURE p1;

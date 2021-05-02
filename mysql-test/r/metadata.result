@@ -235,8 +235,8 @@ Warning	1681	UNSIGNED for decimal and floating point data types is deprecated an
 Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
 select * from t1;
 Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
-def	test	t1	t1	bool_col	bool_col	1	1	0	Y	32768	0	63
-def	test	t1	t1	boolean_col	boolean_col	1	1	0	Y	32768	0	63
+def	test	t1	t1	bool_col	bool_col	244	1	0	Y	0	0	63
+def	test	t1	t1	boolean_col	boolean_col	244	1	0	Y	0	0	63
 def	test	t1	t1	bit_col	bit_col	16	5	0	Y	32	0	63
 def	test	t1	t1	tiny	tiny	1	4	0	Y	32768	0	63
 def	test	t1	t1	tiny_uns	tiny_uns	1	3	0	Y	32800	0	63
