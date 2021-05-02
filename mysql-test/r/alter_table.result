@@ -88,6 +88,23 @@ GROUP_ID	int unsigned	NULL	NO	PRI	0		#
 LANG_ID	smallint unsigned	NULL	NO	PRI	0		#	
 NAME	char(80)	utf8mb4_0900_ai_ci	NO	MUL	NULL		#	
 DROP TABLE t1;
+#
+# TESTING CONVERSION OF BOOLEAN DATATYPE
+#
+CREATE TABLE t1 (int_to_boolean INT, bool_to_decimal BOOLEAN, double_to_boolean DOUBLE(10,4));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+INSERT INTO t1 VALUES(20, TRUE, 0.4444);
+SELECT * FROM t1;
+int_to_boolean	bool_to_decimal	double_to_boolean
+20	1	0.4444
+ALTER TABLE t1 MODIFY int_to_boolean BOOLEAN;
+ALTER TABLE t1 MODIFY bool_to_decimal DECIMAL(5,2);
+ALTER TABLE t1 MODIFY double_to_boolean BOOLEAN;
+SELECT * FROM t1;
+int_to_boolean	bool_to_decimal	double_to_boolean
+1	1.00	1
+DROP TABLE t1;
 create table t1 (n int);
 insert into t1 values(9),(3),(12),(10);
 alter table t1 order by n;

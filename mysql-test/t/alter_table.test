@@ -56,6 +56,19 @@ ALTER TABLE t1 CHANGE NAME NAME CHAR(80) not null;
 SHOW FULL COLUMNS FROM t1;
 DROP TABLE t1;
 
+--echo #
+--echo # TESTING CONVERSION OF BOOLEAN DATATYPE
+--echo #
+
+CREATE TABLE t1 (int_to_boolean INT, bool_to_decimal BOOLEAN, double_to_boolean DOUBLE(10,4));
+INSERT INTO t1 VALUES(20, TRUE, 0.4444);
+SELECT * FROM t1;
+ALTER TABLE t1 MODIFY int_to_boolean BOOLEAN;
+ALTER TABLE t1 MODIFY bool_to_decimal DECIMAL(5,2);
+ALTER TABLE t1 MODIFY double_to_boolean BOOLEAN;
+SELECT * FROM t1;
+DROP TABLE t1;
+
 #
 # Test of ALTER TABLE ... ORDER BY
 #
