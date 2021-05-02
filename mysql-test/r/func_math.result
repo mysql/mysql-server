@@ -2035,3 +2035,92 @@ iu	bu
 0	0
 DROP TABLE t1;
 SET sql_mode = DEFAULT;
+#
+# WL#3554 Boolean data type
+#
+CREATE TABLE t1 (b BOOLEAN);
+CREATE TABLE t2 (b2 BOOLEAN);
+INSERT INTO t1 VALUES (TRUE), (FALSE);
+INSERT INTO t2 VALUES (TRUE), (FALSE);
+# boolean and number
+SELECT b+10 FROM t1;
+b+10
+11
+10
+SELECT b-10 FROM t1;
+b-10
+-9
+-10
+SELECT -b-10 FROM t1;
+-b-10
+-11
+-10
+SELECT b*10 FROM t1;
+b*10
+10
+0
+SELECT b/10 FROM t1;
+b/10
+0.1000
+0.0000
+SELECT b DIV 10 FROM t1;
+b DIV 10
+0
+0
+SELECT b % 10 FROM t1;
+b % 10
+1
+0
+# boolean and another boolean
+SELECT b+b2 FROM t1, t2;
+b+b2
+1
+2
+0
+1
+SELECT b-b2 FROM t1, t2;
+b-b2
+-1
+0
+0
+1
+SELECT -b-b2 FROM t1, t2;
+-b-b2
+-1
+-2
+0
+-1
+SELECT b*b2 FROM t1, t2;
+b*b2
+0
+1
+0
+0
+SELECT b/b2 FROM t1, t2;
+b/b2
+0.0000
+1.0000
+NULL
+NULL
+Warnings:
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+SELECT b DIV b2 FROM t1, t2;
+b DIV b2
+0
+1
+NULL
+NULL
+Warnings:
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+SELECT b % b2 FROM t1, t2;
+b % b2
+0
+0
+NULL
+NULL
+Warnings:
+Warning	1365	Division by 0
+Warning	1365	Division by 0
+DROP TABLE t1, t2;
