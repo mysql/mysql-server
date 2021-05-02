@@ -1272,17 +1272,13 @@ CREATE TABLE t (a INT,
 b BOOLEAN GENERATED ALWAYS AS (a+10000) VIRTUAL,
 c BLOB GENERATED ALWAYS AS (b=2) VIRTUAL);
 INSERT INTO t(a) VALUES (1);
-Warnings:
-Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t WHERE c = '0';
 a	b	c
-1	127	0
+1	1	0
 ALTER TABLE t ADD UNIQUE INDEX (c(1));
-Warnings:
-Warning	1264	Out of range value for column 'b' at row 1
 SELECT * FROM t WHERE c = '0';
 a	b	c
-1	127	0
+1	1	0
 DROP TABLE t;
 #
 # Bug#21688115 VIRTUAL COLUMN COMPUTATION SAVE_IN_FIELD()
