@@ -3204,6 +3204,7 @@ type_conversion_status Field_boolean::store(double nr) {
 type_conversion_status Field_boolean::store(longlong nr, bool) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   type_conversion_status error = TYPE_OK;
+  // Maybe change to *ptr = nr != 0
   if(nr != 0) {
     *ptr = 1;
   } else {

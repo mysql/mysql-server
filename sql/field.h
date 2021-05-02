@@ -2165,7 +2165,7 @@ class Field_boolean : public Field_num {
   void sql_type(String &str) const override;
   uint32 max_display_length() const final { return 1; }
   Field_boolean *clone(MEM_ROOT *mem_root) const override {
-    DBUG_ASSERT(type() == MYSQL_TYPE_BOOL);
+    assert(type() == MYSQL_TYPE_BOOL);
     return new (mem_root) Field_boolean(*this);
   }
   uchar *pack(uchar *to, const uchar *from, size_t max_length) const final {
