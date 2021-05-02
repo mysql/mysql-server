@@ -986,3 +986,29 @@ DEALLOCATE PREPARE stmt;
 DROP VIEW v1;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # WL#3554 Boolean data type 
+--echo #
+# Also covered in main.bool and main.type_boolean
+CREATE TABLE t (val VARCHAR(64), b BOOLEAN);
+# Insert regular boolean values
+INSERT INTO t VALUES ('FALSE', FALSE), ('TRUE', TRUE), ('NULL', NULL);
+# Insert integers as FALSE, TRUE, TRUE, TRUE
+INSERT INTO t VALUES ('0', 0), ('1', 1), ('123', 123), ('-123', -123), ("18446744073709551615", 18446744073709551615);
+# Insert floating point values for FALSE
+INSERT INTO t VALUES ('0.0', 0.0), ('-0.0', -0.0), ('0.0e0', 0.0e0), ('0.0e123', 0.0e123), ("CAST(0 AS DECIMAL(2,2))", CAST(0 AS DECIMAL(2,2)));
+# Insert floating point values for TRUE
+INSERT INTO t VALUES ('1.0', 1.0), ('0.1', 0.1), ('1.1e20', 1.1e20), ('0.1e-20', 0.1e-20), ('CAST(0.1 AS DECIMAL(2,2))', CAST(0.1 AS DECIMAL(2,2))), ('0.0000000000000000000000000000000000000000001', 0.0000000000000000000000000000000000000000001);
+# Insert string values for FALSE
+INSERT INTO t VALUES ("0", "0"), ("0.0", "0.0"), ("0e0", "0e0"), ("0.0e0", "0.0e0"), ("-0", "-0");
+# Insert string values for TRUE
+INSERT INTO t VALUES ("1", "1"), ("0.1", "0.1"), ("-1", "-1"), ("-0.1", "-0.1"), ("3.1e5", "3.1e5"), ("3.1", "3.1");
+
+# Error on insert invalid string values
+--error 1265
+INSERT INTO t VALUES ("f", "f");
+--error 1265
+INSERT INTO t VALUES ("", "");
+
+SELECT * FROM t;
+DROP TABLE t;
