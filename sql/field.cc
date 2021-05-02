@@ -3186,6 +3186,7 @@ type_conversion_status Field_boolean::store(const char *from, size_t len,
   double nr = my_strntod(cs, from, len, &end, &conv_error);
   if (conv_error || (!len || (static_cast<uint>(end - from) != len &&
                               table->in_use->check_for_truncated_fields))) {
+    // May need some other warnings, these are the same as Field_float::store
     set_warning(Sql_condition::SL_WARNING,
                 (conv_error ? ER_WARN_DATA_OUT_OF_RANGE : WARN_DATA_TRUNCATED),
                 1);
