@@ -178,13 +178,6 @@ class Window {
   bool m_opt_last_row;
 
   /**
-    Can be true if first window after a join: we may need to restore the input
-    record after buffered window processing if EQRefIterator's caching logic
-    presumes the record hasn't been modified (when last qep_tab uses JT_EQ_REF).
-  */
-  bool m_needs_restore_input_row;
-
-  /**
     The last window to be evaluated at execution time.
   */
   bool m_last;
@@ -346,13 +339,16 @@ class Window {
   }
 
   /**
-     Keys for m_frame_buffer_cache and m_special_rows_cache, for special
+     Keys for m_special_rows_cache, for special
      rows (see the comment on m_special_row_cache). Note that they are negative,
      so that they will never collide with actual row numbers in the frame.
      This allows us to treat them interchangeably with real row numbers
      as function arguments; e.g., bring_back_frame_row() can restore either
      a “normal” row from the frame, or one of the special rows, and does not
      need to take in separate flags for the two.
+     TODO(Chaithra): We have only one special key. Do we need the enum?
+     Also m_special_rows_cache/cache_length/max_cache_length should be looked
+     into.
   */
   enum Special_keys {
     /**
@@ -362,12 +358,10 @@ class Window {
      the partition, and restore it later.
     */
     FBC_FIRST_IN_NEXT_PARTITION = -1,
-    /// The last row cached in the frame buffer; needed to resurrect input row
-    FBC_LAST_BUFFERED_ROW = -2,
     // Insert new values here.
     // And keep the ones below up to date.
     FBC_FIRST_KEY = FBC_FIRST_IN_NEXT_PARTITION,
-    FBC_LAST_KEY = FBC_LAST_BUFFERED_ROW,
+    FBC_LAST_KEY = FBC_FIRST_IN_NEXT_PARTITION,
   };
 
  protected:
@@ -622,7 +616,6 @@ class Window {
         m_static_aggregates(false),
         m_opt_first_row(false),
         m_opt_last_row(false),
-        m_needs_restore_input_row(false),
         m_last(false),
         m_ancestor(nullptr),
         m_partition_items(*THR_MALLOC),
@@ -1050,16 +1043,6 @@ class Window {
     See #m_last
   */
   bool is_last() const { return m_last; }
-
-  /**
-    See #m_needs_restore_input_row
-  */
-  void set_needs_restore_input_row(bool b) { m_needs_restore_input_row = b; }
-
-  /**
-    See #m_needs_restore_input_row
-  */
-  bool needs_restore_input_row() const { return m_needs_restore_input_row; }
 
   /**
     See #m_opt_nth_row

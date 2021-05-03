@@ -4607,8 +4607,6 @@ bool JOIN::make_tmp_tables_info() {
         from the next temporary table.
       */
       const uint widx = REF_SLICE_WIN_1 + wno;
-      m_windows[wno]->set_needs_restore_input_row(
-          wno == 0 && qep_tab[primary_tables - 1].type() == JT_EQ_REF);
 
       QEP_TAB *tab = &qep_tab[curr_tmp_table];
       mem_root_deque<Item *> *orig_fields = curr_fields;
