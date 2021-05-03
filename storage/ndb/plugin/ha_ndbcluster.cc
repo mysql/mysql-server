@@ -9952,6 +9952,7 @@ int ha_ndbcluster::create(const char *path MY_ATTRIBUTE((unused)),
     // The table has been successfully created in NDB, emulate
     // failure to open the table by dropping the table from NDB
     Ndb_table_guard ndbtab_g(ndb, dbname, tabname);
+    assert(ndbtab_g.get_table());
     (void)drop_table_and_related(thd, ndb, dict, dbname, ndbtab_g.get_table(),
                                  0,       // drop_flags
                                  false);  // skip_related
