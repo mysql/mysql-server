@@ -2294,7 +2294,12 @@ TABLE *CreateTemporaryTableFromSelectList(
 Item_field *FindReplacementItem(Item *item,
                                 Temp_table_param *temp_table_param) {
   for (const Func_ptr &func : *temp_table_param->items_to_copy) {
-    if (func.func() == item) {
+    // For nearly all cases, just comparing the items (by pointer) would
+    // be sufficent, but in rare cases involving CTEs (see e.g. the test for
+    // bug #26907753), we can have a ref in func.func(), so we need to call
+    // real_item() before comparing.
+    if (func.func()->hidden == item->hidden &&
+        func.func()->real_item() == item->real_item()) {
       Item_field *item_field = func.result_item();
       if (item_field == nullptr) return nullptr;
       item_field->hidden = item->hidden;
