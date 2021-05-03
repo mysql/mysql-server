@@ -303,7 +303,7 @@ static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
   page_id_t page_id(ref.space_id(), first_page_no);
 
   /* Hold exclusive access to LOB */
-  first_page_t btr_first(mtr, index);
+  z_first_page_t btr_first(mtr, index);
   btr_first.load_x(page_id, page_size);
 
   const trx_id_t last_trx_id = btr_first.get_last_trx_id();
