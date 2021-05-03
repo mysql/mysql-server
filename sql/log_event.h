@@ -4166,6 +4166,8 @@ class Transaction_context_log_event
 
   size_t get_data_size() override;
 
+  size_t get_event_length();
+
 #ifdef MYSQL_SERVER
   int pack_info(Protocol *protocol) override;
 #endif

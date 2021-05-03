@@ -52,7 +52,8 @@ Plugin_gcs_message::Plugin_gcs_message(enum_cargo_type cargo_type)
       m_msg_len(WIRE_FIXED_HEADER_SIZE),
       m_cargo_type(cargo_type) {}
 
-void Plugin_gcs_message::encode(std::vector<unsigned char> *buffer) const {
+void Plugin_gcs_message::encode_header(
+    std::vector<unsigned char> *buffer) const {
   DBUG_TRACE;
   unsigned char buf[WIRE_FIXED_HEADER_SIZE];
   unsigned char *slider = buf;
@@ -71,7 +72,12 @@ void Plugin_gcs_message::encode(std::vector<unsigned char> *buffer) const {
   slider += WIRE_CARGO_TYPE_SIZE;
 
   buffer->insert(buffer->end(), buf, buf + WIRE_FIXED_HEADER_SIZE);
+}
 
+void Plugin_gcs_message::encode(std::vector<unsigned char> *buffer) const {
+  DBUG_TRACE;
+
+  encode_header(buffer);
   encode_payload(buffer);
 }
 

@@ -398,30 +398,6 @@ int group_replication_trans_before_commit(Trans_param *param) {
     }
   }
 
-  /*
-    The BEFORE consistency can be used on groups with members that
-    do not support GROUP_REPLICATION_CONSISTENCY_BEFORE. In order to
-    allow that, after the wait is done on the transaction begin on
-    the local member, we broadcast the transaction as a normal
-    transaction that all versions do understand.
-  */
-  if (consistency_level < GROUP_REPLICATION_CONSISTENCY_AFTER) {
-    transaction_msg = new Transaction_message();
-  } else {
-    transaction_msg = new Transaction_with_guarantee_message(consistency_level);
-  }
-
-  // serialize transaction context into a transaction message.
-  // There is a chance you encounter an OOM in Transaction_message::write()
-  // here, so we take care accordingly.
-  try {
-    binary_event_serialize(tcle, transaction_msg);
-  } catch (const std::bad_alloc &) {
-    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
-    error = pre_wait_error;
-    goto err;
-  }
-
   if (*(param->original_commit_timestamp) == UNDEFINED_COMMIT_TIMESTAMP) {
     /*
      Assume that this transaction is original from this server and update status
@@ -458,17 +434,13 @@ int group_replication_trans_before_commit(Trans_param *param) {
     account.
   */
   gle->set_trx_length_by_cache_size(cache_log_position);
-  // There is a chance you encounter an OOM in Transaction_message::write()
-  // here, so we take care accordingly.
-  try {
-    binary_event_serialize(gle, transaction_msg);
-  } catch (const std::bad_alloc &) {
-    LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
-    error = pre_wait_error;
-    goto err;
-  }
 
-  transaction_size = cache_log_position + transaction_msg->length();
+  /*
+    Only proceed to message serialization and send if the transaction
+    size does not exceed the limit.
+  */
+  transaction_size =
+      cache_log_position + tcle->get_event_length() + gle->get_event_length();
   if (is_dml && transaction_size_limit &&
       transaction_size > transaction_size_limit) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_TRANS_SIZE_EXCEEDS_LIMIT,
@@ -477,17 +449,44 @@ int group_replication_trans_before_commit(Trans_param *param) {
     goto err;
   }
 
-  // Copy binlog cache content to buffer.
-  // There is a chance you encounter an OOM in Transaction_message::write()
-  // here, so we take care accordingly.
+  /*
+    Serialize transaction context, Gtid and binlog cache into
+    transaction message.
+    There is a chance we encounter an OOM, thence consider it.
+  */
   try {
-    if (cache_log->copy_to(transaction_msg)) {
-      /* purecov: begin inspected */
+    /*
+      The BEFORE consistency can be used on groups with members that
+      do not support GROUP_REPLICATION_CONSISTENCY_BEFORE. In order to
+      allow that, after the wait is done on the transaction begin on
+      the local member, we broadcast the transaction as a normal
+      transaction that all versions do understand.
+    */
+    if (consistency_level < GROUP_REPLICATION_CONSISTENCY_AFTER) {
+      transaction_msg = new Transaction_message(transaction_size);
+    } else {
+      transaction_msg = new Transaction_with_guarantee_message(
+          transaction_size, consistency_level);
+    }
+
+    if (binary_event_serialize(tcle, transaction_msg) ||
+        binary_event_serialize(gle, transaction_msg)) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WRITE_TO_TRANSACTION_MESSAGE_FAILED,
                    param->thread_id);
       error = pre_wait_error;
       goto err;
-      /* purecov: end */
+    }
+    /* Release memory as soon as possible. */
+    delete tcle;
+    tcle = nullptr;
+    delete gle;
+    gle = nullptr;
+
+    if (cache_log->copy_to(transaction_msg)) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_WRITE_TO_TRANSACTION_MESSAGE_FAILED,
+                   param->thread_id);
+      error = pre_wait_error;
+      goto err;
     }
   } catch (const std::bad_alloc &) {
     LogPluginErr(ERROR_LEVEL, ER_OUT_OF_RESOURCES);
@@ -524,7 +523,11 @@ int group_replication_trans_before_commit(Trans_param *param) {
   applier_module->get_flow_control_module()->do_wait();
 
   // Broadcast the Transaction Message
-  send_error = gcs_module->send_message(*transaction_msg);
+  send_error = gcs_module->send_transaction_message(*transaction_msg);
+
+  /* Release memory as soon as possible. */
+  delete transaction_msg;
+  transaction_msg = nullptr;
 
   if (send_error == GCS_MESSAGE_TOO_BIG) {
     /* purecov: begin inspected */

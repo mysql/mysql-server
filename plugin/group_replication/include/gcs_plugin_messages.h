@@ -260,6 +260,13 @@ class Plugin_gcs_message {
   explicit Plugin_gcs_message(enum_cargo_type cargo_type);
 
   /**
+    Encodes the header of this instance into the buffer.
+
+    @param[out] buffer the buffer to encode to.
+  */
+  void encode_header(std::vector<unsigned char> *buffer) const;
+
+  /**
     Decodes the header of the buffer into this instance.
 
     @param[out] slider before call `decode_header`: the start of the buffer

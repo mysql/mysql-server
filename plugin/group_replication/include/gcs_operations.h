@@ -35,6 +35,8 @@
 #include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
 
+class Transaction_message_interface;
+
 /**
   @class Gcs_operations
   Coordinates all operations to GCS interface.
@@ -221,6 +223,18 @@ class Gcs_operations {
   */
   enum enum_gcs_error send_message(const Plugin_gcs_message &message,
                                    bool skip_if_not_initialized = false);
+
+  /**
+    Send a transaction message to the group.
+
+    @param[in] message  The message to send
+
+    @return the operation status
+      @retval 0      OK
+      @retval !=0    Error
+  */
+  enum enum_gcs_error send_transaction_message(
+      Transaction_message_interface &message);
 
   /**
     Forces a new group membership, on which the excluded members
