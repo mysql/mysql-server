@@ -4716,6 +4716,26 @@ bool WalkAndReplace(
       default:
         break;
     }
+  } else if (item->type() == Item::ROW_ITEM) {
+    // Pretty much exactly the same logic as functions above.
+    Item_row *row_item = down_cast<Item_row *>(item);
+    for (unsigned argument_idx = 0; argument_idx < row_item->cols();
+         argument_idx++) {
+      Item *arg = row_item->element_index(argument_idx);
+      ReplaceResult result = get_new_item(arg, item, argument_idx);
+      if (result.action == ReplaceResult::ERROR) {
+        return true;
+      } else if (result.action == ReplaceResult::REPLACE) {
+        if (thd->lex->is_exec_started()) {
+          thd->change_item_tree(row_item->addr(argument_idx),
+                                result.replacement);
+        } else {
+          *row_item->addr(argument_idx) = result.replacement;
+        }
+      } else if (WalkAndReplace(thd, arg, get_new_item)) {
+        return true;
+      }
+    }
   } else if (item->type() == Item::COND_ITEM) {
     Item_cond *cond_item = down_cast<Item_cond *>(item);
     List_iterator<Item> li(*cond_item->argument_list());
