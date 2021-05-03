@@ -121,7 +121,6 @@ static void make_unique_view_field_name(Item *target,
   char buff[NAME_LEN + 1];
 
   for (attempt = 0;; attempt++) {
-    Item *check;
     bool ok = true;
 
     if (attempt)
@@ -139,14 +138,14 @@ static void make_unique_view_field_name(Item *target,
       name_len = num_bytes;
     }
 
-    auto itc = item_list.begin();
-    do {
-      check = *itc++;
-      if (check != target && check->item_name.eq(buff)) {
+    for (Item *itc : VisibleFields(item_list)) {
+      if (itc != target && itc->item_name.eq(buff)) {
         ok = false;
         break;
       }
-    } while (check != last_element);
+      if (itc == last_element) break;
+    }
+
     if (ok) break;
   }
 
