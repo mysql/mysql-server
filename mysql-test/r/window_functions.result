@@ -6219,14 +6219,6 @@ SELECT * FROM t WHERE a = ANY(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 a
 2
 3
-=ALL => NOT EXISTS (select non-equal rows)
-SELECT * FROM t WHERE a = ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-<>SOME => EXISTS (select non-equal rows)
-SELECT * FROM t WHERE a <> SOME(SELECT ROW_NUMBER() OVER () + 1 FROM t);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-SELECT * FROM t WHERE a <> ANY(SELECT ROW_NUMBER() OVER () + 1 FROM t);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
 SELECT * FROM t WHERE a <> ALL(SELECT ROW_NUMBER() OVER () + 1 FROM t);
 a
 1
@@ -6404,33 +6396,7 @@ EXPLAIN
 Warnings:
 Note	1276	Field or reference 'test.upper.a' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`upper`.`a` AS `a` from `test`.`t` `upper` semi join ((/* select#3 */ select row_number() OVER ()  AS `rn` from `test`.`t`) `ta`) where (`ta`.`rn` > `test`.`upper`.`a`)
-# Correlated => no subquery materialization.
-# IN => EXISTS, error
-SELECT * FROM t upper
-WHERE upper.a IN (SELECT ROW_NUMBER() OVER () FROM t
-WHERE t.a > upper.a);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-# Correlated => no subquery materialization.
-# >ANY => EXISTS(select smaller rows), error
-SELECT * FROM t upper
-WHERE upper.a > ANY (SELECT ROW_NUMBER() OVER () FROM t
-WHERE t.a > upper.a);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-SELECT * FROM t upper
-WHERE upper.a > ALL (SELECT ROW_NUMBER() OVER () FROM t
-WHERE t.a > upper.a);
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
 DROP TABLE t;
-#
-# Bug#25601138 WINDOW FUNCTION IN CORRELATED SUBQUERY GIVES WRONG RESULT
-#
-CREATE TABLE t1(i INT, j INT, k INT);
-INSERT INTO t1 VALUES (1,1,1),(2,2,2);
-# When we support this, expected result is 1,1,1 and 2,2,2
-select * from t1 AS upper where i+1
-IN (select row_number() over () + upper.i from t1 );
-ERROR 42000: This version of MySQL doesn't yet support 'the combination of this ALL/ANY/SOME/IN subquery with this comparison operator and with contained window functions'
-DROP TABLE t1;
 #
 # Check window aggregate referencing columns from an outside query
 # All results checked against Postgresql which also allows this.
