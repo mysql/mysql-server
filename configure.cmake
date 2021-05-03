@@ -643,7 +643,7 @@ int main(int argc, char **argv)
 HAVE_PTHREAD_SETNAME_NP_MACOS)
 
 # Check for SetThreadDescription() on Windows
-CHECK_C_SOURCE_COMPILES("
+CHECK_C_SOURCE_RUNS("
 #include <windows.h>
 #include <processthreadsapi.h>
 int main(int argc, char **argv)
