@@ -357,10 +357,10 @@ int table_processlist::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 4: /* COMMAND */
-          if (m_row.m_processlist_id != 0)
-            set_field_varchar_utf8(f, command_name[m_row.m_command].str,
-                                   (uint)command_name[m_row.m_command].length);
-          else {
+          if (m_row.m_processlist_id != 0) {
+            const std::string &cn = Command_names::str(m_row.m_command);
+            set_field_varchar_utf8(f, cn.c_str(), cn.length());
+          } else {
             f->set_null();
           }
           break;

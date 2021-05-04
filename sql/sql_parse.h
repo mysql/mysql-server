@@ -125,7 +125,50 @@ bool show_precheck(THD *thd, LEX *lex, bool lock);
 /* Variables */
 
 extern uint sql_command_flags[];
-extern const LEX_CSTRING command_name[];
+
+/**
+  Map from enumeration values of type enum_server_command to
+  descriptions of type std::string.
+
+  In this context, a "command" is a type code for a remote procedure
+  call in the client-server protocol; for instance, a "connect" or a
+  "ping" or a "query".
+*/
+class Command_names {
+ private:
+  /**
+    Array indexed by enum_server_command, where each element is a
+    description string.
+  */
+  static const std::string m_names[];
+  /**
+    Cast an integer to enum_server_command, and assert it is in range.
+    @param cmd The integer value
+    @return The enum_server_command
+  */
+  static enum_server_command int_to_cmd(int cmd) {
+    assert(cmd >= 0);
+    assert(cmd <= COM_END);
+    return static_cast<enum_server_command>(cmd);
+  }
+
+ public:
+  /**
+    Return a description string for a given enum_server_command.
+    @param cmd The enum_server_command
+    @retval The description string
+  */
+  static const std::string &str(enum_server_command cmd) {
+    return m_names[cmd];
+  }
+  /**
+    Return a description string for an integer that is the numeric
+    value of an enum_server_command.
+    @param cmd The integer value
+    @retval The description string
+  */
+  static const std::string &str(int cmd) { return str(int_to_cmd(cmd)); }
+};
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 

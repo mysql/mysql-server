@@ -214,41 +214,41 @@ using std::max;
 
 static void sql_kill(THD *thd, my_thread_id id, bool only_kill_query);
 
-const LEX_CSTRING command_name[] = {
-    {STRING_WITH_LEN("Sleep")},
-    {STRING_WITH_LEN("Quit")},
-    {STRING_WITH_LEN("Init DB")},
-    {STRING_WITH_LEN("Query")},
-    {STRING_WITH_LEN("Field List")},
-    {STRING_WITH_LEN("Create DB")},
-    {STRING_WITH_LEN("Drop DB")},
-    {STRING_WITH_LEN("Refresh")},
-    {STRING_WITH_LEN("Shutdown")},
-    {STRING_WITH_LEN("Statistics")},
-    {STRING_WITH_LEN("Processlist")},
-    {STRING_WITH_LEN("Connect")},
-    {STRING_WITH_LEN("Kill")},
-    {STRING_WITH_LEN("Debug")},
-    {STRING_WITH_LEN("Ping")},
-    {STRING_WITH_LEN("Time")},
-    {STRING_WITH_LEN("Delayed insert")},
-    {STRING_WITH_LEN("Change user")},
-    {STRING_WITH_LEN("Binlog Dump")},
-    {STRING_WITH_LEN("Table Dump")},
-    {STRING_WITH_LEN("Connect Out")},
-    {STRING_WITH_LEN("Register Replica")},
-    {STRING_WITH_LEN("Prepare")},
-    {STRING_WITH_LEN("Execute")},
-    {STRING_WITH_LEN("Long Data")},
-    {STRING_WITH_LEN("Close stmt")},
-    {STRING_WITH_LEN("Reset stmt")},
-    {STRING_WITH_LEN("Set option")},
-    {STRING_WITH_LEN("Fetch")},
-    {STRING_WITH_LEN("Daemon")},
-    {STRING_WITH_LEN("Binlog Dump GTID")},
-    {STRING_WITH_LEN("Reset Connection")},
-    {STRING_WITH_LEN("clone")},
-    {STRING_WITH_LEN("Error")}  // Last command number
+const std::string Command_names::m_names[] = {
+    "Sleep",
+    "Quit",
+    "Init DB",
+    "Query",
+    "Field List",
+    "Create DB",
+    "Drop DB",
+    "Refresh",
+    "Shutdown",
+    "Statistics",
+    "Processlist",
+    "Connect",
+    "Kill",
+    "Debug",
+    "Ping",
+    "Time",
+    "Delayed insert",
+    "Change user",
+    "Binlog Dump",
+    "Table Dump",
+    "Connect Out",
+    "Register Replica",
+    "Prepare",
+    "Execute",
+    "Long Data",
+    "Close stmt",
+    "Reset stmt",
+    "Set option",
+    "Fetch",
+    "Daemon",
+    "Binlog Dump GTID",
+    "Reset Connection",
+    "clone",
+    "Error"  // Last command number
 };
 
 bool command_satisfy_acl_cache_requirement(unsigned command) {
@@ -1301,7 +1301,7 @@ bool do_command(THD *thd) {
   char desc[VIO_DESCRIPTION_SIZE];
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("Command on %s = %d (%s)", desc, command,
-                      command_name[command].str));
+                      Command_names::str(command).c_str()));
 #endif  // NDEBUG
   DBUG_PRINT("info", ("packet: '%*.s'; command: %d",
                       (int)thd->get_protocol_classic()->get_packet_length(),
@@ -1639,7 +1639,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   }
 
   if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_START), command,
-                         command_name[command].str)) {
+                         Command_names::str(command).c_str())) {
     goto done;
   }
 
@@ -1865,11 +1865,12 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         thd->update_slow_query_status();
         thd->send_statement_status();
 
-        mysql_audit_notify(
-            thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
-            thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno()
-                                           : 0,
-            command_name[command].str, command_name[command].length);
+        const std::string &cn = Command_names::str(command);
+        mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
+                           thd->get_stmt_da()->is_error()
+                               ? thd->get_stmt_da()->mysql_errno()
+                               : 0,
+                           cn.c_str(), cn.length());
 
         size_t length =
             static_cast<size_t>(packet_end - beginning_of_next_stmt);
@@ -2237,15 +2238,16 @@ done:
     mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, nullptr,
                        0);
 
+  const std::string &cn = Command_names::str(command);
   mysql_audit_notify(
       thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
       thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
-      command_name[command].str, command_name[command].length);
+      cn.c_str(), cn.length());
 
   /* command_end is informational only. The plugin cannot abort
      execution of the command at thie point. */
   mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
-                     command_name[command].str);
+                     cn.c_str());
 
   log_slow_statement(thd, query_start_status_ptr);
 

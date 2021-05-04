@@ -4461,7 +4461,7 @@ static void init_com_statement_info() {
   uint index;
 
   for (index = 0; index < (uint)COM_END + 1; index++) {
-    com_statement_info[index].m_name = command_name[index].str;
+    com_statement_info[index].m_name = Command_names::str(index).c_str();
     com_statement_info[index].m_flags = 0;
     com_statement_info[index].m_documentation = PSI_DOCUMENT_ME;
   }
