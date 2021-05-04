@@ -5662,6 +5662,9 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
               intermediate value to resolve referenced item only.
               In this case the new Item_ref item is unused.
             */
+            if (resolution == RESOLVED_AGAINST_ALIAS)
+              res = &thd->lex->current_query_block()->base_ref_items[counter];
+
             Item_ref *rf =
                 new Item_ref(context, res, db_name, table_name, field_name,
                              resolution == RESOLVED_AGAINST_ALIAS);
