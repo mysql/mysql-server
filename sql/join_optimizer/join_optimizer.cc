@@ -2056,6 +2056,27 @@ void CostingReceiver::ProposeAccessPath(
   return;
 }
 
+AccessPath MakeSortPathWithoutFilesort(AccessPath *child, ORDER *order,
+                                       int ordering_state,
+                                       int num_where_predicates) {
+  AccessPath sort_path;
+  sort_path.type = AccessPath::SORT;
+  sort_path.ordering_state = ordering_state;
+  sort_path.applied_sargable_join_predicates =
+      child->applied_sargable_join_predicates &
+      ~BitsBetween(0, num_where_predicates);
+  sort_path.delayed_predicates = child->delayed_predicates;
+  sort_path.count_examined_rows = false;
+  sort_path.sort().child = child;
+  sort_path.sort().filesort = nullptr;
+  sort_path.sort().tables_to_get_rowid_for = 0;
+  sort_path.sort().order = order;
+  sort_path.sort().remove_duplicates = false;
+  sort_path.sort().unwrap_rollup = true;
+  EstimateSortCost(&sort_path);
+  return sort_path;
+}
+
 void CostingReceiver::ProposeAccessPathWithOrderings(
     NodeMap nodes, FunctionalDependencySet fd_set,
     OrderingSet obsolete_orderings, AccessPath *path,
@@ -2121,21 +2142,9 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
       path_is_on_heap = true;
     }
 
-    AccessPath sort_path;
-    sort_path.type = AccessPath::SORT;
-    sort_path.ordering_state = new_state;
-    sort_path.applied_sargable_join_predicates =
-        path->applied_sargable_join_predicates &
-        ~BitsBetween(0, m_graph.num_where_predicates);
-    sort_path.delayed_predicates = path->delayed_predicates;
-    sort_path.count_examined_rows = false;
-    sort_path.sort().child = path;
-    sort_path.sort().filesort = nullptr;
-    sort_path.sort().tables_to_get_rowid_for = 0;
-    sort_path.sort().order = sort_ahead_ordering.order;
-    sort_path.sort().remove_duplicates = false;
-    sort_path.sort().unwrap_rollup = true;
-    EstimateSortCost(&sort_path);
+    AccessPath sort_path =
+        MakeSortPathWithoutFilesort(path, sort_ahead_ordering.order, new_state,
+                                    m_graph.num_where_predicates);
 
     char buf[256];
     if (m_trace != nullptr) {
