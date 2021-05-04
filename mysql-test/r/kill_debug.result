@@ -42,6 +42,7 @@ DROP TABLE g1,g2;
 #
 # Bug#28079850: Requires handling THD::KILL_QUERY in records* functions.
 #
+SET GLOBAL innodb_limit_optimistic_insert_debug = 2;
 CREATE TABLE t_innodb(c1 INT NOT NULL PRIMARY KEY,
 c2 INT NOT NULL,
 c3 char(20),
@@ -67,3 +68,4 @@ SET DEBUG_SYNC='now SIGNAL continue';
 1
 1
 SET DEBUG_SYNC='RESET';
+SET GLOBAL innodb_limit_optimistic_insert_debug = 0;

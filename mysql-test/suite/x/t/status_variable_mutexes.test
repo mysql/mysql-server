@@ -20,7 +20,7 @@
 ## Test starts here
 
 # SQL FOR SYNCHRONIZATION OF TWO SESSIONS
---let $sql_synchronize_sessions= $MYSQL_TMP_DIR/mutexes1.sql
+--let $sql_synchronize_sessions= $MYSQL_TMP_DIR/mutexes1.xpl
 --write_file $sql_synchronize_sessions
 SET DEBUG_SYNC= 'now WAIT_FOR reached_is_handled_by_thd';
 SET DEBUG_SYNC= 'now WAIT_FOR reached_create_session_locked';
@@ -29,7 +29,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue_is_handled_by_thd';
 EOF
 
 # SQL FOR TRIGGERING THE ISSUE ON S2
---let $sql_trigger_issue_S2= $MYSQL_TMP_DIR/mutexes2.sql
+--let $sql_trigger_issue_S2= $MYSQL_TMP_DIR/mutexes2.xpl
 --write_file $sql_trigger_issue_S2
 SET DEBUG_SYNC= 'syncpoint_is_handled_by_thd SIGNAL reached_is_handled_by_thd WAIT_FOR continue_is_handled_by_thd';
 show status like "Mysqlx_sessions"
@@ -83,10 +83,7 @@ exec $MYSQLXTEST
   -v%SQL_FILE2%=$sql_trigger_issue_S2 2>&1;
 
 ## Cleanup
---remove_file $xtest_file
---remove_file $sql_synchronize_sessions
---remove_file $sql_trigger_issue_S2
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc

@@ -74,6 +74,17 @@ col1	col2
 20	innodb cloned row 2
 30	innodb cloned row 3
 ALTER SCHEMA schema_read_only READ ONLY=1;
+#BEGIN Bug 32199611: CLONE PLUGIN INSTALLATION FAILS IN PFS TABLE CREATION
+SET LOCAL explicit_defaults_for_timestamp = OFF;
+Warnings:
+Warning	1287	'explicit_defaults_for_timestamp' is deprecated and will be removed in a future release.
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';
+Variable_name	Value
+explicit_defaults_for_timestamp	OFF
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+UNINSTALL PLUGIN clone;
+SET LOCAL explicit_defaults_for_timestamp = default;
+#End Bug 32199611: CLONE PLUGIN INSTALLATION FAILS IN PFS TABLE CREATION
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 INSTALL PLUGIN example SONAME 'EXAMPLE_PLUGIN';
 SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS

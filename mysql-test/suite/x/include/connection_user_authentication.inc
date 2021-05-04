@@ -1,7 +1,7 @@
 
 ## Test starts here
---let $mysqlxscript_success= $MYSQL_TMP_DIR/connection_mysqlx_user.tmp
---let $mysqlxscript_failure= $MYSQL_TMP_DIR/connection_mysqlx_user_failure.tmp
+--let $mysqlxscript_success= $MYSQL_TMP_DIR/connection_mysqlx_user.xpl
+--let $mysqlxscript_failure= $MYSQL_TMP_DIR/connection_mysqlx_user_failure.xpl
 --let $MYSQLXTEST_LOGIN_SUCCESS= $MYSQLXTEST -uuser1 $USER_CIPHER -f $mysqlxscript_success --schema xtest --fatal-errors=1
 --let $MYSQLXTEST_LOGIN_FAILURE= $MYSQLXTEST -uuser1 $USER_CIPHER -f $mysqlxscript_failure --schema xtest --fatal-errors=1 --no-auth
 

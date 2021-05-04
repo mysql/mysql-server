@@ -10,7 +10,7 @@
 
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 
---write_file $MYSQL_TMP_DIR/auth_seq.tmp
+--write_file $MYSQL_TMP_DIR/auth_seq.xpl
 -->import connection_auth_mechanism_memory_helpers.macro
 -->import connection.macro
 
@@ -61,14 +61,12 @@ EOF
 #
 
 SET GLOBAL mysqlx_connect_timeout = 15;
-exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq.tmp 2>&1;
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq.xpl 2>&1;
 
 #
 # Postamble
 #
---remove_file $MYSQL_TMP_DIR/auth_seq.tmp
-
 --source ../include/remove_mysql_accounts_for_xplugin_tests.inc
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;

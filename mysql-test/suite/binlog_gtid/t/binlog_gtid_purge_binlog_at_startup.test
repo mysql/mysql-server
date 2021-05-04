@@ -1,0 +1,120 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to ensure that GTID_PURGED variable is
+# properly set when binlogs need to be purged by means of
+# `binlog_expire_logs_seconds` usage during server startup process.
+#
+# ==== Requirements ====
+#
+# R1. When `binlog_expire_logs_seconds` has been expired upon server
+#     restart, binary logs should be pureged and GTID_PURGED should be updated
+#     accordingly.
+#
+# ==== Implementation ====
+#
+# TC1. Restart the server with `binlog_expire_logs_seconds=1`
+# -----------------------------------------------------------
+# 1. Create a table.
+# 2. Stop the server.
+# 3. Sleep for the same amount of seconds we'll use in
+#    `--binlog-expire-logs-seconds`.
+# 4. Start the server with `--binlog-expire-logs-seconds`.
+# 5. Ensure GTID_PURGED is set at the correct value.
+# 6. Ensure that we have only one binary log file.
+#
+# TC2. Restart the server with `binlog_expire_logs_seconds` and after flush
+# -------------------------------------------------------------------------
+# 1. Create a table.
+# 2. Flush the logs.
+# 3. Insert a row.
+# 4. Stop the server.
+# 5. Sleep for the same amount of seconds we'll use in
+#    `--binlog-expire-logs-seconds`.
+# 6. Start the server with `--binlog-expire-logs-seconds`.
+# 7. Ensure GTID_PURGED is set at the correct value.
+# 8. Ensure that we have only one binary log file.
+#
+# ==== References ====
+#
+# BUG#32008512 ASSERTION `LOST_GTIDS->IS_EMPTY()' FAILED WHEN MYSQLD
+#              STARTED
+# BUG#32134875 PURGE BINLOG IN INSTANCE STARTUP CAUSE PREVIOUS_GTIDS WRONG
+#              IN NEW BINLOG FILE
+#
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--let $saved_expire_seconds = `SELECT @@binlog_expire_logs_seconds`
+
+# TC1. Restart the server with `binlog_expire_logs_seconds=1`
+# -----------------------------------------------------------
+--let $expire_seconds = 1
+RESET MASTER;
+# 1. Create a table.
+CREATE TABLE t (a INT);
+
+# 2. Stop the server.
+--source include/stop_mysqld.inc
+# 3. Sleep for the same amount of seconds we'll use in
+#    `--binlog-expire-logs-seconds`.
+--sleep $expire_seconds
+# 4. Start the server with `--binlog-expire-logs-seconds`.
+--let $restart_parameters = restart: --binlog-expire-logs-seconds=$expire_seconds
+--source include/start_mysqld.inc
+
+--let $server_uuid = `SELECT @@server_uuid`
+
+# 5. Ensure GTID_PURGED is set at the correct value.
+--let $assert_text = GTID_PURGED is consistent
+--let $assert_cond = "[SELECT @@gtid_purged]" = "$server_uuid:1"
+--source include/assert.inc
+
+# 6. Ensure that we have only one binary log file.
+--let $statement = SHOW BINARY LOGS
+--let $column = Log_name
+--source include/get_row_count.inc
+--let $assert_text = We have 1 binlog file
+--let $assert_cond = $row_count = 1
+--source include/assert.inc
+
+DROP TABLE t;
+
+#
+# TC2. Restart the server with `binlog_expire_logs_seconds` and after flush
+# -------------------------------------------------------------------------
+--let $expire_seconds = 5
+RESET MASTER;
+# 1. Create a table.
+CREATE TABLE t (a INT);
+# 2. Flush the logs.
+FLUSH LOGS;
+# 3. Insert a row
+INSERT INTO t VALUES (1), (2), (3);
+
+# 4. Stop the server.
+--source include/stop_mysqld.inc
+# 5. Sleep for the same amount of seconds we'll use in
+#    `--binlog-expire-logs-seconds`.
+--sleep $expire_seconds
+# 6. Start the server with `--binlog-expire-logs-seconds`.
+--let $restart_parameters = restart: --binlog-expire-logs-seconds=$expire_seconds
+--source include/start_mysqld.inc
+
+--let $server_uuid = `SELECT @@server_uuid`
+
+# 7. Ensure GTID_PURGED is set at the correct value.
+--let $assert_text = GTID_PURGED is consistent
+--let $assert_cond = "[SELECT @@gtid_purged]" = "$server_uuid:1-2"
+--source include/assert.inc
+
+# 8. Ensure that we have only one binary log file.
+--let $statement = SHOW BINARY LOGS
+--let $column = Log_name
+--source include/get_row_count.inc
+--let $assert_text = We have 1 binlog file
+--let $assert_cond = $row_count = 1
+--source include/assert.inc
+
+DROP TABLE t;
+--replace_result $saved_expire_seconds SAVED_EXPIRE_SECONDS
+--eval SET GLOBAL binlog_expire_logs_seconds = $saved_expire_seconds

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2020, Oracle and/or its affiliates.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -81,7 +81,7 @@ page state. */
 struct buf_page_desc_t {
   const char *type_str; /*!< String explain the page
                         type/state */
-  ulint type_value;     /*!< Page type or page state */
+  size_t type_value;    /*!< Page type or page state */
 };
 
 /** We also define I_S_PAGE_TYPE_INDEX as the Index Page's position
@@ -109,7 +109,7 @@ table is changed, this value has to be increased accordingly */
 constexpr uint8_t i_s_innodb_plugin_version_postfix = 2;
 
 /** I_S.innodb_* views version. It would be X.Y and X should be the server major
- * version while Y is the InnoDB I_S views version, starting from 1 */
+version while Y is the InnoDB I_S views version, starting from 1 */
 constexpr uint64_t i_s_innodb_plugin_version =
     (INNODB_VERSION_MAJOR << 8 | i_s_innodb_plugin_version_postfix);
 
@@ -157,36 +157,54 @@ static buf_page_desc_t i_s_page_type[] = {
 currently cached in the buffer pool. It will be used to populate
 table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE */
 struct buf_page_info_t {
-  ulint block_id;            /*!< Buffer Pool block ID */
-  unsigned space_id : 32;    /*!< Tablespace ID */
-  unsigned page_num : 32;    /*!< Page number/offset */
-  unsigned access_time : 32; /*!< Time of first access */
-  unsigned pool_id : MAX_BUFFER_POOLS_BITS;
-  /*!< Buffer Pool ID. Must be less than
-  MAX_BUFFER_POOLS */
-  unsigned flush_type : 2;        /*!< Flush type */
-  unsigned io_fix : 2;            /*!< type of pending I/O operation */
-  unsigned fix_count : 19;        /*!< Count of how manyfold this block
-                                  is bufferfixed */
-  unsigned hashed : 1;            /*!< Whether hash index has been
-                                  built on this page */
-  unsigned is_old : 1;            /*!< TRUE if the block is in the old
-                                  blocks in buf_pool->LRU_old */
-  unsigned freed_page_clock : 31; /*!< the value of
-                             buf_pool->freed_page_clock */
-  unsigned zip_ssize : PAGE_ZIP_SSIZE_BITS;
-  /*!< Compressed page size */
-  unsigned page_state : BUF_PAGE_STATE_BITS; /*!< Page state */
-  unsigned page_type : I_S_PAGE_TYPE_BITS;   /*!< Page type */
-  unsigned num_recs : UNIV_PAGE_SIZE_SHIFT_MAX - 2;
-  /*!< Number of records on Page */
-  unsigned data_size : UNIV_PAGE_SIZE_SHIFT_MAX;
-  /*!< Sum of the sizes of the records */
-  lsn_t newest_mod;       /*!< Log sequence number of
-                          the youngest modification */
-  lsn_t oldest_mod;       /*!< Log sequence number of
-                          the oldest modification */
-  space_index_t index_id; /*!< Index ID if a index page */
+  /** Buffer Pool block ID */
+  size_t block_id;
+  /** Tablespace ID */
+  space_id_t space_id;
+  /** Page number, translating to offset in tablespace file. */
+  page_no_t page_num;
+  /** Log sequence number of the most recent modification. */
+  lsn_t newest_mod;
+  /** Log sequence number of the oldest modification. */
+  lsn_t oldest_mod;
+  /** Index ID if a index page. */
+  space_index_t index_id;
+  /** Time of first access. */
+  uint32_t access_time;
+  /** Count of how many-fold this block is buffer-fixed. */
+  uint32_t fix_count;
+  /** The value of buf_pool->freed_page_clock. */
+  uint32_t freed_page_clock;
+
+  /* The following two fields should fit 32 bits. */
+
+  /** Number of records on the page. */
+  uint32_t num_recs : UNIV_PAGE_SIZE_SHIFT_MAX - 2;
+  /** Sum of the sizes of the records. */
+  uint32_t data_size : UNIV_PAGE_SIZE_SHIFT_MAX;
+
+  /* The following fields are a few bits long, should fit in 16 bits. */
+
+  /** True if the page was already stale - a page from a already deleted
+  tablespace. */
+  uint16_t is_stale : 1;
+  /** Last flush request type. */
+  uint16_t flush_type : 2;
+  /** Type of pending I/O operation. */
+  uint16_t io_fix : 2;
+  /** Whether hash index has been built on this page. */
+  uint16_t hashed : 1;
+  /** True if the block is in the old blocks in buf_pool->LRU_old. */
+  uint16_t is_old : 1;
+  /** Compressed page size. */
+  uint16_t zip_ssize : PAGE_ZIP_SSIZE_BITS;
+  /** Buffer Pool ID. Must be less than MAX_BUFFER_POOLS. */
+
+  uint8_t pool_id;
+  /** Page state. */
+  buf_page_state page_state;
+  /** Page type. */
+  uint8_t page_type;
 };
 
 /** Maximum number of buffer page info we would cache. */
@@ -2985,7 +3003,7 @@ static int i_s_fts_index_table_fill_one_index(
   int ret = 0;
 
   DBUG_TRACE;
-  DBUG_ASSERT(!dict_index_is_online_ddl(index));
+  assert(!dict_index_is_online_ddl(index));
 
   heap = mem_heap_create(1024);
 
@@ -3260,7 +3278,7 @@ static int i_s_fts_config_fill(
 
   if (!ib_vector_is_empty(user_table->fts->indexes)) {
     index = (dict_index_t *)ib_vector_getp_const(user_table->fts->indexes, 0);
-    DBUG_ASSERT(!dict_index_is_online_ddl(index));
+    assert(!dict_index_is_online_ddl(index));
   }
 
   while (fts_config_key[i]) {
@@ -4176,6 +4194,12 @@ static ST_FIELD_INFO i_s_innodb_buffer_page_fields_info[] = {
      STRUCT_FLD(field_flags, MY_I_S_UNSIGNED), STRUCT_FLD(old_name, ""),
      STRUCT_FLD(open_method, 0)},
 
+#define IDX_BUFFER_PAGE_IS_STALE 20
+    {STRUCT_FLD(field_name, "IS_STALE"), STRUCT_FLD(field_length, 3),
+     STRUCT_FLD(field_type, MYSQL_TYPE_STRING), STRUCT_FLD(value, 0),
+     STRUCT_FLD(field_flags, MY_I_S_MAYBE_NULL), STRUCT_FLD(old_name, ""),
+     STRUCT_FLD(open_method, 0)},
+
     END_OF_ST_FIELD_INFO};
 
 /** Fill Information Schema table INNODB_BUFFER_PAGE with information
@@ -4336,6 +4360,9 @@ static int i_s_innodb_buffer_page_fill(
     OK(fields[IDX_BUFFER_PAGE_FREE_CLOCK]->store(page_info->freed_page_clock,
                                                  true));
 
+    OK(field_store_string(fields[IDX_BUFFER_PAGE_IS_STALE],
+                          (page_info->is_stale) ? "YES" : "NO"));
+
     if (schema_table_store_record(thd, table)) {
       return 1;
     }
@@ -4436,7 +4463,6 @@ static void i_s_innodb_buffer_page_get_info(
   BUF_BLOCK_ZIP_DIRTY or BUF_BLOCK_FILE_PAGE */
   if (buf_page_in_file(bpage)) {
     const byte *frame;
-    ulint page_type;
 
     page_info->space_id = bpage->id.space();
 
@@ -4454,11 +4480,13 @@ static void i_s_innodb_buffer_page_get_info(
 
     page_info->zip_ssize = bpage->zip.ssize;
 
-    page_info->io_fix = bpage->io_fix;
+    page_info->io_fix = bpage->get_io_fix();
 
     page_info->is_old = bpage->old;
 
     page_info->freed_page_clock = bpage->freed_page_clock;
+
+    page_info->is_stale = bpage->was_stale();
 
     switch (buf_page_get_io_fix(bpage)) {
       case BUF_IO_NONE:
@@ -4486,7 +4514,7 @@ static void i_s_innodb_buffer_page_get_info(
       frame = bpage->zip.data;
     }
 
-    page_type = fil_page_get_type(frame);
+    auto page_type = fil_page_get_type(frame);
 
     i_s_innodb_set_page_type(page_info, page_type, frame);
   } else {
@@ -4950,6 +4978,9 @@ static int i_s_innodb_buf_page_lru_fill(
         break;
       case BUF_IO_WRITE:
         OK(field_store_string(fields[IDX_BUF_LRU_PAGE_IO_FIX], "IO_WRITE"));
+        break;
+      case BUF_IO_PIN:
+        OK(field_store_string(fields[IDX_BUF_LRU_PAGE_IO_FIX], "IO_PIN"));
         break;
     }
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 
 #include "mysql/harness/net_ts/internet.h"
 #include "mysqlrouter/utils.h"
+#include "router_test_helpers.h"
 #include "tcp_port_pool.h"
 
 using mysql_harness::Path;
@@ -212,78 +213,7 @@ UniqueId::UniqueId(UniqueId &&other) {
   other.lock_file_name_ = "";
 }
 
-#ifndef _WIN32
-/*
- * Check whether we can connect on a given port.
- * It returns false if the connect returns any error (ECONNREFUSED, ENETUNREACH,
- * EACCESS etc.)
- * */
-static stdx::expected<void, std::error_code> try_to_connect(
-    net::io_context &io_ctx, uint16_t port,
-    const std::chrono::milliseconds socket_probe_timeout,
-    const std::string &hostname = "127.0.0.1") {
-  net::ip::tcp::resolver resolver(io_ctx);
-
-  const auto resolve_res = resolver.resolve(hostname, std::to_string(port));
-  if (!resolve_res) {
-    return resolve_res.get_unexpected();
-  }
-
-  std::error_code last_ec{make_error_code(std::errc::address_not_available)};
-
-  // try all known addresses of the hostname
-  for (const auto &resolved : resolve_res.value()) {
-    net::ip::tcp::socket sock(io_ctx);
-    const auto open_res = sock.open(resolved.endpoint().protocol());
-    if (!open_res) {
-      continue;
-    }
-
-    sock.native_non_blocking(true);
-    const auto connect_res = sock.connect(resolved.endpoint());
-
-    if (!connect_res) {
-      if (connect_res.error() ==
-              make_error_condition(std::errc::operation_in_progress) ||
-          connect_res.error() ==
-              make_error_condition(std::errc::operation_would_block)) {
-        std::array<pollfd, 1> fds = {{{sock.native_handle(), POLLOUT, 0}}};
-        const auto wait_res =
-            net::impl::poll::poll(fds.data(), fds.size(), socket_probe_timeout);
-
-        if (!wait_res) {
-          last_ec = wait_res.error();
-        } else {
-          net::socket_base::error sock_err;
-          const auto status_res = sock.get_option(sock_err);
-          if (!status_res) {
-            last_ec = status_res.error();
-
-          } else if (sock_err.value() != 0) {
-            last_ec = net::impl::socket::make_error_code(sock_err.value());
-
-          } else {
-            // success, we can continue
-            return {};
-          }
-        }
-      } else {
-        last_ec = connect_res.error();
-      }
-    } else {
-      // everything is fine, we are connected
-      return {};
-    }
-
-    // it failed, try the next address
-  }
-
-  return stdx::make_unexpected(last_ec);
-}
-#endif
-
-uint16_t TcpPortPool::get_next_available(
-    const std::chrono::milliseconds socket_probe_timeout) {
+uint16_t TcpPortPool::get_next_available() {
   net::io_context io_ctx;
 
   while (true) {
@@ -302,25 +232,6 @@ uint16_t TcpPortPool::get_next_available(
     unsigned result = 10000 + unique_ids_.back().get() * kPortsPerFile +
                       number_of_ids_used_++;
 
-#ifndef _WIN32
-    // there is no lock file for a given port but let's also check if there
-    // really is nothing that will accept our connection attempt on that port
-    const auto connect_res =
-        try_to_connect(io_ctx, result, socket_probe_timeout, "127.0.0.1");
-    if (!connect_res) {
-      // connect failed, looks like not in use.
-      return result;
-    }
-
-    std::cerr << "get_next_available(): port " << result
-              << " seems busy, not using\n";
-#else
-    UNREFERENCED_PARAMETER(socket_probe_timeout);
-    // On Windows we skip that as this introduces a big time overhead (500ms)
-    // for each try. Windows' connect() will not fail right away but will block
-    // for that long if the port is available (which is most of the cases we
-    // expect here).
-    return result;
-#endif
+    if (is_port_available(result)) return result;
   }
 }

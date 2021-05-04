@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -794,10 +794,10 @@ AIO *AIO::s_sync;
 
 #if defined(LINUX_NATIVE_AIO)
 /** timeout for each io_getevents() call = 500ms. */
-static const ulint OS_AIO_REAP_TIMEOUT = 500000000UL;
+static constexpr uint64_t OS_AIO_REAP_TIMEOUT = 500000000UL;
 
-/** time to sleep, in microseconds if io_setup() returns EAGAIN. */
-static const ulint OS_AIO_IO_SETUP_RETRY_SLEEP = 500000UL;
+/** time to sleep, in milliseconds if io_setup() returns EAGAIN. */
+static constexpr uint64_t OS_AIO_IO_SETUP_RETRY_SLEEP_MS = 500UL;
 
 /** number of attempts before giving up on io_setup(). */
 static const int OS_AIO_IO_SETUP_RETRY_ATTEMPTS = 5;
@@ -1008,7 +1008,7 @@ file::Block *os_alloc_block() noexcept {
       break;
     }
 
-    os_thread_yield();
+    std::this_thread::yield();
 
     ++retry;
   }
@@ -1511,7 +1511,7 @@ static bool os_aio_validate_skip() {
 #define USE_FILE_LOCK
 #if defined(UNIV_HOTBACKUP) || defined(_WIN32)
 /* InnoDB Hot Backup does not lock the data files.
- * On Windows, mandatory locking is used.
+ On Windows, mandatory locking is used.
  */
 #undef USE_FILE_LOCK
 #endif /* UNIV_HOTBACKUP || _WIN32 */
@@ -1706,6 +1706,7 @@ static dberr_t os_file_io_complete(const IORequest &type, os_file_t fh,
 
     return (ret);
   } else if (type.is_read()) {
+    ut_ad(!type.is_row_log());
     Encryption encryption(type.encryption_algorithm());
 
     ret = encryption.decrypt(type, buf, src_len, scratch, len);
@@ -2631,7 +2632,8 @@ bool AIO::linux_create_io_ctx(ulint max_events, io_context_t *io_ctx) {
 
           ib::warn(ER_IB_MSG_758) << "io_setup() attempt " << n_retries << ".";
 
-          os_thread_sleep(OS_AIO_IO_SETUP_RETRY_SLEEP);
+          std::this_thread::sleep_for(
+              std::chrono::milliseconds(OS_AIO_IO_SETUP_RETRY_SLEEP_MS));
 
           continue;
         }
@@ -2889,7 +2891,7 @@ static int os_file_fsync_posix(os_file_t file) {
         }
 
         /* 0.2 sec */
-        os_thread_sleep(200000);
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
         break;
 
       case EIO:
@@ -3309,7 +3311,7 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
       ib::info(ER_IB_MSG_780) << "Retrying to lock the first data file";
 
       for (int i = 0; i < 100; i++) {
-        os_thread_sleep(1000000);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
 
         if (!os_file_lock(file.m_file, name)) {
           *success = true;
@@ -3798,13 +3800,17 @@ static bool os_is_sparse_file_supported_win32(const char *filename) {
         << "Failed to get the volume path name for: " << filename
         << "- OS error number " << GetLastError();
 
-    return (false);
+    return false;
   }
 
   DWORD flags;
 
-  GetVolumeInformation(volname, NULL, MAX_PATH, NULL, NULL, &flags, NULL,
-                       MAX_PATH);
+  result = GetVolumeInformation(volname, NULL, MAX_PATH, NULL, NULL, &flags,
+                                NULL, MAX_PATH);
+
+  if (!result) {
+    return false;
+  }
 
   return (flags & FILE_SUPPORTS_SPARSE_FILES) ? true : false;
 }
@@ -4487,13 +4493,36 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
     *exist = true;
   }
 
-  ulint count = 0;
+  char name_to_delete[MAX_PATH + 8];
 
+  uint32_t count = 0;
+  /* On Windows, deleting a file may fail if some other process uses it.
+  However, the file might have been opened with FILE_SHARE_DELETE mode, in
+  which case the delete will succeed, but the file will not be deleted,
+  only marked for deletion when all handles are closed. To work around this, we
+  first move the file to new randomized name, which will not collide with a real
+  name. */
+  for (DWORD random_id = GetTickCount(); count < 1000; ++count, ++random_id) {
+    random_id &= 0xFFFF;
+    sprintf(name_to_delete, "%s.%04X.d", name, random_id);
+    if (MoveFile(name, name_to_delete)) break;
+    auto err = GetLastError();
+    /* We have chosen the "random" value that is already being used. Try another
+    one. */
+    if (err == ERROR_ALREADY_EXISTS) continue;
+
+    if (err == ERROR_ACCESS_DENIED) continue;
+
+    /* We just failed to move the file. It may be being used without
+    FILE_SHARE_DELETE mode. We just try to delete the original filename.*/
+    sprintf(name_to_delete, "%s", name);
+
+    break;
+  }
+
+  count = 0;
   for (;;) {
-    /* In Windows, deleting an .ibd file may fail if mysqlbackup
-    is copying it */
-
-    bool ret = DeleteFile((LPCTSTR)name);
+    bool ret = DeleteFile((LPCTSTR)name_to_delete);
 
     if (ret) {
       return (true);
@@ -4512,17 +4541,26 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
 
     ++count;
 
-    if (count > 100 && 0 == (count % 10)) {
+    if (count % 10 == 0) {
       /* Print error information */
       os_file_get_last_error(true);
 
-      ib::warn(ER_IB_MSG_803) << "Delete of file '" << name << "' failed.";
+      if (strcmp(name, name_to_delete) == 0) {
+        ib::warn(ER_IB_MSG_803)
+            << "Failed to delete file '" << name_to_delete
+            << "'. Please check if any other process is using it.";
+      } else {
+        ib::warn(ER_IB_MSG_803)
+            << "Failed to delete file '" << name_to_delete
+            << "', which was renamed from '" << name
+            << "'. Please check if any other process is using it.";
+      }
     }
 
-    /* Sleep for a second */
-    os_thread_sleep(1000000);
+    /* Sleep for a 0.1 second */
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    if (count > 2000) {
+    if (count > 20) {
       return (false);
     }
   }
@@ -4532,46 +4570,13 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
 @param[in]	name		File path as NUL terminated string
 @return true if success */
 bool os_file_delete_func(const char *name) {
-  ulint count = 0;
-
-  for (;;) {
-    /* In Windows, deleting an .ibd file may fail if mysqlbackup
-    is copying it */
-
-    BOOL ret = DeleteFile((LPCTSTR)name);
-
-    if (ret) {
-      return (true);
-    }
-
-    if (GetLastError() == ERROR_FILE_NOT_FOUND) {
-      /* If the file does not exist, we classify this as
-      a 'mild' error and return */
-
-      return (false);
-    }
-
-    ++count;
-
-    if (count > 100 && 0 == (count % 10)) {
-      /* print error information */
-      os_file_get_last_error(true);
-
-      ib::warn(ER_IB_MSG_804)
-          << "Cannot delete file '" << name << "'. Are you running mysqlbackup"
-          << " to back up the file?";
-    }
-
-    /* sleep for a second */
-    os_thread_sleep(1000000);
-
-    if (count > 2000) {
-      return (false);
-    }
+  bool existed;
+  if (os_file_delete_if_exists_func(name, &existed)) {
+    /* File did not exist already, this is an error. */
+    return existed;
+  } else {
+    return false;
   }
-
-  ut_error;
-  return (false);
 }
 
 /** NOTE! Use the corresponding macro os_file_rename(), not directly this
@@ -4995,7 +5000,7 @@ void Dir_Walker::walk_win32(const Path &basedir, bool recursive, Function &&f) {
 }
 #endif /* !_WIN32*/
 
-/** Does a syncronous read or write depending upon the type specified
+/** Does a synchronous read or write depending upon the type specified
 In case of partial reads/writes the function tries
 NUM_RETRIES_ON_PARTIAL_IO times to read/write the complete data.
 @param[in]	in_type		IO flags
@@ -5401,13 +5406,13 @@ static MY_ATTRIBUTE((warn_unused_result)) bool os_file_handle_error_cond_exit(
 
     case OS_FILE_SHARING_VIOLATION:
 
-      os_thread_sleep(10000000); /* 10 sec */
+      std::this_thread::sleep_for(std::chrono::seconds(10));
       return (true);
 
     case OS_FILE_OPERATION_ABORTED:
     case OS_FILE_INSUFFICIENT_RESOURCE:
 
-      os_thread_sleep(100000); /* 100 ms */
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
       return (true);
 
     case OS_FILE_NAME_TOO_LONG:
@@ -6558,7 +6563,7 @@ void os_create_block_cache() {
     ut_a(it->m_ptr == nullptr);
 
     /* Allocate double of max page size memory, since
-    compress could generate more bytes than orgininal
+    compress could generate more bytes than original
     data. */
     it->m_ptr = static_cast<byte *>(ut_malloc_nokey(BUFFER_BLOCK_SIZE));
 

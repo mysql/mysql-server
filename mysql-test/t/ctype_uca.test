@@ -625,3 +625,21 @@ SELECT CAST(CONCAT(c1) AS DOUBLE) FROM t1double;
 SELECT GROUP_CONCAT(c1) FROM t1double GROUP BY c1 COLLATE utf8_icelandic_ci;
 
 DROP TABLE t1double;
+
+--echo #
+--echo # Bug #32385934 ASSERTION `NUM_CODEPOINTS >= SCANNER.GET_CHAR_INDEX()'
+--echo #               FAILED|CTYPE-UCA.CC
+--echo #
+
+CREATE TABLE t1 (
+  col_real_key double DEFAULT NULL,
+  col_bigint_key bigint DEFAULT NULL
+);
+INSERT INTO t1 VALUES (-20162.341,8262411111801246601);
+
+SELECT alias1.col_real_key / alias1.col_bigint_key AS field1,
+       alias1.col_bigint_key AS field2
+       FROM t1 AS alias1
+       ORDER BY LEAST(field2, field1 COLLATE utf8mb4_croatian_ci);
+
+DROP TABLE t1;

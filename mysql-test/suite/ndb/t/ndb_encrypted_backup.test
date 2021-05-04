@@ -124,7 +124,28 @@ if (`select @windows`)
 --error 255
 --exec $NDB_MGM -e "start backup encrypt password='abba' '"
 
+write_file $MYSQL_TMP_DIR/backup_password.txt;
+SECRET
+EOF
+
+--echo
+--echo # Test START BACKUP ENCRYPT with password from stdin
+replace_regex /[0-9]+/X/ ;
+exec $NDB_MGM 2>&1 < $MYSQL_TMP_DIR/backup_password.txt
+       --backup-password-from-stdin
+       --execute="START BACKUP ENCRYPT";
+
+--echo
+--echo # Make START BACKUP trigger encrypted backup.
+replace_regex /[0-9]+/X/ ;
+exec $NDB_MGM 2>&1 < $MYSQL_TMP_DIR/backup_password.txt
+        --encrypt-backup
+        --backup-password-from-stdin
+        --execute="START BACKUP";
+
 #cleanup
 DROP TABLE t1;
+
+remove_file $MYSQL_TMP_DIR/backup_password.txt;
 
 --source suite/ndb/include/backup_restore_cleanup.inc

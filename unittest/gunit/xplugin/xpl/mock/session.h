@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,9 @@ namespace mock {
 
 class Session : public iface::Session {
  public:
+  Session();
+  virtual ~Session() override;
+
   MOCK_METHOD(Session_id, session_id, (), (const, override));
   MOCK_METHOD(ngs::Error_code, init, (), (override));
   MOCK_METHOD(void, on_close, (const Close_flags), (override));

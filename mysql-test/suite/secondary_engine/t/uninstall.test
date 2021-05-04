@@ -1,6 +1,3 @@
-# Secondary engine not supported, so it won't lock the plugin.
---source include/not_hypergraph.inc
-
 --echo #
 --echo # Bug#28624707: MYSQL TRYING TO OFFLOAD QUERIES TO SECONDARY ENGINE
 --echo #               AFTER PLUGIN UNINSTALL
@@ -16,19 +13,20 @@ CREATE TABLE t(x INT) SECONDARY_ENGINE MOCK;
 INSERT INTO t VALUES (1);
 ALTER TABLE t SECONDARY_LOAD;
 
---echo Should have "secondary engine" in the plan.
-ANALYZE TABLE t;
-EXPLAIN SELECT * FROM t;
+--echo # Should use the secondary engine.
+FLUSH STATUS;
 SELECT * FROM t;
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
 
 --echo # The plugin cannot be unloaded because there are still references
 --echo # to it (from the table cache). Will give a warning about that.
 UNINSTALL PLUGIN mock;
 SELECT PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS WHERE PLUGIN_NAME='MOCK';
 
---echo # Should not have "secondary engine" in the plan.
-EXPLAIN SELECT * FROM t;
+--echo # Should not use the secondary engine.
+FLUSH STATUS;
 SELECT * FROM t;
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
 
 # Cleanup. The plugin is no longer referenced and will be uninstalled.
 DROP TABLE t;

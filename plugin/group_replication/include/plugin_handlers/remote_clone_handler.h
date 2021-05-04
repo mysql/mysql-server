@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -71,13 +71,13 @@ class Remote_clone_handler : public Group_event_observer {
                        number of valid clone donors
                        number of valid recovery donors
                        number of valid recovering donors
-                       number of gtids missing
+                       whether clone activation threshold was breached or not
 
     @return whether or not we managed to get the info
       @retval 0    the info was retrieved
       @retval != 0 some error occurred
   */
-  int extract_donor_info(std::tuple<uint, uint, uint, ulonglong> *donor_info);
+  int extract_donor_info(std::tuple<uint, uint, uint, bool> *donor_info);
 
   /**
     Check if clone or distributed recovery shall be used for provisioning
@@ -272,13 +272,13 @@ class Remote_clone_handler : public Group_event_observer {
   */
   bool evaluate_error_code(int error_code);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Function for debug points
     @note this function can have a parameter for different debug points
   */
   void gr_clone_debug_point();
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
   // Settings to fall back to recovery
   /** The group to which the recovering member belongs */

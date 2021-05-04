@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,6 @@
 #include <mysql/components/service_implementation.h>
 
 struct PFS_thread;
-class PFS_table_context;
 
 /**
   Entry point to the performance schema implementation.
@@ -65,21 +64,6 @@ extern struct PSI_tls_channel_bootstrap pfs_tls_channel_bootstrap;
 
 /** Performance schema Thread Local Storage.  */
 extern thread_local PFS_thread *THR_PFS;
-
-/**
-  Performance schema Thread Local Storage keys; indexes into THR_PFS_contexts.
-*/
-enum THR_PFS_key {
-  THR_PFS_SV,   // session_variables
-  THR_PFS_VG,   // global_variables
-  THR_PFS_VBT,  // variables_by_thread
-  THR_PFS_SG,   // global_status
-  THR_PFS_SS,   // session_status
-  THR_PFS_SBT,  // status_by_thread
-  THR_PFS_SBU,  // status_by_user
-  THR_PFS_SBH,  // status_by_host
-  THR_PFS_NUM_KEYS
-};
 
 /* Only Innodb so far */
 #define COUNT_DATA_LOCK_ENGINES 1

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@
 
 
 class AsyncIoThread;
+class FsReadWriteReq;
 
 // Because one NDB Signal request can result in multiple requests to
 // AsyncFile one class must be made responsible to keep track
@@ -52,6 +53,7 @@ public:
 
   static Uint32 translateErrno(int aErrno);
 
+  void callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const;
 protected:
   BLOCK_DEFINES(Ndbfs);
 

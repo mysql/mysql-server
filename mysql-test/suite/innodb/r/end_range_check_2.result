@@ -26,3 +26,26 @@ COMMIT;
 SET DEBUG_SYNC='RESET';
 DROP PROCEDURE populate_t1;
 DROP TABLE t1;
+#
+# Bug#32291506 ASSERTION FAILURE: ROW0SEL.CC: MYSQL_COL_LEN == LEN
+#
+CREATE TABLE t1 (
+c0 int,
+c1 char(200) CHARACTER SET utf32,
+c2 int GENERATED ALWAYS AS (c1) VIRTUAL,
+c3 int,
+PRIMARY KEY (c0, c1),
+KEY i1 (c2, c1(1))
+);
+INSERT  INTO t1(c0,c1,c3) VALUES (1,'1',1);
+START TRANSACTION;
+DELETE FROM t1;
+SET DEBUG = "+d, compare_end_range";
+# No lock Range select with KEY i1 and end range check
+SELECT * FROM t1  WHERE c2 < 0;
+c0	c1	c2	c3
+# X lock Range select with KEY i1 and end range check
+DELETE FROM t1  WHERE c2 < 0;
+SET DEBUG = "-d, compare_end_range";
+COMMIT;
+DROP TABLE t1;

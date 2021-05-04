@@ -1,0 +1,87 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating custom global manifest file for MySQL server
+# Creating custom global configuration file for keyring component: component_keyring_file
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# create bootstrap file
+# Stop the MTR default DB server
+# Run the bootstrap command of datadir1
+# Start the DB server with datadir1
+DROP DATABASE IF EXISTS tde_db;
+CREATE DATABASE tde_db;
+USE tde_db;
+SELECT status_key, status_value FROM
+performance_schema.keyring_component_status
+WHERE status_key LIKE '%name%' OR status_key LIKE '%status%';
+status_key	status_value
+Component_name	component_keyring_file
+Implementation_name	component_keyring_file
+Component_status	Active
+SET GLOBAL innodb_redo_log_encrypt = 1;
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+CREATE TABLE tde_db.t1 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t1 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t1;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+CREATE TABLE tde_db.t2 (a BIGINT PRIMARY KEY, b LONGBLOB)
+ENCRYPTION='Y' ENGINE=InnoDB;
+INSERT INTO t2 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t2;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+CREATE TABLE tde_db.t3 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t3 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t3;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+CREATE TABLE tde_db.t4 (a BIGINT PRIMARY KEY, b LONGBLOB)
+ENCRYPTION='Y' ENGINE=InnoDB;
+INSERT INTO t4 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t4;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+SELECT @@global.innodb_redo_log_encrypt ;
+@@global.innodb_redo_log_encrypt
+1
+CREATE TABLE tde_db.t5 (a BIGINT PRIMARY KEY, b LONGBLOB) ENGINE=InnoDB;
+INSERT INTO t5 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t5;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+CREATE TABLE tde_db.t6 (a BIGINT PRIMARY KEY, b LONGBLOB)
+ENCRYPTION='Y' ENGINE=InnoDB;
+INSERT INTO t6 (a, b) VALUES (1, REPEAT('a', 6*512*512));
+SELECT a,LEFT(b,10) FROM tde_db.t6;
+a	LEFT(b,10)
+1	aaaaaaaaaa
+DROP DATABASE tde_db;
+# Taking backup of global manifest file for MySQL server
+# Try starting without keyring : Error
+# Search for error message
+Pattern "Redo log was encrypted, but keyring is not loaded" found
+Pattern "Aborting" found
+# Restart without keyring plugin possible if redo files removed
+# Start the DB server with datadir1
+# Try starting without keyring and --innodb_force_recovery=SRV_FORCE_NO_LOG_REDO. 
+# Start the DB server with datadir1
+SELECT 1;
+1
+1
+# Restore global manifest file for MySQL server from backup
+# ----------------------------------------------------------------------
+# Teardown
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing global configuration file for keyring component: component_keyring_file
+# Removing global manifest file for MySQL server
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

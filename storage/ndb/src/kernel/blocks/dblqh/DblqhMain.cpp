@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -5581,17 +5581,18 @@ Dblqh::updatePackedList(Signal* signal, HostRecord * ahostptr, Uint16 hostId)
 }//Dblqh::updatePackedList()
 
 void
-Dblqh::execREAD_PSEUDO_REQ(Signal* signal)
+Dblqh::execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out, Uint32 out_words)
 {
   jamEntryDebug();
   TcConnectionrecPtr regTcPtr;
-  regTcPtr.i = signal->theData[0];
+  regTcPtr.i = opPtrI;
   ndbrequire(tcConnect_pool.getValidPtr(regTcPtr));
   
-  switch(signal->theData[1])
+  switch (attrId)
   {
   case AttributeHeader::RANGE_NO:
-    signal->theData[0] = regTcPtr.p->m_scan_curr_range_no;
+    ndbassert(1 <= out_words);
+    out[0] = regTcPtr.p->m_scan_curr_range_no;
     break;
   case AttributeHeader::RECORDS_IN_RANGE:
   case AttributeHeader::INDEX_STAT_KEY:
@@ -5602,8 +5603,7 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal)
     ScanRecordPtr tmp;
     tmp.i = regTcPtr.p->tcScanRec;
     ndbrequire(c_scanRecordPool.getValidPtr(tmp));
-    signal->theData[0] = tmp.p->scanAccPtr;
-    c_tux->execREAD_PSEUDO_REQ(signal);
+    c_tux->execREAD_PSEUDO_REQ(tmp.p->scanAccPtr, attrId, out, out_words);
     break;
   }
   case AttributeHeader::LOCK_REF:
@@ -5614,15 +5614,17 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal)
      *  - Bottom 32-bits of LQH-local key-request id (for uniqueness)
      */
     jam();
-    signal->theData[0] = (getOwnNodeId() << 16) | regTcPtr.p->fragmentid; 
-    signal->theData[1] = regTcPtr.p->tcOprec;
-    signal->theData[2] = (Uint32) regTcPtr.p->lqhKeyReqId;
+    ndbassert(3 <= out_words);
+    out[0] = (getOwnNodeId() << 16) | regTcPtr.p->fragmentid;
+    out[1] = regTcPtr.p->tcOprec;
+    out[2] = (Uint32) regTcPtr.p->lqhKeyReqId;
     break;
   }
   case AttributeHeader::OP_ID:
   {
     jam();
-    memcpy(signal->theData, &regTcPtr.p->lqhKeyReqId, 8);
+    ndbassert(8 <= out_words * 4);
+    memcpy(out, &regTcPtr.p->lqhKeyReqId, 8);
     break;
   }
   case AttributeHeader::CORR_FACTOR64:
@@ -5636,8 +5638,9 @@ Dblqh::execREAD_PSEUDO_REQ(Signal* signal)
       add = tmp.p->m_curr_batch_size_rows;
     }
 
-    signal->theData[0] = regTcPtr.p->m_corrFactorLo + add;
-    signal->theData[1] = regTcPtr.p->m_corrFactorHi;
+    ndbassert(2 <= out_words);
+    out[0] = regTcPtr.p->m_corrFactorLo + add;
+    out[1] = regTcPtr.p->m_corrFactorHi;
     break;
   }
   default:
@@ -25526,9 +25529,9 @@ void Dblqh::checkInitCompletedLab(Signal* signal,
   LogFileRecordPtr logFilePtr;
   logPartPtrP->logPartState = LogPartRecord::SR_FIRST_PHASE_COMPLETED;
   g_eventLogger->info("LDM(%u): Completed REDO log initialisation of"
-                      " logPart = %u",
+                      " logPart %u",
                       instance(),
-                      logPartPtrP->ptrI);
+                      logPartPtrP->logPartNo);
   csrExecUndoLogState = EULS_COMPLETED;
 /*---------------------------------------------------------------------------*/
 /* WE HAVE NOW INITIALISED ALL FILES IN THIS LOG PART. WE CAN NOW SET THE    */
@@ -25759,7 +25762,7 @@ void Dblqh::openLogfileInit(Signal* signal, LogFileRecordPtr logFilePtr)
 }//Dblqh::openLogfileInit()
 
 void
-Dblqh::execFSWRITEREQ(Signal* signal)
+Dblqh::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */
 {
   /**
    * This is currently run in other thread -> no jam
@@ -25772,7 +25775,6 @@ Dblqh::execFSWRITEREQ(Signal* signal)
    * be written to safely since they are owned by the file system thread.
    */
   Ptr<GlobalPage> page_ptr;
-  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
   m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
 
   LogFileRecordPtr currLogFilePtr;
@@ -35784,9 +35786,11 @@ void Dblqh::get_redo_stats(Uint64 &usage_in_mbytes,
 {
   /**
    * This method assumes that all log parts have the same size.
-   * It reports the total written number of bytes in all parts.
    * It reports the size of one part and it reports the usage
    * level on the part with most Mbytes used.
+   * It reports the total written bytes in the part with the
+   * most bytes written.
+   * These parts may not be the same part.
    */
   size_in_mbytes = 0;
   usage_in_mbytes = 0;
@@ -35825,11 +35829,15 @@ void Dblqh::get_redo_stats(Uint64 &usage_in_mbytes,
     Uint64 current_written = logPartPtr.p->m_total_written_words;
     logPartPtr.p->m_last_total_written_words = current_written;
     Uint64 written_in_bytes = 4 * (current_written - last_written);
-    written_since_last_in_bytes += written_in_bytes;
     if (mbyte_used > usage_in_mbytes)
     {
       jam();
       usage_in_mbytes = mbyte_used;
+    }
+    if (written_in_bytes > written_since_last_in_bytes)
+    {
+      jam();
+      written_since_last_in_bytes = written_in_bytes;
     }
   }
 }
@@ -36779,7 +36787,8 @@ Dblqh::execDROP_TRIG_IMPL_REF(Signal* signal)
              DropTrigImplRef::SignalLength, JBB);
 }
 
-Uint32 Dblqh::calcPageCheckSum(LogPageRecordPtr logP){
+Uint32 Dblqh::calcPageCheckSum(LogPageRecordPtr logP) const
+{
     Uint32 checkSum = 37;
 #ifdef VM_TRACE
     checkSum = computeXorChecksum(
@@ -37784,12 +37793,10 @@ Dblqh::sendPoolShrink(const Uint32 pool_index)
   c_transient_pools_shrinking.set(pool_index);
   if (need_send)
   {
-    SignalT<2> signal2[1];
-    Signal* signal = new (&signal2[0]) Signal(0);
-    memset(signal2, 0, sizeof(signal2));
+    Signal25 signal[1] = {};
     signal->theData[0] = ZLQH_SHRINK_TRANSIENT_POOLS;
     signal->theData[1] = pool_index;
-    sendSignal(reference(), GSN_CONTINUEB, (Signal*)signal, 2, JBB);
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -117,7 +117,7 @@ bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
     Default Info field length is 100. Verbose field length is limited to the
     size of the INFO columns in the Performance Schema.
   */
-  DBUG_ASSERT(PROCESS_LIST_WIDTH == 100);
+  assert(PROCESS_LIST_WIDTH == 100);
   if (verbose) {
     if (lex_string_strmake(thd->mem_root, &info_len, "1024", 4)) return true;
   } else {
@@ -242,8 +242,8 @@ bool build_processlist_query(const POS &pos, THD *thd, bool verbose) {
   if (query_expression2 == nullptr) return true;
 
   LEX *lex = thd->lex;
-  SELECT_LEX *current_select = lex->current_select();
-  Parse_context pc(thd, current_select);
+  Query_block *current_query_block = lex->current_query_block();
+  Parse_context pc(thd, current_query_block);
   assert(!thd->is_error());
 
   if (query_expression2->contextualize(&pc)) return true;

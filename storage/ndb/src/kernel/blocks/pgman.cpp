@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -246,6 +246,7 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
     m_time_track_reads[i] = 0;
     m_time_track_writes[i] = 0;
     m_time_track_log_waits[i] = 0;
+    m_time_track_get_page[i] = 0;
   }
   m_pages_made_dirty = Uint64(0);
   m_tot_pages_made_dirty = Uint64(0);

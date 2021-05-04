@@ -110,4 +110,20 @@ ndb_mgm -e "start backup encrypt password='abba' '"
 Invalid command: backup encrypt password='abba' '
 Type HELP for help.
 
+
+# Test START BACKUP ENCRYPT with password from stdin
+Waiting for completed, this may take several minutes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
+
+# Make START BACKUP trigger encrypted backup.
+Waiting for completed, this may take several minutes
+Node X: Backup X started from node X
+Node X: Backup X started from node X completed
+ StartGCP: X StopGCP: X
+ #Records: X #LogRecords: X
+ Data: X bytes Log: X bytes
 DROP TABLE t1;

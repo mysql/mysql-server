@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -877,8 +877,9 @@ void Double_write::prepare(const buf_page_t *bpage, void **ptr,
   } else {
     if (state != BUF_BLOCK_FILE_PAGE) {
       ib::fatal(ER_IB_MSG_DBLWR_1297)
-          << "Invalid page state: state: " << state
-          << " block state: " << buf_page_get_state(bpage);
+          << "Invalid page state: state: " << static_cast<unsigned>(state)
+          << " block state: "
+          << static_cast<unsigned>(buf_page_get_state(bpage));
     } else {
       ut_ad(state == buf_block_get_state(block));
     }
@@ -1088,6 +1089,8 @@ dberr_t Double_write::write_to_datafile(const buf_page_t *in_bpage, bool sync,
                                         const file::Block *e_block,
                                         uint32_t e_len) noexcept {
   ut_ad(buf_page_in_file(in_bpage));
+  ut_ad(in_bpage->current_thread_has_io_responsibility());
+  ut_ad(in_bpage->is_io_fix_write());
   uint32_t len;
   void *frame{};
 
@@ -1147,7 +1150,7 @@ dberr_t Double_write::sync_page_flush(buf_page_t *bpage, file::Block *e_block,
   Segment *segment{};
 
   while (!s_single_segments->dequeue(segment)) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
 
   single_write(segment, bpage, e_block, e_len);
@@ -1475,7 +1478,7 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
                                               : s_flush_list_batch_segments;
 
   while (!segments->dequeue(batch_segment)) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
 
   batch_segment->start(this);
@@ -1499,6 +1502,7 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
 
     bpage->set_dblwr_batch_id(batch_segment->id());
 
+    ut_d(bpage->take_io_responsibility());
     auto err =
         write_to_datafile(bpage, false, std::get<1>(m_buf_pages.m_pages[i]),
                           std::get<2>(m_buf_pages.m_pages[i]));
@@ -1515,6 +1519,10 @@ void Double_write::write_pages(buf_flush_t flush_type) noexcept {
     } else {
       ut_a(err == DB_SUCCESS);
     }
+    /* We don't hold io_responsibility here no matter which path through ifs and
+    elses we've got here, but we can't assert:
+      ut_ad(!bpage->current_thread_has_io_responsibility());
+    because bpage could be freed by the time we got here. */
 
 #ifdef UNIV_DEBUG
     if (dblwr::Force_crash == page_id) {
@@ -1697,6 +1705,7 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
   dberr_t err;
   const space_id_t space_id = bpage->id.space();
 
+  ut_ad(bpage->current_thread_has_io_responsibility());
   /* This is not required for correctness, but it aborts the processing early.
    */
   if (bpage->was_stale()) {
@@ -1704,6 +1713,10 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
     bpage->set_dblwr_batch_id(std::numeric_limits<uint16_t>::max());
     buf_page_free_stale_during_write(
         bpage, buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE);
+    /* We don't hold io_responsibility here no matter which path through ifs and
+    elses we've got here, but we can't assert:
+      ut_ad(!bpage->current_thread_has_io_responsibility());
+    because bpage could be freed by the time we got here. */
     return DB_SUCCESS;
   }
 
@@ -1740,6 +1753,7 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
     if (!sync && flush_type != BUF_FLUSH_SINGLE_PAGE) {
       MONITOR_INC(MONITOR_DBLWR_ASYNC_REQUESTS);
 
+      ut_d(bpage->release_io_responsibility());
       Double_write::submit(flush_type, bpage, e_block, e_len);
       err = DB_SUCCESS;
 #ifdef UNIV_DEBUG
@@ -1754,7 +1768,10 @@ dberr_t dblwr::write(buf_flush_t flush_type, buf_page_t *bpage,
       err = Double_write::sync_page_flush(bpage, e_block, e_len);
     }
   }
-
+  /* We don't hold io_responsibility here no matter which path through ifs and
+  elses we've got here, but we can't assert:
+    ut_ad(!bpage->current_thread_has_io_responsibility());
+  because bpage could be freed by the time we got here. */
   return err;
 }
 
@@ -1789,7 +1806,7 @@ void Double_write::write_complete(buf_page_t *bpage,
           fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 
           while (!segments->enqueue(batch_segment)) {
-            os_thread_yield();
+            std::this_thread::yield();
           }
         }
       }
@@ -2513,6 +2530,7 @@ void dblwr::recv::check_missing_tablespaces(const recv::Pages *pages) noexcept {
 
 namespace dblwr {
 
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 static bool is_encrypted_page(const byte *page) noexcept {
   ulint page_type = mach_read_from_2(page + FIL_PAGE_TYPE);
@@ -2551,5 +2569,6 @@ bool has_encrypted_pages() noexcept {
   return st;
 }
 #endif /* UNIV_DEBUG */
+#endif /* !UNIV_HOTBACKUP */
 
 }  // namespace dblwr

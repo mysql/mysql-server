@@ -21,9 +21,6 @@ EXPLAIN SELECT DISTINCT a FROM t1 WHERE (a, b) IN ((0, 0), (1, 1));
 
 DROP TABLE t1;
 
---source include/force_myisam_default.inc
---source include/have_myisam.inc
-
 #Running the entire test suite for range queries to increase the test
 #coverage
 SET RANGE_OPTIMIZER_MAX_MEM_SIZE= 10;

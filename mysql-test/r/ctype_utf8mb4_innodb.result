@@ -2342,7 +2342,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int NOT NULL,
   `utf8mb4_encoding` varchar(10) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb4_encoding),utf8mb4_encoding FROM t1;
 u_decimal	hex(utf8mb4_encoding)	utf8mb4_encoding
 1114111		
@@ -2378,7 +2378,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `u_decimal` int NOT NULL,
   `utf8mb3_encoding` varchar(10) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
 u_decimal	hex(utf8mb3_encoding)
 1114111	
@@ -2390,7 +2390,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int NOT NULL,
   `utf8mb4_encoding` varchar(10) CHARACTER SET utf8 COLLATE utf8_general_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
 u_decimal	hex(utf8mb4_encoding)
 1114111	
@@ -2411,7 +2411,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `u_decimal` int NOT NULL,
   `utf8mb4_encoding` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb4_encoding) FROM t1;
 u_decimal	hex(utf8mb4_encoding)
 1114111	
@@ -2432,7 +2432,7 @@ Table	Create Table
 t2	CREATE TABLE `t2` (
   `u_decimal` int NOT NULL,
   `utf8mb3_encoding` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 SELECT u_decimal,hex(utf8mb3_encoding) FROM t2;
 u_decimal	hex(utf8mb3_encoding)
 1114111	

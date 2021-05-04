@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -292,31 +292,36 @@ Path Path::real_path() const {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-int delete_dir(const std::string &dir) noexcept { return _rmdir(dir.c_str()); }
+stdx::expected<void, std::error_code> delete_dir(
+    const std::string &dir) noexcept {
+  if (_rmdir(dir.c_str()) != 0) {
+    return stdx::make_unexpected(
+        std::error_code(errno, std::generic_category()));
+  }
 
-int delete_file(const std::string &path) noexcept {
-  // In Windows a file recently closed may fail to be deleted because its
+  return {};
+}
+
+stdx::expected<void, std::error_code> delete_file(
+    const std::string &path) noexcept {
+  // In Windows a file recently closed may fail to be deleted because it may
   // still be locked (or have a 3rd party reading it, like an Indexer service
   // or AntiVirus). So the recommended is to retry the delete operation.
-  BOOL flag = TRUE;
-  int max_attempts = 10;
-  while (max_attempts--) {
-    flag = DeleteFile(path.c_str());
-    DWORD err = GetLastError();
-    if (flag)
-      break;
-    else if (err == ERROR_FILE_NOT_FOUND) {
-      flag = 1;
-      break;
-    } else if (err == ERROR_ACCESS_DENIED) {
+  for (int attempts{}; attempts < 10; ++attempts) {
+    if (DeleteFile(path.c_str())) {
+      return {};
+    }
+    const auto err = GetLastError();
+    if (err == ERROR_ACCESS_DENIED) {
       Sleep(100);
       continue;
     } else {
-      return -1;
+      break;
     }
   }
 
-  return flag ? 0 : -1;
+  return stdx::make_unexpected(
+      std::error_code(GetLastError(), std::system_category()));
 }
 
 std::string get_tmp_dir(const std::string &name) {

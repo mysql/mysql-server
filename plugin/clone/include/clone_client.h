@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@ using Time_Point = std::chrono::time_point<Clock>;
 
 using Time_Msec = std::chrono::milliseconds;
 using Time_Sec = std::chrono::seconds;
+using Time_Min = std::chrono::minutes;
 
 struct Thread_Info {
   /** Default constructor */
@@ -304,7 +305,7 @@ struct Client_Share {
         m_protocol_version(CLONE_PROTOCOL_VERSION) {
     m_storage_vec.reserve(MAX_CLONE_STORAGE_ENGINE);
     m_threads.resize(m_max_concurrency);
-    DBUG_ASSERT(m_max_concurrency > 0);
+    assert(m_max_concurrency > 0);
     m_stat.init_target();
   }
 
@@ -378,6 +379,9 @@ struct Remote_Parameters {
   /** Remote configurations to validate */
   Key_Values m_configs;
 
+  /** Remote configurations to use */
+  Key_Values m_other_configs;
+
   /** Remote plugins with shared object name */
   Key_Values m_plugins_with_so;
 };
@@ -402,7 +406,7 @@ class Client {
 
   /** @return maximum concurrency for current clone operation. */
   uint32_t get_max_concurrency() const {
-    DBUG_ASSERT(m_share->m_max_concurrency > 0);
+    assert(m_share->m_max_concurrency > 0);
     return (m_share->m_max_concurrency);
   }
 
@@ -464,7 +468,7 @@ class Client {
   @param[out]	loc_len	locator length in bytes
   @return storage locator */
   const uchar *get_locator(uint index, uint &loc_len) const {
-    DBUG_ASSERT(index < m_share->m_storage_vec.size());
+    assert(index < m_share->m_storage_vec.size());
 
     loc_len = m_share->m_storage_vec[index].m_loc_len;
     return (m_share->m_storage_vec[index].m_loc);
@@ -500,7 +504,7 @@ class Client {
 
     /* Maximum number of workers are fixed. */
     if (num_workers + 1 > get_max_concurrency()) {
-      DBUG_ASSERT(false); /* purecov: inspected */
+      assert(false); /* purecov: inspected */
       return;
     }
 
@@ -679,8 +683,12 @@ class Client {
   /** Extract and add remote configuration from network packet.
   @param[in]	packet	network packet
   @param[in]	length	packet length
+  @param[in]	other	true if additional configuration
   @return error code */
-  int add_config(const uchar *packet, size_t length);
+  int add_config(const uchar *packet, size_t length, bool other);
+
+  /** Use additional configurations if sent by donor. */
+  void use_other_configs();
 
   /** Set locators returned by remote server
   @param[in]	buffer	serialized locator information
@@ -715,6 +723,12 @@ class Client {
 
   /** Number of concurrent clone clients. */
   static uint32_t s_num_clones;
+
+  /** Time out for connecting back to donor server after network failure. */
+  static Time_Sec s_reconnect_timeout;
+
+  /** Interval for attempting re-connect after failure. */
+  static Time_Sec s_reconnect_interval;
 
  private:
   /** Server thread object */

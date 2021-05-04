@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,5 +32,31 @@ mock::Service_admin_session *mock::Service_admin_session::m_this = nullptr;
 mock::Mysql_plugin_registry
     *mock::Mysql_plugin_registry::m_mysql_plugin_registry = nullptr;
 
+namespace mock {
+
+Mysql_plugin_registry::Mysql_plugin_registry() {
+  assert(nullptr == m_mysql_plugin_registry);
+  m_mysql_plugin_registry = this;
+}
+
+Mysql_plugin_registry::~Mysql_plugin_registry() {
+  m_mysql_plugin_registry = nullptr;
+}
+
+Service_registry::Service_registry() {
+  assert(m_this == nullptr);
+  m_this = this;
+}
+
+Service_registry::~Service_registry() { m_this = nullptr; }
+
+Service_admin_session::Service_admin_session() {
+  assert(m_this == nullptr);
+  m_this = this;
+}
+
+Service_admin_session::~Service_admin_session() { m_this = nullptr; }
+
+}  // namespace mock
 }  // namespace test
 }  // namespace xpl

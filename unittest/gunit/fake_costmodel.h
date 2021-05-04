@@ -2,7 +2,7 @@
 #define FAKE_COSTMODEL_INCLUDED
 
 /*
-   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class Fake_Cost_model_server : public Cost_model_server {
   Fake_Cost_model_server() {
     // Create default values for server cost constants
     m_server_cost_constants = new Server_cost_constants();
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     m_initialized = true;
 #endif
   }
@@ -60,7 +60,7 @@ class Fake_Cost_model_table : public Cost_model_table {
     // Allocate cost constants for operations on tables
     m_se_cost_constants = new SE_cost_constants();
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
     m_initialized = true;
 #endif
   }

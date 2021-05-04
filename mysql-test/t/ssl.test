@@ -48,8 +48,8 @@ let $wait_condition=
 
 --echo # Check that ssl_con has been disconnected.
 connection ssl_con;
---echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
---error 2006,2013
+--echo # Different behavior depending on how the plattform implements the 
+--error ER_CLIENT_INTERACTION_TIMEOUT,CR_SERVER_LOST
 SELECT 1;
 
 connection default;

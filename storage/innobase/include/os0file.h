@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -305,10 +305,13 @@ class IORequest {
     and the truncate redo log. */
     NO_COMPRESSION = 512,
 
+    /** Row log used in online DDL */
+    ROW_LOG = 1024,
+
     /** We optimise cases where punch hole is not done if the compressed length
     of the page is the same as the original size of the page. Ignore such
     optimisations if this flag is set. */
-    DISABLE_PUNCH_HOLE_OPTIMISATION = 1024
+    DISABLE_PUNCH_HOLE_OPTIMISATION = 2048
   };
 
   /** Default constructor */
@@ -332,7 +335,7 @@ class IORequest {
         m_encryption(),
         m_eblock(nullptr),
         m_elen(0) {
-    if (is_log()) {
+    if (is_log() || is_row_log()) {
       disable_compression();
     }
 
@@ -359,6 +362,11 @@ class IORequest {
   /** @return true if it is a redo log write */
   bool is_log() const MY_ATTRIBUTE((warn_unused_result)) {
     return ((m_type & LOG) == LOG);
+  }
+
+  /** @return true if it is a row log entry used in online DDL */
+  bool is_row_log() const MY_ATTRIBUTE((warn_unused_result)) {
+    return ((m_type & ROW_LOG) == ROW_LOG);
   }
 
   /** @return true if the simulated AIO thread should be woken up */

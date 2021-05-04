@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,13 +36,11 @@ class Ndb_sync_excluded_objects_table;
 /*
   Initialize the binlog part of the ndbcluster plugin
 */
-void ndbcluster_binlog_init(struct handlerton *hton);
+bool ndbcluster_binlog_init(struct handlerton *hton);
 
 int ndbcluster_binlog_setup_table(THD *thd, class Ndb *ndb, const char *db,
                                   const char *table_name,
                                   const dd::Table *table_def);
-
-void ndbcluster_handle_incomplete_binlog_setup();
 
 int ndbcluster_binlog_wait_synch_drop_table(THD *thd, struct NDB_SHARE *share);
 

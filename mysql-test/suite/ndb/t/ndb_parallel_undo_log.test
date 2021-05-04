@@ -1,12 +1,9 @@
 --source include/have_ndb.inc
 --source have_ndb_error_insert.inc
---source include/have_nodebug.inc
 
-# WL-8478 : Undo log speedup - parallel LGMAN applying
-
---echo "WL-8478"
-disable_query_log;
-
+--echo #
+--echo # WL-8478 : Undo log speedup - parallel LGMAN applying
+--echo #
 
 CREATE LOGFILE GROUP lg_1
     ADD UNDOFILE 'undo_1.log'
@@ -29,27 +26,24 @@ ALTER TABLESPACE ts_1
     ADD DATAFILE 'data_2.dat'
     INITIAL_SIZE 48M;
 
-# Create disk-data tables and do some operations on them.
-
 CREATE TABLE dt_1 (
-    member_id INT
-    )
-    TABLESPACE ts_1 STORAGE DISK
-    ENGINE NDBCLUSTER;
+  member_id INT
+)
+TABLESPACE ts_1 STORAGE DISK
+ENGINE NDBCLUSTER;
 
-let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
-
-let $x = 1000;
---echo "Inserting 100000 rows...";
-
-while($x > 0)
+let $inserts = 1000;
+--echo #
+--echo # Test UNDO_TUP_ALLOC by inserting $inserts * 100 rows in dt_1
+--echo #
+--disable_query_log
+while($inserts > 0)
 {
-  let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
-# Retry query until it succeeds.
-  while($mysql_errno)
+  let $inserted_ok = 0;
+  # Retry query until it succeeds.
+  while(!$inserted_ok)
   {
     --error 0,ER_LOCK_WAIT_TIMEOUT
-# UNDO_TUP_ALLOC
     INSERT INTO dt_1 VALUES
     (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
     (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
@@ -61,119 +55,199 @@ while($x > 0)
     (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
     (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
     (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
+    if (!$mysql_errno)
+    {
+      # Query suceeded, no more retries
+      let $inserted_ok = 1;
+    }
   }
-  dec $x;
+  dec $inserts;
 }
+--enable_query_log
 
---exec $NDB_SELECT_COUNT -d test dt_1;
+SELECT COUNT(*) AS "Records inserted into dt_1" FROM dt_1;
 
 CREATE TABLE dt_2 (
-    member_id INT
-    )
-    TABLESPACE ts_1 STORAGE DISK
-    ENGINE NDBCLUSTER;
+  member_id INT
+)
+TABLESPACE ts_1 STORAGE DISK
+ENGINE NDBCLUSTER;
 
-# UNDO_TUP_FREE
-let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
-let $max_retries = 10;
-# Retry query until it succeeds or tried max_retries.
-while($mysql_errno)
+
+--echo #
+--echo # Test UNDO_TUP_FREE by deleting rows with member_id 2 from dt_1
+--echo #
+let $deleted_ok = 0;
+let $retries = 10;
+# Retry delete until it succeeds or retried too many times
+--disable_query_log
+while(!$deleted_ok)
 {
   --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
   DELETE FROM dt_1 WHERE member_id = 2;
-  dec $max_retries;
-  if (!$max_retries)
+  if (!$mysql_errno)
   {
-    --die Deleting many tuples in one trans fails after 10 retries. Exiting..
+    # Query suceeded, no more retries
+    let $deleted_ok = 1;
   }
-  --sleep 1
+
+  if ($mysql_errno)
+  {
+    # Query failed, check if another retry is allowed
+    dec $retries;
+    if (!$retries)
+    {
+      --die Deleting many tuples in one trans fails after 10 retries.
+    }
+    --sleep 1
+  }
+}
+--enable_query_log
+
+SELECT COUNT(*) AS "Records in dt_1 after delete" FROM dt_1;
+
+# Check that all records with member_id 2 was deleted (ie. there should be none)
+if (`SELECT COUNT(*) FROM dt_1 WHERE member_id = 2`)
+{
+  die failed to delete all records with member_id = 2 from dt_1;
 }
 
-# UNDO_TUP_UPDATE
-let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
-let $max_retries = 10;
-# Retry query until it succeeds or tried max_retries.
-while($mysql_errno)
+
+--echo #
+--echo # Test UNDO_TUP_UPDATE by updating rows where member_id = 5 in dt_1
+--echo #
+let $updated_ok = 0
+let $retries = 10;
+# Retry update until it succeeds or retried too many times
+--disable_query_log
+while(!$updated_ok)
 {
   --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
   UPDATE dt_1 SET member_id = 6 WHERE member_id = 5;
-  dec $max_retries;
-  if (!$max_retries)
+  if (!$mysql_errno)
   {
-    --die Updating many tuples in one trans fails after 10 retries. Exiting..
+    # Query suceeded, no more retries
+    let $updated_ok = 1;
   }
-  --sleep 1
+
+  if ($mysql_errno)
+  {
+    # Query failed, check if another retry is allowed
+    dec $retries;
+    if (!$retries)
+    {
+      --die Updating many tuples in one trans fails after 10 retries.
+    }
+    --sleep 1
+  }
 }
-# UNDO_TUP_DROP
+--enable_query_log
+
+SELECT COUNT(*) AS "Records in dt_1 after update" FROM dt_1;
+
+# Check that all records with member_id 5 was updated (ie. there should be none)
+if (`SELECT COUNT(*) FROM dt_1 WHERE member_id = 5`)
+{
+  die failed to update all records with member_id = 5 in dt_1;
+}
+
+
+--echo #
+--echo # Test UNDO_TUP_DROP by dropping table dt_2
+--echo #
 DROP TABLE dt_2;
-let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
 
+--echo # Show number of rows in dt_1 before restart for easy comparison
+SELECT COUNT(*) AS "Number of rows before node restart" FROM dt_1;
 
-# Start LCP so that disk table pages are flushed to disk.
-# Otherwise, the undo log records are not sent to the LDM threads for application
---echo "Run DUMP commands to start LCP"
+--echo # Start LCP so that disk table pages are flushed to disk.
+--echo # Otherwise, the undo log records are not sent to the LDM threads
+--echo # for application
 --exec $NDB_MGM -e "all dump 7099" >> $NDB_TOOLS_OUTPUT
 
---echo "Sleep 10s so that LCP can complete"
+
+--echo # Sleep until LCP (hopefully) has completed
 sleep 10;
 
-# Restart node 1 with -n
---echo "Restarting node 1 with -n"
+
+--echo # Restarting node 1 with nostart...
 --exec $NDB_MGM -e "1 RESTART -n" >> $NDB_TOOLS_OUTPUT
 
-# Wait for node to reach not-started state
+--echo # Wait for node to reach not-started state...
 --exec $NDB_WAITER --not-started --wait-nodes=1 >> $NDB_TOOLS_OUTPUT
 
-# Insert error to invalidate the latest LCP, so that the undo records till the LCP start of the previous
-# LCP are applied
+--echo # Insert error to invalidate the latest LCP, so that the undo
+--echo # records till the LCP start of the previous LCP are applied
 --exec $NDB_MGM -e "1 ERROR 7248" >> $NDB_TOOLS_OUTPUT
 
-# Start node
+--echo # Start node 1..
 --exec $NDB_MGM -e "1 START" >> $NDB_TOOLS_OUTPUT
 
-# Wait for node to start
+--echo # Wait for node 1 to start...
 --exec $NDB_WAITER >> $NDB_TOOLS_OUTPUT
---echo "Node 1 started"
+--echo # Node 1 started
 
-# Clear error insert/s
+--echo # Clear error inserts
 --exec $NDB_MGM -e "ALL ERROR 0" >> $NDB_TOOLS_OUTPUT
-
-# Ensure existent data is still there
---exec $NDB_SELECT_COUNT -d test dt_1;
-
-# Ensure we can still use the table to insert data
-INSERT INTO dt_1 VALUES (1),(2),(3),(4);
---exec $NDB_SELECT_COUNT -d test dt_1;
-
-# Ensure we can remove data from the table (can cause temporary timeout errors)
-let $mysql_errno = ER_LOCK_WAIT_TIMEOUT;
-let $max_retries = 10;
-# Retry query until it succeeds or tried max_retries.
-while($mysql_errno)
-{
-  --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
-  DELETE FROM dt_1 WHERE member_id = 1;
-  dec $max_retries;
-  if (!$max_retries)
-  {
-    --die Deleting many tuples in one trans fails after 10 retries. Exiting..
-  }
-  --sleep 1
-}
---exec $NDB_SELECT_COUNT -d test dt_1;
-
-# dt_2 should not exist
---error 1
---exec $NDB_SHOW_TABLES -d test dt_2 >> $NDB_TOOLS_OUTPUT
 
 #
 # Wait until the connection to the
 # cluster has been restored or timeout occurs
 #
---echo "Wait reconnect"
 --source include/ndb_not_readonly.inc
 
-# Cleanup
+--echo # Check that existent data is still there
+SELECT COUNT(*) AS "Number of rows after node restart" FROM dt_1;
+
+--echo # Check that table can still be used to insert data
+INSERT INTO dt_1 VALUES (2),(3),(4),(5);
+SELECT COUNT(*) as "Number of rows after four more rows inserted" FROM dt_1;
+
+--echo #
+--echo # Check that data can be removed from the table (can cause temporary
+--echo # timeout errors?) by removing all rows with member_id 1
+--echo #
+let $deleted_ok = 0;
+let $retries = 10;
+# Retry delete until it succeeds or retried too many times
+--disable_query_log
+while(!$deleted_ok)
+{
+  --error 0, ER_LOCK_WAIT_TIMEOUT, ER_GET_TEMPORARY_ERRMSG
+  DELETE FROM dt_1 WHERE member_id = 1;
+  if (!$mysql_errno)
+  {
+    # Query suceeded, no more retries
+    let $deleted_ok = 1;
+  }
+
+  if ($mysql_errno)
+  {
+    # Query failed, check if another retry is allowed
+    dec $retries;
+    if (!$retries)
+    {
+      --die Deleting many tuples in one trans fails after 10 retries.
+    }
+    --sleep 1
+  }
+}
+--enable_query_log
+
+SELECT COUNT(*) AS "Records in dt_1 after second delete" FROM dt_1;
+
+# Check that all records with member_id 1 was deleted (ie. there should be none)
+if (`SELECT COUNT(*) FROM dt_1 WHERE member_id = 1`)
+{
+  die failed to delete all records with member_id = 1 from dt_1;
+}
+
+--echo # Check that table dt_2 still does not exist, it was removed
+--echo # before node restart
+--error ER_NO_SUCH_TABLE
+SELECT * FROM dt_2;
+
+--echo # Cleanup
 DROP TABLE dt_1;
 
 ALTER TABLESPACE ts_1
@@ -187,5 +261,4 @@ DROP TABLESPACE ts_1;
 DROP LOGFILE GROUP lg_1
 ENGINE NDBCLUSTER;
 
-enable_query_log;
 --remove_file $NDB_TOOLS_OUTPUT

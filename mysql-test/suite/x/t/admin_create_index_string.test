@@ -6,7 +6,7 @@
 ## Test starts here
 CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 
---let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_string_mysqlx.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_create_index_string_mysqlx.xpl
 --write_file $xtest_file
 -->import assert_select.macro
 
@@ -125,7 +125,5 @@ EOF
 
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 

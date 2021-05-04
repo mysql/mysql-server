@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -102,11 +102,12 @@ buf_flush_batch() and buf_flush_page().
 bool buf_flush_page_try(buf_pool_t *buf_pool, buf_block_t *block)
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 /** Do flushing batch of a given type.
 NOTE: The calling thread is not allowed to own any latches on pages!
 @param[in,out]	buf_pool	buffer pool instance
 @param[in]	type		flush type
-@param[in]	min_n		wished minimum mumber of blocks flushed
+@param[in]	min_n		wished minimum number of blocks flushed
 (it is not guaranteed that the actual number is that big, though)
 @param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
 oldest_modification is smaller than this should be flushed (if their number
@@ -121,7 +122,7 @@ bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
 /** This utility flushes dirty blocks from the end of the flush list of all
 buffer pool instances.
 NOTE: The calling thread is not allowed to own any latches on pages!
-@param[in]	min_n		wished minimum mumber of blocks flushed (it is
+@param[in]	min_n		wished minimum number of blocks flushed (it is
 not guaranteed that the actual number is that big, though)
 @param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
 oldest_modification is smaller than this should be flushed (if their number
@@ -232,6 +233,7 @@ ibool buf_flush_page(buf_pool_t *buf_pool, buf_page_t *bpage,
                      buf_flush_t flush_type, bool sync);
 
 /** Check if the block is modified and ready for flushing.
+Requires buf_page_get_mutex(bpage).
 @param[in]	bpage		buffer control block, must be buf_page_in_file()
 @param[in]	flush_type	type of flush
 @return true if can flush immediately */

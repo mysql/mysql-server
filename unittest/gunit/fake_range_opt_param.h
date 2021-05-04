@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,8 @@
 
 #include <gmock/gmock.h>
 
-#include "sql/opt_range.cc"
+#include "sql/opt_range.h"
+#include "sql/opt_range_internal.h"
 #include "unittest/gunit/fake_table.h"
 
 using ::testing::_;
@@ -56,7 +57,7 @@ class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM {
 
     thd = thd_arg;
     mem_root = alloc_arg;
-    select_lex = thd_arg->lex->current_select();
+    query_block = thd_arg->lex->current_query_block();
 
     if (number_columns != 0) {
       table = &fake_table;

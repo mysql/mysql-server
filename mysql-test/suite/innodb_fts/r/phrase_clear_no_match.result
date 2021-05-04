@@ -85,3 +85,4 @@ FTS_DOC_ID	content
 2	Maríb
 4	Marib
 drop table t1;
+# restart:

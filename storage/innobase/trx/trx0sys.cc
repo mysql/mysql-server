@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -567,7 +567,7 @@ void trx_sys_close(void) {
   The active-recovered transactions are allowed only if we did not force to
   rollback them during shutdown (which might happen if e.g. it is fast
   shutdown). Free all of them. */
-  trx_sys_after_background_threads_shutdown_validate();
+  ut_d(trx_sys_after_background_threads_shutdown_validate());
 
   for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != nullptr;
        trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list)) {

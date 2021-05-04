@@ -47,7 +47,7 @@
 create user readuser@localhost identified by 'readuser';
 grant select on *.* to readuser@localhost;
 
---write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl
 #-- "Create relational TABLE "
 -->sql
  DROP SCHEMA if EXISTS xplugintest;
@@ -651,13 +651,13 @@ UNLOCK TABLES;
 EOF
 
 --replace_regex /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl
 
 
 
 # "Error : Insert when user has only select access "
---write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl
 -->sql
 SET SESSION lock_wait_timeout= 3;
 -->endsql
@@ -689,13 +689,13 @@ SELECT * FROM xplugintest.categories;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u readuser --password='readuser' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
+--exec $MYSQLXTEST -u readuser --password='readuser' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl 2>&1
 
 # Acquire lock on categories table from mysqltest client
 # and try to run insert from mysqlxtest (Error : timeout expected from mysqlxtest)
 LOCK TABLES xplugintest.categories WRITE;
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-insert_CRUD_1.xpl
 UNLOCK TABLES;
 
 
@@ -704,7 +704,7 @@ UNLOCK TABLES;
 DELETE FROM xplugintest.maincollection;
 perl;
  my $dir = $ENV{'MYSQL_TMP_DIR'};
- open ( OUTPUT, ">$dir/mysqlx-in.tmp") ;
+ open ( OUTPUT, ">$dir/mysqlx-in.xpl") ;
  $message = <<"END_MESSAGE";
 Mysqlx.Crud.Insert {
   collection {
@@ -752,8 +752,8 @@ END_MESSAGE
  print OUTPUT "-->endsql\n";
  close (OUTPUT);
 EOF
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out.xpl 2>&1 &
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out2.xpl 2>&1
 let $wait_condition= select count(*)=2 from xplugintest.test_table;
 --source include/wait_condition.inc
 SELECT COUNT(*) FROM xplugintest.maincollection;
@@ -761,7 +761,4 @@ SELECT COUNT(*) FROM xplugintest.maincollection;
 ## Cleanup
 DROP SCHEMA if EXISTS xplugintest;
 DROP USER readuser@localhost;
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

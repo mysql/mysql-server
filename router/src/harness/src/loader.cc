@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -1017,6 +1017,10 @@ void Loader::start_all() {
   num_of_non_ready_services++;
 #endif
 
+  // this one is for the log rotation handler that we also want to notify it is
+  // ready
+  num_of_non_ready_services++;
+
   // if there are no services that we should wait for let's declare the
   // readiness right away
   if (num_of_non_ready_services == 0) {
@@ -1336,14 +1340,23 @@ LogReopenThread::~LogReopenThread() {
  */
 void LogReopenThread::log_reopen_thread_function(LogReopenThread *t) {
   auto &logging_registry = mysql_harness::DIM::instance().get_LoggingRegistry();
+  bool notified_ready{false};
 
   while (true) {
     {
       std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
+
+      if (!notified_ready) {
+        on_service_ready("Log rotate thread");
+        notified_ready = true;
+      }
+
       if (g_shutdown_pending) {
         break;
       }
-      log_reopen_cond.wait(lk);
+      if (!t->is_requested()) {
+        log_reopen_cond.wait(lk);
+      }
       if (g_shutdown_pending) {
         break;
       }
@@ -1352,14 +1365,19 @@ void LogReopenThread::log_reopen_thread_function(LogReopenThread *t) {
       }
       t->state_ = REOPEN_ACTIVE;
       t->errmsg_ = "";
-      try {
-        logging_registry.flush_all_loggers(t->dst_);
-        t->dst_ = "";
-      } catch (const std::exception &e) {
-        // leave actions on error to the defined callback function
-        t->errmsg_ = e.what();
-      }
     }
+
+    // we do not lock while doing the log rotation,
+    // it can take long time and we can't block the requestor which can run
+    // in the context of signal handler
+    try {
+      logging_registry.flush_all_loggers(t->dst_);
+      t->dst_ = "";
+    } catch (const std::exception &e) {
+      // leave actions on error to the defined callback function
+      t->errmsg_ = e.what();
+    }
+
     // trigger the completion callback once mutex is not locked
     g_log_reopen_complete_callback_fp(t->errmsg_);
     {
@@ -1373,9 +1391,11 @@ void LogReopenThread::log_reopen_thread_function(LogReopenThread *t) {
  * request reopen
  */
 void LogReopenThread::request_reopen(const std::string dst) {
-  std::unique_lock<std::mutex> lk(log_reopen_cond_mutex, std::defer_lock);
+  std::unique_lock<std::mutex> lk(log_reopen_cond_mutex);
 
-  if (!lk.try_lock()) return;
+  if (state_ == REOPEN_ACTIVE) {
+    return;
+  }
 
   state_ = REOPEN_REQUESTED;
   dst_ = dst;

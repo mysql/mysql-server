@@ -72,6 +72,25 @@ where file_name like "%ghost%";
 FILE_NAME	EVENT_NAME	OPEN_COUNT
 select * from performance_schema.no_such_table;
 ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+select * from performance_schema.no_such_table for update;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+insert into performance_schema.no_such_table values(1);
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+update performance_schema.no_such_table set no_such_col = 2;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+delete from performance_schema.no_such_table where no_such_col = 3;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+lock table performance_schema.no_such_table read;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+lock table performance_schema.no_such_table write;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+show create table performance_schema.no_such_table;
+ERROR 42S02: Table 'performance_schema.no_such_table' doesn't exist
+show create view performance_schema.no_such_view;
+ERROR 42S02: Table 'performance_schema.no_such_view' doesn't exist
+drop table if exists performance_schema.no_such_table;
+Warnings:
+Note	1051	Unknown table 'performance_schema.no_such_table'
 DROP TABLE IF EXISTS t_60905;
 CREATE TABLE t_60905 (i INT, j INT, KEY(i)) ENGINE = InnoDB;
 INSERT INTO t_60905 VALUES

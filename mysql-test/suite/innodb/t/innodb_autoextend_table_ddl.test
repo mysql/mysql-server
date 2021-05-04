@@ -1,3 +1,4 @@
+--source include/big_test.inc
 --source include/have_innodb_16k.inc
 
 --echo #
@@ -12,7 +13,7 @@ CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 48k;
 CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 1M;
 
 --error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
-CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 65M;
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 5G;
 
 --error ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
 CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 5M;
@@ -38,7 +39,7 @@ ALTER TABLE mytable AUTOEXTEND_SIZE 48k;
 ALTER TABLE mytable AUTOEXTEND_SIZE 1M;
 
 --error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
-ALTER TABLE mytable AUTOEXTEND_SIZE 65M;
+ALTER TABLE mytable AUTOEXTEND_SIZE 5G;
 
 --error ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
 ALTER TABLE mytable AUTOEXTEND_SIZE 5M;
@@ -250,7 +251,7 @@ ALTER TABLE tpart AUTOEXTEND_SIZE 48k;
 ALTER TABLE tpart AUTOEXTEND_SIZE 1M;
 
 --error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
-ALTER TABLE tpart AUTOEXTEND_SIZE 65M;
+ALTER TABLE tpart AUTOEXTEND_SIZE 5G;
 
 --error ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
 ALTER TABLE tpart AUTOEXTEND_SIZE 5M;
@@ -476,3 +477,59 @@ DROP TABLE t1;
 
 --let $restart_parameters =
 --source include/restart_mysqld.inc
+
+--echo # Bug#32235621 - Concurrent execution of ALTER TABLE and SHOW CREATE TABLE crashes
+--echo # the server
+
+CREATE TABLE t1(
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`, `c0001`),
+  KEY `i0002` (`c0000`(112))
+) AUTOEXTEND_SIZE=8M ENGINE=InnoDB;
+
+delimiter |;
+CREATE PROCEDURE alter_table()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 20 DO
+    ALTER TABLE t1 FORCE;
+    SET i = i + 1;
+  END WHILE;
+END |
+
+CREATE PROCEDURE show_create_table()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 20 DO
+    SHOW CREATE TABLE t1;
+    SET i = i + 1;
+  END WHILE;
+END |
+delimiter ;|
+
+# Create connections to execute the stored procedures concurrently
+connect (conn1, localhost, root,,);
+connect (conn2, localhost, root,,);
+
+# Execute SHOW CREATE TABLE in the background
+--connection conn1
+--send CALL show_create_table()
+
+# Execute ALTER TABLE on another thread
+--connection conn2
+CALL alter_table();
+
+--connection conn1
+--reap
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Cleanup
+DROP TABLE t1;
+DROP PROCEDURE show_create_table;
+DROP PROCEDURE alter_table;

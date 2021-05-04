@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,7 +162,7 @@ std::string get_one_priv(ulong &revoke_privs) {
 */
 void set_system_user_flag(THD *thd,
                           bool check_for_main_security_ctx /*= false*/) {
-  DBUG_ASSERT(thd);
+  assert(thd);
   Security_context *sctx = thd->security_context();
   if (check_for_main_security_ctx == false || sctx == &thd->m_main_security_ctx)
     thd->set_system_user(sctx->has_global_grant(consts::system_user.c_str(),

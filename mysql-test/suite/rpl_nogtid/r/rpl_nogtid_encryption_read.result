@@ -150,11 +150,11 @@ UNINSTALL PLUGIN keyring_file;
 include/rpl_stop_server.inc [server_number=1]
 include/rpl_start_server.inc [server_number=1]
 SHOW BINLOG EVENTS IN 'master-bin.000002';
-ERROR HY000: Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Part 4.3
 UNINSTALL PLUGIN keyring_file;
 SHOW BINLOG EVENTS IN 'master-bin.000002';
-ERROR HY000: Failed to fetch key from keyring, please check if keyring plugin is loaded.
+ERROR HY000: Failed to fetch key from keyring, please check if keyring is loaded.
 # Part 5
 include/assert_grep.inc [mysqlbinlog reported it does not support reading encrypted log files]
 [connection slave]

@@ -17,11 +17,10 @@ row1	will go away	1
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row1	will go away	1
-SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
-@the_epoch:=MAX(epoch)
+SELECT MAX(epoch) FROM mysql.ndb_apply_status into @the_epoch;
+SELECT @the_epoch;
+@the_epoch
 <the_epoch>
-Warnings:
-<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
 row1	will go away	1

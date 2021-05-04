@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #ifndef OPT_HINTS_INCLUDED
 #define OPT_HINTS_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
@@ -34,7 +35,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
 #include "sql/mem_root_array.h"  // Mem_root_array
@@ -285,7 +286,7 @@ class Opt_hints {
   */
   virtual PT_hint *get_complex_hints(
       opt_hints_enum type MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr; /* error C4716: must return a value */
   }
 
@@ -370,7 +371,7 @@ class PT_qb_level_hint;
 */
 
 class Opt_hints_qb : public Opt_hints {
-  uint select_number;    // SELECT_LEX number
+  uint select_number;    // Query_block number
   LEX_CSTRING sys_name;  // System QB name
   char buff[32];         // Buffer to hold sys name
 
@@ -619,7 +620,7 @@ class Opt_hints_table : public Opt_hints {
     if (type_arg == JOIN_INDEX_HINT_ENUM) return &join_index;
     if (type_arg == GROUP_INDEX_HINT_ENUM) return &group_index;
     if (type_arg == ORDER_INDEX_HINT_ENUM) return &order_index;
-    DBUG_ASSERT(0);
+    assert(0);
     return nullptr;
   }
 
@@ -781,6 +782,7 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
 /**
   Returns true if index merge hint state is on otherwise returns false.
 
+  @param thd                       Thread handler
   @param table                     Pointer to TABLE object
   @param use_cheapest_index_merge  IN/OUT Returns true if INDEX_MERGE hint is
                                           used without any specified key.
@@ -788,7 +790,8 @@ bool compound_hint_key_enabled(const TABLE *table, uint keyno,
   @return true if index merge hint state is on otherwise returns false.
 */
 
-bool idx_merge_hint_state(const TABLE *table, bool *use_cheapest_index_merge);
+bool idx_merge_hint_state(THD *thd, const TABLE *table,
+                          bool *use_cheapest_index_merge);
 
 int cmp_lex_string(const LEX_CSTRING *s, const LEX_CSTRING *t,
                    const CHARSET_INFO *cs);

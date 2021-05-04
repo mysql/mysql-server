@@ -1,7 +1,7 @@
 #ifndef SQL_PACK_ROWS_H_
 #define SQL_PACK_ROWS_H_
 
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,13 +31,14 @@
   hash join, BKA, and streaming aggregation.
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <string.h>
 
 #include "field_types.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -210,8 +211,8 @@ static ALWAYS_INLINE uchar *StoreFromTableBuffersRaw(
     }
 
     for (const Column &column : tbl.columns) {
-      DBUG_ASSERT(bitmap_is_set(column.field->table->read_set,
-                                column.field->field_index()));
+      assert(bitmap_is_set(column.field->table->read_set,
+                           column.field->field_index()));
       if (!column.field->is_null()) {
         // Store the data in packed format. The packed format will also
         // include the length of the data if needed.

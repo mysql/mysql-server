@@ -29,7 +29,7 @@ call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 -->sql
 #-- "Creating database for testcase"
 DROP DATABASE IF EXISTS xplugintest;
@@ -176,11 +176,11 @@ SHOW CREATE TABLE table2;
 EOF
 
 --replace_regex /([0-9a-f]{4})[0-9a-f]{8}([0-9a-f]{16})/\1XXXXXXXX\2/
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "Create table using namespace=sql "
 Mysqlx.Sql.StmtExecute {
   namespace: "sql"
@@ -196,11 +196,11 @@ DROP TABLE xplugintest.table_sql;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "Create table when user has no priviledge"
 #-- "step 1 - create user1 with limied access"
 -->sql
@@ -209,10 +209,10 @@ GRANT USAGE ON *.* TO 'user1'@'localhost';
 CREATE DATABASE xplugintest_user_access;
 -->endsql
 EOF
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "step 2 - try to create table using user1"
 -->stmtadmin create_collection	{"schema":"xplugintest_user_access","name":"table1"}
 ## Error
@@ -225,10 +225,10 @@ EOF
 SHOW CREATE TABLE xplugintest_user_access.table1;
 -->endsql
 EOF
---exec $MYSQLXTEST -u user1 --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u user1 --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "step 3 - clean user and database"
 -->expecterror ER_NO_SUCH_TABLE
 -->sql
@@ -237,12 +237,12 @@ DROP USER 'user1'@'localhost';
 DROP DATABASE xplugintest_user_access;
 -->endsql
 EOF
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "Negative cases"
 #-- "1 empty args"
 -->stmtadmin create_collection	{}
@@ -250,20 +250,20 @@ EOF
 -->expecterror ER_X_CMD_NUM_ARGUMENTS
 -->recvresult
 EOF
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "2 more than two args"
 -->stmtadmin create_collection	{"schema":"xplugintest", "name":"table3", "alias":"table4"}
 -->expecterror ER_X_CMD_INVALID_ARGUMENT
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "3 invalid namespace "
 Mysqlx.Sql.StmtExecute {
   namespace: "Invalid"
@@ -287,11 +287,11 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "Non existing database "
 
 -->stmtadmin create_collection	{"schema":"non_existing","name":"table2"}
@@ -300,10 +300,10 @@ EOF
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp  2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl  2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "NULL Table name "
 -->stmtadmin create_collection	{"schema":"xplugintest","name":null}
 ## error
@@ -311,12 +311,12 @@ EOF
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "Invaild parameter in args"
 -->stmtadmin create_collection	{"schema":{"name":"xplugintest"} ,"name":"table3"}
 ## error
@@ -324,10 +324,10 @@ EOF
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "Create table with existing name"
 -->stmtadmin create_collection	{"schema":"xplugintest" ,"name":"table1"}
 ## error
@@ -335,12 +335,12 @@ EOF
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 ## Cleanup
 -->sql
 DROP DATABASE IF EXISTS xplugintest;
@@ -348,15 +348,15 @@ DROP DATABASE IF EXISTS xplugintest_1;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
 
 # Try run create in parallel from two mysqlxtest
 # input file include xmessage and sql for create
 perl;
  my $dir = $ENV{'MYSQL_TMP_DIR'};
- open ( OUTPUT, ">$dir/mysqlx-in.tmp") ;
+ open ( OUTPUT, ">$dir/mysqlx-in.xpl") ;
  $message = <<"END_MESSAGE";
 -->stmtadmin create_collection	{"schema":"xplugintest","name":"table_name"}
 END_MESSAGE
@@ -387,19 +387,19 @@ END_MESSAGE
  print OUTPUT "-->endsql\n";
  close (OUTPUT);
 EOF
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out.xpl 2>&1 &
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out2.xpl 2>&1
 let $wait_condition= select count(*)=2 from xplugintest.test_table;
 --source include/wait_condition.inc
 DROP DATABASE xplugintest;
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
+--remove_file $MYSQL_TMP_DIR/mysqlx-out2.xpl
+--remove_file $MYSQL_TMP_DIR/mysqlx-out.xpl
 
 
 perl;
  my $dir = $ENV{'MYSQL_TMP_DIR'};
- open ( OUTPUT, ">$dir/mysqlx-in.tmp") ;
+ open ( OUTPUT, ">$dir/mysqlx-in.xpl") ;
  $message = <<"END_MESSAGE";
 -->stmtadmin ensure_collection	{"schema":"xplugintest","name":"table_name"}
 END_MESSAGE
@@ -430,14 +430,11 @@ END_MESSAGE
  print OUTPUT "-->endsql\n";
  close (OUTPUT);
 EOF
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1 &
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out2.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out.xpl 2>&1 &
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out2.xpl 2>&1
 let $wait_condition= select count(*)=2 from xplugintest.test_table;
 --source include/wait_condition.inc
 
 ## Cleanup
 DROP DATABASE xplugintest;
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out2.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

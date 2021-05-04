@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "sql/sql_cmd_dml.h"   // Sql_cmd_dml
 
 class Item;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class Select_lex_visitor;
 class THD;
 class Unique;
@@ -79,7 +79,7 @@ class Query_result_delete final : public Query_result_interceptor {
   Query_result_delete() : Query_result_interceptor() {}
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool optimize() override;

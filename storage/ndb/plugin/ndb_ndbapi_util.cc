@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,7 +264,8 @@ bool ndb_get_table_names_in_schema(
       continue;
     }
 
-    if (ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name)) {
+    if (ndb_name_is_temp(elmt.name) || ndb_name_is_blob_prefix(elmt.name) ||
+        ndb_name_is_fk_mock_prefix(elmt.name)) {
       continue;
     }
 

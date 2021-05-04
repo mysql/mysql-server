@@ -7,21 +7,21 @@
 ## Setup
 #
 
---write_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
+--write_file $MYSQL_TMP_DIR/try_login_using_memory.xpl
 -->import connection_auth_mechanism_memory_helpers.macro
 
 callmacro Try_to_login_all_xusers_using_memory	%RESULT%;
 EOF
 
---write_file $MYSQL_TMP_DIR/login_using_plain.tmp
+--write_file $MYSQL_TMP_DIR/login_using_plain.xpl
 -->import connection_auth_mechanism_memory_helpers.macro
 
 callmacro Login_all_xusers_using_plain_to_fill_the_cache;
 EOF
 
 --let $MYSQLXTEST=$MYSQLXTEST -ux_root --ssl-cipher='AES256-SHA'
---let $memory_login_fail= --file=$MYSQL_TMP_DIR/try_login_using_memory.tmp -v%RESULT%=Login_failed
---let $plain_login_ok= --file=$MYSQL_TMP_DIR/login_using_plain.tmp
+--let $memory_login_fail= --file=$MYSQL_TMP_DIR/try_login_using_memory.xpl -v%RESULT%=Login_failed
+--let $plain_login_ok= --file=$MYSQL_TMP_DIR/login_using_plain.xpl
 
 
 # Create and configure xuser_* accounts that use native, sha256 and
@@ -67,9 +67,7 @@ exec $MYSQLXTEST $memory_login_fail 2>&1;
 #
 # Postamble
 #
---remove_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
---remove_file $MYSQL_TMP_DIR/login_using_plain.tmp
+--source ../include/xplugin_cleanup.inc
 
 --source ../include/remove_mysql_accounts_for_xplugin_tests.inc
---source include/xplugin_drop_user.inc
 

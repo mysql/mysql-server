@@ -231,4 +231,4 @@ exec $MYSQLXTEST
 #
 ## Postamble
 #
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source ../include/xplugin_cleanup.inc

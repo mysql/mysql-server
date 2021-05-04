@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -778,7 +778,7 @@ TEST_F(XComControlTest, JoinTestWithoutBootNorPeers) {
 
 TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
   connection_descriptor *con =
-      (connection_descriptor *)malloc(sizeof(connection_descriptor *));
+      (connection_descriptor *)malloc(sizeof(connection_descriptor));
   con->fd = 0;
 
   EXPECT_CALL(proxy, xcom_input_connect(_, _)).Times(1);

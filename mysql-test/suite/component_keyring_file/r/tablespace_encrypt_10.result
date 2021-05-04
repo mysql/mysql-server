@@ -1,0 +1,514 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+# START : WITHOUT KEYRING
+
+#########
+# SETUP #
+#########
+# Taking backup of local manifest file for MySQL server instance
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' ENGINE=InnoDB ENCRYPTION="N";
+CREATE TABLE t1(c1 char(100)) ENGINE=InnoDB TABLESPACE encrypt_ts;
+set global innodb_buf_flush_list_now = 1;
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
+#-------------------------- TEST 1 -------------------------------------#
+# RESTART 1 : WITH KEYRING
+# Restore local manifest file for MySQL server instance from backup
+########################################################################
+# ALTER TABLESPACE :    Unencrypted => Encrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# RESTART 2 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just before flushing page 0 at the end
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
+# RESTART 3 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE :    Encrypted => Unencrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# RESTART 4 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just before flushing page 0 at the end
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
+# RESTART 5 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+# RESTART 6 : WITHOUT KEYRING PLUGIN
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#-------------------------- TEST 2 -------------------------------------#
+# RESTART 7 : WITH KEYRING
+########################################################################
+# ALTER TABLESPACE :    Unencrypted => Encrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# RESTART 8 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just after flushing page 0 at the end
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
+# RESTART 9 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE :    Encrypted => Unencrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# RESTART 10 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just after flushing page 0 at the end
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
+# RESTART 11 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+# RESTART 12 : WITHOUT KEYRING PLUGIN
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#-------------------------- TEST 3 -------------------------------------#
+# RESTART 13 : WITH KEYRING
+########################################################################
+# ALTER TABLESPACE :    Unencrypted => Encrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# RESTART 14 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just before resetting_progress on page 0
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
+# RESTART 15 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE :    Encrypted => Unencrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# RESTART 16 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just before resetting_progress on page 0
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
+# RESTART 17 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+# RESTART 18 : WITHOUT KEYRING PLUGIN
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#-------------------------- TEST 4 -------------------------------------#
+# RESTART 19 : WITH KEYRING
+# Encrypt the tablespace.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+########################################################################
+# ALTER TABLESPACE :    Encrypted => Unencrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# RESTART 20 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just before updating flags
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
+# RESTART 21 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+# RESTART 22 : WITHOUT KEYRING PLUGIN
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#-------------------------- TEST 5 -------------------------------------#
+# RESTART 23 : WITH KEYRING
+########################################################################
+# ALTER TABLESPACE :    Unencrypted => Encrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# RESTART 24 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just before encryption processing is started
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
+# RESTART 25 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE :    Encrypted => Unencrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# RESTART 26 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just before encryption processing is started
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
+# RESTART 27 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+# RESTART 28 : WITHOUT KEYRING PLUGIN
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#-------------------------- TEST 6 -------------------------------------#
+# RESTART 29 : WITH KEYRING
+########################################################################
+# ALTER TABLESPACE :    Unencrypted => Encrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# RESTART 30 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just after encryption processing is finished
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
+# RESTART 31 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE :    Encrypted => Unencrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# RESTART 32 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just after encryption processing is finished
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
+# RESTART 33 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+# RESTART 34 : WITHOUT KEYRING PLUGIN
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+#-------------------------- TEST 7 -------------------------------------#
+# RESTART 35 : WITH KEYRING
+########################################################################
+# ALTER TABLESPACE :    Unencrypted => Encrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+# Encrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# RESTART 36 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just after inserting DDL Log Entry
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
+# RESTART 37 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
+Pattern "Finished ENCRYPTION for tablespace encrypt_ts" found
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+########################################################################
+# ALTER TABLESPACE :    Encrypted => Unencrypted                       #
+########################################################################
+# Set process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	Y
+# Unencrypt the tablespace. It will cause crash.
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# RESTART 38 : WITH KEYRING PLUGIN after crash and cause resume operation
+#              to crash just after inserting DDL Log Entry
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+Got one of the listed errors
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
+# RESTART 39 : Normal. In this restart resume operation should finish successfully
+# Wait for Encryption processing to finish in background thread
+# Search the pattern in error log
+Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
+Pattern "Finished DECRYPTION for tablespace encrypt_ts" found
+# RESTART 40 : WITHOUT KEYRING PLUGIN
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
+NAME	ENCRYPTION
+encrypt_ts	N
+SELECT * FROM t1 LIMIT 10;
+c1
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+SOME VALUES
+###########
+# Cleanup #
+###########
+DROP TABLE t1;
+DROP TABLESPACE encrypt_ts;
+# RESTART 41 : final
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

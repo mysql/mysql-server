@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 
 #include "storage/perfschema/table_status_by_thread.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <new>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -120,33 +120,22 @@ table_status_by_thread::table_status_by_thread()
     : PFS_engine_table(&m_share, &m_pos),
       m_status_cache(true),
       m_pos(),
-      m_next_pos(),
-      m_context(nullptr) {}
+      m_next_pos() {}
 
 void table_status_by_thread::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_status_by_thread::rnd_init(bool scan) {
+int table_status_by_thread::rnd_init(bool /* scan */) {
   /* Build array of SHOW_VARs from the global status array prior to
    * materializing. */
   m_status_cache.initialize_session();
 
-  /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-  m_context = (table_status_by_thread_context *)current_thd->alloc(
-      sizeof(table_status_by_thread_context));
-  new (m_context) table_status_by_thread_context(status_version, !scan);
   return 0;
 }
 
 int table_status_by_thread::rnd_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   bool has_more_thread = true;
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
@@ -167,13 +156,8 @@ int table_status_by_thread::rnd_next(void) {
 }
 
 int table_status_by_thread::rnd_pos(const void *pos) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_RECORD_DELETED;
-  }
-
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < global_thread_container.get_row_count());
+  assert(m_pos.m_index_1 < global_thread_container.get_row_count());
 
   PFS_thread *pfs_thread = global_thread_container.get(m_pos.m_index_1);
 
@@ -190,14 +174,8 @@ int table_status_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_session();
 
-  /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-  m_context = (table_status_by_thread_context *)current_thd->alloc(
-      sizeof(table_status_by_thread_context));
-  new (m_context) table_status_by_thread_context(status_version, false);
-
   PFS_index_status_by_thread *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_status_by_thread);
   m_opened_index = result;
   m_index = result;
@@ -206,11 +184,6 @@ int table_status_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_status_by_thread::index_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   bool has_more_thread = true;
 
   for (m_pos.set_at(&m_next_pos); has_more_thread; m_pos.next_thread()) {
@@ -273,7 +246,7 @@ int table_status_by_thread::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -290,7 +263,7 @@ int table_status_by_thread::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

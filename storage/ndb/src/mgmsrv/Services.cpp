@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -554,10 +554,10 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
     return;
   }
 
-  struct sockaddr_in6 addr;
+  struct sockaddr_in6 client_addr;
   {
-    ndb_socket_len_t addrlen= sizeof(addr);
-    int r = ndb_getpeername(m_socket, (struct sockaddr*)&addr, &addrlen);
+    ndb_socket_len_t addrlen= sizeof(client_addr);
+    int r = ndb_getpeername(m_socket, (struct sockaddr*)&client_addr, &addrlen);
     if (r != 0 )
     {
       m_output->println("result: getpeername(" MY_SOCKET_FORMAT \
@@ -581,7 +581,7 @@ MgmApiSession::get_nodeid(Parser_t::Context &,
   int error_code = 0;
   if (!m_mgmsrv.alloc_node_id(tmp,
                               (ndb_mgm_node_type)nodetype,
-                              (struct sockaddr*)&addr,
+                              &client_addr,
                               error_code, error_string,
                               log_event,
                               timeout))
@@ -751,12 +751,6 @@ MgmApiSession::setClientVersion(Parser<MgmApiSession>::Context &,
   args.get("major", &m_vMajor);
   args.get("minor", &m_vMinor);
   args.get("build", &m_vBuild);
-
-  fprintf(stderr, "MGMD set client %p version to %u.%u.%u \n",
-          this,
-          m_vMajor,
-          m_vMinor,
-          m_vBuild);
 
   m_output->println("set clientversion reply");
   m_output->println("result: Ok");
@@ -2161,7 +2155,7 @@ clear_dynamic_ports_from_config(Config* config)
       // Found a dynamic port with value in config, clear it by updating
       // the already existing value
       Uint32 zero_port = 0;
-      ConfigValues::Iterator i2(config->m_configValues->m_config,
+      ConfigValues::Iterator i2(config->m_configuration->m_config_values,
                                 iter.m_config);
       if (!i2.set(CFG_CONNECTION_SERVER_PORT, zero_port))
         return false;

@@ -19,8 +19,9 @@ insert into t1 values (1,1);
 --echo Initial state
 select * from mysql.ndb_apply_status;
 --source suite/ndb_rpl/t/show_slave_max_replicated_epoch.inc
-select @slave_server_id:= @@server_id;
 
+set @slave_server_id:= @@server_id;
+select @slave_server_id;
 --echo Default, no data, max replicated epoch will be 0.
 reset slave;
 start slave;

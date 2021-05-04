@@ -1988,11 +1988,14 @@ INSERT INTO t2 VALUES
 CREATE TABLE t3 LIKE t1;
 INSERT INTO t3 VALUES
 (10,8,'2007-08-19 08:08:38','i'),(11,0,'2000-05-21 03:51:51','');
- 
+
+# Hypergraph optimizer has different warnings. 
+--disable_warnings
 SELECT DISTINCT datetime_key FROM t1
 WHERE (int_nokey, pk)  
   IN (SELECT t3.pk, t3.pk FROM t2 LEFT JOIN t3 ON t3.varchar_key)  
   AND pk = 9;
+--enable_warnings 
 
 DROP TABLE t1, t2, t3;
 

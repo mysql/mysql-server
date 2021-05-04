@@ -1,7 +1,7 @@
 #ifndef SQL_BKA_ITERATOR_H_
 #define SQL_BKA_ITERATOR_H_
 
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,13 +46,14 @@
   in particular FilterIterator.
  */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <iterator>
 #include <memory>
 
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/handler.h"
@@ -339,7 +340,7 @@ class MultiRangeRowIterator final : public TableRowIterator {
     outer joins or antijoins.
    */
   bool RowHasBeenRead(const hash_join_buffer::BufferRow *row) const {
-    DBUG_ASSERT(m_match_flag_buffer != nullptr);
+    assert(m_match_flag_buffer != nullptr);
     size_t row_number = std::distance(m_begin, row);
     return m_match_flag_buffer[row_number / 8] & (1 << (row_number % 8));
   }

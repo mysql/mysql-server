@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -293,15 +293,15 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
 
     case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_INVALID:
-      DBUG_ASSERT(false);
+      assert(false);
       break;
 
     default:
-      DBUG_ASSERT(false);  // Shouldn't happen
+      assert(false);  // Shouldn't happen
   }
 
-  DBUG_ASSERT(column_info.get()->m_type !=
-              (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
+  assert(column_info.get()->m_type !=
+         (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
   if (!m_compact_metadata) {
     column_info.set_non_compact_data("def", field->col_name, field->table_name,

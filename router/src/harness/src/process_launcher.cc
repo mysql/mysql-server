@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -517,6 +517,17 @@ void ProcessLauncher::start() {
 
     fcntl(fd_out[1], F_SETFD, FD_CLOEXEC);
     fcntl(fd_in[0], F_SETFD, FD_CLOEXEC);
+
+    // mark all FDs as CLOEXEC
+    //
+    // don't inherit any open FD to the spawned process.
+    //
+    // 3 should be STDERR_FILENO + 1
+    // 255 should be large enough.
+    for (int fd = 3; fd < 255; ++fd) {
+      // it may fail (bad fd, ...)
+      fcntl(fd, F_SETFD, FD_CLOEXEC);
+    }
 
     const auto params_arr = get_params(executable_path, args);
     const auto env_vars_vect = get_env_vars_vector(env_vars);

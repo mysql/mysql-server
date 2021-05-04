@@ -147,5 +147,4 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA IF EXISTS xtest;
 DROP USER test_user@localhost;

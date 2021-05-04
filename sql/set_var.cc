@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,6 +44,7 @@
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // SUPER_ACL, generate_password
 #include "sql/auth/sql_security_ctx.h"
+#include "sql/debug_sync.h"
 #include "sql/derror.h"  // ER_THD
 #include "sql/enum_query_type.h"
 #include "sql/item.h"
@@ -96,7 +97,7 @@ bool get_sysvar_source(const char *name, uint length,
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
 
   /* system_variable_hash should have been initialized. */
-  DBUG_ASSERT(get_system_variable_hash() != nullptr);
+  assert(get_system_variable_hash() != nullptr);
   std::string str(name, length);
   sysvar = find_or_nullptr(*get_system_variable_hash(), str);
 
@@ -116,7 +117,7 @@ int sys_var_init() {
   DBUG_TRACE;
 
   /* Must be already initialized. */
-  DBUG_ASSERT(system_charset_info != nullptr);
+  assert(system_charset_info != nullptr);
 
   system_variable_hash = new collation_unordered_map<string, sys_var *>(
       system_charset_info, PSI_INSTRUMENT_ME);
@@ -239,6 +240,7 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
       guard(lock),
       offset(off),
       on_check(on_check_func),
+      pre_update(nullptr),
       on_update(on_update_func),
       deprecation_substitute(substitute),
       is_os_charset(false) {
@@ -252,11 +254,11 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
     in the first (PARSE_EARLY) stage.
     See handle_options() for details.
   */
-  DBUG_ASSERT(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
+  assert(parse_flag == PARSE_NORMAL || getopt_id <= 0 || getopt_id >= 255);
 
   name.str = name_arg;  // ER_NO_DEFAULT relies on 0-termination of name_arg
   name.length = strlen(name_arg);  // and so does this.
-  DBUG_ASSERT(name.length <= NAME_CHAR_LEN);
+  assert(name.length <= NAME_CHAR_LEN);
 
   memset(&option, 0, sizeof(option));
   option.name = name_arg;
@@ -284,6 +286,13 @@ sys_var::sys_var(sys_var_chain *chain, const char *name_arg,
 }
 
 bool sys_var::update(THD *thd, set_var *var) {
+  /*
+    Invoke preparatory step for updating a system variable. Doing this action
+    before we have acquired any locks allows to invoke code which acquires other
+    locks without introducing deadlocks.
+  */
+  if (pre_update && pre_update(this, thd, var)) return true;
+
   enum_var_type type = var->type;
   if (type == OPT_GLOBAL || type == OPT_PERSIST || scope() == GLOBAL) {
     /*
@@ -471,7 +480,7 @@ Item *sys_var::copy_value(THD *thd) {
       return new Item_float(*pointer_cast<const double *>(val_ptr),
                             DECIMAL_NOT_SPECIFIED);
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
   return nullptr;
 }
@@ -530,6 +539,38 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v) {
 const CHARSET_INFO *sys_var::charset(THD *thd) {
   return is_os_charset ? thd->variables.character_set_filesystem
                        : system_charset_info;
+}
+
+Sys_var_tracker::Sys_var_tracker(sys_var *var)
+    : m_is_dynamic(var->cast_pluginvar() != nullptr),
+      m_name(m_is_dynamic ? current_thd->strmake(var->name) : var->name),
+      m_var(m_is_dynamic ? nullptr : var) {}
+
+sys_var *Sys_var_tracker::bind_system_variable(THD *thd) {
+  if (!m_is_dynamic ||                                               // (1)
+      (m_var != nullptr &&                                           // (2)
+       thd->get_state() == Query_arena::STMT_INITIALIZED_FOR_SP)) {  // (3)
+    /*
+      Return a previous cached value of a system variable:
+
+      - if this is a static variable (1) then always return its cached value.
+
+      - if SP body evaluation is in the process (3), and if this is not
+        a resolver phase (2): the resolver phase caches the value and the
+        executor phase reuses it; this can work since SQL statements
+        referencing SP calls don't release plugins acquired by those SP
+        calls until the SPs removed from the server memory.
+    */
+    return m_var;
+  }
+
+  m_var = find_sys_var(thd, m_name.str, m_name.length);
+  if (m_var == nullptr) {
+    my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), m_name.str);
+    return nullptr;
+  }
+
+  return m_var;
 }
 
 struct my_old_conv {
@@ -669,8 +710,8 @@ ulonglong get_system_variable_hash_version(void) {
 */
 bool enumerate_sys_vars(Show_var_array *show_var_array, bool sort,
                         enum enum_var_type query_scope, bool strict) {
-  DBUG_ASSERT(show_var_array != nullptr);
-  DBUG_ASSERT(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
+  assert(show_var_array != nullptr);
+  assert(query_scope == OPT_SESSION || query_scope == OPT_GLOBAL);
   int count = system_variable_hash->size();
 
   /* Resize array if necessary. */
@@ -823,7 +864,10 @@ int sql_set_variables(THD *thd, List<set_var_base> *var_list, bool opened) {
     }
   }
 err:
-  free_underlaid_joins(thd, thd->lex->select_lex);
+  for (set_var_base &v : *var_list) {
+    v.cleanup();
+  }
+  free_underlaid_joins(thd, thd->lex->query_block);
   return error;
 }
 
@@ -851,8 +895,8 @@ bool keyring_access_test() {
 *****************************************************************************/
 
 set_var::set_var(enum_var_type type_arg, sys_var *var_arg,
-                 LEX_CSTRING base_name_arg, Item *value_arg)
-    : var(var_arg), type(type_arg), base(base_name_arg) {
+                 const LEX_CSTRING base_name_arg, Item *value_arg)
+    : var(var_arg), type(type_arg), base(base_name_arg), var_tracker(var_arg) {
   /*
     If the set value is a field, change it to a string to allow things like
     SET table_type=MYISAM;
@@ -952,6 +996,16 @@ Resolve the variable assignment
 
 int set_var::resolve(THD *thd) {
   DBUG_TRACE;
+
+  if (var == nullptr) {
+    var = var_tracker.bind_system_variable(thd);
+  } else {
+    // No need to rebind: called from sql_set_variables().
+  }
+  if (var == nullptr) {
+    return -1;
+  }
+
   var->do_deprecated_warning(thd);
   if (var->is_readonly()) {
     if (type != OPT_PERSIST_ONLY) {
@@ -1021,6 +1075,16 @@ int set_var::resolve(THD *thd) {
 
 int set_var::check(THD *thd) {
   DBUG_TRACE;
+  DEBUG_SYNC(current_thd, "after_error_checking");
+
+  if (var == nullptr) {
+    var = var_tracker.bind_system_variable(thd);
+  } else {
+    // No need to rebind: called from sql_set_variables().
+  }
+  if (var == nullptr) {
+    return -1;
+  }
 
   /* value is a NULL pointer if we are using SET ... = DEFAULT */
   if (!value) return 0;
@@ -1053,6 +1117,10 @@ int set_var::check(THD *thd) {
     -1   ERROR, message not sent
 */
 int set_var::light_check(THD *thd) {
+  var = var_tracker.bind_system_variable(thd);
+  if (var == nullptr) {
+    return 1;
+  }
   if (!var->check_scope(type)) {
     int err = (is_global_persist()) ? ER_LOCAL_VARIABLE : ER_GLOBAL_VARIABLE;
     my_error(err, MYF(0), var->name.str);
@@ -1116,6 +1184,8 @@ void set_var::update_source_user_host_timestamp(THD *thd) {
   an error due to logics.
 */
 int set_var::update(THD *thd) {
+  assert(var != nullptr);
+
   int ret = 0;
   /* for persist only syntax do not update the value */
   if (type != OPT_PERSIST_ONLY) {

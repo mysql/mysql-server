@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,6 +138,7 @@ class sys_var {
 
  protected:
   typedef bool (*on_check_function)(sys_var *self, THD *thd, set_var *var);
+  typedef bool (*pre_update_function)(sys_var *self, THD *thd, set_var *var);
   typedef bool (*on_update_function)(sys_var *self, THD *thd,
                                      enum_var_type type);
 
@@ -148,6 +149,11 @@ class sys_var {
   PolyLock *guard;                ///< *second* lock that protects the variable
   ptrdiff_t offset;  ///< offset to the value from global_system_variables
   on_check_function on_check;
+  /**
+    Pointer to function to be invoked before updating system variable (but
+    after calling on_check hook), while we do not hold any locks yet.
+  */
+  pre_update_function pre_update;
   on_update_function on_update;
   const char *const deprecation_substitute;
   bool is_os_charset;  ///< true if the value is in character_set_filesystem
@@ -258,6 +264,14 @@ class sys_var {
     that support the syntax @@keycache_name.variable_name
   */
   bool is_struct() { return option.var_type & GET_ASK_ADDR; }
+  /*
+    Indicates whether this system variable is written to the binlog or not.
+
+    Variables are written to the binlog as part of "status_vars" in
+    Query_log_event, as an Intvar_log_event, or a Rand_log_event.
+
+    @return true if the variable is written to the binlog, false otherwise.
+  */
   bool is_written_to_binlog(enum_var_type type) {
     return type != OPT_GLOBAL && binlog_status == SESSION_VARIABLE_IN_BINLOG;
   }
@@ -349,6 +363,27 @@ class sys_var {
   uchar *global_var_ptr();
 };
 
+class Sys_var_tracker {
+ public:
+  Sys_var_tracker(sys_var *var);
+
+  sys_var *bind_system_variable(THD *thd);
+
+  bool operator==(const Sys_var_tracker &x) const {
+    return m_var && m_var == x.m_var;
+  }
+
+  LEX_CSTRING get_var_name() const { return m_name; }
+  bool is_sys_var(sys_var *x) const { return m_var == x; }
+  bool is_plugin_var() const { return m_is_dynamic; }
+
+ private:
+  const bool m_is_dynamic;   ///< true if dynamic variable
+  const LEX_CSTRING m_name;  ///< variable name
+
+  sys_var *m_var;  ///< variable pointer
+};
+
 /****************************************************************************
   Classes for parsing of the SET command
 ****************************************************************************/
@@ -371,6 +406,7 @@ class set_var_base {
     @returns whether this variable is @@@@optimizer_trace.
   */
   virtual bool is_var_optimizer_trace() const { return false; }
+  virtual void cleanup() {}
 
   /**
     Used only by prepared statements to resolve and check. No locking of tables
@@ -399,6 +435,10 @@ class set_var : public set_var_base {
   LEX_CSTRING
   base; /**< for structured variables, like keycache_name.variable_name */
 
+ private:
+  Sys_var_tracker var_tracker;
+
+ public:
   set_var(enum_var_type type_arg, sys_var *var_arg, LEX_CSTRING base_name_arg,
           Item *value_arg);
 
@@ -421,8 +461,9 @@ class set_var : public set_var_base {
   }
   bool is_var_optimizer_trace() const override {
     extern sys_var *Sys_optimizer_trace_ptr;
-    return var == Sys_optimizer_trace_ptr;
+    return var_tracker.is_sys_var(Sys_optimizer_trace_ptr);
   }
+  void cleanup() override { var = nullptr; }
 };
 
 /* User variables like @my_own_variable */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -348,11 +348,11 @@ bool Trigger_loader::load_triggers(THD *thd, MEM_ROOT *mem_root,
     return true;
 
   if (trg.definitions.is_empty()) {
-    DBUG_ASSERT(trg.sql_modes.is_empty());
-    DBUG_ASSERT(trg.definers_list.is_empty());
-    DBUG_ASSERT(trg.client_cs_names.is_empty());
-    DBUG_ASSERT(trg.connection_cl_names.is_empty());
-    DBUG_ASSERT(trg.db_cl_names.is_empty());
+    assert(trg.sql_modes.is_empty());
+    assert(trg.definers_list.is_empty());
+    assert(trg.client_cs_names.is_empty());
+    assert(trg.connection_cl_names.is_empty());
+    assert(trg.db_cl_names.is_empty());
     return false;
   }
 
@@ -762,21 +762,21 @@ static File_option view_parameters[] = {
   @retval true   ON FAILURE
 */
 static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
-  SELECT_LEX *backup_select = thd->lex->select_lex;
+  Query_block *backup_query_block = thd->lex->query_block;
   TABLE_LIST *saved_query_tables = thd->lex->query_tables;
   SQL_I_List<Sroutine_hash_entry> saved_sroutines_list;
   // For creation of view without column information.
-  SELECT_LEX select(thd->mem_root, nullptr, nullptr);
+  Query_block select(thd->mem_root, nullptr, nullptr);
 
   // Backup
-  thd->lex->select_lex = &select;
+  thd->lex->query_block = &select;
   thd->lex->query_tables = nullptr;
   thd->lex->sroutines_list.save_and_clear(&saved_sroutines_list);
 
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
   const dd::Schema *schema = nullptr;
   if (thd->dd_client()->acquire(view_ref->db, &schema)) return true;
-  DBUG_ASSERT(schema != nullptr);  // Should be impossible during upgrade.
+  assert(schema != nullptr);  // Should be impossible during upgrade.
 
   // Disable autocommit option in thd variable
   Disable_autocommit_guard autocommit_guard(thd);
@@ -792,7 +792,7 @@ static bool create_unlinked_view(THD *thd, TABLE_LIST *view_ref) {
     result = trans_commit_stmt(thd) || trans_commit(thd);
 
   // Restore
-  thd->lex->select_lex = backup_select;
+  thd->lex->query_block = backup_query_block;
   thd->lex->sroutines_list.push_front(&saved_sroutines_list);
   thd->lex->query_tables = saved_query_tables;
 
@@ -1163,7 +1163,7 @@ static bool add_triggers_to_table(THD *thd, TABLE *table,
       */
       if (t->get_event() < t_type ||
           (t->get_event() == t_type && t->get_action_time() < t_time)) {
-        DBUG_ASSERT(false);
+        assert(false);
         LogErr(ERROR_LEVEL, ER_TRG_WRONG_ORDER, t->get_db_name().str,
                t->get_trigger_name().str, schema_name.c_str(),
                table_name.c_str());
@@ -1671,7 +1671,7 @@ static bool migrate_table_to_dd(THD *thd, const String_type &schema_name,
   }
 
   // open_table_from_share and partition expression parsing needs a
-  // valid SELECT_LEX to parse generated columns
+  // valid Query_block to parse generated columns
   LEX *lex_saved = thd->lex;
   thd->lex = &lex;
   lex_start(thd);
@@ -1925,13 +1925,13 @@ bool migrate_all_frm_to_dd(THD *thd, const char *dbname,
         hence, we do not need to check this issue at the SQL layer.
 
         See also the corresponding check in migrate_schema_to_dd(). We do
-        not repeat the DBUG_ASSERTS here, but check only if l_c_t_n = 1.
+        not repeat the assertS here, but check only if l_c_t_n = 1.
         Additionally, we do the check below only once, hence the test for
         is_fix_view_cols_and_deps = false.
       */
       if (!is_fix_view_cols_and_deps && lower_case_table_names == 1) {
         // Already checked schema name while migrating schema meta data.
-        DBUG_ASSERT(is_string_in_lowercase(schema_name, system_charset_info));
+        assert(is_string_in_lowercase(schema_name, system_charset_info));
         // Upper case table names break invariant when l_c_t_n = 1.
         if (!is_string_in_lowercase(table_name, system_charset_info)) {
           LogErr(ERROR_LEVEL, ER_TABLE_NAME_IN_UPPER_CASE_NOT_ALLOWED,

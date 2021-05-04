@@ -22,7 +22,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #-------------------------- TEST 1 -------------------------------------#
 # RESTART 1 : WITH KEYRING PLUGIN
 ########################################################################
@@ -35,7 +35,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 # RESTART 2 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just before flushing page 0 at the end
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
@@ -69,7 +69,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 # RESTART 4 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just before flushing page 0 at the end
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
@@ -106,7 +106,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 # RESTART 8 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just after flushing page 0 at the end
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
@@ -140,7 +140,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 # RESTART 10 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just after flushing page 0 at the end
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
@@ -177,7 +177,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 # RESTART 14 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just before resetting_progress on page 0
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
@@ -211,7 +211,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 # RESTART 16 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just before resetting_progress on page 0
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
@@ -253,7 +253,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 # RESTART 20 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just before updating flags
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
@@ -290,7 +290,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 # RESTART 24 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just before encryption processing is started
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
@@ -324,7 +324,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 # RESTART 26 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just before encryption processing is started
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
@@ -361,7 +361,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 # RESTART 30 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just after encryption processing is finished
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
@@ -395,7 +395,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 # RESTART 32 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just after encryption processing is finished
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found
@@ -432,7 +432,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 # RESTART 36 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just after inserting DDL Log Entry
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming ENCRYPTION for tablespace encrypt_ts" found
 Pattern "Finished ENCRYPTION for tablespace encrypt_ts" not found
@@ -466,7 +466,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 # RESTART 38 : WITH KEYRING PLUGIN after crash and cause resume operation
 #              to crash just after inserting DDL Log Entry
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-ERROR HY000: MySQL server has gone away
+Got one of the listed errors
 # Search the pattern in error log
 Pattern "Resuming DECRYPTION for tablespace encrypt_ts" found
 Pattern "Finished DECRYPTION for tablespace encrypt_ts" not found

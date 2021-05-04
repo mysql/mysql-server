@@ -12,5 +12,4 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA xtest;
 SET GLOBAL mysqlx_compression_algorithms=DEFAULT;

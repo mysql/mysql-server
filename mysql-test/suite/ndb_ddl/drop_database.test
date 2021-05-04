@@ -1,0 +1,18 @@
+--source connect.inc
+
+--echo # Test drop of database containing two NDB tables
+CREATE DATABASE testdb;
+CREATE TABLE testdb.t1 (a int PRIMARY KEY) ENGINE = NDB;
+CREATE TABLE testdb.t2 (a int PRIMARY KEY) ENGINE = NDB;
+DROP DATABASE testdb;
+
+--echo # Test drop of database containing several NDB tables
+CREATE DATABASE testdb;
+let $tables = 10;
+--echo # Creating tables
+while($tables) {
+  --disable_query_log ONCE
+  eval CREATE TABLE testdb.t$tables (a int PRIMARY KEY) ENGINE = NDB;
+  dec $tables;
+}
+DROP DATABASE testdb;

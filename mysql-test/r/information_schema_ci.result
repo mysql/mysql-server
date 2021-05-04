@@ -583,7 +583,7 @@ t1	CREATE TABLE `t1` (
   `DEFAULT_COLLATE_NAME` varchar(64) NOT NULL,
   `DESCRIPTION` varchar(2048) NOT NULL,
   `MAXLEN` int unsigned NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 drop table t1;
 create view v1 as select * from information_schema.TABLES;
 drop view v1;

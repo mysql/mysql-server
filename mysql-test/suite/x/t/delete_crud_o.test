@@ -28,7 +28,7 @@ grant all on *.* to deletecruduser@localhost;
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 -->sql
  DROP SCHEMA if EXISTS mysqlxplugin;
  CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8';
@@ -306,8 +306,8 @@ select * from mysqlxplugin.extracategoryinfo;
 
 EOF
 
---exec $MYSQLXTEST -u deletecruduser --password='deletecruduser' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--exec $MYSQLXTEST -u deletecruduser --password='deletecruduser' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 
 --echo .
 --echo #---------- START TEST WITH SAFE MODE OFF ----------#
@@ -318,7 +318,7 @@ EOF
 ##                                           |
 ## ******************************************
 
---write_file $MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.xpl
 -->sql
 USE mysqlxplugin;
 ## SQL safe updates as 0 will allow to delete without the need to use a key column 
@@ -857,8 +857,8 @@ Mysqlx.Crud.Delete {
 
 EOF
 
---exec $MYSQLXTEST -u deletecruduser --password='deletecruduser' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.tmp
+--exec $MYSQLXTEST -u deletecruduser --password='deletecruduser' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql_safemode_0.xpl
 
 
 ## ******************************************
@@ -872,7 +872,7 @@ EOF
 
 CREATE SCHEMA mysqlxplugin_coll;
 
---write_file $MYSQL_TMP_DIR/mysqlx-delete_collection_CRUD.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_collection_CRUD.xpl
 -->stmtadmin create_collection	{"schema":"mysqlxplugin_coll","name":"main_collection"}
 -->recvresult
 
@@ -1151,10 +1151,10 @@ Mysqlx.Crud.Delete {
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u deletecruduser --password='deletecruduser' --file=$MYSQL_TMP_DIR/mysqlx-delete_collection_CRUD.tmp 2>&1
+--exec $MYSQLXTEST -u deletecruduser --password='deletecruduser' --file=$MYSQL_TMP_DIR/mysqlx-delete_collection_CRUD.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-delete_collection_CRUD.tmp
+--source ../include/xplugin_cleanup.inc
 DROP SCHEMA if EXISTS mysqlxplugin;
 DROP SCHEMA if EXISTS mysqlxplugin_coll;
 

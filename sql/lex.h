@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -348,6 +348,7 @@ static const SYMBOL symbols[] = {
     {SYM("JSON_TABLE", JSON_TABLE_SYM)},
     {SYM("JSON_VALUE", JSON_VALUE_SYM)},
     {SYM("KEY", KEY_SYM)},
+    {SYM("KEYRING", KEYRING_SYM)},
     {SYM("KEYS", KEYS)},
     {SYM("KEY_BLOCK_SIZE", KEY_BLOCK_SIZE)},
     {SYM("KILL", KILL_SYM)},
@@ -844,6 +845,7 @@ static const SYMBOL symbols[] = {
     {SYM_FN("STDDEV", STD_SYM)},
     {SYM_FN("STDDEV_POP", STD_SYM)},
     {SYM_FN("STDDEV_SAMP", STDDEV_SAMP_SYM)},
+    {SYM_FN("ST_COLLECT", ST_COLLECT_SYM)},
     {SYM_FN("SUBDATE", SUBDATE_SYM)},
     {SYM_FN("SUBSTR", SUBSTRING)},
     {SYM_FN("SUBSTRING", SUBSTRING)},

@@ -21,11 +21,9 @@ count(*)
 
 delete from t1 where a in (1,7, 90, 100, 130);
 affected rows: 5
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 # expected result 1 roundtrips
 # 0 - info call
 # 0 - read the rows 
@@ -35,11 +33,9 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 
 delete from t1 where a=1000;
 affected rows: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 # expected result 1 roundtrips
 # 0 - info call
 # 0 - read the rows 
@@ -49,11 +45,9 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 
 delete from t1 where a in (1000, 1001, 1002, 1003, 1004);
 affected rows: 0
-@ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
+ndb_execute_count
 1
 affected rows: 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select count(*) as "0(was deleted)" from t1 where a in (1,7, 90, 100, 130);
 0(was deleted)
 0

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -396,7 +396,7 @@ struct timespec os_event::get_wait_timelimit(ulint time_in_usec) {
                   strerror(errno_clock_gettime));
 #endif /* !UNIV_NO_ERR_MSGS */
 
-        os_thread_sleep(100000); /* 0.1 sec */
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         errno = errno_clock_gettime;
 
       } else {
@@ -421,7 +421,7 @@ struct timespec os_event::get_wait_timelimit(ulint time_in_usec) {
         ib::error(ER_IB_MSG_1213, strerror(errno_gettimeofday));
 #endif /* !UNIV_NO_ERR_MSGS */
 
-        os_thread_sleep(100000); /* 0.1 sec */
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         errno = errno_gettimeofday;
 
       } else {

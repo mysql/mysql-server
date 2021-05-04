@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,7 +78,7 @@
 class Cmp_splocal_locations {
  public:
   bool operator()(const Item_splocal *a, const Item_splocal *b) {
-    DBUG_ASSERT(a == b || a->pos_in_query != b->pos_in_query);
+    assert(a == b || a->pos_in_query != b->pos_in_query);
     return a->pos_in_query < b->pos_in_query;
   }
 };
@@ -290,7 +290,8 @@ class SP_instr_error_handler : public Internal_error_handler {
       CREATE TABLE ... SELECT statement.
     */
     if (thd->lex && thd->lex->sql_command == SQLCOM_CREATE_TABLE &&
-        thd->lex->select_lex && !thd->lex->select_lex->field_list_is_empty() &&
+        thd->lex->query_block &&
+        !thd->lex->query_block->field_list_is_empty() &&
         sql_errno == ER_TABLE_EXISTS_ERROR)
       cts_table_exists_error = true;
 
@@ -314,7 +315,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
 
   /* Check pre-conditions. */
 
-  DBUG_ASSERT(thd->change_list.is_empty());
+  assert(thd->change_list.is_empty());
 
   /*
     Use our own lex.
@@ -503,7 +504,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd, uint *nextp,
                          thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE;
 
   // Unless there is an error, execution must have started (and completed)
-  DBUG_ASSERT(error || m_lex->is_exec_started());
+  assert(error || m_lex->is_exec_started());
 
   if (reprepare_error || sp_instr_error_handler.cts_table_exists_error)
     thd->stmt_arena->set_state(Query_arena::STMT_INITIALIZED_FOR_SP);
@@ -553,7 +554,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
     // The instruction has returned zero-length query string. That means, the
     // re-preparation of the instruction is not possible. We should not come
     // here in the normal life.
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_UNKNOWN_ERROR, MYF(0));
     return nullptr;
   }
@@ -636,7 +637,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp) {
 
       Trigger *t = sp->m_trg_list->find_trigger(thd->lex->sphead->m_name);
 
-      DBUG_ASSERT(t);
+      assert(t);
 
       if (!t) return nullptr;  // Don't take chances in production.
 
@@ -751,7 +752,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd, uint *nextp,
       We take only 3 attempts to reprepare the query, otherwise we might end
       up in the endless loop.
     */
-    DBUG_ASSERT(stmt_reprepare_observer->is_invalidated());
+    assert(stmt_reprepare_observer->is_invalidated());
     if ((reprepare_attempt++ >= MAX_REPREPARE_ATTEMPTS) ||
         DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", true,
                          false)) {
@@ -924,8 +925,8 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp) {
     double-check whether the potential conflict they created is a
     problem.
   */
-  DBUG_ASSERT((thd->query_name_consts == 0) ||
-              (thd->rewritten_query().length() == 0));
+  assert((thd->query_name_consts == 0) ||
+         (thd->rewritten_query().length() == 0));
 
   thd->set_query(query_backup);
   thd->query_name_consts = 0;
@@ -964,7 +965,7 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp) {
 
   PSI_statement_locker *statement_psi_saved = thd->m_statement_psi;
 
-  DBUG_ASSERT(lex->m_sql_cmd == nullptr || lex->m_sql_cmd->is_part_of_sp());
+  assert(lex->m_sql_cmd == nullptr || lex->m_sql_cmd->is_part_of_sp());
 
   bool rc = mysql_execute_command(thd);
 
@@ -1055,10 +1056,10 @@ void sp_instr_set_trigger_field::print(const THD *thd, String *str) {
 }
 
 bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd) {
-  m_value_item = thd->lex->select_lex->single_visible_field();
-  DBUG_ASSERT(m_value_item != nullptr);
+  m_value_item = thd->lex->query_block->single_visible_field();
+  assert(m_value_item != nullptr);
 
-  DBUG_ASSERT(!m_trigger_field);
+  assert(!m_trigger_field);
 
   m_trigger_field = new (thd->mem_root)
       Item_trigger_field(thd->lex->current_context(), TRG_NEW_ROW,
@@ -1136,7 +1137,7 @@ PSI_statement_info sp_instr_jump_if_not::psi_info = {0, "jump_if_not", 0,
 #endif
 
 bool sp_instr_jump_if_not::exec_core(THD *thd, uint *nextp) {
-  DBUG_ASSERT(m_expr_item);
+  assert(m_expr_item);
 
   Item *item = sp_prepare_func_item(thd, &m_expr_item);
 
@@ -1218,7 +1219,7 @@ PSI_statement_info sp_instr_jump_case_when::psi_info = {0, "jump_case_when", 0,
 #endif
 
 bool sp_instr_jump_case_when::exec_core(THD *thd, uint *nextp) {
-  DBUG_ASSERT(m_eq_item);
+  assert(m_eq_item);
 
   Item *item = sp_prepare_func_item(thd, &m_eq_item);
 
@@ -1249,7 +1250,7 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
 
   if (!m_case_expr_item) return true;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   m_case_expr_item->m_sp = thd->lex->sphead;
 #endif
 
@@ -1258,7 +1259,7 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
   // This function can be called in two cases:
   //
   //   - during initial (regular) parsing of SP. In this case we don't have
-  //     lex->select_lex (because it's not a SELECT statement), but
+  //     lex->query_block (because it's not a SELECT statement), but
   //     m_expr_item is already set in constructor.
   //
   //   - during re-parsing after meta-data change. In this case we've just
@@ -1266,8 +1267,8 @@ bool sp_instr_jump_case_when::on_after_expr_parsing(THD *thd) {
   //     item from its list.
 
   if (!m_expr_item) {
-    m_expr_item = thd->lex->select_lex->single_visible_field();
-    DBUG_ASSERT(m_expr_item != nullptr);
+    m_expr_item = thd->lex->query_block->single_visible_field();
+    assert(m_expr_item != nullptr);
   }
 
   // Setup main expression item (m_expr_item).
@@ -1332,7 +1333,7 @@ sp_instr_hpush_jump::sp_instr_hpush_jump(uint ip, sp_pcontext *ctx,
       m_handler(handler),
       m_opt_hpop(0),
       m_frame(ctx->current_var_count()) {
-  DBUG_ASSERT(m_handler->condition_values.elements == 0);
+  assert(m_handler->condition_values.elements == 0);
 }
 
 sp_instr_hpush_jump::~sp_instr_hpush_jump() {

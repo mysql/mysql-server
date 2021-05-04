@@ -28,8 +28,9 @@ SELECT * FROM t1 ORDER BY c3;
 
 # sync slave and retrieve epoch
 sync_slave_with_master;
+SELECT MAX(epoch) FROM mysql.ndb_apply_status into @the_epoch;
 --replace_column 1 <the_epoch>
-SELECT @the_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
+SELECT @the_epoch;
 let $the_epoch= `select @the_epoch` ;
 SELECT * FROM t1 ORDER BY c3;
 
@@ -158,8 +159,9 @@ commit;
 
 --echo Sync slave and retrieve epoch
 --sync_slave_with_master
+SELECT MAX(epoch) FROM mysql.ndb_apply_status into @first_epoch;
 --replace_column 1 <first_epoch>
-SELECT @first_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
+SELECT @first_epoch;
 let $first_epoch= `select @first_epoch` ;
 
 --echo   Slave contents

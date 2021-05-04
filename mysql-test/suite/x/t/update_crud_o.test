@@ -36,7 +36,7 @@ grant all on *.* to updatecruduser@localhost;
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/mysqlx-update_crud_safemode_1.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_crud_safemode_1.xpl
 -->sql
  DROP SCHEMA if EXISTS mysqlxplugin;
  CREATE SCHEMA mysqlxplugin DEFAULT CHARSET='utf8';
@@ -521,8 +521,8 @@ SHOW STATUS like 'Mysqlx_crud_update';
 
 EOF
 
---exec $MYSQLXTEST -u updatecruduser --password='updatecruduser' --file=$MYSQL_TMP_DIR/mysqlx-update_crud_safemode_1.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-update_crud_safemode_1.tmp
+--exec $MYSQLXTEST -u updatecruduser --password='updatecruduser' --file=$MYSQL_TMP_DIR/mysqlx-update_crud_safemode_1.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-update_crud_safemode_1.xpl
 
 --echo .
 --echo #---------- TEST WITH SAFE MODE OFF ----------#
@@ -533,7 +533,7 @@ EOF
 ##                                        |
 ## ***************************************
 
---write_file $MYSQL_TMP_DIR/mysqlx-update_crud_safemode_0.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_crud_safemode_0.xpl
 -->sql
  USE mysqlxplugin;
 ## SQL safe updates as 0 will allow to update without the need to use a key column
@@ -846,15 +846,15 @@ select * from mysqlxplugin.categories where CategoryID=4;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u updatecruduser --password='updatecruduser' --file=$MYSQL_TMP_DIR/mysqlx-update_crud_safemode_0.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-update_crud_safemode_0.tmp
+--exec $MYSQLXTEST -u updatecruduser --password='updatecruduser' --file=$MYSQL_TMP_DIR/mysqlx-update_crud_safemode_0.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-update_crud_safemode_0.xpl
 
 ## ***************************************
 ## Test with safe mode off for Collection |
 ##                                        |
 ## ***************************************
 
---write_file $MYSQL_TMP_DIR/mysqlx-update_crud_collection_safemode_0.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_crud_collection_safemode_0.xpl
 
 -->stmtadmin create_collection	{"schema":"mysqlxcoll","name":"maincoll"}
 -->recvresult
@@ -1673,10 +1673,10 @@ EOF
 
 CREATE SCHEMA mysqlxcoll;
 
---exec $MYSQLXTEST -u updatecruduser --password='updatecruduser' --file=$MYSQL_TMP_DIR/mysqlx-update_crud_collection_safemode_0.tmp 2>&1
+--exec $MYSQLXTEST -u updatecruduser --password='updatecruduser' --file=$MYSQL_TMP_DIR/mysqlx-update_crud_collection_safemode_0.xpl 2>&1
 
 ## Cleanup
  DROP SCHEMA if EXISTS mysqlxplugin;
  DROP SCHEMA if EXISTS mysqlxcoll;
---remove_file $MYSQL_TMP_DIR/mysqlx-update_crud_collection_safemode_0.tmp
+--source ../include/xplugin_cleanup.inc
 

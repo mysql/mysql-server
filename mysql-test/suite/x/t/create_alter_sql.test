@@ -20,7 +20,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 -->sql
 #-- "Creating database for testcase"
 DROP DATABASE IF EXISTS xplugintest;
@@ -152,8 +152,7 @@ DROP DATABASE IF EXISTS xplugintest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -2,7 +2,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
---write_file $MYSQL_TMP_DIR/mysqlx-client-timeout.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-client-timeout.xpl
 # Expect CR_X_READ_TIMEOUT
 -->expecterror 2500
 -->recv
@@ -19,10 +19,8 @@ exec $MYSQLXTEST
 	--password=''
 	-h127.0.0.1
 	--timeout=2000
-	--file=$MYSQL_TMP_DIR/mysqlx-client-timeout.tmp 2>&1;
-
+	--file=$MYSQL_TMP_DIR/mysqlx-client-timeout.xpl 2>&1;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-client-timeout.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 

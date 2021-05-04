@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -302,7 +302,7 @@ class Relay_log_info : public Rpl_info {
     clients.
   */
   inline bool belongs_to_client() {
-    DBUG_ASSERT(info_thd);
+    assert(info_thd);
     return !info_thd->slave_thread;
   }
 /* Instrumentation key for performance schema for mts_temp_table_LOCK */
@@ -796,7 +796,7 @@ class Relay_log_info : public Rpl_info {
 
   void add_logged_gtid(rpl_sidno sidno, rpl_gno gno) {
     get_sid_lock()->assert_some_lock();
-    DBUG_ASSERT(sidno <= get_sid_map()->get_max_sidno());
+    assert(sidno <= get_sid_map()->get_max_sidno());
     gtid_set->ensure_sidno(sidno);
     gtid_set->_add_gtid(sidno, gno);
   }
@@ -832,7 +832,7 @@ class Relay_log_info : public Rpl_info {
 
      @retval    false    Success
      @retval    true     Error
- */
+   */
   bool reset_group_relay_log_pos(const char **errmsg);
   /*
     Update the error number, message and timestamp fields. This function is
@@ -946,7 +946,7 @@ class Relay_log_info : public Rpl_info {
   */
   inline void notify_relay_log_change() {
     if (until_condition == UNTIL_RELAY_POS)
-      dynamic_cast<Until_position *>(until_option)->notify_log_name_change();
+      down_cast<Until_position *>(until_option)->notify_log_name_change();
   }
 
   /**
@@ -966,7 +966,7 @@ class Relay_log_info : public Rpl_info {
   */
   inline void notify_group_master_log_name_update() {
     if (until_condition == UNTIL_MASTER_POS)
-      dynamic_cast<Until_position *>(until_option)->notify_log_name_change();
+      down_cast<Until_position *>(until_option)->notify_log_name_change();
   }
 
   inline void inc_event_relay_log_pos() {
@@ -1038,7 +1038,7 @@ class Relay_log_info : public Rpl_info {
 
   bool get_table_data(TABLE *table_arg, table_def **tabledef_var,
                       TABLE **conv_table_var) const {
-    DBUG_ASSERT(tabledef_var && conv_table_var);
+    assert(tabledef_var && conv_table_var);
     for (TABLE_LIST *ptr = tables_to_lock; ptr != nullptr;
          ptr = ptr->next_global)
       if (ptr->table == table_arg) {
@@ -1252,13 +1252,6 @@ class Relay_log_info : public Rpl_info {
   struct timespec ts_exec[2];   // per event pre- and post- exec timestamp
   struct timespec stats_begin;  // applier's bootstrap time
 
-  /*
-     A sorted array of the Workers' current assignement numbers to provide
-     approximate view on Workers loading.
-     The first row of the least occupied Worker is queried at assigning
-     a new partition. Is updated at checkpoint commit to the main RLI.
-  */
-  Prealloced_array<ulong, 16> least_occupied_workers;
   time_t mts_last_online_stat;
   /* end of MTS statistics */
 
@@ -1334,7 +1327,7 @@ class Relay_log_info : public Rpl_info {
   inline bool is_parallel_exec() const {
     bool ret = (slave_parallel_workers > 0) && !is_mts_recovery();
 
-    DBUG_ASSERT(!ret || !workers.empty());
+    assert(!ret || !workers.empty());
 
     return ret;
   }
@@ -2012,7 +2005,7 @@ class Relay_log_info : public Rpl_info {
    @return int
      @retval 0      Succeeds to initialize until option object.
      @retval <> 0   A defined error number is return if any error happens.
- */
+   */
   int init_until_option(THD *thd, const LEX_MASTER_INFO *master_param);
 
   /**
@@ -2155,7 +2148,7 @@ inline bool is_committed_ddl(Log_event *ev) {
                 DDL query-log-event, otherwise returns false.
 */
 inline bool is_atomic_ddl_commit_on_slave(THD *thd) {
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   Relay_log_info *rli = thd->rli_slave;
 

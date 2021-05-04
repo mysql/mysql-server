@@ -19,10 +19,6 @@ from mysql.ndb_binlog_index
 group by epoch 
 having count > 1;
 gci	ugci	count
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Duplicate epochs according to MySQLD Binlog entries
 select  epoch >> 32 as gci, 
 (epoch << 32) >> 32 as ugci, 

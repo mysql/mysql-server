@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -314,6 +314,10 @@ Option_descriptor get_option_descriptor(const XSession::Mysqlx_option option) {
     case Mysqlx_option::Compression_level_server:
       return Option_descriptor{new Compression_optional_int_store<
           &Compression_config::m_use_level_server>()};
+
+    case Mysqlx_option::Buffer_recevie_size:
+      return Option_descriptor{
+          new Con_int_store<&Con_conf::m_buffer_receive_size>()};
 
     default:
       return {};

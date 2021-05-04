@@ -1747,6 +1747,7 @@ CAST("2020extra" AS YEAR)
 2020
 Warnings:
 Warning	1292	Truncated incorrect YEAR value: '2020extra'
+SET timestamp = UNIX_TIMESTAMP('2020-12-22 03:30:00');
 SELECT CAST(TIMESTAMP'2010-01-01 00:00' AS YEAR);
 CAST(TIMESTAMP'2010-01-01 00:00' AS YEAR)
 2010
@@ -1764,6 +1765,7 @@ CAST(TIME'08:09:10' AS YEAR)
 SELECT CAST(TIME'00:00:00' AS YEAR);
 CAST(TIME'00:00:00' AS YEAR)
 2020
+SET timestamp = DEFAULT;
 SELECT CAST(ST_PointFromText('POINT(10 10)') AS YEAR);
 ERROR HY000: Incorrect arguments to cast_as_year
 CREATE TABLE t AS SELECT CAST("2010" AS YEAR);
@@ -1925,3 +1927,253 @@ CAST(STR_TO_DATE('nope','%d-%m-%Y') AS YEAR)
 NULL
 Warnings:
 Warning	1411	Incorrect datetime value: 'nope' for function str_to_date
+# WL#14109: Implement a consistent comparison type rule matrix
+SET @zero_date = '0000-00-00';
+SET @zero_day = '2000-01-00';
+SET @zero_month = '2000-00-01';
+SET @zero_year = '0000-01-01';
+SET @invalid_date = '2000-02-31';
+SET @bad_date = 'YYYY-MM-DD';
+SET @zero_datetime = '0000-00-00 00:00:00.000000';
+SET @zero_day_dt = '2000-01-00 00:00:00.000000';
+SET @zero_month_dt = '2000-00-01 00:00:00.000000';
+SET @zero_year_dt = '0000-01-01 00:00:00.000000';
+SET @invalid_datetime = '2000-02-31 00:00:00.000000';
+SET @bad_datetime = 'YYYY-MM-DD HH:MM:SS.ffffff';
+SET SQL_MODE=DEFAULT;
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+CAST(@zero_date AS DATE) AS d2,
+CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00.000000'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00.000000'
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+CAST(@zero_day AS DATE) AS d2,
+CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2000-01-00'
+Warning	1292	Incorrect datetime value: '2000-01-00'
+Warning	1292	Incorrect datetime value: '2000-01-00 00:00:00.000000'
+Warning	1292	Incorrect datetime value: '2000-01-00 00:00:00.000000'
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+CAST(@zero_month AS DATE) AS d2,
+CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2000-00-01'
+Warning	1292	Incorrect datetime value: '2000-00-01'
+Warning	1292	Incorrect datetime value: '2000-00-01 00:00:00.000000'
+Warning	1292	Incorrect datetime value: '2000-00-01 00:00:00.000000'
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+CAST(@zero_year AS DATE) AS d2,
+CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+0000-01-01	0000-01-01	0000-01-01 00:00:00.000000	0000-01-01 00:00:00.000000
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+CAST(@invalid_date AS DATE) AS d2,
+CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2000-02-31'
+Warning	1292	Incorrect datetime value: '2000-02-31'
+Warning	1292	Incorrect datetime value: '2000-02-31 00:00:00.000000'
+Warning	1292	Incorrect datetime value: '2000-02-31 00:00:00.000000'
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+CAST(@bad_date AS DATE) AS d2,
+CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD HH:MM:SS.ffffff'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD HH:MM:SS.ffffff'
+SET SQL_MODE='NO_ZERO_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+CAST(@zero_date AS DATE) AS d2,
+CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00.000000'
+Warning	1292	Incorrect datetime value: '0000-00-00 00:00:00.000000'
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+CAST(@zero_day AS DATE) AS d2,
+CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+2000-01-00	2000-01-00	2000-01-00 00:00:00.000000	2000-01-00 00:00:00.000000
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+CAST(@zero_month AS DATE) AS d2,
+CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+2000-00-01	2000-00-01	2000-00-01 00:00:00.000000	2000-00-01 00:00:00.000000
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+CAST(@zero_year AS DATE) AS d2,
+CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+0000-01-01	0000-01-01	0000-01-01 00:00:00.000000	0000-01-01 00:00:00.000000
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+CAST(@invalid_date AS DATE) AS d2,
+CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2000-02-31'
+Warning	1292	Incorrect datetime value: '2000-02-31'
+Warning	1292	Incorrect datetime value: '2000-02-31 00:00:00.000000'
+Warning	1292	Incorrect datetime value: '2000-02-31 00:00:00.000000'
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+CAST(@bad_date AS DATE) AS d2,
+CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD HH:MM:SS.ffffff'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD HH:MM:SS.ffffff'
+SET SQL_MODE='NO_ZERO_IN_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+CAST(@zero_date AS DATE) AS d2,
+CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+0000-00-00	0000-00-00	0000-00-00 00:00:00.000000	0000-00-00 00:00:00.000000
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+CAST(@zero_day AS DATE) AS d2,
+CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2000-01-00'
+Warning	1292	Incorrect datetime value: '2000-01-00'
+Warning	1292	Incorrect datetime value: '2000-01-00 00:00:00.000000'
+Warning	1292	Incorrect datetime value: '2000-01-00 00:00:00.000000'
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+CAST(@zero_month AS DATE) AS d2,
+CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2000-00-01'
+Warning	1292	Incorrect datetime value: '2000-00-01'
+Warning	1292	Incorrect datetime value: '2000-00-01 00:00:00.000000'
+Warning	1292	Incorrect datetime value: '2000-00-01 00:00:00.000000'
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+CAST(@zero_year AS DATE) AS d2,
+CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+0000-01-01	0000-01-01	0000-01-01 00:00:00.000000	0000-01-01 00:00:00.000000
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+CAST(@invalid_date AS DATE) AS d2,
+CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: '2000-02-31'
+Warning	1292	Incorrect datetime value: '2000-02-31'
+Warning	1292	Incorrect datetime value: '2000-02-31 00:00:00.000000'
+Warning	1292	Incorrect datetime value: '2000-02-31 00:00:00.000000'
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+CAST(@bad_date AS DATE) AS d2,
+CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD HH:MM:SS.ffffff'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD HH:MM:SS.ffffff'
+SET SQL_MODE='ALLOW_INVALID_DATES';
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+CAST(@zero_date AS DATE) AS d2,
+CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+0000-00-00	0000-00-00	0000-00-00 00:00:00.000000	0000-00-00 00:00:00.000000
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+CAST(@zero_day AS DATE) AS d2,
+CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+2000-01-00	2000-01-00	2000-01-00 00:00:00.000000	2000-01-00 00:00:00.000000
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+CAST(@zero_month AS DATE) AS d2,
+CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+2000-00-01	2000-00-01	2000-00-01 00:00:00.000000	2000-00-01 00:00:00.000000
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+CAST(@zero_year AS DATE) AS d2,
+CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+0000-01-01	0000-01-01	0000-01-01 00:00:00.000000	0000-01-01 00:00:00.000000
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+CAST(@invalid_date AS DATE) AS d2,
+CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+2000-02-31	2000-02-31	2000-02-31 00:00:00.000000	2000-02-31 00:00:00.000000
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+CAST(@bad_date AS DATE) AS d2,
+CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+d1	d2	dt1	dt2
+NULL	NULL	NULL	NULL
+Warnings:
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD HH:MM:SS.ffffff'
+Warning	1292	Incorrect datetime value: 'YYYY-MM-DD HH:MM:SS.ffffff'
+SET SQL_MODE=DEFAULT;
+#
+# Bug#32371039: ITEM->MAX_LENGTH FIELD IS NOT ACCURATE FOR
+#               FROM_BASE64 FUNCTION
+#
+CREATE TABLE t AS
+SELECT CONCAT(CAST(-1 AS UNSIGNED)) AS col1,
+1.0 + CAST(-1 AS UNSIGNED) AS col2,
+CONCAT(CAST(9223372036854775808 AS SIGNED)) AS col3;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `col1` varchar(21) CHARACTER SET latin1 DEFAULT NULL,
+  `col2` decimal(23,1) NOT NULL DEFAULT '0.0',
+  `col3` varchar(21) CHARACTER SET latin1 DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t;
+col1	col2	col3
+18446744073709551615	18446744073709551616.0	-9223372036854775808
+DROP TABLE t;

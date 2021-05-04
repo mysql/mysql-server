@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,9 @@ namespace mock {
 
 class Document_id_aggregator : public iface::Document_id_aggregator {
  public:
+  Document_id_aggregator();
+  virtual ~Document_id_aggregator() override;
+
   MOCK_METHOD(std::string, generate_id, (), (override));
   MOCK_METHOD(std::string, generate_id, (const Variables &), (override));
   MOCK_METHOD(void, clear_ids, (), (override));

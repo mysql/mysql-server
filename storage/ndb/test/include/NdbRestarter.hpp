@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -179,10 +179,10 @@ protected:
   
   bool connected;
   BaseString addr;
-  ndb_mgm_configuration * m_config;
+  ndb_mgm_config_unique_ptr m_config;
   bool m_reconnect;
 protected:
-  ndb_mgm_configuration * getConfig();
+  const ndb_mgm_configuration * getConfig();
 
   class Ndb_cluster_connection * m_cluster_connection;
   int wait_until_ready(const int * nodes = 0, int cnt = 0, int timeout = 60);

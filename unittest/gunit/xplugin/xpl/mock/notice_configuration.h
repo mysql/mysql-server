@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,9 @@ namespace mock {
 
 class Notice_configuration : public iface::Notice_configuration {
  public:
+  Notice_configuration();
+  virtual ~Notice_configuration() override;
+
   MOCK_METHOD(bool, get_notice_type_by_name,
               (const std::string &name, ngs::Notice_type *out_notice_type),
               (const, override));

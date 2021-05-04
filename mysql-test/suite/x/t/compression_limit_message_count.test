@@ -36,7 +36,7 @@ INSERT INTO test_table(data) VALUES
    ( "my tenth row");
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/resultset.tmp
+--write_file $MYSQL_TMP_DIR/resultset.xpl
 -->import connection.macro
 -->import assert_messages.macro
 -->import assert_notices.macro
@@ -132,7 +132,7 @@ while ($iteration)
     --compression-algorithm=$algo
     -v %MAX_MSGS_PER_COMPRESSION%=1
     -v %NUM_OF_COMPRESSION_MSGS%=13
-    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
   --echo
   --echo ## II. Execute the test using: $algo + max_combine=2
@@ -144,7 +144,7 @@ while ($iteration)
     --compression-algorithm=$algo
     -v %MAX_MSGS_PER_COMPRESSION%=2
     -v %NUM_OF_COMPRESSION_MSGS%=7
-    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
   --echo
@@ -157,7 +157,7 @@ while ($iteration)
     --compression-algorithm=$algo
     -v %MAX_MSGS_PER_COMPRESSION%=3
     -v %NUM_OF_COMPRESSION_MSGS%=5
-    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
   --echo
   --echo ## IV. Execute the test using: $algo + max_combine=6
@@ -169,7 +169,7 @@ while ($iteration)
     --compression-algorithm=$algo
     -v %MAX_MSGS_PER_COMPRESSION%=6
     -v %NUM_OF_COMPRESSION_MSGS%=3
-    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
   --echo
   --echo ## V. Execute the test using: $algo + max_combine=1000000
@@ -181,7 +181,7 @@ while ($iteration)
     --compression-algorithm=$algo
     -v %MAX_MSGS_PER_COMPRESSION%=1000000
     -v %NUM_OF_COMPRESSION_MSGS%=1
-    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
   --echo
   --echo ## VI. Execute the test using: $algo + max_combine=9223372036854775807
@@ -193,7 +193,7 @@ while ($iteration)
     --compression-algorithm=$algo
     -v %MAX_MSGS_PER_COMPRESSION%=9223372036854775807
     -v %NUM_OF_COMPRESSION_MSGS%=1
-    --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
   dec $iteration;
 }
@@ -201,5 +201,4 @@ while ($iteration)
 ## Cleanup
 DROP TABLE test_table;
 
---remove_file $MYSQL_TMP_DIR/resultset.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -5,7 +5,7 @@
 --source include/force_restart.inc
 
 # MySQL Servers were started with --debug=d,ndb_simulate_upgrade_from_non_dd_version
-# This simulates an ongoing upgrade and atleast one data node still running 7.6.13
+# This simulates an ongoing upgrade and atleast one data node still running 7.6
 # The ndb_schema table will not be upgraded. Suppress any warnings thrown by MySQL Servers.
 let $i = $NUM_MYSQLDS;
 while($i)
@@ -30,7 +30,8 @@ while($i)
 --echo # Verify that the ndb_schema table was not upgraded
 --source check_ndb_schema_upgrade_status.inc
 
---echo # Verify that DDLs are allowed after upgrade
+--echo # Verify that DDLs are allowed when MySQL Server see all API nodes as
+--echo # upgraded to version supporting new MySQL DD
 let $i = $NUM_MYSQLDS;
 while($i)
 {
@@ -44,8 +45,8 @@ while($i)
 --echo # ndb_schema will be upgraded only when a MySQL Server restarts
 --source check_ndb_schema_upgrade_status.inc
 
---echo # Restart first MySQL Server to trigger ndb_schema upgrade
---echo # Other Servers will pick it up after a hickup
+--echo # Restart first MySQL Server to trigger schema distribution upgrade, the
+--echo # other Servers will pick it up gracefully
 let $mysqld_name=mysqld.1.1;
 let $param1 = --debug=-d,ndb_simulate_upgrade_from_non_dd_version,ndb_schema_skip_create_schema_op_id;
 let $restart_parameters = restart: $param1;

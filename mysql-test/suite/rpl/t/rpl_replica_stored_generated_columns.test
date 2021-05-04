@@ -1,0 +1,202 @@
+# ==== Purpose ====
+#
+# The purpose of this test is to ensure that stored generated columns are
+# correctly updated when a row is applied on the replica side.
+#
+# ==== Requirements ====
+#
+# R1. Stored generated columns that exist only on the replica must be
+#     updated after a `Write_event` is successfully applied.
+#
+# R1. Stored generated columns that exist only on the replica must be
+#     updated after an `Update_event` is successfully applied.
+#
+# R3. Stored generated columns that also exist on the source must be
+#     updated after a `Write_event` is successfully applied.
+#
+# R4. Stored generated columns that also exist on the source must be
+#     updated after an `Update_event` is successfully applied.
+#
+# ==== Implementation ====
+#
+# Setup
+# -----
+# 1. Create a table on the source.
+# 2. Add stored and virtual generated columns to the given table, on the
+#    replica.
+#
+# TC1. Stored generated columns are updated after a `Write_rows_event`
+# --------------------------------------------------------------------
+# 1. Insert 10 rows on the source.
+# 2. Ensure that the count of rows where the stored generated columns is
+#    not null is 10, on the replica.
+#
+# TC2. Stored generated columns are updated after an `Update_rows_event`
+# ----------------------------------------------------------------------
+# 1. Update the 10 rows on the source.
+# 2. Ensure that the count of rows where the stored generated columns is
+#    not null is 10, on the replica.
+#
+# TC3. Stored generated columns are removed after a `Delete_rows_event`
+# ---------------------------------------------------------------------
+# 1. Delete the 10 rows on the source.
+# 2. Ensure that the count of rows is 0.
+#
+# ==== References ====
+#
+# BUG#32292413 GENERATED COLUMNS (VIRTUAL & STORED) DO NOT UPDATE ON
+#              REPLICA
+#
+
+--source include/have_binlog_format_row.inc
+--source include/master-slave.inc
+
+# Setup
+# -----
+# 1. Create a table on the source.
+CREATE TABLE `log_data` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `series` INT UNSIGNED NOT NULL,
+  `tm_ts` VARCHAR(14) DEFAULT NULL,
+  `data` BLOB,
+  `v1_gcol` INT GENERATED ALWAYS AS (`series` + 1) VIRTUAL NOT NULL,
+  `s1_gcol` INT GENERATED ALWAYS AS (`series` + 1) STORED NOT NULL,
+  `v2_gcol` INT GENERATED ALWAYS AS (`series` + 2) VIRTUAL NOT NULL,
+  `s2_gcol` INT GENERATED ALWAYS AS (`series` + 2) STORED NOT NULL,
+  PRIMARY KEY (`id`),
+  KEY `v1_idx` (`v1_gcol`),
+  KEY `s1_idx` (`s1_gcol`)
+) ENGINE = InnoDB;
+
+# 2. Add stored and virtual generated columns to the given table, on the
+#    replica.
+--source include/sync_slave_sql_with_master.inc
+ALTER TABLE
+  `log_data`
+MODIFY
+  `v1_gcol` INT GENERATED ALWAYS AS (`series` - 1) VIRTUAL NOT NULL,
+MODIFY
+  `s1_gcol` INT GENERATED ALWAYS AS (`series` - 1) STORED NOT NULL,
+MODIFY
+  `v2_gcol` INT GENERATED ALWAYS AS (`series` + 3) VIRTUAL NOT NULL,
+MODIFY
+  `s2_gcol` INT GENERATED ALWAYS AS (`series` + 3) STORED NOT NULL,
+ADD
+  COLUMN `s_len` INT GENERATED ALWAYS AS (
+    LENGTH(`data`)
+  ) STORED,
+ADD
+  COLUMN `s_date` DATE GENERATED ALWAYS AS (
+    CAST(`tm_ts` AS DATE)
+  ) STORED,
+ADD
+  COLUMN `v_date` DATE GENERATED ALWAYS AS (
+    CAST(`tm_ts` AS DATE)
+  ) VIRTUAL,
+ADD
+  COLUMN `s_hash` char(40) GENERATED ALWAYS AS (
+    SHA(
+      HEX(`data`)
+    )
+  ) STORED,
+ADD
+  COLUMN `v_hash` char(40) GENERATED ALWAYS AS (
+    SHA(
+      HEX(`data`)
+    )
+  ) VIRTUAL,
+ADD
+  KEY `k_s_len` (s_len),
+ADD
+  KEY `k_s_date` (s_date),
+ADD
+  KEY `k_v_date`(v_date),
+ADD
+  KEY `k_s_hash`(s_hash),
+ADD
+  KEY `k_v_hash`(v_hash);
+
+# TC1. Stored generated columns are updated after a `Write_rows_event`
+# --------------------------------------------------------------------
+--source include/rpl_connection_master.inc
+# 1. Insert 10 rows on the source.
+INSERT INTO `log_data` (`series`, `tm_ts`, `data`)
+SELECT *
+FROM
+  (
+    WITH RECURSIVE sequence AS (
+      SELECT
+        1 AS level
+      UNION ALL
+      SELECT
+        level + 1
+      FROM
+        sequence
+      WHERE
+        level < 10
+    )
+    SELECT
+      1,
+      CURDATE()+ 0,
+      REPEAT(
+        rand(),
+        3
+      )
+    FROM
+      sequence
+  ) AS F;
+
+--source include/sync_slave_sql_with_master.inc
+# 2. Ensure that the count of rows where the stored generated columns is
+#    not null is 10, on the replica.
+--let $updated_count = `SELECT COUNT(1) FROM log_data WHERE s_date IS NOT NULL AND s_hash IS NOT NULL`
+--let $assert_text = Stored columns not NULL count is 10
+--let $assert_cond = "$updated_count" = "10"
+--source include/assert.inc
+--let $updated_count = `SELECT COUNT(1) FROM log_data WHERE v2_gcol = 4 AND s2_gcol = 4`
+--let $assert_text = Stored columns with series equal to 4 count is 10
+--let $assert_cond = "$updated_count" = "10"
+--source include/assert.inc
+--let $updated_count = `SELECT COUNT(1) FROM log_data WHERE v1_gcol = 0 AND s1_gcol = 0`
+--let $assert_text = Stored columns with series equal to 0 count is 10
+--let $assert_cond = "$updated_count" = "10"
+--source include/assert.inc
+
+# TC2. Stored generated columns are updated after an `Update_rows_event`
+# ----------------------------------------------------------------------
+--source include/rpl_connection_master.inc
+# 1. Update the 10 rows on the source.
+UPDATE `log_data` SET `tm_ts` = "20210101", `series` = 2;
+
+--source include/sync_slave_sql_with_master.inc
+# 2. Ensure that the count of rows where the stored generated columns is
+#    not null is 10, on the replica.
+--let $updated_count = `SELECT COUNT(1) FROM log_data WHERE s_date = "2021-01-01"`
+--let $assert_text = Stored columns with s_date equal to 2021-01-01 count is 10
+--let $assert_cond = "$updated_count" = "10"
+--source include/assert.inc
+--let $updated_count = `SELECT COUNT(1) FROM log_data WHERE v2_gcol = 5 AND s2_gcol = 5`
+--let $assert_text = Stored columns with series equal to 5 count is 10
+--let $assert_cond = "$updated_count" = "10"
+--source include/assert.inc
+--let $updated_count = `SELECT COUNT(1) FROM log_data WHERE v1_gcol = 1 AND s1_gcol = 1`
+--let $assert_text = Stored columns with series equal to 1 count is 10
+--let $assert_cond = "$updated_count" = "10"
+--source include/assert.inc
+
+# TC3. Stored generated columns are removed after a `Delete_rows_event`
+# ---------------------------------------------------------------------
+--source include/rpl_connection_master.inc
+# 1. Delete the 10 rows on the source.
+DELETE FROM `log_data` WHERE `id` < 11;
+
+--source include/sync_slave_sql_with_master.inc
+# 2. Ensure that the count of rows is 0.
+--let $updated_count = `SELECT COUNT(1) FROM log_data`
+--let $assert_text = Count is 0
+--let $assert_cond = "$updated_count" = "0"
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE `log_data`;
+--source include/rpl_end.inc

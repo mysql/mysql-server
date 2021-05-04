@@ -51,10 +51,10 @@ struct PSI_cond_locker_state_v1 {
   enum PSI_cond_operation m_operation;
   struct PSI_cond *m_cond;
   struct PSI_mutex *m_mutex;
-  struct PSI_thread *m_thread;
-  unsigned long long m_timer_start;
+  struct PSI_thread *m_thread{nullptr};
+  unsigned long long m_timer_start{0ULL};
   unsigned long long (*m_timer)(void);
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state_v1;
 typedef void (*register_cond_v1_t)(const char *category,

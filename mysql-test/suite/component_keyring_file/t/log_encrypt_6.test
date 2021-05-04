@@ -1,0 +1,15 @@
+--source include/have_component_keyring_file.inc
+--source include/big_test.inc
+--source include/not_parallel.inc
+# Test tries restart after redo log encryption is enabled
+# - Error   :restart without keyring
+# - Pass    :restart without keyring and --innodb_force_recovery=6
+# - Pass    :remove redo files,restart without keyring
+
+--source include/no_valgrind_without_big.inc
+# This test must be not be run in parallel with other tests because
+# it requires global manifest file to load keyring component directly
+
+--source ../inc/setup_component_customized.inc
+--source include/keyring_tests/innodb/log_encrypt_6.inc
+--source ../inc/teardown_component_customized.inc

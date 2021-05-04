@@ -218,7 +218,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 10,
-                    "cost": 3.6055
+                    "cost": 3.60549
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -451,7 +451,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 10,
-                  "cost": 0.5055
+                  "cost": 0.505493
                 } /* table_scan */
               }
             ] /* rows_estimation */
@@ -468,7 +468,7 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 1.5055,
+                      "cost": 1.50549,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -476,9 +476,9 @@ EXPLAIN SELECT * FROM t1 ORDER BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 1.5055,
+                "cost_for_plan": 1.50549,
                 "sort_cost": 10,
-                "new_cost_for_plan": 11.505,
+                "new_cost_for_plan": 11.5055,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -624,7 +624,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 "range_analysis": {
                   "table_scan": {
                     "rows": 10,
-                    "cost": 3.6055
+                    "cost": 3.60549
                   } /* table_scan */,
                   "potential_range_indexes": [
                     {
@@ -664,7 +664,7 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                       "rows_to_scan": 10,
                       "access_type": "scan",
                       "resulting_rows": 10,
-                      "cost": 1.5055,
+                      "cost": 1.50549,
                       "chosen": true,
                       "use_tmp_table": true
                     }
@@ -672,9 +672,9 @@ EXPLAIN SELECT f1 + 1, MAX(GC) FROM t1 GROUP BY f1 + 1	{
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
                 "rows_for_plan": 10,
-                "cost_for_plan": 1.5055,
+                "cost_for_plan": 1.50549,
                 "sort_cost": 10,
-                "new_cost_for_plan": 11.505,
+                "new_cost_for_plan": 11.5055,
                 "chosen": true
               }
             ] /* considered_execution_plans */

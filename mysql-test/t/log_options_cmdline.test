@@ -10,6 +10,7 @@
 ##================================================================##
 # 1 - Tests to check error log verbosity on command line           #
 ##================================================================##
+--source include/big_test.inc
 --source include/have_log_bin.inc
 
 --let $PLUGIN_DIR   = 	 `select @@plugin_dir`

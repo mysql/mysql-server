@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,16 +39,16 @@ typedef Mem_root_array<Key_use> Key_use_array;
 
 extern const char *lock_descriptions[TL_WRITE_ONLY + 1];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void print_where(const THD *thd, const Item *cond, const char *info,
                  enum_query_type query_type);
 void TEST_join(JOIN *join);
 void print_plan(JOIN *join, uint idx, double record_count, double read_time,
                 double current_read_time, const char *info);
-void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST *tl);
+void dump_TABLE_LIST_graph(Query_block *query_block, TABLE_LIST *tl);
 #endif
 class Opt_trace_context;
 
-void print_keyuse_array(Opt_trace_context *trace,
+void print_keyuse_array(THD *thd, Opt_trace_context *trace,
                         const Key_use_array *keyuse_array);
 #endif /* SQL_TEST_INCLUDED */

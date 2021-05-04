@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -339,7 +339,8 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
     /* Record the lock wait time for this thread */
     thd_set_lock_wait_time(trx->mysql_thd, diff_time);
 
-    DBUG_EXECUTE_IF("lock_instrument_slow_query_log", os_thread_sleep(1000););
+    DBUG_EXECUTE_IF("lock_instrument_slow_query_log",
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1)););
   }
 
   /* The transaction is chosen as deadlock victim during sleep. */
@@ -496,7 +497,7 @@ static void lock_wait_check_and_cancel(
     The lock_cancel_waiting_and_release() needs exclusive global latch.
     Also, we need to latch the shard containing wait_lock to read the field and
     access the lock itself. */
-    locksys::Global_exclusive_latch_guard guard{};
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
     trx_mutex_enter(trx);
 
@@ -1199,7 +1200,7 @@ static bool lock_wait_check_candidate_cycle(
   lock_reset_lock_and_trx_wait() resets trx->lock.wait_lock to NULL.
   Checking trx->lock.wait_lock in reliable way requires global exclusive latch.
   */
-  locksys::Global_exclusive_latch_guard gurad{};
+  locksys::Global_exclusive_latch_guard gurad{UT_LOCATION_HERE};
   if (!lock_wait_trxs_are_still_waiting(cycle_ids, infos)) {
     lock_wait_mutex_exit();
     return false;

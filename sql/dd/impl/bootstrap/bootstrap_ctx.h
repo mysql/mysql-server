@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,9 +23,9 @@
 #ifndef DD__BOOTSTRAP_CTX_INCLUDED
 #define DD__BOOTSTRAP_CTX_INCLUDED
 
+#include <assert.h>
 #include <set>
 
-#include "my_dbug.h"                      // DBUG_ASSERT
 #include "my_inttypes.h"                  // uint
 #include "mysql_version.h"                // MYSQL_VERSION_ID
 #include "sql/dd/dd_version.h"            // DD_VERSION
@@ -62,6 +62,7 @@ static constexpr uint DD_VERSION_80016 = 80016;
 static constexpr uint DD_VERSION_80017 = 80017;
 static constexpr uint DD_VERSION_80021 = 80021;
 static constexpr uint DD_VERSION_80022 = 80022;
+static constexpr uint DD_VERSION_80023 = 80023;
 
 /*
   Set of supported DD version labels. A supported DD version is a version
@@ -72,9 +73,9 @@ static constexpr uint DD_VERSION_80022 = 80022;
   stored in the 'dd_properties' table by the server from which we downgrade.
 */
 static std::set<uint> supported_dd_versions = {
-    DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013,
-    DD_VERSION_80014, DD_VERSION_80015, DD_VERSION_80016,
-    DD_VERSION_80017, DD_VERSION_80021, DD_VERSION_80022};
+    DD_VERSION_80011, DD_VERSION_80012, DD_VERSION_80013, DD_VERSION_80014,
+    DD_VERSION_80015, DD_VERSION_80016, DD_VERSION_80017, DD_VERSION_80021,
+    DD_VERSION_80022, DD_VERSION_80023};
 
 // Individual server version labels that we can refer to.
 static constexpr uint SERVER_VERSION_50700 = 50700;
@@ -127,15 +128,15 @@ class DD_bootstrap_ctx {
   uint get_actual_I_S_version() const { return m_actual_I_S_version; }
 
   void set_dd_upgrade_done() {
-    DBUG_ASSERT(m_did_dd_upgrade_from == 0);
-    DBUG_ASSERT(is_dd_upgrade());
+    assert(m_did_dd_upgrade_from == 0);
+    assert(is_dd_upgrade());
     m_did_dd_upgrade_from = m_actual_dd_version;
   }
 
   bool dd_upgrade_done() const { return m_did_dd_upgrade_from != 0; }
 
   void set_I_S_upgrade_done() {
-    DBUG_ASSERT(m_did_I_S_upgrade_from == 0);
+    assert(m_did_I_S_upgrade_from == 0);
     m_did_I_S_upgrade_from = m_actual_I_S_version;
   }
 

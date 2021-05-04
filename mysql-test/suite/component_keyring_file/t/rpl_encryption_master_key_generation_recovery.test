@@ -1,0 +1,10 @@
+--source include/have_component_keyring_file.inc
+--source include/have_debug.inc
+# This test case is binary log format agnostic
+--source include/have_binlog_format_row.inc
+
+--source ../inc/rpl_setup_component.inc
+
+--source include/keyring_tests/mats/rpl_encryption_master_key_generation_recovery.inc
+
+--source ../inc/rpl_teardown_component.inc

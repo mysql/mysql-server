@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -245,7 +245,16 @@ static bool dd_upgrade_match_single_col(const Field *field,
 
   DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(col->mtype == col_type););
 
-  if (col->mtype != col_type) {
+  /* The columns of datatype MYSQL_TYPE_GEOMETRY were represented in InnoDB
+  as DATA_BLOB until 5.7 where they were changed to DATA_GEOMETRY type.
+  However, the following check fails while upgrading a 5.7 database with
+  GEOMETRY columns originally created with 5.6.
+  It is safe to ignore this datatype mismatch here so that upgrade can proceed
+  without affecting anything else. The correct datatype will be reflected in the
+  metadata once it is upgraded. */
+  if (col_type == DATA_GEOMETRY && col->mtype == DATA_BLOB) {
+    ib::warn(ER_IB_WRN_OLD_GEOMETRY_TYPE, field->field_name);
+  } else if (col->mtype != col_type) {
     ib::error(ER_IB_MSG_239)
         << "Column datatype mismatch for col: " << field->field_name;
     failure = true;

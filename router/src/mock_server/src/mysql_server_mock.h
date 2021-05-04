@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,9 +30,13 @@
 #include <set>
 
 #include "mock_session.h"
+#include "mysql.h"  // mysql_ssl_mode
 #include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/plugin.h"
+#include "mysql/harness/stdx/monitor.h"
+#include "mysql/harness/tls_server_context.h"
 #include "mysqlrouter/mock_server_component.h"
 #include "statement_reader.h"
 
@@ -50,7 +54,7 @@ class MySQLServerMock {
    *
    * @param expected_queries_file Path to the json file with definitins
    *                        of the expected SQL statements and responses
-   * @param module_prefix prefix of javascript modules used by the nodejs
+   * @param module_prefixes prefixes of javascript modules used by the nodejs
    * compatible module-loader
    * @param bind_address Address on which the server accepts client connections
    * @param bind_port Number of the port on which the server accepts clients
@@ -58,10 +62,14 @@ class MySQLServerMock {
    * @param protocol the protocol this mock instance speaks: "x" or "classic"
    * @param debug_mode Flag indicating if the handled queries should be printed
    * to the standard output
+   * @param tls_server_ctx TLS Server Context
+   * @param ssl_mode SSL mode
    */
-  MySQLServerMock(std::string expected_queries_file, std::string module_prefix,
+  MySQLServerMock(std::string expected_queries_file,
+                  std::vector<std::string> module_prefixes,
                   std::string bind_address, unsigned bind_port,
-                  std::string protocol, bool debug_mode);
+                  std::string protocol, bool debug_mode,
+                  TlsServerContext &&tls_server_ctx, mysql_ssl_mode ssl_mode);
 
   /** @brief Starts handling the clients connections in infinite loop.
    *         Will return only in case of an exception (error).
@@ -82,14 +90,24 @@ class MySQLServerMock {
   net::io_context io_ctx_;
   net::ip::tcp::acceptor listener_{io_ctx_};
   std::string expected_queries_file_;
-  std::string module_prefix_;
+  std::vector<std::string> module_prefixes_;
   std::string protocol_name_;
+
+  struct Shared {
+    Shared(net::io_context &io_ctx) : wakeup_sock_send_{io_ctx} {}
 #if defined(_WIN32)
-  net::ip::tcp::socket
+    net::ip::tcp::socket
 #else
-  local::stream_protocol::socket
+    local::stream_protocol::socket
 #endif
-      wakeup_sock_send_{io_ctx_};
+        wakeup_sock_send_;
+  };
+
+  Monitor<Shared> shared_{Shared{io_ctx_}};
+
+  TlsServerContext tls_server_ctx_;
+
+  mysql_ssl_mode ssl_mode_;
 };
 
 class MySQLServerSharedGlobals {

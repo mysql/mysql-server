@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -453,7 +453,7 @@ dberr_t lock_prdt_insert_check_and_lock(
 
   dberr_t err = DB_SUCCESS;
   {
-    locksys::Shard_latch_guard guard{block->get_page_id()};
+    locksys::Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
 
     /* Because this code is invoked for a running transaction by
     the thread that is serving the transaction, it is not necessary
@@ -524,7 +524,7 @@ void lock_prdt_update_parent(buf_block_t *left_block, buf_block_t *right_block,
 
   /* We will operate on three blocks (left, right, parent). Latching their
   shards without deadlock is easiest using exclusive global latch. */
-  locksys::Global_exclusive_latch_guard guard{};
+  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
   /* Get all locks in parent */
   for (lock = lock_rec_get_first_on_page_addr(lock_sys->prdt_hash, page_id);
@@ -574,7 +574,7 @@ static void lock_prdt_update_split_low(buf_block_t *block,
                                        ulint type_mode) {
   lock_t *lock;
 
-  locksys::Shard_latches_guard guard{*block, *new_block};
+  locksys::Shard_latches_guard guard{UT_LOCATION_HERE, *block, *new_block};
   for (lock = lock_rec_get_first_on_page(lock_hash_get(type_mode), block);
        lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
     ut_ad(lock);
@@ -686,7 +686,7 @@ dberr_t lock_prdt_lock(buf_block_t *block,  /*!< in/out: buffer block of rec */
   index record, and this would not have been possible if another active
   transaction had modified this secondary index record. */
 
-  locksys::Shard_latch_guard guard{block->get_page_id()};
+  locksys::Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
 
   const ulint prdt_mode = mode | type_mode;
   lock_t *lock = lock_rec_get_first_on_page(hash, block);
@@ -759,7 +759,7 @@ dberr_t lock_place_prdt_page_lock(const page_id_t &page_id, dict_index_t *index,
   transaction had modified this secondary index record. */
 
   RecID rec_id(page_id, PRDT_HEAPNO);
-  locksys::Shard_latch_guard guard{page_id};
+  locksys::Shard_latch_guard guard{UT_LOCATION_HERE, page_id};
 
   const lock_t *lock =
       lock_rec_get_first_on_page_addr(lock_sys->prdt_page_hash, page_id);
@@ -798,7 +798,7 @@ dberr_t lock_place_prdt_page_lock(const page_id_t &page_id, dict_index_t *index,
 }
 
 bool lock_test_prdt_page_lock(const trx_t *trx, const page_id_t &page_id) {
-  locksys::Shard_latch_guard guard{page_id};
+  locksys::Shard_latch_guard guard{UT_LOCATION_HERE, page_id};
   /* Make sure that the only locks on this page (if any) are ours. */
   for (const lock_t *lock =
            lock_rec_get_first_on_page_addr(lock_sys->prdt_page_hash, page_id);
@@ -824,7 +824,7 @@ void lock_prdt_rec_move(
     return;
   }
 
-  locksys::Shard_latches_guard guard{*receiver, *donator};
+  locksys::Shard_latches_guard guard{UT_LOCATION_HERE, *receiver, *donator};
 
   for (lock = lock_rec_get_first(lock_sys->prdt_hash, donator, PRDT_HEAPNO);
        lock != nullptr; lock = lock_rec_get_next(PRDT_HEAPNO, lock)) {

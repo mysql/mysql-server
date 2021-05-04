@@ -154,6 +154,7 @@ set ndb_join_pushdown = off;
 set optimizer_switch= 'firstmatch=off';
 set optimizer_switch= 'materialization=off';
 
+--replace_column 10 ###
 explain
 SELECT pk, col_int_key
   FROM v AS table1 

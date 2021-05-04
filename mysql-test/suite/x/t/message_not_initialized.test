@@ -3,7 +3,7 @@
 --source include/xplugin_create_user.inc
 
 ## TEST STARTS HERE
---write_file $MYSQL_TMP_DIR/validate_not_init_message.tmp
+--write_file $MYSQL_TMP_DIR/validate_not_init_message.xpl
 -->import wait_until_disconnect.macro
 
 #
@@ -52,7 +52,7 @@ SET GLOBAL mysqlx_wait_timeout = 300;
 --let $wait_condition= SELECT variable_value = 0 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
 --source include/wait_condition_or_abort.inc
 
---exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_not_init_message.tmp 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_not_init_message.xpl 2>&1
 
 --let $wait_condition= SELECT variable_value = 1 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
 --source include/wait_condition_or_abort.inc
@@ -60,5 +60,4 @@ SET GLOBAL mysqlx_wait_timeout = 300;
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
 SET GLOBAL mysqlx_wait_timeout = DEFAULT;
---remove_file $MYSQL_TMP_DIR/validate_not_init_message.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

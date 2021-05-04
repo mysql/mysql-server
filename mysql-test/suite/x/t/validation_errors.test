@@ -7,7 +7,7 @@
 
 create schema xtest;
 
---let $xtest_file= $MYSQL_TMP_DIR/validation_errors.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/validation_errors.xpl
 --write_file $xtest_file
 -->import validation_schema.macro
 -->quiet
@@ -313,6 +313,4 @@ EOF
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
-drop schema if exists xtest;
+--source ../include/xplugin_cleanup.inc

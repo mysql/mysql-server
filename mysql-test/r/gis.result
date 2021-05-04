@@ -2416,6 +2416,8 @@ ERROR HY000: Incorrect arguments to >
 SELECT ST_AsWKB(ST_GeomFromText('POINT(0 0)')) > (SELECT b FROM t1) AS result;
 result
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 DROP TABLE t1;
 #
 # Bug #19880316 ALTER TABLE INSERTS INVALID VALUES IN GEOMETRY COLUMNS
@@ -2932,10 +2934,16 @@ ST_ISVALID(ST_INTERSECTION(ST_GEOMFROMTEXT('POLYGON((5 6,-15
 SELECT point(1,1) IN ('1',1,'1') AS res;
 res
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?'
 SELECT st_centroid(point(1,1)) IN ('1',1,'1') AS res;
 res
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?'
 DO st_centroid(point(1,1)) IN ('1',1,'1');
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '\x00\x00\x00\x00\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\xF0?\x00\x00\x00\x00\x00\x00\xF0?'
 #
 # Bug #21841051 PREPARE STATEMENT RETURNS DIFFERENT NUMBER OF ROWS WHEN
 # EXECUTED SECOND TIME

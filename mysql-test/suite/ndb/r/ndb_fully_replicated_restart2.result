@@ -16,100 +16,83 @@ Put some stuff into it
 Pre-restart checks
 *************************
 Check row count
-select @row_count:=count(1) from test.t1;
-@row_count:=count(1)
+select count(1) from test.t1 into @row_count;
+select @row_count;
+@row_count
 5120
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Show physical rows per logical row (NoOfReplicas * NumNodeGroups)
-select @prpr:=floor(sum(fixed_elem_count) / @row_count) as phys_rows_per_row 
+select floor(sum(fixed_elem_count) / @row_count) as phys_rows_per_row
 from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
-phys_rows_per_row
+where fq_name='test/def/t1' into @prpr;
+select @prpr;
+@prpr
 4
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check row count
-select @row_count:=count(1) from test.t1;
-@row_count:=count(1)
+select count(1) from test.t1 into @row_count;
+select @row_count;
+@row_count
 5120
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check Physical row count against expected
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
 select floor(@row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 20480	20480	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
+select floor(@row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 20480	20480	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Delete some data
 delete from test.t1 limit 512;
 Show new logical row count
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 4608
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 18432	18432	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 18432	18432	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Insert some data
 Show new logical row count
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 5408
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 21632	21632	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 21632	21632	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Show read-locality at all data nodes
 create table test.t2(a int primary key) engine=ndb;
 insert into test.t2 values (1);
@@ -130,86 +113,71 @@ Node 4
 Post-restart checks
 **************************
 Check row count
-select @row_count:=count(1) from test.t1;
-@row_count:=count(1)
+select count(1) from test.t1 into @row_count;
+select @row_count;
+@row_count
 5408
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check Physical row count against expected
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
 select floor(@row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 21632	21632	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
+select floor(@row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 21632	21632	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Delete some data
 delete from test.t1 limit 512;
 Show new logical row count
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 4896
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 19584	19584	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 19584	19584	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Insert some data
 Show new logical row count
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 5696
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 22784	22784	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 22784	22784	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Show read-locality at all data nodes
 create table test.t2(a int primary key) engine=ndb;
 insert into test.t2 values (1);
@@ -227,34 +195,29 @@ delete from test.t1 limit 1024;
 delete from test.t1 limit 1024;
 delete from test.t1 limit 1024;
 delete from test.t1 limit 1024;
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1';
 sum(fixed_elem_count)
 0
 Check new Physical row count against expected
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
 select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 0	0	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
 select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 0	0	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table test.t1;
 ndb_fully_replicated_restart2.inc (SRTO)
 Create FR table
@@ -271,100 +234,83 @@ Put some stuff into it
 Pre-restart checks
 *************************
 Check row count
-select @row_count:=count(1) from test.t1;
-@row_count:=count(1)
+select count(1) from test.t1 into @row_count;
+select @row_count;
+@row_count
 5120
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Show physical rows per logical row (NoOfReplicas * NumNodeGroups)
-select @prpr:=floor(sum(fixed_elem_count) / @row_count) as phys_rows_per_row 
+select floor(sum(fixed_elem_count) / @row_count) as phys_rows_per_row
 from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
-phys_rows_per_row
+where fq_name='test/def/t1' into @prpr;
+select @prpr;
+@prpr
 4
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check row count
-select @row_count:=count(1) from test.t1;
-@row_count:=count(1)
+select count(1) from test.t1 into @row_count;
+select @row_count;
+@row_count
 5120
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check Physical row count against expected
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
 select floor(@row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 20480	20480	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
+select floor(@row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 20480	20480	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Delete some data
 delete from test.t1 limit 512;
 Show new logical row count
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 4608
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 18432	18432	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 18432	18432	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Insert some data
 Show new logical row count
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 5408
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 21632	21632	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 21632	21632	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Show read-locality at all data nodes
 create table test.t2(a int primary key) engine=ndb;
 insert into test.t2 values (1);
@@ -388,86 +334,71 @@ Wait for SR to complete
 Post-restart checks
 **************************
 Check row count
-select @row_count:=count(1) from test.t1;
-@row_count:=count(1)
+select count(1) from test.t1 into @row_count;
+select @row_count;
+@row_count
 5408
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check Physical row count against expected
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
 select floor(@row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 21632	21632	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@row_count * @prpr) - @sum;
+select floor(@row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 21632	21632	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Delete some data
 delete from test.t1 limit 512;
 Show new logical row count
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 4896
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 19584	19584	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 19584	19584	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Insert some data
 Show new logical row count
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 5696
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check new Physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 22784	22784	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
-select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
+select floor(@new_row_count * @prpr) as expected_phys_rows,
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 22784	22784	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Show read-locality at all data nodes
 create table test.t2(a int primary key) engine=ndb;
 insert into test.t2 values (1);
@@ -485,32 +416,27 @@ delete from test.t1 limit 1024;
 delete from test.t1 limit 1024;
 delete from test.t1 limit 1024;
 delete from test.t1 limit 1024;
-select @new_row_count:=count(1) from test.t1;
-@new_row_count:=count(1)
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
+@new_row_count
 0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1';
 sum(fixed_elem_count)
 0
 Check new Physical row count against expected
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
 select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where fq_name='test/def/t1';
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 0	0	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Check UI physical row count against expected
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
 select floor(@new_row_count * @prpr) as expected_phys_rows, 
-sum(fixed_elem_count) as actual_phys_rows, 
-@diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-from ndbinfo.memory_per_fragment 
-where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+@sum as actual_phys_rows,
+@diff as diff;
 expected_phys_rows	actual_phys_rows	diff
 0	0	0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table test.t1;

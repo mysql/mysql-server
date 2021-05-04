@@ -6,7 +6,7 @@
 
 create schema xtest default charset 'utf8mb4';
 
---let $xtest_file= $MYSQL_TMP_DIR/collection_compatibility.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/collection_compatibility.xpl
 --write_file $xtest_file
 -->import validation_schema.macro
 
@@ -324,6 +324,4 @@ exec $MYSQLXTEST
 	--file=$xtest_file 2>&1;
 
 ## Cleanup
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
-drop schema if exists xtest;
+--source ../include/xplugin_cleanup.inc

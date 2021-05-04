@@ -14,7 +14,7 @@ CALL mtr.add_suppression('Failed to fetch key from keyring');
 [connection master]
 # Part 1
 SET @@GLOBAL.binlog_encryption = ON;
-ERROR HY000: Unable to recover binlog encryption master key, please check if keyring plugin is loaded.
+ERROR HY000: Unable to recover binlog encryption master key, please check if keyring is loaded.
 include/assert.inc [binlog_encryption option shall be OFF]
 include/assert.inc [Binary log was not rotated]
 include/assert.inc [Binary log is not encrypted]

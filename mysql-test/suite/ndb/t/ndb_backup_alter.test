@@ -14,7 +14,8 @@ INSERT INTO t1 SELECT NULL FROM t1;
 # Error insert to pause backup.
 --exec $NDB_MGM -e'all error 10039' > /dev/null
 
---exec $NDB_MGM -e 'start backup wait started' > /dev/null
+# Start backup
+--source suite/ndb/t/ndb_backup_nowait_start.inc
 
 # Check if the error ER_GET_ERRMSG is thrown when
 # ALTER TABLE is executed while the backup is in progress.
@@ -25,22 +26,23 @@ ALTER TABLE t1 ADD COLUMN c3 INT COLUMN_FORMAT DYNAMIC;
 # Error insert to resume backup.
 --exec $NDB_MGM -e'all error 0' > /dev/null
 
-# Dropping table in the end to ensure consistency in mtr.
-# This won't go through until the backup is completed.
-# Hence, executing DROP TABLE in a loop with a gap of one
-# second between successive attempts until the table is
-# dropped successfully, after the backup is completed.
+# Wait backup completed
+--source suite/ndb/t/ndb_backup_nowait_wait.inc
 
-let $mysql_errno = ER_GET_ERRMSG;
-while($mysql_errno)
-{
-  sleep 1;
-  --error 0,1306
-  DROP TABLE t1;
-}
---echo Test for Bug#28563639: Backup aborts during cleanup of log-event-related triggers
-use test;
-create table t1(id int unsigned primary key, val varchar(100) unique, val2 varchar(100) unique, val3 varchar(100) unique, val4 varchar(100) unique, val5 varchar(100) unique, updates int unsigned) engine=ndb;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#28563639: Backup aborts during cleanup of log-event-related triggers
+--echo #
+create table t1(
+  id int unsigned primary key,
+  val varchar(100) unique,
+  val2 varchar(100) unique,
+  val3 varchar(100) unique,
+  val4 varchar(100) unique,
+  val5 varchar(100) unique,
+  updates int unsigned
+) engine=ndb;
 
 --exec $NDB_MGM -e'all error 10049' > /dev/null
 --echo Start backup nowait
@@ -51,4 +53,5 @@ create table t1(id int unsigned primary key, val varchar(100) unique, val2 varch
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
 drop table t1;
+
 --source suite/ndb/include/backup_restore_cleanup.inc

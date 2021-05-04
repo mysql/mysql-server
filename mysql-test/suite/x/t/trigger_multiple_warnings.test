@@ -4,7 +4,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/testcase.tmp
+--write_file $MYSQL_TMP_DIR/testcase.xpl
 ## Test data
 import assert_messages.macro;
 
@@ -51,10 +51,9 @@ callmacro Assert_received_messages	Mysqlx.Notice.Warning	15000;
 
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/testcase.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/testcase.xpl 2>&1
 
 ## Cleanup
 DROP TABLE table_with_ints;
 
---remove_file $MYSQL_TMP_DIR/testcase.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

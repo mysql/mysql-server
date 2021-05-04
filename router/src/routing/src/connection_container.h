@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -176,15 +176,17 @@ class ConnectionContainer {
 
     auto l =
         [&connection_datas](const decltype(connections_)::value_type &conn) {
+          const auto stats = conn.second->get_stats();
+
           connection_datas.push_back({
               conn.second->get_client_address(),
               conn.second->get_server_address(),
-              conn.second->get_bytes_up(),
-              conn.second->get_bytes_down(),
-              conn.second->get_started(),
-              conn.second->get_connected_to_server(),
-              conn.second->get_last_sent_to_server(),
-              conn.second->get_last_received_from_server(),
+              stats.bytes_up,
+              stats.bytes_down,
+              stats.started,
+              stats.connected_to_server,
+              stats.last_sent_to_server,
+              stats.last_received_from_server,
           });
         };
     connections_.for_each(l);

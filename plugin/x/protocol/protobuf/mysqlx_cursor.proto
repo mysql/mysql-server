@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -54,8 +54,8 @@ end alt
 @returns @ref Mysqlx::Ok
 */
 message Open {
-  /** client side assigned cursor id, the ID is going to represent
-      new cursor and assigned to it statement */
+  /** client-side assigned cursor ID; the ID is going to represent
+      the new cursor and assigned to it the statement */
   required uint32 cursor_id = 1;
 
   message OneOfMessage {
@@ -66,10 +66,10 @@ message Open {
 
     optional Mysqlx.Prepare.Execute prepare_execute = 2;
   }
-  /** statement which resultset is going to be iterated through the cursor */
+  /** statement for which the resultset is going to be iterated through by the cursor */
   required OneOfMessage stmt = 4;
 
-  /** number of rows which should be retrieved from sequential cursor */
+  /** number of rows that should be retrieved from sequential cursor */
   optional uint64 fetch_rows = 5;
 
   option (client_message_id) = CURSOR_OPEN; // comment_out_if PROTOBUF_LITE
@@ -90,10 +90,10 @@ end
 @enduml
 */
 message Fetch {
-  /** client side assigned cursor id, must be already open */
+  /** client-side assigned cursor ID; must be already open */
   required uint32 cursor_id = 1;
 
-  /** number of rows which should be retrieved from sequential cursor */
+  /** number of rows that should be retrieved from sequential cursor */
   optional uint64 fetch_rows = 5;
 
   option (client_message_id) = CURSOR_FETCH; // comment_out_if PROTOBUF_LITE
@@ -115,7 +115,7 @@ end
 @returns @ref Mysqlx::Ok or @ref Mysqlx::Error
 */
 message Close {
-  /** client side assigned cursor id, must be allocated/open */
+  /** client-side assigned cursor ID; must be allocated/open */
   required uint32 cursor_id = 1;
 
   option (client_message_id) = CURSOR_CLOSE; // comment_out_if PROTOBUF_LITE

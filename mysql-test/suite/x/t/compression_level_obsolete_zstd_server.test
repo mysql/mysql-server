@@ -21,9 +21,6 @@ exec $MYSQLXTEST
   --file=$MYSQL_TMP_DIR/compression_level_server.xpl 2>&1;
 
 ## Cleanup
-DROP SCHEMA xtest;
 SET GLOBAL mysqlx_compression_algorithms=DEFAULT;
 
-
---remove_file $MYSQL_TMP_DIR/compression_level_server.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

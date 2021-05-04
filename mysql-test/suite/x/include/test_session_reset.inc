@@ -12,7 +12,7 @@
 
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/session_reset.tmp
+--write_file $MYSQL_TMP_DIR/session_reset.xpl
 -->import mysqlx_session.macro
 
 -->title =Session reset (%SESSION_CLOSE_SCENARIO%)
@@ -139,7 +139,7 @@ Mysqlx.Expect.Close {
 
 EOF
 
---write_file $MYSQL_TMP_DIR/session_reset_single_frame.tmp
+--write_file $MYSQL_TMP_DIR/session_reset_single_frame.xpl
 -->macro Session_reset_empty
 -->binparse %RST% Mysqlx.Session.Reset {
 }
@@ -177,7 +177,7 @@ EOF
 EOF
 
 
---write_file $MYSQL_TMP_DIR/session_reset_prepared_stmt.tmp
+--write_file $MYSQL_TMP_DIR/session_reset_prepared_stmt.xpl
 -->title =Session reset prepared stmt (%SESSION_CLOSE_SCENARIO%)
 -->import assert_variable.macro
 -->import mysqlx_session.macro
@@ -251,19 +251,19 @@ echo #    c. verify that close removes current session and prepared-statemtents;
 --echo #
 exec $MYSQLXTEST $PARAM $param_mysqlxtest
   -ux_root --password='' -v%SESSION_CLOSE_SCENARIO%=Session_reset_empty
-  --file=$MYSQL_TMP_DIR/session_reset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/session_reset.xpl 2>&1;
 --echo
 --echo ## 1.b
 --echo #
 exec $MYSQLXTEST $param_mysqlxtest
   -ux_root --password='' -v%SESSION_CLOSE_SCENARIO%=Session_reset
-  --file=$MYSQL_TMP_DIR/session_reset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/session_reset.xpl 2>&1;
 --echo
 --echo ## 1.c
 --echo #
 exec $MYSQLXTEST $param_mysqlxtest
   -ux_root --password='' -v%SESSION_CLOSE_SCENARIO%=Session_close
-  --file=$MYSQL_TMP_DIR/session_reset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/session_reset.xpl 2>&1;
 
 
 --echo
@@ -271,19 +271,19 @@ exec $MYSQLXTEST $param_mysqlxtest
 --echo #
 exec $MYSQLXTEST $param_mysqlxtest
   -ux_root --password='' -v%SESSION_CLOSE_SCENARIO%=Session_reset_empty
-  --file=$MYSQL_TMP_DIR/session_reset_single_frame.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/session_reset_single_frame.xpl 2>&1;
 --echo
 --echo ## 2.b
 --echo #
 exec $MYSQLXTEST $param_mysqlxtest
   -ux_root --password='' -v%SESSION_CLOSE_SCENARIO%=Session_reset
-  --file=$MYSQL_TMP_DIR/session_reset_single_frame.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/session_reset_single_frame.xpl 2>&1;
 --echo
 --echo ## 2.c
 --echo #
 exec $MYSQLXTEST $param_mysqlxtest
   -ux_root --password='' -v%SESSION_CLOSE_SCENARIO%=Session_close
-  --file=$MYSQL_TMP_DIR/session_reset_single_frame.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/session_reset_single_frame.xpl 2>&1;
 
 
 --echo
@@ -291,21 +291,21 @@ exec $MYSQLXTEST $param_mysqlxtest
 --echo #
 exec $MYSQLXTEST $param_mysqlxtest
   -ux_root --password='' -v%SESSION_CLOSE_SCENARIO%=Session_reset_empty
-  --file=$MYSQL_TMP_DIR/session_reset_prepared_stmt.tmp;
+  --file=$MYSQL_TMP_DIR/session_reset_prepared_stmt.xpl;
 --echo
 --echo ## 3.b
 --echo #
 exec $MYSQLXTEST $param_mysqlxtest
   -ux_root --password='' -v%SESSION_CLOSE_SCENARIO%=Session_reset
-  --file=$MYSQL_TMP_DIR/session_reset_prepared_stmt.tmp;
+  --file=$MYSQL_TMP_DIR/session_reset_prepared_stmt.xpl;
 --echo
 --echo ## 3.c
 --echo #
 exec $MYSQLXTEST $param_mysqlxtest
   -ux_root --password='' -v%SESSION_CLOSE_SCENARIO%=Session_close
-  --file=$MYSQL_TMP_DIR/session_reset_prepared_stmt.tmp;
+  --file=$MYSQL_TMP_DIR/session_reset_prepared_stmt.xpl;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/session_reset.tmp
---remove_file $MYSQL_TMP_DIR/session_reset_single_frame.tmp
---remove_file $MYSQL_TMP_DIR/session_reset_prepared_stmt.tmp
+--remove_file $MYSQL_TMP_DIR/session_reset.xpl
+--remove_file $MYSQL_TMP_DIR/session_reset_single_frame.xpl
+--remove_file $MYSQL_TMP_DIR/session_reset_prepared_stmt.xpl

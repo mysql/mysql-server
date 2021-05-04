@@ -24,7 +24,7 @@ SOME VALUES
 SOME VALUES
 SOME VALUES
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #############################################################
 # TEST 1 : CRASH DURING ALTER ENCRYPT A TABLESPACE.
 #############################################################
@@ -48,7 +48,7 @@ ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 Pattern "CORRUPT LOG RECORD FOUND" found
 # Server shouldn't have restarted, so query should fail.
 SELECT * from test.t1 limit 10;
-ERROR HY000: MySQL server has gone away
+ERROR HY000: Lost connection to MySQL server during query
 #########################################################################
 # RESTART 2 : WITH KEYRING PLUGIN
 #########################################################################

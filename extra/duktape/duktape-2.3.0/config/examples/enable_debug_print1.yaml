@@ -1,3 +1,0 @@
-# Enable debug level 1.
-DUK_USE_DEBUG: true
-DUK_USE_DEBUG_LEVEL: 1

@@ -1,8 +1,3 @@
-# Performance schema tests generally depend on specific query plans
-# and behavior, and much of the perfschema suite is therefore disabled
-# if the hypergraph optimizer is active.
---source include/not_hypergraph.inc
-
 # Tests for PERFORMANCE_SCHEMA
 
 --source include/no_protocol.inc

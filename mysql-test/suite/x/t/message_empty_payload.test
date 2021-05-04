@@ -3,7 +3,7 @@
 --source include/xplugin_create_user.inc
 
 ## TEST STARTS HERE
---write_file $MYSQL_TMP_DIR/validate_empty_message.tmp
+--write_file $MYSQL_TMP_DIR/validate_empty_message.xpl
 -->import wait_until_disconnect.macro
 -->hexsend 00000000
 -->expecterror 5000
@@ -11,7 +11,7 @@
 -->callmacro Wait_until_disconnect
 EOF
 
---write_file $MYSQL_TMP_DIR/validate_empty_message_on_raw.tmp
+--write_file $MYSQL_TMP_DIR/validate_empty_message_on_raw.xpl
 -->import connection.macro
 -->import wait_until_disconnect.macro
 -->callmacro Verify_its_xprotocol_connection
@@ -22,7 +22,7 @@ EOF
 EOF
 
 
---write_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp
+--write_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.xpl
 -->macro Verify_status	%VARIABLE_NAME%	%EXPECTED_VALUE%
 -->quiet
 -->echo Verify [%VARIABLE_NAME% session variable should be have %EXPECTED_VALUE% as value]
@@ -41,9 +41,9 @@ EOF
 SET GLOBAL mysqlx_connect_timeout = 300;
 SET GLOBAL mysqlx_wait_timeout = 300;
 
---exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message.tmp 2>&1
---exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message_on_raw.tmp --no-auth 2>&1
---exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message.xpl 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message_on_raw.xpl --no-auth 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_empty_message_on_valid_session.xpl 2>&1
 
 --let $wait_condition= SELECT variable_value = 2 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
 --source include/wait_condition_or_abort.inc
@@ -51,7 +51,4 @@ SET GLOBAL mysqlx_wait_timeout = 300;
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
 SET GLOBAL mysqlx_wait_timeout = DEFAULT;
---remove_file $MYSQL_TMP_DIR/validate_empty_message.tmp
---remove_file $MYSQL_TMP_DIR/validate_empty_message_on_raw.tmp
---remove_file $MYSQL_TMP_DIR/validate_empty_message_on_valid_session.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,9 @@ namespace mock {
 
 class Capabilities_configurator : public iface::Capabilities_configurator {
  public:
+  Capabilities_configurator();
+  virtual ~Capabilities_configurator() override;
+
   MOCK_METHOD(::Mysqlx::Connection::Capabilities *, get, (), (override));
 
   MOCK_METHOD(ngs::Error_code, prepare_set,

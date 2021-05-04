@@ -135,3 +135,21 @@ set debug_sync='external_xa_commit_before_acquire_xa_lock SIGNAL go';
 XA COMMIT 'xid1';
 ERROR XAE04: XAER_NOTA: Unknown XID
 DROP TABLE t1;
+#
+# Bug#32025408: MAIN.XA_PREPARED_BINLOG_OFF,BINLOG.BINLOG_XA_PREPARED_DISCON FAILS ON ASAN/UBSAN
+#
+CREATE TABLE t1(i INT);
+# Create a connection which as non-prepared XA trans.
+XA START 'trx1';
+INSERT INTO t1 set i=0;
+XA END 'trx1';
+# Create new connection which will execute XA COMMIT and be blocked between search in transaction cache and
+# accessing xid_state (to see if txn can be committed).
+SET DEBUG_SYNC="before_accessing_xid_state SIGNAL proceed_disconnect WAIT_FOR proceed_check_xid_state";
+XA COMMIT 'trx1';
+# Terminate conA which will delete the Transaction_ctx and with it the XID_STATE
+SET DEBUG_SYNC="now WAIT_FOR proceed_disconnect";
+# Unblock XA COMMIT. Without fix this will access the now freed memory, and trigger ASAN error.
+SET DEBUG_SYNC="now SIGNAL proceed_check_xid_state";
+ERROR XAE04: XAER_NOTA: Unknown XID
+DROP TABLE t1;

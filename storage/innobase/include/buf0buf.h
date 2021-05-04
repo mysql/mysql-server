@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1169,36 +1169,20 @@ if the buffer pool is not currently being resized. */
 UNIV_INLINE
 ulint buf_get_withdraw_depth(buf_pool_t *buf_pool);
 
-/** Gets the io_fix state of a buffer block. Does not assert that the
-buf_page_get_mutex() mutex is held, to be used in the cases where it is safe
-not to hold it.
-@param[in]	block	pointer to the buffer block
-@return page io_fix state */
-UNIV_INLINE
-buf_io_fix buf_block_get_io_fix_unlocked(const buf_block_t *block)
-    MY_ATTRIBUTE((warn_unused_result));
-
-/** Gets the io_fix state of a buffer page. Does not assert that the
-buf_page_get_mutex() mutex is held, to be used in the cases where it is safe
-not to hold it.
-@param[in]	bpage	pointer to the buffer page
-@return page io_fix state */
-UNIV_INLINE
-enum buf_io_fix buf_page_get_io_fix_unlocked(const buf_page_t *bpage)
-    MY_ATTRIBUTE((warn_unused_result));
-
 /** The common buffer control block structure
 for compressed and uncompressed frames */
 
 /** Number of bits used for buffer page states. */
 #define BUF_PAGE_STATE_BITS 3
 
-class buf_fix_count_atomic_t : public std::atomic<uint32_t> {
+template <typename T>
+class copyable_atomic_t : public std::atomic<T> {
  public:
-  buf_fix_count_atomic_t(const buf_fix_count_atomic_t &other)
-      : std::atomic<uint32_t>(other.load()) {}
+  copyable_atomic_t(const copyable_atomic_t<T> &other)
+      : std::atomic<T>(other.load(std::memory_order_relaxed)) {}
 };
 
+using buf_fix_count_atomic_t = copyable_atomic_t<uint32_t>;
 class buf_page_t {
  public:
   /** Copy constructor.
@@ -1406,8 +1390,208 @@ class buf_page_t {
   /** Count of how many fold this block is currently bufferfixed. */
   buf_fix_count_atomic_t buf_fix_count;
 
-  /** Type of pending I/O operation. */
-  buf_io_fix io_fix;
+ private:
+  /** Type of pending I/O operation.
+  Modified under protection of buf_page_get_mutex(this).
+  Read under protection of rules described in @see Buf_io_fix_latching_rules */
+  copyable_atomic_t<buf_io_fix> io_fix;
+
+#ifdef UNIV_DEBUG
+ public:
+  /** Checks if io_fix has any of the known enum values.
+  @param[in]  io_fix  the value to test
+  @return true iff io_fix has any of the known enum values
+  */
+  static bool is_correct_io_fix_value(buf_io_fix io_fix) {
+    switch (io_fix) {
+      case BUF_IO_NONE:
+      case BUF_IO_READ:
+      case BUF_IO_WRITE:
+      case BUF_IO_PIN:
+        return true;
+    }
+    return false;
+  }
+
+ private:
+  /** Checks if io_fix has any of the known enum values.
+  @return true iff io_fix has any of the known enum values
+  */
+  bool has_correct_io_fix_value() const {
+    return is_correct_io_fix_value(io_fix);
+  }
+  /* Helper debug-only functions related latching rules are moved to a separate
+  class so that this header doesn't have to pull in Stateful_latching_rules.*/
+  class Latching_rules_helpers;
+  friend class Latching_rules_helpers;
+
+  /* Helper debug-only class used to track which thread is currently responsible
+  for performing I/O operation on this page. There's at most one such thread and
+  the responsibility might be passed from one to another during async I/O. This
+  is used to prove correctness of io_fix state transitions and checking it
+  without a latch in the io_completion threads. */
+  class io_responsibility_t {
+    /** The thread responsible for I/O on this page, or an impossible value if
+    no thread is currently responsible for I/O*/
+    std::thread::id responsible_thread{std::thread().get_id()};
+
+   public:
+    /** Checks if there is any thread responsible for I/O on this page now.
+    @return true iff there is a thread responsible for I/O on this page.*/
+    bool someone_is_responsible() const {
+      return responsible_thread != std::thread().get_id();
+    }
+
+    /** Checks if the current thread is responsible for I/O on this page now.
+    @return true iff the current thread is responsible for I/O on this page.*/
+    bool current_thread_is_responsible() const {
+      return responsible_thread == std::this_thread::get_id();
+    }
+
+    /** Called by the thread responsible for I/O on this page to release its
+    responsibility. */
+    void release() {
+      ut_a(current_thread_is_responsible());
+      responsible_thread = std::thread().get_id();
+    }
+
+    /** Called by the thread which becomes responsible for I/O on this page to
+    indicate that it takes the responsibility. */
+    void take() {
+      ut_a(!someone_is_responsible());
+      responsible_thread = std::this_thread::get_id();
+    }
+  };
+  /** Tracks which thread is responsible for I/O on this page. */
+  io_responsibility_t io_responsibility;
+
+ public:
+  /** Checks if there is any thread responsible for I/O on this page now.
+  @return true iff there is a thread responsible for I/O on this page.*/
+  bool someone_has_io_responsibility() const {
+    return io_responsibility.someone_is_responsible();
+  }
+
+  /** Checks if the current thread is responsible for I/O on this page now.
+  @return true iff the current thread is responsible for I/O on this page.*/
+  bool current_thread_has_io_responsibility() const {
+    return io_responsibility.current_thread_is_responsible();
+  }
+
+  /** Called by the thread responsible for I/O on this page to release its
+  responsibility. */
+  void release_io_responsibility() { io_responsibility.release(); }
+
+  /** Called by the thread which becomes responsible for I/O on this page to
+  indicate that it takes the responsibility. */
+  void take_io_responsibility() {
+    ut_ad(mutex_own(buf_page_get_mutex(this)) ||
+          io_fix.load(std::memory_order_relaxed) == BUF_IO_WRITE ||
+          io_fix.load(std::memory_order_relaxed) == BUF_IO_READ);
+    io_responsibility.take();
+  }
+#endif /* UNIV_DEBUG */
+ private:
+  /** Retrieves a value of io_fix without requiring or acquiring any latches.
+  Note that this implies that the value might be stale unless caller establishes
+  happens-before relation in some other way.
+  This is a low-level function which shouldn't be used directly, but
+  rather via wrapper methods which check if proper latches are taken or via one
+  of the many `was_io_fix_something()` methods with name explicitly warning the
+  developer about the uncertainty involved.
+  @return the value of io_fix at some moment "during" the call */
+  buf_io_fix get_io_fix_snapshot() const {
+    ut_ad(has_correct_io_fix_value());
+    return io_fix.load(std::memory_order_relaxed);
+  }
+
+ public:
+  /** This is called only when having full ownership of the page object and no
+  other thread can reach it. This currently happens during buf_pool_create(),
+  buf_pool_resize() (which latch quite a lot) or from fil_tablespace_iterate()
+  which creates a fake, private block which is not really a part of the buffer
+  pool.
+  Therefore we allow this function to set io_fix without checking for any
+  latches.
+  Please use set_io_fix(BUF_IO_NONE) to change state in a regular situation. */
+  void init_io_fix() {
+    io_fix.store(BUF_IO_NONE, std::memory_order_relaxed);
+    /* This is only needed because places which call init_io_fix() do not call
+    buf_page_t's constructor */
+    ut_d(new (&io_responsibility) io_responsibility_t{});
+  }
+
+  /** This is called only when having full ownership of the page object and no
+  other thread can reach it. This currently happens during buf_page_init_low()
+  under buf_page_get_mutex(this), on a previously initialized page for reuse,
+  yet should be treated as initialization of the field, not a state transition.
+  Please use set_io_fix(BUF_IO_NONE) to change state in a regular situation. */
+  void reinit_io_fix() {
+    ut_ad(io_fix.load(std::memory_order_relaxed) == BUF_IO_NONE);
+    ut_ad(!someone_has_io_responsibility());
+    io_fix.store(BUF_IO_NONE, std::memory_order_relaxed);
+  }
+
+  /** Sets io_fix to specified value.
+  Assumes the caller holds buf_page_get_mutex(this).
+  Might require additional latches depending on particular state transition.
+  Calls take_io_responsibility() or release_io_responsibility() as needed.
+  @see Buf_io_fix_latching_rules for specific rules. */
+  void set_io_fix(buf_io_fix io_fix);
+
+  /** Retrieves the current value of io_fix.
+  Assumes the caller holds buf_page_get_mutex(this).
+  @return the current value of io_fix */
+  buf_io_fix get_io_fix() const {
+    ut_ad(mutex_own(buf_page_get_mutex(this)));
+    return get_io_fix_snapshot();
+  }
+
+  /** Checks if the current value of io_fix is BUF_IO_WRITE.
+  Assumes the caller holds buf_page_get_mutex(this) or some other latches which
+  prevent state transition from/to BUF_IO_WRITE.
+  @see Buf_io_fix_latching_rules for specific rules.
+  @return true iff the current value of io_fix == BUF_IO_WRITE */
+  bool is_io_fix_write() const;
+
+  /** Checks if the current value of io_fix is BUF_IO_READ.
+  Assumes the caller holds buf_page_get_mutex(this) or some other latches which
+  prevent state transition from/to BUF_IO_READ.
+  @see Buf_io_fix_latching_rules for specific rules.
+  @return true iff the current value of io_fix == BUF_IO_READ */
+  bool is_io_fix_read() const;
+
+  /** Assuming that io_fix is either BUF_IO_READ or BUF_IO_WRITE determines
+  which of the two it is. Additionally it assumes the caller holds
+  buf_page_get_mutex(this) or some other latches which prevent state transition
+  from BUF_IO_READ or from BUF_IO_WRITE to another state.
+  @see Buf_io_fix_latching_rules for specific rules.
+  @return true iff the current value of io_fix == BUF_IO_READ */
+  bool is_io_fix_read_as_opposed_to_write() const;
+
+  /** Checks if io_fix is BUF_IO_READ without requiring or acquiring any
+  latches.
+  Note that this implies calling this function twice in a row could produce
+  different results.
+  @return true iff io_fix equal to BUF_IO_READ was noticed*/
+  bool was_io_fix_read() const { return get_io_fix_snapshot() == BUF_IO_READ; }
+
+  /** Checks if io_fix is BUF_IO_FIX or BUF_IO_READ or BUF_IO_WRITE without
+  requiring or acquiring any latches.
+  Note that this implies calling this function twice in a row could produce
+  different results.
+  @return true iff io_fix not equal to BUF_IO_NONE was noticed */
+  bool was_io_fixed() const { return get_io_fix_snapshot() != BUF_IO_NONE; }
+
+  /** Checks if io_fix is BUF_IO_NONE without requiring or acquiring any
+  latches.
+  Note that this implies calling this function twice in a row could produce
+  different results.
+  Please, prefer this function over !was_io_fixed() to avoid the misleading
+  interpretation as "not(Exists time such that io_fix(time))", while in fact we
+  want and get "Exists time such that !io_fix(time)".
+  @return true iff io_fix equal to BUF_IO_NONE was noticed */
+  bool was_io_fix_none() const { return get_io_fix_snapshot() == BUF_IO_NONE; }
 
   /** Block state. @see buf_page_in_file */
   buf_page_state state;

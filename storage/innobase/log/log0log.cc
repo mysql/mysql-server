@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -68,6 +68,7 @@ log_checksum_func_t log_checksum_algorithm_ptr;
 #include "dict0boot.h"
 #include "ha_prototypes.h"
 #include "log0meb.h"
+#include "mtr0mtr.h"
 #include "os0thread-create.h"
 #include "trx0sys.h"
 
@@ -820,23 +821,23 @@ void log_stop_background_threads(log_t &log) {
   /* Wait until threads are closed. */
   while (log_writer_is_active()) {
     os_event_set(log.writer_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
   while (log_write_notifier_is_active()) {
     os_event_set(log.write_notifier_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
   while (log_flusher_is_active()) {
     os_event_set(log.flusher_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
   while (log_flush_notifier_is_active()) {
     os_event_set(log.flush_notifier_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
   while (log_checkpointer_is_active()) {
     os_event_set(log.checkpointer_event);
-    os_thread_sleep(10);
+    std::this_thread::sleep_for(std::chrono::microseconds(10));
   }
 
   log_background_threads_inactive_validate(log);
@@ -907,7 +908,7 @@ static void log_resume_writer_threads(log_t &log) {
     /* confirms *_notifier_resume_lsn have been accepted */
     while (log.write_notifier_resume_lsn.load(std::memory_order_acquire) != 0 ||
            log.flush_notifier_resume_lsn.load(std::memory_order_acquire) != 0) {
-      os_thread_sleep(1000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
       ut_a(log_write_notifier_is_active());
       ut_a(log_flush_notifier_is_active());
       os_event_set(log.writer_threads_resume_event);
@@ -1277,5 +1278,38 @@ void log_position_collect_lsn_info(const log_t &log, lsn_t *current_lsn,
 }
 
 /** @} */
+
+#ifdef UNIV_DEBUG
+void log_free_check_validate() {
+  /* This function may be called while holding some latches. This is OK,
+  as long as we are not holding any latches on buffer blocks or file spaces.
+  The following latches are not held by any thread that frees up redo log
+  space. */
+  static const latch_level_t latches[] = {
+      SYNC_NO_ORDER_CHECK, /* used for non-labeled latches */
+      SYNC_RSEGS,          /* rsegs->x_lock in trx_rseg_create() */
+      SYNC_UNDO_DDL,       /* undo::ddl_mutex */
+      SYNC_UNDO_SPACES,    /* undo::spaces::m_latch */
+      SYNC_FTS_CACHE,      /* fts_cache_t::lock */
+      SYNC_DICT,           /* dict_sys->mutex in commit_try_rebuild() */
+      SYNC_DICT_OPERATION, /* X-latch in commit_try_rebuild() */
+      SYNC_INDEX_TREE      /* index->lock */
+  };
+
+  sync_allowed_latches check(latches,
+                             latches + sizeof(latches) / sizeof(*latches));
+
+  if (sync_check_iterate(check)) {
+#ifndef UNIV_NO_ERR_MSGS
+    ib::error(ER_IB_MSG_1381)
+#else
+    ib::error()
+#endif
+        << "log_free_check() was called while holding an un-listed latch.";
+    ut_error;
+  }
+  mtr_t::check_my_thread_mtrs_are_not_latching();
+}
+#endif /* !UNIV_DEBUG */
 
 #endif /* !UNIV_HOTBACKUP */

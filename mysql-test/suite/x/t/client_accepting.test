@@ -69,5 +69,4 @@ UNINSTALL COMPONENT "file://component_mysqlx_global_reset";
 
 
 ## Cleanup
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

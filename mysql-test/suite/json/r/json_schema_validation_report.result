@@ -119,3 +119,13 @@ ERROR 22032: Invalid data type for JSON data in argument 2 to function json_sche
 PREPARE ps FROM 'SELECT * FROM t WHERE JSON_SCHEMA_VALIDATION_REPORT(g, j)';
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_schema_validation_report; a JSON string or JSON type is required.
 DROP TABLE t;
+#
+# Bug#32047630: MISSING ERROR PROPAGATION IN JSON FUNCTIONS
+#
+SELECT JSON_ARRAY(JSON_SCHEMA_VALIDATION_REPORT('{}', '{'), 1);
+ERROR 22032: Invalid JSON text in argument 2 to function json_schema_validation_report: "Missing a name for object member." at position 1.
+SELECT JSON_ARRAY(JSON_SCHEMA_VALIDATION_REPORT('{}', CAST('{' AS JSON)), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a name for object member." at position 1.
+SELECT JSON_ARRAY(JSON_SCHEMA_VALIDATION_REPORT(
+CAST(CONCAT('{', RAND()) AS JSON), '{}'), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "Missing a name for object member." at position 1.

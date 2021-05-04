@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +57,7 @@
 #include "sql/dd/types/abstract_table.h"
 #include "sql/dd/types/column.h"      // dd::Column
 #include "sql/dd/types/index.h"       // dd::Index
+#include "sql/dd/types/partition.h"   // dd::Partition
 #include "sql/dd/types/schema.h"      // dd::Schema
 #include "sql/dd/types/table.h"       // dd::Table
 #include "sql/dd/types/tablespace.h"  // dd::Tablespace
@@ -102,7 +103,7 @@ const dd::String_type empty_ = "";
 
 char *generic_buf_handle(Byte_buffer *buf, size_t sz) {
   if (buf->reserve(sz)) {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   return &(*(buf->begin()));
@@ -217,7 +218,7 @@ const String_type &lookup_tablespace_name(
     wctx->set_error();
     return empty_;
   }
-  DBUG_ASSERT(tsp != nullptr);
+  assert(tsp != nullptr);
 
   return tsp->name();
 }
@@ -276,7 +277,7 @@ class Sdi_rcontext {
 
 template <typename T>
 void generic_track_object(dd_vector<T *> *tvp, T *t) {
-  DBUG_ASSERT(t->ordinal_position() > 0);
+  assert(t->ordinal_position() > 0);
   uint opx = t->ordinal_position() - 1;
   dd_vector<T *> &tv = *tvp;
 
@@ -376,10 +377,10 @@ Sdi_type serialize(const Tablespace &tablespace) {
    equal, and sdi_version equal.
 */
 bool CheckDefaultCompatibility(const RJ_Document &doc) {
-  DBUG_ASSERT(doc.HasMember("mysqld_version_id"));
+  assert(doc.HasMember("mysqld_version_id"));
 
   const RJ_Value &mysqld_version_id = doc["mysqld_version_id"];
-  DBUG_ASSERT(mysqld_version_id.IsUint64());
+  assert(mysqld_version_id.IsUint64());
   if (mysqld_version_id.GetUint64() > std::uint64_t(MYSQL_VERSION_ID)) {
     // Cannot deserialize SDIs from newer versions.
     my_error(ER_IMP_INCOMPATIBLE_MYSQLD_VERSION, MYF(0),
@@ -387,9 +388,9 @@ bool CheckDefaultCompatibility(const RJ_Document &doc) {
     return true;
   }
 
-  DBUG_ASSERT(doc.HasMember("dd_version"));
+  assert(doc.HasMember("dd_version"));
   const RJ_Value &dd_version_val = doc["dd_version"];
-  DBUG_ASSERT(dd_version_val.IsUint());
+  assert(dd_version_val.IsUint());
   uint dd_version = dd_version_val.GetUint();
   if (dd_version != Dictionary_impl::get_target_dd_version()) {
     // Incompatible change
@@ -398,9 +399,9 @@ bool CheckDefaultCompatibility(const RJ_Document &doc) {
     return true;
   }
 
-  DBUG_ASSERT(doc.HasMember("sdi_version"));
+  assert(doc.HasMember("sdi_version"));
   const RJ_Value &sdi_version_val = doc["sdi_version"];
-  DBUG_ASSERT(sdi_version_val.IsUint64());
+  assert(sdi_version_val.IsUint64());
   std::uint64_t sdi_version_ = sdi_version_val.GetUint64();
   if (sdi_version_ != SDI_VERSION) {
     // Incompatible change
@@ -429,18 +430,18 @@ bool generic_deserialize(
     return checked_return(true);
   }
 
-  DBUG_ASSERT(doc.HasMember("dd_object_type"));
+  assert(doc.HasMember("dd_object_type"));
   RJ_Value &dd_object_type_val = doc["dd_object_type"];
-  DBUG_ASSERT(dd_object_type_val.IsString());
+  assert(dd_object_type_val.IsString());
   String_type dd_object_type(dd_object_type_val.GetString());
-  DBUG_ASSERT(dd_object_type == object_type_name);
+  assert(dd_object_type == object_type_name);
 
-  DBUG_ASSERT(doc.HasMember("dd_object"));
+  assert(doc.HasMember("dd_object"));
   RJ_Value &dd_object_val = doc["dd_object"];
-  DBUG_ASSERT(dd_object_val.IsObject());
+  assert(dd_object_val.IsObject());
 
-  DBUG_ASSERT(doc.HasMember("dd_version"));
-  DBUG_ASSERT(doc.HasMember("sdi_version"));
+  assert(doc.HasMember("dd_version"));
+  assert(doc.HasMember("sdi_version"));
   Sdi_rcontext rctx(thd, doc["dd_version"].GetUint(),
                     doc["sdi_version"].GetUint());
   if (dst->deserialize(&rctx, dd_object_val)) {
@@ -572,7 +573,7 @@ bool equal_prefix_chars(CHAR_IT &&begin1, CHAR_IT &&end1, CHAR_IT &&begin2,
     }
     if (rem_bytes == 0) {
       rem_bytes = my_mbcharlen(csi, static_cast<uchar>(*begin1));
-      DBUG_ASSERT(rem_bytes > 0);
+      assert(rem_bytes > 0);
     }
     --rem_bytes;
 
@@ -670,6 +671,24 @@ bool drop_after_update(THD *thd, const Table *old_tp, const Table *new_tp) {
   });
 }
 
+namespace {
+template <typename DDT>
+bool drop_all_impl(THD *thd, const DDT *tp) {
+  const DDT &t = ptr_as_cref(tp);
+  const handlerton &hton = ptr_as_cref(resolve_hton(thd, t));
+  assert(hton.sdi_get != nullptr && hton.sdi_delete != nullptr);
+
+  return checked_return(sdi_tablespace::drop_all_sdi(thd, hton, t));
+}
+}  // namespace
+
+bool drop_all_for_table(THD *thd, const Table *tp) {
+  return drop_all_impl(thd, tp);
+}
+
+bool drop_all_for_part(THD *thd, const Partition *pp) {
+  return drop_all_impl(thd, pp);
+}
 }  // namespace sdi
 }  // namespace dd
 /** @{ */  // end of group sdi_api

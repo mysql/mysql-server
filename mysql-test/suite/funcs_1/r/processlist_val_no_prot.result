@@ -20,7 +20,7 @@ PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
   `TIME` int NOT NULL DEFAULT '0',
   `STATE` varchar(64) DEFAULT NULL,
   `INFO` longtext
-) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
 # Ensure that the information about the own connection is correct.
 #--------------------------------------------------------------------------
 

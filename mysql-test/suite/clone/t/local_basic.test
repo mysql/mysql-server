@@ -68,6 +68,19 @@ SELECT * from schema_read_only.t_innodb ORDER BY col1;
 
 ALTER SCHEMA schema_read_only READ ONLY=1;
 
+--echo #BEGIN Bug 32199611: CLONE PLUGIN INSTALLATION FAILS IN PFS TABLE CREATION
+# We would need to remove it once this deprecated variable is removed. Currently
+# it is required for clone to work with this variable as some users are using it.
+SET LOCAL explicit_defaults_for_timestamp = OFF;
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+UNINSTALL PLUGIN clone;
+SET LOCAL explicit_defaults_for_timestamp = default;
+--echo #End Bug 32199611: CLONE PLUGIN INSTALLATION FAILS IN PFS TABLE CREATION
+
 # Install Clone Plugin
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
@@ -78,6 +91,15 @@ ALTER SCHEMA schema_read_only READ ONLY=1;
 
 SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
 WHERE PLUGIN_NAME LIKE '%clone%';
+
+if ($skip_space_validation) {
+  # Bug#32354908 CLONE DONOR'S INNODB_VALIDATE_TABLESPACE_PATHS=OFF LEADS ER_TABLESPACE_MISSING
+  # Restart DB with tablespace validation skipped.
+  --source ../include/clone_connection_end.inc
+  --let restart_parameters="restart: --skip-innodb-validate-tablespace-paths"
+  --source include/restart_mysqld.inc
+  --source ../include/clone_connection_begin.inc
+}
 
 # Clone data
 --connection clone_conn_1

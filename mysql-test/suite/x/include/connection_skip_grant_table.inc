@@ -3,13 +3,13 @@
 eval CREATE USER nonblank@localhost
             IDENTIFIED WITH $USER_AUTH_PLUGIN BY 'valid_password';
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl
 -->sql
 select user(),current_user(),@@bind_address;
 -->endsql
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.xpl
 -->expecterror ER_PLUGGABLE_PROTOCOL_COMMAND_NOT_SUPPORTED
 -->sql
 uninstall plugin mysqlx;
@@ -22,7 +22,7 @@ exec $MYSQLXTEST $USER_CIPHER
     --user nonblank
     --password='valid_password'
     --socket=$MASTER_X_MYSOCK
-    --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 
 --echo
 --echo #
@@ -42,7 +42,7 @@ exec $MYSQLXTEST $USER_CIPHER
     --socket=$MASTER_X_MYSOCK
     --user nonblank
     --password='valid_password'
-    --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 
 --echo
 --echo #
@@ -51,7 +51,7 @@ exec $MYSQLXTEST $USER_CIPHER
     --user nonblank
     --password='invalid'
     --socket=$MASTER_X_MYSOCK
-    --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 
 --echo
 --echo #
@@ -61,7 +61,7 @@ exec $MYSQLXTEST
     --socket=$MASTER_X_MYSOCK
     --user root
     --password=''
-    --file=$MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.xpl 2>&1;
 
 --echo
 --echo #
@@ -73,7 +73,7 @@ exec $MYSQLXTEST $USER_CIPHER
     --socket=$MASTER_X_MYSOCK
     --user nonblank
     --password='invalid'
-    --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+    --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 
 #
 # Cleanup
@@ -81,8 +81,7 @@ exec $MYSQLXTEST $USER_CIPHER
 --let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl
 
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 DROP USER nonblank@localhost;

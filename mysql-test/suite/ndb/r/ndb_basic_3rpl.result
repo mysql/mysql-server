@@ -93,6 +93,7 @@ Ndb_api_wait_scan_result_count_slave	#
 Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#
+Ndb_config_generation	#
 Ndb_conflict_epoch_delete_delete_count	#
 Ndb_conflict_fn_epoch	#
 Ndb_conflict_fn_epoch2	#

@@ -1,6 +1,6 @@
 #ifndef SERVICES_INCLUDED
 #define SERVICES_INCLUDED
-/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

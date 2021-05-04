@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2020 Oracle and/or its affiliates.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@ max-time: 900
 
 cmd: testSystemRestart
 args: -n PLCP_3 T17
-max-time: 1000
+max-time: 1200
 
 cmd: testSystemRestart
 args: -n PLCP_4 T17
@@ -90,3 +90,6 @@ cmd: testBlobs
 args: -bug 28590428 -skip p -loop 10
 max-time: 900
 
+cmd: testNdbApi
+args: -n DatabaseAndSchemaName T1
+max-time: 180

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,9 +113,9 @@ private:
 
   /* Support routine to configure */
   void set_up_node_active_in_send_buffers(Uint32 nodeId,
-                           const ndb_mgm_configuration &conf);
+                                          const ndb_mgm_configuration *conf);
 
-public:
+ public:
 
   /**
    * These are functions used by ndb_mgmd

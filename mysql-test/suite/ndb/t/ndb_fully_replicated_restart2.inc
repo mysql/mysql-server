@@ -31,12 +31,14 @@ while ($id)
 --echo *************************
 
 --echo Check row count
-select @row_count:=count(1) from test.t1;
+select count(1) from test.t1 into @row_count;
+select @row_count;
 
 --echo Show physical rows per logical row (NoOfReplicas * NumNodeGroups)
-select @prpr:=floor(sum(fixed_elem_count) / @row_count) as phys_rows_per_row 
+select floor(sum(fixed_elem_count) / @row_count) as phys_rows_per_row
   from ndbinfo.memory_per_fragment 
- where fq_name='test/def/t1';
+ where fq_name='test/def/t1' into @prpr;
+ select @prpr;
 
 # Run checks on behaviour of FR table
 --source ndb_fully_replicated_restart2_checks.inc
@@ -130,7 +132,8 @@ delete from test.t1 limit 1024;
 delete from test.t1 limit 1024;
 delete from test.t1 limit 1024;
 
-select @new_row_count:=count(1) from test.t1;
+select count(1) from test.t1 into @new_row_count;
+select @new_row_count;
 
 select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1';
 
@@ -138,11 +141,12 @@ select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='tes
 #select avg(fixed_elem_count), std(fixed_elem_count), min(fixed_elem_count), max(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1';
 
 --echo Check new Physical row count against expected
+
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where fq_name='test/def/t1' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
 select floor(@new_row_count * @prpr) as expected_phys_rows, 
-       sum(fixed_elem_count) as actual_phys_rows, 
-       @diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-  from ndbinfo.memory_per_fragment 
- where fq_name='test/def/t1';
+       @sum as actual_phys_rows,
+       @diff as diff;
 
 --let $d=query_get_value(select @diff as d, d, 1)
 
@@ -157,10 +161,11 @@ if ($d)
 }
 
 --echo Check UI physical row count against expected
+
+select sum(fixed_elem_count) from ndbinfo.memory_per_fragment where parent_fq_name='test/def/t1' and fq_name like '%/c$unique' into @sum;
+set @diff = (@new_row_count * @prpr) - @sum;
 select floor(@new_row_count * @prpr) as expected_phys_rows, 
-       sum(fixed_elem_count) as actual_phys_rows, 
-       @diff:=(@new_row_count * @prpr) - sum(fixed_elem_count) as diff
-  from ndbinfo.memory_per_fragment 
- where parent_fq_name='test/def/t1' and fq_name like '%/c$unique';
+       @sum as actual_phys_rows,
+       @diff as diff;
 
 drop table test.t1;

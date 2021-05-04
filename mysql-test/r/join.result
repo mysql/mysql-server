@@ -900,7 +900,7 @@ We expect rnd_next=5, and read_key must be 0 because of short-cutting:
 show status like 'Handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	5
+Handler_read_key	1
 Handler_read_last	0
 Handler_read_next	0
 Handler_read_prev	0
@@ -1845,8 +1845,8 @@ left join t t3 on t3.a>t2.a-t1.a)
 from t t1
 group by t1.a;
 EXPLAIN
--> Table scan on <temporary>
-    -> Temporary table with deduplication  (cost=0.45 rows=2)
+-> Table scan on <temporary>  (cost=1.26..2.52 rows=2)
+    -> Temporary table with deduplication  (cost=1.91..3.17 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
     -> Aggregate: count(0)
@@ -1901,8 +1901,8 @@ from t t1;
 EXPLAIN
 -> Table scan on t1  (cost=0.45 rows=2)
 -> Select #2 (subquery in projection; dependent)
-    -> Table scan on dt  (cost=2.73 rows=2)
-        -> Materialize
+    -> Table scan on dt  (cost=2.50..2.50 rows=0)
+        -> Materialize  (cost=2.50..2.50 rows=0)
             -> Aggregate: count(0)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
@@ -1935,11 +1935,11 @@ lateral
 from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt;
 EXPLAIN
--> Nested loop inner join
+-> Nested loop inner join  (cost=7.05 rows=0)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=3.40 rows=2)
-        -> Materialize (invalidate on row from t1)
+    -> Table scan on dt  (cost=2.50..2.50 rows=0)
+        -> Materialize (invalidate on row from t1)  (cost=2.50..2.50 rows=0)
             -> Aggregate: count(0)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
@@ -1964,11 +1964,11 @@ lateral
 from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt;
 EXPLAIN
--> Nested loop inner join
+-> Nested loop inner join  (cost=7.05 rows=0)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=3.40 rows=2)
-        -> Materialize (invalidate on row from t1)
+    -> Table scan on dt  (cost=2.50..2.50 rows=0)
+        -> Materialize (invalidate on row from t1)  (cost=2.50..2.50 rows=0)
             -> Aggregate: count(0)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
@@ -1994,11 +1994,11 @@ from t t2
 left join t t3 on t3.a>t2.a-t1.a) as dt
 on true;
 EXPLAIN
--> Nested loop inner join
+-> Nested loop inner join  (cost=7.05 rows=0)
     -> Invalidate materialized tables (row from t1)  (cost=0.45 rows=2)
         -> Table scan on t1  (cost=0.45 rows=2)
-    -> Table scan on dt  (cost=3.40 rows=2)
-        -> Materialize (invalidate on row from t1)
+    -> Table scan on dt  (cost=2.50..2.50 rows=0)
+        -> Materialize (invalidate on row from t1)  (cost=2.50..2.50 rows=0)
             -> Aggregate: count(0)
                 -> Nested loop left join  (cost=1.35 rows=4)
                     -> Table scan on t2  (cost=0.45 rows=2)
@@ -2094,3 +2094,21 @@ CREATE TABLE A ( pk INTEGER );
 SELECT t1.pk FROM A t1, A t2, A t3, A t4, A t5 GROUP BY t1.pk;
 pk
 DROP TABLE A;
+#
+# Bug #32234666: HASHJOINITERATOR::READROWFROMPROBEITERATOR(): ASSERTION `!THD()->IS_ERROR()' FAILED.
+#
+CREATE TABLE t (
+a BIT(50),
+b VARCHAR(22772) character set ucs2,
+c INTEGER,
+d TINYBLOB,
+PRIMARY KEY (a),
+KEY i0001 (c,d(163))
+);
+INSERT INTO t VALUES (1,'',1,'1');
+INSERT INTO t VALUES (0x03ffffffffffff,'2',0,'2');
+SELECT t2.b FROM t AS t1
+LEFT JOIN t AS t2 ON t2.c < 70
+WHERE t2.a - from_unixtime(0) > 0;
+ERROR 22003: BIGINT UNSIGNED value is out of range in '(`test`.`t2`.`a` - <cache>(from_unixtime(0)))'
+DROP TABLE t;

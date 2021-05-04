@@ -1075,17 +1075,13 @@ Result on both should be :
 Result on both should be :
 84, 77, 80
 No divergence
-select @primary_ok:=
+set @primary_ok:=
 ((@epoch_trans XOR
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch);
-@primary_ok:=
-((@epoch_trans XOR
-@epoch_trans2_same_epoch) XOR
-@epoch_trans2_diff_epoch)
+select @primary_ok;
+@primary_ok
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH2_TRANS results are dependent on epoch boundaries
 Now sync with Secondary to show outcomes
 start slave;
@@ -1093,17 +1089,13 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SECONDARY:
 
-select @secondary_ok:=
+set @secondary_ok:=
 ((@epoch_trans XOR
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch);
-@secondary_ok:=
-((@epoch_trans XOR
-@epoch_trans2_same_epoch) XOR
-@epoch_trans2_diff_epoch)
+select @secondary_ok;
+@secondary_ok
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH2_TRANS results are dependent on epoch boundaries
 PRIMARY
 Cleanup
@@ -1204,17 +1196,13 @@ PRIMARY : 6
 SECONDARY : 6
 
 PRIMARY content 
-select @primary_ok:=
+set @primary_ok:=
 ((@epoch_trans_same_epoch XOR
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans);
-@primary_ok:=
-((@epoch_trans_same_epoch XOR
-@epoch_trans_diff_epoch) XOR
-@epoch2_trans)
+select @primary_ok;
+@primary_ok
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from test.t1 order by a;
 a	b
 6	Pentland
@@ -1224,17 +1212,13 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Sync PRIMARY -> SECONDARY
 SECONDARY content
-select @secondary_ok:=
+set @secondary_ok:=
 ((@epoch_trans_same_epoch XOR
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans);
-@secondary_ok:=
-((@epoch_trans_same_epoch XOR
-@epoch_trans_diff_epoch) XOR
-@epoch2_trans)
+select @secondary_ok;
+@secondary_ok
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from test.t1 order by a;
 a	b
 6	Pentland
@@ -2330,17 +2314,13 @@ Result on both should be :
 Result on both should be :
 84, 77, 80
 No divergence
-select @primary_ok:=
+set @primary_ok:=
 ((@epoch_trans XOR
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch);
-@primary_ok:=
-((@epoch_trans XOR
-@epoch_trans2_same_epoch) XOR
-@epoch_trans2_diff_epoch)
+select @primary_ok;
+@primary_ok
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH2_TRANS results are dependent on epoch boundaries
 Now sync with Secondary to show outcomes
 start slave;
@@ -2348,17 +2328,13 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SECONDARY:
 
-select @secondary_ok:=
+set @secondary_ok:=
 ((@epoch_trans XOR
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch);
-@secondary_ok:=
-((@epoch_trans XOR
-@epoch_trans2_same_epoch) XOR
-@epoch_trans2_diff_epoch)
+select @secondary_ok;
+@secondary_ok
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH2_TRANS results are dependent on epoch boundaries
 PRIMARY
 Cleanup
@@ -2459,17 +2435,13 @@ PRIMARY : 6
 SECONDARY : 6
 
 PRIMARY content 
-select @primary_ok:=
+set @primary_ok:=
 ((@epoch_trans_same_epoch XOR
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans);
-@primary_ok:=
-((@epoch_trans_same_epoch XOR
-@epoch_trans_diff_epoch) XOR
-@epoch2_trans)
+select @primary_ok;
+@primary_ok
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from test.t1 order by a;
 a	b
 6	Pentland
@@ -2479,17 +2451,13 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Sync PRIMARY -> SECONDARY
 SECONDARY content
-select @secondary_ok:=
+set @secondary_ok:=
 ((@epoch_trans_same_epoch XOR
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans);
-@secondary_ok:=
-((@epoch_trans_same_epoch XOR
-@epoch_trans_diff_epoch) XOR
-@epoch2_trans)
+select @secondary_ok;
+@secondary_ok
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 select * from test.t1 order by a;
 a	b
 6	Pentland

@@ -1,4 +1,5 @@
 # Disable in valgrind because of timeout
+--source include/big_test.inc
 --source include/not_valgrind.inc
 --source include/have_innodb_16k.inc
 --source include/have_debug.inc

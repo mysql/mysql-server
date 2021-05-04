@@ -67,7 +67,7 @@ INSERT into t4 (a,c,b) VALUES (21, REPEAT('secre11',20), REPEAT('secre12',6000))
 COMMIT;
 
 let $cleanup= drop TABLE t1,t2,t3,t4;
---let CLEANUP_IF_CHECKPOINT= $cleanup; --skip "Unexpected checkpoint happened";
+--let CLEANUP_IF_CHECKPOINT= $cleanup; --skip 'Unexpected checkpoint happened';
 --source include/no_checkpoint_end.inc
 
 --echo # Restart mysqld without keyring plugin
@@ -76,8 +76,7 @@ let $cleanup= drop TABLE t1,t2,t3,t4;
 --exec $MYSQLD_CMD
 
 --echo # Restart mysqld with keyring plugin
---let $restart_parameters=restart:--early-plugin-load="keyring_file=$KEYRING_PLUGIN" --keyring-file-data=$MYSQL_TMP_DIR/keys2.txt
+--let $restart_parameters=restart:
 --source include/start_mysqld_no_echo.inc
 
 drop TABLE t1,t2,t3,t4;
---remove_file $MYSQL_TMP_DIR/keys2.txt

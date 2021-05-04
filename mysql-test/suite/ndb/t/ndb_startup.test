@@ -1,6 +1,5 @@
 --source include/have_ndb.inc
 --source include/have_debug.inc
---source include/not_asan.inc
 
 
 let MYSQLD_DATADIR= `select @@datadir`;
@@ -34,8 +33,7 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.1.expect;
 
 --echo # Start server with provoked error in ndbcluster_init()
 --echo # - the mysqld should write an error to the log and shutdown
---error 1
---exec $MYSQLD_CMD_11 --debug="+d,ndbcluster_init_fail1" $args;
+--exec $MYSQLD_CMD_11 --debug="+d,ndbcluster_init_fail1" $args
 
 --echo # Check the log file for expected error
 let SEARCH_PATTERN= ndbcluster_init_abort1;
@@ -45,8 +43,7 @@ let SEARCH_FILE= $error_log;
 
 --echo # Start server with another provoked error in ndbcluster_init()
 --echo # - the mysqld should write an error to the log and shutdown
---error 1
---exec $MYSQLD_CMD_11 --debug="+d,ndbcluster_init_fail2" $args;
+--exec $MYSQLD_CMD_11 --debug="+d,ndbcluster_init_fail2" $args
 
 --echo # Check the log file for expected error
 let SEARCH_PATTERN= ndbcluster_init_abort2;

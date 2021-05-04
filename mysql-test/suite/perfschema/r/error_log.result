@@ -88,7 +88,7 @@ AND error_code NOT IN("MY-011243", "MY-011240", "MY-011245", "MY-010931",
 "MY-011952", "MY-011323", "MY-010902", "MY-000000",
 "MY-012937", "MY-012366", "MY-000067", "MY-010159",
 "MY-013602", "MY-010069", "MY-013595", "MY-010108",
-"MY-012363", "MY-011953")
+"MY-012363", "MY-011953", "MY-013711")
 ORDER BY logged, error_code;
 prio	error_code	subsystem
 System	MY-010116	Server
@@ -150,7 +150,7 @@ AND prio!="Note"
    AND error_code NOT IN("MY-011323", "MY-010075", "MY-010068", "MY-010069",
 "MY-010931", "MY-010116", "MY-011810", "MY-000000",
 "MY-000067", "MY-010159", "MY-013595", "MY-013602",
-"MY-010108", "MY-012363")
+"MY-010108", "MY-012363", "MY-013711")
 ORDER BY logged;
 prio	error_code	subsystem	data
 System	MY-013576	InnoDB	InnoDB initialization has started.
@@ -169,7 +169,7 @@ COUNT(*)>0
 # Restart with JSON logging ...
 
 INSTALL COMPONENT "file://component_log_sink_json";
-# restart: --log-error-services=log_filter_internal;log_sink_json --log-error=LOG_FILE --log-error-verbosity=3
+# restart: --log-error-services=log_filter_internal;log_sink_json --log-error=LOG_FILE_JSON --log-error-verbosity=3
 #
 # PART II - JSON error log
 #
@@ -272,7 +272,7 @@ COUNT(*)=0
 
 
 # verbosity=1
-# restart: --log-error=LOG_FILE --log-error-verbosity=1
+# restart: --log-error=LOG_FILE_V1 --log-error-verbosity=1
 SELECT logged INTO @startup
 FROM performance_schema.error_log
 WHERE error_code="MY-010116"
@@ -286,7 +286,7 @@ COUNT(*)=0
 1
 
 # verbosity=2
-# restart: --log-error=LOG_FILE --log-error-verbosity=2
+# restart: --log-error=LOG_FILE_V2 --log-error-verbosity=2
 SELECT logged INTO @startup
 FROM performance_schema.error_log
 WHERE error_code="MY-010116"
@@ -300,7 +300,7 @@ COUNT(*)>0
 1
 
 # verbosity=3
-# restart: --log-error=LOG_FILE --log-error-verbosity=3
+# restart: --log-error=LOG_FILE_V3 --log-error-verbosity=3
 SELECT logged INTO @startup
 FROM performance_schema.error_log
 WHERE error_code="MY-010116"
@@ -335,7 +335,7 @@ error_code
 # Likewise, show that log_filter_dragnet affects the table.
 INSTALL COMPONENT "file://component_log_filter_dragnet";
 SET PERSIST dragnet.log_error_filter_rules='IF ERROR_CODE == "MY-011300" THEN drop.';
-# restart: --log-error-services=log_filter_dragnet;log_sink_internal --log-error=LOG_FILE --log-error-verbosity=3
+# restart: --log-error-services=log_filter_dragnet;log_sink_internal --log-error=LOG_FILE_D --log-error-verbosity=3
 SELECT logged INTO @startup
 FROM performance_schema.error_log
 WHERE error_code="MY-010116"
@@ -345,6 +345,7 @@ FROM performance_schema.error_log
 WHERE logged>=@startup AND ERROR_CODE = "MY-011300";
 COUNT(*)=0
 1
+RESET PERSIST `dragnet.log_error_filter_rules`;
 SET @@global.log_error_services=DEFAULT;
 UNINSTALL COMPONENT "file://component_log_filter_dragnet";
 
@@ -353,7 +354,7 @@ INSTALL COMPONENT 'file://component_log_sink_json';
 SET PERSIST log_error_verbosity=1;
 SET PERSIST log_error_suppression_list="MY-013595,MY-010069,MY-011810,MY-010116";
 SET PERSIST log_error_services="log_filter_internal; log_sink_json";
-# restart: --log-error=LOG_FILE
+# restart: --log-error=LOG_FILE_PJ
 SELECT logged INTO @startup
 FROM performance_schema.error_log
 WHERE error_code="MY-010116"
@@ -379,6 +380,9 @@ AND LEFT(data,1)='{'
  ORDER BY logged;
 prio	error_code	subsystem	JSON_EXTRACT(data,'$.err_symbol')
 System	MY-010116	Server	"ER_STARTING_AS"
+RESET PERSIST log_error_verbosity;
+RESET PERSIST log_error_suppression_list;
+RESET PERSIST log_error_services;
 SET @@global.log_error_services=DEFAULT;
 UNINSTALL COMPONENT 'file://component_log_sink_json';
 
@@ -388,4 +392,7 @@ ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_
 DROP TABLE IF EXISTS performance_schema.error_log;
 ERROR 42000: DROP command denied to user 'root'@'localhost' for table 'error_log'
 
+# restart:
+SET @@global.log_error_suppression_list=DEFAULT;
+SET @@global.log_error_verbosity=3;
 # Done!

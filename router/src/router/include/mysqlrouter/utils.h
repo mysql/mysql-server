@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,88 +58,6 @@ using perm_mode = int;
 #endif
 /** @brief Constant for directory accessible only for the owner */
 extern const perm_mode kStrictDirectoryPerm;
-
-/** @class Ofstream
- *  @brief interface to std::ofstream and alternative (mock) implementations
- *
- * std::ofstream is not mockable, because its methods are not virtual. To work
- * around this, we create this interface class, which then acts as superclass to
- * various std::ofstream implementation classes.
- */
-class Ofstream : public std::ofstream {
- public:
-  // disabled copying the ofstream constructurs as sunpro 12.5 says:
-  //
-  //   'ofstream' not in 'std::ofstream'
-  //
-  // If there is a need to have other than the no-param constructor
-  // that is inherited by default, a new solution has to be found.
-  //
-  // using std::ofstream::ofstream;
-  ~Ofstream() override {}
-  virtual void open(const char *filename,
-                    std::ios_base::openmode mode = std::ios_base::out) = 0;
-  virtual void open(const std::string &filename,
-                    std::ios_base::openmode mode = std::ios_base::out) = 0;
-};
-
-/** @class RealOfstream
- *  @brief simple std::ofstream adapter, needed for DI purposes
- *
- * This class is just a simple adapter for std::ofstream. It forwards all calls
- * to std::ofstream
- */
-class RealOfstream : public Ofstream {
- public:
-  // using Ofstream::Ofstream;
-  void open(const char *filename,
-            std::ios_base::openmode mode = std::ios_base::out) override {
-    return std::ofstream::open(filename, mode);
-  }
-  void open(const std::string &filename,
-            std::ios_base::openmode mode = std::ios_base::out) override {
-    return open(filename.c_str(), mode);
-  }
-};
-
-/** @class MockOfstream
- *  @brief mock implementation of std::ofstream
- *
- * The idea behind this class is to allow unit tests to run, without actually
- * causing a mess on disk. So far a minimal implementation is provided, which
- * can be expanded as needed.
- */
-class MockOfstream : public Ofstream {
- public:
-  MockOfstream(const char *filename, ios_base::openmode mode = ios_base::out) {
-    open(filename, mode);
-  }
-
-  // mock open
-  void open(const char *filename,
-            ios_base::openmode mode = ios_base::out) override;
-  void open(const std::string &filename,
-            std::ios_base::openmode mode = std::ios_base::out) override {
-    return open(filename.c_str(), mode);
-  }
-
-  // extract the original filename
-  static std::string application_to_real_filename(
-      const std::string &application_filename) {
-    return filenames_.at(application_filename);
-  }
-
-  // run this at the end of the unit test
-  static void clean_up() {
-    for (auto filename : filenames_) erase_file(filename.second);
-  }
-
- private:
-  static std::string gen_fake_filename(unsigned long i);
-  static void erase_file(const std::string &filename);
-  static std::map<std::string, std::string>
-      filenames_;  // key = application filename, value = filename on disk
-};
 
 // Some (older) compiler have no std::to_string available
 template <typename T>

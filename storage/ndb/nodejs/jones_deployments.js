@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -42,6 +42,8 @@ deployments.mtr = function(properties) {
   properties.mysql_host = "127.0.0.1";
   properties.mysql_port = 13001;
   properties.ndb_connectstring = "localhost:13000";
+  properties.mysql_user = "jstestuser";
+  properties.mysql_password = "jstestpass";
 };
 
 /* Example of a deployment function defining a production environment.

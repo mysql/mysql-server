@@ -193,7 +193,7 @@ insert into test.t1 values (3, "From the Sea");
 --echo New Slave server on Cluster A has loaded old Max-Replicated-Epoch
 select server_id from mysql.ndb_apply_status order by server_id;
 select
-    @result:=count(1)
+    count(1)
   from
     performance_schema.global_status,
     mysql.ndb_apply_status
@@ -202,7 +202,8 @@ select
     and
     variable_name='Ndb_slave_max_replicated_epoch'
     and
-    variable_value = epoch;
+    variable_value = epoch into @result;
+select @result;
 
 # BEGIN TRANSIENT FAILURE DEBUGGING
 --disable_query_log

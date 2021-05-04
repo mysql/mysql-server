@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2697,16 +2697,20 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
       ut_ad(mysql_col_len >= len);
       ut_ad(templ->mbmaxlen >= templ->mbminlen);
 
-      /* If field_no equals to templ->icp_rec_field_no,
-      we are examining a row pointed by "icp_rec_field_no".
-      There is possibility that icp_rec_field_no refers to
-      a field in a secondary index while templ->rec_field_no
-      points to field in a primary index. The length
-      should still be equal, unless the field pointed
-      by icp_rec_field_no has a prefix or this is a virtual
-      column */
+      /* If field_no equals to templ->icp_rec_field_no, we are examining a row
+      pointed by "icp_rec_field_no". There is possibility that icp_rec_field_no
+      refers to a field in a secondary index while templ->rec_field_no points
+      to field in a primary index. The length should still be equal, unless the
+      field pointed by icp_rec_field_no has a prefix or this is a virtual
+      column.
+      For end range condition check of secondary index with cluster index
+      template (clust_templ_for_sec), the index column data length (len)
+      could be smaller than the actual column length (mysql_col_len) if index
+      is on column prefix. This is not a real issue because the end range check
+      would only need the prefix part. The length check assert is relaxed for
+      clust_templ_for_sec. */
       ut_ad(templ->is_virtual || templ->mbmaxlen > templ->mbminlen ||
-            mysql_col_len == len ||
+            mysql_col_len == len || clust_templ_for_sec ||
             (field_no == templ->icp_rec_field_no && field->prefix_len > 0));
 
       /* The following assertion would fail for old tables
@@ -4801,7 +4805,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
   if (prebuilt->table->skip_gap_locks() ||
       (trx->skip_gap_locks() && prebuilt->select_lock_type != LOCK_NONE &&
-       trx->mysql_thd != nullptr && thd_is_select(trx->mysql_thd))) {
+       trx->mysql_thd != nullptr && thd_is_query_block(trx->mysql_thd))) {
     /* It is a plain locking SELECT and the isolation
     level is low: do not lock gaps */
 

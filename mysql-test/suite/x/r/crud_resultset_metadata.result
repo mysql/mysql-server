@@ -1,6 +1,3 @@
-DROP SCHEMA IF EXISTS xtest;
-Warnings:
-Note	1008	Can't drop database 'xtest'; database doesn't exist
 CREATE SCHEMA xtest;
 CREATE TABLE xtest.xtable (x INT AUTO_INCREMENT PRIMARY KEY, y VARCHAR(1) NOT NULL, z INT UNSIGNED UNIQUE);
 INSERT INTO xtest.xtable VALUES (1,2,3);
@@ -25,4 +22,3 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA IF EXISTS xtest;

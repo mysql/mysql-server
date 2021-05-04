@@ -10,7 +10,7 @@ call mtr.add_suppression("Access denied for user .*");
 
 ## Test starts here
 
---let $xtest_file= $MYSQL_TMP_DIR/connection_auth_plugin_unsupported.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/connection_auth_plugin_unsupported.xpl
 --write_file $xtest_file
 -->quiet
 -->sql
@@ -60,5 +60,4 @@ DROP USER xuser_test@localhost;
 DROP USER xuser_nologin@localhost;
 UNINSTALL PLUGIN test_plugin_server;
 UNINSTALL PLUGIN mysql_no_login;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

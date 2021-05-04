@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,8 @@
 
 class DestMetadataCacheGroup final
     : public RouteDestination,
-      public metadata_cache::ReplicasetStateListenerInterface {
+      public metadata_cache::ReplicasetStateListenerInterface,
+      public metadata_cache::AcceptorUpdateHandlerInterface {
  public:
   enum ServerRole { Primary, Secondary, PrimaryAndSecondary };
 
@@ -103,7 +104,14 @@ class DestMetadataCacheGroup final
 
   Destinations primary_destinations();
 
-  void advance(size_t n) { start_pos_ += n; }
+  /**
+   * advance the current position in the destination by n.
+   */
+  void advance(size_t n);
+
+  void handle_sockets_acceptors() override {
+    cache_api()->handle_sockets_acceptors_on_md_refresh();
+  }
 
  private:
   /** @brief The Metadata Cache to use
@@ -158,7 +166,8 @@ class DestMetadataCacheGroup final
    * the `metadata_cache::lookup_replicaset()` function to get a list of current
    * managed servers. Bool in the returned pair indicates if (in case of the
    * round-robin-with-fallback routing strategy) the returned nodes are the
-   * primaries after the fallback (true) or secondaries (false).
+   * primaries after the fallback (true), regular primaries (false) or
+   * secondaries (false).
    *
    */
   std::pair<AvailableDestinations, bool> get_available(
@@ -187,10 +196,14 @@ class DestMetadataCacheGroup final
   void on_instances_change(const metadata_cache::LookupResult &instances,
                            const bool md_servers_reachable);
   void subscribe_for_metadata_cache_changes();
+  void subscribe_for_acceptor_handler();
 
-  void notify(const metadata_cache::LookupResult &instances,
-              const bool md_servers_reachable,
-              const unsigned /*view_id*/) noexcept override;
+  void notify_instances_changed(const metadata_cache::LookupResult &instances,
+                                const bool md_servers_reachable,
+                                const unsigned /*view_id*/) noexcept override;
+
+  bool update_socket_acceptor_state(
+      const metadata_cache::LookupResult &instances) noexcept override;
 
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};

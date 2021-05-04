@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -152,11 +152,15 @@ class BasicSplicer {
   const Channel *client_channel() const { return client_channel_.get(); }
   const Channel *server_channel() const { return server_channel_.get(); }
 
-  bool client_waiting() const { return client_waiting_; }
-  void client_waiting(bool waiting) { client_waiting_ = waiting; }
+  bool client_waiting_recv() const { return client_waiting_recv_; }
+  void client_waiting_recv(bool waiting) { client_waiting_recv_ = waiting; }
+  bool client_waiting_send() const { return client_waiting_send_; }
+  void client_waiting_send(bool waiting) { client_waiting_send_ = waiting; }
 
-  bool server_waiting() const { return server_waiting_; }
-  void server_waiting(bool waiting) { server_waiting_ = waiting; }
+  bool server_waiting_recv() const { return server_waiting_recv_; }
+  void server_waiting_recv(bool waiting) { server_waiting_recv_ = waiting; }
+  bool server_waiting_send() const { return server_waiting_send_; }
+  void server_waiting_send(bool waiting) { server_waiting_send_ = waiting; }
 
   std::vector<std::pair<std::string, std::string>> session_attributes() const {
     return session_attributes_;
@@ -164,11 +168,8 @@ class BasicSplicer {
 
   /**
    * start the packet reception.
-   *
-   * @retval true wait for data from client
-   * @retval false wait for data from server
    */
-  virtual bool start() = 0;
+  virtual void start() = 0;
 
   /**
    * handle the server message.
@@ -349,8 +350,10 @@ class BasicSplicer {
 
   bool handshake_done_{false};
 
-  bool client_waiting_{false};
-  bool server_waiting_{false};
+  bool client_waiting_send_{false};
+  bool server_waiting_send_{false};
+  bool client_waiting_recv_{false};
+  bool server_waiting_recv_{false};
 
   std::vector<std::pair<std::string, std::string>> session_attributes_;
 };

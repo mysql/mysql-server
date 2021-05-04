@@ -1,3 +1,4 @@
+--source include/big_test.inc
 --source include/not_parallel.inc
 --source include/have_binlog_format_row.inc
 

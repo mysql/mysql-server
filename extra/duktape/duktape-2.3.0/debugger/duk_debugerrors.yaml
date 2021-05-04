@@ -1,6 +1,0 @@
-error_codes:
-  - Unknown
-  - UnsupportedCommand
-  - TooMany
-  - NotFound
-  - ApplicationError

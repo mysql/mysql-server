@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 ##############
 
 save_args=$*
-VERSION="autotest-run.sh version 1.24"
+VERSION="autotest-run.sh version 1.25"
 
 DATE=`date '+%Y-%m-%d'`
 if [ `uname -s` != "SunOS" ]
@@ -104,7 +104,8 @@ do
                     default_force_cluster_restart_arg="$1";;
                 --default-behaviour-on-failure=*) default_behaviour_on_failure_arg="$1";;
                 --*clean-shutdown*) clean_shutdown_arg="$1";;
-                --*-coverage*) coverage_arg="$1";;
+                --atrt-coverage-tool=*) coverage_tool_arg="${1/#--atrt-/--}";;
+                --atrt-coverage*) coverage_arg="${1/#--atrt-/--}";;
                 --build-dir=*) build_dir_arg="$1";;
         esac
         shift
@@ -113,7 +114,7 @@ done
 #################################
 #Make sure the configfile exists#
 #if it does not exit. if it does#
-# (.) load it			# 
+# (.) load it			#
 #################################
 
 install_dir=${install_dir:-$install_dir0}
@@ -282,7 +283,7 @@ choose(){
         i=1
         while [ $# -gt 0 ]
         do
-                sed -e s,"CHOOSE_host$i",$1,g < $TMP1 > $TMP2
+                sed -E s/"CHOOSE_host${i}([^0-9]|\$)"/"${1}\1"/g < $TMP1 > $TMP2
                 mv $TMP2 $TMP1
                 shift
                 i=`expr $i + 1`
@@ -351,7 +352,7 @@ rm -rf $res_dir/* $run_dir/*
 ###
 #
 # Do sed substitiutions
-# 
+#
 cd $run_dir
 mkdir run
 
@@ -459,6 +460,7 @@ else
     args="$args ${clean_shutdown_arg}"
     args="$args ${coverage_arg}"
     args="$args ${build_dir_arg}"
+    args="$args ${coverage_tool_arg}"
     $atrt $args my.cnf | tee -a log.txt
 
     atrt_test_status=${PIPESTATUS[0]}
@@ -473,8 +475,8 @@ fi
 [ -f log.txt ] && mv log.txt $res_dir
 [ -f report.txt ] && mv report.txt $res_dir
 [ "`find . -name 'result*'`" ] && mv result* $res_dir
-[ -f coverage.info ] && mv coverage.info $res_dir
-[ -d coverage_report ] && mv coverage_report "$res_dir"
+[ -f coverage.info ] && mv coverage.info "${res_dir}"
+[ -d test_coverage ] && mv test_coverage "${res_dir}"
 cd $res_dir
 
 echo "date=$DATE" > info.txt

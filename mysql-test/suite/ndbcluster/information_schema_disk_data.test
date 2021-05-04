@@ -9,23 +9,23 @@ CREATE LOGFILE GROUP lg_1
   ENGINE=NDB;
 
 # Check that the logfilegroups FILE_ID column in INFORMATION_SCHEMA.FILES is
-# same as the object id in NDB(as reported by ndb_show_tables)
+# same as the object id in NDB(as reported by ndbinfo)
 let $logfilegroup_objectid =
   `SELECT LOGFILE_GROUP_NUMBER FROM INFORMATION_SCHEMA.FILES
       WHERE LOGFILE_GROUP_NAME='lg_1'`;
 #echo logfilegroup_objectid: $logfilegroup_objectid;
 --replace_result $logfilegroup_objectid logfilegroup_objectid
---exec $NDB_SHOW_TABLES --type=21
+SELECT id, fq_name FROM ndbinfo.dict_obj_info WHERE type = 21;
 --echo
 
 # Check that the undofiles FILE_ID column in INFORMATION_SCHEMA.FILES is same
-# as the object id in NDB(as reported by ndb_show_tables)
+# as the object id in NDB(as reported by ndbinfo)
 let $undofile_objectid =
   `SELECT FILE_ID FROM INFORMATION_SCHEMA.FILES
       WHERE ENGINE='ndbcluster' AND FILE_TYPE='UNDO LOG'`;
 #echo undofile_objectid: $undofile_objectid;
 --replace_result $undofile_objectid undofile_objectid
---exec $NDB_SHOW_TABLES --type=23
+SELECT id, fq_name FROM ndbinfo.dict_obj_info WHERE type = 23;
 --echo
 
 ALTER LOGFILE GROUP lg_1
@@ -47,13 +47,13 @@ CREATE TABLESPACE ts_1
   ENGINE NDB;
 
 # Check that the datafiles FILE_ID column in INFORMATION_SCHEMA.FILES is same
-# as its object id in NDB(as reported by ndb_show_tables)
+# as its object id in NDB(as reported by ndbinfo)
 let $datafile_objectid =
   `SELECT FILE_ID FROM INFORMATION_SCHEMA.FILES
       WHERE ENGINE='ndbcluster' AND FILE_TYPE='DATAFILE'`;
 #echo datafile_objectid: $datafile_objectid;
 --replace_result $datafile_objectid datafile_objectid
---exec $NDB_SHOW_TABLES --type=22
+SELECT id, fq_name FROM ndbinfo.dict_obj_info WHERE type = 22;
 --echo
 
 ALTER TABLESPACE ts_1

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,9 @@ namespace mock {
 
 class Service_sys_variables : public iface::Service_sys_variables {
  public:
+  Service_sys_variables();
+  virtual ~Service_sys_variables() override;
+
   MOCK_METHOD(bool, get_variable,
               (const char *component_name, const char *name, void **val,
                size_t *out_length_of_val),

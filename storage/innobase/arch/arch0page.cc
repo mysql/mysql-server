@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -2245,7 +2245,13 @@ void Arch_Page_Sys::track_initial_pages() {
         break;
       }
 
-      if (buf_page_get_io_fix_unlocked(bpage) == BUF_IO_WRITE) {
+      /** We read the io_fix flag without holding buf_page_get_mutex(bpage), but
+      we hold flush_state_mutex which is also taken when transitioning:
+      - from BUF_IO_NONE to BUF_IO_WRITE in buf_flush_page()
+      - from BUF_IO_WRITE to BUF_IO_NONE in buf_flush_write_complete()
+      which are the only transitions to and from BUF_IO_WRITE state that we care
+      about. */
+      if (bpage->is_io_fix_write()) {
         /* IO has already started. Must add the page */
         track_page(bpage, LSN_MAX, LSN_MAX, true);
         ++page_count;

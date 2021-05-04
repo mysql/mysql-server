@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@ BasicSplicer::State BasicSplicer::tls_accept() {
   // write socket data to SSL struct
   auto *channel = client_channel_.get();
 
-  if (client_waiting() && !server_waiting()) {
+  if (client_waiting_recv() && !server_waiting_recv()) {
     // received something from the server while expected data from the client.
     //
     // data is added to the server_channel()->recv_buffer(). Wait for more.

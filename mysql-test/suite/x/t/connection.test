@@ -19,7 +19,7 @@ call mtr.add_suppression("Plugin 'mysqlx' has ref_count=5 after shutdown");
 call mtr.add_suppression("Plugin 'mysqlx' will be forced to shutdown");
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/mysqlx-connection.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection.xpl
 -->sql
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE from information_schema.plugins where PLUGIN_NAME LIKE '%mysqlx%';
 create user xplugin@localhost identified by 'xplugin';
@@ -40,7 +40,7 @@ show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_nam
 -->endsql
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl
 -->stmtsql select user(),current_user(),@@bind_address
 -->expecterror %EXPECT_ERROR%
 -->recvresult
@@ -64,13 +64,13 @@ EOF
 
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_locked_user.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_locked_user.xpl
 -->expecterror ER_ACCOUNT_HAS_BEEN_LOCKED
 -->newsession bla	abc	abc
 EOF
 
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_session_track.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_session_track.xpl
 -->sql
 SET @@session.session_track_system_variables='mysqlx_port,mysqlx_idle_worker_thread_timeout,mysqlx_max_allowed_packet,mysqlx_max_connections,mysqlx_min_worker_threads';
 show variables like '%session_track%';
@@ -93,7 +93,7 @@ show status where `Variable_name` like  'Mysqlx_sessions%' and not `Variable_nam
 -->endsql
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.xpl
 -->sql
 uninstall plugin mysqlx;
 -->endsql
@@ -103,7 +103,7 @@ EOF
 --echo # Login with valid account
 --echo #
 exec $MYSQLXTEST -ux_root --password=''
-  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-connection.xpl 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_connections_closed',
   'Mysqlx_sessions_closed';
@@ -119,9 +119,9 @@ exec $MYSQLXTEST --expect-error 2510 -uX_root --password=''  --sql "SELECT THIS_
 
 exec $MYSQLXTEST --expect-error 2510 -u"x_root  " --password=''  --sql "SELECT THIS_MUST_NOT_BE_EXECUTED()" 2>&1;
 let $wait_for_status_variable =
-  'Mysqlx_sessions_rejected',
+  'Mysqlx_sessions',
   'Mysqlx_connections_closed';
-let $wait_for_status_value = 2, 3;
+let $wait_for_status_value = 0, 3;
 
 source ../include/wait_for_status_variables.inc;
 source ../include/connection_test_helpers.inc;
@@ -130,18 +130,18 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Try login with user having special characters in password when mysqlxplugin installed
 --echo #
---exec $MYSQLXTEST -uspecial --password="1aram@&Tpu" -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -uspecial --password="1aram@&Tpu" -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 let $wait_for_status_variable =
-  'Mysqlx_sessions_rejected',
+  'Mysqlx_sessions',
   'Mysqlx_connections_closed';
-let $wait_for_status_value = 2, 4;
+let $wait_for_status_value = 0, 4;
 source ../include/wait_for_status_variables.inc;
 source ../include/connection_test_helpers.inc;
 
 #### Not a Bug, anon user doesn't exist in xplugin
 ####try login with annonymous user when mysqx plugin is installed
 ####Test for Bug#21372364
-####--exec $MYSQLXTEST -ut --password='ramana' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+####--exec $MYSQLXTEST -ut --password='ramana' -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 
 --echo #
 --echo # try login with invalid host when mysqx plugin is installed
@@ -151,9 +151,8 @@ source ../include/connection_test_helpers.inc;
 # replace_regex did consume last character in line, lets put it back
 --echo
 
-# Nothing changed in X Plugin, lets do sleep for giving a change on
-# for propagating the signals
---sleep 1
+--source ../include/xplugin_wait_for_connection_closure.inc
+
 let $wait_for_status_variable =
   'Mysqlx_sessions_rejected',
   'Mysqlx_connections_closed';
@@ -170,7 +169,7 @@ source include/restart_mysqld.inc;
 
 replace_regex /( *No connection could be made because the target machine actively refused it connecting to*| *Connection refused connecting to*) .*:[0-9]*/ERROR: Connection refused connecting to HOST:PORT/;
 exec $MYSQLXTEST --expect-error CR_CONNECTION_ERROR -ux_root --password=''
-  --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-connection.xpl 2>&1;
 source ../include/connection_test_helpers.inc;
 
 --echo #
@@ -180,7 +179,7 @@ replace_regex /\.dll/.so/;
 let $restart_parameters = restart: ;
 source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u x_root --password='' -v%EXPECT_ERROR%=ER_SUCCESS
-  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_connections_closed',
   'Mysqlx_sessions_closed';
@@ -246,7 +245,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Login with valid user and valid password when mysqlx installed
 --echo #
---exec $MYSQLXTEST -u nonblank --password='nonblank' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u nonblank --password='nonblank' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 let $wait_for_status_variable =
   'Mysqlx_sessions_closed',
   'Mysqlx_connections_closed';
@@ -257,7 +256,7 @@ source ../include/connection_test_helpers.inc;
 --echo #
 --echo # Login with valid user and blank password when mysqlx installed
 --echo #
---exec $MYSQLXTEST -u blank --password='' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u blank --password='' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 let $wait_for_status_variable =
   'Mysqlx_sessions_closed',
   'Mysqlx_connections_closed';
@@ -265,9 +264,9 @@ let $wait_for_status_value = 3, 8;
 source ../include/wait_for_status_variables.inc;
 source ../include/connection_test_helpers.inc;
 
---remove_file $MYSQL_TMP_DIR/mysqlx-connection.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-connection.xpl
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection.xpl
 -->sql
 SELECT PLUGIN_NAME,PLUGIN_VERSION,PLUGIN_STATUS,PLUGIN_TYPE,PLUGIN_TYPE_VERSION,PLUGIN_LIBRARY,PLUGIN_LIBRARY_VERSION,PLUGIN_AUTHOR,PLUGIN_DESCRIPTION,PLUGIN_LICENSE,LOAD_OPTION from information_schema.plugins where PLUGIN_NAME LIKE '%xplugin%';
 show status like 'Mysqlx_connections_closed';
@@ -286,10 +285,16 @@ replace_regex /\.dll/.so/;
 source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u nonblank --password='nonblank'
   -v%EXPECT_ERROR%=ER_SUCCESS
-  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
+let $wait_for_status_variable =
+  'Mysqlx_sessions_closed',
+  'Mysqlx_connections_closed';
+let $wait_for_status_value = 1, 1;
+source ../include/wait_for_status_variables.inc;
+
 exec $MYSQLXTEST -u nonblank --password='nonblank' -hlocalhost
   -v%EXPECT_ERROR%=ER_SUCCESS
-  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_closed',
   'Mysqlx_connections_closed';
@@ -305,7 +310,7 @@ replace_regex /\.dll/.so/;
 source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u nonblank --password='nonblank'
   -v%EXPECT_ERROR%=ER_SUCCESS
-  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_closed',
   'Mysqlx_connections_closed';
@@ -315,7 +320,7 @@ source ../include/connection_test_helpers.inc;
 
 exec $MYSQLXTEST -u nonblank --password='nonblank' -h127.0.0.1
   -v%EXPECT_ERROR%=ER_SUCCESS
-  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_closed',
   'Mysqlx_connections_closed';
@@ -337,7 +342,7 @@ let $wait_for_status_value = 1, 1;
 source ../include/wait_for_status_variables.inc;
 source ../include/connection_test_helpers.inc;
 
---exec $MYSQLXTEST -u x_root --password='' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' -v%EXPECT_ERROR%=ER_SUCCESS --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 let $wait_for_status_variable =
   'Mysqlx_sessions_closed',
   'Mysqlx_connections_closed';
@@ -352,7 +357,7 @@ let $restart_parameters = restart: ;
 replace_regex /\.dll/.so/;
 source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u session --password='session'
-  --file=$MYSQL_TMP_DIR/mysqlx-connection_session_track.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_session_track.xpl 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_closed',
   'Mysqlx_connections_closed';
@@ -369,7 +374,7 @@ source include/restart_mysqld.inc;
 
 exec $MYSQLXTEST -u xplugin --password='xplugin'
   -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD
-  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1;
 let $wait_for_status_variable =
   'Mysqlx_sessions_closed',
   'Mysqlx_connections_closed';
@@ -377,7 +382,7 @@ let $wait_for_status_value = 1, 1;
 source ../include/wait_for_status_variables.inc;
 source ../include/connection_test_helpers.inc;
 
---write_file $MYSQL_TMP_DIR/open_max_mysqlx_connection.tmp
+--write_file $MYSQL_TMP_DIR/open_max_mysqlx_connection.xpl
 -->sql
 create user con1@localhost identified by 'con1';
 create user con2@localhost identified by 'con2';
@@ -419,7 +424,7 @@ let $restart_parameters = restart: --mysqlx_max_connections=2;
 replace_regex /\.dll/.so/;
 source include/restart_mysqld.inc;
 exec $MYSQLXTEST -u x_root --password=''
-  --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection.xpl 2>&1;
 
 let $wait_for_status_variable =
   'Mysqlx_connections_closed', 'Mysqlx_connections_accepted', 'Mysqlx_sessions_closed';
@@ -428,7 +433,7 @@ source ../include/wait_for_status_variables.inc;
 let $skip_show_mysqlx_sessions_variables=1;
 source ../include/connection_test_helpers.inc;
 
---write_file $MYSQL_TMP_DIR/open_max_mysqlx_connection2.tmp
+--write_file $MYSQL_TMP_DIR/open_max_mysqlx_connection2.xpl
 -->sql
 create user con1@localhost identified by 'con1';
 create user con2@localhost identified by 'con2';
@@ -468,7 +473,7 @@ drop user con2@localhost;
 let $restart_parameters = restart: --mysqlx_max_connections=3;
 --replace_regex /\.dll/.so/
 --source include/restart_mysqld.inc
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection2.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/open_max_mysqlx_connection2.xpl 2>&1
 let $wait_for_status_variable =
   'Mysqlx_connections_closed', 'Mysqlx_connections_accepted', 'Mysqlx_sessions_closed';
 let $wait_for_status_value = 3, 3, 3;
@@ -476,7 +481,7 @@ source ../include/wait_for_status_variables.inc;
 let $skip_show_mysqlx_sessions_variables=1;
 source ../include/connection_test_helpers.inc;
 
---write_file $MYSQL_TMP_DIR/allconn_root.tmp
+--write_file $MYSQL_TMP_DIR/allconn_root.xpl
 -->sql
 create user xcon1@localhost identified by 'xcon1';
 create user xcon2@localhost identified by 'xcon2';
@@ -547,7 +552,7 @@ EOF
 --echo #
 --echo # Open max allowed connections and expect error for new connections and changes value and connect again,expect success
 --echo #
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/allconn_root.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/allconn_root.xpl 2>&1
 let $wait_for_status_variable =
   'Mysqlx_connections_closed', 'Mysqlx_connections_accepted', 'Mysqlx_sessions_closed';
 let $wait_for_status_value = 6, 6, 6;
@@ -555,7 +560,7 @@ source ../include/wait_for_status_variables.inc;
 let $skip_show_mysqlx_sessions_variables=1;
 source ../include/connection_test_helpers.inc;
 
---write_file $MYSQL_TMP_DIR/admin_xkill_parallel.tmp
+--write_file $MYSQL_TMP_DIR/admin_xkill_parallel.xpl
 -->echo kill xprotocol session when some operations are going on there using mysqx protocol
 -->sql
 create user xcon1@localhost identified by 'xcon1';
@@ -651,7 +656,7 @@ show status like 'Mysqlx_connection_accept_errors';
 EOF
 
 
---write_file $MYSQL_TMP_DIR/open_max_mysql_connection.tmp
+--write_file $MYSQL_TMP_DIR/open_max_mysql_connection.xpl
 -->echo open more xconnections than specified max_connections,expect error
 -->sql
 create user mysqlcon1@localhost identified by 'mysqlcon1';
@@ -690,24 +695,26 @@ set @@global.max_connections=150;
 EOF
 
 ##kill xprotocol session when some operations are going on there using mysqx protocol
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill_parallel.tmp 2>&1
---sleep 1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill_parallel.xpl 2>&1
 
 let $wait_for_status_variable =
   'Mysqlx_connections_closed', 'Mysqlx_connections_accepted', 'Mysqlx_sessions_closed';
 let $wait_for_status_value = 10, 10, 10;
 source ../include/wait_for_status_variables.inc;
+
 let $skip_show_mysqlx_sessions_variables=1;
 source ../include/connection_test_helpers.inc;
 
 ##try open more xconnections than specified max_connections,expect error
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/open_max_mysql_connection.tmp 2>&1
---sleep 1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/open_max_mysql_connection.xpl 2>&1
+
+--source ../include/xplugin_wait_for_connection_closure.inc
 
 ##ensure proper error for locked account
 #TODO move error handling here
---exec $MYSQLXTEST -uabc --no-auth --file=$MYSQL_TMP_DIR/mysqlx-connection_locked_user.tmp 2>&1
---sleep 2
+--exec $MYSQLXTEST -uabc --no-auth --file=$MYSQL_TMP_DIR/mysqlx-connection_locked_user.xpl 2>&1
+
+--source ../include/xplugin_wait_for_connection_closure.inc
 
 show status like 'Mysqlx_connections_closed';
 show status like 'Mysqlx_connections_accepted';
@@ -730,14 +737,4 @@ drop user special@localhost;
 drop user session@localhost;
 
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_session_track.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_uninstallplugin.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection.tmp
---remove_file $MYSQL_TMP_DIR/open_max_mysqlx_connection.tmp
---remove_file $MYSQL_TMP_DIR/open_max_mysqlx_connection2.tmp
---remove_file $MYSQL_TMP_DIR/open_max_mysql_connection.tmp
---remove_file $MYSQL_TMP_DIR/allconn_root.tmp
---remove_file $MYSQL_TMP_DIR/admin_xkill_parallel.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_locked_user.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

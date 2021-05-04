@@ -1,0 +1,380 @@
+--echo #
+--echo # WL#12261 Control (enforce and disable) table encryption
+--echo #
+
+--echo # Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+connect (con1, localhost, u1);
+
+--echo # This test run ALTER TABLE in different configurations,
+--echo #
+--echo # - Setting table_encryption_privilege_check to true/false.
+--echo # - Setting default_table_encryption to true/false.
+--echo # - With and without user holding TABLE_ENCRYPTION_ADMIN privilege.
+--echo # - Test SHOW CREATE TABLE
+--echo # - Test INFORMATION_SCHEMA.TABLES.CREATE_OPTIONS
+--echo # - Check for warnings generated.
+--echo #
+--echo # See comments in alter_table.inc for more details.
+
+--echo `````````````````````````````````````````````````````````
+--echo # Test using user tablespace 'ts1'
+--let alter_tablespace_name=ts1
+--let expected_error1=0
+--let expected_error2=0
+--let expected_error3=0
+--let expected_error4=0
+--let caseno=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption OFF
+--let privilege_check=false
+--let database_encryption='n'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let table_encryption='y'
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption ON
+--let database_encryption='y'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let table_encryption='y'
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption OFF
+--let privilege_check=true
+--let database_encryption='n'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create encrypted table to unencrypted database is rejected.
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--let has_grant=true
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption ON
+--let database_encryption='y'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let table_encryption='y'
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Moving encrypted tablespace to unencrypted tablespace is rejected.
+--let has_grant=true
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--let has_grant=false
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Using 'innodb_system' tablespace
+--let alter_tablespace_name=innodb_system
+--let expected_error1=0
+--let expected_error2=0
+--let expected_error3=0
+--let expected_error4=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption OFF
+--let privilege_check=false
+--let database_encryption='n'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a encrypted table is rejected in system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a encrypted table is rejected in system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption ON
+--let database_encryption='y'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a encrypted table is rejected in system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a encrypted table is rejected in system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption OFF
+--let privilege_check=true
+--let database_encryption='n'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create encrypted table to unencrypted database is rejected.
+--let alter_encryption='y'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a encrypted table is rejected in system tablespace
+--let has_grant=true
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+--let has_grant=false
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a encrypted table is rejected in system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption ON
+--let database_encryption='y'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a encrypted table is rejected in system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table under database with default
+--echo # encryption=ON is rejected.
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+--let has_grant=true
+--let expected_error2=ER_TARGET_TABLESPACE_UNENCRYPTED
+--let expected_error4=ER_TARGET_TABLESPACE_UNENCRYPTED
+--source ./alter_table.inc
+--let has_grant=false
+
+--echo `````````````````````````````````````````````````````````
+--echo # Creating a encrypted table is rejected in system tablespace
+--let alter_encryption='y'
+--let expected_error2=ER_INVALID_ENCRYPTION_REQUEST
+--let expected_error4=ER_INVALID_ENCRYPTION_REQUEST
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Test using 'innodb_file_per_table'
+--let alter_tablespace_name=innodb_file_per_table
+--let expected_error1=0
+--let expected_error2=0
+--let expected_error3=0
+--let expected_error4=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption OFF
+--let privilege_check=false
+--let database_encryption='n'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=OFF and default per-db encryption ON
+--let database_encryption='y'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption OFF
+--let privilege_check=true
+--let database_encryption='n'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create encrypted table to database with default
+--echo # encryption=OFF is rejected.
+--let alter_encryption='y'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./alter_table.inc
+--let has_grant=true
+--source ./alter_table.inc
+--let has_grant=false
+
+--let table_encryption='y'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # table_encryption_privilege_check=ON and default per-db encryption ON
+--let database_encryption='y'
+
+--let table_encryption='n'
+--let alter_encryption='n'
+--source ./alter_table.inc
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted table to database with default
+--echo # encryption=ON is rejected.
+--let table_encryption='y'
+--let alter_encryption='n'
+--let expected_error1=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error2=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error3=ER_CANNOT_SET_TABLE_ENCRYPTION
+--let expected_error4=ER_CANNOT_SET_TABLE_ENCRYPTION
+--source ./alter_table.inc
+
+--let has_grant=true
+--source ./alter_table.inc
+--let has_grant=false
+
+--let alter_encryption='y'
+--source ./alter_table.inc
+
+--echo # Cleanup
+disconnect con1;
+connection default;
+DROP USER u1@localhost;
+SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

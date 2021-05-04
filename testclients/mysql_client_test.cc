@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2025,7 +2025,7 @@ static void test_select() {
   returns all rows in the table)
 */
 
-static void test_ps_conj_select() {
+static void test_ps_conj_query_block() {
   MYSQL_STMT *stmt;
   int rc;
   MYSQL_BIND my_bind[2];
@@ -2033,7 +2033,7 @@ static void test_ps_conj_select() {
   char str_data[32];
   ulong str_length;
   char query[MAX_TEST_QUERY_LENGTH];
-  myheader("test_ps_conj_select");
+  myheader("test_ps_conj_query_block");
 
   rc = mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
@@ -8875,7 +8875,8 @@ static void test_selecttmp() {
 }
 
 static void test_create_drop() {
-  MYSQL_STMT *stmt_create, *stmt_drop, *stmt_select, *stmt_create_select;
+  MYSQL_STMT *stmt_create, *stmt_drop, *stmt_query_block,
+      *stmt_create_query_block;
   const char *query;
   int rc, i;
   myheader("test_table_manipulation");
@@ -8901,37 +8902,37 @@ static void test_create_drop() {
   check_stmt(stmt_drop);
 
   query = "select a in (select a from t2) from t1";
-  stmt_select = mysql_simple_prepare(mysql, query);
-  check_stmt(stmt_select);
+  stmt_query_block = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt_query_block);
 
   rc = mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
 
   query = "create table t1 select a from t2";
-  stmt_create_select = mysql_simple_prepare(mysql, query);
-  check_stmt(stmt_create_select);
+  stmt_create_query_block = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt_create_query_block);
 
   for (i = 0; i < 3; i++) {
     rc = mysql_stmt_execute(stmt_create);
     check_execute(stmt_create, rc);
     if (!opt_silent) fprintf(stdout, "created %i\n", i);
 
-    rc = mysql_stmt_execute(stmt_select);
-    check_execute(stmt_select, rc);
-    rc = my_process_stmt_result(stmt_select);
+    rc = mysql_stmt_execute(stmt_query_block);
+    check_execute(stmt_query_block, rc);
+    rc = my_process_stmt_result(stmt_query_block);
     DIE_UNLESS(rc == 0);
 
     rc = mysql_stmt_execute(stmt_drop);
     check_execute(stmt_drop, rc);
     if (!opt_silent) fprintf(stdout, "dropped %i\n", i);
 
-    rc = mysql_stmt_execute(stmt_create_select);
+    rc = mysql_stmt_execute(stmt_create_query_block);
     check_execute(stmt_create, rc);
     if (!opt_silent) fprintf(stdout, "created select %i\n", i);
 
-    rc = mysql_stmt_execute(stmt_select);
-    check_execute(stmt_select, rc);
-    rc = my_process_stmt_result(stmt_select);
+    rc = mysql_stmt_execute(stmt_query_block);
+    check_execute(stmt_query_block, rc);
+    rc = my_process_stmt_result(stmt_query_block);
     DIE_UNLESS(rc == 3);
 
     rc = mysql_stmt_execute(stmt_drop);
@@ -8941,8 +8942,8 @@ static void test_create_drop() {
 
   mysql_stmt_close(stmt_create);
   mysql_stmt_close(stmt_drop);
-  mysql_stmt_close(stmt_select);
-  mysql_stmt_close(stmt_create_select);
+  mysql_stmt_close(stmt_query_block);
+  mysql_stmt_close(stmt_create_query_block);
 
   rc = mysql_query(mysql, "DROP TABLE t2");
   myquery(rc);
@@ -9108,7 +9109,7 @@ static void test_multi() {
 }
 
 static void test_insert_select() {
-  MYSQL_STMT *stmt_insert, *stmt_select;
+  MYSQL_STMT *stmt_insert, *stmt_query_block;
   const char *query;
   int rc;
   uint i;
@@ -9131,22 +9132,22 @@ static void test_insert_select() {
   check_stmt(stmt_insert);
 
   query = "select * from t1";
-  stmt_select = mysql_simple_prepare(mysql, query);
-  check_stmt(stmt_select);
+  stmt_query_block = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt_query_block);
 
   for (i = 0; i < 3; i++) {
     rc = mysql_stmt_execute(stmt_insert);
     check_execute(stmt_insert, rc);
     if (!opt_silent) fprintf(stdout, "insert %u\n", i);
 
-    rc = mysql_stmt_execute(stmt_select);
-    check_execute(stmt_select, rc);
-    rc = my_process_stmt_result(stmt_select);
+    rc = mysql_stmt_execute(stmt_query_block);
+    check_execute(stmt_query_block, rc);
+    rc = my_process_stmt_result(stmt_query_block);
     DIE_UNLESS(rc == (int)(i + 1));
   }
 
   mysql_stmt_close(stmt_insert);
-  mysql_stmt_close(stmt_select);
+  mysql_stmt_close(stmt_query_block);
   rc = mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
 }
@@ -12576,7 +12577,7 @@ static void test_bug9520() {
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
   if (!opt_silent) printf("Fetched %d rows\n", row_count);
-  DBUG_ASSERT(row_count == 3);
+  assert(row_count == 3);
 
   mysql_stmt_close(stmt);
 
@@ -13297,7 +13298,7 @@ static void test_client_character_set() {
   DIE_UNLESS(rc == 0);
 
   mysql_get_character_set_info(mysql, &cs);
-  DIE_UNLESS(!strcmp(cs.csname, "utf8"));
+  DIE_UNLESS(!strcmp(cs.csname, "utf8mb3"));
   DIE_UNLESS(!strcmp(cs.name, "utf8_general_ci"));
   /* Restore the default character set */
   rc = mysql_set_character_set(mysql, csdefault);
@@ -15987,9 +15988,9 @@ static void test_bug30472() {
       2) new character set is different from the original one.
   */
 
-  DIE_UNLESS(strcmp(character_set_name_2, "utf8") == 0);
-  DIE_UNLESS(strcmp(character_set_client_2, "utf8") == 0);
-  DIE_UNLESS(strcmp(character_set_results_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_name_2, "utf8mb3") == 0);
+  DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
+  DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(collation_connnection_2, "utf8_general_ci") == 0);
 
   DIE_UNLESS(strcmp(character_set_name_1, character_set_name_2) != 0);
@@ -16035,9 +16036,9 @@ static void test_bug30472() {
 
   /* Check that we have UTF8 on the server and on the client. */
 
-  DIE_UNLESS(strcmp(character_set_name_4, "utf8") == 0);
-  DIE_UNLESS(strcmp(character_set_client_4, "utf8") == 0);
-  DIE_UNLESS(strcmp(character_set_results_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_name_4, "utf8mb3") == 0);
+  DIE_UNLESS(strcmp(character_set_client_4, "utf8mb3") == 0);
+  DIE_UNLESS(strcmp(character_set_results_4, "utf8mb3") == 0);
   DIE_UNLESS(strcmp(collation_connnection_4, "utf8_general_ci") == 0);
 
   /* That's it. Cleanup. */
@@ -17766,7 +17767,7 @@ static void test_bug49972() {
 
     rc = mysql_stmt_fetch(stmt);
     rc = mysql_stmt_fetch(stmt);
-    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+    assert(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);
@@ -17794,7 +17795,7 @@ static void test_bug49972() {
 
     rc = mysql_stmt_fetch(stmt);
     rc = mysql_stmt_fetch(stmt);
-    DBUG_ASSERT(rc == MYSQL_NO_DATA);
+    assert(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);
@@ -22059,7 +22060,7 @@ static struct my_tests_st my_tests[] = {
     {"test_select_prepare", test_select_prepare},
     {"test_select", test_select},
     {"test_select_version", test_select_version},
-    {"test_ps_conj_select", test_ps_conj_select},
+    {"test_ps_conj_query_block", test_ps_conj_query_block},
     {"test_select_show_table", test_select_show_table},
     {"test_func_fields", test_func_fields},
     {"test_long_data", test_long_data},

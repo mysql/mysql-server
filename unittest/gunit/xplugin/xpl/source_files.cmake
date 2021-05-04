@@ -1,4 +1,4 @@
-# Copyright (c) 2020, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@ SET(XPL_TEST_SRC
   document_id_generator_t.cc
   expect_noerror_t.cc
   expr_generator_t.cc
+  expr_generator_parametric_t.cc
   find_statement_builder_t.cc
   getter_any_t.cc
   index_array_field_t.cc
@@ -48,6 +49,7 @@ SET(XPL_TEST_SRC
   message_builder_t.cc
   meta_schema_validator_t.cc
   mock/component_services.cc
+  mock/mock.cc
   mock/srv_session_services.cc
   mysqlx_pb_wrapper.cc
   prepared_statement_builder_t.cc

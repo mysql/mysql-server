@@ -56,55 +56,45 @@ var nodes = function(host, port_and_state) {
   });
 };
 
+var group_replication_membership_online =
+    nodes(mysqld.global.gr_node_host, mysqld.global.gr_nodes);
+
+var options = {
+  metadata_schema_version: [1, 0, 2],
+  group_replication_membership: group_replication_membership_online,
+  gr_id: mysqld.global.gr_id
+};
+
+var router_start_transaction =
+    common_stmts.get("router_start_transaction", options);
+
+// first node is PRIMARY
+options.group_replication_primary_member =
+    options.group_replication_membership.length === 0 ?
+    "" :
+    options.group_replication_membership[mysqld.global.primary_id][0];
+
+// prepare the responses for common statements
+var common_responses = common_stmts.prepare_statement_responses(
+    [
+      "select_port", "router_commit", "router_select_schema_version",
+      "router_select_group_replication_primary_member",
+      "router_select_group_membership_with_primary_mode",
+      "router_set_gr_consistency_level", "router_set_session_options"
+    ],
+    options);
+
+var common_responses_regex = common_stmts.prepare_statement_responses_regex(
+    [
+      "router_update_version_v1",
+    ],
+    options);
+
+var router_select_metadata =
+    common_stmts.get("router_select_metadata", options);
+
 ({
   stmts: function(stmt) {
-    var group_replication_membership_online =
-        nodes(mysqld.global.gr_node_host, mysqld.global.gr_nodes);
-
-    var options = {
-      metadata_schema_version: [1, 0, 2],
-      group_replication_membership: group_replication_membership_online,
-      gr_id: mysqld.global.gr_id
-    };
-
-    var router_start_transaction =
-        common_stmts.get("router_start_transaction", options);
-
-    var router_set_gr_consistency_level =
-        common_stmts.get("router_set_gr_consistency_level", {});
-    if (stmt === router_set_gr_consistency_level.stmt) {
-      return router_set_gr_consistency_level;
-    }
-    var router_set_session_options =
-        common_stmts.get("router_set_session_options", {});
-    if (stmt === router_set_session_options.stmt) {
-      return router_set_session_options;
-    }
-
-    // first node is PRIMARY
-    options.group_replication_primary_member =
-        options.group_replication_membership[mysqld.global.primary_id][0];
-
-    // prepare the responses for common statements
-    var common_responses = common_stmts.prepare_statement_responses(
-        [
-          "select_port",
-          "router_commit",
-          "router_select_schema_version",
-          "router_select_group_replication_primary_member",
-          "router_select_group_membership_with_primary_mode",
-        ],
-        options);
-
-    var common_responses_regex = common_stmts.prepare_statement_responses_regex(
-        [
-          "router_update_version_v1",
-        ],
-        options);
-
-    var router_select_metadata =
-        common_stmts.get("router_select_metadata", options);
-
     if (common_responses.hasOwnProperty(stmt)) {
       return common_responses[stmt];
     } else if (

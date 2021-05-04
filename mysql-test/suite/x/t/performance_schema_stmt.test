@@ -7,7 +7,7 @@
 --source include/xplugin_create_user.inc
 
 # Tests
---write_file $MYSQL_TMP_DIR/performance_schema_stmt.tmp
+--write_file $MYSQL_TMP_DIR/performance_schema_stmt.xpl
 -->import sql_history.macro
 -->quiet
 
@@ -383,9 +383,7 @@ EOF
 
 --let $MACROS= --import=$MYSQLXTEST_MACRO_DIR
 --replace_regex /BINARY // /KILL [0-9]+/KILL/ /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -ux_root --password='' $MACROS --file=$MYSQL_TMP_DIR/performance_schema_stmt.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' $MACROS --file=$MYSQL_TMP_DIR/performance_schema_stmt.xpl 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/performance_schema_stmt.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,7 +138,7 @@ int compare_through_strxfrm(CHARSET_INFO *cs, const char *a, const char *b) {
 
 }  // namespace
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 // There is no point in benchmarking anything in debug mode.
 const size_t num_iterations = 1ULL;
 #else

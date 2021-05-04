@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include <stddef.h>
 #include <algorithm>
+#include <cassert>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -41,6 +42,9 @@
 #include "mysqld_error.h"
 #include "sql/debug_sync.h"
 #include "sql/handler.h"
+#include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/make_join_hypergraph.h"
+#include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
@@ -196,7 +200,7 @@ THR_LOCK_DATA **ha_mock::store_lock(THD *, THR_LOCK_DATA **to,
 }
 
 int ha_mock::load_table(const TABLE &table_arg) {
-  DBUG_ASSERT(table_arg.file != nullptr);
+  assert(table_arg.file != nullptr);
   loaded_tables->add(table_arg.s->db.str, table_arg.s->table_name.str);
   if (loaded_tables->get(table_arg.s->db.str, table_arg.s->table_name.str) ==
       nullptr) {
@@ -240,10 +244,36 @@ static bool PrepareSecondaryEngine(THD *thd, LEX *lex) {
   return false;
 }
 
-static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
-                                    LEX *lex MY_ATTRIBUTE((unused))) {
+static void AssertSupportedPath(const AccessPath *path) {
+  switch (path->type) {
+    // The only supported join type is hash join. Other join types are disabled
+    // in handlerton::secondary_engine_supported_access_paths.
+    case AccessPath::NESTED_LOOP_JOIN: /* purecov: deadcode */
+    case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL:
+    case AccessPath::BKA_JOIN:
+    // Index access is disabled in ha_mock::table_flags(), so we should see none
+    // of these access types.
+    case AccessPath::INDEX_SCAN:
+    case AccessPath::REF:
+    case AccessPath::REF_OR_NULL:
+    case AccessPath::EQ_REF:
+    case AccessPath::PUSHED_JOIN_REF:
+    case AccessPath::INDEX_RANGE_SCAN:
+    case AccessPath::DYNAMIC_INDEX_RANGE_SCAN:
+      assert(false); /* purecov: deadcode */
+      break;
+    default:
+      break;
+  }
+
+  // This secondary storage engine does not yet store anything in the auxiliary
+  // data member of AccessPath.
+  assert(path->secondary_engine_data == nullptr);
+}
+
+static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)), LEX *lex) {
   // The context should have been set by PrepareSecondaryEngine.
-  DBUG_ASSERT(lex->secondary_engine_execution_context() != nullptr);
+  assert(lex->secondary_engine_execution_context() != nullptr);
 
   DBUG_EXECUTE_IF("secondary_engine_mock_optimize_error", {
     my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
@@ -251,6 +281,15 @@ static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)),
   });
 
   DEBUG_SYNC(thd, "before_mock_optimize");
+
+  if (lex->using_hypergraph_optimizer) {
+    WalkAccessPaths(lex->unit->root_access_path(), nullptr,
+                    WalkAccessPathPolicy::ENTIRE_TREE,
+                    [](AccessPath *path, const JOIN *) {
+                      AssertSupportedPath(path);
+                      return false;
+                    });
+  }
 
   return false;
 }
@@ -295,6 +334,15 @@ static bool CompareJoinCost(THD *thd, const JOIN &join, double optimizer_cost,
   return false;
 }
 
+static bool ModifyAccessPathCost(
+    THD *thd MY_ATTRIBUTE((unused)),
+    const JoinHypergraph &hypergraph MY_ATTRIBUTE((unused)), AccessPath *path) {
+  assert(!thd->is_error());
+  assert(hypergraph.query_block()->join == hypergraph.join());
+  AssertSupportedPath(path);
+  return false;
+}
+
 static handler *Create(handlerton *hton, TABLE_SHARE *table_share, bool,
                        MEM_ROOT *mem_root) {
   return new (mem_root) mock::ha_mock(hton, table_share);
@@ -311,6 +359,9 @@ static int Init(MYSQL_PLUGIN p) {
   hton->prepare_secondary_engine = PrepareSecondaryEngine;
   hton->optimize_secondary_engine = OptimizeSecondaryEngine;
   hton->compare_secondary_engine_cost = CompareJoinCost;
+  hton->secondary_engine_supported_access_paths =
+      AccessPathTypeBitmap(AccessPath::HASH_JOIN);
+  hton->secondary_engine_modify_access_path_cost = ModifyAccessPathCost;
   return 0;
 }
 

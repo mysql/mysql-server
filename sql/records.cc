@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -155,7 +155,7 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
                                      bool count_examined_rows) {
   // If only 'table' is given, assume no quick, no condition.
   if (table != nullptr && qep_tab != nullptr) {
-    DBUG_ASSERT(table == qep_tab->table());
+    assert(table == qep_tab->table());
   } else if (table == nullptr) {
     table = qep_tab->table();
   }
@@ -182,7 +182,7 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
     bool count_examined_rows) {
   unique_ptr_destroy_only<RowIterator> iterator;
 
-  DBUG_ASSERT(!(table && qep_tab));
+  assert(!(table && qep_tab));
   if (!table) table = qep_tab->table();
   empty_record(table);
 
@@ -200,7 +200,7 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
       The Unique class never puts its results into table->sort's
       Filesort_buffer.
     */
-    DBUG_ASSERT(!table->unique_result.sorted_result_in_fsbuf);
+    assert(!table->unique_result.sorted_result_in_fsbuf);
     DBUG_PRINT("info", ("using SortBufferIndirectIterator (unique)"));
     iterator = NewIterator<SortBufferIndirectIterator>(
         thd, Mem_root_array<TABLE *>{table}, &table->unique_result,
@@ -390,7 +390,7 @@ bool FollowTailIterator::Init() {
   empty_record(table());
 
   // BeginMaterialization() must be called before this.
-  DBUG_ASSERT(m_stored_rows != nullptr);
+  assert(m_stored_rows != nullptr);
 
   /*
     Only attempt to allocate a record buffer the first time the handler is
@@ -407,6 +407,8 @@ bool FollowTailIterator::Init() {
       // Recursive references always refer to a temporary table,
       // which do not exist at resolution time; thus, we need to
       // connect to it on first run here.
+      assert(table()->in_use == nullptr || table()->in_use == thd());
+      table()->in_use = thd();
       if (open_tmp_table(table())) {
         return true;
       }
@@ -430,6 +432,7 @@ bool FollowTailIterator::Init() {
     // Just continue where we left off last time.
   }
 
+  m_inited = true;
   return false;
 }
 
@@ -509,5 +512,11 @@ int FollowTailIterator::Read() {
 }
 
 bool FollowTailIterator::RepositionCursorAfterSpillToDisk() {
+  if (!m_inited) {
+    // Spill-to-disk happened before we got to read a single row,
+    // so the table has not been initialized yet. It will start
+    // at the first row when we actually get to Init(), which is fine.
+    return false;
+  }
   return reposition_innodb_cursor(table(), m_read_rows);
 }

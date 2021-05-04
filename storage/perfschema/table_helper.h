@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,12 @@
   Helpers to implement a performance schema table.
 */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "storage/perfschema/digest.h"
 #include "storage/perfschema/pfs_column_types.h"
@@ -725,7 +726,7 @@ struct PFS_stat_row {
         set_field_ulonglong(f, m_max);
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
     }
   }
 };

@@ -324,3 +324,21 @@ SELECT COUNT(*) FROM performance_schema.ndb_sync_excluded_objects;
 COUNT(*)
 0
 DROP TABLE t1,child,parent;
+SET @old_foreign_key_checks = @@foreign_key_checks;
+SET foreign_key_checks=0;
+CREATE TABLE child (
+c1 INT PRIMARY KEY,
+c2 INT,
+INDEX xc2(c2),
+FOREIGN KEY(c2)
+REFERENCES parent(c1)
+ON DELETE CASCADE
+) ENGINE NDB;
+INSERT INTO child VALUES (1,1),(2,2);
+SET GLOBAL ndb_metadata_sync = true;
+SELECT CASE COUNT(*) WHEN 0 THEN 'YES' ELSE 'NO' END AS mock_tables_sync_skipped
+FROM performance_schema.ndb_sync_excluded_objects;
+mock_tables_sync_skipped
+YES
+DROP TABLE child;
+SET foreign_key_checks = @old_foreign_key_checks;

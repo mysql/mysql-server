@@ -36052,152 +36052,152 @@ EXPLAIN SELECT * FROM double_tbl WHERE colA <= -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> -1.7976931348623156E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> -1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= 1.7976931348623157E+308;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
@@ -36783,152 +36783,152 @@ EXPLAIN SELECT * FROM double_tbl WHERE colA <= '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> '-1.7976931348623156E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623155e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <  '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` < -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >= '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` >= -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA >  '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` > -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA =  '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` = -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <> '-1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	90.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.7976931348623157e308)
+Note	1003	/* select#1 */ select `test`.`double_tbl`.`colA` AS `colA` from `test`.`double_tbl` where (`test`.`double_tbl`.`colA` <> -1.797693134862316e308)
 EXPLAIN SELECT * FROM double_tbl WHERE colA <= '1.7976931348623157E+308';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	double_tbl	NULL	ALL	NULL	NULL	NULL	NULL	10	33.33	Using where

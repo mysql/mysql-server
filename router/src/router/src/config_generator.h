@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -277,8 +277,17 @@ class ConfigGenerator {
    */
   void init_gr_data(const URI &u, const std::string &bootstrap_socket);
 
+  struct ExistingConfigOptions {
+    bool valid{false};
+    uint32_t router_id{0};
+    std::string username;
+    uint16_t rw_x_port{0};
+    uint16_t ro_x_port{0};
+  };
+
   Options fill_options(const std::map<std::string, std::string> &user_options,
-                       const std::map<std::string, std::string> &default_paths);
+                       const std::map<std::string, std::string> &default_paths,
+                       const ExistingConfigOptions &existing_config_options);
 
   void create_start_script(const std::string &directory,
                            bool interactive_master_key,
@@ -465,8 +474,7 @@ class ConfigGenerator {
   std::string make_account_list(const std::string username,
                                 const std::set<std::string> &hostnames);
 
-  std::pair<uint32_t, std::string>
-  get_router_id_and_username_from_config_if_it_exists(
+  ExistingConfigOptions get_options_from_config_if_it_exists(
       const std::string &config_file_path, const std::string &cluster_name,
       bool forcing_overwrite);
 

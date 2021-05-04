@@ -2641,6 +2641,28 @@ DO NULLIF(FROM_BASE64(UUID_TO_BIN(0x339ed325) OR ST_ASGEOJSON(POINT(-10946,-1634
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 DO NULLIF(FROM_BASE64(JSON_STORAGE_FREE('') XOR ST_ASGEOJSON(POINT(-10946,-1634))), 1);
 
+--echo #
+--echo # Bug#32047630: MISSING ERROR PROPAGATION IN JSON FUNCTIONS
+--echo #
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY(CAST('' AS JSON) = 1, 1);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_OBJECT(CAST('' AS JSON), '');
+# Used to contain the misleading error:
+# JSON documents may not contain NULL member names.
+SHOW ERRORS;
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY(CAST(CAST('' AS JSON) AS DATE), 1);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY(JSON_SEARCH('{}', CAST('' AS JSON), 'abc'), 1);
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+SELECT JSON_ARRAY(JSON_EXTRACT('{}', CAST('' AS JSON)), 1);
+
 --echo # Bug#32063203: Problem with prepared statements
 
 # MEMBER OF
@@ -2880,3 +2902,45 @@ do ((period_diff(20259,1872))>((not(('{ }')))));
 do ((exp(4812))>>(year((!((not(degrees(''))))))));
 --error ER_INVALID_JSON_TEXT_IN_PARAM
 do pow(json_storage_size(':*'),(!(oct(1))));
+
+--echo #
+--echo # Bug#32231393: ITEM_FUNC_IF::VAL_JSON(JSON_WRAPPER*):
+--echo #               ASSERTION `HAS_VALUE' FAILED
+--echo #
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+DO IF(JSON_DEPTH(''), JSON_OBJECT(), NULL);
+
+--echo #
+--echo # Bug #32231620 JSON_WRAPPER::COMPARE CONST:
+--echo #               ASSERTION `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+      42,
+      (json_arrayagg("") and rtrim("")) <=> 0
+);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+      cast(42 as float),
+      (json_arrayagg("") and rtrim("")) <=> 0
+);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+      cast(42 as decimal),
+      (json_arrayagg("") and rtrim("")) <=> 0
+);
+
+--error ER_INVALID_JSON_PATH_WILDCARD
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+      localtimestamp(6),
+      (json_arrayagg("") and rtrim("")) <=> 0
+);
+
+--echo #
+--echo # Bug#32449181: CHARACTER SET ENCODING ISSUES WITH JSON_SEARCH
+--echo #
+SELECT JSON_SEARCH('["abc"]', 'one', CAST('abc' AS CHAR CHARSET utf16));
+SELECT JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16));

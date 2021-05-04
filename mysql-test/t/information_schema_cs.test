@@ -2292,6 +2292,7 @@ SELECT t.table_name, c1.column_name
   AND t.table_name NOT LIKE 'INNODB%'
   ORDER BY t.table_name COLLATE utf8_general_ci,
            c1.column_name COLLATE utf8_general_ci;
+--skip_if_hypergraph  # Chooses an extremely slow plan due to lack of indexes, causing the test to time out.
 SELECT t.table_name, c1.column_name
   FROM information_schema.tables t
        INNER JOIN

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -586,7 +586,7 @@ bool Innodb_data_lock_iterator::scan(PSI_server_data_lock_container *container,
   }
 
   /* We want locks reported in a single scan to be a consistent snapshot. */
-  locksys::Global_exclusive_latch_guard guard{};
+  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
   trx_sys_mutex_enter();
 
@@ -631,7 +631,7 @@ bool Innodb_data_lock_iterator::fetch(PSI_server_data_lock_container *container,
   }
 
   /* scan_trx() requires exclusive global latch to iterate over locks of trx */
-  locksys::Global_exclusive_latch_guard guard{};
+  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
   trx_sys_mutex_enter();
 
@@ -859,7 +859,7 @@ bool Innodb_data_lock_wait_iterator::scan(
   }
 
   /* We want locks reported in a single scan to be a consistent snapshot. */
-  locksys::Global_exclusive_latch_guard guard{};
+  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
   trx_sys_mutex_enter();
 
@@ -917,7 +917,7 @@ bool Innodb_data_lock_wait_iterator::fetch(
   }
 
   /* scan_trx() requires exclusive global latch to iterate over locks of trx */
-  locksys::Global_exclusive_latch_guard guard{};
+  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
   trx_sys_mutex_enter();
 

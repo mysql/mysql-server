@@ -1324,3 +1324,16 @@ SELECT cte1.a1
 FROM cte1 WHERE cte1.a1 = from_unixtime(1537000917);
 
 DROP TABLE t0022;
+
+--echo #
+--echo # Bug#32239578: WRONG METADATA FOR THE TO_DAYS FUNCTION
+--echo #
+
+# Used to fail with "out of range value". The values were one digit
+# too wide for column x, and two digits too wide for column y.
+CREATE TABLE t AS
+  SELECT CAST(TO_DAYS('9999-12-31') AS CHAR) AS x,
+         TO_DAYS('9999-12-31') * -4.0 AS y;
+SELECT * FROM t;
+SHOW CREATE TABLE t;
+DROP TABLE t;

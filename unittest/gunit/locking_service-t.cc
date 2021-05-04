@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 #include <sys/types.h>
 
 #include "my_inttypes.h"
+#include "my_sys.h"  // ErrorHandlerFunctionPointer
 #include "mysqld_error.h"
 #include "sql/locking_service.h"
 #include "sql/mdl.h"
@@ -86,10 +87,10 @@ class LockingServiceTest : public ::testing::Test {
   Server_initializer m_initializer;
   THD *m_thd;
 
-  static void (*m_old_error_handler_hook)(uint, const char *, myf);
+  static ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
 
-void (*LockingServiceTest::m_old_error_handler_hook)(uint, const char *, myf);
+ErrorHandlerFunctionPointer LockingServiceTest::m_old_error_handler_hook;
 
 /**
   Test acquire and release of several read or write locks.

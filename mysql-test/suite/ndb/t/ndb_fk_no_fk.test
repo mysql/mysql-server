@@ -1,15 +1,20 @@
 --source include/have_ndb.inc
 
---echo # Init for ndb_show_tables result
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(255)
-);
+# Create view which displays all user tables (thus including mock tables).
+# NOTE! Uses a format which is backward compatible with the output
+# from "ndb_show_tables" previously used by this test - for example names
+# have surrounding quotes.
+--disable_query_log ONCE
+CREATE VIEW ndb_show_tables_results AS
+  SELECT
+    id,
+    /* Hardcoded since only user tables are selected */
+    'UserTable' AS type,
+    /* Database is first part of fq_name */
+    CONCAT("'", CONCAT(SUBSTRING_INDEX(fq_name, "/", 1), "'")) AS _database,
+    /* Table name is last part of fq_name */
+    CONCAT("'", CONCAT(SUBSTRING_INDEX(fq_name, "/", -1), "'")) AS name
+  FROM ndbinfo.dict_obj_info WHERE type = 2 /* User table */;
 
 --echo #
 --echo # Create child tables before parents
@@ -34,8 +39,6 @@ create table t3 (
   foreign key (g, h, i, j) references t6(oi1, oi2, oi3, oi4)
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be 4 mock tables created
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -52,8 +55,6 @@ eval select type, name from ndb_show_tables_results
   where name like "'NDB\$FKM_$id_t3%'" order by name;
 
 drop table t3;
-
---source ndb_show_tables_result.inc
 
 --echo # There should be 1 mock table
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
@@ -83,8 +84,6 @@ create table t2 (
   pk1 int not null primary key,
   c int
 ) engine=ndb;
-
---source ndb_show_tables_result.inc
 
 --echo # There should be 0 mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
@@ -196,8 +195,6 @@ create table t2 (
   c int
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -223,8 +220,6 @@ create table t2 (
   pk1 int not null primary key,
   c int
 ) engine=ndb;
-
---source ndb_show_tables_result.inc
 
 --echo # There should be 1 mock table still
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
@@ -271,8 +266,6 @@ create table t4 (
   primary key(pk41, pk42, pk43),
   m varchar(55)
 ) engine=ndb;
-
---source ndb_show_tables_result.inc
 
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
@@ -321,8 +314,6 @@ create table t4 (
   unique(k, l, m)
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -356,8 +347,6 @@ create table t2 (
   unique(k, l, m)
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -381,15 +370,11 @@ create table t2 (
   b datetime
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
-
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table t2;
-
---source ndb_show_tables_result.inc
 
 let $id_t1 = `select id from ndb_show_tables_results where name = "'t1'"`;
 --echo # There should be 1 mock table created for t1
@@ -400,7 +385,6 @@ eval select type, name from ndb_show_tables_results
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -425,7 +409,6 @@ create table mydb1.t1 (
   constraint fk1 foreign key(a) references mydb0.t2(a)
 ) engine = ndb;
 
---source ndb_show_tables_result.inc
 let $id_t1 = `select id from ndb_show_tables_results
   where _database = "'mydb1'" and name = "'t1'"`;
 --echo # There should be 1 mock table created for t1
@@ -437,7 +420,6 @@ eval select type, _database, name from ndb_show_tables_results
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table mydb1.t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -454,7 +436,6 @@ create table mydb0.t2 (
   a int primary key
 ) engine = ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -475,7 +456,6 @@ create table mydb0.t2 (
   a int primary key
 ) engine = ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -485,7 +465,6 @@ drop table mydb0.t2;
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 drop table mydb1.t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -569,28 +548,24 @@ create table mydb1.t1 (
 
 set @@ndb_show_foreign_key_mock_tables= 0;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo # Drop the database mydb0 with all tables still there
 drop database mydb0;
 
---source ndb_show_tables_result.inc
 --echo # There should be 4 mock tables created by dropping mydb0
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo # Drop also database mydb1
 drop database mydb1;
 
---source ndb_show_tables_result.inc
 --echo # There should be 5 mock tables all referenced by test.t1
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 --echo # Drop t1 and the 5 remaining mocks
 drop table t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -605,28 +580,24 @@ create table t1 (
   foreign key (b) references t2(pk1)
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table in place of t2
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 alter table t1 add column c int;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table still
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 alter table t1 algorithm = copy, add column d int not null;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table still
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table t1;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -652,14 +623,12 @@ alter table child algorithm=inplace,
   add constraint fk5 foreign key (c) references parent(col4),
   add constraint fk6 foreign key (c) references parent(col5);
 
---source ndb_show_tables_result.inc
 --echo # There should be 6 mock tables
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 alter table child algorithm=inplace, drop foreign key fk1;
 
---source ndb_show_tables_result.inc
 --echo # There should be 5 mock tables
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
@@ -669,14 +638,12 @@ alter table child algorithm=inplace,
   drop foreign key fk4,
   drop foreign key fk6;
 
---source ndb_show_tables_result.inc
 --echo # There should be 2 mock tables left
 --replace_regex /FKM_[0-9]+_[0-9]+_/FKM_<child_id>_<id>_/
 select name from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
 drop table child;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -696,7 +663,6 @@ create table t3 (
   b int
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table for t1
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -717,7 +683,6 @@ create table t2 (
   b int
 ) engine=ndb;
 
---source ndb_show_tables_result.inc
 --echo # There should be one mock table for t1
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -726,7 +691,6 @@ set @@ndb_show_foreign_key_mock_tables= 1;
 alter table t2 algorithm=inplace, rename t3;
 set @@ndb_show_foreign_key_mock_tables= 0;
 
---source ndb_show_tables_result.inc
 --echo # There should be no mock tables
 select count(*) from ndb_show_tables_results where name like "'NDB\$FKM%'";
 
@@ -1010,3 +974,4 @@ set foreign_key_checks=0;
 
 drop table address, customer;
 
+DROP VIEW ndb_show_tables_results;

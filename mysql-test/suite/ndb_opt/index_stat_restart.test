@@ -25,9 +25,7 @@ select count(*) from t1 where c = 1;
 show status like 'ndb_index_stat_cache%';
 
 # fetch current backup id to be able to restore it after initital restart
---disable_query_log
 --source include/ndb_backup_id.inc
---enable_query_log
 
 --echo # restart cluster --initial
 --exec $NDB_MGM -e "all restart -i -n" >> $NDB_TOOLS_OUTPUT

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -61,6 +61,9 @@ class Dbacc;
 class Dbtup;
 class Dbtux;
 class Lgman;
+
+class FsReadWriteReq;
+
 #endif // DBLQH_STATE_EXTRACT
 
 #define JAM_FILE_ID 450
@@ -723,7 +726,7 @@ public:
  */
 #define ZMAX_SCAN_DIRECT_COUNT 16
 
-#define DEBUG_FRAGMENT_LOCK 1
+#define DEBUG_FRAGMENT_LOCK 0
 #define LOCK_LINE_MASK 2047
 #define LOCK_READ_SPIN_TIME 30
 #define LOCK_WRITE_SPIN_TIME 40
@@ -2974,9 +2977,10 @@ private:
   }
 
 public:
+  void execFSWRITEREQ(const FsReadWriteReq*) const /* called direct cross threads from Ndbfs */;
   void execLQH_WRITELOG_REQ(Signal* signal);
   void execTUP_ATTRINFO(Signal* signal);
-  void execREAD_PSEUDO_REQ(Signal* signal);
+  void execREAD_PSEUDO_REQ(Uint32 opPtrI, Uint32 attrId, Uint32* out, Uint32 out_words);
   void execCHECK_LCP_STOP(Signal* signal);
   void execTUP_DEALLOCREQ(Signal* signal);
 private:
@@ -3074,7 +3078,6 @@ private:
   void execFSWRITEREF(Signal* signal);
   void execFSREADCONF(Signal* signal);
   void execFSREADREF(Signal* signal);
-  void execFSWRITEREQ(Signal*);
   void execTIME_SIGNAL(Signal* signal);
   void execFSSYNCCONF(Signal* signal);
 
@@ -3510,7 +3513,7 @@ private:
                            LogFileRecord::LogFileStatus status);
   void exitFromInvalidate(Signal* signal,
                           LogPartRecord *logPartPtrP);
-  Uint32 calcPageCheckSum(LogPageRecordPtr logP);
+  Uint32 calcPageCheckSum(LogPageRecordPtr logP) const;
   Uint32 handleLongTupKey(Signal* signal,
                           Uint32* dataPtr,
                           Uint32 len,

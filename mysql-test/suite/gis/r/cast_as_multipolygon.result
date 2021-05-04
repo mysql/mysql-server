@@ -1,0 +1,164 @@
+#################################################
+# Requirement F-12a:                            #
+# CAST(polygon AS MULTIPOLYGON)                 #
+#################################################
+#
+# Casting from POLYGON to MULTIPOLYGON is always allowed.
+# Must return multipolygon.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 2 3, 3 3, 3 2, 2 2))') AS MULTIPOLYGON));
+ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 2 3, 3 3, 3 2, 2 2))') AS MULTIPOLYGON))
+MULTIPOLYGON(((1 1,4 1,4 4,1 4,1 1),(2 2,2 3,3 3,3 2,2 2)))
+# Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 2 3, 3 3, 3 2, 2 2)))'), CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 2 3, 3 3, 3 2, 2 2))') AS MULTIPOLYGON));
+ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 2 3, 3 3, 3 2, 2 2)))'), CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 2 3, 3 3, 3 2, 2 2))') AS MULTIPOLYGON))
+1
+#
+#################################################
+# Requirement F-12b:                            #
+# CAST(multilinestring AS MULTIPOLYGON)         #
+#################################################
+#
+# Casting from MULTILINESTRING with only correctly oriented linearrings (counter clockwise) to MULTIPOLYGON is allowed.
+# Must return multipolygon.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 4 1, 4 4, 1 4, 1 1), (5 5, 6 5, 6 6, 5 6, 5 5))') AS MULTIPOLYGON));
+ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 4 1, 4 4, 1 4, 1 1), (5 5, 6 5, 6 6, 5 6, 5 5))') AS MULTIPOLYGON))
+MULTIPOLYGON(((1 1,4 1,4 4,1 4,1 1)),((5 5,6 5,6 6,5 6,5 5)))
+# Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 6 5, 6 6, 5 6, 5 5)))'), CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 4 1, 4 4, 1 4, 1 1), (5 5, 6 5, 6 6, 5 6, 5 5))') AS MULTIPOLYGON));
+ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 6 5, 6 6, 5 6, 5 5)))'), CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 4 1, 4 4, 1 4, 1 1), (5 5, 6 5, 6 6, 5 6, 5 5))') AS MULTIPOLYGON))
+1
+#
+# Casting from MULTILINESTRING with not only linearrings to MULTIPOLYGON is not allowed.
+# Must raise error.
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 4 1, 4 4, 1 4, 1 1), (5 5, 5 6, 6 6, 6 5))') AS MULTIPOLYGON));
+ERROR 22S01: Invalid cast from MULTILINESTRING to MULTIPOLYGON.
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 4 4, 1 1), (5 5, 5 6, 6 6, 6 5, 5 5))') AS MULTIPOLYGON));
+ERROR 22S01: Invalid cast from MULTILINESTRING to MULTIPOLYGON.
+#
+# Casting from MULTILINESTRING with not only correctly oriented linearrings to MULTIPOLYGON is not allowed.
+# Must raise error.
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 4 1, 4 4, 1 4, 1 1), (5 5, 5 6, 6 6, 6 5, 5 5))') AS MULTIPOLYGON));
+ERROR 22S04: Invalid cast from MULTILINESTRING to MULTIPOLYGON. A polygon ring is in the wrong direction.
+#
+##############################################
+# Requirement F-12c:                         #
+# CAST(multipolygon AS MULTIPOLYGON)         #
+##############################################
+#
+# Casting from MULTIPOLYGON to MULTIPOLYGON is always allowed.
+# Must return Multipolygon.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 5 6, 6 6, 6 5, 5 5)))') AS MULTIPOLYGON));
+ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 5 6, 6 6, 6 5, 5 5)))') AS MULTIPOLYGON))
+MULTIPOLYGON(((1 1,4 1,4 4,1 4,1 1)),((5 5,6 5,6 6,5 6,5 5)))
+# Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 5 6, 6 6, 6 5, 5 5)))'), CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 5 6, 6 6, 6 5, 5 5)))') AS MULTIPOLYGON));
+ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 5 6, 6 6, 6 5, 5 5)))'), CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 5 6, 6 6, 6 5, 5 5)))') AS MULTIPOLYGON))
+1
+#
+##############################################
+# Requirement F-12d:                         #
+# CAST(geometrycollection AS MULTIPOLYGON)   #
+##############################################
+#
+# Casting from GEOMETRYCOLLECTION with only polygons to MULTIPOLYGON is allowed.
+# Must return Multipolygon.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((1 1, 4 1, 4 4, 1 4, 1 1)), POLYGON((5 5, 6 5, 6 6, 5 6, 5 5)))') AS MULTIPOLYGON));
+ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((1 1, 4 1, 4 4, 1 4, 1 1)), POLYGON((5 5, 6 5, 6 6, 5 6, 5 5)))') AS MULTIPOLYGON))
+MULTIPOLYGON(((1 1,4 1,4 4,1 4,1 1)),((5 5,6 5,6 6,5 6,5 5)))
+# Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 6 5, 6 6, 5 6, 5 5)))'), CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((1 1, 4 1, 4 4, 1 4, 1 1)), POLYGON((5 5, 6 5, 6 6, 5 6, 5 5)))') AS MULTIPOLYGON));
+ST_EQUALS(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 6 5, 6 6, 5 6, 5 5)))'), CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((1 1, 4 1, 4 4, 1 4, 1 1)), POLYGON((5 5, 6 5, 6 6, 5 6, 5 5)))') AS MULTIPOLYGON))
+1
+#
+# Casting from empty GEOMETRYCOLLECTION to MULTIPOLYGON is not allowed.
+# Must raise error.
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()') AS MULTIPOLYGON));
+ERROR 22S01: Invalid cast from GEOMCOLLECTION to MULTIPOLYGON.
+#
+# Casting from GEOMETRYCOLLECTION with not only polygons to MULTIPOLYGON is not allowed.
+# Must raise error.
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((1 1, 4 1, 4 4, 1 4, 1 1)), POLYGON((5 5, 6 5, 6 6, 5 6, 5 5)), GEOMETRYCOLLECTION())') AS MULTIPOLYGON));
+ERROR 22S01: Invalid cast from GEOMCOLLECTION to MULTIPOLYGON.
+#
+############################################
+# Requirement F-12e:                       #
+# Disallowed casts to MULTIPOLYGON         #
+############################################
+#
+# Casting from POINT to MULTIPOLYGON is not allowed.
+# Must raise error.
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS MULTIPOLYGON));
+ERROR 22S01: Invalid cast from POINT to MULTIPOLYGON.
+#
+# Casting from LINESTRING to MULTIPOLYGON is not allowed.
+# Must raise error.
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS MULTIPOLYGON));
+ERROR 22S01: Invalid cast from LINESTRING to MULTIPOLYGON.
+#
+# Casting from MULTIPOINT to MULTIPOLYGON is not allowed.
+# Must raise error.
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS MULTIPOLYGON));
+ERROR 22S01: Invalid cast from MULTIPOINT to MULTIPOLYGON.
+#
+#############################################
+# Testing result of WKT input               #
+#############################################
+#
+# Casting from ST_GEOMFROMTEXT(<WKT>) to MULTIPOLYGON must return expected linestring.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((3 3, 4 3, 4 4, 3 4, 3 3))') AS MULTIPOLYGON));
+ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((3 3, 4 3, 4 4, 3 4, 3 3))') AS MULTIPOLYGON))
+MULTIPOLYGON(((3 3,4 3,4 4,3 4,3 3)))
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((5 5, 6 5, 6 6, 5 6, 5 5), (7 7, 8 7, 8 8, 7 8, 7 7))') AS MULTIPOLYGON));
+ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((5 5, 6 5, 6 6, 5 6, 5 5), (7 7, 8 7, 8 8, 7 8, 7 7))') AS MULTIPOLYGON))
+MULTIPOLYGON(((5 5,6 5,6 6,5 6,5 5)),((7 7,8 7,8 8,7 8,7 7)))
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((9 9, 10 9, 10 10, 9 10, 9 9)), ((11 11, 12 11, 12 12, 12 12, 11 11)))') AS MULTIPOLYGON));
+ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((9 9, 10 9, 10 10, 9 10, 9 9)), ((11 11, 12 11, 12 12, 12 12, 11 11)))') AS MULTIPOLYGON))
+MULTIPOLYGON(((9 9,10 9,10 10,9 10,9 9)),((11 11,12 11,12 12,12 12,11 11)))
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((13 13, 14 13, 14 14, 13 14, 13 13)), POLYGON((15 15, 16 15, 16 16, 15 16, 15 15)))') AS MULTIPOLYGON));
+ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((13 13, 14 13, 14 14, 13 14, 13 13)), POLYGON((15 15, 16 15, 16 16, 15 16, 15 15)))') AS MULTIPOLYGON))
+MULTIPOLYGON(((13 13,14 13,14 14,13 14,13 13)),((15 15,16 15,16 16,15 16,15 15)))
+#
+#############################################
+# Testing result of user variable input     #
+#############################################
+#
+SET @polygon = ST_GEOMFROMTEXT('POLYGON((3 3, 4 3, 4 4, 3 4, 3 3))');
+SET @multilinestring = ST_GEOMFROMTEXT('MULTILINESTRING((5 5, 6 5, 6 6, 5 6, 5 5), (7 7, 8 7, 8 8, 7 8, 7 7))');
+SET @multipolygon = ST_GEOMFROMTEXT('MULTIPOLYGON(((9 9, 10 9, 10 10, 9 10, 9 9)), ((11 11, 12 11, 12 12, 12 12, 11 11)))');
+SET @geomcollection = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((13 13, 14 13, 14 14, 13 14, 13 13)), POLYGON((15 15, 16 15, 16 16, 15 16, 15 15)))');
+#
+# Casting from geometry in user variable to MULTIPOLYGON must return expected multipolygon.
+SELECT ST_ASTEXT(CAST(@polygon AS MULTIPOLYGON));
+ST_ASTEXT(CAST(@polygon AS MULTIPOLYGON))
+MULTIPOLYGON(((3 3,4 3,4 4,3 4,3 3)))
+SELECT ST_ASTEXT(CAST(@multilinestring AS MULTIPOLYGON));
+ST_ASTEXT(CAST(@multilinestring AS MULTIPOLYGON))
+MULTIPOLYGON(((5 5,6 5,6 6,5 6,5 5)),((7 7,8 7,8 8,7 8,7 7)))
+SELECT ST_ASTEXT(CAST(@multipolygon AS MULTIPOLYGON));
+ST_ASTEXT(CAST(@multipolygon AS MULTIPOLYGON))
+MULTIPOLYGON(((9 9,10 9,10 10,9 10,9 9)),((11 11,12 11,12 12,12 12,11 11)))
+SELECT ST_ASTEXT(CAST(@geomcollection AS MULTIPOLYGON));
+ST_ASTEXT(CAST(@geomcollection AS MULTIPOLYGON))
+MULTIPOLYGON(((13 13,14 13,14 14,13 14,13 13)),((15 15,16 15,16 16,15 16,15 15)))
+#
+#############################################
+# Testing result of table column input      #
+#############################################
+#
+CREATE TABLE gis_multipolygon_castable (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+INSERT INTO gis_multipolygon_castable VALUES
+(101, ST_GEOMFROMTEXT('POLYGON((3 3, 4 3, 4 4, 3 4, 3 3))')),
+(102, ST_GEOMFROMTEXT('MULTILINESTRING((5 5, 6 5, 6 6, 5 6, 5 5), (7 7, 8 7, 8 8, 7 8, 7 7))')),
+(103, ST_GEOMFROMTEXT('MULTIPOLYGON(((9 9, 10 9, 10 10, 9 10, 9 9)), ((11 11, 12 11, 12 12, 12 12, 11 11)))')),
+(104, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((13 13, 14 13, 14 14, 13 14, 13 13)), POLYGON((15 15, 16 15, 16 16, 15 16, 15 15)))'));
+#
+# Casting from geometry column to MULTIPOLYGON must return expected multipolygon.
+SELECT ST_ASTEXT(CAST(g AS MULTIPOLYGON)) FROM gis_multipolygon_castable;
+ST_ASTEXT(CAST(g AS MULTIPOLYGON))
+MULTIPOLYGON(((3 3,4 3,4 4,3 4,3 3)))
+MULTIPOLYGON(((5 5,6 5,6 6,5 6,5 5)),((7 7,8 7,8 8,7 8,7 7)))
+MULTIPOLYGON(((9 9,10 9,10 10,9 10,9 9)),((11 11,12 11,12 12,12 12,11 11)))
+MULTIPOLYGON(((13 13,14 13,14 14,13 14,13 13)),((15 15,16 15,16 16,15 16,15 15)))
+#
+# Cleanup.
+DROP TABLE gis_multipolygon_castable;

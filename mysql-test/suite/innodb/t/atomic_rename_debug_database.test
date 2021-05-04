@@ -4,6 +4,7 @@
 --echo # that all tablespaces of aux tables would be renamed too.
 --echo #
 
+--source include/big_test.inc
 --source include/have_debug.inc
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc

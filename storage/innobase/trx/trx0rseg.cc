@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -685,6 +685,11 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
     *n_total_created += n_created;
   }
 
+  /* Save the size of the undo tablespace now that all rsegs have been created.
+  No need to do this for the system temporary tablespace. */
+  if (type == UNDO) {
+    fil_space_set_undo_size(space_id, true);
+  }
   return (success);
 }
 

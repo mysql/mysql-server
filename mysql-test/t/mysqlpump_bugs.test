@@ -81,4 +81,55 @@ DROP DATABASE db2;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug83144.cnf
 --remove_file $MYSQLTEST_VARDIR/tmp/bug83144.dump
 
+
+--echo #
+--echo # Bug #32067013: MYSQLPUMP SEGMENTATION FAULT
+--echo #
+
+CREATE DATABASE B32067013;
+CREATE TABLE B32067013.t1(v1 INT, v2 INT);
+CREATE TABLE B32067013.t2(v1 INT, v2 INT);
+CREATE VIEW B32067013.t123 AS SELECT * FROM B32067013.t1;
+DROP TABLE B32067013.t1;
+
+--echo # Test criteria: shouldn't crash
+--error 76,1356
+--exec $MYSQL_PUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug32067013.dump 2>&1
+
+#cleanup
+DROP DATABASE B32067013;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug32067013.dump
+
+--echo #
+--echo # Bug#32340208: MYSQLPUMP SEGFAULT WHEN DUMPING 2 TABLES
+--echo #
+
+# TODO: Remove if the below CREATE TABLE doesn't garble the FRM file
+--disable_query_log
+CALL mtr.add_suppression("Incorrect information in file");
+--enable_query_log
+
+
+SET sql_mode ='';
+CREATE DATABASE B32340208;
+CREATE TABLE B32340208.test (
+  `pk` int NOT NULL AUTO_INCREMENT,
+  `a1` smallint GENERATED ALWAYS AS (((0 <> `c1`) and (_utf8mb4'0000-00-00
+00:00:00' <> `d1`))) VIRTUAL NOT SECONDARY,
+  `b1` char(8) DEFAULT NULL,
+  `c1` longblob NOT NULL NOT SECONDARY,
+  `d1` timestamp NOT NULL,
+  PRIMARY KEY (`pk`),
+  KEY `functional_index` ((radians(`c1`))) USING BTREE COMMENT 'you''re'
+) ENGINE=InnoDB DEFAULT CHARSET=euckr;
+
+--echo # Success criteria: should not crash
+--error ER_WRONG_VALUE, 245
+--exec $MYSQL_PUMP --all-databases > $MYSQLTEST_VARDIR/tmp/bug32340208.dump 2>&1
+
+#cleanup
+DROP DATABASE B32340208;
+--remove_file $MYSQLTEST_VARDIR/tmp/bug32340208.dump
+SET sql_mode = DEFAULT;
+
 --echo # End of 8.0 tests

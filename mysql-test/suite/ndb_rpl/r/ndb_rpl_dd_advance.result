@@ -237,6 +237,10 @@ COUNT(*)
 ******** Run in some transactions ***************
 ***** Time to try slave sync ***********
 **** Must make sure slave is clean *****
+USE tpcb;
+SELECT COUNT(*) FROM account;
+COUNT(*)
+1000
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
@@ -277,15 +281,10 @@ COUNT(*)
 1000
 ***** Add some more records to master *********
 ***** Finsh the slave sync process *******
-@the_epoch:=MAX(epoch)
+@the_epoch
 <the_epoch>
-Warnings:
-<the_epoch>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-@the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
+@the_pos	@the_file
 <the_pos>	master-bin.000001
-Warnings:
-<the_pos>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-<the_pos>	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 CHANGE REPLICATION SOURCE TO
 SOURCE_LOG_FILE = 'master-bin.000001',
 SOURCE_LOG_POS = <the_pos> ;

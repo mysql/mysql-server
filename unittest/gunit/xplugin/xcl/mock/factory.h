@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,9 @@ namespace mock {
 
 class Protocol_factory : public xcl::Protocol_factory {
  public:
+  Protocol_factory();
+  virtual ~Protocol_factory() override;
+
   MOCK_METHOD(XProtocol *, create_protocol_raw,
               (std::shared_ptr<Context> context));
   MOCK_METHOD(XConnection *, create_connection_raw,

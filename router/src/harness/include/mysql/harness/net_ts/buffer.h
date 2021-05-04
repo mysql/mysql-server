@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -897,12 +897,23 @@ write(SyncWriteStream &stream, const ConstBufferSequence &buffers,
   while (0 != (to_transfer = cond(ec, consumable.total_consumed())) &&
          (consumable.total_consumed() < total_size)) {
     auto res = stream.write_some(consumable.prepare(to_transfer));
-    if (!res) return res;
-
-    consumable.consume(*res);
+    if (!res) {
+      ec = res.error();
+    } else {
+      consumable.consume(*res);
+    }
   }
 
-  return {consumable.total_consumed()};
+  // if there is an error and it isn't EAGAIN|EWOULDBLOCK, return it.
+  // if it is EAGAIN|EWOULDBLOCK return it only if nothing was transferred.
+  if (ec &&
+      ((ec != make_error_condition(std::errc::resource_unavailable_try_again) &&
+        ec != make_error_condition(std::errc::operation_would_block)) ||
+       consumable.total_consumed() == 0)) {
+    return stdx::make_unexpected(ec);
+  } else {
+    return {consumable.total_consumed()};
+  }
 }
 
 template <class SyncWriteStream, class DynamicBuffer>
@@ -932,7 +943,12 @@ write(SyncWriteStream &stream, DynamicBuffer &&b, CompletionCondition cond) {
     }
   }
 
-  if (ec && ec != std::errc::resource_unavailable_try_again) {
+  // if there is an error and it isn't EAGAIN|EWOULDBLOCK, return it.
+  // if it is EAGAIN|EWOULDBLOCK return it only if nothing was transferred.
+  if (ec &&
+      ((ec != make_error_condition(std::errc::resource_unavailable_try_again) &&
+        ec != make_error_condition(std::errc::operation_would_block)) ||
+       transferred == 0)) {
     return stdx::make_unexpected(ec);
   } else {
     return transferred;

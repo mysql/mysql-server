@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,10 +24,10 @@
 #ifndef WINDOWS_INCLUDED
 #define WINDOWS_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>
 #include <cstring>  // std::memcpy
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/enum_query_type.h"
 #include "sql/handler.h"
@@ -98,7 +98,7 @@ class Window {
    *
    *------------------------------------------------------------------------*/
  protected:
-  SELECT_LEX *m_select;                 ///< The SELECT the window is on
+  Query_block *m_query_block;           ///< The SELECT the window is on
   PT_order_list *const m_partition_by;  ///< \<window partition clause\>
   PT_order_list *const m_order_by;      ///< \<window order clause\>
   ORDER *m_sorting_order;               ///< merged partition/order by
@@ -593,7 +593,7 @@ class Window {
   */
   Window(Item_string *name, PT_order_list *part, PT_order_list *ord,
          PT_frame *frame, bool is_reference, Item_string *inherit)
-      : m_select(nullptr),
+      : m_query_block(nullptr),
         m_partition_by(part),
         m_order_by(ord),
         m_sorting_order(nullptr),
@@ -736,7 +736,7 @@ class Window {
         p = w->m_partition_by;
       } else {
         /* See #setup_windows for checking */
-        DBUG_ASSERT(w->m_partition_by == nullptr);
+        assert(w->m_partition_by == nullptr);
       }
       w = w->m_ancestor;
     }
@@ -782,7 +782,7 @@ class Window {
     window are fulfilled, and accumulate evaluation requirements.
     This is run at resolution.
   */
-  bool check_window_functions1(THD *thd, SELECT_LEX *select);
+  bool check_window_functions1(THD *thd, Query_block *select);
   /**
     Like check_window_functions1() but contains checks which must wait until
     the start of the execution phase.
@@ -905,7 +905,7 @@ class Window {
 
     @return false if success, true if error
   */
-  static bool setup_windows1(THD *thd, SELECT_LEX *select,
+  static bool setup_windows1(THD *thd, Query_block *select,
                              Ref_item_array ref_item_array, TABLE_LIST *tables,
                              mem_root_deque<Item *> *fields,
                              List<Window> &windows);
@@ -925,10 +925,9 @@ class Window {
     only after syntactic and semantic checking for errors has been performed.
     Eliminate redundant sorts after unused windows are removed.
 
-    @param thd             The session's execution thread
     @param windows         The list of windows defined for this select
   */
-  static void eliminate_unused_objects(THD *thd, List<Window> &windows);
+  static void eliminate_unused_objects(List<Window> &windows);
 
   /**
     Resolve and set up the PARTITION BY or an ORDER BY list of a window.
@@ -963,7 +962,7 @@ class Window {
 
     @returns false if success, true if error
   */
-  bool setup_ordering_cached_items(THD *thd, SELECT_LEX *select,
+  bool setup_ordering_cached_items(THD *thd, Query_block *select,
                                    const PT_order_list *o,
                                    bool partition_order);
 
@@ -975,7 +974,7 @@ class Window {
             input table before evaluating the window functions, unless it has
             been made redundant by a previous windowing step, cf.
             reorder_and_eliminate_sorts, or due to a single row result set,
-            cf. SELECT_LEX::is_implicitly_grouped().
+            cf. Query_block::is_implicitly_grouped().
   */
   bool needs_sorting() const { return m_sorting_order != nullptr; }
 
@@ -1207,7 +1206,7 @@ class Window {
     See #m_is_last_row_in_frame
   */
   bool is_last_row_in_frame() const {
-    return m_is_last_row_in_frame || m_select->table_list.elements == 0;
+    return m_is_last_row_in_frame || m_query_block->table_list.elements == 0;
   }
 
   /**
@@ -1301,9 +1300,9 @@ class Window {
   /**
     Free up any resource used to process the window functions of this window,
     e.g. temporary files and in-memory data structures. Called when done
-    with all window processing steps from SELECT_LEX::cleanup.
+    with all window processing steps from Query_block::cleanup.
   */
-  void cleanup(THD *thd);
+  void cleanup();
 
   /**
     Free structures that were set up during preparation of window functions

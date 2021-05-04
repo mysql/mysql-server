@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -154,7 +154,7 @@ static PSI_rwlock_info all_servers_cache_rwlocks[] = {
 
 static PSI_memory_info all_servers_cache_memory[] = {
     {&key_memory_servers, "servers_cache", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     PSI_DOCUMENT_ME}};
+     "Cache infrastructure and mem root for servers cache."}};
 
 static void init_servers_cache_psi_keys(void) {
   const char *category = "sql";
@@ -396,7 +396,7 @@ static bool close_cached_connection_tables(THD *thd,
   TABLE_LIST tmp, *tables = nullptr;
   bool result = false;
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   mysql_mutex_lock(&LOCK_open);
 
@@ -767,7 +767,7 @@ bool Sql_cmd_alter_server::execute(THD *thd) {
 
   int error;
   {
-    Disable_binlog_guard binlog_guard(table->in_use);
+    Disable_binlog_guard binlog_guard(thd);
     table->use_all_columns();
 
     /* set the field that's the PK to the value we're looking for */
@@ -830,7 +830,7 @@ bool Sql_cmd_drop_server::execute(THD *thd) {
   int error;
   mysql_rwlock_wrlock(&THR_LOCK_servers);
   {
-    Disable_binlog_guard binlog_guard(table->in_use);
+    Disable_binlog_guard binlog_guard(thd);
     table->use_all_columns();
 
     /* set the field that's the PK to the value we're looking for */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2019, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -145,7 +145,8 @@ retry:
 
     n_tries++;
 
-    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
 
     goto retry;
   }
@@ -292,7 +293,8 @@ retry:
   if (err != DB_SUCCESS && n_tries < BTR_CUR_RETRY_DELETE_N_TIMES) {
     n_tries++;
 
-    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
+    std::this_thread::sleep_for(
+        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
 
     goto retry;
   }

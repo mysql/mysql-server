@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4288,7 +4288,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 
           // Attr2 to be read into tmpArea[] after Attr1.
           const Uint32 firstAttrWords = attrLen+1;
-          DBUG_ASSERT(tmpAreaSz >= 2*firstAttrWords);
+          assert(tmpAreaSz >= 2*firstAttrWords);
           Int32 TnoDataR = readAttributes(req_struct,
                                           &attr2Id, 1,
                                           &tmpArea[firstAttrWords],

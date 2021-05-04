@@ -81,7 +81,9 @@ select * from information_schema.OPTIMIZER_TRACE;
 
 # Test max_mem_size: re-run same query with lower max_mem_size:
 # save non-truncated trace but don't output it again
+--disable_warnings
 select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
+--enable_warnings
 --skip_if_hypergraph  # Different optimier trace.
 select length(@trace);
 # The concatenation of query and trace above has length:
@@ -96,7 +98,9 @@ set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d = ifnull(c,null));
 select (@missing_bytes:=missing_bytes_beyond_max_mem_size) from information_schema.OPTIMIZER_TRACE;
+--disable_warnings
 select (@query2:=QUERY)+NULL,(@trace2:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
+--enable_warnings
 --skip_if_hypergraph  # Different optimier trace.
 select length(@trace2),
        (length(@trace2) + @missing_bytes) = length(@trace),

@@ -10,7 +10,10 @@
 # Run all default suites
 # rpl and binlog suites run with all 3
 # binlog-formats  row, stmt and mixed
-perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=all-default  --vardir=var-all-default  --report-features  --unit-tests-report --no-skip
+perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=all-default  --vardir=var-all-default  --report-features  --unit-tests-report --no-skip --skip-ndb
+# Run all ndb tests separately.
+# If no Ndb support, no tests will be attempted.
+perl mysql-test-run.pl --debug-server --force --timer --testcase-timeout=60 --suite-timeout=600  --comment=ndb  --vardir=var-ndb  --report-features --no-skip --with-ndb-only
 
 ############END OF SECTION1(DEFAULT SUITES) ######################
 

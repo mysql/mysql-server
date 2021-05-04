@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -30,135 +30,33 @@
 #include <string>
 #include <vector>
 
+#include "mysql/harness/tls_server_context.h"
 #include "mysql_protocol_common.h"
 #include "mysqlrouter/classic_protocol_constants.h"
 
+#include "authentication.h"
+#include "mysql/harness/net_ts/internet.h"
+#include "mysql/harness/net_ts/socket.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/classic_protocol_message.h"
+
 namespace server_mock {
 
-struct Response {
-  virtual ~Response() = default;
-};
+/** @brief Vector for keeping has_value|string representation of the values
+ *         of the single row (ordered by column)
+ **/
+using RowValueType = std::vector<stdx::expected<std::string, void>>;
 
 /** @brief Keeps result data for single SQL statement that returns
  *         resultset.
  **/
-struct ResultsetResponse : public Response {
-  std::vector<column_info_type> columns;
+struct ResultsetResponse {
+  std::vector<classic_protocol::message::server::ColumnMeta> columns;
   std::vector<RowValueType> rows;
 };
 
-struct OkResponse : public Response {
-  OkResponse(unsigned int last_insert_id_ = 0, unsigned int warning_count_ = 0)
-      : last_insert_id(last_insert_id_), warning_count(warning_count_) {}
-
-  unsigned int last_insert_id;
-  unsigned int warning_count;
-};
-
-struct ErrorResponse : public Response {
-  ErrorResponse(unsigned int code_, std::string msg_,
-                std::string sql_state_ = "HY000")
-      : code(code_), msg(std::move(msg_)), sql_state(std::move(sql_state_)) {}
-
-  unsigned int code;
-  std::string msg;
-  std::string sql_state;
-};
-
-class Greeting : public Response {
- public:
-  Greeting(std::string server_version, uint32_t connection_id,
-           classic_protocol::capabilities::value_type capabilities,
-           uint16_t status_flags, uint8_t character_set,
-           std::string auth_method, std::string auth_data)
-      : server_version_{std::move(server_version)},
-        connection_id_{connection_id},
-        capabilities_{capabilities},
-        status_flags_{status_flags},
-        character_set_{character_set},
-        auth_method_{std::move(auth_method)},
-        auth_data_{std::move(auth_data)} {}
-
-  classic_protocol::capabilities::value_type capabilities() const {
-    return capabilities_;
-  }
-
-  std::string server_version() const { return server_version_; }
-
-  uint32_t connection_id() const { return connection_id_; }
-  uint8_t character_set() const { return character_set_; }
-  uint16_t status_flags() const { return status_flags_; }
-
-  std::string auth_method() const { return auth_method_; }
-  std::string auth_data() const { return auth_data_; }
-
- private:
-  std::string server_version_;
-  uint32_t connection_id_;
-  classic_protocol::capabilities::value_type capabilities_;
-  uint16_t status_flags_;
-  uint8_t character_set_;
-  std::string auth_method_;
-  std::string auth_data_;
-};
-
-class AuthSwitch : public Response {
- public:
-  AuthSwitch(std::string method, std::string data)
-      : method_{std::move(method)}, data_{std::move(data)} {}
-
-  std::string method() const { return method_; }
-  std::string data() const { return data_; }
-
- private:
-  std::string method_;
-  std::string data_;
-};
-
-class AuthFast : public Response {};
-
-struct HandshakeResponse {
-  enum class ResponseType {
-    UNKNOWN,
-    OK,
-    ERROR,
-    GREETING,
-    AUTH_SWITCH,
-    AUTH_FAST
-  };
-
-  // expected response type
-  ResponseType response_type{ResponseType::UNKNOWN};
-
-  std::unique_ptr<Response> response;
-
-  // execution time in microseconds
-  std::chrono::microseconds exec_time{0};
-};
-
-/** @class StatementResponse
- *
- * @brief Keeps single SQL statement data.
- **/
-struct StatementResponse {
-  // Must initialize exec_time here rather than using a member initializer
-  // due to a bug in Developer Studio.
-  StatementResponse() : exec_time(0) {}
-
-  /** @enum ResponseType
-   *
-   * Response expected for given SQL statement.
-   **/
-  enum class ResponseType { UNKNOWN, OK, ERROR, RESULT };
-
-  // expected response type for the statement
-  ResponseType response_type{ResponseType::UNKNOWN};
-
-  std::unique_ptr<Response> response;
-
-  // execution time in microseconds
-  std::chrono::microseconds exec_time;
-};
+using OkResponse = classic_protocol::message::server::Ok;
+using ErrorResponse = classic_protocol::message::server::Error;
 
 struct AsyncNotice {
   // how many milliseconds after the client connects this Notice
@@ -169,19 +67,119 @@ struct AsyncNotice {
   std::string payload;
 };
 
+class ProtocolBase {
+ public:
+  ProtocolBase(net::ip::tcp::socket &&client_sock,
+               net::impl::socket::native_handle_type wakeup_fd,
+               TlsServerContext &tls_ctx);
+
+  virtual ~ProtocolBase() = default;
+
+  // throws std::system_error
+  virtual void send_error(const uint16_t error_code,
+                          const std::string &error_msg,
+                          const std::string &sql_state = "HY000") = 0;
+
+  void send_error(const ErrorResponse &resp) {
+    send_error(resp.error_code(), resp.message(), resp.sql_state());
+  }
+
+  // throws std::system_error
+  virtual void send_ok(const uint64_t affected_rows = 0,
+                       const uint64_t last_insert_id = 0,
+                       const uint16_t server_status = 0,
+                       const uint16_t warning_count = 0) = 0;
+
+  void send_ok(const OkResponse &resp) {
+    send_ok(resp.affected_rows(), resp.last_insert_id(),
+            resp.status_flags().to_ulong(), resp.warning_count());
+  }
+
+  // throws std::system_error
+  virtual void send_resultset(const ResultsetResponse &response,
+                              const std::chrono::microseconds delay_ms) = 0;
+
+  void read_buffer(net::mutable_buffer &buf);
+
+  void send_buffer(net::const_buffer buf);
+
+  stdx::expected<bool, std::error_code> wait_until_socket_has_data(
+      std::chrono::milliseconds timeout);
+
+  stdx::expected<bool, std::error_code> wait_until_socket_is_writable(
+      std::chrono::milliseconds timeout);
+
+  const net::ip::tcp::socket &client_socket() const { return client_socket_; }
+
+  void username(const std::string &username) { username_ = username; }
+
+  std::string username() const { return username_; }
+
+  void auth_method_name(const std::string &auth_method_name) {
+    auth_method_name_ = auth_method_name;
+  }
+
+  std::string auth_method_name() const { return auth_method_name_; }
+
+  void auth_method_data(const std::string &auth_method_data) {
+    auth_method_data_ = auth_method_data;
+  }
+
+  std::string auth_method_data() const { return auth_method_data_; }
+
+  static bool authenticate(const std::string &auth_method_name,
+                           const std::string &auth_method_data,
+                           const std::string &password,
+                           const std::vector<uint8_t> &auth_response);
+
+  void init_tls() {
+    ssl_.reset(SSL_new(tls_ctx_.get()));
+    SSL_set_fd(ssl_.get(), client_socket_.native_handle());
+  }
+
+  bool is_tls() { return bool(ssl_); }
+
+  const SSL *ssl() const { return ssl_.get(); }
+
+  stdx::expected<void, std::error_code> tls_accept();
+
+ private:
+  net::ip::tcp::socket client_socket_;
+  net::impl::socket::native_handle_type
+      wakeup_fd_;  // socket to interrupt blocking polls
+
+  std::string username_{};
+  std::string auth_method_name_{};
+  std::string auth_method_data_{};
+
+  TlsServerContext &tls_ctx_;
+
+  class SSL_Deleter {
+   public:
+    void operator()(SSL *v) { SSL_free(v); }
+  };
+
+  std::unique_ptr<SSL, SSL_Deleter> ssl_;
+};
+
 class StatementReaderBase {
  public:
+  struct handshake_data {
+    stdx::expected<ErrorResponse, void> error;
+
+    stdx::expected<std::string, void> username;
+    stdx::expected<std::string, void> password;
+    bool cert_required{false};
+    stdx::expected<std::string, void> cert_subject;
+    stdx::expected<std::string, void> cert_issuer;
+  };
+
   /** @brief Returns the data about the next statement from the
    *         json file. If there is no more statements it returns
    *         empty statement.
    **/
-  virtual StatementResponse handle_statement(const std::string &statement) = 0;
-
-  /**
-   * process the handshake packet and return a client response
-   */
-  virtual HandshakeResponse handle_handshake(
-      const std::vector<uint8_t> &payload) = 0;
+  virtual void handle_statement(const std::string &statement,
+                                ProtocolBase *protocol) = 0;
 
   /** @brief Returns the default execution time in microseconds. If
    *         no default execution time is provided in json file, then
@@ -190,6 +188,16 @@ class StatementReaderBase {
   virtual std::chrono::microseconds get_default_exec_time() = 0;
 
   virtual std::vector<AsyncNotice> get_async_notices() = 0;
+
+  virtual stdx::expected<classic_protocol::message::server::Greeting,
+                         std::error_code>
+  server_greeting(bool with_tls) = 0;
+
+  virtual stdx::expected<handshake_data, std::error_code> handshake() = 0;
+
+  virtual std::chrono::microseconds server_greeting_exec_time() = 0;
+
+  virtual void set_session_ssl_info(const SSL *ssl) = 0;
 
   virtual ~StatementReaderBase() = default;
 };

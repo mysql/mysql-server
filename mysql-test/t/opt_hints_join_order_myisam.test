@@ -1,6 +1,5 @@
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
---source include/not_hypergraph.inc  # Optimizer hints are not supported.
 
 
 # Const table behavior, table order is not changed, hint is applicable
