@@ -70,6 +70,9 @@ class Certification_handler : public Event_handler {
 
   /** All the VC events pending application due to timeout */
   std::list<View_change_stored_info *> pending_view_change_events;
+  /** All the VC events pending application due to consistent transactions */
+  std::list<std::unique_ptr<View_change_stored_info>>
+      pending_view_change_events_waiting_for_consistent_transactions;
 
   /**
     Set transaction context for next event handler.

@@ -312,11 +312,13 @@ int Applier_module::apply_view_change_packet(
                         "prepared transactions",
                         view_change_packet->view_id.c_str()));
     transaction_consistency_manager->schedule_view_change_event(pevent);
-    return error;
+    pevent->set_delayed_view_change_waiting_for_consistent_transactions();
   }
 
   error = inject_event_into_pipeline(pevent, cont);
-  if (!cont->is_transaction_discarded()) delete pevent;
+  if (!cont->is_transaction_discarded() &&
+      !pevent->is_delayed_view_change_waiting_for_consistent_transactions())
+    delete pevent;
 
   return error;
 }
