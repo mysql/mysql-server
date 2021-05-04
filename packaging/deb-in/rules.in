@@ -26,8 +26,6 @@
 	dh $@
 
 export DH_VERBOSE=1
-export CFLAGS=
-export CXXFLAGS=
 
 ifeq (,$(MYSQL_BUILD_MAKE_JFLAG))
 	JOBS=-j8
