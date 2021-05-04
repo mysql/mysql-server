@@ -5934,7 +5934,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
       break;
     case MYSQL_TYPE_BOOL:
       field = new (*THR_MALLOC)
-          Field_boolean(maybe_null, item_name.ptr());
+          Field_boolean(m_nullable, item_name.ptr());
       break;
     case MYSQL_TYPE_SHORT:
       field = new (*THR_MALLOC)
