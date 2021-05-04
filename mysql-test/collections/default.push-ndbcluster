@@ -15,7 +15,7 @@ perl mysql-test-run.pl --timer --debug-server --force  --comment=ndbcluster --va
 perl mysql-test-run.pl --timer --debug-server --force  --comment=gcol_ndb --vardir=var-gcol-ndb --suite=gcol_ndb --no-skip
 
 # json NDB tests only. Common include files are sourced for different SEs
-perl mysql-test-run.pl --timer --debug-server --force  --comment=json_ndb --vardir=var-json-ndb --do-test=json.*ndb --no-skip
+perl mysql-test-run.pl --timer --debug-server --force  --comment=json_ndb --vardir=var-json-ndb --suite=json_ndb --no-skip
 
 # ndb_opt suite only
 perl mysql-test-run.pl --timer --debug-server --force  --comment=ndb_opt --vardir=var-ndb-opt --suite=ndb_opt --no-skip

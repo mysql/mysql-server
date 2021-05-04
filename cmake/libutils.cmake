@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -68,6 +68,7 @@ ENDMACRO()
 MACRO(ADD_CONVENIENCE_LIBRARY TARGET_ARG)
   SET(LIBRARY_OPTIONS
     EXCLUDE_FROM_ALL
+    EXCLUDE_FROM_PGO
     )
   SET(LIBRARY_ONE_VALUE_KW
     )
@@ -102,6 +103,12 @@ MACRO(ADD_CONVENIENCE_LIBRARY TARGET_ARG)
   # Collect all static libraries in the same directory
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/archive_output_directory)
+
+  IF(ARG_EXCLUDE_FROM_PGO)
+    IF(FPROFILE_GENERATE OR FPROFILE_USE)
+      SET(ARG_EXCLUDE_FROM_ALL TRUE)
+    ENDIF()
+  ENDIF()
 
   IF(ARG_EXCLUDE_FROM_ALL)
     SET_PROPERTY(TARGET ${TARGET} PROPERTY EXCLUDE_FROM_ALL TRUE)
@@ -145,26 +152,37 @@ MACRO(ADD_CONVENIENCE_LIBRARY TARGET_ARG)
 ENDMACRO()
 
 
-# Create libs from libs.
-# Merge static libraries, creates shared libraries out of convenience libraries.
+# Creates a shared library by merging static libraries.
+# MERGE_LIBRARIES_SHARED(target options/keywords ... source libs ...)
 MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
+  SET(SHLIB_OPTIONS
+    EXCLUDE_FROM_ALL
+    EXCLUDE_FROM_PGO # add target, but do not build for PGO
+    LINK_PUBLIC # All source libs become part of the PUBLIC interface of target.
+                # See documentation for INTERFACE_LINK_LIBRARIES
+                # The default is STATIC, i.e. the property
+                #   INTERFACE_LINK_LIBRARIES for the target library is empty.
+    SKIP_INSTALL# Do not install it.
+                # By default it will be installed to ${INSTALL_LIBDIR}
+    )
+  SET(SHLIB_ONE_VALUE_KW
+    COMPONENT   # Installation COMPONENT.
+    OUTPUT_NAME # Target library output name.
+    )
+  SET(SHLIB_MULTI_VALUE_KW
+    EXPORTS     # Symbols to be exported by the target library.
+                # We force these symbols to be imported from the source libs.
+    )
+
   CMAKE_PARSE_ARGUMENTS(ARG
-    "EXCLUDE_FROM_ALL;SKIP_INSTALL"
-    "COMPONENT;OUTPUT_NAME"
-    "EXPORTS"
+    "${SHLIB_OPTIONS}"
+    "${SHLIB_ONE_VALUE_KW}"
+    "${SHLIB_MULTI_VALUE_KW}"
     ${ARGN}
     )
 
   SET(TARGET ${TARGET_ARG})
   SET(LIBS ${ARG_UNPARSED_ARGUMENTS})
-
-  FOREACH(LIB ${LIBS})
-    LIST(FIND KNOWN_CONVENIENCE_LIBRARIES ${LIB} FOUNDIT)
-    IF(FOUNDIT LESS 0)
-      MESSAGE(STATUS "Known libs : ${KNOWN_CONVENIENCE_LIBRARIES}")
-      MESSAGE(FATAL_ERROR "Unknown static library ${LIB} FOUNDIT ${FOUNDIT}")
-    ENDIF()
-  ENDFOREACH()
 
   CREATE_EXPORT_FILE(SRC ${TARGET} "${ARG_EXPORTS}")
   IF(UNIX)
@@ -178,6 +196,13 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
         SET(export_link_flags "${export_link_flags} -Wl,-u,${SYMBOL}")
       ENDIF()
     ENDFOREACH()
+  ENDIF()
+
+  IF(ARG_EXCLUDE_FROM_PGO)
+    IF(FPROFILE_GENERATE OR FPROFILE_USE)
+      SET(ARG_EXCLUDE_FROM_ALL TRUE)
+      SET(ARG_SKIP_INSTALL TRUE)
+    ENDIF()
   ENDIF()
 
   IF(NOT ARG_SKIP_INSTALL)
@@ -210,7 +235,12 @@ MACRO(MERGE_LIBRARIES_SHARED TARGET_ARG)
       RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
   ENDIF()
 
-  TARGET_LINK_LIBRARIES(${TARGET} PRIVATE ${LIBS})
+  IF(ARG_LINK_PUBLIC)
+    SET(PUBLIC_OR_PRIVATE PUBLIC)
+  ELSE()
+    SET(PUBLIC_OR_PRIVATE PRIVATE)
+  ENDIF()
+  TARGET_LINK_LIBRARIES(${TARGET} ${PUBLIC_OR_PRIVATE} ${LIBS})
   IF(ARG_OUTPUT_NAME)
     SET_TARGET_PROPERTIES(
       ${TARGET} PROPERTIES OUTPUT_NAME "${ARG_OUTPUT_NAME}")

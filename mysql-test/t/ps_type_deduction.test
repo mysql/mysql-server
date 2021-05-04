@@ -183,9 +183,17 @@ execute s using @a;
 show status like 'com_stmt_reprepare';
 eval $show_trace;
 
+set @s='abc';
+set @d='2000-01-01';
+set @t='23:59:59.999999';
+set @dt='2000-01-01 23:59:59.999999';
+set @y='2000';
+set @j='{"pi":3.14159}';
+
 # CAST(? AS T): ? gets type of T
 prepare s from 'select cast(? as unsigned)';
 eval $show_trace;
+execute s using @y;
 # Assumed type is unsigned int;
 # because type is inherited (a specificity of CAST),
 # another type doesn't cause any repreparation, and type
@@ -197,16 +205,34 @@ eval $show_trace;
 
 prepare s from 'select cast(? as char(10))';
 eval $show_trace;
-prepare s from 'select cast(? as binary(10))';
+execute s using @s;
+prepare s from 'select cast(? as binary(3))';
 eval $show_trace;
+execute s using @s;
 prepare s from 'select cast(? as date)';
 eval $show_trace;
-prepare s from 'select cast(? as time)';
+execute s using @d;
+prepare s from 'select cast(? as time(6))';
 eval $show_trace;
+execute s using @t;
+prepare s from 'select cast(? as datetime(6))';
+eval $show_trace;
+execute s using @dt;
+prepare s from 'select cast(? as year)';
+eval $show_trace;
+execute s using @y;
+prepare s from 'select cast(? as float)';
+eval $show_trace;
+execute s using @y;
+prepare s from 'select cast(? as double)';
+eval $show_trace;
+execute s using @y;
 prepare s from 'select cast(? as decimal(10))';
 eval $show_trace;
+execute s using @y;
 prepare s from 'select cast(? as json)';
 eval $show_trace;
+execute s using @j;
 
 # CONVERT == CAST
 prepare s from 'select convert(?, decimal(10))';

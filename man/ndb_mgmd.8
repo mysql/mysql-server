@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.25.\ \&Command\-line options for the ndb_mgmd program
+.B Table\ \&23.26.\ \&Command\-line options used with the program ndb_mgmd
 .TS
 allbox tab(:);
 lB lB lB.
@@ -73,6 +73,7 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
 lB l l.
 T{
 .PP
@@ -81,7 +82,17 @@ T}:T{
 Local bind address
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--cluster-config-suffix=name\fR\fB \fR
+T}:T{
+Override defaults group suffix when reading cluster_config sections in
+              my.cnf file; used in testing
+T}:T{
+.PP
+ADDED: NDB 8.0.24
 T}
 T{
 .PP
@@ -90,7 +101,7 @@ T}:T{
 Enable management server configuration cache; true by default
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -102,7 +113,7 @@ Specify cluster configuration file; also specify --reload or --initial
               to override configuration cache if present
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -113,7 +124,7 @@ T}:T{
 Specify cluster management server configuration cache directory
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -124,7 +135,7 @@ T}:T{
 Run ndb_mgmd in daemon mode (default)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -134,7 +145,7 @@ Causes management server to reload configuration data from configuration
               file, bypassing configuration cache
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -144,7 +155,7 @@ Used to install management server process as Windows service; does not
               apply on other platforms
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -154,7 +165,7 @@ Run ndb_mgmd in interactive mode (not officially supported in
               production; for testing purposes only)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -163,7 +174,7 @@ T}:T{
 Name to use when writing cluster log messages applying to this node
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -172,7 +183,7 @@ T}:T{
 Read cluster configuration data from my.cnf file
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -181,7 +192,7 @@ T}:T{
 Do not provide any node ID checks
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -190,7 +201,7 @@ T}:T{
 Do not run ndb_mgmd as a daemon
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -200,7 +211,7 @@ Do not wait for management nodes specified when starting this management
               server; requires --ndb-nodeid option
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -211,7 +222,7 @@ T}:T{
 Print full configuration and exit
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -221,7 +232,7 @@ Causes management server to compare configuration file with
               configuration cache
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -232,7 +243,7 @@ Used to remove management server process that was previously installed
               to be removed; does not apply on other platforms
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -243,7 +254,7 @@ T}:T{
 Write additional information to log
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -280,6 +291,47 @@ T}
 .TE
 .sp 1
 Causes the management server to bind to a specific network interface (host name or IP address)\&. This option has no default value\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBcluster\-config\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--cluster-config-suffix=name
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Override defaults group suffix when reading cluster configuration sections in
+my\&.cnf; used in testing\&.
 .RE
 .sp
 .RS 4
@@ -891,6 +943,7 @@ T}
 T{
 Default Value
 T}:T{
+[none]
 T}
 T{
 Minimum Value
@@ -1263,7 +1316,7 @@ is the process ID file used when running the management server as a daemon\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

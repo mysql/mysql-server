@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 using mysql_harness::ConfigBuilder;
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
-using ::testing::PrintToString;
 using namespace std::chrono_literals;
 
 Path g_origin_path;

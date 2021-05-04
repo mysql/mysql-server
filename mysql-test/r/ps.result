@@ -1191,12 +1191,12 @@ show create table mysqltest.t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `c` char(10) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 show create table mysqltest.t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `test` varchar(4) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT ''
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 drop table mysqltest.t1;
 drop table mysqltest.t2;
 alter database mysqltest character set latin1;

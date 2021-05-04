@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
 */
 
 #include "storage/ndb/plugin/ha_ndbinfo.h"
+
+#include <vector>
 
 #include <mysql/plugin.h>
 
@@ -75,7 +77,8 @@ static MYSQL_THDVAR_BOOL(show_hidden, /* name */
 static char *opt_ndbinfo_dbname = const_cast<char *>("ndbinfo");
 static MYSQL_SYSVAR_STR(database,           /* name */
                         opt_ndbinfo_dbname, /* var */
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+                            PLUGIN_VAR_NOCMDOPT,
                         "Name of the database used by ndbinfo",
                         NULL, /* check func. */
                         NULL, /* update func. */
@@ -85,8 +88,9 @@ static MYSQL_SYSVAR_STR(database,           /* name */
 static char *opt_ndbinfo_table_prefix = const_cast<char *>("ndb$");
 static MYSQL_SYSVAR_STR(table_prefix,             /* name */
                         opt_ndbinfo_table_prefix, /* var */
-                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                        "Prefix to use for all virtual tables loaded from NDB",
+                        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY |
+                            PLUGIN_VAR_NOCMDOPT,
+                        "Prefix used for all virtual tables loaded from NDB",
                         NULL, /* check func. */
                         NULL, /* update func. */
                         NULL  /* default */
@@ -158,7 +162,7 @@ static handler *create_handler(handlerton *hton, TABLE_SHARE *table, bool,
 struct ha_ndbinfo_impl {
   const NdbInfo::Table *m_table;
   NdbInfoScanOperation *m_scan_op;
-  Vector<const NdbInfoRecAttr *> m_columns;
+  std::vector<const NdbInfoRecAttr *> m_columns;
   bool m_first_use;
 
   enum struct Table_Status {
@@ -285,7 +289,7 @@ static void warn_incompatible(const NdbInfo::Table *ndb_tab, bool fatal,
   BaseString msg;
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table_name: %s, fatal: %d", ndb_tab->getName(), fatal));
-  DBUG_ASSERT(format != NULL);
+  assert(format != NULL);
 
   va_list args;
   char explanation[128];
@@ -337,7 +341,7 @@ int ha_ndbinfo::open(const char *name, int mode, uint, const dd::Table *) {
       return EROFS;  // Read only fs
     }
     // Find any commands that does not allow open readonly
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   if (opt_ndbinfo_offline || ndbcluster_is_disabled()) {
@@ -481,7 +485,7 @@ int ha_ndbinfo::rnd_init(bool scan) {
       }
       default:
         // Should not happen
-        DBUG_ASSERT(false);
+        assert(false);
         return 0;
     }
   }
@@ -725,7 +729,7 @@ static int ndbinfo_find_files(handlerton *, THD *thd, const char *db,
     return 0;
   }
 
-  DBUG_ASSERT(db);
+  assert(db);
   if (strcmp(db, opt_ndbinfo_dbname)) return 0;  // Only hide files in "our" db
 
   /* Hide all files that start with "our" prefix */
@@ -839,5 +843,3 @@ struct st_mysql_plugin ndbinfo_plugin = {
     ndbinfo_system_variables, /* system variables */
     NULL,                     /* config options */
     0};
-
-template class Vector<const NdbInfoRecAttr *>;

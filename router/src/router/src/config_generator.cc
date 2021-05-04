@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,6 +58,7 @@
 #include "mysql/harness/config_parser.h"
 #include "mysql/harness/dynamic_state.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/stdx/expected.h"
 #include "mysql/harness/vt100.h"
 #include "mysqld_error.h"
 #include "mysqlrouter/uri.h"
@@ -74,8 +75,12 @@ static const int kDefaultROPort = 6447;
 static const char *kRWSocketName = "mysql.sock";
 static const char *kROSocketName = "mysqlro.sock";
 
-static const int kDefaultRWXPort = 64460;
-static const int kDefaultROXPort = 64470;
+// these were defaults for the pre-8.0.24, we still use them for compatibility
+// (--conf-base-port=0 or bootstrapping over the existing configuration)
+static const int kLegacyDefaultRWXPort = 64460;
+static const int kLegacyDefaultROXPort = 64470;
+static const int kBasePortDefault = -1;       // use 8.0.24+ defaults
+static const int kBasePortLegacyDefault = 0;  // use pre-8.0.24 defaults
 static const char *kRWXSocketName = "mysqlx.sock";
 static const char *kROXSocketName = "mysqlxro.sock";
 
@@ -110,7 +115,6 @@ using mysql_harness::DIM;
 using mysql_harness::get_strerror;
 using mysql_harness::Path;
 using mysql_harness::truncate_string;
-using mysql_harness::UniquePtr;
 using namespace mysqlrouter;
 using namespace std::string_literals;
 
@@ -258,11 +262,11 @@ void ConfigGenerator::parse_bootstrap_options(
     const char *tmp = bootstrap_options.at("base-port").c_str();
     int base_port = static_cast<int>(std::strtol(tmp, &end, 10));
     int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
-    if (base_port <= 0 || base_port > max_base_port ||
+    if (base_port < 0 || base_port > max_base_port ||
         end != tmp + strlen(tmp)) {
       throw std::runtime_error("Invalid base-port number " +
                                bootstrap_options.at("base-port") +
-                               "; please pick a value between 1 and " +
+                               "; please pick a value between 0 and " +
                                std::to_string((max_base_port)));
     }
   }
@@ -458,6 +462,26 @@ void ConfigGenerator::init(
   init_gr_data(u, bootstrap_socket);
 }
 
+static stdx::expected<std::ofstream, std::error_code> open_ofstream(
+    const std::string &file_name) {
+  std::ofstream of;
+
+  of.open(file_name);
+
+  if (of.fail()) {
+    return stdx::make_unexpected(
+        std::error_code{errno, std::generic_category()});
+  }
+
+#ifdef __SUNPRO_CC
+  // make sure sun-cc uses the move-constructor (and not the non-existant
+  // copy-constructor)
+  return {std::move(of)};
+#else
+  return of;
+#endif
+}
+
 void ConfigGenerator::bootstrap_system_deployment(
     const std::string &config_file_path, const std::string &state_file_path,
     const std::map<std::string, std::string> &user_options,
@@ -487,17 +511,19 @@ void ConfigGenerator::bootstrap_system_deployment(
   // (re-)bootstrap the instance
   std::vector<std::string> config_files_names{config_file_path,
                                               state_file_path};
-  std::vector<UniquePtr<Ofstream>> config_files;
-  for (size_t i = 0; i < config_files_names.size(); ++i) {
-    config_files.push_back(DIM::instance().new_Ofstream());
-    auto &config_file = config_files[i];
-    const auto &config_file_name = config_files_names[i];
-    config_file->open(config_file_name + ".tmp");
-    if (config_file->fail()) {
-      throw std::runtime_error("Could not open " + config_file_name +
-                               ".tmp for writing: " + get_strerror(errno));
+  std::vector<std::ofstream> config_files;
+  for (const auto &config_file_name : config_files_names) {
+    const std::string tmp_file_name = config_file_name + ".tmp";
+
+    auto open_res = open_ofstream(tmp_file_name);
+    if (!open_res) {
+      throw std::system_error(
+          open_res.error(),
+          "Could not open " + tmp_file_name + " for writing: ");
     }
-    auto_clean.add_file_delete(config_file_name + ".tmp");
+    auto_clean.add_file_delete(tmp_file_name);
+
+    config_files.push_back(std::move(open_res.value()));
   }
 
   // on bootstrap failure, DROP USER for all created accounts
@@ -505,12 +531,12 @@ void ConfigGenerator::bootstrap_system_deployment(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
-      *config_files[0], *config_files[1], config_file_path, state_file_path,
+      config_files[0], config_files[1], config_file_path, state_file_path,
       router_name, options, multivalue_options, default_paths, false,
       auto_clean);
 
   for (size_t i = 0; i < config_files.size(); ++i) {
-    config_files[i]->close();
+    config_files[i].close();
     const std::string path = config_files_names[i];
     const bool is_static_conf = (i == 0);
     const std::string file_desc =
@@ -526,7 +552,7 @@ void ConfigGenerator::bootstrap_system_deployment(
     }
 
     // rename the .tmp file to the final file
-    if (mysqlrouter::rename_file((path + ".tmp").c_str(), path.c_str()) != 0) {
+    if (mysqlrouter::rename_file((path + ".tmp"), path) != 0) {
       // log_error("Error renaming %s.tmp to %s: %s", config_file_path.c_str(),
       //  config_file_path.c_str(), get_strerror(errno));
       throw std::runtime_error("Could not save " + file_desc +
@@ -682,18 +708,25 @@ void ConfigGenerator::bootstrap_directory_deployment(
   // (re-)bootstrap the instance
   std::vector<std::string> config_files_names{
       config_file_path.str(), path.join("data").join("state.json").str()};
-  std::vector<UniquePtr<Ofstream>> config_files;
-  for (size_t i = 0; i < config_files_names.size(); ++i) {
-    config_files.emplace_back(DIM::instance().new_Ofstream());
-    config_files[i]->open(config_files_names[i] + ".tmp");
-    if (config_files[i]->fail()) {
+  std::vector<std::ofstream> config_files;
+  for (const auto &config_file_name : config_files_names) {
+    const std::string tmp_file_name = config_file_name + ".tmp";
+
+    auto open_res = open_ofstream(tmp_file_name);
+    if (!open_res) {
+      const auto ec = open_res.error();
 #ifndef _WIN32
-      if (errno == EACCES || errno == EPERM) log_error(kAppArmorMsg);
+      // on Linux give the hint about AppArmor
+      if (ec == make_error_condition(std::errc::permission_denied)) {
+        log_error(kAppArmorMsg);
+      }
 #endif
-      throw std::runtime_error("Could not open " + config_files_names[i] +
-                               ".tmp for writing: " + get_strerror(errno));
+      throw std::system_error(
+          ec, "Could not open " + tmp_file_name + " for writing");
     }
-    auto_clean.add_file_delete(config_files_names[i] + ".tmp");
+    auto_clean.add_file_delete(tmp_file_name);
+
+    config_files.push_back(std::move(open_res.value()));
   }
 
   set_keyring_info_real_paths(options, path);
@@ -703,7 +736,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
       (void *)1, [&](void *) { undo_create_user_for_new_accounts(); });
 
   const std::string bootstrap_report_text = bootstrap_deployment(
-      *config_files[0], *config_files[1], config_files_names[0],
+      config_files[0], config_files[1], config_files_names[0],
       config_files_names[1], router_name, options, multivalue_options,
       default_paths, true,
       auto_clean);  // throws std::runtime_error, ?
@@ -712,7 +745,7 @@ void ConfigGenerator::bootstrap_directory_deployment(
     auto &config_file = config_files[i];
     const auto &config_file_name = config_files_names[i];
     const bool is_static_conf = (i == 0);
-    config_file->close();
+    config_file.close();
     if (backup_config_file_if_different(config_file_name,
                                         config_file_name + ".tmp", options)) {
       if (!quiet)
@@ -790,19 +823,21 @@ void ConfigGenerator::bootstrap_directory_deployment(
 
 ConfigGenerator::Options ConfigGenerator::fill_options(
     const std::map<std::string, std::string> &user_options,
-    const std::map<std::string, std::string> &default_paths) {
+    const std::map<std::string, std::string> &default_paths,
+    const ExistingConfigOptions &existing_config_options) {
   std::string bind_address{"0.0.0.0"};
   bool use_sockets = false;
   bool skip_tcp = false;
-  bool skip_classic_protocol = false;
-  bool skip_x_protocol = false;
-  int base_port = 0;
+  int base_port = kBasePortDefault;
   if (user_options.find("base-port") != user_options.end()) {
+    if (user_options.at("base-port").empty()) {
+      throw std::runtime_error("Value for base-port can't be empty");
+    }
     char *end = nullptr;
     const char *tmp = user_options.at("base-port").c_str();
     base_port = static_cast<int>(std::strtol(tmp, &end, 10));
     int max_base_port = (kMaxTCPPortNumber - kAllocatedTCPPortCount + 1);
-    if (base_port <= 0 || base_port > max_base_port ||
+    if (base_port < 0 || base_port > max_base_port ||
         end != tmp + strlen(tmp)) {
       throw std::runtime_error("Invalid base-port number " +
                                user_options.at("base-port") +
@@ -826,28 +861,57 @@ ConfigGenerator::Options ConfigGenerator::fill_options(
 
     options.bind_address = address;
   }
-  if (!skip_classic_protocol) {
-    if (use_sockets) {
-      options.rw_endpoint.socket = kRWSocketName;
-      options.ro_endpoint.socket = kROSocketName;
+
+  // if not given as a parameter we want consecutive numbers starting with 6446
+  bool use_default_ports{false};
+  if (base_port == kBasePortDefault) {
+    base_port = kDefaultRWPort;
+    use_default_ports = true;
+  }
+
+  // classic protocol endpoints
+  if (use_sockets) {
+    options.rw_endpoint.socket = kRWSocketName;
+    options.ro_endpoint.socket = kROSocketName;
+  }
+  if (!skip_tcp) {
+    options.rw_endpoint.port =
+        base_port == kBasePortLegacyDefault ? kDefaultRWPort : base_port;
+    options.ro_endpoint.port =
+        base_port == kBasePortLegacyDefault ? kDefaultROPort : base_port + 1;
+  }
+
+  // x protocol endpoints
+  if (use_sockets) {
+    options.rw_x_endpoint.socket = kRWXSocketName;
+    options.ro_x_endpoint.socket = kROXSocketName;
+  }
+  if (!skip_tcp) {
+    // if "base-port" param was not provided AND we are overwriting an
+    // existing config AND the RW X bind_port in the existing config was
+    // legacy default (64460) we want to keep it
+    if (use_default_ports && existing_config_options.valid &&
+        existing_config_options.rw_x_port == kLegacyDefaultRWXPort) {
+      options.rw_x_endpoint.port = kLegacyDefaultRWXPort;
+    } else {
+      options.rw_x_endpoint.port = base_port == kBasePortLegacyDefault
+                                       ? kLegacyDefaultRWXPort
+                                       : base_port + 2;
     }
-    if (!skip_tcp) {
-      options.rw_endpoint.port = base_port == 0 ? kDefaultRWPort : base_port++;
-      options.ro_endpoint.port = base_port == 0 ? kDefaultROPort : base_port++;
+
+    // if "base-port" param was not provided AND we are overwriting an
+    // existing config AND the RO X bind_port in the existing config was
+    // legacy default (64470) we want to keep it
+    if (use_default_ports && existing_config_options.valid &&
+        existing_config_options.ro_x_port == kLegacyDefaultROXPort) {
+      options.ro_x_endpoint.port = kLegacyDefaultROXPort;
+    } else {
+      options.ro_x_endpoint.port = base_port == kBasePortLegacyDefault
+                                       ? kLegacyDefaultROXPort
+                                       : base_port + 3;
     }
   }
-  if (!skip_x_protocol) {
-    if (use_sockets) {
-      options.rw_x_endpoint.socket = kRWXSocketName;
-      options.ro_x_endpoint.socket = kROXSocketName;
-    }
-    if (!skip_tcp) {
-      options.rw_x_endpoint.port =
-          base_port == 0 ? kDefaultRWXPort : base_port++;
-      options.ro_x_endpoint.port =
-          base_port == 0 ? kDefaultROXPort : base_port++;
-    }
-  }
+
   if (user_options.find("logdir") != user_options.end())
     options.override_logdir = user_options.at("logdir");
   if (user_options.find("filename") != user_options.end())
@@ -1269,16 +1333,14 @@ std::string ConfigGenerator::bootstrap_deployment(
   bool quiet = user_options.find("quiet") != user_options.end();
 
   // get router_id and username from config and/or command-line
-  uint32_t router_id;
-  std::string username;
   auto cluster_info = metadata_->fetch_metadata_servers();
 
-  std::tie(router_id, username) =
-      get_router_id_and_username_from_config_if_it_exists(
-          config_file_path.str(), cluster_info.metadata_cluster_name, force);
+  auto conf_options = get_options_from_config_if_it_exists(
+      config_file_path.str(), cluster_info.metadata_cluster_name, force);
 
   // if user provided --account, override username with it
-  username = map_get(user_options, "account", username);
+  conf_options.username =
+      map_get(user_options, "account", conf_options.username);
 
   // If username is still empty at this point, it will be autogenerated
   // inside try_bootstrap_deployment().  It cannot be done here, because the
@@ -1286,10 +1348,10 @@ std::string ConfigGenerator::bootstrap_deployment(
   // change inside try_bootstrap_deployment()
 
   if (!quiet)
-    print_bootstrap_start_msg(router_id, directory_deployment,
+    print_bootstrap_start_msg(conf_options.router_id, directory_deployment,
                               config_file_path);
 
-  Options options(fill_options(user_options, default_paths));
+  Options options(fill_options(user_options, default_paths, conf_options));
   // Prompt for the Router's runtime account that's used by metadata_cache and
   // specified by "--account".
   // If running in --account mode, the user provides the password (ALWAYS,
@@ -1300,9 +1362,11 @@ std::string ConfigGenerator::bootstrap_deployment(
   // but never prompt for it - again, the goal is automation-friendliness)
   std::string password;
   if (user_options.count("account"))
-    password = prompt_password("Please enter MySQL password for " + username);
-  else if (!username.empty())
-    password = fetch_password_from_keyring(username, router_id);
+    password = prompt_password("Please enter MySQL password for " +
+                               conf_options.username);
+  else if (!conf_options.username.empty())
+    password = fetch_password_from_keyring(conf_options.username,
+                                           conf_options.router_id);
 
   // bootstrap
   // All SQL writes happen inside here
@@ -1318,8 +1382,8 @@ std::string ConfigGenerator::bootstrap_deployment(
     std::tie(password) =
         cluster_aware.failover_on_failure<std::tuple<std::string>>([&]() {
           return try_bootstrap_deployment(
-              router_id, username, password, router_name,
-              cluster_info.metadata_cluster_id, user_options,
+              conf_options.router_id, conf_options.username, password,
+              router_name, cluster_info.metadata_cluster_id, user_options,
               multivalue_options, options);
         });
   }
@@ -1341,12 +1405,12 @@ std::string ConfigGenerator::bootstrap_deployment(
   // test out the connection that Router would use
   {
     bool strict = user_options.count("strict");
-    verify_router_account(username, password,
+    verify_router_account(conf_options.username, password,
                           cluster_info.metadata_cluster_name, strict);
   }
 
-  store_credentials_in_keyring(auto_clean, user_options, router_id, username,
-                               password, options);
+  store_credentials_in_keyring(auto_clean, user_options, conf_options.router_id,
+                               conf_options.username, password, options);
   set_log_file_permissions(default_paths, user_options, options);
 
   // generate the new config file
@@ -1354,8 +1418,8 @@ std::string ConfigGenerator::bootstrap_deployment(
     out_stream_ << "- Creating configuration " << config_file_path.str()
                 << std::endl;
     auto system_username = map_get(user_options, "user", "");
-    create_config(config_file, state_file, router_id, router_name,
-                  system_username, cluster_info, username, options,
+    create_config(config_file, state_file, conf_options.router_id, router_name,
+                  system_username, cluster_info, conf_options.username, options,
                   default_paths, state_file_path.str());
   }
 
@@ -2487,9 +2551,15 @@ std::set<std::string> ConfigGenerator::get_hostnames_of_created_accounts(
     const std::regex re{" '" + username + "'@'(.*?)' "};
     auto processor = [&](const MySQLSession::Row &row) -> bool {
       // we ignore warnings we're not expecting
-      unsigned code;
+      unsigned long code;
       try {
-        code = std::stoul(row[1]);
+        size_t end_pos{};
+        code = std::stoul(row[1], &end_pos);
+
+        if (end_pos != strlen(row[1])) {
+          throw std::invalid_argument(std::string(row[1]) +
+                                      " is expected to be an positive integer");
+        }
       } catch (const std::exception &e) {
         throw std::runtime_error(
             "SHOW WARNINGS: Failed to parse error code from error code column (column content = '"s +
@@ -2728,17 +2798,45 @@ accounts that were created:
   }
 }
 
-// Unfortunately, there's no way to disable clang-format just for the
-// pseudocode inside the Doxygen block, therefore it has to be done on the
-// outside (affecting the entire block)
-// clang-format off
+uint16_t get_x_protocol_port(const mysql_harness::Config &conf,
+                             const std::string &role) {
+  if (!conf.has_any("routing")) return 0;
+
+  const auto &routing_sections = conf.get("routing");
+  for (const auto &section : routing_sections) {
+    if (!section->has("protocol")) continue;
+    if (section->get("protocol") != "x") continue;
+
+    if (!section->has("destinations")) continue;
+    try {
+      URI uri(section->get("destinations"), false);
+      const auto &conf_role = uri.query.find("role");
+      if (conf_role == uri.query.end()) continue;
+
+      if (conf_role->second != role) continue;
+    } catch (const URIError &) {
+      continue;
+    }
+
+    if (!section->has("bind_port")) continue;
+    const std::string bind_port_str = section->get("bind_port");
+
+    try {
+      return get_tcp_port(bind_port_str);
+    } catch (const std::exception &e) {
+      log_warning("get_x_protocol_port: invalid x port = '%s' in section '%s'",
+                  bind_port_str.c_str(), section->get_section_name().c_str());
+      continue;
+    }
+  }
+
+  return 0;
+}
+
 /**
- * Get router_id name values associated with a metadata_cache configuration
- * for the given cluster_name.
- *
- * The lookup is done through the metadata_cluster option inside the
- * metadata_cache section.
- *
+ * Get selected configuration options from the existing Router configuration
+ * file.
+ **
  * ---
  * This function returns Router's id and SQL user for cluster `cluster_name`,
  * if it finds them in config file and they seem valid.  If they're missing or
@@ -2746,31 +2844,6 @@ accounts that were created:
  * green light to generate new ones.  Finally, if it detects that the cluster
  * name is off or missing, it will throw or return {0, ""}, depending on
  * `forcing_overwrite`.
- *
- * The logic simplifies to this:
- *   if !exists config
- *     return {0, ""}
- *   elif !exists [metadata_cache]
- *     return {0, ""}
- *   elif exists >1 [metadata_cache]
- *     throw ">1 [metadata_cache] not supported"
- *   elif exists [metadata_cache].metadata_cluster &&
- *        [metadata_cache].metadata_cluster == {cluster_name reported by MD server}:
- *     if !exists [metadata_cache].router_id:
- *       [metadata_cache].router_id = 0
- *     elif invalid [metadata_cache].router_id:
- *       throw "invalid router_id"
- *     if !exits [metadata_cache].user:
- *       [metadata_cache].user = ""
- *     return {[metadata_cache].router_id, [metadata_cache].user}
- *   else
- *     // config exists, [metadata_cache] exists,
- *     // [metadata_cache].metadata_cluster does not exist or
- *     // [metadata_cache].metadata_cluster == some unexpected cluster name
- *     if !force
- *       throw "Router already configured for cluster <name from config>, use --force to replace"
- *     else
- *       return {0, ""}
  *
  * @param config_file_path /path/to/config/file
  * @param cluster_name Cluster name for which Router id and user should be
@@ -2780,24 +2853,22 @@ accounts that were created:
  *
  * @throws std::runtime_error on invalid router_id or metadata_cluster
  *
- * @returns Router's id and (SQL) user if they're both valid, otherwise null
- *          values for both
+ * @returns Struct with options from the existing configuration file
  */
-// clang-format on
-std::pair<uint32_t, std::string>
-ConfigGenerator::get_router_id_and_username_from_config_if_it_exists(
+ConfigGenerator::ExistingConfigOptions
+ConfigGenerator::get_options_from_config_if_it_exists(
     const std::string &config_file_path, const std::string &cluster_name,
     bool forcing_overwrite) {
-  const auto kFoundNoUsableAccount = std::make_pair(0, "");
+  ConfigGenerator::ExistingConfigOptions result;
 
-  // no config -> return {0, ""}
+  // no config
   mysql_harness::Path path(config_file_path);
-  if (!path.exists()) return kFoundNoUsableAccount;
+  if (!path.exists()) return result;
 
-  // no [metadata_cache] -> return {0, ""}
+  // no [metadata_cache]
   mysql_harness::Config config(mysql_harness::Config::allow_keys);
   config.read(path);
-  if (!config.has_any("metadata_cache")) return kFoundNoUsableAccount;
+  if (!config.has_any("metadata_cache")) return result;
 
   // grab [metadata_cache], we only allow 1 for now
   mysql_harness::Config::SectionList sections = config.get("metadata_cache");
@@ -2815,42 +2886,41 @@ ConfigGenerator::get_router_id_and_username_from_config_if_it_exists(
     if (section->has("metadata_cluster")) {
       existing_cluster = section->get("metadata_cluster");
       if (existing_cluster == cluster_name) {
-        uint32_t router_id;
-        std::string username;
-
         // get router_id
         if (section->has("router_id")) {
           std::string tmp = section->get("router_id");
           char *end;
-          router_id = std::strtoul(tmp.c_str(), &end, 10);
+          result.router_id = std::strtoul(tmp.c_str(), &end, 10);
           if (end == tmp.c_str() || errno == ERANGE) {
             throw std::runtime_error("Invalid router_id '" + tmp +
                                      "' for cluster '" + cluster_name +
                                      "' in " + config_file_path);
           }
         } else {
-          router_id = 0;
+          result.router_id = 0;
           log_warning("WARNING: router_id not set for cluster '%s'",
                       cluster_name.c_str());
         }
 
         // get username, example: user=mysql_router4_kot8tcepf3kn
         if (section->has("user"))
-          username = section->get("user");
+          result.username = section->get("user");
         else
           log_warning("WARNING: user not set for cluster '%s'",
                       cluster_name.c_str());
 
-        // return results
-        return std::make_pair(router_id, username);
+        result.valid = true;
       }
     }
   }
 
-  // If we made it here, it means that config exists, [metadata_cache] exists,
-  // but [metadata_cache].metadata_cluster does not exist or it's different
-  // from `cluster_name`.
-  if (!forcing_overwrite) {
+  result.rw_x_port = get_x_protocol_port(config, "PRIMARY");
+  result.ro_x_port = get_x_protocol_port(config, "SECONDARY");
+
+  if (!result.valid && !forcing_overwrite) {
+    // it means that config exists, [metadata_cache] exists,
+    // but [metadata_cache].metadata_cluster does not exist or it's different
+    // from `cluster_name`.
     std::string msg;
     msg +=
         "The given Router instance is already configured for a cluster named "
@@ -2861,9 +2931,9 @@ ConfigGenerator::get_router_id_and_username_from_config_if_it_exists(
         "option.";
     // XXX when multiple-clusters is supported, also suggest --add
     throw std::runtime_error(msg);
-  } else {
-    return kFoundNoUsableAccount;
   }
+
+  return result;
 }
 
 /* virtual */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -101,8 +101,9 @@ static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
 #endif
 
-/** Time to sleep after DEADLOCK error before retrying operation. */
-static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
+/** Time to sleep after DEADLOCK error before retrying operation in
+milliseconds. */
+static constexpr uint32_t FTS_DEADLOCK_RETRY_WAIT_MS = 100;
 
 /** variable to record innodb_fts_internal_tbl_name for information
 schema table INNODB_FTS_INSERTED etc. */
@@ -2890,7 +2891,8 @@ func_exit:
     fts_sql_rollback(trx);
 
     if (error == DB_DEADLOCK) {
-      os_thread_sleep(FTS_DEADLOCK_RETRY_WAIT);
+      std::this_thread::sleep_for(
+          std::chrono::milliseconds(FTS_DEADLOCK_RETRY_WAIT_MS));
       goto retry;
     }
   }
@@ -4110,7 +4112,7 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
       /*FIXME: we need to handle the error properly. */
       if (error == DB_SUCCESS) {
         DBUG_EXECUTE_IF("fts_instrument_sync_write",
-                        os_thread_sleep(10000000););
+                        std::this_thread::sleep_for(std::chrono::seconds(10)););
         if (!unlock_cache) {
           ulint cache_lock_time = ut_time_monotonic() - sync_start_time;
           if (cache_lock_time > lock_threshold) {
@@ -4134,12 +4136,13 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
                                &fts_table, &word->text, fts_node);
 
         DBUG_EXECUTE_IF("fts_instrument_sync_write",
-                        os_thread_sleep(10000000););
+                        std::this_thread::sleep_for(std::chrono::seconds(10)););
 
         DEBUG_SYNC_C("fts_write_node");
         DBUG_EXECUTE_IF("fts_write_node_crash", DBUG_SUICIDE(););
 
-        DBUG_EXECUTE_IF("fts_instrument_sync_sleep", os_thread_sleep(1000000););
+        DBUG_EXECUTE_IF("fts_instrument_sync_sleep",
+                        std::this_thread::sleep_for(std::chrono::seconds(1)););
 
         if (unlock_cache) {
           rw_lock_x_lock(&table->fts->cache->lock);
@@ -5297,7 +5300,7 @@ ibool fts_wait_for_background_thread_to_start(
   ulint count = 0;
   ibool done = FALSE;
 
-  ut_a(max_wait == 0 || max_wait >= FTS_MAX_BACKGROUND_THREAD_WAIT);
+  ut_a(max_wait == 0 || max_wait >= FTS_MAX_BACKGROUND_THREAD_WAIT_US);
 
   for (;;) {
     fts_t *fts = table->fts;
@@ -5311,13 +5314,14 @@ ibool fts_wait_for_background_thread_to_start(
     mutex_exit(&fts->bg_threads_mutex);
 
     if (!done) {
-      os_thread_sleep(FTS_MAX_BACKGROUND_THREAD_WAIT);
+      std::this_thread::sleep_for(
+          std::chrono::microseconds(FTS_MAX_BACKGROUND_THREAD_WAIT_US));
 
       if (max_wait > 0) {
-        max_wait -= FTS_MAX_BACKGROUND_THREAD_WAIT;
+        max_wait -= FTS_MAX_BACKGROUND_THREAD_WAIT_US;
 
         /* We ignore the residual value. */
-        if (max_wait < FTS_MAX_BACKGROUND_THREAD_WAIT) {
+        if (max_wait < FTS_MAX_BACKGROUND_THREAD_WAIT_US) {
           break;
         }
       }
@@ -5815,21 +5819,38 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
 
     /* Skip the underscore. */
     ++ptr;
-    ut_a(end > ptr);
+    ut_a(end >= ptr);
     len = end - ptr;
+
+    /* It's not enough to be a FTS auxiliary table name */
+    if (len == 0) {
+      return (false);
+    }
 
     /* First search the common table suffix array. */
     for (i = 0; fts_common_tables[i] != nullptr; ++i) {
-      if (strncmp(ptr, fts_common_tables[i], len) == 0 ||
-          strncmp(ptr, fts_common_tables_5_7[i], len) == 0) {
+      if ((len == strlen(fts_common_tables[i])) &&
+          (strncmp(ptr, fts_common_tables[i], len) == 0)) {
+        table->type = FTS_COMMON_TABLE;
+        return (true);
+      }
+
+      if ((len == strlen(fts_common_tables_5_7[i])) &&
+          (strncmp(ptr, fts_common_tables_5_7[i], len) == 0)) {
         table->type = FTS_COMMON_TABLE;
         return (true);
       }
     }
 
     /* Could be obsolete common tables. */
-    if (native_strncasecmp(ptr, "ADDED", len) == 0 ||
-        native_strncasecmp(ptr, "STOPWORDS", len) == 0) {
+    if ((len == strlen("ADDED")) &&
+        (native_strncasecmp(ptr, "ADDED", len) == 0)) {
+      table->type = FTS_OBSOLETED_TABLE;
+      return (true);
+    }
+
+    if ((len == strlen("STOPWORDS")) &&
+        (native_strncasecmp(ptr, "STOPWORDS", len) == 0)) {
       table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }
@@ -5839,7 +5860,7 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
       return (false);
     }
 
-    /* Skip the table id. */
+    /* Skip the index id. */
     ptr = static_cast<const char *>(memchr(ptr, '_', len));
 
     if (ptr == nullptr) {
@@ -5848,20 +5869,31 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
 
     /* Skip the underscore. */
     ++ptr;
-    ut_a(end > ptr);
+    ut_a(end >= ptr);
     len = end - ptr;
+
+    /* It's not enough to be a FTS auxiliary table name */
+    if (len == 0) {
+      return (false);
+    }
 
     /* Search the FT index specific array. */
     for (i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
-      if (strncmp(ptr, fts_get_suffix(i), len) == 0 ||
-          strncmp(ptr, fts_get_suffix_5_7(i), len) == 0) {
+      if ((len == strlen(fts_get_suffix(i))) &&
+          (strncmp(ptr, fts_get_suffix(i), len) == 0)) {
+        table->type = FTS_INDEX_TABLE;
+        return (true);
+      }
+      if ((len == strlen(fts_get_suffix_5_7(i))) &&
+          (strncmp(ptr, fts_get_suffix_5_7(i), len) == 0)) {
         table->type = FTS_INDEX_TABLE;
         return (true);
       }
     }
 
     /* Other FT index specific table(s). */
-    if (native_strncasecmp(ptr, "DOC_ID", len) == 0) {
+    if ((len == strlen("DOC_ID")) &&
+        (native_strncasecmp(ptr, "DOC_ID", len) == 0)) {
       table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,9 +36,13 @@ class Acl_change_notification;
 */
 namespace Ndb_stored_grants {
 
-bool initialize(THD *, Thd_ndb *);
+// Initialize the Ndb_stored_grants component
+bool init();
 
-void shutdown(Thd_ndb *);
+// Setup the Ndb_stored_grants component
+bool setup(THD *, Thd_ndb *);
+
+void shutdown(THD *, Thd_ndb *, bool restarting);
 
 bool apply_stored_grants(THD *);
 

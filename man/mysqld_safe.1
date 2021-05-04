@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqld_safe\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLD_SAFE\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLD_SAFE\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -201,9 +201,9 @@ The path to the data directory\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file in addition to the usual option files\&. If the file does not exist or is otherwise inaccessible, the server exits with an error\&.
+Read this option file in addition to the usual option files\&. If the file does not exist or is otherwise inaccessible, the server exits with an error\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
+is not an absolute path name, it is interpreted relative to the current directory\&. This must be the first option on the command line if it is used\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -218,9 +218,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, the server exits with an error\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, the server exits with an error\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&. This must be the first option on the command line if it is used\&.
+is not an absolute path name, it is interpreted relative to the current directory\&. This must be the first option on the command line if it is used\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -872,8 +872,8 @@ from the MySQL installation directory:
 .RS 4
 .\}
 .nf
-shell> \fBcd \fR\fB\fImysql_installation_directory\fR\fR
-shell> \fBbin/mysqld_safe &\fR
+cd \fImysql_installation_directory\fR
+bin/mysqld_safe &
 .fi
 .if n \{\
 .RE
@@ -985,7 +985,7 @@ Section\ \&5.4.2.8, \(lqError Logging to the System Log\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

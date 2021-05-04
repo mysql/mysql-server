@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,9 @@ namespace mock {
 
 class Socket_events : public iface::Socket_events {
  public:
+  Socket_events();
+  virtual ~Socket_events() override;
+
   MOCK_METHOD(bool, listen,
               (std::shared_ptr<iface::Socket>,
                std::function<void(iface::Connection_acceptor &)>),

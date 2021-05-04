@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -65,30 +65,6 @@ enum class MySQLColumnType {
   STRING = 0xfe,
   GEOMETRY = 0xff
 };
-
-/** @brief Struct for keeping column specific data
- *
- **/
-struct column_info_type {
-  std::string name;
-  MySQLColumnType type;
-  std::string orig_name;
-  std::string table;
-  std::string orig_table;
-  std::string schema;
-  std::string catalog;
-  uint16_t flags;
-  uint8_t decimals;
-  uint32_t length;
-  uint16_t character_set;
-
-  unsigned repeat;
-};
-
-/** @brief Vector for keeping has_value|string representation of the values
- *         of the single row (ordered by column)
- **/
-using RowValueType = std::vector<std::pair<bool, std::string>>;
 
 }  // namespace server_mock
 

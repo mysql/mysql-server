@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -138,6 +138,11 @@ static struct my_option my_long_options[] =
     "Local bind address",
     (uchar**) &opts.bind_address, (uchar**) &opts.bind_address, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
+  { "cluster-config-suffix", NDB_OPT_NOSHORT,
+    "Override defaults-group-suffix when reading cluster_config sections in "
+    "my.cnf.",
+    &opts.cluster_config_suffix, &opts.cluster_config_suffix, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "configdir", NDB_OPT_NOSHORT,
     "Directory for the binary configuration files (alias for --config-dir)",
     (uchar**) &opts.configdir, (uchar**) &opts.configdir, 0,
@@ -193,6 +198,14 @@ static void mgmd_exit(int result)
 
   ndb_daemon_exit(result);
 }
+
+#ifndef _WIN32
+static void mgmd_sigterm_handler(int signum)
+{
+  g_eventLogger->info("Received SIGTERM. Performing stop.");
+  mgmd_exit(0);
+}
+#endif
 
 struct ThreadData
 {
@@ -328,7 +341,7 @@ static int mgmd_main(int argc, char** argv)
   printf("MySQL Cluster Management Server %s\n", NDB_VERSION_STRING);
 
   int ho_error;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   opt_debug= IF_WIN("d:t:i:F:o,c:\\ndb_mgmd.trace",
                     "d:t:i:F:o,/tmp/ndb_mgmd.trace");
 #endif
@@ -413,6 +426,7 @@ static int mgmd_main(int argc, char** argv)
    */
 #ifndef _WIN32
   signal(SIGPIPE, SIG_IGN);
+  signal(SIGTERM, mgmd_sigterm_handler);
 #endif
 
   while (!g_StopServer)

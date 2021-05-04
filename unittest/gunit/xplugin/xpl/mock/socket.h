@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,9 @@ namespace mock {
 
 class Socket : public iface::Socket {
  public:
+  Socket();
+  virtual ~Socket() override;
+
   MOCK_METHOD(int, bind, (const struct sockaddr *, socklen_t), (override));
   MOCK_METHOD(MYSQL_SOCKET, accept,
               (PSI_socket_key, struct sockaddr *, socklen_t *), (override));

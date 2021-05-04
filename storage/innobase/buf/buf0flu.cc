@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -690,8 +690,9 @@ bool buf_flush_ready_for_replace(buf_page_t *bpage) {
   ut_ad(bpage->in_LRU_list);
 
   if (!buf_page_in_file(bpage)) {
-    ib::fatal(ER_IB_MSG_123) << "Buffer block " << bpage << " state "
-                             << bpage->state << " in the LRU list!";
+    ib::fatal(ER_IB_MSG_123)
+        << "Buffer block " << bpage << " state "
+        << static_cast<unsigned>(bpage->state) << " in the LRU list!";
   }
 
   /* We can't replace a page that is fixed in any way.*/
@@ -705,7 +706,17 @@ bool buf_flush_ready_for_replace(buf_page_t *bpage) {
   return !bpage->is_dirty();
 }
 
-bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
+/** Check if the block was modified and was ready for flushing.
+This is a common part of the logic of buf_flush_was_ready_for_flush() and
+buf_flush_ready_for_flush() which differ by the tolerance for stale result.
+@param[in]	bpage		buffer control block, must be buf_page_in_file()
+@param[in]	flush_type	type of flush
+@param[in]      atomic          false if the caller can tolerate stale data,
+                                true if the caller needs accurate answer, which
+                                requires the caller to hold buf_page_get_mutex.
+@return true if page seems ready for flush */
+static bool buf_flush_ready_for_flush_gen(buf_page_t *bpage,
+                                          buf_flush_t flush_type, bool atomic) {
 #ifdef UNIV_DEBUG
   auto buf_pool = buf_pool_from_bpage(bpage);
 
@@ -717,17 +728,25 @@ bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
        buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 #endif /* UNIV_DEBUG */
 
+  /*As buf_flush_insert_into_flush_list() acquires SYNC_BUF_BLOCK after
+  SYNC_BUF_FLUSH_LIST, the latch ordering prevents buf_do_flush_list_batch()
+  from acquiring SYNC_BUF_BLOCK after SYNC_BUF_FLUSH_LIST taken for iterating
+  over the flush_list. Thus for BUF_FLUSH_LIST we first perform a heuristic
+  check with atomic==false, and if it looks ready to flush, we relatch, and
+  recheck under proper mutex protection. In all other cases we already have
+  the block_mutex.
+  However, for BUF_LRU_LIST if we are called with atomic==false, then we will
+  have the block mutex which will allow us to provide exact answer, even if we
+  don't require it to be so (because atomic==false), and this is not required to
+  have flush_list mutex in such situation.*/
   ut_ad(mutex_own(buf_page_get_mutex(bpage)) ||
-        (flush_type == BUF_FLUSH_LIST && buf_flush_list_mutex_own(buf_pool)));
+        (!atomic && flush_type == BUF_FLUSH_LIST &&
+         buf_flush_list_mutex_own(buf_pool)));
 
   ut_ad(flush_type < BUF_FLUSH_N_TYPES);
 
-  if (bpage->was_stale()) {
-    return true;
-  }
-
   if (!bpage->is_dirty() ||
-      buf_page_get_io_fix_unlocked(bpage) != BUF_IO_NONE) {
+      (atomic ? bpage->get_io_fix() != BUF_IO_NONE : bpage->was_io_fixed())) {
     return false;
   }
 
@@ -745,6 +764,20 @@ bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
   }
 
   ut_error;
+}
+
+/** Check if the block was modified and was ready for flushing at some point in
+time during the call. Result might be obsolete.
+@param[in]	bpage		buffer control block, must be buf_page_in_file()
+@param[in]	flush_type	type of flush
+@return true if can flush immediately */
+static bool buf_flush_was_ready_for_flush(buf_page_t *bpage,
+                                          buf_flush_t flush_type) {
+  return buf_flush_ready_for_flush_gen(bpage, flush_type, false);
+}
+
+bool buf_flush_ready_for_flush(buf_page_t *bpage, buf_flush_t flush_type) {
+  return buf_flush_ready_for_flush_gen(bpage, flush_type, true);
 }
 
 /** Remove a block from the flush list of modified blocks.
@@ -1159,7 +1192,7 @@ static void buf_flush_write_block_low(buf_page_t *bpage, buf_flush_t flush_type,
   flush_list or LRU_list. */
   ut_ad(!buf_flush_list_mutex_own(buf_pool));
   ut_ad(!buf_page_get_mutex(bpage)->is_owned());
-  ut_ad(buf_page_get_io_fix_unlocked(bpage) == BUF_IO_WRITE);
+  ut_ad(bpage->is_io_fix_write());
   ut_ad(bpage->is_dirty());
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -1627,7 +1660,9 @@ static bool buf_flush_page_and_try_neighbors(buf_page_t *bpage,
        buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 #endif /* UNIV_DEBUG */
 
-  if (buf_flush_ready_for_flush(bpage, flush_type)) {
+  /* This is just a heuristic check, perhaps without block mutex latch, so we
+  will repeat the check with block mutexes in buf_flush_try_neighbors. */
+  if (buf_flush_was_ready_for_flush(bpage, flush_type)) {
     buf_pool_t *buf_pool;
 
     buf_pool = buf_pool_from_bpage(bpage);
@@ -2042,19 +2077,6 @@ void buf_flush_wait_batch_end(buf_pool_t *buf_pool, buf_flush_t flush_type) {
   }
 }
 
-/** Do flushing batch of a given type.
-NOTE: The calling thread is not allowed to own any latches on pages!
-@param[in,out]	buf_pool	buffer pool instance
-@param[in]	type		flush type
-@param[in]	min_n		wished minimum number of blocks flushed
-(it is not guaranteed that the actual number is that big, though)
-@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
-oldest_modification is smaller than this should be flushed (if their number
-does not exceed min_n), otherwise ignored
-@param[out]	n_processed	the number of pages which were processed is
-passed back to caller. Ignored if NULL
-@retval true	if a batch was queued successfully.
-@retval false	if another batch of same type was already running. */
 bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
                         lsn_t lsn_limit, ulint *n_processed) {
   ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
@@ -2078,22 +2100,6 @@ bool buf_flush_do_batch(buf_pool_t *buf_pool, buf_flush_t type, ulint min_n,
   return (true);
 }
 
-/** This utility flushes dirty blocks from the end of the flush list of all
-buffer pool instances.
-NOTE: The calling thread is not allowed to own any latches on pages!
-@param[in]	min_n		wished minimum number of blocks flushed
-                                (it is not guaranteed that the actual number
-                                is that big, though)
-@param[in]	lsn_limit	in the case BUF_FLUSH_LIST all blocks whose
-                                oldest_modification is smaller than this
-                                should be flushed (if their number does not
-                                exceed min_n), otherwise ignored
-@param[out]	n_processed	the number of pages which were processed is
-                                passed back to caller. Ignored if NULL.
-
-@return true if a batch was queued successfully for each buffer pool
-instance. false if another batch of same type was already running in
-at least one of the buffer pool instance */
 bool buf_flush_lists(ulint min_n, lsn_t lsn_limit, ulint *n_processed) {
   ulint n_flushed = 0;
   bool success = true;
@@ -3093,7 +3099,7 @@ static void buf_flush_page_cleaner_disabled_loop(void) {
   while (innodb_page_cleaner_disabled_debug &&
          srv_shutdown_state.load() < SRV_SHUTDOWN_CLEANUP &&
          page_cleaner->is_running) {
-    os_thread_sleep(100000); /* [A] */
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); /* [A] */
   }
 
   /* We need to wait for threads exiting here, otherwise we would
@@ -3176,7 +3182,7 @@ void buf_flush_page_cleaner_disabled_debug_update(THD *thd, SYS_VAR *var,
 
     mutex_exit(&page_cleaner->mutex);
 
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
 #endif /* UNIV_DEBUG */
@@ -3487,7 +3493,7 @@ static void buf_flush_page_coordinator_thread(size_t n_page_cleaners) {
 
     /* We sleep only if there are no pages to flush */
     if (n_flushed == 0) {
-      os_thread_sleep(100000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   } while (srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE);
 
@@ -3812,7 +3818,7 @@ void FlushObserver::flush() {
   /* Wait for all dirty pages were flushed. */
   for (ulint i = 0; i < srv_buf_pool_instances; i++) {
     while (!is_complete(i)) {
-      os_thread_sleep(2000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
     }
   }
 }

@@ -19,7 +19,7 @@ Warnings:
 Warning	3778	'utf8_spanish_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
 SELECT @@collation_server, @@character_set_server;
 @@collation_server	@@character_set_server
-utf8_spanish_ci	utf8
+utf8_spanish_ci	utf8mb3
 '--check if collation_server effects database/table charset/collation--'
 SET @@session.collation_server = latin1_german1_ci;
 CREATE DATABASE db1;

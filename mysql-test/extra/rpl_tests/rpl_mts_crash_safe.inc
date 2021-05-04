@@ -106,12 +106,12 @@ if ($commands == recovery)
   SET GLOBAL debug="+d,mts_distribute_round_robin";
   --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
   --error 0, 2013
-  START SLAVE SQL_THREAD;
+  START REPLICA SQL_THREAD;
   --source include/wait_until_disconnected.inc
 
   #### MTS can not relay-log-recover in presense of gaps that the test creates
   #### The server has to be restarted with  --relay-log-recovery = 0 followed by
-  #### START SLAVE UNTIL SQL_AFTER_MTS_GAPS.
+  #### START REPLICA UNTIL SQL_AFTER_MTS_GAPS.
 
   if ($mts_run)
   {
@@ -121,7 +121,7 @@ if ($commands == recovery)
 
     --source include/rpl_start_server.inc
 
-    START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
+    START REPLICA UNTIL SQL_AFTER_MTS_GAPS;
     --let $slave_param= Until_Condition
     --let $slave_param_value= DONE
     --source include/wait_for_slave_param.inc

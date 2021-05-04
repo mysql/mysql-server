@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -842,18 +842,18 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
                                       dict_table_t *dd_indexes);
 
 /** Process one mysql.tablespaces record and get info
-@param[in]      heap            temp memory heap
-@param[in,out]  rec	            mysql.tablespaces record
-@param[in,out]	space_id        space id
-@param[in,out]  name            space name
-@param[in,out]  flags           space flags
-@param[in,out]  server_version  server version
-@param[in,out]  space_version   space version
-@param[in]      is_encrypted    true if tablespace is encrypted
-@param[in]      autoextend_size autoextend_size attribute value
-@param[in,out]  state           space state
-@param[in]      dd_spaces       dict_table_t obj of mysql.tablespaces
-@return true if data is retrived */
+@param[in]  heap            temp memory heap
+@param[in]  rec             mysql.tablespaces record
+@param[out] space_id        space id
+@param[out] name            space name
+@param[out] flags           space flags
+@param[out] server_version  server version
+@param[out] space_version   space version
+@param[out] is_encrypted    true if tablespace is encrypted
+@param[out] autoextend_size autoextend_size attribute value
+@param[out] state           space state
+@param[in]  dd_spaces       dict_table_t obj of mysql.tablespaces
+@return true if data is retrieved */
 bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
                                    uint32_t *flags, uint32 *server_version,

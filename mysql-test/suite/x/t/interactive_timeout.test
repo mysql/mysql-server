@@ -7,7 +7,7 @@
 
 ###################################################################
 
---write_file $MYSQL_TMP_DIR/mysqlx-timeouting-interactive.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-timeouting-interactive.xpl
 -->import assert_variable.macro
 
 -->callmacro Assert_session_variable	mysqlx_wait_timeout	5
@@ -50,7 +50,7 @@ exec $MYSQLXTEST
   --user temp_user
   --password='auth_string'
   --client-interactive
-  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-interactive.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-interactive.xpl 2>&1;
 
 let $wait_condition=
     SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
@@ -66,7 +66,7 @@ exec $MYSQLXTEST
   --password='auth_string'
   --ssl-mode=REQUIRED
   --client-interactive
-  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-interactive.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-interactive.xpl 2>&1;
 
 let $wait_condition=
     SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
@@ -77,6 +77,6 @@ let $wait_condition=
 # Cleanup
 SET GLOBAL mysqlx_interactive_timeout = DEFAULT;
 SET GLOBAL mysqlx_wait_timeout = DEFAULT;
---remove_file $MYSQL_TMP_DIR/mysqlx-timeouting-interactive.tmp
+--source ../include/xplugin_cleanup.inc
 
 DROP USER temp_user@localhost;

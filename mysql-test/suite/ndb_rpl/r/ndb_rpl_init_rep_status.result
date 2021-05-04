@@ -15,11 +15,10 @@ Initial state
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos
 Ndb_slave_max_replicated_epoch: 0
-select @slave_server_id:= @@server_id;
-@slave_server_id:= @@server_id
+set @slave_server_id:= @@server_id;
+select @slave_server_id;
+@slave_server_id
 2
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Default, no data, max replicated epoch will be 0.
 reset slave;
 Warnings:

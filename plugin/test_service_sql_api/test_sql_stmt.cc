@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -313,7 +313,8 @@ static int handle_start_column_metadata(void *pctx, uint num_cols, uint,
   WRITE_STR("handle_start_column_metadata\n");
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info",
+             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
 
   ctx->tables.push_back(Table(num_cols, resultcs));

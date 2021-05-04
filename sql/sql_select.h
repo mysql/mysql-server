@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,13 @@
   @file sql/sql_select.h
 */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <climits>
 
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "my_table_map.h"
@@ -50,7 +51,7 @@ class JOIN_TAB;
 class KEY;
 class QEP_TAB;
 class Query_result;
-class SELECT_LEX;
+class Query_block;
 class Select_lex_visitor;
 class SJ_TMP_TABLE;
 class Temp_table_param;
@@ -623,7 +624,7 @@ class JOIN_TAB : public QEP_shared_owner {
     - otherwise, pointer is the address of some TABLE_LIST::m_join_cond.
       Thus, the pointee is the same as TABLE_LIST::m_join_cond (changing one
       changes the other; thus, optimizations made on the second are reflected
-      in SELECT_LEX::print_table_array() which uses the first one).
+      in Query_block::print_table_array() which uses the first one).
   */
   Item **m_join_cond_ref;
 
@@ -754,7 +755,7 @@ inline JOIN_TAB::JOIN_TAB()
       reversed_access(false) {}
 
 /* Extern functions in sql_select.cc */
-void count_field_types(SELECT_LEX *select_lex, Temp_table_param *param,
+void count_field_types(const Query_block *query_block, Temp_table_param *param,
                        const mem_root_deque<Item *> &fields,
                        bool reset_with_sum_func, bool save_sum_fields);
 uint find_shortest_key(TABLE *table, const Key_map *usable_keys);
@@ -769,7 +770,7 @@ enum aggregate_evaluated {
   AGGR_EMPTY      // Source tables empty, aggregates are NULL or 0 (for COUNT)
 };
 
-bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
+bool optimize_aggregated_query(THD *thd, Query_block *select,
                                const mem_root_deque<Item *> &all_fields,
                                Item *conds, aggregate_evaluated *decision);
 
@@ -868,15 +869,15 @@ bool error_if_full_join(JOIN *join);
 bool set_statement_timer(THD *thd);
 void reset_statement_timer(THD *thd);
 
-void free_underlaid_joins(THD *thd, SELECT_LEX *select);
+void free_underlaid_joins(THD *thd, Query_block *select);
 
 void calc_used_field_length(TABLE *table, bool needs_rowid,
                             uint *p_used_fieldlength);
 
 ORDER *simple_remove_const(ORDER *order, Item *where);
-bool const_expression_in_where(Item *cond, Item *comp_item,
-                               const Field *comp_field = nullptr,
-                               Item **const_item = nullptr);
+bool check_field_is_const(Item *cond, const Item *order_item,
+                          const Field *order_field = nullptr,
+                          Item **const_item = nullptr);
 bool test_if_subpart(ORDER *a, ORDER *b);
 void calc_group_buffer(JOIN *join, ORDER *group);
 bool make_join_readinfo(JOIN *join, uint no_jbuf_after);
@@ -901,13 +902,13 @@ bool and_conditions(Item **e1, Item *e2);
   @return the new AND item
 */
 static inline Item *and_items(Item *cond, Item *item) {
-  DBUG_ASSERT(item != nullptr);
+  assert(item != nullptr);
   return (cond ? (new Item_cond_and(cond, item)) : item);
 }
 
 /// A variant of the above, guaranteed to return Item_bool_func.
 static inline Item_bool_func *and_items(Item *cond, Item_bool_func *item) {
-  DBUG_ASSERT(item != nullptr);
+  assert(item != nullptr);
   return (cond ? (new Item_cond_and(cond, item)) : item);
 }
 
@@ -947,6 +948,25 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
                               table_map *dep_map, bool *maybe_null);
 
 /**
+  Initialize the given TABLE_REF; setting basic fields and allocating memory
+  for arrays. Call init_ref_part() for each keypart (index field) that is to
+  take part in the ref lookup.
+ */
+bool init_ref(THD *thd, unsigned keyparts, unsigned length, unsigned keyno,
+              TABLE_REF *ref);
+
+/**
+  Initialize a given keypart in the table ref. In particular, sets up the
+  right function pointer to copy the value from “val” into the ref at
+  execution time (or copies the value right now, if it is constant).
+ */
+bool init_ref_part(THD *thd, unsigned part_no, Item *val, bool *cond_guard,
+                   bool null_rejecting, table_map const_tables,
+                   table_map used_tables, bool nullable,
+                   const KEY_PART_INFO *key_part_info, uchar *key_buff,
+                   TABLE_REF *ref);
+
+/**
   Set up the support structures (NULL bits, row offsets, etc.) for a semijoin
   duplicate weedout table. The object is allocated on the given THD's MEM_ROOT.
 
@@ -959,5 +979,15 @@ void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
 SJ_TMP_TABLE *create_sj_tmp_table(THD *thd, JOIN *join,
                                   SJ_TMP_TABLE_TAB *first_tab,
                                   SJ_TMP_TABLE_TAB *last_tab);
+
+/**
+  Returns key flags depending on
+  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS flag.
+
+  @param  key_info  pointer to KEY structure
+
+  @return key flags.
+ */
+uint actual_key_flags(const KEY *key_info);
 
 #endif /* SQL_SELECT_INCLUDED */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -134,31 +134,6 @@ mysql_harness::TCPAddress BasePluginConfig::get_option_tcp_address(
   }
 
   return {address, port};
-}
-
-int BasePluginConfig::get_option_tcp_port(
-    const mysql_harness::ConfigSection *section, const std::string &option) {
-  auto value = get_option_string(section, option);
-
-  if (!value.empty()) {
-    char *rest;
-    errno = 0;
-    auto result = std::strtol(value.c_str(), &rest, 0);
-
-    if (errno > 0 || *rest != '\0' || result > UINT16_MAX || result < 1) {
-      std::ostringstream os;
-      os << get_log_prefix(option)
-         << " needs value between 1 and 65535 inclusive";
-      if (!value.empty()) {
-        os << ", was '" << value << "'";
-      }
-      throw std::invalid_argument(os.str());
-    }
-
-    return static_cast<int>(result);
-  }
-
-  return -1;
 }
 
 mysql_harness::Path BasePluginConfig::get_option_named_socket(

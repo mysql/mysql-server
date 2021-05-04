@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,10 @@
 #include <mysql/psi/mysql_thread.h>
 
 #include "my_dbug.h"
+#include "sql/field.h"
 #include "sql/mysqld.h"  // LOCK_global_system_variables
+#include "sql/partition_info.h"
+#include "sql/table.h"
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 #include "storage/ndb/plugin/ha_ndbcluster_connection.h"
 #include "storage/ndb/plugin/ndb_require.h"
@@ -97,7 +100,7 @@ struct Ndb_index_stat {
   NdbIndexStat *is;
   int index_id;
   int index_version;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char id[32];
 #endif
   time_t access_time;  /* by any table handler */
@@ -262,7 +265,7 @@ static void ndb_index_stat_opt2str(const Ndb_index_stat_opt &opt, char *str) {
 
     switch (v.unit) {
       case Ndb_index_stat_opt::Ubool: {
-        DBUG_ASSERT(v.val == 0 || v.val == 1);
+        assert(v.val == 0 || v.val == 1);
         if (v.val == 0)
           snprintf(ptr, sz, "%s%s=0", sep, v.name);
         else
@@ -305,7 +308,7 @@ static void ndb_index_stat_opt2str(const Ndb_index_stat_opt &opt, char *str) {
       } break;
 
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -396,7 +399,7 @@ static int ndb_index_stat_option_parse(char *p, Ndb_index_stat_opt &opt) {
       } break;
 
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -668,7 +671,7 @@ Ndb_index_stat::Ndb_index_stat() {
   is = 0;
   index_id = 0;
   index_version = 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   memset(id, 0, sizeof(id));
 #endif
   access_time = 0;
@@ -868,7 +871,7 @@ static Ndb_index_stat *ndb_index_stat_alloc(const NDBINDEX *index,
     st->is = is;
     st->index_id = index->getObjectId();
     st->index_version = index->getObjectVersion();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     snprintf(st->id, sizeof(st->id), "%d.%d", st->index_id, st->index_version);
 #endif
     if (is->set_index(*index, *table) == 0) return st;
@@ -1169,7 +1172,7 @@ struct Ndb_index_stat_proc {
   int lt;
   bool busy;
   bool end;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uint cache_query_bytes;
   uint cache_clean_bytes;
 #endif
@@ -1558,7 +1561,7 @@ static void ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt) {
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   for (uint i = 0; i < st_lru_cnt; i++) {
     Ndb_index_stat *st1 = st_lru_arr[i];
     assert(!st1->to_delete && st1->share != 0);
@@ -1736,7 +1739,7 @@ static void ndb_index_stat_proc_event(Ndb_index_stat_proc &pr) {
   DBUG_PRINT("index_stat", ("poll_listener ret: %d", ret));
   if (ret == -1) {
     // wl4124_todo report error
-    DBUG_ASSERT(false);
+    assert(false);
     return;
   }
   if (ret == 0) return;
@@ -1746,7 +1749,7 @@ static void ndb_index_stat_proc_event(Ndb_index_stat_proc &pr) {
     DBUG_PRINT("index_stat", ("next_listener ret: %d", ret));
     if (ret == -1) {
       // wl4124_todo report error
-      DBUG_ASSERT(false);
+      assert(false);
       return;
     }
     if (ret == 0) break;
@@ -1795,7 +1798,7 @@ static void ndb_index_stat_proc_control() {
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static void ndb_index_stat_entry_verify(Ndb_index_stat_proc &pr,
                                         const Ndb_index_stat *st) {
   const NDB_SHARE *share = st->share;
@@ -1899,7 +1902,7 @@ static void ndb_index_stat_proc(Ndb_index_stat_proc &pr) {
 
   ndb_index_stat_proc_control();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ndb_index_stat_list_verify(pr);
   Ndb_index_stat_glob old_glob = ndb_index_stat_glob;
 #endif
@@ -1916,7 +1919,7 @@ static void ndb_index_stat_proc(Ndb_index_stat_proc &pr) {
   ndb_index_stat_proc_error(pr);
   ndb_index_stat_proc_event(pr);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   ndb_index_stat_list_verify(pr);
   ndb_index_stat_report(old_glob);
 #endif
@@ -2021,7 +2024,7 @@ int Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
 
   Ndb *ndb = NULL;
   do {
-    ndb = new (std::nothrow) Ndb(connection, "");
+    ndb = new (std::nothrow) Ndb(connection, NDB_INDEX_STAT_DB);
     if (ndb == nullptr) {
       log_error("failed to create Ndb object");
       break;
@@ -2035,12 +2038,6 @@ int Ndb_index_stat_thread::create_ndb(Ndb_index_stat_proc &pr,
 
     if (ndb->init() != 0) {
       log_error("failed to init Ndb, error: %d", ndb->getNdbError().code);
-      break;
-    }
-
-    if (ndb->setDatabaseName(NDB_INDEX_STAT_DB) != 0) {
-      log_error("failed to set database '%s', error: %d", NDB_INDEX_STAT_DB,
-                ndb->getNdbError().code);
       break;
     }
 
@@ -2339,7 +2336,7 @@ static int ndb_index_stat_wait_query(Ndb_index_stat *st,
     */
     if (st->load_time != snap.load_time ||
         st->sample_version != snap.sample_version) {
-      DBUG_ASSERT(false);
+      assert(false);
       err = NdbIndexStat::NoIndexStats;
       break;
     }
@@ -2388,7 +2385,7 @@ static int ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     if (st->sample_version > snap.sample_version) break;
     if (st->error_count != snap.error_count) {
       /* A new error has occurred */
-      DBUG_ASSERT(st->error_count > snap.error_count);
+      assert(st->error_count > snap.error_count);
       err = st->error.code;
       glob.analyze_error++;
       break;
@@ -2399,7 +2396,7 @@ static int ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     */
     if (st->load_time != snap.load_time ||
         st->sample_version != snap.sample_version) {
-      DBUG_ASSERT(false);
+      assert(false);
       err = NdbIndexStat::AlienUpdate;
       break;
     }
@@ -2515,13 +2512,18 @@ int ha_ndbcluster::ndb_index_stat_get_rir(uint inx, key_range *min_key,
   NdbIndexStat::Stat stat(stat_buffer);
   int err = ndb_index_stat_query(inx, min_key, max_key, stat, 1);
   if (err == 0) {
+    /*
+     * TODO: 'Rows in range' estimates will be inaccurate for
+     * 'pruned-scan' ranges. Need to be solved in a way similar to
+     * ::ndb_index_stat_set_rpk()
+     */
     double rir = -1.0;
     NdbIndexStat::get_rir(stat, &rir);
     ha_rows rows = ndb_index_stat_round(rir);
     /* Estimate only so cannot return exact zero */
     if (rows == 0) rows = 1;
     *rows_out = rows;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     char rule[NdbIndexStat::RuleBufferBytes];
     NdbIndexStat::get_rule(stat, rule);
 #endif
@@ -2540,12 +2542,64 @@ int ha_ndbcluster::ndb_index_stat_set_rpk(uint inx) {
   const key_range *max_key = 0;
   const int err = ndb_index_stat_query(inx, min_key, max_key, stat, 2);
   if (err == 0) {
+    /**
+     * Check quality of index_stat before it is used to set RPK.
+     * Index_stat is sampled over only one of the fragments of the table.
+     * Thus it might not correctly represent the table contents if
+     * the number of rows sampled is too small.
+     */
+    Uint32 rows;
+    NdbIndexStat::get_numrows(stat, &rows);
+    if (rows <= 2) {  // '2' is just picked as some very small number
+      /**
+       * Decided to not use this index statistics. Optimizer will instead
+       * use heuristics based on the total number of records in the table.
+       */
+      DBUG_PRINT("index_stat", ("Too few rows sampled for: %s",
+                                m_index[inx].index->getName()));
+      return 0;
+    }
     KEY *key_info = table->key_info + inx;
+    const KEY_PART_INFO *key_part_info = key_info->key_part;
+    const uint num_part_fields =
+        bitmap_bits_set(&m_part_info->full_part_field_set);
+    uint num_part_fields_found = 0;
     for (uint k = 0; k < key_info->user_defined_key_parts; k++) {
-      double rpk = -1.0;
-      NdbIndexStat::get_rpk(stat, k, &rpk);
-      key_info->set_records_per_key(k, static_cast<rec_per_key_t>(rpk));
-#ifndef DBUG_OFF
+      double rpk = REC_PER_KEY_UNKNOWN;  // unknown -> -1.0
+      const uint field_index = key_part_info[k].field->field_index();
+      if (bitmap_is_set(&m_part_info->full_part_field_set, field_index)) {
+        num_part_fields_found++;
+      }
+      if ((k == (key_info->user_defined_key_parts - 1)) &&
+          (get_index_type(inx) == UNIQUE_ORDERED_INDEX ||
+           get_index_type(inx) == PRIMARY_KEY_ORDERED_INDEX)) {
+        /**
+         * All key fields in a UQ/PK are specified. No need to consult
+         * index stat to know that only a single row will be returned.
+         */
+        rpk = 1.0;
+      } else {
+        if (num_part_fields_found >= num_part_fields) {
+          /**
+           * The records per key calculation assumes independence between
+           * distribution of data and key columns. This is true as long as
+           * the key parts don't set the entire partion key. In this case
+           * the records per key as calculated by one fragment is the
+           * records per key also for the entire table since different
+           * fragments will have its own set of unique key values in this
+           * case. For more information on this see NdbIndexStatImpl.cpp
+           * and the method iterative_solution and get_unp_factor.
+           */
+          assert(num_part_fields_found == num_part_fields);
+          NdbIndexStat::get_rpk_pruned(stat, k, &rpk);
+        } else {
+          NdbIndexStat::get_rpk(stat, k, &rpk);
+        }
+      }
+      if (rpk != REC_PER_KEY_UNKNOWN) {
+        key_info->set_records_per_key(k, static_cast<rec_per_key_t>(rpk));
+      }
+#ifndef NDEBUG
       char rule[NdbIndexStat::RuleBufferBytes];
       NdbIndexStat::get_rule(stat, rule);
 #endif

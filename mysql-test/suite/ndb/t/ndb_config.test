@@ -69,6 +69,15 @@ echo == 19 == bug12712109;
 # From a data node
 --exec $NDB_CONFIG --system --config-from-node=2 --query=ConfigGenerationNumber
 
+--echo #
+--echo # Bug#32247424 SHOW CLUSTER CONFIG GENERATION
+--echo # - Config generation number used to configure the NdbApi
+--echo #   is available as status variable in mysqld
+--echo #
+SELECT VARIABLE_VALUE FROM performance_schema.global_status
+  WHERE VARIABLE_NAME = 'Ndb_config_generation';
+SHOW STATUS LIKE 'Ndb_config_generation';
+
 echo == 21 == ThreadConfig;
 --replace_regex /.*\[ndb_config\]//
 --exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_threadconfig.ini --query=NodeId,LockExecuteThreadToCPU,ThreadConfig 2>&1
@@ -102,3 +111,8 @@ echo == 24 == Bug 21280428;
 echo == 25 == Bug25675643;
 # Check system name
 --exec $NDB_CONFIG --config-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_config.ini --system --query=name 2>&1
+
+echo == 26 == Bug32175157;
+--replace_regex /.*\[ndb_config\]//
+--error 255
+--exec $NDB_CONFIG_EXE --defaults-group-suffix=.bug32175157 --defaults-file=$MYSQL_TEST_DIR/suite/ndb/ndb_config_mycnf1.cnf --mycnf 2>&1

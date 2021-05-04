@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,12 +46,7 @@ class ClassicProtocolSplicer : public BasicSplicer {
         client_protocol_{std::make_unique<ClassicProtocolState>()},
         server_protocol_{std::make_unique<ClassicProtocolState>()} {}
 
-  bool start() override {
-    server_channel()->want_recv(4);
-
-    // read packets from server first.
-    return false;
-  }
+  void start() override {}
 
   State server_greeting() override;
   State client_greeting() override;

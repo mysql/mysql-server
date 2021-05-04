@@ -125,7 +125,7 @@ server_id
 2
 4
 select
-@result:=count(1)
+count(1)
 from
 performance_schema.global_status,
 mysql.ndb_apply_status
@@ -134,11 +134,10 @@ server_id = 1
 and
 variable_name='Ndb_slave_max_replicated_epoch'
     and
-variable_value = epoch;
-@result:=count(1)
+variable_value = epoch into @result;
+select @result;
+@result
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Now make a new Cluster A change and see that the Max Replicated Epoch advances
 once it has propagated
 Master1 (3)

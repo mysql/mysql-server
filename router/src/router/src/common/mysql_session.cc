@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,7 @@ using namespace std::string_literals;
 /*static*/ const std::function<void(unsigned, MYSQL_FIELD *)>
     MySQLSession::null_field_validator = [](unsigned, MYSQL_FIELD *) {};
 
-MySQLSession::MySQLSession(std::unique_ptr<LoggingStrategy> &&logging_strategy)
+MySQLSession::MySQLSession(std::unique_ptr<LoggingStrategy> logging_strategy)
     : logging_strategy_(std::move(logging_strategy)) {
   MySQLClientThreadToken api_token;
 
@@ -117,60 +117,49 @@ void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
                                    const std::string &capath,
                                    const std::string &crl,
                                    const std::string &crlpath) {
-  if (!ssl_cipher.empty() && mysql_options(connection_, MYSQL_OPT_SSL_CIPHER,
-                                           ssl_cipher.c_str()) != 0) {
+  if (!ssl_cipher.empty() && !set_option(SslCipher(ssl_cipher.c_str()))) {
     throw Error(("Error setting SSL_CIPHER option for MySQL connection: " +
-                 std::string(mysql_error(connection_)))
-                    .c_str(),
+                 std::string(mysql_error(connection_))),
                 mysql_errno(connection_));
   }
 
-  if (!tls_version.empty() && mysql_options(connection_, MYSQL_OPT_TLS_VERSION,
-                                            tls_version.c_str()) != 0) {
+  if (!tls_version.empty() && !set_option(TlsVersion(tls_version.c_str()))) {
     throw Error("Error setting TLS_VERSION option for MySQL connection",
                 mysql_errno(connection_));
   }
 
-  if (!ca.empty() &&
-      mysql_options(connection_, MYSQL_OPT_SSL_CA, ca.c_str()) != 0) {
+  if (!ca.empty() && !set_option(SslCa(ca.c_str()))) {
     throw Error(("Error setting SSL_CA option for MySQL connection: " +
-                 std::string(mysql_error(connection_)))
-                    .c_str(),
+                 std::string(mysql_error(connection_))),
                 mysql_errno(connection_));
   }
 
-  if (!capath.empty() &&
-      mysql_options(connection_, MYSQL_OPT_SSL_CAPATH, capath.c_str()) != 0) {
+  if (!capath.empty() && !set_option(SslCaPath(capath.c_str()))) {
     throw Error(("Error setting SSL_CAPATH option for MySQL connection: " +
-                 std::string(mysql_error(connection_)))
-                    .c_str(),
+                 std::string(mysql_error(connection_))),
                 mysql_errno(connection_));
   }
 
-  if (!crl.empty() &&
-      mysql_options(connection_, MYSQL_OPT_SSL_CRL, crl.c_str()) != 0) {
+  if (!crl.empty() && !set_option(SslCrl(crl.c_str()))) {
     throw Error(("Error setting SSL_CRL option for MySQL connection: " +
-                 std::string(mysql_error(connection_)))
-                    .c_str(),
+                 std::string(mysql_error(connection_))),
                 mysql_errno(connection_));
   }
 
-  if (!crlpath.empty() &&
-      mysql_options(connection_, MYSQL_OPT_SSL_CRLPATH, crlpath.c_str()) != 0) {
+  if (!crlpath.empty() && !set_option(SslCrlPath(crlpath.c_str()))) {
     throw Error(("Error setting SSL_CRLPATH option for MySQL connection: " +
-                 std::string(mysql_error(connection_)))
-                    .c_str(),
+                 std::string(mysql_error(connection_))),
                 mysql_errno(connection_));
   }
 
   // this has to be the last option that gets set due to what appears to be a
   // bug in libmysql causing ssl_mode downgrade from REQUIRED if other options
   // (like tls_version) are also specified
-  if (mysql_options(connection_, MYSQL_OPT_SSL_MODE, &ssl_mode) != 0) {
+  if (!set_option(SslMode(ssl_mode))) {
     const char *text = ssl_mode_to_string(ssl_mode);
     std::string msg = std::string("Setting SSL mode to '") + text +
                       "' on connection failed: " + mysql_error(connection_);
-    throw Error(msg.c_str(), mysql_errno(connection_));
+    throw Error(msg, mysql_errno(connection_));
   }
 
   // archive options for future connection templating
@@ -180,11 +169,9 @@ void MySQLSession::set_ssl_options(mysql_ssl_mode ssl_mode,
 
 void MySQLSession::set_ssl_cert(const std::string &cert,
                                 const std::string &key) {
-  if (mysql_options(connection_, MYSQL_OPT_SSL_CERT, cert.c_str()) != 0 ||
-      mysql_options(connection_, MYSQL_OPT_SSL_KEY, key.c_str()) != 0) {
-    throw Error(("Error setting client SSL certificate for connection: " +
-                 std::string(mysql_error(connection_)))
-                    .c_str(),
+  if (!set_option(SslCert(cert.c_str())) || !set_option(SslKey(key.c_str()))) {
+    throw Error("Error setting client SSL certificate for connection: " +
+                    std::string(mysql_error(connection_)),
                 mysql_errno(connection_));
   }
 
@@ -203,8 +190,8 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
 
   // Following would fail only when invalid values are given. It is not possible
   // for the user to change these values.
-  mysql_options(connection_, MYSQL_OPT_CONNECT_TIMEOUT, &connect_timeout);
-  mysql_options(connection_, MYSQL_OPT_READ_TIMEOUT, &read_timeout);
+  set_option(ConnectTimeout(connect_timeout));
+  set_option(ReadTimeout(read_timeout));
 
   if (unix_socket.length() > 0) {
 #ifdef _WIN32
@@ -213,8 +200,7 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
     protocol = MYSQL_PROTOCOL_SOCKET;
 #endif
   }
-  mysql_options(connection_, MYSQL_OPT_PROTOCOL,
-                reinterpret_cast<char *>(&protocol));
+  set_option(Protocol(protocol));
 
   const unsigned long client_flags =
       (CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_PROTOCOL_41 |
@@ -229,7 +215,7 @@ void MySQLSession::connect(const std::string &host, unsigned int port,
     ss << "Error connecting to MySQL server at " << tmp_conn_addr;
     ss << ": " << mysql_error(connection_) << " (" << mysql_errno(connection_)
        << ")";
-    throw Error(ss.str().c_str(), mysql_errno(connection_));
+    throw Error(ss.str(), mysql_errno(connection_));
   }
   connected_ = true;
   connection_address_ = tmp_conn_addr;
@@ -328,10 +314,29 @@ MySQLSession::real_query(const std::string &q) {
 
 stdx::expected<MySQLSession::mysql_result_type, MysqlError>
 MySQLSession::logged_real_query(const std::string &q) {
-  logging_strategy_->log("Executing query: "s + log_filter_.filter(q));
-  auto query_res = real_query(q);
+  using clock_type = std::chrono::steady_clock;
 
-  logging_strategy_->log("Done executing query");
+  auto start = clock_type::now();
+  auto query_res = real_query(q);
+  auto dur = clock_type::now() - start;
+  auto msg =
+      get_address() + " (" +
+      std::to_string(
+          std::chrono::duration_cast<std::chrono::microseconds>(dur).count()) +
+      " us)> " + log_filter_.filter(q);
+  if (query_res) {
+    auto const *res = query_res.value().get();
+
+    msg += " // OK";
+    if (res) {
+      msg += " " + std::to_string(res->row_count) + " row" +
+             (res->row_count != 1 ? "s" : "");
+    }
+  } else {
+    auto err = query_res.error();
+    msg += " // ERROR: " + std::to_string(err.value()) + " " + err.message();
+  }
+  logging_strategy_->log(msg);
 
   return query_res;
 }
@@ -352,7 +357,8 @@ void MySQLSession::execute(const std::string &q) {
 }
 
 /*
-  Execute query on the session and iterate the results with the given callback.
+  Execute query on the session and iterate the results with the given
+  callback.
 
   The processor callback is called with a vector of strings, which conain the
   values of each field of a row. It is called once per row.

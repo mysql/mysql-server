@@ -6,20 +6,19 @@
 --source include/have_multi_ndb.inc
 --source suite/ndb/include/backup_restore_setup.inc
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-# Create utiltity table used to hold the output from ndb_show_table
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(255)
-);
+# Create view which displays all user tables.
+# NOTE! Uses a format which is backward compatible with the output
+# from "ndb_show_tables" previously used by this test - for example names
+# have surrounding quotes.
+--disable_query_log ONCE
+CREATE VIEW ndb_show_tables_results AS
+  SELECT
+    id,
+    /* Hardcoded since only user tables are selected */
+    'UserTable' AS type,
+    /* Table name is last part of fq_name */
+    CONCAT("'", CONCAT(SUBSTRING_INDEX(fq_name, "/", -1), "'")) AS name
+  FROM ndbinfo.dict_obj_info WHERE type = 2 /* User table */;
 
 ######################################
 # online alter column
@@ -31,7 +30,6 @@ CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
 CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED, e INT UNIQUE, f TEXT) ROW_FORMAT=DYNAMIC ENGINE NDB;
 INSERT INTO t1 values (1,1,1,"One");
 
---source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
 --echo ***************************************
@@ -40,7 +38,6 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 
 ALTER TABLE t1 CHANGE b c INT UNSIGNED ;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
 --let $ndb_desc_opts= -b -i -d test t1
@@ -51,7 +48,6 @@ SELECT * FROM t1 ORDER BY a;
 
 ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE c D INT UNSIGNED;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
 
 --let $ndb_desc_opts= -b -i -d test t1
@@ -62,7 +58,6 @@ SELECT * FROM t1 ORDER BY a;
 
 ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE D d INT UNSIGNED;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
 
 --let $ndb_desc_opts= -b -i -d test t1
@@ -73,7 +68,6 @@ SELECT * FROM t1 ORDER BY a;
 
 ALTER TABLE t1 ALGORITHM=INPLACE, CHANGE f t TEXT;
 
---source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%'#and type like '%UserTable%';
 
 --let $ndb_desc_opts= -b -i -d test t1
@@ -151,3 +145,6 @@ DROP TABLE t1;
 
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
+
+--disable_query_log ONCE
+DROP VIEW ndb_show_tables_results;

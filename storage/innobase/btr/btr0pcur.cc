@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -114,20 +114,33 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
 }
 
 void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
-  ut_free(dst->m_old_rec_buf);
+  {
+    const auto dst_old_rec_buf = dst->m_old_rec_buf;
+    const auto dst_buf_size = dst->m_buf_size;
 
-  dst->m_old_rec_buf = nullptr;
+    memcpy(dst, src, sizeof(*dst));
 
-  memcpy(dst, src, sizeof(*dst));
+    dst->m_old_rec_buf = dst_old_rec_buf;
+    dst->m_buf_size = dst_buf_size;
+  }
 
-  if (src->m_old_rec_buf != nullptr) {
-    dst->m_old_rec_buf = static_cast<byte *>(ut_malloc_nokey(src->m_buf_size));
+  if (src->m_old_rec != nullptr) {
+    /* We have an old buffer, but it is too small. */
+    if (dst->m_old_rec_buf != nullptr && dst->m_buf_size < src->m_buf_size) {
+      ut_free(dst->m_old_rec_buf);
+      dst->m_old_rec_buf = nullptr;
+    }
+    /* We don't have a buffer, but we should have one. */
+    if (dst->m_old_rec_buf == nullptr) {
+      dst->m_old_rec_buf =
+          static_cast<byte *>(ut_malloc_nokey(src->m_buf_size));
+      dst->m_buf_size = src->m_buf_size;
+    }
 
     memcpy(dst->m_old_rec_buf, src->m_old_rec_buf, src->m_buf_size);
 
     dst->m_old_rec = dst->m_old_rec_buf + (src->m_old_rec - src->m_old_rec_buf);
   }
-
   dst->m_old_n_fields = src->m_old_n_fields;
 }
 

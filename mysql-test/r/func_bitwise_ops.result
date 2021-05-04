@@ -1708,9 +1708,6 @@ SELECT 1 FROM t WHERE ~reverse(a & NULL);
 1
 SELECT 1 FROM t WHERE insert(a & NULL,'','','');
 1
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
 SELECT 1 FROM t WHERE rtrim(a & NULL);
 1
 SELECT (SELECT a & NULL from t);

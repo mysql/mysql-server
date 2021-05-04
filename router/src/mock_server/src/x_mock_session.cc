@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 #include "x_mock_session.h"
 
+#include <memory>
 #include <thread>
 #include <tuple>
 
@@ -180,6 +181,9 @@ MySQLXProtocol::get_notice_message(const unsigned id,
     case Mysqlx::Notice::Frame_Type_GROUP_REPLICATION_STATE_CHANGED: {
       return gr_state_changed_from_json(payload);
     }
+    case Mysqlx::Notice::Frame_Type_SERVER_HELLO:
+      return std::unique_ptr<xcl::XProtocol::Message>(
+          std::make_unique<Mysqlx::Notice::ServerHello>());
     // those we currently not use, if needed add a function encoding json
     // string to the selected message type
     case Mysqlx::Notice::Frame_Type_WARNING:
@@ -214,15 +218,22 @@ void MySQLXProtocol::send_async_notice(const AsyncNotice &async_notice) {
 MySQLServerMockSessionX::MySQLServerMockSessionX(
     MySQLXProtocol *protocol,
     std::unique_ptr<StatementReaderBase> statement_processor,
-    const bool debug_mode)
+    const bool debug_mode, bool with_tls)
     : MySQLServerMockSession(protocol, std::move(statement_processor),
                              debug_mode),
       async_notices_(this->json_reader_->get_async_notices()),
-      protocol_{protocol} {}
+      protocol_{protocol},
+      with_tls_{with_tls} {}
 
 bool MySQLServerMockSessionX::process_handshake() {
   xcl::XProtocol::Client_message_type_id out_msg_id;
   bool done = false;
+
+  protocol_->send_async_notice(
+      {{},                                       // send_offset_ms
+       Mysqlx::Notice::Frame_Type_SERVER_HELLO,  // type
+       false,                                    // is_local
+       {}});                                     // payload
 
   while (!done) {
     auto msg = protocol_->recv_single_message(&out_msg_id);
@@ -238,11 +249,22 @@ bool MySQLServerMockSessionX::process_handshake() {
           if (capability.name() == "tls") tls_request = true;
         }
 
-        // we do not support TLS so if the client requested it
-        // we need to reject it
         if (tls_request) {
-          protocol_->send_error(ER_X_CAPABILITIES_PREPARE_FAILED,
-                                "Capability prepare failed for tls");
+          if (with_tls_) {
+            Mysqlx::Ok ok_msg;
+            protocol_->send_message(Mysqlx::ServerMessages::OK, ok_msg);
+
+            protocol_->init_tls();
+            auto tls_accept_res = protocol_->tls_accept();
+            if (!tls_accept_res) {
+              throw std::system_error(tls_accept_res.error());
+            }
+
+            json_reader_->set_session_ssl_info(protocol_->ssl());
+          } else {
+            protocol_->send_error(ER_X_CAPABILITIES_PREPARE_FAILED,
+                                  "Capability prepare failed for tls");
+          }
         } else {
           Mysqlx::Ok ok_msg;
           protocol_->send_message(Mysqlx::ServerMessages::OK, ok_msg);
@@ -251,6 +273,21 @@ bool MySQLServerMockSessionX::process_handshake() {
       }
       case Mysqlx::ClientMessages::CON_CAPABILITIES_GET: {
         Mysqlx::Connection::Capabilities msg_capab;
+
+        if (with_tls_) {
+          auto scalar = new Mysqlx::Datatypes::Scalar;
+          scalar->set_type(Mysqlx::Datatypes::Scalar_Type::Scalar_Type_V_BOOL);
+          scalar->set_v_bool(true);
+
+          auto any = new Mysqlx::Datatypes::Any;
+          any->set_type(Mysqlx::Datatypes::Any_Type::Any_Type_SCALAR);
+          any->set_allocated_scalar(scalar);
+
+          auto *tls_cap = msg_capab.add_capabilities();
+          tls_cap->set_name("tls");
+          tls_cap->set_allocated_value(any);
+        }
+
         protocol_->send_message(Mysqlx::ServerMessages::CONN_CAPABILITIES,
                                 msg_capab);
         break;
@@ -287,7 +324,7 @@ bool MySQLServerMockSessionX::process_statements() {
 
   while (!killed()) {
     send_due_async_notices(start_time);
-    auto readable_res = protocol_->socket_has_data(kTimerResolution);
+    auto readable_res = protocol_->wait_until_socket_has_data(kTimerResolution);
 
     if (!readable_res) {
       // got terminated by the mainloop.
@@ -307,7 +344,7 @@ bool MySQLServerMockSessionX::process_statements() {
         harness_assert(msg_stmt_execute != nullptr);
         const auto statement_received = msg_stmt_execute->stmt();
         try {
-          handle_statement(json_reader_->handle_statement(statement_received));
+          json_reader_->handle_statement(statement_received, protocol_);
         } catch (const std::exception &e) {
           // handling statement failed. Return the error to the client
           std::this_thread::sleep_for(json_reader_->get_default_exec_time());
@@ -376,10 +413,11 @@ void MySQLXProtocol::send_resultset(const ResultsetResponse &response,
     }
     Mysqlx::Resultset::Row row_msg;
     for (const auto &field : row) {
-      const bool is_null = !field.first;
+      const bool is_null = !field;
       protocol_encoder_.encode_row_field(
-          row_msg, protocol_encoder_.column_type_to_x(response.columns[i].type),
-          field.second, is_null);
+          row_msg,
+          protocol_encoder_.column_type_to_x(response.columns[i].type()),
+          field.value(), is_null);
     }
     send_message(Mysqlx::ServerMessages::RESULTSET_ROW, row_msg);
   }

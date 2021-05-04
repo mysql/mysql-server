@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -87,6 +87,11 @@ class DestRoundRobin : public RouteDestination {
    * @return size_t
    */
   size_t size_quarantine();
+
+  void stop_listening_router_socket() {
+    if (stop_router_socket_acceptor_callback_)
+      stop_router_socket_acceptor_callback_();
+  }
 
   friend QuanrantinableDestination;
 

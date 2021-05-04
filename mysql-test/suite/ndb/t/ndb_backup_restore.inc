@@ -93,14 +93,9 @@ while ($i)
 
 if ($snapshotstart)
 {
-  --echo "Starting backup as nowait,snapshotstart"
-  --source suite/ndb/t/ndb_backup_nowait_snapshotstart_start.inc
+  let $start_backup_extra = SNAPSHOTSTART;
 }
-if (!$snapshotstart)
-{
-  --echo "Starting backup as nowait"
-  --source suite/ndb/t/ndb_backup_nowait_start.inc
-}
+--source suite/ndb/t/ndb_backup_nowait_start.inc
 
 --echo "Update tables during backup"
 --disable_query_log
@@ -139,9 +134,9 @@ drop table t6;
 drop table t7;
 drop table t8;
 drop table t9;
+--enable_query_log
 
 --source include/ndb_backup_id.inc
---enable_query_log
 
 if (!$serialrestore)
 {

@@ -1,7 +1,7 @@
 #
 # BUG#22516559 MYSQL INSTANCE STALLS WHEN SYNCING FTS INDEX
 #
-
+--source include/big_test.inc
 --source include/have_debug_sync.inc
 --source include/not_valgrind.inc
 --source include/not_crashrep.inc

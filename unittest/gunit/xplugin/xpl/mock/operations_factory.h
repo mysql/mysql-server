@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,9 @@ namespace mock {
 
 class Operations_factory : public iface::Operations_factory {
  public:
+  Operations_factory();
+  virtual ~Operations_factory() override;
+
   MOCK_METHOD(std::shared_ptr<iface::Socket>, create_socket,
               (PSI_socket_key, int, int, int), (override));
   MOCK_METHOD(std::shared_ptr<iface::Socket>, create_socket, (MYSQL_SOCKET),

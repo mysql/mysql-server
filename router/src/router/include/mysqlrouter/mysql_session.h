@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,6 +60,95 @@ class MysqlError {
   std::string sql_state_;
 };
 
+namespace impl {
+/**
+ * gettable, settable option for mysql_option's.
+ *
+ * adapts scalar types like int/bool/... mysql_option's to
+ * mysql_options()/mysql_get_option().
+ *
+ * - mysql_options() expects a '&int'
+ * - mysql_get_option() expects a '&int'
+ */
+template <mysql_option Opt, class ValueType>
+class Option {
+ public:
+  using value_type = ValueType;
+
+  constexpr Option() = default;
+  constexpr explicit Option(value_type v) : v_{std::move(v)} {}
+
+  // get the option id
+  constexpr mysql_option option() const noexcept { return Opt; }
+
+  // get address of the storage.
+  constexpr const void *data() const { return std::addressof(v_); }
+
+  // get address of the storage.
+  constexpr void *data() { return std::addressof(v_); }
+
+  // set the value of the option
+  constexpr void value(value_type v) { v_ = v; }
+
+  // get the value of the option
+  constexpr value_type value() const { return v_; }
+
+ private:
+  value_type v_{};
+};
+
+/**
+ * gettable, settable option for 'const char *' based mysql_option's.
+ *
+ * adapts 'const char *' based mysql_option to
+ * mysql_options()/mysql_get_option().
+ *
+ * - mysql_options() expects a 'const char *'
+ * - mysql_get_option() expects a '&(const char *)'
+ */
+template <mysql_option Opt>
+class Option<Opt, const char *> {
+ public:
+  using value_type = const char *;
+
+  Option() = default;
+  constexpr explicit Option(value_type v) : v_{std::move(v)} {}
+
+  constexpr mysql_option option() const noexcept { return Opt; }
+
+  constexpr const void *data() const { return v_; }
+
+  constexpr void *data() { return std::addressof(v_); }
+
+  constexpr void value(value_type v) { v_ = v; }
+
+  constexpr value_type value() const { return v_; }
+
+ private:
+  value_type v_{};
+};
+
+template <mysql_option Opt>
+class Option<Opt, std::nullptr_t> {
+ public:
+  using value_type = std::nullptr_t;
+
+  Option() = default;
+  // accept a void *, but ignore it.
+  constexpr explicit Option(value_type) {}
+
+  constexpr mysql_option option() const noexcept { return Opt; }
+
+  constexpr const void *data() const { return nullptr; }
+
+  constexpr void *data() { return nullptr; }
+
+  constexpr value_type value() const { return nullptr; }
+};
+}  // namespace impl
+
+// mysql_options() may be used with MYSQL * == nullptr to get global values.
+
 class MySQLSession {
  public:
   static const int kDefaultConnectTimeout = 15;
@@ -103,6 +192,75 @@ class MySQLSession {
       int read_timeout;
     } conn_opts;
   };
+
+  //
+  // mysql_option's
+  //
+  // (sorted by appearance in documentation)
+
+  // type for mysql_option's which set/get a 'bool'
+  template <mysql_option Opt>
+  using BooleanOption = impl::Option<Opt, bool>;
+
+  // type for mysql_option's which set/get a 'unsigned int'
+  template <mysql_option Opt>
+  using IntegerOption = impl::Option<Opt, unsigned int>;
+
+  // type for mysql_option's which set/get a 'unsigned long'
+  template <mysql_option Opt>
+  using LongOption = impl::Option<Opt, unsigned long>;
+
+  // type for mysql_option's which set/get a 'const char *'
+  template <mysql_option Opt>
+  using ConstCharOption = impl::Option<Opt, const char *>;
+
+  using DefaultAuthentication = ConstCharOption<MYSQL_DEFAULT_AUTH>;
+  using EnableCleartextPlugin = BooleanOption<MYSQL_ENABLE_CLEARTEXT_PLUGIN>;
+  using InitCommand = ConstCharOption<MYSQL_INIT_COMMAND>;
+  using BindAddress = ConstCharOption<MYSQL_OPT_BIND>;
+  using CanHandleExpiredPasswords =
+      BooleanOption<MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS>;
+  using Compress = BooleanOption<MYSQL_OPT_COMPRESS>;
+  using CompressionAlgorithms =
+      ConstCharOption<MYSQL_OPT_COMPRESSION_ALGORITHMS>;
+  using ConnectAttributeReset = BooleanOption<MYSQL_OPT_CONNECT_ATTR_RESET>;
+  using ConnectAttributeDelete = BooleanOption<MYSQL_OPT_CONNECT_ATTR_DELETE>;
+  using ConnectTimeout = IntegerOption<MYSQL_OPT_CONNECT_TIMEOUT>;
+  using GetServerPublicKey = BooleanOption<MYSQL_OPT_GET_SERVER_PUBLIC_KEY>;
+  using LoadDataLocalDir = ConstCharOption<MYSQL_OPT_LOAD_DATA_LOCAL_DIR>;
+  using LocalInfile = IntegerOption<MYSQL_OPT_LOCAL_INFILE>;
+  using MaxAllowedPacket = LongOption<MYSQL_OPT_MAX_ALLOWED_PACKET>;
+  using NamedPipe = BooleanOption<MYSQL_OPT_NAMED_PIPE>;
+  using NetBufferLength = LongOption<MYSQL_OPT_NET_BUFFER_LENGTH>;
+  using OptionalResultsetMetadata =
+      BooleanOption<MYSQL_OPT_OPTIONAL_RESULTSET_METADATA>;
+  // TCP/UnixSocket/...
+  using Protocol = IntegerOption<MYSQL_OPT_PROTOCOL>;
+  using ReadTimeout = IntegerOption<MYSQL_OPT_READ_TIMEOUT>;
+  using Reconnect = BooleanOption<MYSQL_OPT_RECONNECT>;
+  using RetryCount = IntegerOption<MYSQL_OPT_RETRY_COUNT>;
+  using SslCa = ConstCharOption<MYSQL_OPT_SSL_CA>;
+  using SslCaPath = ConstCharOption<MYSQL_OPT_SSL_CAPATH>;
+  using SslCert = ConstCharOption<MYSQL_OPT_SSL_CERT>;
+  using SslCipher = ConstCharOption<MYSQL_OPT_SSL_CIPHER>;
+  using SslCrl = ConstCharOption<MYSQL_OPT_SSL_CRL>;
+  using SslCrlPath = ConstCharOption<MYSQL_OPT_SSL_CRLPATH>;
+  using SslFipsMode = IntegerOption<MYSQL_OPT_SSL_FIPS_MODE>;
+  using SslKey = ConstCharOption<MYSQL_OPT_SSL_KEY>;
+  using SslMode = IntegerOption<MYSQL_OPT_SSL_MODE>;
+  using TlsCipherSuites = ConstCharOption<MYSQL_OPT_TLS_CIPHERSUITES>;
+  using TlsVersion = ConstCharOption<MYSQL_OPT_TLS_VERSION>;
+  using WriteTimeout = IntegerOption<MYSQL_OPT_WRITE_TIMEOUT>;
+  using ZstdCompressionLevel = IntegerOption<MYSQL_OPT_ZSTD_COMPRESSION_LEVEL>;
+
+  using PluginDir = ConstCharOption<MYSQL_PLUGIN_DIR>;
+  using ReportDataTruncation = BooleanOption<MYSQL_REPORT_DATA_TRUNCATION>;
+  using ServerPluginKey = ConstCharOption<MYSQL_SERVER_PUBLIC_KEY>;
+  using ReadDefaultFile = ConstCharOption<MYSQL_READ_DEFAULT_FILE>;
+  using ReadDefaultGroup = ConstCharOption<MYSQL_READ_DEFAULT_GROUP>;
+  using CharsetDir = ConstCharOption<MYSQL_SET_CHARSET_DIR>;
+  using CharsetName = ConstCharOption<MYSQL_SET_CHARSET_NAME>;
+  using SharedMemoryBasename = ConstCharOption<MYSQL_SHARED_MEMORY_BASE_NAME>;
 
   class Transaction {
    public:
@@ -180,7 +338,7 @@ class MySQLSession {
     virtual void log(const std::string &msg) override;
   };
 
-  MySQLSession(std::unique_ptr<LoggingStrategy> &&logging_strategy =
+  MySQLSession(std::unique_ptr<LoggingStrategy> logging_strategy =
                    std::make_unique<LoggingStrategyNone>());
   virtual ~MySQLSession();
 
@@ -198,6 +356,54 @@ class MySQLSession {
 
   // throws Error
   virtual void set_ssl_cert(const std::string &cert, const std::string &key);
+
+  /**
+   * set a mysql option.
+   *
+   * @code
+   * auto res = set_option(ConnectTimeout(10));
+   * @endcode
+   *
+   * @note on error the MysqlError may not always contain the right error-code.
+   *
+   * @param [in] opt option to set.
+   * @returns a MysqlError on error
+   * @retval true on success
+   */
+  template <class SettableMysqlOption>
+  stdx::expected<void, MysqlError> set_option(const SettableMysqlOption &opt) {
+    if (0 != mysql_options(connection_, opt.option(), opt.data())) {
+      return stdx::make_unexpected(MysqlError(mysql_errno(connection_),
+                                              mysql_error(connection_),
+                                              mysql_sqlstate(connection_)));
+    }
+
+    return {};
+  }
+
+  /**
+   * get a mysql option.
+   *
+   * @code
+   * ConnectTimeout opt_connect_timeout;
+   * auto res = get_option(opt_connect_timeout);
+   * if (res) {
+   *   std::cerr << opt_connect_timeout.value() << std::endl;
+   * }
+   * @endcode
+   *
+   * @param [in,out] opt option to query.
+   * @retval true on success.
+   * @retval false if option is not known.
+   */
+  template <class GettableMysqlOption>
+  stdx::expected<void, void> get_option(GettableMysqlOption &opt) {
+    if (0 != mysql_get_option(connection_, opt.option(), opt.data())) {
+      return stdx::make_unexpected();
+    }
+
+    return {};
+  }
 
   virtual void connect(const std::string &host, unsigned int port,
                        const std::string &username, const std::string &password,

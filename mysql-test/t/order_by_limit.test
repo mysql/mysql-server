@@ -186,9 +186,11 @@ CREATE TABLE t1 (
   KEY col_varchar_key_2 (col_varchar_key(5))
 );
 
+# Note: The optimizer is free to pick either one of the rows with
+# col_int=3, so they need to sort the same on col_varchar_key.
 INSERT INTO t1 VALUES (1,2,'t'), (2,5,'efqsdksj'),
        (3,NULL,'fqsdksjijcs'),(4,8,'qsdksjijc'),
-       (5,40,NULL),(6,3,'sdksji'),(7,2,NULL),
+       (5,40,NULL),(6,3,'dkz'),(7,2,NULL),
        (8,3,'dks'),(9,0,'ksjijcsz'),
        (10,84,'sjijcszxwbjj');
 
@@ -203,6 +205,7 @@ LIMIT 100;
 ANALYZE TABLE t1;
 SET @@SESSION.sql_mode='NO_ENGINE_SUBSTITUTION';
 eval EXPLAIN $query1;
+--skip_if_hypergraph
 eval $query1;
 
 DROP TABLE t1;

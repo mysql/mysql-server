@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,7 @@ extern const char *global_plugin_typelib_names[];
 extern mysql_mutex_t LOCK_plugin;
 extern mysql_mutex_t LOCK_plugin_delete;
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 #define plugin_ref_to_int(A) A
 #define plugin_int_to_ref(A) A
 #else

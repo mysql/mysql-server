@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -481,9 +481,9 @@ NdbOperation::setValue( const NdbColumnImpl* tAttrInfo,
 			const char* aValuePassed)
 {
   DBUG_ENTER("NdbOperation::setValue");
-  DBUG_PRINT("enter", ("col: %s  op:%d  val: 0x%lx",
+  DBUG_PRINT("enter", ("col: %s  op:%d  val: %p",
                        tAttrInfo ? tAttrInfo->m_name.c_str() : "NULL",
-                       theOperationType, (long) aValuePassed));
+                       theOperationType, aValuePassed));
 
   int tReturnCode;
   Uint32 tAttrId;

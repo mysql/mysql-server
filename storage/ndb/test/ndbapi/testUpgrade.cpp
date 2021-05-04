@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1502,6 +1502,9 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    *   so when we enter here, this is already tested
    */
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
 
   ndbout << "Starting backup..." << flush;
   if (backup.start() != 0)
@@ -2245,8 +2248,8 @@ runSkipIfCannotKeepFS(NDBT_Context* ctx, NDBT_Step* step)
     if (isDowngrade &&
         versionsSpanBoundary(preVersion, postVersion, problemBoundary))
     {
-      ndbout_c("Cannot run with these versions as they do not support "
-               "non initial downgrades (WL#12876)");
+      ndbout_c("Cannot run with these versions as data nodes require "
+               "initial restart for downgrades(WL#12876)");
       return NDBT_SKIPPED;
     }
   }

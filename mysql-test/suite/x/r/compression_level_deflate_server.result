@@ -101,6 +101,5 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA xtest;
 SET GLOBAL mysqlx_deflate_max_client_compression_level=DEFAULT;
 SET GLOBAL mysqlx_compression_algorithms=DEFAULT;

@@ -37,5 +37,4 @@ let $wait_timeout= 300;
 --echo Success, there is only one session left
 
 ## Cleanup
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -1,4 +1,4 @@
--- Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+-- Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -159,7 +159,7 @@ ALTER TABLE proxies_priv MODIFY User char(32) binary DEFAULT '' NOT NULL;
 ALTER TABLE proxies_priv MODIFY Proxied_user char(32) binary DEFAULT '' NOT NULL;
 ALTER TABLE proxies_priv MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL, ENGINE=InnoDB;
 ALTER TABLE proxies_priv MODIFY Proxied_host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
-ALTER TABLE proxies_priv MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+ALTER TABLE proxies_priv MODIFY Grantor varchar(288) DEFAULT '' NOT NULL;
 
 #
 #  Add Create_tmp_table_priv and Lock_tables_priv to db
@@ -268,8 +268,8 @@ SET GLOBAL slow_query_log = @old_log_state;
 
 SET @@session.sql_require_primary_key = @old_sql_require_primary_key;
 ALTER TABLE plugin
-  MODIFY name varchar(64) COLLATE utf8_general_ci NOT NULL DEFAULT '',
-  MODIFY dl varchar(128) COLLATE utf8_general_ci NOT NULL DEFAULT '',
+  MODIFY name varchar(64) DEFAULT '' NOT NULL,
+  MODIFY dl varchar(128) DEFAULT '' NOT NULL,
   CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 #
@@ -370,7 +370,7 @@ ALTER TABLE procs_priv
 
 ALTER TABLE procs_priv
   ADD Routine_type enum('FUNCTION','PROCEDURE')
-    COLLATE utf8_general_ci NOT NULL AFTER Routine_name;
+    NOT NULL AFTER Routine_name;
 
 ALTER TABLE procs_priv
   MODIFY Timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER Proc_priv;
@@ -813,17 +813,17 @@ ALTER TABLE gtid_executed STATS_PERSISTENT=0;
 # This column is needed  for multi-source replication
 #
 ALTER TABLE slave_master_info
-  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name);
 
 ALTER TABLE slave_relay_log_info
-  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name);
 
 ALTER TABLE slave_worker_info
-  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL DEFAULT '' COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  ADD Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY(Channel_name, Id);
 
@@ -897,7 +897,7 @@ ALTER TABLE slave_relay_log_info ADD Privilege_checks_username CHAR(32) COLLATE 
                                  ADD Privilege_checks_hostname CHAR(255) CHARACTER SET ascii COLLATE ascii_general_ci DEFAULT NULL COMMENT 'Hostname part of PRIVILEGE_CHECKS_USER.' AFTER Privilege_checks_username;
 
 # Columns added to keep information about REQUIRE_ROW_FORMAT replication field
-ALTER TABLE slave_relay_log_info ADD Require_row_format BOOLEAN DEFAULT 0 COMMENT 'Indicates whether the channel shall only accept row based events.' AFTER Privilege_checks_hostname;
+ALTER TABLE slave_relay_log_info ADD Require_row_format BOOLEAN NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.' AFTER Privilege_checks_hostname;
 
 ALTER TABLE slave_relay_log_info MODIFY Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the current relay log file.',
                                  MODIFY Relay_log_pos BIGINT UNSIGNED COMMENT 'The relay log position of the last executed event.',
@@ -1352,11 +1352,12 @@ ALTER TABLE password_history
 MODIFY Host CHAR(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
 
 ALTER TABLE servers
-MODIFY Host char(255) CHARACTER SET ASCII NOT NULL DEFAULT '';
+MODIFY Host char(255) CHARACTER SET ASCII NOT NULL DEFAULT '',
+MODIFY Port INT NOT NULL DEFAULT '0';
 
 ALTER TABLE tables_priv
 MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
-MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+MODIFY Grantor varchar(288) DEFAULT '' NOT NULL;
 
 ALTER TABLE columns_priv
 MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL;
@@ -1366,7 +1367,7 @@ MODIFY Host CHAR(255) CHARACTER SET ASCII COMMENT 'The host name of the master.'
 
 ALTER TABLE procs_priv
 MODIFY Host char(255) CHARACTER SET ASCII DEFAULT '' NOT NULL,
-MODIFY Grantor varchar(288) binary DEFAULT '' NOT NULL;
+MODIFY Grantor varchar(288) DEFAULT '' NOT NULL;
 
 # Update the table row format to DYNAMIC
 ALTER TABLE columns_priv ROW_FORMAT=DYNAMIC;
@@ -1438,3 +1439,54 @@ FROM mysql.user WHERE Reload_priv = 'Y' AND @hadFlushTablesPriv = 0;
 COMMIT;
 
 SET @@session.sql_mode = @old_sql_mode;
+
+-- Fixes to inconsistent system table upgrades.
+ALTER TABLE func
+  MODIFY ret tinyint DEFAULT '0' NOT NULL;
+
+ALTER TABLE gtid_executed
+  CONVERT TO CHARACTER SET utf8mb4;
+
+ALTER TABLE slave_master_info
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  MODIFY Bind TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'Displays which interface is employed when connecting to the MySQL server',
+  MODIFY Ignored_server_ids TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The number of server IDs to be ignored, followed by the actual server IDs',
+  MODIFY Uuid TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The master server uuid.',
+  MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT 'The name of the master binary log currently being read from the master.',
+  MODIFY Ssl_ca TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Authority (CA) certificate.',
+  MODIFY Ssl_capath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path to the Certificate Authority (CA) certificates.',
+  MODIFY Ssl_cert TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL certificate file.',
+  MODIFY Ssl_cipher TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the cipher in use for the SSL connection.',
+  MODIFY Ssl_key TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The name of the SSL key file.',
+  MODIFY Ssl_crl TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The file used for the Certificate Revocation List (CRL)',
+  MODIFY Ssl_crlpath TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The path used for Certificate Revocation List (CRL) files',
+  MODIFY User_name TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The user name used to connect to the master.',
+  MODIFY User_password TEXT CHARACTER SET utf8 COLLATE utf8_bin COMMENT 'The password used to connect to the master.';
+
+ALTER TABLE slave_relay_log_info
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication';
+
+ALTER TABLE slave_worker_info
+  MODIFY Channel_name CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL COMMENT 'The channel on which the slave is connected to a source. Used in Multisource Replication',
+  MODIFY Relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  MODIFY Master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  MODIFY Checkpoint_relay_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  MODIFY Checkpoint_master_log_name TEXT CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  MODIFY Checkpoint_group_bitmap BLOB NOT NULL;
+
+ALTER TABLE slave_relay_log_info
+  MODIFY Require_row_format BOOLEAN NOT NULL COMMENT 'Indicates whether the channel shall only accept row based events.';
+
+ALTER TABLE procs_priv
+  MODIFY Routine_type enum('FUNCTION', 'PROCEDURE') NOT NULL;
+
+ALTER TABLE user
+  MODIFY max_updates int unsigned DEFAULT 0 NOT NULL,
+  MODIFY max_connections int unsigned DEFAULT 0 NOT NULL,
+  MODIFY max_user_connections int unsigned DEFAULT 0  NOT NULL,
+  MODIFY ssl_cipher BLOB NOT NULL,
+  MODIFY x509_issuer BLOB NOT NULL,
+  MODIFY x509_subject BLOB NOT NULL;
+
+ALTER TABLE time_zone
+  MODIFY Use_leap_seconds enum('Y','N') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL;

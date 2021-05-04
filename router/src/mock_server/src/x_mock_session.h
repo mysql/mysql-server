@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -83,7 +83,7 @@ class MySQLServerMockSessionX : public MySQLServerMockSession {
   MySQLServerMockSessionX(
       MySQLXProtocol *protocol,
       std::unique_ptr<StatementReaderBase> statement_processor,
-      const bool debug_mode);
+      const bool debug_mode, bool with_tls);
 
   /**
    * process the handshake of the current connection.
@@ -113,6 +113,8 @@ class MySQLServerMockSessionX : public MySQLServerMockSession {
  private:
   std::vector<AsyncNotice> async_notices_;
   MySQLXProtocol *protocol_;
+
+  bool with_tls_{false};
 };
 
 }  // namespace server_mock

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2010, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -861,7 +861,7 @@ loop:
   }
 
   if (doc_item == nullptr) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
 
   row_merge_fts_get_next_doc_item(psort_info, &doc_item);

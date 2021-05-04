@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -768,7 +768,7 @@ void trx_recovery_rollback_thread() {
     if (srv_shutdown_state.load() >= SRV_SHUTDOWN_RECOVERY_ROLLBACK) {
       break;
     }
-    os_thread_sleep(1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
   trx_rollback_or_clean_recovered(TRUE);

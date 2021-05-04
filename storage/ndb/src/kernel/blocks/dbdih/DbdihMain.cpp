@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4825,6 +4825,15 @@ void Dbdih::execINCL_NODEREQ(Signal* signal)
     setNoSend();
   }
 
+  /*
+   * Reset default fragments per node which may depend the LDM count of all
+   * alive nodes.
+   */
+  if (m_use_classic_fragmentation)
+  {
+    c_fragments_per_node_ = 0;
+  }
+
   /*-------------------------------------------------------------------------*/
   //      WE WILL ALSO SEND THE INCLUDE NODE REQUEST TO THE LOCAL LQH BLOCK.
   /*-------------------------------------------------------------------------*/
@@ -5820,7 +5829,8 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
                  (nodePtr.p->nodeRecoveryStatus ==
                   NodeRecord::NODE_FAILURE_COMPLETED));
       check_node_not_restarted_yet(nodePtr);
-      if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_FAILURE_COMPLETED)
+      if (nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_NOT_RESTARTED_YET ||
+          nodePtr.p->nodeRecoveryStatus == NodeRecord::NODE_FAILURE_COMPLETED)
       {
         jam();
         nodePtr.p->allocatedNodeIdTime = current_time;
@@ -9997,6 +10007,15 @@ void Dbdih::execNODE_FAILREP(Signal* signal)
       insertDeadNode(TNodePtr);
     }//if
   }//for
+
+  /*
+   * Reset default fragments per node which may depend the LDM count of all
+   * alive nodes.
+   */
+  if (m_use_classic_fragmentation)
+  {
+    c_fragments_per_node_ = 0;
+  }
 
   /*-------------------------------------------------------------------------*/
   // Verify that we can continue to operate the cluster. If we cannot we will
@@ -24924,7 +24943,7 @@ void Dbdih::initRestartInfo(Signal* signal)
   } while (nodePtr.i != RNIL);
 
   Uint32 startGci = 1;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #ifdef NDB_USE_GET_ENV
   {
     char envBuf[256];

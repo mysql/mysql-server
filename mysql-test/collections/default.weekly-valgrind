@@ -1,8 +1,12 @@
 # Collection for valgrind platform on weekly-trunk
 # Run all suites with big-test and debug-server option
 # Run rpl tests separately.
-perl mysql-test-run.pl --timer --debug-server --force --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30
-perl mysql-test-run.pl --timer --only-big-test --parallel=6 --debug-server --force --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30
+perl mysql-test-run.pl --timer --debug-server --force --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30 --skip-ndb
+perl mysql-test-run.pl --timer --only-big-test --parallel=6 --debug-server --force --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30 --skip-ndb
+# Run all ndb tests separately.
+# If no Ndb support, no tests will be attempted.
+perl mysql-test-run.pl --timer --debug-server --force --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30 --with-ndb-only
+perl mysql-test-run.pl --timer --only-big-test --parallel=6 --debug-server --force --skip-rpl --comment=all_default_valgrind --vardir=var-all_default_valgrind --max-test-fail=30 --with-ndb-only
 # Run rpl suites with explict --parallel
 perl mysql-test-run.pl --timer --big-test --debug-server --force --parallel=6 --comment=rpl-valgrind --vardir=var-rpl-valgrind --suite=rpl,rpl_gtid,rpl_nogtid
 

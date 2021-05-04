@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -3283,12 +3283,6 @@ bool dd_tablespace_is_implicit(dd::cache::Dictionary_client *client,
   return fail;
 }
 
-/** Get the autoextend_size attribute value for the tablespace with id
-dd_space_id
-@param[in,out]	dd_client	data dictionary client
-@param[in]	dd_space_id	tablespace id
-@param[out]	autoextend_size autoextend_size attribute value
-@return false if successful */
 bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
                                    const dd::Object_id dd_space_id,
                                    uint64_t *autoextend_size) {
@@ -3317,14 +3311,6 @@ bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
   return false;
 }
 
-/** Alter an implicit tablespace
-@param[in,out]  dd_client       data dictionary client
-@param[in,out]  thd             THD object
-@param[in]      dd_space_id     dd tablespace id
-@param[in]      create_info     HA_CREATE_INFO object
-@return false   On success
-@return true    On failure
-*/
 bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
                                   THD *thd, dd::Object_id dd_space_id,
                                   HA_CREATE_INFO *create_info) {
@@ -3982,8 +3968,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   }
 
   auto is_already_opened = [&]() {
-    if (fil_space_exists_in_mem(table->space, space_name, false, true, heap,
-                                table->id)) {
+    if (fil_space_exists_in_mem(table->space, space_name, false, true)) {
       dd_get_and_save_data_dir_path(table, dd_table, true);
       ut_free(shared_space_name);
       return true;
@@ -4043,7 +4028,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   false because we do not have an x-lock on dict_operation_lock */
   dberr_t err =
       fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, expected_fsp_flags,
-                   space_name, tbl_name, filepath, true, false);
+                   space_name, filepath, true, false);
 
   if (err == DB_SUCCESS) {
     /* This will set the DATA DIRECTORY for SHOW CREATE TABLE. */
@@ -5295,19 +5280,6 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
   return true;
 }
 
-/** Process one mysql.tablespaces record and get info
-@param[in]      heap            temp memory heap
-@param[in,out]  rec	            mysql.tablespaces record
-@param[in,out]	space_id        space id
-@param[in,out]  name            space name
-@param[in,out]  flags           space flags
-@param[in,out]  server_version  server version
-@param[in,out]  space_version   space version
-@param[out]     is_encrypted    true if tablespace is encrypted
-@param[out]     autoextend_size autoextend_size attribute value
-@param[in,out]  state           space state
-@param[in]      dd_spaces       dict_table_t obj of mysql.tablespaces
-@return true if data is retrived */
 bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
                                    uint32_t *flags, uint32 *server_version,
@@ -6344,7 +6316,7 @@ bool dd_tablespace_update_cache(THD *thd) {
 
       /* It's safe to pass space_name in tablename charset
       because filename is already in filename charset. */
-      dberr_t err = fil_ibd_open(false, purpose, id, flags, space_name, nullptr,
+      dberr_t err = fil_ibd_open(false, purpose, id, flags, space_name,
                                  filename, false, false);
       switch (err) {
         case DB_SUCCESS:
@@ -6490,8 +6462,62 @@ static bool check_partition(const std::string &dict_name, bool sub_part,
 @param[out]	position	position of TMP extension in string
 @return true, iff TMP extension exists. */
 static bool check_tmp(const std::string &dict_name, size_t &position) {
-  position = dict_name.find(TMP_POSTFIX);
-  return (position != std::string::npos);
+  std::string check_name(dict_name);
+  position = std::string::npos;
+
+  /* For partitioned or sub partitioned table we need to search the
+  temp postfix within the partition, sub-partition string. The temp
+  extension looks as follows in different cases.
+
+  1. Non partitioned table : table_name#TMP
+  2. Table Partition       : table_name#p#part_name#TMP
+  3. Table Sub Partition   : table_name#p#part_name#sp#sub_part_name#TMP
+
+  The issue with checking only #TMP at the end of string is that the partition
+  or sub partition could be named as 'TMP' and in following cases we could
+  wrongly classify it as name with temporary extension.
+
+  1. Table Partition       : table_name#p#TMP
+  3. Table Sub Partition   : table_name#p#part_name#sp#TMP */
+
+  size_t part_begin = std::string::npos;
+
+  if (check_partition(dict_name, false, part_begin)) {
+    part_begin += PART_SEPARATOR_LEN;
+    auto part_string = check_name.substr(part_begin);
+    /* Modify the name to start from the beginning of partition string
+    excluding the partition separator '#p#'. */
+    check_name.assign(part_string);
+
+    size_t sub_part_begin = std::string::npos;
+
+    if (check_partition(part_string, true, sub_part_begin)) {
+      sub_part_begin += SUB_PART_SEPARATOR_LEN;
+      auto sub_part_string = check_name.substr(sub_part_begin);
+      /* Modify the name to start from the beginning of sub-partition string
+      excluding the sub-partition separator '#sp#'. */
+      check_name.assign(sub_part_string);
+    }
+  }
+
+  auto length = check_name.size();
+
+  if (length < TMP_POSTFIX_LEN) {
+    return false;
+  }
+
+  auto postfix_pos = length - TMP_POSTFIX_LEN;
+  auto ret = check_name.compare(postfix_pos, TMP_POSTFIX_LEN, TMP_POSTFIX);
+
+  if (ret == 0) {
+    auto length = dict_name.size();
+    ut_a(length >= TMP_POSTFIX_LEN);
+
+    position = length - TMP_POSTFIX_LEN;
+    ut_ad(0 == dict_name.compare(position, TMP_POSTFIX_LEN, TMP_POSTFIX));
+    return true;
+  }
+  return false;
 }
 
 bool is_partition(const std::string &dict_name) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -72,16 +72,6 @@ class PFS_index_session_status : public PFS_engine_index {
   PFS_key_variable_name m_key;
 };
 
-/**
-  Store and retrieve table state information for queries that reinstantiate
-  the table object.
-*/
-class table_session_status_context : public PFS_table_context {
- public:
-  table_session_status_context(ulonglong current_version, bool restore)
-      : PFS_table_context(current_version, restore, THR_PFS_SS) {}
-};
-
 /** Table PERFORMANCE_SCHEMA.SESSION_STATUS. */
 class table_session_status : public PFS_engine_table {
   typedef PFS_simple_index pos_t;
@@ -126,9 +116,6 @@ class table_session_status : public PFS_engine_table {
   pos_t m_pos;
   /** Next position. */
   pos_t m_next_pos;
-
-  /** Table context with global status array version. */
-  table_session_status_context *m_context;
 
   PFS_index_session_status *m_opened_index;
 };

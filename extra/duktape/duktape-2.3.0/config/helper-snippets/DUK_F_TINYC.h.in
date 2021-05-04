@@ -1,5 +1,0 @@
-/* TinyC */
-#if defined(__TINYC__)
-/* http://bellard.org/tcc/tcc-doc.html#SEC9 */
-#define DUK_F_TINYC
-#endif

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,7 @@
 
 #include <sstream>
 
+#include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
 Ndb_sql_metadata_table::Ndb_sql_metadata_table(Thd_ndb *thd_ndb)
@@ -121,8 +122,7 @@ Ndb_sql_metadata_table::~Ndb_sql_metadata_table() {}
     Determine record sizes for a key record, a partial row record,
     and a full row record. Create NdbRecords for the hash primary key,
     ordered index, partial row, and full row.
-    After setup_records() is called, the API's getters and setters become
-    usable.
+    After setup() is called, the API's getters and setters become usable.
     Returns true on success.
 */
 void Ndb_sql_metadata_api::setup(NdbDictionary::Dictionary *dict,
@@ -161,6 +161,8 @@ void Ndb_sql_metadata_api::setup(NdbDictionary::Dictionary *dict,
                            3,  // FIRST THREE COLUMNS
                            sizeof(m_record_layout.record_specs[0]));
     dict->removeIndexGlobal(*primary, false);
+  } else {
+    ndb_log_error("Failed to setup PRIMARY index of ndb_sql_metadata");
   }
 }
 

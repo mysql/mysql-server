@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 #include <type_traits>
 #include <utility>
 
+#include "memory_debugging.h"
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -457,7 +458,10 @@ inline void destroy_array(T *ptr, size_t count) {
 template <class T>
 class Destroy_only {
  public:
-  void operator()(T *ptr) const { destroy(ptr); }
+  void operator()(T *ptr) const {
+    destroy(ptr);
+    TRASH(const_cast<std::remove_const_t<T> *>(ptr), sizeof(T));
+  }
 };
 
 /** std::unique_ptr, but only destroying. */

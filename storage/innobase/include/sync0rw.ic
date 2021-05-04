@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -236,7 +236,8 @@ lint rw_lock_lock_word_incr(rw_lock_t *lock, /*!< in/out: rw-lock */
 
 UNIV_INLINE
 void rw_lock_set_writer_id_and_recursion_flag(rw_lock_t *lock, bool recursive) {
-  lock->writer_thread.store(os_thread_get_curr_id(), std::memory_order_relaxed);
+  lock->writer_thread.store(std::this_thread::get_id(),
+                            std::memory_order_relaxed);
   lock->recursive.store(recursive, std::memory_order_release);
 }
 
@@ -265,6 +266,7 @@ bool rw_lock_s_lock_low(
   /* last_s_line is uint16_t */
   ut_ad(line <= std::numeric_limits<decltype(lock->last_s_line)>::max());
   lock->last_s_line = line;
+  lock->reader_thread.xor_thing(std::this_thread::get_id());
 
   return true; /* locking succeeded */
 }
@@ -318,8 +320,8 @@ bool rw_lock_x_lock_func_nowait(
   if (lock->lock_word.compare_exchange_strong(x_lock_decr, 0)) {
     rw_lock_set_writer_id_and_recursion_flag(lock, true);
   } else if (lock->recursive.load(std::memory_order_acquire) &&
-             os_thread_eq(lock->writer_thread.load(std::memory_order_relaxed),
-                          os_thread_get_curr_id())) {
+             lock->writer_thread.load(std::memory_order_relaxed) ==
+                 std::this_thread::get_id()) {
     /* Relock: this lock_word modification is safe since no other
     threads can modify (lock, unlock, or reserve) lock_word while
     there is an exclusive writer and this is the writer thread. */
@@ -336,7 +338,6 @@ bool rw_lock_x_lock_func_nowait(
 
     /* Watch for too many recursive locks */
     ut_ad(lock->lock_word < 0);
-
   } else {
     /* Failure */
     return false;
@@ -366,6 +367,7 @@ void rw_lock_s_unlock_func(
   ut_ad(lock->lock_word > -X_LOCK_DECR);
   ut_ad(lock->lock_word != 0);
   ut_ad(lock->lock_word < X_LOCK_DECR);
+  lock->reader_thread.xor_thing(std::this_thread::get_id());
 
   ut_d(rw_lock_remove_debug_info(lock, pass, RW_LOCK_S));
 
@@ -396,8 +398,7 @@ void rw_lock_x_unlock_func(
 
   /* lock->recursive == true implies that the lock->writer_thread is the
   current writer. If we are the last of the recursive callers then we must unset
-  lock->recursive flag (or reset lock->writer_thread to the impossible
-  std::thread().native_handle()) to indicate that the lock->writer_thread is now
+  lock->recursive flag to indicate that the lock->writer_thread is now
   stale. Otherwise if our thread tried to reacquire the lock it would wrongly
   believe it already has it.
   Note that since we still hold the x-lock we can safely read the lock_word. */

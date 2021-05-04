@@ -4165,6 +4165,25 @@ SELECT j, JSON_STORAGE_SIZE(j), JSON_STORAGE_FREE(j) FROM v1 ORDER BY id;
 DROP TABLE t1;
 DROP VIEW v1;
 
+--echo #
+--echo # Bug#32248705: PUTTING A MISSING ROW INTO JSON_OBJECT CAUSES
+--echo #               JSON_EXTRACT TO FAIL
+--echo #
+
+CREATE TABLE t1(x VARCHAR(1));
+CREATE TABLE t2(y VARCHAR(1));
+INSERT INTO t1 VALUES ('a');
+# These statements used to return zero rows because the left joins were
+# incorrectly transformed to inner joins. Expect one row.
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_ARRAY(y) <> 3;
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_OBJECT('y', y) <> 3;
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_ARRAY_APPEND('[]', '$', y) <> 3;
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_INSERT('{}', '$.a', y) <> 3;
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_ARRAY_INSERT('[]', '$[0]', y) <> 3;
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_SET('{}', '$.a', y) <> 3;
+SELECT * FROM t1 LEFT JOIN t2 ON x=y WHERE JSON_REPLACE('{}', '$.a', y) <> 3;
+DROP TABLE t1, t2;
+
 # Local Variables:
 # mode: sql
 # sql-product: mysql

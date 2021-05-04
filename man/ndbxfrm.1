@@ -2,12 +2,12 @@
 .\"     Title: \fBndbxfrm\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDBXFRM\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDBXFRM\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -42,7 +42,7 @@ utility, introduced in NDB 8\&.0\&.22, can be used to decompress, decrypt, and o
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.49.\ \&Command\-line options for the ndbxfrm program
+.B Table\ \&23.51.\ \&Command\-line options used with the program ndbxfrm
 .TS
 allbox tab(:);
 lB lB lB.
@@ -54,6 +54,8 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+lB l l
+lB l l
 lB l l
 lB l l
 lB l l
@@ -84,6 +86,15 @@ ADDED: NDB 8.0.22
 T}
 T{
 .PP
+\fB \fR\fB--decrypt-password-from-stdin[=value]\fR\fB \fR
+T}:T{
+Get decryption password in a secure fashion from STDIN
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
+T{
+.PP
 \fB--encrypt-kdf-iter-count=#\fR,
 .PP
 \fB \fR\fB-k\fR\fB \fR
@@ -101,6 +112,15 @@ Use this password to encrypt file
 T}:T{
 .PP
 ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB \fR\fB--encrypt-password-from-stdin[=value]\fR\fB \fR
+T}:T{
+Get encryption password in a secure fashion from STDIN
+T}:T{
+.PP
+ADDED: NDB 8.0.24
 T}
 T{
 .PP
@@ -208,6 +228,22 @@ using the password supplied\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-decrypt\-password\-from\-stdin[=TRUE|FALSE]\fR
+Decrypts a file encrypted by
+NDB, using a password supplied from standard input\&. This is similar to entering a password after invoking
+\fBmysql\fR
+\fB\-\-password\fR
+with no password following the option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-encrypt\-kdf\-iter\-count=\fR\fB\fI#\fR\fR,
 \fB\-k \fR\fB\fI#\fR\fR
 When encrypting a file, specifies the number of iterations to use for the encryption key\&. Requires the
@@ -269,6 +305,21 @@ Is enclosed by single or double quotation marks
 It is possible but not recommended to use an empty password (\*(Aq\*(Aq
 or
 "")\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-encrypt\-password\-from\-stdin[=TRUE|FALSE]\fR
+Encrypts a file using a password supplied from standard input\&. This is similar to entering a password is entered after invoking
+\fBmysql\fR
+\fB\-\-password\fR
+with no password following the option\&.
 .RE
 .sp
 .RS 4
@@ -418,7 +469,7 @@ Options Common to NDB Cluster Programs(1), other than those explicitly listed in
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

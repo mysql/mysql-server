@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -111,6 +111,9 @@ int
 clearOldBackups(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
   backup.clearOldBackups();
   return NDBT_OK;
 }
@@ -2435,6 +2438,9 @@ int runSR_DD_1(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 loops = ctx->getNumLoops();
   NdbRestarter restarter;
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
 
@@ -2557,6 +2563,9 @@ int runSR_DD_2(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 rows = ctx->getNumRecords();
   NdbRestarter restarter;
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
   int error = (int)ctx->getProperty("ERROR", (unsigned)0);
@@ -2688,6 +2697,9 @@ int runSR_DD_3(NDBT_Context* ctx, NDBT_Step* step)
   Uint32 rows = ctx->getNumRecords();
   NdbRestarter restarter;
   NdbBackup backup;
+  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
+                                                          (char*)NULL),
+                                         -1);
   bool lcploop = ctx->getProperty("LCP", (unsigned)0);
   bool all = ctx->getProperty("ALL", (unsigned)0);
   int error = (int)ctx->getProperty("ERROR", (unsigned)0);
@@ -3707,7 +3719,7 @@ int runAlterTableAndOptimize(NDBT_Context* ctx, NDBT_Step* step)
     g_info << "Executing query : "<< query.c_str() << endl;
     if(!sql.doQuery(query.c_str(), resultSet)){
       if(nodesKilledDuringStep &&
-          sql.getErrorNumber() == 0)
+         resultSet.mysqlErrno() == 0)
       {
         /* query failed probably because of a node kill in another step.
            wait for the nodes to get into start phase before retrying */

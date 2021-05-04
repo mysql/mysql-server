@@ -131,6 +131,13 @@ while ($i > 1)
   --dec $i
 }
 
+# Wait for `mysqlslap` to finish execution of 5000 inserts
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--let $wait_condition=SELECT COUNT(*)=5000 FROM t
+--let $wait_timeout= 120
+--source include/wait_condition.inc
+
 # 5. Sync all servers.
 --let $rpl_connection_name= server_1
 --source include/rpl_connection.inc

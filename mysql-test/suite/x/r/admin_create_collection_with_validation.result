@@ -831,4 +831,3 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-drop schema if exists xtest;

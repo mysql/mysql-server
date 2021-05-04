@@ -8,7 +8,7 @@
 # ################################################################
 
 PROJECT(zstd)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
+# CMAKE_MINIMUM_REQUIRED(VERSION 2.8.9)
 
 SET(ZSTD_SRCS
   lib/common/debug.c
@@ -48,6 +48,13 @@ ADD_CONVENIENCE_LIBRARY(zstd
   ${ZSTD_SRCS}
   INCLUDE_DIRECTORIES lib/common
   )
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+IF(HAS_MISSING_PROFILE)
+  TARGET_COMPILE_OPTIONS(zstd_objlib PRIVATE ${HAS_MISSING_PROFILE})
+ENDIF()
+
+
 #-----------------------------------------------------------------------------
 # Add extra compilation flags
 #-----------------------------------------------------------------------------

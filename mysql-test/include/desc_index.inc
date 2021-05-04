@@ -56,6 +56,7 @@ explain select * from t1 group by a, b order by a;
 
 --replace_column 10 # 11 #
 explain select distinct a from t1;
+--sorted_result  # The hypergraph optimizer does not use indexes for DISTINCT yet.
 select distinct a from t1;
 
 --replace_column 10 # 11 #
@@ -442,6 +443,7 @@ INSERT INTO ee VALUES
 (NULL,NULL,1), (NULL,NULL,2), (NULL,286720000,3), (NULL,1,4),
 (2084831232,8,5), (NULL,0,6), (4,763953152,7), (5,NULL,8), (7,9,9);
 
+--sorted_result
 SELECT DISTINCT alias1 . col_int_key AS field1 , alias1 . col_int AS field2
 FROM ee AS alias1 JOIN ee AS alias2 ON  alias1 . pk =  alias2 . col_int_key
 WHERE ( alias1 . pk  BETWEEN 8 AND ( 8 + 4 ) AND alias2 . pk <> 2 );

@@ -102,7 +102,9 @@ select t from t1 order by t;
 select c from t1 order by c;
 select b from t1 order by b;
 select d from t1 order by d;
+--sorted_result
 select distinct t from t1;
+--sorted_result
 select distinct b from t1;
 select distinct t from t1 order by t;
 select distinct b from t1 order by b;
@@ -111,17 +113,22 @@ select t from t1 group by t;
 --sorted_result
 select b from t1 group by b;
 set big_tables=1;
+--sorted_result
 select distinct t from t1;
+--sorted_result
 select distinct b from t1;
 select distinct t from t1 order by t;
 select distinct b from t1 order by b;
+--sorted_result
 select distinct c from t1;
+--sorted_result
 select distinct d from t1;
 select distinct c from t1 order by c;
 select distinct d from t1 order by d;
 select c from t1 group by c;
 select d from t1 group by d;
 set big_tables=0;
+--sorted_result
 select distinct * from t1;
 --sorted_result
 select t,count(*) from t1 group by t;

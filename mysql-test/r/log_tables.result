@@ -59,7 +59,7 @@ general_log	CREATE TABLE `general_log` (
   `server_id` int unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
   `argument` mediumblob NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
+) ENGINE=CSV DEFAULT CHARSET=utf8mb3 COMMENT='General log'
 show fields from mysql.general_log;
 Field	Type	Null	Key	Default	Extra
 event_time	timestamp(6)	NO		CURRENT_TIMESTAMP(6)	DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6)
@@ -83,7 +83,7 @@ slow_log	CREATE TABLE `slow_log` (
   `server_id` int unsigned NOT NULL,
   `sql_text` mediumblob NOT NULL,
   `thread_id` bigint unsigned NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
+) ENGINE=CSV DEFAULT CHARSET=utf8mb3 COMMENT='Slow log'
 show fields from mysql.slow_log;
 Field	Type	Null	Key	Default	Extra
 start_time	timestamp(6)	NO		CURRENT_TIMESTAMP(6)	DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6)

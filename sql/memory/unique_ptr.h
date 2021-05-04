@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,17 @@
 #ifndef MEMORY_UNIQUE_PTR_INCLUDED
 #define MEMORY_UNIQUE_PTR_INCLUDED
 
+#include <assert.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <algorithm>
 #include <cstddef>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <string>
 #include <tuple>
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"  // my_malloc
 #include "sql/memory/aligned_atomic.h"  // memory::cache_line_size
@@ -524,21 +526,21 @@ void memory::PFS_allocator<T>::deallocate(T *p, std::size_t) noexcept {
 template <typename T>
 template <class U, class... Args>
 void memory::PFS_allocator<T>::construct(U *p, Args &&... args) {
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
   try {
     ::new ((void *)p) U(std::forward<Args>(args)...);
   } catch (...) {
-    DBUG_ASSERT(false);  // Constructor should not throw an exception.
+    assert(false);  // Constructor should not throw an exception.
   }
 }
 
 template <typename T>
 void memory::PFS_allocator<T>::destroy(T *p) {
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
   try {
     p->~T();
   } catch (...) {
-    DBUG_ASSERT(false);  // Destructor should not throw an exception
+    assert(false);  // Destructor should not throw an exception
   }
 }
 
@@ -785,6 +787,7 @@ typename memory::Unique_ptr<T, A>::pointer memory::Unique_ptr<T, A>::clone()
   return to_return;
 }
 
+#ifndef IN_DOXYGEN  // Doxygen doesn't understand this construction.
 template <typename T, std::enable_if_t<std::is_array<T>::value> *>
 memory::Unique_ptr<T, std::nullptr_t> memory::make_unique(size_t size) {
   return std::move(memory::Unique_ptr<T, std::nullptr_t>{size});
@@ -809,5 +812,7 @@ memory::Unique_ptr<T, std::nullptr_t> memory::make_unique(Args &&... args) {
   return std::move(
       memory::Unique_ptr<T, std::nullptr_t>{std::forward<Args>(args)...});
 }
+#endif
+
 #endif  // Is solaris
 #endif  // MEMORY_UNIQUE_PTR_INCLUDED

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -84,6 +84,19 @@ recovered and available. */
 static constexpr char undo_space_name[] = "innodb_undo";
 
 extern volatile bool recv_recovery_on;
+
+/** Initial size of an UNDO tablespace when it is created new
+or truncated under low load.
+page size | FSP_EXTENT_SIZE  | Initial Size | Pages
+----------+------------------+--------------+-------
+    4 KB  | 256 pages = 1 MB |   16 MB      | 4096
+    8 KB  | 128 pages = 1 MB |   16 MB      | 2048
+   16 KB  |  64 pages = 1 MB |   16 MB      | 1024
+   32 KB  |  64 pages = 2 MB |   16 MB      | 512
+   64 KB  |  64 pages = 4 MB |   16 MB      | 256  */
+#define UNDO_INITIAL_SIZE (16 * 1024 * 1024)
+#define UNDO_INITIAL_SIZE_IN_PAGES \
+  os_offset_t { UNDO_INITIAL_SIZE / srv_page_size }
 
 #ifdef UNIV_HOTBACKUP
 #include <unordered_set>
@@ -299,6 +312,11 @@ struct fil_space_t {
   /** Extend undo tablespaces by so many pages. */
   page_no_t m_undo_extend{};
 
+  /** When an undo tablespace has been initialized with required header pages,
+  that size is recorded here.  Auto-truncation happens when the file size
+  becomes bigger than both this and srv_max_undo_log_size. */
+  page_no_t m_undo_initial{};
+
   /** Tablespace name */
   char *name{};
 
@@ -316,11 +334,6 @@ struct fil_space_t {
     new (&m_n_ref_count) std::atomic_size_t;
     new (&m_deleted) std::atomic<bool>;
 #endif /* !UNIV_HOTBACKUP */
-
-    /** This is the number of pages needed extend an undo tablespace by 16 MB.
-    It is increased during aggressive growth and decreased when the growth
-    is slower. */
-    m_undo_extend = (16 * 1024 * 1024) / UNIV_PAGE_SIZE;
   }
 
  private:
@@ -1208,6 +1221,9 @@ constexpr page_type_t FIL_PAGE_RTREE = 17854;
 /** Tablespace SDI Index page */
 constexpr page_type_t FIL_PAGE_SDI = 17853;
 
+/** This page type is unused. */
+constexpr page_type_t FIL_PAGE_TYPE_UNUSED = 1;
+
 /** Undo log page */
 constexpr page_type_t FIL_PAGE_UNDO_LOG = 2;
 
@@ -1298,7 +1314,7 @@ constexpr page_type_t FIL_PAGE_TYPE_ZLOB_FRAG = 28;
 /** Index pages of fragment pages (compressed LOB). */
 constexpr page_type_t FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY = 29;
 
-/** Used by i_s.cc to index into the text description. */
+/** Note the highest valid non-index page_type_t. */
 constexpr page_type_t FIL_PAGE_TYPE_LAST = FIL_PAGE_TYPE_ZLOB_FRAG_ENTRY;
 
 /** Check whether the page type is index (Btree or Rtree or SDI) type */
@@ -1322,7 +1338,7 @@ extern ulint fil_n_pending_log_flushes;
 extern ulint fil_n_pending_tablespace_flushes;
 
 /** Number of files currently open */
-extern ulint fil_n_file_opened;
+extern std::atomic_size_t fil_n_files_open;
 
 /** Look up a tablespace.
 The caller should hold an InnoDB table lock or a MDL that prevents
@@ -1354,7 +1370,7 @@ fil_type_t fil_space_get_type(space_id_t space_id)
 /** Note that a tablespace has been imported.
 It is initially marked as FIL_TYPE_IMPORT so that no logging is
 done during the import process when the space ID is stamped to each page.
-Now we change it to FIL_SPACE_TABLESPACE to start redo and undo logging.
+Now we change it to FIL_TYPE_TABLESPACE to start redo and undo logging.
 NOTE: temporary tablespaces are never imported.
 @param[in]	space_id	Tablespace ID */
 void fil_space_set_imported(space_id_t space_id);
@@ -1411,6 +1427,22 @@ in the memory cache.
 @return space size, 0 if space not found */
 page_no_t fil_space_get_size(space_id_t space_id)
     MY_ATTRIBUTE((warn_unused_result));
+
+/** Returns the size of an undo space just after it was initialized.
+@param[in]	space_id	Tablespace ID
+@return initial space size, 0 if space not found */
+page_no_t fil_space_get_undo_initial_size(space_id_t space_id)
+    MY_ATTRIBUTE((warn_unused_result));
+
+/** This is called for an undo tablespace after it has been initialized
+or opened.  It sets the minimum size in pages at which it should be truncated
+and the number of pages that it should be extended. An undo tablespace is
+extended by larger amounts than normal tablespaces. It starts at 16Mb and
+is increased during aggressive growth and decreased when the growth is slower.
+@param[in]  space_id     Tablespace ID
+@param[in]  use_current  If true, use the current size in pages as the initial
+                         size. If false, use UNDO_INITIAL_SIZE_IN_PAGES. */
+void fil_space_set_undo_size(space_id_t space_id, bool use_current);
 
 /** Returns the flags of the space. The tablespace must be cached
 in the memory cache.
@@ -1565,15 +1597,6 @@ bool fil_system_get_file_by_space_num(space_id_t space_num,
 bool fil_truncate_tablespace(space_id_t space_id, page_no_t size_in_pages)
     MY_ATTRIBUTE((warn_unused_result));
 
-/** Drop and create an UNDO tablespace.
-@param[in]  old_space_id   Tablespace ID to truncate
-@param[in]  new_space_id   Tablespace ID to for the new file
-@param[in]  size_in_pages  Truncate size.
-@return true if truncate was successful. */
-bool fil_replace_tablespace(space_id_t old_space_id, space_id_t new_space_id,
-                            page_no_t size_in_pages)
-    MY_ATTRIBUTE((warn_unused_result));
-
 /** Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
 @param[in,out]	trx		Transaction covering the close
@@ -1677,8 +1700,6 @@ The fil_node_t::handle will not be left open.
 @param[in]	space_name	tablespace name of the datafile
                                 If file-per-table, it is the table name in the
                                 databasename/tablename format
-@param[in]	table_name	table name in case need to build filename
-from it
 @param[in]	path_in		expected filepath, usually read from dictionary
 @param[in]	strict		whether to report error when open ibd failed
 @param[in]	old_space	whether it is a 5.7 tablespace opening
@@ -1686,8 +1707,8 @@ from it
 @return DB_SUCCESS or error code */
 dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
                      uint32_t flags, const char *space_name,
-                     const char *table_name, const char *path_in, bool strict,
-                     bool old_space) MY_ATTRIBUTE((warn_unused_result));
+                     const char *path_in, bool strict, bool old_space)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns true if a matching tablespace exists in the InnoDB tablespace
 memory cache.
@@ -1697,12 +1718,9 @@ memory cache.
                                 error log if a matching tablespace is
                                 not found from memory.
 @param[in]	adjust_space	Whether to adjust space id on mismatch
-@param[in]	heap		Heap memory
-@param[in]	table_id	table ID
 @return true if a matching tablespace exists in the memory cache */
 bool fil_space_exists_in_mem(space_id_t space_id, const char *name,
-                             bool print_err, bool adjust_space,
-                             mem_heap_t *heap, table_id_t table_id)
+                             bool print_err, bool adjust_space)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Extends all tablespaces to the size stored in the space header. During the
@@ -2224,7 +2242,7 @@ void fil_set_scan_dirs(const std::string &directories);
 @return DB_SUCCESS if all goes well */
 dberr_t fil_scan_for_tablespaces();
 
-/** Open the tabelspace and also get the tablespace filenames, space_id must
+/** Open the tablespace and also get the tablespace filenames, space_id must
 already be known.
 @param[in]	space_id	Tablespace ID to lookup
 @return true if open was successful */

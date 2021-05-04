@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -46,7 +46,6 @@ FOREACH(test_file
     test_logging_eventlog.cc
     test_master_key_reader_writer.cc
     test_metadata_ttl.cc
-    test_mock_server.cc
     test_pidfile.cc
     test_rest_api.cc
     test_rest_api_enable.cc
@@ -63,6 +62,7 @@ FOREACH(test_file
     test_state_file.cc
     test_user_option.cc
     test_metadata_http_auth_backend.cc
+    test_socket_close.cc
     )
 add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
@@ -75,6 +75,7 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_client
   http_common
   mock_server_rest_client
+  mysql_protocol
 
   DEPENDS
   http_auth_backend
@@ -99,6 +100,7 @@ ENDFOREACH()
 
 FOREACH(test_file
     test_routing_splicer.cc
+    test_mock_server.cc
     )
 add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"

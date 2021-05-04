@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -242,7 +242,7 @@ class Queue {
       if (m_waiting_for_dequeue) os_event_set(m_dequeue_event);
       if (m_waiting_for_enqueue) os_event_set(m_enqueue_event);
       mutex_exit(&m_mutex);
-      os_thread_yield();
+      std::this_thread::yield();
       mutex_enter(&m_mutex);
       /* purecov: end */
     }

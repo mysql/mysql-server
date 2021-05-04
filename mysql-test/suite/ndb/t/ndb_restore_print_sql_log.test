@@ -38,9 +38,7 @@ delete from t1 where id1 is not null and id4 like 'd%';
 #Remove error previously introduced
 --exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 #Retrieve backup ID
---disable_query_log
 --source include/ndb_backup_id.inc
---enable_query_log
 
 #Check if backup is complete. The table will be dropped
 #only when the backup is complete. Thus, the test attempts
@@ -119,9 +117,7 @@ while ($mysql_errno)
 }
 --enable_warnings
 #Retrieve backup ID
---disable_query_log
 --source include/ndb_backup_id.inc
---enable_query_log
 --echo
 --echo "Restore with --print-sql-log option"
 --let ndb_restore_opts= --print-sql-log --verbose=0
@@ -176,9 +172,7 @@ while ($mysql_errno)
 }
 --enable_warnings
 #Retrieve backup ID
---disable_query_log
 --source include/ndb_backup_id.inc
---enable_query_log
 --echo
 --echo "Restore with --print-sql-log and --print-log options"
 --let ndb_restore_opts= --print-sql-log --print-log --verbose=0
@@ -233,9 +227,7 @@ while ($mysql_errno)
 }
 --enable_warnings
 #Retrieve backup ID
---disable_query_log
 --source include/ndb_backup_id.inc
---enable_query_log
 --echo
 --echo "Restore with --print-sql-log option"
 --let ndb_restore_opts= --print-sql-log --verbose=0

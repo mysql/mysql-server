@@ -1056,9 +1056,9 @@ ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_gen
 select concat(a,if(b>10,_ucs2 0x0062,_ucs2 0x00C0)) from t1;
 ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation 'concat'
 select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
-ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation '='
+ERROR HY000: Cannot convert string '\x00\xC0' from ucs2 to ascii
 select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
-ERROR HY000: Illegal mix of collations (ascii_general_ci,IMPLICIT) and (ucs2_general_ci,COERCIBLE) for operation '='
+a	b
 drop table t1;
 CREATE TABLE t1 (s1 CHAR(5) CHARACTER SET UCS2);
 INSERT INTO t1 VALUES ('a');
@@ -1290,7 +1290,7 @@ create table t1 as select concat(1 div 2) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(1 % 2));
@@ -1717,7 +1717,7 @@ create table t1 as select concat(cast('-1' as signed)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(21) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(cast('1' as unsigned)));
@@ -1727,7 +1727,7 @@ create table t1 as select concat(cast('1' as unsigned)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(21) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(cast(1/2 as decimal(5,5))));
@@ -2474,7 +2474,7 @@ create table t1 as select concat(period_add(200902, 2)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(6) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(21) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = '';
@@ -2482,12 +2482,10 @@ select hex(concat(period_diff(200902, 200802)));
 hex(concat(period_diff(200902, 200802)))
 00310032
 create table t1 as select concat(period_add(200902, 200802)) as c1;
-Warnings:
-Warning	1265	Data truncated for column 'c1' at row 1
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(6) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+  `c1` varchar(21) CHARACTER SET ucs2 NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 SET sql_mode = default;
@@ -2498,7 +2496,7 @@ create table t1 as select concat(to_days(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(6) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(8) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(dayofmonth(20090224)));
@@ -2508,7 +2506,7 @@ create table t1 as select concat(dayofmonth(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(dayofyear(20090224)));
@@ -2518,7 +2516,7 @@ create table t1 as select concat(dayofyear(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(4) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(hour('10:11:12')));
@@ -2528,7 +2526,7 @@ create table t1 as select concat(hour('10:11:12')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(4) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(minute('10:11:12')));
@@ -2538,7 +2536,7 @@ create table t1 as select concat(minute('10:11:12')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(second('10:11:12')));
@@ -2548,7 +2546,7 @@ create table t1 as select concat(second('10:11:12')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(quarter(20090224)));
@@ -2558,7 +2556,7 @@ create table t1 as select concat(quarter(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(week(20090224)));
@@ -2568,7 +2566,7 @@ create table t1 as select concat(week(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(yearweek(20090224)));
@@ -2578,7 +2576,7 @@ create table t1 as select concat(yearweek(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(6) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(7) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(year(20090224)));
@@ -2598,7 +2596,7 @@ create table t1 as select concat(weekday(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(dayofweek(20090224)));
@@ -2608,7 +2606,7 @@ create table t1 as select concat(dayofweek(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(1) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(unix_timestamp(20090224)));
@@ -2638,7 +2636,7 @@ create table t1 as select concat(extract(year from 20090702)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(4) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(5) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 select hex(concat(microsecond('12:00:00.123456')));
@@ -2658,7 +2656,7 @@ create table t1 as select concat(month(20090224)) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(2) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(3) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 drop table t1;
 create table t1 as select concat(last_day('2003-02-05')) as c1;
@@ -3848,18 +3846,18 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	range	date_column	date_column	4	NULL	2	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`date_column` AS `date_column` from `test`.`t1` where (convert(`test`.`t1`.`date_column` using ucs2) between '2010-09-01' and '2010-10-01')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`date_column` AS `date_column` from `test`.`t1` where (`test`.`t1`.`date_column` between '2010-09-01' and '2010-10-01')
 ALTER TABLE t1 MODIFY date_column DATETIME DEFAULT NULL;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN SELECT * FROM t1 WHERE date_column BETWEEN '2010-09-01' AND '2010-10-01';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	range	date_column	date_column	6	NULL	2	100.00	Using index condition
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`date_column` AS `date_column` from `test`.`t1` where (convert(`test`.`t1`.`date_column` using ucs2) between '2010-09-01' and '2010-10-01')
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id`,`test`.`t1`.`date_column` AS `date_column` from `test`.`t1` where (`test`.`t1`.`date_column` between '2010-09-01' and '2010-10-01')
 DROP TABLE t1;
 #
 # Bug #31384 	DATE_ADD() and DATE_SUB() return binary data

@@ -66,7 +66,7 @@ connection default;
 # When the connection is closed in this way, the error code should
 # be consistent see Bug#2845 for an explanation
 # depending on platform/client, either errno 2006 or 2013 can occur below
---error 2006,2013
+--error ER_CLIENT_INTERACTION_TIMEOUT,CR_SERVER_LOST
 SELECT 2;
 --echo --enable_reconnect;
 --enable_reconnect
@@ -123,7 +123,7 @@ connection con1;
 # When the connection is closed in this way, the error code should
 # be consistent see Bug#2845 for an explanation
 # depending on platform/client, either errno 2006 or 2013 can occur below
---error 2006,2013
+--error ER_CLIENT_INTERACTION_TIMEOUT,CR_SERVER_LOST
 SELECT 2;
 --echo --enable_reconnect;
 --enable_reconnect
@@ -148,6 +148,7 @@ connect (default,localhost,root,,test,,);
 --echo # Open con1 and set a timeout.
 connect(con1,localhost,root,,);
 
+--disable_reconnect
 LET $ID= `SELECT connection_id()`;
 SET @@SESSION.wait_timeout = 2;
 
@@ -160,8 +161,7 @@ let $wait_condition=
 
 --echo # Check that con1 has been disconnected.
 connection con1;
---echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
---error 2006,2013
+--error ER_CLIENT_INTERACTION_TIMEOUT,CR_SERVER_LOST
 SELECT 1;
 
 disconnect con1;
@@ -172,7 +172,7 @@ connection default;
 --echo #
 
 --echo # Open con1 and set a timeout.
-connect(con1,127.0.0.1,root,,);
+connect(con1,127.0.0.1,root,,,,,TCP,,);
 
 LET $ID= `SELECT connection_id()`;
 SET @@SESSION.wait_timeout = 2;
@@ -186,16 +186,47 @@ let $wait_condition=
 
 --echo # Check that con1 has been disconnected.
 connection con1;
---echo # CR_SERVER_LOST, CR_SERVER_GONE_ERROR
---error 2006,2013
+--disable_reconnect
+--echo # Client interaction timeout
+--error ER_CLIENT_INTERACTION_TIMEOUT,CR_SERVER_LOST
 SELECT 1;
 
-disconnect con1;
-connection default;
+--error ER_CLIENT_INTERACTION_TIMEOUT,CR_SERVER_LOST
+SELECT "Check that we don't reconnect with reconnection disabled.";
 
+--echo #
+--echo # Test UNIX domain sockets timeout with reconnect.
+--echo #
+
+--echo # Open con2 and set a timeout.
+connect(con2,localhost,root,,);
+
+--echo --enable_reconnect;
+--enable_reconnect
+SET @is_old_connection = 1;
+SELECT @is_old_connection;
+
+LET $ID= `SELECT connection_id()`;
+SET @@SESSION.wait_timeout = 2;
+
+--echo # Wait for con2 to be disconnected.
+connection default;
+let $wait_condition=
+  SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST
+  WHERE ID = $ID;
+--source include/wait_condition.inc
+
+--echo # Check that con2 has been reconnected.
+connection con2;
+--error ER_CLIENT_INTERACTION_TIMEOUT,CR_SERVER_LOST
+SELECT "Unix domain socket will hit wait_timeout with reconnect";
+SELECT @is_old_connection;
+connection default;
+--disable_reconnect
+disconnect con2;
+disconnect con1;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
-
 #
 # Bug #28940167 WAIT_TIMEOUT ERROR NOT CLEAR AND NOT SENT TO CLIENT BEFORE CLOSING CONNECTION
 #

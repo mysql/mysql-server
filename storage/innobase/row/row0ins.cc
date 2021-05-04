@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -704,7 +704,7 @@ static void row_ins_foreign_trx_print(trx_t *trx) /*!< in: transaction */
   {
     /** lock_number_of_rows_locked() requires global exclusive latch, and so
     does accessing trx_locks with trx->mutex */
-    locksys::Global_exclusive_latch_guard guard{};
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     n_rec_locks = lock_number_of_rows_locked(&trx->lock);
     n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
     heap_size = mem_heap_get_size(trx->lock.lock_heap);
@@ -846,11 +846,11 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
   row_ext_t *ext;
   THD *thd = current_thd;
   ulint offsets_[REC_OFFS_NORMAL_SIZE];
-  rec_offs_init(offsets_);
-  const ulint *offsets =
-      rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &cascade->heap);
   mem_heap_t *v_heap = nullptr;
   upd_t *update = cascade->update;
+  rec_offs_init(offsets_);
+  const ulint *offsets =
+      rec_get_offsets(rec, index, offsets_, ULINT_UNDEFINED, &update->heap);
   ulint n_v_fld = index->table->n_v_def;
   ulint n_diff;
   upd_field_t *upd_field;
@@ -858,7 +858,7 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
 
   update->old_vrow =
       row_build(ROW_COPY_POINTERS, index, rec, offsets, index->table, nullptr,
-                nullptr, &ext, cascade->heap);
+                nullptr, &ext, update->heap);
 
   n_diff = update->n_fields;
 
@@ -890,7 +890,7 @@ static void row_ins_foreign_fill_virtual(trx_t *trx, upd_node_t *cascade,
     upd_field = upd_get_nth_field(update, n_diff);
 
     upd_field->old_v_val = static_cast<dfield_t *>(
-        mem_heap_alloc(cascade->heap, sizeof *upd_field->old_v_val));
+        mem_heap_alloc(update->heap, sizeof *upd_field->old_v_val));
 
     dfield_copy(upd_field->old_v_val, vfield);
 
@@ -3483,7 +3483,8 @@ void row_ins_get_row_from_values(ins_node_t *node) /*!< in: row insert node */
 
 /** Gets a row to insert from the select list. */
 UNIV_INLINE
-void row_ins_get_row_from_select(ins_node_t *node) /*!< in: row insert node */
+void row_ins_get_row_from_query_block(
+    ins_node_t *node) /*!< in: row insert node */
 {
   que_node_t *list_node;
   dfield_t *dfield;
@@ -3528,7 +3529,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     node->entry = UT_LIST_GET_FIRST(node->entry_list);
 
     if (node->ins_type == INS_SEARCHED) {
-      row_ins_get_row_from_select(node);
+      row_ins_get_row_from_query_block(node);
 
     } else if (node->ins_type == INS_VALUES) {
       row_ins_get_row_from_values(node);

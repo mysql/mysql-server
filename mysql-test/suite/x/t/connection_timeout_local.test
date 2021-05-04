@@ -7,7 +7,7 @@
 ## Show that Mysqlx_connection_timeout works
 #
 # 1. Wait until user is disconnected
---write_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect.xpl
 -->import wait_until_disconnect.macro
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
@@ -25,7 +25,7 @@ EOF
 # 3. Make message exchange and ignore all connection error
 # 4. Show that after the exchange user was in middle of it disconnected
 #
---write_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.xpl
 -->import wait_until_disconnect.macro
 -->import connection.macro
 
@@ -73,7 +73,7 @@ EOF
 # 2. Wait longer than Mysqlx_connection_timeout
 # 3. Show that connection is still valid
 
---write_file $MYSQL_TMP_DIR/mysqlx-idle-no-disconnect-after-auth.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-idle-no-disconnect-after-auth.xpl
 echo # 1. Show that new connection is valid
 -->stmtadmin ping
 -->recvresult
@@ -92,7 +92,7 @@ EOF
 # 2. Trigger reset
 # 3. Wait longer than Mysqlx_connection_timeout
 # 4. Show that connection was not released, by authenticated and executing query
---write_file $MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.xpl
 -->import mysqlx_session.macro
 
 echo # 1. Connect to X Plugin and show that its a valid connection;
@@ -141,21 +141,21 @@ SET GLOBAL mysqlx_connect_timeout = 4;
 --echo #
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
-  --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect.xpl 2>&1;
 
 --echo
 --echo ## Disconnect user without session after timeout
 --echo #
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1
-  --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.xpl 2>&1;
 
 --echo
 --echo ## Inactivity timer disabled after session setup (commands executed after 1s should be processed)
 --echo #
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1
-  --file=$MYSQL_TMP_DIR/mysqlx-idle-no-disconnect-after-auth.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-idle-no-disconnect-after-auth.xpl 2>&1;
 
 
 --let $assert_status_name= Mysqlx_connection_accept_errors
@@ -186,7 +186,7 @@ SET GLOBAL mysqlx_connect_timeout = 2;
 --echo #
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1 --no-auth
-  --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-idle-disconnect.xpl 2>&1;
 
 SET GLOBAL mysqlx_connect_timeout = 4;
 --let $assert_variable_name= mysqlx_connect_timeout
@@ -199,7 +199,7 @@ SET GLOBAL mysqlx_connect_timeout = 4;
 exec $MYSQLXTEST
   -u x_root --password='' -h127.0.0.1
   -v%SESSION_CLOSE_SCENARIO%=Session_reset
-  --file=$MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.xpl 2>&1;
 
 --let $assert_status_name= Mysqlx_connection_accept_errors
 --let $assert_status_value= 0
@@ -220,8 +220,4 @@ exec $MYSQLXTEST
 
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout = DEFAULT;
---remove_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-idle-disconnect-no-prolong.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-idle-no-disconnect-after-auth.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-reset-session-after-auth.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

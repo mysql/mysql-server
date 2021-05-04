@@ -30,7 +30,7 @@ CREATE SCHEMA mysqlxcoll;
 --echo TEST START
 --echo ================================================================================
 
---write_file $MYSQL_TMP_DIR/mysqlx-update_collection_arrayinsert.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_collection_arrayinsert.xpl
 
 -->stmtadmin create_collection	{"schema":"mysqlxcoll","name":"maincoll"}
 -->recvresult
@@ -1163,9 +1163,9 @@ SET SQL_SAFE_UPDATES = 1;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u updatearrayinsert --password='updatearrayinsert' --file=$MYSQL_TMP_DIR/mysqlx-update_collection_arrayinsert.tmp 2>&1
+--exec $MYSQLXTEST -u updatearrayinsert --password='updatearrayinsert' --file=$MYSQL_TMP_DIR/mysqlx-update_collection_arrayinsert.xpl 2>&1
 
 ## Cleanup
 DROP SCHEMA if EXISTS mysqlxcoll;
---remove_file $MYSQL_TMP_DIR/mysqlx-update_collection_arrayinsert.tmp
+--source ../include/xplugin_cleanup.inc
 

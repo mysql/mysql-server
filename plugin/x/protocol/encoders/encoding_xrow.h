@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -94,7 +94,7 @@ class XRow_encoder_base {
   }
 
   void field_bit(const char *const value, size_t length) {
-    DBUG_ASSERT(length <= 8);
+    assert(length <= 8);
     ++m_fields;
 
     uint64_t binary_value = 0;

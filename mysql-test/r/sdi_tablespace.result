@@ -1,0 +1,2247 @@
+#
+# Bug#30878065: EXCHANGING PARTITION WITH TABLES DOES NOT UPDATE SDI CORRECTLY
+#
+# Create partitioned table for testing exchange partition
+CREATE TABLE pt1 (a INT NOT NULL, PRIMARY KEY(a))
+PARTITION BY RANGE (a) PARTITIONS 3 (
+PARTITION p1 VALUES LESS THAN (1000),
+PARTITION p2 VALUES LESS THAN (2000),
+PARTITION p3 VALUES LESS THAN (3000));
+# Create swap tables
+CREATE TABLE t1 (a INT NOT NULL, PRIMARY KEY(a));
+CREATE TABLE t2 (a INT NOT NULL, PRIMARY KEY(a));
+# Create src and dst schemata with tables for testing import tablespace
+# and import partition tablespace.
+CREATE SCHEMA src;
+USE src;
+CREATE TABLE src_t1(c1 INT);
+INSERT INTO src_t1 VALUES (0), (1), (2);
+CREATE TABLE src_t2 (c1 INT)
+PARTITION BY LIST (c1)
+SUBPARTITION BY HASH (c1) SUBPARTITIONS 3
+(PARTITION p0 VALUES IN (0, 2, 4, 6, 8),
+PARTITION p1 VALUES IN (1, 3, 5, 7, 9));
+INSERT INTO src_t2 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9);
+SELECT c1 FROM src_t2 ORDER BY c1;
+c1
+1
+2
+3
+4
+5
+6
+7
+8
+9
+CREATE SCHEMA dst;
+USE dst;
+CREATE TABLE dst_t1(c1 INT);
+CREATE TABLE dst_t2 (c1 INT)
+PARTITION BY LIST (c1)
+SUBPARTITION BY HASH (c1) SUBPARTITIONS 3
+(PARTITION p0 VALUES IN (1, 3, 5, 7, 9),
+PARTITION p1 VALUES IN (0, 2, 4, 6, 8));
+INSERT INTO dst_t2 VALUES (1), (2), (3);
+INSERT INTO dst_t2 VALUES (7), (8), (9);
+SELECT c1 FROM dst_t2 ORDER BY c1;
+c1
+1
+2
+3
+7
+8
+9
+# Shutdown the server to show SDI
+# Dump SDI for swap table before exchange
+["ibd2sdi"
+,
+{
+	"type": 1,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Table",
+    "dd_object": {
+        "name": "t1",
+        "mysql_VERSION
+        "CREATED
+        "LAST_ALTERED
+        "hID
+        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "columns": [
+            {
+                "name": "a",
+                "type": 4,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 1,
+                "char_length": 11,
+                "numeric_precision": 10,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_ID
+                "srs_ID
+                "default_value": "AAAAAA==",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 2,
+                "column_type_utf8": "int",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_TRX_ID",
+                "type": 10,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 2,
+                "char_length": 6,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_ROLL_PTR",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 3,
+                "char_length": 7,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            }
+        ],
+        "schema_ref": "test",
+        "se_private_ID
+        "engine": "InnoDB",
+        "last_checked_for_upgrade_VERSION
+        "comment": "",
+        "se_private_data": "",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
+        "row_format": 2,
+        "partition_type": 0,
+        "partition_expression": "",
+        "partition_expression_utf8": "",
+        "default_partitioning": 0,
+        "subpartition_type": 0,
+        "subpartition_expression": "",
+        "subpartition_expression_utf8": "",
+        "default_subpartitioning": 0,
+        "indexes": [
+            {
+                "name": "PRIMARY",
+                "hID
+                "is_generated": false,
+                "ordinal_position": 1,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "ID
+                "type": 1,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 4,
+                        "order": 2,
+                        "hID
+                        "column_opx": 0
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 1
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 2
+                    }
+                ],
+                "tablespace_ref": "test/t1"
+            }
+        ],
+        "foreign_keys": [],
+        "check_constraints": [],
+        "partitions": [],
+        "collation_ID
+    }
+}
+}
+,
+{
+	"type": 2,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Tablespace",
+    "dd_object": {
+        "name": "test/t1",
+        "comment": "",
+        "options": "autoextend_size=0;encryption=N;",
+        "se_private_data": "flags=16417;ID
+        "engine": "InnoDB",
+        "engine_attribute": "",
+        "files": [
+            {
+                "ordinal_position": 1,
+                "filename": "./test/t1.ibd",
+                "se_private_data": "ID
+            }
+        ]
+    }
+}
+}
+]
+# Dump SDI for first partition's tablespace before exchange
+["ibd2sdi"
+,
+{
+	"type": 1,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Table",
+    "dd_object": {
+        "name": "pt1",
+        "mysql_VERSION
+        "CREATED
+        "LAST_ALTERED
+        "hID
+        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "columns": [
+            {
+                "name": "a",
+                "type": 4,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 1,
+                "char_length": 11,
+                "numeric_precision": 10,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_ID
+                "srs_ID
+                "default_value": "AAAAAA==",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 2,
+                "column_type_utf8": "int",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_TRX_ID",
+                "type": 10,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 2,
+                "char_length": 6,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_ROLL_PTR",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 3,
+                "char_length": 7,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            }
+        ],
+        "schema_ref": "test",
+        "se_private_ID
+        "engine": "InnoDB",
+        "last_checked_for_upgrade_VERSION
+        "comment": "",
+        "se_private_data": "",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
+        "row_format": 2,
+        "partition_type": 7,
+        "partition_expression": "`a`",
+        "partition_expression_utf8": "`a`",
+        "default_partitioning": 1,
+        "subpartition_type": 0,
+        "subpartition_expression": "",
+        "subpartition_expression_utf8": "",
+        "default_subpartitioning": 0,
+        "indexes": [
+            {
+                "name": "PRIMARY",
+                "hID
+                "is_generated": false,
+                "ordinal_position": 1,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "",
+                "type": 1,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 4,
+                        "order": 2,
+                        "hID
+                        "column_opx": 0
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 1
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 2
+                    }
+                ]
+            }
+        ],
+        "foreign_keys": [],
+        "check_constraints": [],
+        "partitions": [
+            {
+                "name": "p1",
+                "parent_partition_ID
+                "number": 0,
+                "se_private_ID
+                "description_utf8": "1000",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "1000"
+                    }
+                ],
+                "indexes": [
+                    {
+                        "options": "",
+                        "se_private_data": "ID
+                        "index_opx": 0,
+                        "tablespace_ref": "test/pt1#p#p1"
+                    }
+                ],
+                "subpartitions": []
+            },
+            {
+                "name": "p2",
+                "parent_partition_ID
+                "number": 1,
+                "se_private_ID
+                "description_utf8": "2000",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "2000"
+                    }
+                ],
+                "indexes": [
+                    {
+                        "options": "",
+                        "se_private_data": "ID
+                        "index_opx": 0,
+                        "tablespace_ref": "test/pt1#p#p2"
+                    }
+                ],
+                "subpartitions": []
+            },
+            {
+                "name": "p3",
+                "parent_partition_ID
+                "number": 2,
+                "se_private_ID
+                "description_utf8": "3000",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "3000"
+                    }
+                ],
+                "indexes": [
+                    {
+                        "options": "",
+                        "se_private_data": "ID
+                        "index_opx": 0,
+                        "tablespace_ref": "test/pt1#p#p3"
+                    }
+                ],
+                "subpartitions": []
+            }
+        ],
+        "collation_ID
+    }
+}
+}
+,
+{
+	"type": 2,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Tablespace",
+    "dd_object": {
+        "name": "test/pt1#p#p1",
+        "comment": "",
+        "options": "autoextend_size=0;encryption=N;",
+        "se_private_data": "flags=16417;ID
+        "engine": "InnoDB",
+        "engine_attribute": "",
+        "files": [
+            {
+                "ordinal_position": 1,
+                "filename": "./test/pt1#p#p1.ibd",
+                "se_private_data": "ID
+            }
+        ]
+    }
+}
+}
+]
+# Dump SDI for first subpartition's tablespace in source
+# table for import.
+["ibd2sdi"
+,
+{
+	"type": 1,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Table",
+    "dd_object": {
+        "name": "src_t2",
+        "mysql_VERSION
+        "CREATED
+        "LAST_ALTERED
+        "hID
+        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "columns": [
+            {
+                "name": "c1",
+                "type": 4,
+                "is_nullable": true,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 1,
+                "char_length": 11,
+                "numeric_precision": 10,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "int",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_ROW_ID",
+                "type": 10,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 2,
+                "char_length": 6,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_TRX_ID",
+                "type": 10,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 3,
+                "char_length": 6,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_ROLL_PTR",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 4,
+                "char_length": 7,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            }
+        ],
+        "schema_ref": "src",
+        "se_private_ID
+        "engine": "InnoDB",
+        "last_checked_for_upgrade_VERSION
+        "comment": "",
+        "se_private_data": "",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
+        "row_format": 2,
+        "partition_type": 8,
+        "partition_expression": "`c1`",
+        "partition_expression_utf8": "`c1`",
+        "default_partitioning": 1,
+        "subpartition_type": 1,
+        "subpartition_expression": "`c1`",
+        "subpartition_expression_utf8": "`c1`",
+        "default_subpartitioning": 3,
+        "indexes": [
+            {
+                "name": "PRIMARY",
+                "hID
+                "is_generated": false,
+                "ordinal_position": 1,
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "type": 2,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 1
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 3
+                    },
+                    {
+                        "ordinal_position": 4,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 0
+                    }
+                ]
+            }
+        ],
+        "foreign_keys": [],
+        "check_constraints": [],
+        "partitions": [
+            {
+                "name": "p0",
+                "parent_partition_ID
+                "number": 0,
+                "se_private_ID
+                "description_utf8": "0,2,4,6,8",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "0"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 1,
+                        "column_num": 0,
+                        "value_utf8": "2"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 2,
+                        "column_num": 0,
+                        "value_utf8": "4"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 3,
+                        "column_num": 0,
+                        "value_utf8": "6"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 4,
+                        "column_num": 0,
+                        "value_utf8": "8"
+                    }
+                ],
+                "indexes": [],
+                "subpartitions": [
+                    {
+                        "name": "p0sp0",
+                        "parent_partition_ID
+                        "number": 0,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "src/src_t2#p#p0#sp#p0sp0"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p0sp1",
+                        "parent_partition_ID
+                        "number": 1,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "src/src_t2#p#p0#sp#p0sp1"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p0sp2",
+                        "parent_partition_ID
+                        "number": 2,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "src/src_t2#p#p0#sp#p0sp2"
+                            }
+                        ],
+                        "subpartitions": []
+                    }
+                ]
+            },
+            {
+                "name": "p1",
+                "parent_partition_ID
+                "number": 1,
+                "se_private_ID
+                "description_utf8": "1,3,5,7,9",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "1"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 1,
+                        "column_num": 0,
+                        "value_utf8": "3"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 2,
+                        "column_num": 0,
+                        "value_utf8": "5"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 3,
+                        "column_num": 0,
+                        "value_utf8": "7"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 4,
+                        "column_num": 0,
+                        "value_utf8": "9"
+                    }
+                ],
+                "indexes": [],
+                "subpartitions": [
+                    {
+                        "name": "p1sp0",
+                        "parent_partition_ID
+                        "number": 0,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "src/src_t2#p#p1#sp#p1sp0"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p1sp1",
+                        "parent_partition_ID
+                        "number": 1,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "src/src_t2#p#p1#sp#p1sp1"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p1sp2",
+                        "parent_partition_ID
+                        "number": 2,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "src/src_t2#p#p1#sp#p1sp2"
+                            }
+                        ],
+                        "subpartitions": []
+                    }
+                ]
+            }
+        ],
+        "collation_ID
+    }
+}
+}
+,
+{
+	"type": 2,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Tablespace",
+    "dd_object": {
+        "name": "src/src_t2#p#p0#sp#p0sp0",
+        "comment": "",
+        "options": "autoextend_size=0;encryption=N;",
+        "se_private_data": "flags=16417;ID
+        "engine": "InnoDB",
+        "engine_attribute": "",
+        "files": [
+            {
+                "ordinal_position": 1,
+                "filename": "./src/src_t2#p#p0#sp#p0sp0.ibd",
+                "se_private_data": "ID
+            }
+        ]
+    }
+}
+}
+]
+# Restart server again
+# restart
+USE test;
+# Exchange with the first partition (which has SDIs)
+ALTER TABLE pt1 EXCHANGE PARTITION p1 WITH TABLE t1;
+# Exchange with the second partitition (which does not have SDIs)
+ALTER TABLE pt1 EXCHANGE PARTITION p2 with TABLE t2;
+# Copy snaphot of src_t1.ibd to tmp dir
+USE src;
+FLUSH TABLES src_t1 FOR EXPORT;
+UNLOCK TABLES;
+# Copy snaphot of src_t2 ibd-s to tmp dir
+FLUSH TABLES src_t2 FOR EXPORT;
+UNLOCK TABLES;
+# Discard dst.dst_t1's tablespace and import src.src_t1's tablespace
+# its place.
+USE dst;
+LOCK TABLES dst_t1 WRITE;
+ALTER TABLE dst_t1 DISCARD TABLESPACE;
+ALTER TABLE dst_t1 IMPORT TABLESPACE;
+UNLOCK TABLES;
+LOCK TABLES dst_t2 WRITE;
+ALTER TABLE dst_t2 DISCARD PARTITION p1sp0 TABLESPACE;
+# Copy the 1. subpartition of the first partition to the 1 subpartition of the second partition to
+# match the partitioning of the destination table, and to make sure that the partition tablespace
+# containing SDIs is NOT the first partition of the destination table.
+ALTER TABLE dst_t2 IMPORT PARTITION p1sp0 TABLESPACE;
+UNLOCK TABLES;
+SELECT * FROM dst_t2 ORDER BY c1;
+c1
+1
+2
+3
+6
+7
+8
+9
+LOCK TABLES dst.dst_t2 WRITE;
+ALTER TABLE dst_t2 DISCARD PARTITION p0 TABLESPACE;
+# Copy all of src p1 to dst p0
+ALTER TABLE dst_t2 IMPORT PARTITION p0 TABLESPACE;
+UNLOCK TABLES;
+SELECT * FROM dst_t2 ORDER BY c1;
+c1
+1
+2
+3
+5
+6
+7
+8
+9
+# Shutdown the server to show SDI
+# Dump SDI from swap table after exchange
+["ibd2sdi"
+,
+{
+	"type": 1,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Table",
+    "dd_object": {
+        "name": "t1",
+        "mysql_VERSION
+        "CREATED
+        "LAST_ALTERED
+        "hID
+        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "columns": [
+            {
+                "name": "a",
+                "type": 4,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 1,
+                "char_length": 11,
+                "numeric_precision": 10,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_ID
+                "srs_ID
+                "default_value": "AAAAAA==",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 2,
+                "column_type_utf8": "int",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_TRX_ID",
+                "type": 10,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 2,
+                "char_length": 6,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_ROLL_PTR",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 3,
+                "char_length": 7,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            }
+        ],
+        "schema_ref": "test",
+        "se_private_ID
+        "engine": "InnoDB",
+        "last_checked_for_upgrade_VERSION
+        "comment": "",
+        "se_private_data": "",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
+        "row_format": 2,
+        "partition_type": 0,
+        "partition_expression": "",
+        "partition_expression_utf8": "",
+        "default_partitioning": 0,
+        "subpartition_type": 0,
+        "subpartition_expression": "",
+        "subpartition_expression_utf8": "",
+        "default_subpartitioning": 0,
+        "indexes": [
+            {
+                "name": "PRIMARY",
+                "hID
+                "is_generated": false,
+                "ordinal_position": 1,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "ID
+                "type": 1,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 4,
+                        "order": 2,
+                        "hID
+                        "column_opx": 0
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 1
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 2
+                    }
+                ],
+                "tablespace_ref": "test/t1"
+            }
+        ],
+        "foreign_keys": [],
+        "check_constraints": [],
+        "partitions": [],
+        "collation_ID
+    }
+}
+}
+,
+{
+	"type": 2,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Tablespace",
+    "dd_object": {
+        "name": "test/t1",
+        "comment": "",
+        "options": "autoextend_size=0;encryption=N;",
+        "se_private_data": "flags=16417;ID
+        "engine": "InnoDB",
+        "engine_attribute": "",
+        "files": [
+            {
+                "ordinal_position": 1,
+                "filename": "./test/t1.ibd",
+                "se_private_data": "ID
+            }
+        ]
+    }
+}
+}
+]
+# Dump SDI from first partition's tablespace after exchange
+["ibd2sdi"
+,
+{
+	"type": 1,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Table",
+    "dd_object": {
+        "name": "pt1",
+        "mysql_VERSION
+        "CREATED
+        "LAST_ALTERED
+        "hID
+        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "columns": [
+            {
+                "name": "a",
+                "type": 4,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 1,
+                "char_length": 11,
+                "numeric_precision": 10,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": true,
+                "default_value_null": false,
+                "srs_ID
+                "srs_ID
+                "default_value": "AAAAAA==",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 2,
+                "column_type_utf8": "int",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_TRX_ID",
+                "type": 10,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 2,
+                "char_length": 6,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_ROLL_PTR",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 3,
+                "char_length": 7,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            }
+        ],
+        "schema_ref": "test",
+        "se_private_ID
+        "engine": "InnoDB",
+        "last_checked_for_upgrade_VERSION
+        "comment": "",
+        "se_private_data": "",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
+        "row_format": 2,
+        "partition_type": 7,
+        "partition_expression": "`a`",
+        "partition_expression_utf8": "`a`",
+        "default_partitioning": 1,
+        "subpartition_type": 0,
+        "subpartition_expression": "",
+        "subpartition_expression_utf8": "",
+        "default_subpartitioning": 0,
+        "indexes": [
+            {
+                "name": "PRIMARY",
+                "hID
+                "is_generated": false,
+                "ordinal_position": 1,
+                "comment": "",
+                "options": "flags=0;",
+                "se_private_data": "",
+                "type": 1,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 4,
+                        "order": 2,
+                        "hID
+                        "column_opx": 0
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 1
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 2
+                    }
+                ]
+            }
+        ],
+        "foreign_keys": [],
+        "check_constraints": [],
+        "partitions": [
+            {
+                "name": "p1",
+                "parent_partition_ID
+                "number": 0,
+                "se_private_ID
+                "description_utf8": "1000",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "1000"
+                    }
+                ],
+                "indexes": [
+                    {
+                        "options": "",
+                        "se_private_data": "ID
+                        "index_opx": 0,
+                        "tablespace_ref": "test/pt1#p#p1"
+                    }
+                ],
+                "subpartitions": []
+            },
+            {
+                "name": "p2",
+                "parent_partition_ID
+                "number": 1,
+                "se_private_ID
+                "description_utf8": "2000",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "2000"
+                    }
+                ],
+                "indexes": [
+                    {
+                        "options": "",
+                        "se_private_data": "ID
+                        "index_opx": 0,
+                        "tablespace_ref": "test/pt1#p#p2"
+                    }
+                ],
+                "subpartitions": []
+            },
+            {
+                "name": "p3",
+                "parent_partition_ID
+                "number": 2,
+                "se_private_ID
+                "description_utf8": "3000",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "3000"
+                    }
+                ],
+                "indexes": [
+                    {
+                        "options": "",
+                        "se_private_data": "ID
+                        "index_opx": 0,
+                        "tablespace_ref": "test/pt1#p#p3"
+                    }
+                ],
+                "subpartitions": []
+            }
+        ],
+        "collation_ID
+    }
+}
+}
+,
+{
+	"type": 2,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Tablespace",
+    "dd_object": {
+        "name": "test/pt1#p#p1",
+        "comment": "",
+        "options": "autoextend_size=0;encryption=N;",
+        "se_private_data": "flags=16417;ID
+        "engine": "InnoDB",
+        "engine_attribute": "",
+        "files": [
+            {
+                "ordinal_position": 1,
+                "filename": "./test/pt1#p#p1.ibd",
+                "se_private_data": "ID
+            }
+        ]
+    }
+}
+}
+]
+# Dump SDI from dst_t2's first (SDI) partition's tablespace after import.
+["ibd2sdi"
+,
+{
+	"type": 1,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Table",
+    "dd_object": {
+        "name": "dst_t2",
+        "mysql_VERSION
+        "CREATED
+        "LAST_ALTERED
+        "hID
+        "options": "avg_row_length=0;encrypt_type=N;key_block_size=0;keys_disabled=0;pack_record=0;stats_auto_recalc=0;stats_sample_pages=0;",
+        "columns": [
+            {
+                "name": "c1",
+                "type": 4,
+                "is_nullable": true,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 1,
+                "char_length": 11,
+                "numeric_precision": 10,
+                "numeric_scale": 0,
+                "numeric_scale_null": false,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "interval_count=0;",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "int",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_ROW_ID",
+                "type": 10,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 2,
+                "char_length": 6,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_TRX_ID",
+                "type": 10,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 3,
+                "char_length": 6,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            },
+            {
+                "name": "DB_ROLL_PTR",
+                "type": 9,
+                "is_nullable": false,
+                "is_zerofill": false,
+                "is_unsigned": false,
+                "is_auto_increment": false,
+                "is_virtual": false,
+                "hID
+                "ordinal_position": 4,
+                "char_length": 7,
+                "numeric_precision": 0,
+                "numeric_scale": 0,
+                "numeric_scale_null": true,
+                "datetime_precision": 0,
+                "datetime_precision_null": 1,
+                "has_no_default": false,
+                "default_value_null": true,
+                "srs_ID
+                "srs_ID
+                "default_value": "",
+                "default_value_utf8_null": true,
+                "default_value_utf8": "",
+                "default_option": "",
+                "update_option": "",
+                "comment": "",
+                "generation_expression": "",
+                "generation_expression_utf8": "",
+                "options": "",
+                "se_private_data": "table_ID
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "column_key": 1,
+                "column_type_utf8": "",
+                "elements": [],
+                "collation_ID
+                "is_explicit_collation": false
+            }
+        ],
+        "schema_ref": "dst",
+        "se_private_ID
+        "engine": "InnoDB",
+        "last_checked_for_upgrade_VERSION
+        "comment": "",
+        "se_private_data": "",
+        "engine_attribute": "",
+        "secondary_engine_attribute": "",
+        "row_format": 2,
+        "partition_type": 8,
+        "partition_expression": "`c1`",
+        "partition_expression_utf8": "`c1`",
+        "default_partitioning": 1,
+        "subpartition_type": 1,
+        "subpartition_expression": "`c1`",
+        "subpartition_expression_utf8": "`c1`",
+        "default_subpartitioning": 3,
+        "indexes": [
+            {
+                "name": "PRIMARY",
+                "hID
+                "is_generated": false,
+                "ordinal_position": 1,
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "type": 2,
+                "algorithm": 2,
+                "is_algorithm_explicit": false,
+                "is_visible": true,
+                "engine": "InnoDB",
+                "engine_attribute": "",
+                "secondary_engine_attribute": "",
+                "elements": [
+                    {
+                        "ordinal_position": 1,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 1
+                    },
+                    {
+                        "ordinal_position": 2,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 2
+                    },
+                    {
+                        "ordinal_position": 3,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 3
+                    },
+                    {
+                        "ordinal_position": 4,
+                        "length": 4294967295,
+                        "order": 2,
+                        "hID
+                        "column_opx": 0
+                    }
+                ]
+            }
+        ],
+        "foreign_keys": [],
+        "check_constraints": [],
+        "partitions": [
+            {
+                "name": "p0",
+                "parent_partition_ID
+                "number": 0,
+                "se_private_ID
+                "description_utf8": "1,3,5,7,9",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "1"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 1,
+                        "column_num": 0,
+                        "value_utf8": "3"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 2,
+                        "column_num": 0,
+                        "value_utf8": "5"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 3,
+                        "column_num": 0,
+                        "value_utf8": "7"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 4,
+                        "column_num": 0,
+                        "value_utf8": "9"
+                    }
+                ],
+                "indexes": [],
+                "subpartitions": [
+                    {
+                        "name": "p0sp0",
+                        "parent_partition_ID
+                        "number": 0,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "discard=0;",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "dst/dst_t2#p#p0#sp#p0sp0"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p0sp1",
+                        "parent_partition_ID
+                        "number": 1,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "discard=0;",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "dst/dst_t2#p#p0#sp#p0sp1"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p0sp2",
+                        "parent_partition_ID
+                        "number": 2,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "discard=0;",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "dst/dst_t2#p#p0#sp#p0sp2"
+                            }
+                        ],
+                        "subpartitions": []
+                    }
+                ]
+            },
+            {
+                "name": "p1",
+                "parent_partition_ID
+                "number": 1,
+                "se_private_ID
+                "description_utf8": "0,2,4,6,8",
+                "engine": "InnoDB",
+                "comment": "",
+                "options": "",
+                "se_private_data": "",
+                "values": [
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 0,
+                        "column_num": 0,
+                        "value_utf8": "0"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 1,
+                        "column_num": 0,
+                        "value_utf8": "2"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 2,
+                        "column_num": 0,
+                        "value_utf8": "4"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 3,
+                        "column_num": 0,
+                        "value_utf8": "6"
+                    },
+                    {
+                        "max_value": false,
+                        "null_value": false,
+                        "list_num": 4,
+                        "column_num": 0,
+                        "value_utf8": "8"
+                    }
+                ],
+                "indexes": [],
+                "subpartitions": [
+                    {
+                        "name": "p1sp0",
+                        "parent_partition_ID
+                        "number": 0,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "discard=0;",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "dst/dst_t2#p#p1#sp#p1sp0"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p1sp1",
+                        "parent_partition_ID
+                        "number": 1,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "dst/dst_t2#p#p1#sp#p1sp1"
+                            }
+                        ],
+                        "subpartitions": []
+                    },
+                    {
+                        "name": "p1sp2",
+                        "parent_partition_ID
+                        "number": 2,
+                        "se_private_ID
+                        "description_utf8": "",
+                        "engine": "InnoDB",
+                        "comment": "",
+                        "options": "",
+                        "se_private_data": "",
+                        "values": [],
+                        "indexes": [
+                            {
+                                "options": "",
+                                "se_private_data": "ID
+                                "index_opx": 0,
+                                "tablespace_ref": "dst/dst_t2#p#p1#sp#p1sp2"
+                            }
+                        ],
+                        "subpartitions": []
+                    }
+                ]
+            }
+        ],
+        "collation_ID
+    }
+}
+}
+,
+{
+	"type": 2,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Tablespace",
+    "dd_object": {
+        "name": "dst/dst_t2#p#p0#sp#p0sp0",
+        "comment": "",
+        "options": "autoextend_size=0;encryption=N;",
+        "se_private_data": "flags=16417;ID
+        "engine": "InnoDB",
+        "engine_attribute": "",
+        "files": [
+            {
+                "ordinal_position": 1,
+                "filename": "./dst/dst_t2#p#p0#sp#p0sp0.ibd",
+                "se_private_data": "ID
+            }
+        ]
+    }
+}
+}
+]
+# Dump SDI from the subpartition tablespace now holding what was the first (SDI) partition of src_t2
+["ibd2sdi"
+,
+{
+	"type": 2,
+	"ID
+	"object":
+		{
+    "mysqld_VERSION
+    "dd_VERSION
+    "sdi_VERSION
+    "dd_object_type": "Tablespace",
+    "dd_object": {
+        "name": "dst/dst_t2#p#p1#sp#p1sp0",
+        "comment": "",
+        "options": "autoextend_size=0;encryption=N;",
+        "se_private_data": "flags=16417;ID
+        "engine": "InnoDB",
+        "engine_attribute": "",
+        "files": [
+            {
+                "ordinal_position": 1,
+                "filename": "./dst/dst_t2#p#p1#sp#p1sp0.ibd",
+                "se_private_data": "ID
+            }
+        ]
+    }
+}
+}
+]
+# Restart server again
+# restart
+# Cleanup
+USE src;
+DROP TABLE src_t1;
+DROP TABLE src_t2;
+USE dst;
+DROP TABLE dst_t1;
+DROP TABLE dst_t2;
+USE test;
+DROP SCHEMA src;
+DROP SCHEMA dst;
+DROP TABLE pt1;
+DROP TABLE t1;
+DROP TABLE t2;

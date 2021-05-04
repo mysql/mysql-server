@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -578,9 +578,6 @@ byte *ibuf_parse_bitmap_init(byte *ptr, /*!< in: buffer */
                              buf_block_t *block, /*!< in: block or NULL */
                              mtr_t *mtr)         /*!< in: mtr or NULL */
 {
-  ut_ad(ptr != nullptr);
-  ut_ad(end_ptr != nullptr);
-
   if (block) {
     ibuf_bitmap_page_init(block, mtr);
   }
@@ -3374,7 +3371,7 @@ ibool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
   ibool no_counter;
   /* Read the settable global variable ibuf_use only once in
   this function, so that we will have a consistent view of it. */
-  DBUG_ASSERT(innodb_change_buffering <= IBUF_USE_ALL);
+  assert(innodb_change_buffering <= IBUF_USE_ALL);
   ibuf_use_t use = static_cast<ibuf_use_t>(innodb_change_buffering);
 
   DBUG_TRACE;
@@ -4069,8 +4066,7 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
   ulint dops[IBUF_OP_COUNT];
 
   ut_ad(block == nullptr || page_id == block->page.id);
-  ut_ad(block == nullptr ||
-        buf_block_get_io_fix_unlocked(block) == BUF_IO_READ);
+  ut_ad(block == nullptr || block->page.is_io_fix_read());
 
   if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE ||
       trx_sys_hdr_page(page_id) || fsp_is_system_temporary(page_id.space())) {

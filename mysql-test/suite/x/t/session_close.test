@@ -20,7 +20,7 @@
 --echo
 
 ## Test Setup
---let $xtest_file= $MYSQL_TMP_DIR/admin_ping_mysqlx.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_ping_mysqlx.xpl
 --write_file $xtest_file
 
 SET DEBUG_SYNC= 'srv_session_close WAIT_FOR listing_x_root';
@@ -71,5 +71,4 @@ reap;
 
 --let $debug_point= test_fill_proc_with_x_root
 --source include/remove_debug_point.inc
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

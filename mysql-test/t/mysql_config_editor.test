@@ -268,3 +268,22 @@ DROP USER 'test#user1'@'localhost';
 --remove_file $MYSQL_TEST_LOGIN_FILE
 
 --echo # End of 5.6 tests
+
+--echo #
+--echo # Bug #19953349: MYSQL_CONFIG_EDITOR DOES NOT ESCAPE STRINGS
+--echo #
+
+CREATE USER 'test1 test1'@'localhost';
+
+--exec $MYSQL_CONFIG_EDITOR set --login-path=test11 --user="test1 test1" --host=127.0.0.1 2>&1
+--echo test: must contain space
+--exec $MYSQL_CONFIG_EDITOR print --login-path=test11
+
+--echo # test: must not fail with a space in the name
+--exec $MYSQLADMIN --no-defaults --login-path=test11 --port=$MASTER_MYPORT ping 2>&1
+
+--echo # cleanup
+DROP USER 'test1 test1'@'localhost';
+--remove_file $MYSQL_TEST_LOGIN_FILE
+
+--echo # End of 8.0 tests

@@ -1,7 +1,3 @@
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'keyring_file initialization failure.");
-call mtr.add_suppression("\\[ERROR\\].*Plugin keyring_file reported: 'File .*keyring' not found .*");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring plugin is loaded.");
 #########
 # SETUP #
 #########
@@ -10,9 +6,9 @@ call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't f
 # START : WITHOUT KEYRING PLUGIN
 #########################################################################
 ALTER TABLESPACE mysql ENCRYPTION='Y';
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 ALTER TABLESPACE mysql ENCRYPTION='N';
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
 # RESTART 1 : WITH KEYRING PLUGIN
 #########################################################################
@@ -206,7 +202,7 @@ plugin	CREATE TABLE `plugin` (
   `name` varchar(64) NOT NULL DEFAULT '',
   `dl` varchar(128) NOT NULL DEFAULT '',
   PRIMARY KEY (`name`)
-) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='MySQL plugins'
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='MySQL plugins'
 -------------------
 Drop mysql database
 -------------------
@@ -254,7 +250,7 @@ NAME	ENCRYPTION
 mysql	Y
 UNINSTALL PLUGIN keyring_file;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 #########################################################################
 # Restart with keyring plugin
 #   - monitor progress of encryption in performance_schema table

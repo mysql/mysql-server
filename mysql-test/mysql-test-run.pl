@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -263,6 +263,7 @@ our @DEFAULT_SUITES = qw(
   test_service_sql_api
   test_services
   x
+  component_keyring_file
 );
 
 our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;
@@ -318,6 +319,8 @@ our $excluded_string;
 our $exe_libtool;
 our $exe_mysql;
 our $exe_mysql_ssl_rsa_setup;
+our $exe_mysql_migrate_keyring;
+our $exe_mysql_keyring_encryption_test;
 our $exe_mysqladmin;
 our $exe_mysqltest;
 our $glob_mysql_test_dir;
@@ -336,6 +339,7 @@ our $start_only;
 our $glob_debugger       = 0;
 our $group_replication   = 0;
 our $ndbcluster_enabled  = 0;
+our $ndbcluster_only     = 0;
 our $mysqlbackup_enabled = 0;
 
 our @share_locations;
@@ -446,8 +450,11 @@ sub main {
   $secondary_engine_support =
     ($secondary_engine_support and find_secondary_engine($bindir)) ? 1 : 0;
 
-  # Append secondary engine test suite to list of default suites if found.
-  add_secondary_engine_suite() if $secondary_engine_support;
+  if ($secondary_engine_support) {
+    check_secondary_engine_features(using_extern());
+    # Append secondary engine test suite to list of default suites if found.
+    add_secondary_engine_suite();
+  }
 
   if ($opt_gcov) {
     gcov_prepare($basedir);
@@ -689,7 +696,7 @@ sub main {
   }
 
   # Read definitions from include/plugin.defs
-  read_plugin_defs("include/plugin.defs");
+  read_plugin_defs("include/plugin.defs", 0);
 
  # Also read from plugin.defs files in internal and internal/cloud if they exist
   my @plugin_defs = ("$basedir/internal/mysql-test/include/plugin.defs",
@@ -716,6 +723,8 @@ sub main {
     # Reserve 10 extra ports per worker process
     $ports_per_thread = $ports_per_thread + 10;
   }
+
+  create_manifest_file();
 
   # Create child processes
   my %children;
@@ -761,6 +770,14 @@ sub main {
       }
     }
   }
+
+  # Remove config files for components
+  read_plugin_defs("include/plugin.defs", 1);
+  for my $plugin_def (@plugin_defs) {
+    read_plugin_defs($plugin_def, 1) if -e $plugin_def;
+  }
+
+  remove_manifest_file();
 
   if (not $completed) {
     mtr_error("Test suite aborted");
@@ -1542,25 +1559,25 @@ sub command_line_setup {
     'defaults-extra-file=s' => \&collect_option,
 
     # Control what test suites or cases to run
-    'big-test'                 => \$opt_big_test,
-    'combination=s'            => \@opt_combinations,
-    'do-suite=s'               => \$opt_do_suite,
-    'do-test=s'                => \&collect_option,
-    'force'                    => \$opt_force,
-    'ndb|include-ndbcluster'   => \$opt_include_ndbcluster,
-    'no-skip'                  => \$opt_no_skip,
-    'only-big-test'            => \$opt_only_big_test,
-    'platform=s'               => \$opt_platform,
-    'exclude-platform=s'       => \$opt_platform_exclude,
-    'skip-combinations'        => \$opt_skip_combinations,
-    'skip-im'                  => \&ignore_option,
-    'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
-    'skip-rpl'                 => \&collect_option,
-    'skip-sys-schema'          => \$opt_skip_sys_schema,
-    'skip-test=s'              => \&collect_option,
-    'start-from=s'             => \&collect_option,
-    'suite|suites=s'           => \$opt_suites,
-    'with-ndbcluster-only'     => \&collect_option,
+    'big-test'                           => \$opt_big_test,
+    'combination=s'                      => \@opt_combinations,
+    'do-suite=s'                         => \$opt_do_suite,
+    'do-test=s'                          => \&collect_option,
+    'force'                              => \$opt_force,
+    'ndb|include-ndbcluster'             => \$opt_include_ndbcluster,
+    'no-skip'                            => \$opt_no_skip,
+    'only-big-test'                      => \$opt_only_big_test,
+    'platform=s'                         => \$opt_platform,
+    'exclude-platform=s'                 => \$opt_platform_exclude,
+    'skip-combinations'                  => \$opt_skip_combinations,
+    'skip-im'                            => \&ignore_option,
+    'skip-ndbcluster|skip-ndb'           => \$opt_skip_ndbcluster,
+    'skip-rpl'                           => \&collect_option,
+    'skip-sys-schema'                    => \$opt_skip_sys_schema,
+    'skip-test=s'                        => \&collect_option,
+    'start-from=s'                       => \&collect_option,
+    'suite|suites=s'                     => \$opt_suites,
+    'with-ndbcluster-only|with-ndb-only' => \$ndbcluster_only,
 
     # Specify ports
     'build-thread|mtr-build-thread=i' => \$opt_build_thread,
@@ -2221,6 +2238,52 @@ sub command_line_setup {
   executable_setup();
 }
 
+# Create global manifest file
+sub create_manifest_file {
+  use strict;
+  use File::Basename;
+  my $config_content = "{ \"read_local_manifest\": true }";
+  my $manifest_file_ext = ".my";
+  my $exe_mysqld = find_mysqld($basedir);
+  my ($exename, $path, $suffix) = fileparse($exe_mysqld, qr/\.[^.]*/);
+  my $manifest_file_path = $path.$exename.$manifest_file_ext;
+  open(my $mh, "> $manifest_file_path") or die;
+  print $mh $config_content or die;
+  close($mh);
+}
+
+# Delete global manifest file
+sub remove_manifest_file {
+  use strict;
+  use File::Basename;
+  my $manifest_file_ext = ".my";
+  my $exe_mysqld = find_mysqld($basedir);
+  my ($exename, $path, $suffix) = fileparse($exe_mysqld, qr/\.[^.]*/);
+  my $manifest_file_path = $path.$exename.$manifest_file_ext;
+  unlink $manifest_file_path;
+}
+
+# Create config for one component
+sub create_one_config($$) {
+  my($component, $location) = @_;
+  use strict;
+  my $config_content = "{ \"read_local_config\": true }";
+  my $config_file_ext = ".cnf";
+  my $config_file_path = $location."\/".$component.$config_file_ext;
+  open(my $mh, "> $config_file_path") or die;
+  print $mh $config_content or die;
+  close($mh);
+}
+
+# Delete config for one component
+sub remove_one_config($$) {
+  my($component, $location) = @_;
+  use strict;
+  my $config_file_ext = ".cnf";
+  my $config_file_path = $location."\/".$component.$config_file_ext;
+  unlink $config_file_path;
+}
+
 # To make it easier for different devs to work on the same host, an
 # environment variable can be used to control all ports. A small number
 # is to be used, 0 - 16 or similar.
@@ -2523,6 +2586,12 @@ sub executable_setup () {
   $exe_mysql      = mtr_exe_exists("$path_client_bindir/mysql");
   $exe_mysql_ssl_rsa_setup =
     mtr_exe_exists("$path_client_bindir/mysql_ssl_rsa_setup");
+  $exe_mysql_migrate_keyring =
+    mtr_exe_exists("$path_client_bindir/mysql_migrate_keyring");
+  $exe_mysql_keyring_encryption_test =
+    my_find_bin($bindir,
+                [ "runtime_output_directory", "libexec", "sbin", "bin" ],
+                "mysql_keyring_encryption_test");
 
   if ($ndbcluster_enabled) {
     # Look for single threaded NDB
@@ -2767,8 +2836,8 @@ sub find_plugin($$) {
 }
 
 # Read plugin defintions file
-sub read_plugin_defs($) {
-  my ($defs_file) = @_;
+sub read_plugin_defs($$) {
+  my ($defs_file, $remove_config) = @_;
   my $running_debug = 0;
 
   open(PLUGDEF, '<', $defs_file) or
@@ -2781,12 +2850,13 @@ sub read_plugin_defs($) {
 
   while (<PLUGDEF>) {
     next if /^#/;
-    my ($plug_file, $plug_loc, $plug_var, $plug_names) = split;
+    my ($plug_file, $plug_loc, $requires_config, $plug_var, $plug_names) = split;
 
     # Allow empty lines
     next unless $plug_file;
-    mtr_error("Lines in $defs_file must have 3 or 4 items") unless $plug_var;
+    mtr_error("Lines in $defs_file must have 4 or 5 items") unless $plug_var;
 
+    my $orig_plug_file = $plug_file;
     # If running debug server, plugins will be in 'debug' subdirectory
     $plug_file = "debug/$plug_file" if $running_debug && !$source_dist;
 
@@ -2794,36 +2864,51 @@ sub read_plugin_defs($) {
 
     # Set env. variables that tests may use, set to empty if plugin
     # listed in def. file but not found.
-    if ($plugin) {
-      $ENV{$plug_var}            = basename($plugin);
-      $ENV{ $plug_var . '_DIR' } = dirname($plugin);
-      $ENV{ $plug_var . '_OPT' } = "--plugin-dir=" . dirname($plugin);
-
-      if ($plug_names) {
-        my $lib_name       = basename($plugin);
-        my $load_var       = "--plugin_load=";
-        my $early_load_var = "--early-plugin_load=";
-        my $load_add_var   = "--plugin_load_add=";
-        my $semi           = '';
-
-        foreach my $plug_name (split(',', $plug_names)) {
-          $load_var       .= $semi . "$plug_name=$lib_name";
-          $early_load_var .= $semi . "$plug_name=$lib_name";
-          $load_add_var   .= $semi . "$plug_name=$lib_name";
-          $semi = ';';
+    if ($remove_config) {
+      if ($plugin) {
+        if ($requires_config =~ "yes") {
+          my $component_location = dirname($plugin);
+          remove_one_config($orig_plug_file, $component_location);
         }
-
-        $ENV{ $plug_var . '_LOAD' }       = $load_var;
-        $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
-        $ENV{ $plug_var . '_LOAD_ADD' }   = $load_add_var;
       }
     } else {
-      $ENV{$plug_var}            = "";
-      $ENV{ $plug_var . '_DIR' } = "";
-      $ENV{ $plug_var . '_OPT' } = "";
-      $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
-      $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
+      if ($plugin) {
+
+        if ($requires_config =~ "yes") {
+          my $component_location = dirname($plugin);
+          create_one_config($orig_plug_file, $component_location);
+        }
+
+        $ENV{$plug_var}            = basename($plugin);
+        $ENV{ $plug_var . '_DIR' } = dirname($plugin);
+        $ENV{ $plug_var . '_OPT' } = "--plugin-dir=" . dirname($plugin);
+
+        if ($plug_names) {
+          my $lib_name       = basename($plugin);
+          my $load_var       = "--plugin_load=";
+          my $early_load_var = "--early-plugin_load=";
+          my $load_add_var   = "--plugin_load_add=";
+          my $semi           = '';
+
+          foreach my $plug_name (split(',', $plug_names)) {
+            $load_var       .= $semi . "$plug_name=$lib_name";
+            $early_load_var .= $semi . "$plug_name=$lib_name";
+            $load_add_var   .= $semi . "$plug_name=$lib_name";
+            $semi = ';';
+          }
+
+          $ENV{ $plug_var . '_LOAD' }       = $load_var;
+          $ENV{ $plug_var . '_LOAD_EARLY' } = $early_load_var;
+          $ENV{ $plug_var . '_LOAD_ADD' }   = $load_add_var;
+        }
+      } else {
+        $ENV{$plug_var}            = "";
+        $ENV{ $plug_var . '_DIR' } = "";
+        $ENV{ $plug_var . '_OPT' } = "";
+        $ENV{ $plug_var . '_LOAD' }       = "" if $plug_names;
+        $ENV{ $plug_var . '_LOAD_EARLY' } = "" if $plug_names;
+        $ENV{ $plug_var . '_LOAD_ADD' }   = "" if $plug_names;
+      }
     }
   }
   close PLUGDEF;
@@ -2947,6 +3032,7 @@ sub environment_setup {
       ndb_mgm
       ndb_move_data
       ndb_perror
+      ndb_print_backup_file
       ndb_restore
       ndb_select_all
       ndb_select_count
@@ -2966,7 +3052,6 @@ sub environment_setup {
 
     # Tools not supporting --defaults-file=xxx, only define NDB_PROG_EXE
     @ndb_tools = qw(
-      ndb_print_backup_file
       ndb_print_file
       ndb_print_sys_file
     );
@@ -3030,6 +3115,8 @@ sub environment_setup {
   $ENV{'MYSQL_UPGRADE'}       = client_arguments("mysql_upgrade");
   $ENV{'MYSQLADMIN'}          = native_path($exe_mysqladmin);
   $ENV{'MYSQLXTEST'}          = mysqlxtest_arguments();
+  $ENV{'MYSQL_MIGRATE_KEYRING'} = $exe_mysql_migrate_keyring;
+  $ENV{'MYSQL_KEYRING_ENCRYPTION_TEST'} = $exe_mysql_keyring_encryption_test;
   $ENV{'PATH_CONFIG_FILE'}    = $path_config_file;
   $ENV{'MYSQL_CLIENT_BIN_PATH'}    = $path_client_bindir;
   $ENV{'MYSQLBACKUP_PLUGIN_DIR'} = mysqlbackup_plugin_dir()
@@ -3061,9 +3148,9 @@ sub environment_setup {
     initialize_function_pointers(\&gdb_arguments,
                                  \&mark_log,
                                  \&mysqlds,
+                                 \&report_failure_and_restart,
                                  \&run_query,
-                                 \&valgrind_arguments,
-                                 \&report_failure_and_restart);
+                                 \&valgrind_arguments);
   }
 
   # mysql_fix_privilege_tables.sql
@@ -3410,6 +3497,10 @@ sub vs_config_dirs ($$) {
 sub check_ndbcluster_support ($) {
   my $mysqld_variables = shift;
 
+  if ($ndbcluster_only) {
+    $DEFAULT_SUITES = "";
+  }
+
   my $ndbcluster_supported = 0;
   if ($mysqld_variables{'ndb-connectstring'}) {
     $ndbcluster_supported = 1;
@@ -3467,7 +3558,8 @@ sub check_ndbcluster_support ($) {
       # Add only the test suite for ndbcluster integration check
       mtr_report(" - enabling ndbcluster(for integration checks)");
       $ndbcluster_enabled = 1;
-      $DEFAULT_SUITES .= ",ndbcluster";
+      $DEFAULT_SUITES .= "," if $DEFAULT_SUITES;
+      $DEFAULT_SUITES .= "ndbcluster";
       return;
     }
   }
@@ -3475,8 +3567,9 @@ sub check_ndbcluster_support ($) {
   mtr_report(" - enabling ndbcluster");
   $ndbcluster_enabled = 1;
   # Add MySQL Cluster test suites
-  $DEFAULT_SUITES .=
-",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndbcluster,ndb_ddl,gcol_ndb,ndb_opt";
+  $DEFAULT_SUITES .= "," if $DEFAULT_SUITES;
+  $DEFAULT_SUITES .= "ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndbcluster,ndb_ddl,".
+                     "gcol_ndb,json_ndb,ndb_opt";
   # Increase the suite timeout when running with default ndb suites
   $opt_suite_timeout *= 2;
   return;
@@ -3510,6 +3603,7 @@ sub ndbcluster_wait_started($$) {
   # Check that ndb_mgmd(s) are still alive
   foreach my $ndb_mgmd (in_cluster($cluster, ndb_mgmds())) {
     my $proc = $ndb_mgmd->{proc};
+    next unless defined $proc;
     if (!$proc->wait_one(0)) {
       mtr_warning("$proc died");
       return 2;
@@ -3616,7 +3710,8 @@ sub ndb_mgmd_start ($$) {
   my $args;
   mtr_init_args(\$args);
   mtr_add_arg($args, "--defaults-file=%s",         $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=%s", $cluster->suffix());
+  mtr_add_arg($args, "--defaults-group-suffix=%s",
+              $ndb_mgmd->after('cluster_config.ndb_mgmd'));
   mtr_add_arg($args, "--mycnf");
   mtr_add_arg($args, "--nodaemon");
   mtr_add_arg($args, "--configdir=%s",             "$dir");
@@ -7481,7 +7576,9 @@ Options to control what test suites or cases to run
                         'non-default'- will scan the mysql directory for
                                        available suites and runs only the
                                        non-default suites.
-  with-ndbcluster-only  Run only ndb tests.
+  with-ndb[cluster]-only  Run only ndb tests. If no suites are explicitly given,
+                        this option also skip all non ndb suites without
+                        checking individual test names.
 
 Options that specify ports
 

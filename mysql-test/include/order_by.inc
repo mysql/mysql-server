@@ -73,6 +73,7 @@ drop table t1;
 create table t1 (i int);
 insert into t1 values(1),(2),(1),(2),(1),(2),(3);
 select distinct i from t1;
+--sorted_result  # By nature nondeterministic.
 select distinct i from t1 order by rand(5);
 select distinct i from t1 order by i desc;
 select distinct i from t1 order by 1-i;

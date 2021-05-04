@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,6 +50,8 @@
 #endif
 #include <sys/types.h>
 #include <time.h>
+
+#include <atomic>  // error_handler_hook
 
 #include "m_string.h" /* IWYU pragma: keep */
 #include "my_compiler.h"
@@ -221,9 +223,9 @@ extern uint my_get_large_page_size(void);
 
 extern char *home_dir;          /* Home directory for user */
 extern const char *my_progname; /* program-name (printed in errors) */
-extern void (*error_handler_hook)(uint my_err, const char *str, myf MyFlags);
-extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
-                                        myf MyFlags);
+
+using ErrorHandlerFunctionPointer = void (*)(uint, const char *, myf);
+extern std::atomic<ErrorHandlerFunctionPointer> error_handler_hook;
 extern void (*local_message_hook)(enum loglevel ll, uint ecode, va_list args);
 
 extern MYSQL_PLUGIN_IMPORT ulong my_thread_stack_size;
@@ -801,6 +803,8 @@ extern bool dynstr_append(DYNAMIC_STRING *str, const char *append);
 bool dynstr_append_mem(DYNAMIC_STRING *str, const char *append, size_t length);
 extern bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append,
                                     ...);
+extern bool dynstr_append_quoted(DYNAMIC_STRING *str, const char *quote_str,
+                                 const uint quote_len, const char *append, ...);
 extern bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
 extern bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
@@ -974,7 +978,7 @@ extern void set_psi_tls_channel_service(void *psi);
 */
 
 // True if the temporary file of binlog cache is encrypted.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern bool binlog_cache_temporary_file_is_encrypted;
 #endif
 
@@ -1024,17 +1028,7 @@ size_t mysql_encryption_file_read(IO_CACHE *cache, uchar *buffer, size_t count,
                 MY_WME | MY_FAE | MY_NABP | MY_FNABP |
                 MY_DONT_CHECK_FILESIZE and so on
 
-   if (flags & (MY_NABP | MY_FNABP)) {
-     @retval 0 if count == 0
-     @retval 0 success
-     @retval MY_FILE_ERROR error
-   } else {
-     @retval 0 if count == 0
-     @retval The number of bytes written on success.
-     @retval MY_FILE_ERROR error
-     @retval The actual number of bytes written on partial success (if
-             less than count bytes were written).
-   }
+   @return The number of bytes written
 */
 size_t mysql_encryption_file_write(IO_CACHE *cache, const uchar *buffer,
                                    size_t count, myf flags);

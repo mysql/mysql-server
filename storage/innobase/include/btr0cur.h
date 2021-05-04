@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -782,8 +782,8 @@ times. */
 #define BTR_CUR_RETRY_DELETE_N_TIMES 100
 /** If pessimistic delete fails because of lack of file space, there
 is still a good change of success a little later.  Sleep this many
-microseconds between retries. */
-#define BTR_CUR_RETRY_SLEEP_TIME 50000
+milliseconds between retries. */
+#define BTR_CUR_RETRY_SLEEP_TIME_MS 50
 
 /** Number of searches down the B-tree in btr_cur_search_to_nth_level(). */
 extern ulint btr_cur_n_non_sea;

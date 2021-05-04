@@ -60,5 +60,4 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-drop schema if exists xtest;
 drop database if exists xtest_1;

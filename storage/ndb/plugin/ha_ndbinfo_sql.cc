@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -82,6 +82,7 @@ struct view {
      "count(*) as consensus_count "
      "FROM `ndbinfo`.`ndb$membership` "
      "GROUP BY arbitrator, arb_ticket, arb_connected"},
+    {"ndbinfo", "backup_id", "SELECT id FROM `ndbinfo`.`ndb$backup_id`"},
     // The blocks, dict_obj_types and config_params used
     // to be stored in a different engine but have now
     // been folded into hardcoded ndbinfo tables whose
@@ -262,6 +263,32 @@ struct view {
     {"ndbinfo", "dict_obj_info",
      " SELECT * "
      "FROM `ndbinfo`.`ndb$dict_obj_info`"},
+    {"ndbinfo", "dict_obj_tree",
+     "WITH RECURSIVE tree (type, id, name,"
+     "  parent_type, parent_id, parent_name,"
+     "  root_type, root_id, root_name,"
+     "  level,path, indented_name) AS ("
+     "SELECT"
+     "  type, id, CAST(fq_name AS CHAR), "  // Current info
+     "  parent_obj_type, parent_obj_id, CAST(fq_name AS CHAR), "  // Parent info
+     "  type, id, CAST(fq_name AS CHAR), "                        // Root info
+     "  1, "                     // Current level
+     "  CAST(fq_name AS CHAR),"  // Current path
+     "  CAST(fq_name AS CHAR)"   // Current indented name
+     "  FROM ndbinfo.dict_obj_info"
+     "  WHERE parent_obj_id = 0 AND parent_obj_type = 0 "  // Only top level
+     "UNION ALL "
+     "SELECT"
+     "  i.type, i.id, i.fq_name, "                        // Current info
+     "  i.parent_obj_type, i.parent_obj_id, t.name, "     // Parent info
+     "  t.root_type, t.root_id, t.root_name, "            // Root info
+     "  t.level + 1, "                                    // Current level
+     "  CONCAT(t.path, ' -> ', i.fq_name), "              // Current path
+     "  CONCAT(REPEAT('  ', level),  '-> ', i.fq_name) "  // Current indented
+                                                          // name
+     "FROM tree t JOIN ndbinfo.dict_obj_info i "
+     "ON t.type = i.parent_obj_type AND t.id = i.parent_obj_id"
+     ") SELECT * FROM tree ORDER BY path"},
     {"ndbinfo", "dict_obj_types",
      "SELECT type_id, type_name "
      "FROM `ndbinfo`.`ndb$dict_obj_types`"},
@@ -629,7 +656,11 @@ struct lookup {
   const char *schema_name;
   const char *lookup_table_name;
   const char *columns;
-} lookups[] = {{
+} lookups[] = {{"ndbinfo", "ndb$backup_id",
+                "id BIGINT UNSIGNED, "
+                "fragment INT UNSIGNED, "
+                "row_id BIGINT UNSIGNED"},
+               {
                    "ndbinfo",
                    "ndb$blocks",
                    "block_number INT UNSIGNED, "
@@ -744,8 +775,8 @@ bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
   view v;
 
   for (size_t i = 0; i < num_lookups; i++) {  // create hard-coded tables
-    DBUG_ASSERT(i == 0 || /* assert that list is alphabetized */
-                strcmp(l.lookup_table_name, lookups[i].lookup_table_name) < 0);
+    assert(i == 0 || /* assert that list is alphabetized */
+           strcmp(l.lookup_table_name, lookups[i].lookup_table_name) < 0);
     l = lookups[i];
 
     /* Create lookup table */
@@ -755,7 +786,7 @@ bool ndbinfo_define_dd_tables(List<const Plugin_table> *plugin_tables) {
   }
 
   for (size_t i = 0; i < num_views; i++) {  // create views
-    DBUG_ASSERT(i == 0 || strcmp(v.view_name, views[i].view_name) < 0);
+    assert(i == 0 || strcmp(v.view_name, views[i].view_name) < 0);
     v = views[i];
 
     /* Create the view */

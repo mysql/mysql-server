@@ -20,36 +20,36 @@
 #
 # Default path
 [client]
-user = test_user1
-host = localhost
+user = "test_user1"
+host = "localhost"
 
 #
 # test-login-path1
 [test-login-path1]
-user = test_user2
-host = 127.0.0.1
+user = "test_user2"
+host = "127.0.0.1"
 
 #
 # test-login-path2
 [test-login-path2]
-user = test_user3
-host = www.mysql.com
+user = "test_user3"
+host = "www.mysql.com"
 
 #
 # all the paths
 [client]
-user = test_user1
-host = localhost
+user = "test_user1"
+host = "localhost"
 [test-login-path1]
-user = test_user2
-host = 127.0.0.1
+user = "test_user2"
+host = "127.0.0.1"
 [test-login-path2]
-user = test_user3
-host = www.mysql.com
+user = "test_user3"
+host = "www.mysql.com"
 [test-login-path3]
-user = test_user4
-host = 127.0.0.1
-socket = /tmp/configtest.sock
+user = "test_user4"
+host = "127.0.0.1"
+socket = "/tmp/configtest.sock"
 port = 15000
 
 #
@@ -57,17 +57,17 @@ port = 15000
 #
 # all the paths again
 [test-login-path1]
-user = test_user2
-host = 127.0.0.1
+user = "test_user2"
+host = "127.0.0.1"
 [test-login-path3]
-user = test_user4
-host = 127.0.0.1
-socket = /tmp/configtest.sock
+user = "test_user4"
+host = "127.0.0.1"
+socket = "/tmp/configtest.sock"
 port = 15000
 [test-login-path2]
-user = test_user4
+user = "test_user4"
 [client]
-user = test_user5
+user = "test_user5"
 
 ################################################
 # Tests for mysql_config_editor's remove command
@@ -86,10 +86,10 @@ user = test_user5
 #
 # using all
 [test-login-path3]
-user = test_user4
-host = 127.0.0.1
+user = "test_user4"
+host = "127.0.0.1"
 [test-login-path2]
-user = test_user4
+user = "test_user4"
 
 ###############################################
 # Tests for mysql_config_editor's reset command
@@ -189,18 +189,18 @@ mysqld is alive
 
 # Printing all the paths..
 [client]
-user = test_user1
-host = localhost
+user = "test_user1"
+host = "localhost"
 [test-login-path1]
-user = test_user2
-host = 127.0.0.1
+user = "test_user2"
+host = "127.0.0.1"
 [test-login-path2]
-user = test_user3
-host = 127.0.0.1
-socket = /tmp/configtest.sock
+user = "test_user3"
+host = "127.0.0.1"
+socket = "/tmp/configtest.sock"
 port = 15000
 [client_suffix1]
-user = test_user3
+user = "test_user3"
 
 # Now trying to connect using 'test_user3'
 # Note : In this case options from login
@@ -327,3 +327,16 @@ mysqld is alive
 # Cleanup
 DROP USER 'test#user1'@'localhost';
 # End of 5.6 tests
+#
+# Bug #19953349: MYSQL_CONFIG_EDITOR DOES NOT ESCAPE STRINGS
+#
+CREATE USER 'test1 test1'@'localhost';
+test: must contain space
+[test11]
+user = "test1 test1"
+host = "127.0.0.1"
+# test: must not fail with a space in the name
+mysqld is alive
+# cleanup
+DROP USER 'test1 test1'@'localhost';
+# End of 8.0 tests

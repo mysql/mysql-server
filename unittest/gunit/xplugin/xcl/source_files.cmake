@@ -1,4 +1,4 @@
-# Copyright (c) 2020, Oracle and/or its affiliates.
+# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,8 @@
 SET(XCL_TEST_SRC
   auth_chaining_t.cc
   connection_general_t.cc
+  mock/mock.cc
+  cyclic_buffer_t.cc
   protocol_auth_t.cc
   protocol_execute_t.cc
   protocol_global_error_t.cc

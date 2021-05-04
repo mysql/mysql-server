@@ -514,17 +514,16 @@ select * from t1 where a=if(b>10,_ucs2 0x0061,_ucs2 0x0062);
 # Conversion from UCS2 to ASCII is not possible if 
 # the UCS2 string has non-ASCII characters
 #
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select concat(a,if(b<10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select concat(a,if(b>10,_ucs2 0x00C0,_ucs2 0x0062)) from t1;
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select concat(a,if(b<10,_ucs2 0x0062,_ucs2 0x00C0)) from t1;
---error 1267
+--error ER_CANT_AGGREGATE_2COLLATIONS
 select concat(a,if(b>10,_ucs2 0x0062,_ucs2 0x00C0)) from t1;
---error 1267
+--error ER_CANNOT_CONVERT_STRING
 select * from t1 where a=if(b<10,_ucs2 0x00C0,_ucs2 0x0062);
---error 1267
 select * from t1 where a=if(b<10,_ucs2 0x0062,_ucs2 0x00C0);
 drop table t1;
 

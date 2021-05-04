@@ -16,12 +16,11 @@ undo_003	Undo	active
 undo_004	Undo	active
 undo_005	Undo	active
 SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
-WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
 TABLESPACE_NAME	FILE_TYPE	FILE_NAME
-innodb_undo_001	UNDO LOG	./undo_001
-innodb_undo_002	UNDO LOG	./undo_002
 undo_003	UNDO LOG	./undo_003.ibu
 undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./5.ibu
 CREATE TABLESPACE ts1 ADD DATAFILE 'ts1.ibd';
 CREATE TABLE t1 (a int primary key) TABLESPACE ts1;
 #
@@ -65,6 +64,12 @@ innodb_undo_002	Undo	empty
 undo_003	Undo	empty
 undo_004	Undo	active
 undo_005	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./5.ibu
 ALTER UNDO TABLESPACE innodb_undo_001 SET ACTIVE;
 ALTER UNDO TABLESPACE innodb_undo_002 SET ACTIVE;
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
@@ -88,6 +93,12 @@ ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 #
 ALTER UNDO TABLESPACE undo_004 SET INACTIVE;
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	5
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	3
+Innodb_undo_tablespaces_active	2
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
 NAME	SPACE_TYPE	STATE
@@ -96,6 +107,12 @@ innodb_undo_002	Undo	active
 undo_003	Undo	empty
 undo_004	Undo	empty
 undo_005	Undo	empty
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+undo_003	UNDO LOG	./undo_003.ibu
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./5.ibu
 #
 # Drop undo_003
 #
@@ -107,6 +124,11 @@ innodb_undo_001	Undo	active
 innodb_undo_002	Undo	active
 undo_004	Undo	empty
 undo_005	Undo	empty
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+undo_004	UNDO LOG	./undo_004.ibu
+undo_005	UNDO LOG	./5.ibu
 ALTER UNDO TABLESPACE undo_005 SET ACTIVE;
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
@@ -269,14 +291,95 @@ innodb_undo_002	Undo	active
 undo_004	Undo	empty
 undo_005	Undo	active
 SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
-WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
 TABLESPACE_NAME	FILE_TYPE	FILE_NAME
-innodb_undo_001	UNDO LOG	./undo_001
-innodb_undo_002	UNDO LOG	./undo_002
 undo_004	NULL	./undo_004.ibu
+undo_005	UNDO LOG	./5.ibu
 Warnings:
 Warning	1812	Tablespace is missing for table undo_004.
 DROP UNDO TABLESPACE undo_004;
+#
+# Show that the setting innodb_validate_tablespace_paths does not affect undo tablespaces.
+#
+CREATE UNDO TABLESPACE undo_006 ADD DATAFILE 'undo_006.ibu';
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	4
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	2
+Innodb_undo_tablespaces_active	4
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_005	Undo	active
+undo_006	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+undo_005	UNDO LOG	./5.ibu
+undo_006	UNDO LOG	./undo_006.ibu
+# Restart with validation turned OFF
+# restart: --innodb_validate_tablespace_paths=0
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	4
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	2
+Innodb_undo_tablespaces_active	4
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_005	Undo	active
+undo_006	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+undo_005	UNDO LOG	./5.ibu
+undo_006	UNDO LOG	./undo_006.ibu
+# Kill and restart mysqld with validation turned OFF
+# Kill and restart: --innodb_validate_tablespace_paths=0
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	4
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	2
+Innodb_undo_tablespaces_active	4
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_005	Undo	active
+undo_006	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+undo_005	UNDO LOG	./5.ibu
+undo_006	UNDO LOG	./undo_006.ibu
+# Restart mysqld with validation turned ON
+# restart:
+SHOW GLOBAL STATUS LIKE '%undo%';
+Variable_name	Value
+Innodb_undo_tablespaces_total	4
+Innodb_undo_tablespaces_implicit	2
+Innodb_undo_tablespaces_explicit	2
+Innodb_undo_tablespaces_active	4
+SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE SPACE_TYPE = 'Undo' ORDER BY NAME;
+NAME	SPACE_TYPE	STATE
+innodb_undo_001	Undo	active
+innodb_undo_002	Undo	active
+undo_005	Undo	active
+undo_006	Undo	active
+SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
+WHERE FILE_NAME LIKE '%.ibu' ORDER BY TABLESPACE_NAME;
+TABLESPACE_NAME	FILE_TYPE	FILE_NAME
+undo_005	UNDO LOG	./5.ibu
+undo_006	UNDO LOG	./undo_006.ibu
 #
 # Cleanup
 #
@@ -285,3 +388,5 @@ DROP TABLESPACE ts1;
 DROP PROCEDURE populate_t1;
 ALTER UNDO TABLESPACE undo_005 SET INACTIVE;
 DROP UNDO TABLESPACE undo_005;
+ALTER UNDO TABLESPACE undo_006 SET INACTIVE;
+DROP UNDO TABLESPACE undo_006;

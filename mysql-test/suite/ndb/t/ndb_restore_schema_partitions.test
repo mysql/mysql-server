@@ -381,9 +381,7 @@ drop table if exists t2_c;
 # Test BUG#10287
 #
 
---disable_query_log
 source include/ndb_backup_id.inc;
---enable_query_log
 echo 520093696,<the_backup_id>;
 --source suite/ndb/include/backup_restore_cleanup.inc
 

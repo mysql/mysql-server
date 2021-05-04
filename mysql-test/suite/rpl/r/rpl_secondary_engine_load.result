@@ -108,7 +108,38 @@ Variable_name	Value
 Secondary_engine_execution_count	1
 [ Connection Master ]
 CREATE TABLE t2 LIKE t1;
-INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN INSERT INTO t2 SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
+EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
+EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
+NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
+Warnings:
+Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union all /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
+INSERT INTO t2 VALUES(NULL, 'Poodle', '{"key":"value"}', 'Pug', x'1234');
+INSERT INTO t2 VALUES(NULL, 'Labrador', '[{"key":"value"},{"key":"value2"}]',
+'Boxer', x'abcd');
+INSERT INTO t2 VALUES(NULL, 'Beagle', '[1,2,3]', 'Pitbull', x'abcd1234');
+INSERT INTO t2 VALUES(NULL, 'Collie', '["ab","bc","cd"]', 'Huskey',
+x'1ab2c3d4');
+INSERT INTO t2 VALUES(NULL, 'Shiba', '{"1":"one"}', 'Mastiff', x'ffff');
 ALTER TABLE t2 SECONDARY_LOAD;
 include/sync_slave_sql_with_master.inc
 [ Connection Slave ]

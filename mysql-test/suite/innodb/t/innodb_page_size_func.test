@@ -214,7 +214,8 @@ let SEARCH_PATTERN=  innodb-page-size has been changed from the default value $d
 # Properties of the value:
 # 1. not supported
 # 2. between smallest (4k) and biggest (16k) supported one
---error 1
+# InnoDB aborts, so ASAN may report leaks
+--error 1,42
 --exec $mysqld=$illegal_pagesize
 # InnoDB cannot handle this value.
 --replace_result $illegal_pagesize ILLEGAL_PAGESIZE

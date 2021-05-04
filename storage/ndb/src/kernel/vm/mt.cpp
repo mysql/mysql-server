@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1584,6 +1584,71 @@ struct alignas(NDB_CL) thr_data
   /* Used for sendpacked (send-at-job-buffer-end). */
   Uint32 m_instance_count;
   BlockNumber m_instance_list[MAX_INSTANCES_PER_THREAD];
+
+  /* Register of blocks needing SEND_PACKED to be called */
+  struct SendPacked {
+    struct PackBlock
+    {
+      SimulatedBlock::ExecFunction m_func;  // The execSEND_PACKED func
+      SimulatedBlock *m_block;              // Block to execute func in
+
+      PackBlock()
+	: m_func(NULL), m_block()
+      {}
+      PackBlock(SimulatedBlock::ExecFunction f, SimulatedBlock *b)
+	:  m_func(f), m_block(b)
+      {}
+    };
+
+    SendPacked() : m_instances(0), m_ndbfs(-1) {}
+
+    /* Register block for needing SEND_PACKED to be called */
+    void insert(SimulatedBlock* block)
+    {
+      const SimulatedBlock::ExecFunction func =
+        block->getExecuteFunction(GSN_SEND_PACKED);
+      if (func != NULL && func != &SimulatedBlock::execSEND_PACKED)
+      {
+        // Might be a NDBFS reply handler, pick that up.
+        if (blockToMain(block->number()) == NDBFS)
+        {
+          m_ndbfs = m_instances.size();
+        }
+        m_instances.push_back(PackBlock(func,block));
+      }
+    }
+
+    /* Call the registered SEND_PACKED function for all blocks needing it */
+    void pack(Signal* signal) const
+    {
+      const Uint32 count = m_instances.size();
+      const PackBlock *instances = m_instances.getBase();
+      for (Uint32 i = 0; i < count; i++)
+      {
+        instances[i].m_block->EXECUTE_DIRECT_FN(instances[i].m_func, signal);
+      }
+    }
+
+    bool check_reply_from_ndbfs(Signal* signal) const
+    {
+      /**
+       * The manner to check for input from NDBFS file threads misuses
+       * the SEND_PACKED signal. For ndbmtd this is intended to be
+       * replaced by using signals directly from NDBFS file threads to
+       * the issuer of the file request. This is WL#8890.
+       */
+      assert(m_ndbfs >= 0);
+      const PackBlock &instance = m_instances[m_ndbfs];
+      instance.m_block->EXECUTE_DIRECT_FN(instance.m_func, signal);
+      return (signal->theData[0] == 1);
+    }
+
+  private:
+    Vector<PackBlock> m_instances;
+
+    /* PackBlock instance used for check_reply_from_ndbfs() */
+    Int32 m_ndbfs;
+  } m_send_packer;
 
   SectionSegmentPool::Cache m_sectionPoolCache;
 
@@ -4582,7 +4647,7 @@ dumpJobQueues(void)
       if (used > 0)
       {
         tmp.appfmt(" job buffer %d --> %d, used %d",
-                   to, from, used);
+                   from, to, used);
         unsigned free = compute_free_buffers_in_queue(q);
         if (free <= 0)
         {
@@ -4605,9 +4670,9 @@ dumpJobQueues(void)
 void
 trp_callback::reportSendLen(NodeId nodeId, Uint32 count, Uint64 bytes)
 {
-  SignalT<3> signalT;
-  Signal &signal = * new (&signalT) Signal(0);
-  memset(&signal.header, 0, sizeof(signal.header));
+#ifdef RONM_TODO
+  SignalT<3> signal[1] = {};
+#endif
 
   if (g_send_threads)
   {
@@ -6399,28 +6464,7 @@ inline
 bool
 check_for_input_from_ndbfs(struct thr_data* thr_ptr, Signal* signal)
 {
-  /**
-   * The manner to check for input from NDBFS file threads misuses
-   * the SEND_PACKED signal. For ndbmtd this is intended to be
-   * replaced by using signals directly from NDBFS file threads to
-   * the issuer of the file request. This is WL#8890.
-   */
-  Uint32 i;
-  for (i = 0; i < thr_ptr->m_instance_count; i++)
-  {
-    BlockReference block = thr_ptr->m_instance_list[i];
-    Uint32 main = blockToMain(block);
-    if (main == NDBFS)
-    {
-      Uint32 instance = blockToInstance(block);
-      SimulatedBlock* b = globalData.getBlock(main, instance);
-      b->executeFunction_async(GSN_SEND_PACKED, signal);
-      if (signal->theData[0] == 1)
-        return true;
-      return false;
-    }
-  }
-  return false;
+  return thr_ptr->m_send_packer.check_reply_from_ndbfs(signal);
 }
 
 /* Check all job queues, return true only if all are empty. */
@@ -6444,28 +6488,8 @@ inline
 void
 sendpacked(struct thr_data* thr_ptr, Signal* signal)
 {
-  Uint32 i;
-  signal->header.m_noOfSections = 0; /* valgrind */
   thr_ptr->m_watchdog_counter = 15;
-  for (i = 0; i < thr_ptr->m_instance_count; i++)
-  {
-    BlockReference block = thr_ptr->m_instance_list[i];
-    Uint32 main = blockToMain(block);
-    if (main == DBLQH ||
-        main == DBQLQH ||
-        main == DBTC ||
-        main == DBTUP ||
-        main == DBQTUP ||
-        main == NDBFS)
-    {
-      Uint32 instance = blockToInstance(block);
-      SimulatedBlock* b = globalData.getBlock(main, instance);
-      // wl4391_todo remove useless assert
-      assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
-      /* b->send_at_job_buffer_end(); */
-      b->executeFunction_async(GSN_SEND_PACKED, signal);
-    }
-  }
+  thr_ptr->m_send_packer.pack(signal);
 }
 
 static void flush_all_local_signals_and_wakeup(struct thr_data *selfptr);
@@ -6892,6 +6916,7 @@ add_thr_map(Uint32 main, Uint32 instance, Uint32 thr_no)
   }
   require(thr_ptr->m_instance_count < MAX_INSTANCES_PER_THREAD);
   thr_ptr->m_instance_list[thr_ptr->m_instance_count++] = block;
+  thr_ptr->m_send_packer.insert(b);
 
   SimulatedBlock::ThreadContext ctx;
   ctx.threadId = thr_no;

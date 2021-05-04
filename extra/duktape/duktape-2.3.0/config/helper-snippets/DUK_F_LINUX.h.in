@@ -1,4 +1,0 @@
-/* Linux */
-#if defined(__linux) || defined(__linux__) || defined(linux)
-#define DUK_F_LINUX
-#endif

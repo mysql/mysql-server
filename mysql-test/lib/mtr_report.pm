@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -231,7 +231,7 @@ sub mtr_report_test ($) {
     } else {
       my $timeout = $tinfo->{'timeout'};
       if ($timeout) {
-        mtr_report($report, "[ $retry$fail ]  timeout after $timeout seconds");
+        mtr_report($report, "[ $fail ]  timeout after $timeout seconds");
         mtr_report("        Test ended at $timest");
         mtr_report("\n$tinfo->{'comment'}");
         return;
@@ -439,6 +439,12 @@ sub mtr_generate_xml_report($) {
       }
 
       $failure_comment = ": " . $1 if ($failure_log =~ /mysqltest: (.*)/);
+      #Replace invalid characters in xml attribute values
+      $failure_comment =~ s/&/&amp;/g;
+      $failure_comment =~ s/"/&quot;/g;
+      $failure_comment =~ s/'/&apos;/g;
+      $failure_comment =~ s/>/&lt;/g;
+      $failure_comment =~ s/</&gt;/g;
 
       # For large comments from mysql-test-run.pl, display a brief message in
       # the attribute 'message' and prepend details within the <failure> tag
@@ -493,6 +499,12 @@ sub mtr_generate_xml_report($) {
       my $not_run_status = $tinfo->{'disable'} ? "disabled" : "skipped";
 
       print $xml_report_file " " x 4;
+      # Replace invalid characters from test comments
+      $tinfo->{'comment'} =~ s/&/&amp;/g;
+      $tinfo->{'comment'} =~ s/"/&quot;/g;
+      $tinfo->{'comment'} =~ s/'/&apos;/g;
+      $tinfo->{'comment'} =~ s/>/&lt;/g;
+      $tinfo->{'comment'} =~ s/</&gt;/g;
       print $xml_report_file "<testcase name=\"$tname\"$combination " .
         "status=\"$not_run_status\" " . "time=\"$test_time\" " .
         "suitename=\"$tsuite\" " . "comment=\"$tinfo->{'comment'}\" />\n";

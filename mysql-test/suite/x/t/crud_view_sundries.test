@@ -5,7 +5,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test data
---let $xtest_file= $MYSQL_TMP_DIR/crud_view_sundries.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/crud_view_sundries.xpl
 --write_file $xtest_file
 -->quiet
 
@@ -123,7 +123,5 @@ CREATE USER xuser;
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
 DROP USER xuser;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef PARSE_TREE_NODE_BASE_INCLUDED
 #define PARSE_TREE_NODE_BASE_INCLUDED
 
+#include <assert.h>
 #include <cstdarg>
 #include <cstdlib>
 #include <new>
@@ -30,13 +31,13 @@
 #include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "sql/check_stack.h"
 #include "sql/parse_location.h"
 #include "sql/sql_const.h"
 
-class SELECT_LEX;
+class Query_block;
 class THD;
 
 // uncachable cause
@@ -87,11 +88,11 @@ enum enum_parsing_context {
   Environment data for the contextualization phase
 */
 struct Parse_context {
-  THD *const thd;      ///< Current thread handler
-  MEM_ROOT *mem_root;  ///< Current MEM_ROOT
-  SELECT_LEX *select;  ///< Current SELECT_LEX object
+  THD *const thd;       ///< Current thread handler
+  MEM_ROOT *mem_root;   ///< Current MEM_ROOT
+  Query_block *select;  ///< Current Query_block object
 
-  Parse_context(THD *thd, SELECT_LEX *sl);
+  Parse_context(THD *thd, Query_block *sl);
 };
 
 /**
@@ -104,10 +105,10 @@ class Parse_tree_node_tmpl {
   Parse_tree_node_tmpl(const Parse_tree_node_tmpl &);  // undefined
   void operator=(const Parse_tree_node_tmpl &);        // undefined
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
  private:
   bool contextualized;  // true if the node object is contextualized
-#endif                  // DBUG_OFF
+#endif                  // NDEBUG
 
  public:
   typedef Context context_t;
@@ -126,17 +127,17 @@ class Parse_tree_node_tmpl {
 
  protected:
   Parse_tree_node_tmpl() {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     contextualized = false;
-#endif  // DBUG_OFF
+#endif  // NDEBUG
   }
 
  public:
   virtual ~Parse_tree_node_tmpl() {}
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool is_contextualized() const { return contextualized; }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   /**
     Do all context-sensitive things and mark the node as contextualized
@@ -150,10 +151,10 @@ class Parse_tree_node_tmpl {
     uchar dummy;
     if (check_stack_overrun(pc->thd, STACK_MIN_SIZE, &dummy)) return true;
 
-#ifndef DBUG_OFF
-    DBUG_ASSERT(!contextualized);
+#ifndef NDEBUG
+    assert(!contextualized);
     contextualized = true;
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
     return false;
   }

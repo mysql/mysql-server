@@ -5,7 +5,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/mysqlx-largetest.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-largetest.xpl
 -->sql
 use test;
 create table bla (data json);
@@ -48,7 +48,7 @@ Mysqlx.Sql.StmtExecute {
 -->recvuntil Mysqlx.Sql.StmtExecuteOk
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-largetest-asio.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-largetest-asio.xpl
 -->vargen %1% . 161000000
 
 -->varsub %1%
@@ -60,20 +60,17 @@ EOF
 -->recvresult
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-empty.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-empty.xpl
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest.tmp -v %PATH_TO_256kb_JSON_FILE%=$MYSQL_TEST_DIR/std_data/256kb.json 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest.xpl -v %PATH_TO_256kb_JSON_FILE%=$MYSQL_TEST_DIR/std_data/256kb.json 2>&1
 
 SET GLOBAL mysqlx_max_allowed_packet=162000000;
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-empty.tmp 2>&1
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest-asio.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-empty.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-largetest-asio.xpl 2>&1
 
 ## Cleanup
 SET GLOBAL mysqlx_max_allowed_packet= DEFAULT;
---remove_file $MYSQL_TMP_DIR/mysqlx-largetest.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-largetest-asio.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-empty.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 

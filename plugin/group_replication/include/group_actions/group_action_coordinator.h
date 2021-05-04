@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -130,7 +130,7 @@ class Group_action_coordinator : public Group_event_observer {
   */
   void set_stop_wait_timeout(ulong timeout);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
     Flag for cases where we don't have debug execution tools
     Can be an enum if other cases emerge

@@ -44,7 +44,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -91,7 +91,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -138,7 +138,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -187,7 +187,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 SSL/TLS
 0 rows affected
@@ -230,19 +230,19 @@ ok
 Check if mysqlx_socket has correct value
 result
 1
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 Socket
 0 rows affected
 connecting...
 active session is now 'session2'
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 Socket
 0 rows affected
 connecting...
 active session is now 'session3'
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -321,7 +321,7 @@ send Mysqlx.Sql.StmtExecute {
 
 
 command ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -405,7 +405,7 @@ Mysqlx.Session.AuthenticateOk {
 ok
 SET GLOBAL require_secure_transport:=0;
 # restart: --mysqlx-socket=SOCKET
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 Socket
 0 rows affected
@@ -413,7 +413,7 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+RUN SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 CONNECTION_TYPE
 Socket
 0 rows affected

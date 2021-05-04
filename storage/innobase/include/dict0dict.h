@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1600,19 +1600,19 @@ UNIV_INLINE
 bool dict_table_is_sdi(uint64_t table_id);
 
 /** Close SDI table.
-@param[in]	table		the in-meory SDI table object */
+@param[in]	table		the in-memory SDI table object */
 void dict_sdi_close_table(dict_table_t *table);
 
 /** Acquire exclusive MDL on SDI tables. This is acquired to
 prevent concurrent DROP table/tablespace when there is purge
-happening on SDI table records. Purge will acquired shared
+happening on SDI table records. Purge will acquire shared
 MDL on SDI table.
 
 Exclusive MDL is transactional(released on trx commit). So
-for successful acquistion, there should be valid thd with
-trx associated.
+for successful acquisition, there should be a valid thd associated
+with a trx.
 
-Acquistion order of SDI MDL and SDI table has to be in same
+Acquisition order of SDI MDL and SDI table has to be in the same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl
@@ -1636,7 +1636,7 @@ dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
 prevent concurrent DROP table/tablespace.
 DROP table/tablespace will acquire exclusive MDL on SDI table
 
-Acquistion order of SDI MDL and SDI table has to be in same
+Acquisition order of SDI MDL and SDI table has to be in same
 order:
 
 1. dd_sdi_acquire_exclusive_mdl

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -97,7 +97,7 @@ class Collation_impl : public Entity_object_impl, public Collation {
   /////////////////////////////////////////////////////////////////////////
 
   virtual void set_pad_attribute(enum_pad_attribute pad_attribute) {
-    DBUG_ASSERT(pad_attribute != PA_UNDEFINED);
+    assert(pad_attribute != PA_UNDEFINED);
     m_pad_attribute = pad_attribute;
   }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -110,8 +110,7 @@ recursive:	This flag is true iff the lock->writer_thread is allowed to take
                 the x or sx lock recursively.
 
                 In particular you should follow these rules:
-                - make sure to change recursive to `false` (or reset the
-                  `writer_thread` to `std::thread().native_handle()`) before
+                - make sure to change recursive to `false` before
                   releasing the lock
                 - make sure to change recursive to `false` (but do not reset the
                   `writer_thread` as it will remove debug info) before passing
@@ -167,8 +166,6 @@ wait_ex_event:	A thread may only wait on the wait_ex_event after it has
                    Verify lock_word == 0 (waiting thread holds x_lock)
 */
 
-rw_lock_stats_t rw_lock_stats;
-
 /* The global list of rw-locks */
 rw_lock_list_t rw_lock_list;
 ib_mutex_t rw_lock_list_mutex;
@@ -220,7 +217,7 @@ void rw_lock_create_func(
 
   lock->recursive.store(false, std::memory_order_relaxed);
   lock->sx_recursive = 0;
-  lock->writer_thread = std::thread().native_handle();
+  lock->writer_thread = std::thread::id{};
 
 #ifdef UNIV_DEBUG
   lock->m_rw_lock = true;
@@ -297,14 +294,12 @@ void rw_lock_s_lock_spin(
 {
   ulint i = 0; /* spin round count */
   sync_array_t *sync_arr;
-  ulint spin_count = 0;
   uint64_t count_os_wait = 0;
 
   /* We reuse the thread id to index into the counter, cache
   it here for efficiency. */
 
   ut_ad(rw_lock_validate(lock));
-  rw_lock_stats.rw_s_spin_wait_count.inc();
 
 lock_loop:
 
@@ -319,19 +314,14 @@ lock_loop:
   }
 
   if (i >= srv_n_spin_wait_rounds) {
-    os_thread_yield();
+    std::this_thread::yield();
   }
-
-  ++spin_count;
 
   /* We try once again to obtain the lock */
   if (rw_lock_s_lock_low(lock, pass, file_name, line)) {
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_s_spin_round_count.add(spin_count);
 
     return; /* Success */
   } else {
@@ -355,11 +345,7 @@ lock_loop:
 
       if (count_os_wait > 0) {
         lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-
-        rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
       }
-
-      rw_lock_stats.rw_s_spin_round_count.add(spin_count);
 
       return; /* Success */
     }
@@ -410,7 +396,6 @@ void rw_lock_x_lock_wait_func(
     ulint line)            /*!< in: line where requested */
 {
   ulint i = 0;
-  ulint n_spins = 0;
   sync_array_t *sync_arr;
   uint64_t count_os_wait = 0;
 
@@ -429,8 +414,6 @@ void rw_lock_x_lock_wait_func(
     }
 
     /* If there is still a reader, then go to sleep.*/
-    ++n_spins;
-
     sync_cell_t *cell;
 
     sync_arr = sync_array_get_and_reserve_cell(lock, RW_LOCK_X_WAIT, file_name,
@@ -460,11 +443,8 @@ void rw_lock_x_lock_wait_func(
     }
   }
 
-  rw_lock_stats.rw_x_spin_round_count.add(n_spins);
-
   if (count_os_wait > 0) {
     lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-    rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
   }
 }
 
@@ -499,8 +479,8 @@ bool rw_lock_x_lock_low(
 
   } else {
     if (!pass && lock->recursive.load(std::memory_order_acquire) &&
-        os_thread_eq(lock->writer_thread.load(std::memory_order_relaxed),
-                     os_thread_get_curr_id())) {
+        lock->writer_thread.load(std::memory_order_relaxed) ==
+            std::this_thread::get_id()) {
       /* Decrement failed: An X or SX lock is held by either
       this thread or another. Try to relock. */
       /* Other s-locks can be allowed. If it is request x
@@ -567,8 +547,8 @@ bool rw_lock_sx_lock_low(
     thread or another thread. If it is this thread, relock,
     else fail. */
     if (!pass && lock->recursive.load(std::memory_order_acquire) &&
-        os_thread_eq(lock->writer_thread.load(std::memory_order_relaxed),
-                     os_thread_get_curr_id())) {
+        lock->writer_thread.load(std::memory_order_relaxed) ==
+            std::this_thread::get_id()) {
       /* This thread owns an X or SX lock */
       if (lock->sx_recursive++ == 0) {
         /* This thread is making first SX-lock request
@@ -628,7 +608,6 @@ void rw_lock_x_lock_func(
 {
   ulint i = 0;
   sync_array_t *sync_arr;
-  ulint spin_count = 0;
   uint64_t count_os_wait = 0;
   bool spinning = false;
 
@@ -640,10 +619,7 @@ lock_loop:
   if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_x_spin_round_count.add(spin_count);
 
     /* Locking succeeded */
     return;
@@ -651,7 +627,6 @@ lock_loop:
   } else {
     if (!spinning) {
       spinning = true;
-      rw_lock_stats.rw_x_spin_wait_count.inc();
     }
 
     /* Spin waiting for the lock_word to become free */
@@ -664,10 +639,8 @@ lock_loop:
       i++;
     }
 
-    spin_count += i;
-
     if (i >= srv_n_spin_wait_rounds) {
-      os_thread_yield();
+      std::this_thread::yield();
 
     } else {
       goto lock_loop;
@@ -688,10 +661,7 @@ lock_loop:
 
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_x_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_x_spin_round_count.add(spin_count);
 
     /* Locking succeeded */
     return;
@@ -724,7 +694,6 @@ void rw_lock_sx_lock_func(
 {
   ulint i = 0;
   sync_array_t *sync_arr;
-  ulint spin_count = 0;
   uint64_t count_os_wait = 0;
   ulint spin_wait_count = 0;
 
@@ -736,11 +705,7 @@ lock_loop:
   if (rw_lock_sx_lock_low(lock, pass, file_name, line)) {
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
-    rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
     /* Locking succeeded */
     return;
@@ -758,10 +723,8 @@ lock_loop:
       i++;
     }
 
-    spin_count += i;
-
     if (i >= srv_n_spin_wait_rounds) {
-      os_thread_yield();
+      std::this_thread::yield();
 
     } else {
       goto lock_loop;
@@ -782,11 +745,7 @@ lock_loop:
 
     if (count_os_wait > 0) {
       lock->count_os_wait += static_cast<uint32_t>(count_os_wait);
-      rw_lock_stats.rw_sx_os_wait_count.add(count_os_wait);
     }
-
-    rw_lock_stats.rw_sx_spin_round_count.add(spin_count);
-    rw_lock_stats.rw_sx_spin_wait_count.add(spin_wait_count);
 
     /* Locking succeeded */
     return;
@@ -861,7 +820,7 @@ void rw_lock_add_debug_info(
   info->line = line;
   info->lock_type = lock_type;
   info->file_name = file_name;
-  info->thread_id = os_thread_get_curr_id();
+  info->thread_id = std::this_thread::get_id();
 
   UT_LIST_ADD_FIRST(lock->debug_list, info);
 
@@ -901,7 +860,7 @@ void rw_lock_remove_debug_info(rw_lock_t *lock, /*!< in: rw-lock */
   for (info = UT_LIST_GET_FIRST(lock->debug_list); info != nullptr;
        info = UT_LIST_GET_NEXT(list, info)) {
     if (pass == info->pass &&
-        (pass != 0 || os_thread_eq(info->thread_id, os_thread_get_curr_id())) &&
+        (pass != 0 || info->thread_id == std::this_thread::get_id()) &&
         info->lock_type == lock_type) {
       /* Found! */
       UT_LIST_REMOVE(lock->debug_list, info);
@@ -932,8 +891,8 @@ ibool rw_lock_own(rw_lock_t *lock, /*!< in: rw-lock */
 
   for (const rw_lock_debug_t *info = UT_LIST_GET_FIRST(lock->debug_list);
        info != nullptr; info = UT_LIST_GET_NEXT(list, info)) {
-    if (os_thread_eq(info->thread_id, os_thread_get_curr_id()) &&
-        info->pass == 0 && info->lock_type == lock_type) {
+    if (info->thread_id == std::this_thread::get_id() && info->pass == 0 &&
+        info->lock_type == lock_type) {
       rw_lock_debug_mutex_exit();
       /* Found! */
 
@@ -961,7 +920,7 @@ static void rw_lock_get_debug_info(const rw_lock_t *lock, Infos *infos) {
 
   for (info = UT_LIST_GET_FIRST(lock->debug_list); info != nullptr;
        info = UT_LIST_GET_NEXT(list, info)) {
-    if (os_thread_eq(info->thread_id, os_thread_get_curr_id())) {
+    if (info->thread_id == std::this_thread::get_id()) {
       infos->push_back(info);
     }
   }
@@ -985,7 +944,7 @@ bool rw_lock_own_flagged(const rw_lock_t *lock, rw_lock_flags_t flags) {
   for (Infos::const_iterator it = infos.begin(); it != end; ++it) {
     const rw_lock_debug_t *info = *it;
 
-    ut_ad(os_thread_eq(info->thread_id, os_thread_get_curr_id()));
+    ut_ad(info->thread_id == std::this_thread::get_id());
 
     if (info->pass != 0) {
       continue;
@@ -1066,8 +1025,8 @@ void rw_lock_list_print_info(FILE *file) /*!< in: file where to print */
 void rw_lock_debug_print(FILE *f, const rw_lock_debug_t *info) {
   ulint rwt = info->lock_type;
 
-  fprintf(f, "Locked: thread " UINT64PF " file %s line " ULINTPF "  ",
-          (uint64_t)(info->thread_id), sync_basename(info->file_name),
+  fprintf(f, "Locked: thread %s file %s line " ULINTPF "  ",
+          to_string(info->thread_id).c_str(), sync_basename(info->file_name),
           info->line);
 
   switch (rwt) {
@@ -1111,7 +1070,7 @@ std::string rw_lock_t::locked_from() const {
   for (Infos::const_iterator it = infos.begin(); it != end; ++it, ++i) {
     const rw_lock_debug_t *info = *it;
 
-    ut_ad(os_thread_eq(info->thread_id, os_thread_get_curr_id()));
+    ut_ad(info->thread_id == std::this_thread::get_id());
 
     if (i > 0) {
       msg << ", ";
@@ -1129,8 +1088,8 @@ std::string rw_lock_t::to_string() const {
   std::ostringstream msg;
 
   msg << "RW-LATCH: "
-      << "thread id " << os_thread_get_curr_id() << " addr: " << this
-      << " Locked from: " << locked_from().c_str();
+      << "thread id " << ::to_string(std::this_thread::get_id())
+      << " addr: " << this << " Locked from: " << locked_from().c_str();
 
   return (msg.str());
 }

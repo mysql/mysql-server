@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -473,7 +473,7 @@ bool File_parser::parse(uchar *base, MEM_ROOT *mem_root,
               return true;
             break;
           default:
-            DBUG_ASSERT(0);  // never should happened
+            assert(0);  // never should happened
         }
       } else {
         ptr = line;

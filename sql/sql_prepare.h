@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <new>
@@ -29,7 +30,7 @@
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_command.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/psi_statement_bits.h"
@@ -298,7 +299,7 @@ class Ed_row final {
     return *get_column(column_index);
   }
   const Ed_column *get_column(const unsigned int column_index) const {
-    DBUG_ASSERT(column_index < size());
+    assert(column_index < size());
     return m_column_array + column_index;
   }
   size_t size() const { return m_column_count; }
@@ -369,7 +370,7 @@ class Prepared_statement final {
 
   /**
     The memory root to allocate parsed tree elements (instances of Item,
-    SELECT_LEX and other classes).
+    Query_block and other classes).
   */
   MEM_ROOT main_mem_root;
 

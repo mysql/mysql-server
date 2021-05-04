@@ -75,6 +75,4 @@ SELECT * FROM xtest.city;
 exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_resultset_charset.xpl 2>&1;
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/crud_resultset_charset.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

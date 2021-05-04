@@ -585,7 +585,7 @@ ON table3 .`i1`  = table2 .o1
 ;
 EXPLAIN
 -> Index lookup on table3 using <auto_key0> (i1='m', i2='m')
-    -> Materialize  (cost=0.70 rows=2)
+    -> Materialize  (cost=0.90..0.90 rows=2)
         -> Table scan on cc  (cost=0.70 rows=2)
 
 SET @@optimizer_switch=@optimizer_switch_saved;
@@ -1839,10 +1839,10 @@ ON t2.col_varchar = dt.col_varchar
 WHERE t2.col_int IS NOT NULL ;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	Using where
+1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	11	10.00	Using where
 2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	11	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select '9' AS `col_int` from (/* select#2 */ select `test`.`t1`.`col_varchar` AS `col_varchar`,`test`.`t1`.`stub1` AS `stub1`,`test`.`t1`.`stub2` AS `stub2`,`test`.`t1`.`stub3` AS `stub3` from `test`.`t1`) `dt` where (('9' is not null) and ('d' = convert(`dt`.`col_varchar` using utf8mb4)))
+Note	1003	/* select#1 */ select '9' AS `col_int` from (/* select#2 */ select `test`.`t1`.`col_varchar` AS `col_varchar`,`test`.`t1`.`stub1` AS `stub1`,`test`.`t1`.`stub2` AS `stub2`,`test`.`t1`.`stub3` AS `stub3` from `test`.`t1`) `dt` where (('9' is not null) and ('d' = `dt`.`col_varchar`))
 SET @@max_heap_table_size= @save_heap_size;
 SET @@optimizer_switch= @optimizer_switch_saved;
 DROP TABLE t1,t2;
@@ -4570,3 +4570,42 @@ SELECT * FROM t1 LEFT JOIN ( SELECT 1 FROM t1 ) d1 ON TRUE ORDER BY a;
 a	1
 123	1
 DROP TABLE t1;
+#
+# Bug #32164724: HYPERGRAPH: ASSERTION `PATH->COST >= PATH->INIT_COST' FAILED.
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1);
+SET sql_mode="";
+SELECT (
+SELECT 1 FROM (
+SELECT avg(1) FROM t1
+WHERE dayofyear(1) AND max(1)
+) d1
+GROUP BY a
+) FROM t1;
+(
+SELECT 1 FROM (
+SELECT avg(1) FROM t1
+WHERE dayofyear(1) AND max(1)
+) d1
+GROUP BY a
+)
+1
+Warnings:
+Warning	1292	Incorrect datetime value: '1'
+SET sql_mode=DEFAULT;
+DROP TABLE t1;
+#
+# Bug #32169846: HYPERGRAPH: ASSERTION `M_OPENED_TABLE != NULLPTR' FAILED.
+#
+CREATE TABLE t1 (a LONGTEXT);
+INSERT INTO t1 VALUES ('');
+CREATE TABLE t2 (b INTEGER);
+INSERT INTO t2 VALUES (0);
+SELECT 1 FROM t2, (
+SELECT a, rand() FROM t1 GROUP BY a
+) d1
+GROUP BY b;
+1
+1
+DROP TABLE t1, t2;

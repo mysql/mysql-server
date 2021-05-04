@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,7 @@
 //#define DUMMY_PASSWORD
 //#define DEBUG_ODIRECT
 
-AsyncFile::AsyncFile(SimulatedBlock& fs) :
+AsyncFile::AsyncFile(Ndbfs& fs) :
   theFileName(),
   m_thread_bound(false),
   use_gz(0),
@@ -245,6 +245,38 @@ require(request->error==0);
     }
   }
 
+  // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC)
+  if (flags & FsOpenReq::OM_DIRECT)
+  {
+    /* TODO:
+     * Size and alignment should be passed in request.
+     * And also checked in ndb_file append/write/read/set_pos/truncate/extend.
+     */
+    m_file.set_block_size_and_alignment(NDB_O_DIRECT_WRITE_BLOCKSIZE,
+                                        NDB_O_DIRECT_WRITE_ALIGNMENT);
+
+    /*
+     * Initializing file may write lots of pages sequentially.  Some
+     * implementation of direct io should be avoided in that case and
+     * direct io should be turned on after initialization.
+     */
+    if (m_file.have_direct_io_support() && !m_file.avoid_direct_io_on_append())
+    {
+      const bool direct_sync = flags & FsOpenReq::OM_DIRECT_SYNC;
+      if (m_file.set_direct_io(direct_sync) == -1)
+      {
+        ndbout_c("%s Failed to set ODirect errno: %u",
+                 theFileName.c_str(), get_last_os_error());
+      }
+#ifdef DEBUG_ODIRECT
+      else
+      {
+        ndbout_c("%s ODirect is set.", theFileName.c_str());
+      }
+#endif
+    }
+  }
+
   // Initialise file if OM_INIT
 
   if (flags & FsOpenReq::OM_INIT)
@@ -272,14 +304,9 @@ require(!"m_file.extend");
 
     // Initialise blocks
     ndb_file::off_t off = 0;
-    SignalT<25> tmp;
-    Signal * signal = new (&tmp) Signal(0);
-    bzero(signal, sizeof(tmp));
-    FsReadWriteReq* req = (FsReadWriteReq*)signal->getDataPtrSend();
+    FsReadWriteReq req[1];
 
     Uint32 index = 0;
-    Uint32 block = refToMain(request->theUserReference);
-    Uint32 instance = refToInstance(request->theUserReference);
 
 #ifdef VM_TRACE
 #define TRACE_INIT
@@ -302,9 +329,7 @@ require(!"m_file.extend");
         req->varIndex = index++;
         req->data.pageData[0] = m_page_ptr.i + cnt;
 
-        m_fs.EXECUTE_DIRECT_MT(block, GSN_FSWRITEREQ, signal,
-                               FsReadWriteReq::FixedLength + 1,
-                               instance);
+        m_fs.callFSWRITEREQ(request->theUserReference, req);
 
         cnt++;
         size += request->par.open.page_size;
@@ -387,16 +412,10 @@ require(!"m_file.sync() != -1");
   use_enc = (theFileName.get_base_path_spec() == FsOpenReq::BP_BACKUP);
 #endif
 
-  // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC)
+  // Turn on direct io (OM_DIRECT, OM_DIRECT_SYNC) after init
   if (flags & FsOpenReq::OM_DIRECT)
   {
-    /* TODO:
-     * Size and alignment should be passed in request.
-     * And also checked in ndb_file append/write/read/set_pos/truncate/extend.
-     */
-    m_file.set_block_size_and_alignment(NDB_O_DIRECT_WRITE_BLOCKSIZE,
-                                        NDB_O_DIRECT_WRITE_ALIGNMENT);
-    if (m_file.have_direct_io_support())
+    if (m_file.have_direct_io_support() && m_file.avoid_direct_io_on_append())
     {
       const bool direct_sync = flags & FsOpenReq::OM_DIRECT_SYNC;
       if (m_file.set_direct_io(direct_sync) == -1)
@@ -609,7 +628,7 @@ AsyncFile::closeReq(Request *request)
     if (!no_write) syncReq(request);
   }
   int r = 0;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!m_file.is_open())
   {
     DEBUG(ndbout_c("close on already closed file"));

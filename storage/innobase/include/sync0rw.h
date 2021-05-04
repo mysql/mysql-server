@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -86,46 +86,6 @@ bool rw_lock_own(rw_lock_t *lock, ulint lock_type) { return (lock != nullptr); }
 #define rw_lock_own_flagged(A, B) true
 #endif /* UNIV_LIBRARY */
 
-/** Counters for RW locks. */
-struct rw_lock_stats_t {
-  typedef ib_counter_t<uint64_t, IB_N_SLOTS> uint64_counter_t;
-
-  /** number of spin waits on rw-latches,
-  resulted during shared (read) locks */
-  uint64_counter_t rw_s_spin_wait_count;
-
-  /** number of spin loop rounds on rw-latches,
-  resulted during shared (read) locks */
-  uint64_counter_t rw_s_spin_round_count;
-
-  /** number of OS waits on rw-latches,
-  resulted during shared (read) locks */
-  uint64_counter_t rw_s_os_wait_count;
-
-  /** number of spin waits on rw-latches,
-  resulted during exclusive (write) locks */
-  uint64_counter_t rw_x_spin_wait_count;
-
-  /** number of spin loop rounds on rw-latches,
-  resulted during exclusive (write) locks */
-  uint64_counter_t rw_x_spin_round_count;
-
-  /** number of OS waits on rw-latches,
-  resulted during exclusive (write) locks */
-  uint64_counter_t rw_x_os_wait_count;
-
-  /** number of spin waits on rw-latches,
-  resulted during sx locks */
-  uint64_counter_t rw_sx_spin_wait_count;
-
-  /** number of spin loop rounds on rw-latches,
-  resulted during sx locks */
-  uint64_counter_t rw_sx_spin_round_count;
-
-  /** number of OS waits on rw-latches,
-  resulted during sx locks */
-  uint64_counter_t rw_sx_os_wait_count;
-};
 #endif /* !UNIV_HOTBACKUP */
 
 /* Latch types; these are used also in btr0btr.h and mtr0mtr.h: keep the
@@ -154,11 +114,6 @@ typedef UT_LIST_BASE_NODE_T(rw_lock_t) rw_lock_list_t;
 
 extern rw_lock_list_t rw_lock_list;
 extern ib_mutex_t rw_lock_list_mutex;
-
-#ifndef UNIV_HOTBACKUP
-/** Counters for RW locks. */
-extern rw_lock_stats_t rw_lock_stats;
-#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_LIBRARY
 #ifndef UNIV_HOTBACKUP
@@ -603,9 +558,13 @@ struct rw_lock_t
   volatile ulint sx_recursive;
 
   /** Thread id of writer thread. Is only guaranteed to have non-stale value if
-  recursive flag is set, otherwise it may contain native thread handle of a
+  recursive flag is set, otherwise it may contain native thread ID of a
   thread which already released or passed the lock. */
-  std::atomic<os_thread_id_t> writer_thread;
+  std::atomic<std::thread::id> writer_thread;
+
+  /** XOR of reader threads' IDs. If there is exactly one reader it should allow
+   to retrieve the thread ID of that reader. */
+  Atomic_xor_of_thread_id reader_thread;
 
   /** Used by sync0arr.cc for thread queueing */
   os_event_t event;
@@ -671,13 +630,13 @@ struct rw_lock_t
 /** The structure for storing debug info of an rw-lock.  All access to this
 structure must be protected by rw_lock_debug_mutex_enter(). */
 struct rw_lock_debug_t {
-  os_thread_id_t thread_id; /*!< The thread id of the thread which
+  std::thread::id thread_id; /*!< The thread id of the thread which
                          locked the rw-lock */
-  ulint pass;               /*!< Pass value given in the lock operation */
-  ulint lock_type;          /*!< Type of the lock: RW_LOCK_X,
-                            RW_LOCK_S, RW_LOCK_X_WAIT */
-  const char *file_name;    /*!< File name where the lock was obtained */
-  ulint line;               /*!< Line where the rw-lock was locked */
+  ulint pass;                /*!< Pass value given in the lock operation */
+  ulint lock_type;           /*!< Type of the lock: RW_LOCK_X,
+                             RW_LOCK_S, RW_LOCK_X_WAIT */
+  const char *file_name;     /*!< File name where the lock was obtained */
+  ulint line;                /*!< Line where the rw-lock was locked */
   UT_LIST_NODE_T(rw_lock_debug_t) list;
   /*!< Debug structs are linked in a two-way
   list */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #include <assert.h>
 #include <gtest/gtest.h>
 #include <string.h>
+#include <initializer_list>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -30,50 +31,76 @@
 
 #include "mem_root_deque.h"
 #include "my_alloc.h"
+#include "my_inttypes.h"
+#include "my_sys.h"
+#include "mysqld_error.h"
 #include "sql/field.h"
+#include "sql/filesort.h"
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/item_subselect.h"
 #include "sql/join_optimizer/access_path.h"
+#include "sql/join_optimizer/explain_access_path.h"
 #include "sql/join_optimizer/hypergraph.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/make_join_hypergraph.h"
+#include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
+#include "sql/sort_param.h"
 #include "sql/sql_class.h"
+#include "sql/sql_cmd.h"
 #include "sql/sql_const.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_list.h"
+#include "sql/sql_opt_exec_shared.h"
 #include "sql/sql_optimizer.h"
+#include "sql/system_variables.h"
 #include "sql/table.h"
 #include "template_utils.h"
 #include "unittest/gunit/fake_table.h"
+#include "unittest/gunit/handler-t.h"
 #include "unittest/gunit/parsertest.h"
 #include "unittest/gunit/test_utils.h"
 
-class MakeHypergraphTest : public ::testing::Test {
+// Base class for the hypergraph unit tests. Its parent class is a type
+// parameter, so that it can be used as a base class for both non-parametrized
+// tests (::testing::Test) and parametrized tests (::testing::TestWithParam).
+template <typename Parent>
+class HypergraphTestBase : public Parent {
  public:
   void SetUp() override { m_initializer.SetUp(); }
-  void TearDown() override { m_initializer.TearDown(); }
+  void TearDown() override {
+    DestroyFakeTables();
+    m_initializer.TearDown();
+  }
 
  protected:
-  SELECT_LEX *ParseAndResolve(const char *query, bool nullable);
+  Query_block *ParseAndResolve(const char *query, bool nullable);
   void ResolveFieldToFakeTable(Item *item);
   void ResolveAllFieldsToFakeTable(
       const mem_root_deque<TABLE_LIST *> &join_list);
+  void DestroyFakeTables() {
+    for (const auto &name_and_table : m_fake_tables) {
+      destroy(name_and_table.second);
+    }
+  }
+  handlerton *EnableSecondaryEngine();
 
   my_testing::Server_initializer m_initializer;
   THD *m_thd = nullptr;
   std::unordered_map<std::string, Fake_TABLE *> m_fake_tables;
 };
 
-SELECT_LEX *MakeHypergraphTest::ParseAndResolve(const char *query,
-                                                bool nullable) {
-  SELECT_LEX *select_lex = ::parse(&m_initializer, query, 0);
+template <typename T>
+Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
+                                                    bool nullable) {
+  Query_block *query_block = ::parse(&m_initializer, query, 0);
   m_thd = m_initializer.thd();
 
   // Create fake TABLE objects for all tables mentioned in the query.
   int num_tables = 0;
-  for (TABLE_LIST *tl = select_lex->get_table_list(); tl != nullptr;
+  for (TABLE_LIST *tl = query_block->get_table_list(); tl != nullptr;
        tl = tl->next_global) {
     Fake_TABLE *fake_table =
         new (m_thd->mem_root) Fake_TABLE(/*num_columns=*/2, nullable);
@@ -85,21 +112,22 @@ SELECT_LEX *MakeHypergraphTest::ParseAndResolve(const char *query,
   }
 
   // Find all Item_field objects, and resolve them to fields in the fake tables.
-  ResolveAllFieldsToFakeTable(select_lex->top_join_list);
+  ResolveAllFieldsToFakeTable(query_block->top_join_list);
 
   // Also in any conditions and subqueries within the WHERE condition.
-  if (select_lex->where_cond() != nullptr) {
-    WalkItem(select_lex->where_cond(), enum_walk::POSTFIX, [&](Item *item) {
+  if (query_block->where_cond() != nullptr) {
+    WalkItem(query_block->where_cond(), enum_walk::POSTFIX, [&](Item *item) {
       if (item->type() == Item::SUBSELECT_ITEM) {
         Item_in_subselect *item_subselect =
             down_cast<Item_in_subselect *>(item);
         ResolveFieldToFakeTable(item_subselect->left_expr);
-        SELECT_LEX *child_select = item_subselect->unit->first_select();
-        ResolveAllFieldsToFakeTable(child_select->top_join_list);
-        if (child_select->where_cond() != nullptr) {
-          ResolveFieldToFakeTable(child_select->where_cond());
+        Query_block *child_query_block =
+            item_subselect->unit->first_query_block();
+        ResolveAllFieldsToFakeTable(child_query_block->top_join_list);
+        if (child_query_block->where_cond() != nullptr) {
+          ResolveFieldToFakeTable(child_query_block->where_cond());
         }
-        for (Item *field_item : child_select->fields) {
+        for (Item *field_item : child_query_block->fields) {
           ResolveFieldToFakeTable(field_item);
         }
         return true;  // Don't go down into item_subselect->left_expr again.
@@ -110,17 +138,33 @@ SELECT_LEX *MakeHypergraphTest::ParseAndResolve(const char *query,
     });
   }
 
-  select_lex->prepare(m_thd, nullptr);
+  // And in the SELECT, GROUP BY and ORDER BY lists.
+  for (Item *item : query_block->fields) {
+    ResolveFieldToFakeTable(item);
+  }
+  for (ORDER *cur_group = query_block->group_list.first; cur_group != nullptr;
+       cur_group = cur_group->next) {
+    ResolveFieldToFakeTable(*cur_group->item);
+  }
+  for (ORDER *cur_group = query_block->order_list.first; cur_group != nullptr;
+       cur_group = cur_group->next) {
+    ResolveFieldToFakeTable(*cur_group->item);
+  }
+
+  query_block->prepare(m_thd, nullptr);
 
   // Create a fake, tiny JOIN. (This would normally be done in optimization.)
-  select_lex->join = new JOIN(m_thd, select_lex);
-  select_lex->join->where_cond = select_lex->where_cond();
-  select_lex->join->having_cond = nullptr;
+  query_block->join = new (m_thd->mem_root) JOIN(m_thd, query_block);
+  query_block->join->where_cond = query_block->where_cond();
+  query_block->join->having_cond = query_block->having_cond();
+  query_block->join->fields = &query_block->fields;
+  query_block->join->alloc_func_list();
 
-  return select_lex;
+  return query_block;
 }
 
-void MakeHypergraphTest::ResolveFieldToFakeTable(Item *item_arg) {
+template <typename T>
+void HypergraphTestBase<T>::ResolveFieldToFakeTable(Item *item_arg) {
   WalkItem(item_arg, enum_walk::POSTFIX, [&](Item *item) {
     if (item->type() == Item::FIELD_ITEM) {
       Item_field *item_field = down_cast<Item_field *>(item);
@@ -133,7 +177,7 @@ void MakeHypergraphTest::ResolveFieldToFakeTable(Item *item_arg) {
       } else {
         assert(false);
       }
-      item_field->maybe_null = item_field->field->is_nullable();
+      item_field->set_nullable(item_field->field->is_nullable());
     }
     item->update_used_tables();
     item->quick_fix_field();
@@ -141,7 +185,8 @@ void MakeHypergraphTest::ResolveFieldToFakeTable(Item *item_arg) {
   });
 }
 
-void MakeHypergraphTest::ResolveAllFieldsToFakeTable(
+template <typename T>
+void HypergraphTestBase<T>::ResolveAllFieldsToFakeTable(
     const mem_root_deque<TABLE_LIST *> &join_list) {
   for (TABLE_LIST *tl : join_list) {
     if (tl->join_cond() != nullptr) {
@@ -153,13 +198,66 @@ void MakeHypergraphTest::ResolveAllFieldsToFakeTable(
   }
 }
 
+template <typename T>
+handlerton *HypergraphTestBase<T>::EnableSecondaryEngine() {
+  auto hton = new (m_thd->mem_root) Fake_handlerton;
+  hton->flags = HTON_SUPPORTS_SECONDARY_ENGINE;
+  hton->secondary_engine_supported_access_paths =
+      AccessPathTypeBitmap(AccessPath::HASH_JOIN);
+
+  for (const auto &name_and_table : m_fake_tables) {
+    name_and_table.second->file->ht = hton;
+  }
+
+  m_thd->lex->m_sql_cmd->use_secondary_storage_engine(hton);
+
+  return hton;
+}
+
+namespace {
+/// An error checker which, upon destruction, verifies that a single error was
+/// raised while the checker was alive, and that the error had the expected
+/// error number. If an error is raised, the THD::is_error() flag will be set,
+/// just as in the server. (The default error_handler_hook used by the unit
+/// tests, does not set the error flag in the THD.) If expected_errno is 0, it
+/// will instead check that no error was raised.
+class ErrorChecker {
+ public:
+  ErrorChecker(const THD *thd, unsigned expected_errno)
+      : m_thd(thd),
+        m_errno(expected_errno),
+        m_saved_error_hook(error_handler_hook) {
+    // Use an error handler which sets the THD::is_error() flag.
+    error_handler_hook = my_message_sql;
+    EXPECT_FALSE(thd->is_error());
+  }
+
+  ~ErrorChecker() {
+    error_handler_hook = m_saved_error_hook;
+    if (m_errno != 0) {
+      EXPECT_TRUE(m_thd->is_error());
+      EXPECT_EQ(m_errno, m_thd->get_stmt_da()->mysql_errno());
+      EXPECT_EQ(1, m_thd->get_stmt_da()->current_statement_cond_count());
+    } else {
+      EXPECT_FALSE(m_thd->is_error());
+    }
+  }
+
+ private:
+  const THD *m_thd;
+  unsigned m_errno;
+  ErrorHandlerFunctionPointer m_saved_error_hook;
+};
+}  // namespace
+
+using MakeHypergraphTest = HypergraphTestBase<::testing::Test>;
+
 TEST_F(MakeHypergraphTest, SingleTable) {
-  SELECT_LEX *select_lex =
+  Query_block *query_block =
       ParseAndResolve("SELECT 1 FROM t1", /*nullable=*/true);
 
-  JoinHypergraph graph(m_thd->mem_root);
-  EXPECT_FALSE(
-      MakeJoinHypergraph(m_thd, select_lex, /*trace=*/nullptr, &graph));
+  JoinHypergraph graph(m_thd->mem_root, query_block);
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, /*trace=*/nullptr, &graph));
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
@@ -168,26 +266,26 @@ TEST_F(MakeHypergraphTest, SingleTable) {
   EXPECT_EQ(0, graph.edges.size());
   EXPECT_EQ(0, graph.predicates.size());
 
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
 }
 
 TEST_F(MakeHypergraphTest, InnerJoin) {
-  SELECT_LEX *select_lex = ParseAndResolve(
+  Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
       /*nullable=*/true);
 
-  JoinHypergraph graph(m_thd->mem_root);
+  JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, select_lex, &trace, &graph));
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
-  EXPECT_STREQ("t3", graph.nodes[2]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
   // Simple edges; order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -208,22 +306,22 @@ TEST_F(MakeHypergraphTest, InnerJoin) {
 }
 
 TEST_F(MakeHypergraphTest, OuterJoin) {
-  SELECT_LEX *select_lex = ParseAndResolve(
+  Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.y=t3.y) ON t1.x=t2.x",
       /*nullable=*/true);
 
-  JoinHypergraph graph(m_thd->mem_root);
+  JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, select_lex, &trace, &graph));
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
-  EXPECT_STREQ("t3", graph.nodes[2]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -245,23 +343,23 @@ TEST_F(MakeHypergraphTest, OuterJoin) {
 }
 
 TEST_F(MakeHypergraphTest, SemiJoin) {
-  SELECT_LEX *select_lex = ParseAndResolve(
+  Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 WHERE t1.x IN (SELECT t2.x FROM t2 JOIN t3 ON "
       "t2.y=t3.y)",
       /*nullable=*/true);
 
-  JoinHypergraph graph(m_thd->mem_root);
+  JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, select_lex, &trace, &graph));
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
-  EXPECT_STREQ("t3", graph.nodes[2]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -283,23 +381,23 @@ TEST_F(MakeHypergraphTest, SemiJoin) {
 
 TEST_F(MakeHypergraphTest, AntiJoin) {
   // NOTE: Fields must be non-nullable, or NOT IN can not be rewritten.
-  SELECT_LEX *select_lex = ParseAndResolve(
+  Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 WHERE t1.x NOT IN (SELECT t2.x FROM t2 JOIN t3 ON "
       "t2.y=t3.y)",
       /*nullable=*/false);
 
-  JoinHypergraph graph(m_thd->mem_root);
+  JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, select_lex, &trace, &graph));
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(3, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
-  EXPECT_STREQ("t3", graph.nodes[2]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
+  EXPECT_STREQ("t3", graph.nodes[2].table->alias);
 
   // Hyperedges. Order doesn't matter.
   ASSERT_EQ(2, graph.edges.size());
@@ -322,22 +420,22 @@ TEST_F(MakeHypergraphTest, AntiJoin) {
 TEST_F(MakeHypergraphTest, Predicates) {
   // The OR ... IS NULL part is to keep the LEFT JOIN from being simplified
   // to an inner join.
-  SELECT_LEX *select_lex = ParseAndResolve(
+  Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 LEFT JOIN t2 ON t1.x=t2.x "
       "WHERE t1.x=2 AND (t2.y=3 OR t2.y IS NULL)",
       /*nullable=*/true);
 
-  JoinHypergraph graph(m_thd->mem_root);
+  JoinHypergraph graph(m_thd->mem_root, query_block);
   string trace;
-  EXPECT_FALSE(MakeJoinHypergraph(m_thd, select_lex, &trace, &graph));
+  EXPECT_FALSE(MakeJoinHypergraph(m_thd, &trace, &graph));
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
   ASSERT_EQ(2, graph.nodes.size());
-  EXPECT_STREQ("t1", graph.nodes[0]->alias);
-  EXPECT_STREQ("t2", graph.nodes[1]->alias);
+  EXPECT_STREQ("t1", graph.nodes[0].table->alias);
+  EXPECT_STREQ("t2", graph.nodes[1].table->alias);
 
   // t1/t2.
   ASSERT_EQ(1, graph.edges.size());
@@ -366,12 +464,12 @@ TEST_F(MakeHypergraphTest, Predicates) {
 using HypergraphOptimizerTest = MakeHypergraphTest;
 
 TEST_F(HypergraphOptimizerTest, SingleTable) {
-  SELECT_LEX *select_lex =
+  Query_block *query_block =
       ParseAndResolve("SELECT 1 FROM t1", /*nullable=*/true);
   m_fake_tables["t1"]->file->stats.records = 100;
 
   string trace;
-  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   ASSERT_EQ(AccessPath::TABLE_SCAN, root->type);
@@ -379,41 +477,52 @@ TEST_F(HypergraphOptimizerTest, SingleTable) {
   EXPECT_FLOAT_EQ(100, root->num_output_rows);
 }
 
-TEST_F(HypergraphOptimizerTest, PredicatePushdown) {
-  SELECT_LEX *select_lex = ParseAndResolve(
+TEST_F(HypergraphOptimizerTest,
+       PredicatePushdown) {  // Also tests nested loop join.
+  Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x WHERE t2.y=3", /*nullable=*/true);
   m_fake_tables["t1"]->file->stats.records = 200;
   m_fake_tables["t2"]->file->stats.records = 30;
 
   string trace;
-  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
 
-  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
-  EXPECT_EQ(RelationalExpression::INNER_JOIN,
-            root->hash_join().join_predicate->expr->type);
+  // The pushed-down filter makes the optimal plan be t2 on the left side,
+  // with a nested loop.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::INNER, root->nested_loop_join().join_type);
   EXPECT_FLOAT_EQ(60, root->num_output_rows);  // 600 rows, 10% selectivity.
 
-  AccessPath *outer = root->hash_join().outer;
-  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
-  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
-
   // The condition should be posted directly on t2.
-  AccessPath *inner = root->hash_join().inner;
-  ASSERT_EQ(AccessPath::FILTER, inner->type);
-  EXPECT_EQ("(t2.y = 3)", ItemToString(inner->filter().condition));
-  EXPECT_FLOAT_EQ(3, inner->num_output_rows);  // 10% default selectivity.
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::FILTER, outer->type);
+  EXPECT_EQ("(t2.y = 3)", ItemToString(outer->filter().condition));
+  EXPECT_FLOAT_EQ(3, outer->num_output_rows);  // 10% default selectivity.
 
-  AccessPath *inner_inner = inner->filter().child;
-  ASSERT_EQ(AccessPath::TABLE_SCAN, inner_inner->type);
-  EXPECT_EQ(m_fake_tables["t2"], inner_inner->table_scan().table);
-  EXPECT_FLOAT_EQ(30, inner_inner->num_output_rows);
+  AccessPath *outer_child = outer->filter().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer_child->type);
+  EXPECT_EQ(m_fake_tables["t2"], outer_child->table_scan().table);
+  EXPECT_FLOAT_EQ(30, outer_child->num_output_rows);
+
+  // The inner part should have a join condition as a filter.
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::FILTER, inner->type);
+  EXPECT_EQ("(t1.x = t2.x)", ItemToString(inner->filter().condition));
+  EXPECT_FLOAT_EQ(20, inner->num_output_rows);  // 10% default selectivity.
+
+  AccessPath *inner_child = inner->filter().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner_child->type);
+  EXPECT_EQ(m_fake_tables["t1"], inner_child->table_scan().table);
 }
 
 TEST_F(HypergraphOptimizerTest, PredicatePushdownOuterJoin) {
   // The OR ... IS NULL part is to keep the LEFT JOIN from being simplified
   // to an inner join.
-  SELECT_LEX *select_lex = ParseAndResolve(
+  Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 LEFT JOIN t2 ON t1.x=t2.x "
       "WHERE t1.y=42 AND (t2.y=3 OR t2.y IS NULL)",
       /*nullable=*/true);
@@ -421,7 +530,7 @@ TEST_F(HypergraphOptimizerTest, PredicatePushdownOuterJoin) {
   m_fake_tables["t2"]->file->stats.records = 3;
 
   string trace;
-  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
 
   // The t2 filter cannot be pushed down through the join, so it should be
@@ -452,17 +561,177 @@ TEST_F(HypergraphOptimizerTest, PredicatePushdownOuterJoin) {
   EXPECT_FLOAT_EQ(3, inner->num_output_rows);
 }
 
-TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
-  SELECT_LEX *select_lex = ParseAndResolve(
-      "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
+// NOTE: We don't test selectivity here, because it's not necessarily
+// correct.
+TEST_F(HypergraphOptimizerTest, PartialPredicatePushdown) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1, t2 "
+      "WHERE (t1.x=1 AND t2.y=2) OR (t1.x=3 AND t2.y=4)",
       /*nullable=*/true);
-  m_fake_tables["t1"]->file->stats.records = 100;
-  m_fake_tables["t2"]->file->stats.records = 1;
-  m_fake_tables["t3"]->file->stats.records = 10000;
+  m_fake_tables["t1"]->file->stats.records = 200;
+  m_fake_tables["t2"]->file->stats.records = 30;
 
   string trace;
-  AccessPath *root = FindBestQueryPlan(m_thd, select_lex, &trace);
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
   SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN,
+            root->hash_join().join_predicate->expr->type);
+
+  // The WHERE should have been pushed down to a join condition,
+  // which should not be removed despite the partial pushdown.
+  const Mem_root_array<Item *> &join_conditions =
+      root->hash_join().join_predicate->expr->join_conditions;
+  ASSERT_EQ(1, join_conditions.size());
+  EXPECT_EQ("(((t1.x = 1) and (t2.y = 2)) or ((t1.x = 3) and (t2.y = 4)))",
+            ItemToString(join_conditions[0]));
+
+  // t1 should have a partial condition.
+  AccessPath *outer = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::FILTER, outer->type);
+  EXPECT_EQ("((t1.x = 1) or (t1.x = 3))",
+            ItemToString(outer->filter().condition));
+
+  AccessPath *outer_child = outer->filter().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer_child->type);
+  EXPECT_EQ(m_fake_tables["t1"], outer_child->table_scan().table);
+
+  // t2 should have a different partial condition.
+  AccessPath *inner = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::FILTER, inner->type);
+  EXPECT_EQ("((t2.y = 2) or (t2.y = 4))",
+            ItemToString(inner->filter().condition));
+
+  AccessPath *inner_child = inner->filter().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner_child->type);
+  EXPECT_EQ(m_fake_tables["t2"], inner_child->table_scan().table);
+}
+
+TEST_F(HypergraphOptimizerTest, PartialPredicatePushdownOuterJoin) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN t2 ON "
+      "(t1.x=1 AND t2.y=2) OR (t1.x=3 AND t2.y=4)",
+      /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 200;
+  m_fake_tables["t2"]->file->stats.records = 30;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  EXPECT_EQ(RelationalExpression::LEFT_JOIN,
+            root->hash_join().join_predicate->expr->type);
+
+  // The join condition should still be there.
+  const Mem_root_array<Item *> &join_conditions =
+      root->hash_join().join_predicate->expr->join_conditions;
+  ASSERT_EQ(1, join_conditions.size());
+  EXPECT_EQ("(((t1.x = 1) and (t2.y = 2)) or ((t1.x = 3) and (t2.y = 4)))",
+            ItemToString(join_conditions[0]));
+
+  // t1 should _not_ have a partial condition, as it would
+  // cause NULL-complemented rows to be eaten.
+  AccessPath *outer = root->hash_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_EQ(m_fake_tables["t1"], outer->table_scan().table);
+
+  // t2 should have a partial condition.
+  AccessPath *inner = root->hash_join().inner;
+  ASSERT_EQ(AccessPath::FILTER, inner->type);
+  EXPECT_EQ("((t2.y = 2) or (t2.y = 4))",
+            ItemToString(inner->filter().condition));
+
+  AccessPath *inner_child = inner->filter().child;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner_child->type);
+  EXPECT_EQ(m_fake_tables["t2"], inner_child->table_scan().table);
+}
+
+TEST_F(HypergraphOptimizerTest, PredicatePushdownToRef) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.x=3", /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // The condition should be gone, and only ref access should be in its place.
+  // There shouldn't be EQ_REF, since we only have a partial match.
+  ASSERT_EQ(AccessPath::REF, root->type);
+  EXPECT_EQ(0, root->ref().ref->key);
+  EXPECT_EQ(8, root->ref().ref->key_length);
+  EXPECT_EQ(1, root->ref().ref->key_parts);
+}
+
+TEST_F(HypergraphOptimizerTest, NotPredicatePushdownToRef) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT 1 FROM t1 WHERE t1.y=3", /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // t1.y can't be pushed since t1.x wasn't.
+  ASSERT_EQ(AccessPath::FILTER, root->type);
+  EXPECT_EQ("(t1.y = 3)", ItemToString(root->filter().condition));
+}
+
+TEST_F(HypergraphOptimizerTest, MultiPartPredicatePushdownToRef) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 WHERE t1.y=3 AND t1.x=2", /*nullable=*/true);
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], t1->field[1], /*unique=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Both should be pushed, and we should now use the unique index.
+  ASSERT_EQ(AccessPath::EQ_REF, root->type);
+  EXPECT_EQ(0, root->eq_ref().ref->key);
+  EXPECT_EQ(16, root->eq_ref().ref->key_length);
+  EXPECT_EQ(2, root->eq_ref().ref->key_parts);
+}
+
+TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
+      /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 10000;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t3"]->file->stats.records = 1000000;
+
+  // Set up some large scan costs to discourage nested loop.
+  m_fake_tables["t1"]->file->stats.data_file_length = 100e6;
+  m_fake_tables["t2"]->file->stats.data_file_length = 1e6;
+  m_fake_tables["t3"]->file->stats.data_file_length = 10000e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
 
   // It's pretty obvious given the sizes of these tables that the optimal
   // order for hash join is t3 hj (t1 hj t2). We don't check the costs
@@ -494,3 +763,361 @@ TEST_F(HypergraphOptimizerTest, SimpleInnerJoin) {
   // t1, t2, t3, t1-t2, t2-t3, t1-{t2,t3}, {t1,t2}-t3
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 6);
 }
+
+TEST_F(HypergraphOptimizerTest, DistinctIsDoneAsSort) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1", /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  Filesort *sort = root->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t1.y", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[1].item));
+  EXPECT_TRUE(sort->m_remove_duplicates);
+
+  EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
+}
+
+TEST_F(HypergraphOptimizerTest, DistinctIsSubsumedByGroup) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, t1.y",
+      /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::AGGREGATE, root->type);
+  AccessPath *child = root->aggregate().child;
+
+  EXPECT_EQ(AccessPath::SORT, child->type);
+  EXPECT_FALSE(child->sort().filesort->m_remove_duplicates);
+}
+
+TEST_F(HypergraphOptimizerTest, DistinctWithOrderBy) {
+  m_initializer.thd()->variables.sql_mode &= ~MODE_ONLY_FULL_GROUP_BY;
+  Query_block *query_block =
+      ParseAndResolve("SELECT DISTINCT t1.y FROM t1 ORDER BY t1.x, t1.y",
+                      /*nullable=*/true);
+  m_initializer.thd()->variables.sql_mode |= MODE_ONLY_FULL_GROUP_BY;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  Filesort *sort = root->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t1.y", ItemToString(sort->sortorder[1].item));
+  EXPECT_FALSE(sort->m_remove_duplicates);
+
+  // We can't coalesce the two sorts, due to the deduplication in this step.
+  AccessPath *child = root->sort().child;
+  ASSERT_EQ(AccessPath::SORT, child->type);
+  Filesort *sort2 = child->sort().filesort;
+  ASSERT_EQ(1, sort2->sort_order_length());
+  EXPECT_EQ("t1.y", ItemToString(sort2->sortorder[0].item));
+  EXPECT_TRUE(sort2->m_remove_duplicates);
+
+  EXPECT_EQ(AccessPath::TABLE_SCAN, child->sort().child->type);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
+TEST_F(HypergraphOptimizerTest, DistinctSubsumesOrderBy) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT DISTINCT t1.y, t1.x FROM t1 ORDER BY t1.x",
+                      /*nullable=*/true);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  Filesort *sort = root->sort().filesort;
+  ASSERT_EQ(2, sort->sort_order_length());
+  EXPECT_EQ("t1.x", ItemToString(sort->sortorder[0].item));
+  EXPECT_EQ("t1.y", ItemToString(sort->sortorder[1].item));
+  EXPECT_TRUE(sort->m_remove_duplicates);
+
+  // No separate sort for ORDER BY.
+  EXPECT_EQ(AccessPath::TABLE_SCAN, root->sort().child->type);
+
+  // Maybe JOIN::destroy() should do this:
+  query_block->join->filesorts_to_cleanup.clear();
+  query_block->join->filesorts_to_cleanup.shrink_to_fit();
+}
+
+// An alias for better naming.
+using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
+
+TEST_F(HypergraphSecondaryEngineTest, SingleTable) {
+  Query_block *query_block =
+      ParseAndResolve("SELECT t1.x FROM t1", /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 100;
+
+  // Install a hook that doubles the row count estimate of t1.
+  handlerton *hton = EnableSecondaryEngine();
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        EXPECT_EQ(AccessPath::TABLE_SCAN, path->type);
+        EXPECT_STREQ("t1", path->table_scan().table->alias);
+        path->num_output_rows *= 2;
+        return false;
+      };
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+
+  ASSERT_EQ(AccessPath::TABLE_SCAN, root->type);
+  EXPECT_EQ(m_fake_tables["t1"], root->table_scan().table);
+  EXPECT_FLOAT_EQ(200, root->num_output_rows);
+}
+
+TEST_F(HypergraphSecondaryEngineTest, SimpleInnerJoin) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
+      /*nullable=*/true);
+  m_fake_tables["t1"]->file->stats.records = 10000;
+  m_fake_tables["t2"]->file->stats.records = 100;
+  m_fake_tables["t3"]->file->stats.records = 1000000;
+
+  // Install a hook that changes the row count estimate for t3 to 1.
+  handlerton *hton = EnableSecondaryEngine();
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        // Nested-loop joins have been disabled for the secondary engine.
+        EXPECT_NE(AccessPath::NESTED_LOOP_JOIN, path->type);
+        if (path->type == AccessPath::TABLE_SCAN &&
+            string(path->table_scan().table->alias) == "t3") {
+          path->num_output_rows = 1;
+        }
+        return false;
+      };
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+
+  // Expect the biggest table to be the outer one. The table statistics tell
+  // that this is t3, but the secondary engine cost hook changes the estimate
+  // for t3 so that t1 becomes the biggest one.
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, root->hash_join().outer->type);
+  EXPECT_STREQ("t1", root->hash_join().outer->table_scan().table->alias);
+}
+
+TEST_F(HypergraphSecondaryEngineTest, RejectAllPlans) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
+      /*nullable=*/true);
+
+  handlerton *hton = EnableSecondaryEngine();
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        // Nested-loop joins have been disabled for the secondary engine.
+        EXPECT_NE(AccessPath::NESTED_LOOP_JOIN, path->type);
+        // Reject all plans.
+        return true;
+      };
+
+  // No plans will be found, so expect an error.
+  ErrorChecker error_checker{m_thd, ER_SECONDARY_ENGINE};
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  EXPECT_EQ(nullptr, root);
+}
+
+TEST_F(HypergraphSecondaryEngineTest, RejectAllCompletePlans) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
+      /*nullable=*/true);
+
+  handlerton *hton = EnableSecondaryEngine();
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        // Reject the path if all three tables are referenced.
+        return GetUsedTables(path) == 0b111;
+      };
+
+  // No plans will be found, so expect an error.
+  ErrorChecker error_checker{m_thd, ER_SECONDARY_ENGINE};
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  EXPECT_EQ(nullptr, root);
+}
+
+TEST_F(HypergraphSecondaryEngineTest, RejectJoinOrders) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x JOIN t3 ON t2.y=t3.y",
+      /*nullable=*/true);
+
+  // Install a hook that only accepts hash joins where the outer table is a
+  // table scan and the inner table is a table scan or another hash join, and
+  // which only accepts join orders where the tables are ordered alphabetically
+  // by their names.
+  handlerton *hton = EnableSecondaryEngine();
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        // Nested-loop joins have been disabled for the secondary engine.
+        EXPECT_NE(AccessPath::NESTED_LOOP_JOIN, path->type);
+        if (path->type == AccessPath::HASH_JOIN) {
+          if (path->hash_join().outer->type != AccessPath::TABLE_SCAN) {
+            return true;
+          }
+          string outer = path->hash_join().outer->table_scan().table->alias;
+          string inner;
+          if (path->hash_join().inner->type == AccessPath::TABLE_SCAN) {
+            inner = path->hash_join().inner->table_scan().table->alias;
+          } else {
+            EXPECT_EQ(AccessPath::HASH_JOIN, path->hash_join().inner->type);
+            EXPECT_EQ(AccessPath::TABLE_SCAN,
+                      path->hash_join().inner->hash_join().inner->type);
+            inner = path->hash_join()
+                        .inner->hash_join()
+                        .inner->table_scan()
+                        .table->alias;
+          }
+          // Reject plans where the join order is not alphabetical.
+          return outer > inner;
+        }
+        return false;
+      };
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+
+  /*
+    Expect the plan to have the following structure, because of the cost hook:
+
+       HJ
+      /  \
+     t1  HJ
+        /  \
+       t2  t3
+   */
+
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->type);
+  const auto &outer_hash = root->hash_join();
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer_hash.outer->type);
+  ASSERT_EQ(AccessPath::HASH_JOIN, outer_hash.inner->type);
+  const auto &inner_hash = outer_hash.inner->hash_join();
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner_hash.inner->type);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, inner_hash.outer->type);
+
+  EXPECT_STREQ("t1", outer_hash.outer->table_scan().table->alias);
+  EXPECT_STREQ("t2", inner_hash.outer->table_scan().table->alias);
+  EXPECT_STREQ("t3", inner_hash.inner->table_scan().table->alias);
+}
+
+namespace {
+struct RejectionParam {
+  // The query to test.
+  string query;
+  // Path type to reject in the secondary engine cost hook.
+  AccessPath::Type rejected_type;
+  // Whether or not to expect an error if the specified path type always gives
+  // an error or is rejected.
+  bool expect_error;
+};
+}  // namespace
+
+using HypergraphSecondaryEngineRejectionTest =
+    HypergraphTestBase<::testing::TestWithParam<RejectionParam>>;
+
+TEST_P(HypergraphSecondaryEngineRejectionTest, RejectPathType) {
+  const RejectionParam &param = GetParam();
+  Query_block *query_block = ParseAndResolve(param.query.data(),
+                                             /*nullable=*/true);
+
+  handlerton *hton = EnableSecondaryEngine();
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *thd, const JoinHypergraph &, AccessPath *path) {
+        EXPECT_FALSE(thd->is_error());
+        return path->type == GetParam().rejected_type;
+      };
+
+  ErrorChecker error_checker(m_thd,
+                             param.expect_error ? ER_SECONDARY_ENGINE : 0);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  EXPECT_EQ(param.expect_error, root == nullptr);
+}
+
+TEST_P(HypergraphSecondaryEngineRejectionTest, ErrorOnPathType) {
+  const RejectionParam &param = GetParam();
+  Query_block *query_block = ParseAndResolve(param.query.data(),
+                                             /*nullable=*/true);
+
+  handlerton *hton = EnableSecondaryEngine();
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *thd, const JoinHypergraph &, AccessPath *path) {
+        EXPECT_FALSE(thd->is_error());
+        if (path->type == GetParam().rejected_type) {
+          my_error(ER_SECONDARY_ENGINE_PLUGIN, MYF(0), "");
+          return true;
+        } else {
+          return false;
+        }
+      };
+
+  ErrorChecker error_checker(
+      m_thd, param.expect_error ? ER_SECONDARY_ENGINE_PLUGIN : 0);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  EXPECT_EQ(param.expect_error, root == nullptr);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ErrorCases, HypergraphSecondaryEngineRejectionTest,
+    ::testing::ValuesIn(std::initializer_list<RejectionParam>({
+        {"SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x", AccessPath::TABLE_SCAN, true},
+        {"SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x", AccessPath::HASH_JOIN, true},
+        {"SELECT 1 FROM t1 JOIN t2 ON t1.x=t2.x ORDER BY t1.x",
+         AccessPath::SORT, true},
+        {"SELECT DISTINCT t1.x FROM t1", AccessPath::SORT, true},
+        {"SELECT t1.x FROM t1 GROUP BY t1.x HAVING COUNT(*) > 5",
+         AccessPath::FILTER, true},
+        {"SELECT t1.x FROM t1 GROUP BY t1.x HAVING COUNT(*) > 5 ORDER BY t1.x",
+         AccessPath::FILTER, true},
+    })));
+
+INSTANTIATE_TEST_SUITE_P(
+    SuccessCases, HypergraphSecondaryEngineRejectionTest,
+    ::testing::ValuesIn(std::initializer_list<RejectionParam>(
+        {{"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::HASH_JOIN, false},
+         {"SELECT 1 FROM t1 WHERE t1.x=1", AccessPath::SORT, false},
+         {"SELECT DISTINCT t1.y, t1.x, 3 FROM t1 GROUP BY t1.x, t1.y",
+          AccessPath::SORT, false}})));

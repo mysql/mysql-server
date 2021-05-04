@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,7 @@ class PFS_ringbuffer_index {
     @param other  set our index to the position after the given one
   */
   void set_after(const PFS_ringbuffer_index *other) {
-    DBUG_ASSERT(other != nullptr);
+    assert(other != nullptr);
 
     // special case: ``other`` was reset or is otherwise at index start
     if ((other->m_index == 0) &&

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,7 +190,7 @@ ConfigManager::find_nodeid_from_configdir(void)
     return 0;
   }
 
-  if (!m_config_retriever.verifyConfig(conf->m_configValues,
+  if (!m_config_retriever.verifyConfig(conf->m_configuration,
                                        found_nodeid) ||
       !alone_on_host(conf, NDB_MGM_NODE_TYPE_MGM, found_nodeid))
   {
@@ -267,7 +267,7 @@ ConfigManager::find_nodeid_from_config(void)
 
   NodeId found_nodeid = find_own_nodeid(conf);
   if (found_nodeid == 0 ||
-      !m_config_retriever.verifyConfig(conf->m_configValues, found_nodeid))
+      !m_config_retriever.verifyConfig(conf->m_configuration, found_nodeid))
   {
     delete conf;
     return 0;
@@ -341,7 +341,7 @@ reset_dynamic_ports_in_config(const Config* config)
     if ((int)port < 0)
     {
       port = 0;
-      ConfigValues::Iterator i2(config->m_configValues->m_config,
+      ConfigValues::Iterator i2(config->m_configuration->m_config_values,
                                 iter.m_config);
       require(i2.set(CFG_CONNECTION_SERVER_PORT, port));
     }
@@ -702,7 +702,16 @@ bool
 ConfigManager::config_ok(const Config* conf)
 {
   assert(m_node_id);
-  if (!m_config_retriever.verifyConfig(conf->m_configValues, m_node_id))
+
+  /**
+   * Validation of Port number for management nodes happens only if its not
+   * started. validate_port is set to true when node is not started and set
+   * to false when node is started.
+   */
+  bool validate_port = false;
+  if (!m_started.get(m_node_id)) validate_port = true;
+  if (!m_config_retriever.verifyConfig(conf->m_configuration, m_node_id,
+                                       validate_port))
   {
     g_eventLogger->error("%s", m_config_retriever.getErrorString());
     return false;
@@ -2100,29 +2109,29 @@ ConfigManager::load_init_config(const char* config_filename)
 
 
 Config*
-ConfigManager::load_init_mycnf(void)
+ConfigManager::load_init_mycnf(const char* cluster_config_suffix)
 {
   InitConfigFileParser parser;
-  return parser.parse_mycnf();
+  return parser.parse_mycnf(cluster_config_suffix);
 }
 
 
 Config*
 ConfigManager::load_config(const char* config_filename, bool mycnf,
-                           BaseString& msg)
+                           BaseString& msg, const char* cluster_config_suffix)
 {
-  Config* new_conf = NULL;
-  if (mycnf && (new_conf = load_init_mycnf()) == NULL)
+  Config* new_conf = nullptr;
+  if (mycnf && (new_conf = load_init_mycnf(cluster_config_suffix)) == nullptr)
   {
     msg.assign("Could not load configuration from 'my.cnf'");
-    return NULL;
+    return nullptr;
   }
   else if (config_filename &&
            (new_conf = load_init_config(config_filename)) == NULL)
   {
     msg.assfmt("Could not load configuration from '%s'",
                config_filename);
-    return NULL;
+    return nullptr;
   }
 
   return new_conf;
@@ -2133,12 +2142,13 @@ Config*
 ConfigManager::load_config(void) const
 {
   BaseString msg;
-  Config* new_conf = NULL;
-  if ((new_conf = load_config(m_opts.config_filename,
-                              m_opts.mycnf, msg)) == NULL)
+  Config* new_conf = load_config(m_opts.config_filename,
+                                 m_opts.mycnf, msg,
+                                 m_opts.cluster_config_suffix);
+  if (new_conf == nullptr)
   {
     g_eventLogger->error(msg);
-    return NULL;
+    return nullptr;
   }
   return new_conf;
 }
@@ -2169,18 +2179,18 @@ ConfigManager::fetch_config(void)
     }
   }
   // read config from other management server
-  ndb_mgm_configuration * tmp =
+  ndb_mgm_config_unique_ptr conf =
     m_config_retriever.getConfig(m_config_retriever.get_mgmHandle());
 
   // Disconnect from other mgmd
   m_config_retriever.disconnect();
 
-  if (tmp == NULL) {
+  if (!conf) {
     g_eventLogger->error("%s", m_config_retriever.getErrorString());
     DBUG_RETURN(NULL);
   }
 
-  DBUG_RETURN(new Config(tmp));
+  DBUG_RETURN(new Config(conf.release()));
 }
 
 
@@ -2337,9 +2347,9 @@ ConfigManager::failed_config_change_exists() const
 Config*
 ConfigManager::load_saved_config(const BaseString& config_name)
 {
-  struct ndb_mgm_configuration * tmp =
-    m_config_retriever.getConfig(config_name.c_str());
-  if(tmp == NULL)
+  ndb_mgm_config_unique_ptr retrieved_config =
+      m_config_retriever.getConfig(config_name.c_str());
+  if(!retrieved_config)
   {
     g_eventLogger->error("Failed to load config from '%s', error: '%s'",
                          config_name.c_str(),
@@ -2347,8 +2357,8 @@ ConfigManager::load_saved_config(const BaseString& config_name)
     return NULL;
   }
 
-  Config* conf = new Config(tmp);
-  if (conf == NULL)
+  Config* conf = new Config(retrieved_config.release());
+  if (!conf)
     g_eventLogger->error("Failed to load config, out of memory");
   return conf;
 }
@@ -2823,7 +2833,7 @@ ConfigManager::DynamicPorts::set_in_config(Config* config)
 
     // Write the dynamic port to config
     port = (Uint32)dyn_port;
-    ConfigValues::Iterator i2(config->m_configValues->m_config,
+    ConfigValues::Iterator i2(config->m_configuration->m_config_values,
                               iter.m_config);
     if(i2.set(CFG_CONNECTION_SERVER_PORT, port) == false)
       result = false;

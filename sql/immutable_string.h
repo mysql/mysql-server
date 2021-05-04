@@ -1,7 +1,7 @@
 #ifndef IMMUTABLE_STRING_H
 #define IMMUTABLE_STRING_H
 
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,7 @@
 MY_COMPILER_DIAGNOSTIC_PUSH()
 MY_COMPILER_GCC_DIAGNOSTIC_IGNORE("-Wsuggest-override")
 MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated-dynamic-exception-spec")
+MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
 #include <google/protobuf/io/coded_stream.h>
 MY_COMPILER_DIAGNOSTIC_POP()
 

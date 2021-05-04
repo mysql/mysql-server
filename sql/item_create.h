@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,13 @@ enum Cast_target : unsigned char {
   ITEM_CAST_JSON,
   ITEM_CAST_FLOAT,
   ITEM_CAST_DOUBLE,
+  ITEM_CAST_POINT,
+  ITEM_CAST_LINESTRING,
+  ITEM_CAST_POLYGON,
+  ITEM_CAST_MULTIPOINT,
+  ITEM_CAST_MULTILINESTRING,
+  ITEM_CAST_MULTIPOLYGON,
+  ITEM_CAST_GEOMETRYCOLLECTION
 };
 
 /**

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2020, Oracle and/or its affiliates.
+Copyright (c) 1997, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -84,8 +84,7 @@ read in, or also for a page already in the buffer pool.
 
 
 @param[in,out]	block		buffer block */
-/* TODO(Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
-void recv_recover_page_func(buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
+void recv_recover_page_func(buf_block_t *block);
 
 /** Wrapper for recv_recover_page_func().
 Applies the hashed log records to the page, if the page lsn is less than the
@@ -171,9 +170,7 @@ read in, or also for a page already in the buffer pool.
 @param[in]	just_read_in	true if the IO handler calls this for a freshly
                                 read page
 @param[in,out]	block		buffer block */
-/* TODO(fix Bug#31173032): Remove SUPPRESS_UBSAN_CLANG10. */
-void recv_recover_page_func(bool just_read_in,
-                            buf_block_t *block) SUPPRESS_UBSAN_CLANG10;
+void recv_recover_page_func(bool just_read_in, buf_block_t *block);
 
 /** Wrapper for recv_recover_page_func().
 Applies the hashed log records to the page, if the page lsn is less than the
@@ -202,6 +199,12 @@ size_t meb_heap_used();
 @return recv_recovery_on */
 UNIV_INLINE
 bool recv_recovery_is_on() MY_ATTRIBUTE((warn_unused_result));
+
+/** Returns true if the page is brand new (the next log record is init_file_page
+or no records to apply).
+@param[in]      block           buffer block
+@return true if brand new */
+bool recv_page_is_brand_new(buf_block_t *block);
 
 /** Start recovering from a redo log checkpoint.
 @see recv_recovery_from_checkpoint_finish
@@ -428,6 +431,104 @@ struct recv_sys_t {
 
   using Encryption_Keys = std::vector<Encryption_Key>;
 
+  /** Mini transaction log record. */
+  struct Mlog_record {
+    /* Space ID */
+    space_id_t space_id;
+    /* Page number */
+    page_no_t page_no;
+    /* Log type */
+    mlog_id_t type;
+    /* Log body */
+    const byte *body;
+    /* Record size */
+    size_t size;
+  };
+
+  using Mlog_records = std::vector<Mlog_record, ut_allocator<Mlog_record>>;
+
+  /** While scanning logs for multi-record mini transaction (mtr), we have two
+  passes. In first pass, we check if all the logs of the mtr is present in
+  current recovery buffer or not. If yes, then in second pass we go through the
+  logs again the add to hash table for apply. To avoid parsing multiple times,
+  we save the parsed records in first pass and reuse them in second pass.
+
+  Parsing of redo log takes significant amount of time and this optimization of
+  avoiding second parse gave about 1.8x speed up on recovery scan time of 1G of
+  redo log from sysbench rw test.
+
+  There is currently no limit for maximum number of logs in an mtr. Practically,
+  from sysbench rw test recovery with 1G of redo log to recover from the record
+  count were spread from 3 - 1235 with majority between 600 - 700. So, it is
+  likely by saving 1k records we could avoid most of the re-parsing overhead.
+  Considering possible bigger number of records in other load and future changes
+  the limit for number of saved records is kept at 8k. The same value from the
+  contribution patch. The memory requirement 32 x 8k = 256k seems fine as one
+  time overhead for the entire instance.  */
+  static constexpr size_t MAX_SAVED_MLOG_RECS = 8 * 1024;
+
+  /** Save mlog record information. Silently returns if cannot save. Works only
+  in single threaded recovery scanner.
+  @param[in]	rec_num		record number in multi record group
+  @param[in]	space_id	space ID for the log record
+  @param[in]	page_no		page number for the log record
+  @param[in]	type		log record type
+  @param[in]	body		pointer to log record body in recovery buffer
+  @param[in]	len		length of the log record */
+  void save_rec(size_t rec_num, space_id_t space_id, page_no_t page_no,
+                mlog_id_t type, const byte *body, size_t len) {
+    /* No more space to save log. */
+    if (rec_num >= MAX_SAVED_MLOG_RECS) {
+      return;
+    }
+
+    ut_ad(rec_num < saved_recs.size());
+
+    if (rec_num >= saved_recs.size()) {
+      return;
+    }
+
+    auto &saved_rec = saved_recs[rec_num];
+
+    saved_rec.space_id = space_id;
+    saved_rec.page_no = page_no;
+    saved_rec.type = type;
+    saved_rec.body = body;
+    saved_rec.size = len;
+  }
+
+  /** Return saved mlog record information, if there. Works only
+  in single threaded recovery scanner.
+  @param[in]	rec_num		record number in multi record group
+  @param[out]	space_id	space ID for the log record
+  @param[out]	page_no		page number for the log record
+  @param[out]	type		log record type
+  @param[out]	body		pointer to log record body in recovery buffer
+  @param[out]	len		length of the log record
+  @return true iff saved record data is found. */
+  bool get_saved_rec(size_t rec_num, space_id_t &space_id, page_no_t &page_no,
+                     mlog_id_t &type, byte *&body, size_t &len) {
+    if (rec_num >= MAX_SAVED_MLOG_RECS) {
+      return false;
+    }
+
+    ut_ad(rec_num < saved_recs.size());
+
+    if (rec_num >= saved_recs.size()) {
+      return false;
+    }
+
+    auto &saved_rec = saved_recs[rec_num];
+
+    space_id = saved_rec.space_id;
+    page_no = saved_rec.page_no;
+    type = saved_rec.type;
+    body = const_cast<byte *>(saved_rec.body);
+    len = saved_rec.size;
+
+    return true;
+  }
+
 #ifndef UNIV_HOTBACKUP
 
   /*!< mutex protecting the fields apply_log_recs, n_addrs, and the
@@ -550,6 +651,9 @@ struct recv_sys_t {
 
   /** Tablespace IDs that were explicitly deleted. */
   Missing_Ids deleted;
+
+  /* Saved log records to avoid second round parsing log. */
+  Mlog_records saved_recs;
 };
 
 /** The recovery system */

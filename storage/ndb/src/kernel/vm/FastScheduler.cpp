@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -126,7 +126,8 @@ FastScheduler::doJob(Uint32 loopStartCount)
         globalEmulatorData.theThreadConfig->scanZeroTimeQueue();
       }
       // To ensure we find bugs quickly
-      Uint32 gsnbnr = theJobBuffers[tHighPrio].retrieve(signal);
+      Uint32 gsnbnr =
+        theJobBuffers[tHighPrio].retrieve(reinterpret_cast<Signal25*>(signal));
       // also strip any instance bits since this is non-MT code
       BlockNumber reg_bnr = gsnbnr & NDBMT_BLOCK_MASK;
       GlobalSignalNumber reg_gsn = gsnbnr >> 16;
@@ -225,7 +226,7 @@ void FastScheduler::sendPacked()
 }//FastScheduler::sendPacked()
 
 Uint32
-APZJobBuffer::retrieve(Signal* signal)
+APZJobBuffer::retrieve(Signal25* signal)
 {              
   Uint32 tOccupancy = theOccupancy;
   Uint32 myRPtr = rPtr;
@@ -302,17 +303,13 @@ APZJobBuffer::retrieve(Signal* signal)
 }//APZJobBuffer::retrieve()
 
 void 
-APZJobBuffer::signal2buffer(Signal* signal,
-			    BlockNumber bnr, GlobalSignalNumber gsn,
-			    BufferEntry& buf)
+APZJobBuffer::signal2buffer(Signal25* signal, BufferEntry& buf)
 {
   Uint32 tSignalId = globalData.theSignalId;
   Uint32 tLength = signal->header.theLength + signal->header.m_noOfSections;
   Uint32 tSigId  = buf.header.theSignalId;
   
   buf.header = signal->header;
-  buf.header.theVerId_signalNumber = gsn;
-  buf.header.theReceiversBlockNumber = bnr;
   buf.header.theSendersSignalId = tSignalId - 1;
   buf.header.theSignalId = tSigId;
   
@@ -387,12 +384,11 @@ APZJobBuffer::clear()
  *
  *   Defined later in this file
  */
-void print_restart(FILE * output, Signal* signal, Uint32 aLevel);
+void print_restart(FILE * output, Signal25* signal, Uint32 aLevel);
 
 void FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE * output)
 {
-  SignalT<25> signalT;
-  Signal * signal = new (&signalT) Signal(0);
+  Signal25 signal[1] = {};
   Uint32 ReadPtr[5];
   Uint32 tJob;
   Uint32 tLastJob;
@@ -465,7 +461,7 @@ bnr_error()
 }
 
 void
-print_restart(FILE * output, Signal* signal, Uint32 aLevel)
+print_restart(FILE * output, Signal25* signal, Uint32 aLevel)
 {
   fprintf(output, "--------------- Signal ----------------\n");
   SignalLoggerManager::printSignalHeader(output, 

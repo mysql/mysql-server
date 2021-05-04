@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,6 +57,7 @@ Clone_Sys::Clone_Sys()
       m_num_apply_snapshots(),
       m_clone_id_generator() {
   mutex_create(LATCH_ID_CLONE_SYS, &m_clone_sys_mutex);
+  m_space_initialized.store(false);
 }
 
 Clone_Sys::~Clone_Sys() {
@@ -404,8 +405,12 @@ bool Clone_Sys::check_active_clone(bool print_alert) {
 bool Clone_Sys::mark_abort(bool force) {
   ut_ad(mutex_own(&m_clone_sys_mutex));
 
-  /* Check for active clone operations. */
-  auto active_clone = check_active_clone(false);
+  /* Check for active clone operations. Ignore clone, before initializing
+  space. It is safe as clone would check for abort request afterwards. We
+  require this check to prevent self deadlock when clone needs to create
+  space objects while initializing.*/
+
+  auto active_clone = is_space_initialized() && check_active_clone(false);
 
   /* If active clone is running and force is not set then
   return without setting abort state. */

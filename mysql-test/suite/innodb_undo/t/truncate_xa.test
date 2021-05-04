@@ -2,20 +2,10 @@
 --echo # Truncate explicitly created UNDO logs before and after recovery.
 --echo #
 
-# This test uses debug settings like innodb_purge_stop_now.
---source include/have_debug.inc
-
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
 
 --source include/have_innodb_default_undo_tablespaces.inc
-
---echo #
---echo # Do a slow shutdown and restart to clear out the undo logs
---echo #
-SET GLOBAL innodb_fast_shutdown = 0;
---let $shutdown_server_timeout = 300
---source include/restart_mysqld.inc
 
 CREATE TABLE t1 (a SERIAL, b INT, c TEXT);
 

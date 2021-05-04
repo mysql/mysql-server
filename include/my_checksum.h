@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2020, Oracle and/or its affiliates.
+   Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -116,7 +116,6 @@ using ha_checksum = std::uint32_t;
 inline ha_checksum my_checksum(ha_checksum crc, const unsigned char *pos,
                                size_t length) {
 #ifdef HAVE_ARMV8_CRC32_INTRINSIC
-  assert(mycrc32::auxv_at_hwcap);
   if (mycrc32::auxv_at_hwcap)
     return mycrc32::PunnedCrc32<std::uint64_t>(crc, pos, length);
 #endif  // HAVE_ARMV8_CRC32_INTRINSIC

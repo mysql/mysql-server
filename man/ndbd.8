@@ -2,12 +2,12 @@
 .\"     Title: \fBndbd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDBD\FR" "8" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDBD\FR" "8" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -50,7 +50,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.23.\ \&Command\-line options for the ndbd program
+.B Table\ \&23.24.\ \&Command\-line options used with the program ndbd
 .TS
 allbox tab(:);
 lB lB lB.
@@ -84,7 +84,7 @@ T}:T{
 Local bind address
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -94,7 +94,7 @@ Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -104,7 +104,7 @@ Set the number of times to retry a connection before giving up; 0 means
               1 attempt only (and no retries)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -114,7 +114,7 @@ Time to wait between attempts to contact a management server, in
               seconds; 0 means do not wait between attempts
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -125,7 +125,7 @@ T}:T{
 Start ndbd as daemon (default); override with --nodaemon
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -135,7 +135,7 @@ Run ndbd in foreground, provided for debugging purposes (implies
               --nodaemon)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -145,7 +145,7 @@ Perform initial start of ndbd, including file system cleanup; consult
               documentation before using this option
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -154,7 +154,7 @@ T}:T{
 Perform partial initial start (requires --nowait-nodes)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -164,7 +164,7 @@ Used to install data node process as Windows service; does not apply on
               other platforms
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -175,7 +175,7 @@ Control size of log buffer; for use when debugging with many log
               operations
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -184,7 +184,7 @@ T}:T{
 Do not start ndbd as daemon; provided for testing purposes
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -196,7 +196,7 @@ Do not start ndbd immediately; ndbd waits for command to start from
               ndb_mgm
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -206,7 +206,7 @@ Do not wait for these data nodes to start (takes comma-separated list of
               node IDs); requires --ndb-nodeid
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -216,7 +216,7 @@ Used to remove data node process that was previously installed as
               Windows service; does not apply on other platforms
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -227,7 +227,7 @@ T}:T{
 Write extra debugging information to node log
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
@@ -1257,7 +1257,7 @@ Section\ \&23.1.7, \(lqKnown Limitations of NDB Cluster\(rq\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

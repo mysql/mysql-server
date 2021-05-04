@@ -2,6 +2,8 @@
 --echo # and also after crashes.
 --echo # Note that innodb_undo_tablespaces is now fixed at 2 so only
 --echo # innodb_rollback_segments is tested here.
+--echo # Also make sure that --innodb_validate_tablespace_paths=OFF does not
+--echo # affect the validation of undo tablespaces. (See undo_settings-master.opt)
 
 --source include/have_innodb_default_undo_tablespaces.inc
 
@@ -238,7 +240,7 @@ let $inactive_undo_space = undo_003;
 source include/wait_until_undo_space_is_empty.inc;
 
 --source include/shutdown_mysqld.inc
-let $restart_parameters = restart: --innodb_rollback_segments=4;
+let $restart_parameters = restart: --innodb_rollback_segments=4 --innodb_validate_tablespace_paths=0;
 --source include/start_mysqld.inc
 
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
@@ -270,7 +272,7 @@ INSERT INTO t3  VALUES (6, repeat('f',15));
 
 --echo # Connection default
 connection default;
-let $restart_parameters = restart: --innodb_rollback_segments=2;
+let $restart_parameters = restart: --innodb_rollback_segments=2 --innodb_validate_tablespace_paths=0;
 --source include/kill_and_restart_mysqld.inc
 disconnect con1;
 

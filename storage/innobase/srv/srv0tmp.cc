@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -122,7 +122,6 @@ dberr_t Tablespace::create() {
   if (!ret) {
     return (DB_ERROR);
   }
-  buf_LRU_flush_or_remove_pages(m_space_id, BUF_REMOVE_FLUSH_WRITE, nullptr);
   return (DB_SUCCESS);
 }
 

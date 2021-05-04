@@ -343,3 +343,49 @@ prepare s from 'select 1 from t1 where a like ?';
 execute s using @pattern;
 
 drop table t1;
+
+--echo #
+--echo # Bug#26086751: LIKE LOSES ESCAPE CLAUSE WHEN USED IN VIEW
+--echo # Bug#29224931: LIKE ... ESCAPE IS NOT WRITTEN TO DICTIONARY
+--echo # Bug#30211596: `EXPLAIN ... LIKE ... ESCAPE` DOESN'T OUTPUT `ESCAPE`
+--echo #               CLAUSE IN THE WARNING
+--echo #
+
+# Used to miss the ESCAPE clause.
+EXPLAIN SELECT 'abba' LIKE 'abba' ESCAPE 'b';
+
+CREATE TABLE t(x VARCHAR(10),
+               gc INTEGER GENERATED ALWAYS AS (x LIKE 'abba' ESCAPE 'b'));
+INSERT INTO t(x) VALUES ('abba'), ('aba'), ('abbbba');
+
+# Used to miss the ESCAPE clause.
+SHOW CREATE TABLE t;
+
+# Used to return the wrong row.
+SELECT x FROM t WHERE gc <> 0;
+
+CREATE VIEW v AS SELECT x, 'abba' LIKE x ESCAPE 'b' AS y FROM t;
+
+# Used to miss the ESCAPE clause.
+SHOW CREATE VIEW v;
+
+# Used to return the wrong row.
+SELECT x FROM v WHERE y <> 0;
+
+DROP VIEW v;
+DROP TABLE t;
+
+--echo #
+--echo # Bug#32446508: INCONSISTENT HANDLING OF LIKE WITH AN EMPTY ESCAPE SEQUENCE
+--echo #
+
+--echo # Used to return (0, 1, 1), should return (0, 0, 0).
+SELECT _latin1'abc' LIKE _latin1'a\\bc' ESCAPE _latin1'' AS col1,
+       _utf8mb4'abc' LIKE _utf8mb4'a\\bc' ESCAPE _utf8mb4'' AS col2,
+       _latin1'abc' LIKE _latin1'a\\bc' ESCAPE _ascii'' AS col3;
+
+SET sql_mode = CONCAT(@@sql_mode, ',NO_BACKSLASH_ESCAPES');
+--echo # Used to return (1, 0), should return (1, 1).
+SELECT _latin1'a\bc' LIKE _latin1'a\%' AS col1,
+       _utf8mb4'a\bc' LIKE _utf8mb4'a\%' AS col2;
+SET sql_mode = DEFAULT;

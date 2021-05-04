@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,9 @@ namespace mock {
 
 class Ssl_context_options : public iface::Ssl_context_options {
  public:
+  Ssl_context_options();
+  virtual ~Ssl_context_options() override;
+
   MOCK_METHOD(int64_t, ssl_ctx_verify_depth, (), (override));
   MOCK_METHOD(int64_t, ssl_ctx_verify_mode, (), (override));
 

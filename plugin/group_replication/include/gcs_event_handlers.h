@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -307,7 +307,7 @@ class Plugin_gcs_events_handler : public Gcs_communication_event_listener,
   /* Component stop timeout on shutdown */
   ulong stop_wait_timeout;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   bool set_number_of_members_on_view_changed_to_10;
 #endif
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -21,9 +21,12 @@
   along with this program; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+
 #include <cstdlib>
 #include <fstream>
+#include <initializer_list>
 #include <string>
+#include <thread>
 
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
@@ -44,45 +47,6 @@
 #include "router_component_test.h"  // ProcessManager
 
 #include "mysqlxclient.h"
-
-// the ServerTls related tests currently require an external server that
-//
-// - speaks TLS
-// - uses crl-server-revoked-cert.pem, crl-server-revoked-key.pem for most tests
-// - for VERIFY_IDENTITY tests it must use
-//   server-cert.pem/server/-cert-verify-san.pem and run on 127.0.0.1/localhost
-// - has an account with "mysql_native_password"
-#undef HAS_TLS_AWARE_SERVER
-
-// hostname as c-string
-#undef TLS_AWARE_SERVER_HOSTNAME
-// classic port as c-string
-#define TLS_AWARE_SERVER_PORT "3306"
-// xproto port as c-string
-#define TLS_AWARE_SERVER_XPROTO_PORT "33060"
-// username as c-string
-#undef TLS_AWARE_SERVER_USERNAME
-// password as c-string
-#undef TLS_AWARE_SERVER_PASSWORD
-
-// safe-guards to ensure all required defines are in place HAS_TLS_AWARE_SERVER
-#if defined(HAS_TLS_AWARE_SERVER)
-#if !defined(TLS_AWARE_SERVER_HOSTNAME)
-#error TLS_AWARE_SERVER_HOSTNAME must be defined
-#endif
-#if !defined(TLS_AWARE_SERVER_PORT)
-#error TLS_AWARE_SERVER_PORT must be defined
-#endif
-#if !defined(TLS_AWARE_SERVER_XPROTO_PORT)
-#error TLS_AWARE_SERVER_XPROTO_PORT must be defined
-#endif
-#if !defined(TLS_AWARE_SERVER_USERNAME)
-#error TLS_AWARE_SERVER_USERNAME must be defined
-#endif
-#if !defined(TLS_AWARE_SERVER_PASSWORD)
-#error TLS_AWARE_SERVER_PASSWORD must be defined
-#endif
-#endif
 
 using namespace std::string_literals;
 using namespace std::chrono_literals;
@@ -120,6 +84,7 @@ TEST_F(SplicerTest, ssl_mode_default_passthrough) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 }
 
 TEST_F(SplicerTest, ssl_mode_default_preferred) {
@@ -144,6 +109,124 @@ TEST_F(SplicerTest, ssl_mode_default_preferred) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
+}
+
+/**
+ * check metadata-cache handles broken hostnames in metadata.
+ *
+ * trace file contains a broken hostname "[foobar]" which should trigger a parse
+ * error when the metadata is SELECTed.
+ */
+TEST_F(SplicerTest, invalid_metadata) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  SCOPED_TRACE("// start mock-server with TLS enabled");
+  const std::string mock_file =
+      get_data_dir().join("metadata_broken_hostname.js").str();
+  auto mock_server_args =
+      mysql_server_mock_cmdline_args(mock_file, server_port);
+
+  for (const auto &arg :
+       std::vector<std::string>{"--ssl-cert"s, valid_ssl_cert_,  //
+                                "--ssl-key"s, valid_ssl_key_,    //
+                                "--ssl-mode"s, "REQUIRED"s}) {
+    mock_server_args.push_back(arg);
+  }
+
+  launch_mysql_server_mock(mock_server_args);
+
+  SCOPED_TRACE("// start router with TLS enabled");
+  auto config = mysql_harness::join(
+      std::vector<std::string>{
+          mysql_harness::ConfigBuilder::build_section(
+              "routing",
+              {
+                  {"bind_port", std::to_string(router_port)},
+                  {"destinations",
+                   "metadata-cache://somecluster/default?role=PRIMARY"},
+                  {"routing_strategy", "round-robin"},
+                  {"client_ssl_mode", "required"},
+                  {"client_ssl_key", valid_ssl_key_},
+                  {"client_ssl_cert", valid_ssl_cert_},
+                  {"server_ssl_mode", "required"},
+              }),
+          mysql_harness::ConfigBuilder::build_section(
+              "metadata_cache:somecluster",
+              {
+                  {"user", "mysql_router1_user"},
+                  {"bootstrap_server_addresses",
+                   "mysql://127.0.0.1:" + std::to_string(server_port)},
+                  {"metadata_cluster", "test"},
+              }),
+      },
+      "\n");
+
+  auto default_section = get_DEFAULT_defaults();
+  init_keyring(default_section, conf_dir_.name());
+  auto conf_file =
+      create_config_file(conf_dir_.name(), config, &default_section);
+
+  auto &router = launch_router({"-c", conf_file}, EXIT_SUCCESS, true, false);
+
+  // wait long enough that a 2nd refresh was done to trigger the invalid
+  // hostname
+
+  {
+    mysqlrouter::MySQLSession sess;
+
+    // first round should succeed.
+    try {
+      // the router's certs against the corresponding CA
+      sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                           "", "");
+      sess.connect("127.0.0.1", router_port,
+                   "someuser",  // user
+                   "somepass",  // pass
+                   "",          // socket
+                   ""           // schema
+      );
+
+      sess.disconnect();
+    } catch (const std::exception &e) {
+      FAIL() << e.what();
+    }
+
+    // ... then try until the starts to fail.
+    try {
+      for (size_t rounds{};; ++rounds) {
+        // guard against inifinite loop
+        if (rounds == 100) FAIL() << "connect() should have failed by now.";
+
+        // the router's certs against the corresponding CA
+        sess.connect("127.0.0.1", router_port,
+                     "someuser",  // user
+                     "somepass",  // pass
+                     "",          // socket
+                     ""           // schema
+        );
+
+        sess.disconnect();
+
+        // wait a bit and retry.
+        std::this_thread::sleep_for(100ms);
+      }
+    } catch (const mysqlrouter::MySQLSession::Error &e) {
+      // connect failed eventually.
+      EXPECT_EQ(e.code(), 2003);
+    }
+  }
+
+  // shutdown and check the log file
+  EXPECT_THAT(router.send_clean_shutdown_event(),
+              ::testing::Truly([](auto const &v) { return !bool(v); }));
+  EXPECT_EQ(EXIT_SUCCESS, router.wait_for_exit());
+
+  SCOPED_TRACE("// check for the expected error-msg");
+  EXPECT_THAT(
+      router.get_full_logfile(),
+      ::testing::HasSubstr("Error parsing host:port in metadata for instance"));
 }
 
 struct SplicerFailParam {
@@ -420,6 +503,7 @@ const SplicerFailParam splicer_fail_params[] = {
 #endif
     {"server_ssl_capath_not_exists",  // RT2_ARGS_PATHS_INVALID_05,
                                       // RT2_CAPATH_BAD_03
+                                      // RT2_CAPATH_CRLPATH_VALID_02
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
@@ -581,24 +665,22 @@ TEST_P(SplicerConnectParamTest, check) {
   const auto router_port = port_pool_.get_next_available();
 
   const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-  launch_mysql_server_mock(mock_file, server_port);
 
-  auto it = std::find_if(
-      GetParam().cmdline_opts.begin(), GetParam().cmdline_opts.end(),
-      [](auto const &kv) { return kv.first == "server_ssl_mode"; });
-  const auto server_ssl_mode =
-      (it == GetParam().cmdline_opts.end()) ? "" : it->second;
+  auto mock_server_cmdline_args =
+      mysql_server_mock_cmdline_args(mock_file, server_port);
 
-#if defined(HAS_TLS_AWARE_SERVER)
-  const std::string destination(
-      (server_ssl_mode == "DISABLED" || server_ssl_mode == "AS_CLIENT")
-          ? mock_server_host_ + ":" + std::to_string(server_port)
-          : (TLS_AWARE_SERVER_HOSTNAME ":" TLS_AWARE_SERVER_PORT ""s));
-#else
-  ASSERT_THAT(server_ssl_mode, ::testing::AnyOf("DISABLED", "AS_CLIENT"));
-  const std::string destination(mock_server_host_ + ":" +
-                                std::to_string(server_port));
-#endif
+  std::string mock_server_prefix{"mock_server::"};
+
+  for (const auto &arg : GetParam().cmdline_opts) {
+    if (arg.first.substr(0, mock_server_prefix.size()) == mock_server_prefix) {
+      mock_server_cmdline_args.emplace_back(
+          arg.first.substr(mock_server_prefix.size()));
+      mock_server_cmdline_args.emplace_back(arg.second);
+    }
+  }
+  launch_mysql_server_mock(mock_server_cmdline_args);
+
+  const std::string destination("localhost:" + std::to_string(server_port));
 
   std::vector<std::pair<std::string, std::string>> cmdline_opts = {
       {"bind_port", std::to_string(router_port)},
@@ -612,6 +694,10 @@ TEST_P(SplicerConnectParamTest, check) {
   bool need_crldir{false};
 
   for (const auto &arg : GetParam().cmdline_opts) {
+    // skip mock-server specific entries
+    if (arg.first.substr(0, mock_server_prefix.size()) == mock_server_prefix)
+      continue;
+
     if (arg.first == "server_ssl_capath") {
       if (arg.second == "@capath@") {
         cmdline_opts.emplace_back(arg.first, cadir);
@@ -681,7 +767,10 @@ TEST_P(SplicerConnectParamTest, check) {
 
   const auto conf_file = create_config_file(conf_dir_.name(), config);
 
-  launch_router({"-c", conf_file});
+  launch_router({"-c", conf_file}, EXIT_SUCCESS,
+                /* catch_stderr */ true, /* with_sudo */ false,
+                /* wait_for_notify_ready */ 20s);
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 
   EXPECT_NO_FATAL_FAILURE(GetParam().checker(router_host_, router_port));
 }
@@ -1171,6 +1260,7 @@ INSTANTIATE_TEST_SUITE_P(ServerPlain, SplicerConnectParamTest,
                          });
 
 #if (OPENSSL_VERSION_NUMBER >= 0x1000200fL)
+// enable tests for curves with openssl 1.0.2 and later
 const SplicerConnectParam splicer_connect_openssl_102_params[] = {
     {"client_ssl_curves_p521r1",  // RT2_CIPHERS_RECOGNISED_02
      {
@@ -1198,84 +1288,16 @@ const SplicerConnectParam splicer_connect_openssl_102_params[] = {
          FAIL() << e.what();
        }
      }},
-};
-
-INSTANTIATE_TEST_SUITE_P(ServerPlainOpenssl102, SplicerConnectParamTest,
-                         testing::ValuesIn(splicer_connect_openssl_102_params),
-                         [](auto &info) {
-                           auto p = info.param;
-                           return p.test_name;
-                         });
-#endif
-
-#if defined(HAS_TLS_AWARE_SERVER)
-const SplicerConnectParam splicer_connect_tls_params[] = {
-    {"server_ssl_cipher_aes128_sha256",  // RT2_CIPHERS_RECOGNISED_03
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
-
-         {"client_ssl_mode", "REQUIRED"},
-         {"server_ssl_mode", "REQUIRED"},
-         {"server_ssl_cipher", "AES128-SHA256"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
-                              "", "");
-         sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
-         );
-         auto row = sess.query_one("show status like 'ssl_cipher'");
-         ASSERT_EQ(row->size(), 2);
-
-         // some cipher is set.
-         //
-         // with TLSv1.3 it is TLS_AES_256_GCM_SHA384
-         EXPECT_STRNE((*row)[1], "");
-       } catch (const std::exception &e) {
-         FAIL() << e.what();
-       }
-     }},
-    {"server_ssl_cipher_many",  // RT2_CIPHERS_RECOGNISED_07
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
-
-         {"client_ssl_mode", "REQUIRED"},
-         {"server_ssl_mode", "REQUIRED"},
-         {"server_ssl_cipher", "AES128-SHA256:AES128-SHA"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
-                              "", "");
-         sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
-         );
-
-         // if server uses TLSv1.3 we can't check the cert :(
-         // ASSERT_STREQ(sess.ssl_cipher(), "AES128-SHA256");
-       } catch (const std::exception &e) {
-         FAIL() << e.what();
-       }
-     }},
     {"server_ssl_curves_p384",  // RT2_CIPHERS_RECOGNISED_04
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
 
          {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_curves", "secp384r1"},
      },
@@ -1286,10 +1308,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
          sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
                               "", "");
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
        } catch (const std::exception &e) {
          FAIL() << e.what();
@@ -1301,6 +1323,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
 
          {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_curves", "secp384r1:secp521r1"},
      },
@@ -1311,11 +1337,119 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
          sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
                               "", "");
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
+       } catch (const std::exception &e) {
+         FAIL() << e.what();
+       }
+     }},
+};
+
+INSTANTIATE_TEST_SUITE_P(ServerPlainOpenssl102, SplicerConnectParamTest,
+                         testing::ValuesIn(splicer_connect_openssl_102_params),
+                         [](auto &info) {
+                           auto p = info.param;
+                           return p.test_name;
+                         });
+#endif
+
+const SplicerConnectParam splicer_connect_tls_params[] = {
+    {"server_tlsv12_only",
+     {
+         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
+         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
+         {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"mock_server::--tls-version", "TLSv1.2"},
+         {"server_ssl_mode", "REQUIRED"},
+     },
+     [](const std::string &router_host, uint16_t router_port) {
+       mysqlrouter::MySQLSession sess;
+
+       try {
+         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                              "", "");
+         sess.connect(router_host, router_port,
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
+         );
+         const auto row = sess.query_one("show status like 'ssl_cipher'");
+         ASSERT_EQ(row->size(), 2);
+
+         // some cipher is selected.
+         EXPECT_STRNE((*row)[1], "");
+       } catch (const std::exception &e) {
+         FAIL() << e.what();
+       }
+     }},
+    {"server_ssl_cipher_aes128_sha256",  // RT2_CIPHERS_RECOGNISED_03
+     {
+         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
+         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
+         {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"mock_server::--tls-version", "TLSv1.2"},
+         {"server_ssl_mode", "REQUIRED"},
+         {"server_ssl_cipher", "AES128-SHA256"},
+     },
+     [](const std::string &router_host, uint16_t router_port) {
+       mysqlrouter::MySQLSession sess;
+
+       try {
+         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                              "", "");
+         sess.connect(router_host, router_port,
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
+         );
+         const auto row = sess.query_one("show status like 'ssl_cipher'");
+         ASSERT_EQ(row->size(), 2);
+
+         EXPECT_STREQ((*row)[1], "AES128-SHA256");
+       } catch (const std::exception &e) {
+         FAIL() << e.what();
+       }
+     }},
+    {"server_ssl_cipher_many",  // RT2_CIPHERS_RECOGNISED_07
+     {
+         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key-sha512.pem"},
+         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert-sha512.pem"},
+         {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"server_ssl_mode", "REQUIRED"},
+         {"server_ssl_cipher", "AES128-SHA256:AES128-SHA"},
+     },
+     [](const std::string &router_host, uint16_t router_port) {
+       mysqlrouter::MySQLSession sess;
+
+       try {
+         sess.set_ssl_options(mysql_ssl_mode::SSL_MODE_REQUIRED, "", "", "", "",
+                              "", "");
+         sess.connect(router_host, router_port,
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
+         );
+
+         // if server uses TLSv1.3 we can't check the cert :(
+         // ASSERT_STREQ(sess.ssl_cipher(), "AES128-SHA256");
        } catch (const std::exception &e) {
          FAIL() << e.what();
        }
@@ -1324,11 +1458,14 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
+         {"client_ssl_mode", "REQUIRED"},
 
          // cacert doesn't match the server's cert. But we don't verify
-         {"server_ssl_ca", SSL_TEST_DATA_DIR "/cacert.pem"},
 
-         {"client_ssl_mode", "REQUIRED"},
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"server_ssl_ca", SSL_TEST_DATA_DIR "/cacert.pem"},
          {"server_ssl_mode", "REQUIRED"},
      },
      [](const std::string &router_host, uint16_t router_port) {
@@ -1336,10 +1473,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
        } catch (const std::exception &e) {
          FAIL() << e.what();
@@ -1349,11 +1486,14 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
+         {"client_ssl_mode", "REQUIRED"},
 
          // cacert doesn't match the server's cert. But we don't verify
-         {"server_ssl_ca", SSL_TEST_DATA_DIR "/cacert.pem"},
 
-         {"client_ssl_mode", "REQUIRED"},
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"server_ssl_ca", SSL_TEST_DATA_DIR "/cacert.pem"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "DISABLED"},
      },
@@ -1362,10 +1502,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
        } catch (const std::exception &e) {
          FAIL() << e.what();
@@ -1376,9 +1516,13 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-         {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
-
          {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"server_ssl_ca", SSL_TEST_DATA_DIR "/cacert.pem"},
+
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "VERIFY_CA"},
      },
@@ -1387,10 +1531,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
        } catch (const mysqlrouter::MySQLSession::Error &e) {
          FAIL() << e.what();
@@ -1400,11 +1544,13 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-
-         // server runs with a cert that matches crl-ca-cert.pem
-         {"server_ssl_ca", SSL_TEST_DATA_DIR "/ca-sha512.pem"},
-
          {"client_ssl_mode", "REQUIRED"},
+
+         // server runs with a cert that matches cacert.pem
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"server_ssl_ca", SSL_TEST_DATA_DIR "/ca-sha512.pem"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "VERIFY_CA"},
      },
@@ -1413,10 +1559,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
          FAIL() << "expected connect to fail";
        } catch (const mysqlrouter::MySQLSession::Error &e) {
@@ -1429,9 +1575,13 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
+         {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
          {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
 
-         {"client_ssl_mode", "REQUIRED"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "VERIFY_IDENTITY"},
      },
@@ -1440,10 +1590,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
          FAIL() << "expected connect to fail";
        } catch (const mysqlrouter::MySQLSession::Error &e) {
@@ -1456,44 +1606,30 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
+         {"client_ssl_mode", "REQUIRED"},
 
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
          // server is started with server-cert.pem which has CN=localhost
          // which is signed by cacert.pem
          {"server_ssl_ca", SSL_TEST_DATA_DIR "/cacert.pem"},
-
-         {"client_ssl_mode", "REQUIRED"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "VERIFY_IDENTITY"},
      },
      [](const std::string &router_host, uint16_t router_port) {
        mysqlrouter::MySQLSession sess;
 
-       if (TLS_AWARE_SERVER_HOSTNAME == "127.0.0.1"s) {
-         // the server's cert is using a CN=localhost
-         try {
-           sess.connect(router_host, router_port,
-                        TLS_AWARE_SERVER_USERNAME,  // user
-                        TLS_AWARE_SERVER_PASSWORD,  // pass
-                        "",                         // socket
-                        ""                          // schema
-           );
-         } catch (const mysqlrouter::MySQLSession::Error &e) {
-           FAIL() << e.what();
-         }
-       } else {
-         try {
-           sess.connect(router_host, router_port,
-                        TLS_AWARE_SERVER_USERNAME,  // user
-                        TLS_AWARE_SERVER_PASSWORD,  // pass
-                        "",                         // socket
-                        ""                          // schema
-           );
-           FAIL() << "expected connect to fail";
-         } catch (const mysqlrouter::MySQLSession::Error &e) {
-           ASSERT_EQ(e.code(), 2026);
-           ASSERT_THAT(e.what(),
-                       ::testing::HasSubstr("certificate verify failed"));
-         }
+       // the server's cert is using a CN=localhost
+       try {
+         sess.connect(router_host, router_port,
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
+         );
+       } catch (const mysqlrouter::MySQLSession::Error &e) {
+         FAIL() << e.what();
        }
      }},
     {"server_ssl_ca_verify_identity_alternative_subject",
@@ -1501,6 +1637,11 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
 
+         {"mock_server::--ssl-cert",
+          SSL_TEST_DATA_DIR "server-cert-verify-san.pem"},
+         {"mock_server::--ssl-key",
+          SSL_TEST_DATA_DIR "server-key-verify-san.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
          // server is started with server-cert-verify-san.pem which has
          // SubjectAltName=localhost which is signed by ca-cert-verify-san.pem
          {"server_ssl_ca", SSL_TEST_DATA_DIR "/ca-cert-verify-san.pem"},
@@ -1512,41 +1653,28 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
      [](const std::string &router_host, uint16_t router_port) {
        mysqlrouter::MySQLSession sess;
 
-       if (TLS_AWARE_SERVER_HOSTNAME == "127.0.0.1"s) {
-         // the server's cert is using a CN=localhost
-         try {
-           sess.connect(router_host, router_port,
-                        TLS_AWARE_SERVER_USERNAME,  // user
-                        TLS_AWARE_SERVER_PASSWORD,  // pass
-                        "",                         // socket
-                        ""                          // schema
-           );
-         } catch (const mysqlrouter::MySQLSession::Error &e) {
-           FAIL() << e.what();
-         }
-       } else {
-         try {
-           sess.connect(router_host, router_port,
-                        TLS_AWARE_SERVER_USERNAME,  // user
-                        TLS_AWARE_SERVER_PASSWORD,  // pass
-                        "",                         // socket
-                        ""                          // schema
-           );
-           FAIL() << "expected connect to fail";
-         } catch (const mysqlrouter::MySQLSession::Error &e) {
-           ASSERT_EQ(e.code(), 2026);
-           ASSERT_THAT(e.what(),
-                       ::testing::HasSubstr("certificate verify failed"));
-         }
+       // the server's cert is using a CN=localhost
+       try {
+         sess.connect(router_host, router_port,
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
+         );
+       } catch (const mysqlrouter::MySQLSession::Error &e) {
+         FAIL() << e.what();
        }
      }},
     {"server_ssl_capath_verify_ca",  // RT2_CAPATH_CRLPATH_VALID_01
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-         {"server_ssl_capath", "@capath@"},  // will be replaced
-
          {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"server_ssl_capath", "@capath@"},  // will be replaced
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "VERIFY_CA"},
      },
@@ -1555,52 +1683,37 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
        } catch (const mysqlrouter::MySQLSession::Error &e) {
          FAIL() << e.what();
-       }
-     }},
-    {"server_ssl_capath_verify_ca_no_exists",  // RT2_CAPATH_CRLPATH_VALID_02
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-         {"server_ssl_capath", "@capath_noexist@"},  // will be replaced
-
-         {"client_ssl_mode", "REQUIRED"},
-         {"server_ssl_mode", "REQUIRED"},
-         {"server_ssl_verify", "VERIFY_CA"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
-         );
-         FAIL() << "expected connect to fail";
-       } catch (const mysqlrouter::MySQLSession::Error &e) {
-         ASSERT_EQ(e.code(), 2026);
-         ASSERT_THAT(e.what(),
-                     ::testing::HasSubstr("certificate verify failed"));
        }
      }},
     {"server_ssl_crl_revoke_server_cert",  // RT2_CA_CRL_VALID_03
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-         {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
-
-         // revoke the server-cert.pem
-         {"server_ssl_crl", SSL_TEST_DATA_DIR "/crl-server-revoked.crl"},
-
          {"client_ssl_mode", "REQUIRED"},
+
+         // revoke the crl-server-revoked-cert.pem
+         //
+         // crl-server-revoked.crl is revokes cert with serial-id 4.
+         //
+         // $ openssl crl -in crl-server-revoked.crl -text
+         //
+         // serial-id 4 of the CA is 'crl-server-revoked-cert.prm'
+         //
+         // $ openssl x509 -in crl-server-revoked-cert.pem -text
+         {"mock_server::--ssl-cert",
+          SSL_TEST_DATA_DIR "crl-server-revoked-cert.pem"},
+         {"mock_server::--ssl-key",
+          SSL_TEST_DATA_DIR "crl-server-revoked-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
+         {"server_ssl_crl", SSL_TEST_DATA_DIR "/crl-server-revoked.crl"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "VERIFY_CA"},
      },
@@ -1609,10 +1722,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
          FAIL() << "expected connect to fail";
        } catch (const mysqlrouter::MySQLSession::Error &e) {
@@ -1625,45 +1738,14 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-         {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
+         {"client_ssl_mode", "REQUIRED"},
 
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
          // revoke the an unrelated cert.
          {"server_ssl_crl", SSL_TEST_DATA_DIR "/crl-client-revoked.crl"},
-
-         {"client_ssl_mode", "REQUIRED"},
-         {"server_ssl_mode", "REQUIRED"},
-         {"server_ssl_verify", "VERIFY_CA"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
-         );
-       } catch (const mysqlrouter::MySQLSession::Error &e) {
-         FAIL() << e.what();
-       }
-     }},
-
-    // tests need server running with
-    // - crl-server-cert.pem
-    // - crl-server-key.pem
-    //
-    // - validate against crl-ca-cert.pem
-    {"server_ssl_ca_crl_no_matching_crl",
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-
-         // unrelated cert is revoked
          {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
-         {"server_ssl_crl", SSL_TEST_DATA_DIR "/crl-client-revoked.crl"},
-
-         {"client_ssl_mode", "REQUIRED"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "VERIFY_CA"},
      },
@@ -1672,24 +1754,27 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
        } catch (const mysqlrouter::MySQLSession::Error &e) {
          FAIL() << e.what();
        }
      }},
+
     {"server_ssl_ca_crlpath",  // RT2_CAPATH_CRLPATH_VALID_03
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-         {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
-
-         {"server_ssl_crlpath", "@crlpath@"},
-
          {"client_ssl_mode", "REQUIRED"},
+
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
+         {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
+         {"server_ssl_crlpath", "@crlpath@"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "VERIFY_CA"},
      },
@@ -1698,10 +1783,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
        } catch (const mysqlrouter::MySQLSession::Error &e) {
          FAIL() << e.what();
@@ -1711,13 +1796,15 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
      {
          {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
          {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-         {"server_ssl_capath", "@capath@"},
+         {"client_ssl_mode", "REQUIRED"},
 
+         {"mock_server::--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
+         {"mock_server::--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
+         {"mock_server::--ssl-mode", "PREFERRED"},
          // crldir contains a CRL for the client-cert ... make sure we trust the
          // CA that signed the CRL
          {"server_ssl_crlpath", SSL_TEST_DATA_DIR "/crldir"},
-
-         {"client_ssl_mode", "REQUIRED"},
+         {"server_ssl_capath", "@capath@"},
          {"server_ssl_mode", "REQUIRED"},
          {"server_ssl_verify", "VERIFY_CA"},
      },
@@ -1726,97 +1813,10 @@ const SplicerConnectParam splicer_connect_tls_params[] = {
 
        try {
          sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
-         );
-       } catch (const mysqlrouter::MySQLSession::Error &e) {
-         FAIL() << e.what();
-       }
-     }},
-    {"server_ssl_crlpath_dir_not_exists",  // RT2_ARGS_PATHS_INVALID_08
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-         {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-server-cert.pem"},
-
-         // if the crlpath doesn't exist, cert verification fails if the cert is
-         // valid.
-         {"server_ssl_crlpath", SSL_TEST_DATA_DIR "/not-exists/"},
-
-         {"client_ssl_mode", "REQUIRED"},
-         {"server_ssl_mode", "REQUIRED"},
-         {"server_ssl_verify", "VERIFY_CA"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
-         );
-         FAIL() << "expect connection to fail";
-       } catch (const mysqlrouter::MySQLSession::Error &e) {
-         ASSERT_EQ(e.code(), 2026);
-         ASSERT_THAT(e.what(),
-                     ::testing::HasSubstr("certificate verify failed"));
-       }
-     }},
-    {"server_ssl_capath_dir_not_exists",
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-
-         // cert verification should fail if no matching cert is found.
-         {"server_ssl_capath", SSL_TEST_DATA_DIR "/not-existing/"},
-
-         {"client_ssl_mode", "REQUIRED"},
-         {"server_ssl_mode", "REQUIRED"},
-         {"server_ssl_verify", "VERIFY_CA"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
-         );
-         FAIL() << "expect connection to fail";
-       } catch (const mysqlrouter::MySQLSession::Error &e) {
-         ASSERT_EQ(e.code(), 2026);
-         ASSERT_THAT(e.what(),
-                     ::testing::HasSubstr("certificate verify failed"));
-       }
-     }},
-    {"server_ssl_ca_capath_dir_not_exists",
-     {
-         {"client_ssl_key", SSL_TEST_DATA_DIR "/server-key.pem"},
-         {"client_ssl_cert", SSL_TEST_DATA_DIR "/server-cert.pem"},
-
-         // ca is valid, but capath doesn't exist.
-         {"server_ssl_ca", SSL_TEST_DATA_DIR "/crl-ca-cert.pem"},
-         {"server_ssl_capath", SSL_TEST_DATA_DIR "/not-existing/"},
-
-         {"client_ssl_mode", "REQUIRED"},
-         {"server_ssl_mode", "REQUIRED"},
-         {"server_ssl_verify", "VERIFY_CA"},
-     },
-     [](const std::string &router_host, uint16_t router_port) {
-       mysqlrouter::MySQLSession sess;
-
-       try {
-         sess.connect(router_host, router_port,
-                      TLS_AWARE_SERVER_USERNAME,  // user
-                      TLS_AWARE_SERVER_PASSWORD,  // pass
-                      "",                         // socket
-                      ""                          // schema
+                      "someuser",  // user
+                      "somepass",  // pass
+                      "",          // socket
+                      ""           // schema
          );
        } catch (const mysqlrouter::MySQLSession::Error &e) {
          FAIL() << e.what();
@@ -1830,7 +1830,6 @@ INSTANTIATE_TEST_SUITE_P(ServerTls, SplicerConnectParamTest,
                            auto p = info.param;
                            return p.test_name;
                          });
-#endif
 
 /**
  *
@@ -1857,6 +1856,7 @@ TEST_F(SplicerTest, classic_protocol_default_preferred_as_client) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 
   mysqlrouter::MySQLSession sess;
 
@@ -1897,30 +1897,29 @@ TEST_P(SplicerParamTest, classic_protocol) {
   const auto router_port = port_pool_.get_next_available();
 
   const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-  launch_mysql_server_mock(mock_file, server_port);
 
-#if defined(HAS_TLS_AWARE_SERVER)
-  const std::string destination(
-      GetParam().mock_ssl_mode == mysql_ssl_mode::SSL_MODE_DISABLED
-          ? mock_server_host_ + ":" + std::to_string(server_port)
-          : (TLS_AWARE_SERVER_HOSTNAME ":" TLS_AWARE_SERVER_PORT ""s));
+  auto mock_server_cmdline_args =
+      mysql_server_mock_cmdline_args(mock_file, server_port);
 
-  const std::string mock_username =
-      GetParam().mock_ssl_mode == mysql_ssl_mode::SSL_MODE_DISABLED
-          ? "someuser"
-          : TLS_AWARE_SERVER_USERNAME;
+  // enable SSL support on the mock-server.
+  if (GetParam().mock_ssl_mode != mysql_ssl_mode::SSL_MODE_DISABLED) {
+    std::initializer_list<std::pair<const char *, const char *>> mock_opts = {
+        {"--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
+        {"--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
+        {"--ssl-mode", "PREFERRED"}};
 
-  const std::string mock_password =
-      GetParam().mock_ssl_mode == mysql_ssl_mode::SSL_MODE_DISABLED
-          ? "somepass"
-          : TLS_AWARE_SERVER_PASSWORD;
-#else
-  ASSERT_EQ(GetParam().mock_ssl_mode, mysql_ssl_mode::SSL_MODE_DISABLED);
+    for (const auto &arg : mock_opts) {
+      mock_server_cmdline_args.emplace_back(arg.first);
+      mock_server_cmdline_args.emplace_back(arg.second);
+    }
+  }
+
+  launch_mysql_server_mock(mock_server_cmdline_args);
+
   const std::string destination(mock_server_host_ + ":" +
                                 std::to_string(server_port));
   const std::string mock_username = "someuser";
   const std::string mock_password = "somepass";
-#endif
 
   auto config = mysql_harness::join(
       std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
@@ -1940,6 +1939,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 
   mysqlrouter::MySQLSession sess;
 
@@ -1968,7 +1968,7 @@ TEST_P(SplicerParamTest, classic_protocol) {
     EXPECT_EQ(is_encrypted, GetParam().expect_client_encrypted);
 
     try {
-      auto row = sess.query_one("show status like 'ssl_cipher'");
+      const auto row = sess.query_one("show status like 'ssl_cipher'");
       ASSERT_EQ(row->size(), 2);
 
       if (GetParam().expect_server_encrypted) {
@@ -1977,25 +1977,22 @@ TEST_P(SplicerParamTest, classic_protocol) {
         EXPECT_STREQ((*row)[1], "");
       }
     } catch (const mysqlrouter::MySQLSession::Error &e) {
-      if (e.code() == 1273 && GetParam().expect_server_encrypted == false) {
-        // mock-server doesn't support the query yet.
-      } else {
-        FAIL() << e.what();
-      }
+      FAIL() << e.what();
     }
 
     try {
-      auto row = sess.query_one("select repeat('a', 4097) as a");
+      const auto row =
+          sess.query_one("select repeat('a', 15 * 1024 * 1024) as a");
       ASSERT_EQ(row->size(), 1);
 
-      EXPECT_EQ((*row)[0], std::string(4097, 'a'));
+      EXPECT_EQ((*row)[0], std::string(15 * 1024 * 1024, 'a'));
     } catch (const mysqlrouter::MySQLSession::Error &e) {
       FAIL() << e.what();
     }
 
     try {
-      auto row = sess.query_one("select length(" + std::string(4097, 'a') +
-                                ") as length");
+      const auto row = sess.query_one("select length(" +
+                                      std::string(4097, 'a') + ") as length");
       ASSERT_EQ(row->size(), 1);
 
       EXPECT_STREQ((*row)[0], "4097");
@@ -2035,32 +2032,30 @@ TEST_P(SplicerParamTest, xproto) {
   const auto server_port_x = port_pool_.get_next_available();
 
   const std::string mock_file = get_data_dir().join("tls_endpoint.js").str();
-  launch_mysql_server_mock(mock_file, server_port, EXIT_SUCCESS, false, 0,
-                           server_port_x);
 
-#if defined(HAS_TLS_AWARE_SERVER)
-  const std::string destination(
-      GetParam().mock_ssl_mode == mysql_ssl_mode::SSL_MODE_DISABLED
-          ? mock_server_host_ + ":" + std::to_string(server_port_x)
-          : (TLS_AWARE_SERVER_HOSTNAME ":" TLS_AWARE_SERVER_XPROTO_PORT ""s));
+  auto mock_server_cmdline_args =
+      mysql_server_mock_cmdline_args(mock_file, server_port, 0,  // http_port
+                                     server_port_x);
 
-  const std::string mock_username =
-      GetParam().mock_ssl_mode == mysql_ssl_mode::SSL_MODE_DISABLED
-          ? "someuser"
-          : TLS_AWARE_SERVER_USERNAME;
+  // enable SSL support on the mock-server.
+  if (GetParam().mock_ssl_mode != mysql_ssl_mode::SSL_MODE_DISABLED) {
+    std::initializer_list<std::pair<const char *, const char *>> mock_opts = {
+        {"--ssl-cert", SSL_TEST_DATA_DIR "crl-server-cert.pem"},
+        {"--ssl-key", SSL_TEST_DATA_DIR "crl-server-key.pem"},
+        {"--ssl-mode", "PREFERRED"}};
 
-  const std::string mock_password =
-      GetParam().mock_ssl_mode == mysql_ssl_mode::SSL_MODE_DISABLED
-          ? "somepass"
-          : TLS_AWARE_SERVER_PASSWORD;
+    for (const auto &arg : mock_opts) {
+      mock_server_cmdline_args.emplace_back(arg.first);
+      mock_server_cmdline_args.emplace_back(arg.second);
+    }
+  }
 
-#else
-  ASSERT_EQ(GetParam().mock_ssl_mode, mysql_ssl_mode::SSL_MODE_DISABLED);
+  launch_mysql_server_mock(mock_server_cmdline_args);
+
   const std::string destination(mock_server_host_ + ":" +
                                 std::to_string(server_port_x));
   const std::string mock_username = "someuser";
   const std::string mock_password = "somepass";
-#endif
 
   auto config = mysql_harness::join(
       std::vector<std::string>{mysql_harness::ConfigBuilder::build_section(
@@ -2081,6 +2076,7 @@ TEST_P(SplicerParamTest, xproto) {
   auto conf_file = create_config_file(conf_dir_.name(), config);
 
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_ready(router_port));
 
   auto sess = xcl::create_session();
   ASSERT_THAT(
@@ -2100,6 +2096,44 @@ TEST_P(SplicerParamTest, xproto) {
                            "MYSQL41");
   }
 
+  SCOPED_TRACE("// check the TLS capability is announced properly.");
+  {
+    auto &xproto = sess->get_protocol();
+    auto &xconn = xproto.get_connection();
+
+    const auto connect_err =
+        xconn.connect(router_host_, router_port, xcl::Internet_protocol::Any);
+
+    ASSERT_EQ(connect_err.error(), 0) << connect_err.what();
+
+    xcl::XError xerr;
+    const auto caps = xproto.execute_fetch_capabilities(&xerr);
+
+    ASSERT_EQ(xerr.error(), 0) << xerr.what();
+    ASSERT_TRUE(caps);
+
+    bool has_tls_cap{false};
+    for (auto const &cap : caps->capabilities()) {
+      ASSERT_TRUE(cap.has_name());
+      if (cap.name() == "tls") {
+        ASSERT_TRUE(cap.has_value());
+        ASSERT_TRUE(cap.value().has_scalar());
+        ASSERT_TRUE(cap.value().scalar().has_v_bool());
+        has_tls_cap = cap.value().scalar().v_bool();
+      }
+    }
+
+    if (GetParam().client_ssl_mode == SslMode::kDisabled ||
+        (GetParam().client_ssl_mode == SslMode::kPassthrough &&
+         GetParam().mock_ssl_mode == SSL_MODE_DISABLED)) {
+      EXPECT_FALSE(has_tls_cap);
+    } else {
+      EXPECT_TRUE(has_tls_cap);
+    }
+
+    xconn.close();
+  }
+
   ASSERT_THAT(sess->connect(router_host_.c_str(), router_port,
                             mock_username.c_str(), mock_password.c_str(), ""),
               ::testing::Truly([](auto const &err) {
@@ -2108,27 +2142,39 @@ TEST_P(SplicerParamTest, xproto) {
       << GetParam().expected_success;
 
   if (GetParam().expected_success == 0) {
-    xcl::XError xerr;
-    auto result =
-        sess->execute_sql("show status like 'Mysqlx_ssl_cipher'", &xerr);
-    ASSERT_TRUE(result) << xerr;
+    {
+      xcl::XError xerr;
+      const auto result =
+          sess->execute_sql("show status like 'mysqlx_ssl_cipher'", &xerr);
+      ASSERT_TRUE(result) << xerr;
 
-    if (!result->has_resultset()) {
-      if (xerr.error() == 1273 && GetParam().expect_server_encrypted == false) {
-        // mock-server doesn't support the query yet.
-      } else {
+      if (!result->has_resultset()) {
         FAIL() << xerr.what();
-      }
-    } else {
-      auto row = result->get_next_row();
-      std::string field;
-      ASSERT_TRUE(row->get_string(1, &field));
-
-      if (GetParam().expect_server_encrypted) {
-        EXPECT_NE(field, "");
       } else {
-        EXPECT_EQ(field, "");
+        const auto row = result->get_next_row();
+        std::string field;
+        ASSERT_TRUE(row->get_string(1, &field));
+
+        if (GetParam().expect_server_encrypted) {
+          EXPECT_NE(field, "");
+        } else {
+          EXPECT_EQ(field, "");
+        }
       }
+    }
+
+    {
+      xcl::XError xerr;
+      const auto result =
+          sess->execute_sql("select repeat('a', 15 * 1024 * 1024) as a", &xerr);
+      ASSERT_TRUE(result) << xerr;
+
+      const auto row = result->get_next_row();
+      ASSERT_NE(row, nullptr);
+      std::string field;
+      ASSERT_TRUE(row->get_string(0, &field));
+
+      EXPECT_EQ(field, std::string(15 * 1024 * 1024, 'a'));
     }
   }
 }
@@ -2294,7 +2340,6 @@ INSTANTIATE_TEST_SUITE_P(
              "_"s + (p.expected_success == 0 ? "succeed" : "fail");
     });
 
-#if defined(HAS_TLS_AWARE_SERVER)
 const std::array<SplicerParam, 39> splicer_server_tls_params = {{
     // disabled - disabled
     {SslMode::kDisabled, SslMode::kDisabled,  // RT2_CONN_TYPE_RSLN_01_01
@@ -2450,7 +2495,6 @@ INSTANTIATE_TEST_SUITE_P(
              mysqlrouter::MySQLSession::ssl_mode_to_string(p.my_ssl_mode) +
              "_"s + (p.expected_success == 0 ? "succeed" : "fail");
     });
-#endif
 
 int main(int argc, char *argv[]) {
   net::impl::socket::init();

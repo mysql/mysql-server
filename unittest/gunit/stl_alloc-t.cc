@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -241,7 +241,7 @@ TYPED_TEST(STLAllocTestInt, SimpleList) {
   EXPECT_EQ(0U, l2.size());
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 TYPED_TEST(STLAllocTestInt, OutOfMemory) {
   vector<int, TypeParam> v1(this->allocator);
   v1.reserve(10);

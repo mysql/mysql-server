@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -59,6 +59,7 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbDir.cpp
   ndb_daemon.cpp
   ndb_file_common.cpp
+  ndb_password.cpp
   ndb_stacktrace.cpp
   ${EXTRA_SRC}
   NdbNuma.cpp

@@ -51,11 +51,6 @@ ThreadConfig=main={count=1},tc={count=3},ldm={count=4},io={count=1},rep={count=1
 [ndb_mgm]
 verbose=0
 
-[ndb_restore]
-# ndb_restore by default will generate a core file when there is an error.
-# This is not appropriate for an automated testing environment, so disable it.
-core-file=0
-
 [ENV]
 # Use the multithreaded scheduler whenever available
 MTR_NDBMTD= 1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "sql/item_json_func.h"
 
+#include <assert.h>
 #include <stdint.h>
 #include <string.h>
 #include <algorithm>  // std::fill
@@ -40,7 +41,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysql/mysql_lex_string.h"
 #include "mysqld_error.h"
@@ -103,7 +104,7 @@ bool ensure_utf8mb4(const String &val, String *buf, const char **resptr,
                   &my_charset_utf8mb4_bin, &dummy_errors)) {
       return true; /* purecov: inspected */
     }
-    DBUG_ASSERT(buf->charset() == &my_charset_utf8mb4_bin);
+    assert(buf->charset() == &my_charset_utf8mb4_bin);
     s = buf->ptr();
     ss = buf->length();
   }
@@ -146,7 +147,7 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
   }
 
   if (!dom) {
-    DBUG_ASSERT(!require_str_or_json);
+    assert(!require_str_or_json);
     return !is_valid_json_syntax(safep, safe_length, nullptr, nullptr);
   }
 
@@ -177,7 +178,7 @@ bool parse_json(const String &res, uint arg_idx, const char *func_name,
 */
 
 static enum_field_types get_real_blob_type(const Field *arg) {
-  DBUG_ASSERT(arg);
+  assert(arg);
   return blob_type_from_pack_length(arg->pack_length() -
                                     portable_sizeof_char_ptr);
 }
@@ -193,7 +194,7 @@ static enum_field_types get_real_blob_type(const Field *arg) {
 */
 
 static enum_field_types get_real_blob_type(const Item *arg) {
-  DBUG_ASSERT(arg);
+  assert(arg);
   /*
     TINYTEXT, TEXT, MEDIUMTEXT, and LONGTEXT have type
     MYSQL_TYPE_BLOB. We want to treat them like strings. We check
@@ -228,11 +229,14 @@ static enum_field_types get_normalized_field_type(const Item *arg) {
   return ft;
 }
 
-bool get_json_string(Item *arg_item, String *value, String *utf8_res,
-                     const char **safep, size_t *safe_length) {
+bool get_json_object_member_name(const THD *thd, Item *arg_item, String *value,
+                                 String *utf8_res, const char **safep,
+                                 size_t *safe_length) {
   String *const res = arg_item->val_str(value);
+  if (thd->is_error()) return true;
 
-  if (!res) {
+  if (arg_item->null_value) {
+    my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
     return true;
   }
 
@@ -329,7 +333,7 @@ static bool json_is_valid(Item **args, uint arg_idx, String *value,
     return false;
   } else if (field_type == MYSQL_TYPE_NULL) {
     if (arg_item->update_null_value()) return true;
-    DBUG_ASSERT(arg_item->null_value);
+    assert(arg_item->null_value);
     *valid = true;
     return false;
   } else if (field_type == MYSQL_TYPE_JSON) {
@@ -424,6 +428,7 @@ static enum_one_or_all_type parse_one_or_all(const String *candidate,
 /**
   Parse and cache a (possibly constant) oneOrAll argument.
 
+  @param[in]  thd           THD handle.
   @param[in]  arg           The oneOrAll arg passed to the JSON function.
   @param[in]  cached_ooa    Previous result of parsing this arg.
   @param[in]  func_name     The name of the calling JSON function.
@@ -431,10 +436,9 @@ static enum_one_or_all_type parse_one_or_all(const String *candidate,
   @returns ooa_one, ooa_all, ooa_null or ooa_error, based on the match
 */
 static enum_one_or_all_type parse_and_cache_ooa(
-    Item *arg, enum_one_or_all_type *cached_ooa, const char *func_name) {
-  bool is_constant = arg->const_for_execution();
-
-  if (is_constant) {
+    const THD *thd, Item *arg, enum_one_or_all_type *cached_ooa,
+    const char *func_name) {
+  if (arg->const_for_execution()) {
     if (*cached_ooa != ooa_uninitialized) {
       return *cached_ooa;
     }
@@ -442,7 +446,9 @@ static enum_one_or_all_type parse_and_cache_ooa(
 
   StringBuffer<16> buffer;  // larger than common case: three characters + '\0'
   String *const one_or_all = arg->val_str(&buffer);
-  if (!one_or_all || arg->null_value) {
+  if (thd->is_error()) {
+    *cached_ooa = ooa_error;
+  } else if (arg->null_value) {
     *cached_ooa = ooa_null;
   } else {
     *cached_ooa = parse_one_or_all(one_or_all, func_name);
@@ -458,9 +464,10 @@ Json_path_cache::Json_path_cache(THD *thd, uint size)
   reset_cache();
 }
 
-Json_path_cache::~Json_path_cache() {}
+Json_path_cache::~Json_path_cache() = default;
 
-bool Json_path_cache::parse_and_cache_path(Item **args, uint arg_idx,
+bool Json_path_cache::parse_and_cache_path(const THD *thd, Item **args,
+                                           uint arg_idx,
                                            bool forbid_wildcards) {
   Item *arg = args[arg_idx];
 
@@ -469,7 +476,9 @@ bool Json_path_cache::parse_and_cache_path(Item **args, uint arg_idx,
 
   if (is_constant && cell.m_status != enum_path_status::UNINITIALIZED) {
     // nothing to do if it has already been parsed
-    return cell.m_status == enum_path_status::ERROR;
+    assert(cell.m_status == enum_path_status::OK_NOT_NULL ||
+           cell.m_status == enum_path_status::OK_NULL);
+    return false;
   }
 
   if (cell.m_status == enum_path_status::UNINITIALIZED) {
@@ -481,17 +490,16 @@ bool Json_path_cache::parse_and_cache_path(Item **args, uint arg_idx,
   }
 
   const String *path_value = arg->val_str(&m_path_value);
-  bool null_value = (path_value == nullptr);
-  if (!null_value &&
-      parse_path(*path_value, forbid_wildcards, &m_paths[cell.m_index])) {
-    // oops, parsing failed
-    cell.m_status = enum_path_status::ERROR;
-    return true;
+  if (thd->is_error()) return true;
+  if (arg->null_value) {
+    cell.m_status = enum_path_status::OK_NULL;
+    return false;
   }
 
-  cell.m_status =
-      null_value ? enum_path_status::OK_NULL : enum_path_status::OK_NOT_NULL;
+  if (parse_path(*path_value, forbid_wildcards, &m_paths[cell.m_index]))
+    return true;
 
+  cell.m_status = enum_path_status::OK_NOT_NULL;
   return false;
 }
 
@@ -521,7 +529,7 @@ void Item_json_func::cleanup() {
 }
 
 longlong Item_func_json_valid::val_int() {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   try {
     bool ok;
     if (json_is_valid(args, 0, &m_value, func_name(), nullptr, false, &ok)) {
@@ -546,7 +554,7 @@ static bool evaluate_constant_json_schema(
     unique_ptr_destroy_only<const Json_schema_validator>
         *cached_schema_validator,
     Item **ref) {
-  DBUG_ASSERT(is_convertible_to_json(json_schema));
+  assert(is_convertible_to_json(json_schema));
   const char *func_name = down_cast<const Item_func *>(*ref)->func_name();
   if (json_schema->const_item()) {
     String schema_buffer;
@@ -588,20 +596,22 @@ Item_func_json_schema_valid::Item_func_json_schema_valid(const POS &pos,
 Item_func_json_schema_valid::~Item_func_json_schema_valid() = default;
 
 static bool do_json_schema_validation(
-    Item *json_schema, Item *json_document, const char *func_name,
-    const Json_schema_validator *cached_schema_validator, bool *null_value,
-    bool *validation_result, Json_schema_validation_report *validation_report) {
-  DBUG_ASSERT(is_convertible_to_json(json_document));
+    const THD *thd, Item *json_schema, Item *json_document,
+    const char *func_name, const Json_schema_validator *cached_schema_validator,
+    bool *null_value, bool *validation_result,
+    Json_schema_validation_report *validation_report) {
+  assert(is_convertible_to_json(json_document));
 
   String document_buffer;
   String *document_string = json_document->val_str(&document_buffer);
+  if (thd->is_error()) return true;
   if (json_document->null_value) {
     *null_value = true;
     return false;
   }
 
   if (cached_schema_validator != nullptr) {
-    DBUG_ASSERT(json_schema->const_item());
+    assert(json_schema->const_item());
     if (cached_schema_validator->is_valid_json_schema(
             document_string->ptr(), document_string->length(), func_name,
             validation_result, validation_report)) {
@@ -613,15 +623,16 @@ static bool do_json_schema_validation(
     // up the cached schema validator during fix_fields, the item will appear as
     // const here, and thus failing the assertion if we don't take constant
     // tables into account.
-    DBUG_ASSERT(!json_schema->const_item() ||
-                (json_schema->real_item()->type() == Item::FIELD_ITEM &&
-                 down_cast<const Item_field *>(json_schema->real_item())
-                     ->table_ref->table->const_table));
+    assert(!json_schema->const_item() ||
+           (json_schema->real_item()->type() == Item::FIELD_ITEM &&
+            down_cast<const Item_field *>(json_schema->real_item())
+                ->table_ref->table->const_table));
 
-    DBUG_ASSERT(is_convertible_to_json(json_schema));
+    assert(is_convertible_to_json(json_schema));
 
     String schema_buffer;
     String *schema_string = json_schema->val_str(&schema_buffer);
+    if (thd->is_error()) return true;
     if (json_schema->null_value) {
       *null_value = true;
       return false;
@@ -639,12 +650,12 @@ static bool do_json_schema_validation(
 }
 
 bool Item_func_json_schema_valid::val_bool() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   bool validation_result = false;
 
   if (m_in_check_constraint_exec_ctx) {
     Json_schema_validation_report validation_report;
-    if (do_json_schema_validation(args[0], args[1], func_name(),
+    if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
                                   m_cached_schema_validator.get(), &null_value,
                                   &validation_result, &validation_report)) {
       return error_bool();
@@ -655,14 +666,14 @@ bool Item_func_json_schema_valid::val_bool() {
                validation_report.human_readable_reason().c_str());
     }
   } else {
-    if (do_json_schema_validation(args[0], args[1], func_name(),
+    if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
                                   m_cached_schema_validator.get(), &null_value,
                                   &validation_result, nullptr)) {
       return error_bool();
     }
   }
 
-  DBUG_ASSERT(maybe_null || !null_value);
+  assert(is_nullable() || !null_value);
   return validation_result;
 }
 
@@ -690,16 +701,16 @@ Item_func_json_schema_validation_report::
     ~Item_func_json_schema_validation_report() = default;
 
 bool Item_func_json_schema_validation_report::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   bool validation_result = false;
   Json_schema_validation_report validation_report;
-  if (do_json_schema_validation(args[0], args[1], func_name(),
+  if (do_json_schema_validation(current_thd, args[0], args[1], func_name(),
                                 m_cached_schema_validator.get(), &null_value,
                                 &validation_result, &validation_report)) {
-    return error_bool();
+    return error_json();
   }
 
-  DBUG_ASSERT(maybe_null || !null_value);
+  assert(is_nullable() || !null_value);
   std::unique_ptr<Json_object> result(new (std::nothrow) Json_object());
   if (result == nullptr) return error_json();  // OOM
 
@@ -916,7 +927,8 @@ void Item_func_json_contains::cleanup() {
 }
 
 longlong Item_func_json_contains::val_int() {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed);
+  THD *const thd = current_thd;
 
   try {
     Json_wrapper doc_wrapper;
@@ -939,7 +951,8 @@ longlong Item_func_json_contains::val_int() {
 
     if (arg_count == 3) {
       // path is specified
-      if (m_path_cache.parse_and_cache_path(args, 2, true)) return error_int();
+      if (m_path_cache.parse_and_cache_path(thd, args, 2, true))
+        return error_int();
       const Json_path *path = m_path_cache.get_path(2);
       if (path == nullptr) {
         null_value = true;
@@ -956,13 +969,13 @@ longlong Item_func_json_contains::val_int() {
       }
 
       bool ret;
-      if (contains_wr(current_thd, v[0], containee_wr, &ret))
+      if (contains_wr(thd, v[0], containee_wr, &ret))
         return error_int(); /* purecov: inspected */
       null_value = false;
       return ret;
     } else {
       bool ret;
-      if (contains_wr(current_thd, doc_wrapper, containee_wr, &ret))
+      if (contains_wr(thd, doc_wrapper, containee_wr, &ret))
         return error_int(); /* purecov: inspected */
       null_value = false;
       return ret;
@@ -983,7 +996,7 @@ void Item_func_json_contains_path::cleanup() {
 }
 
 longlong Item_func_json_contains_path::val_int() {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   longlong result = 0;
   null_value = false;
 
@@ -1000,7 +1013,8 @@ longlong Item_func_json_contains_path::val_int() {
 
     // arg 1 is the oneOrAll flag
     bool require_all;
-    switch (parse_and_cache_ooa(args[1], &m_cached_ooa, func_name())) {
+    const THD *const thd = current_thd;
+    switch (parse_and_cache_ooa(thd, args[1], &m_cached_ooa, func_name())) {
       case ooa_all: {
         require_all = true;
         break;
@@ -1020,7 +1034,8 @@ longlong Item_func_json_contains_path::val_int() {
 
     // the remaining args are paths
     for (uint32 i = 2; i < arg_count; ++i) {
-      if (m_path_cache.parse_and_cache_path(args, i, false)) return error_int();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, false))
+        return error_int();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
         null_value = true;
@@ -1055,7 +1070,7 @@ longlong Item_func_json_contains_path::val_int() {
 bool json_value(Item *arg, Json_wrapper *result, bool *has_value) {
   if (arg->data_type() == MYSQL_TYPE_NULL) {
     if (arg->update_null_value()) return true;
-    DBUG_ASSERT(arg->null_value);
+    assert(arg->null_value);
     *has_value = true;
     return false;
   }
@@ -1067,7 +1082,9 @@ bool json_value(Item *arg, Json_wrapper *result, bool *has_value) {
   }
 
   *has_value = true;
-  return arg->val_json(result);
+
+  const bool error = arg->val_json(result);
+  return error;
 }
 
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
@@ -1103,7 +1120,7 @@ bool get_json_wrapper(Item **args, uint arg_idx, String *str,
     return false;
   }
 
-  DBUG_ASSERT(dom);
+  assert(dom);
 
   *wrapper = Json_wrapper(std::move(dom));
   return false;
@@ -1172,7 +1189,7 @@ static constexpr uint32 typelit_max_length =
 
 bool Item_func_json_type::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-  maybe_null = true;
+  set_nullable(true);
   m_value.set_charset(&my_charset_utf8mb4_bin);
   set_data_type_string(typelit_max_length, &my_charset_utf8mb4_bin);
   return false;
@@ -1211,7 +1228,7 @@ static uint opaque_index(enum_field_types field_type) {
         FIXME.
       */
       /* purecov: begin deadcode */
-      DBUG_ASSERT(false);
+      assert(false);
       return static_cast<uint>(enum_json_opaque_type::J_OPAQUE_GEOMETRY);
       /* purecov: end */
     }
@@ -1222,7 +1239,7 @@ static uint opaque_index(enum_field_types field_type) {
 }
 
 String *Item_func_json_type::val_str(String *) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper wr;
@@ -1253,28 +1270,20 @@ String *Item_func_json_type::val_str(String *) {
   return &m_value;
 }
 
-static String *error_str(Item *item, String *buffer) {
-  item->null_value = item->maybe_null;
-  if (item->null_value) return nullptr;
-  buffer->set("", 0, item->collation.collation);
-  return buffer;
-}
-
 static String *val_string_from_json(Item_func *item, String *buffer) {
   Json_wrapper wr;
-  if (item->val_json(&wr)) return error_str(item, buffer);
+  if (item->val_json(&wr)) return item->error_str();
   if (item->null_value) return nullptr;
 
   buffer->length(0);
-  if (wr.to_string(buffer, true, item->func_name()))
-    return error_str(item, buffer);
+  if (wr.to_string(buffer, true, item->func_name())) return item->error_str();
 
   item->null_value = false;
   return buffer;
 }
 
 String *Item_json_func::val_str(String *) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   return val_string_from_json(this, &m_string_buffer);
 }
 
@@ -1323,13 +1332,10 @@ static my_decimal *val_decimal_from_json(Item_func *item,
                                          my_decimal *decimal_value) {
   Json_wrapper wr;
   if (item->val_json(&wr)) {
-    my_decimal_set_zero(decimal_value);
-    return decimal_value;
+    return item->error_decimal(decimal_value);
   }
-  if (item->null_value) {
-    my_decimal_set_zero(decimal_value);
-    return decimal_value;
-  }
+  if (item->null_value) return nullptr;
+
   return wr.coerce_decimal(decimal_value, item->func_name());
 }
 
@@ -1428,6 +1434,7 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_TIME: {
       longlong dt = arg->val_temporal_by_field_type();
+      if (current_thd->is_error()) return true;
       if (arg->null_value) return false;
 
       MYSQL_TIME t;
@@ -1442,13 +1449,8 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
       my_decimal m;
       my_decimal *r = arg->val_decimal(&m);
       if (current_thd->is_error()) return true;
-
       if (arg->null_value) return false;
-
-      if (!r) {
-        my_error(ER_INVALID_CAST_TO_JSON, MYF(0));
-        return true;
-      }
+      assert(r != nullptr);
 
       if (create_scalar<Json_decimal>(scalar, &dom, *r))
         return true; /* purecov: inspected */
@@ -1575,8 +1577,8 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
   }
 
   // Exactly one of scalar and dom should be used.
-  DBUG_ASSERT((scalar == nullptr) != (dom == nullptr));
-  DBUG_ASSERT(scalar == nullptr || scalar->get() != nullptr);
+  assert((scalar == nullptr) != (dom == nullptr));
+  assert(scalar == nullptr || scalar->get() != nullptr);
 
   if (scalar != nullptr) {
     /*
@@ -1588,50 +1590,6 @@ bool sql_scalar_to_json(Item *arg, const char *calling_function, String *value,
   }
 
   *wr = Json_wrapper(std::move(dom));
-  return false;
-}
-
-/**
-  Try to determine whether an argument has a boolean (as opposed
-  to an int) type, and if so, return its boolean value.
-
-  @param[in] arg The argument to inspect.
-  @param[in,out] result Fill in the result if this is a boolean arg.
-
-  @return True if the arg can be determined to have a boolean type.
-*/
-static bool extract_boolean(Item *arg, bool *result) {
-  if (arg->is_bool_func()) {
-    *result = arg->val_int();
-    return true;
-  }
-
-  if (arg->type() == Item::SUBSELECT_ITEM) {
-    // EXISTS, IN, ALL, ANY subqueries have boolean type
-    Item_subselect *subs = down_cast<Item_subselect *>(arg);
-    switch (subs->substype()) {
-      case Item_subselect::EXISTS_SUBS:
-      case Item_subselect::IN_SUBS:
-      case Item_subselect::ALL_SUBS:
-      case Item_subselect::ANY_SUBS:
-        *result = arg->val_int();
-        return true;
-      default:
-        break;
-    }
-  }
-
-  if (arg->type() == Item::INT_ITEM) {
-    const Name_string *const name = &arg->item_name;
-    const bool is_literal_false = name->is_set() && name->eq("FALSE");
-    const bool is_literal_true = name->is_set() && name->eq("TRUE");
-    if (is_literal_false || is_literal_true) {
-      *result = is_literal_true;
-      return true;
-    }
-  }
-
-  // doesn't fit any of the checks we perform
   return false;
 }
 
@@ -1655,8 +1613,9 @@ bool get_json_atom_wrapper(Item **args, uint arg_idx,
 
   try {
     // boolean operators should produce boolean values
-    bool boolean_value;
-    if (extract_boolean(arg, &boolean_value)) {
+    if (arg->is_bool_func()) {
+      const bool boolean_value = arg->val_int() != 0;
+      if (current_thd->is_error()) return true;
       Json_dom_ptr boolean_dom;
       if (create_scalar<Json_boolean>(scalar, &boolean_dom, boolean_value))
         return true; /* purecov: inspected */
@@ -1707,7 +1666,7 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
 }
 
 bool Item_typecast_json::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_dom_ptr dom;  //@< if non-null we want a DOM from parse
 
@@ -1720,7 +1679,7 @@ bool Item_typecast_json::val_json(Json_wrapper *wr) {
     bool has_value;
     if (json_value(args[0], wr, &has_value)) return error_json();
 
-    DBUG_ASSERT(has_value);
+    assert(has_value);
     null_value = args[0]->null_value;
     return false;
   }
@@ -1735,7 +1694,7 @@ bool Item_typecast_json::val_json(Json_wrapper *wr) {
       return false;
     }
     // We were able to parse a JSON value from a string.
-    DBUG_ASSERT(dom);
+    assert(dom);
     // Pass on the DOM wrapped
     *wr = Json_wrapper(std::move(dom));
     null_value = false;
@@ -1769,7 +1728,7 @@ void Item_func_json_length::cleanup() {
 }
 
 longlong Item_func_json_length::val_int() {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
   longlong result = 0;
 
   Json_wrapper wrapper;
@@ -1788,7 +1747,8 @@ longlong Item_func_json_length::val_int() {
   }
 
   if (arg_count > 1) {
-    if (m_path_cache.parse_and_cache_path(args, 1, true)) return error_int();
+    if (m_path_cache.parse_and_cache_path(current_thd, args, 1, true))
+      return error_int();
     const Json_path *json_path = m_path_cache.get_path(1);
     if (json_path == nullptr) {
       null_value = true;
@@ -1806,7 +1766,7 @@ longlong Item_func_json_length::val_int() {
     }
 
     // there should only be one hit because wildcards were forbidden
-    DBUG_ASSERT(hits.size() == 1);
+    assert(hits.size() == 1);
 
     wrapper = std::move(hits[0]);
   }
@@ -1818,7 +1778,7 @@ longlong Item_func_json_length::val_int() {
 }
 
 longlong Item_func_json_depth::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   Json_wrapper wrapper;
 
   try {
@@ -1839,7 +1799,7 @@ longlong Item_func_json_depth::val_int() {
 }
 
 bool Item_func_json_keys::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_wrapper wrapper;
 
@@ -1852,7 +1812,8 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
     }
 
     if (arg_count > 1) {
-      if (m_path_cache.parse_and_cache_path(args, 1, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(current_thd, args, 1, true))
+        return error_json();
       const Json_path *path = m_path_cache.get_path(1);
       if (path == nullptr) {
         null_value = true;
@@ -1899,7 +1860,7 @@ bool Item_func_json_keys::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_extract::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper w;
@@ -1918,8 +1879,10 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
       return false;
     }
 
+    const THD *const thd = current_thd;
+
     for (uint32 i = 1; i < arg_count; ++i) {
-      if (m_path_cache.parse_and_cache_path(args, i, false))
+      if (m_path_cache.parse_and_cache_path(thd, args, i, false))
         return error_json();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
@@ -1941,7 +1904,6 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
     if (could_return_multiple_matches) {
       Json_array_ptr a(new (std::nothrow) Json_array());
       if (a == nullptr) return error_json(); /* purecov: inspected */
-      const THD *thd = current_thd;
       for (Json_wrapper &ww : v) {
         if (a->append_clone(ww.to_dom(thd)))
           return error_json(); /* purecov: inspected */
@@ -1950,7 +1912,7 @@ bool Item_func_json_extract::val_json(Json_wrapper *wr) {
     } else  // one path, no ellipsis or wildcard
     {
       // there should only be one match
-      DBUG_ASSERT(v.size() == 1);
+      assert(v.size() == 1);
       *wr = std::move(v[0]);
     }
   } catch (...) {
@@ -1988,7 +1950,35 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
   return std::equal(args, args + arg_count, item_json->args, cmp);
 }
 
-#ifndef DBUG_OFF
+bool Item_func_modify_json_in_path::resolve_type(THD *thd) {
+  if (Item_json_func::resolve_type(thd)) return true;
+  if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
+  if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
+  if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
+  for (uint i = 2; i < arg_count; i += 2) {
+    args[i]->mark_json_as_scalar();
+  }
+  not_null_tables_cache = calculate_not_null_tables();
+  return false;
+}
+
+void Item_func_modify_json_in_path::update_used_tables() {
+  Item_json_func::update_used_tables();
+  not_null_tables_cache = calculate_not_null_tables();
+}
+
+table_map Item_func_modify_json_in_path::calculate_not_null_tables() const {
+  // If the first argument (the JSON document) is NULL, the function returns
+  // NULL.
+  table_map tables = args[0]->not_null_tables();
+  // If any of the JSON path arguments is NULL, the function returns NULL.
+  for (uint i = 1; i < arg_count; i += 2) {
+    tables |= args[i]->not_null_tables();
+  }
+  return tables;
+}
+
+#ifndef NDEBUG
 /**
   Is this a path that could possibly return the root node of a JSON document?
 
@@ -2011,10 +2001,10 @@ static bool possible_root_path(const Json_path_iterator &begin,
   };
   return std::all_of(begin, end, is_autowrap);
 }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper docw;
@@ -2032,7 +2022,8 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
       Json_dom *doc = docw.to_dom(thd);
       if (!doc) return error_json(); /* purecov: inspected */
 
-      if (m_path_cache.parse_and_cache_path(args, i, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, true))
+        return error_json();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
         null_value = true;
@@ -2046,7 +2037,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
       if (hits.empty()) continue;
 
       // Paths with wildcards and ranges are rejected, so expect one hit.
-      DBUG_ASSERT(hits.size() == 1);
+      assert(hits.size() == 1);
       Json_dom *hit = hits[0];
 
       Json_wrapper valuew;
@@ -2076,7 +2067,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
         Json_container *parent = hit->parent();
         if (parent == nullptr)  // root
         {
-          DBUG_ASSERT(possible_root_path(path->begin(), path->end()));
+          assert(possible_root_path(path->begin(), path->end()));
           docw = Json_wrapper(std::move(arr));
         } else {
           parent->replace_dom_in_container(hit, std::move(arr));
@@ -2098,7 +2089,7 @@ bool Item_func_json_array_append::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_insert::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper docw;
@@ -2117,7 +2108,8 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
       Json_dom *doc = docw.to_dom(thd);
       if (!doc) return error_json(); /* purecov: inspected */
 
-      if (m_path_cache.parse_and_cache_path(args, i, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, true))
+        return error_json();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
         null_value = true;
@@ -2159,7 +2151,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
       }
 
       // Paths with wildcards and ranges are rejected, so expect one hit.
-      DBUG_ASSERT(hits.size() == 1);
+      assert(hits.size() == 1);
       Json_dom *hit = hits[0];
 
       // What did we specify in the path, object or array?
@@ -2193,7 +2185,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
           Json_container *parent = hit->parent();
           if (parent == nullptr)  // root
           {
-            DBUG_ASSERT(possible_root_path(path->begin(), path->end() - 1));
+            assert(possible_root_path(path->begin(), path->end() - 1));
             docw = Json_wrapper(std::move(newarr));
           } else {
             parent->replace_dom_in_container(hit, std::move(newarr));
@@ -2221,7 +2213,7 @@ bool Item_func_json_insert::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_wrapper docw;
@@ -2240,7 +2232,8 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
       Json_dom *doc = docw.to_dom(thd);
       if (!doc) return error_json(); /* purecov: inspected */
 
-      if (m_path_cache.parse_and_cache_path(args, i, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, true))
+        return error_json();
       const Json_path *path = m_path_cache.get_path(i);
       if (path == nullptr) {
         null_value = true;
@@ -2272,7 +2265,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
       // We found *something* at that parent path
 
       // Paths with wildcards and ranges are rejected, so expect one hit.
-      DBUG_ASSERT(hits.size() == 1);
+      assert(hits.size() == 1);
       Json_dom *hit = hits[0];
 
       // NOP if parent is not an array
@@ -2286,7 +2279,7 @@ bool Item_func_json_array_insert::val_json(Json_wrapper *wr) {
 
       // Insert the value at that location.
       Json_array *arr = down_cast<Json_array *>(hit);
-      DBUG_ASSERT(leg->get_type() == jpl_array_cell);
+      assert(leg->get_type() == jpl_array_cell);
       size_t pos = leg->first_array_index(arr->size()).position();
       if (arr->insert_alias(pos, valuew.clone_dom(thd)))
         return error_json(); /* purecov: inspected */
@@ -2451,7 +2444,8 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
     }
 
     for (uint32 i = 1; i < arg_count; i += 2) {
-      if (m_path_cache.parse_and_cache_path(args, i, true)) return error_json();
+      if (m_path_cache.parse_and_cache_path(thd, args, i, true))
+        return error_json();
       const Json_path *current_path = m_path_cache.get_path(i);
       if (current_path == nullptr) goto return_null;
 
@@ -2517,7 +2511,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
         }
 
         // We don't allow wildcards in the path, so there can only be one hit.
-        DBUG_ASSERT(hits.size() == 1);
+        assert(hits.size() == 1);
         Json_dom *hit = hits[0];
 
         // We now have either an array or an object in the parent's path
@@ -2544,7 +2538,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
               array position to be 0 here, though, as such legs should have
               been removed by the call to clone_without_autowrapping() above.
             */
-            DBUG_ASSERT(!leg->is_autowrap());
+            assert(!leg->is_autowrap());
             Json_array_ptr newarr = create_dom_ptr<Json_array>();
             size_t pos = leg->first_array_index(1).position();
             if (newarr == nullptr || newarr->append_clone(hit) ||
@@ -2591,7 +2585,7 @@ bool Item_func_json_set_replace::val_json(Json_wrapper *wr) {
         }
       } else {
         // We found one value, so replace semantics.
-        DBUG_ASSERT(hits.size() == 1);
+        assert(hits.size() == 1);
         Json_dom *child = hits[0];
         Json_container *parent = child->parent();
         if (parent == nullptr) {
@@ -2640,7 +2634,7 @@ return_null:
 }
 
 bool Item_func_json_array::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_array *arr = new (std::nothrow) Json_array();
@@ -2676,7 +2670,7 @@ bool Item_func_json_array::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_row_object::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     Json_object *object = new (std::nothrow) Json_object();
@@ -2699,11 +2693,9 @@ bool Item_func_json_row_object::val_json(Json_wrapper *wr) {
       const char *safep;   // contents of key_item, possibly converted
       size_t safe_length;  // length of safep
 
-      if (get_json_string(key_item, &tmp_key_value, &utf8_res, &safep,
-                          &safe_length)) {
-        my_error(ER_JSON_DOCUMENT_NULL_KEY, MYF(0));
+      if (get_json_object_member_name(thd, key_item, &tmp_key_value, &utf8_res,
+                                      &safep, &safe_length))
         return error_json();
-      }
 
       std::string key(safep, safe_length);
 
@@ -2740,54 +2732,40 @@ bool Item_func_json_search::fix_fields(THD *thd, Item **items) {
   // Fabricate a LIKE node
 
   m_source_string_item = new Item_string(&my_charset_utf8mb4_bin);
-  Item_string *default_escape = new Item_string(&my_charset_utf8mb4_bin);
-  if (m_source_string_item == nullptr || default_escape == nullptr)
+  if (m_source_string_item == nullptr) {
     return true; /* purecov: inspected */
+  }
 
   Item *like_string_item = args[2];
-  bool escape_initialized = false;
 
   // Get the escape character, if any
   if (arg_count > 3) {
-    Item *orig_escape = args[3];
-
+    Item *escape_item = args[3];
     /*
-      Evaluate the escape clause. For a standalone LIKE expression,
+      For a standalone LIKE expression,
       the escape clause only has to be constant during execution.
       However, we require a stronger condition: it must be constant.
       That means that we can evaluate the escape clause at resolution time
       and copy the results from the JSON_SEARCH() args into the arguments
       for the LIKE node which we're fabricating.
     */
-    if (!orig_escape->const_item()) {
+    if (!escape_item->const_item()) {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "ESCAPE");
       return true;
     }
-
-    StringBuffer<16> buffer;  // larger than common case: one character + '\0'
-    String *escape_str = orig_escape->val_str(&buffer);
-    if (thd->is_error()) return true;
-    if (escape_str) {
-      uint escape_length = static_cast<uint>(escape_str->length());
-      default_escape->set_str_with_copy(escape_str->ptr(), escape_length);
-      escape_initialized = true;
-    }
+    m_like_node =
+        new Item_func_like(m_source_string_item, like_string_item, escape_item);
+  } else {
+    m_like_node = new Item_func_like(m_source_string_item, like_string_item);
   }
 
-  if (!escape_initialized) {
-    default_escape->set_str_with_copy("\\", 1);
-  }
-
-  m_like_node = new Item_func_like(m_source_string_item, like_string_item,
-                                   default_escape, true);
   if (m_like_node == nullptr) return true; /* purecov: inspected */
 
-  Item *like_args[3];
-  like_args[0] = m_source_string_item;
-  like_args[1] = like_string_item;
-  like_args[2] = default_escape;
+  Item *like = m_like_node;
+  if (m_like_node->fix_fields(thd, &like)) return true;
 
-  if (m_like_node->fix_fields(thd, like_args)) return true;
+  // Don't expect the LIKE node to be replaced during resolving.
+  assert(like == m_like_node);
 
   // resolving the LIKE node may overwrite its arguments
   Item **resolved_like_args = m_like_node->arguments();
@@ -2834,7 +2812,7 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
       // Evaluate the LIKE node on the JSON string.
       const char *data = wrapper.get_data();
       uint len = static_cast<uint>(wrapper.get_data_length());
-      source_string->set_str_with_copy(data, len);
+      source_string->set_str_with_copy(data, len, &my_charset_utf8mb4_bin);
       if (like_node->val_int()) {
         // Got a match with the LIKE node. Save the path of the JSON string.
         std::pair<String_set::iterator, bool> res =
@@ -2893,7 +2871,7 @@ static bool find_matches(const Json_wrapper &wrapper, String *path,
 }
 
 bool Item_func_json_search::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_dom_vector matches(key_memory_JSON);
 
@@ -2917,8 +2895,9 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
     }
 
     // arg 1 is the oneOrAll arg
+    THD *const thd = current_thd;
     bool one_match;
-    switch (parse_and_cache_ooa(args[1], &m_cached_ooa, func_name())) {
+    switch (parse_and_cache_ooa(thd, args[1], &m_cached_ooa, func_name())) {
       case ooa_all: {
         one_match = false;
         break;
@@ -2954,7 +2933,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
 
       // validate the user-supplied path expressions
       for (uint32 i = 4; i < arg_count; ++i) {
-        if (m_path_cache.parse_and_cache_path(args, i, false))
+        if (m_path_cache.parse_and_cache_path(thd, args, i, false))
           return error_json();
         if (m_path_cache.get_path(i) == nullptr) {
           null_value = true;
@@ -2976,7 +2955,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
           do this on doms.
         */
         if (path->can_match_many()) {
-          Json_dom *dom = docw.to_dom(current_thd);
+          Json_dom *dom = docw.to_dom(thd);
           if (!dom) return error_json(); /* purecov: inspected */
           Json_dom_vector dom_hits(key_memory_JSON);
 
@@ -3010,7 +2989,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
 
           if (hits.empty()) continue;
 
-          DBUG_ASSERT(hits.size() == 1);  // no wildcards
+          assert(hits.size() == 1);  // no wildcards
 
           path_str.length(0);
           if (path->to_string(&path_str))
@@ -3052,7 +3031,7 @@ bool Item_func_json_search::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_json_remove::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_wrapper wrapper;
   uint32 path_count = arg_count - 1;
@@ -3088,8 +3067,9 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
       return false;
     }
 
+    const THD *const thd = current_thd;
     for (uint path_idx = 0; path_idx < path_count; ++path_idx) {
-      if (m_path_cache.parse_and_cache_path(args, path_idx + 1, true))
+      if (m_path_cache.parse_and_cache_path(thd, args, path_idx + 1, true))
         return error_json();
       if (m_path_cache.get_path(path_idx + 1) == nullptr) {
         if (binary_diffs) disable_binary_diffs(m_partial_update_column);
@@ -3119,7 +3099,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
   Json_dom *dom = nullptr;
   String *partial_update_buffer = nullptr;
   if (binary_diffs) {
-    DBUG_ASSERT(!wrapper.is_dom());
+    assert(!wrapper.is_dom());
     partial_update_buffer = table->get_partial_update_buffer();
     // Reset the buffer in the innermost call.
     if (args[0]->real_item()->type() == FIELD_ITEM)
@@ -3154,7 +3134,7 @@ bool Item_func_json_remove::val_json(Json_wrapper *wr) {
         return error_json();       /* purecov: inspected */
       if (hits.empty()) continue;  // nothing to do
 
-      DBUG_ASSERT(hits.size() == 1);
+      assert(hits.size() == 1);
       Json_dom *parent = hits[0];
       if (parent->json_type() == enum_json_type::J_OBJECT) {
         auto object = down_cast<Json_object *>(parent);
@@ -3191,7 +3171,7 @@ Item_func_json_merge::Item_func_json_merge(THD *thd, const POS &pos,
 }
 
 bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   Json_dom_ptr result_dom;
 
@@ -3235,7 +3215,7 @@ bool Item_func_json_merge_preserve::val_json(Json_wrapper *wr) {
 }
 
 String *Item_func_json_quote::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   String *res = args[0]->val_str(str);
   if (!res) {
@@ -3285,7 +3265,7 @@ String *Item_func_json_quote::val_str(String *str) {
         not touch the m_value buffer, and the input string still lives
         in res. Use m_value as result buffer.
       */
-      DBUG_ASSERT(safep == res->ptr());
+      assert(safep == res->ptr());
       res = &m_value;
     }
 
@@ -3305,7 +3285,7 @@ String *Item_func_json_quote::val_str(String *str) {
 }
 
 String *Item_func_json_unquote::val_str(String *str) {
-  DBUG_ASSERT(fixed == 1);
+  assert(fixed == 1);
 
   try {
     if (args[0]->data_type() == MYSQL_TYPE_JSON) {
@@ -3363,7 +3343,7 @@ String *Item_func_json_unquote::val_str(String *str) {
     if (ensure_utf8mb4(*res, &buf, &utf8text, &utf8len, true))
       return error_str();
     String *utf8str = (res->ptr() == utf8text) ? res : &buf;
-    DBUG_ASSERT(utf8text == utf8str->ptr());
+    assert(utf8text == utf8str->ptr());
 
     if (utf8len < 2 || utf8text[0] != '"' || utf8text[utf8len - 1] != '"') {
       null_value = false;
@@ -3383,7 +3363,7 @@ String *Item_func_json_unquote::val_str(String *str) {
     /*
       Extract the internal string representation as a MySQL string
     */
-    DBUG_ASSERT(dom->json_type() == enum_json_type::J_STRING);
+    assert(dom->json_type() == enum_json_type::J_STRING);
     Json_wrapper wr(std::move(dom));
     if (str->copy(wr.get_data(), wr.get_data_length(), collation.collation))
       return error_str(); /* purecov: inspected */
@@ -3399,7 +3379,7 @@ String *Item_func_json_unquote::val_str(String *str) {
 }
 
 String *Item_func_json_pretty::val_str(String *str) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   try {
     Json_wrapper wr;
     if (get_json_wrapper(args, 0, str, func_name(), &wr)) return error_str();
@@ -3422,7 +3402,7 @@ String *Item_func_json_pretty::val_str(String *str) {
 }
 
 longlong Item_func_json_storage_size::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   /*
     If the input is a reference to a JSON column, return the actual storage
@@ -3461,7 +3441,7 @@ longlong Item_func_json_storage_size::val_int() {
 }
 
 longlong Item_func_json_storage_free::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   Json_wrapper wrapper;
   try {
@@ -3487,7 +3467,7 @@ longlong Item_func_json_storage_free::val_int() {
 }
 
 bool Item_func_json_merge_patch::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   try {
     if (get_json_wrapper(args, 0, &m_value, func_name(), wr))
@@ -3617,7 +3597,7 @@ static void set_data_type_from_cast_type(Item *item, Cast_target cast_type,
     case ITEM_CAST_JSON:
       // JSON_VALUE(... RETURNING JSON) is supported, CAST(... AS JSON ARRAY) is
       // not supported.
-      DBUG_ASSERT(!item->returns_array());
+      assert(!item->returns_array());
       item->set_data_type_json();
       return;
     case ITEM_CAST_DOUBLE:
@@ -3626,9 +3606,32 @@ static void set_data_type_from_cast_type(Item *item, Cast_target cast_type,
     case ITEM_CAST_FLOAT:
       item->set_data_type_float();
       return;
+    // JSON_VALUE(... RETURNING <geometry type>) is not supported
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return;
   }
 
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
 }
 
 Item_func_array_cast::Item_func_array_cast(const POS &pos, Item *a,
@@ -3738,8 +3741,31 @@ static void print_cast_type(Cast_target cast_type, const Item *item,
     case ITEM_CAST_DOUBLE:
       str->append(STRING_WITH_LEN("double"));
       return;
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      str->append(STRING_WITH_LEN("point"));
+      return;
+    case ITEM_CAST_LINESTRING:
+      str->append(STRING_WITH_LEN("linestring"));
+      return;
+    case ITEM_CAST_POLYGON:
+      str->append(STRING_WITH_LEN("polygon"));
+      return;
+    case ITEM_CAST_MULTIPOINT:
+      str->append(STRING_WITH_LEN("multipoint"));
+      return;
+    case ITEM_CAST_MULTILINESTRING:
+      str->append(STRING_WITH_LEN("multilinestring"));
+      return;
+    case ITEM_CAST_MULTIPOLYGON:
+      str->append(STRING_WITH_LEN("multipolygon"));
+      return;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      str->append(STRING_WITH_LEN("geometrycollection"));
+      return;
+      /* purecov: end */
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
 }
 
 void Item_func_array_cast::print(const THD *thd, String *str,
@@ -3752,7 +3778,7 @@ void Item_func_array_cast::print(const THD *thd, String *str,
 }
 
 bool Item_func_array_cast::resolve_type(THD *) {
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -3773,9 +3799,19 @@ static enum Item_result json_cast_result_type(Cast_target cast_type) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return REAL_RESULT;
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+    case ITEM_CAST_LINESTRING:
+    case ITEM_CAST_POLYGON:
+    case ITEM_CAST_MULTIPOINT:
+    case ITEM_CAST_MULTILINESTRING:
+    case ITEM_CAST_MULTIPOLYGON:
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      return INVALID_RESULT;
+      /* purecov: end */
   }
 
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return INT_RESULT;
 }
 
@@ -3825,7 +3861,7 @@ Field *Item_func_array_cast::tmp_table_field(TABLE *table) {
 bool Field_typed_array::coerce_json_value(const Json_wrapper *wr, bool no_error,
                                           Json_wrapper *coerced) const {
   Json_wrapper saved;
-  THD *thd = table->in_use;
+  THD *thd = current_thd;
   // Save JSON value to the conversion field
   if (wr->type() == enum_json_type::J_NULL) {
     Json_dom_ptr elt;
@@ -3973,7 +4009,7 @@ longlong Item_func_member_of::val_int() {
       Item_cache_json *cache = down_cast<Item_cache_json *>(args[1]);
       if (!(is_doc_b_sorted = cache->is_sorted())) {
         cache->sort();
-        cache->val_json(&doc_b);
+        if (cache->val_json(&doc_b)) return error_int();
         is_doc_b_sorted = true;
       }
     }
@@ -4162,7 +4198,7 @@ bool save_json_to_field(THD *thd, Field *field, const Json_wrapper *w,
     case ROW_RESULT:
     default:
       // Shouldn't happen
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   if (err && !no_error)
@@ -4200,18 +4236,18 @@ enum Item_result Item_func_json_value::result_type() const {
 
 bool Item_func_json_value::resolve_type(THD *) {
   // The path must be a character literal, so it's never NULL.
-  DBUG_ASSERT(!args[1]->maybe_null);
+  assert(!args[1]->is_nullable());
   // The DEFAULT values are character literals, so they are never NULL if they
   // are specified.
-  DBUG_ASSERT(m_on_empty != Json_on_response_type::DEFAULT ||
-              !args[2]->maybe_null);
-  DBUG_ASSERT(m_on_error != Json_on_response_type::DEFAULT ||
-              !args[3]->maybe_null);
+  assert(m_on_empty != Json_on_response_type::DEFAULT ||
+         !args[2]->is_nullable());
+  assert(m_on_error != Json_on_response_type::DEFAULT ||
+         !args[3]->is_nullable());
 
   // JSON_VALUE can return NULL if its first argument is nullable, or if NULL
   // ON EMPTY or NULL ON ERROR is specified or implied, or if the extracted JSON
   // value is the JSON null literal.
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
@@ -4221,7 +4257,7 @@ bool Item_func_json_value::resolve_type(THD *) {
   losing any leading significant digits.
 */
 static bool decimal_within_range(const Item *item, const my_decimal *decimal) {
-  DBUG_ASSERT(item->data_type() == MYSQL_TYPE_NEWDECIMAL);
+  assert(item->data_type() == MYSQL_TYPE_NEWDECIMAL);
   return decimal_intg(decimal) <= item->decimal_int_part();
 }
 
@@ -4253,7 +4289,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
       const String *string_value = item->val_str(&string_buffer);
       if (thd->is_error()) return nullptr;
-      DBUG_ASSERT(string_value != nullptr);
+      assert(string_value != nullptr);
       const CHARSET_INFO *const cs = string_value->charset();
       const char *const start = string_value->ptr();
       const char *const end_of_string = start + string_value->length();
@@ -4284,7 +4320,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       MYSQL_TIME *ltime = new (mem_root) MYSQL_TIME;
       if (ltime == nullptr) return nullptr;
       if (item->get_date(ltime, 0)) return nullptr;
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
       default_value->temporal_default = ltime;
       break;
     }
@@ -4292,7 +4328,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
       const String *string_value = item->val_str(&string_buffer);
       if (thd->is_error()) return nullptr;
-      DBUG_ASSERT(string_value != nullptr);
+      assert(string_value != nullptr);
       const CHARSET_INFO *const cs = string_value->charset();
       const char *const start = string_value->ptr();
       const char *const end_of_string = start + string_value->length();
@@ -4316,7 +4352,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       MYSQL_TIME *ltime = new (mem_root) MYSQL_TIME;
       if (ltime == nullptr) return nullptr;
       if (item->get_time(ltime)) return nullptr;
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
       if (actual_decimals(ltime) > decimals) {
         my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "TIME DEFAULT", func_name());
         return nullptr;
@@ -4328,7 +4364,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       MYSQL_TIME *ltime = new (mem_root) MYSQL_TIME;
       if (ltime == nullptr) return nullptr;
       if (item->get_date(ltime, TIME_DATETIME_ONLY)) return nullptr;
-      DBUG_ASSERT(!thd->is_error());
+      assert(!thd->is_error());
       if (actual_decimals(ltime) > decimals) {
         my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "TIME DEFAULT", func_name());
         return nullptr;
@@ -4340,7 +4376,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
       const String *string_value = item->val_str(&string_buffer);
       if (thd->is_error()) return nullptr;
-      DBUG_ASSERT(string_value != nullptr);
+      assert(string_value != nullptr);
       if (string_value->numchars() > max_char_length()) {
         my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "CHAR DEFAULT", func_name());
         return nullptr;
@@ -4382,7 +4418,7 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       StringBuffer<STRING_BUFFER_USUAL_SIZE> string_buffer;
       const String *string_value = item->val_str(&string_buffer);
       if (thd->is_error()) return nullptr;
-      DBUG_ASSERT(string_value != nullptr);
+      assert(string_value != nullptr);
       bool parse_error;
       if (parse_json(*string_value, 0, func_name(),
                      &default_value->json_default, true, &parse_error)) {
@@ -4408,6 +4444,30 @@ Item_func_json_value::create_json_value_default(THD *thd, Item *item) {
       default_value->real_default = value;
       break;
     }
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return nullptr;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return nullptr;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return nullptr;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return nullptr;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return nullptr;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return nullptr;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return nullptr;
+      /* purecov: end */
   }
 
   return default_value;
@@ -4418,14 +4478,14 @@ bool Item_func_json_value::fix_fields(THD *thd, Item **ref) {
 
   if (check_convertible_to_json(args[0], 1, func_name())) return true;
 
-  DBUG_ASSERT(args[1]->basic_const_item());
+  assert(args[1]->basic_const_item());
   const String *path = args[1]->val_str(nullptr);
-  DBUG_ASSERT(path != nullptr);
+  assert(path != nullptr);
   if (parse_path(*path, false, &m_path_json)) return true;
 
   if (m_on_empty == Json_on_response_type::DEFAULT &&
       m_default_empty == nullptr) {
-    DBUG_ASSERT(args[2]->basic_const_item());
+    assert(args[2]->basic_const_item());
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     m_default_empty = create_json_value_default(thd, args[2]);
     if (m_default_empty == nullptr) return true;
@@ -4433,7 +4493,7 @@ bool Item_func_json_value::fix_fields(THD *thd, Item **ref) {
 
   if (m_on_error == Json_on_response_type::DEFAULT &&
       m_default_error == nullptr) {
-    DBUG_ASSERT(args[3]->basic_const_item());
+    assert(args[3]->basic_const_item());
     Prepared_stmt_arena_holder ps_arena_holder(thd);
     m_default_error = create_json_value_default(thd, args[3]);
     if (m_default_error == nullptr) return true;
@@ -4511,7 +4571,7 @@ static bool handle_json_value_conversion_error(Json_on_response_type on_error,
                                                const char *type,
                                                Item_func_json_value *item) {
   // Should have returned earlier if the value is NULL.
-  DBUG_ASSERT(!item->null_value);
+  assert(!item->null_value);
 
   switch (on_error) {
     case Json_on_response_type::ERROR: {
@@ -4523,7 +4583,7 @@ static bool handle_json_value_conversion_error(Json_on_response_type on_error,
       break;
     case Json_on_response_type::NULL_VALUE:
     case Json_on_response_type::IMPLICIT:
-      DBUG_ASSERT(item->maybe_null);
+      assert(item->is_nullable());
       item->null_value = true;
       break;
   }
@@ -4537,12 +4597,12 @@ bool Item_func_json_value::extract_json_value(
   try {
     Json_wrapper doc;
 
-    DBUG_ASSERT(is_convertible_to_json(args[0]));  // Checked in fix_fields().
+    assert(is_convertible_to_json(args[0]));  // Checked in fix_fields().
     if (args[0]->data_type() == MYSQL_TYPE_JSON) {
       if (args[0]->val_json(&doc)) return true;
       null_value = args[0]->null_value;
       if (null_value) {
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         return false;
       }
     } else {
@@ -4550,7 +4610,7 @@ bool Item_func_json_value::extract_json_value(
       const String *doc_string = args[0]->val_str(&buffer);
       null_value = args[0]->null_value;
       if (null_value) {
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         return false;
       }
 
@@ -4570,21 +4630,21 @@ bool Item_func_json_value::extract_json_value(
       // Invoke the ON ERROR clause if a parse error was raised.
       if (parse_error) {
         // ERROR ON ERROR will have returned above.
-        DBUG_ASSERT(m_on_error != Json_on_response_type::ERROR);
+        assert(m_on_error != Json_on_response_type::ERROR);
 
         if (m_on_error == Json_on_response_type::DEFAULT) {
           *return_default = m_default_error.get();
           return false;
         } else {
-          DBUG_ASSERT(m_on_error == Json_on_response_type::IMPLICIT ||
-                      m_on_error == Json_on_response_type::NULL_VALUE);
-          DBUG_ASSERT(maybe_null);
+          assert(m_on_error == Json_on_response_type::IMPLICIT ||
+                 m_on_error == Json_on_response_type::NULL_VALUE);
+          assert(is_nullable());
           null_value = true;
           return false;
         }
       }
 
-      DBUG_ASSERT(dom != nullptr);
+      assert(dom != nullptr);
       doc = Json_wrapper(std::move(dom));
     }
 
@@ -4618,14 +4678,14 @@ bool Item_func_json_value::extract_json_value(
           return error_json();
         case Json_on_response_type::IMPLICIT:
         case Json_on_response_type::NULL_VALUE:
-          DBUG_ASSERT(maybe_null);
+          assert(is_nullable());
           null_value = true;
           return false;
       }
     }
 
     // Otherwise, we have multiple matches. Invoke the ON ERROR clause.
-    DBUG_ASSERT(v.size() > 1);
+    assert(v.size() > 1);
 
     switch (m_on_error) {
       case Json_on_response_type::ERROR:
@@ -4633,7 +4693,7 @@ bool Item_func_json_value::extract_json_value(
         return error_json();
       case Json_on_response_type::NULL_VALUE:
       case Json_on_response_type::IMPLICIT:
-        DBUG_ASSERT(maybe_null);
+        assert(is_nullable());
         null_value = true;
         break;
       case Json_on_response_type::DEFAULT:
@@ -4652,14 +4712,14 @@ bool Item_func_json_value::extract_json_value(
 }
 
 bool Item_func_json_value::val_json(Json_wrapper *wr) {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_JSON);
+  assert(fixed);
+  assert(m_cast_target == ITEM_CAST_JSON);
 
   const Default_value *return_default = nullptr;
   if (extract_json_value(wr, &return_default)) return error_json();
 
   if (return_default != nullptr) {
-    DBUG_ASSERT(!null_value);
+    assert(!null_value);
     *wr = Json_wrapper(return_default->json_default.get(), true);
   }
 
@@ -4667,7 +4727,7 @@ bool Item_func_json_value::val_json(Json_wrapper *wr) {
 }
 
 String *Item_func_json_value::val_str(String *buffer) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
@@ -4688,13 +4748,37 @@ String *Item_func_json_value::val_str(String *buffer) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return val_string_from_real(buffer);
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return nullptr;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return nullptr;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return nullptr;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return nullptr;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return nullptr;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return nullptr;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return nullptr;
+      /* purecov: end */
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return nullptr;
 }
 
 double Item_func_json_value::val_real() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_DATE:
@@ -4713,13 +4797,37 @@ double Item_func_json_value::val_real() {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return extract_real_value();
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return 0.0;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return 0.0;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return 0.0;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return 0.0;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return 0.0;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return 0.0;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return 0.0;
+      /* purecov: end */
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return 0.0;
 }
 
 longlong Item_func_json_value::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
@@ -4741,13 +4849,37 @@ longlong Item_func_json_value::val_int() {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return val_int_from_real();
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return 0;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return 0;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return 0;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return 0;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return 0;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return 0;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return 0;
+      /* purecov: end */
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return 0;
 }
 
 my_decimal *Item_func_json_value::val_decimal(my_decimal *value) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
@@ -4767,13 +4899,37 @@ my_decimal *Item_func_json_value::val_decimal(my_decimal *value) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return val_decimal_from_real(value);
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return nullptr;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return nullptr;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return nullptr;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return nullptr;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return nullptr;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return nullptr;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return nullptr;
+      /* purecov: end */
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return nullptr;
 }
 
 bool Item_func_json_value::get_date(MYSQL_TIME *ltime, my_time_flags_t flags) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_UNSIGNED_INT:
@@ -4794,13 +4950,37 @@ bool Item_func_json_value::get_date(MYSQL_TIME *ltime, my_time_flags_t flags) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return get_date_from_real(ltime, flags);
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return true;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return true;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return true;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return true;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return true;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return true;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return true;
+      /* purecov: end */
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return true;
 }
 
 bool Item_func_json_value::get_time(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   switch (m_cast_target) {
     case ITEM_CAST_SIGNED_INT:
     case ITEM_CAST_YEAR:
@@ -4821,27 +5001,51 @@ bool Item_func_json_value::get_time(MYSQL_TIME *ltime) {
     case ITEM_CAST_FLOAT:
     case ITEM_CAST_DOUBLE:
       return get_time_from_real(ltime);
+    /* purecov: begin inspected */
+    case ITEM_CAST_POINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POINT");
+      return true;
+    case ITEM_CAST_LINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "LINESTRING");
+      return true;
+    case ITEM_CAST_POLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "POLYGON");
+      return true;
+    case ITEM_CAST_MULTIPOINT:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOINT");
+      return true;
+    case ITEM_CAST_MULTILINESTRING:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTILINESTRING");
+      return true;
+    case ITEM_CAST_MULTIPOLYGON:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON", "MULTIPOLYGON");
+      return true;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      my_error(ER_INVALID_CAST_TO_GEOMETRY, MYF(0), "JSON",
+               "GEOMETRYCOLLECTION");
+      return true;
+      /* purecov: end */
   }
-  DBUG_ASSERT(false); /* purecov: deadcode */
+  assert(false); /* purecov: deadcode */
   return true;
 }
 
 int64_t Item_func_json_value::extract_integer_value() {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_SIGNED_INT ||
-              m_cast_target == ITEM_CAST_UNSIGNED_INT);
-  DBUG_ASSERT(unsigned_flag == (m_cast_target == ITEM_CAST_UNSIGNED_INT));
+  assert(m_cast_target == ITEM_CAST_SIGNED_INT ||
+         m_cast_target == ITEM_CAST_UNSIGNED_INT);
+  assert(unsigned_flag == (m_cast_target == ITEM_CAST_UNSIGNED_INT));
 
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default)) return error_int();
 
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0;
   }
 
   if (return_default != nullptr) {
-    DBUG_ASSERT(!null_value);
+    assert(!null_value);
     return return_default->integer_default;
   }
 
@@ -4862,20 +5066,20 @@ int64_t Item_func_json_value::extract_integer_value() {
 }
 
 int64_t Item_func_json_value::extract_year_value() {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_YEAR);
-  DBUG_ASSERT(unsigned_flag == false);
+  assert(m_cast_target == ITEM_CAST_YEAR);
+  assert(unsigned_flag == false);
 
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default)) return error_int();
 
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0;
   }
 
   if (return_default != nullptr) {
-    DBUG_ASSERT(!null_value);
+    assert(!null_value);
     return return_default->integer_default;
   }
 
@@ -4895,8 +5099,7 @@ int64_t Item_func_json_value::extract_year_value() {
 }
 
 bool Item_func_json_value::extract_date_value(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_DATE ||
-              m_cast_target == ITEM_CAST_YEAR);
+  assert(m_cast_target == ITEM_CAST_DATE || m_cast_target == ITEM_CAST_YEAR);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
@@ -4922,7 +5125,7 @@ bool Item_func_json_value::extract_date_value(MYSQL_TIME *ltime) {
 }
 
 bool Item_func_json_value::extract_time_value(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_TIME);
+  assert(m_cast_target == ITEM_CAST_TIME);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
@@ -4948,7 +5151,7 @@ bool Item_func_json_value::extract_time_value(MYSQL_TIME *ltime) {
 }
 
 bool Item_func_json_value::extract_datetime_value(MYSQL_TIME *ltime) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_DATETIME);
+  assert(m_cast_target == ITEM_CAST_DATETIME);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
@@ -4975,12 +5178,11 @@ bool Item_func_json_value::extract_datetime_value(MYSQL_TIME *ltime) {
 }
 
 my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_DECIMAL);
+  assert(m_cast_target == ITEM_CAST_DECIMAL);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default) || null_value) {
-    my_decimal_set_zero(value);
-    return value;
+    return error_decimal(value);
   }
 
   if (return_default != nullptr) {
@@ -4994,8 +5196,7 @@ my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
 
   if (handle_json_value_conversion_error(m_on_error, "DECIMAL", this) ||
       null_value) {
-    my_decimal_set_zero(value);
-    return value;
+    return error_decimal(value);
   }
 
   *value = *m_default_error->decimal_default;
@@ -5003,7 +5204,7 @@ my_decimal *Item_func_json_value::extract_decimal_value(my_decimal *value) {
 }
 
 String *Item_func_json_value::extract_string_value(String *buffer) {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_CHAR);
+  assert(m_cast_target == ITEM_CAST_CHAR);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default)) return error_str();
@@ -5026,7 +5227,7 @@ String *Item_func_json_value::extract_string_value(String *buffer) {
                               buffer->charset(), collation.collation,
                               &conversion_errors))
       return error_str(); /* purecov: inspected */
-    DBUG_ASSERT(converted_string.charset() == collation.collation);
+    assert(converted_string.charset() == collation.collation);
     buffer->swap(converted_string);
   }
 
@@ -5044,13 +5245,12 @@ String *Item_func_json_value::extract_string_value(String *buffer) {
 }
 
 double Item_func_json_value::extract_real_value() {
-  DBUG_ASSERT(m_cast_target == ITEM_CAST_FLOAT ||
-              m_cast_target == ITEM_CAST_DOUBLE);
+  assert(m_cast_target == ITEM_CAST_FLOAT || m_cast_target == ITEM_CAST_DOUBLE);
   Json_wrapper wr;
   const Default_value *return_default = nullptr;
   if (extract_json_value(&wr, &return_default)) return error_real();
   if (null_value) {
-    DBUG_ASSERT(maybe_null);
+    assert(is_nullable());
     return 0.0;
   }
 

@@ -1,5 +1,3 @@
---source include/not_hypergraph.inc   # Different plans, which give different warnings.
-
 --echo #
 --echo # Bug #29793800 ASSERT AFTER DISCARD TABLESPACE, RENAME TABLE AND
 --echo # CREATE TABLE USING SAME NAME.

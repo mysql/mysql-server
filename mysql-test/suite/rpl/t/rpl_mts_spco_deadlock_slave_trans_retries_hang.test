@@ -147,8 +147,8 @@ ROLLBACK;
 # go down by any of the previous workers, this would make co-ordinator thread
 # to wait for the workers to finish thus leading to server hang.
 
-# Add error suppressions
-CALL mtr.add_suppression("Worker 2 failed executing transaction 'ANONYMOUS'");
+--echo # Add error supressions.
+CALL mtr.add_suppression("Worker 2 failed executing transaction.*");
 
 --echo #
 --echo # 3.2. Wait till the co-ordinator thread to error out with ER_LOCK_DEADLOCK.

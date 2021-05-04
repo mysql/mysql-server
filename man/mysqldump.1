@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqldump\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLDUMP\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLDUMP\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -293,7 +293,7 @@ A dump made using PowerShell on Windows with output redirection creates a file t
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump [options] > dump\&.sql\fR
+mysqldump [options] > dump\&.sql
 .fi
 .if n \{\
 .RE
@@ -308,7 +308,7 @@ option, which creates the output in ASCII format:
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump [options] \-\-result\-file=dump\&.sql\fR
+mysqldump [options] \-\-result\-file=dump\&.sql
 .fi
 .if n \{\
 .RE
@@ -381,9 +381,9 @@ There are in general three ways to use
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIdb_name\fR\fR\fB [\fR\fB\fItbl_name\fR\fR\fB \&.\&.\&.]\fR
-shell> \fBmysqldump [\fR\fB\fIoptions\fR\fR\fB] \-\-databases \fR\fB\fIdb_name\fR\fR\fB \&.\&.\&.\fR
-shell> \fBmysqldump [\fR\fB\fIoptions\fR\fR\fB] \-\-all\-databases\fR
+mysqldump [\fIoptions\fR] \fIdb_name\fR [\fItbl_name\fR \&.\&.\&.]
+mysqldump [\fIoptions\fR] \-\-databases \fIdb_name\fR \&.\&.\&.
+mysqldump [\fIoptions\fR] \-\-all\-databases
 .fi
 .if n \{\
 .RE
@@ -705,7 +705,7 @@ system variable\&.
 \fB\-\-ssl*\fR
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using encryption and indicate where to find SSL keys and certificates\&. See
 the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
@@ -866,9 +866,9 @@ These options are used to control which option files to read\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -883,9 +883,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
@@ -911,9 +911,8 @@ normally reads the
 [client]
 and
 [mysqldump]
-groups\&. If the
-\fB\-\-defaults\-group\-suffix=_other\fR
-option is given,
+groups\&. If this option is given as
+\fB\-\-defaults\-group\-suffix=_other\fR,
 \fBmysqldump\fR
 also reads the
 [client_other]
@@ -940,13 +939,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. (\&.mylogin\&.cnf
-is created by the
+is used\&. To create
+\&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.)
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1470,9 +1469,7 @@ For a replica dump produced with the
 \fB\-\-dump\-slave\fR
 option, add a
 STOP REPLICA | SLAVE
-statement before the
-CHANGE MASTER TO
-statement and a
+statement before the statement with the binary log coordinates, and a
 START REPLICA | SLAVE
 statement at the end of the output\&.
 .RE
@@ -1506,9 +1503,11 @@ privilege as well as privileges sufficient to execute that statement\&. This opt
 This option is similar to
 \fB\-\-master\-data\fR
 except that it is used to dump a replica server to produce a dump file that can be used to set up another server as a replica that has the same source as the dumped server\&. It causes the dump output to include a
+CHANGE REPLICATION SOURCE TO
+statement (from MySQL 8\&.0\&.23) or
 CHANGE MASTER TO
-statement that indicates the binary log coordinates (file name and position) of the dumped replica\*(Aqs source\&. The
-CHANGE MASTER TO
+statement (before MySQL 8\&.0\&.23) that indicates the binary log coordinates (file name and position) of the dumped replica\*(Aqs source\&. The
+CHANGE REPLICATION SOURCE TO
 statement reads the values of
 Relay_Master_Log_File
 and
@@ -1516,9 +1515,9 @@ Exec_Master_Log_Pos
 from the
 SHOW REPLICA | SLAVE STATUS
 output and uses them for
-MASTER_LOG_FILE
+SOURCE_LOG_FILE
 and
-MASTER_LOG_POS
+SOURCE_LOG_POS
 respectively\&. These are the replication source server coordinates from which the replica starts replicating\&.
 .if n \{\
 .sp
@@ -1562,10 +1561,11 @@ MASTER_AUTOPOSITION=1\&.
 .sp .5v
 .RE
 The option value is handled the same way as for
-\fB\-\-master\-data\fR
-(setting no value or 1 causes a
+\fB\-\-master\-data\fR\&. Setting no value or 1 causes a
+CHANGE REPLICATION SOURCE TO
+statement (from MySQL 8\&.0\&.23) or
 CHANGE MASTER TO
-statement to be written to the dump, setting 2 causes the statement to be written but encased in SQL comments) and has the same effect as
+statement (before MySQL 8\&.0\&.23) to be written to the dump\&. Setting 2 causes the statement to be written but encased in SQL comments\&. It has the same effect as
 \fB\-\-master\-data\fR
 in terms of enabling or disabling other options and in how locking is handled\&.
 .sp
@@ -1596,12 +1596,18 @@ options can also be used\&.
 .\}
 \fB\-\-include\-master\-host\-port\fR
 For the
+CHANGE REPLICATION SOURCE TO
+statement (from MySQL 8\&.0\&.23) or
 CHANGE MASTER TO
-statement in a replica dump produced with the
+statement (before MySQL 8\&.0\&.23) in a replica dump produced with the
 \fB\-\-dump\-slave\fR
 option, add
+SOURCE_HOST
+|
 MASTER_HOST
 and
+SOURCE_PORT
+|
 MASTER_PORT
 options for the host name and TCP/IP port number of the replica\*(Aqs source\&.
 .RE
@@ -1616,10 +1622,14 @@ options for the host name and TCP/IP port number of the replica\*(Aqs source\&.
 .\}
 \fB\-\-master\-data[=\fR\fB\fIvalue\fR\fR\fB]\fR
 Use this option to dump a replication source server to produce a dump file that can be used to set up another server as a replica of the source\&. It causes the dump output to include a
+CHANGE REPLICATION SOURCE TO
+statement (from MySQL 8\&.0\&.23) or
 CHANGE MASTER TO
-statement that indicates the binary log coordinates (file name and position) of the dumped server\&. These are the replication source server coordinates from which the replica should start replicating after you load the dump file into the replica\&.
+statement (before MySQL 8\&.0\&.23) that indicates the binary log coordinates (file name and position) of the dumped server\&. These are the replication source server coordinates from which the replica should start replicating after you load the dump file into the replica\&.
 .sp
 If the option value is 2, the
+CHANGE REPLICATION SOURCE TO
+|
 CHANGE MASTER TO
 statement is written as an SQL comment, and thus is informative only; it has no effect when the dump file is reloaded\&. If the option value is 1, the statement is not written as a comment and takes effect when the dump file is reloaded\&. If no option value is specified, the default value is 1\&.
 .sp
@@ -2930,7 +2940,7 @@ To make a backup of an entire database:
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump \fR\fB\fIdb_name\fR\fR\fB > \fR\fB\fIbackup\-file\&.sql\fR\fR
+mysqldump \fIdb_name\fR > \fIbackup\-file\&.sql\fR
 .fi
 .if n \{\
 .RE
@@ -2942,7 +2952,7 @@ To load the dump file back into the server:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIbackup\-file\&.sql\fR\fR
+mysql \fIdb_name\fR < \fIbackup\-file\&.sql\fR
 .fi
 .if n \{\
 .RE
@@ -2954,7 +2964,7 @@ Another way to reload the dump file:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-e "source \fR\fB\fI/path\-to\-backup/backup\-file\&.sql\fR\fR\fB" \fR\fB\fIdb_name\fR\fR
+mysql \-e "source \fI/path\-to\-backup/backup\-file\&.sql\fR" \fIdb_name\fR
 .fi
 .if n \{\
 .RE
@@ -2967,7 +2977,7 @@ is also very useful for populating databases by copying data from one MySQL serv
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump \-\-opt \fR\fB\fIdb_name\fR\fR\fB | mysql \-\-host=\fR\fB\fIremote_host\fR\fR\fB \-C \fR\fB\fIdb_name\fR\fR
+mysqldump \-\-opt \fIdb_name\fR | mysql \-\-host=\fIremote_host\fR \-C \fIdb_name\fR
 .fi
 .if n \{\
 .RE
@@ -2979,7 +2989,7 @@ You can dump several databases with one command:
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump \-\-databases \fR\fB\fIdb_name1\fR\fR\fB [\fR\fB\fIdb_name2\fR\fR\fB \&.\&.\&.] > my_databases\&.sql\fR
+mysqldump \-\-databases \fIdb_name1\fR [\fIdb_name2\fR \&.\&.\&.] > my_databases\&.sql
 .fi
 .if n \{\
 .RE
@@ -2993,7 +3003,7 @@ option:
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump \-\-all\-databases > all_databases\&.sql\fR
+mysqldump \-\-all\-databases > all_databases\&.sql
 .fi
 .if n \{\
 .RE
@@ -3009,7 +3019,7 @@ provides a way of making an online backup:
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump \-\-all\-databases \-\-master\-data \-\-single\-transaction > all_databases\&.sql\fR
+mysqldump \-\-all\-databases \-\-master\-data \-\-single\-transaction > all_databases\&.sql
 .fi
 .if n \{\
 .RE
@@ -3029,7 +3039,7 @@ Section\ \&5.4.4, \(lqThe Binary Log\(rq) or at least know the binary log coordi
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump \-\-all\-databases \-\-master\-data=2 > all_databases\&.sql\fR
+mysqldump \-\-all\-databases \-\-master\-data=2 > all_databases\&.sql
 .fi
 .if n \{\
 .RE
@@ -3041,8 +3051,7 @@ Or:
 .RS 4
 .\}
 .nf
-shell> \fBmysqldump \-\-all\-databases \-\-flush\-logs \-\-master\-data=2\fR
-              \fB> all_databases\&.sql\fR
+mysqldump \-\-all\-databases \-\-flush\-logs \-\-master\-data=2 > all_databases\&.sql
 .fi
 .if n \{\
 .RE
@@ -3143,7 +3152,7 @@ for a workaround\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

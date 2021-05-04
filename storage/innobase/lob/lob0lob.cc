@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1041,7 +1041,10 @@ void BtrContext::free_updated_extern_fields(trx_id_t trx_id, undo_no_t undo_no,
   for (i = 0; i < n_fields; i++) {
     const upd_field_t *ufield = upd_get_nth_field(update, i);
 
-    if (rec_offs_nth_extern(m_offsets, ufield->field_no)) {
+    /* No need to free the column if it is a virtual column as it does not
+    consume any storage. */
+    if (!ufield->is_virtual() &&
+        rec_offs_nth_extern(m_offsets, ufield->field_no)) {
       ulint len;
       byte *data = rec_get_nth_field(m_rec, m_offsets, ufield->field_no, &len);
       ut_a(len >= BTR_EXTERN_FIELD_REF_SIZE);

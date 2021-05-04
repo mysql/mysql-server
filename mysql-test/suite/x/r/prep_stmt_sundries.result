@@ -202,6 +202,7 @@ Mysqlx.Ok {
 }
 ok
 # Syncing with status [ 'Mysqlx_connections_closed' == 4 ]
+# Syncing with status [ 'Mysqlx_sessions' == 0 ]
 
 ## Assert global X Plugin status variables
 include/assert.inc [Global plugin status Mysqlx_prep_prepare must match number of send Mysqlx.Prepare.Prepare messages]
@@ -214,4 +215,3 @@ include/assert.inc [Global system status Com_stmt_prepare must be set to zero, a
 include/assert.inc [Global system status Com_stmt_execute must be set to zero, all prep-stmt must be deallocated.]
 include/assert.inc [Global system status Com_stmt_fetch must be set to zero, all prep-stmt must be deallocated.]
 include/assert.inc [Global system status Com_stmt_close must be set to zero, all prep-stmt must be deallocated.]
-DROP SCHEMA IF EXISTS xtest;

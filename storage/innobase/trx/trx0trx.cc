@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -219,7 +219,7 @@ static void trx_init(trx_t *trx) {
   the transaction. */
 
   if (!TrxInInnoDB::is_async_rollback(trx)) {
-    trx->killed_by.store(0);
+    trx->killed_by.store(std::thread::id{});
 
     /* Note: Do not set to 0, the ref count is decremented inside
     the TrxInInnoDB() destructor. We only need to clear the flags. */
@@ -366,7 +366,7 @@ struct TrxFactory {
 
     ut_ad(!trx->abort);
 
-    ut_ad(trx->killed_by == 0);
+    ut_ad(trx->killed_by == std::thread::id{});
 
     return (true);
   }
@@ -1059,11 +1059,11 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
   trx_rseg_t *rseg = nullptr;
   ulint current = rseg_counter;
 
-  /* Increment the static redo_rseg_slot so the next call from any thread
-  starts with the next rseg. */
-  rseg_counter.fetch_add(1);
-
   while (rseg == nullptr) {
+    /* Increment the static redo_rseg_slot so the next call from any thread
+    starts with the next rseg. */
+    rseg_counter.fetch_add(1);
+
     /* Traverse the rsegs like this: (space, rseg_id)
     (0,0), (1,0), ... (n,0), (0,1), (1,1), ... (n,1), ... */
     ulint window =
@@ -1898,7 +1898,7 @@ written */
     }
 
     /* NOTE that we could possibly make a group commit more
-    efficient here: call os_thread_yield here to allow also other
+    efficient here: call std::this_thread::yield() here to allow also other
     trxs to come to commit! */
 
     /*-------------------------------------*/
@@ -2271,7 +2271,8 @@ dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
   DEBUG_SYNC_C("trx_commit_for_mysql_checks_for_aborted");
   TrxInInnoDB trx_in_innodb(trx, true);
 
-  if (trx_in_innodb.is_aborted() && trx->killed_by != os_thread_get_curr_id()) {
+  if (trx_in_innodb.is_aborted() &&
+      trx->killed_by != std::this_thread::get_id()) {
     return (DB_FORCED_ABORT);
   }
 
@@ -2503,7 +2504,7 @@ void trx_print_latched(FILE *f, const trx_t *trx, ulint max_query_len) {
 
 void trx_print(FILE *f, const trx_t *trx, ulint max_query_len) {
   /* trx_print_latched() requires exclusive global latch */
-  locksys::Global_exclusive_latch_guard guard{};
+  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
   mutex_enter(&trx_sys->mutex);
   trx_print_latched(f, trx, max_query_len);
   mutex_exit(&trx_sys->mutex);
@@ -2880,7 +2881,8 @@ dberr_t trx_prepare_for_mysql(trx_t *trx) {
 
   TrxInInnoDB trx_in_innodb(trx, true);
 
-  if (trx_in_innodb.is_aborted() && trx->killed_by != os_thread_get_curr_id()) {
+  if (trx_in_innodb.is_aborted() &&
+      trx->killed_by != std::this_thread::get_id()) {
     return (DB_FORCED_ABORT);
   }
 
@@ -3282,7 +3284,7 @@ void trx_kill_blocking(trx_t *trx) {
         sleep_time = 100000;
       }
 
-      os_thread_sleep(sleep_time);
+      std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
 
       trx_mutex_enter(victim_trx);
     }
@@ -3309,7 +3311,7 @@ void trx_kill_blocking(trx_t *trx) {
     ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
     ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK);
     ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
-    ut_ad(victim_trx->killed_by == os_thread_get_curr_id());
+    ut_ad(victim_trx->killed_by == std::this_thread::get_id());
     ut_ad(victim_trx->version == it->m_version);
 
     /* We don't kill Read Only, Background or high priority
@@ -3341,7 +3343,7 @@ void trx_kill_blocking(trx_t *trx) {
     version++;
     ut_ad(victim_trx->version == version);
 
-    victim_trx->killed_by.store(0);
+    victim_trx->killed_by.store(std::thread::id{});
 
     victim_trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 

@@ -169,7 +169,8 @@ create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb
 #
 --source include/shutdown_mysqld.inc
 --echo "testing system and temp tablespace name conflict"
---error 1
+# InnoDB aborts, so ASAN may report leaks
+--error 1,42
 --exec $MYSQLD_CMD $nameconflicts
 let SEARCH_PATTERN = innodb_temporary and innodb_system file names seem to be the same;
 --source ./include/search_pattern.inc
@@ -606,13 +607,15 @@ set innodb_strict_mode = OFF;
 #
 --source include/shutdown_mysqld.inc
 --echo "testing temp tablespace non-support for raw device"
---error 1
+# InnoDB aborts, so ASAN may report leaks
+--error 1,42
 --exec $MYSQLD_CMD $rawdevice1
 let SEARCH_PATTERN = support raw device;
 --source include/search_pattern.inc
 --remove_file $SEARCH_FILE
 --echo "testing temp tablespace non-support for raw device"
---error 1
+# InnoDB aborts, so ASAN may report leaks
+--error 1,42
 --exec $MYSQLD_CMD $rawdevice2
 let SEARCH_PATTERN = support raw device;
 --source include/search_pattern.inc
@@ -660,7 +663,8 @@ drop table t1;
 --source include/shutdown_mysqld.inc
 
 --echo "try starting server with no file specified for temp-tablespace"
---error 1
+# InnoDB aborts, so ASAN may report leaks
+--error 1,42
 --exec $MYSQLD_CMD $notemptablespacefile
 let SEARCH_PATTERN = init function returned error;
 --source ./include/search_pattern.inc

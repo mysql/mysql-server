@@ -1,22 +1,26 @@
 #
 
--- disable_query_log
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(255)
-);
--- enable_query_log
+# Create view which displays all foreign keys.
+# NOTE! Uses a format which is backward compatible with the output
+# from "ndb_show_tables" previously used by this test - for example names
+# have surrounding quotes.
+--disable_query_log ONCE
+CREATE VIEW ndb_show_tables_results AS
+  SELECT
+    CASE type
+      WHEN 25 THEN "'ForeignKey'"
+      WHEN 26 THEN "'FKParentTrigger'"
+      WHEN 27 THEN "'FKChildTrigger'"
+      ELSE 'UnexpectedType'
+    END AS type,
+    /* Add surrounding quotes */
+    CONCAT("'", CONCAT(fq_name, "'")) AS name
+  FROM ndbinfo.dict_obj_info WHERE type IN (25, 26, 27);
+
+#SELECT * FROM ndb_show_tables_results;
 
 -- echo # show meta
---disable_warnings
 show create table t2;
---enable_warnings
--- source ndb_show_tables_result.inc
 -- replace_regex /_[0-9]+/_XX/ /[0-9]+\/[0-9]+/XX\/XX/
 -- sorted_result
 select type,name from ndb_show_tables_results
@@ -75,11 +79,8 @@ if ($rebuild_indexes) {
 
 -- echo # show meta
 if (!$disable_indexes) {
---disable_warnings
 show create table t2;
---enable_warnings
 }
--- source ndb_show_tables_result.inc
 -- replace_regex /_[0-9]+/_XX/ /[0-9]+\/[0-9]+/XX\/XX/
 -- sorted_result
 select type,name from ndb_show_tables_results
@@ -96,6 +97,5 @@ select count(*) from t2;
 -- let $rebuild_indexes=
 -- let $disable_indexes2=
 
--- disable_query_log
-drop table ndb_show_tables_results;
--- enable_query_log
+--disable_query_log ONCE
+DROP VIEW ndb_show_tables_results;

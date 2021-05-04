@@ -199,23 +199,23 @@ SELECT PATH, SIZE, STATE, PURPOSE FROM INFORMATION_SCHEMA.INNODB_SESSION_TEMP_TA
 
 --echo "Test with invalid values of innodb_temp_tablespaces_dir"
 --echo "invalid abc dir"
---error 1
+--error 1,42
 --exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir="abc"
 
 --echo "invalid ./sys/ dir"
---error 1
+--error 1,42
 --exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir="./sys/"
 
 --echo "invalid /wl11613-do-not-exists/ dir"
---error 1
+--error 1,42
 --exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir="/wl11613-do-not-exist/"
 
 --echo "invalid empty \"\" "
---error 1
+--error 1,42
 --exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir=""
 
 --echo "invalid #innodb_temp "
---error 1
+--error 1,42
 --exec $MYSQLD --datadir=$MYSQLD_DATADIR --innodb_temp_tablespaces_dir="#innodb_temp"
 
 # Remove #innodb_temp directory manually and check if on next restart the

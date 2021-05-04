@@ -7,7 +7,7 @@
 create schema xtest;
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/delete_del_multi_by_id.tmp
+--write_file $MYSQL_TMP_DIR/delete_del_multi_by_id.xpl
 ## Test data
 
 -->stmtadmin create_collection	{"schema":"xtest","name":"mycoll"}
@@ -60,9 +60,7 @@ select doc from xtest.mycoll;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/delete_del_multi_by_id.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/delete_del_multi_by_id.xpl 2>&1
 
 ## Cleanup
-drop schema if exists xtest;
---remove_file $MYSQL_TMP_DIR/delete_del_multi_by_id.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

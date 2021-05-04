@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -687,11 +687,9 @@ Dbspj::execREAD_NODESCONF(Signal* signal)
     m_location_domain_id[i] = 0;
   }
 
-  ndb_mgm_configuration *p =
-    m_ctx.m_config.getClusterConfig();
   ndb_mgm_configuration_iterator *p_iter =
-    ndb_mgm_create_configuration_iterator(p, CFG_SECTION_NODE);
-
+    ndb_mgm_create_configuration_iterator(m_ctx.m_config.getClusterConfig(),
+                                          CFG_SECTION_NODE);
   for (ndb_mgm_first(p_iter);
        ndb_mgm_valid(p_iter);
        ndb_mgm_next(p_iter))
@@ -2745,7 +2743,7 @@ Dbspj::sendConf(Signal* signal, Ptr<Request> requestPtr, bool is_complete)
       {
         if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
         {
-          DBUG_ASSERT(treeNodePtr.p->m_node_no <= 31);
+          assert(treeNodePtr.p->m_node_no <= 31);
           activeMask |= (1 << treeNodePtr.p->m_node_no);
         }
       }
@@ -7128,7 +7126,7 @@ Dbspj::scanFrag_parent_row(Signal* signal,
       {
         jam();
         DEBUG("Key contain NULL values, ignoring it");
-        DBUG_ASSERT((treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT) == 0);
+        assert((treeNodePtr.p->m_bits & TreeNode::T_ONE_SHOT) == 0);
         // Ignore this request as 'NULL == <column>' will never give a match
         releaseSection(keyPtrI);
         return;  // Bailout, SCANREQ would have returned 0 rows anyway

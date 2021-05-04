@@ -78,10 +78,8 @@ SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_wi
 SELECT * FROM test.t WHERE i = 10;
 
 # The number of rows scanned should not have changed (should still be 1536)
---skip_if_hypergraph   # Does not support indexes yet.
 SELECT object_schema, object_name, rows_full_scanned FROM sys.schema_tables_with_full_table_scans;
 
---skip_if_hypergraph   # Does not support indexes yet.
 SELECT object_schema, object_name, rows_full_scanned FROM sys.x$schema_tables_with_full_table_scans;
 
 # Cleanup

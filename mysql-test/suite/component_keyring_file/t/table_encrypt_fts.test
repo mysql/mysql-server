@@ -1,0 +1,10 @@
+--source include/have_component_keyring_file.inc
+--source include/have_debug.inc
+# Disable in valgrind because of timeout, cf. Bug#22760145
+--source include/not_valgrind.inc
+# Waiting time when (re)starting the server
+--let $explicit_default_wait_counter=10000;
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/innodb/table_encrypt_fts.inc
+--source ../inc/teardown_component.inc

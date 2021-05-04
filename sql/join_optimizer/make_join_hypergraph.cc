@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ RelationalExpression *MakeRelationalExpression(THD *thd, const TABLE_LIST *tl) {
 }
 
 /**
-  Convert the SELECT_LEX's join lists into a RelationalExpression,
+  Convert the Query_block's join lists into a RelationalExpression,
   ie., a join tree with tables at the leaves.
  */
 RelationalExpression *MakeRelationalExpressionFromJoinList(
@@ -210,13 +210,33 @@ void MakeCartesianProducts(RelationalExpression *expr) {
   after expr (...=false).
 
   Returns false if cond was pushed down and stored as a join condition on some
-  lower place than it started.
+  lower place than it started, ie., the caller no longer needs to worry about
+  it.
+
+  In addition to regular pushdown, PushDownCondition() will do partial pushdown
+  if appropriate. Some expressions cannot be fully pushed down, but we can
+  push down necessary-but-not-sufficient conditions to get earlier filtering.
+  (This is a performance win for e.g. hash join and the left side of a
+  nested loop join, but not for the right side of a nested loop join. Note that
+  we currently do not compensate for the errors in selectivity estimation
+  this may incur.) An example would be
+
+    (t1.x = 1 AND t2.y=2) OR (t1.x = 3 AND t2.y=4);
+
+  we could push down the conditions (t1.x = 1 OR t1.x = 3) to t1 and similarly
+  for t2, but we could not delete the original condition. This does not affect
+  the return value. Since PushDownAsMuchAsPossible() only calls us for join
+  conditions, this is the only way we can push down something onto a single
+  table (which naturally has no concept of “join condition”). If this happens,
+  we push the resulting condition(s) onto “table_filters”.
  */
 bool PushDownCondition(Item *cond, RelationalExpression *expr,
-                       bool is_join_condition_for_expr) {
-  // PushDownAsMuchAsPossible() only calls us for join conditions,
-  // so we should never hit a single table.
-  assert(expr->type != RelationalExpression::TABLE);
+                       bool is_join_condition_for_expr,
+                       Mem_root_array<Item *> *table_filters) {
+  if (expr->type == RelationalExpression::TABLE) {
+    table_filters->push_back(cond);
+    return true;
+  }
 
   assert(
       !Overlaps(expr->left->tables_in_subtree, expr->right->tables_in_subtree));
@@ -232,14 +252,17 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // condition for this join, we cannot push it for outer joins and
   // antijoins, since that would remove rows that should otherwise
   // be output (as NULL-complemented ones in the case if outer joins).
+  const bool can_push_into_left =
+      (expr->type == RelationalExpression::INNER_JOIN ||
+       expr->type == RelationalExpression::SEMIJOIN ||
+       !is_join_condition_for_expr);
   if (IsSubset(used_tables, expr->left->tables_in_subtree)) {
-    if (expr->type != RelationalExpression::INNER_JOIN &&
-        expr->type != RelationalExpression::SEMIJOIN &&
-        is_join_condition_for_expr) {
+    if (!can_push_into_left) {
       return true;
     }
     return PushDownCondition(cond, expr->left,
-                             /*is_join_condition_for_expr=*/false);
+                             /*is_join_condition_for_expr=*/false,
+                             table_filters);
   }
 
   // See if we can push down into the right side. For inner joins,
@@ -255,19 +278,47 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
   // no choice but to just trust that these conditions are pushable.
   // (The user cannot cannot specify semijoins directly, so all such conditions
   // come from ourselves.)
+  const bool can_push_into_right =
+      (expr->type == RelationalExpression::INNER_JOIN ||
+       expr->type == RelationalExpression::SEMIJOIN ||
+       is_join_condition_for_expr);
   if (IsSubset(used_tables, expr->right->tables_in_subtree)) {
-    if (expr->type != RelationalExpression::INNER_JOIN &&
-        expr->type != RelationalExpression::SEMIJOIN &&
-        !is_join_condition_for_expr) {
+    if (!can_push_into_right) {
       return true;
     }
     return PushDownCondition(cond, expr->right,
-                             /*is_join_condition_for_expr=*/false);
+                             /*is_join_condition_for_expr=*/false,
+                             table_filters);
   }
 
-  // It's not a subset of left, it's not a subset of right,
-  // so it's a filter that must either stay after this join,
-  // or it can be promoted to a join condition for it.
+  // It's not a subset of left, it's not a subset of right, so it's a
+  // filter that must either stay after this join, or it can be promoted
+  // to a join condition for it.
+
+  // Try partial pushdown into the left side (see function comment).
+  if (can_push_into_left) {
+    Item *partial_cond = make_cond_for_table(
+        current_thd, cond, expr->left->tables_in_subtree, /*used_table=*/0,
+        /*exclude_expensive_cond=*/true);
+    if (partial_cond != nullptr) {
+      PushDownCondition(partial_cond, expr->left,
+                        /*is_join_condition_for_expr=*/false, table_filters);
+    }
+  }
+
+  // Then the right side, if it's allowed.
+  if (can_push_into_right) {
+    Item *partial_cond = make_cond_for_table(
+        current_thd, cond, expr->right->tables_in_subtree, /*used_table=*/0,
+        /*exclude_expensive_cond=*/true);
+    if (partial_cond != nullptr) {
+      PushDownCondition(partial_cond, expr->right,
+                        /*is_join_condition_for_expr=*/false, table_filters);
+    }
+  }
+
+  // Now that any partial pushdown has been done, see if we can promote
+  // the original filter to a join condition.
   if (is_join_condition_for_expr) {
     // We were already a join condition on this join, so there's nothing to do.
     return true;
@@ -301,7 +352,7 @@ bool PushDownCondition(Item *cond, RelationalExpression *expr,
  */
 Mem_root_array<Item *> PushDownAsMuchAsPossible(
     THD *thd, Mem_root_array<Item *> conditions, RelationalExpression *expr,
-    bool is_join_condition_for_expr) {
+    bool is_join_condition_for_expr, Mem_root_array<Item *> *table_filters) {
   Mem_root_array<Item *> remaining_parts(thd->mem_root);
   for (Item *item : conditions) {
     if (IsSingleBitSet(item->used_tables() & ~PSEUDO_TABLE_BITS)) {
@@ -310,7 +361,8 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
       // FoundSubgraphPair().
       remaining_parts.push_back(item);
     } else {
-      if (PushDownCondition(item, expr, is_join_condition_for_expr)) {
+      if (PushDownCondition(item, expr, is_join_condition_for_expr,
+                            table_filters)) {
         // Pushdown failed.
         remaining_parts.push_back(item);
       }
@@ -340,19 +392,20 @@ Mem_root_array<Item *> PushDownAsMuchAsPossible(
   the WHERE. When this function is called on the said join, it will push the
   join condition down again.
  */
-void PushDownJoinConditions(THD *thd, RelationalExpression *expr) {
+void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
+                            Mem_root_array<Item *> *table_filters) {
   if (expr->type == RelationalExpression::TABLE) {
     return;
   }
   assert(expr->equijoin_conditions
              .empty());  // MakeHashJoinConditions() has not run yet.
   if (!expr->join_conditions.empty()) {
-    expr->join_conditions =
-        PushDownAsMuchAsPossible(thd, std::move(expr->join_conditions), expr,
-                                 /*is_join_condition_for_expr=*/true);
+    expr->join_conditions = PushDownAsMuchAsPossible(
+        thd, std::move(expr->join_conditions), expr,
+        /*is_join_condition_for_expr=*/true, table_filters);
   }
-  PushDownJoinConditions(thd, expr->left);
-  PushDownJoinConditions(thd, expr->right);
+  PushDownJoinConditions(thd, expr->left, table_filters);
+  PushDownJoinConditions(thd, expr->right, table_filters);
 }
 
 /**
@@ -441,7 +494,8 @@ bool ConcretizeMultipleEquals(THD *thd, Mem_root_array<Item *> *conditions) {
   Convert all multi-equalities in join conditions under “expr” into simple
   equalities. See ConcretizeMultipleEquals() for more information.
  */
-bool ConcretizeAllMultipleEquals(THD *thd, RelationalExpression *expr) {
+bool ConcretizeAllMultipleEquals(THD *thd, RelationalExpression *expr,
+                                 Mem_root_array<Item *> *where_conditions) {
   if (expr->type == RelationalExpression::TABLE) {
     return false;
   }
@@ -450,8 +504,8 @@ bool ConcretizeAllMultipleEquals(THD *thd, RelationalExpression *expr) {
   if (ConcretizeMultipleEquals(thd, &expr->join_conditions)) {
     return true;
   }
-  PushDownJoinConditions(thd, expr->left);
-  PushDownJoinConditions(thd, expr->right);
+  PushDownJoinConditions(thd, expr->left, where_conditions);
+  PushDownJoinConditions(thd, expr->right, where_conditions);
   return false;
 }
 
@@ -592,9 +646,9 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
       // Simple edge.
       int left_node = FindLowestBitSet(e.left);
       int right_node = FindLowestBitSet(e.right);
-      digraph += StringPrintf("  %s -> %s [label=\"%s\"]\n",
-                              graph.nodes[left_node]->alias,
-                              graph.nodes[right_node]->alias, label.c_str());
+      digraph += StringPrintf(
+          "  %s -> %s [label=\"%s\"]\n", graph.nodes[left_node].table->alias,
+          graph.nodes[right_node].table->alias, label.c_str());
     } else {
       // Hyperedge; draw it as a tiny “virtual node”.
       digraph += StringPrintf(
@@ -612,16 +666,16 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
       // Left side of the edge.
       for (int left_node : BitsSetIn(e.left)) {
         digraph += StringPrintf("  %s -> e%zu [arrowhead=none,label=\"%s\"]\n",
-                                graph.nodes[left_node]->alias, edge_idx,
+                                graph.nodes[left_node].table->alias, edge_idx,
                                 left_label.c_str());
         left_label = "";
       }
 
       // Right side of the edge.
       for (int right_node : BitsSetIn(e.right)) {
-        digraph +=
-            StringPrintf("  e%zu -> %s [label=\"%s\"]\n", edge_idx,
-                         graph.nodes[right_node]->alias, right_label.c_str());
+        digraph += StringPrintf("  e%zu -> %s [label=\"%s\"]\n", edge_idx,
+                                graph.nodes[right_node].table->alias,
+                                right_label.c_str());
         right_label = "";
       }
     }
@@ -644,20 +698,22 @@ string PrintDottyHypergraph(const JoinHypergraph &graph) {
   producing all valid join orders, but makes sure we do not create any invalid
   ones.
  */
-void MakeJoinGraphFromRelationalExpression(const RelationalExpression *expr,
+void MakeJoinGraphFromRelationalExpression(THD *thd,
+                                           const RelationalExpression *expr,
                                            string *trace,
                                            JoinHypergraph *graph) {
   if (expr->type == RelationalExpression::TABLE) {
     graph->graph.AddNode();
-    graph->nodes.push_back(expr->table->table);
+    graph->nodes.push_back(JoinHypergraph::Node{
+        expr->table->table, Mem_root_array<SargablePredicate>{thd->mem_root}});
     assert(expr->table->tableno() < MAX_TABLES);
     graph->table_num_to_node_num[expr->table->tableno()] =
         graph->graph.nodes.size() - 1;
     return;
   }
 
-  MakeJoinGraphFromRelationalExpression(expr->left, trace, graph);
-  MakeJoinGraphFromRelationalExpression(expr->right, trace, graph);
+  MakeJoinGraphFromRelationalExpression(thd, expr->left, trace, graph);
+  MakeJoinGraphFromRelationalExpression(thd, expr->right, trace, graph);
 
   table_map used_tables = 0;
   for (Item *condition : expr->join_conditions) {
@@ -728,20 +784,22 @@ void MakeJoinGraphFromRelationalExpression(const RelationalExpression *expr,
 
 }  // namespace
 
-bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
-                        JoinHypergraph *graph) {
-  JOIN *join = select_lex->join;
+const JOIN *JoinHypergraph::join() const { return m_query_block->join; }
+
+bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
+  const Query_block *query_block = graph->query_block();
+  const JOIN *join = graph->join();
   if (trace != nullptr) {
     // TODO(sgunders): Do we want to keep this in the trace indefinitely?
     // It's only useful for debugging, not as much for understanding what's
     // going on.
     *trace += "Join list after simplification:\n";
-    *trace += PrintJoinList(select_lex->top_join_list, /*level=*/0);
+    *trace += PrintJoinList(query_block->top_join_list, /*level=*/0);
     *trace += "\n";
   }
 
   RelationalExpression *root =
-      MakeRelationalExpressionFromJoinList(thd, select_lex->top_join_list);
+      MakeRelationalExpressionFromJoinList(thd, query_block->top_join_list);
 
   if (trace != nullptr) {
     // TODO(sgunders): Same question as above; perhaps the version after
@@ -753,41 +811,48 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
     *trace += "\n";
   }
 
+  Mem_root_array<Item *> table_filters(thd->mem_root);
+  if (ConcretizeAllMultipleEquals(thd, root, &table_filters)) {
+    return true;
+  }
+  PushDownJoinConditions(thd, root, &table_filters);
+
   // Split up WHERE conditions, and push them down into the tree as much as
   // we can. (They have earlier been hoisted up as far as possible; see
   // comments on PushDownAsMuchAsPossible() and PushDownJoinConditions().)
+  // Note that we do this after pushing down join conditions, so that we
+  // don't push down WHERE conditions to join conditions and then re-process
+  // them later.
   Mem_root_array<Item *> where_conditions(thd->mem_root);
   if (join->where_cond != nullptr) {
     ExtractConditions(join->where_cond, &where_conditions);
     if (ConcretizeMultipleEquals(thd, &where_conditions)) {
       return true;
     }
-    where_conditions =
-        PushDownAsMuchAsPossible(thd, std::move(where_conditions), root,
-                                 /*is_join_condition_for_expr=*/false);
+    where_conditions = PushDownAsMuchAsPossible(
+        thd, std::move(where_conditions), root,
+        /*is_join_condition_for_expr=*/false, &table_filters);
   }
-  if (ConcretizeAllMultipleEquals(thd, root)) {
-    return true;
-  }
-  PushDownJoinConditions(thd, root);
 
   MakeHashJoinConditions(thd, root);
   MakeCartesianProducts(root);
 
   if (trace != nullptr) {
-    *trace +=
-        StringPrintf("After pushdown; remaining WHERE conditions are %s:\n",
-                     ItemsToString(where_conditions).c_str());
+    *trace += StringPrintf(
+        "After pushdown; remaining WHERE conditions are %s, "
+        "table filters are %s:\n",
+        ItemsToString(where_conditions).c_str(),
+        ItemsToString(table_filters).c_str());
     *trace += PrintRelationalExpression(root, 0);
     *trace += '\n';
   }
 
   // Construct the hypergraph from the relational expression.
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   std::fill(begin(graph->table_num_to_node_num),
             end(graph->table_num_to_node_num), -1);
 #endif
-  MakeJoinGraphFromRelationalExpression(root, trace, graph);
+  MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
 
   if (trace != nullptr) {
     *trace += "\nConstructed hypergraph:\n";
@@ -798,7 +863,8 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
       // the algorithm, it is useful to have a link to the table names.
       *trace += "Node mappings, for reference:\n";
       for (size_t i = 0; i < graph->nodes.size(); ++i) {
-        *trace += StringPrintf("  R%zu = %s\n", i + 1, graph->nodes[i]->alias);
+        *trace +=
+            StringPrintf("  R%zu = %s\n", i + 1, graph->nodes[i].table->alias);
       }
     }
     *trace += "\n";
@@ -823,7 +889,7 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
       *trace += StringPrintf("Total eligibility set for %s: {",
                              ItemToString(condition).c_str());
       bool first = true;
-      for (TABLE_LIST *tl = select_lex->leaf_tables; tl != nullptr;
+      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
            tl = tl->next_leaf) {
         if (tl->map() & total_eligibility_set) {
           if (!first) *trace += ',';
@@ -834,6 +900,18 @@ bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, string *trace,
       *trace += "}\n";
     }
   }
+
+  // Table filters should be applied at the bottom, without extending the TES.
+  for (Item *condition : table_filters) {
+    Predicate pred;
+    pred.condition = condition;
+    pred.total_eligibility_set =
+        condition->used_tables() & ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT);
+    assert(IsSingleBitSet(pred.total_eligibility_set));
+    pred.selectivity = EstimateSelectivity(thd, condition, trace);
+    graph->predicates.push_back(pred);
+  }
+
   if (graph->predicates.size() > sizeof(table_map) * CHAR_BIT) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
              "more than 64 WHERE/ON predicates");

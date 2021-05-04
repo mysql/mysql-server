@@ -134,9 +134,9 @@ drop table t6;
 drop table t7;
 drop table t8;
 drop table t9;
+--enable_query_log
 
 --source include/ndb_backup_id.inc
---enable_query_log
 
 --echo Restore metadata using backup-part 1
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id/BACKUP-$the_backup_id-PART-1-OF-2 >> $NDB_TOOLS_OUTPUT 2>&1

@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -169,7 +169,12 @@ ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
     "-Wno-unused-function")
   ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
     COMPILE_FLAGS
-    "-Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-incompatible-pointer-types -Wno-unused-local-typedef")
+    -Wno-incompatible-pointer-types
+    -Wno-unused-function
+    -Wno-unused-local-typedefs
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    )
   IF(SOLARIS)
     # rpcgen generates 'void bzero();'
     ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES}

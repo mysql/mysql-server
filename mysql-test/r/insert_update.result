@@ -366,54 +366,51 @@ SET SQL_MODE="STRICT_TRANS_TABLES";
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO t1 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t1 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO t1 values(x'6162', x'6162', x'6162');
+UPDATE t1 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 1
 INSERT INTO t2 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t2 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO t2 values(x'6162', x'6162', x'6162');
+UPDATE t2 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 1
 INSERT INTO t3 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t3 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO t3 values(x'6162', x'6162', x'6162');
+UPDATE t3 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 1
 SET SQL_MODE="";
 INSERT INTO t1 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t1 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO t1 values(x'6162', x'6162', x'6162');
+UPDATE t1 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 3
 INSERT INTO t2 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t2 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO t2 values(x'6162', x'6162', x'6162');
+UPDATE t2 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 3
 INSERT INTO t3 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE t3 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO t3 values(x'6162', x'6162', x'6162');
+UPDATE t3 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 3
 CREATE VIEW v1 AS SELECT * FROM t1;
 CREATE VIEW v2 AS SELECT * FROM t2;
 CREATE VIEW v3 AS SELECT * FROM t3;
@@ -421,54 +418,51 @@ SET SQL_MODE="STRICT_TRANS_TABLES";
 Warnings:
 Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
 INSERT INTO v1 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v1 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO v1 values(x'6162', x'6162', x'6162');
+UPDATE v1 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 4
 INSERT INTO v2 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v2 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO v2 values(x'6162', x'6162', x'6162');
+UPDATE v2 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 4
 INSERT INTO v3 values(x'8142', x'8142', x'8142');
-Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v3 SET a=x'8243' where a=x'8142';
-Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+ERROR HY000: Incorrect string value: '\x81B' for column 'a' at row 1
+INSERT INTO v3 values(x'6162', x'6162', x'6162');
+UPDATE v3 SET a=x'8243' where a=x'6162';
+ERROR HY000: Incorrect string value: '\x82C' for column 'a' at row 4
 SET SQL_MODE="";
 INSERT INTO v1 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v1 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO v1 values(x'6162', x'6162', x'6162');
+UPDATE v1 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 4
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 6
 INSERT INTO v2 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v2 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO v2 values(x'6162', x'6162', x'6162');
+UPDATE v2 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 4
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 6
 INSERT INTO v3 values(x'8142', x'8142', x'8142');
 Warnings:
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-Warning	1300	Invalid ascii character string: '\x81B'
-UPDATE v3 SET a=x'8243' where a=x'8142';
+Warning	1366	Incorrect string value: '\x81B' for column 'a' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'b' at row 1
+Warning	1366	Incorrect string value: '\x81B' for column 'c' at row 1
+INSERT INTO v3 values(x'6162', x'6162', x'6162');
+UPDATE v3 SET a=x'8243' where a=x'6162';
 Warnings:
-Warning	1300	Invalid ascii character string: '\x82C'
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 4
+Warning	1366	Incorrect string value: '\x82C' for column 'a' at row 6
 DROP VIEW v1;
 DROP VIEW v2;
 DROP VIEW v3;

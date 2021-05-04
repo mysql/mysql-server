@@ -10,7 +10,7 @@
 # for the Win64 platform
 if(`SELECT CONVERT(@@version_compile_os using latin1) IN ("Win64")`)
 {
---skip Bug#37746 2009-07-07 pcrews Arithmetic range ("int") is smaller than expected
+--skip Bug#37746 2009-07-07 pcrews Arithmetic range ('int') is smaller than expected
 }
 
 # It is assumed that the storage engine used for some tables has no impact on

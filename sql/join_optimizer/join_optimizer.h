@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,6 @@
       barrier, pretty much like the existing join optimizer.
     - Indexes of any kind (and thus, no understanding of interesting
       orders); table scans only.
-    - Nested loop joins; hash joins only.
     - Multiple equalities; they are simplified to simple equalities
       before optimization (so some legal join orderings will be missed).
     - Aggregation through a temporary table.
@@ -62,15 +61,13 @@
       star joins. (Less extreme queries, such as 30-way chain joins,
       will be fine.) They will receive a similar error message as with
       unsupported SQL features, instead of timing out.
-    - Differentiating between initial (startup) cost and full cost,
-      which is important in queries with LIMIT.
  */
 
 #include <string>
 
 struct AccessPath;
 class THD;
-class SELECT_LEX;
+class Query_block;
 
 /**
   The main entry point for the hypergraph join optimizer; takes in a query
@@ -95,11 +92,13 @@ class SELECT_LEX;
        (see ExpandFilterAccessPaths()).
 
   @param thd Thread handle.
-  @param select_lex The query block to find a plan for.
+  @param query_block The query block to find a plan for.
   @param trace If not nullptr, will be filled with human-readable optimizer
     trace showing some of the inner workings of the code.
  */
-AccessPath *FindBestQueryPlan(THD *thd, SELECT_LEX *select_lex,
+AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                               std::string *trace);
+
+void EstimateMaterializeCost(AccessPath *path);
 
 #endif  // SQL_JOIN_OPTIMIZER_JOIN_OPTIMIZER_H

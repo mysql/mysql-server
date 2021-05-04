@@ -2,12 +2,12 @@
 .\"     Title: \fBmyisamchk\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYISAMCHK\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYISAMCHK\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -84,7 +84,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fItbl_name\fR\fR\fB \&.\&.\&.\fR
+myisamchk [\fIoptions\fR] \fItbl_name\fR \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -125,7 +125,7 @@ tables in that directory like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk *\&.MYI\fR
+myisamchk *\&.MYI
 .fi
 .if n \{\
 .RE
@@ -137,7 +137,7 @@ If you are not in the database directory, you can check all the tables there by 
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \fR\fB\fI/path/to/database_dir/\fR\fR\fB*\&.MYI\fR
+myisamchk \fI/path/to/database_dir/\fR*\&.MYI
 .fi
 .if n \{\
 .RE
@@ -149,7 +149,7 @@ You can even check all tables in all databases by specifying a wildcard with the
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \fR\fB\fI/path/to/datadir/*/*\fR\fR\fB\&.MYI\fR
+myisamchk \fI/path/to/datadir/*/*\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -163,7 +163,7 @@ tables is:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-silent \-\-fast \fR\fB\fI/path/to/datadir/*/*\fR\fR\fB\&.MYI\fR
+myisamchk \-\-silent \-\-fast \fI/path/to/datadir/*/*\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -177,10 +177,10 @@ tables and repair any that are corrupted, you can use the following command:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-silent \-\-force \-\-fast \-\-update\-state \e\fR
-          \fB\-\-key_buffer_size=64M \-\-myisam_sort_buffer_size=64M \e\fR
-          \fB\-\-read_buffer_size=1M \-\-write_buffer_size=1M \e\fR
-          \fB\fI/path/to/datadir/*/*\fR\fR\fB\&.MYI\fR
+myisamchk \-\-silent \-\-force \-\-fast \-\-update\-state \e
+          \-\-key_buffer_size=64M \-\-myisam_sort_buffer_size=64M \e
+          \-\-read_buffer_size=1M \-\-write_buffer_size=1M \e
+          \fI/path/to/datadir/*/*\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -312,9 +312,9 @@ built using this option\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -329,9 +329,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -351,9 +351,8 @@ Read not only the usual option groups, but also groups with the usual names and 
 \fBmyisamchk\fR
 normally reads the
 [myisamchk]
-group\&. If the
-\fB\-\-defaults\-group\-suffix=_other\fR
-option is given,
+group\&. If this option is given as
+\fB\-\-defaults\-group\-suffix=_other\fR,
 \fBmyisamchk\fR
 also reads the
 [myisamchk_other]
@@ -378,13 +377,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. (\&.mylogin\&.cnf
-is created by the
+is used\&. To create
+\&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.)
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -664,7 +663,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-recover \-\-ft_min_word_len=3 \fR\fB\fItbl_name\fR\fR\fB\&.MYI\fR
+myisamchk \-\-recover \-\-ft_min_word_len=3 \fItbl_name\fR\&.MYI
 .fi
 .if n \{\
 .RE
@@ -2321,10 +2320,10 @@ to operate faster\&. For example, if you have more than 512MB RAM available, you
 .RS 4
 .\}
 .nf
-shell> \fBmyisamchk \-\-myisam_sort_buffer_size=256M \e\fR
-           \fB\-\-key_buffer_size=512M \e\fR
-           \fB\-\-read_buffer_size=64M \e\fR
-           \fB\-\-write_buffer_size=64M \&.\&.\&.\fR
+myisamchk \-\-myisam_sort_buffer_size=256M \e
+           \-\-key_buffer_size=512M \e
+           \-\-read_buffer_size=64M \e
+           \-\-write_buffer_size=64M \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -2432,7 +2431,7 @@ instead of
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

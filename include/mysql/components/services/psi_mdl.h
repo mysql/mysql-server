@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,12 +26,12 @@
 #include <mysql/components/component_implementation.h>
 #include <mysql/components/services/psi_mdl_service.h>
 
-#define REQUIRES_PSI_MDL_SERVICE REQUIRES_SERVICE(psi_mdl_v1)
+#define REQUIRES_PSI_MDL_SERVICE REQUIRES_SERVICE(psi_mdl_v2)
 #define REQUIRES_PSI_MDL_SERVICE_PLACEHOLDER \
-  REQUIRES_SERVICE_PLACEHOLDER(psi_mdl_v1)
+  REQUIRES_SERVICE_PLACEHOLDER(psi_mdl_v2)
 
 extern REQUIRES_PSI_MDL_SERVICE_PLACEHOLDER;
 
-#define PSI_MDL_CALL(M) mysql_service_psi_mdl_v1->M
+#define PSI_MDL_CALL(M) mysql_service_psi_mdl_v2->M
 
 #endif /* COMPONENTS_SERVICES_PSI_MDL_H */

@@ -189,7 +189,7 @@ COUNT(*)
 64
 # Error on "ALTER INSTANCE ..." after UNINSTALL PLUGIN
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # new table creation in encrypted tablespace is allowed after uninstall
 CREATE TABLE tde_db.t_encrypt_3(c2 INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
 c3 CHAR(255) Default 'No text',
@@ -526,9 +526,9 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 # restart: 
 # Encrypted tables must not be accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 SELECT COUNT(*) FROM tde_db.t_encrypt_2;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Unencrypted tables must be accessible
 SELECT COUNT(*) FROM tde_db.t_non_encrypt;
 COUNT(*)
@@ -561,12 +561,12 @@ SELECT COUNT(*) FROM tde_db.t_non_encrypt_4;
 COUNT(*)
 64
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Encrypted tables must not be accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 SELECT COUNT(*) FROM tde_db.t_encrypt_2;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 DROP TABLE tde_db.t_encrypt , tde_db.t_encrypt_2;
 DROP TABLE tde_db.t_non_encrypt , tde_db.t_non_encrypt_2 ,tde_db.t_non_encrypt_4;
 #########################################################################
@@ -826,7 +826,7 @@ c7 POINT NOT NULL SRID 0,
 spatial INDEX idx2 (c7)
 ) TABLESPACE=encrypt_ts ENCRYPTION='Y' ENGINE = InnoDB;
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 DROP TABLE tde_db.t_encrypt_4;
 #########################################################################
 # Test 4 : Restart with new keyring_data_file
@@ -906,9 +906,9 @@ c2	right(c3,20)	c4	c5	c6	ST_AsText(c7)
 # restart: --early-plugin-load=keyring_file=keyring_file.so --loose-keyring_file_data=MYSQL_TMP_DIR/mysecret_keyring_new --plugin-dir=KEYRING_PLUGIN_PATH
 # old encrypted tables not accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 SELECT COUNT(*) FROM tde_db.t_encrypt_2;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # NON encrypted tables accessible
 SELECT COUNT(*) FROM tde_db.t_non_encrypt;
 COUNT(*)
@@ -947,9 +947,9 @@ COUNT(*)
 ALTER INSTANCE ROTATE INNODB MASTER KEY;
 # Old encrypted tables in encrypted tablespace must not be accessible
 SELECT COUNT(*) FROM tde_db.t_encrypt;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 SELECT COUNT(*) FROM tde_db.t_encrypt_2;
-ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully.
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
 # Old unencrypted table must be accessible
 SELECT COUNT(*) FROM tde_db.t_non_encrypt;
 COUNT(*)

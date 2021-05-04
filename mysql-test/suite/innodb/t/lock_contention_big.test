@@ -567,13 +567,8 @@ SHOW ENGINE INNODB STATUS;
 # - non debug binaries: expectation frequent not fulfilled
 # - debug binaries:     expectation rare not fulfilled
 #
-let $wait_timeout= 121;
-let $wait_condition=
-SELECT COUNT(*) = @sx_count
-FROM information_schema.innodb_metrics t_after
-JOIN my_metrics t_before
-ON t_after.COUNT_RESET > t_before.COUNT_RESET AND t_after.NAME = t_before.NAME;
---source include/wait_condition.inc
+--echo # NOTE: The fix for Bug#32225367: RW_LOCK_STATS OPERATION HAS REGRESSION FROM 5.6, LOWER CACHE EFFICIENCY
+--echo # deprecated the "innodb_rwlock_*" counter growth for performance.
 eval $after_my_metrics;
 
 --echo # TC-16 The following activities happend after reset in innodb_metrics
@@ -585,19 +580,9 @@ eval $after_my_metrics;
 --echo #       must have grown for ALL = @sx_count entries.
 # The former testcases TC-10 and TC12 had to be made a part of this testcase
 # because their results were unstable.
-let $check_statement=
-SELECT COUNT(*) <> @sx_count FROM my_metrics t_after JOIN my_metrics t_before
-ON t_after.COUNT_RESET > t_before.COUNT_RESET AND t_after.NAME = t_before.NAME
-WHERE t_after.phase = 'after' AND t_before.phase = 'before';
-if(`$check_statement`)
-{
-   --echo #    fail
-   eval $check_statement;
-   SELECT * FROM my_metrics
-   ORDER BY NAME, phase;
-   exit;
-}
---echo #    pass
+--echo # NOTE: The fix for Bug#32225367: RW_LOCK_STATS OPERATION HAS REGRESSION FROM 5.6, LOWER CACHE EFFICIENCY
+--echo # deprecated the "innodb_rwlock_*" counter growth for performance.
+--echo #    skip
 
 --echo # TC-09 Heavy activity after reset.
 --echo #       COUNT_RESET = MAX_COUNT_RESET for ALL = @sx_count entries
@@ -637,20 +622,9 @@ if(`$check_statement`)
 --echo # TC-17 We had heavy activity causing big counters and after that a reset.
 --echo #       Reset causes COUNT > COUNT_RESET AND MAX_COUNT > MAX_COUNT_RESET
 --echo #       for ALL @sx_count entries.
-let $check_statement=
-SELECT COUNT(*) <> @sx_count FROM my_metrics
-WHERE phase = 'after'
-  AND COUNT > COUNT_RESET
-  AND MAX_COUNT > MAX_COUNT_RESET;
-if(`$check_statement`)
-{
-   --echo #    fail
-   eval $check_statement;
-   SELECT * FROM my_metrics
-   ORDER BY NAME, phase;
-   exit;
-}
---echo #    pass
+--echo # NOTE: The fix for Bug#32225367: RW_LOCK_STATS OPERATION HAS REGRESSION FROM 5.6, LOWER CACHE EFFICIENCY
+--echo # deprecated the "innodb_rwlock_*" counter growth for performance.
+--echo #    skip
 
 --echo # TC-18 We had some reset but this must not decrease COUNT or MAX_COUNT
 --echo #       after.COUNT >= before.COUNT AND
@@ -674,21 +648,9 @@ if(`$check_statement`)
 --echo #       after.COUNT_RESET < before.COUNT_RESET
 --echo #       AND after.MAX_COUNT_RESET < before.MAX_COUNT_RESET AND
 --echo #       for ALL @sx_count entries.
-let $check_statement=
-SELECT COUNT(*) <> @sx_count FROM my_metrics t_after JOIN my_metrics t_before
-ON t_after.COUNT_RESET < t_before.COUNT_RESET
-   AND t_after.MAX_COUNT_RESET < t_before.MAX_COUNT_RESET
-   AND t_after.NAME = t_before.NAME
-WHERE t_after.phase = 'after' AND t_before.phase = 'before';
-if(`$check_statement`)
-{
-   --echo #    fail
-   eval $check_statement;
-   SELECT * FROM my_metrics
-   ORDER BY NAME, phase;
-   exit;
-}
---echo #    pass
+--echo # NOTE: The fix for Bug#32225367: RW_LOCK_STATS OPERATION HAS REGRESSION FROM 5.6, LOWER CACHE EFFICIENCY
+--echo # deprecated the "innodb_rwlock_*" counter growth for performance.
+--echo #    skip
 
 # Cleanup
 let $num= $max_con;

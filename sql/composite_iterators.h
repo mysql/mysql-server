@@ -1,7 +1,7 @@
 #ifndef SQL_COMPOSITE_ITERATORS_INCLUDED
 #define SQL_COMPOSITE_ITERATORS_INCLUDED
 
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
   SortingIterator is also a composite iterator, but is defined in its own file.
  */
 
+#include <assert.h>
 #include <stdio.h>
 
 #include <algorithm>
@@ -46,7 +47,7 @@
 
 #include "my_alloc.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_table_map.h"
 #include "prealloced_array.h"
 #include "sql/hash_join_buffer.h"
@@ -59,7 +60,7 @@ class FollowTailIterator;
 template <class T>
 class List;
 class JOIN;
-class SELECT_LEX;
+class Query_block;
 class SJ_TMP_TABLE;
 class THD;
 class Temp_table_param;
@@ -126,7 +127,7 @@ class LimitOffsetIterator final : public RowIterator {
         m_reject_multiple_rows(reject_multiple_rows),
         m_skipped_rows(skipped_rows) {
     if (count_all_rows) {
-      DBUG_ASSERT(m_skipped_rows != nullptr);
+      assert(m_skipped_rows != nullptr);
     }
   }
 
@@ -320,13 +321,13 @@ class NestedLoopIterator final : public RowIterator {
         m_source_inner(move(source_inner)),
         m_join_type(join_type),
         m_pfs_batch_mode(pfs_batch_mode) {
-    DBUG_ASSERT(m_source_outer != nullptr);
-    DBUG_ASSERT(m_source_inner != nullptr);
+    assert(m_source_outer != nullptr);
+    assert(m_source_inner != nullptr);
 
     // Batch mode makes no sense for anti- or semijoins, since they should only
     // be reading one row.
     if (join_type == JoinType::ANTI || join_type == JoinType::SEMI) {
-      DBUG_ASSERT(!pfs_batch_mode);
+      assert(!pfs_batch_mode);
     }
   }
 
@@ -434,7 +435,7 @@ class CacheInvalidatorIterator final : public RowIterator {
   actually write to the table; see StreamingIterator for details.
 
   MaterializeIterator conceptually materializes iterators, not JOINs or
-  SELECT_LEX_UNITs. However, there are many details that leak out
+  Query_expressions. However, there are many details that leak out
   (e.g., setting performance schema batch mode, slices, reusing CTEs,
   etc.), so we need to send them in anyway.
  */
@@ -496,7 +497,8 @@ class MaterializeIterator final : public TableRowIterator {
       after materialization.
     @param cte If materializing a CTE, points to it (see m_cte), otherwise
       nullptr.
-    @param unit The query expression we are materializing (see m_unit).
+    @param unit The query expression we are materializing (see
+    m_query_expression).
     @param join
       When materializing within the same JOIN (e.g., into a temporary table
       before sorting), as opposed to a derived table or a CTE, we may need
@@ -526,9 +528,9 @@ class MaterializeIterator final : public TableRowIterator {
                       Mem_root_array<QueryBlock> query_blocks_to_materialize,
                       TABLE *table,
                       unique_ptr_destroy_only<RowIterator> table_iterator,
-                      Common_table_expr *cte, SELECT_LEX_UNIT *unit, JOIN *join,
-                      int ref_slice, bool rematerialize, ha_rows limit_rows,
-                      bool reject_multiple_rows);
+                      Common_table_expr *cte, Query_expression *unit,
+                      JOIN *join, int ref_slice, bool rematerialize,
+                      ha_rows limit_rows, bool reject_multiple_rows);
 
   bool Init() override;
   int Read() override;
@@ -567,7 +569,7 @@ class MaterializeIterator final : public TableRowIterator {
   /// the unit when we rematerialize, since they depend on values from
   /// outside the query expression, and those values may have changed
   /// since last materialization.
-  SELECT_LEX_UNIT *m_unit;
+  Query_expression *m_query_expression;
 
   /// See constructor.
   JOIN *const m_join;

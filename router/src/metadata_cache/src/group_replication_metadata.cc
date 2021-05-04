@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -206,4 +206,23 @@ std::map<std::string, GroupReplicationMember> fetch_group_replication_members(
   }
 
   return members;
+}
+
+const char *to_string(GroupReplicationMember::State member_state) {
+  switch (member_state) {
+    case GroupReplicationMember::State::Online:
+      return "Online";
+    case GroupReplicationMember::State::Recovering:
+      return "Recovering";
+    case GroupReplicationMember::State::Unreachable:
+      return "Unreachable";
+    case GroupReplicationMember::State::Offline:
+      return "Offline";
+    case GroupReplicationMember::State::Error:
+      return "Error";
+    case GroupReplicationMember::State::Other:
+        /* fallthrough  */;
+  }
+
+  return "Other";
 }

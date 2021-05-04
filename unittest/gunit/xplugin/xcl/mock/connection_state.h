@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,9 @@ namespace mock {
 
 class XConnection_state : public xcl::XConnection::State {
  public:
+  XConnection_state();
+  virtual ~XConnection_state() override;
+
   MOCK_METHOD(bool, is_ssl_configured, (), (const, override));
   MOCK_METHOD(bool, is_ssl_activated, (), (const, override));
   MOCK_METHOD(bool, is_connected, (), (const, override));

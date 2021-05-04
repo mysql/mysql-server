@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -165,7 +165,7 @@ FUNCTION(_ADD_TEST_FILE FILE)
   ELSE()
     SET_TESTS_PROPERTIES(${test_name} PROPERTIES
       ENVIRONMENT
-      "${TEST_ENV_PREFIX};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};${TEST_ENVIRONMENT}")
+      "${TEST_ENV_PREFIX};LD_LIBRARY_PATH=$ENV{LD_LIBRARY_PATH};DYLD_LIBRARY_PATH=$ENV{DYLD_LIBRARY_PATH};TSAN_OPTIONS=suppressions=${CMAKE_SOURCE_DIR}/router/tsan.supp;${TEST_ENVIRONMENT}")
   ENDIF()
 ENDFUNCTION()
 

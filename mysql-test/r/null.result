@@ -273,7 +273,7 @@ t1	CREATE TABLE `t1` (
   `c11` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c12` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c13` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
-  `c14` char(0) CHARACTER SET latin2 DEFAULT NULL,
+  `c14` binary(0) DEFAULT NULL,
   `c15` binary(0) DEFAULT NULL,
   `c16` varchar(6) CHARACTER SET latin2 DEFAULT NULL,
   `c17` varchar(6) CHARACTER SET latin2 DEFAULT NULL,

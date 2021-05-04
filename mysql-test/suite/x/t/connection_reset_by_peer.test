@@ -6,7 +6,7 @@
 
 ## Test starts here
 
---let $xtest_file= $MYSQL_TMP_DIR/connection_reset_by_peer.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/connection_reset_by_peer.xpl
 --write_file $xtest_file
 -->quiet
 
@@ -35,6 +35,7 @@ DELIMITER ;
 
 
 -->wait_for 1	SELECT COUNT(*) FROM performance_schema.processlist WHERE user = 'x_root'
+-->wait_for 1	SELECT COUNT(*) FROM information_schema.processlist WHERE user = 'x_root'
 
 -->stmtadmin list_clients
 -->recvresult client_id user host
@@ -55,6 +56,4 @@ CREATE TABLE xtest.empty(a INT, b FLOAT);
 
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

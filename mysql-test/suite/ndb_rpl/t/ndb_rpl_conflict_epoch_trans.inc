@@ -958,11 +958,12 @@ eval select @epoch_trans2_diff_epoch:=
 --enable_result_log
 --enable_query_log
 
-select @primary_ok:=
+set @primary_ok:=
   ((@epoch_trans XOR
     @epoch_trans2_same_epoch) XOR
    @epoch_trans2_diff_epoch);
 
+select @primary_ok;
 let $primary_ok= query_get_value('select @primary_ok as v',v,1);
 
 if (!$primary_ok)
@@ -1032,10 +1033,11 @@ eval select @epoch_trans2_diff_epoch:=
 --enable_result_log
 --enable_query_log
 
-select @secondary_ok:=
+set @secondary_ok:=
   ((@epoch_trans XOR
     @epoch_trans2_same_epoch) XOR
    @epoch_trans2_diff_epoch);
+select @secondary_ok;
 
 let $secondary_ok= query_get_value('select @secondary_ok as v',v,1);
 
@@ -1258,11 +1260,12 @@ eval select @epoch2_trans:=
 --enable_query_log
 
 
-select @primary_ok:=
+set @primary_ok:=
   ((@epoch_trans_same_epoch XOR
     @epoch_trans_diff_epoch) XOR
    @epoch2_trans);
 
+select @primary_ok;
 let $primary_ok= query_get_value('select @primary_ok as v',v,1);
 
 if (!$primary_ok)
@@ -1322,10 +1325,11 @@ eval select @epoch2_trans:=
 --enable_result_log
 --enable_query_log
 
-select @secondary_ok:=
+set @secondary_ok:=
   ((@epoch_trans_same_epoch XOR
     @epoch_trans_diff_epoch) XOR
    @epoch2_trans);
+select @secondary_ok;
 
 let $secondary_ok= query_get_value('select @secondary_ok as v',v,1);
 

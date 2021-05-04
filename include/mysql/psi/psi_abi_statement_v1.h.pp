@@ -143,8 +143,8 @@ typedef void (*end_statement_v1_t)(struct PSI_statement_locker *locker,
                                    void *stmt_da);
 typedef PSI_prepared_stmt *(*create_prepared_stmt_v1_t)(
     void *identity, unsigned int stmt_id, PSI_statement_locker *locker,
-    const char *stmt_name, size_t stmt_name_length, const char *name,
-    size_t length);
+    const char *stmt_name, size_t stmt_name_length, const char *sql_text,
+    size_t sql_text_length);
 typedef void (*destroy_prepared_stmt_v1_t)(PSI_prepared_stmt *prepared_stmt);
 typedef void (*reprepare_prepared_stmt_v1_t)(PSI_prepared_stmt *prepared_stmt);
 typedef void (*execute_prepared_stmt_v1_t)(PSI_statement_locker *locker,

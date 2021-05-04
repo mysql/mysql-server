@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,9 +120,14 @@ ndb_socket_t ndb_socket_create_dual_stack(int type, int protocol)
   int on = 0;
 
   s.fd= socket(AF_INET6, type, protocol);
+
+  if (s.fd == -1)
+    return s;
+
   if (ndb_setsockopt(s, IPPROTO_IPV6, IPV6_V6ONLY,
                      (char *)&on, sizeof(on)) == -1)
   {
+    ndb_socket_close(s);
     ndb_socket_invalidate(&s);
   }
   return s;

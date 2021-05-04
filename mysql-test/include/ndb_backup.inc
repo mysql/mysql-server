@@ -1,9 +1,5 @@
-######################################################
-# By JBM 2006-02-16 So that the code is not repeated #
-# in test cases and can be reused.                   #
-######################################################
+# Start backup
 --exec $NDB_MGM -e "start backup" >> $NDB_TOOLS_OUTPUT
 
---disable_query_log
+# Load current backup id into "the_backup_id" variable
 --source include/ndb_backup_id.inc
---enable_query_log

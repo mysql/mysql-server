@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,7 @@ extern "C" int test_if_data_home_dir(const char *dir);
 
 bool stmt_causes_implicit_commit(const THD *thd, uint mask);
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern void turn_parser_debug_on();
 #endif
 

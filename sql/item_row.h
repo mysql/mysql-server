@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,7 +38,7 @@
 
 struct Parse_context;
 
-class SELECT_LEX;
+class Query_block;
 class Send_field;
 class String;
 class THD;
@@ -129,8 +129,8 @@ class Item_row : public Item {
   }
 
   bool fix_fields(THD *thd, Item **ref) override;
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   bool propagate_type(THD *thd, const Type_properties &type) override;
   void cleanup() override;
   void split_sum_func(THD *thd, Ref_item_array ref_item_array,

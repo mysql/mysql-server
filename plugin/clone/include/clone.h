@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,12 +99,6 @@ extern char *clone_client_ssl_certficate_authority;
 /** Number of storage engines supporting clone. */
 const uint MAX_CLONE_STORAGE_ENGINE = 16;
 
-/** Sleep time in microseconds between multiple failed attempts. */
-const uint CLONE_CONN_REATTEMPT_INTERVAL = 5 * 1000 * 1000;  // 5 sec
-
-/** Maximum number of connection retry during re-connect */
-const uint CLONE_MAX_CONN_RETRY = 60;  // 60 x 5 sec = 5 minutes
-
 /** Maximum number of restart attempts */
 const uint CLONE_MAX_RESTART = 100;
 
@@ -120,8 +114,14 @@ namespace myclone {
 /**  Clone protocol oldest version */
 const uint32_t CLONE_PROTOCOL_VERSION_V1 = 0x0100;
 
+/** Send also SO names along with plugin name */
+const uint32_t CLONE_PROTOCOL_VERSION_V2 = 0x0101;
+
+/** Send more configurations required by recipient. */
+const uint32_t CLONE_PROTOCOL_VERSION_V3 = 0x0102;
+
 /**  Clone protocol latest version */
-const uint32_t CLONE_PROTOCOL_VERSION = 0x0101;
+const uint32_t CLONE_PROTOCOL_VERSION = CLONE_PROTOCOL_VERSION_V3;
 
 /** Clone protocol commands. Please bump the protocol version before adding
 new command. */
@@ -172,6 +172,9 @@ typedef enum Type_Command_Response : uchar {
   /** Plugin with shared object name : introduced in version 0x0101 */
   COM_RES_PLUGIN_V2,
 
+  /** Additional configuration : introduced in version 0x0102 */
+  COM_RES_CONFIG_V3,
+
   /** End of response data */
   COM_RES_COMPLETE = 99,
 
@@ -211,7 +214,7 @@ struct Buffer {
   @return error if allocation fails. */
   int allocate(size_t length) {
     if (m_length >= length) {
-      DBUG_ASSERT(m_buffer != nullptr);
+      assert(m_buffer != nullptr);
       return (0);
     }
 
@@ -269,7 +272,7 @@ struct Data_Link {
   correct handle type.
   @return clone buffer */
   Buffer *get_buffer() {
-    DBUG_ASSERT(m_type == CLONE_HANDLE_BUFFER);
+    assert(m_type == CLONE_HANDLE_BUFFER);
     return (&m_buffer);
   }
 
@@ -287,7 +290,7 @@ struct Data_Link {
   correct handle type.
   @return clone file */
   File *get_file() {
-    DBUG_ASSERT(m_type == CLONE_HANDLE_FILE);
+    assert(m_type == CLONE_HANDLE_FILE);
     return (&m_file);
   }
 

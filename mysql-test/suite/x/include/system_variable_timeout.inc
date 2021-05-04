@@ -1,7 +1,7 @@
 ## Test body
 ##
 
---write_file $MYSQL_TMP_DIR/mysqlx-session-variable-timeout.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-session-variable-timeout.xpl
 -->import assert_variable.macro
 
 -->newsession power_user	%POWER_USER%
@@ -65,7 +65,7 @@ if ($is_session > 0)
     -v%REGULAR_USER%=$user_without_permissions
     -v%POWER_USER%=$user_with_permissions
     -v%TIMEOUT_VARIABLE%=$timeout_variable
-    --file $MYSQL_TMP_DIR/mysqlx-session-variable-timeout.tmp;
+    --file $MYSQL_TMP_DIR/mysqlx-session-variable-timeout.xpl;
 }
 
 ## Cleanup
@@ -76,4 +76,4 @@ if ($is_session > 0)
 
 eval SET @@GLOBAL.$timeout_variable=DEFAULT;
 
---remove_file $MYSQL_TMP_DIR/mysqlx-session-variable-timeout.tmp
+--remove_file $MYSQL_TMP_DIR/mysqlx-session-variable-timeout.xpl

@@ -155,7 +155,7 @@ WHERE VARIABLE_NAME='slave_allow_batching'
 into @tmp;
 --enable_warnings
 
-SELECT @@global.slave_allow_batching = @tmp;
+SELECT IF(@@global.slave_allow_batching,'ON','OFF') = @tmp;
 
 SELECT @@global.slave_allow_batching;
 

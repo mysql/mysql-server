@@ -7,7 +7,7 @@
 create schema xtest default charset 'utf8mb4';
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/find_table_find_rows_proj.tmp
+--write_file $MYSQL_TMP_DIR/find_table_find_rows_proj.xpl
 ## Test data
 -->sql
 use xtest;
@@ -96,9 +96,7 @@ Mysqlx.Crud.Find {
 -->recv
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/find_table_find_rows_proj.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/find_table_find_rows_proj.xpl 2>&1
 
 ## Cleanup
-drop schema if exists xtest;
---remove_file $MYSQL_TMP_DIR/find_table_find_rows_proj.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -178,6 +178,43 @@ STDX_NODISCARD
 bool wait_for_port_ready(
     uint16_t port, std::chrono::milliseconds timeout = kDefaultPortReadyTimeout,
     const std::string &hostname = "127.0.0.1");
+
+/** @brief Check if a given port is open / not used by any application.
+ *
+ * @param port TCP port that will be checked
+ *
+ * @returns true if the selected port is available, false otherwise
+ */
+STDX_NODISCARD
+bool is_port_available(const uint16_t port);
+
+/**
+ * Wait until the port is not available (is used by any application).
+ *
+ * @param port      TCP port number to check
+ * @param timeout   maximum timeout to wait for the port
+ *
+ * @return false if the port is still available after the timeout expiry,
+ *         true otherwise.
+ */
+STDX_NODISCARD
+bool wait_for_port_not_available(
+    const uint16_t port,
+    std::chrono::milliseconds timeout = std::chrono::seconds(10));
+
+/**
+ * Wait until the port is available (is not used by any application).
+ *
+ * @param port      TCP port number to check
+ * @param timeout   maximum timeout to wait for the port
+ *
+ * @return false if the port is still not available after the timeout expiry,
+ *         true otherwise.
+ */
+STDX_NODISCARD
+bool wait_for_port_available(
+    const uint16_t port,
+    std::chrono::milliseconds timeout = std::chrono::seconds(10));
 
 /** @brief Initializes keyring and adds keyring-related config items to
  * [DEFAULT] section

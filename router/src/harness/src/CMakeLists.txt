@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -251,6 +251,10 @@ ADD_LIBRARY(harness_tls SHARED
   tls_error.cc
   tls_server_context.cc
   )
+
+IF(TARGET copy_openssl_dlls)
+  ADD_DEPENDENCIES(harness_tls copy_openssl_dlls)
+ENDIF()
 
 ## the rpath for the bundled openssl
 ADD_INSTALL_RPATH_FOR_OPENSSL(harness_tls)

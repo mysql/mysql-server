@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -348,7 +348,7 @@ static bool is_too_big_for_json(size_t offset_or_size, bool large) {
 static enum_serialization_result append_key_entries(const Json_object *object,
                                                     String *dest, size_t offset,
                                                     bool large) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const std::string *prev_key = nullptr;
 #endif
 
@@ -358,7 +358,7 @@ static enum_serialization_result append_key_entries(const Json_object *object,
     const std::string *key = &it->first;
     size_t len = key->length();
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     // Check that the DOM returns the keys in the correct order.
     if (prev_key) {
       assert(prev_key->length() <= len);
@@ -1741,7 +1741,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
 
   if (inlined) {
     new_entry.length(value_entry_size(m_large));
-    Json_dom *dom = new_value->to_dom(field->table->in_use);
+    Json_dom *dom = new_value->to_dom(current_thd);
     if (dom == nullptr) return true; /* purecov: inspected */
     attempt_inline_value(dom, &new_entry, 0, m_large);
   } else {
@@ -1753,7 +1753,7 @@ bool Value::update_in_shadow(const Field_json *field, size_t pos,
     char *value_dest = destination + value_offset;
 
     StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
-    if (new_value->to_binary(field->table->in_use, &buffer))
+    if (new_value->to_binary(current_thd, &buffer))
       return true; /* purecov: inspected */
 
     assert(buffer.length() > 1);

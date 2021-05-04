@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,8 @@ namespace dd {
   @return true - on failure and error is reported.
   @return false - on success.
 */
-bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx) {
+template <bool use_pfs>
+bool Weak_object_impl_<use_pfs>::store(Open_dictionary_tables_ctx *otx) {
   DBUG_TRACE;
 
   DBUG_EXECUTE_IF("fail_while_storing_dd_object", {
@@ -68,7 +69,7 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx) {
 
   Raw_table *t = otx->get_table(obj_table.name());
 
-  DBUG_ASSERT(t);
+  assert(t);
 
   // Insert or update record.
 
@@ -90,7 +91,7 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx) {
     if (!obj_key.get()) {
       /* purecov: begin deadcode */
       LogErr(ERROR_LEVEL, ER_DD_CANT_GET_OBJECT_KEY);
-      DBUG_ASSERT(false);
+      assert(false);
       return true;
       /* purecov: end */
     }
@@ -172,7 +173,8 @@ bool Weak_object_impl::store(Open_dictionary_tables_ctx *otx) {
   @return true - on failure and error is reported.
   @return false - on success.
 */
-bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const {
+template <bool use_pfs>
+bool Weak_object_impl_<use_pfs>::drop(Open_dictionary_tables_ctx *otx) const {
   DBUG_TRACE;
 
   DBUG_EXECUTE_IF("fail_while_dropping_dd_object", {
@@ -186,7 +188,7 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const {
 
   Raw_table *t = otx->get_table(obj_table.name());
 
-  DBUG_ASSERT(t);
+  assert(t);
 
   // Find object to be dropped
 
@@ -198,7 +200,7 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const {
   if (!r.get()) {
     /* purecov: begin deadcode */
     LogErr(ERROR_LEVEL, ER_DD_CANT_CREATE_OBJECT_KEY);
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
     /* purecov: end */
   }
@@ -218,10 +220,11 @@ bool Weak_object_impl::drop(Open_dictionary_tables_ctx *otx) const {
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool Weak_object_impl::check_parent_consistency(Entity_object_impl *parent,
-                                                Object_id parent_id) const {
-  DBUG_ASSERT(parent);
-  DBUG_ASSERT(parent->id() == parent_id);
+template <bool use_pfs>
+bool Weak_object_impl_<use_pfs>::check_parent_consistency(
+    Entity_object_impl *parent, Object_id parent_id) const {
+  assert(parent);
+  assert(parent->id() == parent_id);
 
   if (!parent) {
     my_error(ER_INVALID_DD_OBJECT, MYF(0), this->object_table().name().c_str(),
@@ -242,3 +245,14 @@ bool Weak_object_impl::check_parent_consistency(Entity_object_impl *parent,
 ///////////////////////////////////////////////////////////////////////////
 
 }  // namespace dd
+
+template bool dd::Weak_object_impl_<true>::store(Open_dictionary_tables_ctx *);
+template bool dd::Weak_object_impl_<false>::store(Open_dictionary_tables_ctx *);
+template bool dd::Weak_object_impl_<true>::drop(
+    Open_dictionary_tables_ctx *) const;
+template bool dd::Weak_object_impl_<false>::drop(
+    Open_dictionary_tables_ctx *) const;
+template bool dd::Weak_object_impl_<true>::check_parent_consistency(
+    Entity_object_impl *, Object_id) const;
+template bool dd::Weak_object_impl_<false>::check_parent_consistency(
+    Entity_object_impl *, Object_id) const;

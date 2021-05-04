@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,9 @@ namespace mock {
 class Account_verification_handler
     : public iface::Account_verification_handler {
  public:
+  Account_verification_handler();
+  virtual ~Account_verification_handler() override;
+
   MOCK_METHOD(ngs::Error_code, authenticate,
               (const iface::Authentication &, iface::Authentication_info *,
                const std::string &),

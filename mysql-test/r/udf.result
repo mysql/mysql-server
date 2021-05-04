@@ -647,7 +647,7 @@ FROM t1 GROUP BY f1) as dt
 WHERE median != 1;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize
+    -> Materialize  (cost=*** rows=***)
         -> Filter: (my_median(t1.f2) <> 1)
             -> Group aggregate: my_median(t1.f2)
                 -> Sort: t1.f1  (cost=*** rows=***)

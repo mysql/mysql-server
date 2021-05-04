@@ -7,7 +7,7 @@
 ## Setup
 #
 
---write_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
+--write_file $MYSQL_TMP_DIR/try_login_using_memory.xpl
 -->import connection_auth_mechanism_memory_helpers.macro
 
 callmacro Login_ok	REQUIRED	plain	xuser_native	;
@@ -20,7 +20,7 @@ callmacro Login_ok	DISABLED	memory	xuser_cache2	;
 EOF
 
 --let $MYSQLXTEST=$MYSQLXTEST -uroot --ssl-cipher='AES256-SHA'
---let $login_with_no_pass= --file=$MYSQL_TMP_DIR/try_login_using_memory.tmp
+--let $login_with_no_pass= --file=$MYSQL_TMP_DIR/try_login_using_memory.xpl
 
 
 # Create and configure xuser_* accounts that use native, sha256 and
@@ -46,6 +46,5 @@ exec $MYSQLXTEST $login_with_no_pass 2>&1;
 #
 # Postamble
 #
---remove_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
-
+--source ../include/xplugin_cleanup.inc
 --source ../include/remove_mysql_accounts_for_xplugin_tests.inc

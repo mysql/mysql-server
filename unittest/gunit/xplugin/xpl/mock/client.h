@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,9 @@ namespace mock {
 
 class Client : public iface::Client {
  public:
+  Client();
+  virtual ~Client() override;
+
   MOCK_METHOD(Mutex &, get_session_exit_mutex, (), (override));
 
   MOCK_METHOD(const char *, client_id, (), (const, override));

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1390,11 +1390,9 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
     }//if
   }//for
 
-  ndb_mgm_configuration *p =
-    m_ctx.m_config.getClusterConfig();
   ndb_mgm_configuration_iterator *p_iter =
-    ndb_mgm_create_configuration_iterator(p, CFG_SECTION_NODE);
-
+    ndb_mgm_create_configuration_iterator(m_ctx.m_config.getClusterConfig(),
+                                          CFG_SECTION_NODE);
   for (ndb_mgm_first(p_iter);
        ndb_mgm_valid(p_iter);
        ndb_mgm_next(p_iter))
@@ -3081,12 +3079,10 @@ Dbtc::sendPoolShrink(const Uint32 pool_index)
   c_transient_pools_shrinking.set(pool_index);
   if (need_send)
   {
-    SignalT<2> signal2[1];
-    Signal* signal = new (&signal2[0]) Signal(0);
-    bzero(signal2, sizeof(signal2));
+    Signal25 signal[1] = {};
     signal->theData[0] = TcContinueB::ZSHRINK_TRANSIENT_POOLS;
     signal->theData[1] = pool_index;
-    sendSignal(cownref, GSN_CONTINUEB, (Signal*)signal, 2, JBB);
+    sendSignal(cownref, GSN_CONTINUEB, signal, 2, JBB);
   }
 }
 
@@ -15400,8 +15396,15 @@ bool Dbtc::sendScanFragReq(Signal* signal,
      * of queries involving a mix of FULLY_REPLICATED tables and tables
      * with normal partitioning.
      */
-    Uint32 *fragIds = &signal->theData[25]; // temp storage
-    *(fragIds++) = scanFragP.p->lqhScanFragId;
+    Uint32 fragIdPtrI = RNIL;
+    if (unlikely(!appendToSection(fragIdPtrI, &fragId, 1)))
+    {
+      jam();
+      releaseSection(fragIdPtrI);
+      sections.clear();
+      scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+      return false;
+    }
 
     /**
      * The fragLocations are sorted on primaryBlockRef. 
@@ -15409,7 +15412,6 @@ bool Dbtc::sendScanFragReq(Signal* signal,
      * Use preferredBlockRef to decide which SPJ to place
      * this SCAN_FRAGREQ.
      */
-
     while (fragLocationPtr.p != NULL)
     {
       Uint32 thisPrimaryLqhBlockRef;
@@ -15426,7 +15428,16 @@ bool Dbtc::sendScanFragReq(Signal* signal,
         break;
       }
       ndbrequire(preferredLqhBlockRef == scanFragP.p->lqhBlockref);
-      *(fragIds++) = fragId;
+      if ((ERROR_INSERTED(8116)) ||
+          (ERROR_INSERTED(8117) && (rand() % 3) == 0) ||
+          unlikely(!appendToSection(fragIdPtrI, &fragId, 1)))
+      {
+        jam();
+        releaseSection(fragIdPtrI);
+        sections.clear();
+        scanError(signal, scanptr, ZGET_DATAREC_ERROR);
+        return false;
+      }
       scanP->scanNextFragId++;
       get_and_step_next_frag_location(fragLocationPtr,
                                       scanptr.p,
@@ -15435,20 +15446,7 @@ bool Dbtc::sendScanFragReq(Signal* signal,
                                       thisPreferredLqhBlockRef);
     }
     jam();
-
-    Ptr<SectionSegment> fragIdPtr;
-    const Uint32 length = (fragIds-&signal->theData[25]);
-
-    if ((ERROR_INSERTED(8116)) ||
-        (ERROR_INSERTED(8117) && (rand() % 3) == 0) ||
-	 !import(fragIdPtr, &signal->theData[25], length))
-    { 
-      jam();
-      sections.clear();
-      scanError(signal, scanptr, ZGET_DATAREC_ERROR);
-      return false;
-    }
-    sections.m_ptr[sections.m_cnt++].i = fragIdPtr.i;
+    sections.m_ptr[sections.m_cnt++].i = fragIdPtrI;
   } //MultiFrag
 
   /* Determine whether this is the last scanFragReq.

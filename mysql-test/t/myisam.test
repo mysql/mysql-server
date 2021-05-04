@@ -486,6 +486,7 @@ insert into t2 values (1),(2);
 select sql_big_result distinct t1.a from t1,t2 order by t2.a;
 FLUSH STATUS;
 select distinct t1.a from t1,t2 order by t2.a;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 select sql_big_result distinct t1.a from t1,t2;
 explain select sql_big_result distinct t1.a from t1,t2 order by t2.a;

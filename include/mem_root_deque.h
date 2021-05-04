@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -250,12 +250,26 @@ class mem_root_deque {
   }
 
   /// Returns the first element in the deque.
-  Element_type &front() { return get(m_begin_idx); }
-  const Element_type &front() const { return get(m_begin_idx); }
+  Element_type &front() {
+    assert(!empty());
+    return get(m_begin_idx);
+  }
+
+  const Element_type &front() const {
+    assert(!empty());
+    return get(m_begin_idx);
+  }
 
   /// Returns the last element in the deque.
-  Element_type &back() { return get(m_end_idx - 1); }
-  const Element_type &back() const { return get(m_end_idx - 1); }
+  Element_type &back() {
+    assert(!empty());
+    return get(m_end_idx - 1);
+  }
+
+  const Element_type &back() const {
+    assert(!empty());
+    return get(m_end_idx - 1);
+  }
 
   /// Removes all elements from the deque. Destructors are called,
   /// but since the elements themselves are allocated on the MEM_ROOT,

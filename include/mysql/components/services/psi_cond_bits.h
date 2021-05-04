@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -124,13 +124,13 @@ struct PSI_cond_locker_state_v1 {
   /** Current mutex. */
   struct PSI_mutex *m_mutex;
   /** Current thread. */
-  struct PSI_thread *m_thread;
+  struct PSI_thread *m_thread{nullptr};
   /** Timer start. */
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0ULL};
   /** Timer function. */
   unsigned long long (*m_timer)(void);
   /** Internal data. */
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state_v1;
 
@@ -174,6 +174,7 @@ typedef void (*broadcast_cond_v1_t)(struct PSI_cond *cond);
   Record a condition instrumentation wait start event.
   @param state data storage for the locker
   @param cond the instrumented cond to lock
+  @param mutex the instrumented mutex associated with the condition
   @param op the operation to perform
   @param src_file the source file name
   @param src_line the source line number

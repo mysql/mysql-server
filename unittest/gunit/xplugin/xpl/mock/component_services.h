@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,11 @@
 #ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SERVICES_H_
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_COMPONENT_SERVICES_H_
 
+#include <assert.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_dbug.h"  // NOLINT(build/include_subdir)
+// NOLINT(build/include_subdir)
 #include "mysql/components/services/mysql_admin_session.h"
 #include "mysql/service_plugin_registry.h"
 
@@ -38,11 +39,8 @@ namespace mock {
 
 class Mysql_plugin_registry {
  public:
-  Mysql_plugin_registry() {
-    DBUG_ASSERT(nullptr == m_mysql_plugin_registry);
-    m_mysql_plugin_registry = this;
-  }
-  ~Mysql_plugin_registry() { m_mysql_plugin_registry = nullptr; }
+  Mysql_plugin_registry();
+  ~Mysql_plugin_registry();
 
   MOCK_METHOD(int, mysql_plugin_registry_release, (SERVICE_TYPE(registry) *));
   MOCK_METHOD(SERVICE_TYPE(registry) *, mysql_plugin_registry_acquire, ());
@@ -52,11 +50,8 @@ class Mysql_plugin_registry {
 
 class Service_registry {
  public:
-  Service_registry() {
-    DBUG_ASSERT(m_this == nullptr);
-    m_this = this;
-  }
-  ~Service_registry() { m_this = nullptr; }
+  Service_registry();
+  ~Service_registry();
 
   MOCK_METHOD2(acquire, mysql_service_status_t(const char *service_name,
                                                my_h_service *out_service));
@@ -85,11 +80,8 @@ class Service_registry {
 
 class Service_admin_session {
  public:
-  Service_admin_session() {
-    DBUG_ASSERT(m_this == nullptr);
-    m_this = this;
-  }
-  ~Service_admin_session() { m_this = nullptr; }
+  Service_admin_session();
+  ~Service_admin_session();
 
   MOCK_METHOD(MYSQL_SESSION, open, (srv_session_error_cb, void *));
   SERVICE_TYPE_NO_CONST(mysql_admin_session) * get() {

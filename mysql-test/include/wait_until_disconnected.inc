@@ -11,7 +11,7 @@ if ($disconnect_timeout)
 let $mysql_errno= 0;
 while (!$mysql_errno)
 {
-  --error 0,1040,1053,2002,2003,2006,2013,2016,2017
+  --error 0,1040,1053,2002,2003,2006,2013,2016,2017,ER_CLIENT_INTERACTION_TIMEOUT
   show session status;
 
   dec $counter;

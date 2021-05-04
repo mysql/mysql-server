@@ -21,8 +21,8 @@
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
---let $assert_text= 'Expect 0 persisted variables.'
---let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 0
+--let $assert_text= 'Expect 1 persisted variables.'
+--let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = 1
 --source include/assert.inc
 
 

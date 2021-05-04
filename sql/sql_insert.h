@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,10 @@
 #ifndef SQL_INSERT_INCLUDED
 #define SQL_INSERT_INCLUDED
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"
 #include "sql/current_thd.h"
@@ -39,7 +39,7 @@
 class Alter_info;
 class Field;
 class Item;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class THD;
 struct HA_CREATE_INFO;
 struct handlerton;
@@ -136,15 +136,15 @@ are found inside the COPY_INFO.
              (target_columns == nullptr || !target_columns->empty()), duplic),
         update(COPY_INFO::UPDATE_OPERATION, update_fields, update_values),
         insert_into_view(table_list_par && table_list_par->is_view()) {
-    DBUG_ASSERT(target_or_source_columns != nullptr);
-    DBUG_ASSERT(target_columns == target_or_source_columns ||
-                target_columns == nullptr);
+    assert(target_or_source_columns != nullptr);
+    assert(target_columns == target_or_source_columns ||
+           target_columns == nullptr);
   }
 
  public:
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   bool start_execution(THD *thd) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   virtual void store_values(THD *thd, const mem_root_deque<Item *> &values);
@@ -190,16 +190,17 @@ class Query_result_create final : public Query_result_insert {
   handlerton *m_post_ddl_ht{nullptr};
 
  public:
-  Query_result_create(TABLE_LIST *table_arg, mem_root_deque<Item *> *fields,
-                      enum_duplicates duplic, TABLE_LIST *select_tables_arg);
+  Query_result_create(TABLE_LIST *create_table_arg,
+                      mem_root_deque<Item *> *fields, enum_duplicates duplic,
+                      TABLE_LIST *select_tables_arg);
 
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   void store_values(THD *thd, const mem_root_deque<Item *> &values) override;
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool send_eof(THD *thd) override;
   void abort_result_set(THD *thd) override;
-  bool create_table_for_select(THD *thd) override;
+  bool create_table_for_query_block(THD *thd) override;
   bool start_execution(THD *thd) override;
   void set_two_fields(HA_CREATE_INFO *create_info_arg,
                       Alter_info *alter_info_arg) {
@@ -229,6 +230,8 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
   bool resolve_update_expressions(THD *thd);
   bool prepare_values_table(THD *thd);
   bool resolve_values_table_columns(THD *thd);
+  bool get_default_columns(THD *thd, TABLE *table,
+                           MY_BITMAP **m_function_default_columns);
 
  protected:
   /// true when REPLACE statement, false when INSERT statement
@@ -300,8 +303,6 @@ class Sql_cmd_insert_base : public Sql_cmd_dml {
         values_field_list(*THR_MALLOC),
         duplicates(duplicates_arg) {}
 
-  void cleanup(THD *) override {}
-
   bool accept(THD *thd, Select_lex_visitor *visitor) override;
 };
 
@@ -338,6 +339,7 @@ class Sql_cmd_insert_select : public Sql_cmd_insert_base {
   enum_sql_command sql_command_code() const override {
     return is_replace ? SQLCOM_REPLACE_SELECT : SQLCOM_INSERT_SELECT;
   }
+  const MYSQL_LEX_CSTRING *eligible_secondary_storage_engine() const override;
 };
 
 #endif /* SQL_INSERT_INCLUDED */

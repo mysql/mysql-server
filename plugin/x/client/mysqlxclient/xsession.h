@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -340,6 +340,12 @@ class XSession {
       Option type: INTEGER
      */
     Compression_level_client,
+    /** The client can read responses while pipelining multiple requests.
+
+      Default: 64k
+      Option type: INTEGER
+     */
+    Buffer_recevie_size
   };
 
  public:

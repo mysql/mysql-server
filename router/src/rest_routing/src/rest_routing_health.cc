@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -63,14 +63,15 @@ bool RestRoutingHealth::on_handle_request(
 #endif
 
   rapidjson::Document json_doc;
-  const bool dest_list_empty = inst.get_destinations().empty();
+  const bool is_alive =
+      inst.is_accepting_connections() && !inst.get_destinations().empty();
   {
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
-    json_doc.SetObject().AddMember("isAlive", !dest_list_empty, allocator);
+    json_doc.SetObject().AddMember("isAlive", is_alive, allocator);
   }
   const auto code =
-      dest_list_empty ? HttpStatusCode::InternalError : HttpStatusCode::Ok;
+      is_alive ? HttpStatusCode::Ok : HttpStatusCode::InternalError;
   send_json_document(req, code, json_doc);
 
   return true;

@@ -4071,7 +4071,7 @@ EXPLAIN
         -> Filter: ((t3.a = `<materialized_subquery>`.kp1))
             -> Limit: 1 row(s)
                 -> Index lookup on <materialized_subquery> using <auto_distinct_key> (kp1=t3.a)
-                    -> Materialize with deduplication  (cost=38.66 rows=48)
+                    -> Materialize with deduplication  (cost=43.46..43.46 rows=48)
                         -> Nested loop inner join  (cost=38.66 rows=48)
                             -> Filter: ((t1.kp1 < 20) and (t1.c is not null))  (cost=21.86 rows=48)
                                 -> Index range scan on t1 using kp1  (cost=21.86 rows=48)
@@ -12576,7 +12576,7 @@ EXPLAIN
             -> Filter: ((t4.col_int_key = `<materialized_subquery>`.col_int_key))
                 -> Limit: 1 row(s)
                     -> Index lookup on <materialized_subquery> using <auto_distinct_key> (col_int_key=t4.col_int_key)
-                        -> Materialize with deduplication  (cost=3.40 rows=7)
+                        -> Materialize with deduplication  (cost=4.10..4.10 rows=7)
                             -> Filter: (t3.col_int is null)  (cost=3.40 rows=7)
                                 -> Nested loop left join  (cost=3.40 rows=7)
                                     -> Index scan on t1 using col_int_key  (cost=0.95 rows=7)
@@ -12636,7 +12636,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	NULL
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using join buffer (hash join)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`tv`.`field1` AS `field1` from `test`.`tv` where <in_optimizer>(`test`.`tv`.`field1`,`test`.`tv`.`field1` in ( <materialize> (/* select#2 */ select `test`.`t1`.`var_255_utf8` from `test`.`t1` left join (`test`.`t1`) on((convert(`test`.`t1`.`var_10_latin1` using utf8) = `test`.`t1`.`var_10_utf8`)) where true ), <primary_index_lookup>(`test`.`tv`.`field1` in <temporary table> on <auto_distinct_key> where ((`test`.`tv`.`field1` = `<materialized_subquery>`.`var_255_utf8`)))))
+Note	1003	/* select#1 */ select `test`.`tv`.`field1` AS `field1` from `test`.`tv` where <in_optimizer>(`test`.`tv`.`field1`,`test`.`tv`.`field1` in ( <materialize> (/* select#2 */ select `test`.`t1`.`var_255_utf8` from `test`.`t1` left join (`test`.`t1`) on((`test`.`t1`.`var_10_latin1` = `test`.`t1`.`var_10_utf8`)) where true ), <primary_index_lookup>(`test`.`tv`.`field1` in <temporary table> on <auto_distinct_key> where ((`test`.`tv`.`field1` = `<materialized_subquery>`.`var_255_utf8`)))))
 SELECT * FROM tv
 WHERE field1 IN (
 SELECT tv1.var_255_utf8

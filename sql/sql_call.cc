@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,6 +24,7 @@
 
 #include "sql/sql_call.h"
 
+#include <assert.h>
 #include <limits.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -32,7 +33,7 @@
 
 #include "lex_string.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/plugin_audit.h"
@@ -104,7 +105,7 @@ bool Sql_cmd_call::check_privileges(THD *thd) {
     }
   }
   thd->want_privilege = SELECT_ACL;
-  if (lex->select_lex->check_privileges_for_subqueries(thd)) {
+  if (lex->query_block->check_privileges_for_subqueries(thd)) {
     return true;
   }
 
@@ -114,7 +115,7 @@ bool Sql_cmd_call::check_privileges(THD *thd) {
 bool Sql_cmd_call::prepare_inner(THD *thd) {
   // All required SPs should be in cache so no need to look into DB.
 
-  SELECT_LEX *const select = lex->select_lex;
+  Query_block *const select = lex->query_block;
 
   sp_head *sp = sp_find_routine(thd, enum_sp_type::PROCEDURE, proc_name,
                                 &thd->sp_proc_cache, true);
@@ -167,7 +168,7 @@ bool Sql_cmd_call::prepare_inner(THD *thd) {
             return true;
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
     arg_no++;
@@ -238,7 +239,7 @@ bool Sql_cmd_call::execute_inner(THD *thd) {
   thd->server_status &= ~bits_to_be_cleared;
 
   if (result) {
-    DBUG_ASSERT(thd->is_error() || thd->killed);
+    assert(thd->is_error() || thd->killed);
     return true;  // Substatement should already have sent error
   }
 

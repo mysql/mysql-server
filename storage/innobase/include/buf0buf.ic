@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -433,6 +433,7 @@ void buf_page_set_flush_type(buf_page_t *bpage,      /*!< in: buffer page */
                              buf_flush_t flush_type) /*!< in: flush type */
 {
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+  ut_ad(mutex_own(&buf_pool_from_bpage(bpage)->flush_state_mutex));
   bpage->flush_type = flush_type;
   ut_ad(buf_page_get_flush_type(bpage) == flush_type);
 }
@@ -452,33 +453,7 @@ UNIV_INLINE
 enum buf_io_fix buf_page_get_io_fix(
     const buf_page_t *bpage) /*!< in: pointer to the control block */
 {
-  ut_ad(mutex_own(buf_page_get_mutex(bpage)));
-  return buf_page_get_io_fix_unlocked(bpage);
-}
-
-/** Gets the io_fix state of a buffer page. Does not assert that the
-buf_page_get_mutex() mutex is held, to be used in the cases where it is safe
-not to hold it.
-@param[in]	bpage	pointer to the buffer page
-@return page io_fix state */
-UNIV_INLINE
-enum buf_io_fix buf_page_get_io_fix_unlocked(const buf_page_t *bpage) {
-  ut_ad(bpage != nullptr);
-
-  enum buf_io_fix io_fix = bpage->io_fix;
-
-#ifdef UNIV_DEBUG
-  switch (io_fix) {
-    case BUF_IO_NONE:
-    case BUF_IO_READ:
-    case BUF_IO_WRITE:
-    case BUF_IO_PIN:
-      return (io_fix);
-  }
-  ut_error;
-#else  /* UNIV_DEBUG */
-  return (io_fix);
-#endif /* UNIV_DEBUG */
+  return bpage->get_io_fix();
 }
 
 /** Gets the io_fix state of a block.
@@ -490,24 +465,13 @@ enum buf_io_fix buf_block_get_io_fix(
   return (buf_page_get_io_fix(&block->page));
 }
 
-/** Gets the io_fix state of a buffer block. Does not assert that the
-buf_page_get_mutex() mutex is held, to be used in the cases where it is safe
-not to hold it.
-@param[in]	block	pointer to the buffer block
-@return page io_fix state */
-UNIV_INLINE
-enum buf_io_fix buf_block_get_io_fix_unlocked(const buf_block_t *block) {
-  return (buf_page_get_io_fix_unlocked(&block->page));
-}
-
 /** Sets the io_fix state of a block. */
 UNIV_INLINE
 void buf_page_set_io_fix(buf_page_t *bpage,      /*!< in/out: control block */
                          enum buf_io_fix io_fix) /*!< in: io_fix state */
 {
-  ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+  bpage->set_io_fix(io_fix);
 
-  bpage->io_fix = io_fix;
   ut_ad(buf_page_get_io_fix(bpage) == io_fix);
 }
 
@@ -538,8 +502,7 @@ void buf_page_set_sticky(buf_page_t *bpage) {
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
   ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_NONE);
   ut_ad(bpage->in_LRU_list);
-
-  bpage->io_fix = BUF_IO_PIN;
+  bpage->set_io_fix(BUF_IO_PIN);
 }
 
 /** Removes stickiness of a block. */
@@ -548,8 +511,7 @@ void buf_page_unset_sticky(buf_page_t *bpage) /*!< in/out: control block */
 {
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
   ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_PIN);
-
-  bpage->io_fix = BUF_IO_NONE;
+  bpage->set_io_fix(BUF_IO_NONE);
 }
 
 /** Determine if a buffer block can be relocated in memory.  The block
@@ -1053,6 +1015,7 @@ unlock_and_exit:
   if (mode == RW_LOCK_S) {
     rw_lock_s_unlock(hash_lock);
   } else {
+    ut_ad(mode == RW_LOCK_X);
     rw_lock_x_unlock(hash_lock);
   }
 exit:
@@ -1094,10 +1057,11 @@ buf_block_t *buf_block_hash_get_locked(buf_pool_t *buf_pool,
       if (lock_mode == RW_LOCK_S) {
         rw_lock_s_unlock(*lock);
       } else {
+        ut_ad(lock_mode == RW_LOCK_X);
         rw_lock_x_unlock(*lock);
       }
+      *lock = nullptr;
     }
-    *lock = nullptr;
     return (nullptr);
   }
 

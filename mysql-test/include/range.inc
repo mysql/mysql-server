@@ -88,7 +88,7 @@ INSERT INTO t1 VALUES (1,0,0), (3,1,1), (4,1,1), (8,2,2), (9,2,2), (17,3,2),
 (15,2,2), (6,1,1), (34,6,2), (35,6,2), (16,3,2), (7,1,1), (36,7,2), (18,3,2),
 (26,5,2), (27,5,2), (183,4,2), (38,7,2), (25,5,2), (37,7,2), (21,4,2),
 (19,3,2), (5,1,1), (179,5,2);
-SELECT * FROM t1 WHERE level = 1 AND parent_id = 1;
+SELECT * FROM t1 WHERE level = 1 AND parent_id = 1 order by id;
 # The following select returned 0 rows in 3.23.8
 SELECT * FROM t1 WHERE level = 1 AND parent_id = 1 order by id;
 drop table t1;
@@ -401,12 +401,16 @@ select count(*) from t1;
 select count(*) from t2;
 
 analyze table t1,t2;
-
+--disable_warnings
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid > 0;
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
+--replace_column 3 # 9 # 10 28 11 100.00
 explain select * from t1, t2  where t1.uid=t2.uid AND t2.uid != 0;
-
+--enable_warnings
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid > 0;
 select * from t1, t2  where t1.uid=t2.uid AND t1.uid != 0;
 
@@ -1861,11 +1865,12 @@ WHERE ( table1.pk > 226 AND
         ) 
       )
 ;
-
-ALTER TABLE t1 DISABLE KEYS;
+SET UNIQUE_CHECKS = 0;
+SET FOREIGN_KEY_CHECKS = 0;
 sorted_result;
 eval $query;
-ALTER TABLE t1 ENABLE KEYS;
+SET FOREIGN_KEY_CHECKS = 1;
+SET UNIQUE_CHECKS = 1;
 
 eval CREATE TABLE t2 $query;
 
@@ -2500,9 +2505,9 @@ ANALYZE TABLE t1;
 --enable_query_log
 --enable_result_log
 
-Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(128);
-Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(128);
-Let query3= SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(128);
+Let query1= SELECT * FROM t1 WHERE t1.v1 < CHAR(127);
+Let query2= SELECT * FROM t1 WHERE t1.v1 = CHAR(127);
+Let query3= SELECT * FROM t1 WHERE t1.v1 BETWEEN 'f' AND CHAR(127);
 
 eval EXPLAIN $query1;
 eval EXPLAIN $query2;
@@ -3051,6 +3056,7 @@ DROP TABLE test_ref;
 
 CREATE TABLE t(f1 INTEGER key, f2 INTEGER)ENGINE=INNODB;
 INSERT INTO t VALUES(0,0);
+ANALYZE TABLE t;
 
 # Test if adjacent ranges when rounded off to the same value by range
 # optimizer return correct results. Note that range scan is not chosen as the

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -91,8 +91,8 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("x: '%s'  lib: %p", x, typelib));
 
-  DBUG_ASSERT(!(flags & ~(FIND_TYPE_NO_PREFIX | FIND_TYPE_ALLOW_NUMBER |
-                          FIND_TYPE_NO_OVERWRITE | FIND_TYPE_COMMA_TERM)));
+  assert(!(flags & ~(FIND_TYPE_NO_PREFIX | FIND_TYPE_ALLOW_NUMBER |
+                     FIND_TYPE_NO_OVERWRITE | FIND_TYPE_COMMA_TERM)));
   if (!typelib->count) {
     DBUG_PRINT("exit", ("no count"));
     return 0;

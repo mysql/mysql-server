@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -193,7 +193,7 @@ enum_field_types dd_get_old_field_type(dd::enum_column_types type) {
       return MYSQL_TYPE_JSON;
 
     default:
-      DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
+      assert(!"Should not hit here"); /* purecov: deadcode */
   }
 
   return MYSQL_TYPE_LONG;
@@ -219,7 +219,7 @@ static enum ha_key_alg dd_get_old_index_algorithm_type(
       return HA_KEY_ALG_FULLTEXT;
 
     default:
-      DBUG_ASSERT(!"Should not hit here"); /* purecov: deadcode */
+      assert(!"Should not hit here"); /* purecov: deadcode */
   }
 
   return HA_KEY_ALG_SE_SPECIFIC;
@@ -331,10 +331,10 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
       keyinfo->name = share->keynames.type_names[key];
 
       /* Check that fulltext and spatial keys have correct algorithm set. */
-      DBUG_ASSERT(!(share->key_info[key].flags & HA_FULLTEXT) ||
-                  share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT);
-      DBUG_ASSERT(!(share->key_info[key].flags & HA_SPATIAL) ||
-                  share->key_info[key].algorithm == HA_KEY_ALG_RTREE);
+      assert(!(share->key_info[key].flags & HA_FULLTEXT) ||
+             share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT);
+      assert(!(share->key_info[key].flags & HA_SPATIAL) ||
+             share->key_info[key].algorithm == HA_KEY_ALG_RTREE);
 
       if (primary_key >= MAX_KEY && (keyinfo->flags & HA_NOSAME)) {
         /*
@@ -355,7 +355,7 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
           Check that dd::Index::is_candidate_key() used by SEs works in
           the same way as above call to is_suitable_for_primary_key().
         */
-        DBUG_ASSERT((primary_key == key) == (*idx_it)->is_candidate_key());
+        assert((primary_key == key) == (*idx_it)->is_candidate_key());
       }
 
       dd::Index::Index_elements::const_iterator idx_el_it(
@@ -443,9 +443,8 @@ static bool prepare_share(THD *thd, TABLE_SHARE *share,
           Check that dd::Index_element::is_prefix() used by SEs works in
           the same way as code which sets HA_PART_KEY_SEG flag.
         */
-        DBUG_ASSERT(
-            (*idx_el_it)->is_prefix() ==
-            static_cast<bool>(key_part->key_part_flag & HA_PART_KEY_SEG));
+        assert((*idx_el_it)->is_prefix() ==
+               static_cast<bool>(key_part->key_part_flag & HA_PART_KEY_SEG));
         ++idx_el_it;
       }
 
@@ -569,7 +568,7 @@ static row_type dd_get_old_row_format(dd::Table::enum_row_format new_format) {
     case dd::Table::RF_PAGED:
       return ROW_TYPE_PAGED;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
       break;
   }
   return ROW_TYPE_FIXED;
@@ -587,7 +586,7 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   } else {
     // If no secondary storage engine is set, the share cannot
     // represent a table in a secondary engine.
-    DBUG_ASSERT(!share->is_secondary_engine());
+    assert(!share->is_secondary_engine());
   }
 
   // Read table engine type
@@ -597,12 +596,12 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
 
   plugin_ref tmp_plugin = ha_resolve_by_name_raw(thd, engine_name);
   if (tmp_plugin) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     handlerton *hton = plugin_data<handlerton *>(tmp_plugin);
 #endif
 
-    DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
-    DBUG_ASSERT(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
+    assert(hton && ha_storage_engine_is_enabled(hton));
+    assert(!ha_check_storage_engine_flag(hton, HTON_NOT_USER_SELECTABLE));
 
     plugin_unlock(nullptr, share->db_plugin);
     share->db_plugin = my_plugin_lock(nullptr, &tmp_plugin);
@@ -612,7 +611,7 @@ static bool fill_share_from_dd(THD *thd, TABLE_SHARE *share,
   }
 
   // Set temporarily a good value for db_low_byte_first.
-  DBUG_ASSERT(ha_legacy_type(share->db_type()) != DB_TYPE_ISAM);
+  assert(ha_legacy_type(share->db_type()) != DB_TYPE_ISAM);
   share->db_low_byte_first = true;
 
   // Read other table options
@@ -787,12 +786,11 @@ inline void get_auto_flags(const dd::Column &col_obj, uint &auto_flags) {
       // "CURRENT_TIMESTAP(<integer>)". Stored functions with names
       // starting with "CURRENT_TIMESTAMP" should be filtered out before
       // we get here.
-      DBUG_ASSERT(
-          col_obj.default_option().size() == 17 ||
-          (col_obj.default_option().size() >= 20 &&
-           col_obj.default_option()[17] == '(' &&
-           col_obj.default_option()[col_obj.default_option().size() - 1] ==
-               ')'));
+      assert(col_obj.default_option().size() == 17 ||
+             (col_obj.default_option().size() >= 20 &&
+              col_obj.default_option()[17] == '(' &&
+              col_obj.default_option()[col_obj.default_option().size() - 1] ==
+                  ')'));
 
       auto_flags |= Field::DEFAULT_NOW;
     } else {
@@ -812,9 +810,9 @@ inline void get_auto_flags(const dd::Column &col_obj, uint &auto_flags) {
     Columns can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at
     the same time.
   */
-  DBUG_ASSERT(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
-                               Field::GENERATED_FROM_EXPRESSION)) != 0 &&
-                (auto_flags & Field::NEXT_NUMBER) != 0));
+  assert(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
+                          Field::GENERATED_FROM_EXPRESSION)) != 0 &&
+           (auto_flags & Field::NEXT_NUMBER) != 0));
 }
 
 static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
@@ -865,14 +863,14 @@ static Field *make_field(const dd::Column &col_obj, const CHARSET_INFO *charset,
   // Column name
   char *name = nullptr;
   dd::String_type s = col_obj.name();
-  DBUG_ASSERT(!s.empty());
+  assert(!s.empty());
   name = strmake_root(&share->mem_root, s.c_str(), s.length());
   name[s.length()] = '\0';
 
   uint decimals;
   // Decimals
   if (field_type == MYSQL_TYPE_DECIMAL || field_type == MYSQL_TYPE_NEWDECIMAL) {
-    DBUG_ASSERT(col_obj.is_numeric_scale_null() == false);
+    assert(col_obj.is_numeric_scale_null() == false);
     decimals = col_obj.numeric_scale();
   } else if (field_type == MYSQL_TYPE_FLOAT ||
              field_type == MYSQL_TYPE_DOUBLE) {
@@ -923,7 +921,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Column name
   dd::String_type s = col_obj->name();
-  DBUG_ASSERT(!s.empty());
+  assert(!s.empty());
   name = strmake_root(&share->mem_root, s.c_str(), s.length());
   name[s.length()] = '\0';
 
@@ -952,7 +950,7 @@ static bool fill_column_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Decimals
   if (field_type == MYSQL_TYPE_DECIMAL || field_type == MYSQL_TYPE_NEWDECIMAL)
-    DBUG_ASSERT(col_obj->is_numeric_scale_null() == false);
+    assert(col_obj->is_numeric_scale_null() == false);
 
   // Read geometry sub type
   if (field_type == MYSQL_TYPE_GEOMETRY) {
@@ -1210,10 +1208,9 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
   }
 
   // Make sure the scan of the columns is consistent with other data.
-  DBUG_ASSERT(share->null_bytes ==
-              (null_pos - null_flags + (null_bit_pos + 7) / 8));
-  DBUG_ASSERT(share->last_null_bit_pos == null_bit_pos);
-  DBUG_ASSERT(share->fields == field_nr);
+  assert(share->null_bytes == (null_pos - null_flags + (null_bit_pos + 7) / 8));
+  assert(share->last_null_bit_pos == null_bit_pos);
+  assert(share->fields == field_nr);
 
   return (false);
 }
@@ -1233,7 +1230,7 @@ static void fill_index_element_from_dd(TABLE_SHARE *share,
   keypart->fieldnr = idx_elem_obj->column().ordinal_position();
 
   // field
-  DBUG_ASSERT(keypart->fieldnr > 0);
+  assert(keypart->fieldnr > 0);
   Field *field = keypart->field = share->field[keypart->fieldnr - 1];
 
   // offset
@@ -1334,7 +1331,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
       keyinfo->flags = HA_NOSAME;
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
       keyinfo->flags = 0;
       break;
   }
@@ -1368,7 +1365,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   */
   uint32 stored_flags = 0;
   idx_options.get("flags", &stored_flags);
-  DBUG_ASSERT((stored_flags & ~(HA_PACK_KEY | HA_BINARY_PACK_KEY)) == 0);
+  assert((stored_flags & ~(HA_PACK_KEY | HA_BINARY_PACK_KEY)) == 0);
 
   //  Beginning in 8.0.12 HA_PACK_KEY and HA_BINARY_PACK_KEY are no longer set
   //  if the SE does not support it. If the index was created prior to 8.0.12
@@ -1394,7 +1391,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   if (idx_options.exists("block_size")) {
     idx_options.get("block_size", &keyinfo->block_size);
 
-    DBUG_ASSERT(keyinfo->block_size);
+    assert(keyinfo->block_size);
 
     keyinfo->flags |= HA_USES_BLOCK_SIZE;
   }
@@ -1403,7 +1400,7 @@ static bool fill_index_from_dd(THD *thd, TABLE_SHARE *share,
   if (idx_options.exists("parser_name")) {
     LEX_CSTRING parser_name;
     if (idx_options.get("parser_name", &parser_name, &share->mem_root))
-      DBUG_ASSERT(false);
+      assert(false);
 
     keyinfo->parser =
         my_plugin_lock_by_name(nullptr, parser_name, MYSQL_FTPARSER_PLUGIN);
@@ -1487,7 +1484,7 @@ static bool fill_indexes_from_dd(THD *thd, TABLE_SHARE *share,
 
   // Count number of keys and total number of key parts in the table.
 
-  DBUG_ASSERT(share->keys == 0 && share->key_parts == 0);
+  assert(share->keys == 0 && share->key_parts == 0);
 
   for (const dd::Index *idx_obj : tab_obj->indexes()) {
     // Skip hidden indexes
@@ -1653,7 +1650,7 @@ static void get_partition_options(MEM_ROOT *mem_root,
   if (part_options.exists("nodegroup_id"))
     part_options.get("nodegroup_id", &nodegroup_id);
 
-  DBUG_ASSERT(nodegroup_id <= 0xFFFF);
+  assert(nodegroup_id <= 0xFFFF);
   part_elem->nodegroup_id = nodegroup_id;
 }
 
@@ -1672,7 +1669,7 @@ static bool get_part_column_values(MEM_ROOT *mem_root,
     entries++;
   }
   if (entries != ((max_column_id + 1) * (max_list_index + 1))) {
-    DBUG_ASSERT(0); /* purecov: deadcode */
+    assert(0); /* purecov: deadcode */
     return true;
   }
 
@@ -1715,11 +1712,11 @@ static bool get_part_column_values(MEM_ROOT *mem_root,
 
   for (list_index = 0; list_index <= max_list_index; list_index++) {
     p_val = &p_elem_values[list_index];
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     for (uint i = 0; i < part_info->num_columns; i++) {
-      DBUG_ASSERT(p_val->col_val_array[i].null_value ||
-                  p_val->col_val_array[i].max_value ||
-                  p_val->col_val_array[i].column_value.value_str);
+      assert(p_val->col_val_array[i].null_value ||
+             p_val->col_val_array[i].max_value ||
+             p_val->col_val_array[i].column_value.value_str);
     }
 #endif
     if (part_elem->list_val_list.push_back(p_val, mem_root)) return true;
@@ -1760,10 +1757,10 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
       if (get_part_column_values(mem_root, part_info, part_elem, part_obj))
         return true;
     } else {
-      DBUG_ASSERT(part_obj->values().size() == 1);
+      assert(part_obj->values().size() == 1);
       const dd::Partition_value *part_value = *part_obj->values().begin();
-      DBUG_ASSERT(part_value->list_num() == 0);
-      DBUG_ASSERT(part_value->column_num() == 0);
+      assert(part_value->list_num() == 0);
+      assert(part_value->column_num() == 0);
       if (part_value->max_value()) {
         part_elem->max_value = true;
       } else {
@@ -1793,13 +1790,13 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
         max_index = std::max(max_index, part_value->list_num());
         entries++;
         if (part_value->value_utf8().empty()) {
-          DBUG_ASSERT(!part_elem->has_null_value);
+          assert(!part_elem->has_null_value);
           part_elem->has_null_value = true;
           null_entry = part_value->list_num();
         }
       }
       if (entries != (max_index + 1)) {
-        DBUG_ASSERT(0); /* purecov: deadcode */
+        assert(0); /* purecov: deadcode */
         return true;
       }
       /* If a list entry is NULL then it is only flagged on the part_elem. */
@@ -1813,9 +1810,9 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
       }
 
       for (const dd::Partition_value *part_value : part_obj->values()) {
-        DBUG_ASSERT(part_value->column_num() == 0);
+        assert(part_value->column_num() == 0);
         if (part_value->value_utf8().empty()) {
-          DBUG_ASSERT(part_value->list_num() == null_entry);
+          assert(part_value->list_num() == null_entry);
           continue;
         }
         list_index = part_value->list_num();
@@ -1827,7 +1824,7 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
         */
         if (part_elem->has_null_value && list_index > null_entry) list_index--;
         list_val = &list_val_array[list_index];
-        DBUG_ASSERT(!list_val->unsigned_flag && !list_val->value);
+        assert(!list_val->unsigned_flag && !list_val->value);
         if (part_value->value_utf8()[0] == '-') {
           list_val->unsigned_flag = false;
           if (dd::Properties::from_str(part_value->value_utf8(),
@@ -1846,9 +1843,9 @@ static bool setup_partition_from_dd(THD *thd, MEM_ROOT *mem_root,
       }
     }
   } else {
-#ifndef DBUG_OFF
-    DBUG_ASSERT(part_info->part_type == partition_type::HASH);
-    DBUG_ASSERT(part_obj->values().empty());
+#ifndef NDEBUG
+    assert(part_info->part_type == partition_type::HASH);
+    assert(part_obj->values().empty());
 #endif
   }
   return false;
@@ -1879,7 +1876,7 @@ static bool set_field_list(MEM_ROOT *mem_root, dd::String_type &str,
     if (dd::eat_str(field_name, it, end, dd::FIELD_NAME_SEPARATOR_CHAR))
       return true;
     size_t len = field_name.length();
-    DBUG_ASSERT(len);
+    assert(len);
     char *name = static_cast<char *>(mem_root->Alloc(len + 1));
     if (!name) return true; /* purecov: inspected */
     memcpy(name, field_name.c_str(), len);
@@ -1932,7 +1929,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 
   handlerton *hton = plugin_data<handlerton *>(
       ha_resolve_by_name_raw(thd, lex_cstring_handle(tab_obj->engine())));
-  DBUG_ASSERT(hton && ha_storage_engine_is_enabled(hton));
+  assert(hton && ha_storage_engine_is_enabled(hton));
   part_info->default_engine_type = hton;
   if (!part_info->default_engine_type) return true;
 
@@ -1986,7 +1983,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     default:
       // Unknown partitioning type!
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
       return true;
   }
   switch (tab_obj->subpartition_type()) {
@@ -2017,7 +2014,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     default:
       // Unknown sub partitioning type!
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
       return true;
   }
 
@@ -2059,17 +2056,17 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 
   /* Partitions are sorted first on level and then on number. */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   uint number = 0;
 #endif
   for (const dd::Partition *part_obj : tab_obj->partitions()) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     /* Must be in sorted order (sorted by level first and then on number). */
-    DBUG_ASSERT(part_obj->number() >= number);
+    assert(part_obj->number() >= number);
     number = part_obj->number();
 #endif
 
-    DBUG_ASSERT(part_obj->parent_partition_id() == dd::INVALID_OBJECT_ID);
+    assert(part_obj->parent_partition_id() == dd::INVALID_OBJECT_ID);
 
     curr_part_elem = new (&share->mem_root) partition_element;
     if (!curr_part_elem) {
@@ -2121,7 +2118,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::DP_NONE:
     default:
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
   }
   switch (tab_obj->default_subpartitioning()) {
     case dd::Table::DP_NO:
@@ -2137,10 +2134,10 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       part_info->use_default_num_subpartitions = false;
       break;
     case dd::Table::DP_NONE:
-      DBUG_ASSERT(!part_info->is_sub_partitioned());
+      assert(!part_info->is_sub_partitioned());
       break;
     default:
-      DBUG_ASSERT(0); /* purecov: deadcode */
+      assert(0); /* purecov: deadcode */
   }
 
   char *buf;
@@ -2169,7 +2166,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
 
 static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
                                       const dd::Table *tab_obj) {
-  DBUG_ASSERT(share->foreign_keys == 0 && share->foreign_key_parents == 0);
+  assert(share->foreign_keys == 0 && share->foreign_key_parents == 0);
 
   share->foreign_keys = tab_obj->foreign_keys().size();
   share->foreign_key_parents = tab_obj->foreign_key_parents().size();
@@ -2264,7 +2261,7 @@ static bool fill_foreign_keys_from_dd(TABLE_SHARE *share,
 */
 static bool fill_check_constraints_from_dd(TABLE_SHARE *share,
                                            const dd::Table *tab_obj) {
-  DBUG_ASSERT(share->check_constraint_share_list == nullptr);
+  assert(share->check_constraint_share_list == nullptr);
 
   if (tab_obj->check_constraints().size() > 0) {
     share->check_constraint_share_list = new (&share->mem_root)

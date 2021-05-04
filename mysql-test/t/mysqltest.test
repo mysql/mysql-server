@@ -3287,7 +3287,7 @@ SELECT 1 AS res;
 disconnect con1;
 --source include/wait_until_disconnected.inc
 
---error CR_SERVER_GONE_ERROR
+--error CR_SERVER_GONE_ERROR,CR_SERVER_LOST
 SELECT 1 AS res;
 
 connection default;

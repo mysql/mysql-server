@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@
 #include "sql_string.h"  // String
 #include "violite.h"
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define HASH_STRING_WITH_QUOTE \
   "$5$BVZy9O>'a+2MH]_?$fpWyabcdiHjfCVqId/quykZzjaA7adpkcen/uiQrtmOK4p4"
 #endif
@@ -182,7 +182,7 @@ bool append_str(String *str, bool comma, const char *key, const char *val) {
 */
 void append_auth_id(const THD *thd, const LEX_USER *user, bool comma,
                     String *str) {
-  DBUG_ASSERT(thd);
+  assert(thd);
   String from_user(user->user.str, user->user.length, system_charset_info);
   String from_host(user->host.str, user->host.length, system_charset_info);
   if (comma) str->append(',');
@@ -335,10 +335,10 @@ void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
   String rlb;
 
   DBUG_TRACE;
-  DBUG_ASSERT(thd);
+  assert(thd);
 
   // We should not come through here twice for the same query.
-  DBUG_ASSERT(thd->rewritten_query().length() == 0);
+  assert(thd->rewritten_query().length() == 0);
 
   if (thd->lex->contains_plaintext_password) {
     rewrite_query(thd, type, params, rlb);
@@ -384,7 +384,7 @@ void mysql_rewrite_acl_query(THD *thd, String &rlb, Consumer_type type,
 
 I_rewriter::I_rewriter(THD *thd, Consumer_type type)
     : m_thd(thd), m_consumer_type(type) {
-  DBUG_ASSERT(thd);
+  assert(thd);
 }
 
 I_rewriter::~I_rewriter() {}
@@ -529,7 +529,7 @@ void Rewriter_user::rewrite_ssl_properties(const LEX *lex, String *str) const {
         str->append(STRING_WITH_LEN(" NONE"));
         break;
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -619,7 +619,7 @@ void Rewriter_user::rewrite_password_require_current(LEX *lex,
       // Do nothing
       break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
   }
 }
 
@@ -1002,7 +1002,7 @@ void Rewriter_show_create_user::append_user_auth_info(LEX_USER *user,
                                                       bool comma,
                                                       String *str) const {
   append_auth_id(m_thd, user, comma, str);
-  DBUG_ASSERT(m_thd->lex->contains_plaintext_password == false);
+  assert(m_thd->lex->contains_plaintext_password == false);
   str->append(STRING_WITH_LEN(" IDENTIFIED"));
   append_plugin_name(user, str);
   if (user->auth.length > 0) {
@@ -1062,7 +1062,7 @@ bool Rewriter_set_password::rewrite(String &rlb) const {
     if (m_users == nullptr || m_users->size() == 0) return ret_val;
 
     /* SET PASSWORD should always have one user */
-    DBUG_ASSERT(m_users->size() == 1);
+    assert(m_users->size() == 1);
     bool set_temp_string = false;
     /*
       Setting this flag will generate the password hash string which
@@ -1074,7 +1074,7 @@ bool Rewriter_set_password::rewrite(String &rlb) const {
     String current_host(user->host.str, user->host.length, system_charset_info);
     String auth_str;
     if (set_temp_string) {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       auth_str = String(HASH_STRING_WITH_QUOTE, strlen(HASH_STRING_WITH_QUOTE),
                         system_charset_info);
 #endif
@@ -1119,7 +1119,7 @@ Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type,
 bool Rewriter_grant::rewrite(String &rlb) const {
   LEX *lex = m_thd->lex;
 
-  TABLE_LIST *first_table = lex->select_lex->table_list.first;
+  TABLE_LIST *first_table = lex->query_block->table_list.first;
   bool proxy_grant = lex->type == TYPE_ENUM_PROXY;
   String cols(1024);
   int c;
@@ -1187,7 +1187,7 @@ bool Rewriter_grant::rewrite(String &rlb) const {
       }
     }
     /* List extended global privilege IDs */
-    if (!first_table && !lex->current_select()->db) {
+    if (!first_table && !lex->current_query_block()->db) {
       List_iterator<LEX_CSTRING> it(lex->dynamic_privileges);
       LEX_CSTRING *privilege;
       while ((privilege = it++)) {
@@ -1225,9 +1225,9 @@ bool Rewriter_grant::rewrite(String &rlb) const {
     append_identifier(m_thd, &rlb, first_table->table_name,
                       strlen(first_table->table_name));
   } else {
-    if (lex->current_select()->db)
-      append_identifier(m_thd, &rlb, lex->current_select()->db,
-                        strlen(lex->current_select()->db));
+    if (lex->current_query_block()->db)
+      append_identifier(m_thd, &rlb, lex->current_query_block()->db,
+                        strlen(lex->current_query_block()->db));
     else
       rlb.append("*");
     rlb.append(STRING_WITH_LEN(".*"));
@@ -1276,7 +1276,7 @@ bool Rewriter_grant::rewrite(String &rlb) const {
             rlb.append(STRING_WITH_LEN("NONE"));
             break;
           default:
-            DBUG_ASSERT(false);
+            assert(false);
             rlb.append(STRING_WITH_LEN("NONE"));
             break;
         }

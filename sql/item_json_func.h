@@ -1,7 +1,7 @@
 #ifndef ITEM_JSON_FUNC_INCLUDED
 #define ITEM_JSON_FUNC_INCLUDED
 
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstddef>
@@ -31,7 +32,7 @@
 #include <utility>  // std::forward
 
 #include "m_ctype.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql/udf_registration_types.h"
@@ -91,7 +92,6 @@ class Json_path_cache {
     UNINITIALIZED,
     OK_NOT_NULL,
     OK_NULL,
-    ERROR
   };
 
   /// Struct that points to a cell in m_paths and tells its status.
@@ -116,13 +116,15 @@ class Json_path_cache {
     supposed to. Otherwise puts the parsed path onto the
     path vector.
 
+    @param[in]  thd              THD handle
     @param[in]  args             Array of args to a JSON function
     @param[in]  arg_idx          Index of the path_expression in args
     @param[in]  forbid_wildcards True if the path shouldn't contain * or **
 
     @returns false on success (valid path or NULL), true on error
   */
-  bool parse_and_cache_path(Item **args, uint arg_idx, bool forbid_wildcards);
+  bool parse_and_cache_path(const THD *thd, Item **args, uint arg_idx,
+                            bool forbid_wildcards);
 
   /**
     Return an already parsed path expression.
@@ -179,7 +181,7 @@ class Item_json_func : public Item_func {
   }
 
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   enum Item_result result_type() const override { return STRING_RESULT; }
@@ -318,7 +320,7 @@ class Item_func_json_valid final : public Item_int_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -366,7 +368,7 @@ class Item_func_json_schema_validation_report final : public Item_json_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -404,7 +406,7 @@ class Item_func_json_contains final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, 3)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -441,7 +443,7 @@ class Item_func_json_contains_path final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, -1)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -510,7 +512,7 @@ class Item_func_json_length final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
     if (param_type_is_default(thd, 1, 2)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -534,7 +536,7 @@ class Item_func_json_depth final : public Item_int_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -593,28 +595,42 @@ class Item_func_json_extract final : public Item_json_func {
   bool eq(const Item *item, bool binary_cmp) const override;
 };
 
-/**
-  Represents the JSON function JSON_ARRAY_APPEND()
-*/
-class Item_func_json_array_append : public Item_json_func {
+/// Base class for all the functions that take a JSON document as the first
+/// argument and one of more pairs of a JSON path and a value to insert into the
+/// JSON document, and returns the modified JSON document.
+class Item_func_modify_json_in_path : public Item_json_func {
+ protected:
+  template <typename... Args>
+  explicit Item_func_modify_json_in_path(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...) {
+    // The function does not necessarily return NULL when an argument is NULL.
+    // It returns NULL only if the first argument is NULL, or if one of the JSON
+    // path arguments is null. The set of tables for which the function is
+    // null-rejecting, is calculated in resolve_type() and possibly updated in
+    // update_used_tables().
+    null_on_null = false;
+  }
   String m_doc_value;
 
  public:
+  bool resolve_type(THD *thd) final;
+  void update_used_tables() final;
+
+ private:
+  /// Calculates the set of tables to return from not_used_tables(). The
+  /// returned value is cached by resolve_type() and update_used_tables().
+  table_map calculate_not_null_tables() const;
+};
+
+/**
+  Represents the JSON function JSON_ARRAY_APPEND()
+*/
+class Item_func_json_array_append final : public Item_func_modify_json_in_path {
+ public:
   Item_func_json_array_append(THD *thd, const POS &pos, PT_item_list *a)
-      : Item_json_func(thd, pos, a) {}
+      : Item_func_modify_json_in_path(thd, pos, a) {}
 
   const char *func_name() const override { return "json_array_append"; }
-
-  bool resolve_type(THD *thd) override {
-    if (Item_json_func::resolve_type(thd)) return true;
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
-    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
-    for (uint i = 2; i < arg_count; i += 2) {
-      args[i]->mark_json_as_scalar();
-    }
-    return false;
-  }
 
   bool val_json(Json_wrapper *wr) override;
 };
@@ -622,25 +638,12 @@ class Item_func_json_array_append : public Item_json_func {
 /**
   Represents the JSON function JSON_INSERT()
 */
-class Item_func_json_insert : public Item_json_func {
-  String m_doc_value;
-
+class Item_func_json_insert : public Item_func_modify_json_in_path {
  public:
   Item_func_json_insert(THD *thd, const POS &pos, PT_item_list *a)
-      : Item_json_func(thd, pos, a) {}
+      : Item_func_modify_json_in_path(thd, pos, a) {}
 
   const char *func_name() const override { return "json_insert"; }
-
-  bool resolve_type(THD *thd) override {
-    if (Item_json_func::resolve_type(thd)) return true;
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
-    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
-    for (uint i = 2; i < arg_count; i += 2) {
-      args[i]->mark_json_as_scalar();
-    }
-    return false;
-  }
 
   bool val_json(Json_wrapper *wr) override;
 };
@@ -648,25 +651,12 @@ class Item_func_json_insert : public Item_json_func {
 /**
   Represents the JSON function JSON_ARRAY_INSERT()
 */
-class Item_func_json_array_insert : public Item_json_func {
-  String m_doc_value;
-
+class Item_func_json_array_insert final : public Item_func_modify_json_in_path {
  public:
   Item_func_json_array_insert(THD *thd, const POS &pos, PT_item_list *a)
-      : Item_json_func(thd, pos, a) {}
+      : Item_func_modify_json_in_path(thd, pos, a) {}
 
   const char *func_name() const override { return "json_array_insert"; }
-
-  bool resolve_type(THD *thd) override {
-    if (Item_json_func::resolve_type(thd)) return true;
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
-    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
-    for (uint i = 2; i < arg_count; i += 2) {
-      args[i]->mark_json_as_scalar();
-    }
-    return false;
-  }
 
   bool val_json(Json_wrapper *wr) override;
 };
@@ -674,41 +664,29 @@ class Item_func_json_array_insert : public Item_json_func {
 /**
   Common base class for JSON_SET() and JSON_REPLACE().
 */
-class Item_func_json_set_replace : public Item_json_func {
+class Item_func_json_set_replace : public Item_func_modify_json_in_path {
   /// True if this is JSON_SET, false if it is JSON_REPLACE.
   const bool m_json_set;
-  String m_doc_value;
   Json_path_clone m_path;
   bool can_use_in_partial_update() const override { return true; }
 
  protected:
   template <typename... Args>
-  Item_func_json_set_replace(bool json_set, Args &&... parent_args)
-      : Item_json_func(std::forward<Args>(parent_args)...),
+  explicit Item_func_json_set_replace(bool json_set, Args &&... parent_args)
+      : Item_func_modify_json_in_path(std::forward<Args>(parent_args)...),
         m_json_set(json_set) {}
 
  public:
-  bool resolve_type(THD *thd) override {
-    if (Item_json_func::resolve_type(thd)) return true;
-    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_JSON)) return true;
-    if (param_type_is_default(thd, 1, -1, 2, MYSQL_TYPE_VARCHAR)) return true;
-    if (param_type_is_default(thd, 2, -1, 2, MYSQL_TYPE_JSON)) return true;
-    for (uint i = 2; i < arg_count; i += 2) {
-      args[i]->mark_json_as_scalar();
-    }
-    return false;
-  }
-
   bool val_json(Json_wrapper *wr) override;
 };
 
 /**
   Represents the JSON function JSON_SET()
 */
-class Item_func_json_set : public Item_func_json_set_replace {
+class Item_func_json_set final : public Item_func_json_set_replace {
  public:
   template <typename... Args>
-  Item_func_json_set(Args &&... parent_args)
+  explicit Item_func_json_set(Args &&... parent_args)
       : Item_func_json_set_replace(true, std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_set"; }
@@ -717,10 +695,10 @@ class Item_func_json_set : public Item_func_json_set_replace {
 /**
   Represents the JSON function JSON_REPLACE()
 */
-class Item_func_json_replace : public Item_func_json_set_replace {
+class Item_func_json_replace final : public Item_func_json_set_replace {
  public:
   template <typename... Args>
-  Item_func_json_replace(Args &&... parent_args)
+  explicit Item_func_json_replace(Args &&... parent_args)
       : Item_func_json_set_replace(false, std::forward<Args>(parent_args)...) {}
 
   const char *func_name() const override { return "json_replace"; }
@@ -729,11 +707,15 @@ class Item_func_json_replace : public Item_func_json_set_replace {
 /**
   Represents the JSON function JSON_ARRAY()
 */
-class Item_func_json_array : public Item_json_func {
+class Item_func_json_array final : public Item_json_func {
  public:
   template <typename... Args>
-  Item_func_json_array(Args &&... parent_args)
-      : Item_json_func(std::forward<Args>(parent_args)...) {}
+  explicit Item_func_json_array(Args &&... parent_args)
+      : Item_json_func(std::forward<Args>(parent_args)...) {
+    // Does not return NULL on NULL input. A NULL argument is interpreted as the
+    // JSON null literal.
+    null_on_null = false;
+  }
 
   const char *func_name() const override { return "json_array"; }
 
@@ -749,12 +731,17 @@ class Item_func_json_array : public Item_json_func {
 /**
   Represents the JSON function JSON_OBJECT()
 */
-class Item_func_json_row_object : public Item_json_func {
+class Item_func_json_row_object final : public Item_json_func {
   String tmp_key_value;
 
  public:
   Item_func_json_row_object(THD *thd, const POS &pos, PT_item_list *a)
-      : Item_json_func(thd, pos, a) {}
+      : Item_json_func(thd, pos, a) {
+    // Does not return NULL on NULL input. If a key argument is NULL, an error
+    // is raised. If a value argument is NULL, it is interpreted as the JSON
+    // null literal.
+    null_on_null = false;
+  }
 
   const char *func_name() const override { return "json_object"; }
 
@@ -895,7 +882,7 @@ class Item_func_json_quote : public Item_str_func {
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1)) return true;
-    maybe_null = true;
+    set_nullable(true);
 
     /*
      Any interior character could be replaced by a 6 character
@@ -923,9 +910,11 @@ class Item_func_json_unquote : public Item_str_func {
 
   const char *func_name() const override { return "json_unquote"; }
 
+  enum Functype functype() const override { return JSON_UNQUOTE_FUNC; }
+
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1)) return true;
-    maybe_null = true;
+    set_nullable(true);
     set_data_type_string(args[0]->max_char_length(), &my_charset_utf8mb4_bin);
     return false;
   }
@@ -1029,27 +1018,27 @@ class Item_func_array_cast final : public Item_func {
   // Regular val_x() funcs shouldn't be called
   /* purecov: begin inspected */
   longlong val_int() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return 0;
   }
   String *val_str(String *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   my_decimal *val_decimal(my_decimal *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return nullptr;
   }
   double val_real() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return 0;
   }
   bool get_date(MYSQL_TIME *, my_time_flags_t) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   bool get_time(MYSQL_TIME *) override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
   /* purecov: end */
@@ -1238,9 +1227,11 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
                            String *tmp, Json_wrapper *wr);
 
 /**
-  Helper method for Item_func_json_* methods. Check whether an argument
-  can be converted to a utf8mb4 string.
+  Gets a JSON object member name from an Item. An error is raised if
+  the Item evaluates to NULL, or if it cannot be converted to a
+  utf8mb4 string.
 
+  @param[in]  thd         THD handle
   @param[in]  arg_item    An argument Item
   @param[out] value       Where to materialize the arg_item's string value
   @param[out] utf8_res    Buffer for use by ensure_utf8mb4.
@@ -1249,8 +1240,9 @@ bool get_atom_null_as_null(Item **args, uint arg_idx,
 
   @returns true if the Item is not a utf8mb4 string
 */
-bool get_json_string(Item *arg_item, String *value, String *utf8_res,
-                     const char **safep, size_t *safe_length);
+bool get_json_object_member_name(const THD *thd, Item *arg_item, String *value,
+                                 String *utf8_res, const char **safep,
+                                 size_t *safe_length);
 using Json_dom_ptr = std::unique_ptr<Json_dom>;
 
 bool parse_json(const String &res, uint arg_idx, const char *func_name,

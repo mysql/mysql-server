@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2020 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,69 +22,94 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Input parameters:
-#  * RESULTS_BASE_DIR = Directory holding "result/result.N" directories.
-#  * BUILD_DIR = Directory where source code was built.
-#  * LCOV_FILES_DIR = Directory that stores lcov file of each test case.
-#  * TEST_CASE = Test case name and number are appended to form this
-#     parameter. This parameter will be used as a parameter to --test-name(-t)
-#     option in lcov tool.
-
-# Copies ".gcno" files into result/coverage/hostDir that holds ".gcda" files
-# after atrt-gather-result.sh is run with --coverage parameter. lcov is tool
-# is run to obtain ".info" files for each host and are stored within
-# result/coverage directory.
-
 set -e
 
-if [ $# -lt 4 ]; then
-  echo "Usage: atrt-analyze-coverage results-base-dir build-dir" \
-       "lcov-files-dir test-case-name-number" >&2
-  exit 1
-fi
+usage()
+{
+  echo
+  echo "Analyzes coverage files gathered from each test host."
+  echo
+  echo "Usage: ${0} --results-dir=<results_dir> --build-dir=<build_dir> "\
+      "--coverage-tool=lcov|fastcov --test-case-no=<test_case_no> [--help]"
+  echo "Options:"
+  echo "  --results-dir   - Directory holding 'result.N' directories."
+  echo "  --build-dir     - Directory where source code was built with "\
+                            "coverage flags enabled."
+  echo "  --test-case-no  - Optional, used only if test coverage is "\
+                           "computed per test case."
+  echo "  --coverage-tool - Tool that will be used for coverage analysis."
+  echo "  --help          - Displays help"
+}
 
-RESULTS_BASE_DIR="${1}"
-BUILD_DIR="${2}"
-LCOV_FILES_DIR="${3}"
-TEST_CASE="${4}"
-shift 4
-
-if [ ! -d "$RESULTS_BASE_DIR/result/coverage/" ]; then
-  echo "Directory storing coverage files not found" >&2
-  exit 1
-fi
-
-GCNO_FILES=$(find "$BUILD_DIR" -name "*.gcno" | wc -l)
-if [ "$GCNO_FILES" -eq 0 ]; then
-  echo "Gcno files are not present in build directory, coverage cannot" \
-       "be computed." >&2
-  exit 1
-fi
-
-mkdir -p "$LCOV_FILES_DIR"
-
-cd "$RESULTS_BASE_DIR/result/coverage/"
-RESOURCES_TO_CLEANUP=''
-trap 'rm -rf $RESOURCES_TO_CLEANUP' EXIT
-if [ ! -f "$LCOV_FILES_DIR/baseline.info" ]; then
-  RESOURCES_TO_CLEANUP+=("$LCOV_FILES_DIR/baseline.info")
-  lcov -c --initial -d "$BUILD_DIR" -o "$LCOV_FILES_DIR/baseline.info"
-fi
-
-for host_dir in */; do
-  host_dir=${host_dir%%/}
-  RESOURCES_TO_CLEANUP+="$RESULTS_BASE_DIR/result/coverage/$host_dir "
-  find "$host_dir" -name '*.gcda' -printf '%P\n' | \
-    sed -e 's/[.]gcda$/.gcno/' > "$host_dir/gcno-files"
-  rsync -am --files-from="$host_dir/gcno-files" "$BUILD_DIR" "$host_dir"
-  lcov -d "$host_dir" -c -t "$TEST_CASE" -o "$host_dir.info"
+while [ "${1}" ]; do
+  case "${1}" in
+    --results-dir=*) results_dir=$(echo "${1}" | sed s/--results-dir=//);;
+    --build-dir=*) build_dir=$(echo "${1}" | sed s/--build-dir=//);;
+    --test-case-no=*) test_case_no=$(echo "${1}" | sed s/--test-case-no=//);;
+    --coverage-tool=*) coverage_tool=$(echo "${1}" | sed s/--coverage-tool=//);
+        case "${coverage_tool}" in
+          lcov);;
+          fastcov);;
+          *) echo "Coverage tool ${coverage_tool} not supported."\
+              "lcov will be used..."; coverage_tool="lcov";
+        esac;;
+    --help) usage; exit 0;;
+    *) echo "ERROR: Invalid option ${1}..." >&2; usage; exit 1;;
+  esac
+  shift
 done
 
-find . -name "*.info" -exec echo "-a {}" \; | \
-  xargs -r -x lcov -o "$LCOV_FILES_DIR/$TEST_CASE.info"
-RESULT="$?"
+gcno_files=$(find "${build_dir}" -name "*.gcno" | wc -l)
+if [ "${gcno_files}" -eq 0 ]; then
+  echo "Gcno files are not present in build directory, "\
+        "coverage cannot be computed." >&2
+  exit 1
+fi
 
-if [ "$RESULT" -ne 0 ]; then
-  echo "Coverage Analysis Failed: $RESULT" >&2
+test_coverage_dir="${results_dir}/test_coverage"
+mkdir -p "${test_coverage_dir}"
+
+resources_to_cleanup=''
+trap 'rm -rf ${resources_to_cleanup}' EXIT
+
+cd "${results_dir}/coverage_result/"
+
+for host_dir in */; do
+  host_dir="${host_dir%%/}"
+  resources_to_cleanup+="${results_base_dir}/coverage_result/${host_dir} "
+
+  find "${host_dir}" -name '*.gcda' -printf '%P\n' | \
+    sed -e 's/[.]gcda$/.gcno/' > "${host_dir}/gcno-files"
+  rsync -am --files-from="${host_dir}/gcno-files" "${build_dir}" "${host_dir}"
+
+  if  [ "${coverage_tool}" = "lcov" ]; then
+    lcov -c -d "${host_dir}" -o "${host_dir}.info"
+  elif [ "${coverage_tool}" = "fastcov" ]; then
+    ## --lcov generates coverage files that are compatible with lcov tool
+    fastcov -d "${host_dir}" --lcov -o "${host_dir}.info"
+  fi
+done
+
+coverage_file=""
+if [ -n "${test_case_no}" ]; then
+  coverage_file="test_coverage.${test_case_no}.info"
+else
+  coverage_file="test_coverage.suite.info"
+fi
+
+result=0
+# Combine host.info files
+if [ "${coverage_tool}" = "lcov" ]; then
+  find . -name "*.info" -exec echo "-a {}" \; |
+    xargs -r -x lcov -o "${test_coverage_dir}/${coverage_file}"
+  result="$?"
+elif [ "${coverage_tool}" = "fastcov" ]; then
+  find . -name "*.info" -exec echo "{}" \; | xargs -r -x fastcov --lcov \
+    -o "${test_coverage_dir}/${coverage_file}" -C
+  result="$?"
+fi
+
+if [ "${result}" -ne 0 ]; then
+  echo "Coverage Analysis Failed: ${result}" >&2
   exit 1
 fi

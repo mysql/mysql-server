@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ static rapidjson::Document get_json_doc(const std::string &name,
   json_doc.Parse(payload.c_str());
   if (!json_doc.HasMember(name.c_str())) {
     throw std::runtime_error(std::string("Json payload does not have value: ") +
-                             name + " payloda: " + payload);
+                             name + " payload: " + payload);
   }
   return json_doc;
 }

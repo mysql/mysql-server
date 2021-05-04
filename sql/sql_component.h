@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,9 @@
 
 #ifndef _sql_component_h
 #define _sql_component_h
+
+#include <string>
+#include <vector>
 
 #include "lex_string.h"
 #include "my_sqlcommand.h"
@@ -82,4 +85,28 @@ class Sql_cmd_uninstall_component : public Sql_cmd {
   const Mem_root_array_YY<LEX_STRING> m_urns;
 };
 
+/**
+  This class implements component loading through manifest file
+*/
+class Deployed_components final {
+ public:
+  explicit Deployed_components(const std::string program_name);
+  ~Deployed_components();
+  bool valid() const { return valid_; }
+  bool components_loaded() const { return loaded_; }
+
+ private:
+  void get_next_component(std::string &components_list,
+                          std::string &one_component);
+  bool load();
+  bool unload();
+  bool make_urns(std::vector<const char *> &urns);
+
+ private:
+  std::string program_name_;
+  std::string components_;
+  std::string last_error_;
+  bool valid_;
+  bool loaded_;
+};
 #endif

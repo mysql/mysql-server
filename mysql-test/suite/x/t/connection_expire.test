@@ -14,20 +14,20 @@ alter user xplugin@localhost password expire;
 ##
 --echo
 --echo Test: Expired password with no support for sandbox mode (should fail)
---write_file $MYSQL_TMP_DIR/connection_expire.tmp
+--write_file $MYSQL_TMP_DIR/connection_expire.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 
 -->expecterror ER_MUST_CHANGE_PASSWORD_LOGIN
 -->login foo
 EOF
---exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/connection_expire.tmp
+--exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/connection_expire.xpl
 
 ###
 --echo
 --echo Test: Expired password with support for sandbox mode (should succeed)
---write_file $MYSQL_TMP_DIR/connection_expire.tmp
+--write_file $MYSQL_TMP_DIR/connection_expire.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 
@@ -50,9 +50,9 @@ Mysqlx.Connection.CapabilitiesSet {
 
 -->login foo
 EOF
---exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire.tmp 2>&1
+--exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire.xpl 2>&1
 
---write_file $MYSQL_TMP_DIR/connection_expire_x_root.tmp
+--write_file $MYSQL_TMP_DIR/connection_expire_x_root.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 Mysqlx.Connection.CapabilitiesSet {
@@ -75,7 +75,7 @@ Mysqlx.Connection.CapabilitiesSet {
 -->login x_root
 EOF
 
---write_file $MYSQL_TMP_DIR/connection_expire_x_root_wrongpwd.tmp
+--write_file $MYSQL_TMP_DIR/connection_expire_x_root_wrongpwd.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 Mysqlx.Connection.CapabilitiesSet {
@@ -98,7 +98,7 @@ Mysqlx.Connection.CapabilitiesSet {
 -->login x_root	x_root1
 EOF
 
---write_file $MYSQL_TMP_DIR/connection_expire_user.tmp
+--write_file $MYSQL_TMP_DIR/connection_expire_user.xpl
 -->expecterror %EXPECT_ERROR%
 -->sql
 select user(),current_user();
@@ -106,7 +106,7 @@ select user(),current_user();
 EOF
 
 
---write_file $MYSQL_TMP_DIR/connection_expire_user_xplugin.tmp
+--write_file $MYSQL_TMP_DIR/connection_expire_user_xplugin.xpl
 -->stmtsql select user(),current_user();
 -->expecterror %EXPECT_ERROR%
 -->recvresult
@@ -125,13 +125,13 @@ alter user xplugin@localhost password expire;
 EOF
 
 
---write_file $MYSQL_TMP_DIR/connection_expect_expired_user_xplugin.tmp
+--write_file $MYSQL_TMP_DIR/connection_expect_expired_user_xplugin.xpl
 -->expecterror ER_MUST_CHANGE_PASSWORD_LOGIN
 -->newsession bla	xplugin	xplugin
 EOF
 
 
---write_file $MYSQL_TMP_DIR/connection_expire_user_xplugin_collection.tmp
+--write_file $MYSQL_TMP_DIR/connection_expire_user_xplugin_collection.xpl
 Mysqlx.Sql.StmtExecute {
   stmt: "create database xplugin;"
 }
@@ -142,51 +142,51 @@ Mysqlx.Sql.StmtExecute {
 -->recvresult
 EOF
 
---write_file $MYSQL_TMP_DIR/connection_expire_empty.tmp
+--write_file $MYSQL_TMP_DIR/connection_expire_empty.xpl
 -->echo Empty
 EOF
 
 
 --echo Test: try connecting with non-x_root user when its password expird and x_root user password expired,expect password expired notice
 alter user x_root@localhost password expire;
---exec $MYSQLXTEST --expect-error ER_MUST_CHANGE_PASSWORD_LOGIN -ufoo --file $MYSQL_TMP_DIR/connection_expire_empty.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_MUST_CHANGE_PASSWORD_LOGIN -ufoo --file $MYSQL_TMP_DIR/connection_expire_empty.xpl 2>&1
 
 --echo Test: try connecting with Expired password using x_root user and expect password expire notice
---exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire_x_root.tmp 2>&1
+--exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire_x_root.xpl 2>&1
 
 --echo Test: try connecting with non-x_root user when its password expird and x_root user password expired,expect password expired notice
---exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire.tmp 2>&1
+--exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire.xpl 2>&1
 
 --echo Test: try connecting with x_root user whose password expired with wrong password and expect invalid user or password error
---exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire_x_root_wrongpwd.tmp 2>&1
+--exec $MYSQLXTEST -hlocalhost --no-auth --file=$MYSQL_TMP_DIR/connection_expire_x_root_wrongpwd.xpl 2>&1
 
 ##try login with password expired user when server started with disconnect_on_expired_password=off option
 set password for x_root@localhost = '';
 let $restart_parameters = restart: --disconnect_on_expired_password=off;
 --source include/restart_mysqld.inc
 --echo Test: expect expired Notice for connection
---exec $MYSQLXTEST -ufoo -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user.tmp 2>&1
+--exec $MYSQLXTEST -ufoo -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user.xpl 2>&1
 
 ##try login with password expired user when server started with skip-disconnect_on_expired_password option
 set password for x_root@localhost = '';
 let $restart_parameters = restart: --skip-disconnect_on_expired_password;
 --source include/restart_mysqld.inc
 --echo Test: expect expired Notice for connection
---exec $MYSQLXTEST -ufoo -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user.tmp 2>&1
+--exec $MYSQLXTEST -ufoo -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user.xpl 2>&1
 
 ###try execute statements with password exipired user once connected,connect should be successful with --skip-disconnect_on_expired_password
---exec $MYSQLXTEST -uxplugin -pxplugin -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user_xplugin.tmp 2>&1
+--exec $MYSQLXTEST -uxplugin -pxplugin -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user_xplugin.xpl 2>&1
 
 ###try execute statements with password exipired user once connected,connect should be successful with --disconnect_on_expired_password and statement execution should be failed until password reset
 let $restart_parameters = restart: --disconnect_on_expired_password;
 --source include/restart_mysqld.inc
---exec $MYSQLXTEST --connect-expired-password -uxplugin -pxplugin -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user_xplugin.tmp 2>&1
+--exec $MYSQLXTEST --connect-expired-password -uxplugin -pxplugin -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user_xplugin.xpl 2>&1
 
 ## Connect with expired password without advertising connect on expired (should get kicked out)
---exec $MYSQLXTEST --no-auth --file=$MYSQL_TMP_DIR/connection_expect_expired_user_xplugin.tmp 2>&1
+--exec $MYSQLXTEST --no-auth --file=$MYSQL_TMP_DIR/connection_expect_expired_user_xplugin.xpl 2>&1
 
 ##try executing xplugin collection with password expired user,expect error
---exec $MYSQLXTEST --connect-expired-password -uxplugin -pxplugin -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user_xplugin_collection.tmp 2>&1
+--exec $MYSQLXTEST --connect-expired-password -uxplugin -pxplugin -v%EXPECT_ERROR%=ER_MUST_CHANGE_PASSWORD --file=$MYSQL_TMP_DIR/connection_expire_user_xplugin_collection.xpl 2>&1
 
 
 ## Cleanup
@@ -194,11 +194,5 @@ drop user foo@localhost;
 drop user xplugin@localhost;
 update mysql.user set password_last_changed = @passwordchanged where host = 'localhost' and user='x_root';
 flush privileges;
---remove_file $MYSQL_TMP_DIR/connection_expire_x_root.tmp
---remove_file $MYSQL_TMP_DIR/connection_expire.tmp
---remove_file $MYSQL_TMP_DIR/connection_expire_user.tmp
---remove_file $MYSQL_TMP_DIR/connection_expire_x_root_wrongpwd.tmp
---remove_file $MYSQL_TMP_DIR/connection_expire_user_xplugin.tmp
---remove_file $MYSQL_TMP_DIR/connection_expire_user_xplugin_collection.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 

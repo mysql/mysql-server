@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,6 @@ Dbtux::Dbtux(Block_context& ctx,
     /*
      * DbtuxStat.cpp
      */
-    addRecSignal(GSN_READ_PSEUDO_REQ, &Dbtux::execREAD_PSEUDO_REQ);
     addRecSignal(GSN_INDEX_STAT_REP, &Dbtux::execINDEX_STAT_REP);
     addRecSignal(GSN_INDEX_STAT_IMPL_REQ, &Dbtux::execINDEX_STAT_IMPL_REQ);
     /*
@@ -130,7 +129,6 @@ Dbtux::Dbtux(Block_context& ctx,
     addRecSignal(GSN_ACCKEYCONF, &Dbtux::execACCKEYCONF);
     addRecSignal(GSN_ACCKEYREF, &Dbtux::execACCKEYREF);
     addRecSignal(GSN_ACC_ABORTCONF, &Dbtux::execACC_ABORTCONF);
-    addRecSignal(GSN_READ_PSEUDO_REQ, &Dbtux::execREAD_PSEUDO_REQ);
     addRecSignal(GSN_DUMP_STATE_ORD, &Dbtux::execDUMP_STATE_ORD);
     addRecSignal(GSN_DBINFO_SCANREQ, &Dbtux::execDBINFO_SCANREQ);
     addRecSignal(GSN_NODE_STATE_REP, &Dbtux::execNODE_STATE_REP, true);
@@ -738,12 +736,10 @@ Dbtux::sendPoolShrink(const Uint32 pool_index)
   c_transient_pools_shrinking.set(pool_index);
   if (need_send)
   {
-    SignalT<2> signal2[1];
-    Signal* signal = new (&signal2[0]) Signal(0);
-    memset(signal2, 0, sizeof(signal2));
+    Signal25 signal[1] = {};
     signal->theData[0] = TuxContinueB::ShrinkTransientPools;
     signal->theData[1] = pool_index;
-    sendSignal(reference(), GSN_CONTINUEB, (Signal*)signal, 2, JBB);
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
   }
 }
 

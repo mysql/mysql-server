@@ -56,12 +56,8 @@ a	b	c
 4	2	8
 ndb_scan_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ndb_pruned_scan_count
 0
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Single partition scan
 select * from t1 where a=0 order by c;
 a	b	c
@@ -70,12 +66,8 @@ a	b	c
 0	2	2
 ndb_scan_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ndb_pruned_scan_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Single partition scan
 select * from t1 where a=4 order by c;
 a	b	c
@@ -84,12 +76,8 @@ a	b	c
 4	2	8
 ndb_scan_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ndb_pruned_scan_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 MRR single partition scan
 select * from t1 where a in (0, 2) order by c;
 a	b	c
@@ -98,10 +86,6 @@ a	b	c
 0	2	2
 ndb_scan_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 ndb_pruned_scan_count
 1
-Warnings:
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 drop table t1;

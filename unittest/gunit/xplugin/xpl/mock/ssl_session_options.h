@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,9 @@ namespace mock {
 
 class Ssl_session_options : public iface::Ssl_session_options {
  public:
+  Ssl_session_options();
+  virtual ~Ssl_session_options() override;
+
   MOCK_METHOD(bool, active_tls, (), (const, override));
 
   MOCK_METHOD(std::string, ssl_cipher, (), (const, override));
