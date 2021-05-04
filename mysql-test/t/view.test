@@ -6258,7 +6258,7 @@ DROP DATABASE I_S;
 
 
 --echo #
---echo #BOOLEAN data type column in view
+--echo # WL#3554: BOOLEAN data type column in view
 --echo #
 CREATE TABLE t1(b BOOLEAN, i INTEGER);
 CREATE TABLE t2(b2 BOOLEAN);
