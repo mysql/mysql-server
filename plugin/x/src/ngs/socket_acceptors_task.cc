@@ -237,7 +237,9 @@ bool Socket_acceptors_task::prepare(
   properties[Server_property_ids::k_number_of_interfaces] =
       std::to_string(listeners.size());
 
-  if (result) show_startup_log(properties);
+  // Make a local copy, to show the report at X Plugin start.
+  m_properties = properties;
+
   if (context && context->m_properties) context->m_properties->swap(properties);
   return result;
 }
@@ -308,6 +310,8 @@ void Socket_acceptors_task::pre_loop() {
   for (auto &listener : listeners) {
     listener->pre_loop();
   }
+
+  show_startup_log(m_properties);
 }
 
 void Socket_acceptors_task::post_loop() {
