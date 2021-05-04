@@ -9,7 +9,7 @@
 CREATE TABLE mt
   (i int not null primary key, j mediumint unsigned) engine=ndb;
 
---write_file $MYSQLTEST_VARDIR/tmp/mt.data
+--write_file $MYSQL_TMP_DIR/mt.data
 1,1
 2,2
 3,-1
@@ -34,18 +34,18 @@ EOF
 # At the end, the table should contain 6 rows of data.
 
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --rejects=5 --csvopt=dc
-     test $MYSQLTEST_VARDIR/tmp/mt.data;
+exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=cn
+     test $MYSQL_TMP_DIR/mt.data;
 
-exec $NDB_IMPORT --state-dir=$MYSQLTEST_VARDIR/tmp --rejects=5 --csvopt=dc
-     --resume test $MYSQLTEST_VARDIR/tmp/mt.data;
+exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=cn
+     --resume test $MYSQL_TMP_DIR/mt.data;
 
 SELECT count(*) FROM mt;
 
 DROP TABLE mt;
 
---remove_file $MYSQLTEST_VARDIR/tmp/mt.data
---remove_file $MYSQLTEST_VARDIR/tmp/mt.rej
+--remove_file $MYSQL_TMP_DIR/mt.data
+--remove_file $MYSQL_TMP_DIR/mt.rej
 
 
 
