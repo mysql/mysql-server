@@ -35,6 +35,7 @@
 #include "lex_string.h"
 #include "lf.h"
 
+#include "my_dbug.h"
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_systime.h"
@@ -50,6 +51,7 @@
 #include "storage/perfschema/pfs_program.h"
 #include "storage/perfschema/pfs_setup_object.h"
 #include "storage/perfschema/pfs_timer.h"
+#include "storage/perfschema/terminology_use_previous.h"
 
 /**
   @defgroup performance_schema_buffers Performance Schema Buffers
@@ -227,6 +229,61 @@ uint cond_class_start = 0;
 uint file_class_start = 0;
 uint wait_class_max = 0;
 uint socket_class_start = 0;
+
+const char *PFS_instr_name::str() const {
+  DBUG_TRACE;
+  if (m_private_old_name != nullptr &&
+      terminology_use_previous::is_older_required(m_private_version))
+    return m_private_old_name;
+  else
+    return m_private_name;
+}
+
+uint PFS_instr_name::length() const {
+  if (m_private_old_name != nullptr &&
+      terminology_use_previous::is_older_required(m_private_version))
+    return m_private_old_name_length;
+  else
+    return m_private_name_length;
+}
+
+/**
+  Like strlen (or POSIX strnlen), but don't read past the max_len'th
+  character.
+
+  This is useful when the string may be terminated without '\0' at the
+  end of the buffer.
+
+  @param s The string
+  @param max_len The maxmium length
+  @return The length of the string, or max_len if the string is longer
+  than that.
+*/
+static uint safe_strlen(const char *s, uint max_len) {
+  const char *end =
+      static_cast<const char *>(memchr(s, '\0', static_cast<size_t>(max_len)));
+  return end == nullptr ? max_len : static_cast<uint>(end - s);
+}
+
+constexpr uint PFS_instr_name::max_length;
+
+void PFS_instr_name::set(PFS_class_type class_type, const char *name,
+                         uint max_length_arg) {
+  // Copy the given name to the member.
+  uint length = safe_strlen(name, std::min(max_length, max_length_arg));
+  memcpy(m_private_name, name, length);
+  m_private_name[length] = '\0';
+  m_private_name_length = length;
+
+  // Check if there is an alternative name to use when
+  // @@terminology_use_previous is enabled.
+  auto compatible_name =
+      terminology_use_previous::lookup(class_type, std::string{name, length});
+  m_private_old_name = compatible_name.old_name;
+  m_private_old_name_length =
+      compatible_name.old_name ? strlen(compatible_name.old_name) : 0;
+  m_private_version = compatible_name.version;
+}
 
 void init_event_name_sizing(const PFS_global_param *param) {
   /* global table I/O, table lock, idle, metadata */
@@ -956,7 +1013,7 @@ static void init_instr_class(PFS_instr_class *klass, const char *name,
                              PFS_class_type class_type) {
   assert(name_length <= PFS_MAX_INFO_NAME_LENGTH);
   memset(klass, 0, sizeof(PFS_instr_class));
-  klass->m_name.set(name, name_length);
+  klass->m_name.set(class_type, name, name_length);
   klass->m_flags = flags;
   klass->m_volatility = volatility;
   klass->m_enabled = true;

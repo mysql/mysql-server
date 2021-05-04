@@ -662,3 +662,8 @@ bool thd_check_connection_admin_privilege(MYSQL_THD thd) {
   return (!(sctx->check_access(SUPER_ACL) ||
             sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first));
 }
+
+unsigned int thd_get_current_thd_terminology_use_previous() {
+  if (!current_thd) return 0;
+  return current_thd->variables.terminology_use_previous;
+}

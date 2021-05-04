@@ -34,6 +34,7 @@
 #include "storage/perfschema/pfs_instr.h"
 #include "storage/perfschema/pfs_instr_class.h"
 #include "storage/perfschema/pfs_server.h"
+#include "storage/perfschema/terminology_use_previous.cc"
 #include "storage/perfschema/unittest/stub_pfs_defaults.h"
 #include "storage/perfschema/unittest/stub_pfs_plugin_table.h"
 #include "storage/perfschema/unittest/stub_print_error.h"
@@ -2524,6 +2525,43 @@ static void test_file_operations() {
   shutdown_performance_schema();
 }
 
+/**
+  Verify two properties of the maps defined in
+  terminology_use_previous.cc:
+
+  - Key and value should be different (or else it's a typo).
+
+  - The same key should not appear in multiple versions (limitation
+    of the framework.)
+*/
+static void test_terminology_use_previous() {
+  for (auto &class_map : version_vector) {
+    for (auto &str_map_pair : class_map) {
+      for (auto &str_pair : str_map_pair.second) {
+        // Key and value should be different.
+        ok(str_pair.first != str_pair.second, "key and value are different");
+
+        // Key should not appear in any other version. Currently,
+        // there is nothing to check - the break statement will
+        // execute in the first iteration - because there is only one
+        // version.  This will be relevant if we extend the range of
+        // terminology_use_previous to more than two values.
+        for (auto &class_map2 : version_vector) {
+          if (class_map2 == class_map) break;  // Only check older versions
+#ifndef NDEBUG
+          const auto &str_map_pair2 = class_map2.find(str_map_pair.first);
+          if (str_map_pair2 != class_map2.end()) {
+            const auto &str_map2 = str_map_pair2->second;
+            const auto &pair2 = str_map2.find(str_pair.first);
+            assert(pair2 == str_map2.end());
+          }
+#endif
+        }
+      }
+    }
+  }
+}
+
 static void do_all_tests() {
   /* system charset needed by pfs_statements_digest */
   system_charset_info = &my_charset_latin1;
@@ -2538,10 +2576,11 @@ static void do_all_tests() {
   test_memory_instruments();
   test_leaks();
   test_file_operations();
+  test_terminology_use_previous();
 }
 
 int main(int, char **) {
-  plan(360);
+  plan(410);
 
   MY_INIT("pfs-t");
   do_all_tests();

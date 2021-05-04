@@ -205,6 +205,14 @@ PSI_thread *thd_get_psi(THD *thd);
 void thd_set_psi(THD *thd, PSI_thread *psi);
 
 /**
+  Return @@session.terminology_use_previous for the current THD.
+
+  @return the integer value of one of the enumeration values in
+  terminology_use_previous::enum_compatibility_version.
+*/
+extern "C" unsigned int thd_get_current_thd_terminology_use_previous();
+
+/**
   the struct aggregates two paramenters that identify an event
   uniquely in scope of communication of a particular master and slave couple.
   I.e there can not be 2 events from the same staying connected master which

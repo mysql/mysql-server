@@ -40,6 +40,7 @@
 #include "storage/perfschema/pfs_global.h"
 #include "storage/perfschema/pfs_lock.h"
 #include "storage/perfschema/pfs_stat.h"
+#include "storage/perfschema/terminology_use_previous_enum.h"
 
 struct TABLE_SHARE;
 
@@ -163,14 +164,23 @@ class PFS_instr_name {
   char m_private_name[max_length + 1];
   /** Length in bytes of @c m_name. */
   uint m_private_name_length;
+  /** Old instrument name, if any. */
+  const char *m_private_old_name;
+  /** Length in bytes of old instrument name len, if any. */
+  uint m_private_old_name_length;
+  /** The oldest version that uses the new name. */
+  terminology_use_previous::enum_compatibility_version m_private_version;
 
  public:
   /** Return the name as a string. */
-  const char *str() const { return m_private_name; }
+  const char *str() const;
   /** Return the length of the string. */
-  uint length() const { return m_private_name_length; }
+  uint length() const;
   /**
     Copy the specified name to this name.
+
+    @param class_type The class type of this name, i.e., whether it is
+    the name of a mutex, thread, etc.
 
     @param name The buffer to read from.
 
@@ -178,14 +188,8 @@ class PFS_instr_name {
     copied, plus the terminating '\0'. Otherwise, up to buffer_size-1
     characters are copied, plus the terminating '\0'.
   */
-  void set(const char *name, uint max_length_arg = max_length) {
-    size_t length =
-        std::min(std::min(strlen(name), static_cast<size_t>(max_length_arg)),
-                 static_cast<size_t>(max_length));
-    memcpy(m_private_name, name, length);
-    m_private_name[length] = '\0';
-    m_private_name_length = length;
-  }
+  void set(PFS_class_type class_type, const char *name,
+           uint max_length_arg = max_length);
 };
 
 /** Information for all instrumentation. */

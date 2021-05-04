@@ -131,7 +131,7 @@ static void init_builtin_memory_class(PFS_builtin_memory_class *klass,
   klass->m_class.m_volatility = PSI_VOLATILITY_PERMANENT;
   klass->m_class.m_documentation = const_cast<char *>(documentation);
   klass->m_class.m_event_name_index = 0;
-  klass->m_class.m_name.set(name);
+  klass->m_class.m_name.set(PFS_CLASS_MEMORY, name);
   assert(klass->m_class.m_name.length() <= klass->m_class.m_name.max_length);
 
   klass->m_stat.reset();
