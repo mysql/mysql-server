@@ -48,10 +48,10 @@ create spatial index idx on t1(c2);
 
 show create table t1;
 
-SET DEBUG='+d,row_merge_ins_spatial_fail';
+SET DEBUG='+d,ddl_ins_spatial_fail';
 --error ER_GET_ERRNO
 create spatial index idx2 on t1(c2);
-SET DEBUG='-d,row_merge_ins_spatial_fail';
+SET DEBUG='-d,ddl_ins_spatial_fail';
 show create table t1;
 
 # Check table.

@@ -569,7 +569,7 @@ rec_t *rec_copy(void *buf, const rec_t *rec, const ulint *offsets);
 #ifndef UNIV_HOTBACKUP
 /** Determines the size of a data tuple prefix in a temporary file.
  @return total size */
-ulint rec_get_converted_size_temp(
+ulint rec_get_serialize_size(
     const dict_index_t *index, /*!< in: record descriptor */
     const dfield_t *fields,    /*!< in: array of data fields */
     ulint n_fields,            /*!< in: number of data fields */
@@ -579,16 +579,16 @@ ulint rec_get_converted_size_temp(
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Determine the offset to each field in temporary file.
- @see rec_convert_dtuple_to_temp() */
-void rec_init_offsets_temp(
+ @see rec_serialize_dtuple() */
+void rec_deserialize_init_offsets(
     const rec_t *rec,          /*!< in: temporary file record */
     const dict_index_t *index, /*!< in: record descriptor */
     ulint *offsets);           /*!< in/out: array of offsets;
                               in: n=rec_offs_n_fields(offsets) */
 
 /** Builds a temporary file record out of a data tuple.
- @see rec_init_offsets_temp() */
-void rec_convert_dtuple_to_temp(
+ @see rec_deserialize_init_offsets() */
+void rec_serialize_dtuple(
     rec_t *rec,                /*!< out: record */
     const dict_index_t *index, /*!< in: record descriptor */
     const dfield_t *fields,    /*!< in: array of data fields */

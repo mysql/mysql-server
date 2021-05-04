@@ -711,37 +711,37 @@ inline std::ostream &operator<<(std::ostream &out, const dfield_t &obj) {
 struct dtuple_t {
   /** info bits of an index record: the default is 0; this field is used if an
   index record is built from a data tuple */
-  ulint info_bits;
+  uint16_t info_bits;
 
   /** Number of fields in dtuple */
-  ulint n_fields;
+  uint16_t n_fields;
 
   /** number of fields which should be used in comparison services of rem0cmp.*;
   the index search is performed by comparing only these fields, others are
   ignored; the default value in dtuple creation is the same value as n_fields */
-  ulint n_fields_cmp;
+  uint16_t n_fields_cmp;
 
   /** Fields. */
   dfield_t *fields;
 
   /** Number of virtual fields. */
-  ulint n_v_fields;
+  uint16_t n_v_fields;
 
   /** Fields on virtual column */
   dfield_t *v_fields;
 
   /** Data tuples can be linked into a list using this field */
   UT_LIST_NODE_T(dtuple_t) tuple_list;
+
 #ifdef UNIV_DEBUG
-  /** memory heap where this tuple is allocated. */
-  mem_heap_t *m_heap;
+  /** Memory heap where this tuple is allocated. */
+  mem_heap_t *m_heap{};
+
+  /** Value of dtuple_t::magic_n */
+  static constexpr size_t MAGIC_N = 614679;
 
   /** Magic number, used in debug assertions */
-  ulint magic_n;
-
-/** Value of dtuple_t::magic_n */
-#define DATA_TUPLE_MAGIC_N 65478679
-
+  size_t magic_n{MAGIC_N};
 #endif /* UNIV_DEBUG */
 
   /** Print the tuple to the output stream.
@@ -749,7 +749,7 @@ struct dtuple_t {
   @return stream */
   std::ostream &print(std::ostream &out) const {
     dtuple_print(out, this);
-    return (out);
+    return out;
   }
 
   /** Read the trx id from the tuple (DB_TRX_ID)
@@ -790,25 +790,25 @@ struct dtuple_t {
 
   /** Get number of externally stored fields.
   @retval number of externally stored fields. */
-  inline ulint get_n_ext() const {
-    ulint n_ext = 0;
-    for (size_t i = 0; i < n_fields; ++i) {
+  inline size_t get_n_ext() const {
+    size_t n_ext = 0;
+    for (uint32_t i = 0; i < n_fields; ++i) {
       if (dfield_is_ext(&fields[i])) {
-        n_ext++;
+        ++n_ext;
       }
     }
-    return (n_ext);
+    return n_ext;
   }
 
   /** Does tuple has externally stored fields.
   @retval true if there is externally stored fields. */
   inline bool has_ext() const {
-    for (size_t i = 0; i < n_fields; ++i) {
+    for (uint32_t i = 0; i < n_fields; ++i) {
       if (dfield_is_ext(&fields[i])) {
-        return (true);
+        return true;
       }
     }
-    return (false);
+    return false;
   }
 };
 

@@ -199,7 +199,7 @@ INSERT INTO t1 (id,a,b) VALUES (10,'aditya','hello');
 connect (con1,localhost,root);
 connection con1;
 
-SET DEBUG_SYNC= 'row_merge_after_scan SIGNAL opened WAIT_FOR go_ddl';
+SET DEBUG_SYNC= 'ddl_after_scan SIGNAL opened WAIT_FOR go_ddl';
 send ALTER TABLE t1 ADD CONSTRAINT  pk1 PRIMARY KEY (id);
 
 connection default;

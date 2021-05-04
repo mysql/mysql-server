@@ -4127,7 +4127,7 @@ static void mark_all_page_dirty_in_tablespace(THD *thd, space_id_t space_id,
                                               page_no_t total_pages,
                                               page_no_t from_page) {
 #ifdef HAVE_PSI_STAGE_INTERFACE
-  ut_stage_alter_ts progress_monitor;
+  Alter_stage_ts progress_monitor;
 #endif
   page_size_t pageSize(space_flags);
   page_no_t current_page = from_page;

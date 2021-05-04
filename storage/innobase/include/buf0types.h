@@ -56,7 +56,7 @@ struct buf_buddy_stat_t;
 /** Doublewrite memory struct */
 struct buf_dblwr_t;
 /** Flush observer for bulk create index */
-class FlushObserver;
+class Flush_observer;
 
 /** A buffer frame. @see page_t */
 typedef byte buf_frame_t;

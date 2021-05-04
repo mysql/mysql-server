@@ -1124,8 +1124,7 @@ class SyncFileIO {
   }
 
   /** Destructor */
-  ~SyncFileIO() { /* No op */
-  }
+  ~SyncFileIO() = default;
 
   /** Do the read/write
   @param[in]	request	The IO context and type

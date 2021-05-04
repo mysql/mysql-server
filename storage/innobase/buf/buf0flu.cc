@@ -3703,9 +3703,9 @@ bool buf_flush_validate(buf_pool_t *buf_pool) {
  list in a particular buffer pool.
  @return number of dirty pages present in a single buffer pool */
 ulint buf_pool_get_dirty_pages_count(
-    buf_pool_t *buf_pool,    /*!< in: buffer pool */
-    space_id_t id,           /*!< in: space id to check */
-    FlushObserver *observer) /*!< in: flush observer to check */
+    buf_pool_t *buf_pool,     /*!< in: buffer pool */
+    space_id_t id,            /*!< in: space id to check */
+    Flush_observer *observer) /*!< in: flush observer to check */
 
 {
   ulint count = 0;
@@ -3734,8 +3734,8 @@ ulint buf_pool_get_dirty_pages_count(
  list.
  @return number of dirty pages present in all the buffer pools */
 static ulint buf_flush_get_dirty_pages_count(
-    space_id_t id,           /*!< in: space id to check */
-    FlushObserver *observer) /*!< in: flush observer to check */
+    space_id_t id,            /*!< in: space id to check */
+    Flush_observer *observer) /*!< in: flush observer to check */
 {
   ulint count = 0;
 
@@ -3750,32 +3750,32 @@ static ulint buf_flush_get_dirty_pages_count(
   return (count);
 }
 
-FlushObserver::FlushObserver(space_id_t space_id, trx_t *trx,
-                             ut_stage_alter_t *stage) noexcept
+Flush_observer::Flush_observer(space_id_t space_id, trx_t *trx,
+                               Alter_stage *stage) noexcept
     : m_space_id(space_id),
       m_trx(trx),
       m_stage(stage),
       m_flushed(srv_buf_pool_instances),
       m_removed(srv_buf_pool_instances) {
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_130) << "FlushObserver : ID= " << m_id
+  ib::info(ER_IB_MSG_130) << "Flush_observer : ID= " << m_id
                           << ", space_id=" << space_id << ", trx_id="
                           << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
-FlushObserver::~FlushObserver() noexcept {
+Flush_observer::~Flush_observer() noexcept {
   ut_a(m_n_ref_count.fetch_add(0, std::memory_order_relaxed) == 0);
   ut_ad(buf_flush_get_dirty_pages_count(m_space_id, this) == 0);
 
 #ifdef FLUSH_LIST_OBSERVER_DEBUG
-  ib::info(ER_IB_MSG_131) << "~FlushObserver : ID= " << m_id
+  ib::info(ER_IB_MSG_131) << "~Flush_observer : ID= " << m_id
                           << ", space_id=" << space_id << ", trx_id="
                           << (m_trx == nullptr ? TRX_ID_MAX : trx->id);
 #endif /* FLUSH_LIST_OBSERVER_DEBUG */
 }
 
-bool FlushObserver::check_interrupted() {
+bool Flush_observer::check_interrupted() {
   if (m_trx != nullptr && trx_is_interrupted(m_trx)) {
     interrupted();
 
@@ -3785,19 +3785,19 @@ bool FlushObserver::check_interrupted() {
   return false;
 }
 
-void FlushObserver::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
+void Flush_observer::notify_flush(buf_pool_t *buf_pool, buf_page_t *bpage) {
   m_flushed.at(buf_pool->instance_no).fetch_add(1, std::memory_order_relaxed);
 
   if (m_stage != nullptr) {
-    m_stage->inc();
+    m_stage->inc(1);
   }
 }
 
-void FlushObserver::notify_remove(buf_pool_t *buf_pool, buf_page_t *bpage) {
+void Flush_observer::notify_remove(buf_pool_t *buf_pool, buf_page_t *bpage) {
   m_removed.at(buf_pool->instance_no).fetch_add(1, std::memory_order_relaxed);
 }
 
-void FlushObserver::flush() {
+void Flush_observer::flush() {
   buf_remove_t buf_remove;
 
   if (m_interrupted) {
@@ -3806,8 +3806,7 @@ void FlushObserver::flush() {
     buf_remove = BUF_REMOVE_FLUSH_WRITE;
 
     if (m_stage != nullptr) {
-      ulint pages_to_flush = buf_flush_get_dirty_pages_count(m_space_id, this);
-
+      auto pages_to_flush = buf_flush_get_dirty_pages_count(m_space_id, this);
       m_stage->begin_phase_flush(pages_to_flush);
     }
   }

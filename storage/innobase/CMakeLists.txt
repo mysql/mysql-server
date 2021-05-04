@@ -65,13 +65,13 @@ SET(INNOBASE_SOURCES
   btr/btr0cur.cc
   btr/btr0pcur.cc
   btr/btr0sea.cc
-  btr/btr0bulk.cc
   buf/buf0block_hint.cc
   buf/buf0buddy.cc
   buf/buf0buf.cc
   buf/buf0dblwr.cc
   buf/buf0dump.cc
   buf/buf0flu.cc
+  btr/btr0load.cc
   buf/buf0lru.cc
   buf/buf0rea.cc
   clone/clone0api.cc
@@ -93,6 +93,16 @@ SET(INNOBASE_SOURCES
   dict/dict0stats.cc
   dict/dict0stats_bg.cc
   dict/dict0upgrade.cc
+  ddl/ddl0buffer.cc
+  ddl/ddl0builder.cc
+  ddl/ddl0ctx.cc
+  ddl/ddl0ddl.cc
+  ddl/ddl0fts.cc
+  ddl/ddl0file-reader.cc
+  ddl/ddl0loader.cc
+  ddl/ddl0merge.cc
+  ddl/ddl0rtree.cc
+  ddl/ddl0par-scan.cc
   eval/eval0eval.cc
   eval/eval0proc.cc
   fil/fil0fil.cc
@@ -173,10 +183,8 @@ SET(INNOBASE_SOURCES
   rem/rem0cmp.cc
   rem/rem0rec.cc
   row/row0ext.cc
-  row/row0ftsort.cc
   row/row0import.cc
   row/row0ins.cc
-  row/row0merge.cc
   row/row0mysql.cc
   row/row0log.cc
   row/row0pread.cc

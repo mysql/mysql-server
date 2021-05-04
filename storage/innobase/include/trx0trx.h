@@ -61,7 +61,7 @@ struct mtr_t;
 class ReadView;
 
 // Forward declaration
-class FlushObserver;
+class Flush_observer;
 
 /** Dummy session used currently in MySQL interface */
 extern sess_t *trx_dummy_sess;
@@ -70,7 +70,7 @@ extern sess_t *trx_dummy_sess;
 /** Set flush observer for the transaction
 @param[in,out]	trx		transaction struct
 @param[in]	observer	flush observer */
-void trx_set_flush_observer(trx_t *trx, FlushObserver *observer);
+void trx_set_flush_observer(trx_t *trx, Flush_observer *observer);
 
 /** Set detailed error message for the transaction.
 @param[in] trx Transaction struct
@@ -1001,14 +1001,17 @@ struct trx_t {
                             the running thread can change. */
 
   /* These fields are not protected by any mutex. */
-  const char *op_info;   /*!< English text describing the
-                         current operation, or an empty
-                         string */
-  ulint isolation_level; /*!< TRX_ISO_REPEATABLE_READ, ... */
-  bool check_foreigns;   /*!< normally TRUE, but if the user
-                         wants to suppress foreign key checks,
-                         (in table imports, for example) we
-                         set this FALSE */
+  const char *op_info; /*!< English text describing the
+                       current operation, or an empty
+                       string */
+
+  /** Current isolation level */
+  isolation_level_t isolation_level;
+
+  bool check_foreigns; /*!< normally TRUE, but if the user
+                       wants to suppress foreign key checks,
+                       (in table imports, for example) we
+                       set this FALSE */
   /*------------------------------*/
   /* MySQL has a transaction coordinator to coordinate two phase
   commit between multiple storage engines and the binary log. When
@@ -1239,9 +1242,9 @@ struct trx_t {
   this fact. */
   bool purge_sys_trx;
   /*------------------------------*/
-  char *detailed_error;          /*!< detailed error message for last
-                                 error, or empty. */
-  FlushObserver *flush_observer; /*!< flush observer */
+  char *detailed_error;           /*!< detailed error message for last
+                                  error, or empty. */
+  Flush_observer *flush_observer; /*!< flush observer */
 
 #ifdef UNIV_DEBUG
   bool is_dd_trx; /*!< True if the transaction is used for

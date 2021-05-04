@@ -41,6 +41,7 @@ Created 2018-01-27 by Sunny Bains. */
 // Forward declarations
 struct trx_t;
 struct mtr_t;
+class PCursor;
 struct btr_pcur_t;
 struct buf_block_t;
 struct dict_table_t;
@@ -116,6 +117,25 @@ class Parallel_reader {
   class Scan_ctx;
   struct Thread_ctx;
 
+  /** Scan state. */
+#if defined(__SUNPRO_C) || defined(__SUNPRO_CC)
+  enum class State : int {
+#else
+  enum class State : uint8_t {
+#endif /* __SUNPRO_C || __SUNPRO_CC*/
+    /** Unknown state. */
+    UNKNOWN,
+
+    /** Start/Finish thread state. */
+    THREAD,
+
+    /** Start/Finish Ctx state. */
+    CTX,
+
+    /** Start/Finish page read. */
+    PAGE
+  };
+
   /** Callback to initialise callers state. */
   using Start = std::function<dberr_t(Thread_ctx *thread_ctx)>;
 
@@ -156,8 +176,8 @@ class Parallel_reader {
     @param[in] scan_range     Range to scan.
     @param[in] index          Cluster index to scan.
     @param[in] read_level     Btree level from which records need to be read.
-    @param[in] partition_id   Partition id if it the index to be scanned.
-    belongs to a partitioned table. */
+    @param[in] partition_id   Partition id if the index to be scanned.
+                              belongs to a partitioned table. */
     Config(const Scan_range &scan_range, dict_index_t *index,
            size_t read_level = 0,
            size_t partition_id = std::numeric_limits<size_t>::max())
@@ -230,6 +250,17 @@ class Parallel_reader {
       m_blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
     }
 
+    /** @return the worker thread state. */
+    State get_state() const noexcept { return m_state; }
+
+    /** Save current position, commit any active mtr. */
+    void savepoint() noexcept;
+
+    /** Restore saved position and resume scan.
+    @return DB_SUCCESS or error code. */
+    dberr_t restore_from_savepoint() noexcept
+        MY_ATTRIBUTE((warn_unused_result));
+
     /** Thread ID. */
     size_t m_thread_id{std::numeric_limits<size_t>::max()};
 
@@ -243,6 +274,12 @@ class Parallel_reader {
     /** BLOB heap per thread. */
     mem_heap_t *m_blob_heap{};
 
+    /** Worker thread state. */
+    State m_state{State::UNKNOWN};
+
+    /** Current persistent cursor. */
+    PCursor *m_pcursor{};
+
     Thread_ctx(Thread_ctx &&) = delete;
     Thread_ctx(const Thread_ctx &) = delete;
     Thread_ctx &operator=(Thread_ctx &&) = delete;
@@ -250,16 +287,8 @@ class Parallel_reader {
   };
 
   /** Constructor.
-  @param[in]  max_threads Maximum number of threads to use.
-  @param[in]  sync        true if the read is synchronous */
-  explicit Parallel_reader(size_t max_threads, bool sync = true);
-
-  /** Constructor.
-  @param[in]  max_threads Maximum number of threads to use.
-  @param[in]  n_threads   Number of threads to be spawned.
-  @param[in]  sync        true if the read is synchronous */
-  explicit Parallel_reader(size_t max_threads, size_t n_threads,
-                           bool sync = true);
+  @param[in]  max_threads Maximum number of threads to use. */
+  explicit Parallel_reader(size_t max_threads);
 
   /** Destructor. */
   ~Parallel_reader();
@@ -269,23 +298,14 @@ class Parallel_reader {
   @param[in] use_reserved true if reserved threads needs to be considered
   while checking for availability of threads
   @return number of threads available. */
-  static size_t available_threads(size_t n_required, bool use_reserved = false)
+  static size_t available_threads(size_t n_required, bool use_reserved)
       MY_ATTRIBUTE((warn_unused_result));
 
   /** Release the parallel read threads. */
   static void release_threads(size_t n_threads) {
-    const auto RELAXED = std::memory_order_relaxed;
-    auto active = s_active_threads.fetch_sub(n_threads, RELAXED);
+    const auto SEQ_CST = std::memory_order_seq_cst;
+    auto active = s_active_threads.fetch_sub(n_threads, SEQ_CST);
     ut_a(active >= n_threads);
-  }
-
-  /** Fallback to single threaded mode in case of out of resource
-  issue where extra threads cannot be spawned. */
-  void fallback_to_single_threaded_mode() {
-    m_single_threaded_mode = true;
-    release_unused_threads(m_n_threads);
-    m_n_threads = 0;
-    reset_error_state();
   }
 
   /** Add scan context.
@@ -307,12 +327,12 @@ class Parallel_reader {
   /** Get the error stored in the global error state.
   @return global error state. */
   dberr_t get_error_state() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_err);
+    return m_err;
   }
 
   /** @return true if the tree is empty, else false. */
   bool is_tree_empty() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_ctx_id.load(std::memory_order_relaxed) == 0);
+    return m_ctx_id.load(std::memory_order_relaxed) == 0;
   }
 
   /** Set the callback that must be called before any processing.
@@ -323,9 +343,16 @@ class Parallel_reader {
   @param[in] f                  Call after last row is processed.*/
   void set_finish_callback(Finish &&f) { m_finish_callback = std::move(f); }
 
-  /** Start the threads to do the parallel read for the specified range.
+  /** Spawn the threads to do the parallel read for the specified range.
+  Don't wait for the spawned to threads to complete.
+  @param[in]  n_threads number of threads that *need* to be spawned
   @return DB_SUCCESS or error code. */
-  dberr_t run() MY_ATTRIBUTE((warn_unused_result));
+  dberr_t spawn(size_t n_threads) noexcept MY_ATTRIBUTE((warn_unused_result));
+
+  /** Start the threads to do the parallel read for the specified range.
+  @param[in] n_threads          Number of threads to use for the scan.
+  @return DB_SUCCESS or error code. */
+  dberr_t run(size_t n_threads) MY_ATTRIBUTE((warn_unused_result));
 
   /** @return the configured max threads size. */
   size_t max_threads() const MY_ATTRIBUTE((warn_unused_result)) {
@@ -334,7 +361,7 @@ class Parallel_reader {
 
   /** @return true if in error state. */
   bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_err.load(std::memory_order_relaxed) != DB_SUCCESS);
+    return m_err.load(std::memory_order_relaxed) != DB_SUCCESS;
   }
 
   /** Set the error state.
@@ -357,9 +384,6 @@ class Parallel_reader {
   Parallel_reader &operator=(const Parallel_reader &) = delete;
 
  private:
-  /** Reset error state. */
-  void reset_error_state() { m_err = DB_SUCCESS; }
-
   /** Release unused threads back to the pool.
   @param[in] unused_threads     Number of threads to "release". */
   void release_unused_threads(size_t unused_threads) {
@@ -387,8 +411,8 @@ class Parallel_reader {
 
   /** @return true if tasks are still executing. */
   bool is_active() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_n_completed.load(std::memory_order_relaxed) <
-            m_ctx_id.load(std::memory_order_relaxed));
+    return m_n_completed.load(std::memory_order_relaxed) <
+           m_ctx_id.load(std::memory_order_relaxed);
   }
 
  private:
@@ -404,7 +428,7 @@ class Parallel_reader {
   // clang-format on
 
   /** Maximum number of worker threads to use. */
-  const size_t m_max_threads;
+  size_t m_max_threads{};
 
   /** Number of worker threads that will be spawned. */
   size_t m_n_threads{0};
@@ -417,10 +441,6 @@ class Parallel_reader {
 
   /** Scan contexts. */
   Scan_ctxs m_scan_ctxs{};
-
-  /** True if we fallback to single threaded mode in case of out of resource
-  issue where extra threads cannot be spawned. */
-  bool m_single_threaded_mode{false};
 
   /** For signalling worker threads about events. */
   os_event_t m_event{};
@@ -513,7 +533,7 @@ class Parallel_reader::Scan_ctx {
   using Ranges = std::vector<Range, ut_allocator<Range>>;
 
   /** @return the scan context ID. */
-  size_t id() const MY_ATTRIBUTE((warn_unused_result)) { return (m_id); }
+  size_t id() const MY_ATTRIBUTE((warn_unused_result)) { return m_id; }
 
   /** Set the error state.
   @param[in] err                Error state to set to. */
@@ -523,7 +543,7 @@ class Parallel_reader::Scan_ctx {
 
   /** @return true if in error state. */
   bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_err.load(std::memory_order_relaxed) != DB_SUCCESS);
+    return m_err.load(std::memory_order_relaxed) != DB_SUCCESS;
   }
 
   /** Fetch a block from the buffer pool and acquire an S latch on it.
@@ -623,7 +643,7 @@ class Parallel_reader::Scan_ctx {
 
   /** @return the maximum number of threads configured. */
   size_t max_threads() const MY_ATTRIBUTE((warn_unused_result)) {
-    return m_reader->m_max_threads;
+    return m_reader->max_threads();
   }
 
   /** Release unused threads back to the pool.
@@ -640,7 +660,7 @@ class Parallel_reader::Scan_ctx {
 
   /** @return true if at least one thread owns the S latch on the index. */
   bool index_s_own() const {
-    return (m_s_locks.load(std::memory_order_acquire) > 0);
+    return m_s_locks.load(std::memory_order_acquire) > 0;
   }
 
  private:
@@ -679,8 +699,6 @@ class Parallel_reader::Scan_ctx {
   Scan_ctx &operator=(const Scan_ctx &) = delete;
 };
 
-class PCursor;
-
 /** Parallel reader execution context. */
 class Parallel_reader::Ctx {
  private:
@@ -697,21 +715,21 @@ class Parallel_reader::Ctx {
 
  public:
   /** @return the context ID. */
-  size_t id() const MY_ATTRIBUTE((warn_unused_result)) { return (m_id); }
+  size_t id() const MY_ATTRIBUTE((warn_unused_result)) { return m_id; }
 
   /** The scan ID of the scan context this belongs to. */
   size_t scan_id() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_scan_ctx->id());
+    return m_scan_ctx->id();
   }
 
   /** @return the covering transaction. */
   const trx_t *trx() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_scan_ctx->m_trx);
+    return m_scan_ctx->m_trx;
   }
 
   /** @return the index being scanned. */
   const dict_index_t *index() const MY_ATTRIBUTE((warn_unused_result)) {
-    return (m_scan_ctx->m_config.m_index);
+    return m_scan_ctx->m_config.m_index;
   }
 
   /** @return ID of the thread processing this context */
@@ -719,8 +737,7 @@ class Parallel_reader::Ctx {
     return m_thread_ctx->m_thread_id;
   }
 
-  /** @return context information related to the thread processing this
-  context */
+  /** @return the thread context of the reader thread. */
   Thread_ctx *thread_ctx() const MY_ATTRIBUTE((warn_unused_result)) {
     return m_thread_ctx;
   }
@@ -743,7 +760,7 @@ class Parallel_reader::Ctx {
   @return true if row is visible to the transaction. */
   bool is_rec_visible(const rec_t *&rec, ulint *&offsets, mem_heap_t *&heap,
                       mtr_t *mtr) {
-    return (m_scan_ctx->check_visibility(rec, offsets, heap, mtr));
+    return m_scan_ctx->check_visibility(rec, offsets, heap, mtr);
   }
 
  private:
@@ -759,9 +776,8 @@ class Parallel_reader::Ctx {
 
   /** Move to the next node in the specified level.
   @param[in]  pcursor persistent b-tree cursor
-  @param[in]  mtr mtr
   @return success */
-  bool move_to_next_node(PCursor *pcursor, mtr_t *mtr);
+  bool move_to_next_node(PCursor *pcursor);
 
   /** Split the context into sub-ranges and add them to the execution queue.
   @return DB_SUCCESS or error code. */
@@ -776,7 +792,7 @@ class Parallel_reader::Ctx {
   /** Context ID. */
   size_t m_id{std::numeric_limits<size_t>::max()};
 
-  /** If true the split the context at the block level. */
+  /** If true then split the context at the block level. */
   bool m_split{};
 
   /** Range to read in this context. */

@@ -116,7 +116,7 @@ static void trx_release_impl_and_expl_locks(trx_t *trx, bool serialised);
 /** Set flush observer for the transaction
 @param[in,out]	trx		transaction struct
 @param[in]	observer	flush observer */
-void trx_set_flush_observer(trx_t *trx, FlushObserver *observer) {
+void trx_set_flush_observer(trx_t *trx, Flush_observer *observer) {
   trx->flush_observer = observer;
 }
 

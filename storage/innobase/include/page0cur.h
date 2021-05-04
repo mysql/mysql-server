@@ -314,10 +314,17 @@ bool page_delete_rec(
 /** Index page cursor */
 
 struct page_cur_t {
+  /** Index the cursor is on. */
   const dict_index_t *index{nullptr};
-  rec_t *rec{nullptr}; /*!< pointer to a record on page */
+
+  /** pointer to a record on page */
+  rec_t *rec{nullptr};
+
+  /** Current offsets of the record. */
   ulint *offsets{nullptr};
-  buf_block_t *block{nullptr}; /*!< pointer to the block containing rec */
+
+  /** Pointer to the current block containing rec. */
+  buf_block_t *block{nullptr};
 };
 
 #include "page0cur.ic"

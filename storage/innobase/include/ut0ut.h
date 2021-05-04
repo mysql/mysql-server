@@ -241,7 +241,7 @@ ulint ut_2_power_up(ulint n);
 store the given number of bits.
 @param b in: bits
 @return number of bytes (octets) needed to represent b */
-#define UT_BITS_IN_BYTES(b) (((b) + 7) / 8)
+#define UT_BITS_IN_BYTES(b) (((b) + 7UL) / 8UL)
 
 /** Returns system time. We do not specify the format of the time returned:
  the only way to manipulate it is to use the function ut_difftime.

@@ -37,7 +37,7 @@ Created 2018-02-28 by Darshan M N */
 
 Parallel_reader_adapter::Parallel_reader_adapter(size_t max_threads,
                                                  ulint rowlen)
-    : m_parallel_reader(max_threads, max_threads) {
+    : m_parallel_reader(max_threads) {
   m_batch_size = ADAPTER_SEND_BUFFER_SIZE / rowlen;
 }
 
@@ -77,12 +77,20 @@ void Parallel_reader_adapter::set(row_prebuilt_t *prebuilt) {
 
   m_parallel_reader.set_start_callback(
       [=](Parallel_reader::Thread_ctx *reader_thread_ctx) {
-        return init(reader_thread_ctx, prebuilt);
+        if (reader_thread_ctx->get_state() == Parallel_reader::State::THREAD) {
+          return init(reader_thread_ctx, prebuilt);
+        } else {
+          return DB_SUCCESS;
+        }
       });
 
   m_parallel_reader.set_finish_callback(
       [=](Parallel_reader::Thread_ctx *reader_thread_ctx) {
-        return end(reader_thread_ctx);
+        if (reader_thread_ctx->get_state() == Parallel_reader::State::THREAD) {
+          return end(reader_thread_ctx);
+        } else {
+          return DB_SUCCESS;
+        }
       });
 
   ut_a(m_prebuilt == nullptr);
@@ -98,7 +106,7 @@ dberr_t Parallel_reader_adapter::run(void **thread_ctxs, Init_fn init_fn,
 
   m_parallel_reader.set_n_threads(m_parallel_reader.max_threads());
 
-  return m_parallel_reader.run();
+  return m_parallel_reader.run(m_parallel_reader.max_threads());
 }
 
 dberr_t Parallel_reader_adapter::init(

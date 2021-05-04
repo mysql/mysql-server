@@ -70,7 +70,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #ifndef UNIV_HOTBACKUP
 #include "buf0rea.h"
-#include "row0merge.h"
+#include "ddl0ddl.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0purge.h"

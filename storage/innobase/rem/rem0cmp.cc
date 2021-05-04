@@ -930,22 +930,20 @@ static MY_ATTRIBUTE((warn_unused_result)) int cmp_rec_rec_simple_field(
 
 int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
                        const ulint *offsets1, const ulint *offsets2,
-                       const dict_index_t *index, struct TABLE *table) {
+                       const dict_index_t *index, TABLE *table) {
   ulint n;
-  ulint n_uniq = dict_index_get_n_unique(index);
-  bool null_eq = false;
+  bool null_eq{};
+  const auto n_uniq = dict_index_get_n_unique(index);
 
   ut_ad(rec_offs_n_fields(offsets1) >= n_uniq);
+  ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
   ut_ad(rec_offs_n_fields(offsets2) == rec_offs_n_fields(offsets2));
 
-  ut_ad(rec_offs_comp(offsets1) == rec_offs_comp(offsets2));
-
   for (n = 0; n < n_uniq; n++) {
-    int cmp =
-        cmp_rec_rec_simple_field(rec1, rec2, offsets1, offsets2, index, n);
+    auto r = cmp_rec_rec_simple_field(rec1, rec2, offsets1, offsets2, index, n);
 
-    if (cmp) {
-      return (cmp);
+    if (r != 0) {
+      return r;
     }
 
     /* If the fields are internally equal, they must both
@@ -965,29 +963,23 @@ int cmp_rec_rec_simple(const rec_t *rec1, const rec_t *rec2,
   if (!null_eq && table && dict_index_is_unique(index)) {
     /* Report erroneous row using new version of table. */
     innobase_rec_to_mysql(table, rec1, index, offsets1);
-    return (0);
+    return 0;
   }
 
-  /* Else, keep comparing so that we have the full internal
-  order. */
+  /* Else, keep comparing so that we have the full internal order. */
   for (; n < dict_index_get_n_fields(index); n++) {
-    int cmp =
-        cmp_rec_rec_simple_field(rec1, rec2, offsets1, offsets2, index, n);
+    auto r = cmp_rec_rec_simple_field(rec1, rec2, offsets1, offsets2, index, n);
 
-    if (cmp) {
-      return (cmp);
+    if (r != 0) {
+      return r;
     }
 
-    /* If the fields are internally equal, they must both
-    be NULL or non-NULL. */
+    /* If the fields are equal, they must both be NULL or non-NULL. */
     ut_ad(rec_offs_nth_sql_null(offsets1, n) ==
           rec_offs_nth_sql_null(offsets2, n));
   }
 
-  /* This should never be reached. Internally, an index must
-  never contain duplicate entries. */
-  ut_ad(0);
-  return (0);
+  return 0;
 }
 
 int cmp_rec_rec_with_match(const rec_t *rec1, const rec_t *rec2,

@@ -784,19 +784,6 @@ void buf_block_modify_clock_inc(buf_block_t *block) {
   block->modify_clock++;
 }
 
-/** Read the modify clock.
-@param[in]	block	buffer block
-@return modify_clock value */
-UNIV_INLINE
-ib_uint64_t buf_block_get_modify_clock(const buf_block_t *block) {
-  /* No block latch is acquired for internal temporary tables. */
-  ut_ad(fsp_is_system_temporary(block->page.id.space()) ||
-        rw_lock_own_flagged(&block->lock,
-                            RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX | RW_LOCK_FLAG_S));
-
-  return (block->modify_clock);
-}
-
 inline void buf_page_t::set_oldest_lsn(lsn_t lsn) noexcept {
   ut_ad(buf_page_get_state(this) == BUF_BLOCK_POOL_WATCH ||
         mutex_own(buf_page_get_mutex(this)));

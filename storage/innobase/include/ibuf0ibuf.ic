@@ -198,7 +198,6 @@ ulint ibuf_index_page_calc_free_zip(
     const buf_block_t *block) /*!< in: buffer block */
 {
   ulint max_ins_size;
-  const page_zip_des_t *page_zip;
   lint zip_max_ins;
 
   ut_ad(block->page.size.is_compressed());
@@ -213,7 +212,7 @@ ulint ibuf_index_page_calc_free_zip(
   by using the page modification log. */
   max_ins_size = page_get_max_insert_size(buf_block_get_frame(block), 1);
 
-  page_zip = buf_block_get_page_zip(block);
+  const auto page_zip = block->get_page_zip();
   zip_max_ins = page_zip_max_ins_size(page_zip, FALSE /* not clustered */);
 
   if (zip_max_ins < 0) {
@@ -274,7 +273,7 @@ void ibuf_update_free_bits_if_full(
   ulint before;
   ulint after;
 
-  ut_ad(buf_block_get_page_zip(block) == NULL);
+  ut_ad(block->get_page_zip() == nullptr);
 
   before =
       ibuf_index_page_calc_free_bits(block->page.size.physical(), max_ins_size);

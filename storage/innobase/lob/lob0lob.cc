@@ -92,7 +92,7 @@ log file. */
 void BtrContext::check_redolog_bulk() {
   ut_ad(is_bulk());
 
-  FlushObserver *observer = m_mtr->get_flush_observer();
+  Flush_observer *observer = m_mtr->get_flush_observer();
 
   rec_block_fix();
 
@@ -114,7 +114,7 @@ mini-transaction. */
 void BtrContext::check_redolog_normal() {
   ut_ad(!is_bulk());
 
-  FlushObserver *observer = m_mtr->get_flush_observer();
+  Flush_observer *observer = m_mtr->get_flush_observer();
   store_position();
 
   commit_btr_mtr();
@@ -680,11 +680,9 @@ byte *btr_rec_copy_externally_stored_field_func(
 
   ut_a(local_len >= BTR_EXTERN_FIELD_REF_SIZE);
 
-#ifdef UNIV_DEBUG
   /* Verify if the LOB reference is sane. */
-  space_id_t space_id = ref.space_id();
+  ut_d(space_id_t space_id = ref.space_id());
   ut_ad(space_id == 0 || space_id == index->space);
-#endif /* UNIV_DEBUG */
 
   if (ref.is_null()) {
     /* The externally stored field was not written yet.
@@ -907,32 +905,10 @@ ulint btr_copy_externally_stored_field_prefix_func(trx_t *trx,
   return (local_len + fetch_len);
 }
 
-/** Copies an externally stored field of a record to mem heap.
-The clustered index record must be protected by a lock or a page latch.
-@param[in]	trx		the current trx object or nullptr
-@param[in]	index		the clust index in which lob is read.
-@param[out]	len		length of the whole field
-@param[out]	lob_version	LOB version number.
-@param[in]	data		'internally' stored part of the field
-                                containing also the reference to the external
-                                part; must be protected by a lock or a page
-                                latch.
-@param[in]	page_size	BLOB page size
-@param[in]	local_len	length of data */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI Indexes */
-#endif /* UNIV_DEBUG */
-/**
-@param[in,out]	heap		mem heap
-@return the whole field copied to heap */
 byte *btr_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, ulint *len, size_t *lob_version,
     const byte *data, const page_size_t &page_size, ulint local_len,
-#ifdef UNIV_DEBUG
-    bool is_sdi,
-#endif /* UNIV_DEBUG */
-    mem_heap_t *heap) {
+    IF_DEBUG(bool is_sdi, ) mem_heap_t *heap) {
   uint32_t extern_len;
   byte *buf;
 
@@ -952,12 +928,7 @@ byte *btr_copy_externally_stored_field_func(
   buf = (byte *)mem_heap_alloc(heap, local_len + extern_len);
 
   ReadContext rctx(page_size, data, local_len + BTR_EXTERN_FIELD_REF_SIZE,
-                   buf + local_len, extern_len
-#ifdef UNIV_DEBUG
-                   ,
-                   is_sdi
-#endif /* UNIV_DEBUG */
-  );
+                   buf + local_len, extern_len IF_DEBUG(, is_sdi));
 
   rctx.m_index = (dict_index_t *)index;
 

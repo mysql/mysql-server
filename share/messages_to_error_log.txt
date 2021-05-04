@@ -11379,6 +11379,12 @@ ER_DEPRECATED_PERSISTED_VARIABLE_WITH_ALIAS
 ER_LOG_COMPONENT_FLUSH_FAILED
   eng "%d error logging component(s) failed to flush. For file-based logs this can happen when the path or permissions of the log-file have changed. Failure to flush filed-based logs may affect log-rotation."
 
+ER_DDL_MSG_1
+  eng "DDL failed to create a thread to load an index, fall back to single thread"
+
+ER_MTR_MSG_1
+  eng "Debug_check_no_latching failed, slot->type=%d"
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

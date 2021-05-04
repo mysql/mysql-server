@@ -197,6 +197,8 @@ enum dberr_t {
   DB_OUT_OF_RESOURCES,
   /** Page was discarded, was not written to storage. */
   DB_PAGE_IS_STALE,
+  /** Error reading the auto-increment value. */
+  DB_AUTOINC_READ_ERROR,
 
   /* The following are partial failure codes */
 
@@ -217,8 +219,6 @@ enum dberr_t {
 
   /** Column update or read failed because the types mismatch */
   DB_DATA_MISMATCH = 2000,
-  /** Request the caller to cache records. */
-  DB_CACHE_RECORDS,
   /* Too many nested sub expression in full-text search string */
   DB_FTS_TOO_MANY_NESTED_EXP
 };

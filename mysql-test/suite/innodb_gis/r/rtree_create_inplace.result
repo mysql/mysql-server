@@ -30,6 +30,7 @@ SELECT COUNT(*) FROM t1 WHERE MBRWithin(t1.c2, @g1);
 COUNT(*)
 0
 ALTER TABLE t1 DROP INDEX idx, ADD SPATIAL INDEX idx3(c2);
-SET SESSION debug="+d,row_merge_instrument_log_check_flush";
+SET SESSION debug="+d,ddl_instrument_log_check_flush";
 ALTER TABLE t1  DROP INDEX idx3, ADD SPATIAL INDEX idx4(c2), ADD SPATIAL INDEX idx5(c3);
+SET SESSION debug="-d,ddl_instrument_log_check_flush";
 DROP TABLE t1;

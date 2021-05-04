@@ -54,19 +54,13 @@ ib_uint64_t ut_uint64_align_down(ib_uint64_t n, /*!< in: number to be rounded */
   return (n & ~((ib_uint64_t)align_no - 1));
 }
 
-/** Rounds ib_uint64_t upward to a multiple of a power of 2.
- @return rounded value */
-UNIV_INLINE
-ib_uint64_t ut_uint64_align_up(ib_uint64_t n,  /*!< in: number to be rounded */
-                               ulint align_no) /*!< in: align by this number
-                                               which must be a power of 2 */
-{
-  ib_uint64_t align_1 = (ib_uint64_t)align_no - 1;
+UNIV_INLINE uint64_t ut_uint64_align_up(uint64_t n, ulint align_no) {
+  const uint64_t align_1 = (uint64_t)align_no - 1;
 
   ut_ad(align_no > 0);
   ut_ad(ut_is_2pow(align_no));
 
-  return ((n + align_1) & ~align_1);
+  return (n + align_1) & ~align_1;
 }
 
 /** The following function rounds up a pointer to the nearest aligned address.

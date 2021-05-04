@@ -552,8 +552,8 @@ it is read or written. */
 #define UNIV_PREFETCH_RW(addr) _mm_prefetch((char *)addr, _MM_HINT_T0)
 #else
 /* Dummy versions of the macros */
-#define UNIV_EXPECT(expr, value) (expr)
-#define UNIV_LIKELY_NULL(expr) (expr)
+#define UNIV_EXPECT(expr, value) expr
+#define UNIV_LIKELY_NULL(expr) expr
 #define UNIV_PREFETCH_R(addr) ((void)0)
 #define UNIV_PREFETCH_RW(addr) ((void)0)
 #endif
@@ -713,4 +713,18 @@ as a standalone library. */
 #define UNIV_NO_ERR_MSGS
 
 #endif /* UNIV_LIBRARY && !UNIV_NO_ERR_MSGS */
+
+#ifdef UNIV_DEBUG
+#define IF_DEBUG(...) __VA_ARGS__
+#define IF_ENABLED(s, ...)        \
+  if (Sync_point::enabled((s))) { \
+    __VA_ARGS__                   \
+  }
+#else
+#define IF_DEBUG(...)
+#define IF_ENABLED(s, ...)
+#endif /* UNIV_DEBUG */
+
+using Col_offsets_t = ulint;
+
 #endif /* univ_i */

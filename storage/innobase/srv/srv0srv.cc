@@ -771,8 +771,7 @@ log_make_latest_checkpoint(). */
 PSI_stage_info srv_stage_alter_table_flush = {
     0, "alter table (flush)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 
-/** Performance schema stage event for monitoring ALTER TABLE progress
-row_merge_insert_index_tuples(). */
+/** Performance schema stage event for monitoring ALTER TABLE progress. */
 PSI_stage_info srv_stage_alter_table_insert = {
     0, "alter table (insert)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 
@@ -788,13 +787,11 @@ PSI_stage_info srv_stage_alter_table_log_table = {
     0, "alter table (log apply table)", PSI_FLAG_STAGE_PROGRESS,
     PSI_DOCUMENT_ME};
 
-/** Performance schema stage event for monitoring ALTER TABLE progress
-row_merge_sort(). */
+/** Performance schema stage event for monitoring ALTER TABLE progress. */
 PSI_stage_info srv_stage_alter_table_merge_sort = {
     0, "alter table (merge sort)", PSI_FLAG_STAGE_PROGRESS, PSI_DOCUMENT_ME};
 
-/** Performance schema stage event for monitoring ALTER TABLE progress
-row_merge_read_clustered_index(). */
+/** Performance schema stage event for monitoring ALTER TABLE progress. */
 PSI_stage_info srv_stage_alter_table_read_pk_internal_sort = {
     0, "alter table (read PK and internal sort)", PSI_FLAG_STAGE_PROGRESS,
     PSI_DOCUMENT_ME};

@@ -568,12 +568,6 @@ The caller must
 UNIV_INLINE
 void buf_block_modify_clock_inc(buf_block_t *block);
 
-/** Read the modify clock.
-@param[in]	block	buffer block
-@return modify_clock value */
-UNIV_INLINE
-uint64_t buf_block_get_modify_clock(const buf_block_t *block);
-
 /** Increments the bufferfix count. */
 #ifdef UNIV_DEBUG
 /**
@@ -911,10 +905,6 @@ buf_frame_t *buf_block_get_frame(
 #else  /* !UNIV_HOTBACKUP */
 #define buf_block_get_frame(block) (block)->frame
 #endif /* !UNIV_HOTBACKUP */
-/** Gets the compressed page descriptor corresponding to an uncompressed page
- if applicable. */
-#define buf_block_get_page_zip(block) \
-  ((block)->page.zip.data ? &(block)->page.zip : NULL)
 
 /** Get a buffer block from an adaptive hash index pointer.
 This function does not return if the block is not identified.
@@ -1338,11 +1328,11 @@ class buf_page_t {
 
  public:
   /** @return the flush observer instance. */
-  FlushObserver *get_flush_observer() noexcept { return m_flush_observer; }
+  Flush_observer *get_flush_observer() noexcept { return m_flush_observer; }
 
   /** Set the flush observer for the page.
   @param[in] flush_observer     The flush observer to set. */
-  void set_flush_observer(FlushObserver *flush_observer) noexcept {
+  void set_flush_observer(Flush_observer *flush_observer) noexcept {
     /* Don't allow to set flush observer from non-null to null, or from one
     observer to another. */
     ut_a(m_flush_observer == nullptr || m_flush_observer == flush_observer);
@@ -1666,7 +1656,7 @@ class buf_page_t {
 
 #ifndef UNIV_HOTBACKUP
   /** Flush observer instance. */
-  FlushObserver *m_flush_observer{};
+  Flush_observer *m_flush_observer{};
 
   /** Tablespace instance that this page belongs to. */
   fil_space_t *m_space{};
@@ -1885,6 +1875,21 @@ struct buf_block_t {
   new mutex in InnoDB-5.1 to relieve contention on the buffer pool mutex */
   BPageMutex mutex;
 
+  /** Get the modified clock (version) value.
+  @param[in] single_threaded    Thread can only be written to or read by a
+                                single thread
+  @return the modified clock vlue. */
+  uint64_t get_modify_clock(IF_DEBUG(bool single_threaded)) const noexcept {
+#if defined(UNIV_DEBUG) && !defined(UNIV_LIBRARY) && !defined(UNIV_HOTBACKUP)
+    /* No block latch is acquired when blocks access is guaranteed to be
+    in single threaded mode. */
+    constexpr auto mode = RW_LOCK_FLAG_X | RW_LOCK_FLAG_SX | RW_LOCK_FLAG_S;
+    ut_ad(single_threaded || rw_lock_own_flagged(&lock, mode));
+#endif /* UNIV_DEBUG && !UNIV_LIBRARY */
+
+    return modify_clock;
+  }
+
   /** Get the page number and space id of the current buffer block.
   @return page number of the current buffer block. */
   const page_id_t &get_page_id() const { return page.id; }
@@ -1915,6 +1920,19 @@ struct buf_block_t {
   @return page type of the current buffer block as string. */
   const char *get_page_type_str() const noexcept
       MY_ATTRIBUTE((warn_unused_result));
+
+  /** Gets the compressed page descriptor corresponding to an uncompressed page
+  if applicable.
+  @return page descriptor or nullptr. */
+  page_zip_des_t *get_page_zip() noexcept {
+    return page.zip.data != nullptr ? &page.zip : nullptr;
+  }
+
+  /** Const version.
+  @return page descriptor or nullptr. */
+  page_zip_des_t const *get_page_zip() const noexcept {
+    return page.zip.data != nullptr ? &page.zip : nullptr;
+  }
 };
 
 /** Check if a buf_block_t object is in a valid state
@@ -2616,6 +2634,21 @@ inline void buf_page_prepare_for_free(buf_page_t *bpage) noexcept {
 }
 #endif /* !UNIV_HOTBACKUP */
 
+/** Gets the compressed page descriptor corresponding to an uncompressed
+page if applicable.
+@param[in] block                Get the zip descriptor for this block. */
+inline page_zip_des_t *buf_block_get_page_zip(buf_block_t *block) noexcept {
+  return block->get_page_zip();
+}
+
+/** Gets the compressed page descriptor corresponding to an uncompressed
+page if applicable. Const version.
+@param[in] block                Get the zip descriptor for this block.
+@return page descriptor or nullptr. */
+inline const page_zip_des_t *buf_block_get_page_zip(
+    const buf_block_t *block) noexcept {
+  return block->get_page_zip();
+}
 #include "buf0buf.ic"
 
 #endif /* !buf0buf_h */

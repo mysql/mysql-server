@@ -53,7 +53,7 @@ PSI_memory_key mem_key_fil_space_t;
 PSI_memory_key mem_key_other;
 PSI_memory_key mem_key_partitioning;
 PSI_memory_key mem_key_row_log_buf;
-PSI_memory_key mem_key_row_merge_sort;
+PSI_memory_key mem_key_ddl;
 PSI_memory_key mem_key_std;
 PSI_memory_key mem_key_trx_sys_t_rw_trx_ids;
 PSI_memory_key mem_key_undo_spaces;
@@ -94,7 +94,7 @@ static PSI_memory_info pfs_info[] = {
     {&mem_key_other, "other", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_partitioning, "partitioning", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_row_log_buf, "row_log_buf", 0, 0, PSI_DOCUMENT_ME},
-    {&mem_key_row_merge_sort, "row_merge_sort", 0, 0, PSI_DOCUMENT_ME},
+    {&mem_key_ddl, "ddl", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_std, "std", 0, 0, PSI_DOCUMENT_ME},
     {&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0, 0,
      PSI_DOCUMENT_ME},

@@ -133,6 +133,7 @@ INSERT INTO page VALUES (1,'日本');
 CREATE FULLTEXT INDEX ft_idx ON page(page_title) WITH PARSER mecab;
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
+Error	1026	Fulltext index charset 'big5' doesn't match mecab charset 'utf8'.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;

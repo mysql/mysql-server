@@ -109,8 +109,8 @@ void btr_pcur_t::store_position(mtr_t *mtr) {
 
   m_block_when_stored.store(block);
 
-  /* Function try to check if block is S/X latch. */
-  m_modify_clock = buf_block_get_modify_clock(block);
+  m_modify_clock = block->get_modify_clock(
+      IF_DEBUG(fsp_is_system_temporary(block->page.id.space())));
 }
 
 void btr_pcur_t::copy_stored_position(btr_pcur_t *dst, const btr_pcur_t *src) {
@@ -268,7 +268,9 @@ bool btr_pcur_t::restore_position(ulint latch_mode, mtr_t *mtr,
     But we can retain the value of old_rec */
     auto block = get_block();
     m_block_when_stored.store(block);
-    m_modify_clock = buf_block_get_modify_clock(block);
+
+    m_modify_clock = block->get_modify_clock(
+        IF_DEBUG(fsp_is_system_temporary(block->page.id.space())));
 
     m_old_stored = true;
 

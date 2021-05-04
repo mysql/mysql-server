@@ -77,13 +77,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mysql/psi/mysql_stage.h"
 #include "mysqld.h"
 
+#include "ddl0fts.h"
 #include "os0file.h"
 #include "os0thread-create.h"
 #include "os0thread.h"
 #include "page0cur.h"
 #include "page0page.h"
 #include "rem0rec.h"
-#include "row0ftsort.h"
 #include "srv0srv.h"
 #include "srv0start.h"
 #include "trx0sys.h"
@@ -182,6 +182,7 @@ mysql_pfs_key_t buf_dump_thread_key;
 mysql_pfs_key_t buf_resize_thread_key;
 mysql_pfs_key_t clone_ddl_thread_key;
 mysql_pfs_key_t clone_gtid_thread_key;
+mysql_pfs_key_t ddl_thread_key;
 mysql_pfs_key_t dict_stats_thread_key;
 mysql_pfs_key_t fts_optimize_thread_key;
 mysql_pfs_key_t fts_parallel_merge_thread_key;
@@ -1306,8 +1307,9 @@ static void srv_undo_tablespaces_mark_construction_done() {
   /* Remove the truncate log files if they exist. */
   for (auto space_id : undo::s_under_construction) {
     /* Flush these pages to disk since they were not redo logged. */
-    FlushObserver *flush_observer =
-        UT_NEW_NOKEY(FlushObserver(space_id, nullptr, nullptr));
+    auto flush_observer =
+        UT_NEW_NOKEY(Flush_observer(space_id, nullptr, nullptr));
+
     flush_observer->flush();
     UT_DELETE(flush_observer);
 

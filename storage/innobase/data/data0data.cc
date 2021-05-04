@@ -64,8 +64,8 @@ bool dtuple_coll_eq(const dtuple_t *tuple1, const dtuple_t *tuple2) {
 
   ut_ad(tuple1 != nullptr);
   ut_ad(tuple2 != nullptr);
-  ut_ad(tuple1->magic_n == DATA_TUPLE_MAGIC_N);
-  ut_ad(tuple2->magic_n == DATA_TUPLE_MAGIC_N);
+  ut_ad(tuple1->magic_n == dtuple_t::MAGIC_N);
+  ut_ad(tuple2->magic_n == dtuple_t::MAGIC_N);
   ut_ad(dtuple_check_typed(tuple1));
   ut_ad(dtuple_check_typed(tuple2));
 
@@ -168,7 +168,7 @@ bool dtuple_check_typed(const dtuple_t *tuple) {
 }
 
 bool dtuple_validate(const dtuple_t *tuple) {
-  ut_ad(tuple->magic_n == DATA_TUPLE_MAGIC_N);
+  ut_ad(tuple->magic_n == dtuple_t::MAGIC_N);
 
   auto n_fields = dtuple_get_n_fields(tuple);
 

@@ -32,20 +32,20 @@ DROP TABLE t1;
 CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT NOT NULL, INDEX(c2))
 ENGINE=InnoDB;
 INSERT INTO bug13861218 VALUES (8, 0), (4, 0), (0, 0);
-SET DEBUG='+d,ib_row_merge_buf_add_two';
+SET DEBUG='+d,ddl_buf_add_two';
 # Force creation of a PRIMARY KEY on c1 to see what happens on the index(c2).
 # No crash here, because n_uniq for c2 includes the clustered index fields
 CREATE UNIQUE INDEX ui ON bug13861218(c1);
-SET DEBUG='-d,ib_row_merge_buf_add_two';
+SET DEBUG='-d,ddl_buf_add_two';
 DROP TABLE bug13861218;
 
 CREATE TABLE bug13861218 (c1 INT NOT NULL, c2 INT UNIQUE) ENGINE=InnoDB;
 INSERT INTO bug13861218 VALUES (8, NULL), (4, NULL), (0, NULL);
-SET DEBUG='+d,ib_row_merge_buf_add_two';
+SET DEBUG='+d,ddl_buf_add_two';
 # Force creation of a PRIMARY KEY on c1 to see what happens on the index(c2).
 # assertion failure: ut_ad(cmp_dtuple_rec(dtuple, rec, rec_offsets) > 0)
 CREATE UNIQUE INDEX ui ON bug13861218(c1);
-SET DEBUG='-d,ib_row_merge_buf_add_two';
+SET DEBUG='-d,ddl_buf_add_two';
 DROP TABLE bug13861218;
 
 --echo #
@@ -70,10 +70,10 @@ insert into t1 select NULL,'aaa','bbb' from t480;
 insert into t1 select NULL,'aaaa','bbbb' from t480;
 insert into t1 select NULL,'aaaaa','bbbbb' from t480;
 insert into t1 select NULL,'aaaaaa','bbbbbb' from t480;
-SET DEBUG = '+d,row_merge_write_failure';
+SET DEBUG = '+d,ddl_write_failure';
 --error ER_TEMP_FILE_WRITE_FAILURE
 alter table t1 drop primary key,add primary key(f2,f1);
-SET DEBUG = '-d,row_merge_write_failure';
+SET DEBUG = '-d,ddl_write_failure';
 drop table t1;
 
 # Optimize table via inplace algorithm
@@ -81,7 +81,7 @@ connect (con1,localhost,root);
 create table t1(k1 int auto_increment primary key,
 k2 char(200),k3 char(200))engine=innodb;
 insert into t1 values(NULL,'a','b'), (NULL,'aa','bb');
-SET DEBUG_SYNC= 'row_merge_after_scan
+SET DEBUG_SYNC= 'ddl_after_scan
 SIGNAL opened WAIT_FOR flushed';
 send optimize table t1;
 connection default;
@@ -100,7 +100,7 @@ drop table t1;
 # Log file creation failure.
 create table t1(k1 int auto_increment primary key,
 k2 char(200),k3 char(200))engine=innodb;
-SET DEBUG_SYNC= 'row_merge_after_scan
+SET DEBUG_SYNC= 'ddl_after_scan
 SIGNAL opened WAIT_FOR flushed';
 send ALTER TABLE t1 ADD COLUMN k4 int, ALGORITHM=INPLACE;
 connection default;

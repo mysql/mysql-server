@@ -6,7 +6,7 @@
 
 --disable_query_log
 call mtr.add_suppression(' Cannot find a free slot for an undo log');
-call mtr.add_suppression(' row_merge_rename_index_to_add failed with error 47');
+call mtr.add_suppression(' ddl_rename_index_to_add failed with error 47');
 call mtr.add_suppression(' Flagged corruption of `c[23]`');
 call mtr.add_suppression(' Index `c[23]` .*is corrupted');
 --enable_query_log

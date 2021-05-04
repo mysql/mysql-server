@@ -194,9 +194,8 @@ void thd_set_lock_wait_time(THD *thd,     /*!< in/out: thread handle */
                             ulint value); /*!< in: time waited for the lock */
 
 /** Get the value of innodb_tmpdir.
-@param[in]	thd	thread handle, or NULL to query
-                        the global innodb_tmpdir.
-@retval NULL if innodb_tmpdir="" */
+@param[in] thd	thread handle, or nullptr to query the global innodb_tmpdir.
+@return nullptr if innodb_tmpdir="" */
 const char *thd_innodb_tmpdir(THD *thd);
 
 #ifdef UNIV_DEBUG
@@ -411,5 +410,22 @@ trx_t *check_trx_exists(THD *thd);
 /** Commits a transaction in an InnoDB database.
 @param[in]	trx	Transaction handle. */
 void innobase_commit_low(trx_t *trx);
+
+/** Return the number of read threads for this session.
+@param[in]      thd       Session instance, or nullptr to query the global
+                          innodb_parallel_read_threads value. */
+ulong thd_parallel_read_threads(THD *thd);
+
+/** Return the maximum buffer size to use for DDL.
+@param[in]      thd       Session instance, or nullptr to query the global
+                          innodb_parallel_read_threads value.
+@return memory upper limit in bytes. */
+ulong thd_ddl_buffer_size(THD *thd) MY_ATTRIBUTE((warn_unused_result));
+
+/** Whether this is a computed virtual column */
+#define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
+
+/** @return the number of DDL threads to use (global/session). */
+size_t thd_ddl_threads(THD *thd) noexcept MY_ATTRIBUTE((warn_unused_result));
 
 #endif /* HA_INNODB_PROTOTYPES_H */

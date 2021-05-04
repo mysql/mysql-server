@@ -1,0 +1,25 @@
+#
+# Show the global and session values. Default is ON.
+#
+SELECT @@global.innodb_ddl_threads;
+SELECT @@session.innodb_ddl_threads;
+
+SHOW GLOBAL VARIABLES LIKE  'innodb_ddl_threads';
+SHOW SESSION VARIABLES LIKE 'innodb_ddl_threads';
+
+SELECT * FROM performance_schema.global_variables
+  WHERE variable_name='innodb_ddl_threads';
+
+SELECT * FROM performance_schema.session_variables
+  WHERE variable_name='innodb_ddl_threads';
+
+#
+# Test that it's not read-only.
+#
+set global innodb_ddl_threads=8;
+set session innodb_ddl_threads=8;
+
+# Set back to default.
+set global innodb_ddl_threads=4;
+set session innodb_ddl_threads=4;
+

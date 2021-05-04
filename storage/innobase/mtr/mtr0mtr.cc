@@ -278,13 +278,12 @@ struct Debug_check_no_latching {
       case MTR_MEMO_BUF_FIX:
         break;
       default:
-        ib::fatal() << "Debug_check_no_latching failed, slot->type="
-                    << slot->type;
+        ib::fatal(ER_MTR_MSG_1, (int)slot->type);
     }
     return true;
   }
 };
-#endif
+#endif /* UNIV_DEBUG */
 
 /** Add blocks modified by the mini-transaction to the flush list. */
 struct Add_dirty_blocks_to_flush_list {
@@ -295,7 +294,7 @@ struct Add_dirty_blocks_to_flush_list {
                                   added to REDO by the MTR
   @param[in,out]	observer	flush observer */
   Add_dirty_blocks_to_flush_list(lsn_t start_lsn, lsn_t end_lsn,
-                                 FlushObserver *observer);
+                                 Flush_observer *observer);
 
   /** Add the modified page to the buffer flush list. */
   void add_dirty_page_to_flush_list(mtr_memo_slot_t *slot) const {
@@ -338,7 +337,7 @@ struct Add_dirty_blocks_to_flush_list {
   const lsn_t m_start_lsn;
 
   /** Flush observer */
-  FlushObserver *const m_flush_observer;
+  Flush_observer *const m_flush_observer;
 };
 
 /** Constructor.
@@ -348,7 +347,7 @@ struct Add_dirty_blocks_to_flush_list {
                                 to REDO by the MTR
 @param[in,out]	observer	flush observer */
 Add_dirty_blocks_to_flush_list::Add_dirty_blocks_to_flush_list(
-    lsn_t start_lsn, lsn_t end_lsn, FlushObserver *observer)
+    lsn_t start_lsn, lsn_t end_lsn, Flush_observer *observer)
     : m_end_lsn(end_lsn), m_start_lsn(start_lsn), m_flush_observer(observer) {
   /* Do nothing */
 }

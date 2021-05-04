@@ -272,12 +272,6 @@ struct ref_t {
   @param[in]	ptr	the new external field reference. */
   void set_ref(byte *ptr) { m_ref = ptr; }
 
-  /** Set the external field reference to null.
-  @param[in,out]	mtr	Mini-transaction. */
-  void set_null(mtr_t *mtr) {
-    mlog_write_string(m_ref, field_ref_zero, FIELD_REF_SIZE, mtr);
-  }
-
   /** Check if the field reference is made of zeroes except the being_modified
   bit.
   @return true if field reference is made of zeroes, false otherwise. */
@@ -1021,7 +1015,7 @@ class BtrContext {
 
   /** Get flush observer
   @return flush observer */
-  FlushObserver *get_flush_observer() const {
+  Flush_observer *get_flush_observer() const {
     return (m_mtr->get_flush_observer());
   }
 
@@ -1565,10 +1559,7 @@ The clustered index record must be protected by a lock or a page latch.
 byte *btr_copy_externally_stored_field_func(
     trx_t *trx, const dict_index_t *index, ulint *len, size_t *lob_version,
     const byte *data, const page_size_t &page_size, ulint local_len,
-#ifdef UNIV_DEBUG
-    bool is_sdi,
-#endif /* UNIV_DEBUG */
-    mem_heap_t *heap);
+    IF_DEBUG(bool is_sdi, ) mem_heap_t *heap);
 
 /** Gets the externally stored size of a record, in units of a database page.
 @param[in]	rec	record

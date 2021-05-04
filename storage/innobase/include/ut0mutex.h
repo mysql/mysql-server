@@ -50,9 +50,8 @@ extern ulong srv_force_recovery_crash;
 
 #ifdef UNIV_DEBUG
 #define mutex_validate(M) (M)
-/* Since mutexes are disabled under UNIV_LIBRARY, the following is OK
-and necessary to suppress compiler warnings. */
-#define mutex_own(M) ((M) || false)
+/* Since mutexes are disabled under UNIV_LIBRARY, the following is OK. */
+#define mutex_own(m) ((m) != nullptr)
 #endif /* UNIV_DEBUG */
 typedef OSMutex SysMutex;
 typedef OSMutex ib_mutex_t;

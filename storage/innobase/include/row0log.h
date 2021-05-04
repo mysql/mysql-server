@@ -45,7 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0types.h"
 #include "trx0types.h"
 
-class ut_stage_alter_t;
+class Alter_stage;
 
 /** Allocate the row log for an index and flag the index
  for online creation.
@@ -181,7 +181,7 @@ ALTER TABLE. stage->begin_phase_log_table() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t row_log_table_apply(que_thr_t *thr, dict_table_t *old_table,
-                            struct TABLE *table, ut_stage_alter_t *stage)
+                            struct TABLE *table, Alter_stage *stage)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Get the latest transaction ID that has invoked row_log_online_op()
@@ -201,7 +201,7 @@ ALTER TABLE. stage->begin_phase_log_index() will be called initially and then
 stage->inc() will be called for each block of log that is applied.
 @return DB_SUCCESS, or error code on failure */
 dberr_t row_log_apply(const trx_t *trx, dict_index_t *index,
-                      struct TABLE *table, ut_stage_alter_t *stage)
+                      struct TABLE *table, Alter_stage *stage)
     MY_ATTRIBUTE((warn_unused_result));
 
 #ifdef HAVE_PSI_STAGE_INTERFACE

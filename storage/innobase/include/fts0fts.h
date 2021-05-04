@@ -73,7 +73,7 @@ optimize using a 4 byte Doc ID for FIC merge sort to reduce sort size */
 #define MAX_DOC_ID_OPT_VAL 1073741824
 
 /** Document id type. */
-typedef ib_uint64_t doc_id_t;
+typedef uint64_t doc_id_t;
 
 /** doc_id_t printf format */
 #define FTS_DOC_ID_FORMAT IB_ID_FMT
@@ -101,11 +101,11 @@ those defined in mysql file ft_global.h */
 #define FTS_INDEX_TABLE_IND_NAME "FTS_INDEX_TABLE_IND"
 #define FTS_COMMON_TABLE_IND_NAME "FTS_COMMON_TABLE_IND"
 
-/** The number of FTS index partitions for a fulltext idnex */
-#define FTS_NUM_AUX_INDEX 6
+/** The number of FTS index partitions for a fulltext index. */
+constexpr size_t FTS_NUM_AUX_INDEX = 6;
 
-/** The number of FTS AUX common table for a fulltext idnex */
-#define FTS_NUM_AUX_COMMON 5
+/** The number of FTS AUX common table for a fulltext index. */
+constexpr size_t FTS_NUM_AUX_COMMON = 5;
 
 /** Threshold where our optimize thread automatically kicks in */
 #define FTS_OPTIMIZE_THRESHOLD 10000000
@@ -149,9 +149,6 @@ extern const char *FTS_SUFFIX_DELETED_CACHE;
 
 extern const char *FTS_PREFIX_5_7;
 extern const char *FTS_SUFFIX_CONFIG_5_7;
-
-/** Variable specifying the FTS parallel sort degree */
-extern ulong fts_sort_pll_degree;
 
 /** Variable specifying the number of word to optimize for each optimize table
 call */

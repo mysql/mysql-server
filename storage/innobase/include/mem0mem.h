@@ -34,14 +34,15 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #define mem0mem_h
 
 #include "mach0data.h"
-#include "univ.i"
 #include "ut0byte.h"
 #include "ut0mem.h"
 #include "ut0rnd.h"
 
 #include <limits.h>
 
+#include <functional>
 #include <memory>
+#include <type_traits>
 
 /* -------------------- MEMORY HEAPS ----------------------------- */
 
@@ -476,5 +477,89 @@ bool operator!=(const mem_heap_allocator<T> &left,
                 const mem_heap_allocator<T> &right) {
   return (left.get_mem_heap() != right.get_mem_heap());
 }
+
+/** Heap wrapper that destroys the heap instance when it goes out of scope. */
+struct Scoped_heap {
+  using Type = mem_heap_t;
+
+  /** Default constructor. */
+  Scoped_heap() : m_ptr(nullptr, &mem_heap_free) {}
+
+  /** Debug constructor.
+  @param[in] n                  Initial size of the heap to allocate. */
+#ifdef UNIV_DEBUG
+  /**
+  @param[in] file               File name from where called.
+  @param[in] line               Line number if filenane from where called. */
+#endif /* UNIV_DEBUG */
+  Scoped_heap(size_t n IF_DEBUG(, const char *file, int line)) noexcept
+      : m_ptr(mem_heap_create_func(n, IF_DEBUG(file, line, ) MEM_HEAP_DYNAMIC),
+              &Scoped_heap::free) {}
+
+  /** Destructor. */
+  ~Scoped_heap() = default;
+
+  /** Create the heap, it must not already be created.
+  @param[in] n                  Initial size of the heap to allocate.
+  @param[in] file               File name from where called.
+  @param[in] line               Line number if filenane from where called. */
+  void create(size_t n IF_DEBUG(, const char *file, int line)) noexcept {
+    ut_a(get() == nullptr);
+    auto ptr = mem_heap_create_func(n, IF_DEBUG(file, line, ) MEM_HEAP_DYNAMIC);
+    reset(ptr);
+  }
+
+  /** @return the heap pointer. */
+  Type *get() noexcept { return m_ptr.get(); }
+
+  /** Set the pointer to p.
+  @param[in] p                  New pointer value. */
+  void reset(Type *p) {
+    if (get() != p) {
+      m_ptr.reset(p);
+    }
+  }
+
+  /** Empty the heap. */
+  void clear() noexcept {
+    if (get() != nullptr) {
+      mem_heap_empty(get());
+    }
+  }
+
+  /** Allocate memory in the heap.
+  @param[in] n_bytes            Number of bytes to allocate.
+  @return pointer to allocated memory. */
+  void *alloc(size_t n_bytes) noexcept {
+    ut_ad(n_bytes > 0);
+    return mem_heap_alloc(get(), n_bytes);
+  }
+
+ private:
+  /** Free the heap.
+  @param[in,out] p              Heap to free. */
+  static void free(mem_heap_t *p) {
+    if (p != nullptr) {
+      mem_heap_free(p);
+    }
+  }
+
+ private:
+  using Free = std::function<decltype(Scoped_heap::free)>;
+  using Ptr = std::unique_ptr<Type, Free>;
+
+  /** Heap to use. */
+  Ptr m_ptr{};
+
+  Scoped_heap(Scoped_heap &&) = delete;
+  Scoped_heap(const Scoped_heap &) = delete;
+  Scoped_heap &operator=(Scoped_heap &&) = delete;
+  Scoped_heap &operator=(const Scoped_heap &) = delete;
+};
+
+#define HEAP_NEW_EMPTY(h) \
+  Scoped_heap h {}
+#define MEM_HEAP_CREATE(h, n) (h).create((n)IF_DEBUG(, __FILE__, __LINE__))
+#define MEM_HEAP_NEW(h, n) Scoped_heap h((n)IF_DEBUG(, __FILE__, __LINE__))
 
 #endif

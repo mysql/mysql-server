@@ -3,16 +3,18 @@
 # WL#5889 Add InnoDB events to Performance Schema's Event Stage table
 #
 
+SET SESSION innodb_ddl_threads=1;
+SET SESSION innodb_parallel_read_threads=1;
 
 CREATE TABLE wl5889 (a INT) ENGINE=INNODB;
-
+INSERT INTO wl5889 VALUE(1);
 ALTER TABLE wl5889 ADD COLUMN b INT, ALGORITHM=INPLACE;
 
 -- vertical_results
 
 # If the SELECT below fails with an empty result or missing rows, then maybe
 # 'events_stages_history' filled up - only the most recent N events are
-# displayed in it. If this happens, then maybe N newer evets were generated
+# displayed in it. If this happens, then maybe N newer events were generated
 # after the 'stage/innodb/alter table%' events which we expect to show up below.
 # If this:
 # SELECT COUNT(*) FROM performance_schema.events_stages_history;

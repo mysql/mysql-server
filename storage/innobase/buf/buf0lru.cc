@@ -551,7 +551,7 @@ the list as they age towards the tail of the LRU.
 @retval DB_INTERRUPTED if the transaction was interrupted */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     buf_flush_or_remove_pages(buf_pool_t *buf_pool, space_id_t id,
-                              FlushObserver *observer, bool flush,
+                              Flush_observer *observer, bool flush,
                               const trx_t *trx) {
   buf_page_t *prev;
   buf_page_t *bpage;
@@ -661,7 +661,7 @@ the tail of the LRU list.
 @param[in]	strict		true, if no page from tablespace
                                 can be in buffer pool just after flush */
 static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
-                                  FlushObserver *observer, bool flush,
+                                  Flush_observer *observer, bool flush,
                                   const trx_t *trx, bool strict) {
   dberr_t err;
 
@@ -694,7 +694,7 @@ static void buf_flush_dirty_pages(buf_pool_t *buf_pool, space_id_t id,
 
   } while (err == DB_FAIL);
 
-  ut_ad(err == DB_INTERRUPTED || !strict ||
+  ut_ad(observer != nullptr || err == DB_INTERRUPTED || !strict ||
         buf_pool_get_dirty_pages_count(buf_pool, id, observer) == 0);
 }
 
@@ -848,7 +848,7 @@ static void buf_LRU_remove_pages(
     bool strict)             /*!< in: true if no page from tablespace
                              can be in buffer pool just after flush */
 {
-  FlushObserver *observer = (trx == nullptr) ? nullptr : trx->flush_observer;
+  Flush_observer *observer = (trx == nullptr) ? nullptr : trx->flush_observer;
 
   switch (buf_remove) {
     case BUF_REMOVE_ALL_NO_WRITE:

@@ -1247,9 +1247,6 @@ void innodb_base_col_setup_for_stored(const dict_table_t *table,
 /** whether this is a stored column */
 #define innobase_is_s_fld(field) ((field)->gcol_info && (field)->stored_in_db)
 
-/** whether this is a computed virtual column */
-#define innobase_is_v_fld(field) ((field)->gcol_info && !(field)->stored_in_db)
-
 /** Whether this is a computed multi-value virtual column.
 This condition check should be equal to the following one:
 (innobase_is_v_fld(field) && (field)->gcol_info->expr_item &&

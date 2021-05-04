@@ -99,7 +99,7 @@ void ut_set_assert_callback(std::function<void()> &callback);
 
 /** Silence warnings about an unused variable by doing a null assignment.
 @param A the unused variable */
-#define UT_NOT_USED(A) A = A
+#define UT_NOT_USED(A) std::ignore = A
 
 #if defined(HAVE_SYS_TIME_H) && defined(HAVE_SYS_RESOURCE_H)
 

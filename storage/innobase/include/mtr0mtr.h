@@ -205,7 +205,7 @@ struct mtr_t {
     mtr_state_t m_state;
 
     /** Flush Observer */
-    FlushObserver *m_flush_observer;
+    Flush_observer *m_flush_observer;
 
 #ifdef UNIV_DEBUG
     /** For checking corruption. */
@@ -508,13 +508,14 @@ struct mtr_t {
 
   /** Get flush observer
   @return flush observer */
-  FlushObserver *get_flush_observer() const MY_ATTRIBUTE((warn_unused_result)) {
+  Flush_observer *get_flush_observer() const
+      MY_ATTRIBUTE((warn_unused_result)) {
     return (m_impl.m_flush_observer);
   }
 
   /** Set flush observer
   @param[in]	observer	flush observer */
-  void set_flush_observer(FlushObserver *observer) {
+  void set_flush_observer(Flush_observer *observer) {
     ut_ad(observer == nullptr || m_impl.m_log_mode == MTR_LOG_NO_REDO);
 
     m_impl.m_flush_observer = observer;

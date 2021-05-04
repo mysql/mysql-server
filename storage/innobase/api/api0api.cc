@@ -50,12 +50,12 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "lock0lock.h"
 #include "lock0types.h"
 
+#include "ddl0ddl.h"
 #include "dict0sdi-decompress.h"
 #include "dict0sdi.h"
 #include "pars0pars.h"
 #include "rem0cmp.h"
 #include "row0ins.h"
-#include "row0merge.h"
 #include "row0sel.h"
 #include "row0upd.h"
 #include "row0vers.h"
@@ -157,7 +157,7 @@ struct ib_key_col_t {
 struct ib_table_def_t;
 
 /** InnoDB index schema used during index creation */
-struct ib_index_def_t {
+struct ib_Index_defn {
   mem_heap_t *heap; /*!< Heap used to build this and all
                     its columns in the list */
 
@@ -514,7 +514,7 @@ ib_err_t ib_trx_start(
 
   trx_start_if_not_started(trx, read_write);
 
-  trx->isolation_level = ib_trx_level;
+  trx->isolation_level = static_cast<trx_t::isolation_level_t>(ib_trx_level);
 
   /* FIXME: This is a place holder, we should add an arg that comes
   from the client. */

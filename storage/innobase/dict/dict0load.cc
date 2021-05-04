@@ -223,7 +223,7 @@ loop:
     return (table_name);
   }
 
-  btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+  pcur.move_to_next_user_rec(&mtr);
 
   goto loop;
 }
@@ -238,7 +238,7 @@ static const rec_t *dict_getnext_system_low(
   rec_t *rec = nullptr;
 
   while (!rec || rec_get_deleted_flag(rec, 0)) {
-    btr_pcur_move_to_next_user_rec(pcur, mtr);
+    pcur->move_to_next_user_rec(mtr);
 
     rec = btr_pcur_get_rec(pcur);
 
@@ -784,7 +784,7 @@ static void dict_load_virtual_one_col(dict_table_t *table, ulint nth_v_col,
       ut_ad(pos == vcol_pos);
     }
 
-    btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+    pcur.move_to_next_user_rec(&mtr);
   }
 
   btr_pcur_close(&pcur);
@@ -1702,7 +1702,7 @@ static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
       table->fts->doc_col = i - n_skipped;
     }
   next_rec:
-    btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+    pcur.move_to_next_user_rec(&mtr);
   }
 
   btr_pcur_close(&pcur);
@@ -1769,7 +1769,7 @@ static ulint dict_load_fields(
       goto func_exit;
     }
   next_rec:
-    btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+    pcur.move_to_next_user_rec(&mtr);
   }
 
   error = DB_SUCCESS;
@@ -1973,7 +1973,7 @@ loading the index definition */
       }
     }
   next_rec:
-    btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+    pcur.move_to_next_user_rec(&mtr);
   }
 
   ut_ad(table->fts_doc_id_index == nullptr);
@@ -2697,7 +2697,7 @@ static void dict_load_foreign_cols(
     foreign->referenced_col_names[i] =
         mem_heap_strdupl(foreign->heap, (char *)field, len);
 
-    btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+    pcur.move_to_next_user_rec(&mtr);
   }
 
   btr_pcur_close(&pcur);
@@ -3022,8 +3022,7 @@ loop:
 
   btr_pcur_restore_position(BTR_SEARCH_LEAF, &pcur, &mtr);
 next_rec:
-  btr_pcur_move_to_next_user_rec(&pcur, &mtr);
-
+  pcur.move_to_next_user_rec(&mtr);
   goto loop;
 
 load_next_index:

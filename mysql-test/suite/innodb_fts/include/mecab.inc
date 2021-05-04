@@ -169,7 +169,6 @@ CREATE TABLE page (
 
 INSERT INTO page VALUES (1,'日本');
 
-# We don't return charset mismatch error because of parallel fts build.
 CREATE FULLTEXT INDEX ft_idx ON page(page_title) WITH PARSER mecab;
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;

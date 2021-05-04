@@ -371,10 +371,10 @@ a	LENGTH(b)	b=LEFT(REPEAT(d,100*a),65535)	LENGTH(c)	c=REPEAT(d,20*a)	d
 66	65535	1	21120	1	adfdijn0loKNHJik
 SET SESSION sort_buffer_size = DEFAULT;
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
-ERROR 23000: Duplicate entry '22' for key 't1.PRIMARY'
+ERROR 23000: Duplicate entry 'NN' for key 't1.PRIMARY'
 DELETE FROM t1 WHERE d='null';
 ALTER TABLE t1 ADD PRIMARY KEY (a), ADD KEY (b(20));
-ERROR 23000: Duplicate entry '22' for key 't1.PRIMARY'
+ERROR 23000: Duplicate entry 'NN' for key 't1.PRIMARY'
 DELETE FROM t1 WHERE a%2;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text

@@ -891,8 +891,7 @@ static bool dict_stats_analyze_index_level(
   /* iterate over all user records on this level
   and compare each two adjacent ones, even the last on page
   X and the fist on page X+1 */
-  for (; btr_pcur_is_on_user_rec(&pcur);
-       btr_pcur_move_to_next_user_rec(&pcur, mtr)) {
+  for (; pcur.is_on_user_rec(); pcur.move_to_next_user_rec(mtr)) {
     bool rec_is_last_on_page;
 
     rec = btr_pcur_get_rec(&pcur);
@@ -1531,7 +1530,7 @@ static bool dict_stats_analyze_index_for_n_prefix(
 
     /* seek to the record with index dive_below_idx */
     while (rec_idx < dive_below_idx && btr_pcur_is_on_user_rec(&pcur)) {
-      btr_pcur_move_to_next_user_rec(&pcur, mtr);
+      pcur.move_to_next_user_rec(mtr);
       rec_idx++;
     }
 

@@ -55,12 +55,12 @@ void buf_flush_insert_sorted_into_flush_list(
  already in it. */
 UNIV_INLINE
 void buf_flush_note_modification(
-    buf_block_t *block,      /*!< in: block which is modified */
-    lsn_t start_lsn,         /*!< in: start lsn of the mtr that
-                             modified this block */
-    lsn_t end_lsn,           /*!< in: end lsn of the mtr that
-                             modified this block */
-    FlushObserver *observer) /*!< in: flush observer */
+    buf_block_t *block,       /*!< in: block which is modified */
+    lsn_t start_lsn,          /*!< in: start lsn of the mtr that
+                              modified this block */
+    lsn_t end_lsn,            /*!< in: end lsn of the mtr that
+                              modified this block */
+    Flush_observer *observer) /*!< in: flush observer */
 {
 #ifdef UNIV_DEBUG
   {

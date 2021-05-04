@@ -56,6 +56,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 
 #ifdef UNIV_DEBUG
+#ifndef UNIV_NO_ERR_MSGS
+#include <current_thd.h>
+#endif /* !UNIV_NO_ERR_MSGS */
 
 bool srv_sync_debug;
 
@@ -1208,6 +1211,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
 
   LATCH_ADD_MUTEX(AUTOINC, SYNC_DICT_AUTOINC_MUTEX, autoinc_mutex_key);
 
+  LATCH_ADD_MUTEX(DDL_AUTOINC, SYNC_NO_ORDER_CHECK, ddl_autoinc_mutex_key);
+
 #ifdef PFS_SKIP_BUFFER_MUTEX_RWLOCK
   LATCH_ADD_MUTEX(BUF_BLOCK_MUTEX, SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
 #else
@@ -1703,3 +1708,76 @@ void sync_check_close() {
 
   sync_latch_meta_destroy();
 }
+
+#ifdef UNIV_DEBUG
+std::mutex Sync_point::s_mutex{};
+Sync_point::Sync_points Sync_point::s_sync_points{};
+
+void Sync_point::add(const THD *thd, const std::string &target) noexcept {
+  const std::lock_guard<std::mutex> lock(s_mutex);
+
+  auto r1 = std::find_if(
+      std::begin(s_sync_points), std::end(s_sync_points),
+      [=](const Sync_point &sync_point) { return thd == sync_point.m_thd; });
+
+  if (r1 != s_sync_points.end()) {
+    const auto &b = std::begin(r1->m_targets);
+    const auto &e = std::end(r1->m_targets);
+    const auto r2 = std::find(b, e, target);
+
+    if (r2 == e) {
+      r1->m_targets.push_back(target);
+    }
+  } else {
+    s_sync_points.push_back(Sync_point{thd});
+    s_sync_points.back().m_targets.push_back(target);
+  }
+}
+
+bool Sync_point::enabled(const THD *thd, const std::string &target) noexcept {
+  const std::lock_guard<std::mutex> lock(s_mutex);
+
+  auto r1 = std::find_if(
+      std::begin(s_sync_points), std::end(s_sync_points),
+      [=](const Sync_point &sync_point) { return thd == sync_point.m_thd; });
+
+  if (r1 == s_sync_points.end()) {
+    return false;
+  }
+
+  const auto &b = std::begin(r1->m_targets);
+  const auto &e = std::end(r1->m_targets);
+  const auto r2 = std::find(b, e, target);
+
+  return r2 != e;
+}
+
+bool Sync_point::enabled(const std::string &target) noexcept {
+#ifndef UNIV_NO_ERR_MSGS
+  return enabled(current_thd, target);
+#else
+  return false;
+#endif /* !UNIV_NO_ERR_MSGS */
+}
+
+void Sync_point::erase(const THD *thd, const std::string &target) noexcept {
+  const std::lock_guard<std::mutex> lock(s_mutex);
+
+  auto r1 = std::find_if(
+      std::begin(s_sync_points), std::end(s_sync_points),
+      [=](const Sync_point &sync_point) { return thd == sync_point.m_thd; });
+
+  if (r1 != s_sync_points.end()) {
+    const auto &b = std::begin(r1->m_targets);
+    const auto &e = std::end(r1->m_targets);
+    const auto r2 = std::find(b, e, target);
+
+    if (r2 != e) {
+      r1->m_targets.erase(r2);
+      if (r1->m_targets.empty()) {
+        s_sync_points.erase(r1);
+      }
+    }
+  }
+}
+#endif /* UNIV_DEBUG */

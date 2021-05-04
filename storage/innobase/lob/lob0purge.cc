@@ -278,14 +278,14 @@ static void z_rollback(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
 }
 
 /** Purge a compressed LOB.
-@param[in]	ctx	      the delete operation context information.
-@param[in]	index	      clustered index in which LOB is present
-@param[in]	trxid	      the transaction that is being purged.
-@param[in]	undo_no	      during rollback to savepoint, purge only upto
-                              this undo number.
-@param[in]	rec_type      undo record type.
-@param[in,out]  purge_node    if nullptr, free the complete LOB. Otherwise,
-                              save the first page of LOB in this purge node. */
+@param[in] ctx		              The delete operation context information.
+@param[in] index                Clustered index in which LOB is present
+@param[in] trxid                The transaction that is being purged.
+@param[in] undo_no              During rollback to savepoint, purge only upto
+                                this undo number.
+@param[in] rec_type	            Undo record type.
+@param[in,out] purge_node       if nullptr, free the complete LOB. Otherwise,
+                                save the first page of LOB in this purge node.*/
 static void z_purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
                     undo_no_t undo_no, ulint rec_type,
                     purge_node_t *purge_node) {

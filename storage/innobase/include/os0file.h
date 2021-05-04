@@ -104,6 +104,11 @@ struct Block {
 };
 }  // namespace file
 
+/** Raw file handle. */
+using os_fd_t = int;
+
+static constexpr os_fd_t OS_FD_CLOSED = -1;
+
 #ifdef _WIN32
 
 typedef HANDLE os_file_dir_t; /*!< directory stream */
@@ -115,8 +120,10 @@ the OS actually supports it: Win 95 does not, NT does. */
 /** Use unbuffered I/O */
 #define UNIV_NON_BUFFERED_IO
 
-/** File handle */
-#define os_file_t HANDLE
+/** Windows file handle */
+using os_file_t = HANDLE;
+
+static const os_file_t OS_FILE_CLOSED = INVALID_HANDLE_VALUE;
 
 /** Convert a C file descriptor to a native file handle
 @param fd file descriptor
@@ -136,7 +143,9 @@ the OS actually supports it: Win 95 does not, NT does. */
 #else /* _WIN32 */
 
 /** File handle */
-typedef int os_file_t;
+using os_file_t = os_fd_t;
+
+static constexpr os_fd_t OS_FILE_CLOSED = OS_FD_CLOSED;
 
 /** Convert a C file descriptor to a native file handle
 @param fd file descriptor
@@ -151,7 +160,7 @@ typedef int os_file_t;
 /** Closes the file associated with C file descriptor fd
 @param[in]	fd	C file descriptor
 @return 0 if success */
-#define OS_FILE_CLOSE_FD(fd) (os_file_close(fd) ? 0 : -1)
+#define OS_FILE_CLOSE_FD(fd) (os_file_close(fd) ? 0 : OS_FD_CLOSED)
 
 #endif /* _WIN32 */
 
@@ -169,8 +178,6 @@ struct pfs_os_file_t {
 
   os_file_t m_file;
 };
-
-static const os_file_t OS_FILE_CLOSED = os_file_t(~0);
 
 /** The next value should be smaller or equal to the smallest sector size used
 on any disk. A log block is required to be a portion of disk which is written
@@ -1767,8 +1774,8 @@ char *innobase_mysql_tmpdir();
 /** Creates a temporary file in the location specified by the parameter
 path. If the path is NULL, then it will be created in --tmpdir.
 @param[in]	path	location for creating temporary file
-@return temporary file descriptor, or < 0 on error */
-int innobase_mysql_tmpfile(const char *path);
+@return temporary file descriptor, or OS_FD_CLOSED on error */
+os_fd_t innobase_mysql_tmpfile(const char *path);
 
 #endif /* !UNIV_HOTBACKUP */
 

@@ -303,8 +303,8 @@ struct fil_space_t {
 #endif /* UNIV_DEBUG */
 
  public:
-  using Observer = FlushObserver;
-  using FlushObservers = std::vector<Observer *, ut_allocator<Observer *>>;
+  using Observer = Flush_observer;
+  using Flush_observers = std::vector<Observer *, ut_allocator<Observer *>>;
 
   /** When the tablespace was extended last. */
   ib::Timer m_last_extended{};

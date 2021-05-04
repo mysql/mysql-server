@@ -38,10 +38,10 @@ t1	CREATE TABLE `t1` (
   `c2` geometry NOT NULL /*!80003 SRID 0 */,
   SPATIAL KEY `idx` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
-SET DEBUG='+d,row_merge_ins_spatial_fail';
+SET DEBUG='+d,ddl_ins_spatial_fail';
 create spatial index idx2 on t1(c2);
 ERROR HY000: Got error 1000 - 'InnoDB error' from storage engine
-SET DEBUG='-d,row_merge_ins_spatial_fail';
+SET DEBUG='-d,ddl_ins_spatial_fail';
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

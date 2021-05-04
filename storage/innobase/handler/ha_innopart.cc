@@ -54,6 +54,7 @@ Created Nov 22, 2013 Mattias Jonsson */
 
 /* Include necessary InnoDB headers */
 #include "btr0sea.h"
+#include "ddl0ddl.h"
 #include "dict0dd.h"
 #include "dict0dict.h"
 #include "dict0priv.h"
@@ -73,7 +74,6 @@ Created Nov 22, 2013 Mattias Jonsson */
 #include "partition_info.h"
 #include "row0import.h"
 #include "row0ins.h"
-#include "row0merge.h"
 #include "row0mysql.h"
 #include "row0quiesce.h"
 #include "row0sel.h"
@@ -2032,7 +2032,7 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
   }
 
   /* Parallel read is not currently supported for sampling. */
-  size_t max_threads = Parallel_reader::available_threads(1);
+  size_t max_threads = Parallel_reader::available_threads(1, false);
 
   if (max_threads == 0) {
     return HA_ERR_SAMPLING_INIT_FAILED;
@@ -3173,7 +3173,7 @@ int ha_innopart::records(ha_rows *num_rows) {
   auto trx = thd_to_trx(ha_thd());
   size_t n_threads = thd_parallel_read_threads(m_prebuilt->trx->mysql_thd);
 
-  n_threads = Parallel_reader::available_threads(n_threads);
+  n_threads = Parallel_reader::available_threads(n_threads, false);
 
   if (n_threads > 0 && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
       m_prebuilt->select_lock_type == LOCK_NONE &&

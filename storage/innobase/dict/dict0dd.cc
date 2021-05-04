@@ -4551,7 +4551,7 @@ static const rec_t *dd_getnext_system_low(btr_pcur_t *pcur, mtr_t *mtr) {
   bool is_comp = dict_table_is_comp(pcur->index()->table);
 
   while (!rec || rec_get_deleted_flag(rec, is_comp)) {
-    btr_pcur_move_to_next_user_rec(pcur, mtr);
+    pcur->move_to_next_user_rec(mtr);
 
     rec = btr_pcur_get_rec(pcur);
 

@@ -330,8 +330,6 @@ The returned string is static and should not be freed or modified.
 @return string, describing the error */
 const char *ut_strerr(dberr_t num) {
   switch (num) {
-    case DB_CACHE_RECORDS:
-      return ("Request caller to copy tuple");
     case DB_SUCCESS:
       return ("Success");
     case DB_SUCCESS_LOCKED_REC:
@@ -523,7 +521,10 @@ const char *ut_strerr(dberr_t num) {
       return ("Too many nested sub-expressions in a full-text search");
     case DB_PAGE_IS_STALE:
       return "Page was discarded, was not written to storage.";
-    case DB_ERROR_UNSET:;
+    case DB_AUTOINC_READ_ERROR:
+      return "Auto-increment read failed";
+    case DB_ERROR_UNSET:
+      break;
       /* Fall through. */
 
       /* do not add default: in order to produce a warning if new code

@@ -84,7 +84,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "arch0page.h"
 #include "auth_acls.h"
 #include "btr0btr.h"
-#include "btr0bulk.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
 #include "buf0dblwr.h"
@@ -103,6 +102,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "dd/types/partition.h"
 #include "dd/types/table.h"
 #include "dd/types/tablespace.h"
+#include "ddl0ddl.h"
 #include "dict0boot.h"
 #include "dict0crea.h"
 #include "dict0dd.h"
@@ -149,7 +149,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0ext.h"
 #include "row0import.h"
 #include "row0ins.h"
-#include "row0merge.h"
 #include "row0mysql.h"
 #include "row0quiesce.h"
 #include "row0sel.h"
@@ -672,6 +671,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(clone_snapshot_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(clone_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(clone_task_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(ddl_autoinc_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(dict_foreign_err_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(dict_persist_dirty_tables_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(dict_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -796,6 +796,7 @@ static PSI_thread_info all_innodb_threads[] = {
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(clone_gtid_thread, "ib_clone_gtid", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(ddl_thread, "ib_ddl", 0, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(dict_stats_thread, "ib_dict_stats", PSI_FLAG_SINGLETON, 0,
                    PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(io_handler_thread, "ib_io_handler", PSI_FLAG_SINGLETON, 0,
@@ -1010,6 +1011,18 @@ static MYSQL_THDVAR_ULONG(parallel_read_threads, PLUGIN_VAR_RQCMDARG,
                           1,                            /* Minimum. */
                           Parallel_reader::MAX_THREADS, /* Maxumum. */
                           0);
+
+static MYSQL_THDVAR_ULONG(ddl_buffer_size, PLUGIN_VAR_RQCMDARG,
+                          "Maximum size of memory to use (in bytes) for DDL.",
+                          nullptr, nullptr, 1048576, /* Default. */
+                          65536,                     /* Minimum. */
+                          4294967295, 0);            /* Maximum. */
+
+static MYSQL_THDVAR_ULONG(ddl_threads, PLUGIN_VAR_RQCMDARG,
+                          "Maximum number of threads to use for  DDL.", nullptr,
+                          nullptr, 4, /* Default. */
+                          1,          /* Minimum. */
+                          64, 0);     /* Maximum. */
 
 static SHOW_VAR innodb_status_variables[] = {
     {"buffer_pool_dump_status",
@@ -1827,14 +1840,15 @@ void thd_set_lock_wait_time(THD *thd,    /*!< in/out: thread handle */
 }
 
 /** Get the value of innodb_tmpdir.
-@param[in]	thd	thread handle, or NULL to query
-                        the global innodb_tmpdir.
-@retval NULL if innodb_tmpdir="" */
+@param[in] thd                  Server thread handle, or nullptr
+@retval nullptr if innodb_tmpdir="" */
 const char *thd_innodb_tmpdir(THD *thd) {
 #ifdef UNIV_DEBUG
   if (thd != nullptr) {
-    trx_t *trx = thd_to_trx(thd);
+    auto trx = thd_to_trx(thd);
+
     btrsea_sync_check check(trx->has_search_latch);
+
     ut_ad(!sync_check_iterate(check));
   }
 #endif /* UNIV_DEBUG */
@@ -1845,7 +1859,7 @@ const char *thd_innodb_tmpdir(THD *thd) {
     tmp_dir = nullptr;
   }
 
-  return (tmp_dir);
+  return tmp_dir;
 }
 
 /** Obtain the private handler of InnoDB session specific data.
@@ -1875,12 +1889,13 @@ trx_t *&thd_to_trx(THD *thd) {
   return (innodb_session->m_trx);
 }
 
-/** Return the number of read threads for this session.
-@param[in]      thd       Session instance, or nullptr to query the global
-                          innodb_parallel_read_threads value. */
 ulong thd_parallel_read_threads(THD *thd) {
-  return (THDVAR(thd, parallel_read_threads));
+  return THDVAR(thd, parallel_read_threads);
 }
+
+ulong thd_ddl_buffer_size(THD *thd) { return THDVAR(thd, ddl_buffer_size); }
+
+size_t thd_ddl_threads(THD *thd) noexcept { return THDVAR(thd, ddl_threads); }
 
 /** Check if statement is of type INSERT .... SELECT that involves
 use of intrinsic tables.
@@ -2308,21 +2323,13 @@ ulint innobase_get_lower_case_table_names(void) {
 
 char *innobase_mysql_tmpdir() { return (mysql_tmpdir); }
 
-/** Creates a temporary file in the location specified by the parameter
-path. If the path is NULL, then it will be created in --tmpdir.
-@param[in]	path	location for creating temporary file
-@return temporary file descriptor, or < 0 on error */
-int innobase_mysql_tmpfile(const char *path) {
-  int fd2 = -1;
-  File fd;
-
+os_fd_t innobase_mysql_tmpfile(const char *path) {
   DBUG_EXECUTE_IF("innobase_tmpfile_creation_failure", return (-1););
 
-  if (path == nullptr) {
-    fd = mysql_tmpfile("ib");
-  } else {
-    fd = mysql_tmpfile_path(path, "ib");
-  }
+  auto fd =
+      (path == nullptr) ? mysql_tmpfile("ib") : mysql_tmpfile_path(path, "ib");
+
+  os_fd_t fd2{OS_FD_CLOSED};
 
   if (fd >= 0) {
     /* Copy the file descriptor, so that the additional resources
@@ -2340,31 +2347,39 @@ int innobase_mysql_tmpfile(const char *path) {
     to call my_get_osfhandle to get the HANDLE and then convert it
     to C runtime filedescriptor. */
     {
-      HANDLE hFile = my_get_osfhandle(fd);
       HANDLE hDup;
-      BOOL bOK =
+
+      auto hFile = my_get_osfhandle(fd);
+
+      auto bOK =
           DuplicateHandle(GetCurrentProcess(), hFile, GetCurrentProcess(),
                           &hDup, 0, FALSE, DUPLICATE_SAME_ACCESS);
       if (bOK) {
         fd2 = _open_osfhandle((intptr_t)hDup, 0);
       } else {
         my_osmaperr(GetLastError());
-        fd2 = -1;
+        fd2 = OS_FD_CLOSED;
       }
     }
 #else
     fd2 = dup(fd);
 #endif
+
     if (fd2 < 0) {
       char errbuf[MYSYS_STRERROR_SIZE];
+
       DBUG_PRINT("error", ("Got error %d on dup", fd2));
+
       set_my_errno(errno);
+
       my_error(EE_OUT_OF_FILERESOURCES, MYF(0), "ib*", my_errno(),
                my_strerror(errbuf, sizeof(errbuf), my_errno()));
     }
+
     my_close(fd, MYF(MY_WME));
   }
-  return (fd2);
+
+  return fd2;
 }
 
 /** Wrapper around MySQL's copy_and_convert function.
@@ -4506,7 +4521,6 @@ static int innodb_init_params() {
 
   static char current_dir[3];
   char *default_path;
-  ulong num_pll_degree;
 
   /* First calculate the default path for innodb_data_home_dir etc.,
   in case the user has not given any value. */
@@ -4698,13 +4712,16 @@ static int innodb_init_params() {
   srv_max_n_open_files = (ulint)innobase_open_files;
   srv_innodb_status = (ibool)innobase_create_status_file;
 
-  /* Round up fts_sort_pll_degree to nearest power of 2 number */
-  for (num_pll_degree = 1; num_pll_degree < fts_sort_pll_degree;
-       num_pll_degree <<= 1) {
-    /* No op */
-  }
+  /* Round up ddl:fts_parser_threads to nearest power of 2 number */
+  {
+    ulong n_parser_threads = 1;
 
-  fts_sort_pll_degree = num_pll_degree;
+    while (n_parser_threads < ddl::fts_parser_threads) {
+      n_parser_threads <<= 1;
+    }
+
+    ddl::fts_parser_threads = n_parser_threads;
+  }
 
   /* Store the default charset-collation number of this MySQL
   installation */
@@ -10401,7 +10418,7 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
   }
 
   /* Parallel read is not currently supported for sampling. */
-  size_t max_threads = Parallel_reader::available_threads(1);
+  size_t max_threads = Parallel_reader::available_threads(1, false);
 
   if (max_threads == 0) {
     return HA_ERR_SAMPLING_INIT_FAILED;
@@ -17861,7 +17878,9 @@ int ha_innobase::check(THD *thd,                /*!< in: user thread handle */
   }
 
   /* Restore the original isolation level */
-  m_prebuilt->trx->isolation_level = old_isolation_level;
+  m_prebuilt->trx->isolation_level =
+      static_cast<trx_t::isolation_level_t>(old_isolation_level);
+
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
   /* We validate the whole adaptive hash index for all tables
   at every CHECK TABLE only when QUICK flag is not present. */
@@ -21989,7 +22008,7 @@ static MYSQL_SYSVAR_BOOL(
     " and we rely on innodb_lock_wait_timeout in case of deadlock.",
     nullptr, innobase_deadlock_detect_update, TRUE);
 
-static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor, PLUGIN_VAR_RQCMDARG,
+static MYSQL_SYSVAR_LONG(fill_factor, ddl::fill_factor, PLUGIN_VAR_RQCMDARG,
                          "Percentage of B-tree page filled during bulk insert",
                          nullptr, nullptr, 100, 10, 100, 0);
 
@@ -22042,7 +22061,7 @@ static MYSQL_SYSVAR_ULONG(ft_num_word_optimize, fts_num_word_optimize,
                           "for each optimize table call ",
                           nullptr, nullptr, 2000, 1000, 10000, 0);
 
-static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, fts_sort_pll_degree,
+static MYSQL_SYSVAR_ULONG(ft_sort_pll_degree, ddl::fts_parser_threads,
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
                           "InnoDB Fulltext search parallel sort degree, will "
                           "round up to nearest power of 2 number",
@@ -22733,6 +22752,8 @@ static SYS_VAR *innobase_system_variables[] = {
     MYSQL_SYSVAR(commit_concurrency),
     MYSQL_SYSVAR(concurrency_tickets),
     MYSQL_SYSVAR(compression_level),
+    MYSQL_SYSVAR(ddl_buffer_size),
+    MYSQL_SYSVAR(ddl_threads),
     MYSQL_SYSVAR(data_file_path),
     MYSQL_SYSVAR(temp_data_file_path),
     MYSQL_SYSVAR(data_home_dir),

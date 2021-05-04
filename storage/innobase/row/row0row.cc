@@ -89,7 +89,7 @@ dtuple_t *row_build_index_entry_low(
 
   if (index->is_corrupted() && dict_index_has_virtual(index) &&
       dict_index_get_online_status(index) == ONLINE_INDEX_ABORTED_DROPPED) {
-    /* See comments for virtual index in row_merge_drop_indexes().
+    /* See comments for virtual index in ddl::drop_indexes().
     In this case, just return the empty entry object */
     return (entry);
   }
@@ -624,7 +624,7 @@ dtuple_t *row_rec_to_index_entry_low(
   ut_ad(heap != nullptr);
   ut_ad(index != nullptr);
 
-  /* Because this function may be invoked by row0merge.cc
+  /* Because this function may be invoked by row0ddl.cc
   on a record whose header is in different format, the check
   rec_offs_validate(rec, index, offsets) must be avoided here. */
 

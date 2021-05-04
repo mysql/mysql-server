@@ -57,11 +57,21 @@ class IB_thread {
   std::shared_future<void> m_shared_future;
   std::shared_ptr<std::atomic<State>> m_state;
 
-  friend class Runnable;
-
   void init(std::promise<void> &promise);
   void set_state(State state);
+
+  friend class Detached_thread;
 };
+
+/** Operating system thread native handle */
+using os_thread_id_t = std::thread::native_handle_type;
+
+/** The thread sleeps at least the time given in microseconds.
+@param[in]	usecs		time in microseconds */
+#define os_thread_sleep(usecs)                                     \
+  do {                                                             \
+    std::this_thread::sleep_for(std::chrono::microseconds(usecs)); \
+  } while (false)
 
 /** Returns the string representation of the thread ID supplied. It uses the
  only standard-compliant way of printing the thread ID.

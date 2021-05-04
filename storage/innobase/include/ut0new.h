@@ -184,7 +184,7 @@ extern PSI_memory_key mem_key_redo_log_archive_queue_element;
 extern PSI_memory_key mem_key_other;
 extern PSI_memory_key mem_key_partitioning;
 extern PSI_memory_key mem_key_row_log_buf;
-extern PSI_memory_key mem_key_row_merge_sort;
+extern PSI_memory_key mem_key_ddl;
 extern PSI_memory_key mem_key_std;
 extern PSI_memory_key mem_key_trx_sys_t_rw_trx_ids;
 extern PSI_memory_key mem_key_undo_spaces;
@@ -210,8 +210,8 @@ static constexpr const char *auto_event_names[] = {
     "api0api",
     "api0misc",
     "btr0btr",
-    "btr0bulk",
     "btr0cur",
+    "btr0load",
     "btr0pcur",
     "btr0sea",
     "btr0types",
@@ -233,6 +233,15 @@ static constexpr const char *auto_event_names[] = {
     "data0type",
     "data0types",
     "db0err",
+    "ddl0buffer",
+    "ddl0builder",
+    "ddl0ctx",
+    "ddl0ddl",
+    "ddl0file-reader",
+    "ddl0loader",
+    "ddl0merge",
+    "ddl0rtree",
+    "ddl0par-scan",
     "dict",
     "dict0boot",
     "dict0crea",
@@ -334,11 +343,10 @@ static constexpr const char *auto_event_names[] = {
     "rem0rec",
     "rem0types",
     "row0ext",
-    "row0ftsort",
+    "row0ft",
     "row0import",
     "row0ins",
     "row0log",
-    "row0merge",
     "row0mysql",
     "row0purge",
     "row0quiesce",
