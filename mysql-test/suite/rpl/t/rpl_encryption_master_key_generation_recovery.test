@@ -177,33 +177,38 @@ SET GLOBAL binlog_encryption = ON;
 --let $assert_cond= "[SHOW BINARY LOGS, Encrypted, 3]" = "Yes"
 --source include/assert.inc
 
-# Cleanup
+--echo ==== Cleanup ====
+
+--echo * Disable encryption, cleanup database, and consume all encrypted logs.
+--source include/rpl_connection_slave.inc
 --source include/start_slave.inc
+SET GLOBAL binlog_encryption = OFF;
+
 --source include/rpl_connection_master.inc
 SET GLOBAL binlog_encryption = OFF;
 DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
---source include/stop_slave.inc
---source include/rpl_connection_slave.inc
-SET GLOBAL binlog_encryption = OFF;
-UNINSTALL PLUGIN keyring_file;
---remove_file $keyring_slave
+
+--echo * Remove all encrypted logs.
+--source include/rpl_reset.inc
+
+--echo * Uninstall the plugins and delete the keyrings.
 --source include/rpl_connection_master.inc
-SET GLOBAL binlog_encryption = OFF;
 UNINSTALL PLUGIN keyring_file;
 --remove_file $keyring_master
+--source include/rpl_connection_slave.inc
+UNINSTALL PLUGIN keyring_file;
+--remove_file $keyring_slave
 
---let $rpl_start_with_gtids= $gtid_mode_on
---source include/rpl_connection_master.inc
-RESET MASTER;
---let $rpl_server_number= 1
---let $rpl_server_parameters=
+--echo * Restart the servers with the same command lines as before the test.
+--let $rpl_server_number = 1
+--let $rpl_server_parameters =
 --let $rpl_omit_print_server_parameters = 1
 --source include/rpl_restart_server.inc
---connection slave
-RESET REPLICA;
 --let $rpl_server_number= 2
---let $rpl_server_parameters=
 --source include/rpl_restart_server.inc
---let $rpl_only_running_threads= 1
+
+--echo * Clean up replication test framework
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
 --source include/rpl_end.inc
