@@ -2788,12 +2788,14 @@ private:
   void removeMarkerForFailedAPI(Signal* signal, NodeId nodeId, Uint32 bucket);
 
   bool getAllowStartTransaction(NodeId nodeId, Uint32 table_single_user_mode) const {
-    if (unlikely(getNodeState().getSingleUserMode()))
-    {
-      if (getNodeState().getSingleUserApi() == nodeId || table_single_user_mode)
-        return true;
-      else
-        return false;
+    if (unlikely(getNodeState().getSingleUserMode())) {
+      if (getNodeInfo(nodeId).m_type != NodeInfo::DB) {
+        // Cluster is in single user mode and an API Node is attempting to start
+        // a transaction. The transaction is allowed only if this is the
+        // designated API node that has been granted access.
+        return (table_single_user_mode ||
+                getNodeState().getSingleUserApi() == nodeId);
+      }
     }
     return getNodeState().startLevel < NodeState::SL_STOPPING_2;
   }
