@@ -47,6 +47,6 @@ if ($_cj_result_log) {
 if ($_cj_query_log) {
   --enable_query_log
 }
-if ($_cj_query_log) {
+if ($_cj_abort_on_error) {
   --enable_abort_on_error
 }

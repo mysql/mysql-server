@@ -114,6 +114,8 @@ int register_slave(THD *thd, uchar *packet, size_t packet_length) {
   uchar *p = packet, *p_end = packet + packet_length;
   const char *errmsg = "Wrong parameters to function register_slave";
 
+  CONDITIONAL_SYNC_POINT("begin_register_replica");
+
   if (check_access(thd, REPL_SLAVE_ACL, any_db, nullptr, nullptr, false, false))
     return 1;
 

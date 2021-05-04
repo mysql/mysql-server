@@ -105,7 +105,7 @@ perl;
     $script = '
     chomp;
     my @cols = split(/\t/, $_);
-    $_ = join("\t", map { $cols[$_ - 1] } ('.$select_columns.'))."\n";
+    $_ = join("\t", map { $cols[$_ - 1] } ('.$select_columns.'));
     ' . $script;
   }
   if ($mask_columns)

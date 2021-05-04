@@ -1980,10 +1980,17 @@ bool debug_sync_set_action(THD *thd, const char *action_str, size_t len) {
 }
 
 void conditional_sync_point(std::string name) {
-  DBUG_EXECUTE_IF(("syncpoint_" + name).c_str(), {
+  const std::string debug_symbol = "syncpoint_" + name;
+  DBUG_EXECUTE_IF(debug_symbol.c_str(), {
+    DBUG_PRINT("info", ("reached sync point '%s' (enabled by debug symbol "
+                        "'%s'); signalling 'reached_%s' and waiting for "
+                        "'continue_%s'",
+                        name.c_str(), debug_symbol.c_str(), name.c_str(),
+                        name.c_str()));
     std::string act =
         "now SIGNAL reached_" + name + " WAIT_FOR continue_" + name;
-    assert(!debug_sync_set_action(current_thd, act.c_str(), act.length()));
+    bool ret = debug_sync_set_action(current_thd, act.c_str(), act.length());
+    assert(!ret);
   });
 }
 

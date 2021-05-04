@@ -42,6 +42,9 @@
 # eval SELECT '$json_key played $json_value.';
 
 if ($json_object != '') {
+  --let $json = $json_object
+  --source include/json_check.inc
+
   --let $_jm_key = escape('\,$json_key)
   --let $_jm_key_double_quotes_escaped = escape(",$_jm_key)
   --let $_jm_object = escape('\,$json_object)

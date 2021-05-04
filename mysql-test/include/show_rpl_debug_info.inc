@@ -178,7 +178,7 @@ while ($_rpl_server)
   --echo **** SHOW PROCESSLIST on $CURRENT_CONNECTION ****
   SHOW PROCESSLIST;
   --echo
-  --echo **** SELECT * FROM performance_schema.threads ****
+  --echo **** SELECT * FROM performance_schema.threads on $CURRENT_CONNECTION ****
   SELECT * FROM performance_schema.threads;
   --echo
   --echo **** SHOW BINARY LOGS on $CURRENT_CONNECTION ****
@@ -206,7 +206,7 @@ while ($_rpl_server)
   if ($extra_debug_table)
   {
     --echo
-    --echo **** extra_debug_table ****
+    --echo **** extra_debug_table on $CURRENT_CONNECTION ****
     --echo # $extra_debug_table
     eval SHOW CREATE TABLE $extra_debug_table;
     eval SELECT * FROM $extra_debug_table;
@@ -214,7 +214,7 @@ while ($_rpl_server)
 
   if ($extra_debug_sql != '') {
     --echo
-    --echo **** extra_debug_sql ****
+    --echo **** extra_debug_sql on $CURRENT_CONNECTION ****
     --echo # $extra_debug_sql
     --eval $extra_debug_sql
   }
