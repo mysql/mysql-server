@@ -51,5 +51,5 @@ char *ndb_pack_varchar(const NdbDictionary::Column *col,
 
 int cmp_frm(const NdbDictionary::Table* ndbtab, const void* pack_data,
             size_t pack_length);
-
+bool ndb_table_has_blobs(const NdbDictionary::Table *ndbtab);
 #endif

@@ -64,3 +64,16 @@ cmp_frm(const NdbDictionary::Table* ndbtab, const void* pack_data,
   DBUG_RETURN(0);
 }
 
+bool ndb_table_has_blobs(const NdbDictionary::Table *ndbtab) {
+  const int num_columns = ndbtab->getNoOfColumns();
+  for (int i = 0; i < num_columns; i++) {
+    const NdbDictionary::Column::Type column_type =
+        ndbtab->getColumn(i)->getType();
+    if (column_type == NdbDictionary::Column::Blob ||
+        column_type == NdbDictionary::Column::Text) {
+      // Found at least one blob column, the table has blobs
+      return true;
+    }
+  }
+  return false;
+}
