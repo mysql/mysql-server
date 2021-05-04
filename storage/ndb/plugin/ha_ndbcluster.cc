@@ -5998,6 +5998,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     m_rows_deleted++;
 
     if (!(primary_key_update || m_delete_cannot_batch)) {
+      thd_ndb->m_unsent_blob_ops |= ndb_table_has_blobs(m_table);
       // If deleting from cursor, NoCommit will be handled in next_result
       return 0;
     }
