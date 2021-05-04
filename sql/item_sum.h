@@ -2265,16 +2265,15 @@ class Item_rank : public Item_non_framing_wf {
   // Execution state variables
   ulonglong m_rank_ctr;    ///< Increment when window order columns change
   ulonglong m_duplicates;  ///< Needed to make RANK different from DENSE_RANK
-  List<Cached_item> m_previous;  ///< Values of previous row's ORDER BY items
+  Mem_root_array<Cached_item *>
+      m_previous;  ///< Values of previous row's ORDER BY items
  public:
   Item_rank(const POS &pos, bool dense, PT_window *w)
       : Item_non_framing_wf(pos, w),
         m_dense(dense),
         m_rank_ctr(0),
         m_duplicates(0),
-        m_previous()
-
-  {
+        m_previous(*THR_MALLOC) {
     unsigned_flag = true;
   }
 

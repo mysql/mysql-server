@@ -4682,14 +4682,11 @@ longlong Item_rank::val_int() {
 
   bool change = false;
   if (m_window->has_windowing_steps()) {
-    List_iterator<Cached_item> li(m_previous);
-    Cached_item *item;
-
     /*
       Check if any of the ORDER BY expressions have changed. If so, we
       need to update the rank, considering any duplicates.
     */
-    while ((item = li++)) {
+    for (Cached_item *item : m_previous) {
       change |= item->cmp();
     }
   }
@@ -4727,19 +4724,15 @@ void Item_rank::clear() {
 
   // Reset comparator
   if (m_window->has_windowing_steps()) {
-    List_iterator<Cached_item> li(m_previous);
-    Cached_item *item;
-    while ((item = li++)) {
+    for (Cached_item *item : m_previous) {
       item->cmp();  // set baseline
     }
   }  // if no windowing steps, no comparison needed.
 }
 
 Item_rank::~Item_rank() {
-  List_iterator<Cached_item> li(m_previous);
-  Cached_item *ci;
-  while ((ci = li++)) {
-    ci->~Cached_item();
+  for (Cached_item *ci : m_previous) {
+    destroy(ci);
   }
   m_previous.clear();
 }
