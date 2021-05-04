@@ -52,6 +52,7 @@ Certification_handler::~Certification_handler() {
     delete (*stored_view_info_it)->view_change_pevent;
     delete *stored_view_info_it;
   }
+  pending_view_change_events_waiting_for_consistent_transactions.clear();
 }
 
 int Certification_handler::initialize() {
@@ -493,6 +494,17 @@ int Certification_handler::extract_certification_info(Pipeline_event *pevent,
     next(pevent, cont);
     return error;
   }
+  if (pevent->is_delayed_view_change_waiting_for_consistent_transactions()) {
+    std::string local_gtid_certified_string{};
+    cert_module->get_local_certified_gtid(local_gtid_certified_string);
+    pending_view_change_events_waiting_for_consistent_transactions.push_back(
+        std::make_unique<View_change_stored_info>(
+            pevent, local_gtid_certified_string,
+            cert_module->generate_view_change_group_gtid()));
+    cont->set_transation_discarded(true);
+    cont->signal(0, cont->is_transaction_discarded());
+    return error;
+  }
 
   /*
     If the current view event is a standalone event (not inside a
@@ -736,7 +748,25 @@ int Certification_handler::log_view_change_event_in_order(
   DBUG_TRACE;
 
   int error = 0;
-  bool first_log_attempt = (gtid->gno == -1);
+  /*
+    Certification info needs to be added into the `vchange_event` when this view
+    if first handled (no GITD) or when it is being resumed after waiting from
+    consistent transactions.
+  */
+  const bool first_log_attempt =
+      (-1 == gtid->gno || view_pevent->is_delayed_view_change_resumed());
+
+  /*
+    If this view was delayed to wait for consistent transactions to finish, we
+    need to recover its previously computed GTID information.
+  */
+  if (view_pevent->is_delayed_view_change_resumed()) {
+    auto &stored_view_info =
+        pending_view_change_events_waiting_for_consistent_transactions.front();
+    local_gtid_string.assign(stored_view_info->local_gtid_certified);
+    *gtid = stored_view_info->view_change_gtid;
+    pending_view_change_events_waiting_for_consistent_transactions.pop_front();
+  }
 
   Log_event *event = nullptr;
   error = view_pevent->get_LogEvent(&event);
