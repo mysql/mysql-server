@@ -17191,11 +17191,11 @@ static MYSQL_SYSVAR_ULONG(extra_logging,         /* name */
 static MYSQL_SYSVAR_ULONG(wait_connected,         /* name */
                           opt_ndb_wait_connected, /* var */
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                          "Time (in seconds) for mysqld to wait for connection "
-                          "to cluster management and data nodes.",
+                          "Time (in seconds) to wait for connection to "
+                          "cluster.",
                           NULL,                /* check func. */
                           NULL,                /* update func. */
-                          30,                  /* default */
+                          120,                 /* default */
                           0,                   /* min */
                           ONE_YEAR_IN_SECONDS, /* max */
                           0                    /* block */
@@ -17204,11 +17204,11 @@ static MYSQL_SYSVAR_ULONG(wait_connected,         /* name */
 static MYSQL_SYSVAR_ULONG(wait_setup,         /* name */
                           opt_ndb_wait_setup, /* var */
                           PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-                          "Time (in seconds) for mysqld to wait for setup to "
+                          "Time (in seconds) to wait for setup to "
                           "complete (0 = no wait)",
                           NULL,                /* check func. */
                           NULL,                /* update func. */
-                          30,                  /* default */
+                          120,                 /* default */
                           0,                   /* min */
                           ONE_YEAR_IN_SECONDS, /* max */
                           0                    /* block */
