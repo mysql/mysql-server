@@ -15028,9 +15028,14 @@ read_multi_needs_scan(NDB_INDEX_TYPE cur_index_type, const KEY *key_info,
 {
   if (cur_index_type == ORDERED_INDEX || is_pushed)
     return TRUE;
-  if (cur_index_type == PRIMARY_KEY_INDEX ||
-      cur_index_type == UNIQUE_INDEX)
+  if (cur_index_type == PRIMARY_KEY_INDEX)
     return FALSE;
+  if (cur_index_type == UNIQUE_INDEX) {  // a 'UNIQUE ... USING HASH' index
+    // UNIQUE_INDEX is used iff optimizer set HA_MRR_NO_NULL_ENDPOINTS.
+    // Assert that there are no NULL values in key as promissed.
+    assert(!check_null_in_key(key_info, r->start_key.key, r->start_key.length));
+    return FALSE;
+  }
   assert(cur_index_type == PRIMARY_KEY_ORDERED_INDEX ||
          cur_index_type == UNIQUE_ORDERED_INDEX);
   if (r->start_key.length != key_info->key_length ||

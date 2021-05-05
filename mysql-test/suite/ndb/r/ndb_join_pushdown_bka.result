@@ -7239,4 +7239,79 @@ NDB_PUSHED_QUERIES_DROPPED	0
 NDB_SORTED_SCAN_COUNT	0
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
+CREATE TABLE f (
+col_int_key int DEFAULT NULL
+) ENGINE=ndbcluster;
+CREATE TABLE p (
+col_int int DEFAULT NULL,
+col_int_unique int DEFAULT NULL,
+UNIQUE KEY ix1 (col_int,col_int_unique) USING HASH
+) ENGINE=ndbcluster;
+Warnings:
+Warning	1121	Ndb does not support unique index on NULL valued attributes, index access with NULL value will become full table scan
+insert into f values (1),(NULL);
+insert into p values (NULL,1);
+explain SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int IS NULL
+AND table4.col_int_unique = table2.col_int_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition (`test`.`table2`.`col_int_key` is not null)
+1	SIMPLE	table4	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	10	const,test.table2.col_int_key	1	100.00	Using where with pushed condition isnull(`test`.`table4`.`col_int`)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `col_int_key`,`test`.`table4`.`col_int` AS `col_int`,`test`.`table4`.`col_int_unique` AS `col_int_unique` from `test`.`f` `table2` straight_join `test`.`p` `table4` where ((`test`.`table4`.`col_int_unique` = `test`.`table2`.`col_int_key`) and isnull(`test`.`table4`.`col_int`))
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int IS NULL
+AND table4.col_int_unique = table2.col_int_key;
+col_int_key	col_int	col_int_unique
+1	NULL	1
+explain SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = 1
+AND table4.col_int_unique = table2.col_int_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`table2`.`col_int_key` is not null)
+1	SIMPLE	table4	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	10	const,test.table2.col_int_key	1	100.00	Child of 'table2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `col_int_key`,`test`.`table4`.`col_int` AS `col_int`,`test`.`table4`.`col_int_unique` AS `col_int_unique` from `test`.`f` `table2` straight_join `test`.`p` `table4` where ((`test`.`table4`.`col_int_unique` = `test`.`table2`.`col_int_key`) and (`test`.`table4`.`col_int` = 1))
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = 1
+AND table4.col_int_unique = table2.col_int_key;
+col_int_key	col_int	col_int_unique
+explain SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int <=> table2.col_int_key
+AND table4.col_int_unique = table2.col_int_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`table2`.`col_int_key` is not null)
+1	SIMPLE	table4	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	10	test.table2.col_int_key,test.table2.col_int_key	1	100.00	Child of 'table2' in pushed join@1; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `col_int_key`,`test`.`table4`.`col_int` AS `col_int`,`test`.`table4`.`col_int_unique` AS `col_int_unique` from `test`.`f` `table2` straight_join `test`.`p` `table4` where ((`test`.`table4`.`col_int_unique` = `test`.`table2`.`col_int_key`) and (`test`.`table4`.`col_int` <=> `test`.`table2`.`col_int_key`))
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int <=> table2.col_int_key
+AND table4.col_int_unique = table2.col_int_key;
+col_int_key	col_int	col_int_unique
+explain SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+AND table4.col_int_unique <=> table2.col_int_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`table2`.`col_int_key` is not null)
+1	SIMPLE	table4	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	10	test.table2.col_int_key,test.table2.col_int_key	1	100.00	Child of 'table2' in pushed join@1; Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `col_int_key`,`test`.`table4`.`col_int` AS `col_int`,`test`.`table4`.`col_int_unique` AS `col_int_unique` from `test`.`f` `table2` straight_join `test`.`p` `table4` where ((`test`.`table4`.`col_int` = `test`.`table2`.`col_int_key`) and (`test`.`table4`.`col_int_unique` <=> `test`.`table2`.`col_int_key`))
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+AND table4.col_int_unique <=> table2.col_int_key;
+col_int_key	col_int	col_int_unique
+explain SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+AND table4.col_int_unique = table2.col_int_key;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition ((`test`.`table2`.`col_int_key` is not null) and (`test`.`table2`.`col_int_key` is not null))
+1	SIMPLE	table4	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	10	test.table2.col_int_key,test.table2.col_int_key	1	100.00	Using join buffer (Batched Key Access)
+Warnings:
+Note	1003	Cannot push table 'table4' as child of table 'table2'. Doing so would prevent using join buffer for table 'table4'.
+Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `col_int_key`,`test`.`table4`.`col_int` AS `col_int`,`test`.`table4`.`col_int_unique` AS `col_int_unique` from `test`.`f` `table2` straight_join `test`.`p` `table4` where ((`test`.`table4`.`col_int` = `test`.`table2`.`col_int_key`) and (`test`.`table4`.`col_int_unique` = `test`.`table2`.`col_int_key`))
+SELECT * FROM f AS table2
+STRAIGHT_JOIN p AS table4 ON table4.col_int = table2.col_int_key
+AND table4.col_int_unique = table2.col_int_key;
+col_int_key	col_int	col_int_unique
+DROP TABLE f,p;
 set @@global.optimizer_switch=default;
