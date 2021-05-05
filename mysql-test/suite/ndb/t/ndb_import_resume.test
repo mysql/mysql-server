@@ -33,10 +33,10 @@ EOF
 # At the end, the table should contain 6 rows of data.
 
 --error 1
-exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=dc
+exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=cn
      test $MYSQL_TMP_DIR/mt.data;
 
-exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=dc
+exec $NDB_IMPORT --state-dir=$MYSQL_TMP_DIR --rejects=5 --csvopt=cn
      --resume test $MYSQL_TMP_DIR/mt.data;
 
 --let $n= `SELECT count(*) FROM mt`
