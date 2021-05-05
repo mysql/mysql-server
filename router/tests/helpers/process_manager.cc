@@ -124,23 +124,23 @@ ProcessManager::Spawner::wait_for_notified(
 
   sock.native_non_blocking(true);
 
-  auto accept_res = accept_until<clock_type>(sock, end_time);
-  if (!accept_res) {
-    return accept_res.get_unexpected();
-  }
-
-  auto accepted = std::move(accept_res.value());
-
-  // make the read non-blocking.
-  const auto non_block_res = accepted.native_non_blocking(true);
-  if (!non_block_res) {
-    return non_block_res.get_unexpected();
-  }
-
-  const size_t BUFF_SIZE = 512;
-  std::array<char, BUFF_SIZE> buff;
-
   do {
+    auto accept_res = accept_until<clock_type>(sock, end_time);
+    if (!accept_res) {
+      return accept_res.get_unexpected();
+    }
+
+    auto accepted = std::move(accept_res.value());
+
+    // make the read non-blocking.
+    const auto non_block_res = accepted.native_non_blocking(true);
+    if (!non_block_res) {
+      return non_block_res.get_unexpected();
+    }
+
+    const size_t BUFF_SIZE = 512;
+    std::array<char, BUFF_SIZE> buff;
+
     const auto read_res =
         net::read(accepted, net::buffer(buff), net::transfer_at_least(1));
     if (!read_res) {
