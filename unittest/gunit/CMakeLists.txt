@@ -322,6 +322,7 @@ SET(SERVER_TESTS
   item_filter
   item_func_case
   item_func_now_local
+  item_func_rlike
   item_timefunc
   item_like
   join_tab_sort
