@@ -89,4 +89,18 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgmd_dump_file.txt;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
+# To validate Mgmd gives error when -f is not specified
+--echo #
+--echo # Bug32554492 NDB_MGMD SHOULD REPORT ERROR WHEN STARTED
+--echo # WITHOUT -F AND BINARY CONFIG
+--echo #
+--error 1
+--exec $NDB_MGMD_EXE config.ini --initial > $dump_file 2>&1
+--echo # verify that mgmd throws error when -f is not specified
+--let $assert_text= Mgmd gives error when -f is not specifed
+--let $assert_select= ERROR: Invalid options - config.ini specified.
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
 --remove_file $dump_file
