@@ -1428,14 +1428,14 @@ dberr_t FTS::create(size_t n_threads) noexcept {
       return DB_OUT_OF_MEMORY;
     }
 
+    m_parsers.push_back(parser);
+
     auto err = parser->init(n_threads);
 
     if (err != DB_SUCCESS) {
       destroy();
       return err;
     }
-
-    m_parsers.push_back(parser);
   }
 
   m_inserter = UT_NEW(Inserter(m_ctx, &m_dup, m_doc_id_32_bit), mem_key_ddl);

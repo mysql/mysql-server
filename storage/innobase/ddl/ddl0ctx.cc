@@ -357,8 +357,6 @@ dberr_t Context::cleanup(dberr_t err) noexcept {
     }
   }
 
-  ib::info() << "Cleanup: " << ut_strerr(err);
-
   return err;
 }
 

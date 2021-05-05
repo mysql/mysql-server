@@ -472,7 +472,6 @@ dberr_t Loader::scan_and_build_indexes() noexcept {
 }
 
 dberr_t Loader::build_all() noexcept {
-  ib::info() << "Loader::build_all enter";
   auto err = prepare();
 
   if (err == DB_SUCCESS) {
@@ -499,8 +498,6 @@ dberr_t Loader::build_all() noexcept {
   if (err != DB_SUCCESS) {
     m_ctx.set_error(err);
   }
-
-  ib::info() << "Loader::build_all exit: err: " << ut_strerr(err);
 
   return err;
 }
