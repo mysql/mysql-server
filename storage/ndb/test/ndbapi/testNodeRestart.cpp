@@ -7708,6 +7708,15 @@ runBug18044717(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int runRestartAllNodes(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  CHECK(restarter.restartAll() == 0, "-");
+  CHECK(restarter.waitClusterNoStart() == 0, "-");
+  CHECK(restarter.startAll() == 0, "-");
+  CHECK(restarter.waitClusterStarted() == 0, "-");
+  CHK_NDB_READY(GETNDB(step));
+}
 
 
 static int createEvent(Ndb *pNdb,
@@ -10362,6 +10371,7 @@ TESTCASE("Bug18612SR",
 	 "Test bug with partitioned clusters"){
   INITIALIZER(runLoadTable);
   STEP(runBug18612SR);
+  FINALIZER(runRestartAllNodes);
   FINALIZER(runClearTable);
 }
 TESTCASE("Bug20185",
