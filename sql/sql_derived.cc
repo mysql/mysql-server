@@ -562,6 +562,10 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item,
   bool parsing_system_view_saved = thd->parsing_system_view;
   thd->parsing_system_view = is_system_view;
 
+  // Set the correct query block to parse the item. In some cases, like
+  // fulltext functions, parser needs to add them to ftfunc_list of the
+  // query block.
+  thd->lex->set_current_query_block(context->query_block);
   bool result = parse_sql(thd, &parser_state, nullptr);
 
   // End of parsing.
