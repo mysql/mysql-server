@@ -4033,16 +4033,12 @@ longlong Item_func_locate::val_int() {
   // Evaluate the string argument first
   const CHARSET_INFO *cs = collation.collation;
   String *a = eval_string_arg(cs, args[0], &value1);
-  if (a == nullptr) {
-    null_value = true;
-    return 0; /* purecov: inspected */
-  }
+  if (a == nullptr) return error_int();
+
   // Evaluate substring argument in same character set as string argument
   String *b = eval_string_arg(cs, args[1], &value2);
-  if (b == nullptr) {
-    null_value = true;
-    return 0; /* purecov: inspected */
-  }
+  if (b == nullptr) return error_int();
+
   null_value = false;
   /* must be longlong to avoid truncation */
   longlong start = 0;

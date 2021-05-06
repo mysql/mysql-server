@@ -5353,3 +5353,10 @@ DO USER() in
 CONVERT(LAST_VALUE(FROM_UNIXTIME(1536999169)) OVER() USING utf32));
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'root@localhost'
+#
+# Bug #32746536 MULTIPLE FUNCTIONS: ASSERTION `IS_NULLABLE()' FAILED.
+#
+DO ST_ISVALID(INSTR(9223372036854775806 ,0x46bc299f));
+ERROR HY000: Cannot convert string 'F\xBC)\x9F' from binary to utf8mb4
+DO ST_SRID(LOCATE(0x58ed0b8e,8,135));
+ERROR HY000: Cannot convert string 'X\xED\x0B\x8E' from binary to utf8mb4
