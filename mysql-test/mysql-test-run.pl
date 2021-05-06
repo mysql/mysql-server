@@ -3822,6 +3822,23 @@ sub ndbd_stop {
   # by sending "shutdown" to ndb_mgmd
 }
 
+# Modify command line so that program is bound to given list of CPUs
+sub cpubind_arguments {
+  my $args          = shift;
+  my $exe           = shift;
+  my $cpu_list      = shift;
+
+  # Prefix args with 'taskset -c <cpulist> <exe> ...'
+  my $prefix_args;
+  mtr_init_args(\$prefix_args);
+  mtr_add_arg($prefix_args, "-c");
+  mtr_add_arg($prefix_args, $cpu_list);
+  mtr_add_arg($prefix_args, $$exe);
+  unshift(@$args, @$prefix_args);
+
+  $$exe = "taskset";
+}
+
 sub ndbd_start {
   my ($cluster, $ndbd) = @_;
 
@@ -3829,15 +3846,6 @@ sub ndbd_start {
 
   my $dir = $ndbd->value("DataDir");
   mkpath($dir) unless -d $dir;
-
-  my $args;
-  mtr_init_args(\$args);
-  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
-  mtr_add_arg($args, "--defaults-group-suffix=%s",
-              $ndbd->after('cluster_config.ndbd'));
-  mtr_add_arg($args, "--nodaemon");
-
-  # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
 
   my $exe = $exe_ndbd;
   if ($exe_ndbmtd) {
@@ -3850,6 +3858,20 @@ sub ndbd_start {
       $exe = $exe_ndbmtd;
     }
   }
+
+  my $args;
+  mtr_init_args(\$args);
+
+  my $cpu_list = $ndbd->if_exist('#cpubind');
+  if (defined $cpu_list) {
+    mtr_print("Applying cpu binding '$cpu_list' for: ", $ndbd->name());
+    cpubind_arguments($args, \$exe, $cpu_list);
+  }
+
+  mtr_add_arg($args, "--defaults-file=%s", $path_config_file);
+  mtr_add_arg($args, "--defaults-group-suffix=%s",
+              $ndbd->after('cluster_config.ndbd'));
+  mtr_add_arg($args, "--nodaemon");
 
   my $path_ndbd_log = "$dir/ndbd.log";
   my $proc = My::SafeProcess->new(name     => $ndbd->after('cluster_config.'),
@@ -4972,7 +4994,7 @@ sub run_testcase ($) {
     return 1;
   }
 
-  my $test = start_mysqltest($tinfo);
+  my $test = start_mysqltest($tinfo, $config->group('mysqltest'));
 
   # Maintain a queue to keep track of server processes which have
   # died expectedly in order to wait for them to be restarted.
@@ -6280,6 +6302,12 @@ sub mysqld_start ($$$$) {
     valgrind_arguments($args, \$exe, $mysqld->name());
   }
 
+  my $cpu_list = $mysqld->if_exist('#cpubind');
+  if (defined $cpu_list) {
+    mtr_print("Applying cpu binding '$cpu_list' for: ", $mysqld->name());
+    cpubind_arguments($args, \$exe, $cpu_list);
+  }
+
   mtr_add_arg($args, "--defaults-group-suffix=%s", $mysqld->after('mysqld'));
 
   # Add any additional options from an in-test restart
@@ -6963,19 +6991,29 @@ sub start_check_testcase ($$$) {
   return $proc;
 }
 
-sub run_mysqltest ($) {
+# Run mysqltest and wait for it to finish
+# - this function is currently unused
+sub run_mysqltest ($$) {
   my $proc = start_mysqltest(@_);
   $proc->wait();
 }
 
-sub start_mysqltest ($) {
-  my ($tinfo) = @_;
+sub start_mysqltest ($$) {
+  my $tinfo = shift;
+  my $mysqltest = shift;
+
   my $exe = $exe_mysqltest;
   my $args;
 
   mark_time_used('admin');
 
   mtr_init_args(\$args);
+
+  my $cpu_list = $mysqltest->if_exist('#cpubind');
+  if (defined $cpu_list) {
+    mtr_print("Applying cpu binding '$cpu_list' for mysqltest");
+    cpubind_arguments($args, \$exe, $cpu_list);
+  }
 
   if ($opt_strace_client) {
     $exe = "strace";
