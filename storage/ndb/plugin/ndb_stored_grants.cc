@@ -57,7 +57,7 @@ static std::mutex local_granted_users_mutex;
 /* Utility functions */
 
 bool op_grants_or_revokes_ndb_storage(ChangeNotice *notice) {
-  for (const std::string &priv : notice->get_dynamic_privilege_list())
+  for (const ChangeNotice::Priv priv : notice->get_dynamic_privilege_list())
     if (!native_strncasecmp(priv.c_str(), "NDB_STORED_USER", priv.length()))
       return true;
   return false;

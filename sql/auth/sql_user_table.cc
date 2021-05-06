@@ -574,45 +574,22 @@ ulong get_access(TABLE *form, uint fieldnr, uint *next_field) {
 */
 Acl_change_notification::Acl_change_notification(
     THD *thd, enum_sql_command op, const List<LEX_USER> *users,
-    Rewrite_params *rewrite, const List<LEX_CSTRING> *dynamic_privs)
-    : operation(op),
-      db(thd->db().str, thd->db().length),
-      rewrite_params(rewrite) {
-  if (users) {
-    /* Copy data out of List<LEX_USER> */
-    user_list.reserve(users->size());
-    for (const LEX_USER &lex_user : *users) {
-      user_list.emplace_back(lex_user);
-    }
-  }
-  if (dynamic_privs) {
-    /* Copy data from dynamic_privs to dynamic_privilege_list */
-    dynamic_privilege_list.reserve(dynamic_privs->elements);
-    for (const LEX_CSTRING &priv : *dynamic_privs) {
-      dynamic_privilege_list.emplace_back(priv.str, priv.length);
-    }
-  }
-}
+    std::set<LEX_USER *> *rewrite_users, const List<LEX_CSTRING> *dynamic_privs)
+    : db{thd->db().str, thd->db().length},
+      operation(op),
+      users(users ? *users : empty_users),
+      rewrite_user_params(rewrite_users),
+      dynamic_privs(dynamic_privs ? *dynamic_privs : empty_dynamic_privs) {}
 
-void acl_notify_htons(
-    THD *thd MY_ATTRIBUTE((unused)),
-    enum_sql_command operation MY_ATTRIBUTE((unused)),
-    const List<LEX_USER> *users MY_ATTRIBUTE((unused)),
-    std::set<LEX_USER *> *rewrite_users MY_ATTRIBUTE((unused)),
-    const List<LEX_CSTRING> *dynamic_privs MY_ATTRIBUTE((unused))) {
+void acl_notify_htons(THD *thd, enum_sql_command operation,
+                      const List<LEX_USER> *users,
+                      std::set<LEX_USER *> *rewrite_users,
+                      const List<LEX_CSTRING> *dynamic_privs) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("db: %s query: '%s'", thd->db().str, thd->query().str));
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-  /*
-    The Acl_change_notification is used only by the ndbcluster SE.
-    So, instantiate it and send a notification only if the Server is
-    built with ndbcluster SE.
-  */
-  User_params rewrite_user_params(rewrite_users);
-  User_params *rewrite = rewrite_users ? &rewrite_user_params : nullptr;
-  Acl_change_notification notice(thd, operation, users, rewrite, dynamic_privs);
+  Acl_change_notification notice(thd, operation, users, rewrite_users,
+                                 dynamic_privs);
   ha_acl_notify(thd, &notice);
-#endif
 }
 
 /**
