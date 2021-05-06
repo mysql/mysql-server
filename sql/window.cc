@@ -241,9 +241,6 @@ bool Window::setup_range_expressions(THD *thd) {
   }
 
   for (PT_border *border : {m_frame->m_from, m_frame->m_to}) {
-    Item_func *cmp = nullptr, **cmp_ptr = nullptr /* to silence warning */;
-    Item_func *inv_cmp = nullptr,
-              **inv_cmp_ptr = nullptr /* to silence warning */;
     enum_window_border_type border_type = border->m_border_type;
     switch (border_type) {
       case WBT_UNBOUNDED_PRECEDING:
@@ -278,22 +275,9 @@ bool Window::setup_range_expressions(THD *thd) {
       }
       // fall through
       case WBT_CURRENT_ROW: {
-        /*
-          We compute lower than (LT) as
-          oe-1 < ? OR (!(oe1 > ?) AND
-          (oe-2 < ? OR (!(oe-2 > ?) AND
-            .....
-             (oe-N < ?))));
-
-          WBT_VALUE_PRECEDING and WBT_VALUE_FOLLOWING requires the tree to have
-          exactly one oe-1 LT (for the one ORDER BY expession allowed for such
-          queries).
-        */
-        cmp = new Item_func_false();
-        inv_cmp = new Item_func_false();
-
-        // Build OR tree from bottom up, so left most expression ends up on top
-        for (int i = o->value.size() - 1; i >= 0; i--) {
+        auto comparators = Bounds_checked_array<Arg_comparator>::Alloc(
+            thd->mem_root, o->value.size());
+        for (size_t i = 0; i < o->value.size(); ++i) {
           bool asc = elt(o->value, i)->direction == ORDER_ASC;
           Item *nr = m_order_by_items[i]->get_item();
 
@@ -311,26 +295,19 @@ bool Window::setup_range_expressions(THD *thd) {
           if (value == nullptr) return true;
 
           /*
-            WBT_CURRENT_ROW:
-              if FROM:
-                asc ? nr < value : nr > value ;
-              if TO: < becomes > and vice-versa.
+            See comments on m_comparator.
 
-              If we have multiple ORDER BY expressions we build and
-              OR tree with several levels of conditions. These gets flattened
-              into a single OR node at execution time, which we evaluate
-              explicitly in before_or_after_frame, inclucing null handling
+            WBT_CURRENT_ROW:
+              nr ⋛ value   (where ⋛ is three-way comparison)
+
+            If we have multiple ORDER BY expressions, before_or_after_frame()
+            calls them in turn as needed, including special NULL handling.
 
             WBT_VALUE_PRECEDING:
-              if FROM:
-                asc ? nr < value - border->val_int() :
-                      nr > value + border->val_int())
-              if TO: < becomes > and vice-versa.
-            WBT_VALUE_FOLLOWING:
-              If FROM:
-                asc ? nr < value + border->val_int() :
-                      nr > value - border->val_int()
-              if TO: < becomes > and vice-versa.
+               asc ? nr ⋛ value - border->val_int() :
+                     nr ⋛ value + border->val_int())
+
+            For WBT_VALUE_FOLLOWING, - becomes + and vice versa.
           */
           Item *cmp_arg;
           if (border_type == WBT_VALUE_PRECEDING ||
@@ -343,42 +320,21 @@ bool Window::setup_range_expressions(THD *thd) {
             cmp_arg = value;
           }
 
-          Item_bool_func2 *new_cmp;
-          Item_bool_func2 *new_inverse_cmp;
-          if ((border == m_frame->m_from) ? asc : !asc) {
-            new_cmp = new Item_func_lt(nr, cmp_arg);
-            /*
-              Inverse the above comparison operator to check if comparison has
-              to be continued using the next element in the order by list. We
-              continue to the next element in the list when the current elements
-              are found to be equal.
-            */
-            new_inverse_cmp = new Item_func_gt(nr, cmp_arg);
-          } else {
-            new_cmp = new Item_func_gt(nr, cmp_arg);
-            // See explanation in the if block
-            new_inverse_cmp = new Item_func_lt(nr, cmp_arg);
+          Item **left_args = new (thd->mem_root) Item *(nr);
+          Item **right_args = new (thd->mem_root) Item *(cmp_arg);
+          if (!cmp_arg->fixed) {
+            if (cmp_arg->fix_fields(thd, right_args)) {
+              return true;
+            }
           }
-
-          cmp = new Item_cond_or(new_cmp, cmp);
-          if (cmp == nullptr) return true;
-          inv_cmp = new Item_cond_or(new_inverse_cmp, inv_cmp);
-          if (inv_cmp == nullptr) return true;
+          comparators[i] = Arg_comparator(left_args, right_args);
+          comparators[i].set_cmp_func(/*owner_arg=*/nullptr, left_args,
+                                      right_args, /*set_null_arg=*/true);
         }
-
-        cmp_ptr = &m_comparators[border_type][border == m_frame->m_to];
-        *cmp_ptr = cmp;
-        inv_cmp_ptr =
-            &m_inverse_comparators[border_type][border == m_frame->m_to];
-        *inv_cmp_ptr = inv_cmp;
-
+        m_comparators[border == m_frame->m_to] = comparators;
         break;
       }
     }
-
-    if (cmp != nullptr && cmp->fix_fields(thd, (Item **)cmp_ptr)) return true;
-    if (inv_cmp != nullptr && inv_cmp->fix_fields(thd, (Item **)inv_cmp_ptr))
-      return true;
   }
 
   return false;
@@ -522,21 +478,15 @@ bool Window::before_or_after_frame(bool before) {
       (m_order_by_items.size() == 1 && (border_type == WBT_VALUE_PRECEDING ||
                                         border_type == WBT_VALUE_FOLLOWING)));
 
-  uint i = 0, j = 0;
-  Item_func *comparator = m_comparators[border_type][!before];
-  Item_func *inv_comparator = m_inverse_comparators[border_type][!before];
-  assert(comparator->functype() == Item_func::COND_OR_FUNC);
-  assert(inv_comparator->functype() == Item_func::COND_OR_FUNC);
+  uint i = 0;
+  Bounds_checked_array<Arg_comparator> comparators = m_comparators[!before];
 
-  // fix_items will have flattened the OR tree into a single multi-arg OR
-  List<Item> &args = *down_cast<Item_cond_or *>(comparator)->argument_list();
-  List<Item> &inv_args =
-      *down_cast<Item_cond_or *>(inv_comparator)->argument_list();
   ORDER *o_expr = effective_order_by()->value.first;
 
   for (auto it = m_order_by_items.begin(); it != m_order_by_items.end();
-       ++it, o_expr = o_expr->next) {
+       ++it, o_expr = o_expr->next, ++i) {
     Cached_item *cur_row = *it;
+
     /*
       'cur_row' represents the value of the current row's windowing ORDER BY
       expression, and 'candidate' represents the same expression in the
@@ -554,9 +504,6 @@ bool Window::before_or_after_frame(bool before) {
 
     const bool nulls_at_infinity =  // true if NULLs stick to 'infinity'
         before ? asc : !asc;
-
-    Item_func *func = down_cast<Item_func *>(args[i++]);
-    Item_func *inv_func = down_cast<Item_func *>(inv_args[j++]);
 
     if (cur_row->null_value)  // Current row is NULL
     {
@@ -587,33 +534,30 @@ bool Window::before_or_after_frame(bool before) {
       The second form is used when the the RANGE frame boundary is
       WBT_VALUE_PRECEDING/WBT_VALUE_FOLLOWING, "constant" above being the value
       specified in the query, cf. setup in Window::setup_range_expressions.
+
+      TODO(sgunders): Figure out why we need to insert the cache values
+      manually, as opposed to just having the Item_cache wrap the cur_row value
+      and call cache_value() as usual. (copy_to_Item_cache() is only ever used
+      in the window function code.)
     */
-    Item *to_update = func->arguments()[1];
+    Arg_comparator &cmp = comparators[i];
+    Item *to_update;
     if (border_type == WBT_CURRENT_ROW) {
+      to_update = cmp.get_right();
     } else {
-      assert(i == 1);
-      Item_func *addop = down_cast<Item_func *>(func->arguments()[1]);
-      to_update = addop->arguments()[0];
+      assert(i == 0);
+      to_update = down_cast<Item_func *>(cmp.get_right())->get_arg(0);
+    }
+    cur_row->copy_to_Item_cache(down_cast<Item_cache *>(to_update));
+
+    int val = cmp.compare();
+    if (val != 0) {
+      if (!asc) val = -val;
+      return before ? (val < 0) : (val > 0);
     }
 
-    cur_row->copy_to_Item_cache(down_cast<Item_cache *>(to_update));
-    if (func->val_int()) return true;
-    /*
-      Continue with the comparison for the next element in order by list
-      only when the current elements are found to be equal.
-      For Ex:
-      If we want to know if (2,x) is before (1,y): 2<1 is false, and 2>1
-      is true, so we exit below with a "no" reply.
-      If we want to know if (2,x) is before (2,y): 2<2 is false, and 2>2
-      is false, so they are equal and we compare x with y.
-      If only one element: if we want to know if x is before y: knowing
-      if x<y is true is enough; in that case we return "yes"; in other
-      cases, we know that x>=y is true and can return "no" without more
-      testing.
-    */
-    if (std::next(it) != m_order_by_items.end()) {
-      if (inv_func->val_int()) return false;
-    }
+    // Compared equal, so move to the next in the lexicographic comparison
+    // (if any).
   }
   return false;
 }

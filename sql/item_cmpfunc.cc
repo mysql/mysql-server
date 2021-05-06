@@ -1201,10 +1201,11 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
       DTCollation::set() may have chosen a charset that's a superset of both
       and "left" and "right", so we need to convert both items.
      */
-    if (agg_item_set_converter(coll, owner->func_name(), left, 1,
-                               MY_COLL_CMP_CONV, 1, true) ||
-        agg_item_set_converter(coll, owner->func_name(), right, 1,
-                               MY_COLL_CMP_CONV, 1, true))
+    const char *func_name = owner ? owner->func_name() : "";
+    if (agg_item_set_converter(coll, func_name, left, 1, MY_COLL_CMP_CONV, 1,
+                               true) ||
+        agg_item_set_converter(coll, func_name, right, 1, MY_COLL_CMP_CONV, 1,
+                               true))
       return true;
   } else if (try_year_cmp_func(type)) {
     return false;

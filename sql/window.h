@@ -499,18 +499,53 @@ class Window {
    *
    *------------------------------------------------------------------------*/
  public:
-  /**
-    RANGE bound determination computation; first index is a value of the
-    enum_window_border_type enum; second index 0 for the start bound, 1 for
-    the end bound. Each item is Item_func_lt/gt.
-  */
-  Item_func *m_comparators[WBT_VALUE_FOLLOWING + 1][2];
-  /**
-    Each item has inverse operation of the corresponding
-    comparator in m_comparators. Determines if comparison
-    should continue with next field in order by list.
-  */
-  Item_func *m_inverse_comparators[WBT_VALUE_FOLLOWING + 1][2];
+  /*
+    For RANGE bounds, we need to be able to check if a given row is
+    before the lower bound, or after the upper bound, as we don't know
+    ahead of time how many rows to skip (unlike for ROW bounds).
+    Often, the lower and upper bounds are the same, as they are
+    inclusive.
+
+    We solve this by having an array of comparators of the type
+
+       value ⋛ <cache>(ref_value)
+
+    where ⋛ is a three-way comparator, and <cache>(ref_value) is an
+    Item_cache where we can store the value of the reference row
+    before we invoke the comparison. For instance, if we have a
+    row bound such as
+
+        ... OVER (ORDER BY a,b) FROM t1
+
+     we will have an array with the two comparators
+
+        t1.a ⋛ <cache>(a)
+        t1.b ⋛ <cache>(b)
+
+     and when we evaluate the frame bounds for a given row, we insert
+     the reference values in the caches and then do the comparison to
+     figure out if we're before, in or after the bound. As this is a
+     lexicographic comparison, we only need to evaluate the second
+     comparator if the first one returns equality.
+
+     The expressions on the right-hand side can be somewhat more
+     complicated; say that we have a window specification like
+
+        ... OVER (ORDER BY a RANGE BETWEEN 2 PRECEDING AND 3 FOLLOWING)
+
+     In this case, the lower bound and upper bound are different
+     (both arrays will always contain only a single element):
+
+        Lower: t1.a ⋛ <cache>(a) - 2
+        Upper: t1.a ⋛ <cache>(a) + 3
+
+     ie., there is an Item_func_plus or Item_func_minus with some
+     constant expression as the second argument.
+
+     The comparators for the lower bound is stored in [0], and for
+     the upper bound in [1].
+   */
+  Bounds_checked_array<Arg_comparator> m_comparators[2];
 
  protected:
   /**

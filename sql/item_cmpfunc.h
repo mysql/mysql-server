@@ -250,6 +250,8 @@ class Arg_comparator {
   longlong extract_value_from_argument(THD *thd, Item *item, bool left_argument,
                                        bool *is_null) const;
 
+  Item *get_right() const { return *right; }
+
  private:
   /// A function pointer that is used for retrieving the value from argument
   /// "left". This function is only used when we are comparing in a datetime
