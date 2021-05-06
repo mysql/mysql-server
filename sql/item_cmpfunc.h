@@ -154,12 +154,6 @@ class Arg_comparator {
   */
   Json_scalar_holder *json_scalar{nullptr};
 
-  /**
-     When comparing strings, compare at most these many bytes.
-     A value of zero means "no limit".
-  */
-  size_t m_max_str_length{0};
-
  public:
   DTCollation cmp_collation;
   /* Allow owner function to use string buffers. */
@@ -203,11 +197,6 @@ class Arg_comparator {
   */
   bool inject_cast_nodes();
 
-  /**
-     When comparing strings, compare at most max_length bytes.
-     @param max_length how much to compare
-  */
-  void set_max_str_length(size_t max_length) { m_max_str_length = max_length; }
   inline int compare() { return (this->*func)(); }
 
   int compare_string();         // compare args[0] & args[1]
@@ -633,13 +622,6 @@ class Item_bool_func2 : public Item_bool_func {
  public:
   bool resolve_type(THD *) override;
   bool set_cmp_func() { return cmp.set_cmp_func(this, args, args + 1, true); }
-  /**
-     When comparing strings, compare at most max_str_length bytes.
-     @param max_str_length how much to compare
-  */
-  void set_max_str_length(size_t max_str_length) {
-    return cmp.set_max_str_length(max_str_length);
-  }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_OP; }
   /// @returns an operator REV_OP so that "B REV_OP A" is equivalent to
   /// "A this_operator B".

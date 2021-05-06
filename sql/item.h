@@ -6100,11 +6100,10 @@ class Cached_item {
 };
 
 class Cached_item_str : public Cached_item {
-  uint32 value_max_length;
   String value, tmp_value;
 
  public:
-  Cached_item_str(THD *thd, Item *arg);
+  explicit Cached_item_str(Item *arg);
   bool cmp() override;
   ~Cached_item_str() override;  // Deallocate String:s
   void copy_to_Item_cache(Item_cache *i_c) override;

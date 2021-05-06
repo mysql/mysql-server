@@ -1710,10 +1710,6 @@ int Arg_comparator::compare_string() {
   if (set_null) owner->null_value = false;
   size_t l1 = res1->length();
   size_t l2 = res2->length();
-  if (m_max_str_length > 0) {  // Truncate to imposed maximum length
-    if (l1 > m_max_str_length) l1 = m_max_str_length;
-    if (l2 > m_max_str_length) l2 = m_max_str_length;
-  }
   // Compare the two strings
   return cs->coll->strnncollsp(cs, pointer_cast<const uchar *>(res1->ptr()), l1,
                                pointer_cast<const uchar *>(res2->ptr()), l2);
@@ -1735,21 +1731,12 @@ int Arg_comparator::compare_binary_string() {
   if ((res1 = (*left)->val_str(&value1))) {
     if ((res2 = (*right)->val_str(&value2))) {
       if (set_null) owner->null_value = false;
-      auto orig_len1 = res1->length();
-      auto orig_len2 = res2->length();
-      auto new_len1 = orig_len1, new_len2 = orig_len2;
-      if (m_max_str_length > 0) {
-        if (orig_len1 > m_max_str_length)
-          res1->length(new_len1 = m_max_str_length);
-        if (orig_len2 > m_max_str_length)
-          res2->length(new_len2 = m_max_str_length);
-      }
-      size_t min_length = min(new_len1, new_len2);
+      size_t len1 = res1->length();
+      size_t len2 = res2->length();
+      size_t min_length = min(len1, len2);
       int cmp =
           min_length == 0 ? 0 : memcmp(res1->ptr(), res2->ptr(), min_length);
-      auto rc = cmp ? cmp : (int)(new_len1 - new_len2);
-      res1->length(orig_len1);
-      res2->length(orig_len2);
+      auto rc = cmp ? cmp : (int)(len1 - len2);
       return rc;
     }
   }

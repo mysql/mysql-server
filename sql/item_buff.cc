@@ -58,7 +58,7 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
         return new (thd->mem_root) Cached_item_temporal(item);
       if (item->data_type() == MYSQL_TYPE_JSON)
         return new (thd->mem_root) Cached_item_json(item);
-      return new (thd->mem_root) Cached_item_str(thd, item);
+      return new (thd->mem_root) Cached_item_str(item);
     case INT_RESULT:
       return new (thd->mem_root) Cached_item_int(item);
     case REAL_RESULT:
@@ -72,11 +72,7 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
   }
 }
 
-Cached_item_str::Cached_item_str(THD *thd, Item *arg)
-    : Cached_item(arg),
-      value_max_length(
-          min<uint32>(arg->max_length, thd->variables.max_sort_length)),
-      value(value_max_length) {}
+Cached_item_str::Cached_item_str(Item *arg) : Cached_item(arg) {}
 
 /**
   Compare with old value and replace value with new value.
@@ -85,14 +81,12 @@ Cached_item_str::Cached_item_str(THD *thd, Item *arg)
     Return true if values have changed
 */
 bool Cached_item_str::cmp(void) {
-  String *res;
   bool tmp;
 
   DBUG_TRACE;
   assert(!item->is_temporal());
   assert(item->data_type() != MYSQL_TYPE_JSON);
-  if ((res = item->val_str(&tmp_value)))
-    res->length(min(res->length(), static_cast<size_t>(value_max_length)));
+  String *res = item->val_str(&tmp_value);
   DBUG_PRINT("info", ("old: %s, new: %s", value.c_ptr_safe(),
                       res ? res->c_ptr_safe() : ""));
   if (null_value != item->null_value) {
