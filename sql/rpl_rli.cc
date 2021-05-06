@@ -131,7 +131,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       save_temporary_tables(nullptr),
       mi(nullptr),
       error_on_rli_init_info(false),
-      gtid_timestamps_warning_logged(false),
       transaction_parser(
           Transaction_boundary_parser::TRX_BOUNDARY_PARSER_APPLIER),
       group_relay_log_pos(0),

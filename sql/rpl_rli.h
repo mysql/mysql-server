@@ -462,13 +462,6 @@ class Relay_log_info : public Rpl_info {
   bool error_on_rli_init_info;
 
   /**
-    Variable is set to true as long as
-    original_commit_timestamp > immediate_commit_timestamp so that the
-    corresponding warning is only logged once.
-  */
-  bool gtid_timestamps_warning_logged;
-
-  /**
     Retrieves the username part of the `PRIVILEGE_CHECKS_USER` option of `CHANGE
     MASTER TO` statement.
 

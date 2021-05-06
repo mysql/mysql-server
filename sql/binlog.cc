@@ -1542,21 +1542,6 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
     thd->variables.original_commit_timestamp = UNDEFINED_COMMIT_TIMESTAMP;
   }
 
-  if (thd->slave_thread) {
-    // log warning if the replication timestamps are invalid
-    if (original_commit_timestamp > immediate_commit_timestamp &&
-        !thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged) {
-      LogErr(WARNING_LEVEL, ER_INVALID_REPLICATION_TIMESTAMPS);
-      thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged = true;
-    } else {
-      if (thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged &&
-          original_commit_timestamp <= immediate_commit_timestamp) {
-        LogErr(WARNING_LEVEL, ER_RPL_TIMESTAMPS_RETURNED_TO_NORMAL);
-        thd->rli_slave->get_c_rli()->gtid_timestamps_warning_logged = false;
-      }
-    }
-  }
-
   uint32_t trx_immediate_server_version =
       do_server_version_int(::server_version);
   // Clear the session variable to have cleared states for next transaction.
