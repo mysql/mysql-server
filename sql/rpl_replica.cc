@@ -4249,8 +4249,8 @@ static int request_dump(THD *thd, MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
       *suppress_warnings = true;  // Suppress reconnect warning
     else
       LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ERROR_RETRYING,
-             Command_names::str(command).c_str(), err, mysql_error(mysql),
-             mi->connect_retry);
+             Command_names::str_global(command).c_str(), err,
+             mysql_error(mysql), mi->connect_retry);
     if (is_network_error(err)) mi->set_network_error();
     return 1;
   }

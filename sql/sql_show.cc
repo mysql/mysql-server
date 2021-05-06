@@ -2854,7 +2854,7 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
     if (thd_info->proc_info)
       protocol->store(thd_info->proc_info, system_charset_info);
     else
-      protocol->store(Command_names::str(thd_info->command).c_str(),
+      protocol->store(Command_names::str_session(thd_info->command).c_str(),
                       system_charset_info);
     if (thd_info->start_time_in_secs)
       protocol->store_long((longlong)(now - thd_info->start_time_in_secs));
@@ -2963,7 +2963,8 @@ class Fill_process_list : public Do_THD_Impl {
       val = "Killed";
       table->field[4]->store(val, strlen(val), system_charset_info);
     } else {
-      const std::string &cn = Command_names::str(inspect_thd->get_command());
+      const std::string &cn =
+          Command_names::str_session(inspect_thd->get_command());
       table->field[4]->store(cn.c_str(), cn.length(), system_charset_info);
     }
 

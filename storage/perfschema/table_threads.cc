@@ -404,11 +404,10 @@ int table_threads::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         case 7: /* PROCESSLIST_COMMAND */
-          if (m_row.m_processlist_id != 0)
-            set_field_varchar_utf8(
-                f, Command_names::str(m_row.m_command).c_str(),
-                Command_names::str(m_row.m_command).length());
-          else {
+          if (m_row.m_processlist_id != 0) {
+            const std::string &cn = Command_names::str_session(m_row.m_command);
+            set_field_varchar_utf8(f, cn.c_str(), cn.length());
+          } else {
             f->set_null();
           }
           break;

@@ -1329,7 +1329,7 @@ bool Query_logger::slow_log_write(
   bool is_command = false;
   if (!query) {
     is_command = true;
-    const std::string &cn = Command_names::str(thd->get_command());
+    const std::string &cn = Command_names::str_global(thd->get_command());
     query = cn.c_str();
     query_length = cn.length();
   }
@@ -1378,7 +1378,7 @@ static bool log_command(THD *thd, enum_server_command command) {
 bool Query_logger::general_log_write(THD *thd, enum_server_command command,
                                      const char *query, size_t query_length) {
   /* Send a general log message to the audit API. */
-  const std::string &cn = Command_names::str(command);
+  const std::string &cn = Command_names::str_global(command);
   mysql_audit_general_log(thd, cn.c_str(), cn.length());
 
   /*
@@ -1421,7 +1421,7 @@ bool Query_logger::general_log_print(THD *thd, enum_server_command command,
   if (!log_command(thd, command) || !opt_general_log ||
       !(*general_log_handler_list)) {
     /* Send a general log message to the audit API. */
-    const std::string &cn = Command_names::str(command);
+    const std::string &cn = Command_names::str_global(command);
     mysql_audit_general_log(thd, cn.c_str(), cn.length());
     return false;
   }

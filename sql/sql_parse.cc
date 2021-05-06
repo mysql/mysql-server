@@ -251,6 +251,28 @@ const std::string Command_names::m_names[] = {
     "Error"  // Last command number
 };
 
+const std::string &Command_names::translate(const System_variables &sysvars) {
+  terminology_use_previous::enum_compatibility_version version =
+      static_cast<terminology_use_previous::enum_compatibility_version>(
+          sysvars.terminology_use_previous);
+  if (version != terminology_use_previous::NONE && version <= m_replace_version)
+    return m_replace_str;
+  return m_names[m_replace_com];
+}
+
+const std::string &Command_names::str_session(enum_server_command cmd) {
+  assert(current_thd);
+  if (cmd != m_replace_com || current_thd == nullptr) return m_names[cmd];
+  return translate(current_thd->variables);
+}
+
+const std::string &Command_names::str_global(enum_server_command cmd) {
+  if (cmd != m_replace_com) return m_names[cmd];
+  return translate(global_system_variables);
+}
+
+const std::string Command_names::m_replace_str{"Register Slave"};
+
 bool command_satisfy_acl_cache_requirement(unsigned command) {
   if ((sql_command_flags[command] & CF_REQUIRE_ACL_CACHE) > 0 &&
       skip_grant_tables() == true)
@@ -1301,7 +1323,7 @@ bool do_command(THD *thd) {
   char desc[VIO_DESCRIPTION_SIZE];
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("Command on %s = %d (%s)", desc, command,
-                      Command_names::str(command).c_str()));
+                      Command_names::str_notranslate(command).c_str()));
 #endif  // NDEBUG
   DBUG_PRINT("info", ("packet: '%*.s'; command: %d",
                       (int)thd->get_protocol_classic()->get_packet_length(),
@@ -1639,7 +1661,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
   }
 
   if (mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_START), command,
-                         Command_names::str(command).c_str())) {
+                         Command_names::str_global(command).c_str())) {
     goto done;
   }
 
@@ -1865,7 +1887,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         thd->update_slow_query_status();
         thd->send_statement_status();
 
-        const std::string &cn = Command_names::str(command);
+        const std::string &cn = Command_names::str_global(command);
         mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
                            thd->get_stmt_da()->is_error()
                                ? thd->get_stmt_da()->mysql_errno()
@@ -2238,7 +2260,7 @@ done:
     mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_RESULT), 0, nullptr,
                        0);
 
-  const std::string &cn = Command_names::str(command);
+  const std::string &cn = Command_names::str_global(command);
   mysql_audit_notify(
       thd, AUDIT_EVENT(MYSQL_AUDIT_GENERAL_STATUS),
       thd->get_stmt_da()->is_error() ? thd->get_stmt_da()->mysql_errno() : 0,
