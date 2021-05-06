@@ -158,6 +158,8 @@ temptable_max_mmap
 temptable_max_mmap
 temptable_use_mmap
 temptable_use_mmap
+terminology_use_previous
+terminology_use_previous
 tls_ciphersuites
 tls_ciphersuites
 tls_version
