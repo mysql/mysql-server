@@ -283,6 +283,22 @@ struct Builder {
   @return DB_SUCCESS or error code. */
   dberr_t finalize() noexcept;
 
+  /** Convert the field data from compact to redundant format.
+  @param[in]	trx		            Current transaction
+  @param[in]	clust_index	      Clustered index being built
+  @param[in]	row_field	        Field to copy from
+  @param[out]	field		          Field to copy to
+  @param[in]	len		            Length of the field data
+  @param[in]	page_size	        Compressed BLOB page size
+  @param[in]	is_sdi		        true for SDI Indexes
+  @param[in,out]	heap		      Memory heap where to allocate
+                                data when converting to ROW_FORMAT=REDUNDANT,
+                                or nullptr */
+  static void convert(trx_t *trx, const dict_index_t *clust_index,
+                      const dfield_t *row_field, dfield_t *field, ulint len,
+                      const page_size_t &page_size,
+                      IF_DEBUG(bool is_sdi, ) mem_heap_t *heap) noexcept;
+
   /** Copy externally stored columns to the data tuple.
   @param[in] trx                Current transaction
   @param[in] index              Index dictionary object.

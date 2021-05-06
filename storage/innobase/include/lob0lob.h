@@ -1548,12 +1548,8 @@ The clustered index record must be protected by a lock or a page latch.
                                 part; must be protected by a lock or a page
                                 latch.
 @param[in]	page_size	BLOB page size
-@param[in]	local_len	length of data */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI Indexes */
-#endif /* UNIV_DEBUG */
-/**
+@param[in]	local_len	length of data
+@param[in]	is_sdi		true for SDI Indexes
 @param[in,out]	heap		mem heap
 @return the whole field copied to heap */
 byte *btr_copy_externally_stored_field_func(

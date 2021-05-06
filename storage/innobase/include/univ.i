@@ -721,7 +721,14 @@ as a standalone library. */
     __VA_ARGS__                   \
   }
 #else
+
+/* Expand the macro if we are generating Doxygen documentation. */
+#ifdef DOXYGEN_IF_DEBUG
+#define IF_DEBUG(...) __VA_ARGS__
+#else
 #define IF_DEBUG(...)
+#endif /* DOXYGEN_IF_DEBUG */
+
 #define IF_ENABLED(s, ...)
 #endif /* UNIV_DEBUG */
 

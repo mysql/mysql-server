@@ -476,27 +476,10 @@ uint64_t Merge_cursor::get_n_rows() const noexcept {
   return n_rows;
 }
 
-/** Convert the field data from compact to redundant format.
-@param[in]	trx		              Current transaction
-@param[in]	clust_index	        Clustered index being built
-@param[in]	row_field	          Field to copy from
-@param[out]	field		            Field to copy to
-@param[in]	len		              Length of the field data
-@param[in]	page_size	          Compressed BLOB page size,
-                                Zero for uncompressed BLOBs */
-#ifdef UNIV_DEBUG
-/**
-@param[in]	is_sdi		true for SDI Indexes */
-#endif /* UNIV_DEBUG */
-/**
-@param[in,out]	heap		        Memory heap where to allocate data
-                                when converting to ROW_FORMAT=REDUNDANT,
-                                or nullptr */
-static void buf_redundant_convert(trx_t *trx, const dict_index_t *clust_index,
-                                  const dfield_t *row_field, dfield_t *field,
-                                  ulint len, const page_size_t &page_size,
-                                  IF_DEBUG(bool is_sdi, )
-                                      mem_heap_t *heap) noexcept {
+void Builder::convert(trx_t *trx, const dict_index_t *clust_index,
+                      const dfield_t *row_field, dfield_t *field, ulint len,
+                      const page_size_t &page_size,
+                      IF_DEBUG(bool is_sdi, ) mem_heap_t *heap) noexcept {
   ut_ad(DATA_MBMAXLEN(field->type.mbminmaxlen) > 1);
   ut_ad(DATA_MBMINLEN(field->type.mbminmaxlen) == 1);
 
@@ -936,11 +919,10 @@ dberr_t Builder::copy_columns(Copy_ctx &ctx, size_t &mv_rows_added,
       if (field->len != UNIV_SQL_NULL && col->mtype == DATA_MYSQL &&
           col->len != field->len) {
         if (m_conv_heap.get() != nullptr) {
-          ddl::buf_redundant_convert(
-              m_ctx.m_trx, m_ctx.m_old_table->first_index(), src_field, field,
-              col->len, page_size,
-              IF_DEBUG(dict_table_is_sdi(m_ctx.m_old_table->id), )
-                  m_conv_heap.get());
+          convert(m_ctx.m_trx, m_ctx.m_old_table->first_index(), src_field,
+                  field, col->len, page_size,
+                  IF_DEBUG(dict_table_is_sdi(m_ctx.m_old_table->id), )
+                      m_conv_heap.get());
         } else {
           /* Field length mismatch should not happen when rebuilding
           redundant row format table. */
