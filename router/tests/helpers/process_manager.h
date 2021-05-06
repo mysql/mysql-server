@@ -116,10 +116,11 @@ class ProcessManager {
 
    private:
     Spawner(std::string executable, std::string logging_dir,
-            std::string notify_socket_path,
+            std::string logging_file, std::string notify_socket_path,
             std::list<std::tuple<ProcessWrapper, int>> &processes)
         : executable_{std::move(executable)},
           logging_dir_{std::move(logging_dir)},
+          logging_file_{std::move(logging_file)},
           notify_socket_path_{std::move(notify_socket_path)},
           processes_(processes) {}
 
@@ -149,14 +150,17 @@ class ProcessManager {
     SyncPoint sync_point_{SyncPoint::READY};
 
     std::string logging_dir_;
+    std::string logging_file_;
     std::string notify_socket_path_;
 
     std::list<std::tuple<ProcessWrapper, int>> &processes_;
   };
 
-  Spawner spawner(std::string executable);
+  Spawner spawner(std::string executable, std::string logging_file = "");
 
-  Spawner router_spawner() { return spawner(mysqlrouter_exec_.str()); }
+  Spawner router_spawner() {
+    return spawner(mysqlrouter_exec_.str(), "mysqlrouter.log");
+  }
 
  protected:
   virtual ~ProcessManager() = default;

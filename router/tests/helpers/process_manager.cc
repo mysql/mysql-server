@@ -332,16 +332,17 @@ ProcessWrapper &ProcessManager::Spawner::spawn(
   args.erase(args.begin());
   std::copy(params.begin(), params.end(), std::back_inserter(args));
 
-  auto &router = launch_command_and_wait(cmd, args, env_vars);
+  auto &process = launch_command_and_wait(cmd, args, env_vars);
 
-  router.logging_dir_ = logging_dir_;
-  router.logging_file_ = "mysqlrouter.log";
+  process.logging_dir_ = logging_dir_;
+  process.logging_file_ = logging_file_;
 
-  return router;
+  return process;
 }
 
-ProcessManager::Spawner ProcessManager::spawner(std::string executable) {
-  return {executable, logging_dir_.name(),
+ProcessManager::Spawner ProcessManager::spawner(std::string executable,
+                                                std::string logging_file) {
+  return {executable, logging_dir_.name(), logging_file,
           generate_notify_socket_path(get_test_temp_dir_name()), processes_};
 }
 
