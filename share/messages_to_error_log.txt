@@ -2924,10 +2924,10 @@ ER_PERFSCHEMA_TABLES_INIT_FAILED
 ER_TX_EXTRACTION_ALGORITHM_FOR_BINLOG_TX_DEPEDENCY_TRACKING
   eng "The transaction_write_set_extraction must be set to %s when binlog_transaction_dependency_tracking is %s."
 
-ER_INVALID_REPLICATION_TIMESTAMPS
+OBSOLETE_ER_INVALID_REPLICATION_TIMESTAMPS
   eng "Invalid replication timestamps: original commit timestamp is more recent than the immediate commit timestamp. This may be an issue if delayed replication is active. Make sure that servers have their clocks set to the correct time. No further message will be emitted until after timestamps become valid again."
 
-ER_RPL_TIMESTAMPS_RETURNED_TO_NORMAL
+OBSOLETE_ER_RPL_TIMESTAMPS_RETURNED_TO_NORMAL
   eng "The replication timestamps have returned to normal values."
 
 ER_BINLOG_FILE_OPEN_FAILED
