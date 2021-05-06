@@ -3348,7 +3348,10 @@ String *Item_func_json_unquote::val_str(String *str) {
     if (utf8len < 2 || utf8text[0] != '"' || utf8text[utf8len - 1] != '"') {
       null_value = false;
       // Return string unchanged, but convert to utf8mb4 if needed.
-      if (res == utf8str) return res;
+      if (res == utf8str) {
+        assert(res != &buf);
+        return res;
+      }
       if (str->copy(utf8text, utf8len, collation.collation))
         return error_str(); /* purecov: inspected */
       return str;
