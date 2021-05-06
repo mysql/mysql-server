@@ -351,7 +351,7 @@ static int mgmd_main(int argc, char** argv)
   if (argc > 0) {
     std::string invalid_args;
     for (int i = 0; i < argc; i++) invalid_args += ' ' + std::string(argv[i]);
-    fprintf(stderr, "ERROR: Invalid options -%s specified.\n",
+    fprintf(stderr, "ERROR: Unknown option -%s specified.\n",
             invalid_args.c_str());
     mgmd_exit(1);
   }
