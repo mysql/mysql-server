@@ -47,7 +47,7 @@ struct PFS_buffer : private ut::Non_copyable {
   /** Destructor. */
   ~PFS_buffer() noexcept { deallocate(); }
 
-  /** @return allocated memory or nullptr on failure.
+  /** @return allocated and initialized memory or nullptr on failure.
   @param[in] size               Number of bytes to allocate. */
   byte *allocate(size_t size) noexcept {
     ut_a(m_size == 0);
@@ -57,6 +57,7 @@ struct PFS_buffer : private ut::Non_copyable {
 
     if (m_ptr != nullptr) {
       m_size = size;
+      memset(m_ptr, 0x0, m_size);
     }
 
     return m_ptr;
