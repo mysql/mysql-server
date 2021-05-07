@@ -1660,6 +1660,9 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
   THD *thd = current_thd;
 
   if (fsp_is_undo_tablespace(space_id)) {
+    /* Serialize this delete with all undo tablespace DDLs. */
+    mutex_enter(&undo::ddl_mutex);
+
     /* If this is called during DROP UNDO TABLESPACE, then the undo_space
     is already gone. But if this is called at startup after a crash, that
     memory object might exist. If the crash occurred just before the file
@@ -1708,6 +1711,8 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
     undo::spaces->x_lock();
     undo::unuse_space_id(space_id);
     undo::spaces->x_unlock();
+
+    mutex_exit(&undo::ddl_mutex);
   }
 
   DBUG_INJECT_CRASH("ddl_log_crash_after_replay", crash_after_replay_counter++);

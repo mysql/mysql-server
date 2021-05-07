@@ -17447,26 +17447,46 @@ static bool innobase_get_tablespace_type_by_name(const char *tablespace_name,
   return false;
 }
 
-/**  Retrieve ha_tablespace_statistics for the tablespace */
 static bool innobase_get_tablespace_statistics(
     const char *tablespace_name, const char *file_name,
     const dd::Properties &ts_se_private_data, ha_tablespace_statistics *stats) {
   /* Tablespace does not have space id stored. */
   if (!ts_se_private_data.exists(dd_space_key_strings[DD_SPACE_ID])) {
     my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
-    return (true);
+    return (DD_FAILURE);
   }
 
   space_id_t space_id;
 
   ts_se_private_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id);
 
+  if (fsp_is_undo_tablespace(space_id)) {
+    /* Get the ddl_mutex so that if an undo truncation is happening by
+    the purge thread, it will complete before we continue.  */
+    mutex_enter(&undo::ddl_mutex);
+
+    /* When selecting information_schema.files, no MVCC is used.  So it is
+    possible to read an uncommitted DD record that indicates the undo
+    space is empty and shows the new space_id after a truncation.
+    Adjust for that possibility by always using the current space_id. */
+    undo::spaces->s_lock();
+    space_id_t undo_num = undo::id2num(space_id);
+    undo::Tablespace *undo_space = undo::spaces->find(undo_num);
+    if (undo_space != nullptr) {
+      space_id = undo_space->id();
+    }
+    undo::spaces->s_unlock();
+  }
+
   auto space = fil_space_acquire(space_id);
 
   /* Tablespace is missing in this case. */
   if (space == nullptr) {
     my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
-    return (true);
+    if (fsp_is_undo_tablespace(space_id)) {
+      mutex_exit(&undo::ddl_mutex);
+    }
+    return (DD_FAILURE);
   }
 
   stats->m_id = space->id;
@@ -17479,9 +17499,10 @@ static bool innobase_get_tablespace_statistics(
     case FIL_TYPE_LOG:
       /* Do not report REDO LOGs to I_S.FILES */
       space = nullptr;
-      return (false);
+      ut_ad(!fsp_is_undo_tablespace(space_id));
+      return (DD_SUCCESS);
     case FIL_TYPE_TABLESPACE:
-      if (fsp_is_undo_tablespace(space->id)) {
+      if (fsp_is_undo_tablespace(space_id)) {
         type = "UNDO LOG";
         break;
       } /* else fall through for TABLESPACE */
@@ -17551,7 +17572,11 @@ static bool innobase_get_tablespace_statistics(
 
     my_error(ER_TABLESPACE_MISSING, MYF(0), tablespace_name);
 
-    return (true);
+    if (fsp_is_undo_tablespace(space_id)) {
+      mutex_exit(&undo::ddl_mutex);
+    }
+
+    return (DD_FAILURE);
   }
 
   stats->m_initial_size = file->init_size * page_size.physical();
@@ -17591,7 +17616,11 @@ static bool innobase_get_tablespace_statistics(
 
   fil_space_release(space);
 
-  return (false);
+  if (fsp_is_undo_tablespace(space_id)) {
+    mutex_exit(&undo::ddl_mutex);
+  }
+
+  return (DD_SUCCESS);
 }
 
 /** Enable indexes.

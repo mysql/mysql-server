@@ -31,7 +31,7 @@ BEGIN
 END |
 delimiter ;|
 
-CREATE UNDO TABLESPACE undo_003 ADD DATAFILE '3.ibu';
+CREATE UNDO TABLESPACE undo_003 ADD DATAFILE 'undo_003.ibu';
 
 CALL populate_t1();
 
@@ -43,6 +43,9 @@ ALTER UNDO TABLESPACE undo_003 SET INACTIVE;
 let $inactive_undo_space = undo_003;
 source include/wait_until_undo_space_is_empty.inc;
 
+--echo #
+--echo # Show that undo_003 exists and is empty.
+--echo #
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE SPACE_TYPE = 'Undo';
 SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
@@ -59,10 +62,16 @@ SET GLOBAL DEBUG = "+d,ddl_log_replay_delete_space_crash_before_drop";
 --source ../mysql-test/suite/innodb/include/ddl_crash.inc
 SET GLOBAL DEBUG = "-d,ddl_log_replay_delete_space_crash_before_drop";
 
+--echo #
+--echo # Show that undo_003 is fully dropped.
+--echo #
 SELECT NAME, SPACE_TYPE, STATE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
        WHERE SPACE_TYPE = 'Undo';
 SELECT TABLESPACE_NAME, FILE_TYPE, FILE_NAME FROM INFORMATION_SCHEMA.FILES
        WHERE FILE_NAME LIKE '%undo%' ORDER BY TABLESPACE_NAME;
+let MYSQLD_DATADIR=`select @@datadir`;
+--echo ### Undo files in datadir ###
+--list_files $MYSQLD_DATADIR undo_0*
 
 --echo #
 --echo # Cleanup
