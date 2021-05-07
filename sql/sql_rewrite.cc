@@ -228,7 +228,7 @@ int lex_user_comp(LEX_USER *l1, LEX_USER *l2) {
   @retval        true    If the Query is re-written.
   @retval        false   Otherwise
 */
-bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params,
+bool rewrite_query(THD *thd, Consumer_type type, const Rewrite_params *params,
                    String &rlb) {
   DBUG_TRACE;
   std::unique_ptr<I_rewriter> rw = nullptr;
@@ -331,7 +331,7 @@ bool rewrite_query(THD *thd, Consumer_type type, Rewrite_params *params,
                       rewriter.
 */
 void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
-                         Rewrite_params *params /*= nullptr*/) {
+                         const Rewrite_params *params /*= nullptr*/) {
   String rlb;
 
   DBUG_TRACE;
@@ -367,7 +367,7 @@ void mysql_rewrite_query(THD *thd, Consumer_type type /*= Consumer_type::LOG */,
                           If instrumented, the previous
 */
 void mysql_rewrite_acl_query(THD *thd, String &rlb, Consumer_type type,
-                             Rewrite_params *params /* = nullptr */,
+                             const Rewrite_params *params /* = nullptr */,
                              bool do_ps_instrument /* = true */) {
   if (rewrite_query(thd, type, params, rlb) && (rlb.length() > 0) &&
       do_ps_instrument) {
@@ -900,11 +900,10 @@ void Rewriter_alter_user::rewrite_password_reuse(const LEX *lex,
     parent::rewrite_password_reuse(lex, str);
   }
 }
-Rewriter_show_create_user::Rewriter_show_create_user(THD *thd,
-                                                     Consumer_type type,
-                                                     Rewrite_params *params)
+Rewriter_show_create_user::Rewriter_show_create_user(
+    THD *thd, Consumer_type type, const Rewrite_params *params)
     : Rewriter_user(thd, type),
-      show_params_(dynamic_cast<Show_user_params *>(params)) {}
+      show_params_(dynamic_cast<const Show_user_params *>(params)) {}
 
 /**
   Rewrite the query for the SHOW CREATE USER statement.
@@ -1042,9 +1041,9 @@ bool Rewriter_set::rewrite(String &rlb) const {
 }
 
 Rewriter_set_password::Rewriter_set_password(THD *thd, Consumer_type type,
-                                             Rewrite_params *params)
+                                             const Rewrite_params *params)
     : Rewriter_set(thd, type) {
-  User_params *param = dynamic_cast<User_params *>(params);
+  const User_params *param = dynamic_cast<const User_params *>(params);
   if (param) m_users = param->users;
 }
 
@@ -1104,9 +1103,9 @@ bool Rewriter_set_password::rewrite(String &rlb) const {
 }
 
 Rewriter_grant::Rewriter_grant(THD *thd, Consumer_type type,
-                               Rewrite_params *params)
+                               const Rewrite_params *params)
     : I_rewriter(thd, type) {
-  grant_params = dynamic_cast<Grant_params *>(params);
+  grant_params = dynamic_cast<const Grant_params *>(params);
 }
 
 /**
