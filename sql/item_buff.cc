@@ -150,10 +150,6 @@ bool Cached_item_json::cmp() {
   return true;
 }
 
-void Cached_item_json::copy_to_Item_cache(Item_cache *i_c) {
-  down_cast<Item_cache_json *>(i_c)->store_value(item, m_value);
-}
-
 bool Cached_item_real::cmp(void) {
   DBUG_TRACE;
   double nr = item->val_real();
@@ -194,26 +190,6 @@ bool Cached_item_temporal::cmp(void) {
 
 Cached_item_decimal::Cached_item_decimal(Item *it) : Cached_item(it) {
   my_decimal_set_zero(&value);
-}
-
-void Cached_item_real::copy_to_Item_cache(Item_cache *i_c) {
-  down_cast<Item_cache_real *>(i_c)->store_value(item, value);
-}
-
-void Cached_item_int::copy_to_Item_cache(Item_cache *i_c) {
-  down_cast<Item_cache_int *>(i_c)->store_value(item, value);
-}
-
-void Cached_item_temporal::copy_to_Item_cache(Item_cache *i_c) {
-  down_cast<Item_cache_datetime *>(i_c)->store_value(item, value);
-}
-
-void Cached_item_str::copy_to_Item_cache(Item_cache *i_c) {
-  down_cast<Item_cache_str *>(i_c)->store_value(item, value);
-}
-
-void Cached_item_decimal::copy_to_Item_cache(Item_cache *i_c) {
-  down_cast<Item_cache_decimal *>(i_c)->store_value(item, &value);
 }
 
 bool Cached_item_decimal::cmp() {

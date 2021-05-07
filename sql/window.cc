@@ -288,7 +288,7 @@ bool Window::setup_range_expressions(THD *thd) {
             which we want to determine whether resided in the specified RANGE.
 
             We poke in the actual value of expr of the current row (cached) into
-            value in Cached_item_xxx:cmp.
+            value in reset_order_by_peer_set().
           */
 
           Item_cache *value = make_result_item(nr);
@@ -440,6 +440,39 @@ void Window::reset_order_by_peer_set() {
     */
     (void)item->cmp();
   }
+
+  // Update the reference value for ORDER BY elements as used by
+  // before_or_after_frame(). These are the actual items used in the three-way
+  // comparisons, whereas cached_item is used in in_new_order_by_peer_set().
+  for (int i = 0; i < 2; ++i) {
+    for (Arg_comparator &cmp : m_comparators[i]) {
+      /*
+        The comparator(cmp) is expected to compare the row for which window
+        function values need to be calculated (current row) against rows
+        (candidates) that could possibly be within or outside of the frame
+        wrt. the current row.
+
+        We need to update the values for the current row. The comparator
+        is one of
+
+        candidate {<, >} current row
+        candidate {<, >} current row {-,+} constant
+
+        The second form is used when the the RANGE frame boundary is
+        WBT_VALUE_PRECEDING/WBT_VALUE_FOLLOWING, "constant" above being the
+        value specified in the query, cf. the setup in
+        Window::setup_range_expressions.
+      */
+      Item *to_update;
+      if (cmp.get_right()->type() == Item::CACHE_ITEM) {
+        to_update = cmp.get_right();
+      } else {
+        assert(m_comparators[i].size() == 1);
+        to_update = down_cast<Item_func *>(cmp.get_right())->get_arg(0);
+      }
+      down_cast<Item_cache *>(to_update)->cache_value();
+    }
+  }
 }
 
 bool Window::in_new_order_by_peer_set(bool compare_all_order_by_items) {
@@ -523,34 +556,15 @@ bool Window::before_or_after_frame(bool before) {
 
     if (candidate->null_value) return nulls_at_infinity;
 
-    /*
-      'comparator' is set to compare 'cur_row' with 'candidate' but it has an
-      old value of 'cur_row', update it.
-
-      'comparator' is one of
-      candidate {<, >} cur_row
-      candidate {<, >} cur_row {-,+} constant
-
-      The second form is used when the the RANGE frame boundary is
-      WBT_VALUE_PRECEDING/WBT_VALUE_FOLLOWING, "constant" above being the value
-      specified in the query, cf. setup in Window::setup_range_expressions.
-
-      TODO(sgunders): Figure out why we need to insert the cache values
-      manually, as opposed to just having the Item_cache wrap the cur_row value
-      and call cache_value() as usual. (copy_to_Item_cache() is only ever used
-      in the window function code.)
-    */
-    Arg_comparator &cmp = comparators[i];
-    Item *to_update;
-    if (border_type == WBT_CURRENT_ROW) {
-      to_update = cmp.get_right();
-    } else {
-      assert(i == 0);
-      to_update = down_cast<Item_func *>(cmp.get_right())->get_arg(0);
-    }
-    cur_row->copy_to_Item_cache(down_cast<Item_cache *>(to_update));
-
-    int val = cmp.compare();
+    // Figure out if the candidate row is before/after the frame defined
+    // wrt. the current row for which the window function value needs to be
+    // calculated (see m_comparators for more details). If we are unequal,
+    // we can say for sure based on this element alone that we are before
+    // or after; if we are equal, we need to go on to the next element (if any).
+    //
+    // NOTE: The reference value has already been set in
+    // reset_order_by_peer_set().
+    int val = comparators[i].compare();
     if (val != 0) {
       if (!asc) val = -val;
       return before ? (val < 0) : (val > 0);

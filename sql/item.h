@@ -6108,7 +6108,6 @@ class Cached_item {
   */
   virtual bool cmp() = 0;
   Item *get_item() { return item; }
-  virtual void copy_to_Item_cache(Item_cache *i_c) = 0;
 };
 
 class Cached_item_str : public Cached_item {
@@ -6118,7 +6117,6 @@ class Cached_item_str : public Cached_item {
   explicit Cached_item_str(Item *arg);
   bool cmp() override;
   ~Cached_item_str() override;  // Deallocate String:s
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 /// Cached_item subclass for JSON values.
@@ -6128,7 +6126,6 @@ class Cached_item_json : public Cached_item {
   explicit Cached_item_json(Item *item);
   ~Cached_item_json() override;
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Cached_item_real : public Cached_item {
@@ -6137,7 +6134,6 @@ class Cached_item_real : public Cached_item {
  public:
   Cached_item_real(Item *item_par) : Cached_item(item_par), value(0.0) {}
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Cached_item_int : public Cached_item {
@@ -6146,7 +6142,6 @@ class Cached_item_int : public Cached_item {
  public:
   Cached_item_int(Item *item_par) : Cached_item(item_par), value(0) {}
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Cached_item_temporal : public Cached_item {
@@ -6155,7 +6150,6 @@ class Cached_item_temporal : public Cached_item {
  public:
   Cached_item_temporal(Item *item_par) : Cached_item(item_par), value(0) {}
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Cached_item_decimal : public Cached_item {
@@ -6164,7 +6158,6 @@ class Cached_item_decimal : public Cached_item {
  public:
   Cached_item_decimal(Item *item_par);
   bool cmp() override;
-  void copy_to_Item_cache(Item_cache *i_c) override;
 };
 
 class Item_default_value final : public Item_field {
