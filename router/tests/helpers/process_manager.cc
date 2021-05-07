@@ -124,23 +124,23 @@ ProcessManager::Spawner::wait_for_notified(
 
   sock.native_non_blocking(true);
 
-  auto accept_res = accept_until<clock_type>(sock, end_time);
-  if (!accept_res) {
-    return accept_res.get_unexpected();
-  }
-
-  auto accepted = std::move(accept_res.value());
-
-  // make the read non-blocking.
-  const auto non_block_res = accepted.native_non_blocking(true);
-  if (!non_block_res) {
-    return non_block_res.get_unexpected();
-  }
-
-  const size_t BUFF_SIZE = 512;
-  std::array<char, BUFF_SIZE> buff;
-
   do {
+    auto accept_res = accept_until<clock_type>(sock, end_time);
+    if (!accept_res) {
+      return accept_res.get_unexpected();
+    }
+
+    auto accepted = std::move(accept_res.value());
+
+    // make the read non-blocking.
+    const auto non_block_res = accepted.native_non_blocking(true);
+    if (!non_block_res) {
+      return non_block_res.get_unexpected();
+    }
+
+    const size_t BUFF_SIZE = 512;
+    std::array<char, BUFF_SIZE> buff;
+
     const auto read_res =
         net::read(accepted, net::buffer(buff), net::transfer_at_least(1));
     if (!read_res) {
@@ -332,16 +332,17 @@ ProcessWrapper &ProcessManager::Spawner::spawn(
   args.erase(args.begin());
   std::copy(params.begin(), params.end(), std::back_inserter(args));
 
-  auto &router = launch_command_and_wait(cmd, args, env_vars);
+  auto &process = launch_command_and_wait(cmd, args, env_vars);
 
-  router.logging_dir_ = logging_dir_;
-  router.logging_file_ = "mysqlrouter.log";
+  process.logging_dir_ = logging_dir_;
+  process.logging_file_ = logging_file_;
 
-  return router;
+  return process;
 }
 
-ProcessManager::Spawner ProcessManager::spawner(std::string executable) {
-  return {executable, logging_dir_.name(),
+ProcessManager::Spawner ProcessManager::spawner(std::string executable,
+                                                std::string logging_file) {
+  return {executable, logging_dir_.name(), logging_file,
           generate_notify_socket_path(get_test_temp_dir_name()), processes_};
 }
 

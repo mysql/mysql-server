@@ -222,13 +222,34 @@ class basic_named_pipe_impl : public basic_named_pipe_impl_base {
           make_error_code(net::socket_errc::already_open));
     }
 
-    native_handle_ =
-        CreateFile(TEXT(ep.path().c_str()), GENERIC_READ | GENERIC_WRITE, 0,
-                   NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    using clock_type = std::chrono::steady_clock;
+    using namespace std::chrono_literals;
+    const auto retry_step = 10ms;
+    const auto end_time = clock_type::now() + 1s;
+    do {
+      native_handle_ =
+          CreateFile(TEXT(ep.path().c_str()), GENERIC_READ | GENERIC_WRITE, 0,
+                     NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 
-    if (native_handle_ == impl::named_pipe::kInvalidHandle) {
-      return stdx::make_unexpected(win32::last_error_code());
-    }
+      if (native_handle_ == impl::named_pipe::kInvalidHandle) {
+        auto const error_code = win32::last_error_code();
+        // if the pipe is not ready, try waiting max 1 second for it to become
+        // available
+        const std::error_code ec_pipe_busy{ERROR_PIPE_BUSY,
+                                           std::system_category()};
+        const std::error_code ec_file_not_found{ERROR_FILE_NOT_FOUND,
+                                                std::system_category()};
+
+        if ((error_code == ec_pipe_busy || error_code == ec_file_not_found) &&
+            clock_type::now() < end_time) {
+          std::this_thread::sleep_for(retry_step);
+          continue;
+        }
+
+        return stdx::make_unexpected(error_code);
+      } else
+        break;
+    } while (true);
 
     return {};
   }

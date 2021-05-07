@@ -1151,8 +1151,14 @@ class RouterLoggingTestTimestampPrecisionConfig
 
 static std::string ts_regex(LogTimestampPrecision precision) {
   const std::string base_regex(
+#ifdef GTEST_USES_SIMPLE_RE
+      "\\d\\d\\d\\d-\\d\\d-\\d\\d "
+      "\\d\\d:\\d\\d:\\d\\d"
+#else
       "[0-9]{4}-[0-9]{2}-[0-9]{2} "
-      "[0-9]{2}:[0-9]{2}:[0-9]{2}");
+      "[0-9]{2}:[0-9]{2}:[0-9]{2}"
+#endif
+  );
 
   switch (precision) {
     case LogTimestampPrecision::kNotSet:
@@ -1161,13 +1167,31 @@ static std::string ts_regex(LogTimestampPrecision precision) {
       return base_regex + " ";
     case LogTimestampPrecision::kMilliSec:
       // EXPECT 12:00:00.000
-      return base_regex + "\\.[0-9]{3} ";
+      return base_regex +
+#ifdef GTEST_USES_SIMPLE_RE
+             "\\.\\d\\d\\d "
+#else
+             "\\.[0-9]{3} ";
+#endif
+          ;
     case LogTimestampPrecision::kMicroSec:
       // EXPECT 12:00:00.000000
-      return base_regex + "\\.[0-9]{6} ";
+      return base_regex +
+#ifdef GTEST_USES_SIMPLE_RE
+             "\\.\\d\\d\\d\\d\\d\\d "
+#else
+             "\\.[0-9]{6} "
+#endif
+          ;
     case LogTimestampPrecision::kNanoSec:
       // EXPECT 12:00:00.000000000
-      return base_regex + "\\.[0-9]{9} ";
+      return base_regex +
+#ifdef GTEST_USES_SIMPLE_RE
+             "\\.\\d\\d\\d\\d\\d\\d\\d\\d\\d "
+#else
+             "\\.[0-9]{9} "
+#endif
+          ;
   }
 
   return {};
