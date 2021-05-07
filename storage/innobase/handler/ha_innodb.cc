@@ -1839,9 +1839,6 @@ void thd_set_lock_wait_time(THD *thd,    /*!< in/out: thread handle */
   }
 }
 
-/** Get the value of innodb_tmpdir.
-@param[in] thd                  Server thread handle, or nullptr
-@retval nullptr if innodb_tmpdir="" */
 const char *thd_innodb_tmpdir(THD *thd) {
 #ifdef UNIV_DEBUG
   if (thd != nullptr) {
