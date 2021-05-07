@@ -3469,6 +3469,9 @@ class Ndb_schema_event_handler {
       return;
     }
 
+    // Possibly change server id for binlog, or disable binlogging:
+    sql_runner.set_binlog_options(g_ndb_log_replica_updates, schema->any_value);
+
     /* For SOT_ACL_SNAPSHOT, update the snapshots for the users listed.
      */
     if (schema->type == SOT_ACL_SNAPSHOT) {

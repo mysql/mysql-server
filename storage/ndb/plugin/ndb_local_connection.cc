@@ -23,6 +23,7 @@
 */
 
 #include "storage/ndb/plugin/ndb_local_connection.h"
+#include "storage/ndb/plugin/ndb_anyvalue.h"
 
 #include "sql/mysqld.h"  // next_query_id()
 #include "sql/sql_class.h"
@@ -36,9 +37,11 @@ class Ndb_local_connection::Impl {
 };
 
 Ndb_local_connection::Ndb_local_connection(THD *thd_arg)
-    : m_thd(thd_arg), impl(std::make_unique<Impl>(thd_arg)) {
+    : saved_thd_server_id(thd_arg->server_id),
+      saved_thd_options(thd_arg->variables.option_bits),
+      m_thd(thd_arg),
+      impl(std::make_unique<Impl>(thd_arg)) {
   assert(thd_arg);
-
   /*
     System(or daemon) threads report error to log file
     all other threads use push_warning
@@ -46,7 +49,10 @@ Ndb_local_connection::Ndb_local_connection(THD *thd_arg)
   m_push_warnings = (thd_arg->get_command() != COM_DAEMON);
 }
 
-Ndb_local_connection::~Ndb_local_connection() = default;
+Ndb_local_connection::~Ndb_local_connection() {
+  m_thd->server_id = saved_thd_server_id;
+  m_thd->variables.option_bits = saved_thd_options;
+}
 
 static inline bool should_ignore_error(const uint *ignore_error_list,
                                        uint error) {
@@ -64,6 +70,26 @@ static inline bool should_ignore_error(const uint *ignore_error_list,
   return false;
 }
 
+void Ndb_local_connection::set_binlog_options(bool log_replica_updates,
+                                              unsigned int op_anyvalue) {
+  bool disable_binlog = false;
+
+  if (ndbcluster_anyvalue_is_reserved(op_anyvalue)) {
+    if (ndbcluster_anyvalue_is_nologging(op_anyvalue)) disable_binlog = true;
+  } else {
+    unsigned int req_server_id = ndbcluster_anyvalue_get_serverid(op_anyvalue);
+    if (req_server_id != 0) {
+      m_thd->server_id = req_server_id;
+      if (!log_replica_updates) disable_binlog = true;
+    }
+  }
+
+  if (disable_binlog) m_thd->variables.option_bits &= ~OPTION_BIN_LOG;
+}
+
+/* Execute query, ignoring particular errors.
+   The query may be written to the binlog.
+*/
 bool Ndb_local_connection::execute_query(const std::string &sql_query,
                                          const uint *ignore_mysql_errors) {
   DBUG_TRACE;
@@ -107,7 +133,8 @@ bool Ndb_local_connection::execute_query(const std::string &sql_query,
 
 /*
   Execute the query with even higher isolation than what execute_query
-  provides to avoid that for example THD's status variables are changed
+  provides to avoid that for example THD's status variables are changed.
+  The query will not ever be written to binlog.
 */
 
 bool Ndb_local_connection::execute_query_iso(const std::string &sql_query,
