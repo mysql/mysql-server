@@ -344,6 +344,8 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
   MY_CHECK_C_COMPILER_FLAG("${SAN_OPT}" C_RESULT)
   MY_CHECK_CXX_COMPILER_FLAG("${SAN_OPT}" CXX_RESULT)
   IF(C_RESULT AND CXX_RESULT)
+    STRING_APPEND(CMAKE_C_FLAGS   " ${SAN_OPT}")
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${SAN_OPT}")
     # We switch on basic optimization also for debug builds.
     # We disable inlining for stack trace readability.
     # With optimization we may get some warnings, so we switch off -Werror
@@ -360,10 +362,10 @@ MACRO(MY_SANITIZER_CHECK SAN_OPT RESULT)
 ENDMACRO()
 
 OPTION(WITH_ASAN "Enable address sanitizer" OFF)
-OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" OFF)
 IF(WITH_ASAN)
   MY_SANITIZER_CHECK("-fsanitize=address" WITH_ASAN_OK)
   IF(WITH_ASAN_OK)
+    OPTION(WITH_ASAN_SCOPE "Enable -fsanitize-address-use-after-scope" ON)
     SET(HAVE_ASAN 1)
     # This works with clang, but not gcc it seems.
     MY_CHECK_CXX_COMPILER_FLAG(
