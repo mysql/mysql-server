@@ -674,9 +674,10 @@ void ha_ndbinfo::unpack_record(uchar *dst_row) {
           /* Field_bit in DBUG requires the bit set in write_set for store(). */
           my_bitmap_map *old_map =
               dbug_tmp_use_all_columns(table, table->write_set);
-          (void)vfield->store(record->c_str(),
-                              MIN(record->length(), field->field_length) - 1,
-                              field->charset());
+          (void)vfield->store(
+              record->c_str(),
+              std::min(record->length(), field->field_length) - 1,
+              field->charset());
           dbug_tmp_restore_column_map(table->write_set, old_map);
           break;
         }

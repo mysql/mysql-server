@@ -562,7 +562,7 @@ static int check_slave_state(THD *thd) {
 
             if ((serverid == ::server_id) ||
                 (ndb_mi_get_ignore_server_id(serverid))) {
-              highestAppliedEpoch = MAX(epoch, highestAppliedEpoch);
+              highestAppliedEpoch = std::max(epoch, highestAppliedEpoch);
             }
           }
 
@@ -1753,7 +1753,7 @@ int ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
       }
 
       DBUG_PRINT("value", ("set blob ptr: %p  len: %u", blob_ptr, blob_len));
-      DBUG_DUMP("value", blob_ptr, MIN(blob_len, 26));
+      DBUG_DUMP("value", blob_ptr, std::min(blob_len, (Uint32)26));
 
       /*
         NdbBlob requires the data pointer to remain valid until execute() time.
@@ -12769,7 +12769,7 @@ ha_rows ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
     else if (!max_key_length) {
       rows = table_rows / 10;  // <low range>..oo -> 10% selectivity
     } else {
-      size_t bounds_len = MIN(min_key_length, max_key_length);
+      size_t bounds_len = std::min(min_key_length, max_key_length);
       uint eq_bound_len = 0;
       uint eq_bound_offs = 0;
 
@@ -12815,7 +12815,7 @@ ha_rows ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       rows = 2;
     else if (rows < 3)
       rows = 3;
-    return MIN(rows, table_rows);
+    return std::min(rows, table_rows);
   } while (0);
 
   return 10; /* Poor guess when you don't know anything */
@@ -15390,7 +15390,7 @@ enum_alter_inplace_result ha_ndbcluster::check_inplace_alter_supported(
         break;
       default:
         // Save the highest lock requirement
-        result = MIN(result, column_change_result);
+        result = std::min(result, column_change_result);
         break;
     }
 
