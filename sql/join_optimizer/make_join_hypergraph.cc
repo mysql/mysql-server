@@ -2248,17 +2248,20 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
 
   Predicate pred;
   pred.condition = condition;
+
+  table_map used_tables =
+      condition->used_tables() & ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT);
+  pred.used_nodes =
+      GetNodeMapFromTableMap(used_tables, graph->table_num_to_node_num);
+
   table_map total_eligibility_set;
   if (was_join_condition) {
-    total_eligibility_set = condition->used_tables();
+    total_eligibility_set = used_tables;
   } else {
-    total_eligibility_set = FindTESForCondition(condition->used_tables(), root);
+    total_eligibility_set = FindTESForCondition(used_tables, root);
   }
-  total_eligibility_set &= ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT);
-  pred.total_eligibility_set =
-      GetNodeMapFromTableMap(total_eligibility_set & ~RAND_TABLE_BIT,
-                             graph->table_num_to_node_num) |
-      (total_eligibility_set & RAND_TABLE_BIT);
+  pred.total_eligibility_set = GetNodeMapFromTableMap(
+      total_eligibility_set, graph->table_num_to_node_num);
   pred.selectivity = EstimateSelectivity(thd, condition, trace);
   pred.was_join_condition = was_join_condition;
   pred.source_multiple_equality_idx = source_multiple_equality_idx;
@@ -2525,9 +2528,13 @@ void MakeJoinGraphFromRelationalExpression(THD *thd, RelationalExpression *expr,
 }
 
 NodeMap GetNodeMapFromTableMap(
-    table_map table_map, const array<int, MAX_TABLES> &table_num_to_node_num) {
+    table_map map, const array<int, MAX_TABLES> &table_num_to_node_num) {
   NodeMap ret = 0;
-  for (int table_num : BitsSetIn(table_map)) {
+  if (Overlaps(map, RAND_TABLE_BIT)) {  // Special case.
+    ret |= RAND_TABLE_BIT;
+    map &= ~RAND_TABLE_BIT;
+  }
+  for (int table_num : BitsSetIn(map)) {
     assert(table_num < int(MAX_TABLES));
     assert(table_num_to_node_num[table_num] != -1);
     ret |= TableBitmap(table_num_to_node_num[table_num]);
@@ -2787,10 +2794,9 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   for (Item *condition : table_filters) {
     Predicate pred;
     pred.condition = condition;
-    pred.total_eligibility_set =
-        GetNodeMapFromTableMap(condition->used_tables() & ~PSEUDO_TABLE_BITS,
-                               graph->table_num_to_node_num) |
-        (condition->used_tables() & RAND_TABLE_BIT);
+    pred.used_nodes = pred.total_eligibility_set = GetNodeMapFromTableMap(
+        condition->used_tables() & ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT),
+        graph->table_num_to_node_num);
     assert(IsSingleBitSet(pred.total_eligibility_set));
     pred.selectivity = EstimateSelectivity(thd, condition, trace);
     pred.functional_dependencies_idx.init(thd->mem_root);

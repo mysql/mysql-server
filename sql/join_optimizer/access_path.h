@@ -105,6 +105,9 @@ struct JoinPredicate {
 struct Predicate {
   Item *condition;
 
+  // condition->used_tables(), converted to a NodeMap.
+  hypergraph::NodeMap used_nodes;
+
   // tables referred to by the condition, plus any tables whose values
   // can null any of those tables. (Even when reordering outer joins,
   // at least one of those tables will still be present on the

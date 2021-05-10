@@ -342,7 +342,7 @@ class CostingReceiver {
                         int ordering_idx);
   bool AlreadyAppliedThroughSargable(Item_func_eq *cond,
                                      uint64_t applied_sargable_join_predicates,
-                                     uint64_t left, uint64_t right);
+                                     NodeMap left, NodeMap right);
   void ProposeNestedLoopJoin(NodeMap left, NodeMap right, AccessPath *left_path,
                              AccessPath *right_path, const JoinPredicate *edge,
                              bool rewrite_semi_to_inner,
@@ -1533,7 +1533,7 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
  */
 bool CostingReceiver::AlreadyAppliedThroughSargable(
     Item_func_eq *join_cond, uint64_t applied_sargable_join_predicates,
-    uint64_t left, uint64_t right) {
+    NodeMap left, NodeMap right) {
   if (join_cond->source_multiple_equality == nullptr) {
     return false;
   }
@@ -1557,8 +1557,7 @@ bool CostingReceiver::AlreadyAppliedThroughSargable(
 
     // The sargable condition must work as a join condition for this join
     // (not between tables we've already joined in).
-    if (Overlaps(pred.condition->used_tables(), left) &&
-        Overlaps(pred.condition->used_tables(), right)) {
+    if (Overlaps(pred.used_nodes, left) && Overlaps(pred.used_nodes, right)) {
       return true;
     }
   }
@@ -2807,6 +2806,9 @@ static void PossiblyAddSargableCondition(THD *thd, Item *item,
       Predicate p;
       p.condition = eq_item;
       p.selectivity = EstimateSelectivity(thd, eq_item, trace);
+      p.used_nodes =
+          GetNodeMapFromTableMap(eq_item->used_tables() & ~PSEUDO_TABLE_BITS,
+                                 graph->table_num_to_node_num);
       p.total_eligibility_set =
           ~0;  // Should never be applied as a WHERE predicate.
       p.functional_dependencies_idx.init(thd->mem_root);
