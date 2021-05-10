@@ -27,6 +27,7 @@
 #include <direct.h>
 #include <cassert>
 #include <cerrno>
+#include <fstream>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -45,6 +46,8 @@ const std::string extsep(".");
 }  // namespace
 
 namespace mysql_harness {
+
+const perm_mode kStrictDirectoryPerm = 0;
 
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
@@ -90,6 +93,30 @@ Path::FileType Path::type(bool refresh) const {
     }
   }
   return type_;
+}
+
+bool Path::is_absolute() const {
+  validate_non_empty_path();  // throws std::invalid_argument
+  if (path_[0] == '\\' || path_[0] == '/' || path_[1] == ':') return true;
+  return false;
+}
+
+bool Path::is_readable() const {
+  validate_non_empty_path();
+  if (!exists()) return false;
+
+  if (!is_directory())
+    return std::ifstream(real_path().str()).good();
+  else {
+    WIN32_FIND_DATA find_data;
+    HANDLE h = FindFirstFile(TEXT(real_path().str().c_str()), &find_data);
+    if (h == INVALID_HANDLE_VALUE) {
+      return GetLastError() != ERROR_ACCESS_DENIED;
+    } else {
+      FindClose(h);
+      return true;
+    }
+  }
 }
 
 ////////////////////////////////////////////////////////////////
@@ -392,6 +419,378 @@ int mkdir_wrapper(const std::string &dir, perm_mode /* mode */) {
   auto res = _mkdir(dir.c_str());
   if (res != 0) return errno;
   return 0;
+}
+
+/**
+ * Verifies permissions of an access ACE entry.
+ *
+ * @param[in] access_ace Access ACE entry.
+ *
+ * @throw std::exception Everyone has access to the ACE access entry or
+ *                        an error occurred.
+ */
+static void check_ace_access_rights(ACCESS_ALLOWED_ACE *access_ace) {
+  SID *sid = reinterpret_cast<SID *>(&access_ace->SidStart);
+  DWORD sid_size = SECURITY_MAX_SID_SIZE;
+
+  std::unique_ptr<SID, decltype(&free)> everyone_sid(
+      static_cast<SID *>(malloc(sid_size)), &free);
+
+  if (CreateWellKnownSid(WinWorldSid, nullptr, everyone_sid.get(), &sid_size) ==
+      FALSE) {
+    throw std::system_error(
+        std::error_code(GetLastError(), std::system_category()),
+        "CreateWellKnownSid() failed");
+  }
+
+  if (EqualSid(sid, everyone_sid.get())) {
+    if (access_ace->Mask & (FILE_EXECUTE)) {
+      throw std::system_error(make_error_code(std::errc::permission_denied),
+                              "Expected no 'Execute' for 'Everyone'.");
+    }
+    if (access_ace->Mask &
+        (FILE_WRITE_DATA | FILE_WRITE_EA | FILE_WRITE_ATTRIBUTES)) {
+      throw std::system_error(make_error_code(std::errc::permission_denied),
+                              "Expected no 'Write' for 'Everyone'.");
+    }
+    if (access_ace->Mask &
+        (FILE_READ_DATA | FILE_READ_EA | FILE_READ_ATTRIBUTES)) {
+      throw std::system_error(make_error_code(std::errc::permission_denied),
+                              "Expected no 'Read' for 'Everyone'.");
+    }
+  }
+}
+
+/**
+ * Verifies access permissions in a DACL.
+ *
+ * @param[in] dacl DACL to be verified.
+ *
+ * @throw std::exception DACL contains an ACL entry that grants full access to
+ *                        Everyone or an error occurred.
+ */
+static void check_acl_access_rights(ACL *dacl) {
+  ACL_SIZE_INFORMATION dacl_size_info;
+
+  if (GetAclInformation(dacl, &dacl_size_info, sizeof(dacl_size_info),
+                        AclSizeInformation) == FALSE) {
+    throw std::system_error(
+        std::error_code(GetLastError(), std::system_category()),
+        "GetAclInformation() failed");
+  }
+
+  for (DWORD ace_idx = 0; ace_idx < dacl_size_info.AceCount; ++ace_idx) {
+    LPVOID ace = nullptr;
+
+    if (GetAce(dacl, ace_idx, &ace) == FALSE) {
+      throw std::system_error(
+          std::error_code(GetLastError(), std::system_category()),
+          "GetAce() failed");
+      continue;
+    }
+
+    if (static_cast<ACE_HEADER *>(ace)->AceType == ACCESS_ALLOWED_ACE_TYPE)
+      check_ace_access_rights(static_cast<ACCESS_ALLOWED_ACE *>(ace));
+  }
+}
+
+/**
+ * Verifies access permissions in a security descriptor.
+ *
+ * @param[in] sec_desc Security descriptor to be verified.
+ *
+ * @throw std::exception Security descriptor grants full access to
+ *                        Everyone or an error occurred.
+ */
+static void check_security_descriptor_access_rights(
+    const std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> &sec_desc) {
+  BOOL dacl_present;
+  ACL *dacl;
+  BOOL dacl_defaulted;
+
+  if (GetSecurityDescriptorDacl(sec_desc.get(), &dacl_present, &dacl,
+                                &dacl_defaulted) == FALSE) {
+    throw std::system_error(
+        std::error_code(GetLastError(), std::system_category()),
+        "GetSecurityDescriptorDacl() failed");
+  }
+
+  if (!dacl_present) {
+    // No DACL means: no access allowed. Which is fine.
+    return;
+  }
+
+  if (!dacl) {
+    // Empty DACL means: all access allowed.
+    throw std::system_error(make_error_code(std::errc::permission_denied),
+                            "Expected access denied for 'Everyone'.");
+  }
+
+  check_acl_access_rights(dacl);
+}
+
+/**
+ * Gets the SID of the current process user.
+ * The SID in Windows is the Security IDentifier, a security principal to which
+ * permissions are attached (machine, user group, user).
+ */
+static void GetCurrentUserSid(std::unique_ptr<SID, decltype(&free)> &pSID) {
+  DWORD dw_size = 0;
+  HANDLE h_token;
+  TOKEN_INFORMATION_CLASS token_class = TokenUser;
+  // Gets security token of the current process
+  if (!OpenProcessToken(GetCurrentProcess(), TOKEN_READ | TOKEN_QUERY,
+                        &h_token)) {
+    throw std::runtime_error("OpenProcessToken() failed: " +
+                             std::to_string(GetLastError()));
+  }
+  // Gets the user token from the security token (this one only finds out the
+  // buffer size required)
+  if (!GetTokenInformation(h_token, token_class, NULL, 0, &dw_size)) {
+    DWORD dwResult = GetLastError();
+    if (dwResult != ERROR_INSUFFICIENT_BUFFER) {
+      throw std::runtime_error("GetTokenInformation() failed: " +
+                               std::to_string(dwResult));
+    }
+  }
+
+  std::unique_ptr<TOKEN_USER, decltype(&free)> user(
+      static_cast<TOKEN_USER *>(malloc(dw_size)), &free);
+  if (user.get() == NULL) {
+    throw std::runtime_error("LocalAlloc() failed: " +
+                             std::to_string(GetLastError()));
+  }
+
+  // Gets the user token from the security token (this one retrieves the actual
+  // user token)
+  if (!GetTokenInformation(h_token, token_class, user.get(), dw_size,
+                           &dw_size)) {
+    throw std::runtime_error("GetTokenInformation() failed: " +
+                             std::to_string(GetLastError()));
+  }
+  // Copies from the user token the SID
+  DWORD dw_sid_len = GetLengthSid(user->User.Sid);
+  pSID.reset(static_cast<SID *>(std::malloc(dw_sid_len)));
+  CopySid(dw_sid_len, pSID.get(), user->User.Sid);
+}
+
+/**
+ * Makes a file fully accessible by the current process user and (read only or
+ * read/write depending on the second argument) for LocalService account (which
+ * is the account under which the MySQL router runs as service). And not
+ * accessible for everyone else.
+ */
+static void make_file_private_win32(const std::string &filename,
+                                    const bool read_only_for_local_service) {
+  PACL new_dacl = NULL;
+  DWORD sid_size = SECURITY_MAX_SID_SIZE;
+  SID local_service_sid;
+  DWORD dw_res;
+  // Obtains the SID of the LocalService account (the account under which runs
+  // the Router as a service in Windows)
+  if (CreateWellKnownSid(WinLocalServiceSid, NULL, &local_service_sid,
+                         &sid_size) == FALSE) {
+    throw std::runtime_error("CreateWellKnownSid() failed: " +
+                             std::to_string(GetLastError()));
+  }
+
+  std::unique_ptr<SID, decltype(&free)> current_user(nullptr, &free);
+  // Retrieves the current user process SID.
+  GetCurrentUserSid(current_user);
+
+  // Sets the actual permissions: two ACEs (access control entries) (one for
+  // current user, one for LocalService) are configured and attached to a
+  // Security Descriptor's DACL (Discretionary Access Control List), then
+  // the Security Descriptors is used in SetFileSecurity API.
+  EXPLICIT_ACCESSA ea[2];
+  ZeroMemory(&ea, 2 * sizeof(EXPLICIT_ACCESSA));
+  // Full acceess for current user
+  ea[0].grfAccessPermissions =
+      ACCESS_SYSTEM_SECURITY | READ_CONTROL | WRITE_DAC | GENERIC_ALL;
+  ea[0].grfAccessMode = GRANT_ACCESS;
+  ea[0].grfInheritance = NO_INHERITANCE;
+  ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+  ea[0].Trustee.ptstrName = reinterpret_cast<char *>(current_user.get());
+
+  // Read only or read/write access for LocalService account
+  DWORD serviceRights = GENERIC_READ;
+  if (!read_only_for_local_service) {
+    serviceRights |= GENERIC_WRITE;
+  }
+  ea[1].grfAccessPermissions = serviceRights;
+
+  ea[1].grfAccessMode = GRANT_ACCESS;
+  ea[1].grfInheritance = NO_INHERITANCE;
+  ea[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+  ea[1].Trustee.ptstrName = reinterpret_cast<char *>(&local_service_sid);
+  // Make a new DACL with the two ACEs
+  dw_res = SetEntriesInAclA(2, ea, NULL, &new_dacl);
+
+  try {
+    if (ERROR_SUCCESS != dw_res) {
+      throw std::runtime_error("SetEntriesInAcl() failed: " +
+                               std::to_string(dw_res));
+    }
+
+    // create and initialize a security descriptor.
+    std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&free)> psd(
+        static_cast<SECURITY_DESCRIPTOR *>(
+            std::malloc(SECURITY_DESCRIPTOR_MIN_LENGTH)),
+        &free);
+    if (psd.get() == NULL) {
+      throw std::runtime_error("LocalAlloc() failed: " +
+                               std::to_string(GetLastError()));
+    }
+
+    if (!InitializeSecurityDescriptor(psd.get(),
+                                      SECURITY_DESCRIPTOR_REVISION)) {
+      throw std::runtime_error("InitializeSecurityDescriptor failed: " +
+                               std::to_string(GetLastError()));
+    }
+    // attach the DACL to the security descriptor
+    if (!SetSecurityDescriptorDacl(psd.get(), TRUE, new_dacl, FALSE)) {
+      throw std::runtime_error("SetSecurityDescriptorDacl failed: " +
+                               std::to_string(GetLastError()));
+    }
+
+    if (!SetFileSecurityA(filename.c_str(), DACL_SECURITY_INFORMATION,
+                          psd.get())) {
+      dw_res = GetLastError();
+      throw std::system_error(
+          dw_res, std::system_category(),
+          "SetFileSecurity failed: " + std::to_string(dw_res));
+    }
+    LocalFree((HLOCAL)new_dacl);
+  } catch (...) {
+    if (new_dacl != NULL) LocalFree((HLOCAL)new_dacl);
+    throw;
+  }
+}
+
+/**
+ * Sets file permissions for Everyone group.
+ *
+ * @param[in] file_name File name.
+ * @param[in] mask Access rights mask for Everyone group.
+ *
+ * @throw std::exception Failed to change file permissions.
+ */
+static void set_everyone_group_access_rights(const std::string &file_name,
+                                             DWORD mask) {
+  // Create Everyone SID.
+  std::unique_ptr<SID, decltype(&free)> everyone_sid(
+      static_cast<SID *>(std::malloc(SECURITY_MAX_SID_SIZE)), &free);
+
+  DWORD sid_size = SECURITY_MAX_SID_SIZE;
+  if (CreateWellKnownSid(WinWorldSid, NULL, everyone_sid.get(), &sid_size) ==
+      FALSE) {
+    throw std::runtime_error("CreateWellKnownSid() failed: " +
+                             std::to_string(GetLastError()));
+  }
+
+  // Get file security descriptor.
+  ACL *old_dacl;
+  std::unique_ptr<SECURITY_DESCRIPTOR, decltype(&LocalFree)> sec_desc(
+      nullptr, &LocalFree);
+
+  {
+    PSECURITY_DESCRIPTOR sec_desc_tmp;
+    auto result = GetNamedSecurityInfoA(file_name.c_str(), SE_FILE_OBJECT,
+                                        DACL_SECURITY_INFORMATION, NULL, NULL,
+                                        &old_dacl, NULL, &sec_desc_tmp);
+
+    if (result != ERROR_SUCCESS) {
+      throw std::system_error(
+          result, std::system_category(),
+          "GetNamedSecurityInfo() failed: " + std::to_string(result));
+    }
+
+    // If everything went fine, we move raw pointer to smart pointer.
+    sec_desc.reset(static_cast<SECURITY_DESCRIPTOR *>(sec_desc_tmp));
+  }
+
+  // Setting access permissions for Everyone group.
+  EXPLICIT_ACCESSA ea[1];
+
+  memset(&ea, 0, sizeof(ea));
+  ea[0].grfAccessPermissions = mask;
+  ea[0].grfAccessMode = SET_ACCESS;
+  ea[0].grfInheritance = NO_INHERITANCE;
+  ea[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
+  ea[0].Trustee.ptstrName = reinterpret_cast<char *>(everyone_sid.get());
+
+  // Create new ACL permission set.
+  std::unique_ptr<ACL, decltype(&LocalFree)> new_dacl(nullptr, &LocalFree);
+
+  {
+    ACL *new_dacl_tmp;
+    auto result = SetEntriesInAclA(1, &ea[0], old_dacl, &new_dacl_tmp);
+
+    if (result != ERROR_SUCCESS) {
+      throw std::runtime_error("SetEntriesInAcl() failed: " +
+                               std::to_string(result));
+    }
+
+    // If everything went fine, we move raw pointer to smart pointer.
+    new_dacl.reset(new_dacl_tmp);
+  }
+
+  // Set file security descriptor.
+  auto result = SetNamedSecurityInfoA(const_cast<char *>(file_name.c_str()),
+                                      SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
+                                      NULL, NULL, new_dacl.get(), NULL);
+
+  if (result != ERROR_SUCCESS) {
+    throw std::system_error(
+        result, std::system_category(),
+        "SetNamedSecurityInfo() failed: " + std::to_string(result));
+  }
+}
+
+void check_file_access_rights(const std::string &file_name) {
+  try {
+    return check_security_descriptor_access_rights(
+        mysql_harness::get_security_descriptor(file_name));
+  } catch (const std::system_error &e) {
+    if (e.code() == std::errc::permission_denied) {
+      throw std::system_error(
+          e.code(),
+          "'" + file_name + "' has insecure permissions. " + e.what());
+    } else {
+      throw;
+    }
+  } catch (...) {
+    throw;
+  }
+}
+
+void make_file_public(const std::string &file_name) {
+  set_everyone_group_access_rights(
+      file_name, FILE_GENERIC_EXECUTE | FILE_GENERIC_WRITE | FILE_GENERIC_READ);
+}
+
+void make_file_private(const std::string &file_name,
+                       const bool read_only_for_local_service) {
+  try {
+    make_file_private_win32(file_name, read_only_for_local_service);
+  } catch (const std::system_error &e) {
+    throw std::system_error(e.code(), "Could not set permissions for file '" +
+                                          file_name + "': " + e.what());
+  }
+}
+
+void make_file_readable_for_everyone(const std::string &file_name) {
+  try {
+    set_everyone_group_access_rights(file_name, FILE_GENERIC_READ);
+  } catch (const std::system_error &e) {
+    throw std::system_error(e.code(), "Could not set permissions for file '" +
+                                          file_name + "': " + e.what());
+  }
+}
+
+void make_file_readonly(const std::string &file_name) {
+  set_everyone_group_access_rights(file_name,
+                                   FILE_GENERIC_EXECUTE | FILE_GENERIC_READ);
 }
 
 }  // namespace mysql_harness
