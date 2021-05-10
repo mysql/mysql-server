@@ -36,6 +36,7 @@
 #include <cerrno>
 #include <climits>
 #include <cstring>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <system_error>
@@ -53,6 +54,8 @@ const std::string extsep(".");
 }  // namespace
 
 namespace mysql_harness {
+
+const perm_mode kStrictDirectoryPerm = S_IRWXU;
 
 ////////////////////////////////////////////////////////////////
 // class Path members and free functions
@@ -99,6 +102,17 @@ Path::FileType Path::type(bool refresh) const {
     }
   }
   return type_;
+}
+
+bool Path::is_absolute() const {
+  validate_non_empty_path();  // throws std::invalid_argument
+  if (path_[0] == '/') return true;
+  return false;
+}
+
+bool Path::is_readable() const {
+  validate_non_empty_path();
+  return exists() && std::ifstream(real_path().str()).good();
 }
 
 ////////////////////////////////////////////////////////////////
@@ -330,6 +344,60 @@ int mkdir_wrapper(const std::string &dir, perm_mode mode) {
   auto res = ::mkdir(dir.c_str(), mode);
   if (res != 0) return errno;
   return 0;
+}
+
+void check_file_access_rights(const std::string &file_name) {
+  struct stat status;
+
+  if (stat(file_name.c_str(), &status) != 0) {
+    if (errno == ENOENT) return;
+    throw std::system_error(errno, std::generic_category(),
+                            "stat() failed for " + file_name + "'");
+  }
+
+  static constexpr mode_t kFullAccessMask = (S_IRWXU | S_IRWXG | S_IRWXO);
+  static constexpr mode_t kRequiredAccessMask = (S_IRUSR | S_IWUSR);
+
+  if ((status.st_mode & kFullAccessMask) != kRequiredAccessMask) {
+    throw std::system_error(
+        make_error_code(std::errc::permission_denied),
+        "'" + file_name + "' has insecure permissions. Expected u+rw only.");
+  }
+}
+
+/**
+ * Sets access permissions for a file.
+ *
+ * @param[in] file_name File name.
+ * @param[in] mask Access permission mask.
+ *
+ * @throw std::exception Failed to change file permissions.
+ */
+static void throwing_chmod(const std::string &file_name, mode_t mask) {
+  if (chmod(file_name.c_str(), mask) != 0) {
+    auto ec = std::error_code(errno, std::generic_category());
+    throw std::system_error(ec, "chmod() failed: " + file_name);
+  }
+}
+
+void make_file_public(const std::string &file_name) {
+  throwing_chmod(file_name, S_IRWXU | S_IRWXG | S_IRWXO);
+}
+
+void make_file_private(const std::string &file_name,
+                       const bool read_only_for_local_service) {
+  (void)read_only_for_local_service;  // only relevant for Windows
+  try {
+    throwing_chmod(file_name, S_IRUSR | S_IWUSR);
+  } catch (std::runtime_error &e) {
+    throw std::runtime_error("Could not set permissions for file '" +
+                             file_name + "': " + e.what());
+  }
+}
+
+void make_file_readonly(const std::string &file_name) {
+  throwing_chmod(file_name,
+                 S_IRUSR | S_IXUSR | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 }
 
 }  // namespace mysql_harness
