@@ -83,7 +83,6 @@ class Item_field;
 class Json_diff_vector;
 class Json_seekable_path;
 class Json_wrapper;
-class Name_resolution_context;
 class Opt_hints_qb;
 class Opt_hints_table;
 class Query_result_union;
@@ -110,6 +109,7 @@ struct TABLE;
 struct TABLE_LIST;
 struct TABLE_SHARE;
 struct handlerton;
+struct Name_resolution_context;
 typedef int8 plan_idx;
 
 namespace dd {
