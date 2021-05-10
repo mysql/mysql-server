@@ -31,6 +31,7 @@
 #include "my_io.h"
 #include "plugin/group_replication/include/autorejoin.h"
 #include "plugin/group_replication/include/consistency_manager.h"
+#include "plugin/group_replication/include/gcs_mysql_network_provider.h"
 #include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/include/observer_server_actions.h"
 #include "plugin/group_replication/include/observer_server_state.h"
@@ -315,6 +316,8 @@ ulong get_components_stop_timeout_var() {
   return ov.components_stop_timeout_var;
 }
 
+ulong get_communication_stack_var() { return ov.communication_stack_var; }
+
 void set_error_state_due_to_error_during_autorejoin() {
   lv.error_state_due_to_error_during_autorejoin = true;
 }
@@ -328,6 +331,28 @@ bool is_autorejoin_enabled() { return ov.autorejoin_tries_var > 0U; }
 uint get_number_of_autorejoin_tries() { return ov.autorejoin_tries_var; }
 
 ulonglong get_rejoin_timeout() { return lv.rejoin_timeout; }
+
+/**
+ * @brief Callback implementation of
+ * handle_group_replication_incoming_connection. This is the entry point for new
+ * MySQL connections that are directed to GCS
+ *
+ * @param thd     THD object of the connection
+ * @param fd      File descriptor of the connections
+ * @param ssl_ctx SSL data of the connection
+ */
+void handle_group_replication_incoming_connection(THD *thd, int fd,
+                                                  SSL *ssl_ctx) {
+  auto *new_connection = new Network_connection(fd, ssl_ctx);
+  new_connection->has_error = false;
+
+  Gcs_mysql_network_provider *mysql_provider =
+      gcs_module->get_mysql_network_provider();
+
+  if (mysql_provider) {
+    mysql_provider->set_new_connection(thd, new_connection);
+  }
+}
 
 /**
   Set condition to block or unblock the calling threads
@@ -436,7 +461,7 @@ bool plugin_get_group_members(
     uint index, const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS &callbacks) {
   char *channel_name = applier_module_channel_name;
 
-  return get_group_members_info(index, callbacks, group_member_mgr,
+  return get_group_members_info(index, callbacks, group_member_mgr, gcs_module,
                                 channel_name);
 }
 
@@ -1055,6 +1080,8 @@ int leave_group_and_terminate_plugin_modules(
   return error;
 }
 
+int plugin_group_replication_leave_group() { return leave_group(); }
+
 int leave_group() {
   if (gcs_module->belongs_to_group()) {
     view_change_notifier->start_view_modification();
@@ -1102,10 +1129,17 @@ int leave_group() {
       If we do not leave preemptively, the server will only leave
       the group when the communication layer failure detector
       detects that it left.
+
+      If we leave the group due to a server shutdown, we will end up in this
+      code branch. Since we already left the group, we should not execute this
+      leave() instruction. Hence, we check if we are currently in a server
+      shutdown process.
     */
-    LogPluginErr(INFORMATION_LEVEL,
-                 ER_GRP_RPL_REQUESTING_NON_MEMBER_SERVER_TO_LEAVE);
-    gcs_module->leave(nullptr);
+    if (!get_server_shutdown_status()) {
+      LogPluginErr(INFORMATION_LEVEL,
+                   ER_GRP_RPL_REQUESTING_NON_MEMBER_SERVER_TO_LEAVE);
+      gcs_module->leave(nullptr);
+    }
   }
 
   // Finalize GCS.
@@ -1685,6 +1719,7 @@ bool attempt_rejoin() {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_INIT_COMMUNICATION_ENGINE);
     goto end;
   }
+
   gcs_params.add_parameter("bootstrap_group", "false");
   if (gcs_module->configure(gcs_params) != GCS_OK) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_INIT_COMMUNICATION_ENGINE);
@@ -2260,6 +2295,9 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
   gcs_module_parameters.add_parameter(
       "xcom_cache_size", std::to_string(ov.message_cache_size_var));
 
+  gcs_module_parameters.add_parameter(
+      "communication_stack", std::to_string(ov.communication_stack_var));
+
   /*
    We will add GCS-level join retries for those scenarios where a node
    crashes and comes back immediately, but it still has a reencarnation
@@ -2302,18 +2340,47 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
   // SSL parameters.
   std::string ssl_mode(ov.ssl_mode_values[ov.ssl_mode_var]);
   if (ov.ssl_mode_var > 0) {
-    std::string ssl_key(sv.ssl_key ? sv.ssl_key : "");
-    std::string ssl_cert(sv.ssl_cert ? sv.ssl_cert : "");
-    std::string ssl_ca(sv.ssl_ca ? sv.ssl_ca : "");
-    std::string ssl_capath(sv.ssl_capath ? sv.ssl_capath : "");
-    std::string ssl_cipher(sv.ssl_cipher ? sv.ssl_cipher : "");
-    std::string ssl_crl(sv.ssl_crl ? sv.ssl_crl : "");
-    std::string ssl_crlpath(sv.ssl_crlpath ? sv.ssl_crlpath : "");
-    std::string tls_version(sv.tls_version ? sv.tls_version : "");
-    std::string ssl_fips_mode(ov.ssl_fips_mode_values[sv.ssl_fips_mode]);
+    enum_transport_protocol xcom_comm_protocol =
+        static_cast<enum_transport_protocol>(ov.communication_stack_var);
+
+    std::string ssl_key("");
+    std::string ssl_cert("");
+    std::string ssl_ca("");
+    std::string ssl_capath("");
+    std::string ssl_cipher("");
+    std::string ssl_crl("");
+    std::string ssl_crlpath("");
+    std::string tls_version("");
+    std::string ssl_fips_mode("");
+    if (xcom_comm_protocol == XCOM_PROTOCOL) {
+      ssl_key.append(sv.ssl_key ? sv.ssl_key : "");
+      ssl_cert.append(sv.ssl_cert ? sv.ssl_cert : "");
+      ssl_ca.append(sv.ssl_ca ? sv.ssl_ca : "");
+      ssl_capath.append(sv.ssl_capath ? sv.ssl_capath : "");
+      ssl_cipher.append(sv.ssl_cipher ? sv.ssl_cipher : "");
+      ssl_crl.append(sv.ssl_crl ? sv.ssl_crl : "");
+      ssl_crlpath.append(sv.ssl_crlpath ? sv.ssl_crlpath : "");
+      tls_version.append(sv.tls_version ? sv.tls_version : "");
+      ssl_fips_mode.append(ov.ssl_fips_mode_values[sv.ssl_fips_mode]);
+    } else if (xcom_comm_protocol == MYSQL_PROTOCOL) {
+      ssl_key.append(ov.recovery_ssl_key_var ? ov.recovery_ssl_key_var : "");
+      ssl_cert.append(ov.recovery_ssl_cert_var ? ov.recovery_ssl_cert_var : "");
+      ssl_ca.append(ov.recovery_ssl_ca_var ? ov.recovery_ssl_ca_var : "");
+      ssl_capath.append(ov.recovery_ssl_capath_var ? ov.recovery_ssl_capath_var
+                                                   : "");
+      ssl_cipher.append(ov.recovery_ssl_cipher_var ? ov.recovery_ssl_cipher_var
+                                                   : "");
+      ssl_crl.append(ov.recovery_ssl_crl_var ? ov.recovery_ssl_crl_var : "");
+      ssl_crlpath.append(
+          ov.recovery_ssl_crlpath_var ? ov.recovery_ssl_crlpath_var : "");
+      tls_version.append(
+          ov.recovery_tls_version_var ? ov.recovery_tls_version_var : "");
+    }
 
     // SSL support on server.
-    gcs_module_parameters.add_parameter("ssl_mode", ssl_mode);
+    gcs_module_parameters.add_parameter("ssl_mode",
+                                        ov.ssl_mode_values[ov.ssl_mode_var]);
+
     gcs_module_parameters.add_parameter("server_key_file", ssl_key);
     gcs_module_parameters.add_parameter("server_cert_file", ssl_cert);
     gcs_module_parameters.add_parameter("client_key_file", ssl_key);
@@ -2324,11 +2391,18 @@ int build_gcs_parameters(Gcs_interface_parameters &gcs_module_parameters) {
                                           ssl_capath); /* purecov: inspected */
     gcs_module_parameters.add_parameter("cipher", ssl_cipher);
     gcs_module_parameters.add_parameter("tls_version", tls_version);
-    if (sv.tls_ciphersuites != nullptr) {
+
+    bool is_ciphersuites_null =
+        xcom_comm_protocol == XCOM_PROTOCOL
+            ? sv.tls_ciphersuites == nullptr
+            : ov.recovery_tls_ciphersuites_var == nullptr;
+    if (!is_ciphersuites_null) {
       /* Not specifying the ciphersuites means "use the OpenSSL default."
          Specifying an empty string means "disallow all ciphersuites." */
-      gcs_module_parameters.add_parameter("tls_ciphersuites",
-                                          sv.tls_ciphersuites);
+      gcs_module_parameters.add_parameter(
+          "tls_ciphersuites", xcom_comm_protocol == XCOM_PROTOCOL
+                                  ? sv.tls_ciphersuites
+                                  : ov.recovery_tls_ciphersuites_var);
     }
 
     if (!ssl_crl.empty())
@@ -2399,13 +2473,15 @@ int configure_group_communication() {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_UNABLE_TO_INIT_COMMUNICATION_ENGINE);
     return GROUP_REPLICATION_COMMUNICATION_LAYER_SESSION_ERROR;
   }
-  LogPluginErr(
-      INFORMATION_LEVEL, ER_GRP_RPL_GRP_COMMUNICATION_INIT_WITH_CONF,
-      ov.group_name_var, ov.local_address_var, ov.group_seeds_var,
-      ov.bootstrap_group_var ? "true" : "false", ov.poll_spin_loops_var,
-      ov.compression_threshold_var, get_ip_allowlist(),
-      ov.communication_debug_options_var, ov.member_expel_timeout_var,
-      ov.communication_max_message_size_var, ov.message_cache_size_var);
+
+  LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_GRP_COMMUNICATION_INIT_WITH_CONF,
+               ov.group_name_var, ov.local_address_var, ov.group_seeds_var,
+               ov.bootstrap_group_var ? "true" : "false",
+               ov.poll_spin_loops_var, ov.compression_threshold_var,
+               get_ip_allowlist(), ov.communication_debug_options_var,
+               ov.member_expel_timeout_var,
+               ov.communication_max_message_size_var, ov.message_cache_size_var,
+               ov.communication_stack_var);
 
 end:
   return err;
@@ -4895,6 +4971,19 @@ static MYSQL_SYSVAR_STR(
     nullptr,                /* update func*/
     "AUTOMATIC");           /* default*/
 
+static MYSQL_SYSVAR_ENUM(
+    communication_stack,                                   /* name */
+    ov.communication_stack_var,                            /* var */
+    PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
+    "Selects the group replication protocol stack to "
+    "use : Legacy XCom or MySQL.This option only takes effect after a group "
+    "replication restart. Default: XCom",
+    nullptr,                                 /* check func. */
+    nullptr,                                 /* update func. */
+    XCOM_PROTOCOL,                           /* default */
+    &ov.communication_stack_values_typelib_t /* type lib */
+);
+
 static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(group_name),
     MYSQL_SYSVAR(start_on_boot),
@@ -4954,6 +5043,7 @@ static SYS_VAR *group_replication_system_vars[] = {
     MYSQL_SYSVAR(advertise_recovery_endpoints),
     MYSQL_SYSVAR(tls_source),
     MYSQL_SYSVAR(view_change_uuid),
+    MYSQL_SYSVAR(communication_stack),
     nullptr,
 };
 

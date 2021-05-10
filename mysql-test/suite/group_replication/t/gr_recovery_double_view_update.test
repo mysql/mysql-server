@@ -18,6 +18,7 @@
 --source include/big_test.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
+--source include/have_group_replication_xcom_communication_stack.inc
 --let $group_replication_group_name= 6749cab0-93ae-11e5-a837-0800200c9a66
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

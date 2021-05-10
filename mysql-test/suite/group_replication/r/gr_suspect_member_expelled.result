@@ -10,16 +10,25 @@ SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 @@GLOBAL.group_replication_member_expel_timeout
 15
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 [connection server2]
 SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 @@GLOBAL.group_replication_member_expel_timeout
 15
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 [connection server3]
 SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 @@GLOBAL.group_replication_member_expel_timeout
 15
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 #
 # Crash server 3
 # Kill and restart:--group_replication_local_address=GROUP_REPLICATION_LOCAL_ADDRESS --group_replication_group_seeds=GROUP_REPLICATION_GROUP_SEEDS --group_replication_group_name=GROUP_REPLICATION_GROUP_NAME

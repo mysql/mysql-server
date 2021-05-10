@@ -31,16 +31,27 @@
 SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
+
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 15;
 SELECT @@GLOBAL.group_replication_member_expel_timeout;
 
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 
 # Kill server3
 --echo #

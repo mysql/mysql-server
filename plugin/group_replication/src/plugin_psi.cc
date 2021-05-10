@@ -79,7 +79,8 @@ PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_wait_ticket,
     key_GR_LOCK_write_lock_protection,
     key_GR_LOCK_mysql_thread_run,
-    key_GR_LOCK_mysql_thread_dispatcher_run;
+    key_GR_LOCK_mysql_thread_dispatcher_run,
+    key_GR_LOCK_connection_map;
 
 PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_applier_module_suspend,
@@ -343,6 +344,8 @@ static PSI_mutex_info all_group_replication_psi_mutex_keys[] = {
      0, PSI_DOCUMENT_ME},
     {&key_GR_LOCK_mysql_thread_dispatcher_run,
      "LOCK_mysql_thread_dispatcher_run", PSI_FLAG_SINGLETON, 0,
+     PSI_DOCUMENT_ME},
+    {&key_GR_LOCK_connection_map, "LOCK_connection_map", PSI_FLAG_SINGLETON, 0,
      PSI_DOCUMENT_ME}};
 
 static PSI_cond_info all_group_replication_psi_condition_keys[] = {

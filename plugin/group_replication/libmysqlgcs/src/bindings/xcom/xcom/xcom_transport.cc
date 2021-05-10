@@ -62,6 +62,7 @@
 #include "xcom/xdr_utils.h"
 #include "xdr_gen/xcom_vp.h"
 
+#include "xcom/network/network_provider_manager.h"
 #ifndef XCOM_WITHOUT_OPENSSL
 #ifdef _WIN32
 /* In OpenSSL before 1.1.0, we need this first. */
@@ -71,9 +72,6 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 
-#endif
-#ifndef XCOM_WITHOUT_OPENSSL
-#include "xcom/xcom_ssl_transport.h"
 #endif
 
 #define MY_XCOM_PROTO x_1_8
@@ -96,15 +94,53 @@ static void shut_srv(server *s);
 
 static xcom_port xcom_listen_port = 0; /* Port used by xcom */
 
-static xcom_socket_accept_cb xcom_socket_accept_callback = NULL;
-
 /* purecov: begin deadcode */
 static int pm(xcom_port port) { return port == xcom_listen_port; }
 /* purecov: end */
 
-int set_xcom_socket_accept_cb(xcom_socket_accept_cb x) {
-  xcom_socket_accept_callback = x;
-  return 1;
+int close_open_connection(connection_descriptor *conn) {
+  return Network_provider_manager::getInstance().close_xcom_connection(conn);
+}
+
+connection_descriptor *open_new_connection(const char *server, xcom_port port,
+                                           int connection_timeout) {
+  return Network_provider_manager::getInstance().open_xcom_connection(
+      server, port, Network_provider_manager::getInstance().is_xcom_using_ssl(),
+      connection_timeout);
+}
+
+/* purecov: begin deadcode */
+connection_descriptor *open_new_local_connection(const char *server,
+                                                 xcom_port port) {
+  // Local connection must avoid SSL at all costs.
+  // Neverthless, we will keep the service running with local signalling,
+  // trying to make a connection without SSL, and afterwards, with SSL.
+  connection_descriptor *retval = nullptr;
+  retval = Network_provider_manager::getInstance().open_xcom_connection(
+      server, port, false);
+
+  if (retval->fd == -1) {
+    free(retval);
+    retval = nullptr;
+    retval = open_new_connection(server, port);
+  }
+
+  return retval;
+}
+/* purecov: end */
+
+result set_nodelay(int fd) {
+  int n = 1;
+  result ret = {0, 0};
+
+  do {
+    SET_OS_ERR(0);
+    ret.val =
+        setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, (xcom_buf *)&n, sizeof n);
+    ret.funerr = to_errno(GET_OS_ERR);
+    IFDBG(D_NONE, FN; NDBG(from_errno(ret.funerr), d));
+  } while (ret.val < 0 && can_retry(ret.funerr));
+  return ret;
 }
 
 void init_xcom_transport(xcom_port listen_port) {
@@ -169,15 +205,15 @@ int flush_srv_buf(server *s, int64_t *ret) {
   TASK_BEGIN
   ep->buflen = s->out_buf.n;
   reset_srv_buf(&s->out_buf);
-  if (s->con.fd >= 0) {
+  if (s->con->fd >= 0) {
     if (ep->buflen) {
       int64_t sent;
       IFDBG(D_TRANSPORT, FN; PTREXP(stack); NDBG(ep->buflen, u));
       /* LOCK_FD(s->con.fd, 'w'); */
-      TASK_CALL(task_write(&s->con, s->out_buf.buf, ep->buflen, &sent));
+      TASK_CALL(task_write(s->con, s->out_buf.buf, ep->buflen, &sent));
       /* UNLOCK_FD(s->fd, 'w'); */
       if (sent <= 0) {
-        shutdown_connection(&s->con);
+        shutdown_connection(s->con);
       }
       TASK_RETURN(sent);
     }
@@ -270,23 +306,23 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
     TASK_RETURN(sizeof(*p));
   } else {
     p->max_synode = get_max_synode();
-    if (s->con.fd >= 0) {
+    if (s->con->fd >= 0) {
       /* LOCK_FD(s->con.fd, 'w'); */
-      serialize_msg(p, s->con.x_proto, &ep->buflen, &ep->buf);
+      serialize_msg(p, s->con->x_proto, &ep->buflen, &ep->buf);
       IFDBG(D_TRANSPORT, FN; NDBG(ep->buflen, u));
       if (ep->buflen) {
         int64_t sent;
         /* Not enough space? Flush the buffer */
         if (ep->buflen > srv_buf_free_space(&s->out_buf)) {
           TASK_CALL(flush_srv_buf(s, ret));
-          if (s->con.fd < 0) {
+          if (s->con->fd < 0) {
             TASK_FAIL;
           }
           /* Still not enough? Message must be huge, send without buffering */
           if (ep->buflen > srv_buf_free_space(&s->out_buf)) {
             IFDBG(D_TRANSPORT, FN; STRLIT("task_write "); NDBG(ep->buflen, u));
-            TASK_CALL(task_write(&s->con, ep->buf, ep->buflen, &sent));
-            if (s->con.fd < 0) {
+            TASK_CALL(task_write(s->con, ep->buf, ep->buflen, &sent));
+            if (s->con->fd < 0) {
               TASK_FAIL;
             }
           } else { /* Buffer the write */
@@ -308,7 +344,7 @@ static int _send_msg(server *s, pax_msg *p, node_no to, int64_t *ret) {
         X_FREE(ep->buf);
         /* UNLOCK_FD(s->con.fd, 'w'); */
         if (sent <= 0) {
-          shutdown_connection(&s->con);
+          shutdown_connection(s->con);
         }
         TASK_RETURN(sent);
       }
@@ -564,7 +600,7 @@ static server *mksrv(char *srv, xcom_port port) {
   s->refcnt = 0;
   s->srv = srv;
   s->port = port;
-  reset_connection(&s->con);
+  s->con = new_connection(-1, nullptr);
   s->active = 0.0;
   s->detected = 0.0;
   s->last_ping_received = 0.0;
@@ -681,6 +717,7 @@ void garbage_collect_servers() {
 
 /* Free a server */
 static void freesrv(server *s) {
+  X_FREE(s->con);
   X_FREE(s->srv);
   X_FREE(s);
 }
@@ -697,7 +734,7 @@ static void shut_srv(server *s) {
   if (!s) return;
   IFDBG(D_NONE, FN; PTREXP(s); STREXP(s->srv));
 
-  shutdown_connection(&s->con);
+  shutdown_connection(s->con);
 
   /* Tasks will free the server object when they terminate */
   if (s->sender) task_terminate(s->sender);
@@ -721,92 +758,34 @@ int srv_unref(server *s) {
 }
 
 /* Listen for connections on socket and create a handler task */
-int tcp_server(task_arg arg) {
+int incoming_connection_task(task_arg arg MY_ATTRIBUTE((unused))) {
   DECL_ENV
-  int fd;
-  int cfd;
-  int refused;
+  connection_descriptor *new_conn;
   END_ENV;
   TASK_BEGIN
-  ep->fd = get_int_arg(arg);
-  ep->refused = 0;
-  unblock_fd(ep->fd);
-  IFDBG(D_TRANSPORT, FN; NDBG(ep->fd, d););
-  G_MESSAGE("XCom protocol version: %d", my_xcom_version);
-  G_MESSAGE(
-      "XCom initialized and ready to accept incoming connections on port %d",
-      xcom_listen_port);
+
   do {
-    TASK_CALL(accept_tcp(ep->fd, &ep->cfd));
-    /* Callback to check that the file descriptor is accepted. */
-    if (xcom_socket_accept_callback &&
-        !xcom_socket_accept_callback(ep->cfd, get_site_def())) {
-      /* purecov: begin inspected */
-      shut_close_socket(&ep->cfd); /* Will set cfd to -1 */
-      /* purecov: end */
-    }
-    if (ep->cfd < 0) {
-      G_DEBUG("accept failed");
-      ep->refused = 1;
+    ep->new_conn =
+        Network_provider_manager::getInstance().incoming_connection();
+    if (ep->new_conn == nullptr) {
       TASK_DELAY(0.1);
     } else {
-      ep->refused = 0;
-      IFDBG(D_TRANSPORT, FN; NDBG(ep->cfd, d););
-      task_new(acceptor_learner_task, int_arg(ep->cfd), "acceptor_learner_task",
-               XCOM_THREAD_DEBUG);
+      task_new(acceptor_learner_task, void_arg(ep->new_conn),
+               "acceptor_learner_task", XCOM_THREAD_DEBUG);
     }
-  } while (!xcom_shutdown && (ep->cfd >= 0 || ep->refused));
+  } while (!xcom_shutdown);
   FINALLY
-  assert(ep->fd >= 0);
-  shut_close_socket(&ep->fd);
+  // Cleanup connection if this is stuck
+  connection_descriptor *clean_conn =
+      Network_provider_manager::getInstance().incoming_connection();
+  if (clean_conn) {
+    close_connection(clean_conn);
+  }
+  free(clean_conn);
+
   IFDBG(D_BUG, FN; STRLIT(" shutdown "));
   TASK_END;
 }
-
-#ifndef XCOM_WITHOUT_OPENSSL
-#define SSL_CONNECT(con, hostname)                                   \
-  {                                                                  \
-    result ret;                                                      \
-    con.ssl_fd = SSL_new(client_ctx);                                \
-    SSL_set_fd(con.ssl_fd, con.fd);                                  \
-    ERR_clear_error();                                               \
-    ret.val = SSL_connect(con.ssl_fd);                               \
-    ret.funerr = to_ssl_err(SSL_get_error(con.ssl_fd, ret.val));     \
-    while (ret.val != SSL_SUCCESS && can_retry(ret.funerr)) {        \
-      if (from_ssl_err(ret.funerr) == SSL_ERROR_WANT_READ) {         \
-        wait_io(stack, con.fd, 'r');                                 \
-      } else if (from_ssl_err(ret.funerr) == SSL_ERROR_WANT_WRITE) { \
-        wait_io(stack, con.fd, 'w');                                 \
-      } else {                                                       \
-        break;                                                       \
-      }                                                              \
-      TASK_YIELD;                                                    \
-      SET_OS_ERR(0);                                                 \
-      if (con.fd < 0) {                                              \
-        ssl_free_con(&con);                                          \
-        close_connection(&con);                                      \
-        TERMINATE;                                                   \
-      }                                                              \
-                                                                     \
-      ERR_clear_error();                                             \
-      ret.val = SSL_connect(con.ssl_fd);                             \
-      ret.funerr = to_ssl_err(SSL_get_error(con.ssl_fd, ret.val));   \
-    }                                                                \
-                                                                     \
-    if (ret.val != SSL_SUCCESS) {                                    \
-      ssl_free_con(&con);                                            \
-      close_connection(&con);                                        \
-      TERMINATE;                                                     \
-    } else {                                                         \
-      if (ssl_verify_server_cert(con.ssl_fd, hostname)) {            \
-        ssl_free_con(&con);                                          \
-        close_connection(&con);                                      \
-        TERMINATE;                                                   \
-      }                                                              \
-      set_connected(&con, CON_FD);                                   \
-    }                                                                \
-  }
-#endif
 
 void server_detected(server *s) { s->detected = task_now(); }
 
@@ -819,23 +798,27 @@ static int dial(server *s) {
   TASK_BEGIN
   IFDBG(D_NONE, FN; STRLIT(" dial "); NPUT(get_nodeno(get_site_def()), u);
         STRLIT(s->srv); NDBG(s->port, u));
-  reset_connection(&s->con);
-  TASK_CALL(connect_tcp(s->srv, s->port, &s->con.fd));
-  if (s->con.fd < 0) {
+
+  // Delete old connection
+  reset_connection(s->con);
+  X_FREE(s->con);
+  s->con = nullptr;
+
+  s->con = open_new_connection(s->srv, s->port, 1000);
+  if (!s->con) {
+    s->con = new_connection(-1, nullptr);
+  }
+
+  if (s->con->fd < 0) {
     IFDBG(D_NONE, FN; STRLIT("could not dial "); STRLIT(s->srv);
           NDBG(s->port, u););
   } else {
     if (NAGLE == 0) {
-      set_nodelay(s->con.fd);
+      set_nodelay(s->con->fd);
     }
 
-    unblock_fd(s->con.fd);
-#ifndef XCOM_WITHOUT_OPENSSL
-    if (xcom_use_ssl()) {
-      SSL_CONNECT(s->con, s->srv);
-    }
-#endif
-    set_connected(&s->con, CON_FD);
+    unblock_fd(s->con->fd);
+    set_connected(s->con, CON_FD);
     alive(s);
     update_detected(get_site_def_rw());
   }
@@ -1174,7 +1157,8 @@ int read_msg(connection_descriptor *rfd, pax_msg *p, server *s, int64_t *ret) {
     TASK_CALL(read_bytes(rfd, (char *)ep->header_buf, MSG_HDR_SIZE, s, &ep->n));
 
     if (ep->n != MSG_HDR_SIZE) {
-      G_INFO("Failure reading from fd=%d n=%" PRIu64, rfd->fd, ep->n);
+      G_INFO("Failure reading from fd=%d n=%" PRIu64 " from %s:%d", rfd->fd,
+             ep->n, s->srv, s->port);
       IFDBG(D_TRANSPORT, FN; NDBG(rfd->fd, d); NDBG64(ep->n));
       TASK_FAIL;
     }
@@ -1447,10 +1431,15 @@ int sender_task(task_arg arg) {
 
   while (!xcom_shutdown) {
     /* Loop until connected */
-    G_DEBUG("Connecting to %s:%d", ep->s->srv, ep->s->port);
+    G_MESSAGE("Connecting to %s:%d", ep->s->srv, ep->s->port);
     for (;;) {
       TASK_CALL(dial(ep->s));
-      if (is_connected(&ep->s->con)) break;
+      if (is_connected(ep->s->con)) break;
+
+      if (ep->dtime < MAX_CONNECT_WAIT) {
+        G_MESSAGE("Connection to %s:%d failed", ep->s->srv, ep->s->port);
+      }
+
       TIMED_TASK_WAIT(&connect_wait, ep->dtime);
       if (xcom_shutdown) TERMINATE;
       /* Delay cleanup of messages to avoid unnecessary loss when connecting */
@@ -1458,14 +1447,14 @@ int sender_task(task_arg arg) {
         empty_msg_channel(&ep->s->outgoing);
         ep->channel_empty_time = task_now();
       }
-      ep->dtime *= CONNECT_WAIT_INCREASE; /* Increase wait time for next try */
+
+      ep->dtime += CONNECT_WAIT_INCREASE; /* Increase wait time for next try */
       if (ep->dtime > MAX_CONNECT_WAIT) {
         ep->dtime = MAX_CONNECT_WAIT;
       }
     }
 
-    G_DEBUG("Connected to %s:%d on fd=%d", ep->s->srv, ep->s->port,
-            ep->s->con.fd);
+    G_MESSAGE("Connected to %s:%d", ep->s->srv, ep->s->port);
     ep->dtime = INITIAL_CONNECT_WAIT;
     reset_srv_buf(&ep->s->out_buf);
 
@@ -1473,7 +1462,7 @@ int sender_task(task_arg arg) {
        Insert a message in the input queue to negotiate the protocol.
     */
     start_protocol_negotiation(&ep->s->outgoing);
-    while (is_connected(&ep->s->con)) {
+    while (is_connected(ep->s->con)) {
       int64_t ret;
       assert(!ep->link);
       if (false && link_empty(&ep->s->outgoing.data)) {
@@ -1521,18 +1510,18 @@ int sender_task(task_arg arg) {
               add_event(EVENT_DUMP_PAD, uint_arg(ep->link->p->to)); add_event(
                   EVENT_DUMP_PAD, string_arg(pax_op_to_str(ep->link->p->op))););
         } else {
-          set_connected(&ep->s->con, CON_FD);
+          set_connected(ep->s->con, CON_FD);
           /* Send protocol negotiation request */
           do {
-            TASK_CALL(send_proto(&ep->s->con, my_xcom_version, x_version_req,
+            TASK_CALL(send_proto(ep->s->con, my_xcom_version, x_version_req,
                                  ep->tag, &ret_code));
-            if (!is_connected(&ep->s->con)) {
+            if (!is_connected(ep->s->con)) {
               goto next;
             }
             ep->tag = incr_tag(ep->tag);
           } while (ret_code < 0);
           G_DEBUG("sent negotiation request for protocol %d fd %d",
-                  my_xcom_version, ep->s->con.fd);
+                  my_xcom_version, ep->s->con->fd);
           ADD_DBG(
               D_TRANSPORT,
               add_event(EVENT_DUMP_PAD,
@@ -1542,9 +1531,9 @@ int sender_task(task_arg arg) {
 
           /* Wait until negotiation done.
              reply_handler_task will catch reply and change state */
-          while (!proto_done(&ep->s->con)) {
+          while (!proto_done(ep->s->con)) {
             TASK_DELAY(0.1);
-            if (!is_connected(&ep->s->con)) {
+            if (!is_connected(ep->s->con)) {
               goto next;
             }
           }
@@ -1650,7 +1639,7 @@ void update_servers(site_def *s, cargo_type operation) {
         server *sp = find_server(all_servers, maxservers, name, port);
 
         if (sp) {
-          G_INFO("Re-using server node %d host %s", i, name);
+          G_INFO("Re-using server node %d host %s:%d", i, name, port);
           s->servers[i] = sp;
 
           /*
@@ -1664,7 +1653,7 @@ void update_servers(site_def *s, cargo_type operation) {
           free(name);
           if (sp->invalid) sp->invalid = 0;
         } else { /* No server? Create one */
-          G_INFO("Creating new server node %d host %s", i, name);
+          G_INFO("Creating new server node %d host %s:%d", i, name, port);
           if (port > 0) {
             s->servers[i] = addsrv(name, port);
           } else {
@@ -1735,8 +1724,8 @@ int tcp_reaper_task(task_arg arg MY_ATTRIBUTE((unused))) {
       double now = task_now();
       for (i = 0; i < maxservers; i++) {
         server *s = all_servers[i];
-        if (s && s->con.fd != -1 && (s->active + 10.0) < now) {
-          shutdown_connection(&s->con);
+        if (s && s->con->fd != -1 && (s->active + 10.0) < now) {
+          shutdown_connection(s->con);
         }
       }
     }
@@ -1759,16 +1748,10 @@ void ssl_free_con(connection_descriptor *con) {
   con->ssl_fd = NULL;
 }
 
-void ssl_shutdown_con(connection_descriptor *con) {
-  if (con->fd >= 0 && con->ssl_fd != NULL) {
-    SSL_shutdown(con->ssl_fd);
-    ssl_free_con(con);
-  }
-}
 #endif
 
 void close_connection(connection_descriptor *con) {
-  shut_close_socket(&con->fd);
+  close_open_connection(con);
   set_connected(con, CON_NULL);
 }
 
@@ -1776,18 +1759,20 @@ void shutdown_connection(connection_descriptor *con) {
   /* printstack(1); */
   ADD_DBG(D_TRANSPORT, add_event(EVENT_DUMP_PAD, string_arg("con->fd"));
           add_event(EVENT_DUMP_PAD, int_arg(con->fd)););
-#ifndef XCOM_WITHOUT_OPENSSL
-  ssl_shutdown_con(con);
-#endif
   close_connection(con);
+
+  remove_and_wakeup(con->fd);
+  con->fd = -1;
 }
 
 void reset_connection(connection_descriptor *con) {
-  con->fd = -1;
+  if (con) {
+    con->fd = -1;
 #ifndef XCOM_WITHOUT_OPENSSL
-  con->ssl_fd = 0;
+    con->ssl_fd = 0;
 #endif
-  set_connected(con, CON_NULL);
+    set_connected(con, CON_NULL);
+  }
 }
 
 /* The protocol version used by the group as a whole is the minimum of the

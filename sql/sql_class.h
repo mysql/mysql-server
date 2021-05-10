@@ -4390,6 +4390,8 @@ class THD : public MDL_context_owner,
     @param thd parent session
   */
   void copy_table_access_properties(THD *thd);
+  mysql_mutex_t LOCK_group_replication_connection_mutex;
+  mysql_cond_t COND_group_replication_connection_cond_var;
 };
 
 /**

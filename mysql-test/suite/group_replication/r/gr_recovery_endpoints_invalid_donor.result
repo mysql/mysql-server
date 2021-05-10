@@ -73,6 +73,7 @@ RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
 include/clean_monitoring_process.inc
 UNINSTALL PLUGIN clone;

@@ -340,6 +340,20 @@ bool Replication_thread_api::get_channel_credentials(std::string &username,
   return (error != 0);
 }
 
+bool Replication_thread_api::get_channel_network_namespace(
+    std::string &net_ns, const char *channel_name) {
+  DBUG_TRACE;
+  const char *name = channel_name ? channel_name : interface_channel;
+
+  int error;
+  error = channel_get_network_namespace(name, net_ns);
+  if (error) {
+    net_ns.clear();
+  }
+
+  return (error != 0);
+}
+
 bool Replication_thread_api::is_partial_transaction_on_relay_log() {
   return is_partial_transaction_on_channel_relay_log(interface_channel);
 }

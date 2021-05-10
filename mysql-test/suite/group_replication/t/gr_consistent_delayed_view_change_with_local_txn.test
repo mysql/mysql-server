@@ -44,6 +44,7 @@
 SET SESSION sql_log_bin= 0;
 CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
 GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
@@ -54,6 +55,12 @@ SET SESSION sql_log_bin= 1;
 --echo # 02. Start server2
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 
 --source include/start_group_replication.inc
 
@@ -128,11 +135,19 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_before_message_broadcast';
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'recovery_user', SOURCE_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server*");
 call mtr.add_suppression("For details please check performance_schema*");
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master");
 SET SESSION sql_log_bin= 1;
 
 --let $group_replication_start_member_state= RECOVERING
@@ -222,6 +237,20 @@ SET @@GLOBAL.DEBUG= @debug_save;
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;

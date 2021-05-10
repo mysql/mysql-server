@@ -1,0 +1,5 @@
+--log_error=$MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
+--ssl-ca=$MYSQL_TEST_DIR/std_data/new_certs_for_bad_host/ca-bad-host.pem
+--ssl-key=$MYSQL_TEST_DIR/std_data/new_certs_for_bad_host/server-key-bad-host.pem
+--ssl-cert=$MYSQL_TEST_DIR/std_data/new_certs_for_bad_host/server-cert-bad-host.pem
+

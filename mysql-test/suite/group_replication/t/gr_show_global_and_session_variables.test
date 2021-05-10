@@ -16,7 +16,10 @@
 # 5. Clean-up
 #######################################################################################
 
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/big_test.inc
+--source include/force_restart.inc
+
 --let $group_replication_group_name= aaaaaaaa-cccc-bbbb-cccc-aaaaaaaaaaaa
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
@@ -29,7 +32,7 @@
 
 --sleep 30
 
---let $gr_var_count= 59
+--let $gr_var_count= 60
 --echo
 --echo # Test#1: Basic check that there are $gr_var_count GR variables.
 
@@ -201,7 +204,6 @@ eval SET GLOBAL group_replication_recovery_ssl_ca= '$MYSQL_TEST_DIR/std_data/cac
 eval SET GLOBAL group_replication_recovery_ssl_capath= '';
 eval SET GLOBAL group_replication_recovery_ssl_cert= '$MYSQL_TEST_DIR/std_data/client-cert.pem';
 SET GLOBAL group_replication_recovery_ssl_cipher= 'DHE-RSA-AES256-SHA';
-SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
 eval SET GLOBAL group_replication_recovery_ssl_crlpath= '';
 eval SET GLOBAL group_replication_recovery_ssl_key= '$MYSQL_TEST_DIR/std_data/client-key.pem';
 SET GLOBAl group_replication_recovery_ssl_verify_server_cert= ON;
@@ -242,6 +244,10 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --echo # Test#4: Verify GLOBAL and SESSION variables
 # Start GR
 --source include/start_group_replication.inc
+
+# Setting this value after start to avoid conflixts when using MySQL stack.
+SET GLOBAL group_replication_recovery_ssl_crl= 'crl-client-revoked.crl';
+SET GLOBAL group_replication_recovery_tls_ciphersuites= "";
 
 # Assert the values of the variables set
 # group_replication_allow_local_lower_version_join
@@ -1030,6 +1036,8 @@ SET @@SESSION.group_replication_consistency= DEFAULT;
 --eval SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= "$saved_gr_recovery_tls_ciphersuites"
 --eval SET @@GLOBAL.group_replication_view_change_uuid= "$saved_gr_view_change_uuid"
 --enable_query_log
+
+
 
 --source include/group_replication_end.inc
 

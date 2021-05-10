@@ -1,0 +1,10 @@
+################################################################################
+# Verify that entries corresponding to the GCS performance schema instrumented
+# threads are in the threads table only during the execution of the
+# group replication plugin using MySQL protocol stack
+################################################################################
+
+--source include/have_group_replication_plugin_base.inc
+--source include/have_group_replication_mysql_communication_stack.inc
+
+--source ../include/gr_gcs_psi_threads.inc

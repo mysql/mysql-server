@@ -1107,6 +1107,7 @@ def	performance_schema	replication_group_members	MEMBER_PORT	4	NULL	YES	int	NULL
 def	performance_schema	replication_group_members	MEMBER_STATE	5	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_group_members	MEMBER_ROLE	6	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_group_members	MEMBER_VERSION	7	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(64)			select,insert,update,references			NULL
+def	performance_schema	replication_group_members	MEMBER_INCOMING_COMMUNICATION_PROTOCOL	8	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_group_member_stats	CHANNEL_NAME	1	NULL	NO	char	64	256	NULL	NULL	NULL	utf8mb4	utf8mb4_0900_ai_ci	char(64)			select,insert,update,references			NULL
 def	performance_schema	replication_group_member_stats	VIEW_ID	2	NULL	NO	char	60	240	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(60)			select,insert,update,references			NULL
 def	performance_schema	replication_group_member_stats	MEMBER_ID	3	NULL	NO	char	36	144	NULL	NULL	NULL	utf8mb4	utf8mb4_bin	char(36)			select,insert,update,references			NULL

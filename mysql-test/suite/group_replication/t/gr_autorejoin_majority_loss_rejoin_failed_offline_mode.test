@@ -49,6 +49,7 @@ call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join f
 call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
 call mtr.add_suppression("Timeout while waiting for a view change event during the auto-rejoin procedure");
 call mtr.add_suppression("Unable to confirm whether the server has left the group or not. Check performance_schema.replication_group_members to check group membership information.");
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SESSION sql_log_bin = 1;
 
 --source include/gr_autorejoin_monitoring.inc
@@ -67,6 +68,10 @@ SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
 
 --let $rpl_connection_name = server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 
 --source include/start_group_replication.inc
 

@@ -27,7 +27,8 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/app_data.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/synode_no.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_cfg.h"
-#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/xcom_ssl_transport.h"
+
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_management_interface.h"
 
 /*
   Time is defined in seconds.
@@ -41,14 +42,13 @@ void Gcs_xcom_proxy_impl::delete_node_address(unsigned int n,
 
 bool Gcs_xcom_proxy_impl::xcom_client_close_connection(
     connection_descriptor *fd) {
-  bool const successful = (::xcom_close_client_connection(fd) == 0);
-  return successful;
+  return !static_cast<bool>(::close_open_connection(fd));
 }
 
 connection_descriptor *Gcs_xcom_proxy_impl::xcom_client_open_connection(
     std::string saddr, xcom_port port) {
   const char *addr = saddr.c_str();
-  return ::xcom_open_client_connection(addr, port);
+  return ::open_new_connection(addr, port);
 }
 
 bool Gcs_xcom_proxy_impl::xcom_client_add_node(connection_descriptor *fd,
@@ -61,9 +61,11 @@ bool Gcs_xcom_proxy_impl::xcom_client_remove_node(node_list *nl, uint32_t gid) {
   app_data_ptr data = new_app_data();
   data = init_config_with_group(data, nl, remove_node_type, gid);
   /* Takes ownership of data. */
+  MYSQL_GCS_LOG_INFO(
+      "xcom_client_remove_node: Try to push xcom_client_remove_node to XCom");
   bool const successful = xcom_input_try_push(data);
   if (!successful) {
-    MYSQL_GCS_LOG_DEBUG("xcom_client_remove_node: Failed to push into XCom.");
+    MYSQL_GCS_LOG_INFO("xcom_client_remove_node: Failed to push into XCom.");
   }
   return successful;
 }
@@ -194,39 +196,58 @@ void Gcs_xcom_proxy_impl::xcom_set_cleanup() {
 }
 
 int Gcs_xcom_proxy_impl::xcom_get_ssl_mode(const char *mode) {
-  return ::xcom_get_ssl_mode(mode);
+  return ::get_network_management_interface()->xcom_get_ssl_mode(mode);
 }
 
 int Gcs_xcom_proxy_impl::xcom_get_ssl_fips_mode(const char *ssl_fips_mode) {
-  return ::xcom_get_ssl_fips_mode(ssl_fips_mode);
+  return ::get_network_management_interface()->xcom_get_ssl_fips_mode(
+      ssl_fips_mode);
 }
 
 int Gcs_xcom_proxy_impl::xcom_set_ssl_mode(int mode) {
-  return ::xcom_set_ssl_mode(mode);
+  return ::get_network_management_interface()->xcom_set_ssl_mode(mode);
 }
 
 int Gcs_xcom_proxy_impl::xcom_set_ssl_fips_mode(int mode) {
-  return ::xcom_set_ssl_fips_mode(mode);
+  return ::get_network_management_interface()->xcom_set_ssl_fips_mode(mode);
 }
 
 bool Gcs_xcom_proxy_impl::xcom_init_ssl() {
+  Network_configuration_parameters security_params;
+
+  security_params.ssl_params.ssl_mode = m_ssl_mode;
+  security_params.ssl_params.server_key_file = m_server_key_file;
+  security_params.ssl_params.server_cert_file = m_server_cert_file;
+  security_params.ssl_params.client_key_file = m_client_key_file;
+  security_params.ssl_params.client_cert_file = m_client_cert_file;
+  security_params.ssl_params.ca_file = m_ca_file;
+  security_params.ssl_params.ca_path = m_ca_path;
+  security_params.ssl_params.crl_file = m_crl_file;
+  security_params.ssl_params.crl_path = m_crl_path;
+  security_params.ssl_params.cipher = m_cipher;
+  security_params.tls_params.tls_version = m_tls_version;
+  security_params.tls_params.tls_ciphersuites = m_tls_ciphersuites;
+
   bool const successful =
-      (::xcom_init_ssl(m_server_key_file, m_server_cert_file, m_client_key_file,
-                       m_client_cert_file, m_ca_file, m_ca_path, m_crl_file,
-                       m_crl_path, m_cipher, m_tls_version,
-                       m_tls_ciphersuites) == 1);
+      get_network_operations_interface()
+          ->configure_active_provider_secure_connections(security_params);
+
   return successful;
 }
 
-void Gcs_xcom_proxy_impl::xcom_destroy_ssl() { ::xcom_destroy_ssl(); }
+void Gcs_xcom_proxy_impl::xcom_destroy_ssl() {
+  ::get_network_management_interface()->finalize_secure_connections_context();
+}
 
 bool Gcs_xcom_proxy_impl::xcom_use_ssl() {
-  bool const will_use = (::xcom_use_ssl() == 1);
+  bool const will_use =
+      (get_network_management_interface()->is_xcom_using_ssl() == 1);
   return will_use;
 }
 
 void Gcs_xcom_proxy_impl::xcom_set_ssl_parameters(ssl_parameters ssl,
                                                   tls_parameters tls) {
+  m_ssl_mode = ssl.ssl_mode;
   m_server_key_file = ssl.server_key_file;
   m_server_cert_file = ssl.server_cert_file;
   m_client_key_file = ssl.client_key_file;
@@ -253,17 +274,18 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl()
       m_cond_xcom_exit(),
       m_is_xcom_exit(false),
       m_socket_util(nullptr),
-      m_server_key_file(),
-      m_server_cert_file(),
-      m_client_key_file(),
-      m_client_cert_file(),
-      m_ca_file(),
-      m_ca_path(),
-      m_crl_file(),
-      m_crl_path(),
-      m_cipher(),
-      m_tls_version(),
-      m_tls_ciphersuites(),
+      m_ssl_mode(SSL_DISABLED),
+      m_server_key_file(nullptr),
+      m_server_cert_file(nullptr),
+      m_client_key_file(nullptr),
+      m_client_cert_file(nullptr),
+      m_ca_file(nullptr),
+      m_ca_path(nullptr),
+      m_crl_file(nullptr),
+      m_crl_path(nullptr),
+      m_cipher(nullptr),
+      m_tls_version(nullptr),
+      m_tls_ciphersuites(nullptr),
       m_should_exit(false) {
   m_lock_xcom_ready.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
                          nullptr);
@@ -292,17 +314,17 @@ Gcs_xcom_proxy_impl::Gcs_xcom_proxy_impl(unsigned int wt)
       m_cond_xcom_exit(),
       m_is_xcom_exit(false),
       m_socket_util(nullptr),
-      m_server_key_file(),
-      m_server_cert_file(),
-      m_client_key_file(),
-      m_client_cert_file(),
-      m_ca_file(),
-      m_ca_path(),
-      m_crl_file(),
-      m_crl_path(),
-      m_cipher(),
-      m_tls_version(),
-      m_tls_ciphersuites(),
+      m_server_key_file(nullptr),
+      m_server_cert_file(nullptr),
+      m_client_key_file(nullptr),
+      m_client_cert_file(nullptr),
+      m_ca_file(nullptr),
+      m_ca_path(nullptr),
+      m_crl_file(nullptr),
+      m_crl_path(nullptr),
+      m_cipher(nullptr),
+      m_tls_version(nullptr),
+      m_tls_ciphersuites(nullptr),
       m_should_exit(false) {
   m_lock_xcom_ready.init(key_GCS_MUTEX_Gcs_xcom_proxy_impl_m_lock_xcom_ready,
                          nullptr);
@@ -505,6 +527,7 @@ bool Gcs_xcom_proxy_impl::xcom_input_connect(std::string const &address,
   xcom_input_disconnect();
   bool const successful =
       ::xcom_input_new_signal_connection(address.c_str(), port);
+
   return successful;
 }
 
@@ -545,6 +568,11 @@ void Gcs_xcom_app_cfg::set_poll_spin_loops(unsigned int loops) {
 
 void Gcs_xcom_app_cfg::set_xcom_cache_size(uint64_t size) {
   if (the_app_xcom_cfg) the_app_xcom_cfg->m_cache_limit = size;
+}
+
+void Gcs_xcom_app_cfg::set_network_namespace_manager(
+    Network_namespace_manager *ns_mgr) {
+  if (the_app_xcom_cfg) the_app_xcom_cfg->network_ns_manager = ns_mgr;
 }
 
 bool Gcs_xcom_app_cfg::set_identity(node_address *identity) {
@@ -793,11 +821,28 @@ bool Gcs_xcom_proxy_base::test_xcom_tcp_connection(std::string &host,
                                                    xcom_port port) {
   connection_descriptor *con = xcom_client_open_connection(host, port);
 
-  bool const could_connect_to_local_xcom = (con != nullptr);
+  bool const could_connect_to_local_xcom = (con->fd != -1);
   bool could_disconnect_from_local_xcom = false;
   if (could_connect_to_local_xcom) {
     could_disconnect_from_local_xcom = xcom_client_close_connection(con);
   }
 
+  free(con);
+
   return could_connect_to_local_xcom && could_disconnect_from_local_xcom;
+}
+
+bool Gcs_xcom_proxy_base::initialize_network_manager() {
+  return get_network_management_interface()->initialize();
+}
+
+bool Gcs_xcom_proxy_base::finalize_network_manager() {
+  return get_network_management_interface()->finalize();
+}
+
+bool Gcs_xcom_proxy_base::set_network_manager_active_provider(
+    enum_transport_protocol new_value) {
+  get_network_management_interface()->set_running_protocol(new_value);
+
+  return false;
 }

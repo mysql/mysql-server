@@ -109,6 +109,7 @@ RESET PERSIST group_replication_start_on_boot;
 RESET PERSIST group_replication_autorejoin_tries;
 RESET PERSIST group_replication_components_stop_timeout;
 RESET PERSIST local_infile;
+RESET PERSIST group_replication_communication_stack;
 SET sql_log_bin=0;
 call mtr.add_suppression('Member was expelled from the group due to network failures, changing member status to ERROR.');
 call mtr.add_suppression('The server was automatically set into read only mode after an error was detected.');

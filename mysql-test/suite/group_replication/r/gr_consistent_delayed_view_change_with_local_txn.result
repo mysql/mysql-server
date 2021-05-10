@@ -13,6 +13,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET SESSION sql_log_bin= 0;
 CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
 GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 include/start_and_bootstrap_group_replication.inc
@@ -20,6 +21,11 @@ include/start_and_bootstrap_group_replication.inc
 ############################################################
 # 02. Start server2
 [connection server2]
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 
 ############################################################
@@ -57,6 +63,11 @@ CREATE TABLE test.t3 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 ############################################################
 # 08. Start server3
 [connection server3]
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'recovery_user'@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'recovery_user', SOURCE_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -64,6 +75,8 @@ Note	1760	Storing MySQL user name or password information in the master info rep
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server*");
 call mtr.add_suppression("For details please check performance_schema*");
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master");
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 
@@ -157,6 +170,14 @@ server-binary-log.000001	#	Query	#	#	use `test`; CREATE TABLE test.t3 (c1 INT NO
 DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+[connection server2]
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
+[connection server3]
 SET SESSION sql_log_bin= 0;
 DROP USER "recovery_user";
 SET SESSION sql_log_bin= 1;

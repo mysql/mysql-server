@@ -81,6 +81,7 @@ static int init_sock_probe(sock_probe *s) {
     goto err;
   }
 
+  s->interfaces = nullptr;
   if (getifaddrs(&s->interfaces) == -1) {
     goto err;
   }

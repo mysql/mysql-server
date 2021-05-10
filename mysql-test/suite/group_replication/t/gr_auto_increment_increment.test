@@ -43,6 +43,9 @@
 --source include/start_and_bootstrap_group_replication.inc
 
 --connection server3
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin= 1;
 --source include/start_group_replication.inc
 
 --connection server4

@@ -35,6 +35,7 @@
 
 #endif
 
+#include "xcom/network/include/network_provider.h"
 #include "xcom/xcom_proto.h"
 #include "xdr_gen/xcom_vp.h"
 
@@ -49,6 +50,7 @@ struct connection_descriptor {
   con_state connected_;
   unsigned int snd_tag;
   xcom_proto x_proto;
+  enum_transport_protocol protocol_stack;
 };
 
 typedef struct connection_descriptor connection_descriptor;
@@ -81,6 +83,11 @@ static inline int proto_done(connection_descriptor *con) {
 
 static inline void set_connected(connection_descriptor *con, con_state val) {
   con->connected_ = val;
+}
+
+static inline void set_protocol_stack(connection_descriptor *con,
+                                      enum_transport_protocol val) {
+  con->protocol_stack = val;
 }
 
 #endif /* NODE_CONNECTION_H */

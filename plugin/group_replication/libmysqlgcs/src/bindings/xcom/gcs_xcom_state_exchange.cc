@@ -1082,7 +1082,8 @@ Gcs_xcom_view_change_control::Gcs_xcom_view_change_control()
       m_joining_leaving_mutex(),
       m_current_view(nullptr),
       m_current_view_mutex(),
-      m_belongs_to_group(false) {
+      m_belongs_to_group(false),
+      m_finalized(false) {
   m_wait_for_view_cond.init(
       key_GCS_COND_Gcs_xcom_view_change_control_m_wait_for_view_cond);
   m_wait_for_view_mutex.init(
@@ -1222,3 +1223,7 @@ bool Gcs_xcom_view_change_control::is_joining() {
 
   return retval;
 }
+
+void Gcs_xcom_view_change_control::finalize() { m_finalized.store(true); }
+
+bool Gcs_xcom_view_change_control::is_finalized() { return m_finalized.load(); }

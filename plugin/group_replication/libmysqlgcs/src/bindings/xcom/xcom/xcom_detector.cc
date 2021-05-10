@@ -105,7 +105,7 @@ int is_server_connected(struct site_def const *site, node_no node) {
     if (get_nodeno(site) == node) {  // Me to myself... i'm always connected
       retval = 1;
     } else if (node < site->nodes.node_list_len) {
-      retval = is_connected(&site->servers[node]->con);
+      retval = is_connected(site->servers[node]->con);
     }
   }
 

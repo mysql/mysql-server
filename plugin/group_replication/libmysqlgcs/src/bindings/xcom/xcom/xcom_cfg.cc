@@ -50,6 +50,12 @@ void deinit_cfg_app_xcom() {
   the_app_xcom_cfg = NULL;
 }
 
+Network_namespace_manager *cfg_app_get_network_namespace_manager() {
+  Network_namespace_manager *mgr = nullptr;
+  if (the_app_xcom_cfg != NULL) mgr = the_app_xcom_cfg->network_ns_manager;
+  return mgr;
+}
+
 node_address *cfg_app_xcom_get_identity() {
   node_address *identity = NULL;
   if (the_app_xcom_cfg != NULL) identity = the_app_xcom_cfg->identity;

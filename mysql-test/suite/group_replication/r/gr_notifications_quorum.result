@@ -6,6 +6,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 # Adding debug point 'register_gms_listener_example' to @@GLOBAL.debug
 [connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication..");
+SET SESSION sql_log_bin = 1;
 # Adding debug point 'register_gms_listener_example' to @@GLOBAL.debug
 SET SQL_LOG_BIN=0;
 CREATE TABLE test.gms_listener_example(log_message TEXT);

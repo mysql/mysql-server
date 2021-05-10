@@ -54,6 +54,9 @@ class mock_gcs_xcom_view_change_control_interface
   MOCK_METHOD1(set_belongs_to_group, void(bool));
   MOCK_METHOD1(set_unsafe_current_view, void(Gcs_view *));
   MOCK_METHOD0(get_unsafe_current_view, Gcs_view *());
+
+  MOCK_METHOD0(finalize, void());
+  MOCK_METHOD0(is_finalized, bool());
 };
 
 class mock_gcs_xcom_statistics_updater : public Gcs_xcom_statistics_updater {
@@ -149,6 +152,30 @@ class mock_gcs_xcom_proxy : public Gcs_xcom_proxy_base {
   MOCK_METHOD0(xcom_input_try_pop, xcom_input_request_ptr());
 };
 
+class mock_gcs_network_provider_management_interface
+    : public Network_provider_management_interface {
+ public:
+  MOCK_METHOD0(initialize, bool());
+  MOCK_METHOD0(finalize, bool());
+  MOCK_METHOD1(set_running_protocol, void(enum_transport_protocol new_value));
+  MOCK_METHOD1(add_network_provider,
+               void(std::shared_ptr<Network_provider> provider));
+  MOCK_CONST_METHOD0(get_running_protocol, enum_transport_protocol());
+  MOCK_CONST_METHOD0(get_incoming_connections_protocol,
+                     enum_transport_protocol());
+  MOCK_CONST_METHOD0(is_xcom_using_ssl, int());
+  MOCK_METHOD1(xcom_set_ssl_mode, int(int mode));
+  MOCK_METHOD1(xcom_get_ssl_mode, int(const char *mode));
+  MOCK_METHOD0(xcom_get_ssl_mode, int());
+  MOCK_METHOD1(xcom_set_ssl_fips_mode, int(int mode));
+  MOCK_METHOD1(xcom_get_ssl_fips_mode, int(const char *mode));
+  MOCK_METHOD0(xcom_get_ssl_fips_mode, int());
+  MOCK_METHOD0(cleanup_secure_connections_context, void());
+  MOCK_METHOD0(finalize_secure_connections_context, void());
+  MOCK_METHOD0(remove_all_network_provider, void());
+  MOCK_METHOD1(remove_network_provider, void(enum_transport_protocol));
+};
+
 class XComCommunicationTest : public GcsBaseTest {
  protected:
   void SetUp() override {
@@ -164,8 +191,11 @@ class XComCommunicationTest : public GcsBaseTest {
     mock_stats = new mock_gcs_xcom_statistics_updater();
     mock_proxy = new mock_gcs_xcom_proxy();
     mock_vce = new mock_gcs_xcom_view_change_control_interface();
-    xcom_comm_if = new Gcs_xcom_communication(mock_stats, mock_proxy, mock_vce,
-                                              engine, *mock_gid);
+    net_mgr_interface =
+        std::make_unique<mock_gcs_network_provider_management_interface>();
+    xcom_comm_if =
+        new Gcs_xcom_communication(mock_stats, mock_proxy, mock_vce, engine,
+                                   *mock_gid, std::move(net_mgr_interface));
 
     // clang-format off
     xcom_comm_if->get_msg_pipeline().register_stage<Gcs_message_stage_lz4>();
@@ -199,6 +229,8 @@ class XComCommunicationTest : public GcsBaseTest {
   Gcs_xcom_node_address *mock_xcom_address;
   Gcs_xcom_engine *engine;
   Gcs_group_identifier *mock_gid;
+  std::unique_ptr<mock_gcs_network_provider_management_interface>
+      net_mgr_interface;
 };
 
 TEST_F(XComCommunicationTest, SetEventListenerTest) {

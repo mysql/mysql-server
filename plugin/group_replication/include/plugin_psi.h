@@ -126,7 +126,8 @@ extern PSI_mutex_key key_GR_LOCK_applier_module_run,
     key_GR_LOCK_write_lock_protection,
     key_GR_LOCK_primary_promotion_policy,
     key_GR_LOCK_mysql_thread_run,
-    key_GR_LOCK_mysql_thread_dispatcher_run;
+    key_GR_LOCK_mysql_thread_dispatcher_run,
+    key_GR_LOCK_connection_map;
 
 extern PSI_cond_key key_GR_COND_applier_module_run,
     key_GR_COND_applier_module_suspend,

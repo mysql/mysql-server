@@ -53,11 +53,13 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
 --source include/start_group_replication.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+
 --source include/start_group_replication.inc
 
 

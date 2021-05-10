@@ -48,7 +48,10 @@ struct MEM_ROOT;
 extern "C" {
 #endif
 
-extern const char *unknown_sqlstate;
+#ifdef IMPORT_UNKNOWN_SQLSTATE
+__declspec(dllimport)
+#endif
+    extern const char *unknown_sqlstate;
 extern const char *cant_connect_sqlstate;
 extern const char *not_error_sqlstate;
 

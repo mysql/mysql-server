@@ -41,10 +41,14 @@
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
 
 # Create a recovery user without clone privileges.
+SET SESSION sql_log_bin= 0;
 --let $recovery_user= recovery_user
 --let $recovery_password= recovery_password
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 
 # Add some data for recovery
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
@@ -62,13 +66,19 @@ INSERT INTO t1 VALUES (2);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
 --eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
 
 # Deal with server 2 that needs mysql safe
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
-
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 --let $plugin_list= $GROUP_REPLICATION
 --source include/spawn_monitoring_process.inc
 
@@ -77,6 +87,7 @@ INSERT INTO t1 VALUES (2);
 --eval SET PERSIST  group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST  group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST  group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST  group_replication_communication_stack= "$_group_replication_comm_stack"
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
 
@@ -114,6 +125,7 @@ RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 
 DROP TABLE t1;
 --eval DROP USER "$recovery_user"

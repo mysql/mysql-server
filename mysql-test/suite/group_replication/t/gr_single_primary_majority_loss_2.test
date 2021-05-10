@@ -27,6 +27,11 @@
 # Start group replication on all the servers
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
+
 --source include/start_and_bootstrap_group_replication.inc
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 # save this, since it will be used to recover the server later on
@@ -158,6 +163,7 @@ DROP TABLE test.t1;
 set session sql_log_bin=0;
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
 call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 set session sql_log_bin=1;
 
 --source include/group_replication_end.inc

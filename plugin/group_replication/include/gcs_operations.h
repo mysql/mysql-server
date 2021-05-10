@@ -30,10 +30,13 @@
 #include <utility>
 
 #include "plugin/group_replication/include/gcs_logger.h"
+#include "plugin/group_replication/include/gcs_mysql_network_provider.h"
 #include "plugin/group_replication/include/gcs_plugin_messages.h"
 #include "plugin/group_replication/include/gcs_view_modification_notifier.h"
 #include "plugin/group_replication/include/mysql_version_gcs_protocol_map.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_interface.h"
+// TODO::change this for something more elegant
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_provider.h"
 
 class Transaction_message_interface;
 
@@ -326,6 +329,21 @@ class Gcs_operations {
   enum enum_gcs_error set_xcom_cache_size(uint64_t new_size);
 
   /**
+   * @brief Get the current incoming connections protocol stack configured in
+   * GCS
+   *
+   * @return GcsRunningProtocol
+   */
+  enum_transport_protocol get_current_incoming_connections_protocol();
+
+  /**
+   * @brief Get the mysql network provider owned by GCS operations
+   *
+   * @return a Network_provider if initialized and running. nullptr, otherwise.
+   */
+  Gcs_mysql_network_provider *get_mysql_network_provider();
+
+  /**
    * @return the communication engine being used
    */
   static const std::string &get_gcs_engine();
@@ -349,6 +367,16 @@ class Gcs_operations {
 
   static const std::string gcs_engine;
   Gcs_gr_logger_impl gcs_logger;
+
+  /**
+   * External IoC dependencies for gcs_mysql_net_provider.
+   * - A provider for authentication parameters
+   * - A provider for all mysql native methods
+   */
+  Gcs_mysql_network_provider_auth_interface_impl auth_provider;
+  Gcs_mysql_network_provider_native_interface_impl native_interface;
+  std::shared_ptr<Gcs_mysql_network_provider> gcs_mysql_net_provider;
+
   Gcs_interface *gcs_interface;
 
   /** Was this view change injected */

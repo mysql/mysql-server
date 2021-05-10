@@ -282,6 +282,7 @@ FLUSH_TABLES	Server Admin
 FLUSH_USER_RESOURCES	Server Admin	
 File	File access on server	To read and write files on the server
 GROUP_REPLICATION_ADMIN	Server Admin	
+GROUP_REPLICATION_STREAM	Server Admin	
 Grant option	Databases,Tables,Functions,Procedures	To give to other users those privileges you possess
 INNODB_REDO_LOG_ARCHIVE	Server Admin	
 INNODB_REDO_LOG_ENABLE	Server Admin	

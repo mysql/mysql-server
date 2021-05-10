@@ -27,6 +27,7 @@
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stage_split.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_message_stages.h"
 #include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/gcs_xcom_communication_interface.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/network_provider_manager.h"
 
 namespace gcs_message_stage_fragmentation_unittest {
 
@@ -143,12 +144,39 @@ class Mock_gcs_xcom_view_change_control_interface
   MOCK_METHOD1(set_belongs_to_group, void(bool));
   MOCK_METHOD1(set_unsafe_current_view, void(Gcs_view *));
   MOCK_METHOD0(get_unsafe_current_view, Gcs_view *());
+
+  MOCK_METHOD0(finalize, void());
+  MOCK_METHOD0(is_finalized, bool());
 };
 
 class Mock_gcs_communication_event_listener
     : public Gcs_communication_event_listener {
  public:
   MOCK_CONST_METHOD1(on_message_received, void(const Gcs_message &message));
+};
+
+class Mock_gcs_network_provider_management_interface
+    : public Network_provider_management_interface {
+ public:
+  MOCK_METHOD0(initialize, bool());
+  MOCK_METHOD0(finalize, bool());
+  MOCK_METHOD1(set_running_protocol, void(enum_transport_protocol new_value));
+  MOCK_METHOD1(add_network_provider,
+               void(std::shared_ptr<Network_provider> provider));
+  MOCK_CONST_METHOD0(get_running_protocol, enum_transport_protocol());
+  MOCK_CONST_METHOD0(get_incoming_connections_protocol,
+                     enum_transport_protocol());
+  MOCK_CONST_METHOD0(is_xcom_using_ssl, int());
+  MOCK_METHOD1(xcom_set_ssl_mode, int(int mode));
+  MOCK_METHOD1(xcom_get_ssl_mode, int(const char *mode));
+  MOCK_METHOD0(xcom_get_ssl_mode, int());
+  MOCK_METHOD1(xcom_set_ssl_fips_mode, int(int mode));
+  MOCK_METHOD1(xcom_get_ssl_fips_mode, int(const char *mode));
+  MOCK_METHOD0(xcom_get_ssl_fips_mode, int());
+  MOCK_METHOD0(cleanup_secure_connections_context, void());
+  MOCK_METHOD0(finalize_secure_connections_context, void());
+  MOCK_METHOD0(remove_all_network_provider, void());
+  MOCK_METHOD1(remove_network_provider, void(enum_transport_protocol));
 };
 
 class GcsMessageStageFragmentationTest : public GcsBaseTest {
@@ -159,8 +187,14 @@ class GcsMessageStageFragmentationTest : public GcsBaseTest {
   Mock_gcs_xcom_statistics_updater m_mock_stats;
   Mock_gcs_xcom_proxy m_mock_proxy;
   Mock_gcs_xcom_view_change_control_interface m_mock_vce;
-  Gcs_xcom_communication m_xcom_comm_if{&m_mock_stats, &m_mock_proxy,
-                                        &m_mock_vce, &m_engine, m_mock_gid};
+
+  Gcs_xcom_communication m_xcom_comm_if{
+      &m_mock_stats,
+      &m_mock_proxy,
+      &m_mock_vce,
+      &m_engine,
+      m_mock_gid,
+      std::make_unique<Mock_gcs_network_provider_management_interface>()};
   Gcs_message_stage_split_v2 *m_fragmentation_stage{nullptr};
 
  public:

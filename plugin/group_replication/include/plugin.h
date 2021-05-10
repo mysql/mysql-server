@@ -230,6 +230,7 @@ int get_flow_control_period_var();
 int get_flow_control_hold_percent_var();
 int get_flow_control_release_percent_var();
 ulong get_components_stop_timeout_var();
+ulong get_communication_stack_var();
 void set_error_state_due_to_error_during_autorejoin();
 bool get_error_state_due_to_error_during_autorejoin();
 
@@ -253,6 +254,7 @@ bool plugin_get_group_member_stats(
     uint index,
     const GROUP_REPLICATION_GROUP_MEMBER_STATS_CALLBACKS &callbacks);
 uint plugin_get_group_members_number();
+int plugin_group_replication_leave_group();
 
 /**
   Method to set retrieved certification info from a recovery channel extracted

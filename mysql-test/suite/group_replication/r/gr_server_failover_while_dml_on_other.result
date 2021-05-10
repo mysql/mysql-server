@@ -4,6 +4,9 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
 [connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 CREATE TABLE t1(a int primary key);
 include/rpl_sync.inc
 CREATE PROCEDURE dml_operations()
@@ -31,6 +34,9 @@ set sql_log_bin=1;
 # restarting
 include/rpl_reconnect.inc
 [connection server3]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 # check that there are 2 members in the group
 include/rpl_gr_wait_for_number_of_members.inc
 [connection server2]

@@ -9,7 +9,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # 1. Set max_connections to the value of current connections.
 [connection server1]
 SET @max_connections_saved = @@GLOBAL.max_connections;
-SET @@GLOBAL.max_connections= CURRENT_CONNECTIONS;
+SET @@GLOBAL.max_connections= (CURRENT_CONNECTIONS + 2);
 include/assert.inc [max_connections must be the value of current connections]
 # 2. Start Group Replication, the connections established
 #    through SQL API must not be disallowed due to

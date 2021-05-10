@@ -53,24 +53,6 @@
 #define NR_GETADDRINFO_ATTEMPTS 10
 
 /**
- * Wrapper function which retries and checks errors from socket
- */
-result xcom_checked_socket(int domain, int type, int protocol) {
-  result ret = {0, 0};
-  int retry = 1000;
-  do {
-    SET_OS_ERR(0);
-    ret.val = (int)socket(domain, type, protocol);
-    ret.funerr = to_errno(GET_OS_ERR);
-  } while (--retry && ret.val == -1 && (from_errno(ret.funerr) == SOCK_EAGAIN));
-  if (ret.val == -1) {
-    task_dump_err(ret.funerr);
-    /* abort(); */
-  }
-  return ret;
-}
-
-/**
  * Wrapper function which retries and checks errors from getaddrinfo
  *
  * We have observed that getaddrinfo returns EAI_AGAIN when called with an

@@ -53,6 +53,7 @@
 # Skip configuration of recovery channel
 
 --source include/big_test.inc
+--source include/have_group_replication_xcom_communication_stack.inc
 --let $skip_recovery_configuration = 1
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1

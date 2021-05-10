@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2013, 2021, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -119,6 +119,18 @@ static void set_member_role(void *const context, const char &value,
   memcpy(row->member_role, &value, length);
 }
 
+static void set_member_incoming_communication_protocol(void *const context,
+                                                       const char &value,
+                                                       size_t length) {
+  struct st_row_group_members *row =
+      static_cast<struct st_row_group_members *>(context);
+  const size_t max = NAME_LEN;
+  length = std::min(length, max);
+
+  row->member_incoming_communication_protocol_length = length;
+  memcpy(row->member_incoming_communication_protocol, &value, length);
+}
+
 THR_LOCK table_replication_group_members::m_table_lock;
 
 Plugin_table table_replication_group_members::m_table_def(
@@ -133,7 +145,9 @@ Plugin_table table_replication_group_members::m_table_def(
     "  MEMBER_PORT INTEGER,\n"
     "  MEMBER_STATE CHAR(64) collate utf8mb4_bin not null,\n"
     "  MEMBER_ROLE CHAR(64) collate utf8mb4_bin not null,\n"
-    "  MEMBER_VERSION CHAR(64) collate utf8mb4_bin not null\n",
+    "  MEMBER_VERSION CHAR(64) collate utf8mb4_bin not null,\n"
+    "  MEMBER_INCOMING_COMMUNICATION_PROTOCOL CHAR(64) collate utf8mb4_bin not "
+    "null\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
@@ -207,12 +221,19 @@ int table_replication_group_members::make_row(uint index) {
   m_row.member_state_length = 0;
   m_row.member_version_length = 0;
   m_row.member_role_length = 0;
+  m_row.member_incoming_communication_protocol_length = 0;
 
   // Set callbacks on GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS.
   const GROUP_REPLICATION_GROUP_MEMBERS_CALLBACKS callbacks = {
-      &m_row,           &set_channel_name,   &set_member_id,
-      &set_member_host, &set_member_port,    &set_member_state,
-      &set_member_role, &set_member_version,
+      &m_row,
+      &set_channel_name,
+      &set_member_id,
+      &set_member_host,
+      &set_member_port,
+      &set_member_state,
+      &set_member_role,
+      &set_member_version,
+      &set_member_incoming_communication_protocol,
   };
 
   // Query plugin and let callbacks do their job.
@@ -261,6 +282,11 @@ int table_replication_group_members::read_row_values(TABLE *table,
         case 6: /** member_version */
           set_field_char_utf8(f, m_row.member_version,
                               m_row.member_version_length);
+          break;
+        case 7: /** member_incoming_protocol */
+          set_field_char_utf8(
+              f, m_row.member_incoming_communication_protocol,
+              m_row.member_incoming_communication_protocol_length);
           break;
         default:
           assert(false);

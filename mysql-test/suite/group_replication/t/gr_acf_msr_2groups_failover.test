@@ -29,6 +29,8 @@
 --let $rpl_server_count= 7
 --source include/group_replication.inc
 
+#check which stack are we using
+--let $have_xcom_stack= `SELECT @@group_replication_communication_stack LIKE 'XCOM'`
 
 --echo
 --echo ############################################################
@@ -39,7 +41,12 @@
 --let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 --let $group_a= $group_replication_group_name
 --disable_query_log
---eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_1,localhost:$SERVER_GR_PORT_2,localhost:$SERVER_GR_PORT_3"
+if ($have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_1,localhost:$SERVER_GR_PORT_2,localhost:$SERVER_GR_PORT_3"
+}
+if (!$have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_MYPORT_1,localhost:$SERVER_MYPORT_2,localhost:$SERVER_MYPORT_3"
+}
 --enable_query_log
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -47,7 +54,12 @@
 --source include/rpl_connection.inc
 --let $server2_uuid= `SELECT @@server_uuid`
 --disable_query_log
---eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_1,localhost:$SERVER_GR_PORT_2,localhost:$SERVER_GR_PORT_3"
+if ($have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_1,localhost:$SERVER_GR_PORT_2,localhost:$SERVER_GR_PORT_3"
+}
+if (!$have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_MYPORT_1,localhost:$SERVER_MYPORT_2,localhost:$SERVER_MYPORT_3"
+}
 --enable_query_log
 SET GLOBAL group_replication_member_weight=99;
 --source include/start_group_replication.inc
@@ -56,7 +68,12 @@ SET GLOBAL group_replication_member_weight=99;
 --source include/rpl_connection.inc
 --let $server3_uuid= `SELECT @@server_uuid`
 --disable_query_log
---eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_1,localhost:$SERVER_GR_PORT_2,localhost:$SERVER_GR_PORT_3"
+if ($have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_1,localhost:$SERVER_GR_PORT_2,localhost:$SERVER_GR_PORT_3"
+}
+if (!$have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_MYPORT_1,localhost:$SERVER_MYPORT_2,localhost:$SERVER_MYPORT_3"
+}
 --enable_query_log
 --source include/start_group_replication.inc
 
@@ -70,7 +87,12 @@ SET GLOBAL group_replication_member_weight=99;
 --let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
 --let $group_b= $group_replication_group_name
 --disable_query_log
---eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_4,localhost:$SERVER_GR_PORT_5,localhost:$SERVER_GR_PORT_6"
+if ($have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_4,localhost:$SERVER_GR_PORT_5,localhost:$SERVER_GR_PORT_6"
+}
+if (!$have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_MYPORT_4,localhost:$SERVER_MYPORT_5,localhost:$SERVER_MYPORT_6"
+}
 --enable_query_log
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -78,7 +100,12 @@ SET GLOBAL group_replication_member_weight=99;
 --source include/rpl_connection.inc
 --let $server5_uuid= `SELECT @@server_uuid`
 --disable_query_log
---eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_4,localhost:$SERVER_GR_PORT_5,localhost:$SERVER_GR_PORT_6"
+if ($have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_4,localhost:$SERVER_GR_PORT_5,localhost:$SERVER_GR_PORT_6"
+}
+if (!$have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_MYPORT_4,localhost:$SERVER_MYPORT_5,localhost:$SERVER_MYPORT_6"
+}
 --enable_query_log
 SET GLOBAL group_replication_member_weight=99;
 --source include/start_group_replication.inc
@@ -87,7 +114,12 @@ SET GLOBAL group_replication_member_weight=99;
 --source include/rpl_connection.inc
 --let $server6_uuid= `SELECT @@server_uuid`
 --disable_query_log
---eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_4,localhost:$SERVER_GR_PORT_5,localhost:$SERVER_GR_PORT_6"
+if ($have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_4,localhost:$SERVER_GR_PORT_5,localhost:$SERVER_GR_PORT_6"
+}
+if (!$have_xcom_stack){
+  --eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_MYPORT_4,localhost:$SERVER_MYPORT_5,localhost:$SERVER_MYPORT_6"
+}
 --enable_query_log
 --source include/start_group_replication.inc
 

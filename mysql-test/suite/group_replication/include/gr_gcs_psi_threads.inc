@@ -38,15 +38,25 @@ SELECT * FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
 --echo # 2. Start the GR
 --source include/start_and_bootstrap_group_replication.inc
 
+let $have_xcom_stack= `SELECT @@group_replication_communication_stack LIKE 'XCOM'`;
+--let $rpl_gcs_number_of_threads=
+if ($have_xcom_stack)
+{
+  --let $rpl_gcs_number_of_threads= 4
+}
+if (!$have_xcom_stack)
+{
+  --let $rpl_gcs_number_of_threads= 4
+}
+
 --echo
 --echo ############################################################
 --echo # 3. Verify that the entries corresponding to the
 --echo #    instrumented GCS threads are in the threads table
 --echo #    after starting the GR.
 --sorted_result
-SELECT NAME,TYPE FROM performance_schema.threads WHERE NAME LIKE '%THD_Gcs_%';
---let $assert_text= 'There should be 4 GCS instrumented thread entries in the threads table after starting the GR'
---let $assert_cond= COUNT(*) = 4 FROM performance_schema.threads WHERE NAME LIKE "%THD_Gcs_%"
+--let $assert_text= 'There should be $rpl_gcs_number_of_threads GCS instrumented thread entries in the threads table after starting the GR'
+--let $assert_cond= COUNT(*) = $rpl_gcs_number_of_threads FROM performance_schema.threads WHERE NAME LIKE "%THD_Gcs_%"
 --source include/assert.inc
 
 --echo

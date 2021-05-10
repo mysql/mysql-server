@@ -43,7 +43,18 @@ call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communic
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
 call mtr.add_suppression("\\[GCS\\] read failed");
 call mtr.add_suppression("The plugin encountered a critical error and will abort: This member could not reach a majority of the members.");
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SESSION sql_log_bin = 1;
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+SET SESSION sql_log_bin = 0;
+# Supress log errors since they are expected.
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
 
 # Get address, seeds and UUID of all servers
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
@@ -68,6 +79,11 @@ SET SESSION sql_log_bin = 1;
 # Crash server 2
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin= 1;
+
 --enable_reconnect
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
 --shutdown_server 0

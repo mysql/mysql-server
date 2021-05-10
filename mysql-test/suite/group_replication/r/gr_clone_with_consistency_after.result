@@ -54,6 +54,7 @@ RESET PERSIST group_replication_local_address;
 RESET PERSIST group_replication_group_seeds;
 RESET PERSIST group_replication_start_on_boot;
 RESET PERSIST group_replication_consistency;
+RESET PERSIST group_replication_communication_stack;
 SET GLOBAL group_replication_start_on_boot= START_ON_BOOT_VALUE;
 SET GLOBAL group_replication_consistency = GROUP_REPLICATION_CONSISTENCY;
 SET GLOBAL group_replication_clone_threshold= GROUP_REPLICATION_CLONE_THRESHOLD;

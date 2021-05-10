@@ -31,6 +31,7 @@
 SET sql_log_bin=0;
 CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'manish'@'%';
 FLUSH PRIVILEGES;
 SET sql_log_bin=1;
 
@@ -73,6 +74,13 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHA
 --let $assert_cond= `SELECT COUNT(*) = 1 FROM mysql.slave_master_info WHERE User_name LIKE 'manish'`
 --source include/assert.inc
 
+SET sql_log_bin=0;
+CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'manish'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+
 --source include/start_group_replication.inc
 
 --echo # Ensuring the the two members are online.
@@ -89,4 +97,10 @@ DROP TABLE t1;
 SET sql_log_bin=0;
 DROP USER manish;
 SET sql_log_bin=1;
+
+--connection server2
+SET sql_log_bin=0;
+DROP USER manish;
+SET sql_log_bin=1;
+
 --source include/group_replication_end.inc

@@ -10,6 +10,8 @@ SET @@GLOBAL.DEBUG= @debug_save;
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("Timeout on wait for view after joining group");
 call mtr.add_suppression("While leaving the group due to a stop, shutdown or failure there was a timeout receiving a view change. This can lead to a possible inconsistent state. Check the log for more details");
+call mtr.add_suppression("Timeout while waiting for the group communication engine to exit*.*");
+call mtr.add_suppression("The member has failed to gracefully leave the group*.*");
 SET SESSION sql_log_bin= 1;
 SET @@GLOBAL.DEBUG='+d,group_replication_force_view_modification_timeout';
 START GROUP_REPLICATION;

@@ -390,6 +390,10 @@ SET GLOBAL group_replication_flow_control_max_quota= 0;
 --echo #    Group Replication is running.
 --source include/start_and_bootstrap_group_replication.inc
 
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
+
 SET GLOBAL group_replication_flow_control_mode= DISABLED;
 --let $assert_text= group_replication_flow_control_mode is correct
 --let $assert_cond= "[SELECT @@GLOBAL.group_replication_flow_control_mode]" = "DISABLED"
@@ -456,6 +460,7 @@ SET GLOBAL group_replication_flow_control_release_percent= 150;
 --source include/start_group_replication.inc
 
 set session sql_log_bin=0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 CALL mtr.add_suppression("group_replication_flow_control_min_quota cannot be larger than group_replication_flow_control_max_quota");
 CALL mtr.add_suppression("group_replication_flow_control_min_recovery_quota cannot be larger than group_replication_flow_control_max_quota");
 CALL mtr.add_suppression("group_replication_flow_control_max_quota cannot be smaller than group_replication_flow_control_min_quota or group_replication_flow_control_min_recovery_quota");

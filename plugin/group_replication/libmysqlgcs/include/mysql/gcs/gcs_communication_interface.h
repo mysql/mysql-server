@@ -29,6 +29,8 @@
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_message.h"
 #include "plugin/group_replication/libmysqlgcs/include/mysql/gcs/gcs_types.h"
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/include/network_provider.h"
+
 /**
   @class Gcs_communication_interface
 
@@ -168,6 +170,20 @@ class Gcs_communication_interface {
    */
   virtual Gcs_protocol_version get_maximum_supported_protocol_version()
       const = 0;
+
+  /**
+   * @brief Sets the communication protocol to use
+   *
+   * @param protocol the protocol to use
+   */
+  virtual void set_communication_protocol(enum_transport_protocol protocol) = 0;
+
+  /**
+   * @brief Get the incoming connections protocol which is currently active
+   *
+   * @return GcsRunningProtocol
+   */
+  virtual enum_transport_protocol get_incoming_connections_protocol() = 0;
 
   virtual ~Gcs_communication_interface() = default;
 };

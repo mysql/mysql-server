@@ -13,6 +13,7 @@
 # 4. Clean up.
 ################################################################################
 
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -94,10 +95,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_repli
 --echo # Clean up
 --echo #
 
+--disable_query_log
 --eval SET @@GLOBAL.group_replication_recovery_use_ssl= $conf_rec_use_ssl
 --eval SET @@GLOBAL.group_replication_recovery_ssl_ca= "$conf_rec_ssl_ca"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_cert= "$conf_rec_ssl_cert"
 --eval SET @@GLOBAL.group_replication_recovery_ssl_key= "$conf_rec_ssl_key"
+--enable_query_log
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

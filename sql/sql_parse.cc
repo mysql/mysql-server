@@ -248,6 +248,7 @@ const LEX_CSTRING command_name[] = {
     {STRING_WITH_LEN("Binlog Dump GTID")},
     {STRING_WITH_LEN("Reset Connection")},
     {STRING_WITH_LEN("clone")},
+    {STRING_WITH_LEN("Group Replication Data Stream subscription")},
     {STRING_WITH_LEN("Error")}  // Last command number
 };
 
@@ -1466,6 +1467,43 @@ static void check_secondary_engine_statement(THD *thd,
                                    query_length);
 }
 
+/*Reference to the GR callback that receives incoming connections*/
+static std::atomic<gr_incoming_connection_cb> com_incoming_gr_stream_cb;
+
+void set_gr_incoming_connection(gr_incoming_connection_cb x) {
+  com_incoming_gr_stream_cb.store(x);
+}
+
+gr_incoming_connection_cb get_gr_incoming_connection() {
+  gr_incoming_connection_cb retval = nullptr;
+  retval = com_incoming_gr_stream_cb.load();
+  return retval;
+}
+
+void call_gr_incoming_connection_cb(THD *thd, int fd, SSL *ssl_ctx) {
+  gr_incoming_connection_cb gr_connection_callback =
+      get_gr_incoming_connection();
+
+  if (gr_connection_callback) {
+    gr_connection_callback(thd, fd, ssl_ctx);
+
+    PSI_stage_info saved_stage;
+    mysql_mutex_lock(&thd->LOCK_group_replication_connection_mutex);
+    thd->ENTER_COND(&thd->COND_group_replication_connection_cond_var,
+                    &thd->LOCK_group_replication_connection_mutex,
+                    &stage_communication_delegation, &saved_stage);
+    while (thd->is_killed() == THD::NOT_KILLED) {
+      struct timespec abstime;
+      set_timespec(&abstime, 1);
+      mysql_cond_timedwait(&thd->COND_group_replication_connection_cond_var,
+                           &thd->LOCK_group_replication_connection_mutex,
+                           &abstime);
+    }
+    mysql_mutex_unlock(&thd->LOCK_group_replication_connection_mutex);
+    thd->EXIT_COND(&saved_stage);
+  }
+}
+
 /**
   Deep copy the name and value of named parameters into the THD memory.
 
@@ -1684,6 +1722,25 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
 
       thd->lex->m_sql_cmd = clone_cmd;
       thd->lex->sql_command = SQLCOM_CLONE;
+
+      break;
+    }
+    case COM_SUBSCRIBE_GROUP_REPLICATION_STREAM: {
+      Security_context *sctx = thd->security_context();
+      if (!sctx->has_global_grant(STRING_WITH_LEN("GROUP_REPLICATION_STREAM"))
+               .first) {
+        my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "");
+        error = true;
+        break;
+      }
+
+      if (!error && get_gr_incoming_connection() == nullptr) {
+        my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+        error = true;
+        break;
+      }
+
+      my_ok(thd);
 
       break;
     }
@@ -2229,6 +2286,13 @@ done:
   if (clone_cmd != nullptr) {
     assert(command == COM_CLONE);
     error = clone_cmd->execute_server(thd);
+  }
+
+  if (command == COM_SUBSCRIBE_GROUP_REPLICATION_STREAM && !error) {
+    call_gr_incoming_connection_cb(
+        thd, thd->active_vio->mysql_socket.fd,
+        thd->active_vio->ssl_arg ? static_cast<SSL *>(thd->active_vio->ssl_arg)
+                                 : nullptr);
   }
 
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);

@@ -11,6 +11,7 @@
 # 4. Clean up.
 ################################################################################
 --source include/big_test.inc
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
@@ -90,7 +91,7 @@ while ( $varid <= $countvars )
 --source include/assert.inc
 
 #  TODO: Update this once Bug#27322592 is FIXED.
---let $persisted_variables = 49
+--let $persisted_variables = 50
 --let $assert_text= 'Expect $persisted_variables persisted variables with matching persisted and global values.'
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $persisted_variables
 --source include/assert.inc

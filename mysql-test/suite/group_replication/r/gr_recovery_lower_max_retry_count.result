@@ -7,6 +7,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 # 1. Bootstrap start a group on M1.
 
 [connection server1]
+SET sql_log_bin=0;
+CREATE USER 'user_with_no_priv_s1'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'user_with_no_priv_s1'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
 
 # 2. Setup environment to fail donor connection and start GR on M2.
@@ -17,7 +22,12 @@ include/start_and_bootstrap_group_replication.inc
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @recovery_reconnect_interval_save= @@GLOBAL.GROUP_REPLICATION_RECOVERY_RECONNECT_INTERVAL;
 SET @recovery_retry_count_save= @@GLOBAL.group_replication_recovery_retry_count;
-CHANGE REPLICATION SOURCE TO SOURCE_USER="user_does_not_exist" FOR CHANNEL "group_replication_recovery";
+SET sql_log_bin=0;
+CREATE USER 'user_with_no_priv_s1'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'user_with_no_priv_s1'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER="user_with_no_priv_s1" FOR CHANNEL "group_replication_recovery";
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");
@@ -46,4 +56,12 @@ include/assert_grep.inc [Recovery process aborted.]
 SET @@GLOBAL.DEBUG= @debug_save;
 SET @@GLOBAL.GROUP_REPLICATION_RECOVERY_RECONNECT_INTERVAL= @recovery_reconnect_interval_save;
 SET @@GLOBAL.group_replication_recovery_retry_count= @recovery_retry_count_save;
+SET sql_log_bin=0;
+SET GLOBAL super_read_only = 0;
+DROP USER user_with_no_priv_s1;
+SET sql_log_bin=1;
+SET sql_log_bin=0;
+SET GLOBAL super_read_only = 0;
+DROP USER user_with_no_priv_s1;
+SET sql_log_bin=1;
 include/group_replication_end.inc

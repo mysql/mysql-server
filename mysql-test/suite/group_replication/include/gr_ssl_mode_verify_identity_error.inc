@@ -18,6 +18,8 @@
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
+#check which stack are we using
+--let $have_mysql_stack= `SELECT @@group_replication_communication_stack LIKE 'MySQL'`
 
 --echo
 --echo ############################################################
@@ -60,13 +62,21 @@ START GROUP_REPLICATION;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
---let $assert_text= Check that Group Replication errors out when a certificate with a wrong hostname is provided
---let $assert_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
---let $assert_only_after= XCom initialized and ready to accept incoming connections
---let $assert_select= Failed to verify the server certificate via X509 certificate matching functions
---let $assert_count= 1
---source include/assert_grep.inc
+if(!$have_mysql_stack) {
+  --let $have_windows = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32", "Win64", "Windows")`
 
+  --let $assert_count_for_test=1
+  if($have_windows) {
+    --let $assert_count_for_test=2
+  }
+
+  --let $assert_text= Check that Group Replication errors out when a certificate with a wrong hostname is provided
+  --let $assert_file= $MYSQLTEST_VARDIR/tmp/group_replication_ssl_mode_verify_identity_error.2.err
+  --let $assert_only_after= XCom initialized and ready to accept incoming connections
+  --let $assert_select= Failed to verify the server certificate via X509 certificate matching functions
+  --let $assert_count= $assert_count_for_test
+  --source include/assert_grep.inc
+}
 
 --echo
 --echo ############################################################

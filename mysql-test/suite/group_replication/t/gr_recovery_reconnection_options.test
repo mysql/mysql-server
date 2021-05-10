@@ -57,6 +57,8 @@ INSERT INTO t1 VALUES (1);
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor*");
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 SET SESSION sql_log_bin= 1;
 
@@ -132,6 +134,27 @@ SET GLOBAL group_replication_recovery_retry_count= 31536001;
 --echo # After 10 second it should still be recovering, as the process is sleeping
 --echo #
 
+--connection server1
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+--connection server2
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
+--connection server3
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"@'%';
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
+
 --disable_warnings
 --eval CHANGE REPLICATION SOURCE TO SOURCE_USER="$recovery_user", SOURCE_PASSWORD="$recovery_password" FOR CHANNEL 'group_replication_recovery'
 --enable_warnings
@@ -152,14 +175,12 @@ SET GLOBAL group_replication_recovery_retry_count= 31536001;
 
 --connection server1
 SET SESSION sql_log_bin= 0;
---eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
 --connection server2
 SET SESSION sql_log_bin= 0;
---eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
@@ -182,6 +203,10 @@ SET SESSION sql_log_bin= 1;
 
 SET @@GLOBAL.group_replication_recovery_reconnect_interval= @debug_save_rec_int;
 SET @@GLOBAL.group_replication_recovery_retry_count= @debug_save_retries;
+
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
 
 DROP TABLE t1;
 

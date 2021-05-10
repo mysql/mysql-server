@@ -223,6 +223,8 @@ bool dynamic_privilege_init(void) {
       ret +=
           service->register_privilege(STRING_WITH_LEN("FLUSH_USER_RESOURCES"));
       ret += service->register_privilege(STRING_WITH_LEN("FLUSH_TABLES"));
+      ret += service->register_privilege(
+          STRING_WITH_LEN("GROUP_REPLICATION_STREAM"));
     }
   }  // exist scope
   mysql_plugin_registry_release(r);

@@ -37,6 +37,7 @@ SET SESSION sql_log_bin=0;
 call mtr.add_suppression("Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("The member has failed to gracefully leave the group.");
 call mtr.add_suppression("read failed");
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SESSION sql_log_bin=1;
 
 INSERT INTO t1 VALUES(1);

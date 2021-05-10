@@ -32,6 +32,10 @@
 --let $rpl_skip_group_replication_start= 1
 --source include/group_replication.inc
 
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
+
 --source include/start_and_bootstrap_group_replication.inc
 
 --echo
@@ -44,6 +48,10 @@ SELECT group_replication_switch_to_multi_primary_mode();
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 
 --echo
 --echo # 2. Executing a mode change or primary election on an OFFLINE member

@@ -35,6 +35,10 @@ SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
 
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
+
 --source include/start_and_bootstrap_group_replication.inc
 
 --let $rpl_connection_name= server2
@@ -43,6 +47,10 @@ SET sql_log_bin=1;
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 
 --source include/start_group_replication.inc
 
@@ -68,6 +76,11 @@ while ($i < 100)
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
+
 LOCK TABLES t1 READ;
 
 --let $rpl_connection_name= server_3

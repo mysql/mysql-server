@@ -5,16 +5,25 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 
 # 1. Members in Multi Primary Mode, create two tables and rpl_sync
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 CREATE TABLE test.t2 (a INT PRIMARY KEY);
 include/rpl_sync.inc
 
 # 2. On a member server2  that will be secondary lock a table t1
 [connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 LOCK TABLE t1 READ;
 
 # 3. On other member insert value on table locked on server2
 [connection server_3]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 SET @@GLOBAL.group_replication_member_weight= 90;
 INSERT INTO t1 VALUES (1);
 [connection server_2]

@@ -76,7 +76,6 @@ SET(XCOM_SOURCES
   src/bindings/xcom/xcom/xcom_statistics.cc
   src/bindings/xcom/xcom/app_data.cc
   src/bindings/xcom/xcom/site_def.cc
-  src/bindings/xcom/xcom/xcom_ssl_transport.cc
   src/bindings/xcom/xcom/xcom_recover.cc
   src/bindings/xcom/xcom/task.cc
   src/bindings/xcom/xcom/bitset.cc
@@ -93,6 +92,10 @@ SET(XCOM_SOURCES
   src/bindings/xcom/xcom/get_synode_app_data.cc
   src/bindings/xcom/xcom/checked_data.cc
   src/bindings/xcom/xcom/xdr_checked_data.c
+  src/bindings/xcom/xcom/network/network_provider_manager.cc
+  src/bindings/xcom/xcom/network/xcom_network_provider.cc
+  src/bindings/xcom/xcom/network/xcom_network_provider_native_lib.cc
+  src/bindings/xcom/xcom/network/xcom_network_provider_ssl_native_lib.cc
   ${XCOM_SUNRPC_SOURCES}
   ${XCOM_RPCGEN_SOURCES})
 

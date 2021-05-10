@@ -114,7 +114,6 @@ TEST_F(ClusterMemberInfoTest, EncodeDecodeIdempotencyTest) {
             decoded_local_node.get_member_weight());
   ASSERT_EQ(local_node->get_view_change_uuid(),
             decoded_local_node.get_view_change_uuid());
-
   delete encoded;
 }
 

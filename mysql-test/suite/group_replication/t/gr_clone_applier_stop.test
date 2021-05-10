@@ -59,6 +59,7 @@ INSERT INTO t1 values (2);
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 
 --let $plugin_list= $GROUP_REPLICATION
 --source include/spawn_monitoring_process.inc
@@ -67,6 +68,7 @@ INSERT INTO t1 values (2);
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
 --replace_result $CLONE_PLUGIN CLONE_PLUGIN
@@ -244,12 +246,14 @@ call mtr.add_suppression("Due to some issue on the previous step distributed rec
 call mtr.add_suppression("Timeout while waiting for the group communication engine to be ready!");
 call mtr.add_suppression("The group communication engine is not ready for the member to join. .*");
 call mtr.add_suppression("The member was unable to join the group.*");
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 set session sql_log_bin=1;
 
 RESET PERSIST group_replication_group_name;
 RESET PERSIST group_replication_local_address;
 RESET PERSIST group_replication_group_seeds;
 RESET PERSIST group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 
 --source include/clean_monitoring_process.inc
 --source include/group_replication_end.inc

@@ -67,6 +67,8 @@ struct st_row_group_members {
   uint member_role_length;
   char member_version[NAME_LEN];
   uint member_version_length;
+  char member_incoming_communication_protocol[NAME_LEN];
+  uint member_incoming_communication_protocol_length;
 };
 
 /** Table PERFORMANCE_SCHEMA.replication_group_members. */

@@ -36,12 +36,18 @@ include/assert.inc [Relay log repository info storage is set to file]
 include/assert.inc [Master info repository info storage is set to file]
 START GROUP_REPLICATION;
 ERROR HY000: The server is not configured properly to be an active member of the group. Please see more details on error log.
+SET sql_log_bin=0;
+CREATE USER 'internal_usr'@'%' IDENTIFIED BY 'unique_password';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'internal_usr'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
 SET @@GLOBAL.relay_log_info_repository='TABLE';
 Warnings:
 Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@GLOBAL.master_info_repository='TABLE';
 Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
+CHANGE MASTER TO MASTER_USER='internal_usr', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
 SET @@GLOBAL.master_info_repository='FILE';
 ERROR HY000: Failure while changing the type of replication repository: Repository conversion is possible when only default channel exists.
@@ -56,3 +62,6 @@ Warnings:
 Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 call mtr.add_suppression("Master info repository must be set to TABLE.");
 call mtr.add_suppression("Relay log info repository must be set to TABLE.");
+SET sql_log_bin=0;
+DROP USER 'internal_usr';
+SET sql_log_bin=1;

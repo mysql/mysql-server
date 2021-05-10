@@ -34,6 +34,10 @@
 --echo
 --echo # 1. Create table for tests on a multi primary group
 
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
+
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
 --source include/rpl_sync.inc
@@ -49,6 +53,10 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 
 SET @@GLOBAL.group_replication_member_weight= 90;
 
@@ -115,9 +123,10 @@ LOCK TABLE t1 READ;
 
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 
---replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
---let $restart_parameters=restart:--group-replication-start-on-boot=0 --group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS $_group_replication_comm_stack GROUP_REPLICATION_COMMUNICATION_STACK
+--let $restart_parameters=restart:--group-replication-start-on-boot=0 --group-replication-group-name=$group_replication_group_name --group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds  --group_replication_single_primary_mode=TRUE --group_replication_enforce_update_everywhere_checks=FALSE --group_replication_communication_stack=$_group_replication_comm_stack
 --source include/kill_and_restart_mysqld.inc
 
 --let $rpl_server_number= 3

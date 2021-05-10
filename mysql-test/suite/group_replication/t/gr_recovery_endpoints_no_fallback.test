@@ -71,6 +71,8 @@ INSERT INTO test.t1 (b) VALUES (2);
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $_group_replication_start_on_boot= `SELECT @@GLOBAL.group_replication_start_on_boot`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+
 
 --let $plugin_list= $GROUP_REPLICATION
 --let $mysqld_extra_settings= --log_error=$MYSQLTEST_VARDIR/tmp/gr_recovery_endpoints_no_fallback.2.err
@@ -87,6 +89,7 @@ SET GLOBAL group_replication_recovery_retry_count= 2;
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
@@ -182,6 +185,7 @@ RESET PERSIST IF EXISTS group_replication_group_name;
 RESET PERSIST IF EXISTS group_replication_local_address;
 RESET PERSIST IF EXISTS group_replication_group_seeds;
 RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 
 --replace_result $_group_replication_start_on_boot START_ON_BOOT_VALUE
 --eval SET GLOBAL group_replication_start_on_boot= $_group_replication_start_on_boot

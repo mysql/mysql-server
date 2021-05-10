@@ -44,7 +44,12 @@ int group_replication_after_engine_recovery(Server_state_param *) { return 0; }
 
 int group_replication_after_recovery(Server_state_param *) { return 0; }
 
-int group_replication_before_server_shutdown(Server_state_param *) { return 0; }
+int group_replication_before_server_shutdown(Server_state_param *) {
+  enable_server_shutdown_status();
+  plugin_group_replication_leave_group();
+
+  return 0;
+}
 
 int group_replication_after_dd_upgrade(Server_state_param *) { return 0; }
 

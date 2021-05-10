@@ -5,13 +5,22 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 
 # 1. Server1 start, bootstrap the group and create table test.t1
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
 # 2. Start server2 and server3
 [connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 include/start_group_replication.inc
 [connection server3]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 include/start_group_replication.inc
 
 # 3. Begin a transaction on server1

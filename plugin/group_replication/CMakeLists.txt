@@ -43,6 +43,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/delayed_plugin_initialization.cc
   src/gcs_event_handlers.cc
   src/gcs_logger.cc
+  src/gcs_mysql_network_provider.cc
   src/gcs_operations.cc
   src/gcs_plugin_messages.cc
   src/gcs_view_modification_notifier.cc
@@ -137,10 +138,14 @@ IF(WITH_UNIT_TESTS)
     src/member_version.cc
     src/compatibility_module.cc
     src/mysql_version_gcs_protocol_map.cc
+    src/gcs_mysql_network_provider.cc
+    src/replication_threads_api.cc
+    src/plugin_psi.cc
   )
   SET_TARGET_PROPERTIES(gr_unit_test_resource
     PROPERTIES COMPILE_DEFINITIONS "DISABLE_PSI_MUTEX"
     )
+  ADD_DEPENDENCIES(gr_unit_test_resource GenError)
 ENDIF()
 
 ADD_COMPILE_FLAGS(${GROUP_REPLICATION_SOURCES}
@@ -148,6 +153,10 @@ ADD_COMPILE_FLAGS(${GROUP_REPLICATION_SOURCES}
 )
 
 ### Configuration ###
+
+IF(WIN32)
+  ADD_DEFINITIONS(-DIMPORT_UNKNOWN_SQLSTATE)
+ENDIF()
 
 # declare the plugin itself
 MYSQL_ADD_PLUGIN(group_replication

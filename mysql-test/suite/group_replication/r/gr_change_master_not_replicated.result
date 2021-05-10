@@ -8,13 +8,21 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET sql_log_bin=0;
 CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'manish'@'%';
 FLUSH PRIVILEGES;
 SET sql_log_bin=1;
+CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 [connection server2]
 # Second CHANGE MASTER with valid options will work fine.
 CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+SET sql_log_bin=0;
+CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'manish'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
 include/start_group_replication.inc
 # Asserting that CHANGE MASTER is not logged in the binary log of the server 2.
 Occurrences of 'CHANGE MASTER' in the input file: 0
@@ -27,6 +35,9 @@ Occurrences of 'CHANGE MASTER' in the input file: 0
 RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+SET sql_log_bin=0;
+DROP USER manish;
+SET sql_log_bin=1;
 [connection server1]
 DROP TABLE t1;
 SET sql_log_bin=0;

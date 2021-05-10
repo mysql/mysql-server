@@ -79,7 +79,13 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_message_stage_fragmentation
   xcom/gcs_xcom_site_def
   xcom/gcs_xcom_expels_in_progress
-  )
+  xcom/gcs_xcom_network_provider
+  xcom/gcs_xcom_network_provider_manager
+)
+
+IF(SOLARIS)
+  LIST(REMOVE_ITEM GCS_XCOM_TESTS gcs_xcom_network_provider)
+ENDIF()
 
 ###
 ### Configure the tests and add target

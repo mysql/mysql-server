@@ -54,7 +54,8 @@ extern PSI_cond_key key_GCS_COND_Gcs_async_buffer_m_wait_for_events_cond,
 extern PSI_thread_key key_GCS_THD_Gcs_ext_logger_impl_m_consumer,
     key_GCS_THD_Gcs_xcom_engine_m_engine_thread,
     key_GCS_THD_Gcs_xcom_control_m_xcom_thread,
-    key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread;
+    key_GCS_THD_Gcs_xcom_control_m_suspicions_processing_thread,
+    key_GCS_THD_Gcs_xcom_network_provider_m_network_provider_tcp_server;
 
 extern PSI_memory_key key_MEM_XCOM_xcom_cache;
 

@@ -32,6 +32,10 @@
 #include <netdb.h>
 #endif
 
+#include <memory>
+
+#include "xcom/network/include/network_management_interface.h"
+#include "xcom/network/network_provider_manager.h"
 #include "xcom/site_struct.h"
 #include "xcom/task_arg.h"
 #include "xcom/task_debug.h"
@@ -101,7 +105,6 @@ void start_run_tasks();
 int is_node_v4_reachable(char *node_address);
 int is_node_v4_reachable_with_info(struct addrinfo *retrieved_addr_info);
 int are_we_allowed_to_upgrade_to_v6(app_data_ptr a);
-struct addrinfo *does_node_have_v4_address(struct addrinfo *retrieved);
 
 /**
  * @brief Process incoming are_you_alive (i.e.: ping) messages and act
@@ -272,10 +275,6 @@ void xcom_input_free_signal_connection(void);
 typedef int (*xcom_socket_accept_cb)(int fd, site_def const *config);
 int set_xcom_socket_accept_cb(xcom_socket_accept_cb x);
 
-connection_descriptor *xcom_open_client_connection(char const *server,
-                                                   xcom_port port);
-int xcom_close_client_connection(connection_descriptor *connection);
-
 int xcom_client_disable_arbitrator(connection_descriptor *fd);
 int xcom_client_enable_arbitrator(connection_descriptor *fd);
 int xcom_client_add_node(connection_descriptor *fd, node_list *nl,
@@ -309,6 +308,12 @@ int xcom_client_get_synode_app_data(connection_descriptor *const fd,
 int xcom_client_convert_into_local_server(connection_descriptor *const fd);
 int64_t xcom_send_client_app_data(connection_descriptor *fd, app_data_ptr a,
                                   int force);
+
+std::unique_ptr<Network_provider_management_interface>
+get_network_management_interface();
+
+std::unique_ptr<Network_provider_operations_interface>
+get_network_operations_interface();
 
 /**
   Copies app data @c source into @c target and checks if the copy
@@ -463,6 +468,8 @@ static inline char *strerr_msg(char *buf, size_t len, int nr) {
 #endif
   return buf;
 }
+
+void xcom_sleep(unsigned int seconds);
 
 #define XCOM_COMMS_ERROR 1
 #define XCOM_COMMS_OTHER 2

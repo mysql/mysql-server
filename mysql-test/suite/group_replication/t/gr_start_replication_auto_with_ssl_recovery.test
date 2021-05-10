@@ -53,7 +53,12 @@
 set session sql_log_bin=0;
 CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
 GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
 set session sql_log_bin=1;
+
+--let $conf_rec_ssl_mode_s2= `SELECT @@GLOBAL.group_replication_ssl_mode;`
+--eval SET GLOBAL group_replication_ssl_mode= REQUIRED
 
 --echo #
 --echo # Start the member and add some data
@@ -70,11 +75,21 @@ INSERT INTO t1 VALUES (1);
 
 --connection server1
 
+set session sql_log_bin=0;
+CREATE USER 'rec_ssl_user'@'%' REQUIRE SSL;
+GRANT replication slave ON *.* TO 'rec_ssl_user'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'rec_ssl_user'@'%';
+FLUSH PRIVILEGES;
+set session sql_log_bin=1;
+
+--let $conf_rec_ssl_mode_s1= `SELECT @@GLOBAL.group_replication_ssl_mode;`
+--eval SET GLOBAL group_replication_ssl_mode= REQUIRED
+
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'rec_ssl_user' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
---let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_start_on_boot=1
+--let $restart_parameters=restart:--group_replication_local_address=$_group_replication_local_address --group_replication_group_seeds=$_group_replication_group_seeds --group_replication_start_on_boot=1 --group_replication_ssl_mode=REQUIRED
 --replace_result $_group_replication_local_address GROUP_REPLICATION_LOCAL_ADDRESS $_group_replication_group_seeds GROUP_REPLICATION_GROUP_SEEDS
 --source include/restart_mysqld.inc
 
@@ -115,6 +130,10 @@ set session sql_log_bin=1;
 
 --source include/stop_group_replication.inc
 
+--disable_query_log
+--eval SET GLOBAL group_replication_ssl_mode= $conf_rec_ssl_mode_s2
+--enable_query_log
+
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;
 
@@ -122,7 +141,18 @@ RESET MASTER;
 
 --source include/stop_group_replication.inc
 
+--disable_query_log
+--eval SET GLOBAL group_replication_ssl_mode= $conf_rec_ssl_mode_s1
+--enable_query_log
+
 RESET SLAVE ALL FOR CHANNEL "group_replication_applier";
 RESET MASTER;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SET SESSION sql_log_bin=0;
+DROP USER 'rec_ssl_user';
+SET SESSION sql_log_bin=1;
 
 --source include/gr_clear_configuration.inc

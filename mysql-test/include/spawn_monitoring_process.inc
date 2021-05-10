@@ -20,7 +20,6 @@
 let $have_windows = `SELECT CONVERT(@@version_compile_os using latin1) IN ("Win32", "Win64", "Windows")`;
 
 if (!$have_windows) {
-
   --disable_query_log
   SET SESSION sql_log_bin= 0;
   SET @auto_increment_increment_save= @@SESSION.auto_increment_increment;
@@ -40,10 +39,24 @@ if (!$have_windows) {
    ORDER BY VARIABLE_NAME;
   if($rpl_group_replication)
   {
+    --let $gr_ssl_disabled= `SELECT @@group_replication_ssl_mode LIKE 'DISABLED'`
+    if(!$gr_ssl_disabled) {
+       INSERT INTO test.r_vars (var_name, var_value)
+         SELECT * FROM performance_schema.global_variables
+         WHERE VARIABLE_NAME LIKE 'ssl_ca'
+         OR VARIABLE_NAME LIKE 'ssl_cert'
+         OR VARIABLE_NAME LIKE 'ssl_key'
+         ORDER BY VARIABLE_NAME;
+    }
+
     INSERT INTO test.r_vars (var_name, var_value)
      SELECT * FROM performance_schema.global_variables
      WHERE VARIABLE_NAME LIKE 'group_replication_ssl_mode'
      OR VARIABLE_NAME LIKE 'group_replication_gtid_assignment_block_size'
+     OR VARIABLE_NAME LIKE 'group_replication_ssl_mode'
+     OR VARIABLE_NAME LIKE 'group_replication_recovery_ssl_ca'
+     OR VARIABLE_NAME LIKE 'group_replication_recovery_ssl_cert'
+     OR VARIABLE_NAME LIKE 'group_replication_recovery_ssl_key'
      ORDER BY VARIABLE_NAME;
   }
   --let $suite_mysqld_settings=

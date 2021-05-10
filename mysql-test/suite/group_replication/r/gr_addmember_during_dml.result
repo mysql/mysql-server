@@ -8,6 +8,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 include/start_and_bootstrap_group_replication.inc
 
 [connection server2]
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc
 

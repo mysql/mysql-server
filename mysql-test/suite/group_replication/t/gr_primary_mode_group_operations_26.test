@@ -55,6 +55,7 @@ SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Primary assigned for election left the group, this operation will be aborted*");
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 set session sql_log_bin=1;
 
 --echo
@@ -68,6 +69,7 @@ set session sql_log_bin=1;
 
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. Primary assigned for election left the group, this operation will be aborted.");
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 set session sql_log_bin=1;
 
 --replace_result $server1_uuid MEMBER1_UUID
@@ -119,6 +121,7 @@ set session sql_log_bin=1;
 --source include/rpl_connection.inc
 
 set session sql_log_bin=0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 call mtr.add_suppression("Error while executing a group configuration operation: Primary assigned for election left the group, this operation will be aborted.");
 set session sql_log_bin=1;
 

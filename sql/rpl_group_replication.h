@@ -23,7 +23,9 @@
 #ifndef RPL_GROUP_REPLICATION_INCLUDED
 #define RPL_GROUP_REPLICATION_INCLUDED
 
+#include <violite.h>
 #include <string>
+
 class THD;
 class View_change_log_event;
 struct GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS;
@@ -72,5 +74,9 @@ std::string get_group_replication_group_name();
       @retval true    Error
 */
 bool get_group_replication_view_change_uuid(std::string &uuid);
+
+// Callback definition for socket donation
+typedef void (*gr_incoming_connection_cb)(THD *thd, int fd, SSL *ssl_ctx);
+void set_gr_incoming_connection(gr_incoming_connection_cb x);
 
 #endif /* RPL_GROUP_REPLICATION_INCLUDED */

@@ -1,0 +1,11 @@
+################################################################################
+# This test is only checking that capture code does not cause
+# errors, for complete testing it will need to be completed when
+# WL#6826, WL#6833, WL#6834, WL#6842, WL#6829, WL#6855 and WL#7237
+# are finished.
+#
+# Runs only with MySQL Stack configured in master and slave opt files.
+#
+################################################################################
+
+--source ../include/gr_capture.inc

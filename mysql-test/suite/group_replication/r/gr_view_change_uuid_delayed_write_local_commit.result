@@ -9,12 +9,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 ############################################################
 #  2. Start 2 servers.
-#     Only setup recovery_user on server2 for force server3
-#     to recover from it.
+#     Only setup recovery_user with GRANT REPLICATION SLAVE on server2
+#     for force server3 to recover from it.
 [connection server1]
 SET sql_log_bin = 0;
 include/gtid_utils.inc
 SET sql_log_bin = 1;
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user";
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 SET @@GLOBAL.group_replication_view_change_uuid = "c0dec0de-c0de-c0de-c0de-c0dec0dec0de";
 include/start_and_bootstrap_group_replication.inc
@@ -27,6 +32,7 @@ SET sql_log_bin = 1;
 SET SESSION sql_log_bin= 0;
 CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
 GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user";
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
@@ -50,8 +56,16 @@ SET sql_log_bin = 0;
 include/gtid_utils.inc
 SET sql_log_bin = 1;
 SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master*");
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+SET SESSION sql_log_bin= 1;
+SET SESSION sql_log_bin= 0;
+CREATE USER "recovery_user" IDENTIFIED BY "recovery_password";
+GRANT REPLICATION SLAVE ON *.* TO "recovery_user";
+GRANT GROUP_REPLICATION_STREAM ON *.* TO "recovery_user";
+FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 CHANGE REPLICATION SOURCE TO SOURCE_USER= 'recovery_user', SOURCE_PASSWORD= 'recovery_password' FOR CHANNEL 'group_replication_recovery';
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
@@ -133,12 +147,18 @@ SET sql_log_bin = 1;
 [connection server1]
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
 SET sql_log_bin = 0;
 include/gtid_utils_end.inc
 SET sql_log_bin = 1;
 [connection server3]
 include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
+SET SESSION sql_log_bin= 0;
+DROP USER "recovery_user";
+SET SESSION sql_log_bin= 1;
 SET sql_log_bin = 0;
 include/gtid_utils_end.inc
 SET sql_log_bin = 1;

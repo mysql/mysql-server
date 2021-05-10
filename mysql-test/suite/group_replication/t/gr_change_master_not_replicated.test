@@ -25,8 +25,13 @@
 SET sql_log_bin=0;
 CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'manish'@'%';
 FLUSH PRIVILEGES;
 SET sql_log_bin=1;
+
+--disable_warnings
+CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -40,6 +45,13 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 --disable_warnings
 CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
+
+SET sql_log_bin=0;
+CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'manish'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
 
 --source include/start_group_replication.inc
 
@@ -72,6 +84,10 @@ CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHA
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+
+SET sql_log_bin=0;
+DROP USER manish;
+SET sql_log_bin=1;
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc

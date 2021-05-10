@@ -21,6 +21,11 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "xcom/network/xcom_network_provider_native_lib.h"
+
+#include "xcom/network/include/network_provider.h"
+#include "xcom/network/network_provider_manager.h"
+
 #ifndef XCOM_WITHOUT_OPENSSL
 #include <assert.h>
 #include <stdlib.h>
@@ -29,7 +34,6 @@
 #include <openssl/opensslv.h>
 #include <openssl/x509v3.h>
 
-#include "xcom/xcom_profile.h"
 #ifndef XCOM_STANDALONE
 #include "my_compiler.h"
 #endif
@@ -38,18 +42,6 @@
 
 #include "xcom/task_debug.h"
 #include "xcom/x_platform.h"
-#include "xcom/xcom_ssl_transport.h"
-
-static const char *ssl_mode_options[] = {"DISABLED", "PREFERRED", "REQUIRED",
-                                         "VERIFY_CA", "VERIFY_IDENTITY"};
-
-static const char *ssl_fips_mode_options[] = {"OFF", "ON", "STRICT"};
-
-#define SSL_MODE_OPTIONS_COUNT \
-  (sizeof(ssl_mode_options) / sizeof(*ssl_mode_options))
-
-#define SSL_MODE_FIPS_OPTIONS_COUNT \
-  (sizeof(ssl_fips_mode_options) / sizeof(*ssl_fips_mode_options))
 
 #define TLS_VERSION_OPTION_SIZE 256
 #define SSL_CIPHER_LIST_SIZE 4096
@@ -160,8 +152,6 @@ static DH *get_dh2048(void) {
 }
 
 static char *ssl_pw = NULL;
-static int ssl_mode = SSL_DISABLED;
-static int ssl_fips_mode = SSL_FIPS_MODE_OFF;
 static int ssl_init_done = 0;
 
 SSL_CTX *server_ctx = NULL;
@@ -353,8 +343,10 @@ static int configure_ssl_ca(SSL_CTX *ssl_ctx, const char *ca_file,
                             const char *ca_path) {
   /* Load certs from the trusted ca. */
   if (SSL_CTX_load_verify_locations(ssl_ctx, ca_file, ca_path) == 0) {
-    G_WARNING("Failed to locate and verify ca_file: %s, ca_path: %s", ca_file,
-              ca_path);
+    std::string out_ca_file(ca_file ? ca_file : "NULL");
+    std::string out_ca_path(ca_path ? ca_path : "NULL");
+    G_WARNING("Failed to locate and verify ca_file: %s ca_path: %s",
+              out_ca_file.c_str(), out_ca_path.c_str());
     if (ca_file || ca_path) {
       G_ERROR(
           "Cannot use default locations because ca_file or "
@@ -400,13 +392,12 @@ static int configure_ssl_keys(SSL_CTX *ssl_ctx, const char *key_file,
   }
 
   if (!cert_file && key_file) {
-    G_WARNING("Using the key file also as a certification file: %s.", key_file);
+    G_WARNING("Using the key file also as a certification file: %s", key_file);
     cert_file = key_file;
   }
 
   if (!key_file && cert_file) {
-    G_WARNING("Using the certification file also as a key file: %s.",
-              cert_file);
+    G_WARNING("Using the certification file also as a key file: %s", cert_file);
     key_file = cert_file;
   }
 
@@ -477,74 +468,18 @@ error:
   return 1;
 }
 
-int xcom_use_ssl() {
-  assert(ssl_mode >= SSL_DISABLED && ssl_mode < LAST_SSL_MODE);
-  return ssl_mode != SSL_DISABLED;
-}
-
-int xcom_get_ssl_mode(const char *mode) {
-  int retval = INVALID_SSL_MODE;
-  int idx = 0;
-
-  for (; idx < (int)SSL_MODE_OPTIONS_COUNT; ++idx) {
-    if (strcmp(mode, ssl_mode_options[idx]) == 0) {
-      retval = idx + 1; /* The enumeration is shifted. */
-      break;
-    }
-  }
-  assert(retval >= INVALID_SSL_MODE && retval <= LAST_SSL_MODE);
-
-  return retval;
-}
-
-int xcom_set_ssl_mode(int mode) {
-  int retval = INVALID_SSL_MODE;
-
-  mode = (mode == SSL_PREFERRED ? SSL_DISABLED : mode);
-  if (mode >= SSL_DISABLED && mode < LAST_SSL_MODE) retval = ssl_mode = mode;
-
-  assert(retval >= INVALID_SSL_MODE && retval < LAST_SSL_MODE);
-  assert(ssl_mode >= SSL_DISABLED && ssl_mode < LAST_SSL_MODE);
-
-  return retval;
-}
-
-int xcom_get_ssl_fips_mode(const char *mode) {
-  int retval = INVALID_SSL_FIPS_MODE;
-  int idx = 0;
-
-  for (; idx < (int)SSL_MODE_FIPS_OPTIONS_COUNT; ++idx) {
-    if (strcmp(mode, ssl_fips_mode_options[idx]) == 0) {
-      retval = idx;
-      break;
-    }
-  }
-  assert(retval > INVALID_SSL_FIPS_MODE && retval < LAST_SSL_FIPS_MODE);
-
-  return retval;
-}
-
-int xcom_set_ssl_fips_mode(int mode) {
-  int retval = INVALID_SSL_FIPS_MODE;
-
-  if (mode >= SSL_FIPS_MODE_OFF && mode < LAST_SSL_FIPS_MODE) {
-    retval = ssl_fips_mode = mode;
-  }
-
-  assert(retval > INVALID_SSL_FIPS_MODE && retval < LAST_SSL_FIPS_MODE);
-  return retval;
-}
-
-int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
-                  const char *client_key_file, const char *client_cert_file,
-                  const char *ca_file, const char *ca_path,
-                  const char *crl_file, const char *crl_path,
-                  const char *cipher, const char *tls_version,
-                  const char *tls_ciphersuites) {
+int Xcom_network_provider_ssl_library::xcom_init_ssl(
+    const char *server_key_file, const char *server_cert_file,
+    const char *client_key_file, const char *client_cert_file,
+    const char *ca_file, const char *ca_path, const char *crl_file,
+    const char *crl_path, const char *cipher, const char *tls_version,
+    const char *tls_ciphersuites) {
   int verify_server = SSL_VERIFY_NONE;
   int verify_client = SSL_VERIFY_NONE;
 
-  if (configure_ssl_fips_mode(ssl_fips_mode) != 1) {
+  if (configure_ssl_fips_mode(
+          Network_provider_manager::getInstance().xcom_get_ssl_fips_mode()) !=
+      1) {
     G_ERROR("Error setting the ssl fips mode");
     goto error;
   }
@@ -552,14 +487,14 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
   SSL_library_init();
   SSL_load_error_strings();
 
-  if (ssl_mode == SSL_DISABLED) {
+  if (!Network_provider_manager::getInstance().is_xcom_using_ssl()) {
     G_WARNING("SSL is not enabled");
-    return ssl_init_done;
+    return !ssl_init_done;
   }
 
   if (ssl_init_done) {
-    G_WARNING("SSL already initialized");
-    return ssl_init_done;
+    G_DEBUG("SSL already initialized");
+    return !ssl_init_done;
   }
 
   G_DEBUG("Configuring SSL for the server")
@@ -577,7 +512,8 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
                crl_path, cipher, tls_version, tls_ciphersuites, server_ctx))
     goto error;
 
-  if (ssl_mode != SSL_REQUIRED)
+  if (Network_provider_manager::getInstance().xcom_get_ssl_mode() !=
+      SSL_REQUIRED)
     verify_server = SSL_VERIFY_PEER | SSL_VERIFY_CLIENT_ONCE;
   SSL_CTX_set_verify(server_ctx, verify_server, NULL);
 
@@ -595,42 +531,41 @@ int xcom_init_ssl(const char *server_key_file, const char *server_cert_file,
                crl_path, cipher, tls_version, tls_ciphersuites, client_ctx))
     goto error;
 
-  if (ssl_mode != SSL_REQUIRED) verify_client = SSL_VERIFY_PEER;
+  if (Network_provider_manager::getInstance().xcom_get_ssl_mode() !=
+      SSL_REQUIRED) {
+    verify_client = SSL_VERIFY_PEER;
+  }
   SSL_CTX_set_verify(client_ctx, verify_client, NULL);
 
   ssl_init_done = 1;
 
-  return ssl_init_done;
+  return !ssl_init_done;
 
 error:
   xcom_destroy_ssl();
 
-  return ssl_init_done;
+  return !ssl_init_done;
 }
 
-void xcom_cleanup_ssl() {
-  if (!xcom_use_ssl()) return;
-
+void Xcom_network_provider_ssl_library::xcom_cleanup_ssl() {
 #if OPENSSL_VERSION_NUMBER < 0x10100000L
   ERR_remove_thread_state(0);
 #endif /* OPENSSL_VERSION_NUMBER < 0x10100000L */
 }
 
-void xcom_destroy_ssl() {
-  if (!xcom_use_ssl()) return;
-
+void Xcom_network_provider_ssl_library::xcom_destroy_ssl() {
   G_DEBUG("Destroying SSL");
 
   ssl_init_done = 0;
 
   if (server_ctx) {
     SSL_CTX_free(server_ctx);
-    server_ctx = NULL;
+    server_ctx = nullptr;
   }
 
   if (client_ctx) {
     SSL_CTX_free(client_ctx);
-    client_ctx = NULL;
+    client_ctx = nullptr;
   }
 
 #if defined(WITH_SSL_STANDALONE)
@@ -640,12 +575,13 @@ void xcom_destroy_ssl() {
   ERR_free_strings();
 #endif
 
-  xcom_cleanup_ssl();
+  Xcom_network_provider_ssl_library::xcom_cleanup_ssl();
 
   G_DEBUG("Success destroying SSL");
 }
 
-int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
+int Xcom_network_provider_ssl_library::ssl_verify_server_cert(
+    SSL *ssl, const char *server_hostname) {
   X509 *server_cert = NULL;
   int ret_validation = 1;
 
@@ -660,7 +596,9 @@ int ssl_verify_server_cert(SSL *ssl, const char *server_hostname) {
   G_DEBUG("Verifying server certificate and expected host name: %s",
           server_hostname);
 
-  if (ssl_mode != SSL_VERIFY_IDENTITY) return 0;
+  if (Network_provider_manager::getInstance().xcom_get_ssl_mode() !=
+      SSL_VERIFY_IDENTITY)
+    return 0;
 
   if (!server_hostname) {
     G_ERROR("No server hostname supplied to verify server certificate");

@@ -41,6 +41,8 @@ SET GLOBAL group_replication_communication_debug_options = @@GLOBAL.group_replic
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_communication_max_message_size = @@GLOBAL.group_replication_communication_max_message_size;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL group_replication_communication_stack = @@GLOBAL.group_replication_communication_stack;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_components_stop_timeout = @@GLOBAL.group_replication_components_stop_timeout;
 ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
 SET GLOBAL group_replication_compression_threshold = @@GLOBAL.group_replication_compression_threshold;
@@ -165,6 +167,7 @@ SET GLOBAL group_replication_bootstrap_group = @@GLOBAL.group_replication_bootst
 SET GLOBAL group_replication_clone_threshold = @@GLOBAL.group_replication_clone_threshold;
 SET GLOBAL group_replication_communication_debug_options = @@GLOBAL.group_replication_communication_debug_options;
 SET GLOBAL group_replication_communication_max_message_size = @@GLOBAL.group_replication_communication_max_message_size;
+SET GLOBAL group_replication_communication_stack = @@GLOBAL.group_replication_communication_stack;
 SET GLOBAL group_replication_components_stop_timeout = @@GLOBAL.group_replication_components_stop_timeout;
 SET GLOBAL group_replication_compression_threshold = @@GLOBAL.group_replication_compression_threshold;
 SET GLOBAL group_replication_consistency = @@GLOBAL.group_replication_consistency;

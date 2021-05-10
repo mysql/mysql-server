@@ -75,6 +75,7 @@ CREATE TABLE test.gms_listener_example(log_message TEXT);
 call mtr.add_suppression("The member has failed to gracefully leave the group.");
 call mtr.add_suppression("Timeout while waiting for the group communication");
 call mtr.add_suppression("read failed");
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SQL_LOG_BIN=1;
 --enable_query_log
 
@@ -82,6 +83,10 @@ SET SQL_LOG_BIN=1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication..");
+SET SESSION sql_log_bin = 1;
 
 --let $debug_point= register_gms_listener_example
 --source include/add_debug_point.inc

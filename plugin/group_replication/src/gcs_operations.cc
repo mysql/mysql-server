@@ -33,7 +33,10 @@
 const std::string Gcs_operations::gcs_engine = "xcom";
 
 Gcs_operations::Gcs_operations()
-    : gcs_interface(nullptr),
+    : auth_provider(),
+      native_interface(),
+      gcs_mysql_net_provider(nullptr),
+      gcs_interface(nullptr),
       injected_view_modification(false),
       leave_coordination_leaving(false),
       leave_coordination_left(false) {
@@ -57,6 +60,7 @@ Gcs_operations::~Gcs_operations() {
 int Gcs_operations::initialize() {
   DBUG_TRACE;
   int error = 0;
+  Gcs_interface_runtime_requirements reqs;
 
   gcs_operations_lock->wrlock();
 
@@ -83,6 +87,17 @@ int Gcs_operations::initialize() {
     /* purecov: end */
   }
 
+  // Setup resources and pass them to GCS. In the future, refactor to also pass
+  // the logger.
+  if (gcs_mysql_net_provider ==
+      nullptr) {  // finalize might have not been called.
+    gcs_mysql_net_provider = std::make_shared<Gcs_mysql_network_provider>(
+        &auth_provider, &native_interface);
+  }
+
+  reqs.provider = gcs_mysql_net_provider;
+  reqs.namespace_manager = &native_interface;
+  gcs_interface->setup_runtime_resources(reqs);
 end:
   gcs_operations_lock->unlock();
   return error;
@@ -93,8 +108,19 @@ void Gcs_operations::finalize() {
   gcs_operations_lock->wrlock();
 
   if (gcs_interface != nullptr) gcs_interface->finalize();
+
+  // Remove the provider since it is owned by the plugin.
+  if (gcs_interface != nullptr) {
+    Gcs_interface_runtime_requirements reqs;
+    reqs.provider = gcs_mysql_net_provider;
+    gcs_interface->cleanup_runtime_resources(reqs);
+  }
+
   Gcs_interface_factory::cleanup(gcs_engine);
   gcs_interface = nullptr;
+
+  // Will destroy gcs_mysql_net_provider if it is still alive after finalize
+  gcs_mysql_net_provider = nullptr;
 
   gcs_operations_lock->unlock();
 }
@@ -105,7 +131,16 @@ enum enum_gcs_error Gcs_operations::configure(
   enum enum_gcs_error error = GCS_NOK;
   gcs_operations_lock->wrlock();
 
-  if (gcs_interface != nullptr) error = gcs_interface->initialize(parameters);
+  if (gcs_interface != nullptr) {
+    error = gcs_interface->initialize(parameters);
+
+    // This forces GCS to create group interfaces under a RW lock.
+    if (gcs_interface->is_initialized()) {
+      std::string group_name(get_group_name_var());
+      Gcs_group_identifier group_id(group_name);
+      gcs_interface->get_communication_session(group_id);
+    }
+  }
 
   gcs_operations_lock->unlock();
   return error;
@@ -270,6 +305,12 @@ Gcs_operations::enum_leave_state Gcs_operations::leave(
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_EXIT_GRP_GCS_ERROR);
       goto end;
       /* purecov: end */
+    }
+  } else {  // This is the "something went wrong branch". We will avoid
+            // incoming connections to ensure that we do not end in a deadlock,
+            // thus de-registering the incoming connection callback
+    if (gcs_mysql_net_provider != nullptr) {
+      gcs_mysql_net_provider->stop();
     }
   }
 
@@ -688,6 +729,39 @@ enum enum_gcs_error Gcs_operations::set_xcom_cache_size(uint64_t new_size) {
     }
   }
   gcs_operations_lock->unlock();
+  return result;
+}
+
+enum_transport_protocol
+Gcs_operations::get_current_incoming_connections_protocol() {
+  DBUG_TRACE;
+  enum_transport_protocol result = INVALID_PROTOCOL;
+  gcs_operations_lock->rdlock();
+  if (gcs_interface != nullptr && gcs_interface->is_initialized()) {
+    std::string group_name(get_group_name_var());
+    Gcs_group_identifier group_id(group_name);
+    Gcs_communication_interface *gcs_comms =
+        gcs_interface->get_communication_session(group_id);
+
+    if (gcs_comms != nullptr) {
+      result = gcs_comms->get_incoming_connections_protocol();
+    }
+  }
+  gcs_operations_lock->unlock();
+  return result;
+}
+
+Gcs_mysql_network_provider *Gcs_operations::get_mysql_network_provider() {
+  DBUG_TRACE;
+  Gcs_mysql_network_provider *result = nullptr;
+
+  gcs_operations_lock->rdlock();
+  if (gcs_interface != nullptr && gcs_mysql_net_provider != nullptr &&
+      gcs_interface->is_initialized()) {
+    result = gcs_mysql_net_provider.get();
+  }
+  gcs_operations_lock->unlock();
+
   return result;
 }
 

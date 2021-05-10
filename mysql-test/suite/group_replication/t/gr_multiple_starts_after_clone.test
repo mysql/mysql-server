@@ -51,6 +51,7 @@ INSERT INTO t1 VALUES (1);
 --let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 --let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
 --let $_group_replication_start_boot_save= `SELECT @@GLOBAL.group_replication_start_on_boot`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
 --let $server2_datadir= `SELECT @@DATADIR`
 
 --let $plugin_list= $GROUP_REPLICATION
@@ -60,6 +61,7 @@ INSERT INTO t1 VALUES (1);
 --eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
 --eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
 --eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
 SET PERSIST group_replication_start_on_boot= ON;
 --enable_query_log
 
@@ -187,6 +189,7 @@ RESET PERSIST group_replication_group_name;
 RESET PERSIST group_replication_local_address;
 RESET PERSIST group_replication_group_seeds;
 RESET PERSIST group_replication_start_on_boot;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
 
 --replace_result $_group_replication_threshold_save GROUP_REPLICATION_CLONE_THRESHOLD
 --eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save

@@ -33,6 +33,7 @@ statement/com/Error	YES
 statement/com/Execute	YES
 statement/com/Fetch	YES
 statement/com/Field List	YES
+statement/com/Group Replication Data Stream subscription	YES
 statement/com/Init DB	YES
 statement/com/Kill	YES
 statement/com/Long Data	YES

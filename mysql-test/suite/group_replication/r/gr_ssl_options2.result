@@ -34,13 +34,6 @@ include/assert.inc [On the recovered member, the table should exist and have 1 e
 #
 # Clean up
 #
-SET @@GLOBAL.group_replication_recovery_use_ssl= 0;
-SET @@GLOBAL.group_replication_recovery_ssl_ca= "";
-SET @@GLOBAL.group_replication_recovery_ssl_capath= "";
-SET @@GLOBAL.group_replication_recovery_ssl_cert= "";
-SET @@GLOBAL.group_replication_recovery_ssl_key= "";
-SET @@GLOBAL.group_replication_recovery_ssl_crl= "";
-SET @@GLOBAL.group_replication_recovery_ssl_crlpath= "";
 server1
 set session sql_log_bin=0;
 DROP USER 'rec_ssl_user';

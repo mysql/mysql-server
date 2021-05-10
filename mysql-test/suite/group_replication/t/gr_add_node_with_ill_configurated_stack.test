@@ -1,0 +1,82 @@
+################################################################################
+# When using the MySQL communication stack, if we start three mysqls in the same
+# physical server and we misconfigure one of them with MySQL stack data,
+# START GROUP_REPLICATION must fail with an appropriate ERROR.
+# This can only happen with the XCom communication stack in place.
+#
+# Test:
+# 0. The test requires three servers:
+#    - M1 and M2 will start with XCom
+#    - M3 will be configured as XCom, but not started
+# 1. Skip the group start
+# 2. Start and bootstrap the group with server 1
+# 3. Start server 2
+# 4. Change server 3 communication stack and local address to MySQL
+# 5. Manually start server 3 and expect it to fail while joining the group
+# 6. Restore server 3 original address
+# 7. Server 3 must successfully join the group
+# 8. Clean up.
+#
+################################################################################
+
+--source include/have_group_replication_xcom_communication_stack.inc
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+
+--echo # 1. Skip the group start
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 3
+--source include/group_replication.inc
+
+--echo # 2. Start and bootstrap the group with server 1
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+--echo # 3. Start server 2
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+--echo # 4. Change server 3 communication stack and local address to MySQL
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--let $server_3_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $server_3_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+
+# Adding suppressions
+SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
+call mtr.add_suppression("\\[GCS\\] The member was unable to join the group.*");
+call mtr.add_suppression("Timeout on wait for view after joining group");
+SET SESSION sql_log_bin= 1;
+
+--let $server_3_mysql_address= 127.0.0.1:$SERVER_MYPORT_3
+
+--replace_result $server_3_mysql_address GROUP_REPLICATION_SERVER_3_ADDRESS
+--eval SET GLOBAL group_replication_local_address= "$server_3_mysql_address"
+SET GLOBAL group_replication_communication_stack= MySQL;
+
+
+--echo # 5. Manually start server 3 and expect it to fail while joining the
+--echo #    group
+
+--replace_result $group_replication_group_name GROUP_REPLICATION_GROUP_NAME
+--eval SET GLOBAL group_replication_group_name= "$group_replication_group_name"
+
+--error ER_GROUP_REPLICATION_CONFIGURATION
+START GROUP_REPLICATION;
+
+--echo # 6. Restore server 3 original address
+--replace_result $server_3_local_address GROUP_REPLICATION_SERVER_3_LOCAL_ADDRESS
+--eval SET GLOBAL group_replication_local_address= "$server_3_local_address"
+--eval SET GLOBAL group_replication_communication_stack= "$server_3_comm_stack"
+
+--echo # 7. Server 3 must successfully join the group
+--source include/start_group_replication.inc
+
+--echo # 8. Clean up.
+
+# This is the end... My only friend the end!
+--source include/group_replication_end.inc

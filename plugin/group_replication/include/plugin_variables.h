@@ -281,6 +281,13 @@ struct plugin_options_variables {
   ulong tls_source_var;
 
   char *view_change_uuid_var;
+
+  const char *communication_stack_source_values[3] = {"XCOM", "MYSQL",
+                                                      (char *)nullptr};
+  TYPELIB communication_stack_values_typelib_t = {
+      2, "communication_stack_typelib_t", communication_stack_source_values,
+      nullptr};
+  ulong communication_stack_var;
 };
 
 #endif /* PLUGIN_VARIABLES_INCLUDE */

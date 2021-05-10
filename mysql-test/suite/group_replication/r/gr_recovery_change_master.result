@@ -8,6 +8,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET sql_log_bin=0;
 CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'manish'@'%';
 FLUSH PRIVILEGES;
 SET sql_log_bin=1;
 include/start_and_bootstrap_group_replication.inc
@@ -26,12 +27,21 @@ Occurrences of 'abc_manish_abc' in the input file: 0
 # Second CHANGE MASTER with valid options will work fine.
 CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 include/assert.inc [A new user is created after the execution of the change master]
+SET sql_log_bin=0;
+CREATE USER 'manish'@'%' IDENTIFIED BY 'rpl';
+GRANT REPLICATION SLAVE ON *.* TO 'manish'@'%';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'manish'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
 include/start_group_replication.inc
 # Ensuring the the two members are online.
 include/rpl_gr_wait_for_number_of_members.inc
 include/rpl_sync.inc
 include/diff_tables.inc [server1:t1,server2:t1]
 DROP TABLE t1;
+SET sql_log_bin=0;
+DROP USER manish;
+SET sql_log_bin=1;
 SET sql_log_bin=0;
 DROP USER manish;
 SET sql_log_bin=1;

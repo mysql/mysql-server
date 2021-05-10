@@ -125,8 +125,18 @@ START GROUP_REPLICATION;
 # Test that the variable cannot be changed when group replication is running
 #
 
+SET sql_log_bin=0;
+CREATE USER 'internal_usr'@'%' IDENTIFIED BY 'unique_password';
+GRANT GROUP_REPLICATION_STREAM ON *.* TO 'internal_usr'@'%';
+FLUSH PRIVILEGES;
+SET sql_log_bin=1;
+
 SET @@GLOBAL.relay_log_info_repository='TABLE';
 SET @@GLOBAL.master_info_repository='TABLE';
+
+--disable_warnings
+CHANGE MASTER TO MASTER_USER='internal_usr', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+--enable_warnings
 
 --source include/start_group_replication.inc
 
@@ -150,5 +160,9 @@ SET @@GLOBAL.master_info_repository= @saved_mi_rep;
 
 call mtr.add_suppression("Master info repository must be set to TABLE.");
 call mtr.add_suppression("Relay log info repository must be set to TABLE.");
+
+SET sql_log_bin=0;
+DROP USER 'internal_usr';
+SET sql_log_bin=1;
 
 --source include/gr_clear_configuration.inc

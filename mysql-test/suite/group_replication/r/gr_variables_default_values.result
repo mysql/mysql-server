@@ -26,9 +26,9 @@ include/stop_group_replication.inc
 #
 # Test Unit#1
 # Set global/session group replication variables to default.
-# Curently there are 59 group replication variables.
+# Curently there are 60 group replication variables.
 #
-include/assert.inc [There are 59 GR variables at present.]
+include/assert.inc [There are 60 GR variables at present.]
 SET @@GLOBAL.group_replication_auto_increment_increment= default;
 ERROR 42000: Variable 'group_replication_auto_increment_increment' can't be set to the value of 'DEFAULT'
 SET @@GLOBAL.group_replication_compression_threshold= default;
@@ -82,6 +82,7 @@ SET @@GLOBAL.group_replication_recovery_tls_version= default;
 SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= default;
 SET @@GLOBAL.group_replication_advertise_recovery_endpoints = default;
 SET @@GLOBAL.group_replication_view_change_uuid= default;
+SET @@GLOBAL.group_replication_communication_stack = default;
 SET @@SESSION.group_replication_consistency= default;
 #
 # Test Unit#2
@@ -130,6 +131,7 @@ include/assert.inc [Default group_replication_recovery_tls_version is "TLSv1,TLS
 include/assert.inc [Default group_replication_recovery_tls_ciphersuites is NULL]
 include/assert.inc [Default group_replication_advertise_recovery_endpoints is "DEFAULT"]
 include/assert.inc [Default group_replication_view_change_uuid is "AUTOMATIC"]
+include/assert.inc [Default group_replication_communication_stack is XCom]
 #
 # Clean up
 #

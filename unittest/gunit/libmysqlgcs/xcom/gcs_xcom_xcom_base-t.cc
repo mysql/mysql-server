@@ -33,12 +33,22 @@
 #include "xcom_memory.h"
 #include "xcom_transport.h"
 
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/network_provider_manager.h"
+#include "plugin/group_replication/libmysqlgcs/src/bindings/xcom/xcom/network/xcom_network_provider.h"
+
 namespace xcom_base_unittest {
 
 class XcomBase : public GcsBaseTest {
  protected:
-  XcomBase() { ::init_cache(); }
-  ~XcomBase() override { ::deinit_cache(); }
+  XcomBase() {
+    ::init_cache();
+
+    auto &net_manager = Network_provider_manager::getInstance();
+
+    auto xcom_network_provider = std::make_shared<Xcom_network_provider>();
+    net_manager.add_network_provider(xcom_network_provider);
+  }
+  ~XcomBase() { ::deinit_cache(); }
 };
 
 TEST_F(XcomBase, XcomSendClientAppDataUpgradeScenario) {
@@ -934,9 +944,9 @@ TEST_F(XcomBase, ProcessPingToUsFullSmokeTest) {
   server srv_from;
   srv_from.last_ping_received = 0.0;
   srv_from.number_of_pings_received = 0;
-  srv_from.con.connected_ = CON_PROTO;
-  srv_from.con.fd = 0;
-  srv_from.con.ssl_fd = nullptr;
+
+  srv_from.con = new_connection(0, nullptr);
+  srv_from.con->connected_ = CON_PROTO;
 
   char srv_addr[1024] = "test";
   srv_from.srv = &srv_addr[0];
@@ -966,6 +976,8 @@ TEST_F(XcomBase, ProcessPingToUsFullSmokeTest) {
   has_disconnected = pre_process_incoming_ping(&site, &pm, true, 5.0);
   ASSERT_EQ(4, srv_from.number_of_pings_received);
   ASSERT_FALSE(has_disconnected);
+
+  free(srv_from.con);
 }
 
 /**
@@ -985,9 +997,8 @@ TEST_F(XcomBase, ProcessPingToUsDoNothingIfNodeIsBooting) {
   server srv_from;
   srv_from.last_ping_received = 0.0;
   srv_from.number_of_pings_received = 0;
-  srv_from.con.connected_ = CON_PROTO;
-  srv_from.con.fd = 0;
-  srv_from.con.ssl_fd = nullptr;
+  srv_from.con = new_connection(0, nullptr);
+  srv_from.con->connected_ = CON_PROTO;
 
   char srv_addr[1024] = "test";
   srv_from.srv = &srv_addr[0];
@@ -1017,6 +1028,8 @@ TEST_F(XcomBase, ProcessPingToUsDoNothingIfNodeIsBooting) {
   has_disconnected = pre_process_incoming_ping(&site, &pm, false, 5.0);
   ASSERT_EQ(0, srv_from.number_of_pings_received);
   ASSERT_FALSE(has_disconnected);
+
+  free(srv_from.con);
 }
 
 /**
@@ -1042,7 +1055,8 @@ TEST_F(XcomBase, ProcessPingToUsDoNotShutdownInactiveConnection) {
   server srv_from;
   srv_from.last_ping_received = 0.0;
   srv_from.number_of_pings_received = 0;
-  srv_from.con.connected_ = CON_NULL;
+  srv_from.con = new_connection(-1, nullptr);
+  srv_from.con->connected_ = CON_NULL;
 
   site.nodeno = 1;
   site.global_node_set.node_set_len = 3;
@@ -1068,6 +1082,8 @@ TEST_F(XcomBase, ProcessPingToUsDoNotShutdownInactiveConnection) {
   has_disconnected = pre_process_incoming_ping(&site, &pm, true, 5.0);
   ASSERT_EQ(4, srv_from.number_of_pings_received);
   ASSERT_FALSE(has_disconnected);
+
+  free(srv_from.con);
 }
 
 /**
@@ -1091,7 +1107,8 @@ TEST_F(XcomBase, ProcessPingToUsDoNotShutdownResetPings) {
   server srv_from;
   srv_from.last_ping_received = 0.0;
   srv_from.number_of_pings_received = 0;
-  srv_from.con.connected_ = CON_NULL;
+  srv_from.con = new_connection(-1, nullptr);
+  srv_from.con->connected_ = CON_NULL;
 
   site.nodeno = 1;
   site.global_node_set.node_set_len = 3;
@@ -1113,6 +1130,8 @@ TEST_F(XcomBase, ProcessPingToUsDoNotShutdownResetPings) {
   has_disconnected = pre_process_incoming_ping(&site, &pm, true, 10.0);
   ASSERT_EQ(1, srv_from.number_of_pings_received);
   ASSERT_FALSE(has_disconnected);
+
+  free(srv_from.con);
 }
 
 /**
@@ -1144,18 +1163,16 @@ TEST_F(XcomBase, ProcessPingToUsTwoServersSendingPings) {
   server srv_from1, srv_from2;
   srv_from1.last_ping_received = 0.0;
   srv_from1.number_of_pings_received = 0;
-  srv_from1.con.connected_ = CON_PROTO;
-  srv_from1.con.fd = 0;
-  srv_from1.con.ssl_fd = nullptr;
+  srv_from1.con = new_connection(0, nullptr);
+  srv_from1.con->connected_ = CON_PROTO;
 
   srv_from1.srv = &srv_addr[0];
   srv_from1.port = 12345;
 
   srv_from2.last_ping_received = 0.0;
   srv_from2.number_of_pings_received = 0;
-  srv_from2.con.connected_ = CON_PROTO;
-  srv_from2.con.fd = 0;
-  srv_from2.con.ssl_fd = nullptr;
+  srv_from2.con = new_connection(0, nullptr);
+  srv_from2.con->connected_ = CON_PROTO;
 
   srv_from2.srv = &srv_addr[0];
   srv_from2.port = 12346;
@@ -1192,6 +1209,9 @@ TEST_F(XcomBase, ProcessPingToUsTwoServersSendingPings) {
   has_disconnected = pre_process_incoming_ping(&site, &pm1, true, 5.0);
   ASSERT_EQ(4, srv_from1.number_of_pings_received);
   ASSERT_FALSE(has_disconnected);
+
+  free(srv_from1.con);
+  free(srv_from2.con);
 }
 
 }  // namespace xcom_base_unittest

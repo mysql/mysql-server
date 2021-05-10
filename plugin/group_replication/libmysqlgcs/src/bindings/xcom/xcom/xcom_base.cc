@@ -43,12 +43,6 @@
 #include <poll.h>
 #endif
 
-#ifdef _WIN32
-#define xcom_buf char
-#else
-#define xcom_buf void
-#endif
-
 /**
   @file
   xcom/xcom_base.c
@@ -292,10 +286,6 @@
 #include "xcom/xdr_utils.h"
 #include "xdr_gen/xcom_vp.h"
 
-#ifndef XCOM_WITHOUT_OPENSSL
-#include "xcom/xcom_ssl_transport.h"
-#endif
-
 #include "xcom/bitset.h"
 #include "xcom/node_list.h"
 #include "xcom/node_set.h"
@@ -313,6 +303,8 @@
 #include "xcom/xcom_recover.h"
 #include "xcom/xcom_statistics.h"
 #include "xcom/xcom_vp_str.h"
+
+#include "xcom/network/xcom_network_provider.h"
 
 #ifndef XCOM_WITHOUT_OPENSSL
 #ifdef _WIN32
@@ -358,6 +350,9 @@ static unsigned short oom_abort = 0;
 
 /* Forward declarations */
 long xcom_unique_long(void);
+static int64_t socket_write(
+    connection_descriptor *wfd, void *_buf, uint32_t n,
+    connnection_write_method write_function = con_write);
 
 static double wakeup_delay(double old);
 static void note_snapshot(node_no node);
@@ -1002,7 +997,29 @@ void set_xcom_input_try_pop_cb(xcom_input_try_pop_cb pop) {
   xcom_try_pop_from_input_cb = pop;
 }
 
-static connection_descriptor *input_signal_connection = NULL;
+/**
+ * These fields are used to signal XCom's request queue. After a request
+ * is added, one will write 1 byte to warn local_server_task that it has work to
+ * do.
+ *
+ * We use two types of signalling connection:
+ * - An anonymous pipe, when possible, in POSIX compatible systems
+ * - A regular socket connection, in Windows
+ *
+ * input_signal_connection is the connection_descriptor returned when one opens
+ * a local signalling connection. It will contain either:
+ * - The write side of a connection, in case of using a pipe OR;
+ * - A bidirectional connection, when using a regular socket connection;
+ *
+ * input_signal_connection_pipe is the connection_descriptor that holds the read
+ * side of a pipe connection. It is only allocated when we are able to have
+ * a pipe connection.
+ */
+
+static connection_descriptor *input_signal_connection{nullptr};
+
+connection_descriptor *input_signal_connection_pipe{nullptr};
+int pipe_signal_connections[2] = {-1, -1};
 
 #ifndef XCOM_WITHOUT_OPENSSL
 static bool_t xcom_input_signal_connection_shutdown_ssl_wait_for_peer() {
@@ -1017,6 +1034,7 @@ static bool_t xcom_input_signal_connection_shutdown_ssl_wait_for_peer() {
        SSL_ERROR_ZERO_RETURN);
   return successful;
 }
+
 static bool_t xcom_input_signal_connection_shutdown_ssl() {
   bool_t successful = FALSE;
 
@@ -1044,55 +1062,90 @@ bool_t xcom_input_new_signal_connection(char const *address, xcom_port port) {
   bool_t const UNSUCCESSFUL = FALSE;
   assert(input_signal_connection == NULL);
 
-  /* Try to connect. */
-  input_signal_connection = xcom_open_client_connection(address, port);
-  if (input_signal_connection == NULL) return UNSUCCESSFUL;
-
-  /* Have the server handle the rest of this connection using a local_server
-     task. */
-  if (xcom_client_convert_into_local_server(input_signal_connection) == 1) {
-    G_TRACE(
-        "Converted the signalling connection handler into a local_server "
-        "task on the client side.");
+  if (input_signal_connection_pipe != nullptr) {
+    input_signal_connection =
+        (connection_descriptor *)malloc(sizeof(connection_descriptor));
+    input_signal_connection->fd = pipe_signal_connections[1];
 #ifndef XCOM_WITHOUT_OPENSSL
-    /* No more SSL in this connection. */
-    {
-      bool_t const using_ssl = (input_signal_connection->ssl_fd != NULL);
-      if (using_ssl) {
-        bool_t successful = xcom_input_signal_connection_shutdown_ssl();
-        if (!successful) {
-          G_ERROR(
-              "Error shutting down SSL on XCom's signalling connection on the "
-              "client side.");
-          xcom_input_free_signal_connection();
-          return UNSUCCESSFUL;
-        }
-      }
-    }
+    input_signal_connection->ssl_fd = nullptr;
 #endif
+    set_connected(input_signal_connection, CON_FD);
+
     return SUCCESSFUL;
   } else {
-    G_DEBUG(
-        "Error converting the signalling connection handler into a "
-        "local_server task on the client side.");
-    xcom_input_free_signal_connection();
-    return UNSUCCESSFUL;
+    /* purecov: begin deadcode */
+    /* Try to connect. */
+    input_signal_connection = open_new_local_connection(address, port);
+    if (input_signal_connection->fd == -1) {
+      return UNSUCCESSFUL;
+    }
+
+    /* Have the server handle the rest of this connection using a local_server
+       task. */
+    if (xcom_client_convert_into_local_server(input_signal_connection) == 1) {
+      G_TRACE(
+          "Converted the signalling connection handler into a local_server "
+          "task on the client side.");
+
+#ifndef XCOM_WITHOUT_OPENSSL
+      /* No more SSL in this connection. */
+      if (Network_provider_manager::getInstance().get_running_protocol() ==
+          XCOM_PROTOCOL) {
+        bool_t const using_ssl = (input_signal_connection->ssl_fd != NULL);
+        if (using_ssl) {
+          bool_t successful = xcom_input_signal_connection_shutdown_ssl();
+          if (!successful) {
+            G_ERROR(
+                "Error shutting down SSL on XCom's signalling connection on "
+                "the "
+                "client side.");
+            xcom_input_free_signal_connection();
+            return UNSUCCESSFUL;
+          }
+        }
+      }
+#endif
+
+      return SUCCESSFUL;
+    } else {
+      G_DEBUG(
+          "Error converting the signalling connection handler into a "
+          "local_server task on the client side.");
+      xcom_input_free_signal_connection();
+      return UNSUCCESSFUL;
+    }
+    /* purecov: end */
   }
 }
-static int64_t socket_write(connection_descriptor *wfd, void *_buf, uint32_t n);
+
 bool_t xcom_input_signal() {
   bool_t successful = FALSE;
   if (input_signal_connection != NULL) {
     unsigned char tiny_buf[1] = {0};
-    int64_t error_code = socket_write(input_signal_connection, tiny_buf, 1);
+    int64_t error_code;
+    connnection_write_method to_write_function =
+        input_signal_connection_pipe != nullptr ? con_pipe_write : con_write;
+
+    error_code =
+        socket_write(input_signal_connection, tiny_buf, 1, to_write_function);
+
     successful = (error_code == 1);
   }
   return successful;
 }
+
 void xcom_input_free_signal_connection() {
-  if (input_signal_connection != NULL) {
-    xcom_close_client_connection(input_signal_connection);
-    input_signal_connection = NULL;
+  if (input_signal_connection != nullptr) {
+    if (input_signal_connection_pipe != nullptr) {
+      close(input_signal_connection->fd);
+    } else {
+      /* purecov: begin deadcode */
+      close_open_connection(input_signal_connection);
+      /* purecov: end */
+    }
+
+    free(input_signal_connection);
+    input_signal_connection = nullptr;
   }
 }
 
@@ -1137,13 +1190,15 @@ int local_server(task_arg arg) {
   pax_msg *reply_payload;
   linkage internal_reply_queue;
   msg_link *internal_reply;
+  bool signaling_connection_error;
+  connnection_read_method signal_read;
   END_ENV;
   TASK_BEGIN
   assert(xcom_try_pop_from_input_cb != NULL);
   {
     connection_descriptor *arg_rfd = (connection_descriptor *)get_void_arg(arg);
     ep->rfd = *arg_rfd;
-    free(arg_rfd);
+    if (input_signal_connection_pipe == nullptr) free(arg_rfd);
   }
   ep->ssl_shutdown_ret = 0;
   memset(ep->buf, 0, 1024);
@@ -1154,10 +1209,18 @@ int local_server(task_arg arg) {
   ep->reply_payload = NULL;
   link_init(&ep->internal_reply_queue, TYPE_HASH("msg_link"));
   ep->internal_reply = NULL;
+  ep->signaling_connection_error = false;
+
+  // We will check if we have a pipe open or if we use a classic signalling
+  // connection.
+  ep->signal_read =
+      input_signal_connection_pipe != nullptr ? con_pipe_read : con_read;
 
 #ifndef XCOM_WITHOUT_OPENSSL
   /* No more SSL in this connection. */
-  if (ep->rfd.ssl_fd) {
+  if (Network_provider_manager::getInstance().get_running_protocol() ==
+          XCOM_PROTOCOL &&
+      ep->rfd.ssl_fd) {
     TASK_CALL(local_server_shutdown_ssl(&ep->rfd, ep->buf, 1024,
                                         &ep->ssl_shutdown_ret));
     if (ep->ssl_shutdown_ret != 1) {
@@ -1171,19 +1234,33 @@ int local_server(task_arg arg) {
 
   while (!xcom_shutdown) {
     /* Wait for signal that there is work to consume from the queue. */
-    TASK_CALL(task_read(&ep->rfd, ep->buf, 1024, &ep->nr_read));
-    if (ep->nr_read == 0) {
-      /* purecov: begin inspected */
-      G_WARNING("local_server: client closed the signalling connection?");
-      break;
-      /* purecov: end */
-    } else if (ep->nr_read < 0) {
-      /* purecov: begin inspected */
-      IFDBG(D_NONE, FN; NDBG64(ep->nr_read));
-      G_WARNING("local_server: error reading from the signalling connection?");
-      break;
-      /* purecov: end */
+    if (!ep->signaling_connection_error) {
+      TASK_CALL(
+          task_read(&ep->rfd, ep->buf, 1024, &ep->nr_read, ep->signal_read));
+      if (ep->nr_read == 0) {
+        /* purecov: begin inspected */
+        G_WARNING("local_server: client closed the signalling connection?");
+        ep->signaling_connection_error = true;
+        /* purecov: end */
+      } else if (ep->nr_read < 0) {
+        /* purecov: begin inspected */
+        IFDBG(D_NONE, FN; NDBG64(ep->nr_read));
+        G_WARNING(
+            "local_server: error reading from the signalling connection?");
+        ep->signaling_connection_error = true;
+        /* purecov: end */
+      }
     }
+
+    /**
+     * If an error occurs or if the client connection for the local server is
+     * forcefully shutdown, we continue processing the queue until the end
+     * resorting to time-based waits.
+     */
+    if (ep->signaling_connection_error) {
+      TASK_DELAY(0.1);
+    }
+
     /* Pop, dispatch, and reply. */
     ep->request = xcom_try_pop_from_input_cb();
     while (ep->request != NULL) {
@@ -1194,6 +1271,7 @@ int local_server(task_arg arg) {
                                 pax_msg_new_0(null_synode));
       assert(ep->request_pax_msg->refcnt == 1);
       ep->request_pax_msg->op = client_msg;
+
       /* Take ownership of the request's app_data, otherwise the app_data is
          freed with ep->request. */
       ep->request_pax_msg->a = xcom_input_request_extract_app_data(ep->request);
@@ -1227,7 +1305,15 @@ int local_server(task_arg arg) {
   IFDBG(D_BUG, FN; STRLIT(" shutdown "); NDBG(ep->rfd.fd, d);
         NDBG(task_now(), f));
   /* Close the signalling connection. */
-  shutdown_connection(&ep->rfd);
+  if (!ep->signaling_connection_error) {
+    if (input_signal_connection_pipe != nullptr) {
+      close(ep->rfd.fd);
+      remove_and_wakeup(ep->rfd.fd);
+    } else {
+      shutdown_connection(&ep->rfd);
+    }
+  }
+
   unchecked_replace_pax_msg(&ep->request_pax_msg, NULL);
   IFDBG(D_NONE, FN; NDBG(xcom_shutdown, d));
   TASK_END;
@@ -1244,15 +1330,19 @@ int xcom_taskmain2(xcom_port listen_port) {
   ignoresig(SIGPIPE);
 
   {
-    /* Setup tcp_server socket */
     result tcp_fd = {0, 0};
 
-    if ((tcp_fd = announce_tcp(listen_port)).val < 0) {
+    /*
+    Setup networking
+    */
+    auto &net_manager = Network_provider_manager::getInstance();
+    bool error_starting_network_provider =
+        net_manager.start_active_network_provider();
+    if (error_starting_network_provider) {
       /* purecov: begin inspected */
-      IFDBG(D_BUG, FN; STRLIT("cannot annonunce tcp "); NDBG(listen_port, d));
-      task_dump_err(tcp_fd.funerr);
-      g_critical("Unable to announce tcp port %d. Port already in use?",
-                 listen_port);
+      g_critical("Unable to start %s Network Provider",
+                 Communication_stack_to_string::to_string(
+                     net_manager.get_running_protocol()));
       if (xcom_comms_cb) {
         xcom_comms_cb(XCOM_COMMS_ERROR);
       }
@@ -1263,14 +1353,53 @@ int xcom_taskmain2(xcom_port listen_port) {
       /* purecov: end */
     }
 
+// We will use POSIX pipes for local queue signaling if we are not using WIN32
+#if !defined(_WIN32)
+    if (local_server_is_setup()) {
+      /* Launch local_server task to handle this connection. */
+      {
+        if (pipe(pipe_signal_connections) == -1) {
+          /* purecov: begin inspected */
+          g_critical("Unable to start local signaling mechanism");
+          if (xcom_comms_cb) {
+            xcom_comms_cb(XCOM_COMMS_ERROR);
+          }
+          if (xcom_terminate_cb) {
+            xcom_terminate_cb(0);
+          }
+          goto cleanup;
+          /* purecov: end */
+        }
+        unblock_fd(pipe_signal_connections[0]);
+
+        /*
+         Create the read side of input_signal_connection_pipe and create the
+         local_server.
+
+         If one would to use regular sockets, this code is not executed and
+         the local_server is created in the dispatch_op function.
+        */
+        input_signal_connection_pipe =
+            (connection_descriptor *)malloc(sizeof(connection_descriptor));
+        input_signal_connection_pipe->fd = pipe_signal_connections[0];
+#ifndef XCOM_WITHOUT_OPENSSL
+        input_signal_connection_pipe->ssl_fd = nullptr;
+#endif
+        set_connected(input_signal_connection_pipe, CON_FD);
+        task_new(local_server, void_arg(input_signal_connection_pipe),
+                 "local_server", XCOM_THREAD_DEBUG);
+      }
+    }
+#endif
+
     if (xcom_comms_cb) {
       xcom_comms_cb(XCOM_COMMS_OK);
     }
 
     IFDBG(D_NONE, FN; STRLIT("Creating tasks"));
-    /* task_new(generator_task, null_arg, "generator_task", XCOM_THREAD_DEBUG);
-     */
-    task_new(tcp_server, int_arg(tcp_fd.val), "tcp_server", XCOM_THREAD_DEBUG);
+
+    task_new(incoming_connection_task, int_arg(tcp_fd.val), "tcp_server",
+             XCOM_THREAD_DEBUG);
     task_new(tcp_reaper_task, null_arg, "tcp_reaper_task", XCOM_THREAD_DEBUG);
     IFDBG(D_BUG, FN; STRLIT("XCOM is listening on "); NPUT(listen_port, d));
   }
@@ -1280,24 +1409,34 @@ int xcom_taskmain2(xcom_port listen_port) {
   if (recovery_begin_cb) recovery_begin_cb();
 
   task_loop();
-
 cleanup:
 
 #ifdef TASK_EVENT_TRACE
   dump_task_events();
 #endif
-#ifndef XCOM_WITHOUT_OPENSSL
-  xcom_cleanup_ssl();
-#endif
+  // STOP NETWORK PROVIDERS
+  Network_provider_manager::getInstance().stop_all_network_providers();
 
   xcom_thread_deinit();
-  if (xcom_exit_cb) {
-    xcom_exit_cb(0);
-  }
+
   IFDBG(D_BUG, FN; STRLIT(" exit "); NDBG(xcom_dbg_stack_top, d);
         NDBG((unsigned)xcom_debug_mask, x));
   xcom_debug_mask = 0;
   xcom_dbg_stack_top = 0;
+  if (input_signal_connection_pipe != nullptr) {
+    ::xcom_input_free_signal_connection();
+
+    free(input_signal_connection_pipe);
+    input_signal_connection_pipe = nullptr;
+
+    pipe_signal_connections[0] = -1;
+    pipe_signal_connections[1] = -1;
+  }
+
+  if (xcom_exit_cb) {
+    xcom_exit_cb(0);
+  }
+
   return 1;
 }
 
@@ -2552,6 +2691,22 @@ static bool_t add_node_unsafe_against_ipv4_old_nodes(app_data_ptr a) {
 
     return FALSE;
   }
+}
+
+/**
+ * @brief This will test if we are receiving a boot request that contains
+ *        ourselves. This could happed in case of a misconfiguration of a
+ *        local_address, that causes an add_node request to be erroneous
+ *        delivered.
+ *
+ * @param a app_data with an add node request
+ * @return bool_t TRUE in case of error, meaning that my address is in the
+ *                     add_node list
+ */
+static bool_t add_node_adding_own_address(app_data_ptr a) {
+  assert(a->body.c_t == add_node_type);
+
+  return node_exists(cfg_app_xcom_get_identity(), &a->body.app_u_u.nodes);
 }
 
 /**
@@ -4306,10 +4461,10 @@ int pre_process_incoming_ping(site_def const *site, pax_msg const *pm,
       site->servers[pm->from]->last_ping_received = current_time;
 
       // If we keep on receiving periodical pings... lets kill the connection
-      if (is_connected(&site->servers[pm->from]->con) &&
+      if (is_connected(site->servers[pm->from]->con) &&
           site->servers[pm->from]->number_of_pings_received ==
               PINGS_GATHERED_BEFORE_CONNECTION_SHUTDOWN) {
-        shutdown_connection(&site->servers[pm->from]->con);
+        shutdown_connection(site->servers[pm->from]->con);
         G_WARNING(
             "Shutting down an outgoing connection. This happens because "
             "something might be wrong on a bi-directional connection to node "
@@ -4544,7 +4699,13 @@ static void log_cfgchange_wrong_group(app_data_ptr a,
 static client_reply_code can_execute_cfgchange(pax_msg *p) {
   app_data_ptr a = p->a;
 
-  if (executed_msg.msgno <= 2) return REQUEST_RETRY;
+  if (executed_msg.msgno <= 2) {
+    // If we have not booted and we receive an add_node that contains us...
+    if (add_node_adding_own_address(a))
+      return REQUEST_FAIL;
+    else
+      return REQUEST_RETRY;
+  }
 
   if (a && a->group_id != 0 && a->group_id != executed_msg.group_id) {
     switch (a->body.c_t) {
@@ -4797,6 +4958,7 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
         CREATE_REPLY(p);
         reply->op = xcom_client_reply;
         reply->cli_err = cli_err = can_execute_cfgchange(p);
+
         SEND_REPLY;
         if (cli_err != REQUEST_OK) {
           break;
@@ -5051,14 +5213,14 @@ pax_msg *dispatch_op(site_def const *site, pax_msg *p, linkage *reply_queue) {
   msg->from = ep->p->to;                    \
   msg->delivered_msg = get_delivered_msg(); \
   msg->max_synode = get_max_synode();       \
-  serialize_msg(msg, ep->rfd.x_proto, &ep->buflen, &ep->buf);
+  serialize_msg(msg, ep->rfd->x_proto, &ep->buflen, &ep->buf);
 
 #define WRITE_REPLY                                                    \
   if (ep->buflen) {                                                    \
     int64_t sent;                                                      \
     IFDBG(D_TRANSPORT, FN; STRLIT("task_write "); NDBG(ep->rfd.fd, d); \
           NDBG(ep->buflen, u));                                        \
-    TASK_CALL(task_write(&ep->rfd, ep->buf, ep->buflen, &sent));       \
+    TASK_CALL(task_write(ep->rfd, ep->buf, ep->buflen, &sent));        \
     send_count[ep->p->op]++;                                           \
     send_bytes[ep->p->op] += ep->buflen;                               \
     X_FREE(ep->buf);                                                   \
@@ -5121,7 +5283,7 @@ static bool_t should_poll_cache(pax_op op) {
 
 int acceptor_learner_task(task_arg arg) {
   DECL_ENV
-  connection_descriptor rfd;
+  connection_descriptor *rfd;
   srv_buf *in_buf;
 
   pax_msg *p;
@@ -5136,12 +5298,9 @@ int acceptor_learner_task(task_arg arg) {
 
   TASK_BEGIN
 
-  ep->in_buf = (srv_buf *)calloc(1, sizeof(srv_buf));
+  ep->rfd = (connection_descriptor *)get_void_arg(arg);
 
-  ep->rfd.fd = get_int_arg(arg);
-#ifndef XCOM_WITHOUT_OPENSSL
-  ep->rfd.ssl_fd = 0;
-#endif
+  ep->in_buf = (srv_buf *)calloc(1, sizeof(srv_buf));
   ep->p = NULL;
   ep->buflen = 0;
   ep->buf = NULL;
@@ -5150,51 +5309,12 @@ int acceptor_learner_task(task_arg arg) {
   ep->behind = FALSE;
 
   /* We have a connection, make socket non-blocking and wait for request */
-  unblock_fd(ep->rfd.fd);
-  set_nodelay(ep->rfd.fd);
-  wait_io(stack, ep->rfd.fd, 'r');
+  unblock_fd(ep->rfd->fd);
+  set_nodelay(ep->rfd->fd);
+  wait_io(stack, ep->rfd->fd, 'r');
   TASK_YIELD;
 
-#ifndef XCOM_WITHOUT_OPENSSL
-  if (xcom_use_ssl()) {
-    ep->rfd.ssl_fd = SSL_new(server_ctx);
-    SSL_set_fd(ep->rfd.ssl_fd, ep->rfd.fd);
-
-    {
-      int ret_ssl;
-      int err;
-      ERR_clear_error();
-      ret_ssl = SSL_accept(ep->rfd.ssl_fd);
-      err = SSL_get_error(ep->rfd.ssl_fd, ret_ssl);
-
-      while (ret_ssl != SSL_SUCCESS) {
-        if (err == SSL_ERROR_WANT_READ) {
-          wait_io(stack, ep->rfd.fd, 'r');
-        } else if (err == SSL_ERROR_WANT_WRITE) {
-          wait_io(stack, ep->rfd.fd, 'w');
-        } else { /* Some other error, give up */
-          break;
-        }
-        TASK_YIELD;
-        SET_OS_ERR(0);
-        G_DEBUG("acceptor learner accept retry fd %d", ep->rfd.fd);
-        ERR_clear_error();
-        ret_ssl = SSL_accept(ep->rfd.ssl_fd);
-        err = SSL_get_error(ep->rfd.ssl_fd, ret_ssl);
-      }
-
-      if (ret_ssl != SSL_SUCCESS) {
-        ssl_free_con(&ep->rfd);
-        close_connection(&ep->rfd);
-        TERMINATE;
-      }
-    }
-
-  } else {
-    ep->rfd.ssl_fd = 0;
-  }
-#endif
-  set_connected(&ep->rfd, CON_FD);
+  set_connected(ep->rfd, CON_FD);
   link_init(&ep->reply_queue, TYPE_HASH("msg_link"));
 
 again:
@@ -5204,9 +5324,11 @@ again:
     unchecked_replace_pax_msg(&ep->p, pax_msg_new_0(null_synode));
 
     if (use_buffered_read) {
-      TASK_CALL(buffered_read_msg(&ep->rfd, ep->in_buf, ep->p, ep->srv, &n));
+      TASK_CALL(buffered_read_msg(ep->rfd, ep->in_buf, ep->p, ep->srv, &n));
     } else {
-      TASK_CALL(read_msg(&ep->rfd, ep->p, ep->srv, &n));
+      /* purecov: begin deadcode */
+      TASK_CALL(read_msg(ep->rfd, ep->p, ep->srv, &n));
+      /* purecov: end */
     }
     ADD_DBG(D_NONE, add_synode_event(ep->p->synode);
             add_event(EVENT_DUMP_PAD, string_arg("ep->p->from"));
@@ -5214,7 +5336,7 @@ again:
             add_event(EVENT_DUMP_PAD, string_arg(pax_op_to_str(ep->p->op))););
 
     if (ep->srv && !ep->srv->invalid && ((int)ep->p->op != (int)client_msg) &&
-        is_connected(&ep->srv->con))
+        is_connected(ep->srv->con))
       server_detected(ep->srv);
 
     if (((int)ep->p->op < (int)client_msg || ep->p->op > LAST_OP)) {
@@ -5231,6 +5353,7 @@ again:
 
     /* Handle this connection on a local_server task instead of this
        acceptor_learner_task task. */
+    /* purecov: begin deadcode */
     if (ep->p->op == client_msg && ep->p->a &&
         ep->p->a->body.c_t == convert_into_local_server_type) {
       if (local_server_is_setup()) {
@@ -5238,7 +5361,7 @@ again:
         {
           connection_descriptor *con =
               (connection_descriptor *)malloc(sizeof(connection_descriptor));
-          *con = ep->rfd;
+          *con = *ep->rfd;
           task_new(local_server, void_arg(con), "local_server",
                    XCOM_THREAD_DEBUG);
         }
@@ -5259,11 +5382,12 @@ again:
       if (local_server_is_setup()) {
         /* Relinquish ownership of the connection. It is now onwed by the
            launched local_server task. */
-        reset_connection(&ep->rfd);
+        reset_connection(ep->rfd);
       }
       /* Terminate this task. */
       TERMINATE;
     }
+    /* purecov: end */
 
     /*
       Getting a pointer to the server needs to be done after we have
@@ -5397,7 +5521,8 @@ again:
   if (ep->reply_queue.suc && !link_empty(&ep->reply_queue))
     empty_msg_list(&ep->reply_queue);
   unchecked_replace_pax_msg(&ep->p, NULL);
-  shutdown_connection(&ep->rfd);
+  shutdown_connection(ep->rfd);
+  free(ep->rfd);
   IFDBG(D_NONE, FN; NDBG(xcom_shutdown, d));
   if (ep->buf) X_FREE(ep->buf);
   free(ep->in_buf);
@@ -5431,7 +5556,7 @@ int reply_handler_task(task_arg arg) {
   ep->reply = NULL;
 
   while (!xcom_shutdown) {
-    while (!is_connected(&ep->s->con)) {
+    while (!is_connected(ep->s->con)) {
       IFDBG(D_NONE, FN; STRLIT("waiting for connection"));
       TASK_DELAY(ep->dtime);
       if (xcom_shutdown) {
@@ -5449,12 +5574,12 @@ int reply_handler_task(task_arg arg) {
 
       ADD_DBG(D_NONE, add_event(EVENT_DUMP_PAD, string_arg("ep->s->con.fd"));
               add_event(EVENT_DUMP_PAD, int_arg(ep->s->con.fd)););
-      TASK_CALL(read_msg(&ep->s->con, ep->reply, ep->s, &n));
+      TASK_CALL(read_msg(ep->s->con, ep->reply, ep->s, &n));
       ADD_DBG(D_NONE, add_event(EVENT_DUMP_PAD, string_arg("ep->s->con.fd"));
               add_event(EVENT_DUMP_PAD, int_arg(ep->s->con.fd)););
       ep->reply->refcnt = 1; /* Refcnt from other end is void here */
       if (n <= 0) {
-        shutdown_connection(&ep->s->con);
+        shutdown_connection(ep->s->con);
         continue;
       }
       receive_bytes[ep->reply->op] += (uint64_t)n + MSG_HDR_SIZE;
@@ -5496,7 +5621,7 @@ int reply_handler_task(task_arg arg) {
   FINALLY
   replace_pax_msg(&ep->reply, NULL);
 
-  shutdown_connection(&ep->s->con);
+  shutdown_connection(ep->s->con);
   ep->s->reply_handler = NULL;
   IFDBG(D_BUG, FN; STRLIT(" shutdown "); NDBG(ep->s->con.fd, d);
         NDBG(task_now(), f));
@@ -5506,7 +5631,7 @@ int reply_handler_task(task_arg arg) {
 }
 
 /* purecov: begin deadcode */
-static inline void xcom_sleep(unsigned int seconds) {
+void xcom_sleep(unsigned int seconds) {
 #if defined(_WIN32)
   Sleep((DWORD)seconds * 1000); /* windows sleep takes milliseconds */
 #else
@@ -6367,30 +6492,6 @@ void set_app_snap_handler(app_snap_handler x) { handle_app_snap_cb = x; }
 void set_app_snap_getter(app_snap_getter x) { get_app_snap_cb = x; }
 /* purecov: end */
 
-static result checked_create_socket(int domain, int type, int protocol) {
-  result retval = {0, 0};
-  int nr_attempts = 1005;
-
-  do {
-    SET_OS_ERR(0);
-    retval.val = (int)socket(domain, type, protocol);
-    retval.funerr = to_errno(GET_OS_ERR);
-    if (nr_attempts % 10 == 0) xcom_sleep(1);
-  } while (--nr_attempts && retval.val == -1 &&
-           (from_errno(retval.funerr) == SOCK_EAGAIN));
-
-  if (retval.val == -1) {
-    task_dump_err(retval.funerr);
-#if defined(_WIN32)
-    G_MESSAGE("Socket creation failed with error %d.", retval.funerr);
-#else
-    G_MESSAGE("Socket creation failed with error %d - %s.", retval.funerr,
-              strerror(retval.funerr));
-#endif
-  }
-  return retval;
-}
-
 /* Read max n bytes from socket fd into buffer buf */
 static result socket_read(connection_descriptor *rfd, void *buf, int n) {
   result ret = {0, 0};
@@ -6434,8 +6535,8 @@ static int64_t socket_read_bytes(connection_descriptor *rfd, char *p,
 }
 
 /* Write n bytes from buffer buf to socket fd */
-static int64_t socket_write(connection_descriptor *wfd, void *_buf,
-                            uint32_t n) {
+static int64_t socket_write(connection_descriptor *wfd, void *_buf, uint32_t n,
+                            connnection_write_method write_function) {
   char *buf = (char *)_buf;
   result ret = {0, 0};
 
@@ -6445,7 +6546,7 @@ static int64_t socket_write(connection_descriptor *wfd, void *_buf,
   while (total < n) {
     int w = (int)MIN(n - total, INT_MAX);
 
-    while ((ret = con_write(wfd, buf + total, w)).val < 0 &&
+    while ((ret = write_function(wfd, buf + total, w)).val < 0 &&
            can_retry_write(ret.funerr)) {
       task_dump_err(ret.funerr);
       IFDBG(D_NONE, FN; STRLIT("retry "); NEXP(total, d); NEXP(n, d));
@@ -6462,380 +6563,13 @@ static int64_t socket_write(connection_descriptor *wfd, void *_buf,
   return (total);
 }
 
-static inline result xcom_close_socket(int *sock) {
-  result res = {0, 0};
-  if (*sock != -1) {
-    IFDBG(D_FILEOP, FN; STRLIT("closing socket "); NDBG(*sock, d));
-    do {
-      SET_OS_ERR(0);
-      res.val = CLOSESOCKET(*sock);
-      res.funerr = to_errno(GET_OS_ERR);
-    } while (res.val == -1 && from_errno(res.funerr) == SOCK_EINTR);
-    *sock = -1;
-  }
-  return res;
-}
-
-static inline result xcom_shut_close_socket(int *sock) {
-  result res = {0, 0};
-  if (*sock >= 0) {
-    shutdown_socket(sock);
-    res = xcom_close_socket(sock);
-  }
-  return res;
-}
-
 #define CONNECT_FAIL \
   ret_fd = -1;       \
   goto end
 
-/*
-
-*/
-
-/**
-  @brief Retreives a node IPv4 address, if it exists.
-
-  If a node is v4 reachable, means one of two:
-  - The raw address is V4
-  - a name was resolved to a V4/V6 address
-
-  If the later is the case, we are going to prefer the first v4
-  address in the list, since it is the common language between
-  old and new version. If you want exclusive V6, please configure your
-  DNS server to serve V6 names
-
-  @param retrieved a previously retrieved struct addrinfo
-  @return struct addrinfo* An addrinfo of the first IPv4 address. Else it will
-                           return the entry parameter.
- */
-struct addrinfo *does_node_have_v4_address(struct addrinfo *retrieved) {
-  struct addrinfo *cycle = NULL;
-
-  int v4_reachable = is_node_v4_reachable_with_info(retrieved);
-
-  if (v4_reachable) {
-    cycle = retrieved;
-    while (cycle) {
-      if (cycle->ai_family == AF_INET) {
-        return cycle;
-      }
-      cycle = cycle->ai_next;
-    }
-  }
-
-  /* If something goes really wrong... we fallback to avoid crashes */
-  return retrieved;
-}
-
-static int timed_connect_msec(int fd, struct sockaddr *sock_addr,
-                              socklen_t sock_size, int timeout) {
-  int ret_fd = fd;
-  int syserr;
-  int sysret;
-  struct pollfd fds;
-
-  fds.fd = fd;
-  fds.events = POLLOUT;
-  fds.revents = 0;
-
-  /* Set non-blocking */
-  if (unblock_fd(fd) < 0) return -1;
-
-  /* Trying to connect with timeout */
-  SET_OS_ERR(0);
-  sysret = connect(fd, sock_addr, sock_size);
-
-  if (is_socket_error(sysret)) {
-    syserr = GET_OS_ERR;
-    /* If the error is SOCK_EWOULDBLOCK or SOCK_EINPROGRESS or SOCK_EALREADY,
-     * wait. */
-    switch (syserr) {
-      case SOCK_EWOULDBLOCK:
-      case SOCK_EINPROGRESS:
-      case SOCK_EALREADY:
-        break;
-      default:
-        G_DEBUG(
-            "connect - Error connecting "
-            "(socket=%d, error=%d).",
-            fd, GET_OS_ERR);
-        CONNECT_FAIL;
-    }
-
-    SET_OS_ERR(0);
-    IFDBG(D_TRANSPORT, FN; STRLIT("poll - Starting. "); NEXP(timeout, d);
-          NEXP(sysret, d));
-    while ((sysret = poll(&fds, 1, timeout)) < 0) {
-      syserr = GET_OS_ERR;
-      if (syserr != SOCK_EINTR && syserr != SOCK_EINPROGRESS) break;
-      SET_OS_ERR(0);
-    }
-    IFDBG(D_TRANSPORT, FN; STRLIT("poll - Finished. "); NEXP(timeout, d);
-          NEXP(sysret, d));
-
-    if (sysret == 0) {
-      G_DEBUG(
-          "Timed out while waiting for connection to be established! "
-          "Cancelling connection attempt. (socket= %d, error=%d)",
-          fd, sysret);
-      /* G_WARNING("poll - Timeout! Cancelling connection..."); */
-      CONNECT_FAIL;
-    }
-
-    if (is_socket_error(sysret)) {
-      G_DEBUG(
-          "poll - Error while connecting! "
-          "(socket= %d, error=%d)",
-          fd, GET_OS_ERR);
-      CONNECT_FAIL;
-    }
-
-    {
-      int socket_errno = 0;
-      socklen_t socket_errno_len = sizeof(socket_errno);
-
-      if ((fds.revents & POLLOUT) == 0) {
-        IFDBG(D_NONE, FN; STRLIT("POLLOUT not set - Socket failure!"););
-        ret_fd = -1;
-      }
-
-      if (fds.revents & (POLLERR | POLLHUP | POLLNVAL)) {
-        IFDBG(D_NONE, FN;
-              STRLIT("POLLERR | POLLHUP | POLLNVAL set - Socket failure!"););
-        ret_fd = -1;
-      }
-      if (getsockopt(fd, SOL_SOCKET, SO_ERROR, (xcom_buf *)&socket_errno,
-                     &socket_errno_len) != 0) {
-        G_DEBUG("getsockopt socket %d failed.", fd);
-        ret_fd = -1;
-      } else {
-        if (socket_errno != 0) {
-          G_DEBUG("Connection to socket %d failed with error %d.", fd,
-                  socket_errno);
-          ret_fd = -1;
-        }
-      }
-    }
-  }
-
-end:
-  /* Set blocking */
-  SET_OS_ERR(0);
-  if (block_fd(fd) < 0) {
-    G_DEBUG(
-        "Unable to set socket back to blocking state. "
-        "(socket=%d, error=%d).",
-        fd, GET_OS_ERR);
-    return -1;
-  }
-  return ret_fd;
-}
-
-static int timed_connect(int fd, struct sockaddr *sock_addr,
-                         socklen_t sock_size) {
-  return timed_connect_msec(fd, sock_addr, sock_size, 10000);
-}
-
-/* purecov: begin deadcode */
-int timed_connect_sec(int fd, struct sockaddr *sock_addr, socklen_t sock_size,
-                      int timeout) {
-  return timed_connect_msec(fd, sock_addr, sock_size, timeout * 1000);
-}
-/* purecov: end */
-
-/* Connect to server on given port */
-#ifndef XCOM_WITHOUT_OPENSSL
-static connection_descriptor *connect_xcom(char const *server, xcom_port port,
-                                           int use_ssl) {
-#else
-static connection_descriptor *connect_xcom(char const *server, xcom_port port) {
-#endif
-  result fd = {0, 0};
-  result ret = {0, 0};
-  connection_descriptor *cd = NULL;
-  char buf[SYS_STRERROR_SIZE];
-
-  IFDBG(D_NONE, FN; STREXP(server); NEXP(port, d));
-  G_DEBUG("connecting to %s %d", server, port);
-
-  {
-    struct addrinfo *addr = NULL, *from_ns = NULL;
-
-    char buffer[20];
-    sprintf(buffer, "%d", port);
-
-    checked_getaddrinfo(server, buffer, 0, &from_ns);
-
-    if (from_ns == NULL) {
-      /* purecov: begin inspected */
-      G_ERROR("Error retrieving server information.");
-      goto end;
-      /* purecov: end */
-    }
-
-    addr = does_node_have_v4_address(from_ns);
-
-    /* Create socket after knowing the family that we are dealing with
-       getaddrinfo returns a list of possible addresses. We will alays default
-       to the first one in the list, which is V4 if applicable.
-     */
-    if ((fd = checked_create_socket(addr->ai_family, SOCK_STREAM, IPPROTO_TCP))
-            .val < 0) {
-      /* purecov: begin inspected */
-      G_ERROR(
-          "Error creating socket in local GR->GCS connection to address %s.",
-          server);
-      goto end;
-      /* purecov: end */
-    }
-
-    /* Connect socket to address */
-
-    SET_OS_ERR(0);
-
-    if (timed_connect(fd.val, addr->ai_addr, (socklen_t)addr->ai_addrlen) ==
-        -1) {
-      fd.funerr = to_errno(GET_OS_ERR);
-      G_DEBUG(
-          "Connecting socket to address %s in port %d failed with error %d - "
-          "%s.",
-          server, port, fd.funerr, strerr_msg(buf, sizeof(buf), fd.funerr));
-      xcom_close_socket(&fd.val);
-      goto end;
-    }
-    {
-      int peer = 0;
-      /* Sanity check before return */
-      SET_OS_ERR(0);
-      {
-        socklen_t ai_addrlen = (socklen_t)addr->ai_addrlen;
-        ret.val = peer = xcom_getpeername(fd.val, addr->ai_addr, &ai_addrlen);
-      }
-      ret.funerr = to_errno(GET_OS_ERR);
-      if (peer >= 0) {
-        ret = set_nodelay(fd.val);
-        if (ret.val < 0) {
-          /* purecov: begin inspected */
-          task_dump_err(ret.funerr);
-          xcom_shut_close_socket(&fd.val);
-#if defined(_WIN32)
-          G_DEBUG(
-              "Setting node delay failed  while connecting to %s with error "
-              "%d.",
-              server, ret.funerr);
-#else
-          G_DEBUG(
-              "Setting node delay failed  while connecting to %s with error %d "
-              "- "
-              "%s.",
-              server, ret.funerr, strerror(ret.funerr));
-#endif
-          goto end;
-          /* purecov: end */
-        }
-        G_DEBUG("client connected to %s %d fd %d", server, port, fd.val);
-      } else {
-        /* Something is wrong */
-        /* purecov: begin inspected */
-        socklen_t errlen = sizeof(ret.funerr);
-        IFDBG(D_NONE, FN; STRLIT("xcom_getpeername failed"););
-        if (ret.funerr) {
-          IFDBG(D_NONE, FN; NEXP(from_errno(ret.funerr), d);
-                STRLIT(strerror(from_errno(ret.funerr))));
-        }
-        getsockopt(fd.val, SOL_SOCKET, SO_ERROR, (xcom_buf *)&ret.funerr,
-                   &errlen);
-        if (ret.funerr == 0) {
-          ret.funerr = to_errno(SOCK_ECONNREFUSED);
-        }
-        xcom_shut_close_socket(&fd.val);
-#if defined(_WIN32)
-        G_DEBUG(
-            "Getting the peer name failed while connecting to server %s with "
-            "error %d.",
-            server, ret.funerr);
-#else
-        G_DEBUG(
-            "Getting the peer name failed while connecting to server %s with "
-            "error %d -%s.",
-            server, ret.funerr, strerror(ret.funerr));
-#endif
-        goto end;
-        /* purecov: end */
-      }
-
-#ifndef XCOM_WITHOUT_OPENSSL
-      if (use_ssl && xcom_use_ssl()) {
-        SSL *ssl = SSL_new(client_ctx);
-        G_DEBUG("Trying to connect using SSL.")
-        SSL_set_fd(ssl, fd.val);
-
-        ERR_clear_error();
-        ret.val = SSL_connect(ssl);
-        ret.funerr = to_ssl_err(SSL_get_error(ssl, ret.val));
-
-        if (ret.val != SSL_SUCCESS) {
-          /* purecov: begin inspected */
-          G_MESSAGE("Error connecting using SSL %d %d.", ret.funerr,
-                    SSL_get_error(ssl, ret.val));
-          task_dump_err(ret.funerr);
-          SSL_shutdown(ssl);
-          SSL_free(ssl);
-          xcom_shut_close_socket(&fd.val);
-
-          goto end;
-          /* purecov: end */
-        }
-        IFDBG(D_NONE, FN; STRLIT("ssl connected to "); STRLIT(server);
-              NDBG(port, d); NDBG(fd.val, d); PTREXP(ssl));
-
-        if (ssl_verify_server_cert(ssl, server)) {
-          /* purecov: begin inspected */
-          G_MESSAGE("Error validating certificate and peer.");
-          task_dump_err(ret.funerr);
-          SSL_shutdown(ssl);
-          SSL_free(ssl);
-          xcom_shut_close_socket(&fd.val);
-
-          goto end;
-          /* purecov: end */
-        }
-
-        cd = new_connection(fd.val, ssl);
-        set_connected(cd, CON_FD);
-        G_DEBUG("Success connecting using SSL.")
-
-        goto end;
-      } else {
-        cd = new_connection(fd.val, 0);
-        set_connected(cd, CON_FD);
-
-        goto end;
-      }
-#else
-      {
-        cd = new_connection(fd.val);
-        set_connected(cd, CON_FD);
-
-        goto end;
-      }
-#endif
-    }
-
-  end:
-    if (from_ns) freeaddrinfo(from_ns);
-  }
-  return cd;
-}
-
 connection_descriptor *xcom_open_client_connection(char const *server,
                                                    xcom_port port) {
-#ifndef XCOM_WITHOUT_OPENSSL
-  return connect_xcom(server, port, TRUE);
-#else
-  return connect_xcom(server, port);
-#endif
+  return open_new_connection(server, port);
 }
 
 /* Send a protocol negotiation message on connection con */
@@ -7174,10 +6908,9 @@ void warn_protoversion_mismatch(connection_descriptor *rfd) {
       if (ok) {
         G_WARNING(
             "Detected incorrect xcom protocol version in connection from %s "
-            "indicates "
-            "missing cleanup of, or incorrect, xcom group definition on remote "
-            "host. Please upgrade the process running on %s to a compatible "
-            "version or stop it.",
+            "indicates  missing cleanup of, or incorrect, xcom group "
+            "definition on remote host. Please upgrade the process running on "
+            "%s to a compatible version or stop it.",
             buf, buf);
         protoversion_warning_time = task_now();
       }
@@ -7244,20 +6977,6 @@ static pax_msg *socket_read_msg(connection_descriptor *rfd, pax_msg *p)
   return (p);
 }
 
-int xcom_close_client_connection(connection_descriptor *connection) {
-  int retval = 0;
-
-#ifndef XCOM_WITHOUT_OPENSSL
-  if (connection->ssl_fd) {
-    SSL_shutdown(connection->ssl_fd);
-    ssl_free_con(connection);
-  }
-#endif
-  retval = xcom_shut_close_socket(&connection->fd).val;
-  free(connection);
-  return retval;
-}
-
 /* purecov: begin deadcode */
 int xcom_client_boot(connection_descriptor *fd, node_list *nl,
                      uint32_t group_id) {
@@ -7295,7 +7014,9 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
   do {
     retval = (int)xcom_send_client_app_data(fd, a, force);
     memset(p, 0, sizeof(*p)); /* before return so caller can free p */
-    if (retval < 0) return SEND_REQUEST_FAILED;
+    if (retval < 0) {
+      return SEND_REQUEST_FAILED;
+    }
     rp = socket_read_msg(fd, p);
     if (rp) {
       client_reply_code cli_err = rp->cli_err;
@@ -7303,11 +7024,8 @@ static xcom_send_app_wait_result xcom_send_app_wait_and_get(
         case REQUEST_OK:
           return REQUEST_OK_RECEIVED;
         case REQUEST_FAIL:
-
-          G_DEBUG("cli_err %d", cli_err);
           return REQUEST_FAIL_RECEIVED;
         case REQUEST_RETRY:
-          G_DEBUG("cli_err %d", cli_err);
           if (retry_count > 1) xdr_free((xdrproc_t)xdr_pax_msg, (char *)p);
           xcom_sleep(1);
           break;
@@ -7547,4 +7265,14 @@ int xcom_client_convert_into_local_server(connection_descriptor *const fd) {
   retval = xcom_send_app_wait(fd, init_convert_into_local_server_msg(&a), 0);
   xdr_free((xdrproc_t)xdr_app_data, (char *)&a);
   return retval;
+}
+
+std::unique_ptr<Network_provider_management_interface>
+get_network_management_interface() {
+  return std::make_unique<Network_Management_Interface>();
+}
+
+std::unique_ptr<Network_provider_operations_interface>
+get_network_operations_interface() {
+  return std::make_unique<Network_Management_Interface>();
 }

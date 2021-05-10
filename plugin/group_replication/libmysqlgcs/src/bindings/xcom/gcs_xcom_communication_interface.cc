@@ -58,7 +58,8 @@ using std::map;
 Gcs_xcom_communication::Gcs_xcom_communication(
     Gcs_xcom_statistics_updater *stats, Gcs_xcom_proxy *proxy,
     Gcs_xcom_view_change_control_interface *view_control,
-    Gcs_xcom_engine *gcs_engine, Gcs_group_identifier const &group_id)
+    Gcs_xcom_engine *gcs_engine, Gcs_group_identifier const &group_id,
+    std::unique_ptr<Network_provider_management_interface> comms_mgmt)
     : event_listeners(),
       stats(stats),
       m_xcom_proxy(proxy),
@@ -67,7 +68,8 @@ Gcs_xcom_communication::Gcs_xcom_communication(
       m_buffered_packets(),
       m_xcom_nodes(),
       m_gid_hash(),
-      m_protocol_changer(*gcs_engine, m_msg_pipeline) {
+      m_protocol_changer(*gcs_engine, m_msg_pipeline),
+      m_comms_mgmt_interface(std::move(comms_mgmt)) {
   const void *id_str = group_id.get_group_id().c_str();
   m_gid_hash = Gcs_xcom_utils::mhash(static_cast<const unsigned char *>(id_str),
                                      group_id.get_group_id().size());
@@ -631,4 +633,14 @@ Gcs_xcom_communication::get_maximum_supported_protocol_version() const {
 void Gcs_xcom_communication::set_maximum_supported_protocol_version(
     Gcs_protocol_version version) {
   return m_protocol_changer.set_maximum_supported_protocol_version(version);
+}
+
+void Gcs_xcom_communication::set_communication_protocol(
+    enum_transport_protocol protocol) {
+  m_comms_mgmt_interface->set_running_protocol(protocol);
+}
+
+enum_transport_protocol
+Gcs_xcom_communication::get_incoming_connections_protocol() {
+  return m_comms_mgmt_interface->get_incoming_connections_protocol();
 }

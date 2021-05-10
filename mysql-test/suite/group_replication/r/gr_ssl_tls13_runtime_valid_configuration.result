@@ -11,12 +11,16 @@ SET @tls_version_save= @@GLOBAL.tls_version;
 SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
 SET @ssl_cipher_save= @@GLOBAL.ssl_cipher;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET @group_replication_recovery_tls_version_save= @@GLOBAL.group_replication_recovery_tls_version;
+SET @group_replication_recovery_tls_ciphersuites_save= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
 SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
 [connection server2]
 SET @tls_version_save= @@GLOBAL.tls_version;
 SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
 SET @ssl_cipher_save= @@GLOBAL.ssl_cipher;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET @group_replication_recovery_tls_version_save= @@GLOBAL.group_replication_recovery_tls_version;
+SET @group_replication_recovery_tls_ciphersuites_save= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
 SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
@@ -29,6 +33,8 @@ SET @tls_version_save= @@GLOBAL.tls_version;
 SET @tls_ciphersuites_save= @@GLOBAL.tls_ciphersuites;
 SET @ssl_cipher_save= @@GLOBAL.ssl_cipher;
 SET @group_replication_ssl_mode_save= @@GLOBAL.group_replication_ssl_mode;
+SET @group_replication_recovery_tls_version_save= @@GLOBAL.group_replication_recovery_tls_version;
+SET @group_replication_recovery_tls_ciphersuites_save= @@GLOBAL.group_replication_recovery_tls_ciphersuites;
 SET @@GLOBAL.group_replication_ssl_mode= REQUIRED;
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("\\[GCS\\] Error connecting to all peers. Member join failed. Local port:*");
@@ -86,11 +92,15 @@ include/stop_group_replication.inc
 [connection server1]
 SET @@GLOBAL.tls_version= 'TLSv1.3';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_128_CCM_SHA256';
+SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_CCM_SHA256';
 ALTER INSTANCE RELOAD TLS;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 SET @@GLOBAL.tls_version= 'TLSv1.3';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_128_CCM_SHA256';
+SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_CCM_SHA256';
 ALTER INSTANCE RELOAD TLS;
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc
@@ -112,16 +122,22 @@ include/stop_group_replication.inc
 [connection server1]
 SET @@GLOBAL.tls_version= 'TLSv1.3';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
+SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
 ALTER INSTANCE RELOAD TLS;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
 SET @@GLOBAL.tls_version= 'TLSv1.3';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_256_GCM_SHA384:TLS_AES_128_CCM_SHA256';
+SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384';
 ALTER INSTANCE RELOAD TLS;
 include/start_group_replication.inc
 [connection server3]
 SET @@GLOBAL.tls_version= 'TLSv1.3';
 SET @@GLOBAL.tls_ciphersuites= 'TLS_AES_128_CCM_8_SHA256: TLS_AES_256_GCM_SHA384';
+SET @@GLOBAL.group_replication_recovery_tls_version= 'TLSv1.3';
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= 'TLS_AES_128_CCM_8_SHA256: TLS_AES_256_GCM_SHA384';
 ALTER INSTANCE RELOAD TLS;
 include/start_group_replication.inc
 include/rpl_gr_wait_for_number_of_members.inc
@@ -190,6 +206,8 @@ SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
 SET @@GLOBAL.ssl_cipher = @ssl_cipher_save;
+SET @@GLOBAL.group_replication_recovery_tls_version= @group_replication_recovery_tls_version_save;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @group_replication_recovery_tls_ciphersuites_save;
 ALTER INSTANCE RELOAD TLS;
 Warnings:
 Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
@@ -199,6 +217,8 @@ SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_save;
 SET @@GLOBAL.ssl_cipher = @ssl_cipher_save;
+SET @@GLOBAL.group_replication_recovery_tls_version= @group_replication_recovery_tls_version_save;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @group_replication_recovery_tls_ciphersuites_save;
 ALTER INSTANCE RELOAD TLS;
 Warnings:
 Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.
@@ -208,6 +228,8 @@ SET @@GLOBAL.group_replication_ssl_mode= @group_replication_ssl_mode_save;
 SET @@GLOBAL.tls_version= @tls_version_save;
 SET @@GLOBAL.tls_ciphersuites = @tls_ciphersuites_save;
 SET @@GLOBAL.ssl_cipher = @ssl_cipher_save;
+SET @@GLOBAL.group_replication_recovery_tls_version= @group_replication_recovery_tls_version_save;
+SET @@GLOBAL.group_replication_recovery_tls_ciphersuites= @group_replication_recovery_tls_ciphersuites_save;
 ALTER INSTANCE RELOAD TLS;
 Warnings:
 Warning	4038	A deprecated TLS version TLSv1 is enabled for channel mysql_main. Please use TLSv1.2 or higher.

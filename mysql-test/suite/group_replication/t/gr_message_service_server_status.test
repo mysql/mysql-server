@@ -64,6 +64,10 @@
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
+
 --source include/install_replication_observers_example.inc
 
 --source include/start_and_bootstrap_group_replication.inc
@@ -72,6 +76,10 @@ CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
+SET SESSION sql_log_bin = 1;
 
 --source include/install_replication_observers_example.inc
 

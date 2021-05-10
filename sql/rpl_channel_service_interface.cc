@@ -1101,6 +1101,27 @@ int channel_get_credentials(const char *channel, std::string &username,
   return 0;
 }
 
+int channel_get_network_namespace(const char *channel, std::string &net_ns) {
+  DBUG_TRACE;
+
+  channel_map.rdlock();
+  Master_info *mi = channel_map.get_mi(channel);
+
+  if (mi == nullptr) {
+    channel_map.unlock();
+    return RPL_CHANNEL_SERVICE_CHANNEL_DOES_NOT_EXISTS_ERROR;
+  }
+
+  mi->inc_reference();
+  channel_map.unlock();
+
+  net_ns.assign(mi->network_namespace_str());
+
+  mi->dec_reference();
+
+  return 0;
+}
+
 bool channel_is_stopping(const char *channel,
                          enum_channel_thread_types thd_type) {
   bool is_stopping = false;

@@ -454,6 +454,18 @@ int channel_get_credentials(const char *channel, std::string &user,
                             std::string &password);
 
 /**
+  Method to get the network namespace configured for a channel
+
+  @param[in]  channel  The channel name
+  @param[out] net_ns   The network namespace to extract
+
+  @return the operation status
+    @retval false   OK
+    @retval true    Error, channel not found
+*/
+int channel_get_network_namespace(const char *channel, std::string &net_ns);
+
+/**
   Return type for function
   has_any_slave_channel_open_temp_table_or_is_its_applier_running()
 */

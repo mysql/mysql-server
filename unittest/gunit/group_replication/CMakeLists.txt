@@ -31,15 +31,26 @@ SET(TESTS
   group_replication_compatibility_module
   group_replication_member_version
   group_replication_mysql_version_gcs_protocol_map
+  group_replication_gcs_mysql_network_provider
   )
 
+IF(MY_COMPILER_IS_SUNPRO)
+  LIST(REMOVE_ITEM TESTS group_replication_gcs_mysql_network_provider)
+ENDIF()
+
 FOREACH(test ${TESTS})
-  MYSQL_ADD_EXECUTABLE(${test}-t ${test}-t.cc
+  SET(SRC_FILES ${test}-t.cc)
+  IF(WIN32)
+    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+  ENDIF()
+
+  MYSQL_ADD_EXECUTABLE(${test}-t ${SRC_FILES}
     ADD_TEST ${test}
     ENABLE_EXPORTS
     LINK_LIBRARIES
     gr_unit_test_resource
-    gunit_small
+    gunit_large
+    server_unittest_library
     mysqlclient
     mysqlgcs
     )

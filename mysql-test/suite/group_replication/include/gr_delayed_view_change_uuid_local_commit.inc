@@ -55,14 +55,20 @@
 --echo
 --echo ############################################################
 --echo #  2. Start 2 servers.
---echo #     Only setup recovery_user on server2 for force server3
---echo #     to recover from it.
+--echo #     Only setup recovery_user with GRANT REPLICATION SLAVE on server2
+--echo #     for force server3 to recover from it.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 
 SET sql_log_bin = 0;
 --source include/gtid_utils.inc
 SET sql_log_bin = 1;
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"
+FLUSH PRIVILEGES;
+SET SESSION sql_log_bin= 1;
 
 SET @group_replication_view_change_uuid_save= @@GLOBAL.group_replication_view_change_uuid;
 --eval SET @@GLOBAL.group_replication_view_change_uuid = "$view_change_uuid"
@@ -82,6 +88,7 @@ SET sql_log_bin = 1;
 SET SESSION sql_log_bin= 0;
 --eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
 --eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"
 FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
@@ -117,8 +124,17 @@ SET sql_log_bin = 0;
 SET sql_log_bin = 1;
 
 SET SESSION sql_log_bin= 0;
+call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed*");
+call mtr.add_suppression("Slave I/O thread couldn't register on master*");
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
+SET SESSION sql_log_bin= 1;
+
+SET SESSION sql_log_bin= 0;
+--eval CREATE USER "$recovery_user" IDENTIFIED BY "$recovery_password"
+--eval GRANT REPLICATION SLAVE ON *.* TO "$recovery_user"
+--eval GRANT GROUP_REPLICATION_STREAM ON *.* TO "$recovery_user"
+FLUSH PRIVILEGES;
 SET SESSION sql_log_bin= 1;
 
 --disable_warnings
@@ -357,6 +373,10 @@ SET sql_log_bin = 1;
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
 
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
 SET sql_log_bin = 0;
 --source include/gtid_utils_end.inc
 SET sql_log_bin = 1;
@@ -367,8 +387,13 @@ SET sql_log_bin = 1;
 --source include/stop_group_replication.inc
 SET @@GLOBAL.group_replication_view_change_uuid= @group_replication_view_change_uuid_save;
 
+SET SESSION sql_log_bin= 0;
+--eval DROP USER "$recovery_user"
+SET SESSION sql_log_bin= 1;
+
 SET sql_log_bin = 0;
 --source include/gtid_utils_end.inc
 SET sql_log_bin = 1;
 
 --source include/group_replication_end.inc
+

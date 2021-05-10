@@ -16,6 +16,7 @@
 # 4. Cleanup
 #
 
+--source include/have_group_replication_xcom_communication_stack.inc
 --source include/have_mysqld_monitoring_process.inc
 --source include/have_clone_plugin.inc
 --source include/force_restart.inc

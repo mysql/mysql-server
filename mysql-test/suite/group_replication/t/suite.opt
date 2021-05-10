@@ -1,1 +1,4 @@
 $GROUP_REPLICATION_OPT --plugin-load=$GROUP_REPLICATION
+--loose-group_replication_recovery_ssl_ca=$MYSQL_TEST_DIR/std_data/cacert.pem
+--loose-group_replication_recovery_ssl_cert=$MYSQL_TEST_DIR/std_data/client-cert.pem
+--loose-group_replication_recovery_ssl_key=$MYSQL_TEST_DIR/std_data/client-key.pem

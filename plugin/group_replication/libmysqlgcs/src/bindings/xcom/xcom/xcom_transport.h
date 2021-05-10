@@ -128,7 +128,7 @@ int shutdown_servers();
 int srv_ref(server *s);
 int srv_unref(server *s);
 int tcp_reaper_task(task_arg arg);
-int tcp_server(task_arg arg);
+int incoming_connection_task(task_arg arg);
 uint32_t crc32c_hash(char *buf, char *end);
 int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
               enum xdr_op op);
@@ -157,9 +157,15 @@ void shutdown_connection(connection_descriptor *con);
 void reset_connection(connection_descriptor *con);
 void close_connection(connection_descriptor *con);
 
+int close_open_connection(connection_descriptor *conn);
+connection_descriptor *open_new_connection(
+    const char *server, xcom_port port,
+    int connection_timeout = Network_provider::default_connection_timeout());
+connection_descriptor *open_new_local_connection(const char *server,
+                                                 xcom_port port);
+
 #ifndef XCOM_WITHOUT_OPENSSL
 void ssl_free_con(connection_descriptor *con);
-void ssl_shutdown_con(connection_descriptor *con);
 #endif
 
 char const *xcom_proto_name(xcom_proto proto_vers);
@@ -183,6 +189,7 @@ xcom_proto common_xcom_version(site_def const *site);
 xcom_proto get_latest_common_proto();
 xcom_proto set_latest_common_proto(xcom_proto x_proto);
 extern linkage connect_wait;
+extern int connect_tcp(char *server, xcom_port port, int *ret);
 
 /**
  * @brief Returns the version from which nodes are able to speak IPv6
@@ -225,7 +232,7 @@ int is_new_node_eligible_for_ipv6(xcom_proto incoming_proto,
                                   const site_def *current_site_def);
 
 #define INITIAL_CONNECT_WAIT 0.1
-#define MAX_CONNECT_WAIT 1.0
-#define CONNECT_WAIT_INCREASE 1.1
+#define MAX_CONNECT_WAIT 10.0
+#define CONNECT_WAIT_INCREASE 1.0
 
 #endif

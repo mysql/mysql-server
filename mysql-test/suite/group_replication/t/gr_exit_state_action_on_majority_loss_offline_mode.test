@@ -38,6 +38,7 @@ call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave 
 call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
 call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
 call mtr.add_suppression("\\[GCS\\] read failed");
+call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SESSION sql_log_bin = 1;
 
 --echo
