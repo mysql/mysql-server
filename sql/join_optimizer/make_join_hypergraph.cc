@@ -283,7 +283,188 @@ void ComputeCompanionSets(RelationalExpression *expr, int current_set,
       ComputeCompanionSets(expr->right, /*current_set=*/-1, num_companion_sets,
                            table_num_to_companion_set);
       break;
+    case RelationalExpression::MULTI_INNER_JOIN:
+      assert(false);
   }
+}
+
+/**
+  Convert a multi-join into a simple inner join. expr must already have
+  the correct companion set filled out.
+
+  Only the top level will be converted, so there may still be a multi-join
+  below the modified node, e.g.:
+
+  MULTIJOIN(a, b) -> a JOIN b
+  MULTIJOIN(a, b, c, ...) -> a JOIN MULTIJOIN(b, c, ...)
+
+  If you want full unflattening, call UnflattenInnerJoins(), which calls this
+  function recursively.
+ */
+void CreateInnerJoinFromChildList(
+    Mem_root_array<RelationalExpression *> children,
+    RelationalExpression *expr) {
+  expr->type = RelationalExpression::INNER_JOIN;
+  expr->tables_in_subtree = 0;
+  expr->nodes_in_subtree = 0;
+  for (RelationalExpression *child : children) {
+    expr->tables_in_subtree |= child->tables_in_subtree;
+    expr->nodes_in_subtree |= child->nodes_in_subtree;
+  }
+
+  if (children.size() == 2) {
+    expr->left = children[0];
+    expr->right = children[1];
+  } else {
+    // Split arbitrarily.
+    expr->right = children.back();
+    children.pop_back();
+
+    RelationalExpression *left =
+        new (current_thd->mem_root) RelationalExpression(current_thd);
+    left->type = RelationalExpression::MULTI_INNER_JOIN;
+    left->tables_in_subtree = 0;
+    left->nodes_in_subtree = 0;
+    left->companion_set = expr->companion_set;
+    for (RelationalExpression *child : children) {
+      left->tables_in_subtree |= child->tables_in_subtree;
+      left->nodes_in_subtree |= child->nodes_in_subtree;
+    }
+    left->multi_children = std::move(children);
+    expr->left = left;
+  }
+}
+
+/**
+  Find all inner joins under “expr” without a join condition, and convert them
+  to a flattened join (MULTI_INNER_JOIN). We do this even for the joins that
+  have only two children, as it makes it easier to absorb them into higher
+  multi-joins.
+
+  The primary motivation for flattening is more flexible pushdown; when there is
+  a large multi-way join, we can push pretty much any equality condition down
+  to it, no matter how the join tree was written by the user.
+  See PartiallyUnflattenJoinForCondition() for details.
+
+  Note that this (currently) does not do any rewrites to flatten even more.
+  E.g., for the tree (a JOIN (b LEFT JOIN c)), it would be beneficial to use
+  associativity to rewrite into (a JOIN b) LEFT JOIN c (assuming a and b
+  could be combined further with other joins). This also means that there may
+  be items in the companion set that are not part of the same multi-join.
+ */
+void FlattenInnerJoins(RelationalExpression *expr) {
+  if (expr->type != RelationalExpression::TABLE) {
+    FlattenInnerJoins(expr->left);
+    FlattenInnerJoins(expr->right);
+  }
+  assert(expr->equijoin_conditions
+             .empty());  // MakeHashJoinConditions() has not run yet.
+  if (expr->type == RelationalExpression::INNER_JOIN &&
+      expr->join_conditions.empty()) {
+    // Collect and flatten children.
+    expr->type = RelationalExpression::MULTI_INNER_JOIN;
+    if (expr->left->type == RelationalExpression::MULTI_INNER_JOIN) {
+      for (RelationalExpression *child : expr->left->multi_children) {
+        expr->multi_children.push_back(child);
+      }
+    } else {
+      expr->multi_children.push_back(expr->left);
+    }
+    if (expr->right->type == RelationalExpression::MULTI_INNER_JOIN) {
+      for (RelationalExpression *child : expr->right->multi_children) {
+        expr->multi_children.push_back(child);
+      }
+    } else {
+      expr->multi_children.push_back(expr->right);
+    }
+    expr->left = nullptr;
+    expr->right = nullptr;
+  }
+}
+
+/**
+  The opposite of FlattenInnerJoins(); converts all flattened joins to
+  a series of (right-deep) binary joins.
+ */
+void UnflattenInnerJoins(RelationalExpression *expr) {
+  if (expr->type == RelationalExpression::TABLE) {
+    return;
+  }
+  if (expr->type == RelationalExpression::MULTI_INNER_JOIN) {
+    // Peel off one table, then recurse. We could probably be
+    // somewhat more efficient than this if it's important.
+    CreateInnerJoinFromChildList(std::move(expr->multi_children), expr);
+  }
+  UnflattenInnerJoins(expr->left);
+  UnflattenInnerJoins(expr->right);
+}
+
+/**
+  For the given flattened join (multi-join), pull out (only) the parts we need
+  to push the given condition, and make a binary join for it. For instance,
+  if we have
+
+    MULTIJOIN(t1, t2, t3, t4 LJ t5)
+
+  and we have a condition t2.x = t5.x, we need to pull out the parts referring
+  to t2 and t5, partially exploding the multi-join:
+
+    MULTIJOIN(t1, t3, t2 JOIN (t4 LJ t5))
+
+  The newly created child will be returned, and the condition can be pushed
+  onto it. Note that there may be flattened joins under it; it is only the
+  returned node itself that is guaranteed to be a binary join.
+
+  If the condition touches all tables in the flattened join, the newly created
+  binary node will completely replace the former. (The simplest case of this is
+  a multi-join with only two nodes, and a condition referring to both of them.)
+  For instance, given
+
+    MULTIJOIN(t1, t2, t3)
+
+  and a condition t1.x = t2.x + t3.x, the entire node will be replaced by
+
+    t1 JOIN MULTIJOIN(t2, t3)
+
+  on which it is possible to push the condition. Which node is pulled out to
+  the left side is undefined.
+
+  See also CreateInnerJoinFromChildList().
+ */
+RelationalExpression *PartiallyUnflattenJoinForCondition(
+    table_map used_tables, RelationalExpression *expr) {
+  Mem_root_array<RelationalExpression *> affected_children(
+      current_thd->mem_root);
+  for (RelationalExpression *child : expr->multi_children) {
+    if (Overlaps(used_tables, child->tables_in_subtree) ||
+        Overlaps(used_tables, RAND_TABLE_BIT)) {
+      affected_children.push_back(child);
+    }
+  }
+  assert(affected_children.size() > 1);
+
+  if (affected_children.size() == expr->multi_children.size()) {
+    // We need all of the nodes, so replace ourself entirely.
+    CreateInnerJoinFromChildList(std::move(affected_children), expr);
+    return expr;
+  }
+
+  RelationalExpression *new_expr =
+      new (current_thd->mem_root) RelationalExpression(current_thd);
+  new_expr->companion_set = expr->companion_set;
+  CreateInnerJoinFromChildList(std::move(affected_children), new_expr);
+
+  // Insert the new node as one of the children, and take out
+  // the ones we've moved down into it.
+  auto new_end =
+      std::remove_if(expr->multi_children.begin(), expr->multi_children.end(),
+                     [used_tables](const RelationalExpression *child) {
+                       return Overlaps(used_tables, child->tables_in_subtree) ||
+                              Overlaps(used_tables, RAND_TABLE_BIT);
+                     });
+  expr->multi_children.erase(new_end, expr->multi_children.end());
+  expr->multi_children.push_back(new_expr);
+  return new_expr;
 }
 
 string PrintRelationalExpression(RelationalExpression *expr, int level) {
@@ -301,6 +482,7 @@ string PrintRelationalExpression(RelationalExpression *expr, int level) {
       // Do not try to descend further.
       return result;
     case RelationalExpression::INNER_JOIN:
+    case RelationalExpression::MULTI_INNER_JOIN:
       result += "* Inner join";
       break;
     case RelationalExpression::STRAIGHT_INNER_JOIN:
@@ -318,6 +500,15 @@ string PrintRelationalExpression(RelationalExpression *expr, int level) {
     case RelationalExpression::FULL_OUTER_JOIN:
       result += "* Full outer join";
       break;
+  }
+  if (expr->type == RelationalExpression::MULTI_INNER_JOIN) {
+    // Should only exist before pushdown.
+    assert(expr->equijoin_conditions.empty() && expr->join_conditions.empty());
+    result += " (flattened)\n";
+    for (RelationalExpression *child : expr->multi_children) {
+      result += PrintRelationalExpression(child, level + 1);
+    }
+    return result;
   }
   if (!expr->equijoin_conditions.empty() && !expr->join_conditions.empty()) {
     result += StringPrintf(" (equijoin condition = %s, extra = %s)",
@@ -363,7 +554,8 @@ bool IsNullRejecting(const RelationalExpression &expr, table_map tables) {
 
 bool IsInnerJoin(RelationalExpression::Type type) {
   return type == RelationalExpression::INNER_JOIN ||
-         type == RelationalExpression::STRAIGHT_INNER_JOIN;
+         type == RelationalExpression::STRAIGHT_INNER_JOIN ||
+         type == RelationalExpression::MULTI_INNER_JOIN;
 }
 
 // Returns true if (t1 <a> t2) <b> t3 === t1 <a> (t2 <b> t3).
@@ -954,8 +1146,8 @@ bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
 /**
   Add “cond” as a join condition to “expr”, but if it would enlarge the set
   of referenced tables, try to rewrite the join tree using associativity
-  (either left or right) and commutativity to be able to put the condition
-  on a more favorable node. (See IsBadJoinForCondition().) As an example:
+  (either left or right) to be able to put the condition on a more favorable
+  node. (See IsBadJoinForCondition().)
 
     a JOIN (b JOIN c ON TRUE) ON a.x=b.x WHERE a.y=c.y
 
@@ -967,14 +1159,10 @@ bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
 
     (a JOIN b ON a.x=b.x) JOIN c ON a.y=c.y
 
-  These rewrites frequently crop up in queries without explicit joins,
-  e.g.
-
-    SELECT ... FROM a,b,c WHERE a.x=b.x AND a.y=c.y
-
-  They don't solve all situations; in particular, we don't deal with
-  situations that should create cycles in the hypergraph. But it gets us
-  out of the most common ones.
+  Note that with flattening, we don't need this for inner joins (flattening
+  solves all inner-join cases without needing this machinery), so this is only
+  ever called when outer joins are involved (inner joins are used in the example
+  above for ease of exposition).
 
   This function works recursively, and returns true if the condition
   was pushed.
@@ -982,7 +1170,12 @@ bool CanonicalizeConditions(THD *thd, table_map tables_in_subtree,
 bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
                                          AssociativeRewritesAllowed allowed,
                                          bool used_commutativity,
-                                         string *trace) {
+                                         bool *need_flatten, string *trace) {
+  // We should never reach this from a top-level caller, and due to the call
+  // to UnflattenInnerJoins() below, we should also never see it through
+  // rotates.
+  assert(expr->type != RelationalExpression::MULTI_INNER_JOIN);
+
   // We can only promote filters to join conditions on inner joins and
   // semijoins, but having a left join doesn't stop us from doing the rewrites
   // below. Due to special semijoin rules in MySQL (see comments in
@@ -1002,6 +1195,16 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
     return true;
   }
 
+  // Flattening in itself causes some headaches (it's not obvious how to do
+  // rotates), so before any such rewrites, we unflatten the tree. This isn't
+  // particularly efficient, and it may also cause us to miss some rewrites,
+  // but it's an OK tradeoff. The top-level caller will have to flatten again.
+  //
+  // NOTE: When/if we support rotating through flattened joins, we can
+  // drop all the commutativity code.
+  UnflattenInnerJoins(expr);
+  *need_flatten = true;
+
   // Try (where ABC are arbitrary expressions, and <op1> is expr):
   //
   //   A <op1> (B <op2> C) => (A <op1> B) <op2> C
@@ -1020,7 +1223,7 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
       RotateRight(expr);
       if (AddJoinConditionPossiblyWithRewrite(
               expr, cond, AssociativeRewritesAllowed::RIGHT_ONLY,
-              used_commutativity, trace)) {
+              used_commutativity, need_flatten, trace)) {
         return true;
       }
       // It failed, so undo what we did.
@@ -1033,7 +1236,7 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
       RotateRight(expr);
       if (AddJoinConditionPossiblyWithRewrite(
               expr, cond, AssociativeRewritesAllowed::RIGHT_ONLY,
-              /*used_commutativity=*/false, trace)) {
+              /*used_commutativity=*/false, need_flatten, trace)) {
         return true;
       }
       // It failed, so undo what we did.
@@ -1055,7 +1258,7 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
       RotateLeft(expr);
       if (AddJoinConditionPossiblyWithRewrite(
               expr, cond, AssociativeRewritesAllowed::LEFT_ONLY,
-              used_commutativity, trace)) {
+              used_commutativity, need_flatten, trace)) {
         return true;
       }
       // It failed, so undo what we did.
@@ -1068,7 +1271,7 @@ bool AddJoinConditionPossiblyWithRewrite(RelationalExpression *expr, Item *cond,
       RotateLeft(expr);
       if (AddJoinConditionPossiblyWithRewrite(
               expr, cond, AssociativeRewritesAllowed::LEFT_ONLY,
-              /*used_commutativity=*/true, trace)) {
+              /*used_commutativity=*/true, need_flatten, trace)) {
         return true;
       }
       // It failed, so undo what we did.
@@ -1155,12 +1358,31 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     }
     return;
   }
+  const table_map used_tables =
+      cond->used_tables() & (expr->tables_in_subtree | RAND_TABLE_BIT);
+
+  if (expr->type == RelationalExpression::MULTI_INNER_JOIN) {
+    // See if we can push this condition down to a single child.
+    for (RelationalExpression *child : expr->multi_children) {
+      if (IsSubset(used_tables, child->tables_in_subtree)) {
+        PushDownCondition(cond, child,
+                          /*is_join_condition_for_expr=*/false,
+                          table_num_to_companion_set, table_filters,
+                          cycle_inducing_edges, remaining_parts, trace);
+        return;
+      }
+    }
+
+    // We couldn't, so we'll need to unflatten the join (either partially
+    // or completely) to get a place where we can store the condition.
+    expr = PartiallyUnflattenJoinForCondition(used_tables, expr);
+
+    // Fall through, presumably storing the condition as a join condition
+    // on the given node.
+  }
 
   assert(
       !Overlaps(expr->left->tables_in_subtree, expr->right->tables_in_subtree));
-
-  const table_map used_tables =
-      cond->used_tables() & (expr->tables_in_subtree | RAND_TABLE_BIT);
 
   // See if we can push down into the left side, ie., it only touches
   // tables on the left side of the join.
@@ -1305,12 +1527,16 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
       expr->type == RelationalExpression::ANTIJOIN) {
     // See if we can promote it by rewriting; if not, it has to be left
     // as a filter.
+    bool need_flatten = false;
     if (!AddJoinConditionPossiblyWithRewrite(
             expr, cond, AssociativeRewritesAllowed::ANY,
-            /*used_commutativity=*/false, trace)) {
+            /*used_commutativity=*/false, &need_flatten, trace)) {
       if (remaining_parts != nullptr) {
         remaining_parts->push_back(cond);
       }
+    }
+    if (need_flatten) {
+      FlattenInnerJoins(expr);
     }
     return;
   }
@@ -1332,9 +1558,10 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     return;
   }
 
+  bool need_flatten = false;
   if (!AddJoinConditionPossiblyWithRewrite(
           expr, cond, AssociativeRewritesAllowed::ANY,
-          /*used_commutativity=*/false, trace)) {
+          /*used_commutativity=*/false, &need_flatten, trace)) {
     if (expr->type == RelationalExpression::INNER_JOIN &&
         IsCandidateForCycle(cond, expr->tables_in_subtree,
                             table_num_to_companion_set)) {
@@ -1369,6 +1596,9 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
         cycle_inducing_edges->push_back(
             CanonicalizeCondition(cond, expr->tables_in_subtree));
       }
+      if (need_flatten) {
+        FlattenInnerJoins(expr);
+      }
       return;
     }
     if (trace != nullptr) {
@@ -1385,6 +1615,9 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
     } else {
       expr->join_conditions.push_back(cond);
     }
+  }
+  if (need_flatten) {
+    FlattenInnerJoins(expr);
   }
 }
 
@@ -1519,10 +1752,17 @@ void PushDownJoinConditions(THD *thd, RelationalExpression *expr,
         /*is_join_condition_for_expr=*/true, table_num_to_companion_set,
         table_filters, cycle_inducing_edges, trace);
   }
-  PushDownJoinConditions(thd, expr->left, table_num_to_companion_set,
-                         table_filters, cycle_inducing_edges, trace);
-  PushDownJoinConditions(thd, expr->right, table_num_to_companion_set,
-                         table_filters, cycle_inducing_edges, trace);
+  if (expr->type == RelationalExpression::MULTI_INNER_JOIN) {
+    for (RelationalExpression *child : expr->multi_children) {
+      PushDownJoinConditions(thd, child, table_num_to_companion_set,
+                             table_filters, cycle_inducing_edges, trace);
+    }
+  } else {
+    PushDownJoinConditions(thd, expr->left, table_num_to_companion_set,
+                           table_filters, cycle_inducing_edges, trace);
+    PushDownJoinConditions(thd, expr->right, table_num_to_companion_set,
+                           table_filters, cycle_inducing_edges, trace);
+  }
 }
 
 /**
@@ -2657,6 +2897,7 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
   int table_num_to_companion_set[MAX_TABLES];
   ComputeCompanionSets(root, /*current_set=*/-1, &num_companion_sets,
                        table_num_to_companion_set);
+  FlattenInnerJoins(root);
 
   if (trace != nullptr) {
     // TODO(sgunders): Same question as above; perhaps the version after
@@ -2696,6 +2937,10 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
         /*is_join_condition_for_expr=*/false, table_num_to_companion_set,
         &table_filters, &cycle_inducing_edges, trace);
 
+    // We're done pushing, so unflatten so that the rest of the algorithms
+    // don't need to worry about it.
+    UnflattenInnerJoins(root);
+
     if (CanonicalizeConditions(thd, /*tables_in_subtree=*/~0,
                                &where_conditions)) {
       return true;
@@ -2706,6 +2951,10 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
       PushDownToSargableCondition(item, root,
                                   /*is_join_condition_for_expr=*/false);
     }
+  } else {
+    // We're done pushing, so unflatten so that the rest of the algorithms
+    // don't need to worry about it.
+    UnflattenInnerJoins(root);
   }
 
   // Now that everything is pushed, we can concretize any multiple equalities

@@ -70,6 +70,7 @@
 
 using hypergraph::NodeMap;
 using std::unordered_map;
+using std::vector;
 using testing::_;
 using testing::Pair;
 using testing::Return;
@@ -255,6 +256,7 @@ handlerton *HypergraphTestBase<T>::EnableSecondaryEngine(
 }
 
 namespace {
+
 /// An error checker which, upon destruction, verifies that a single error was
 /// raised while the checker was alive, and that the error had the expected
 /// error number. If an error is raised, the THD::is_error() flag will be set,
@@ -288,6 +290,55 @@ class ErrorChecker {
   unsigned m_errno;
   ErrorHandlerFunctionPointer m_saved_error_hook;
 };
+
+// Sort the nodes in the given graph by name, which makes the test
+// a bit more robust against irrelevant changes. Note that we don't
+// sort edges, since it's often useful to correlate the code with
+// the Graphviz output in the optimizer trace, which isn't sorted.
+void SortNodes(JoinHypergraph *graph) {
+  // Sort nodes (by alias). We sort a series of indexes first the same way
+  // so that we know which went where.
+  std::vector<int> node_order;
+  for (unsigned i = 0; i < graph->nodes.size(); ++i) {
+    node_order.push_back(i);
+  }
+  std::sort(node_order.begin(), node_order.end(), [graph](int a, int b) {
+    return strcmp(graph->nodes[a].table->alias, graph->nodes[b].table->alias) <
+           0;
+  });
+  std::sort(graph->nodes.begin(), graph->nodes.end(),
+            [](const JoinHypergraph::Node &a, const JoinHypergraph::Node &b) {
+              return strcmp(a.table->alias, b.table->alias) < 0;
+            });
+
+  // Remap hyperedges to the new node indexes. Note that we don't
+  // change the neighborhood, because nothing in these tests need it.
+  int node_map[MAX_TABLES];
+  for (unsigned i = 0; i < graph->nodes.size(); ++i) {
+    node_map[node_order[i]] = i;
+  }
+  for (hypergraph::Hyperedge &edge : graph->graph.edges) {
+    NodeMap new_left = 0, new_right = 0;
+    for (int node_idx : BitsSetIn(edge.left)) {
+      new_left |= NodeMap{1} << node_map[node_idx];
+    }
+    for (int node_idx : BitsSetIn(edge.right)) {
+      new_right |= NodeMap{1} << node_map[node_idx];
+    }
+    edge.left = new_left;
+    edge.right = new_right;
+  }
+
+  // Remap TES.
+  for (Predicate &pred : graph->predicates) {
+    NodeMap new_tes = 0;
+    for (int node_idx : BitsSetIn(pred.total_eligibility_set)) {
+      new_tes |= NodeMap{1} << node_map[node_idx];
+    }
+    pred.total_eligibility_set = new_tes;
+  }
+}
+
 }  // namespace
 
 using MakeHypergraphTest = HypergraphTestBase<::testing::Test>;
@@ -322,6 +373,8 @@ TEST_F(MakeHypergraphTest, InnerJoin) {
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
+  SortNodes(&graph);
+
   ASSERT_EQ(3, graph.nodes.size());
   EXPECT_STREQ("t1", graph.nodes[0].table->alias);
   EXPECT_STREQ("t2", graph.nodes[1].table->alias);
@@ -331,16 +384,16 @@ TEST_F(MakeHypergraphTest, InnerJoin) {
   ASSERT_EQ(2, graph.edges.size());
 
   // t1/t2. There is no index information, so the default 0.1 should be used.
-  EXPECT_EQ(0x01, graph.graph.edges[0].left);
-  EXPECT_EQ(0x02, graph.graph.edges[0].right);
-  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
-  EXPECT_FLOAT_EQ(0.1, graph.edges[0].selectivity);
-
-  // t2/t3.
-  EXPECT_EQ(0x02, graph.graph.edges[2].left);
-  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  EXPECT_EQ(0x01, graph.graph.edges[2].left);
+  EXPECT_EQ(0x02, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
   EXPECT_FLOAT_EQ(0.1, graph.edges[1].selectivity);
+
+  // t2/t3.
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x04, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+  EXPECT_FLOAT_EQ(0.1, graph.edges[0].selectivity);
 
   EXPECT_EQ(0, graph.predicates.size());
 }
@@ -604,6 +657,8 @@ TEST_F(MakeHypergraphTest, Cycle) {
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
+  SortNodes(&graph);
+
   ASSERT_EQ(6, graph.nodes.size());
   EXPECT_STREQ("t1", graph.nodes[0].table->alias);
   EXPECT_STREQ("t2", graph.nodes[1].table->alias);
@@ -619,13 +674,13 @@ TEST_F(MakeHypergraphTest, Cycle) {
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
 
   // t2/t3.
-  EXPECT_EQ(0x02, graph.graph.edges[2].left);
-  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  EXPECT_EQ(0x04, graph.graph.edges[2].left);
+  EXPECT_EQ(0x02, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
 
-  // t2/t4.
-  EXPECT_EQ(0x02, graph.graph.edges[4].left);
-  EXPECT_EQ(0x08, graph.graph.edges[4].right);
+  // t4/t2.
+  EXPECT_EQ(0x08, graph.graph.edges[4].left);
+  EXPECT_EQ(0x02, graph.graph.edges[4].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
 
   // t4/t5.
@@ -638,9 +693,9 @@ TEST_F(MakeHypergraphTest, Cycle) {
   EXPECT_EQ(0x20, graph.graph.edges[8].right);
   EXPECT_EQ(RelationalExpression::LEFT_JOIN, graph.edges[4].expr->type);
 
-  // t1/t3; added last because it completes a cycle.
-  EXPECT_EQ(0x01, graph.graph.edges[10].left);
-  EXPECT_EQ(0x04, graph.graph.edges[10].right);
+  // t3/t1; added last because it completes a cycle.
+  EXPECT_EQ(0x04, graph.graph.edges[10].left);
+  EXPECT_EQ(0x01, graph.graph.edges[10].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[5].expr->type);
 
   // The three predicates from the cycle should be added, but no others.
@@ -720,22 +775,24 @@ TEST_F(MakeHypergraphTest, CyclePushedFromOuterJoinCondition) {
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
+  SortNodes(&graph);
+
   ASSERT_EQ(4, graph.nodes.size());
   EXPECT_STREQ("t1", graph.nodes[0].table->alias);
   EXPECT_STREQ("t2", graph.nodes[1].table->alias);
   EXPECT_STREQ("t3", graph.nodes[2].table->alias);
   EXPECT_STREQ("t4", graph.nodes[3].table->alias);
 
-  // t2/t3.
+  // t3/t2.
   ASSERT_EQ(4, graph.edges.size());
-  EXPECT_EQ(0x02, graph.graph.edges[0].left);
-  EXPECT_EQ(0x04, graph.graph.edges[0].right);
-  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
+  EXPECT_EQ(0x04, graph.graph.edges[2].left);
+  EXPECT_EQ(0x02, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
 
   // t2/t4 (pushed from the ON condition).
-  EXPECT_EQ(0x02, graph.graph.edges[2].left);
-  EXPECT_EQ(0x08, graph.graph.edges[2].right);
-  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x08, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
 
   // t1/{t2,t3,t4} (the outer join).
   EXPECT_EQ(0x01, graph.graph.edges[4].left);
@@ -752,13 +809,13 @@ TEST_F(MakeHypergraphTest, CyclePushedFromOuterJoinCondition) {
   // not influence this.
   ASSERT_EQ(3, graph.predicates.size());
 
-  EXPECT_EQ("(t2.x = t3.x)", ItemToString(graph.predicates[0].condition));
-  EXPECT_EQ(0x06, graph.predicates[0].total_eligibility_set);  // t2/t3.
-  EXPECT_TRUE(graph.predicates[0].was_join_condition);
-
-  EXPECT_EQ("(t2.x = t4.x)", ItemToString(graph.predicates[1].condition));
-  EXPECT_EQ(0x0a, graph.predicates[1].total_eligibility_set);  // t2/t4.
+  EXPECT_EQ("(t2.x = t3.x)", ItemToString(graph.predicates[1].condition));
+  EXPECT_EQ(0x06, graph.predicates[1].total_eligibility_set);  // t2/t3.
   EXPECT_TRUE(graph.predicates[1].was_join_condition);
+
+  EXPECT_EQ("(t2.x = t4.x)", ItemToString(graph.predicates[0].condition));
+  EXPECT_EQ(0x0a, graph.predicates[0].total_eligibility_set);  // t2/t4.
+  EXPECT_TRUE(graph.predicates[0].was_join_condition);
 
   EXPECT_EQ("(t3.x = t4.x)", ItemToString(graph.predicates[2].condition));
   EXPECT_EQ(0x0c, graph.predicates[2].total_eligibility_set);  // t3/t4.
@@ -804,10 +861,11 @@ TEST_F(MakeHypergraphTest, MultipleEqualitiesCauseCycle) {
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
 }
 
-TEST_F(MakeHypergraphTest, MultipleEqualityIsNotPushedMultipleTimes) {
-  // This query is impossible to push cleanly without adding fairly
-  // broad hyperedges. We want to make sure we don't try to “solve” it
-  // by pushing the t2.x = t3.x condition twice.
+TEST_F(MakeHypergraphTest, Flattening) {
+  // This query is impossible to push cleanly without flattening,
+  // or adding broad hyperedges. We want to make sure we don't try to
+  // “solve” it by pushing the t2.x = t3.x condition twice.
+  // Due to flattening, we also don't get any Cartesian products.
   Query_block *query_block = ParseAndResolve(
       "SELECT 1 FROM t1 JOIN (t2 JOIN (t3 JOIN t4)) "
       "WHERE t1.y = t4.y AND t2.x = t3.x AND t3.x = t4.x",
@@ -829,36 +887,47 @@ TEST_F(MakeHypergraphTest, MultipleEqualityIsNotPushedMultipleTimes) {
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
+  SortNodes(&graph);
+
   ASSERT_EQ(4, graph.nodes.size());
   EXPECT_STREQ("t1", graph.nodes[0].table->alias);
   EXPECT_STREQ("t2", graph.nodes[1].table->alias);
   EXPECT_STREQ("t3", graph.nodes[2].table->alias);
   EXPECT_STREQ("t4", graph.nodes[3].table->alias);
 
-  // t1/t2 (a Cartesian product).
-  ASSERT_GE(graph.edges.size(), 3);
-  EXPECT_EQ(0x01, graph.graph.edges[0].left);
-  EXPECT_EQ(0x02, graph.graph.edges[0].right);
-  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
-  EXPECT_EQ(0, graph.edges[0].expr->equijoin_conditions.size());
+  ASSERT_EQ(4, graph.edges.size());
 
   // t2/t3.
-  EXPECT_EQ(0x02, graph.graph.edges[2].left);
-  EXPECT_EQ(0x04, graph.graph.edges[2].right);
-  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x04, graph.graph.edges[0].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[0].expr->type);
   ASSERT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
   EXPECT_EQ("(t2.x = t3.x)",
+            ItemToString(graph.edges[0].expr->equijoin_conditions[0]));
+
+  // t1/t4.
+  EXPECT_EQ(0x01, graph.graph.edges[2].left);
+  EXPECT_EQ(0x08, graph.graph.edges[2].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
+  ASSERT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t1.y = t4.y)",
             ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
 
-  // t1/t4. Note that t3.x = t4.x creates a separate edge.
-  EXPECT_EQ(0x01, graph.graph.edges[4].left);
+  // t3/t4.
+  EXPECT_EQ(0x04, graph.graph.edges[4].left);
   EXPECT_EQ(0x08, graph.graph.edges[4].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
   ASSERT_EQ(1, graph.edges[2].expr->equijoin_conditions.size());
-  EXPECT_EQ("(t1.y = t4.y)",
+  EXPECT_EQ("(t3.x = t4.x)",
             ItemToString(graph.edges[2].expr->equijoin_conditions[0]));
 
-  // Don't check the cycle edges.
+  // t2/t4.
+  EXPECT_EQ(0x02, graph.graph.edges[6].left);
+  EXPECT_EQ(0x08, graph.graph.edges[6].right);
+  EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[3].expr->type);
+  ASSERT_EQ(1, graph.edges[3].expr->equijoin_conditions.size());
+  EXPECT_EQ("(t2.x = t4.x)",
+            ItemToString(graph.edges[3].expr->equijoin_conditions[0]));
 }
 
 TEST_F(MakeHypergraphTest, PredicatePromotionOnMultipleEquals) {
@@ -1008,6 +1077,8 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityCausesCycle) {
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
+  SortNodes(&graph);
+
   ASSERT_EQ(4, graph.nodes.size());
   EXPECT_STREQ("t1", graph.nodes[0].table->alias);
   EXPECT_STREQ("t2", graph.nodes[1].table->alias);
@@ -1025,27 +1096,27 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityCausesCycle) {
             ItemToString(graph.edges[0].expr->equijoin_conditions[0]));
   EXPECT_EQ(0, graph.edges[0].expr->join_conditions.size());
 
-  // t2/t3.
-  EXPECT_EQ(0x02, graph.graph.edges[2].left);
-  EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  // t3/t2.
+  EXPECT_EQ(0x04, graph.graph.edges[2].left);
+  EXPECT_EQ(0x02, graph.graph.edges[2].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[1].expr->type);
   ASSERT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
   EXPECT_EQ("(t2.z = t3.z)",
             ItemToString(graph.edges[1].expr->equijoin_conditions[0]));
   EXPECT_EQ(0, graph.edges[1].expr->join_conditions.size());
 
-  // t3/t4 (the first of many cycle edges from the multiple equality).
-  EXPECT_EQ(0x04, graph.graph.edges[4].left);
-  EXPECT_EQ(0x08, graph.graph.edges[4].right);
+  // t4/t3 (the first of many cycle edges from the multiple equality).
+  EXPECT_EQ(0x08, graph.graph.edges[4].left);
+  EXPECT_EQ(0x04, graph.graph.edges[4].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[2].expr->type);
   ASSERT_EQ(1, graph.edges[2].expr->equijoin_conditions.size());
-  EXPECT_EQ("(t3.x = t4.x)",
+  EXPECT_EQ("(t4.x = t3.x)",
             ItemToString(graph.edges[2].expr->equijoin_conditions[0]));
   EXPECT_EQ(0, graph.edges[2].expr->join_conditions.size());
 
-  // t1/t3 (cycle edge).
-  EXPECT_EQ(0x01, graph.graph.edges[6].left);
-  EXPECT_EQ(0x04, graph.graph.edges[6].right);
+  // t3/t1 (cycle edge).
+  EXPECT_EQ(0x04, graph.graph.edges[6].left);
+  EXPECT_EQ(0x01, graph.graph.edges[6].right);
   EXPECT_EQ(RelationalExpression::INNER_JOIN, graph.edges[3].expr->type);
   ASSERT_EQ(1, graph.edges[3].expr->equijoin_conditions.size());
   EXPECT_EQ("(t1.x = t3.x)",
@@ -1087,39 +1158,37 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
   EXPECT_EQ(graph.graph.nodes.size(), graph.nodes.size());
   EXPECT_EQ(graph.graph.edges.size(), 2 * graph.edges.size());
 
+  SortNodes(&graph);
+
   ASSERT_EQ(4, graph.nodes.size());
   EXPECT_STREQ("t1", graph.nodes[0].table->alias);
   EXPECT_STREQ("t2", graph.nodes[1].table->alias);
   EXPECT_STREQ("t3", graph.nodes[2].table->alias);
   EXPECT_STREQ("t4", graph.nodes[3].table->alias);
 
-  ASSERT_EQ(5, graph.edges.size());
+  ASSERT_EQ(4, graph.edges.size());
 
   // We only check that the given edges exist, and that we didn't lose
   // the t3.x = t3.y condition. All edges come from explicit
-  // WHERE conditions, except t1/t2, which is just a Cartesian product.
-
-  // t1/t2.
-  EXPECT_EQ(0x01, graph.graph.edges[0].left);
-  EXPECT_EQ(0x02, graph.graph.edges[0].right);
+  // WHERE conditions.
 
   // t2/t3. Check that we only get one of t2.y=t3.y and t2.y=t3.x;
   // they come from the same multi-equality, so one is redundant.
-  EXPECT_EQ(0x02, graph.graph.edges[2].left);
-  EXPECT_EQ(0x04, graph.graph.edges[2].right);
-  EXPECT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
+  EXPECT_EQ(0x02, graph.graph.edges[0].left);
+  EXPECT_EQ(0x04, graph.graph.edges[0].right);
+  EXPECT_EQ(1, graph.edges[0].expr->equijoin_conditions.size());
 
   // t1/t4.
-  EXPECT_EQ(0x01, graph.graph.edges[4].left);
-  EXPECT_EQ(0x08, graph.graph.edges[4].right);
+  EXPECT_EQ(0x01, graph.graph.edges[2].left);
+  EXPECT_EQ(0x08, graph.graph.edges[2].right);
 
   // t3/t4.
-  EXPECT_EQ(0x04, graph.graph.edges[6].left);
-  EXPECT_EQ(0x08, graph.graph.edges[6].right);
+  EXPECT_EQ(0x04, graph.graph.edges[4].left);
+  EXPECT_EQ(0x08, graph.graph.edges[4].right);
 
   // t2/t4.
-  EXPECT_EQ(0x02, graph.graph.edges[8].left);
-  EXPECT_EQ(0x08, graph.graph.edges[8].right);
+  EXPECT_EQ(0x02, graph.graph.edges[6].left);
+  EXPECT_EQ(0x08, graph.graph.edges[6].right);
 
   bool found_predicate = false;
   for (const Predicate &pred : graph.predicates) {

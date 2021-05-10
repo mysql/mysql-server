@@ -60,7 +60,9 @@ struct ConflictRule {
  */
 struct RelationalExpression {
   explicit RelationalExpression(THD *thd)
-      : join_conditions(thd->mem_root), equijoin_conditions(thd->mem_root) {}
+      : multi_children(thd->mem_root),
+        join_conditions(thd->mem_root),
+        equijoin_conditions(thd->mem_root) {}
 
   enum Type {
     INNER_JOIN = static_cast<int>(JoinType::INNER),
@@ -79,6 +81,13 @@ struct RelationalExpression {
     // verifying semijoin correctness in the unit tests (see the CountPlans*
     // tests).
     FULL_OUTER_JOIN = static_cast<int>(JoinType::FULL_OUTER),
+
+    // An inner join between two _or more_ tables, with no join conditions.
+    // This is a special form used only during pushdown, for increased
+    // flexibility in reordering. MULTI_INNER_JOIN nodes do not use
+    // left and right, but rather store all its children in multi_children
+    // (which is empty for all other types).
+    MULTI_INNER_JOIN = 102,
 
     TABLE = 100
   } type;
@@ -107,6 +116,8 @@ struct RelationalExpression {
   // from join_conditions fairly late (at CreateHashJoinConditions()),
   // so often, you will see equijoin conditions in join_condition..
   RelationalExpression *left, *right;
+  Mem_root_array<RelationalExpression *>
+      multi_children;  // See MULTI_INNER_JOIN.
   Mem_root_array<Item *> join_conditions;
   Mem_root_array<Item_func_eq *> equijoin_conditions;
   table_map conditions_used_tables{0};

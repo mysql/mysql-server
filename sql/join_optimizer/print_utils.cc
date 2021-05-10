@@ -69,6 +69,7 @@ std::string GenerateExpressionLabel(const RelationalExpression *expr) {
 
   string label = ItemsToString(all_join_conditions);
   switch (expr->type) {
+    case RelationalExpression::MULTI_INNER_JOIN:
     case RelationalExpression::TABLE:
       assert(false);
     case RelationalExpression::INNER_JOIN:
