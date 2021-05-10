@@ -99,6 +99,7 @@ Item *ExpandSameTableFromMultipleEquals(Item_equal *equal) {
         eq_item->set_cmp_func();
         eq_item->update_used_tables();
         eq_item->quick_fix_field();
+        eq_item->source_multiple_equality = equal;
         eq_items.push_back(eq_item);
 
         // If there are more, i.e., *it2 = *it3, they will be dealt with
@@ -164,6 +165,7 @@ Item *EarlyExpandMultipleEquals(Item *condition, table_map tables_in_subtree) {
           eq_item->set_cmp_func();
           eq_item->update_used_tables();
           eq_item->quick_fix_field();
+          eq_item->source_multiple_equality = equal;
           eq_items.push_back(eq_item);
         }
         assert(!eq_items.is_empty());
@@ -658,6 +660,16 @@ bool MultipleEqualityAlreadyExistsOnJoin(Item_equal *equal,
     }
   }
   return false;
+}
+
+bool ComesFromAlreadyExistingMultipleEquality(
+    Item *cond, const RelationalExpression &expr) {
+  if (cond->type() != Item::FUNC_ITEM ||
+      down_cast<Item_func *>(cond)->functype() != Item_func::EQ_FUNC) {
+    return false;
+  }
+  Item_equal *equal = down_cast<Item_func_eq *>(cond)->source_multiple_equality;
+  return equal != nullptr && MultipleEqualityAlreadyExistsOnJoin(equal, expr);
 }
 
 /**
@@ -1211,6 +1223,11 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
   // filter that must either stay after this join, or it can be promoted
   // to a join condition for it.
 
+  if (ComesFromAlreadyExistingMultipleEquality(cond, *expr)) {
+    // Redundant, so we can just forget about it.
+    return;
+  }
+
   // Try partial pushdown into the left side (see function comment).
   if (can_push_into_left &&
       Overlaps(used_tables, expr->left->tables_in_subtree)) {
@@ -1326,15 +1343,29 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
       // in the case of multiple equalities -- we defer the meshing of those
       // to later) to create a cycle, so we'll take it out now and then add such
       // an edge in AddCycleEdges().
-      if (trace != nullptr) {
-        *trace += StringPrintf("- condition %s induces a hypergraph cycle\n",
-                               ItemToString(cond).c_str());
-      }
       if (IsMultipleEquals(cond)) {
+        // Some of these may induce cycles and some may not.
+        // We need to split and push them separately.
+        if (trace != nullptr) {
+          *trace += StringPrintf(
+              "- condition %s may induce hypergraph cycles, splitting\n",
+              ItemToString(cond).c_str());
+        }
+        Mem_root_array<Item *> possible_cycle_edges(current_thd->mem_root);
         FullyConcretizeMultipleEquals(down_cast<Item_equal *>(cond),
                                       expr->tables_in_subtree,
-                                      cycle_inducing_edges);
+                                      &possible_cycle_edges);
+        for (Item *sub_cond : possible_cycle_edges) {
+          PushDownCondition(sub_cond, expr,
+                            /*is_join_condition_for_expr=*/false,
+                            table_num_to_companion_set, table_filters,
+                            cycle_inducing_edges, remaining_parts, trace);
+        }
       } else {
+        if (trace != nullptr) {
+          *trace += StringPrintf("- condition %s induces a hypergraph cycle\n",
+                                 ItemToString(cond).c_str());
+        }
         cycle_inducing_edges->push_back(
             CanonicalizeCondition(cond, expr->tables_in_subtree));
       }

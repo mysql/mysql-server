@@ -1093,7 +1093,7 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
   EXPECT_STREQ("t3", graph.nodes[2].table->alias);
   EXPECT_STREQ("t4", graph.nodes[3].table->alias);
 
-  ASSERT_EQ(6, graph.edges.size());
+  ASSERT_EQ(5, graph.edges.size());
 
   // We only check that the given edges exist, and that we didn't lose
   // the t3.x = t3.y condition. All edges come from explicit
@@ -1103,25 +1103,23 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
   EXPECT_EQ(0x01, graph.graph.edges[0].left);
   EXPECT_EQ(0x02, graph.graph.edges[0].right);
 
-  // t2/t3.
+  // t2/t3. Check that we only get one of t2.y=t3.y and t2.y=t3.x;
+  // they come from the same multi-equality, so one is redundant.
   EXPECT_EQ(0x02, graph.graph.edges[2].left);
   EXPECT_EQ(0x04, graph.graph.edges[2].right);
+  EXPECT_EQ(1, graph.edges[1].expr->equijoin_conditions.size());
 
   // t1/t4.
   EXPECT_EQ(0x01, graph.graph.edges[4].left);
   EXPECT_EQ(0x08, graph.graph.edges[4].right);
 
-  // t2/t3.
-  EXPECT_EQ(0x02, graph.graph.edges[6].left);
-  EXPECT_EQ(0x04, graph.graph.edges[6].right);
-
   // t3/t4.
-  EXPECT_EQ(0x04, graph.graph.edges[8].left);
-  EXPECT_EQ(0x08, graph.graph.edges[8].right);
+  EXPECT_EQ(0x04, graph.graph.edges[6].left);
+  EXPECT_EQ(0x08, graph.graph.edges[6].right);
 
   // t2/t4.
-  EXPECT_EQ(0x02, graph.graph.edges[10].left);
-  EXPECT_EQ(0x08, graph.graph.edges[10].right);
+  EXPECT_EQ(0x02, graph.graph.edges[8].left);
+  EXPECT_EQ(0x08, graph.graph.edges[8].right);
 
   bool found_predicate = false;
   for (const Predicate &pred : graph.predicates) {
