@@ -427,6 +427,8 @@ static void trx_sysf_create(mtr_t *mtr) /*!< in: mtr */
   ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
 }
 
+const uint32_t max_rseg_init_threads = 4;
+
 /** Creates and initializes the central memory structures for the transaction
  system. This is called when the database is started.
  @return min binary heap of rsegs to purge */
@@ -446,7 +448,27 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
     /* Create the memory objects for all the rollback segments
     referred to in the TRX_SYS page or any undo tablespace
     RSEG_ARRAY page. */
-    trx_rsegs_init(purge_queue);
+    srv_rseg_init_threads =
+        std::min(std::thread::hardware_concurrency(), max_rseg_init_threads);
+
+    /* Test hook to initialize the rollback segments using a single
+    thread. */
+    DBUG_EXECUTE_IF("rseg_init_single_thread", srv_rseg_init_threads = 1;);
+
+    using Clock = std::chrono::high_resolution_clock;
+    using Clock_point = std::chrono::time_point<Clock>;
+    Clock_point start = Clock::now();
+    if (srv_rseg_init_threads > 1) {
+      trx_rsegs_parallel_init(purge_queue);
+    } else {
+      trx_rsegs_init(purge_queue);
+    }
+    Clock_point end = Clock::now();
+    const auto time_diff =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - start)
+            .count();
+    ib::info() << "Time taken to initialize rseg using "
+               << srv_rseg_init_threads << " thread: " << time_diff << " ms.";
   }
 
   mtr_t mtr;

@@ -208,7 +208,7 @@ static que_t *trx_purge_graph_build(trx_t *trx, ulint n_purge_threads) {
   return (fork);
 }
 
-void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
+void trx_purge_sys_mem_create() {
   purge_sys = static_cast<trx_purge_t *>(ut_zalloc_nokey(sizeof(*purge_sys)));
 
   purge_sys->state = PURGE_STATE_INIT;
@@ -218,16 +218,22 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   new (&purge_sys->limit) purge_iter_t;
   new (&purge_sys->undo_trunc) undo::Truncate;
   new (&purge_sys->thds) ut::unordered_set<THD *>;
+  new (&purge_sys->rsegs_queue) std::vector<trx_rseg_t *>;
 #ifdef UNIV_DEBUG
   new (&purge_sys->done) purge_iter_t;
 #endif /* UNIV_DEBUG */
 
-  /* Take ownership of purge_queue, we are responsible for freeing it. */
-  purge_sys->purge_queue = purge_queue;
-
   rw_lock_create(trx_purge_latch_key, &purge_sys->latch, SYNC_PURGE_LATCH);
 
   mutex_create(LATCH_ID_PURGE_SYS_PQ, &purge_sys->pq_mutex);
+
+  purge_sys->heap = mem_heap_create(8 * 1024);
+}
+
+void trx_purge_sys_initialize(uint32_t n_purge_threads,
+                              purge_pq_t *purge_queue) {
+  /* Take ownership of purge_queue, we are responsible for freeing it. */
+  purge_sys->purge_queue = purge_queue;
 
   ut_a(n_purge_threads > 0);
 
@@ -255,9 +261,6 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   purge_sys->view_active = true;
 
   purge_sys->rseg_iter = UT_NEW_NOKEY(TrxUndoRsegsIterator(purge_sys));
-
-  /* Allocate 8K bytes for the initial heap. */
-  purge_sys->heap = mem_heap_create(8 * 1024);
 }
 
 void trx_purge_sys_close() {
@@ -295,6 +298,7 @@ void trx_purge_sys_close() {
 
   call_destructor(&purge_sys->thds);
   call_destructor(&purge_sys->undo_trunc);
+  call_destructor(&purge_sys->rsegs_queue);
 
   ut_free(purge_sys);
 

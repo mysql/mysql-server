@@ -130,6 +130,10 @@ active undo logs.
 @param[in]	purge_queue	queue of rsegs to purge */
 void trx_rsegs_init(purge_pq_t *purge_queue);
 
+/** Initialize rollback segments in parallel
+@param[in]	purge_queue	queue of rsegs to purge */
+void trx_rsegs_parallel_init(purge_pq_t *purge_queue);
+
 /** Create and initialize a rollback segment object.  Some of
 the values for the fields are read from the segment header page.
 The caller must insert it into the correct list.
