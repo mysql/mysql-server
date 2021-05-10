@@ -6869,6 +6869,7 @@ int runRestartAllNodes(NDBT_Context* ctx, NDBT_Step* step)
   CHECK(restarter.startAll() == 0, "-");
   CHECK(restarter.waitClusterStarted() == 0, "-");
   CHK_NDB_READY(GETNDB(step));
+  return NDBT_OK;
 }
 
 
