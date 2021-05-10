@@ -72,7 +72,11 @@ Cached_item *new_Cached_item(THD *thd, Item *item) {
   }
 }
 
-Cached_item_str::Cached_item_str(Item *arg) : Cached_item(arg) {}
+Cached_item_str::Cached_item_str(Item *arg)
+    : Cached_item(arg),
+      // Make sure value.data() is never nullptr, as not all collation functions
+      // are prepared for that (even with empty strings).
+      value(16) {}
 
 /**
   Compare with old value and replace value with new value.
