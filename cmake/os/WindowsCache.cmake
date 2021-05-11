@@ -32,7 +32,6 @@ SET(CMAKE_HAVE_PTHREAD_H CACHE  INTERNAL "") # Only needed by CMake
 # Libraries
 # Not checked for Windows HAVE_LIBM
 # Not checked for Windows HAVE_LIBNSL
-# Not checked for Windows HAVE_LIBCRYPT
 # Not checked for Windows HAVE_LIBSOCKET
 # Not checked for Windows HAVE_LIBDL
 # Not checked for Windows HAVE_LIBRT

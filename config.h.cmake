@@ -30,7 +30,6 @@
 /* Libraries */
 #cmakedefine HAVE_LIBM 1
 #cmakedefine HAVE_LIBNSL 1
-#cmakedefine HAVE_LIBCRYPT 1
 #cmakedefine HAVE_LIBSOCKET 1
 #cmakedefine HAVE_LIBDL 1
 #cmakedefine HAVE_LIBRT 1
