@@ -1344,45 +1344,36 @@ bool purge_node_t::check_duplicate_undo_no() const {
 #endif /* UNIV_DEBUG */
 void purge_node_t::free_lob_pages() {
   mtr_t local_mtr;
-  THD *thd = current_thd;
 
   for (const auto &tup : m_lob_pages) {
     const index_id_t index_id = std::get<0>(tup);
     const page_id_t &page_id = std::get<1>(tup);
     const space_id_t space_id = page_id.space();
 
-    fil_space_t *space = fil_space_acquire_silent(space_id);
-
-    if (space == nullptr) {
-      continue;
-    }
-    const page_size_t page_size(space->flags);
-
     mutex_enter(&dict_sys->mutex);
     const dict_index_t *idx = dict_index_find(index_id);
 
-    if (idx == nullptr || idx->id != space_id) {
+    if (idx == nullptr || idx->space != space_id) {
       mutex_exit(&dict_sys->mutex);
-      fil_space_release(space);
       continue;
     }
 
     dict_index_t *index = const_cast<dict_index_t *>(idx);
-    table_id_t table_id = index->table->id;
-
-    MDL_ticket *mdl = nullptr;
-    dict_table_t *table = dd_table_open_on_id(table_id, thd, &mdl, true, true);
+    const page_size_t page_size = dict_table_page_size(index->table);
     mutex_exit(&dict_sys->mutex);
 
-    mtr_start(&local_mtr);
-    buf_block_t *block =
-        buf_page_get(page_id, page_size, RW_X_LATCH, &local_mtr);
+    fil_space_t *space = fil_space_acquire_silent(space_id);
 
-    btr_page_free_low(index, block, ULINT_UNDEFINED, &local_mtr);
-    mtr_commit(&local_mtr);
+    if (space != nullptr) {
+      mtr_start(&local_mtr);
+      buf_block_t *block =
+          buf_page_get(page_id, page_size, RW_X_LATCH, &local_mtr);
 
-    dd_table_close(table, thd, &mdl, false);
-    fil_space_release(space);
+      btr_page_free_low(index, block, ULINT_UNDEFINED, &local_mtr);
+      mtr_commit(&local_mtr);
+
+      fil_space_release(space);
+    }
   }
 
   m_lob_pages.clear();
