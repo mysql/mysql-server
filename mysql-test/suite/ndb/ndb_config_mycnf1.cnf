@@ -88,3 +88,11 @@ NodeId=1
 PortNumber = 6000
 [cluster_config.ndbd.1.bug32339789]
 NodeId=3
+
+[cluster_config.bug32871875]
+NoOfReplicas = 1
+AutomaticThreadConfig = true
+CompressedLCP = false
+ndbd = localhost
+ndb_mgmd = localhost
+mysqld =

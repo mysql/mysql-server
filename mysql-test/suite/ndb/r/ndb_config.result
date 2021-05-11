@@ -89,3 +89,5 @@ cluster1
  ERROR    -- at line 0: Invalid nodegroup 75 for node 2, Max nodegroups allowed: 72
 == 28 == Bug32258207
  ERROR    -- at line 0: Too many Datanodes(84) for replicas=1, Max Nodes allowed: 72
+== 29 == Bug32871875
+1,localhost,1,0

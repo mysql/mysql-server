@@ -755,6 +755,11 @@ InitConfigFileParser::store_in_properties(Vector<struct my_option>& options,
       const char* value = NULL;
       char buf[32];
       switch(options[i].var_type){
+      case GET_BOOL:
+        BaseString::snprintf(buf, sizeof(buf), "%s",
+                             *(bool*)options[i].value ? "true" : "false");
+        value = buf;
+	break;
       case GET_INT:
       case GET_UINT:
         BaseString::snprintf(buf, sizeof(buf), "%u",
@@ -899,8 +904,8 @@ InitConfigFileParser::parse_mycnf(const char* cluster_config_suffix)
       const ConfigInfo::ParamInfo& param = ConfigInfo::m_ParamInfo[i];
       switch(param._type){
       case ConfigInfo::CI_BOOL:
-	opt.value = (uchar **)malloc(sizeof(int));
-	opt.var_type = GET_INT;
+	opt.value = (uchar **)malloc(sizeof(bool));
+	opt.var_type = GET_BOOL;
 	break;
       case ConfigInfo::CI_INT: 
 	opt.value = (uchar**)malloc(sizeof(uint));
