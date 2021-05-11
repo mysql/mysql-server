@@ -68,20 +68,20 @@ create table not_nullable_no_nulls (
   col4 date)engine=ndb;
 
 --echo # cannot restore nullable->non-nullable without --lossy-conversions
---error 134
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --include-tables=test.nullable_no_nulls $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --include-tables=test.nullable_no_nulls $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 
 --echo # can restore nullable->non-nullable if non-nullable col has no NULL values
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --include-tables=test.nullable_no_nulls --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --include-tables=test.nullable_no_nulls --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 --echo # cannot restore nullable->non-nullable if non-nullable col has NULL values
---error 139
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --include-tables=test.nullable_with_nulls --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --include-tables=test.nullable_with_nulls --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 
 --echo # cannot restore not-null->non-nullable without --promote-attributes
---error 134
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 
 --echo # can restore not-null->nullable
 --exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --include-tables=test.not_nullable_no_nulls --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -134,8 +134,8 @@ create table nullable (
   col4 date not null)engine=ndb;
 
 --echo # cannot restore nullable->non-nullable if backup log sets NULL values
---error 139
---exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --include-tables=test.nullable --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --include-tables=test.nullable --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
 
 select * from nullable;
 
