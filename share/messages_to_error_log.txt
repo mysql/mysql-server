@@ -11379,7 +11379,6 @@ ER_DEPRECATED_PERSISTED_VARIABLE_WITH_ALIAS
 ER_LOG_COMPONENT_FLUSH_FAILED
   eng "%d error logging component(s) failed to flush. For file-based logs this can happen when the path or permissions of the log-file have changed. Failure to flush filed-based logs may affect log-rotation."
 
-<<<<<<< HEAD
 ER_DDL_MSG_1
   eng "DDL failed to create a thread to load an index, fall back to single thread"
 
