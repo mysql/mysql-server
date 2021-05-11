@@ -2194,4 +2194,18 @@ ANALYZE TABLE t1;
 SELECT SUM(pk) FROM t1 WHERE ( pk >= ANY ( SELECT MAX(1) FROM DUAL) );
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #32859025: MYSQLD CRASH - ASSERTION `N < M_SIZE' FAILED|SQL/SQL_ARRAY.H
+--echo #
+
+CREATE TABLE t1 ( pk INTEGER );
+
+SELECT
+  (SELECT COUNT(*) FROM t1) AS f1,
+  (SELECT COUNT(*) FROM t1) AS f2
+FROM t1
+GROUP BY f1, f2 WITH ROLLUP;
+
+DROP TABLE t1;
+
 SET optimizer_switch='subquery_to_derived=default';

@@ -4751,9 +4751,22 @@ bool JOIN::make_tmp_tables_info() {
 
 void JOIN::refresh_base_slice() {
   unsigned num_hidden_fields = CountHiddenFields(*fields);
+  const size_t num_select_elements = fields->size() - num_hidden_fields;
+  const size_t orig_num_select_elements =
+      num_select_elements - query_block->m_added_non_hidden_fields;
+
   for (unsigned i = 0; i < fields->size(); ++i) {
     Item *item = (*fields)[i];
-    int pos = item->hidden ? fields->size() - i - 1 : i - num_hidden_fields;
+    size_t pos;
+    // See change_to_use_tmp_fields_except_sums for an explanation of how
+    // the visible fields, hidden fields and additonal fields added by
+    // transformations are organized in fields and ref_item_array.
+    if (i < num_hidden_fields) {
+      pos = fields->size() - i - 1 - query_block->m_added_non_hidden_fields;
+    } else {
+      pos = i - num_hidden_fields;
+      if (pos >= orig_num_select_elements) pos += num_hidden_fields;
+    }
     query_block->base_ref_items[pos] = item;
     if (!ref_items[REF_SLICE_SAVED_BASE].is_null()) {
       ref_items[REF_SLICE_SAVED_BASE][pos] = item;
