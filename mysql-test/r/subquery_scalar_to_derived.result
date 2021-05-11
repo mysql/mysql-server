@@ -4448,6 +4448,5 @@ SELECT
 (SELECT COUNT(*) FROM t1) AS f2
 FROM t1
 GROUP BY f1, f2 WITH ROLLUP;
-COUNT(*)	COUNT(*)
 DROP TABLE t1;
 SET optimizer_switch='subquery_to_derived=default';

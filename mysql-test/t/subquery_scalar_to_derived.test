@@ -2200,11 +2200,16 @@ DROP TABLE t1;
 
 CREATE TABLE t1 ( pk INTEGER );
 
+# The old optimizer calls both queries COUNT(*); the hypergraph optimizer
+# gets the names f1 and f2 right. We only really care that it doesn't crash,
+# so accept both.
+--disable_result_log
 SELECT
   (SELECT COUNT(*) FROM t1) AS f1,
   (SELECT COUNT(*) FROM t1) AS f2
 FROM t1
 GROUP BY f1, f2 WITH ROLLUP;
+--enable_result_log
 
 DROP TABLE t1;
 
