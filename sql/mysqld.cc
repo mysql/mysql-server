@@ -5205,9 +5205,10 @@ static int generate_server_uuid() {
   String uuid;
 
   /*
-    To be able to run this from boot, we allocate a temporary THD
+    To be able to run this from boot, we allocate a temporary THD,
+    since plugins are not yet loaded we pass false to temporary THD.
    */
-  if (!(thd = new THD)) {
+  if (!(thd = new THD(false))) {
     LogErr(ERROR_LEVEL, ER_NO_THD_NO_UUID);
     return 1;
   }
@@ -5987,6 +5988,16 @@ static int init_server_components() {
   /* This limits ability to configure SSL library through config options */
   init_ssl();
 
+  /*
+   Each server should have one UUID. We will create it automatically, if it
+   does not exist. It should be initialized before opening binlog file. Because
+   server's uuid will be stored into the new binlog file.
+  */
+  if (init_server_auto_options()) {
+    LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
   /*Load early plugins */
   if (plugin_register_early_plugins(&remaining_argc, remaining_argv,
                                     (is_help_or_validate_option())
@@ -6314,16 +6325,6 @@ static int init_server_components() {
   query_logger.set_log_file(QUERY_LOG_GENERAL);
   if (opt_general_log && query_logger.reopen_log_file(QUERY_LOG_GENERAL))
     opt_general_log = false;
-
-  /*
-    Each server should have one UUID. We will create it automatically, if it
-    does not exist. It should be initialized before opening binlog file. Because
-    server's uuid will be stored into the new binlog file.
-  */
-  if (init_server_auto_options()) {
-    LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
 
   /*
     Set the default storage engines

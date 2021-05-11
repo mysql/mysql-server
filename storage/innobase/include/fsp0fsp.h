@@ -421,11 +421,10 @@ page_size_t fsp_header_get_page_size(const page_t *page);
 
 /** Reads the encryption key from the first page of a tablespace.
 @param[in]	fsp_flags	tablespace flags
-@param[in,out]	key		tablespace key
-@param[in,out]	iv		tablespace iv
-@param[in]	page	first page of a tablespace
+@param[in,out]	e_key		tablespace key, iv
+@param[in]	page		first page of a tablespace
 @return true if success */
-bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
+bool fsp_header_get_encryption_key(uint32_t fsp_flags, Encryption_key &e_key,
                                    page_t *page);
 
 /** Get encryption operation type in progress from the first

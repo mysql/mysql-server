@@ -11379,11 +11379,18 @@ ER_DEPRECATED_PERSISTED_VARIABLE_WITH_ALIAS
 ER_LOG_COMPONENT_FLUSH_FAILED
   eng "%d error logging component(s) failed to flush. For file-based logs this can happen when the path or permissions of the log-file have changed. Failure to flush filed-based logs may affect log-rotation."
 
+<<<<<<< HEAD
 ER_DDL_MSG_1
   eng "DDL failed to create a thread to load an index, fall back to single thread"
 
 ER_MTR_MSG_1
   eng "Debug_check_no_latching failed, slot->type=%d"
+
+ER_IB_MSG_REENCRYPTED_TABLESPACE_KEY
+  eng "Tablespace key for %s has been re-encrypted using the latest InnoDB master key. However, we recommend that you rebuild the table for better security."
+
+ER_IB_MSG_REENCRYPTED_GENERAL_TABLESPACE_KEY
+  eng "Tablespace key for %s has been re-encrypted using the latest InnoDB master key. However, we recommend that you reencrypt the tablespace for better security."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt

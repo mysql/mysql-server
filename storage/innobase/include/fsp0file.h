@@ -92,7 +92,8 @@ class Datafile {
         m_file_info(),
         m_encryption_key(),
         m_encryption_iv(),
-        m_encryption_op_in_progress(NONE) {
+        m_encryption_op_in_progress(NONE),
+        m_encryption_master_key_id(0) {
     m_handle.m_file = OS_FILE_CLOSED;
   }
 
@@ -114,7 +115,8 @@ class Datafile {
         m_file_info(),
         m_encryption_key(),
         m_encryption_iv(),
-        m_encryption_op_in_progress(NONE) {
+        m_encryption_op_in_progress(NONE),
+        m_encryption_master_key_id(0) {
     ut_ad(m_name != nullptr);
     m_handle.m_file = OS_FILE_CLOSED;
     /* No op */
@@ -136,7 +138,8 @@ class Datafile {
         m_file_info(),
         m_encryption_key(),
         m_encryption_iv(),
-        m_encryption_op_in_progress(NONE) {
+        m_encryption_op_in_progress(NONE),
+        m_encryption_master_key_id(0) {
     m_name = mem_strdup(file.m_name);
     ut_ad(m_name != nullptr);
 
@@ -191,6 +194,7 @@ class Datafile {
     m_encryption_key = nullptr;
     m_encryption_iv = nullptr;
     m_encryption_op_in_progress = NONE;
+    m_encryption_master_key_id = 0;
 
     m_atomic_write = file.m_atomic_write;
 
@@ -506,5 +510,8 @@ class Datafile {
 
   /** Encryption operation in progress */
   encryption_op_type m_encryption_op_in_progress;
+
+  /** Master key id read from first page */
+  uint32_t m_encryption_master_key_id;
 };
 #endif /* fsp0file_h */

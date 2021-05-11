@@ -2075,6 +2075,9 @@ dberr_t fil_reset_encryption(space_id_t space_id)
 @return the number of tablespaces that failed to rotate. */
 size_t fil_encryption_rotate() MY_ATTRIBUTE((warn_unused_result));
 
+/** Roencrypt the tablespace keys by current master key. */
+void fil_encryption_reencrypt(std::vector<space_id_t> &sid_vector);
+
 /** During crash recovery, open a tablespace if it had not been opened
 yet, to get valid size and flags.
 @param[in,out]	space		Tablespace instance */

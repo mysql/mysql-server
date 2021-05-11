@@ -696,7 +696,8 @@ static dberr_t srv_undo_tablespace_read_encryption(pfs_os_file_t fh,
 
   byte key[Encryption::KEY_LEN];
   byte iv[Encryption::KEY_LEN];
-  if (fsp_header_get_encryption_key(space->flags, key, iv, first_page)) {
+  Encryption_key e_key{key, iv};
+  if (fsp_header_get_encryption_key(space->flags, e_key, first_page)) {
     fsp_flags_set_encryption(space->flags);
     err = fil_set_encryption(space->id, Encryption::AES, key, iv);
     ut_ad(err == DB_SUCCESS);
@@ -2924,13 +2925,6 @@ void srv_dict_recover_on_restart() {
   if (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE) {
     srv_sys_tablespaces_open = true;
   }
-}
-
-/* If early redo/undo log encryption processing is done. */
-bool is_early_redo_undo_encryption_done() {
-  /* Early redo/undo encryption is done during post recovery before purge
-  thread is started. */
-  return (srv_start_state_is_set(SRV_START_STATE_PURGE));
 }
 
 /** Start purge threads. During upgrade we start

@@ -2824,8 +2824,10 @@ bool log_read_encryption() {
       return (false);
     }
 
+    Encryption_key e_key{key, iv};
     if (Encryption::decode_encryption_info(
-            key, iv, log_block_buf + LOG_HEADER_CREATOR_END, true)) {
+            log_space_id, e_key, log_block_buf + LOG_HEADER_CREATOR_END,
+            true)) {
       /* If redo log encryption is enabled, set the
       space flag. Otherwise, we just fill the encryption
       information to space object for decrypting old
@@ -2908,24 +2910,6 @@ bool log_rotate_encryption() {
 
   /* Rotate log tablespace */
   return (log_write_encryption(nullptr, nullptr, false));
-}
-
-void redo_rotate_default_master_key() {
-  fil_space_t *space = fil_space_get(dict_sys_t::s_log_space_first_id);
-
-  if (srv_shutdown_state.load() >= SRV_SHUTDOWN_CLEANUP) {
-    return;
-  }
-
-  /* If the redo log space is using default key, rotate it.
-  We also need the server_uuid initialized. */
-  if (space->encryption_type != Encryption::NONE &&
-      Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID &&
-      !srv_read_only_mode && strlen(server_uuid) > 0) {
-    ut_a(FSP_FLAGS_GET_ENCRYPTION(space->flags));
-
-    log_write_encryption(nullptr, nullptr, false);
-  }
 }
 
 /** @} */
