@@ -67,9 +67,11 @@ col2 varchar(20),
 col3 text,
 col4 date) engine=ndb;
 Cause backup stall
+
 Starting backup
 Backup started
 update nullable set col2=NULL;
+
 Waiting for backup to complete
 Backup completed
 drop table nullable;
