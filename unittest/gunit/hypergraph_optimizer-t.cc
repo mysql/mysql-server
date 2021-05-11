@@ -1172,11 +1172,12 @@ TEST_F(MakeHypergraphTest, UnpushableMultipleEqualityWithSameTableTwice) {
   // the t3.x = t3.y condition. All edges come from explicit
   // WHERE conditions.
 
-  // t2/t3. Check that we only get one of t2.y=t3.y and t2.y=t3.x;
-  // they come from the same multi-equality, so one is redundant.
+  // t2/t3. Note that we get both t2.y=t3.y and t2.y=t3.x;
+  // they come from the same multi-equality and we've already
+  // checked t3.x=t3.y, so one is redundant, but we can't
+  // figure this out yet.
   EXPECT_EQ(0x02, graph.graph.edges[0].left);
   EXPECT_EQ(0x04, graph.graph.edges[0].right);
-  EXPECT_EQ(1, graph.edges[0].expr->equijoin_conditions.size());
 
   // t1/t4.
   EXPECT_EQ(0x01, graph.graph.edges[2].left);

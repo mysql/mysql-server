@@ -854,14 +854,15 @@ bool MultipleEqualityAlreadyExistsOnJoin(Item_equal *equal,
   return false;
 }
 
-bool ComesFromAlreadyExistingMultipleEquality(
-    Item *cond, const RelationalExpression &expr) {
-  if (cond->type() != Item::FUNC_ITEM ||
-      down_cast<Item_func *>(cond)->functype() != Item_func::EQ_FUNC) {
-    return false;
+bool AlreadyExistsOnJoin(Item *cond, const RelationalExpression &expr) {
+  assert(expr.equijoin_conditions
+             .empty());  // MakeHashJoinConditions() has not run yet.
+  for (Item *item : expr.join_conditions) {
+    if (cond->eq(item, /*binary_eq=*/true)) {
+      return true;
+    }
   }
-  Item_equal *equal = down_cast<Item_func_eq *>(cond)->source_multiple_equality;
-  return equal != nullptr && MultipleEqualityAlreadyExistsOnJoin(equal, expr);
+  return false;
 }
 
 /**
@@ -1445,7 +1446,7 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
   // filter that must either stay after this join, or it can be promoted
   // to a join condition for it.
 
-  if (ComesFromAlreadyExistingMultipleEquality(cond, *expr)) {
+  if (AlreadyExistsOnJoin(cond, *expr)) {
     // Redundant, so we can just forget about it.
     return;
   }
