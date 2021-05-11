@@ -1631,6 +1631,9 @@ class Fil_system {
   @return the number of tablespaces that failed to rotate. */
   size_t encryption_rotate() MY_ATTRIBUTE((warn_unused_result));
 
+  /** Reencrypt tablespace keys by current master key. */
+  void encryption_reencrypt(std::vector<space_id_t> &sid_vector);
+
   /** Detach a space object from the tablespace memory cache.
   Closes the tablespace files but does not delete them.
   There must not be any pending I/O's or flushes on the files.
@@ -5840,7 +5843,7 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
     ut_ad(df.space_version() == DD_SPACE_CURRENT_SPACE_VERSION);
   }
 
-  /* We are done validating.  If the tablespace is already open,
+  /* We are done validating. If the tablespace is already open,
   return success. */
   if (space != nullptr) {
     return DB_SUCCESS;
@@ -5892,6 +5895,18 @@ dberr_t fil_ibd_open(bool validate, fil_type_t purpose, space_id_t space_id,
 
     if (err != DB_SUCCESS) {
       return DB_ERROR;
+    }
+
+    /* If tablespace is encrypted with default master key and server has already
+    started, rotate it now. */
+    if (df.m_encryption_master_key_id == Encryption::DEFAULT_MASTER_KEY_ID &&
+        /* There is no dependency on master thread but we are trying to check if
+        server is in initial phase or not. */
+        srv_master_thread_is_active()) {
+      /* Reencrypt tablespace key */
+      std::vector<space_id_t> sid;
+      sid.push_back(space->id);
+      fil_encryption_reencrypt(sid);
     }
   }
 
@@ -9353,13 +9368,6 @@ bool Fil_shard::needs_encryption_rotate(fil_space_t *space) {
     return false;
   }
 
-  /* Skip the tablespace when it's in default key status,
-  since it's the first server startup after bootstrap,
-  and the server uuid is not ready yet. */
-  if (Encryption::get_master_key_id() == Encryption::DEFAULT_MASTER_KEY_ID) {
-    return false;
-  }
-
   DBUG_EXECUTE_IF(
       "ib_encryption_rotate_skip",
       ib::info(ER_IB_MSG_INJECT_FAILURE, "ib_encryption_rotate_skip");
@@ -9439,8 +9447,56 @@ size_t Fil_system::encryption_rotate() {
   return fail_count;
 }
 
+void Fil_system::encryption_reencrypt(
+    std::vector<space_id_t> &space_id_vector) {
+  /* If there are no tablespaces to reencrypt, return true. */
+  if (space_id_vector.empty()) {
+    return;
+  }
+
+  size_t fail_count = 0;
+  size_t rotate_count = 0;
+  byte encrypt_info[Encryption::INFO_SIZE];
+
+  /* This operation is done either post recovery or when the first time
+  tablespace is loaded. */
+
+  for (auto &space_id : space_id_vector) {
+    fil_space_t *space = fil_space_get(space_id);
+    ut_ad(space != nullptr);
+    ut_ad(FSP_FLAGS_GET_ENCRYPTION(space->flags));
+
+    /* Rotate this encrypted tablespace. */
+    mtr_t mtr;
+    mtr_start(&mtr);
+    memset(encrypt_info, 0, Encryption::INFO_SIZE);
+    bool rotate_ok = fsp_header_rotate_encryption(space, encrypt_info, &mtr);
+    ut_ad(rotate_ok);
+    mtr_commit(&mtr);
+
+    if (rotate_ok) {
+      ++rotate_count;
+      if (fsp_is_ibd_tablespace(space_id)) {
+        if (fsp_is_file_per_table(space_id, space->flags)) {
+          ib::info(ER_IB_MSG_REENCRYPTED_TABLESPACE_KEY, space->name);
+        } else {
+          ib::info(ER_IB_MSG_REENCRYPTED_GENERAL_TABLESPACE_KEY, space->name);
+        }
+      }
+    } else {
+      ++fail_count;
+    }
+  }
+
+  /* The operation should finish successfully for all tablespaces */
+  ut_a(fail_count == 0);
+}
+
 size_t fil_encryption_rotate() { return (fil_system->encryption_rotate()); }
 
+void fil_encryption_reencrypt(std::vector<space_id_t> &sid_vector) {
+  fil_system->encryption_reencrypt(sid_vector);
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /** Constructor
@@ -10943,7 +10999,9 @@ byte *fil_tablespace_redo_encryption(byte *ptr, const byte *end,
   byte iv[Encryption::KEY_LEN] = {0};
   byte key[Encryption::KEY_LEN] = {0};
 
-  if (!Encryption::decode_encryption_info(key, iv, encryption_ptr, true)) {
+  Encryption_key e_key{key, iv};
+  if (!Encryption::decode_encryption_info(space_id, e_key, encryption_ptr,
+                                          true)) {
     recv_sys->found_corrupt_log = true;
 
     ib::warn(ER_IB_MSG_364)

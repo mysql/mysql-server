@@ -3842,6 +3842,12 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
         return (true);
       }
 
+#ifndef UNIV_HOTBACKUP
+      /* For all tablespaces for which tablespace key is to be reencrypt,
+      do it now. */
+      fil_encryption_reencrypt(Encryption::s_tablespaces_to_reencrypt);
+#endif /* !UNIV_HOTBACKUP */
+
       /* We might need to fix tables for CSV and MyISAM SE */
       if (fix_cloned_tables(thd)) {
         return (true);

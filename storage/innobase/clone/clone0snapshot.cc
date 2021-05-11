@@ -743,8 +743,9 @@ bool Clone_Snapshot::encrypt_key_in_log_header(byte *log_header,
   auto encryption_info = log_header + offset;
 
   /* Get log Encryption Key and IV. */
+  Encryption_key e_key{encryption_key, encryption_iv};
   auto success = Encryption::decode_encryption_info(
-      &encryption_key[0], &encryption_iv[0], encryption_info, false);
+      dict_sys_t::s_invalid_space_id, e_key, encryption_info, false);
 
   if (success) {
     /* Encrypt with master key and fill encryption information. */
@@ -765,8 +766,9 @@ bool Clone_Snapshot::encrypt_key_in_header(const page_size_t &page_size,
   auto encryption_info = page_data + offset;
 
   /* Get tablespace Encryption Key and IV. */
+  Encryption_key e_key{encryption_key, encryption_iv};
   auto success = Encryption::decode_encryption_info(
-      &encryption_key[0], &encryption_iv[0], encryption_info, false);
+      dict_sys_t::s_invalid_space_id, e_key, encryption_info, false);
   if (!success) {
     return (false);
   }

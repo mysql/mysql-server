@@ -660,8 +660,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
     fprintf(stderr, "Got from file %u:", m_space_id);
 #endif
 
-    if (!fsp_header_get_encryption_key(m_flags, m_encryption_key,
-                                       m_encryption_iv, m_first_page)) {
+    Encryption_key e_key{m_encryption_key, m_encryption_iv};
+    if (!fsp_header_get_encryption_key(m_flags, e_key, m_first_page)) {
       ib::error(ER_IB_MSG_401)
           << "Encryption information in datafile: " << m_filepath
           << " can't be decrypted, please confirm that"
@@ -678,6 +678,7 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
       ib::info(ER_IB_MSG_402) << "Read encryption metadata from " << m_filepath
                               << " successfully, encryption"
                               << " of this tablespace enabled.";
+      m_encryption_master_key_id = e_key.m_master_key_id;
     }
 
     if (recv_recovery_is_on() &&

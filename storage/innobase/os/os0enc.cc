@@ -212,6 +212,9 @@ uint32_t Encryption::s_master_key_id = Encryption::DEFAULT_MASTER_KEY_ID;
 /** Current uuid of server instance */
 char Encryption::s_uuid[Encryption::SERVER_UUID_LEN + 1] = {0};
 
+/** Tablespaces whose key needs to be reencrypted */
+std::vector<space_id_t> Encryption::s_tablespaces_to_reencrypt;
+
 const char *Encryption::to_string(Type type) noexcept {
   switch (type) {
     case NONE:
@@ -449,39 +452,37 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
                                       bool is_boot, bool encrypt_key) noexcept {
   byte *master_key = nullptr;
   uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
-  bool is_default_master_key = false;
 
-  /* Get master key from keyring. For bootstrap, we use a default
-  master key which master_key_id is 0. */
-  if (encrypt_key) {
-    if (is_boot
 #ifndef UNIV_HOTBACKUP
-        || (strlen(server_uuid) == 0)
+  /* Server uuid must have already been generated */
+  ut_ad(strlen(server_uuid) > 0);
 #endif
-    ) {
-      master_key = static_cast<byte *>(ut_zalloc_nokey(KEY_LEN));
 
-      ut_ad(KEY_LEN >= sizeof(DEFAULT_MASTER_KEY));
+  /* Get master key from keyring. */
+  if (encrypt_key) {
+    get_master_key(&master_key_id, &master_key);
 
-      strcpy(reinterpret_cast<char *>(master_key), DEFAULT_MASTER_KEY);
-      is_default_master_key = true;
-    } else {
-      get_master_key(&master_key_id, &master_key);
-
-      if (master_key == nullptr) {
-        return (false);
-      }
+    if (master_key == nullptr) {
+      return (false);
     }
+
+    ut_ad(master_key_id != DEFAULT_MASTER_KEY_ID);
+    ut_ad(memcmp(master_key, DEFAULT_MASTER_KEY, sizeof(DEFAULT_MASTER_KEY)) !=
+          0);
   }
 
+  /* Encryption info to be filled in following format
+    --------------------------------------------------------------------------
+   | Magic bytes | master key id | server uuid | tablespace key|iv | checksum |
+    --------------------------------------------------------------------------
+  */
+  ut_ad(encrypt_info != nullptr);
   memset(encrypt_info, 0, INFO_SIZE);
 
-  /* Use the new master key to encrypt the key. */
-  ut_ad(encrypt_info != nullptr);
   auto ptr = encrypt_info;
 
+  /* Write Magic bytes */
   memcpy(ptr, KEY_MAGIC_V3, MAGIC_SIZE);
-
   ptr += MAGIC_SIZE;
 
   /* Write master key id. */
@@ -492,14 +493,11 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
   memcpy(reinterpret_cast<char *>(ptr), s_uuid, sizeof(s_uuid));
   ptr += sizeof(s_uuid) - 1;
 
+  /* Write (and encrypt if needed) key and iv */
   byte key_info[KEY_LEN * 2];
-
   memset(key_info, 0x0, sizeof(key_info));
-
   memcpy(key_info, key, KEY_LEN);
-
   memcpy(key_info + KEY_LEN, iv, KEY_LEN);
-
   if (encrypt_key) {
     /* Encrypt key and iv. */
     auto elen = my_aes_encrypt(key_info, sizeof(key_info), ptr, master_key,
@@ -513,21 +511,15 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
     /* Keep tablespace key unencrypted. Used by clone. */
     memcpy(ptr, key_info, sizeof(key_info));
   }
-
   ptr += sizeof(key_info);
 
   /* Write checksum bytes. */
   auto crc = ut_crc32(key_info, sizeof(key_info));
-
   mach_write_to_4(ptr, crc);
 
   if (encrypt_key) {
     ut_ad(master_key != nullptr);
-    if (is_default_master_key) {
-      ut_free(master_key);
-    } else {
-      my_free(master_key);
-    }
+    my_free(master_key);
   }
 
   return (true);
@@ -536,25 +528,22 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
 byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
                                            uint32_t *m_key_id, char *srv_uuid,
                                            byte **master_key) noexcept {
-  byte *ptr;
-  uint32 key_id;
-
-  ptr = encrypt_info;
+  byte *ptr = encrypt_info;
   *m_key_id = 0;
 
   /* Get master key id. */
-  key_id = mach_read_from_4(ptr);
-  ptr += sizeof(uint32);
+  uint32_t key_id = mach_read_from_4(ptr);
+  ptr += sizeof(uint32_t);
 
   /* Handle different version encryption information. */
   switch (version) {
     case VERSION_1:
-      /* For version 1, it's possible master key id
-      occupied 8 bytes. */
+      /* For version 1, it's possible master key id occupied 8 bytes. */
       if (mach_read_from_4(ptr) == 0) {
         ptr += sizeof(uint32);
       }
 
+      /* Get master key. */
       get_master_key(key_id, nullptr, master_key);
       if (*master_key == nullptr) {
         return (encrypt_info);
@@ -564,13 +553,12 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
       return (ptr);
 
     case VERSION_2:
-      /* For version 2, it's also possible master key id
-      occupied 8 bytes. */
+      /* For version 2, it's also possible master key id occupied 8 bytes. */
       if (mach_read_from_4(ptr) == 0) {
         ptr += sizeof(uint32);
       }
 
-      /* Get server uuid. */
+      /* Read server uuid. */
       memset(srv_uuid, 0, SERVER_UUID_LEN + 1);
       memcpy(srv_uuid, ptr, SERVER_UUID_LEN);
 
@@ -587,18 +575,15 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
       break;
 
     case VERSION_3:
-      /* Get server uuid. */
+      /* Read server uuid. */
       memset(srv_uuid, 0, SERVER_UUID_LEN + 1);
       memcpy(srv_uuid, ptr, SERVER_UUID_LEN);
 
       ptr += SERVER_UUID_LEN;
 
-      if (key_id == 0) {
-        /* When key_id is 0, which means it's the
-        default master key for bootstrap. */
+      if (key_id == DEFAULT_MASTER_KEY_ID) {
         *master_key = static_cast<byte *>(ut_zalloc_nokey(KEY_LEN));
         memcpy(*master_key, DEFAULT_MASTER_KEY, strlen(DEFAULT_MASTER_KEY));
-        *m_key_id = 0;
       } else {
         ut_ad(strlen(srv_uuid) != 0);
 
@@ -607,9 +592,9 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
         if (*master_key == nullptr) {
           return (encrypt_info);
         }
-
-        *m_key_id = key_id;
       }
+
+      *m_key_id = key_id;
       break;
   }
 
@@ -618,22 +603,18 @@ byte *Encryption::get_master_key_from_info(byte *encrypt_info, Version version,
   return (ptr);
 }
 
-bool Encryption::decode_encryption_info(byte *key, byte *iv,
+bool Encryption::decode_encryption_info(space_id_t space_id,
+                                        Encryption_key &e_key,
                                         byte *encryption_info,
                                         bool decrypt_key) noexcept {
-  byte *ptr;
-  byte *master_key = nullptr;
-  uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
-  byte key_info[KEY_LEN * 2];
-  ulint crc1;
-  ulint crc2;
-  char srv_uuid[SERVER_UUID_LEN + 1];
-  Version version;
-
-  ptr = encryption_info;
+  byte *ptr = encryption_info;
+  byte *key = e_key.m_key;
+  byte *iv = e_key.m_iv;
+  uint32_t &master_key_id = e_key.m_master_key_id;
 
   /* For compatibility with 5.7.11, we need to handle the
   encryption information which created in this old version. */
+  Version version;
   if (memcmp(ptr, KEY_MAGIC_V1, MAGIC_SIZE) == 0) {
     version = VERSION_1;
   } else if (memcmp(ptr, KEY_MAGIC_V2, MAGIC_SIZE) == 0) {
@@ -652,9 +633,12 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
                              << " found unexpected version of it!";
     return (false);
   }
-
   ptr += MAGIC_SIZE;
 
+  /* Read master key id and read (decrypt if needed) tablespace key and iv. */
+  byte *master_key = nullptr;
+  char srv_uuid[SERVER_UUID_LEN + 1];
+  byte key_info[KEY_LEN * 2];
   if (decrypt_key) {
     /* Get master key by key id. */
     ptr = get_master_key_from_info(ptr, version, &master_key_id, srv_uuid,
@@ -665,25 +649,13 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
       return (false);
     }
 
-#ifdef UNIV_ENCRYPT_DEBUG
-    {
-      std::ostringstream msg;
-
-      msg << "Master Key ID: " << master_key_id;
-      msg << " hex: {";
-      ut_print_buf_hex(msg, master_key, KEY_LEN);
-      msg << "}";
-
-      ib::info(ER_IB_MSG_838) << msg.str();
-    }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
     /* Decrypt tablespace key and iv. */
     auto len = my_aes_decrypt(ptr, sizeof(key_info), key_info, master_key,
                               KEY_LEN, my_aes_256_ecb, nullptr, false);
 
     if (master_key_id == DEFAULT_MASTER_KEY_ID) {
       ut_free(master_key);
+      /* Re-encrypt tablespace key with current master key */
     } else {
       my_free(master_key);
     }
@@ -695,19 +667,17 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   } else {
     ut_ad(version == VERSION_3);
     /* Skip master Key and server UUID*/
-    ptr += sizeof(uint32);
+    ptr += sizeof(uint32_t);
     ptr += SERVER_UUID_LEN;
 
     /* Get tablespace key information. */
     memcpy(key_info, ptr, sizeof(key_info));
   }
-
-  /* Check checksum bytes. */
   ptr += sizeof(key_info);
 
-  crc1 = mach_read_from_4(ptr);
-  crc2 = ut_crc32(key_info, sizeof(key_info));
-
+  /* Check checksum bytes. */
+  uint32_t crc1 = mach_read_from_4(ptr);
+  uint32_t crc2 = ut_crc32(key_info, sizeof(key_info));
   if (crc1 != crc2) {
     /* This check could fail only while decrypting key. */
     ut_ad(decrypt_key);
@@ -725,25 +695,27 @@ bool Encryption::decode_encryption_info(byte *key, byte *iv,
   /* Get tablespace iv */
   memcpy(iv, key_info + KEY_LEN, KEY_LEN);
 
-#ifdef UNIV_ENCRYPT_DEBUG
-  {
-    std::ostringstream msg;
+  if (decrypt_key) {
+    /* Update server uuid and master key id in encryption metadata */
+    if (master_key_id > s_master_key_id) {
+      s_master_key_id = master_key_id;
+      memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
+    }
 
-    ut_print_buf_hex(msg, key, KEY_LEN);
+#ifndef UNIV_HOTBACKUP
+    if (master_key_id == DEFAULT_MASTER_KEY_ID &&
+        space_id != dict_sys_t::s_invalid_space_id) {
+      /* Tablespace key needs to be reencrypted with master key */
 
-    ib::info(ER_IB_MSG_840) << "Key: {" << msg.str() << "}";
-  }
-  {
-    std::ostringstream msg;
-
-    ut_print_buf_hex(msg, iv, KEY_LEN);
-    ib::info(ER_IB_MSG_841) << "IV: {" << msg.str() << "}";
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
-
-  if (decrypt_key && (s_master_key_id < master_key_id)) {
-    s_master_key_id = master_key_id;
-    memcpy(s_uuid, srv_uuid, sizeof(s_uuid) - 1);
+      if (!srv_master_thread_is_active()) {
+        /* Note down this space and rotate key at the end of recovery */
+        s_tablespaces_to_reencrypt.push_back(space_id);
+      } else {
+        /* This tablespace might not be loaded yet. It's tablepace key will be
+        reencrypted with new master key once it is loaded in fil_ibd_open() */
+      }
+    }
+#endif
   }
 
   return (true);
@@ -1445,8 +1417,9 @@ bool Encryption::check_keyring() noexcept {
   bool ret = false;
   byte *master_key = nullptr;
 
-  /* During bootstrap, default master key is used */
   if (s_master_key_id == DEFAULT_MASTER_KEY_ID) {
+    /* This is the first time encryption is being used or till now no encrypted
+    tablespace is loaded. */
     static bool checked = false;
     if (checked) {
       return true;

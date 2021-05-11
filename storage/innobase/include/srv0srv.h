@@ -1012,9 +1012,6 @@ void srv_purge_coordinator_thread();
 /** Worker thread that reads tasks from the work queue and executes them. */
 void srv_worker_thread();
 
-/** Rotate default master key for UNDO tablespace. */
-void undo_rotate_default_master_key();
-
 /** Set encryption for UNDO tablespace with given space id.
 @param[in] space_id     Undo tablespace id
 @param[in] mtr          Mini-transaction

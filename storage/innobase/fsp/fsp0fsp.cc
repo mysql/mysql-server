@@ -1146,11 +1146,10 @@ page_size_t fsp_header_get_page_size(const page_t *page) {
 
 /** Reads the encryption key from the first page of a tablespace.
 @param[in]	fsp_flags	tablespace flags
-@param[in,out]	key		tablespace key
-@param[in,out]	iv		tablespace iv
-@param[in]	page	first page of a tablespace
+@param[in,out]	e_key		tablespace key, iv
+@param[in]	page		first page of a tablespace
 @return true if success */
-bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
+bool fsp_header_get_encryption_key(uint32_t fsp_flags, Encryption_key &e_key,
                                    page_t *page) {
   ulint offset;
   const page_size_t page_size(fsp_flags);
@@ -1160,7 +1159,8 @@ bool fsp_header_get_encryption_key(uint32_t fsp_flags, byte *key, byte *iv,
     return (false);
   }
 
-  return (Encryption::decode_encryption_info(key, iv, page + offset, true));
+  return (Encryption::decode_encryption_info(page_get_space_id(page), e_key,
+                                             page + offset, true));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -4579,8 +4579,8 @@ static bool load_encryption_from_header(fil_space_t *space) {
   ut_ad(space->id == page_get_space_id(buf_block_get_frame(block)));
   page_t *header_page = buf_block_get_frame(block);
 
-  bool ret = fsp_header_get_encryption_key(space->flags, encryption_key,
-                                           encryption_iv, header_page);
+  Encryption_key e_key{encryption_key, encryption_iv};
+  bool ret = fsp_header_get_encryption_key(space->flags, e_key, header_page);
   mtr_commit(&mtr);
 
   if (!ret) {

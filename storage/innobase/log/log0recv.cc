@@ -3546,8 +3546,10 @@ bool meb_read_log_encryption(IORequest &encryption_request,
              Encryption::MAGIC_SIZE) == 0) {
     encryption_request = IORequestLogRead;
 
+    Encryption_key e_key{key, iv};
     if (Encryption::decode_encryption_info(
-            key, iv, log_block_buf + LOG_HEADER_CREATOR_END, true)) {
+            log_space_id, e_key, log_block_buf + LOG_HEADER_CREATOR_END,
+            true)) {
       /* If redo log encryption is enabled, set the
       space flag. Otherwise, we just fill the encryption
       information to space object for decrypting old
