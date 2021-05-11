@@ -3806,10 +3806,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     {
       if (errorHandler(cb)) 
 	continue;
-      restoreLogger.log_error("Cannot get operation: %u: %s", cb->connection->getNdbError().code, cb->connection->getNdbError().message);
+      restoreLogger.log_error("Cannot get operation: %u: %s", cb->error_code,
+                              m_ndb->getNdbError(cb->error_code).message);
       set_fatal_error(true);
-      m_ndb->closeTransaction(cb->connection);
-      cb->connection = NULL;
       return;
     } // if
     
@@ -3817,10 +3816,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     {
       if (errorHandler(cb))
 	continue;
-      restoreLogger.log_error("Error defining op: %u: %s", cb->connection->getNdbError().code, cb->connection->getNdbError().message);
+      restoreLogger.log_error("Error defining op: %u: %s", cb->error_code,
+                              m_ndb->getNdbError(cb->error_code).message);
       set_fatal_error(true);
-      m_ndb->closeTransaction(cb->connection);
-      cb->connection = NULL;
       return;
     } // if
 
@@ -3958,10 +3956,9 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     {
       if (errorHandler(cb)) 
 	continue;
-      restoreLogger.log_error("Error defining op: %u: %s", cb->connection->getNdbError().code, cb->connection->getNdbError().message);
+      restoreLogger.log_error("Error defining op: %u: %s", cb->error_code,
+                              m_ndb->getNdbError(cb->error_code).message);
       set_fatal_error(true);
-      m_ndb->closeTransaction(cb->connection);
-      cb->connection = NULL;
       return;
     }
 
@@ -4579,8 +4576,8 @@ retry:
     if (errorHandler(cb)) // temp error, retry
       goto retry;
     set_fatal_error(true);
-    restoreLogger.log_error("Cannot start transaction: %u: %s",
-              m_ndb->getNdbError().code, m_ndb->getNdbError().message);
+    restoreLogger.log_error("Cannot start transaction: %u: %s", cb->error_code,
+                            m_ndb->getNdbError(cb->error_code).message);
     return;
   }
 
@@ -4603,8 +4600,8 @@ retry:
     if (errorHandler(cb)) // temp error, retry
       goto retry;
     set_fatal_error(true);
-    restoreLogger.log_error("Cannot get operation: %u: %s",
-              trans->getNdbError().code, trans->getNdbError().message);
+    restoreLogger.log_error("Cannot get operation: %u: %s", cb->error_code,
+                            m_ndb->getNdbError(cb->error_code).message);
     return;
   }
 
