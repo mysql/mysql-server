@@ -860,11 +860,13 @@ public:
      */
     bool equal(const Table&) const;
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Get frm file stored with this table
      */
     const void* getFrmData() const;
     Uint32 getFrmLength() const;
+#endif
 
     /**
      * Get default NdbRecord object for this table
@@ -1021,10 +1023,12 @@ public:
      */
     int getObjectId() const override;
 
+#ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
     /**
      * Set frm file to store with this table
      */ 
     int setFrm(const void* data, Uint32 len);
+#endif
 
     /**
       Set unpacked extra metadata for this table
