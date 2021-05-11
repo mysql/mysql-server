@@ -2499,7 +2499,8 @@ int AddPredicate(THD *thd, Item *condition, bool was_join_condition,
   if (was_join_condition) {
     total_eligibility_set = used_tables;
   } else {
-    total_eligibility_set = FindTESForCondition(used_tables, root);
+    total_eligibility_set = FindTESForCondition(used_tables, root) &
+                            ~(INNER_TABLE_BIT | OUTER_REF_TABLE_BIT);
   }
   pred.total_eligibility_set = GetNodeMapFromTableMap(
       total_eligibility_set, graph->table_num_to_node_num);
