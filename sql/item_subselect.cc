@@ -756,7 +756,15 @@ bool Item_in_subselect::exec(THD *thd) {
     left_expr_cache_filled = true;
   }
 
-  if (unit->is_executed()) {
+  const bool uncacheable = unit->uncacheable || indexsubquery_engine != nullptr;
+  if (unit->is_executed() && uncacheable) {
+    // Second or later execution (and it's actually going to be executed,
+    // not just the return the cached value from the first run), so clear out
+    // state from the previous run(s).
+    //
+    // Note that subselect_hash_sj_engine and subselect_indexsubquery_engine
+    // are both uncacheable (due to dependency on the left side), even if the
+    // underlying unit is not marked as such.
     null_value = false;
     was_null = false;
   }
