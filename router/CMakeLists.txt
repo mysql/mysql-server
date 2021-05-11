@@ -47,7 +47,7 @@ PROJECT("MySQLRouter" VERSION ${PROJECT_VERSION_TEXT} LANGUAGES C CXX)
 # now prefer to link the check executable to the libraries listed in the
 # ``CMAKE_REQUIRED_LIBRARIES`` variable.
 IF(POLICY CMP0075)
-  CMAKE_POLICY(SET CMP0075 OLD)
+  CMAKE_POLICY(SET CMP0075 NEW)
 ENDIF()
 
 IF(SOLARIS)
