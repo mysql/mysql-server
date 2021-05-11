@@ -132,7 +132,7 @@ class HashJoinCondition {
 class Arg_comparator {
   Item **left{nullptr};
   Item **right{nullptr};
-  arg_cmp_func func;
+  arg_cmp_func func{nullptr};
   Item_result_field *owner;
   Arg_comparator *comparators{nullptr};  // used only for compare_row()
   uint16 comparator_count{0};
