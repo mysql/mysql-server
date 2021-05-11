@@ -87,14 +87,10 @@ IF(UNIX)
     MY_SEARCH_LIBS(floor m LIBM)
   ENDIF()
   IF(NOT LIBM)
-    MY_SEARCH_LIBS(__infinity m LIBM)
-  ENDIF()
-  IF(NOT LIBM)
     MY_SEARCH_LIBS(log m LIBM)
   ENDIF()
   MY_SEARCH_LIBS(gethostbyname_r  "nsl_r;nsl" LIBNSL)
   MY_SEARCH_LIBS(bind "bind;socket" LIBBIND)
-  MY_SEARCH_LIBS(crypt crypt LIBCRYPT)
   MY_SEARCH_LIBS(setsockopt socket LIBSOCKET)
   MY_SEARCH_LIBS(dlopen dl LIBDL)
   # HAVE_dlopen_IN_LIBC
@@ -106,12 +102,11 @@ IF(UNIX)
     MY_SEARCH_LIBS(clock_gettime rt LIBRT)
   ENDIF()
   MY_SEARCH_LIBS(timer_create rt LIBRT)
-  MY_SEARCH_LIBS(atomic_thread_fence atomic LIBATOMIC)
   MY_SEARCH_LIBS(backtrace execinfo LIBEXECINFO)
 
   LIST(APPEND CMAKE_REQUIRED_LIBRARIES
-    ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBCRYPT} ${LIBSOCKET} ${LIBDL}
-    ${CMAKE_THREAD_LIBS_INIT} ${LIBRT} ${LIBATOMIC} ${LIBEXECINFO}
+    ${LIBM} ${LIBNSL} ${LIBBIND} ${LIBSOCKET} ${LIBDL}
+    ${CMAKE_THREAD_LIBS_INIT} ${LIBRT} ${LIBEXECINFO}
   )
   # Need explicit pthread for gcc -fsanitize=address
   IF(CMAKE_C_FLAGS MATCHES "-fsanitize=")
