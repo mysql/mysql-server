@@ -1228,8 +1228,8 @@ public:
   /**
    * Set/get maximum memory size for event buffer
    */
-  void set_eventbuf_max_alloc(unsigned sz);
-  unsigned get_eventbuf_max_alloc();
+  void set_eventbuf_max_alloc(Uint64 sz);
+  Uint64 get_eventbuf_max_alloc();
 
   /**
    * Set/get free_percent- the % of event buffer memory
@@ -1247,8 +1247,8 @@ public:
       usage_percent(0)
     {}
 
-    Uint32 allocated_bytes;
-    Uint32 used_bytes;
+    Uint64 allocated_bytes;
+    Uint64 used_bytes;
     Uint32 usage_percent; // (used_bytes)*100/eventbuf_max_alloc
   };
   /**
