@@ -773,7 +773,8 @@ int CompanionSetUsedByCondition(
 
   int ret = -1;
   for (int table_num : BitsSetIn(tables)) {
-    if (table_num_to_companion_set[table_num] == -1) {
+    if (table_num >= int{MAX_TABLES} ||
+        table_num_to_companion_set[table_num] == -1) {
       // This table is not part of a companion set.
       return -1;
     }
