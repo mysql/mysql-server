@@ -3765,7 +3765,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     {
       if (errorHandler(cb)) 
 	continue;
-      err << "Cannot get operation: " << cb->connection->getNdbError() << endl;
+      err << "Cannot get operation: " << m_ndb->getNdbError(cb->error_code) << endl;
       exitHandler();
     } // if
     
@@ -3773,7 +3773,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     {
       if (errorHandler(cb))
 	continue;
-      err << "Error defining op: " << cb->connection->getNdbError() << endl;
+      err << "Error defining op: " << m_ndb->getNdbError(cb->error_code) << endl;
       exitHandler();
     } // if
 
@@ -3908,7 +3908,7 @@ void BackupRestore::tuple_a(restore_callback_t *cb)
     {
       if (errorHandler(cb)) 
 	continue;
-      err << "Error defining op: " << cb->connection->getNdbError() << endl;
+      err << "Error defining op: " << m_ndb->getNdbError(cb->error_code) << endl;
       exitHandler();
     }
 
@@ -4497,7 +4497,7 @@ retry:
   {
     if (errorHandler(cb)) // temp error, retry
       goto retry;
-    err << "Cannot start transaction: " << trans->getNdbError() << endl;
+    err << "Cannot start transaction: " << m_ndb->getNdbError(cb->error_code) << endl;
     exitHandler();
   } // if
   
@@ -4519,7 +4519,7 @@ retry:
   {
     if (errorHandler(cb)) // temp error, retry
       goto retry;
-    err << "Cannot get operation: " << trans->getNdbError() << endl;
+    err << "Cannot get operation: " << m_ndb->getNdbError(cb->error_code) << endl;
     exitHandler();
   } // if
   
