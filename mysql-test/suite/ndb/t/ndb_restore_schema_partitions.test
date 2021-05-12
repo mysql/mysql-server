@@ -5,15 +5,8 @@
 -- source include/have_ndb.inc
 -- source suite/ndb/include/backup_restore_setup.inc
 
---disable_query_log
+# Turn on extended partitioning support
 set new=on;
---enable_query_log
-
---disable_warnings
-use test;
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-drop table if exists t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
---enable_warnings
 
 CREATE TABLE `t1_c` (
   `capgoaledatta` smallint(5) unsigned NOT NULL auto_increment,
@@ -154,9 +147,6 @@ create table t9 engine=myisam as select * from t9_c;
 drop table t1_c,t2_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --print --print_meta $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
-
-# random output order??
-#show tables;
 
 select count(*) from t1;
 select count(*) from t1_c;
@@ -355,27 +345,17 @@ select count(*)
         select * from t9_c) a;
 
 #
-# Drop all table except t2_c
-#   This to make sure that error returned from ndb_restore above is 
-#     guaranteed to be from t2_c, this since order of tables in backup
-#     is none deterministic
+# Drop all tables except t2_c, then check that restore fails
+#   - drop all except one to make sure that error returned is for t2_c,
+#   order of tables in backup is not deterministic
 # 
-# jonas 2008-05-27
-# This test is soo borked that i'm disabeling it...
-#   it fails with "Translate frm" as code *incorrectly* thinks that malloc
-#   failed, i.e code after that has *never* run
 drop table t1_c,t3_c,t4_c,t5_c,t6_c,t7_c,t8_c,t9_c;
-#--source include/ndb_backup.inc
-#--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" $NDB_BACKUPS-$the_backup_id 2>&1 | grep Translate || true
+--source include/ndb_backup.inc
+--error 1
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --ndb-nodegroup_map "(0,1)" $NDB_BACKUPS-$the_backup_id 2>&1 >> $NDB_TOOLS_OUTPUT
 
-#
-# Cleanup
-#
-
---disable_warnings
-drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t9;
-drop table if exists t2_c;
---enable_warnings
+drop table t2_c;
+drop table t1,t2,t3,t4,t5,t6,t7,t8,t9;
 
 #
 # Test BUG#10287
@@ -383,7 +363,9 @@ drop table if exists t2_c;
 
 source include/ndb_backup_id.inc;
 echo 520093696,<the_backup_id>;
---source suite/ndb/include/backup_restore_cleanup.inc
 
-# End of 4.1 tests
+#
+# Cleanup
+#
+--source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT
