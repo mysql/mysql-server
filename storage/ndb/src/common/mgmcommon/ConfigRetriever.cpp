@@ -360,6 +360,7 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
    * Check hostnames
    */
   LocalDnsCache dnsCache;
+  int ip_ver_preference = -1;
   ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next()){
 
@@ -377,9 +378,25 @@ ConfigRetriever::verifyConfig(const ndb_mgm_configuration *conf,
     Uint32 allow_unresolved = false;
     iter.get(CFG_CONNECTION_UNRES_HOSTS, & allow_unresolved);
 
+    BaseString tmp;
+    Uint32 conn_preferred_ip_version = 4;
+
+    iter.get(CFG_CONNECTION_PREFER_IP_VER, &conn_preferred_ip_version);
+    if(! (conn_preferred_ip_version == 6 || conn_preferred_ip_version == 4)) {
+      tmp.assfmt("Invalid IP version: %d", conn_preferred_ip_version);
+      setError(CR_ERROR, tmp);
+      return false;
+    }
+    if(ip_ver_preference == -1) {              // Set the preference globally
+      ip_ver_preference = conn_preferred_ip_version;
+      NdbTCP_set_preferred_IP_version(ip_ver_preference);
+    } else if(ip_ver_preference != (int) conn_preferred_ip_version) {
+      setError(CR_ERROR, "All connections must prefer the same IP version");
+      return false;
+    }
+
     const char * name;
     struct in6_addr addr;
-    BaseString tmp;
     if(!iter.get(CFG_CONNECTION_HOSTNAME_1, &name) && strlen(name)){
       if(dnsCache.getAddress(&addr, name) != 0){
 	tmp.assfmt("Could not resolve hostname [node %d]: %s", nodeId1, name);

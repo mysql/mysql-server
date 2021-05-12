@@ -28,6 +28,16 @@
 
 #include <string.h>
 
+/* By default, prefer IPv4 addresses, for smooth upgrade from an IPv4-only
+   environment.
+*/
+static int lookup_prefer_ip_version = 4;
+
+void NdbTCP_set_preferred_IP_version(int version) {
+  assert(version == 4 || version == 6);
+  lookup_prefer_ip_version = version;
+}
+
 /* Return codes from getaddrinfo() */
 /* EAI_NODATA is obsolete and has been removed from some platforms */
 #ifndef EAI_NODATA
@@ -52,34 +62,36 @@ void Ndb_make_ipv6_from_ipv4(struct sockaddr_in6* dst,
 
 static struct addrinfo * get_preferred_address(struct addrinfo * ai_list)
 {
-  struct addrinfo* ai_pref = nullptr;
+  struct addrinfo* first_ip4_addr = nullptr;
+  struct addrinfo* first_unscoped_ip6_addr = nullptr;
 
-  /*
-   * If a hostname resolves to multiple addresses:
-   * 1) the first IPv4 address is used.  This for as smooth upgrade from old
-   *    IPv4 only Ndb nodes.
-   * 2) if no IPv4 address the first IPv6 address without scope is used.
-   */
-  while (ai_list != nullptr)
+  for(struct addrinfo *ai = ai_list; ai != nullptr; ai = ai->ai_next)
   {
-    if (ai_list->ai_family == AF_INET)
+    if((ai->ai_family == AF_INET) && (first_ip4_addr == nullptr))
     {
-      ai_pref = ai_list;
-      // Found first IPv4 address.
-      break;
+      first_ip4_addr = ai;
     }
-    else if (ai_pref == nullptr && ai_list->ai_family == AF_INET6)
+    if((ai->ai_family == AF_INET6) && (first_unscoped_ip6_addr == nullptr))
     {
-      struct sockaddr_in6* addr = (struct sockaddr_in6*)ai_list->ai_addr;
+      struct sockaddr_in6* addr = (struct sockaddr_in6*)ai->ai_addr;
       if (addr->sin6_scope_id == 0)
       {
-        ai_pref = ai_list;
-        // Continue look for IPv4 address
+        first_unscoped_ip6_addr = ai;
       }
     }
-    ai_list = ai_list->ai_next;
   }
-  return ai_pref;
+
+  if(lookup_prefer_ip_version == 4)
+  {
+    if(first_ip4_addr) return first_ip4_addr;
+    if(first_unscoped_ip6_addr) return first_unscoped_ip6_addr;
+  }
+  else             // prefer IPv6
+  {
+    if(first_unscoped_ip6_addr) return first_unscoped_ip6_addr;
+    if(first_ip4_addr) return first_ip4_addr;
+  }
+  return ai_list;  // fallback to first address in original list
 }
 
 static int get_in6_addr(struct in6_addr* dst, const struct addrinfo* src)
@@ -101,6 +113,10 @@ static int get_in6_addr(struct in6_addr* dst, const struct addrinfo* src)
   else if (src->ai_family == AF_INET6)
   {
     addr6_ptr = (struct sockaddr_in6*)src->ai_addr;
+    if(addr6_ptr->sin6_scope_id != 0)
+    {
+      return -1;  // require unscoped address
+    }
   }
   else
   {
@@ -315,28 +331,31 @@ Ndb_combine_address_port(char *buf,
 #include <NdbTap.hpp>
 
 static void
-CHECK(const char* address, int expected_res)
+CHECK(const char* name, int chk_result, const char* chk_address = nullptr)
 {
   struct in6_addr addr;
   char *addr_str1;
   char buf1[NDB_ADDR_STRLEN];
 
-  fprintf(stderr, "Testing '%s' with length: %u\n", address, (unsigned)strlen(address));
+  fprintf(stderr, "Testing '%s' with length: %zu\n", name, strlen(name));
 
-  int res= Ndb_getInAddr6(&addr, address);
+  int res= Ndb_getInAddr6(&addr, name);
 
-  if (res != expected_res)
+  if (res != chk_result)
   {
-    fprintf(stderr, "> unexpected result: %d, expected: %d\n",
-            res, expected_res);
+    fprintf(stderr, "> unexpected result: %d, expected: %d\n", res, chk_result);
     abort();
   }
 
-  addr_str1 = Ndb_inet_ntop(AF_INET6,
-                            static_cast<void*>(&addr),
-                            buf1,
-                            sizeof(buf1));
-  fprintf(stderr, "> '%s' -> '%s'\n", address, addr_str1);
+  addr_str1 = Ndb_inet_ntop(AF_INET6, static_cast<void*>(&addr),
+                            buf1, sizeof(buf1));
+  fprintf(stderr, "> '%s' -> '%s'\n", name, addr_str1);
+
+  if(chk_address && strcmp(addr_str1, chk_address))
+  {
+    fprintf(stderr, "> mismatch from expected '%s'\n", chk_address);
+    abort();
+  }
 }
 
 
@@ -389,14 +408,13 @@ can_resolve_hostname(const char* name)
 
   struct addrinfo* ai_list;
   int err = getaddrinfo(name, NULL, &hints, &ai_list);
+  freeaddrinfo(ai_list);
 
   if (err)
   {
-    fprintf(stderr, "> '%s' -> error: %d '%s'\n",
-             name, err, gai_strerror(err));
+    fprintf(stderr, "> '%s' -> error: %d '%s'\n", name, err, gai_strerror(err));
 
-    if (err == EAI_NODATA ||
-	err == EAI_NONAME)
+    if (err == EAI_NODATA || err == EAI_NONAME)
     {
       // An OK error 
       fprintf(stderr, ">  skipping tests with this name...\n");
@@ -407,8 +425,6 @@ can_resolve_hostname(const char* name)
     abort();
   }
 
-  freeaddrinfo(ai_list);
-
   return true;
 }
 
@@ -418,7 +434,13 @@ TAPTEST(NdbGetInAddr)
   socket_library_init();
 
   if (can_resolve_hostname("localhost"))
-    CHECK("localhost", 0);
+  {
+    NdbTCP_set_preferred_IP_version(4);
+    CHECK("localhost", 0, "127.0.0.1");
+    NdbTCP_set_preferred_IP_version(6);
+    CHECK("localhost", 0, "::1");
+    NdbTCP_set_preferred_IP_version(4);
+  }
   CHECK("127.0.0.1", 0);
 
   char hostname_buf[256];

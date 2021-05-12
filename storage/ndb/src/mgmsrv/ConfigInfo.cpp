@@ -3565,6 +3565,17 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
      "false", "true"
    },
 
+  {
+      CFG_CONNECTION_PREFER_IP_VER,
+      "PreferIPVersion",
+      "TCP",
+      "Indicate DNS resolver preference for IP version 4 or 6 ",
+      ConfigInfo::CI_USED,
+      false,
+      ConfigInfo::CI_INT,
+      "4", "4", "6"   // default=4, min=4, max=6
+  },
+
   /****************************************************************************
    * SHM
    ***************************************************************************/
