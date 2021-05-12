@@ -65,6 +65,9 @@ NdbTransaction* Ndb::doConnect(Uint32 tConNode, Uint32 instance)
       DBUG_RETURN(NULL);
     } else if (TretCode != 0) {
       tAnyAlive = 1;
+#ifdef ERROR_INSERT
+      fprintf(stderr, "Tracing ndb_read_local test failure: requested TC node %u could not be connected\n", tConNode);
+#endif
     }//if
   }//if
 //****************************************************************************
