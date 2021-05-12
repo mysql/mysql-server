@@ -235,7 +235,11 @@ ENDIF()
 
 # Enable various apparmor systems for Ubuntu
 IF(DEB_ID STREQUAL "ubuntu")
-  SET (DEB_CONTROL_BDEPS ", dh-apparmor")
+  IF(DEB_CODENAME STREQUAL "bionic")
+    SET (DEB_CONTROL_BDEPS ", dh-apparmor, gcc-8, g++-8")
+  ELSE()
+    SET (DEB_CONTROL_BDEPS ", dh-apparmor")
+  ENDIF()
   SET (DEB_RULES_INSTALL_APPARMOR "install -g root -o root -m 0644 -D debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld")
   SET (DEB_RULES_APPARMOR_LOAD "dh_apparmor -pmysql-${DEB_PRODUCTNAME}-server --profile-name=usr.sbin.mysqld")
   SET (DEB_INSTALL_SERVER_APPARMOR "etc/apparmor.d/usr.sbin.mysqld")
