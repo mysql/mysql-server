@@ -5208,35 +5208,6 @@ void buf_read_page_handle_error(buf_page_t *bpage) {
   buf_pool->n_pend_reads.fetch_sub(1);
 }
 
-/** Acquire the LRU mutex depending on the page state.
-@param[in] bpage        Buffer page to check.
-@retval true if the LRU mutex was acquired. */
-static bool buf_get_LRU_mutex(buf_page_t *bpage) noexcept {
-  ut_ad(bpage->is_io_fix_write());
-
-  auto buf_pool = buf_pool_from_bpage(bpage);
-  const auto flush_type = buf_page_get_flush_type(bpage);
-
-  mutex_enter(&buf_pool->LRU_list_mutex);
-
-  auto block_mutex = buf_page_get_mutex(bpage);
-  mutex_enter(block_mutex);
-
-  if (
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-      /* To keep consistency at buf_LRU_insert_zip_clean() */
-      buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY ||
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-      flush_type == BUF_FLUSH_LRU || flush_type == BUF_FLUSH_SINGLE_PAGE) {
-
-    return true;
-  }
-
-  mutex_exit(&buf_pool->LRU_list_mutex);
-
-  return false;
-}
-
 bool buf_page_free_stale(buf_pool_t *buf_pool, buf_page_t *bpage) noexcept {
   /* If a page was seen as stale it will still be stale, because we have LRU
   mutex.*/
@@ -5694,15 +5665,40 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
     }
   }
 
-  bool has_LRU_mutex{};
+  bool has_LRU_mutex = false;
 
   auto block_mutex = buf_page_get_mutex(bpage);
 
   if (io_type == BUF_IO_WRITE) {
-    has_LRU_mutex = buf_get_LRU_mutex(bpage);
-  } else {
-    mutex_enter(block_mutex);
+    /* We decide whether or not to evict the page from the
+    LRU list based on the flush_type.
+    - BUF_FLUSH_LIST: don't evict
+    - BUF_FLUSH_LRU: always evict
+    - BUF_FLUSH_SINGLE_PAGE: eviction preference is passed
+    by the caller explicitly. */
+    ut_ad(!(flush_type == BUF_FLUSH_LIST && evict));
+    if (flush_type == BUF_FLUSH_LRU) {
+      evict = true;
+    }
+    if (evict
+#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
+        /* The LRU mutex is required on debug in this path:
+           buf_flush_write_complete (called later in this method) ->
+           buf_flush_remove -> buf_LRU_insert_zip_clean().
+           It is safe to query the page state without mutex protection, as
+           transition to BUF_BLOCK_ZIP_DIRTY is possible only when the page
+           descriptor is initialized. Assuming this thread has the IO
+           responsibility (which is assured earlier in this method), the
+           transitions from the BUF_BLOCK_ZIP_DIRTY are only allowed from this
+           thread and no one else can modify the state. */
+        || buf_page_get_state(bpage) == BUF_BLOCK_ZIP_DIRTY
+#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
+    ) {
+      has_LRU_mutex = true;
+      mutex_enter(&buf_pool->LRU_list_mutex);
+    }
   }
+  mutex_enter(block_mutex);
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
   if (io_type == BUF_IO_WRITE || uncompressed) {
@@ -5755,17 +5751,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
 
       buf_pool->stat.n_pages_written.fetch_add(1);
 
-      /* We decide whether or not to evict the page from the
-      LRU list based on the flush_type.
-      * BUF_FLUSH_LIST: don't evict
-      * BUF_FLUSH_LRU: always evict
-      * BUF_FLUSH_SINGLE_PAGE: eviction preference is passed
-      by the caller explicitly. */
-      if (flush_type == BUF_FLUSH_LRU) {
-        evict = true;
-        ut_ad(has_LRU_mutex);
-      }
-
+      ut_ad(!(evict && !has_LRU_mutex));
       if (evict && buf_LRU_free_page(bpage, true)) {
         has_LRU_mutex = false;
       } else {

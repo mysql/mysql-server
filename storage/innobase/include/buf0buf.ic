@@ -292,6 +292,11 @@ void buf_page_set_state(buf_page_t *bpage, enum buf_page_state state) {
   enum buf_page_state old_state = buf_page_get_state(bpage);
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
+  /* If the page is IO-fixed, no one can alter the state, but the thread that is
+  handling the IO. */
+  ut_a(!bpage->someone_has_io_responsibility() ||
+       bpage->current_thread_has_io_responsibility());
+
   switch (old_state) {
     case BUF_BLOCK_POOL_WATCH:
       ut_error;
