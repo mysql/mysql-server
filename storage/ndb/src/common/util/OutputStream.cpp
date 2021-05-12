@@ -117,45 +117,66 @@ SocketOutputStream::SocketOutputStream(NDB_SOCKET_TYPE socket,
 int
 SocketOutputStream::print(const char * fmt, ...){
   va_list ap;
+  char buf[1000];
+  char *buf2 = buf;
+  size_t size;
 
-  if(timedout())
-    return -1;
+  if (fmt != 0 && fmt[0] != 0) {
+    va_start(ap, fmt);
+    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
 
-  int time= 0;
-  va_start(ap, fmt);
-  int ret = vprint_socket(m_socket, m_timeout_ms, &time, fmt, ap);
-  va_end(ap);
+    /* Check if the output was truncated */
+    if (size > sizeof(buf)) {
+      buf2 = (char *)malloc(size);
+      if(buf2 == nullptr) {
+        return -1;
+      }
 
-  if(ret >= 0)
-    m_timeout_remain-=time;
-  if((ret < 0 && errno==SOCKET_ETIMEDOUT) || m_timeout_remain<=0)
-  {
-    m_timedout= true;
-    ret= -1;
+      va_start(ap, fmt);
+      BaseString::vsnprintf(buf2, size, fmt, ap);
+      va_end(ap);
+    }
   }
+  else
+    return 0;
 
+  const int ret = write(buf2, size);
+  if (buf2 != buf) {
+    free(buf2);
+  }
   return ret;
 }
+
 int
 SocketOutputStream::println(const char * fmt, ...){
   va_list ap;
+  char buf[1000];
+  char *buf2 = buf;
+  size_t size;
 
-  if(timedout())
-    return -1;
+  if (fmt != 0 && fmt[0] != 0) {
+    va_start(ap, fmt);
+    size = BaseString::vsnprintf(buf, sizeof(buf), fmt, ap)+1;// extra byte for '/n'
+    va_end(ap);
 
-  int time= 0;
-  va_start(ap, fmt);
-  int ret = vprintln_socket(m_socket, m_timeout_ms, &time, fmt, ap);
-  va_end(ap);
-
-  if(ret >= 0)
-    m_timeout_remain-=time;
-  if ((ret < 0 && errno==SOCKET_ETIMEDOUT) || m_timeout_remain<=0)
-  {
-    m_timedout= true;
-    ret= -1;
+    /* Check if the output was truncated */
+    if(size > sizeof(buf)) {
+      buf2 = (char *)malloc(size);
+      if(buf2 == nullptr)
+        return -1;
+      va_start(ap, fmt);
+      BaseString::vsnprintf(buf2, size, fmt, ap);
+      va_end(ap);
+    }
+  } else {
+    size = 1;
   }
+  buf2[size-1]='\n';
 
+  int ret = write(buf2, size);
+  if(buf2 != buf)
+    free(buf2);
   return ret;
 }
 
