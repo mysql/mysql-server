@@ -307,11 +307,9 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
       /* Compare row to searchkey to get quality of match */
       int match_quality= Ndb_rep_tab_key::get_match_quality(&searchkey,
                                                             &row.key);
-#ifndef NDEBUG
-      {
-        row.null_terminate_strings();
+      row.null_terminate_strings();
 
-        DBUG_PRINT("info", ("Candidate : %s.%s %u : %u %s"
+      DBUG_PRINT("info", ("Candidate : %s.%s %u : %u %s"
                             " Match quality : %u.",
                             row.key.get_db(),
                             row.key.get_table_name(),
@@ -319,8 +317,6 @@ Ndb_rep_tab_reader::scan_candidates(Ndb* ndb,
                             row.binlog_type,
                             row.get_conflict_fn_spec(),
                             match_quality));
-      }
-#endif
 
       if (match_quality > 0)
       {
