@@ -77,7 +77,7 @@ case "$1" in
 		if [ -f "/etc/mysql/my.cnf" ] && [ ! -L "/etc/mysql/my.cnf" ]; then
 			cp /etc/mysql/my.cnf /etc/mysql/my.cnf.bak
 		fi
-		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 200
+		update-alternatives --force --install /etc/mysql/my.cnf my.cnf "/etc/mysql/mysql.cnf" 300
 
 		verify_ready
 		MYSQLDATA=/var/lib/mysql
