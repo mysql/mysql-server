@@ -236,9 +236,10 @@ class LogicalOrderings {
   // active. This enables reducing the ordering more (which can in
   // some cases help with better sortahead or the likes), but is not
   // correct if the ordering wants to be used earlier on, e.g.
-  // in merge join or for semijoin duplicate removal. If it is true,
+  // in merge join or for semijoin duplicate removal. If it is false,
   // then it is also only attempted homogenized onto the given set
-  // of tables (otherwise, it is ignored).
+  // of tables (otherwise, it is ignored, and homogenization is over
+  // all tables).
   //
   // The empty ordering/grouping is always index 0.
   int AddOrdering(THD *thd, Ordering order, bool interesting, bool used_at_end,
@@ -527,7 +528,7 @@ class LogicalOrderings {
 
     bool used_at_end;
 
-    // Only used if used_at_end = true (see AddOrdering()).
+    // Only used if used_at_end = false (see AddOrdering()).
     table_map homogenize_tables = 0;
 
     // Which initial state to use for this ordering (in SetOrder()).
