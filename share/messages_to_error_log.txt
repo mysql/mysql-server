@@ -11164,13 +11164,13 @@ ER_HEALTH_ERROR
   eng "%s"
 
 ER_HEALTH_WARNING_DISK_USAGE_LEVEL_1
-  eng "Disk usage on '%s' is %.2f%%. Warning level 1 (%d%%) exceeded."
+  eng "%s: Warning Level 1 (%llu MiB): mount point = '%s', available = %llu MiB, total = %llu MiB, used = %.2f%%, low limit = %llu MiB, critical level = %llu MiB"
 
 ER_HEALTH_WARNING_DISK_USAGE_LEVEL_2
-  eng "Disk usage on '%s' is %.2f%%. Warning level 2 (%d%%) exceeded."
+  eng "%s: Warning Level 2 (%llu MiB): mount point = '%s', available = %llu MiB, total = %llu MiB, used = %.2f%%, low limit = %llu MiB, critical level = %llu MiB"
 
 ER_HEALTH_WARNING_DISK_USAGE_LEVEL_3
-  eng "Disk usage on '%s' is %.2f%%. Warning level 3 (%d%%) exceeded."
+  eng "%s: Warning Level 3 (%llu MiB): mount point = '%s', available = %llu MiB, total = %llu MiB, used = %.2f%%, low limit = %llu MiB, critical level = %llu MiB"
 
 ER_IB_INNODB_TBSP_OUT_OF_SPACE
   eng "InnoDB: Size of tablespace %s is more than the maximum size allowed."
