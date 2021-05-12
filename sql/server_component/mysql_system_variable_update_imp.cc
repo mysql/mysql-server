@@ -42,8 +42,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   A version of Auto_THD that:
-   - doesn't catch or print the error onto the error log but just
-  passes it up
+   - doesn't catch or print the error onto the error log but just passes it up
    - stores and restores the current_thd correctly
 */
 class Storing_auto_THD {
@@ -52,6 +51,10 @@ class Storing_auto_THD {
  public:
   Storing_auto_THD() {
     m_previous_thd = current_thd;
+    /* Allocate thread local memory if necessary. */
+    if (!m_previous_thd) {
+      my_thread_init();
+    }
     thd = create_thd(false, true, false, 0);
   }
 
@@ -68,94 +71,140 @@ class Storing_auto_THD {
       prev_da->copy_sql_conditions_from_da(m_previous_thd, curr_da);
     }
     destroy_thd(thd);
-    if (m_previous_thd) m_previous_thd->store_globals();
+    if (!m_previous_thd) {
+      my_thread_end();
+    }
+    if (m_previous_thd) {
+      m_previous_thd->store_globals();
+    }
   }
   THD *get_THD() { return thd; }
 };
 
 /**
-   Implementation for the @ref
-  mysql_service_mysql_system_variable_update_string_t service.
+  Set a custom lock wait timeout for this session.
+*/
+class Lock_wait_timeout {
+ public:
+  Lock_wait_timeout(THD *thd, ulong new_timeout)
+      : m_thd(thd), m_save_timeout(thd->variables.lock_wait_timeout) {
+    m_thd->variables.lock_wait_timeout = new_timeout;
+  }
+  ~Lock_wait_timeout() { m_thd->variables.lock_wait_timeout = m_save_timeout; }
 
-   Sets the value of a system variable to a new value specified in
-   variable_value (or default if my_h_string is a NULL).
-   Works only for system variables taking string values.
-   May generate an SQL error that it stores into the current THD (if available)
+ private:
+  THD *const m_thd;
+  ulong m_save_timeout;
+};
 
-   @param hthd thread session handle. if NULL a temp one will be created and
-  then deleted.
-   @param set_variable_type: one of [GLOBAL, PERSIST, PERSIST_ONLY].
-     If NULL, then assumes GLOBAL.
-   @param variable_name_base: a mysql string of the variable name prefix, NULL
-  of none
-   @param variable_name: a mysql string of the variable name
-   @param variable_value: a mysql string value to pass to the variable.
-   @retval FALSE: success
-   @retval TRUE: failure, error set
+/**
+  Return the system variable type given a type name.
+*/
+static enum_var_type sysvar_type(const char *type_name) {
+  if (type_name) {
+    if (!strcmp(type_name, "GLOBAL")) return OPT_GLOBAL;
+    if (!strcmp(type_name, "SESSION"))
+      return OPT_SESSION;
+    else if (!strcmp(type_name, "PERSIST"))
+      return OPT_PERSIST;
+    else if (!strcmp(type_name, "PERSIST_ONLY"))
+      return OPT_PERSIST_ONLY;
+  }
+  return OPT_DEFAULT;
+}
+
+/**
+  Implementation for the
+  @ref mysql_service_mysql_system_variable_update_string_t service.
+
+  Sets the value of a system variable to a new value specified in variable_value
+  (or default if my_h_string is a NULL).
+  Works only for system variables taking unsigned string values.
+  May generate an SQL error that it stores into the current THD (if available).
+
+  @param hthd: THD session handle. If NULL, then a temporary THD will be created
+               and then deleted.
+  @param variable_type:  One of GLOBAL, SESSION, PERSIST, PERSIST_ONLY.
+                         If NULL, then assumes GLOBAL. SESSION is not supported
+                         for a temporary THD.
+  @param variable_base:  MySQL string of the variable prefix, NULL if none.
+  @param variable_name:  MySQL string of the variable name.
+  @param variable_value: MySQL string value to pass to the variable.
+                         If NULL, then the system variable default is used.
+  @retval FALSE: Success
+  @retval TRUE:  Failure, error set
   @sa @ref mysql_service_mysql_system_variable_update_string_t
 */
 DEFINE_BOOL_METHOD(mysql_system_variable_update_string_imp::set,
-                   (MYSQL_THD hthd, const char *set_variable_type,
-                    my_h_string variable_name_base, my_h_string variable_name,
+                   (MYSQL_THD hthd, const char *variable_type,
+                    my_h_string variable_base, my_h_string variable_name,
                     my_h_string variable_value)) {
+  bool result{false};
+  constexpr ulong timeout{5};  // temporary lock wait timeout, in seconds
+
   try {
     THD *thd;
     std::unique_ptr<Storing_auto_THD> athd = nullptr;
-    enum_var_type vt = OPT_GLOBAL;
+    enum_var_type var_type = sysvar_type(variable_type);
+    if (var_type == OPT_DEFAULT) return true;
 
-    if (set_variable_type) {
-      if (!strcmp(set_variable_type, "GLOBAL"))
-        vt = OPT_GLOBAL;
-      else if (!strcmp(set_variable_type, "PERSIST"))
-        vt = OPT_PERSIST;
-      else if (!strcmp(set_variable_type, "PERSIST_ONLY"))
-        vt = OPT_PERSIST_ONLY;
-      else
-        return true;
-    }
-
+    /* Use either the THD provided or create a temporary one */
     if (hthd)
       thd = static_cast<THD *>(hthd);
     else {
+      /* A session variable update for a temporary THD has no effect
+         and is not supported. */
+      if (var_type == OPT_SESSION) return true;
       athd.reset(new Storing_auto_THD());
       thd = athd->get_THD();
     }
 
-    String *name_base = reinterpret_cast<String *>(variable_name_base);
-    String *name = reinterpret_cast<String *>(variable_name);
-    String *value = reinterpret_cast<String *>(variable_value);
-    Item *val_val = new (thd->mem_root)
-        Item_string(value->c_ptr_safe(), value->length(), value->charset());
-
-    List<set_var_base> tmp_var_list;
-    LEX *sav_lex = thd->lex, lex_tmp;
+    LEX *lex_save = thd->lex, lex_tmp;
     thd->lex = &lex_tmp;
     lex_start(thd);
 
-    sys_var *sysvar = nullptr;
-    LEX_CSTRING base_name = {name_base ? name_base->c_ptr_safe() : nullptr,
-                             name_base ? name_base->length() : 0};
+    String *base = reinterpret_cast<String *>(variable_base);
+    String *name = reinterpret_cast<String *>(variable_name);
+    String *value = reinterpret_cast<String *>(variable_value);
+    Item *value_str = new (thd->mem_root)
+        Item_string(value->c_ptr_safe(), value->length(), value->charset());
+
+    LEX_CSTRING base_name = {base ? base->c_ptr_safe() : nullptr,
+                             base ? base->length() : 0};
+
+    /* Set a temporary lock wait timeout before updating the system variable.
+       Some system variables, such as super-read-only, can be blocked by other
+       locks during the update. Should that happen, we don't want to be holding
+       LOCK_system_variables_hash.
+    */
+    Lock_wait_timeout lock_wait_timeout(thd, timeout);
+
     mysql_rwlock_wrlock(&LOCK_system_variables_hash);
-    sysvar = intern_find_sys_var(name->c_ptr_safe(), name->length());
+
+    /* Find the system variable */
+    sys_var *sysvar = intern_find_sys_var(name->c_ptr_safe(), name->length());
     if (!sysvar) {
       mysql_rwlock_unlock(&LOCK_system_variables_hash);
       my_error(ER_UNKNOWN_SYSTEM_VARIABLE, MYF(0), name->c_ptr_safe());
-      thd->lex = sav_lex;
+      lex_end(thd->lex);
+      thd->lex = lex_save;
       return true;
     }
-
-    tmp_var_list.push_back(new (thd->mem_root)
-                               set_var(vt, sysvar, base_name, val_val));
-
-    if (sql_set_variables(thd, &tmp_var_list, false)) {
-      mysql_rwlock_unlock(&LOCK_system_variables_hash);
-      thd->lex = sav_lex;
-      return true;
+    /* Create a list of system variables to be updated (a list of one) */
+    List<set_var_base> sysvar_list;
+    sysvar_list.push_back(new (thd->mem_root)
+                              set_var(var_type, sysvar, base_name, value_str));
+    /* Update the system variable */
+    if (sql_set_variables(thd, &sysvar_list, false)) {
+      result = true;
     }
-    thd->lex = sav_lex;
+
     mysql_rwlock_unlock(&LOCK_system_variables_hash);
+
+    lex_end(thd->lex);
+    thd->lex = lex_save;
   } catch (...) {
     mysql_components_handle_std_exception(__func__);
   }
-  return false;
+  return result;
 }

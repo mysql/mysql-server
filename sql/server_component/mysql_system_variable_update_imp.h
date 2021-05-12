@@ -32,8 +32,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 */
 class mysql_system_variable_update_string_imp {
  public:
-  static DEFINE_BOOL_METHOD(set, (MYSQL_THD hthd, const char *set_variable_type,
-                                  my_h_string variable_name_base,
+  static DEFINE_BOOL_METHOD(set, (MYSQL_THD hthd, const char *variable_type,
+                                  my_h_string variable_base,
                                   my_h_string variable_name,
                                   my_h_string variable_value));
 };

@@ -39,12 +39,16 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_udf_metadata);
 BEGIN_COMPONENT_PROVIDES(test_mysql_system_variable_set)
 END_COMPONENT_PROVIDES();
 
+// clang-format off
 BEGIN_COMPONENT_REQUIRES(test_mysql_system_variable_set)
-REQUIRES_SERVICE(mysql_current_thread_reader),
-    REQUIRES_SERVICE(mysql_system_variable_update_string),
-    REQUIRES_SERVICE(udf_registration), REQUIRES_SERVICE(mysql_string_factory),
-    REQUIRES_SERVICE(mysql_string_converter),
-    REQUIRES_SERVICE(mysql_udf_metadata), END_COMPONENT_REQUIRES();
+  REQUIRES_SERVICE(mysql_current_thread_reader),
+  REQUIRES_SERVICE(mysql_system_variable_update_string),
+  REQUIRES_SERVICE(udf_registration),
+  REQUIRES_SERVICE(mysql_string_factory),
+  REQUIRES_SERVICE(mysql_string_converter),
+  REQUIRES_SERVICE(mysql_udf_metadata),
+END_COMPONENT_REQUIRES();
+// clang-format on
 
 bool test_set_system_variable_string_init(UDF_INIT *, UDF_ARGS *args,
                                           char *message) {
@@ -151,10 +155,11 @@ static mysql_service_status_t deinit() {
   return 0; /* success */
 }
 
+// clang-format off
 BEGIN_COMPONENT_METADATA(test_mysql_system_variable_set)
-METADATA("mysql.author", "Oracle Corporation"),
-    METADATA("mysql.license", "GPL"), METADATA("test_property", "1"),
-    END_COMPONENT_METADATA();
+  METADATA("mysql.author", "Oracle Corporation"),
+  METADATA("mysql.license", "GPL"), METADATA("test_property", "1"),
+END_COMPONENT_METADATA();
 
 DECLARE_COMPONENT(test_mysql_system_variable_set,
                   "mysql:test_mysql_system_variable_set")
@@ -162,3 +167,4 @@ init, deinit END_DECLARE_COMPONENT();
 
 DECLARE_LIBRARY_COMPONENTS &COMPONENT_REF(test_mysql_system_variable_set)
     END_DECLARE_LIBRARY_COMPONENTS
+    // clang-format on
