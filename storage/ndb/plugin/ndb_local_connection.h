@@ -50,6 +50,13 @@ class Ndb_local_connection {
   Ndb_local_connection(THD *thd);
   ~Ndb_local_connection();
 
+  /* Possibly sets THD flags to disable writing to binlog and reset server id
+     based on op_anyvalue and log_replica_updates. A copy of the original THD
+     flags and server id is created in the class constructor and restored by
+     its destructor.
+  */
+  void set_binlog_options(bool log_replica_updates, unsigned int op_anyvalue);
+
   bool truncate_table(const std::string &db, const std::string &table,
                       bool ignore_no_such_table);
 
@@ -74,6 +81,8 @@ class Ndb_local_connection {
 
   class Ed_result_set *get_results();
 
+  const unsigned int saved_thd_server_id;
+  const unsigned long long saved_thd_options;
   bool m_push_warnings;
   THD *m_thd;
 
