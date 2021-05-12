@@ -5562,14 +5562,14 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
     }
   }
 
-  bool atomic_write{};
+  bool atomic_write = false;
   const auto sz = ulonglong{size * page_size.physical()};
 
   ut_a(success);
   success = false;
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-  if (type == FIL_TYPE_TEMPORARY || fil_fusionio_enable_atomic_write(file)) {
+  {
     int ret = 0;
 #ifdef UNIV_DEBUG
     DBUG_EXECUTE_IF("fil_create_temp_tablespace_fail_fallocate", ret = -1;);
@@ -5581,7 +5581,10 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
 
     if (ret == 0) {
       success = true;
-      atomic_write = true;
+      if (type == FIL_TYPE_TEMPORARY ||
+          fil_fusionio_enable_atomic_write(file)) {
+        atomic_write = true;
+      }
     } else {
       /* If posix_fallocate() fails for any reason, issue only a warning
       and then fall back to os_file_set_size() */
@@ -5590,9 +5593,21 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
   }
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
-  if (!success) {
-    atomic_write = false;
+  if (!success || (tbsp_extend_and_initialize && !atomic_write)) {
     success = os_file_set_size(path, file, 0, sz, srv_read_only_mode, true);
+
+    if (success) {
+      /* explicit initialization is needed as same as fil_space_extend(),
+      instead of punch_hole. */
+      bool read_only_mode =
+          (type != FIL_TYPE_TEMPORARY ? false : srv_read_only_mode);
+      dberr_t err = os_file_write_zeros(file, path, page_size.physical(), 0, sz,
+                                        read_only_mode);
+      if (err != DB_SUCCESS) {
+        ib::warn(ER_IB_MSG_320) << "Error while writing " << sz << " zeroes to "
+                                << path << " starting at offset " << 0;
+      }
+    }
   }
 
   if (!success) {
@@ -5607,15 +5622,8 @@ static dberr_t fil_create_tablespace(space_id_t space_id, const char *name,
 
   bool punch_hole = os_is_sparse_file_supported(path, file);
 
-  if (punch_hole) {
-    dberr_t punch_err;
-
-    punch_err = os_file_punch_hole(file.m_file, 0, size * page_size.physical());
-
-    if (punch_err != DB_SUCCESS) {
-      punch_hole = false;
-    }
-  }
+  /* Should not make large punch hole as initialization of large file,
+  for crash-recovery safeness around disk-full. */
 
   /* We have to write the space id to the file immediately and flush the
   file to disk. This is because in crash recovery we must be aware what
