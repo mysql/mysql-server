@@ -386,6 +386,30 @@ static int mgmd_main(int argc, char** argv)
     mgmd_exit(1);
   }
 
+  /* Validation to prevent using relative path for config-dir */
+  if (opts.config_cache && (opts.configdir != disabled_my_option) &&
+      (strcmp(opts.configdir, MYSQLCLUSTERDIR) != 0)) {
+    bool absolute_path = false;
+    if (strncmp(opts.configdir, "/", 1) == 0) absolute_path = true;
+#ifdef _WIN32
+    if (strncmp(opts.configdir, "\\", 1) == 0) absolute_path = true;
+    if (strlen(opts.configdir) >= 3 &&
+        ((opts.configdir[0] >= 'a' && opts.configdir[0] <= 'z') ||
+         (opts.configdir[0] >= 'A' && opts.configdir[0] <= 'Z')) &&
+        opts.configdir[1] == ':' &&
+        (opts.configdir[2] == '\\' || opts.configdir[2] == '/'))
+      absolute_path = true;
+#endif
+    if (!absolute_path) {
+      fprintf(
+          stderr,
+          "ERROR: Relative path ('%s') not supported for configdir, specify "
+          "absolute path.\n",
+          opts.configdir);
+      mgmd_exit(1);
+    }
+  }
+
   /*validation is added to prevent user using
   wrong short option for --config-file.*/
   if (opt_ndb_connectstring)

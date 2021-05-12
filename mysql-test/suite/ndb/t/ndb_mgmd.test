@@ -103,4 +103,17 @@ let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgmd_dump_file.txt;
 --let $assert_count= 1
 --source include/assert_grep.inc
 
+# Validates Mgmd gives error when relative path is specified for configdir
+--echo #
+--echo # Bug11755867 NDB_MGMD MISMATCH BETWEEN --CONFIGDIR AND DATADIR
+--echo #
+--error 1
+--exec $NDB_MGMD_EXE -f config.ini --initial --configdir=. > $dump_file 2>&1
+--echo # verify that mgmd throws error when --configdir=. is specified
+--let $assert_text= Mgmd gives error when relative path is specified for configdir
+--let $assert_select= ERROR: Relative path \('.'\) not supported for configdir, specify absolute path.
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
 --remove_file $dump_file

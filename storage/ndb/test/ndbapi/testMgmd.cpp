@@ -157,7 +157,7 @@ public:
   {
     NdbProcess::Args args;
     args.add("--no-defaults");
-    args.add("--configdir=.");
+    args.add("--configdir=", working_dir);
     args.add("-f config.ini");
     args.add("--ndb-nodeid=", m_nodeid);
     args.add("--nodaemon");
@@ -186,7 +186,7 @@ public:
   {
     NdbProcess::Args args;
     args.add("--no-defaults");
-    args.add("--configdir=.");
+    args.add("--configdir=", working_dir);
     args.add("--ndb-nodeid=", m_nodeid);
     args.add("--nodaemon");
     args.add("--log-name=", name());

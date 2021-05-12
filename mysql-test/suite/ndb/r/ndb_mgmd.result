@@ -34,3 +34,8 @@ include/assert_grep.inc [Do not accept -c option when starting with -f]
 #
 # verify that mgmd throws error when -f is not specified
 include/assert_grep.inc [Mgmd gives error when -f is not specifed]
+#
+# Bug11755867 NDB_MGMD MISMATCH BETWEEN --CONFIGDIR AND DATADIR
+#
+# verify that mgmd throws error when --configdir=. is specified
+include/assert_grep.inc [Mgmd gives error when relative path is specified for configdir]
