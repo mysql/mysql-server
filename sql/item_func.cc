@@ -2659,7 +2659,8 @@ bool Item_func_neg::resolve_type(THD *thd) {
         Ensure that result is converted to DECIMAL, as longlong can't hold
         the negated number
       */
-      set_data_type(MYSQL_TYPE_NEWDECIMAL);
+      unsigned_flag = false;
+      set_data_type_decimal(args[0]->decimal_precision(), 0);
       hybrid_type = DECIMAL_RESULT;
       DBUG_PRINT("info", ("Type changed: DECIMAL_RESULT"));
     }

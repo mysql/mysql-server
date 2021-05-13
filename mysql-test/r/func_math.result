@@ -2097,3 +2097,8 @@ Warnings:
 Warning	1052	Column 'c1' in group statement is ambiguous
 SET SQL_MODE=DEFAULT;
 DROP TABLE t1;
+# Bug#32863037: Assertion `scale >= 0 && precision > 0 &&
+#               scale <= precision' failed
+SELECT * FROM (SELECT -TRUE AS a, --TRUE AS b) AS dt;
+a	b
+-1	1

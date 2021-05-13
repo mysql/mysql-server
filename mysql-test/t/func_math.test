@@ -1257,3 +1257,8 @@ SELECT 27 DIV CAST(c2/c1 AS CHAR) / 17 AS c1 FROM t1 GROUP BY c1;
 SELECT 27 DIV CAST(c2/c1 AS DOUBLE) / 17 AS c1 FROM t1 GROUP BY c1;
 SET SQL_MODE=DEFAULT;
 DROP TABLE t1;
+
+--echo # Bug#32863037: Assertion `scale >= 0 && precision > 0 &&
+--echo #               scale <= precision' failed
+
+SELECT * FROM (SELECT -TRUE AS a, --TRUE AS b) AS dt;
