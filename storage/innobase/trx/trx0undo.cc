@@ -2181,6 +2181,24 @@ trx_undo_truncate_tablespace(
 		rseg->last_trx_no = 0;
 		rseg->last_del_marks = FALSE;
 	}
+
+	/* During Upgrade, existing rsegs in range from slot-1....slot-32
+	were added into the array pending_purge_rseg_array[]. These rsegs also
+	reside in system or undo tablespace. */
+	trx_sysf_t* sys_header = trx_sysf_get(&mtr);
+	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg = trx_sys->pending_purge_rseg_array[i];
+		if(rseg != NULL
+			&& rseg->space == undo_trunc->get_marked_space_id()) {
+			/* Reset the rollback segment slot in the trx
+			system header */
+			trx_sysf_rseg_set_page_no(
+				sys_header, rseg->id, FIL_NULL, &mtr);
+			/* Free a pending rollback segment instance in memory */
+			trx_rseg_mem_free(rseg,
+				trx_sys->pending_purge_rseg_array);
+		}
+	}
 	mtr_commit(&mtr);
 
 	return(success);
