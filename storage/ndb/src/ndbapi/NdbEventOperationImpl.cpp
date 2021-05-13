@@ -3267,9 +3267,9 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     }
   }
   
-  const Uint32 used_data_sz = get_used_data_sz();
-  const Uint32 memory_usage = (m_max_alloc == 0) ? 0 :
-    (Uint32)((100 * (Uint64)used_data_sz) / m_max_alloc);
+  const Uint64 used_data_sz = get_used_data_sz();
+  const Uint64 memory_usage = (m_max_alloc == 0) ? 0 :
+    ((100 * used_data_sz) / m_max_alloc);
 
   ReportReason reason_to_report =
     m_event_buffer_manager.onEventDataReceived(memory_usage, gci);
@@ -3551,7 +3551,7 @@ NdbEventBuffer::get_free_data_sz() const
   }
 }
 
-Uint32
+Uint64
 NdbEventBuffer::get_used_data_sz() const
 {
   assert(m_total_alloc >= get_free_data_sz());
@@ -3595,7 +3595,7 @@ NdbEventBuffer::expand_memory_blocks()
              m_latest_command, m_ndb->getReference(), m_ndb->getNdbObjectName());
       printf("no free data, m_latestGCI %u/%u\n",
              (Uint32)(m_latestGCI << 32), (Uint32)m_latestGCI);
-      printf("m_total_alloc %d\n", m_total_alloc);
+      printf("m_total_alloc %llu\n", m_total_alloc);
  
       const Uint64 gci_head = m_event_queue.m_head?m_event_queue.m_head->m_gci.getGCI():0;
       const Uint64 gci_tail = m_event_queue.m_tail?m_event_queue.m_tail->m_gci.getGCI():0;
@@ -3607,6 +3607,10 @@ NdbEventBuffer::expand_memory_blocks()
       crashMemAllocError("Attempt to allocate MemoryBlock from OS failed");
       return NULL;
     }
+
+    require((m_total_alloc+sz) < UINT64_MAX); // overflow
+    if((m_total_alloc < UINT32_MAX) && ((m_total_alloc + sz) > UINT32_MAX))
+      reportStatus(EVENTBUFFER_USAGE_HIGH);
     m_total_alloc += sz;
     new_block = new(memptr) EventMemoryBlock(sz);
   }
@@ -3661,7 +3665,7 @@ void NdbEventBuffer::remove_consumed_memory(MonotonicEpoch consumed_epoch)  //Ne
     {
       // Keep a maximum of 20% of total allocated memory as free_data
       // ... Pluss an aditional 3 'small memory blocks'.
-      const Uint32 max_free_data_sz = (3*MEM_BLOCK_SMALL) + (m_total_alloc / 5);
+      const Uint64 max_free_data_sz = (3*MEM_BLOCK_SMALL) + (m_total_alloc / 5);
       if (get_free_data_sz() <= max_free_data_sz)
       {
         break;
@@ -4399,11 +4403,11 @@ NdbEventBuffer::reportStatus(ReportReason reason)
    */
   if (m_free_thresh && m_max_alloc > 0)
   {
-    Uint32 free_data_sz = 0;
+    Uint64 free_data_sz = 0;
     if (m_max_alloc > get_used_data_sz())
       free_data_sz = m_max_alloc - get_used_data_sz();
 
-    if (100*free_data_sz < m_min_free_thresh*(Uint64)m_max_alloc &&
+    if (100*free_data_sz < m_min_free_thresh*m_max_alloc &&
         m_total_alloc > 1024*1024)
     {
       /* report less free buffer than m_free_thresh,
@@ -4415,7 +4419,7 @@ NdbEventBuffer::reportStatus(ReportReason reason)
       goto send_report;
     }
   
-    if (100*free_data_sz > m_max_free_thresh*(Uint64)m_max_alloc &&
+    if (100*free_data_sz > m_max_free_thresh*m_max_alloc &&
         m_total_alloc > 1024*1024)
     {
       /* report more free than 2 * m_free_thresh
@@ -4440,24 +4444,42 @@ NdbEventBuffer::reportStatus(ReportReason reason)
   return;
 
 send_report:
-  Uint32 data[10];
-  data[0]= NDB_LE_EventBufferStatus2;
-  data[1]= get_used_data_sz();
-  data[2]= m_total_alloc;
-  data[3]= m_max_alloc;
+  Uint32 data[13];
+  Uint64 used_data = get_used_data_sz();
+  Uint64 save_used = used_data;
+  Uint64 save_total = m_total_alloc;
+  Uint64 save_max = m_max_alloc;
+  DBUG_EXECUTE_IF("ndb_eventbuffer_high_usage", {
+    DBUG_PRINT("info", ("Simulating eventbuffer growing to 5GB"));
+    Uint64 gb = 1024*1024*1024;
+    used_data += 5*gb;
+    m_total_alloc += 6*gb;
+    m_max_alloc = 7*gb;
+  });
+
+  data[0]= NDB_LE_EventBufferStatus3;
+  data[1]= (Uint32)(used_data);
+  data[2]= (Uint32)(m_total_alloc);
+  data[3]= (Uint32)(m_max_alloc);
   data[4]= (Uint32)(m_latest_consumed_epoch);
   data[5]= (Uint32)(m_latest_consumed_epoch >> 32);
   data[6]= (Uint32)(m_latestGCI);
   data[7]= (Uint32)(m_latestGCI >> 32);
   data[8]= (Uint32)(m_ndb->getReference());
   data[9]= (Uint32)(reason);
-  Ndb_internal::send_event_report(true, m_ndb, data, 10);
+  data[10]= (Uint32)(used_data >> 32);
+  data[11]= (Uint32)(m_total_alloc >> 32);
+  data[12]= (Uint32)(m_max_alloc >> 32);
+  Ndb_internal::send_event_report(true, m_ndb, data, 13);
+  used_data = save_used;
+  m_total_alloc = save_total;
+  m_max_alloc = save_max;
 }
 
 void
 NdbEventBuffer::get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage)
 {
-  const Uint32 used_data_sz = get_used_data_sz();
+  const Uint64 used_data_sz = get_used_data_sz();
 
   usage.allocated_bytes = m_total_alloc;
   usage.used_bytes = used_data_sz;
@@ -4468,9 +4490,9 @@ NdbEventBuffer::get_event_buffer_memory_usage(Ndb::EventBufferMemoryUsage& usage
   Uint32 ret = 0;
   // m_max_alloc == 0 ==> unlimited usage,
   if (m_max_alloc > 0)
-    ret = (Uint32)((100 * (Uint64)used_data_sz) / m_max_alloc);
+    ret = (Uint32)((100 * used_data_sz) / m_max_alloc);
   else if (m_total_alloc > 0)
-    ret = (Uint32)((100 * (Uint64)used_data_sz) / m_total_alloc);
+    ret = (Uint32)((100 * used_data_sz) / m_total_alloc);
 
   usage.usage_percent = ret;
 }

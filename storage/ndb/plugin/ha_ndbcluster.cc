@@ -17467,12 +17467,12 @@ static MYSQL_SYSVAR_ULONG(eventbuffer_max_alloc,         /* name */
                           PLUGIN_VAR_RQCMDARG,
                           "Maximum memory that can be allocated for buffering "
                           "events by the ndb api.",
-                          NULL,       /* check func. */
-                          NULL,       /* update func. */
-                          0,          /* default */
-                          0,          /* min */
-                          UINT_MAX32, /* max */
-                          0           /* block */
+                          NULL,      /* check func. */
+                          NULL,      /* update func. */
+                          0,         /* default */
+                          0,         /* min */
+                          INT_MAX64, /* max */
+                          0          /* block */
 );
 
 uint opt_ndb_eventbuffer_free_percent;

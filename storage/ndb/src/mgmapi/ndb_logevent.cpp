@@ -427,6 +427,19 @@ struct Ndb_logevent_body_row ndb_logevent_body[]= {
   ROW( EventBufferStatus2, "ndb_reference", 8, ndb_reference),
   ROW( EventBufferStatus2, "report_reason", 9, report_reason),
 
+  ROW( EventBufferStatus3, "usage_l",        1, usage_l),
+  ROW( EventBufferStatus3, "alloc_l",        2, alloc_l),
+  ROW( EventBufferStatus3, "max_l",          3, max_l),
+  ROW( EventBufferStatus3, "latest_consumed_epoch_l", 4, latest_consumed_epoch_l),
+  ROW( EventBufferStatus3, "latest_consumed_epoch_h", 5, latest_consumed_epoch_h),
+  ROW( EventBufferStatus3, "latest_buffered_epoch_l",  6, latest_buffered_epoch_l),
+  ROW( EventBufferStatus3, "latest_buffered_epoch_h",  7, latest_buffered_epoch_h),
+  ROW( EventBufferStatus3, "ndb_reference", 8, ndb_reference),
+  ROW( EventBufferStatus3, "report_reason", 9, report_reason),
+  ROW( EventBufferStatus3, "usage_h",     10, usage_h),
+  ROW( EventBufferStatus3, "alloc_h",     11, alloc_h),
+  ROW( EventBufferStatus3, "max_h",       12, max_h),
+
   { NDB_LE_ILLEGAL_TYPE, 0, 0, 0, 0, 0}
 };
 
