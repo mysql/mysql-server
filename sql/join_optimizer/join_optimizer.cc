@@ -3579,18 +3579,208 @@ static AccessPath *ApplyWindow(THD *thd, AccessPath *root_path, Window *window,
       /*temp_table_param=*/nullptr, /*copy_items=*/false);
 }
 
-/*
-  Apply window functions. We apply windows simply one by one
-  in the order they are given to us from the earlier parts of the optimizer.
+/**
+  Find the ordering that allows us to process the most unprocessed windows.
+  If specified, we can also demand that the ordering satisfies one or two
+  later orderings (for DISTINCT and/or ORDER BY).
+
+  Our priorities are, in strict order:
+
+    1. Satisfying both DISTINCT and ORDER BY (if both are given;
+       but see below).
+    2. Satisfying the first operation after windowing
+       (which is either DISTINCT or ORDER BY).
+    3. Satisfying as many windows as possible.
+    4. The shortest possible ordering (as a tie-breaker).
+
+  If first_ordering_idx is given, #2 is mandatory. #4 is so that we don't
+  get strange situations where the user specifies e.g. OVER (ORDER BY i)
+  and we choose an ordering i,j,k,l,... because it happened to be given
+  somewhere else.
+
+  Note that normally, it is very hard to satisfy DISTINCT for a window
+  function, because generally, it isn't constant for a given input
+  (by nature, it also depends on other rows). But it can happen if the
+  window frame is static; see main.window_functions_interesting_orders.
+
+  @param join                    Contains the list of windows.
+  @param orderings               Logical orderings in the query block.
+  @param sort_ahead_orderings    Candidate orderings to consider.
+  @param fd_set                  Active functional dependencies.
+  @param finished_windows        Windows to ignore.
+  @param tmp_buffer              Temporary space for keeping the best list
+                                 of windows so far; must be as large as
+                                 the number of values.
+  @param first_ordering_idx      The first ordering after the query block
+                                 that we need to satisfy (-1 if none).
+  @param second_ordering_idx     The second ordering after the query block
+                                 that we would like to satisfy (-1 if none).
+  @param [out] included_windows  Which windows can be sorted using the given
+                                 ordering.
+
+  @return An index into sort_ahead_orderings, or -1 if no ordering could
+    be found that sorts at least one window (plus, if first_ordering_idx
+    is set, follows that ordering).
+ */
+static int FindBestOrderingForWindow(
+    JOIN *join, const LogicalOrderings &orderings,
+    FunctionalDependencySet fd_set,
+    const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
+    Bounds_checked_array<bool> finished_windows,
+    Bounds_checked_array<bool> tmp_buffer, int first_ordering_idx,
+    int second_ordering_idx, Bounds_checked_array<bool> included_windows) {
+  if (first_ordering_idx == -1) {
+    assert(second_ordering_idx == -1);
+  }
+
+  int best_ordering_idx = -1;
+  bool best_following_both_orders = false;
+  int best_num_matching_windows = 0;
+  for (size_t i = 0; i < sort_ahead_orderings.size(); ++i) {
+    const int ordering_idx = sort_ahead_orderings[i].ordering_idx;
+    LogicalOrderings::StateIndex ordering_state =
+        orderings.ApplyFDs(orderings.SetOrder(ordering_idx), fd_set);
+
+    bool following_both_orders = false;
+    if (first_ordering_idx != -1) {
+      if (!orderings.DoesFollowOrder(ordering_state, first_ordering_idx)) {
+        // Following one is mandatory.
+        continue;
+      }
+      if (second_ordering_idx != -1) {
+        if (orderings.DoesFollowOrder(ordering_state, second_ordering_idx)) {
+          following_both_orders = true;
+        } else if (best_following_both_orders) {
+          continue;
+        }
+      }
+    }
+
+    // If we are doing sortahead for DISTINCT/ORDER BY:
+    // Find windows that are referred to by DISTINCT/ORDER BY,
+    // and disallow them. E.g., if we have
+    //
+    //   SELECT FOO() OVER w1 AS a ... ORDER BY a,
+    //
+    // we cannot put w1 in the group of windows that are to be sorted
+    // together with ORDER BY.
+    for (Window &window : join->m_windows) {
+      window.m_mark = false;
+    }
+    Ordering ordering = orderings.ordering(ordering_idx);
+    bool any_wf = false;
+    for (OrderElement elem : ordering) {
+      WalkItem(orderings.item(elem.item), enum_walk::PREFIX,
+               [&any_wf](Item *item) {
+                 if (item->m_is_window_function) {
+                   down_cast<Item_sum *>(item)->window()->m_mark = true;
+                   any_wf = true;
+                 }
+                 return false;
+               });
+      if (first_ordering_idx == -1 && any_wf) {
+        break;
+      }
+    }
+
+    // If we are doing sorts _before_ DISTINCT/ORDER BY, simply disallow
+    // any sorts on window functions. There should be better options
+    // available for us.
+    if (first_ordering_idx == -1 && any_wf) {
+      continue;
+    }
+
+    // Now find out which windows can be processed under this order.
+    // We use tmp_buffer to hold which one we selected,
+    // and then copy it into included_windows if we are the best so far.
+    int num_matching_windows = 0;
+    for (size_t window_idx = 0; window_idx < join->m_windows.size();
+         ++window_idx) {
+      Window *window = join->m_windows[window_idx];
+      if (window->m_mark || finished_windows[window_idx] ||
+          !orderings.DoesFollowOrder(ordering_state, window->m_ordering_idx)) {
+        tmp_buffer[window_idx] = false;
+        continue;
+      }
+      tmp_buffer[window_idx] = true;
+      ++num_matching_windows;
+    }
+    if (num_matching_windows == 0) {
+      continue;
+    }
+
+    bool is_best;
+    if (best_ordering_idx == -1) {
+      is_best = true;
+    } else if (following_both_orders < best_following_both_orders) {
+      is_best = false;
+    } else if (following_both_orders > best_following_both_orders) {
+      is_best = true;
+    } else if (num_matching_windows < best_num_matching_windows) {
+      is_best = false;
+    } else if (num_matching_windows > best_num_matching_windows) {
+      is_best = true;
+    } else if (orderings.ordering(ordering_idx).size() <
+               orderings
+                   .ordering(
+                       sort_ahead_orderings[best_ordering_idx].ordering_idx)
+                   .size()) {
+      is_best = true;
+    } else {
+      is_best = false;
+    }
+    if (is_best) {
+      best_ordering_idx = i;
+      best_following_both_orders = following_both_orders;
+      best_num_matching_windows = num_matching_windows;
+      memcpy(included_windows.array(), tmp_buffer.array(),
+             sizeof(bool) * included_windows.size());
+    }
+  }
+  return best_ordering_idx;
+}
+
+/**
+  Apply window functions.
+
+  Ordering of window functions is a tricky topic. We can apply window functions
+  in any order that we'd like, but we would like to do as few sorts as possible.
+  In its most general form, this would entail solving an instance of the
+  traveling salesman problem (TSP), and although the number of windows is
+  typically small (one or two in most queries), this can blow up for large
+  numbers of windows.
+
+  Thankfully, window functions never add or remove rows. We also assume that all
+  sorts are equally expensive (which isn't really true, as ones on more columns
+  take more processing time and buffer, but it's close enough in practice),
+  and we also ignore the fact that as we compute more buffers, the temporary
+  tables and sort buffers will get more columns. These assumptions, combined
+  with some reasonable assumptions about ordering transitivity (if an ordering A
+  is more sorted than an ordering B, and B > C, then also A > C -- the only
+  thing that can disturb this is groupings, which we ignore for the sake of
+  simplicity), mean that we need to care _only_ about the number of sorts, and
+  can do them greedily. Thus, at any point, we pick the ordering that allows us
+  to process the largest number of windows, process them, remove them from
+  consideration, and repeat until there are none left.
+
+  There is one more ordering complication; after windowing, we may have DISTINCT
+  and/or ORDER BY, which may also benefit from groupings/orderings we leave
+  after the last window. Thus, first of all, we see if there's an ordering that
+  can satisfy them (ideally both if possible) _and_ at least one window; if so,
+  we save that ordering and those windows for last.
 
   Temporary tables are set up in FinalizePlanForQueryBlock(). This is so that
   it is easier to have multiple different orderings for the temporary table
   parameters later.
  */
 static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
-    THD *thd, const CostingReceiver &receiver, Query_block *query_block,
-    int num_where_predicates, bool need_rowid,
-    Prealloced_array<AccessPath *, 4> root_candidates) {
+    THD *thd, const CostingReceiver &receiver,
+    const LogicalOrderings &orderings, FunctionalDependencySet fd_set,
+    bool aggregation_is_unordered, int order_by_ordering_idx,
+    int distinct_ordering_idx, const JoinHypergraph &graph,
+    const Mem_root_array<SortAheadOrdering> &sort_ahead_orderings,
+    Query_block *query_block, int num_where_predicates, bool need_rowid,
+    Prealloced_array<AccessPath *, 4> root_candidates, string *trace) {
   JOIN *join = query_block->join;
 
   // Figure out if windows need row IDs or not; we won't create
@@ -3605,27 +3795,125 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
       }
     }
   }
-  for (size_t window_idx = 0; window_idx < join->m_windows.size();
-       ++window_idx) {
-    Window *window = join->m_windows[window_idx];
 
-    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-    for (AccessPath *root_path : root_candidates) {
-      if (window->sorting_order() != nullptr) {
-        AccessPath sort_path = MakeSortPathWithoutFilesort(
-            root_path, window->sorting_order(),
-            /*ordering_state=*/0, num_where_predicates);
-        root_path = new (thd->mem_root) AccessPath(sort_path);
-      }
-      AccessPath *window_path =
-          ApplyWindow(thd, root_path, window, join, need_rowid_for_window);
+  // Windows we're done processing, or have reserved for the last block.
+  auto finished_windows =
+      Bounds_checked_array<bool>::Alloc(thd->mem_root, join->m_windows.size());
 
-      receiver.ProposeAccessPath(window_path, &new_root_candidates,
-                                 /*obsolete_orderings=*/0, "");
-    }
-    root_candidates = std::move(new_root_candidates);
+  // Windows we've reserved for the last block (see function comment).
+  auto reserved_windows =
+      Bounds_checked_array<bool>::Alloc(thd->mem_root, join->m_windows.size());
+
+  // Temporary space for FindBestOrderingForWindow().
+  auto tmp =
+      Bounds_checked_array<bool>::Alloc(thd->mem_root, join->m_windows.size());
+
+  // Windows we're doing in this pass.
+  auto included_windows =
+      Bounds_checked_array<bool>::Alloc(thd->mem_root, join->m_windows.size());
+
+  if (trace) {
+    *trace += "\n";
   }
-  return root_candidates;
+  Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+  for (AccessPath *root_path : root_candidates) {
+    if (trace) {
+      *trace += "Considering window order on top of " +
+                PrintCost(*root_path, graph, "") + "\n";
+    }
+
+    // First, go through and check which windows we can do without
+    // any reordering, just based on the input ordering we get.
+    int num_windows_left = join->m_windows.size();
+    for (size_t window_idx = 0; window_idx < join->m_windows.size();
+         ++window_idx) {
+      Window *window = join->m_windows[window_idx];
+      if (window->m_ordering_idx == -1 ||
+          orderings.DoesFollowOrder(root_path->ordering_state,
+                                    window->m_ordering_idx)) {
+        if (trace) {
+          *trace += std::string(" - window ") + window->printable_name() +
+                    " does not need further sorting\n";
+        }
+        root_path =
+            ApplyWindow(thd, root_path, window, join, need_rowid_for_window);
+        finished_windows[window_idx] = true;
+        --num_windows_left;
+      } else {
+        finished_windows[window_idx] = false;
+      }
+    }
+
+    // Now, see if we can find an ordering that allows us to process
+    // at least one window _and_ an operation after the windowing
+    // (DISTINCT, ORDER BY). If so, that ordering will be our last.
+    int final_sort_ahead_ordering_idx = -1;
+    if ((!aggregation_is_unordered || distinct_ordering_idx == -1) &&
+        (distinct_ordering_idx != -1 || order_by_ordering_idx != -1)) {
+      int first_ordering_idx, second_ordering_idx;
+      if (distinct_ordering_idx == -1) {
+        first_ordering_idx = order_by_ordering_idx;
+        second_ordering_idx = -1;
+      } else {
+        first_ordering_idx = distinct_ordering_idx;
+        second_ordering_idx = order_by_ordering_idx;
+      }
+      final_sort_ahead_ordering_idx = FindBestOrderingForWindow(
+          join, orderings, fd_set, sort_ahead_orderings, finished_windows, tmp,
+          first_ordering_idx, second_ordering_idx, reserved_windows);
+      for (size_t window_idx = 0; window_idx < join->m_windows.size();
+           ++window_idx) {
+        finished_windows[window_idx] |= reserved_windows[window_idx];
+      }
+    }
+
+    // Now all the other orderings, eventually reaching all windows.
+    while (num_windows_left > 0) {
+      int sort_ahead_ordering_idx = FindBestOrderingForWindow(
+          join, orderings, fd_set, sort_ahead_orderings, finished_windows, tmp,
+          /*first_ordering_idx=*/-1,
+          /*second_ordering_idx=*/-1, included_windows);
+      Bounds_checked_array<bool> windows_this_iteration = included_windows;
+      if (sort_ahead_ordering_idx == -1) {
+        // None left, so take the one we've saved for last.
+        sort_ahead_ordering_idx = final_sort_ahead_ordering_idx;
+        windows_this_iteration = reserved_windows;
+        final_sort_ahead_ordering_idx = -1;
+      }
+      if (sort_ahead_ordering_idx == -1) {
+        // Should never happen.
+        assert(false);
+        break;
+      }
+
+      AccessPath sort_path = MakeSortPathWithoutFilesort(
+          root_path, sort_ahead_orderings[sort_ahead_ordering_idx].order,
+          /*ordering_state=*/0, num_where_predicates);
+      sort_path.ordering_state = orderings.ApplyFDs(
+          orderings.SetOrder(
+              sort_ahead_orderings[sort_ahead_ordering_idx].ordering_idx),
+          fd_set);
+      root_path = new (thd->mem_root) AccessPath(sort_path);
+
+      for (size_t window_idx = 0; window_idx < join->m_windows.size();
+           ++window_idx) {
+        if (!windows_this_iteration[window_idx]) {
+          continue;
+        }
+        root_path = ApplyWindow(thd, root_path, join->m_windows[window_idx],
+                                join, need_rowid_for_window);
+        finished_windows[window_idx] = true;
+        --num_windows_left;
+      }
+    }
+
+    receiver.ProposeAccessPath(root_path, &new_root_candidates,
+                               /*obsolete_orderings=*/0, "");
+  }
+  if (trace) {
+    *trace += "\n";
+  }
+  return new_root_candidates;
 }
 
 /**
@@ -4070,6 +4358,52 @@ static void BuildInterestingOrders(
                     orderings, sort_ahead_orderings);
   }
 
+  // Collect orderings/groupings from window functions.
+  //
+  // Note that window functions may contain hybrid groupings/orderings,
+  // e.g. PARTITION BY a,b ORDER BY c,d. In this case, several orderings
+  // (eight of them) would satisfy the query:
+  //
+  //   1. (a,b,c,d)
+  //   2. (b,a,c,d)
+  //   3. (a↓,b,c,d)
+  //   4. (b↓,a↓,c,d)
+  //   5. etc..
+  //
+  // However, since we don't support hybrid groupings/orderings,
+  // just pure groupings or pure orderings, we only accept #1 here.
+  // For PARTITION BY with no ORDER BY, we use a grouping as usual.
+  for (Window &window : query_block->join->m_windows) {
+    ORDER *order = window.sorting_order(thd);
+    if (order == nullptr) {
+      window.m_ordering_idx = 0;
+      continue;
+    }
+
+    const bool mixed_grouping = (window.effective_order_by() != nullptr &&
+                                 window.effective_partition_by() != nullptr);
+    int order_len = 0;
+    for (ORDER *ptr = order; ptr != nullptr; ptr = ptr->next) {
+      if (mixed_grouping && ptr->direction == ORDER_NOT_RELEVANT) {
+        ptr->direction = ORDER_ASC;
+      }
+      ++order_len;
+    }
+
+    table_map used_tables;
+    Ordering ordering = CollectInterestingOrder(thd, order, order_len,
+                                                /*unwrap_rollup=*/false,
+                                                orderings, &used_tables);
+    if (window.effective_order_by() == nullptr) {
+      CanonicalizeGrouping(&ordering);
+    }
+    window.m_ordering_idx =
+        AddOrdering(thd, graph, ordering,
+                    /*order_for_filesort=*/order,
+                    /*used_at_end=*/true, /*homogenize_tables=*/0, used_tables,
+                    orderings, sort_ahead_orderings);
+  }
+
   // Collect grouping from DISTINCT.
   //
   // Note that we don't give in the ORDER BY ordering here, and thus also don't
@@ -4327,6 +4661,12 @@ static void BuildInterestingOrders(
     *distinct_ordering_idx =
         orderings->RemapOrderingIndex(*distinct_ordering_idx);
   }
+  for (Window &window : query_block->join->m_windows) {
+    if (window.m_ordering_idx != -1) {
+      window.m_ordering_idx =
+          orderings->RemapOrderingIndex(window.m_ordering_idx);
+    }
+  }
 
   for (JoinPredicate &pred : graph->edges) {
     for (int fd_idx : pred.functional_dependencies_idx) {
@@ -4517,12 +4857,16 @@ static void UpdateReferencesToMaterializedItems(
  */
 static void CreateTemporaryTableForWindow(THD *thd, Query_block *query_block,
                                           AccessPath *path,
-                                          TABLE **last_window_temp_table) {
+                                          TABLE **last_window_temp_table,
+                                          unsigned *num_windows_seen) {
   if (path->type == AccessPath::WINDOW) {
     // Create the temporary table and parameters.
     Window *window = path->window().window;
     assert(path->window().temp_table == nullptr);
     assert(path->window().temp_table_param == nullptr);
+    ++*num_windows_seen;
+    window->set_is_last(*num_windows_seen ==
+                        query_block->join->m_windows.size());
     path->window().temp_table = CreateTemporaryTableFromSelectList(
         thd, query_block, window, &path->window().temp_table_param);
     path->window().temp_table_param->m_window = window;
@@ -4630,12 +4974,13 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
 
   Mem_root_array<const Func_ptr_array *> applied_replacements(thd->mem_root);
   TABLE *last_window_temp_table = nullptr;
+  unsigned num_windows_seen = 0;
   WalkAccessPaths(
       root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
-      [thd, query_block, &applied_replacements, &last_window_temp_table](
-          AccessPath *path, JOIN *join) {
-        CreateTemporaryTableForWindow(thd, query_block, path,
-                                      &last_window_temp_table);
+      [thd, query_block, &applied_replacements, &last_window_temp_table,
+       &num_windows_seen](AccessPath *path, JOIN *join) {
+        CreateTemporaryTableForWindow(
+            thd, query_block, path, &last_window_temp_table, &num_windows_seen);
 
         const mem_root_deque<Item *> *original_fields = join->fields;
         UpdateReferencesToMaterializedItems(thd, query_block, path,
@@ -4741,7 +5086,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     EnableFullTextCoveringIndexes(query_block);
   }
 
-  // Collect interesting orders from ORDER BY, GROUP BY and semijoins.
+  // Collect interesting orders from ORDER BY, GROUP BY, semijoins and windows.
   // See BuildInterestingOrders() for more detailed information.
   SecondaryEngineFlags engine_flags = EngineFlags(thd);
   LogicalOrderings orderings(thd);
@@ -5050,8 +5395,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   join->m_windowing_steps = !join->m_windows.is_empty();
   if (join->m_windowing_steps) {
     root_candidates = ApplyWindowFunctions(
-        thd, receiver, query_block, graph.num_where_predicates, need_rowid,
-        std::move(root_candidates));
+        thd, receiver, orderings, fd_set, aggregation_is_unordered,
+        order_by_ordering_idx, distinct_ordering_idx, graph,
+        sort_ahead_orderings, query_block, graph.num_where_predicates,
+        need_rowid, std::move(root_candidates), trace);
   }
 
   ApplyHavingCondition(

@@ -722,6 +722,7 @@ class Item_sum : public Item_func {
 
   void cleanup() override;
 
+  Window *window() { return m_window; }
   const Window *window() const { return m_window; }
   bool reset_wf_state(uchar *arg) override;
 

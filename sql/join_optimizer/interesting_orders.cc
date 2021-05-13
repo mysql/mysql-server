@@ -26,8 +26,10 @@
 #include <type_traits>
 #include "sql/item.h"
 #include "sql/item_func.h"
+#include "sql/item_sum.h"
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/print_utils.h"
+#include "sql/parse_tree_nodes.h"
 #include "sql/sql_class.h"
 
 using std::bind;
@@ -458,6 +460,33 @@ void LogicalOrderings::RecanonicalizeGroupings() {
   }
 }
 
+// Window functions depend on both the function argument and on the PARTITION BY
+// clause, so we need to add both to the functional dependency's head.
+// The order of elements is arbitrary.
+Bounds_checked_array<ItemHandle>
+LogicalOrderings::CollectHeadForStaticWindowFunction(THD *thd,
+                                                     ItemHandle argument_item,
+                                                     Window *window) {
+  const PT_order_list *partition_by = window->effective_partition_by();
+  int partition_len = 0;
+  if (partition_by != nullptr) {
+    for (ORDER *order = partition_by->value.first; order != nullptr;
+         order = order->next) {
+      ++partition_len;
+    }
+  }
+  auto head =
+      Bounds_checked_array<ItemHandle>::Alloc(thd->mem_root, partition_len + 1);
+  if (partition_by != nullptr) {
+    for (ORDER *order = partition_by->value.first; order != nullptr;
+         order = order->next) {
+      head[partition_len--] = GetHandle(*order->item);
+    }
+  }
+  head[0] = argument_item;
+  return head;
+}
+
 /**
   Try to add new FDs from items that are not base items; e.g., if we have
   an item (a + 1), we add {a} → (a + 1) (since addition is deterministic).
@@ -501,9 +530,20 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
     }
 
     // Window functions have much more state than just the parameter,
-    // so we cannot say that e.g. {a} → SUM(a) OVER (...).
+    // so we cannot say that e.g. {a} → SUM(a) OVER (...), unless we
+    // know that the function is over the entire frame (unbounded).
+    //
+    // TODO(sgunders): We could also add FDs for window functions
+    // where could guarantee that the partition is only one row.
+    bool is_static_wf = false;
     if (item->has_wf()) {
-      continue;
+      if (item->m_is_window_function &&
+          down_cast<Item_sum *>(item)->framing() &&
+          down_cast<Item_sum *>(item)->window()->static_aggregates()) {
+        is_static_wf = true;
+      } else {
+        continue;
+      }
     }
 
     Item_field *base_field = nullptr;
@@ -545,19 +585,26 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
     ItemHandle head_item = GetHandle(base_field);
     FunctionalDependency fd;
     fd.type = FunctionalDependency::FD;
-    fd.head = Bounds_checked_array<ItemHandle>(&head_item, 1);
+    if (is_static_wf) {
+      fd.head = CollectHeadForStaticWindowFunction(
+          thd, head_item, down_cast<Item_sum *>(item)->window());
+    } else {
+      fd.head = Bounds_checked_array<ItemHandle>(&head_item, 1);
+    }
     fd.tail = item_idx;
     fd.always_active = true;
     AddFunctionalDependency(thd, fd);
 
-    // Extend existing FDs transitively (see function comment).
-    // E.g. if we have S → base, also add S → item.
-    for (int fd_idx = 0; fd_idx < num_original_fds; ++fd_idx) {
-      if (m_fds[fd_idx].type == FunctionalDependency::FD &&
-          m_fds[fd_idx].tail == head_item && m_fds[fd_idx].always_active) {
-        fd = m_fds[fd_idx];
-        fd.tail = item_idx;
-        AddFunctionalDependency(thd, fd);
+    if (fd.head.size() == 1) {
+      // Extend existing FDs transitively (see function comment).
+      // E.g. if we have S → base, also add S → item.
+      for (int fd_idx = 0; fd_idx < num_original_fds; ++fd_idx) {
+        if (m_fds[fd_idx].type == FunctionalDependency::FD &&
+            m_fds[fd_idx].tail == head_item && m_fds[fd_idx].always_active) {
+          fd = m_fds[fd_idx];
+          fd.tail = item_idx;
+          AddFunctionalDependency(thd, fd);
+        }
       }
     }
   }

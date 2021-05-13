@@ -547,6 +547,20 @@ class Window {
    */
   Bounds_checked_array<Arg_comparator> m_comparators[2];
 
+  /**
+    The logical ordering index (into LogicalOrderings) needed by this window's
+    PARTITION BY and ORDER BY clauses together (if any; else, 0). Used only by
+    the hypergraph join optimizer.
+   */
+  int m_ordering_idx;
+
+  /**
+    Used temporarily by the hypergraph join optimizer to mark which windows
+    are referred to by a given ordering (so that one doesn't try to satisfy
+    a window's ordering by an ordering referring to that window).
+   */
+  bool m_mark;
+
  protected:
   /**
     Execution state: the row number of the first row in a frame when evaluating
@@ -1092,6 +1106,11 @@ class Window {
     See #m_last
   */
   bool is_last() const { return m_last; }
+
+  /**
+    An override used by the hypergraph join optimizer only.
+  */
+  void set_is_last(bool last) { m_last = last; }
 
   /**
     See #m_opt_nth_row
