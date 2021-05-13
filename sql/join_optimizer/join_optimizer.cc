@@ -3102,8 +3102,13 @@ static int AddOrdering(
     return 0;
   }
 
+  const int old_num_orderings = orderings->num_orderings();
   const int ordering_idx = orderings->AddOrdering(
       thd, ordering, /*interesting=*/true, used_at_end, homogenize_tables);
+  if (ordering_idx < old_num_orderings) {
+    // A duplicate, so we don't add anything new to sort_ahead_orderings.
+    return ordering_idx;
+  }
 
   // See if we can use this for sort-ahead. (For groupings, LogicalOrderings
   // will create its own sort-ahead orderings for us, so we shouldn't do it
