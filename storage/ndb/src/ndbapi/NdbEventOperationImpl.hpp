@@ -855,7 +855,7 @@ public:
 
   void *alloc(Uint32 sz);
   Uint32 get_free_data_sz() const;
-  Uint32 get_used_data_sz() const;
+  Uint64 get_used_data_sz() const;
 
   //Must report status if buffer manager state is changed
   void reportStatus(ReportReason reason = NO_REPORT);
@@ -907,10 +907,10 @@ public:
   EpochDataList m_event_queue;
   const EventBufData *m_current_data;
 
-  unsigned m_total_alloc; // total allocated memory
+  Uint64 m_total_alloc; // total allocated memory
 
   // ceiling for total allocated memory, 0 means unlimited
-  unsigned m_max_alloc;
+  Uint64 m_max_alloc;
 
   // Crash when OS memory allocation for event buffer fails
   void crashMemAllocError(const char *error_text);
