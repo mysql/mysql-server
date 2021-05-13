@@ -128,17 +128,14 @@ Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 INSERT INTO page VALUES (1,'日本');
 CREATE FULLTEXT INDEX ft_idx ON page(page_title) WITH PARSER mecab;
-Warnings:
-Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
-Error	1026	Fulltext index charset 'big5' doesn't match mecab charset 'ujis'.
+ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'ujis'.
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_CACHE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 SELECT * FROM INFORMATION_SCHEMA.INNODB_FT_INDEX_TABLE;
 WORD	FIRST_DOC_ID	LAST_DOC_ID	DOC_COUNT	DOC_ID	POSITION
 INSERT INTO page VALUES (2,'日本');
-ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'ujis'.
 SELECT * FROM page WHERE MATCH(page_title) AGAINST('日本');
-ERROR HY000: Fulltext index charset 'big5' doesn't match mecab charset 'ujis'.
+ERROR HY000: Can't find FULLTEXT index matching the column list
 DROP TABLE page;
 CREATE TABLE page (
 page_id int(8) unsigned NOT NULL AUTO_INCREMENT,

@@ -199,8 +199,8 @@ struct FTS::Parser {
   @param[in] doc                To tokenize
   @param[in] parser             Plugin parser instance.
   @param[in,out] t_ctx          Tokenize ctx instance. */
-  static void tokenize(fts_doc_t *doc, st_mysql_ftparser *parser,
-                       Tokenize_ctx *t_ctx) noexcept;
+  void tokenize(fts_doc_t *doc, st_mysql_ftparser *parser,
+                Tokenize_ctx *t_ctx) noexcept;
 
   /** FTS plugin parser 'myql_add_word' callback function for row merge.
   Refer to 'MYSQL_FTPARSER_PARAM' for more detail.
@@ -563,9 +563,6 @@ void FTS::Parser::tokenize(fts_doc_t *doc, st_mysql_ftparser *parser,
                            Tokenize_ctx *t_ctx) noexcept {
   MYSQL_FTPARSER_PARAM param;
 
-  ut_a(parser != nullptr);
-
-  /* Set paramters for param */
   param.cs = doc->charset;
   param.mysql_ftparam = t_ctx;
   param.mysql_add_word = add_word;
@@ -574,10 +571,28 @@ void FTS::Parser::tokenize(fts_doc_t *doc, st_mysql_ftparser *parser,
   param.mysql_parse = fts_tokenize_document_internal;
   param.doc = reinterpret_cast<char *>(doc->text.f_str);
 
-  PARSER_INIT(parser, &param);
-  /* We assume parse returns successfully here. */
-  parser->parse(&param);
-  PARSER_DEINIT(parser, &param);
+  int ret{};
+
+  if (parser->init != nullptr) {
+    ret = parser->init(&param);
+  }
+
+  if (ret == 0) {
+    ret = parser->parse(&param);
+    if (ret != 0) {
+      set_error(DB_UNSUPPORTED);
+    }
+  } else {
+    set_error(DB_ERROR);
+  }
+
+  if (parser->deinit != nullptr) {
+    ut_a(parser->init != nullptr);
+    ret = parser->deinit(&param);
+    if (ret != 0) {
+      set_error(DB_ERROR);
+    }
+  }
 }
 
 bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
