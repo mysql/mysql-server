@@ -300,11 +300,13 @@ static bool validate_use_secondary_engine(const LEX *lex) {
   // met:
   //
   // 1) use_secondary_engine is FORCED
-  // 2) Is a SELECT statement
-  // 3) Accesses one or more base tables.
+  // 2) Is a SELECT statement that accesses one or more base tables.
+  // 3) Is a INSERT SELECT statement that accesses two or more base tables
   if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED &&  // 1
-      sql_cmd->sql_command_code() == SQLCOM_SELECT &&                    // 2
-      lex->table_count >= 1) {                                           // 3
+      ((sql_cmd->sql_command_code() == SQLCOM_SELECT &&
+        lex->table_count >= 1) ||  // 2
+       (sql_cmd->sql_command_code() == SQLCOM_INSERT_SELECT &&
+        lex->table_count >= 2))) {  // 3
     my_error(
         ER_SECONDARY_ENGINE, MYF(0),
         "use_secondary_engine is FORCED but query could not be executed in "
