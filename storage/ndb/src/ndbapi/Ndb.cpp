@@ -2124,13 +2124,13 @@ Ndb::getSchemaFromInternalName(const char * internalName)
   return ret;
 }
 
-unsigned Ndb::get_eventbuf_max_alloc()
+Uint64 Ndb::get_eventbuf_max_alloc()
 {
     return theEventBuffer->m_max_alloc;
 }
 
 void
-Ndb::set_eventbuf_max_alloc(unsigned sz)
+Ndb::set_eventbuf_max_alloc(Uint64 sz)
 {
   if (theEventBuffer != NULL)
   {
