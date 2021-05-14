@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -154,9 +154,9 @@ typedef std::map<const char *, dict_index_t *, ut_strcmp_functor,
     index_map_t;
 
 /** Checks whether an index should be ignored in stats manipulations:
- * stats fetch
- * stats recalc
- * stats save
+ - stats fetch
+ - stats recalc
+ - stats save
  @return true if exists and all tables are ok */
 UNIV_INLINE
 bool dict_stats_should_ignore_index(const dict_index_t *index) /*!< in: index */
@@ -1999,7 +1999,7 @@ static void dict_stats_analyze_index(
         << n_sample_pages << ".";
 
     /* Certain delay is needed for waiters to lock the index next. */
-    os_thread_sleep(100000); /* 100 ms */
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
 
@@ -3329,7 +3329,7 @@ dberr_t dict_stats_rename_table(
 
     if (ret != DB_SUCCESS) {
       rw_lock_x_unlock(dict_operation_lock);
-      os_thread_sleep(200000 /* 0.2 sec */);
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
       rw_lock_x_lock(dict_operation_lock);
     }
   } while ((ret == DB_DEADLOCK || ret == DB_DUPLICATE_KEY ||
@@ -3376,7 +3376,7 @@ dberr_t dict_stats_rename_table(
 
     if (ret != DB_SUCCESS) {
       rw_lock_x_unlock(dict_operation_lock);
-      os_thread_sleep(200000 /* 0.2 sec */);
+      std::this_thread::sleep_for(std::chrono::milliseconds(200));
       rw_lock_x_lock(dict_operation_lock);
     }
   } while ((ret == DB_DEADLOCK || ret == DB_DUPLICATE_KEY ||

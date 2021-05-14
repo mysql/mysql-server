@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
+// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -26,9 +26,10 @@
 
 #include "sql/gis/gc_utils.h"
 
+#include <assert.h>
 #include <boost/geometry.hpp>  // boost::geometry::difference
 
-#include "my_dbug.h"  // DBUG_ASSERT
+// assert
 #include "sql/gis/difference_functor.h"
 #include "sql/gis/geometries.h"
 #include "sql/gis/geometries_cs.h"
@@ -43,9 +44,9 @@ namespace gis {
 template <typename Pt, typename Ls, typename Py, typename GC, typename MPt,
           typename MLs, typename MPy>
 static void typed_split_gc(const GC *gc, MPt *mpt, MLs *mls, MPy *mpy) {
-  DBUG_ASSERT(gc->coordinate_system() == mpt->coordinate_system() &&
-              gc->coordinate_system() == mls->coordinate_system() &&
-              gc->coordinate_system() == mpy->coordinate_system());
+  assert(gc->coordinate_system() == mpt->coordinate_system() &&
+         gc->coordinate_system() == mls->coordinate_system() &&
+         gc->coordinate_system() == mpy->coordinate_system());
 
   for (const auto g : *gc) {
     switch (g->type()) {
@@ -81,7 +82,7 @@ static void typed_split_gc(const GC *gc, MPt *mpt, MLs *mls, MPy *mpy) {
         break;
       }
       case Geometry_type::kGeometry:
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -160,12 +161,12 @@ void gc_union(double semi_major, double semi_minor,
               std::unique_ptr<Multipoint> *mpt,
               std::unique_ptr<Multilinestring> *mls,
               std::unique_ptr<Multipolygon> *mpy) {
-  DBUG_ASSERT(mpt->get() && mls->get() && mpy->get());
-  DBUG_ASSERT((*mpt)->coordinate_system() == (*mls)->coordinate_system() &&
-              (*mpt)->coordinate_system() == (*mpy)->coordinate_system());
+  assert(mpt->get() && mls->get() && mpy->get());
+  assert((*mpt)->coordinate_system() == (*mls)->coordinate_system() &&
+         (*mpt)->coordinate_system() == (*mpy)->coordinate_system());
   // We're using empty GCs to detect invalid geometries, so empty geometry
   // collections should be filtered out before calling gc_union.
-  DBUG_ASSERT(!(*mpt)->empty() || !(*mls)->empty() || !(*mpy)->empty());
+  assert(!(*mpt)->empty() || !(*mls)->empty() || !(*mpy)->empty());
 
   switch ((*mpt)->coordinate_system()) {
     case Coordinate_system::kCartesian: {
@@ -187,8 +188,61 @@ void gc_union(double semi_major, double semi_minor,
   if ((*mpt)->empty() && (*mls)->empty() && (*mpy)->empty())
     throw invalid_geometry_exception();
 
-  DBUG_ASSERT(mpt->get() && mls->get() && mpy->get());
-  DBUG_ASSERT(!(*mpt)->empty() || !(*mls)->empty() || !(*mpy)->empty());
+  assert(mpt->get() && mls->get() && mpy->get());
+  assert(!(*mpt)->empty() || !(*mls)->empty() || !(*mpy)->empty());
+}
+
+std::unique_ptr<gis::Geometrycollection> narrowest_multigeometry(
+    std::unique_ptr<gis::Geometrycollection> geometrycollection) {
+  bool pt = false;
+  bool ls = false;
+  bool py = false;
+  for (size_t i = 0; i < geometrycollection->size(); i++) {
+    switch (geometrycollection->operator[](i).type()) {
+      case gis::Geometry_type::kPoint:
+        if (ls || py) return geometrycollection;
+        pt = true;
+        break;
+      case gis::Geometry_type::kLinestring:
+        if (pt || py) return geometrycollection;
+        ls = true;
+        break;
+      case gis::Geometry_type::kPolygon:
+        if (pt || ls) return geometrycollection;
+        py = true;
+        break;
+      case gis::Geometry_type::kMultipoint:
+      case gis::Geometry_type::kMultilinestring:
+      case gis::Geometry_type::kMultipolygon:
+      case gis::Geometry_type::kGeometrycollection:
+        return geometrycollection;
+      default:
+        break;
+    }
+  }
+
+  // Otherwise create the necessary multigeometries and split the input.
+  std::unique_ptr<gis::Multipoint> multipoint =
+      std::unique_ptr<gis::Multipoint>(gis::Multipoint::create_multipoint(
+          geometrycollection->coordinate_system()));
+  std::unique_ptr<gis::Multilinestring> multilinestring =
+      std::unique_ptr<gis::Multilinestring>(
+          gis::Multilinestring::create_multilinestring(
+              geometrycollection->coordinate_system()));
+  std::unique_ptr<gis::Multipolygon> multipolygon =
+      std::unique_ptr<gis::Multipolygon>(gis::Multipolygon::create_multipolygon(
+          geometrycollection->coordinate_system()));
+  gis::split_gc(geometrycollection.get(), &multipoint, &multilinestring,
+                &multipolygon);
+
+  if (!multipoint->empty())
+    return std::unique_ptr<gis::Geometrycollection>(multipoint.release());
+  else if (!multilinestring->empty())
+    return std::unique_ptr<gis::Geometrycollection>(multilinestring.release());
+  else if (!multipolygon->empty())
+    return std::unique_ptr<gis::Geometrycollection>(multipolygon.release());
+  assert(false);
+  return geometrycollection;
 }
 
 }  // namespace gis

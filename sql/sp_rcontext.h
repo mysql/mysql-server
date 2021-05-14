@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,10 @@
 #ifndef _SP_RCONTEXT_H_
 #define _SP_RCONTEXT_H_
 
+#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/item.h"
@@ -37,7 +37,7 @@
 
 class Field;
 class Query_arena;
-class SELECT_LEX_UNIT;
+class Query_expression;
 class Server_side_cursor;
 class THD;
 class sp_cursor;
@@ -241,7 +241,7 @@ class sp_rcontext {
   /// handler. This function must not be called for the EXIT handlers.
   uint get_last_handler_continue_ip() const {
     uint ip = m_activated_handlers.back()->continue_ip;
-    DBUG_ASSERT(ip != 0);
+    assert(ip != 0);
 
     return ip;
   }
@@ -413,7 +413,7 @@ class sp_cursor {
     bool send_eof(THD *) override { return false; }
     bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
     bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-                 SELECT_LEX_UNIT *u) override;
+                 Query_expression *u) override;
   };
 
  public:

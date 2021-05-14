@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4200,6 +4200,8 @@ Backup::checkNodeFail(Signal* signal,
         // so that master sends BACKUP_FRAGMENT_REFs to self from every LDM
         // on every failed node.
         Uint32 workers = getNodeInfo(i).m_lqh_workers;
+        if (workers == 0)
+          workers = 1; // single-threaded backup
         for (Uint32 j=0; j<workers; j++)
         {
           sendSignal(reference(), gsn, signal, len, JBB);
@@ -4427,8 +4429,7 @@ Backup::execBACKUP_REQ(Signal* signal)
    * Seize a backup record
    */
   BackupRecordPtr ptr;
-  c_backups.seizeFirst(ptr);
-  if (ptr.i == RNIL)
+  if (!c_backups.seizeFirst(ptr))
   {
     jam();
     sendBackupRef(senderRef, flags, signal, senderData,
@@ -5336,25 +5337,6 @@ Backup::startBackupReply(Signal* signal, BackupRecordPtr ptr, Uint32 nodeId)
     return;
   }
 
-  /* 
-   * We reply to client after create trigger
-   */
-  if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
-  {
-    BackupConf * conf = (BackupConf*)signal->getDataPtrSend();
-    conf->backupId = ptr.p->backupId;
-    conf->senderData = ptr.p->clientData;
-    sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal,
-             BackupConf::SignalLength, JBB);
-  }
-
-  signal->theData[0] = NDB_LE_BackupStarted;
-  signal->theData[1] = ptr.p->clientRef;
-  signal->theData[2] = ptr.p->backupId;
-  // Node bitmask is not used at the receiver, so zeroing it out.
-  NdbNodeBitmask::clear(signal->theData + 3, NdbNodeBitmask48::Size);
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3 + NdbNodeBitmask48::Size, JBB);
-
   /**
    * Wait for startGCP to a establish a consistent point at backup start.
    * This point is consistent since backup logging has started but scans
@@ -5431,6 +5413,25 @@ Backup::execWAIT_GCP_CONF(Signal* signal){
   if(ptr.p->masterData.waitGCP.startBackup) {
     jam();
     CRASH_INSERTION((10008));
+    /*
+     * We reply to client after startGCP completes
+     */
+    if (SEND_BACKUP_STARTED_FLAG(ptr.p->flags))
+    {
+      BackupConf * conf = (BackupConf*)signal->getDataPtrSend();
+      conf->backupId = ptr.p->backupId;
+      conf->senderData = ptr.p->clientData;
+      sendSignal(ptr.p->clientRef, GSN_BACKUP_CONF, signal,
+               BackupConf::SignalLength, JBB);
+    }
+
+    signal->theData[0] = NDB_LE_BackupStarted;
+    signal->theData[1] = ptr.p->clientRef;
+    signal->theData[2] = ptr.p->backupId;
+    // Node bitmask is not used at the receiver, so zeroing it out.
+    NdbNodeBitmask::clear(signal->theData + 3, NdbNodeBitmask48::Size);
+    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 3 + NdbNodeBitmask48::Size, JBB);
+
     ptr.p->startGCP = gcp;
     ptr.p->masterData.sendCounter= 0;
     ptr.p->masterData.gsn = GSN_BACKUP_FRAGMENT_REQ;
@@ -6875,8 +6876,8 @@ Backup::execLIST_TABLES_CONF(Signal* signal)
       }
 
       TablePtr tabPtr;
-      ptr.p->tables.seizeLast(tabPtr);
-      if(tabPtr.i == RNIL) {
+      if (!ptr.p->tables.seizeLast(tabPtr))
+      {
         jam();
         defineBackupRef(signal, ptr, DefineBackupRef::FailedToAllocateTables);
         releaseSections(handle);
@@ -16334,10 +16335,19 @@ Backup::finalize_lcp_processing(Signal *signal, BackupRecordPtr ptr)
     /**
      * Slow down things a bit for empty LCPs to avoid that we use too much
      * CPU for idle LCP processing. This tends to get a bit bursty and can
-     * affect traffic performance for short times.
+     * affect traffic performance for short times. We allow longer delays
+     * if no urgency in keeping up with the REDO log.
      */
+    Uint32 delay;
+    if (likely(m_redo_alert_state == RedoStateRep::NO_REDO_ALERT))
+      delay = 20;
+    else if (m_redo_alert_state == RedoStateRep::REDO_ALERT_LOW)
+      delay = 5;
+    else
+      delay = 1;
+
     sendSignalWithDelay(ptr.p->masterRef, GSN_BACKUP_FRAGMENT_CONF, signal,
-	                1, BackupFragmentConf::SignalLength);
+	                delay, BackupFragmentConf::SignalLength);
   }
   else
   {

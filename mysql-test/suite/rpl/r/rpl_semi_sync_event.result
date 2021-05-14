@@ -41,6 +41,7 @@ SET @old_event_scheduler= @@global.event_scheduler;
 SET GLOBAL event_scheduler = OFF;
 include/stop_slave.inc
 UNINSTALL PLUGIN rpl_semi_sync_slave;
+include/stop_dump_threads.inc
 UNINSTALL PLUGIN rpl_semi_sync_master;
 include/start_slave.inc
 DROP EVENT ev1;

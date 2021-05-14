@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 #ifndef DD__PROPERTIES_IMPL_INCLUDED
 #define DD__PROPERTIES_IMPL_INCLUDED
 
+#include <assert.h>
 #include <map>
 #include <memory>
 #include <set>
@@ -30,7 +31,7 @@
 #include <utility>
 
 #include "lex_string.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/dd/properties.h"   // dd::Properties
 #include "sql/dd/string_type.h"  // dd::String_type
@@ -195,7 +196,7 @@ class Properties_impl : public Properties {
                      the set of valid keys.
   */
   void add_valid_keys(const std::set<String_type> &keys) {
-    DBUG_ASSERT(!m_keys.empty() || m_map.empty());
+    assert(!m_keys.empty() || m_map.empty());
     m_keys.insert(keys.begin(), keys.end());
   }
 

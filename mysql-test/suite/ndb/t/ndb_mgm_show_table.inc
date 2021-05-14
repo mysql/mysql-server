@@ -42,6 +42,8 @@ eval LOAD DATA INFILE '$dump_file' INTO TABLE ndb_mgm_show
 # Remove Windows line feeds
 UPDATE ndb_mgm_show SET a = TRIM(TRAILING "\r" FROM a);
 
+# Ignoring things like: Truncated incorrect DOUBLE value: '---'
+--disable_warnings
 
 --replace_result $mysql_version MYSQL_VERSION $ndb_version NDB_VERSION @127.0.0.1 LOCALHOST @::1 LOCALHOST
 SELECT a as 'ndbd(s)' FROM ndb_mgm_show
@@ -57,6 +59,8 @@ SELECT a as 'mysqld(s)' FROM ndb_mgm_show
   WHERE SUBSTR(a, 4, 3)
     IN (6,7,8,9,10,11,12,13,14,15,16,17,18,19)
       ORDER BY LOCATE("accepting", a);
+
+--enable_warnings
 
 DROP TABLE ndb_mgm_show;
 --enable_query_log

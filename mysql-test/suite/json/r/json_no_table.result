@@ -3936,6 +3936,22 @@ DO NULLIF(FROM_BASE64(UUID_TO_BIN(0x339ed325) OR ST_ASGEOJSON(POINT(-10946,-1634
 ERROR HY000: Incorrect string value: '3\x9E\xD3%' for function uuid_to_bin
 DO NULLIF(FROM_BASE64(JSON_STORAGE_FREE('') XOR ST_ASGEOJSON(POINT(-10946,-1634))), 1);
 ERROR 22032: Invalid JSON text in argument 1 to function json_storage_free: "The document is empty." at position 0.
+#
+# Bug#32047630: MISSING ERROR PROPAGATION IN JSON FUNCTIONS
+#
+SELECT JSON_ARRAY(CAST('' AS JSON) = 1, 1);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_OBJECT(CAST('' AS JSON), '');
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SHOW ERRORS;
+Level	Code	Message
+Error	3141	Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_ARRAY(CAST(CAST('' AS JSON) AS DATE), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_ARRAY(JSON_SEARCH('{}', CAST('' AS JSON), 'abc'), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
+SELECT JSON_ARRAY(JSON_EXTRACT('{}', CAST('' AS JSON)), 1);
+ERROR 22032: Invalid JSON text in argument 1 to function cast_as_json: "The document is empty." at position 0.
 # Bug#32063203: Problem with prepared statements
 CREATE TABLE t1(c1 JSON);
 INSERT INTO t1 VALUES ('["a", "b"]'), ('["b", "c"]'), ('["c", "a"]');
@@ -4211,3 +4227,41 @@ do ((exp(4812))>>(year((!((not(degrees(''))))))));
 ERROR 22003: DOUBLE value is out of range in 'exp(4812)'
 do pow(json_storage_size(':*'),(!(oct(1))));
 ERROR 22032: Invalid JSON text in argument 1 to function json_storage_size: "Invalid value." at position 0.
+#
+# Bug#32231393: ITEM_FUNC_IF::VAL_JSON(JSON_WRAPPER*):
+#               ASSERTION `HAS_VALUE' FAILED
+#
+DO IF(JSON_DEPTH(''), JSON_OBJECT(), NULL);
+ERROR 22032: Invalid JSON text in argument 1 to function json_depth: "The document is empty." at position 0.
+#
+# Bug #32231620 JSON_WRAPPER::COMPARE CONST:
+#               ASSERTION `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+42,
+(json_arrayagg("") and rtrim("")) <=> 0
+);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+cast(42 as float),
+(json_arrayagg("") and rtrim("")) <=> 0
+);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+cast(42 as decimal),
+(json_arrayagg("") and rtrim("")) <=> 0
+);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+do if(json_replace(json_object(), '$[0]' ,'false', '$[*]', '{}'),
+localtimestamp(6),
+(json_arrayagg("") and rtrim("")) <=> 0
+);
+ERROR 42000: In this situation, path expressions may not contain the * and ** tokens or an array range.
+#
+# Bug#32449181: CHARACTER SET ENCODING ISSUES WITH JSON_SEARCH
+#
+SELECT JSON_SEARCH('["abc"]', 'one', CAST('abc' AS CHAR CHARSET utf16));
+JSON_SEARCH('["abc"]', 'one', CAST('abc' AS CHAR CHARSET utf16))
+"$[0]"
+SELECT JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16));
+JSON_SEARCH('["abc"]', 'one', 'aabc', CAST('a' AS CHAR CHARSET utf16))
+"$[0]"

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -139,7 +139,7 @@ void btr_drop_ahi_for_table(dict_table_t *table);
 
 /** Drop any adaptive hash index entries for a index.
 @param[in,out]	index	to drop hash indexes for this index */
-void btr_drop_ahi_for_index(dict_index_t *index);
+void btr_drop_ahi_for_index(const dict_index_t *index);
 
 /** Updates the page hash index when a single record is inserted on a page.
 @param[in]	cursor	cursor which was positioned to the place to insert

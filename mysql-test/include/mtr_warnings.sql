@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License, version 2.0,
@@ -249,7 +249,7 @@ INSERT INTO global_suppressions VALUES
  ("\\[GCS\\] The member is already leaving or joining a group."),
  ("\\[GCS\\] The member is leaving a group without being on one."),
  ("\\[GCS\\] Processing new view on handler without a valid group configuration."),
- ("\\[GCS\\] Error on opening a connection to localhost:.* on local port: .*."),
+ ("\\[GCS\\] Error on opening a connection to .*"),
  ("\\[GCS\\] Error pushing message into group communication engine."),
  ("\\[GCS\\] Message cannot be sent because the member does not belong to a group."),
  ("\\[GCS\\] Automatically adding IPv4 localhost address to the allowlist. It is mandatory that it is added."),
@@ -302,6 +302,11 @@ INSERT INTO global_suppressions VALUES
  */
  ("NOTIFY_SOCKET not set in environment. sd_notify messages will not be sent!"),
  ("Invalid systemd notify socket, cannot send: "),
+
+ /*
+   Manifest file processing
+ */
+ ("Manifest file '.*' is not read-only. For better security, please make sure that the file is read-only."),
 
  ("THE_LAST_SUPPRESSION");
 

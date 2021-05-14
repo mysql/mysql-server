@@ -1,5 +1,3 @@
---source include/not_hypergraph.inc  # Optimizer hints are not supported.
-
 CREATE TABLE t1 (a INT, b INT, c INT, d INT,
                  KEY i_a(a), KEY i_b(b),
                  KEY i_ab(a,b), KEY i_c(c), KEY i_d(d));

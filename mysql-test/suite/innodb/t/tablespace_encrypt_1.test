@@ -45,9 +45,9 @@
 --let $explicit_default_wait_counter=10000
 
 --disable_query_log
-call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm that keyring is loaded.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
 --enable_query_log
 
 --echo #########################################################################
@@ -895,6 +895,7 @@ DROP DATABASE tde_db;
 --echo #########################################################################
 DROP TABLESPACE encrypt_ts;
 remove_file $MYSQL_TMP_DIR/mysecret_keyring;
+remove_file $MYSQL_TMP_DIR/mysecret_keyring.backup;
 
 --echo # Restarting server without keyring to restore server state
 let $restart_parameters = restart: ;

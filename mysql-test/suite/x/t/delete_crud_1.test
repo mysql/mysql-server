@@ -22,7 +22,7 @@
 
 ## TEST STARTS HERE
 
---write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 -->sql
  DROP SCHEMA if EXISTS dbmysqlxplugintest;
  CREATE SCHEMA dbmysqlxplugintest DEFAULT CHARSET='utf8';
@@ -217,12 +217,12 @@ SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 
 # case 1 : delete with limit with offset
 # Fix result file when bug is fixed
---write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 -->sql
  USE dbmysqlxplugintest;
  SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo; 
@@ -262,12 +262,12 @@ Mysqlx.Crud.Delete {
 
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 
 # case 2 : delete with limit and order 
 # Uncomment $MYSQLXTEST call when order message is fixed
---write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-delete_sql.xpl
 -->sql
  USE dbmysqlxplugintest;
  SELECT * FROM dbmysqlxplugintest.ExtraCategoryInfo;
@@ -309,9 +309,8 @@ Mysqlx.Crud.Delete {
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-delete_sql.xpl 2>&1
 
 # Cleanup
 DROP DATABASE IF EXISTS dbmysqlxplugintest;
---remove_file $MYSQL_TMP_DIR/mysqlx-delete_sql.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

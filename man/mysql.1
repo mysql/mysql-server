@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -71,7 +71,7 @@ is very easy\&. Invoke it from the prompt of your command interpreter as follows
 .RS 4
 .\}
 .nf
-shell> \fBmysql \fR\fB\fIdb_name\fR\fR
+mysql \fIdb_name\fR
 .fi
 .if n \{\
 .RE
@@ -83,7 +83,20 @@ Or:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-user=\fR\fB\fIuser_name\fR\fR\fB \-\-password \fR\fB\fIdb_name\fR\fR
+mysql \-\-user=\fIuser_name\fR \-\-password \fIdb_name\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+In this case, you\*(Aqll need to enter your password in response to the prompt that
+\fBmysql\fR
+displays:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
 Enter password: \fIyour_password\fR
 .fi
 .if n \{\
@@ -106,7 +119,7 @@ You can execute SQL statements in a script file (batch file) like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR\fB\fIoutput\&.tab\fR\fR
+mysql \fIdb_name\fR < \fIscript\&.sql\fR > \fIoutput\&.tab\fR
 .fi
 .if n \{\
 .RE
@@ -677,9 +690,9 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -694,9 +707,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
@@ -722,9 +735,8 @@ normally reads the
 [client]
 and
 [mysql]
-groups\&. If the
-\fB\-\-defaults\-group\-suffix=_other\fR
-option is given,
+groups\&. If this option is given as
+\fB\-\-defaults\-group\-suffix=_other\fR,
 \fBmysql\fR
 also reads the
 [client_other]
@@ -1064,7 +1076,7 @@ option applies\&.
 .sp
 When
 \fB\-\-load\-data\-local\-dir\fR
-applies, the option value designates the directory in which local data files must be located\&. Comparison of the directory path name and the path name of files to be loaded is case\-sensitive regardless of the case\-sensitivity of the underlying file system\&. If the option value is the empty string, it names no directory, with the result that no files are permitted for local data loading\&.
+applies, the option value designates the directory in which local data files must be located\&. Comparison of the directory path name and the path name of files to be loaded is case\-sensitive regardless of the case sensitivity of the underlying file system\&. If the option value is the empty string, it names no directory, with the result that no files are permitted for local data loading\&.
 .sp
 For example, to explicitly disable local data loading except for files located in the
 /my/local/data
@@ -1279,13 +1291,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. (\&.mylogin\&.cnf
-is created by the
+is used\&. To create
+\&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.)
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1672,7 +1684,8 @@ If
 is given and specifies a valid public key file, it takes precedence over
 \fB\-\-get\-server\-public\-key\fR\&.
 .sp
-This option is available only if MySQL was built using OpenSSL\&.
+For
+sha256_password, this option applies only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password
@@ -1805,7 +1818,7 @@ system variable\&.
 \fB\-\-ssl*\fR
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using encryption and indicate where to find SSL keys and certificates\&. See
 the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
@@ -2907,7 +2920,7 @@ manual page:
 .RS 4
 .\}
 .nf
-shell> \fBman less\fR
+man less
 .fi
 .if n \{\
 .RE
@@ -3219,7 +3232,7 @@ environment variable to a prompt string\&. For example:
 .RS 4
 .\}
 .nf
-shell> \fBexport MYSQL_PS1="(\eu@\eh) [\ed]> "\fR
+export MYSQL_PS1="(\eu@\eh) [\ed]> "
 .fi
 .if n \{\
 .RE
@@ -3556,7 +3569,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \-\-histignore="*UPDATE*:*DELETE*"\fR
+mysql \-\-histignore="*UPDATE*:*DELETE*"
 .fi
 .if n \{\
 .RE
@@ -3609,7 +3622,7 @@ as a symbolic link to
 .RS 4
 .\}
 .nf
-shell> \fBln \-s /dev/null $HOME/\&.mysql_history\fR
+ln \-s /dev/null $HOME/\&.mysql_history
 .fi
 .if n \{\
 .RE
@@ -3901,7 +3914,7 @@ client typically is used interactively, like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \fR\fB\fIdb_name\fR\fR
+mysql \fIdb_name\fR
 .fi
 .if n \{\
 .RE
@@ -3919,7 +3932,7 @@ as shown here:
 .RS 4
 .\}
 .nf
-shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fItext_file\fR\fR
+mysql \fIdb_name\fR < \fItext_file\fR
 .fi
 .if n \{\
 .RE
@@ -3933,7 +3946,7 @@ statement as the first statement in the file, it is unnecessary to specify the d
 .RS 4
 .\}
 .nf
-shell> \fBmysql < text_file\fR
+mysql < text_file
 .fi
 .if n \{\
 .RE
@@ -4626,7 +4639,7 @@ command)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

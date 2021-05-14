@@ -398,30 +398,30 @@ A
 AD
 AE
 AF
-Ä
-Å
 B
+SS
 U
 UE
-Ü
-SS
-ß
 Z
+Ä
+Å
+Ü
+ß
 SELECT DISTINCT latin1_f COLLATE latin1_swedish_ci FROM t1;
 latin1_f COLLATE latin1_swedish_ci
 A
 AD
 AE
 AF
-Ä
-Å
 B
+SS
 U
 UE
-Ü
-SS
-ß
 Z
+Ä
+Å
+Ü
+ß
 SELECT DISTINCT latin1_f COLLATE latin1_german2_ci FROM t1;
 latin1_f COLLATE latin1_german2_ci
 A
@@ -429,9 +429,9 @@ AD
 AE
 AF
 B
+SS
 U
 UE
-SS
 Y
 Z
 SELECT DISTINCT latin1_f COLLATE latin1_general_ci FROM t1;
@@ -440,45 +440,45 @@ A
 AD
 AE
 AF
-Ä
-Å
 B
+SS
 U
 UE
-Ü
-SS
-ß
 Y
 Z
+Ä
+Å
+Ü
+ß
 SELECT DISTINCT latin1_f COLLATE latin1_bin        FROM t1;
 latin1_f COLLATE latin1_bin
 A
-a
 AD
-ad
 AE
-ae
 AF
-af
-Ä
-ä
-Å
-å
 B
-b
-U
-u
-UE
-ue
-Ü
-ü
 SS
-ss
-ß
+U
+UE
 Y
-y
 Z
+a
+ad
+ae
+af
+b
+ss
+u
+ue
+y
 z
+Ä
+Å
+Ü
+ß
+ä
+å
+ü
 SELECT DISTINCT latin1_f COLLATE koi8r             FROM t1;
 ERROR HY000: Unknown collation: 'koi8r'
 SHOW CREATE TABLE t1;

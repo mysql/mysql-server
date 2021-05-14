@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -344,7 +344,7 @@ class Instantiator<Function_class, 0, 1> {
       case 1:
         return new (thd->mem_root) Function_class(POS(), (*args)[0]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -370,7 +370,7 @@ class Instantiator<Function_class, 1, 2> {
         return new (thd->mem_root)
             Function_class(POS(), (*args)[0], (*args)[1]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -399,7 +399,7 @@ class Instantiator<Function_class, 1, 3> {
         return new (thd->mem_root)
             Function_class(POS(), (*args)[0], (*args)[1], (*args)[2]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -428,7 +428,7 @@ class Instantiator_with_thd<Function_class, 1, 3> {
         return new (thd->mem_root)
             Function_class(thd, POS(), (*args)[0], (*args)[1], (*args)[2]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -454,7 +454,7 @@ class Instantiator_with_thd<Function_class, 1, 2> {
         return new (thd->mem_root)
             Function_class(thd, POS(), (*args)[0], (*args)[1]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -481,7 +481,7 @@ class Instantiator<Function_class, 2, 3> {
         return new (thd->mem_root)
             Function_class(POS(), (*args)[0], (*args)[1], (*args)[2]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -511,7 +511,7 @@ class Instantiator<Function_class, 2, 4> {
         return new (thd->mem_root) Function_class(POS(), (*args)[0], (*args)[1],
                                                   (*args)[2], (*args)[3]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -541,7 +541,7 @@ class Instantiator<Function_class, 3, 5> {
         return new (thd->mem_root) Function_class(
             POS(), (*args)[0], (*args)[1], (*args)[2], (*args)[3], (*args)[4]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -588,7 +588,7 @@ class Geometry_instantiator {
         return new (thd->mem_root)
             Geometry_class(POS(), (*args)[0], (*args)[1], (*args)[2], Functype);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -750,7 +750,7 @@ class From_unixtime_instantiator {
             Item_func_date_format(POS(), ut, (*args)[1], false);
       }
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -772,7 +772,7 @@ class Round_instantiator {
         return new (thd->mem_root)
             Item_func_round(POS(), (*args)[0], (*args)[1], false);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -794,7 +794,7 @@ class Locate_instantiator {
         return new (thd->mem_root)
             Item_func_locate(POS(), (*args)[1], (*args)[0], (*args)[2]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -814,7 +814,7 @@ class Srid_instantiator {
         return new (thd->mem_root)
             Item_func_st_srid_mutator(POS(), (*args)[0], (*args)[1]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -835,7 +835,7 @@ class Latitude_instantiator {
             Item_func_st_latitude_mutator(POS(), (*args)[0], (*args)[1]);
       default:
         /* purecov: begin deadcode */
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
         /* purecov: end */
     }
@@ -857,7 +857,7 @@ class Longitude_instantiator {
             Item_func_st_longitude_mutator(POS(), (*args)[0], (*args)[1]);
       default:
         /* purecov: begin deadcode */
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
         /* purecov: end */
     }
@@ -877,7 +877,7 @@ class X_instantiator {
         return new (thd->mem_root)
             Item_func_st_x_mutator(POS(), (*args)[0], (*args)[1]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -896,7 +896,7 @@ class Y_instantiator {
         return new (thd->mem_root)
             Item_func_st_y_mutator(POS(), (*args)[0], (*args)[1]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -917,7 +917,7 @@ class Yearweek_instantiator {
         return new (thd->mem_root)
             Item_func_yearweek(POS(), (*args)[0], (*args)[1]);
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return nullptr;
     }
   }
@@ -1112,7 +1112,7 @@ Create_udf_func Create_udf_func::s_singleton;
 Item *Create_udf_func::create_func(THD *thd, LEX_STRING name,
                                    PT_item_list *item_list) {
   udf_func *udf = find_udf(name.str, name.length);
-  DBUG_ASSERT(udf);
+  assert(udf);
   return create(thd, udf, item_list);
 }
 
@@ -1120,8 +1120,7 @@ Item *Create_udf_func::create(THD *thd, udf_func *udf,
                               PT_item_list *item_list) {
   DBUG_TRACE;
 
-  DBUG_ASSERT((udf->type == UDFTYPE_FUNCTION) ||
-              (udf->type == UDFTYPE_AGGREGATE));
+  assert((udf->type == UDFTYPE_FUNCTION) || (udf->type == UDFTYPE_AGGREGATE));
 
   Item *func = nullptr;
   POS pos;
@@ -1426,7 +1425,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"LCASE", SQL_FN(Item_func_lower, 1)},
     {"LEAST", SQL_FN_V_LIST(Item_func_min, 2, MAX_ARGLIST_SIZE)},
     {"LENGTH", SQL_FN(Item_func_length, 1)},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"LIKE_RANGE_MIN", SQL_FN(Item_func_like_range_min, 2)},
     {"LIKE_RANGE_MAX", SQL_FN(Item_func_like_range_max, 2)},
 #endif
@@ -1550,6 +1549,8 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_LENGTH", SQL_FN_V_LIST(Item_func_st_length, 1, 2)},
     {"ST_LINEFROMTEXT", SQL_FACTORY(Linefromtext_instantiator)},
     {"ST_LINEFROMWKB", SQL_FACTORY(Linefromwkb_instantiator)},
+    {"ST_LINEINTERPOLATEPOINT", SQL_FN(Item_func_lineinterpolatepoint, 2)},
+    {"ST_LINEINTERPOLATEPOINTS", SQL_FN(Item_func_lineinterpolatepoints, 2)},
     {"ST_LINESTRINGFROMTEXT", SQL_FACTORY(Linestringfromtext_instantiator)},
     {"ST_LINESTRINGFROMWKB", SQL_FACTORY(Linestringfromwkb_instantiator)},
     {"ST_LONGFROMGEOHASH", SQL_FN(Item_func_longfromgeohash, 1)},
@@ -1574,6 +1575,7 @@ static const std::pair<const char *, Create_func *> func_array[] = {
     {"ST_NUMINTERIORRINGS", SQL_FN(Item_func_numinteriorring, 1)},
     {"ST_NUMPOINTS", SQL_FN(Item_func_numpoints, 1)},
     {"ST_OVERLAPS", SQL_FN(Item_func_st_overlaps, 2)},
+    {"ST_POINTATDISTANCE", SQL_FN(Item_func_st_pointatdistance, 2)},
     {"ST_POINTFROMGEOHASH", SQL_FN(Item_func_pointfromgeohash, 2)},
     {"ST_POINTFROMTEXT", SQL_FACTORY(Pointfromtext_instantiator)},
     {"ST_POINTFROMWKB", SQL_FACTORY(Pointfromwkb_instantiator)},
@@ -1958,9 +1960,58 @@ static bool validate_cast_type_and_extract_length(
         return true;
       }
       return false;
+    case ITEM_CAST_POINT:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of POINT");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_LINESTRING:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of LINESTRING");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_POLYGON:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of POLYGON");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_MULTIPOINT:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of MULTIPOINT");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_MULTILINESTRING:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of MULTILINESTRING>");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_MULTIPOLYGON:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of MULTIPOLYGON");
+        return true;
+      }
+      return false;
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      if (as_array) {
+        my_error(ER_NOT_SUPPORTED_YET, MYF(0),
+                 "CAST-ing data to array of GEOMETRYCOLLECTION");
+        return true;
+      }
+      return false;
   }
   /* purecov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   return true;
   /* purecov: end */
 }
@@ -2008,10 +2059,24 @@ Item *create_func_cast(THD *thd, const POS &pos, Item *arg,
     case ITEM_CAST_DOUBLE:
       return new (thd->mem_root)
           Item_typecast_real(pos, arg, /*as_double=*/true);
+    case ITEM_CAST_POINT:
+      return new (thd->mem_root) Item_typecast_point(pos, arg);
+    case ITEM_CAST_LINESTRING:
+      return new (thd->mem_root) Item_typecast_linestring(pos, arg);
+    case ITEM_CAST_POLYGON:
+      return new (thd->mem_root) Item_typecast_polygon(pos, arg);
+    case ITEM_CAST_MULTIPOINT:
+      return new (thd->mem_root) Item_typecast_multipoint(pos, arg);
+    case ITEM_CAST_MULTILINESTRING:
+      return new (thd->mem_root) Item_typecast_multilinestring(pos, arg);
+    case ITEM_CAST_MULTIPOLYGON:
+      return new (thd->mem_root) Item_typecast_multipolygon(pos, arg);
+    case ITEM_CAST_GEOMETRYCOLLECTION:
+      return new (thd->mem_root) Item_typecast_geometrycollection(pos, arg);
   }
 
   /* purecov: begin deadcode */
-  DBUG_ASSERT(false);
+  assert(false);
   return nullptr;
   /* purecov: end */
 }
@@ -2092,7 +2157,7 @@ Item *create_temporal_literal(THD *thd, const char *str, size_t length,
             Item_time_literal(&ltime, status.fractional_digits);
       break;
     default:
-      DBUG_ASSERT(0);
+      assert(0);
   }
 
   if (item) return item;

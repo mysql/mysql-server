@@ -6,7 +6,7 @@
 
 create user nonblank@localhost identified by 'nonblank';
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl
 -->sql
 select user(),current_user(),@@bind_address;
 -->endsql
@@ -26,17 +26,17 @@ let $XPLUGIN_SOCKET=$MASTER_X_MYSOCK;
 --enable_result_log
 
 --echo # Verify that UNIX socket connection still works
---exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 
 --echo # Verify that TCP is disabled
 --replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
 --error 1
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 
 --echo # Try login using mysqlx protocol when server started with skip-networking options and mysqlx loaded with non super user
 --replace_regex /ERROR: .+:[0-9]+/ERROR: Connection refused connecting to localhost:PORT/
 --error 1
---exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u nonblank --password='nonblank' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 
 
  call mtr.add_suppression("Plugin mysqlx reported: .Preparation of I/O interfaces failed, X Protocol won't be accessible");
@@ -54,11 +54,11 @@ let $XPLUGIN_SOCKET=$MASTER_X_MYSOCK;
 --disable_result_log
 --echo # Verify that TCP is disabled
 --error 1
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 
 --echo # Verify that UNIX socket is disabled
 --error 1
---exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --socket=$XPLUGIN_SOCKET --file=$MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl 2>&1
 
 --disable_query_log
 let $restart_parameters = restart:;
@@ -68,5 +68,4 @@ let $restart_parameters = restart:;
 
 ## Cleanup
 drop user nonblank@localhost;
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -1,0 +1,113 @@
+#
+# Different input paths
+#
+USE test;
+CREATE TABLE gis_geometrycollection(fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+SET @ls='LINESTRING(0 0,0 1)';
+INSERT INTO gis_geometrycollection VALUES (101,ST_GEOMFROMTEXT(@ls));
+# 1 row.
+SELECT count(g IS NULL) FROM gis_geometrycollection;
+count(g IS NULL)
+1
+# Test different input paths, must pass
+SELECT ST_ASTEXT(ST_POINTATDISTANCE(ST_GEOMFROMTEXT(@ls), 0.5));
+ST_ASTEXT(ST_POINTATDISTANCE(ST_GEOMFROMTEXT(@ls), 0.5))
+POINT(0 0.5)
+SELECT ST_ASTEXT(ST_POINTATDISTANCE(g, 0.5)) FROM gis_geometrycollection WHERE fid=101;
+ST_ASTEXT(ST_POINTATDISTANCE(g, 0.5))
+POINT(0 0.5)
+SELECT ST_ASTEXT(ST_POINTATDISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,0 1)'), 0.5));
+ST_ASTEXT(ST_POINTATDISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0,0 1)'), 0.5))
+POINT(0 0.5)
+DROP TABLE gis_geometrycollection;
+#
+# NULL values.
+#
+# At least one NULL parameter. Must return NULL.
+SELECT ST_POINTATDISTANCE(NULL, NULL);
+ST_POINTATDISTANCE(NULL, NULL)
+NULL
+SELECT ST_POINTATDISTANCE(NULL, 2);
+ST_POINTATDISTANCE(NULL, 2)
+NULL
+SELECT ST_POINTATDISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)', 4326), NULL);
+ST_POINTATDISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)', 4326), NULL)
+NULL
+#
+# Invalid parameters.
+#
+# Invalid geometry. Must raise error.
+DO ST_POINTATDISTANCE(x'000000000123456789abcdef', 1);
+ERROR 22023: Invalid GIS data provided to function st_pointatdistance.
+# Non-existing SRID. Must raise error.
+DO ST_POINTATDISTANCE(0xffffffff01020000000500000000000000000000000000000000000000000000000000F03F000000000000F03F000000000000F03F00000000000000400000000000000040000000000000F03F00000000000000400000000000000040,1);
+ERROR SR001: There's no spatial reference system with SRID 4294967295.
+# Latitude values must be within range [-90, 90].
+DO ST_POINTATDISTANCE(0xE61000000102000000020000000000000000000000F2D24D62108056C000000000000000000000000000000000, 1);
+ERROR 22S03: A parameter of function st_pointatdistance contains a geometry with latitude -90.001000, which is out of range. It must be within [-90.000000, 90.000000].
+DO ST_POINTATDISTANCE(0xE6100000010200000002000000000000000000000000000000000000000000000000000000F2D24D62108056C0, 1);
+ERROR 22S03: A parameter of function st_pointatdistance contains a geometry with latitude -90.001000, which is out of range. It must be within [-90.000000, 90.000000].
+DO ST_POINTATDISTANCE(0xE61000000102000000020000000000000000000000F2D24D621080564000000000000000000000000000000000, 1);
+ERROR 22S03: A parameter of function st_pointatdistance contains a geometry with latitude 90.001000, which is out of range. It must be within [-90.000000, 90.000000].
+DO ST_POINTATDISTANCE(0xE6100000010200000002000000000000000000000000000000000000000000000000000000F2D24D6210805640, 1);
+ERROR 22S03: A parameter of function st_pointatdistance contains a geometry with latitude 90.001000, which is out of range. It must be within [-90.000000, 90.000000].
+# Longitude values must be within range (-180, 180].
+DO ST_POINTATDISTANCE(0xE610000001020000000200000079E92631088066C0000000000000000000000000000000000000000000000000, 1);
+ERROR 22S02: A parameter of function st_pointatdistance contains a geometry with longitude -180.001000, which is out of range. It must be within (-180.000000, 180.000000].
+DO ST_POINTATDISTANCE(0xE61000000102000000020000000000000000000000000000000000000079E92631088066C00000000000000000, 1);
+ERROR 22S02: A parameter of function st_pointatdistance contains a geometry with longitude -180.001000, which is out of range. It must be within (-180.000000, 180.000000].
+DO ST_POINTATDISTANCE(0xE610000001020000000200000079E9263108806640000000000000000000000000000000000000000000000000, 1);
+ERROR 22S02: A parameter of function st_pointatdistance contains a geometry with longitude 180.001000, which is out of range. It must be within (-180.000000, 180.000000].
+DO ST_POINTATDISTANCE(0xE61000000102000000020000000000000000000000000000000000000079E92631088066400000000000000000, 1);
+ERROR 22S02: A parameter of function st_pointatdistance contains a geometry with longitude 180.001000, which is out of range. It must be within (-180.000000, 180.000000].
+#
+# Wrong arguments
+#
+# The geometry must be a linestring.
+# Cartesian SRID 0
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 0), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type POINT in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 1, 0 0))', 0), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type POLYGON in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 0), (1 1))', 0), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type MULTIPOINT in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 1 1))', 0), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type MULTILINESTRING in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 1, 0 0)))', 0), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type MULTIPOLYGON in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))', 0), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type GEOMCOLLECTION in st_pointatdistance.
+# Geographic
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('POINT(0 0)', 4326), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type POINT in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('POLYGON((0 0, 0 1, 1 1, 0 0))', 4326), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type POLYGON in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('MULTIPOINT((0 0), (1 1))', 4326), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type MULTIPOINT in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('MULTILINESTRING((0 0, 1 1))', 4326), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type MULTILINESTRING in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('MULTIPOLYGON(((0 0, 0 1, 1 1, 0 0)))', 4326), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type MULTIPOLYGON in st_pointatdistance.
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(0 0))', 4326), 1);
+ERROR 22S01: LINESTRING value is a geometry of unexpected type GEOMCOLLECTION in st_pointatdistance.
+# The distance cannot be longer than length of linestring and must be positive
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'), 2);
+ERROR 22003: Distance value is out of range in 'st_pointatdistance'
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)', 4326), 111400);
+ERROR 22003: Distance value is out of range in 'st_pointatdistance'
+# Error invoked from length function
+DO ST_POINTATDISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1e308, 1e308 1e308)', 0), 1);
+ERROR 22003: Length value is out of range in 'st_length'
+#
+# Excercise code on supported types.
+#
+# Cartesian
+SELECT ST_ASTEXT(ST_POINTATDISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'), 0.5));
+ST_ASTEXT(ST_POINTATDISTANCE(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'), 0.5))
+POINT(0 0.5)
+SELECT ST_ASTEXT(ST_LINEINTERPOLATEPOINT(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'), 0.5));
+ST_ASTEXT(ST_LINEINTERPOLATEPOINT(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'), 0.5))
+POINT(0 0.5)
+SELECT ST_ASTEXT(ST_LINEINTERPOLATEPOINTS(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'), 0.2));
+ST_ASTEXT(ST_LINEINTERPOLATEPOINTS(ST_GEOMFROMTEXT('LINESTRING(0 0, 0 1)'), 0.2))
+MULTIPOINT((0 0.2),(0 0.4),(0 0.6000000000000001),(0 0.8),(0 1))

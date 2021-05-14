@@ -1,8 +1,3 @@
-# Performance schema tests generally depend on specific query plans
-# and behavior, and much of the perfschema suite is therefore disabled
-# if the hypergraph optimizer is active.
---source include/not_hypergraph.inc
-
 # Tests for PERFORMANCE_SCHEMA
 # Miscelaneous
 
@@ -131,7 +126,7 @@ select * from test.ghost;
 
 drop table test.ghost;
 
-# Shoud return nothing
+# Should return nothing
 select * from performance_schema.file_instances
   where file_name like "%ghost%";
 
@@ -141,6 +136,37 @@ select * from performance_schema.file_instances
 
 --error ER_NO_SUCH_TABLE
 select * from performance_schema.no_such_table;
+
+#
+# Bug#30701047 SELECT FOR UPDATE NOT-EXIST TABLE
+#              IN PERFORMANCE SCHEMA REPORTS CONFUSING ERROR
+
+--error ER_NO_SUCH_TABLE
+select * from performance_schema.no_such_table for update;
+
+--error ER_NO_SUCH_TABLE
+insert into performance_schema.no_such_table values(1);
+
+--error ER_NO_SUCH_TABLE
+update performance_schema.no_such_table set no_such_col = 2;
+
+--error ER_NO_SUCH_TABLE
+delete from performance_schema.no_such_table where no_such_col = 3;
+
+--error ER_NO_SUCH_TABLE
+lock table performance_schema.no_such_table read;
+
+--error ER_NO_SUCH_TABLE
+lock table performance_schema.no_such_table write;
+
+--error ER_NO_SUCH_TABLE
+show create table performance_schema.no_such_table;
+
+--error ER_NO_SUCH_TABLE
+show create view performance_schema.no_such_view;
+
+# Supported
+drop table if exists performance_schema.no_such_table;
 
 #
 # Bug#12370950 - 60905: TABLE_IO_WAITS_SUMMARY_BY_INDEX_USAGE AGGREGATES NON-INSERT DML WRONGLY

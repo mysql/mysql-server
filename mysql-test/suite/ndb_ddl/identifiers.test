@@ -1,0 +1,94 @@
+####################################################
+# Tests related to DDL and object identifiers
+####################################################
+
+--source connect.inc
+
+--echo #
+--echo # Bug#31846478 IMPROVE HANDLING OF DATABASE AND TABLE NAMES
+--echo # - Add tests to verify handling of identifiers with special
+--echo #   characters.
+--echo #
+
+CREATE TABLE `t_special_ö_\\_\_/_`(
+  a INT PRIMARY KEY,
+  b VARCHAR(255),
+  c DATETIME,
+  KEY(b),
+  INDEX(a,b,c)
+) ENGINE=ndb;
+--source show_name_of_special_table.inc
+
+#
+# Check just a few DML, these will work as long as the table can be opened
+#
+INSERT INTO `t_special_ö_\\_\_/_` VALUES
+  (1,'t_special_1','2020-11-01 00:05:01'),
+  (2,'t_special_2','2020-11-02 00:04:02'),
+  (3,'t_special_3','2020-11-03 00:03:03'),
+  (4,'t_special_4','2020-11-04 00:02:04'),
+  (5,'t_special_5','2020-11-05 00:01:05');
+SELECT * FROM `t_special_ö_\\_\_/_` WHERE a = 3;
+
+#
+# Check several different DDL variations, these are more complicated
+#
+--echo # Inplace alter table
+ALTER TABLE `t_special_ö_\\_\_/_` ALGORITHM=inplace,
+  ADD COLUMN d INT DEFAULT NULL;
+--disable_query_log ONCE
+SELECT CASE COUNT(COLUMN_NAME) WHEN 1 THEN 'YES' ELSE 'NO' END as Column_d_exist
+  FROM information_schema.columns
+    WHERE TABLE_NAME LIKE('t_special%') AND COLUMN_NAME = 'd';
+--source show_name_of_special_table.inc
+
+--echo # Copying alter table
+ALTER TABLE `t_special_ö_\\_\_/_` ALGORITHM=copy,
+  MODIFY COLUMN c DATETIME NOT NULL;
+--disable_query_log ONCE
+SELECT IS_NULLABLE as Column_c_is_nullable FROM information_schema.columns
+  WHERE TABLE_NAME LIKE('t_special%') AND COLUMN_NAME = 'c';
+--source show_name_of_special_table.inc
+
+--echo # Copying alter table with rename
+ALTER TABLE `t_special_ö_\\_\_/_` ALGORITHM=copy,
+  RENAME TO `t_special_å_/_\_`;
+--source show_name_of_special_table.inc
+
+--echo # Alter table with "simple rename" (ALTER optimized by MySQL Server)
+ALTER TABLE `t_special_å_/_\_` RENAME TO `t_special_ä_\\_/_\_`;
+--source show_name_of_special_table.inc
+
+--echo # Rename table
+RENAME TABLE `t_special_ä_\\_/_\_` TO `t_special_ö_\\_/_\_`;
+--source show_name_of_special_table.inc
+
+--echo # Drop the table and check no "t_special*" table is left anywhere
+DROP TABLE `t_special_ö_\\_/_\_`;
+--source show_name_of_special_table.inc
+
+--echo #
+--echo # Create database with special name
+--echo #
+
+CREATE DATABASE `test_\_ö`;
+
+CREATE TABLE `test_\_ö`.t_special (
+  a int primary key
+) engine = NDB;
+--source show_name_of_special_table.inc
+
+DROP DATABASE `test_\_ö`;
+
+--echo #
+--echo # Create table in database with forward slash is not
+--echo # supported (by NdbApi) since the slash is used as separator
+--echo # in the NDB tables internal name.
+CREATE DATABASE `d/1`;
+--error ER_CANT_CREATE_TABLE
+CREATE TABLE `d/1`.`t1` (a int) ENGINE=NDB;
+# The failure should also have pushed some warnings which
+# further explains the problem. These includes also the warnings from
+# discover phase where the same error is triggered.
+SHOW WARNINGS;
+DROP DATABASE `d/1`;

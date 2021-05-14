@@ -62,6 +62,7 @@ global_status
 global_variables
 host_cache
 hosts
+keyring_component_status
 keyring_keys
 log_status
 memory_summary_by_account_by_event_name

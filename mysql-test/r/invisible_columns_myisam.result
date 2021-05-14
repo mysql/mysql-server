@@ -650,7 +650,8 @@ DROP VIEW v1, v2;
 #------------------------------------------------------------------------
 # Test case to verify INFORMATION_SCHEMA.COLUMNS result set.
 #------------------------------------------------------------------------
-SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='test';
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA='test' ORDER BY TABLE_NAME, COLUMN_NAME;
 TABLE_NAME	COLUMN_NAME	EXTRA
 t1	f1	INVISIBLE
 t1	f2	
@@ -893,4 +894,10 @@ b	a	c
 1	NULL	NULL
 2	NULL	NULL
 3	NULL	NULL
+DROP TABLE t1, t2;
+#------------------------------------------------------------------------
+# Test case to verify my_row_id name usage for invisible columns.
+#------------------------------------------------------------------------
+CREATE TABLE t1(a INT, my_row_id INT);
+CREATE TABLE t2(a INT, my_row_id INT INVISIBLE);
 DROP TABLE t1, t2;

@@ -29,7 +29,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/check_compression_recv_stats.tmp
+--write_file $MYSQL_TMP_DIR/check_compression_recv_stats.xpl
 
 use performance_schema;
 
@@ -94,22 +94,21 @@ exec $MYSQLXTEST
   -ux_root --password=''
   --compression-mode=required
   --compression-algorithm=deflate_stream
-  --file=$MYSQL_TMP_DIR/check_compression_recv_stats.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/check_compression_recv_stats.xpl 2>&1;
 
 echo ## 2. Verify compression at client side using LZ4Frame algorithm;
 exec $MYSQLXTEST
   -ux_root --password=''
   --compression-mode=required
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/check_compression_recv_stats.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/check_compression_recv_stats.xpl 2>&1;
 
 echo ## 3. Verify compression at client side using ZSTD algorithm;
 exec $MYSQLXTEST
   -ux_root --password=''
   --compression-mode=required
   --compression-algorithm=zstd_stream
-  --file=$MYSQL_TMP_DIR/check_compression_recv_stats.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/check_compression_recv_stats.xpl 2>&1;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/check_compression_recv_stats.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

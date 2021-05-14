@@ -199,5 +199,4 @@ Mysqlx.Ok {
 }
 ok
 include/assert.inc [Global status of 'Mysqlx_crud_create_view']
-DROP SCHEMA IF EXISTS xtest;
 DROP USER xuser;

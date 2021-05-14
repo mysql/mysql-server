@@ -1,0 +1,180 @@
+###############################################################################
+#                                                                             #
+# CAST(... AS GEOMETRYCOLLECTION) allows casting geometries of type           #
+# POINT, LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING, MULTIPOLYGON and   #
+#  GEOMETRYCOLLECTION to type GEOMETRYCOLLECTION.                             #
+#                                                                             #
+# Creation Date: 2020-08-02                                                   #
+# Author: Magnus Rushfeldt                                                    #
+#                                                                             #
+###############################################################################
+
+--echo ####################################################
+--echo # Requirement F-13a:                               #
+--echo # CAST(... AS GEOMCOLLECTION) must give the same   #
+--echo # same result as CAST(... AS GEOMETRYCOLLECTION)   #
+--echo ####################################################
+--echo #
+
+--echo # Casting using CAST(... AS GEOMETRYCOLLECTION) must be allowed.
+--echo # Must return geometrycollection.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo # Casting using CAST(... AS GEOMCOLLECTION) must be allowed.
+--echo # Must return geometrycollection.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS GEOMCOLLECTION));
+--echo #
+
+--echo ####################################################
+--echo # Requirement F-13b:                               #
+--echo # CAST(point AS GEOMETRYCOLLECTION)                #
+--echo ####################################################
+--echo #
+
+--echo # Casting from POINT to GEOMETRYCOLLECTION is always allowed.
+--echo # Must return geometrycollection.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS GEOMETRYCOLLECTION));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1))'), CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo ####################################################
+--echo # Requirement F-13c:                               #
+--echo # CAST(linestring AS GEOMETRYCOLLECTION)           #
+--echo ####################################################
+--echo #
+
+--echo # Casting from LINESTRING to GEOMETRYCOLLECTION is always allowed.
+--echo # Must return geometrycollection.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS GEOMETRYCOLLECTION));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1, 2 2))'), CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo ####################################################
+--echo # Requirement F-13d:                               #
+--echo # CAST(polygon AS GEOMETRYCOLLECTION)              #
+--echo ####################################################
+--echo #
+
+--echo # Casting from POLYGON to GEOMETRYCOLLECTION is always allowed.
+--echo # Must return geometrycollection.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 3 2, 3 3, 2 3, 2 2))') AS GEOMETRYCOLLECTION));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 3 2, 3 3, 2 3, 2 2)))'), CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 4 1, 4 4, 1 4, 1 1), (2 2, 3 2, 3 3, 2 3, 2 2))') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo ####################################################
+--echo # Requirement F-13e:                               #
+--echo # CAST(multipoint AS GEOMETRYCOLLECTION)           #
+--echo ####################################################
+--echo #
+
+--echo # Casting from MULTIPOINT to GEOMETRYCOLLECTION is always allowed.
+--echo # Must return geometrycollection.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS GEOMETRYCOLLECTION));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), POINT(2 2))'), CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo ####################################################
+--echo # Requirement F-13f:                               #
+--echo # CAST(multilinestring AS GEOMETRYCOLLECTION)      #
+--echo ####################################################
+--echo #
+
+--echo # Casting from MULTILINESTRING to GEOMETRYCOLLECTION is always allowed.
+--echo # Must return geometrycollection.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS GEOMETRYCOLLECTION));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1, 2 2), LINESTRING(3 3, 4 4))'), CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo ####################################################
+--echo # Requirement F-13g:                               #
+--echo # CAST(multipolygon AS GEOMETRYCOLLECTION)         #
+--echo ####################################################
+--echo #
+
+--echo # Casting from MULTIPOLYGON to GEOMETRYCOLLECTION is always allowed.
+--echo # Must return geometrycollection.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 6 5, 6 6, 5 6, 5 5)))') AS GEOMETRYCOLLECTION));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POLYGON((1 1, 4 1, 4 4, 1 4, 1 1)), POLYGON((5 5, 6 5, 6 6, 5 6, 5 5)))'), CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 4 1, 4 4, 1 4, 1 1)), ((5 5, 6 5, 6 6, 5 6, 5 5)))') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo ####################################################
+--echo # Requirement F-13h:                               #
+--echo # CAST(geometrycollection AS GEOMETRYCOLLECTION)   #
+--echo ####################################################
+--echo #
+
+--echo # Casting from GEOMETRYCOLLECTION to GEOMETRYCOLLECTION is always allowed.
+--echo # Must return geometrycollection.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))'), CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), LINESTRING(2 2, 3 3))') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo #############################################
+--echo # Testing result of WKT input               #
+--echo #############################################
+--echo #
+
+--echo # Casting from ST_GEOMFROMTEXT(<WKT>) to GEOMETRYCOLLECTION must return expected linestring.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('LINESTRING(2 2, 3 3)') AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((4 4, 5 4, 5 5, 4 5, 4 4))') AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((6 6), (7 7))') AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((8 8, 9 9), (10 10, 11 11))') AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((12 12, 13 12, 13 13, 12 13, 12 12)), ((14 14, 15 14, 15 15, 14 15, 14 14)))') AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(16 16), LINESTRING(17 17, 18 18))') AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo #############################################
+--echo # Testing result of user variable input     #
+--echo #############################################
+--echo #
+
+SET @point = ST_GEOMFROMTEXT('POINT(1 1)');
+SET @linestring = ST_GEOMFROMTEXT('LINESTRING(2 2, 3 3)');
+SET @polygon = ST_GEOMFROMTEXT('POLYGON((4 4, 5 4, 5 5, 4 5, 4 4))');
+SET @multipoint = ST_GEOMFROMTEXT('MULTIPOINT((6 6), (7 7))');
+SET @multilinestring = ST_GEOMFROMTEXT('MULTILINESTRING((8 8, 9 9), (10 10, 11 11))');
+SET @multipolygon = ST_GEOMFROMTEXT('MULTIPOLYGON(((12 12, 13 12, 13 13, 12 13, 12 12)), ((14 14, 15 14, 15 15, 14 15, 14 14)))');
+SET @geomcollection = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(16 16), LINESTRING(17 17, 18 18))');
+--echo #
+
+--echo # Casting from geometry in user variable to GEOMETRYCOLLECTION must return expected geometrycollection.
+SELECT ST_ASTEXT(CAST(@point AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(@linestring AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(@polygon AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(@multipoint AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(@multilinestring AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(@multipolygon AS GEOMETRYCOLLECTION));
+SELECT ST_ASTEXT(CAST(@geomcollection AS GEOMETRYCOLLECTION));
+--echo #
+
+--echo #############################################
+--echo # Testing result of table column input      #
+--echo #############################################
+--echo #
+
+CREATE TABLE gis_geometrycollection_castable (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+INSERT INTO gis_geometrycollection_castable VALUES
+(101, ST_GEOMFROMTEXT('POINT(1 1)')),
+(102, ST_GEOMFROMTEXT('LINESTRING(2 2, 3 3)')),
+(103, ST_GEOMFROMTEXT('POLYGON((4 4, 5 4, 5 5, 4 5, 4 4))')),
+(104, ST_GEOMFROMTEXT('MULTIPOINT((6 6), (7 7))')),
+(105, ST_GEOMFROMTEXT('MULTILINESTRING((8 8, 9 9), (10 10, 11 11))')),
+(106, ST_GEOMFROMTEXT('MULTIPOLYGON(((12 12, 13 12, 13 13, 12 13, 12 12)), ((14 14, 15 14, 15 15, 14 15, 14 14)))')),
+(107, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(16 16), LINESTRING(17 17, 18 18))'));
+--echo #
+
+--echo # Casting from geometry column to GEOMETRYCOLLECTION must return expected geometrycollection.
+SELECT ST_ASTEXT(CAST(g AS GEOMETRYCOLLECTION)) FROM gis_geometrycollection_castable;
+--echo #
+
+--echo # Cleanup.
+DROP TABLE gis_geometrycollection_castable;

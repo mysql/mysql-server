@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -266,13 +266,13 @@ message Error {
   /** severity of the error message */
   optional Severity severity = 1 [ default = ERROR ];
 
-  /** error-code */
+  /** error code */
   required uint32 code = 2;
 
   /** SQL state */
   required string sql_state = 4;
 
-  /** human readable error message */
+  /** human-readable error message */
   required string msg = 3;
 
   enum Severity {
@@ -284,35 +284,7 @@ message Error {
 }
 
 
-/** @page mysqlx_protocol X %Protocol
-
-@par Topics in this section:
-
-- @subpage mysqlx_protocol_lifecycle
-- @subpage mysqlx_protocol_authentication
-- @subpage mysqlx_protocol_messages
-- @subpage mysqlx_protocol_expectations
-- @subpage mysqlx_protocol_notices
-- @subpage mysqlx_protocol_xplugin
-- @subpage mysqlx_protocol_use_cases
-- @subpage mysqlx_protocol_implementation
-- @subpage mysqlx_protocol_comparison
-
-
-The X %Protocol is implemented by the X Plugin and the following
-MySQL clients support the protocol:
-
--  MYSQLXSHELL
-
--  MySQL for Visual Studio 2.0.2 or higher
-
--  MySQL Connector/J 6.0.2 or higher
-
--  MySQL Connector/Net 7.0.2 or higher
-
--  MySQL Connector/Node.js
-
-@section xprotocol_community_connector How to build a Community Connector
+/** @page mysqlx_community_connector How to build a Community Connector
 
 MySQL provides a set of official MySQL Connectors for several popular
 development frameworks and languages like Node.js, .Net, Python, Java, C,

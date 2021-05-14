@@ -11,7 +11,7 @@
 call mtr.add_suppression("Maximum number of authentication attempts reached");
 call mtr.add_suppression("Access denied for user .*");
 
---write_file $MYSQL_TMP_DIR/auth_seq.tmp
+--write_file $MYSQL_TMP_DIR/auth_seq.xpl
 -->import connection_auth_mechanism_memory_helpers.macro
 -->import connection.macro
 
@@ -133,7 +133,7 @@ peerdisc 30000 30000;
 
 EOF
 
---write_file $MYSQL_TMP_DIR/auth_errors.tmp
+--write_file $MYSQL_TMP_DIR/auth_errors.xpl
 -->import connection.macro
 callmacro Verify_its_xprotocol_connection;
 
@@ -163,7 +163,7 @@ exec $MYSQLXTEST -u user_to_lock  -p "xxx" --ssl-mode=DISABLED --cached-auth --m
 
 # Use raw protocol message and show that first error in the sequence is ACCOUNT_LOCKED
 
-exec $MYSQLXTEST -u user_to_lock  -p "xxx" --no-auth --file=$MYSQL_TMP_DIR/auth_errors.tmp 2>&1;
+exec $MYSQLXTEST -u user_to_lock  -p "xxx" --no-auth --file=$MYSQL_TMP_DIR/auth_errors.xpl 2>&1;
 
 #
 ## Authentication sequence part
@@ -174,15 +174,11 @@ exec $MYSQLXTEST -u user_to_lock  -p "xxx" --no-auth --file=$MYSQL_TMP_DIR/auth_
 --source ../include/create_mysql_accounts_for_xplugin_tests.inc
 
 
-exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq.tmp 2>&1;
+exec $MYSQLXTEST --file=$MYSQL_TMP_DIR/auth_seq.xpl 2>&1;
 
 #
 ## Postamble
 #
---source include/xplugin_drop_user.inc
---remove_file $MYSQL_TMP_DIR/auth_seq.tmp
---remove_file $MYSQL_TMP_DIR/auth_errors.tmp
-DROP USER user_to_lock@localhost;
-
+--source ../include/xplugin_cleanup.inc
 --source ../include/remove_mysql_accounts_for_xplugin_tests.inc
-
+DROP USER user_to_lock@localhost;

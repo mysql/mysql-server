@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,8 +114,8 @@ namespace container {
   - `is_full`: whether or not the tail and head-plus-queue-capacity point
                to the same virtual index.
   - `erase_if`: traverses the queue, starting at the queue relative memory
-                index 0, stopping at the relative memory index `capacity()
-                - 1` and invoking the passed-on predicate over each
+                index 0, stopping at the relative memory index
+                `capacity() - 1` and invoking the passed-on predicate over each
                 position value, while disregarding positions that have
                 `Null` or `Erased` values.
 
@@ -568,11 +568,13 @@ class Integrals_lockfree_queue {
 };
 }  // namespace container
 
+#ifndef IN_DOXYGEN  // Doxygen doesn't understand this construction.
 template <typename T, T Null, T Erased, typename I, typename A>
 container::Integrals_lockfree_queue<T, Null, Erased, I, A>::Iterator::Iterator(
     Integrals_lockfree_queue<T, Null, Erased, I, A> const &parent,
     Integrals_lockfree_queue<T, Null, Erased, I, A>::index_type position)
     : m_current{position}, m_parent{&parent} {}
+#endif
 
 template <typename T, T Null, T Erased, typename I, typename A>
 container::Integrals_lockfree_queue<T, Null, Erased, I, A>::Iterator::Iterator(
@@ -797,7 +799,7 @@ template <typename T, T Null, T Erased, typename I, typename A>
 container::Integrals_lockfree_queue<T, Null, Erased, I, A>
     &container::Integrals_lockfree_queue<T, Null, Erased, I, A>::push(
         value_type to_push) {
-  DBUG_ASSERT(to_push != Null && to_push != Erased);
+  assert(to_push != Null && to_push != Erased);
   this->clear_state();
   for (; true;) {
     auto tail = this->m_tail->load(std::memory_order_acquire) & clear_bit;

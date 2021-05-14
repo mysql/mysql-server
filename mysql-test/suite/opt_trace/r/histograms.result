@@ -24,7 +24,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` > 4)
 SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, @path)
-[[{"condition": "(`t1`.`col1` > 4)", "histogram_selectivity": 0.1667}]]
+[[{"condition": "(`t1`.`col1` > 4)", "histogram_selectivity": 0.166667}]]
 EXPLAIN SELECT * FROM t1 WHERE col1 >= 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
@@ -32,7 +32,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` >= 4)
 SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, @path)
-[[{"condition": "(`t1`.`col1` >= 4)", "histogram_selectivity": 0.3333}]]
+[[{"condition": "(`t1`.`col1` >= 4)", "histogram_selectivity": 0.333333}]]
 EXPLAIN SELECT * FROM t1 WHERE col1 <= 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	66.67	Using where
@@ -40,7 +40,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` <= 4)
 SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, @path)
-[[{"condition": "(`t1`.`col1` <= 4)", "histogram_selectivity": 0.6667}]]
+[[{"condition": "(`t1`.`col1` <= 4)", "histogram_selectivity": 0.666667}]]
 EXPLAIN SELECT * FROM t1 WHERE col1 = 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	16.67	Using where
@@ -48,7 +48,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` = 4)
 SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, @path)
-[[{"condition": "(`t1`.`col1` = 4)", "histogram_selectivity": 0.1667}]]
+[[{"condition": "(`t1`.`col1` = 4)", "histogram_selectivity": 0.166667}]]
 EXPLAIN SELECT * FROM t1 WHERE col1 != 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	66.67	Using where
@@ -56,7 +56,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` <> 4)
 SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, @path)
-[[{"condition": "(`t1`.`col1` <> 4)", "histogram_selectivity": 0.6667}]]
+[[{"condition": "(`t1`.`col1` <> 4)", "histogram_selectivity": 0.666667}]]
 EXPLAIN SELECT * FROM t1 WHERE col1 <> 4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	66.67	Using where
@@ -64,7 +64,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` <> 4)
 SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, @path)
-[[{"condition": "(`t1`.`col1` <> 4)", "histogram_selectivity": 0.6667}]]
+[[{"condition": "(`t1`.`col1` <> 4)", "histogram_selectivity": 0.666667}]]
 EXPLAIN SELECT * FROM t1 WHERE col1 BETWEEN 4 AND 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	33.33	Using where
@@ -72,7 +72,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` between 4 and 6)
 SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, @path)
-[[{"condition": "(`t1`.`col1` between 4 and 6)", "histogram_selectivity": 0.3333}]]
+[[{"condition": "(`t1`.`col1` between 4 and 6)", "histogram_selectivity": 0.333333}]]
 EXPLAIN SELECT * FROM t1 WHERE col1 NOT BETWEEN 4 AND 6;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	50.00	Using where
@@ -88,7 +88,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` is null)
 SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, @path)
-[[{"condition": "(`t1`.`col1` is null)", "histogram_selectivity": 0.1667}]]
+[[{"condition": "(`t1`.`col1` is null)", "histogram_selectivity": 0.166667}]]
 EXPLAIN SELECT * FROM t1 WHERE col1 IS NOT NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	6	83.33	Using where
@@ -96,7 +96,7 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col1` AS `col1`,`test`.`t1`.`col2` AS `col2` from `test`.`t1` where (`test`.`t1`.`col1` is not null)
 SELECT JSON_EXTRACT(trace, @path) FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, @path)
-[[{"condition": "(`t1`.`col1` is not null)", "histogram_selectivity": 0.8333}]]
+[[{"condition": "(`t1`.`col1` is not null)", "histogram_selectivity": 0.833333}]]
 DROP TABLE t1;
 #
 # Show that histogram selecitivty estimation is printed for other acecss
@@ -149,5 +149,5 @@ JSON_EXTRACT(trace, @path)
 SELECT JSON_EXTRACT(trace, "$**.final_filtering_effect")
 FROM information_schema.OPTIMIZER_TRACE;
 JSON_EXTRACT(trace, "$**.final_filtering_effect")
-[0.6562]
+[0.65625]
 DROP TABLE t1;

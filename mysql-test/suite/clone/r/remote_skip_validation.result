@@ -1,0 +1,181 @@
+CREATE TABLE t1(col1 INT PRIMARY KEY, col2 char(64), FULLTEXT KEY fts_index(col2));
+INSERT INTO t1 VALUES(10, 'clone row 1');
+INSERT INTO t1 VALUES(20, 'clone row 2');
+INSERT INTO t1 VALUES(30, 'clone row 3');
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+SELECT count(*) FROM mysql.general_log;
+count(*)
+0
+SELECT count(*) FROM mysql.slow_log;
+count(*)
+0
+CREATE TABLE t_myisam(col1 INT PRIMARY KEY, col2 char(64)) ENGINE=MyISAM;
+INSERT INTO t_myisam VALUES(10, 'myisam not cloned row 1');
+SELECT * from t_myisam ORDER BY col1;
+col1	col2
+10	myisam not cloned row 1
+CREATE TABLE t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL) ENGINE=CSV;
+INSERT INTO t_csv VALUES(10, 'csv not cloned row 1');
+SELECT * from t_csv ORDER BY col1;
+col1	col2
+10	csv not cloned row 1
+CREATE SCHEMA non_innodb;
+CREATE TABLE non_innodb.t_myisam(col1 INT PRIMARY KEY, col2 char(64)) ENGINE=MyISAM;
+INSERT INTO non_innodb.t_myisam VALUES(10, 'myisam not cloned row 1');
+INSERT INTO non_innodb.t_myisam VALUES(20, 'myisam not cloned row 2');
+INSERT INTO non_innodb.t_myisam VALUES(30, 'myisam not cloned row 3');
+SELECT * from non_innodb.t_myisam ORDER BY col1;
+col1	col2
+10	myisam not cloned row 1
+20	myisam not cloned row 2
+30	myisam not cloned row 3
+CREATE TABLE non_innodb.t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL) ENGINE=CSV;
+INSERT INTO non_innodb.t_csv VALUES(10, 'csv not cloned row 1');
+INSERT INTO non_innodb.t_csv VALUES(20, 'csv not cloned row 2');
+INSERT INTO non_innodb.t_csv VALUES(30, 'csv not cloned row 3');
+SELECT * from non_innodb.t_csv ORDER BY col1;
+col1	col2
+10	csv not cloned row 1
+20	csv not cloned row 2
+30	csv not cloned row 3
+CREATE SCHEMA schema_read_only;
+CREATE TABLE schema_read_only.t_myisam(col1 INT PRIMARY KEY, col2 char(64))
+ENGINE=MyISAM;
+INSERT INTO schema_read_only.t_myisam VALUES(10, 'myisam not cloned row 1');
+INSERT INTO schema_read_only.t_myisam VALUES(20, 'myisam not cloned row 2');
+INSERT INTO schema_read_only.t_myisam VALUES(30, 'myisam not cloned row 3');
+SELECT * from schema_read_only.t_myisam ORDER BY col1;
+col1	col2
+10	myisam not cloned row 1
+20	myisam not cloned row 2
+30	myisam not cloned row 3
+CREATE TABLE schema_read_only.t_csv(col1 INT NOT NULL, col2 char(64) NOT NULL)
+ENGINE=CSV;
+INSERT INTO schema_read_only.t_csv VALUES(10, 'csv not cloned row 1');
+INSERT INTO schema_read_only.t_csv VALUES(20, 'csv not cloned row 2');
+INSERT INTO schema_read_only.t_csv VALUES(30, 'csv not cloned row 3');
+SELECT * from schema_read_only.t_csv ORDER BY col1;
+col1	col2
+10	csv not cloned row 1
+20	csv not cloned row 2
+30	csv not cloned row 3
+CREATE TABLE schema_read_only.t_innodb(col1 INT PRIMARY KEY, col2 char(64))
+ENGINE=InnoDB;
+INSERT INTO schema_read_only.t_innodb VALUES(10, 'innodb cloned row 1');
+INSERT INTO schema_read_only.t_innodb VALUES(20, 'innodb cloned row 2');
+INSERT INTO schema_read_only.t_innodb VALUES(30, 'innodb cloned row 3');
+SELECT * from schema_read_only.t_innodb ORDER BY col1;
+col1	col2
+10	innodb cloned row 1
+20	innodb cloned row 2
+30	innodb cloned row 3
+ALTER SCHEMA schema_read_only READ ONLY=1;
+#BEGIN Bug 32199611: CLONE PLUGIN INSTALLATION FAILS IN PFS TABLE CREATION
+SET LOCAL explicit_defaults_for_timestamp = OFF;
+Warnings:
+Warning	1287	'explicit_defaults_for_timestamp' is deprecated and will be removed in a future release.
+SHOW VARIABLES LIKE 'explicit_defaults_for_timestamp';
+Variable_name	Value
+explicit_defaults_for_timestamp	OFF
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+UNINSTALL PLUGIN clone;
+SET LOCAL explicit_defaults_for_timestamp = default;
+#End Bug 32199611: CLONE PLUGIN INSTALLATION FAILS IN PFS TABLE CREATION
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+INSTALL PLUGIN example SONAME 'EXAMPLE_PLUGIN';
+SELECT PLUGIN_NAME, PLUGIN_STATUS FROM INFORMATION_SCHEMA.PLUGINS
+WHERE PLUGIN_NAME LIKE '%clone%';
+PLUGIN_NAME	PLUGIN_STATUS
+clone	ACTIVE
+# restart: --skip-innodb-validate-tablespace-paths
+SET GLOBAL clone_autotune_concurrency = OFF;
+SET GLOBAL clone_max_concurrency = 8;
+SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
+CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
+select ID, STATE, ERROR_NO from performance_schema.clone_status;
+ID	STATE	ERROR_NO
+1	Completed	0
+select ID, STAGE, STATE from performance_schema.clone_progress;
+ID	STAGE	STATE
+1	DROP DATA	Completed
+1	FILE COPY	Completed
+1	PAGE COPY	Completed
+1	REDO COPY	Completed
+1	FILE SYNC	Completed
+1	RESTART	Not Started
+1	RECOVERY	Not Started
+# restart: --datadir=CLONE_DATADIR
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+INSERT INTO t1 VALUES(40, 'clone row 4');
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+40	clone row 4
+INSERT INTO t_myisam VALUES(40, 'myisam not cloned row 4');
+SELECT * from t_myisam ORDER BY col1;
+col1	col2
+40	myisam not cloned row 4
+INSERT INTO t_csv VALUES(40, 'csv not cloned row 4');
+SELECT * from t_csv ORDER BY col1;
+col1	col2
+40	csv not cloned row 4
+INSERT INTO non_innodb.t_myisam VALUES(40, 'myisam not cloned row 4');
+SELECT * from non_innodb.t_myisam ORDER BY col1;
+col1	col2
+40	myisam not cloned row 4
+INSERT INTO non_innodb.t_csv VALUES(40, 'csv not cloned row 4');
+SELECT * from non_innodb.t_csv ORDER BY col1;
+col1	col2
+40	csv not cloned row 4
+INSERT INTO schema_read_only.t_myisam VALUES(40, 'myisam not cloned row 4');
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SELECT * from schema_read_only.t_myisam ORDER BY col1;
+col1	col2
+INSERT INTO schema_read_only.t_csv VALUES(40, 'csv not cloned row 4');
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SELECT * from schema_read_only.t_csv ORDER BY col1;
+col1	col2
+INSERT INTO schema_read_only.t_innodb VALUES(40, 'innodb cloned row 4');
+ERROR HY000: Schema 'schema_read_only' is in read only mode.
+SELECT * from schema_read_only.t_innodb ORDER BY col1;
+col1	col2
+10	innodb cloned row 1
+20	innodb cloned row 2
+30	innodb cloned row 3
+SHOW CREATE SCHEMA schema_read_only;
+Database	Create Database
+schema_read_only	CREATE DATABASE `schema_read_only` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */ /* READ ONLY = 1 */
+SELECT count(*) FROM mysql.general_log;
+count(*)
+0
+SELECT count(*) FROM mysql.slow_log;
+count(*)
+0
+SET GLOBAL general_log = ON;
+SET GLOBAL slow_query_log = ON;
+# restart:
+SELECT * from t1 ORDER BY col1;
+col1	col2
+10	clone row 1
+20	clone row 2
+30	clone row 3
+DROP TABLE t1;
+DROP TABLE t_myisam;
+DROP TABLE t_csv;
+DROP TABLE non_innodb.t_myisam;
+DROP TABLE non_innodb.t_csv;
+DROP SCHEMA non_innodb;
+ALTER SCHEMA schema_read_only READ ONLY=0;
+DROP SCHEMA schema_read_only;
+UNINSTALL PLUGIN example;
+UNINSTALL PLUGIN clone;

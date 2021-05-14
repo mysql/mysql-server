@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -73,7 +73,7 @@ class Filesort {
   Sort_param m_sort_param;
 
   // TODO(sgunders): Change tables to a table_map; however, currently
-  // some semijoin tables are missing from select_lex->leaf_tables,
+  // some semijoin tables are missing from query_block->leaf_tables,
   // so we can't do that yet.
   Filesort(THD *thd, Mem_root_array<TABLE *> tables, bool keep_buffers,
            ORDER *order, ha_rows limit_arg, bool force_stable_sort,
@@ -117,6 +117,10 @@ uint sortlength(THD *thd, st_sort_field *sortorder, uint s_length);
 template <bool Is_big_endian>
 void copy_integer(uchar *to, size_t to_length, const uchar *from,
                   size_t from_length, bool is_unsigned);
+
+// Returns whether a sort involving this table would necessarily be on row ID,
+// even if not forced by other means.
+bool SortWillBeOnRowId(TABLE *table);
 
 static inline void copy_native_longlong(uchar *to, size_t to_length,
                                         longlong val, bool is_unsigned) {

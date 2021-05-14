@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -107,6 +107,7 @@ usr/lib/mysql/plugin/openssl_udf.so
 usr/lib/mysql/plugin/thread_pool.so
 usr/lib/mysql/plugin/firewall.so
 usr/lib/mysql/plugin/component_test_page_track_component.so
+usr/lib/mysql/plugin/component_keyring_encrypted_file.so
 ")
 
   IF (DEB_AWS_SDK)

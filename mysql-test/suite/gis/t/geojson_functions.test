@@ -4078,3 +4078,15 @@ SELECT ST_SRID(ST_GEOMFROMGEOJSON(
 "      }                                                "
 "    ]                                                  "
 "  }")) AS srid;
+
+--echo #
+--echo # Bug#32047630: MISSING ERROR PROPAGATION IN JSON FUNCTIONS
+--echo #
+
+# Used to cause an assert failure.
+--error ER_GIS_INVALID_DATA
+SELECT JSON_ARRAY(ST_ASGEOJSON(ST_GEOMFROMTEXT('')), 1);
+
+# Exercise a previously untested error path.
+--error ER_GIS_INVALID_DATA
+SELECT JSON_ARRAY(ST_ASGEOJSON(0x00), 1);

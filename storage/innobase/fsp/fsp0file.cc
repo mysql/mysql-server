@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -426,11 +426,13 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
   encryption flags for that scenario. */
   if ((FSP_FLAGS_GET_ENCRYPTION(flags) != FSP_FLAGS_GET_ENCRYPTION(m_flags)) &&
       fsp_is_shared_tablespace(flags)) {
+#ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
     /* Note this tablespace id down and assert that it is in the list of
     tablespaces for which encryption is being resumed. */
     flag_mismatch_spaces.push_back(space_id);
 #endif
+#endif /* !UNIV_HOTBACKUP */
 
     if (!((m_flags ^ flags) &
           ~(FSP_FLAGS_MASK_ENCRYPTION | FSP_FLAGS_MASK_DATA_DIR |
@@ -670,8 +672,8 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
                                        m_encryption_iv, m_first_page)) {
       ib::error(ER_IB_MSG_401)
           << "Encryption information in datafile: " << m_filepath
-          << " can't be decrypted, please confirm the "
-             "keyfile is match and keyring plugin is loaded.";
+          << " can't be decrypted, please confirm that"
+             " keyring is loaded.";
 
       m_is_valid = false;
       free_first_page();

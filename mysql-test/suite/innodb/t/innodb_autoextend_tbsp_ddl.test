@@ -1,3 +1,4 @@
+--source include/big_test.inc
 --source include/have_innodb_16k.inc
 
 --echo #
@@ -11,10 +12,10 @@ call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table 'tsp' is full");
 
 --echo # Test error conditions for CREATE TABLESPACE
 --error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
-CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE 48k;
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE 48K;
 
 --error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
-CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE 65m;
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE 5G;
 
 --error ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
 CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE 5M;
@@ -28,7 +29,7 @@ SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespac
 ALTER TABLESPACE myspace AUTOEXTEND_SIZE 2M;
 
 --error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
-ALTER TABLESPACE myspace AUTOEXTEND_SIZE 65M;
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE 5G;
 
 ALTER TABLESPACE myspace AUTOEXTEND_SIZE=4M;
 SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces

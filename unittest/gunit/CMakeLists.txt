@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -81,6 +81,9 @@ ADD_LIBRARY(gunit_small STATIC
 SET_TARGET_PROPERTIES(gunit_small
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
+IF(MY_COMPILER_IS_SUNPRO)
+  TARGET_COMPILE_OPTIONS(gunit_small PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO4>)
+ENDIF()
 
 # Several "small" unit tests got 'missing symbol client_errors'
 # When building with Sun Studio
@@ -206,6 +209,7 @@ SET(SERVER_TESTS
   dd_cache
   dd_column_statistics
   dd_info_schema_native_func
+  dd_pfs
   dd_properties
   dd_schema
   dd_sdi
@@ -223,6 +227,7 @@ SET(SERVER_TESTS
   gis_hausdorff_distance
   gis_is_simple
   gis_isvalid
+  gis_line_interpolate_point
   gis_relops
   gis_rtree_support
   gis_srs
@@ -334,7 +339,6 @@ LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 
 MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
   ENABLE_EXPORTS
-  EXCLUDE_ON_SOLARIS
   ADD_TEST merge_large_tests)
 
 TARGET_LINK_LIBRARIES(merge_large_tests-t
@@ -399,6 +403,7 @@ ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
 ADD_SUBDIRECTORY(components/mysql_server)
+ADD_SUBDIRECTORY(components/keyring_common)
 ADD_SUBDIRECTORY(xplugin)
 ADD_SUBDIRECTORY(group_replication)
 ADD_SUBDIRECTORY(libmysqlgcs)

@@ -241,8 +241,12 @@ while ($j)
 
 
 --echo ***** Time to try slave sync ***********
+--sync_slave_with_master
+
 --echo **** Must make sure slave is clean *****
 --connection slave
+USE tpcb;
+SELECT COUNT(*) FROM account;
 STOP SLAVE;
 RESET SLAVE;
 DROP PROCEDURE IF EXISTS tpcb.load;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -366,7 +366,7 @@ dtuple_t *PageBulk::getNodePtr() {
 }
 
 /** Split the page records between this and given bulk.
- * @param new_page_bulk  The new bulk to store split records. */
+ @param new_page_bulk  The new bulk to store split records. */
 void PageBulk::split(PageBulk &new_page_bulk) {
   auto split_point = getSplitRec();
 
@@ -742,7 +742,8 @@ dberr_t BtrBulk::pageCommit(PageBulk *page_bulk, PageBulk *next_page_bulk,
   need to acquire a lock in that case. */
   ut_ad(!page_bulk->isIndexXLocked());
 
-  DBUG_EXECUTE_IF("innodb_bulk_load_sleep", os_thread_sleep(1000000););
+  DBUG_EXECUTE_IF("innodb_bulk_load_sleep",
+                  std::this_thread::sleep_for(std::chrono::seconds(1)););
 
   /* Compress page if it's a compressed table. */
   if (page_bulk->isTableCompressed() && !page_bulk->compress()) {

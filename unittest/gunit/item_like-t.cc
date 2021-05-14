@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -67,7 +67,7 @@ TEST_F(ItemLikeTest, TestOne) {
   Item_string *it_needle =
       new Item_string(STRING_WITH_LEN(needle), &my_charset_latin1);
   Item_func_like *item_BM =
-      new Item_func_like(it_haystack, it_needle, it_escape, false);
+      new Item_func_like(it_haystack, it_needle, it_escape);
   EXPECT_FALSE(item_BM->fix_fields(thd(), nullptr));
   EXPECT_EQ(1, item_BM->val_int());
 }
@@ -83,7 +83,7 @@ TEST_F(ItemLikeTest, PerfBasic) {
       new Item_string(STRING_WITH_LEN(needle), &my_charset_latin1);
 
   Item_func_like *item_BM =
-      new Item_func_like(it_haystack, it_needle, it_escape, false);
+      new Item_func_like(it_haystack, it_needle, it_escape);
   EXPECT_FALSE(item_BM->fix_fields(thd(), nullptr));
   for (int ix = 0; ix < num_executions; ++ix) {
     EXPECT_EQ(1, item_BM->val_int());
@@ -203,7 +203,7 @@ TEST_P(ItemLikeTestP, MoreNeedlesTest) {
       new Item_string(STRING_WITH_LEN(escape), &my_charset_latin1);
 
   Item_func_like *item_BM =
-      new Item_func_like(it_haystack, it_needle, it_escape, false);
+      new Item_func_like(it_haystack, it_needle, it_escape);
   EXPECT_FALSE(item_BM->fix_fields(thd(), nullptr));
   EXPECT_EQ(1, item_BM->val_int());
 }
@@ -290,7 +290,7 @@ TEST_P(ItemFalseLikeTestP, FalseNeedlesTest) {
       new Item_string(STRING_WITH_LEN(escape), &my_charset_latin1);
 
   Item_func_like *item_BM =
-      new Item_func_like(it_haystack, it_needle, it_escape, false);
+      new Item_func_like(it_haystack, it_needle, it_escape);
   EXPECT_FALSE(item_BM->fix_fields(thd(), nullptr));
   EXPECT_EQ(0, item_BM->val_int());
 }

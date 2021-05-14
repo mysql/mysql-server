@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -977,7 +977,7 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_TUX_BOUND_INFO		710
 
 #define GSN_ACC_LOCKREQ			711
-#define GSN_READ_PSEUDO_REQ             712
+// #define GSN_READ_PSEUDO_REQ             712 /* Not a signal since 8.0.24 */
 
 /**
  * Filegroup 

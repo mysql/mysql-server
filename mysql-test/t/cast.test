@@ -799,6 +799,7 @@ SELECT CAST("extra" AS YEAR);
 SELECT CAST("22extra" AS YEAR);
 SELECT CAST("2020extra" AS YEAR);
 
+SET timestamp = UNIX_TIMESTAMP('2020-12-22 03:30:00');
 #date[time] values
 SELECT CAST(TIMESTAMP'2010-01-01 00:00' AS YEAR);
 SET SQL_MODE = "";
@@ -807,6 +808,7 @@ SET SQL_MODE = default;
 SELECT CAST(TIMESTAMP'2010-01-01 08:09:10' AS YEAR);
 SELECT CAST(TIME'08:09:10' AS YEAR);
 SELECT CAST(TIME'00:00:00' AS YEAR);
+SET timestamp = DEFAULT;
 
 #geometry values
 --error ER_WRONG_ARGUMENTS
@@ -899,3 +901,166 @@ SELECT CAST(CAST(1988 AS YEAR) AS UNSIGNED);
 SELECT CAST(TIMESTAMP'579-10-10 10:10:10' AS YEAR);
 SELECT CAST(STR_TO_DATE('nope','%d-%m-%Y') AS YEAR);
 
+--echo # WL#14109: Implement a consistent comparison type rule matrix
+
+# Check CAST into temporal values and mode settings
+
+SET @zero_date = '0000-00-00';
+SET @zero_day = '2000-01-00';
+SET @zero_month = '2000-00-01';
+SET @zero_year = '0000-01-01';
+SET @invalid_date = '2000-02-31';
+SET @bad_date = 'YYYY-MM-DD';
+SET @zero_datetime = '0000-00-00 00:00:00.000000';
+SET @zero_day_dt = '2000-01-00 00:00:00.000000';
+SET @zero_month_dt = '2000-00-01 00:00:00.000000';
+SET @zero_year_dt = '0000-01-01 00:00:00.000000';
+SET @invalid_datetime = '2000-02-31 00:00:00.000000';
+SET @bad_datetime = 'YYYY-MM-DD HH:MM:SS.ffffff';
+
+SET SQL_MODE=DEFAULT;
+
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+       CAST(@zero_date AS DATE) AS d2,
+       CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+       CAST(@zero_day AS DATE) AS d2,
+       CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+       CAST(@zero_month AS DATE) AS d2,
+       CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+       CAST(@zero_year AS DATE) AS d2,
+       CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+       CAST(@invalid_date AS DATE) AS d2,
+       CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+       CAST(@bad_date AS DATE) AS d2,
+       CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+       CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+
+SET SQL_MODE='NO_ZERO_DATE';
+
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+       CAST(@zero_date AS DATE) AS d2,
+       CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+       CAST(@zero_day AS DATE) AS d2,
+       CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+       CAST(@zero_month AS DATE) AS d2,
+       CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+       CAST(@zero_year AS DATE) AS d2,
+       CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+       CAST(@invalid_date AS DATE) AS d2,
+       CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+       CAST(@bad_date AS DATE) AS d2,
+       CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+       CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+
+SET SQL_MODE='NO_ZERO_IN_DATE';
+
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+       CAST(@zero_date AS DATE) AS d2,
+       CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+       CAST(@zero_day AS DATE) AS d2,
+       CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+       CAST(@zero_month AS DATE) AS d2,
+       CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+       CAST(@zero_year AS DATE) AS d2,
+       CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+       CAST(@invalid_date AS DATE) AS d2,
+       CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+       CAST(@bad_date AS DATE) AS d2,
+       CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+       CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+
+SET SQL_MODE='ALLOW_INVALID_DATES';
+
+SELECT CAST('0000-00-00' AS DATE) AS d1,
+       CAST(@zero_date AS DATE) AS d2,
+       CAST('0000-00-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-01-00' AS DATE) AS d1,
+       CAST(@zero_day AS DATE) AS d2,
+       CAST('2000-01-00 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_day_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-00-01' AS DATE) AS d1,
+       CAST(@zero_month AS DATE) AS d2,
+       CAST('2000-00-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_month_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('0000-01-01' AS DATE) AS d1,
+       CAST(@zero_year AS DATE) AS d2,
+       CAST('0000-01-01 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@zero_year_dt AS DATETIME(6)) AS dt2;
+
+SELECT CAST('2000-02-31' AS DATE) AS d1,
+       CAST(@invalid_date AS DATE) AS d2,
+       CAST('2000-02-31 00:00:00.000000' AS DATETIME(6)) AS dt1,
+       CAST(@invalid_datetime AS DATETIME(6)) AS dt2;
+
+SELECT CAST('YYYY-MM-DD' AS DATE) AS d1,
+       CAST(@bad_date AS DATE) AS d2,
+       CAST('YYYY-MM-DD HH:MM:SS.ffffff' AS DATETIME(6)) AS dt1,
+       CAST(@bad_datetime AS DATETIME(6)) AS dt2;
+
+SET SQL_MODE=DEFAULT;
+
+--echo #
+--echo # Bug#32371039: ITEM->MAX_LENGTH FIELD IS NOT ACCURATE FOR
+--echo #               FROM_BASE64 FUNCTION
+--echo #
+
+# CREATE TABLE used to fail because the created columns were too small
+# to store the values returned by the SELECT statement. The maximum
+# length of the CAST expressions was wrong because it didn't take the
+# potential overflow into account.
+CREATE TABLE t AS
+  SELECT CONCAT(CAST(-1 AS UNSIGNED)) AS col1,
+         1.0 + CAST(-1 AS UNSIGNED) AS col2,
+         CONCAT(CAST(9223372036854775808 AS SIGNED)) AS col3;
+SHOW CREATE TABLE t;
+SELECT * FROM t;
+DROP TABLE t;

@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
 
 /* classes for sum functions */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <climits>
@@ -40,7 +41,7 @@
 #include "m_string.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_table_map.h"
@@ -49,7 +50,10 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
+#include "nullable.h"
 #include "sql/enum_query_type.h"
+#include "sql/gis/geometries_cs.h"
+#include "sql/gis/wkb.h"
 #include "sql/item.h"       // Item_result_field
 #include "sql/item_func.h"  // Item_int_func
 #include "sql/mem_root_array.h"
@@ -72,7 +76,7 @@ class Json_object;
 class Json_wrapper;
 class PT_item_list;
 class PT_order_list;
-class SELECT_LEX;
+class Query_block;
 class THD;
 class Temp_table_param;
 class Window;
@@ -313,10 +317,10 @@ class Aggregator {
 
  IMPLEMENTATION NOTES
 
-  The member base_select contains a reference to the query block that the
+  The member base_query_block contains a reference to the query block that the
   set function is contained within.
 
-  The member aggr_select contains a reference to the query block where the
+  The member aggr_query_block contains a reference to the query block where the
   set function is aggregated.
 
   The field max_aggr_level holds the maximum of the nest levels of the
@@ -367,7 +371,7 @@ class Aggregator {
   and reports an error if it is invalid.
   The method check_sum_func serves to link the items for the set functions
   that are aggregated in the containing query blocks. Circular chains of such
-  functions are attached to the corresponding SELECT_LEX structures
+  functions are attached to the corresponding Query_block structures
   through the field inner_sum_func_list.
 
   Exploiting the fact that the members mentioned above are used in one
@@ -391,10 +395,7 @@ class Aggregator {
   the WF's val_*() to accumulate it.
 */
 
-class Item_sum : public Item_result_field, public Func_args_handle {
-  typedef Item_result_field super;
-  typedef Func_args_handle super2;
-
+class Item_sum : public Item_func {
   friend class Aggregator_distinct;
   friend class Aggregator_simple;
 
@@ -403,17 +404,17 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     Aggregator class instance. Not set initially. Allocated only after
     it is determined if the incoming data are already distinct.
   */
-  Aggregator *aggr;
+  Aggregator *aggr{nullptr};
 
   /**
     If sum is a window function, this field contains the window.
   */
-  PT_window *m_window;
+  PT_window *m_window{nullptr};
   /**
     True if we have already resolved this window functions window reference.
     Used in execution of prepared statement to avoid re-resolve.
   */
-  bool m_window_resolved;
+  bool m_window_resolved{false};
 
  private:
   /**
@@ -422,14 +423,14 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     over the temp table buffer that is referenced by
     Item_result_field::result_field.
   */
-  bool force_copy_fields;
+  bool force_copy_fields{false};
 
   /**
     Indicates how the aggregate function was specified by the parser :
      true if it was written as AGGREGATE(DISTINCT),
      false if it was AGGREGATE()
   */
-  bool with_distinct;
+  bool with_distinct{false};
 
  public:
   bool has_force_copy_fields() const { return force_copy_fields; }
@@ -459,7 +460,8 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     LEAD_LAG_FUNC,
     FIRST_LAST_VALUE_FUNC,
     NTH_VALUE_FUNC,
-    ROLLUP_SUM_SWITCHER_FUNC
+    ROLLUP_SUM_SWITCHER_FUNC,
+    GEOMETRY_AGGREGATE_FUNC
   };
 
   /**
@@ -475,15 +477,16 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     pointer).
   */
   Item **referenced_by[2];
-  Item_sum *next_sum;     ///< next in the circular chain of registered objects
-  Item_sum *in_sum_func;  ///< the containing set function if any
-  SELECT_LEX *base_select;  ///< query block where function is placed
+  /// next in the circular chain of registered objects
+  Item_sum *next_sum{nullptr};
+  Item_sum *in_sum_func;          ///< the containing set function if any
+  Query_block *base_query_block;  ///< query block where function is placed
   /**
     For a group aggregate, query block where function is aggregated. For a
     window function, nullptr, as such function is always aggregated in
-    base_select, as it mustn't contain any outer reference.
+    base_query_block, as it mustn't contain any outer reference.
   */
-  SELECT_LEX *aggr_select;
+  Query_block *aggr_query_block;
   int8 max_aggr_level;  ///< max level of unbound column references
   int8
       max_sum_func_level;  ///< max level of aggregation for contained functions
@@ -496,70 +499,31 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   nesting_map save_deny_window_func;
 
  protected:
-  table_map used_tables_cache;
   /**
     True means that this field has been evaluated during optimization.
     When set, used_tables() returns zero and const_item() returns true.
     The value must be reset to false after execution.
   */
-  bool forced_const;
+  bool forced_const{false};
   static ulonglong ram_limitation(THD *thd);
 
  public:
   void mark_as_sum_func();
-  void mark_as_sum_func(SELECT_LEX *);
+  void mark_as_sum_func(Query_block *);
 
   Item_sum(const POS &pos, PT_window *w)
-      : super(pos),
-        super2(nullptr, 0),
-        m_window(w),
-        m_window_resolved(false),
-        next_sum(nullptr),
-        allow_group_via_temp_table(true),
-        used_tables_cache(0),
-        forced_const(false) {
-    init_aggregator();
-  }
+      : Item_func(pos), m_window(w), allow_group_via_temp_table(true) {}
 
   Item_sum(Item *a)
-      : super2(1),
-        m_window(nullptr),
-        m_window_resolved(false),
-        next_sum(nullptr),
-        allow_group_via_temp_table(true),
-        used_tables_cache(0),
-        forced_const(false) {
-    args[0] = a;
+      : Item_func(a), m_window(nullptr), allow_group_via_temp_table(true) {
     mark_as_sum_func();
-    init_aggregator();
   }
 
   Item_sum(const POS &pos, Item *a, PT_window *w)
-      : super(pos),
-        super2(1),
-        m_window(w),
-        m_window_resolved(false),
-        next_sum(nullptr),
-        allow_group_via_temp_table(true),
-        used_tables_cache(0),
-        forced_const(false) {
-    args[0] = a;
-    init_aggregator();
-  }
+      : Item_func(pos, a), m_window(w), allow_group_via_temp_table(true) {}
 
   Item_sum(const POS &pos, Item *a, Item *b, PT_window *w)
-      : super(pos),
-        super2(2),
-        m_window(w),
-        m_window_resolved(false),
-        next_sum(nullptr),
-        allow_group_via_temp_table(true),
-        used_tables_cache(0),
-        forced_const(false) {
-    args[0] = a;
-    args[1] = b;
-    init_aggregator();
-  }
+      : Item_func(pos, a, b), m_window(w), allow_group_via_temp_table(true) {}
 
   Item_sum(const POS &pos, PT_item_list *opt_list, PT_window *w);
 
@@ -604,8 +568,8 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     Item_field *item = new Item_field(field);
     if (item == nullptr) return nullptr;
     // Aggregated fields have no reference to an underlying table
-    DBUG_ASSERT(item->orig_db_name() == nullptr &&
-                item->orig_table_name() == nullptr);
+    assert(item->orig_db_name() == nullptr &&
+           item->orig_table_name() == nullptr);
     // Break the connection to the original field since this is an aggregation
     item->set_orig_field_name(nullptr);
     return item;
@@ -613,9 +577,10 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   table_map used_tables() const override {
     return forced_const ? 0 : used_tables_cache;
   }
+  table_map not_null_tables() const override { return used_tables(); }
   void update_used_tables() override;
-  void fix_after_pullout(SELECT_LEX *parent_select,
-                         SELECT_LEX *removed_select) override;
+  void fix_after_pullout(Query_block *parent_query_block,
+                         Query_block *removed_query_block) override;
   void add_used_tables_for_aggr_func();
   bool is_null() override { return null_value; }
   void make_const() {
@@ -624,7 +589,6 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   }
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
-  void fix_num_length_and_dec();
   bool eq(const Item *item, bool binary_cmp) const override;
   /**
     Mark an aggregate as having no rows.
@@ -653,10 +617,13 @@ class Item_sum : public Item_result_field, public Func_args_handle {
       The query block we walk from. All found aggregates must aggregate in
       this; if some aggregate in outer query blocks, break off transformation.
     */
-    SELECT_LEX *m_select{nullptr};
+    Query_block *m_query_block{nullptr};
     /// true: break off transformation
     bool m_break_off{false};
-    Collect_grouped_aggregate_info(SELECT_LEX *select) : m_select(select) {}
+    /// true: an aggregate aggregates outside m_query_block
+    bool m_outside{false};
+    Collect_grouped_aggregate_info(Query_block *select)
+        : m_query_block(select) {}
   };
 
   bool collect_grouped_aggregates(uchar *) override;
@@ -664,8 +631,6 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   bool collect_scalar_subqueries(uchar *) override;
   bool collect_item_field_or_view_ref_processor(uchar *) override;
 
-  bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
-  Item *transform(Item_transformer transformer, uchar *arg) override;
   bool clean_up_after_removal(uchar *arg) override;
   bool aggregate_check_group(uchar *arg) override;
   bool aggregate_check_distinct(uchar *arg) override;
@@ -673,19 +638,11 @@ class Item_sum : public Item_result_field, public Func_args_handle {
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
 
-  virtual Item *get_arg(uint i) { return args[i]; }
-  virtual Item *set_arg(THD *thd, uint i, Item *new_val);
+  Item *set_arg(THD *thd, uint i, Item *new_val) override;
   /// @todo delete this when we no longer support temporary transformations
   Item **get_arg_ptr(uint i) { return &args[i]; }
 
   bool fix_fields(THD *thd, Item **ref) override;
-
-  /* Initialization of distinct related members */
-  void init_aggregator() {
-    aggr = nullptr;
-    with_distinct = false;
-    force_copy_fields = false;
-  }
 
   /**
     Called to initialize the aggregator.
@@ -734,7 +691,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
 
     @returns true if error
    */
-  virtual bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  virtual bool check_wf_semantics1(THD *thd, Query_block *select,
                                    Window_evaluation_requirements *reqs);
 
   /**
@@ -789,7 +746,7 @@ class Item_sum : public Item_result_field, public Func_args_handle {
     ("on-the-fly"), check partition change and possible reset partition
     state. In this case return false.
     For buffered processing, if windowing state m_do_copy_null is true, set
-    null_value to true and return true.
+    null_value to is_nullable() and return true.
 
     @return true if case two above holds, else false
   */
@@ -969,9 +926,12 @@ class Item_sum_num : public Item_sum {
   enum_field_types default_data_type() const override {
     return MYSQL_TYPE_DOUBLE;
   }
+
+  Item_sum_num(Item *item_par) : Item_sum(item_par), is_evaluated(false) {}
+
   bool fix_fields(THD *, Item **) override;
   longlong val_int() override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return llrint_with_overflow_check(val_real()); /* Real as default */
   }
   String *val_str(String *str) override;
@@ -1001,8 +961,12 @@ class Item_sum_int : public Item_sum_num {
     set_data_type_longlong();
   }
 
+  Item_sum_int(Item *item_par) : Item_sum_num(item_par) {
+    set_data_type_longlong();
+  }
+
   double val_real() override {
-    DBUG_ASSERT(fixed);
+    assert(fixed);
     return static_cast<double>(val_int());
   }
   String *val_str(String *str) override;
@@ -1054,11 +1018,11 @@ class Item_sum_sum : public Item_sum_num {
   String *val_str(String *str) override;
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return hybrid_type; }
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
+  void no_rows_in_result() override;
   void reset_field() override;
   void update_field() override;
-  void no_rows_in_result() override {}
   const char *func_name() const override { return "sum"; }
   Item *copy_or_same(THD *thd) override;
 };
@@ -1075,7 +1039,7 @@ class Item_sum_count : public Item_sum_int {
  public:
   Item_sum_count(const POS &pos, Item *item_par, PT_window *w)
       : Item_sum_int(pos, item_par, w), count(0) {}
-
+  Item_sum_count(Item_int *number) : Item_sum_int(number), count(0) {}
   /**
     Constructs an instance for COUNT(DISTINCT)
 
@@ -1097,7 +1061,7 @@ class Item_sum_count : public Item_sum_int {
   }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1)) return true;
-    maybe_null = false;
+    set_nullable(false);
     null_value = false;
     return false;
   }
@@ -1181,7 +1145,7 @@ class Item_avg_field : public Item_sum_num_field {
   String *val_str(String *) override;
   bool resolve_type(THD *) override { return false; }
   const char *func_name() const override {
-    DBUG_ASSERT(0);
+    assert(0);
     return "avg_field";
   }
 };
@@ -1203,7 +1167,7 @@ class Item_sum_bit_field : public Item_sum_hybrid_field {
   bool get_time(MYSQL_TIME *ltime) override;
   enum Type type() const override { return FIELD_BIT_ITEM; }
   const char *func_name() const override {
-    DBUG_ASSERT(0);
+    assert(0);
     return "sum_bit_field";
   }
 };
@@ -1248,7 +1212,7 @@ class Item_sum_json : public Item_sum {
   void reset_field() override;
   void update_field() override;
 
-  bool check_wf_semantics1(THD *, SELECT_LEX *,
+  bool check_wf_semantics1(THD *, Query_block *,
                            Window_evaluation_requirements *) override;
 };
 
@@ -1305,7 +1269,7 @@ class Item_sum_json_object final : public Item_sum_json {
   void clear() override;
   bool add() override;
   Item *copy_or_same(THD *thd) override;
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
 };
 
@@ -1339,7 +1303,6 @@ class Item_sum_avg final : public Item_sum_sum {
   Item *result_item(Field *) override {
     return new Item_avg_field(hybrid_type, this);
   }
-  void no_rows_in_result() override {}
   const char *func_name() const override { return "avg"; }
   Item *copy_or_same(THD *thd) override;
   Field *create_tmp_field(bool group, TABLE *table) override;
@@ -1366,7 +1329,7 @@ class Item_variance_field : public Item_sum_num_field {
   }
   bool resolve_type(THD *) override { return false; }
   const char *func_name() const override {
-    DBUG_ASSERT(0);
+    assert(0);
     return "variance_field";
   }
   bool check_function_as_value_generator(uchar *args) override {
@@ -1482,7 +1445,7 @@ class Item_sum_variance : public Item_sum_num {
     count = 0;
     Item_sum_num::cleanup();
   }
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
 };
 
@@ -1496,7 +1459,7 @@ class Item_std_field final : public Item_variance_field {
   my_decimal *val_decimal(my_decimal *) override;
   enum Item_result result_type() const override { return REAL_RESULT; }
   const char *func_name() const override {
-    DBUG_ASSERT(0);
+    assert(0);
     return "std_field";
   }
   bool check_function_as_value_generator(uchar *args) override {
@@ -1674,6 +1637,10 @@ class Item_sum_hybrid : public Item_sum {
   bool val_json(Json_wrapper *wr) override;
   bool keep_field_type() const override { return true; }
   enum Item_result result_type() const override { return hybrid_type; }
+  TYPELIB *get_typelib() const override {
+    assert(sum_func() == MAX_FUNC || sum_func() == MIN_FUNC);
+    return arguments()[0]->get_typelib();
+  }
   void update_field() override;
   void cleanup() override;
   bool any_value() { return was_values; }
@@ -1682,7 +1649,7 @@ class Item_sum_hybrid : public Item_sum {
   bool uses_only_one_row() const override { return m_optimize; }
   bool add() override;
   Item *copy_or_same(THD *thd) override;
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *r) override;
 
  private:
@@ -1820,8 +1787,8 @@ class Item_sum_bit : public Item_sum {
        This constructor should only be called during the Optimize stage.
        Asserting that the item was not evaluated yet.
     */
-    DBUG_ASSERT(item->value_buff.length() == 1);
-    DBUG_ASSERT(item->bits == item->reset_bits);
+    assert(item->value_buff.length() == 1);
+    assert(item->bits == item->reset_bits);
   }
 
   Item *result_item(Field *) override {
@@ -1949,7 +1916,7 @@ class Item_udf_sum : public Item_sum {
   bool itemize(Parse_context *pc, Item **res) override;
   const char *func_name() const override { return udf.name(); }
   bool fix_fields(THD *thd, Item **ref) override {
-    DBUG_ASSERT(fixed == 0);
+    assert(fixed == 0);
 
     if (init_sum_func_check(thd)) return true;
 
@@ -1976,7 +1943,7 @@ class Item_sum_udf_float final : public Item_udf_sum {
   Item_sum_udf_float(THD *thd, Item_sum_udf_float *item)
       : Item_udf_sum(thd, item) {}
   longlong val_int() override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return (longlong)rint(Item_sum_udf_float::val_real());
   }
   double val_real() override;
@@ -2004,7 +1971,7 @@ class Item_sum_udf_int final : public Item_udf_sum {
       : Item_udf_sum(thd, item) {}
   longlong val_int() override;
   double val_real() override {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return (double)Item_sum_udf_int::val_int();
   }
   String *val_str(String *str) override;
@@ -2095,11 +2062,23 @@ int dump_leaf_key(void *key_arg, element_count count MY_ATTRIBUTE((unused)),
 class Item_func_group_concat final : public Item_sum {
   typedef Item_sum super;
 
-  Temp_table_param *tmp_table_param;
-  String result;
+  /// True if GROUP CONCAT has the DISTINCT attribute
+  bool distinct;
+  /// True if the result is always NULL
+  bool always_null{false};
+  /// The number of ORDER BY items.
+  uint m_order_arg_count;
+  /// The number of selected items, aka the concat field list
+  uint m_field_arg_count;
+  /// Resolver context, points to containing query block
+  Name_resolution_context *context;
+  /// String containing separator between group items
   String *separator;
+  /// Describes the temporary table used to perform group concat
+  Temp_table_param *tmp_table_param{nullptr};
+  String result;
   TREE tree_base;
-  TREE *tree;
+  TREE *tree{nullptr};
 
   /**
      If DISTINCT is used with this GROUP_CONCAT, this member is used to filter
@@ -2108,29 +2087,25 @@ class Item_func_group_concat final : public Item_sum {
      @see Item_func_group_concat::add
      @see Item_func_group_concat::clear
    */
-  Unique *unique_filter;
-  TABLE *table;
+  Unique *unique_filter{nullptr};
+  /// Temporary table used to perform group concat
+  TABLE *table{nullptr};
   Mem_root_array<ORDER> order_array;
-  Name_resolution_context *context;
-  /** The number of ORDER BY items. */
-  uint arg_count_order;
-  /** The number of selected items, aka the expr list. */
-  uint arg_count_field;
-  uint row_count;
-  /** The maximum permitted result length in bytes as set for
-      group_concat_max_len system variable */
-  uint group_concat_max_len;
-  bool distinct;
-  bool warning_for_row;
-  bool always_null;
-  bool force_copy_fields;
-  /** True if result has been written to output buffer. */
-  bool m_result_finalized;
-  /*
+  uint row_count{0};
+  /**
+    The maximum permitted result length in bytes as set in
+    group_concat_max_len system variable
+  */
+  uint group_concat_max_len{0};
+  bool warning_for_row{false};
+  bool force_copy_fields{false};
+  /// True if result has been written to output buffer.
+  bool m_result_finalized{false};
+  /**
     Following is 0 normal object and pointer to original one for copy
     (to correctly free resources)
   */
-  Item_func_group_concat *original;
+  Item_func_group_concat *original{nullptr};
 
   friend int group_concat_key_cmp_with_distinct(const void *arg,
                                                 const void *key1,
@@ -2149,7 +2124,7 @@ class Item_func_group_concat final : public Item_sum {
 
   Item_func_group_concat(THD *thd, Item_func_group_concat *item);
   ~Item_func_group_concat() override {
-    DBUG_ASSERT(original != nullptr || unique_filter == nullptr);
+    assert(original != nullptr || unique_filter == nullptr);
   }
 
   bool itemize(Parse_context *pc, Item **res) override;
@@ -2161,16 +2136,12 @@ class Item_func_group_concat final : public Item_sum {
   Field *make_string_field(TABLE *table_arg) const override;
   void clear() override;
   bool add() override;
-  void reset_field() override { DBUG_ASSERT(0); }   // not used
-  void update_field() override { DBUG_ASSERT(0); }  // not used
+  void reset_field() override { assert(0); }   // not used
+  void update_field() override { assert(0); }  // not used
   bool fix_fields(THD *, Item **) override;
   bool setup(THD *thd) override;
   void make_unique() override;
-  double val_real() override {
-    String *res;
-    res = val_str(&str_value);
-    return res ? my_atof(res->c_ptr()) : 0.0;
-  }
+  double val_real() override;
   longlong val_int() override {
     String *res;
     int error;
@@ -2189,15 +2160,15 @@ class Item_func_group_concat final : public Item_sum {
   }
   String *val_str(String *str) override;
   Item *copy_or_same(THD *thd) override;
-  void no_rows_in_result() override {}
+  void no_rows_in_result() override;
   void print(const THD *thd, String *str,
              enum_query_type query_type) const override;
   bool change_context_processor(uchar *arg) override {
-    context = reinterpret_cast<Item_ident::Change_context *>(arg)->m_context;
+    context = pointer_cast<Item_ident::Change_context *>(arg)->m_context;
     return false;
   }
 
-  bool check_wf_semantics1(THD *, SELECT_LEX *,
+  bool check_wf_semantics1(THD *, Query_block *,
                            Window_evaluation_requirements *) override {
     unsupported_as_wf();
     return true;
@@ -2232,10 +2203,10 @@ class Item_non_framing_wf : public Item_sum {
     return get_time_from_numeric(ltime);
   }
 
-  void reset_field() override { DBUG_ASSERT(false); }
-  void update_field() override { DBUG_ASSERT(false); }
+  void reset_field() override { assert(false); }
+  void update_field() override { assert(false); }
   bool add() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -2274,7 +2245,7 @@ class Item_row_number : public Item_non_framing_wf {
 
   Item_result result_type() const override { return INT_RESULT; }
 
-  bool check_wf_semantics1(THD *, SELECT_LEX *,
+  bool check_wf_semantics1(THD *, Query_block *,
                            Window_evaluation_requirements *) override {
     return false;
   }
@@ -2323,7 +2294,7 @@ class Item_rank : public Item_non_framing_wf {
   my_decimal *val_decimal(my_decimal *buff) override;
   String *val_str(String *) override;
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   /**
     Clear state for a new partition
@@ -2349,7 +2320,7 @@ class Item_cume_dist : public Item_non_framing_wf {
     return false;
   }
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
 
   bool needs_card() const override { return true; }
@@ -2390,7 +2361,7 @@ class Item_percent_rank : public Item_non_framing_wf {
     return false;
   }
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   bool needs_card() const override { return true; }
 
@@ -2431,7 +2402,7 @@ class Item_ntile : public Item_non_framing_wf {
   my_decimal *val_decimal(my_decimal *buff) override;
   String *val_str(String *) override;
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   bool check_wf_semantics2(Window_evaluation_requirements *reqs) override;
   Item_result result_type() const override { return INT_RESULT; }
@@ -2484,7 +2455,7 @@ class Item_lead_lag : public Item_non_framing_wf {
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
   void clear() override;
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   bool check_wf_semantics2(Window_evaluation_requirements *reqs) override;
   enum Item_result result_type() const override { return m_hybrid_type; }
@@ -2560,7 +2531,7 @@ class Item_first_last_value : public Item_sum {
   bool resolve_type(THD *thd) override;
   bool fix_fields(THD *thd, Item **items) override;
   void clear() override;
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   enum Item_result result_type() const override { return m_hybrid_type; }
 
@@ -2573,10 +2544,10 @@ class Item_first_last_value : public Item_sum {
   bool get_time(MYSQL_TIME *ltime) override;
   bool val_json(Json_wrapper *wr) override;
 
-  void reset_field() override { DBUG_ASSERT(false); }
-  void update_field() override { DBUG_ASSERT(false); }
+  void reset_field() override { assert(false); }
+  void update_field() override { assert(false); }
   bool add() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -2628,7 +2599,7 @@ class Item_nth_value : public Item_sum {
   bool setup_nth();
   void clear() override;
 
-  bool check_wf_semantics1(THD *thd, SELECT_LEX *select,
+  bool check_wf_semantics1(THD *thd, Query_block *select,
                            Window_evaluation_requirements *reqs) override;
   bool check_wf_semantics2(Window_evaluation_requirements *reqs) override;
 
@@ -2643,10 +2614,10 @@ class Item_nth_value : public Item_sum {
   bool get_time(MYSQL_TIME *ltime) override;
   bool val_json(Json_wrapper *wr) override;
 
-  void reset_field() override { DBUG_ASSERT(false); }
-  void update_field() override { DBUG_ASSERT(false); }
+  void reset_field() override { assert(false); }
+  void update_field() override { assert(false); }
   bool add() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
@@ -2703,8 +2674,8 @@ class Item_rollup_sum_switcher final : public Item_sum {
       args[i++] = &item;
     }
     item_name = master()->item_name;
-    base_select = master()->base_select;
-    aggr_select = master()->aggr_select;
+    base_query_block = master()->base_query_block;
+    aggr_query_block = master()->aggr_query_block;
     hidden = master()->hidden;
     set_distinct(master()->has_with_distinct());
     set_data_type_from_item(master());
@@ -2732,11 +2703,11 @@ class Item_rollup_sum_switcher final : public Item_sum {
   enum Sumfunctype real_sum_func() const override {
     return ROLLUP_SUM_SWITCHER_FUNC;
   }
-  void reset_field() override { DBUG_ASSERT(false); }
-  void update_field() override { DBUG_ASSERT(false); }
+  void reset_field() override { assert(false); }
+  void update_field() override { assert(false); }
   void clear() override;
   bool add() override {
-    DBUG_ASSERT(false);
+    assert(false);
     return true;
   }
 
@@ -2777,6 +2748,71 @@ class Item_rollup_sum_switcher final : public Item_sum {
 
   const int m_num_levels;
   int m_current_rollup_level = INT_MAX;
+};
+/// Implements ST_Collect which aggregates geometries into Multipoints,
+/// Multilinestrings, Multipolygons and Geometrycollections.
+
+class Item_sum_collect : public Item_sum {
+ private:
+  Mysql::Nullable<gis::srid_t> srid;
+  std::unique_ptr<gis::Geometrycollection> m_geometrycollection;
+  void pop_front();
+
+ public:
+  using Super = Item_sum;
+  Item_sum_collect(THD *thd, Item_sum *item) : Item_sum(thd, item) {
+    set_data_type_geometry();
+  }
+  Item_sum_collect(const POS &pos, Item *a, PT_window *w, bool distinct)
+      : Item_sum(pos, a, w) {
+    set_distinct(distinct);
+    set_data_type_geometry();
+  }
+
+  my_decimal *val_decimal(my_decimal *decimal_buffer) override;
+  longlong val_int() override { return val_int_from_string(); }
+  double val_real() override { return val_real_from_string(); }
+  bool get_date(MYSQL_TIME *, my_time_flags_t) override { return true; }
+  bool get_time(MYSQL_TIME *) override { return true; }
+  enum Sumfunctype sum_func() const override { return GEOMETRY_AGGREGATE_FUNC; }
+  Item_result result_type() const override { return STRING_RESULT; }
+  int set_aggregator(Aggregator::Aggregator_type) override {
+    /*
+       In contrast to Item_sum, Item_sum_collect always uses Aggregator_simple,
+       and only needs to reset its aggregator when called.
+       */
+    if (aggr) {
+      aggr->clear();
+      return false;
+    }
+
+    destroy(aggr);
+    aggr = new (*THR_MALLOC) Aggregator_simple(this);
+    return aggr ? false : true;
+  }
+
+  bool fix_fields(THD *thd, Item **ref) override;
+  /*
+     We need to override check_wf_semantics1 because it reports an error when
+     with_distinct is set.
+     */
+  bool check_wf_semantics1(THD *thd, Query_block *,
+                           Window_evaluation_requirements *r) override;
+
+  Item *copy_or_same(THD *thd) override;
+
+  void update_field() override;
+  void reset_field() override;
+
+  String *val_str(String *str) override;
+
+  bool add() override;
+
+  void read_result_field();
+  void store_result_field();
+
+  void clear() override;
+  const char *func_name() const override { return "st_collect"; }
 };
 
 #endif /* ITEM_SUM_INCLUDED */

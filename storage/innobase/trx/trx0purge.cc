@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -741,11 +741,13 @@ bool Tablespace::needs_truncation() {
     return (false);
   }
 
+  ut_ad(fil_space_get_undo_initial_size(m_id) != 0);
+
   page_no_t trunc_size = std::max(
       static_cast<page_no_t>(srv_max_undo_tablespace_size / srv_page_size),
-      static_cast<page_no_t>(INITIAL_UNDO_SPACE_SIZE_IN_PAGES));
+      fil_space_get_undo_initial_size(m_id));
 
-  if (fil_space_get_size(id()) > trunc_size) {
+  if (fil_space_get_size(m_id) > trunc_size) {
     return (true);
   }
 
@@ -1261,12 +1263,11 @@ static bool trx_purge_mark_undo_for_truncate(size_t truncate_count) {
     undo_trunc->reset_timer();
   }
 
-  /* Find an undo tablespace that is too big and needs truncation.  Avoid
-  bias selection and so start the scan from immediate next of the last
-  space selected for truncate. Scan through all undo tablespaces. */
-
+  /* Find an undo tablespace that is too big and needs to be truncated. */
   undo::spaces->s_lock();
 
+  /* Avoid bias selection and so start the scan immediately after the
+  last space selected for truncate. Scan through all undo tablespaces. */
   space_id_t space_num = undo_trunc->get_scan_space_num();
   space_id_t first_space_num_scanned = space_num;
 
@@ -1316,9 +1317,8 @@ void undo::Truncate::mark(Tablespace *undo_space) {
 size_t undo::Truncate::s_scan_pos;
 
 /** Iterate over selected UNDO tablespace and check if all the rsegs
-that resides in the tablespace have been freed.
-@param[in]	limit		truncate_limit */
-static bool trx_purge_check_if_marked_undo_is_empty(purge_iter_t *limit) {
+that resides in the tablespace have been freed. */
+static bool trx_purge_check_if_marked_undo_is_empty() {
   undo::Truncate *undo_trunc = &purge_sys->undo_trunc;
 
   ut_ad(undo_trunc->is_marked());
@@ -1569,7 +1569,7 @@ static bool trx_purge_truncate_marked_undo() {
 
   dd_release_mdl(mdl_ticket);
 
-  ut_d(undo::inject_crash("ib_undo_trunc_trunc_done"));
+  ut_d(undo::inject_crash("ib_undo_trunc_done"));
 
   mutex_exit(&undo::ddl_mutex);
 
@@ -1578,13 +1578,13 @@ static bool trx_purge_truncate_marked_undo() {
   return (true);
 }
 
-/** Removes unnecessary history data from rollback segments. NOTE that when
- this function is called, the caller must not have any latches on undo log
- pages! */
-static void trx_purge_truncate_history(
-    purge_iter_t *limit,  /*!< in: truncate limit */
-    const ReadView *view) /*!< in: purge view */
-{
+/** Removes unnecessary history data from rollback segments.
+NOTE that when this function is called, the caller must not
+have any latches on undo log pages!
+@param[in]  limit  Truncate limit
+@param[in]  view   Purge view */
+static void trx_purge_truncate_history(purge_iter_t *limit,
+                                       const ReadView *view) {
   MONITOR_INC_VALUE(MONITOR_PURGE_TRUNCATE_HISTORY_COUNT, 1);
 
   auto counter_time_truncate_history = ut_time_monotonic_us();
@@ -1643,14 +1643,24 @@ static void trx_purge_truncate_history(
   }
   trx_sys->tmp_rsegs.s_unlock();
 
-  auto &undo_trunc = purge_sys->undo_trunc;
-
   MONITOR_INC_TIME_IN_MICRO_SECS(MONITOR_PURGE_TRUNCATE_HISTORY_MICROSECOND,
                                  counter_time_truncate_history);
+}
 
-  /* Undo Truncation. */
-  const size_t space_count = undo::spaces->size();
-  for (size_t i = 0; i < space_count; ++i) {
+/** Select an undo tablespace to truncate, make sure it is empty of undo logs,
+then finally truncate it. */
+static void trx_purge_truncate_undo_spaces() {
+  /* If the server has been started for the purpose of upgrading from a
+  previous version, do not do undo truncation. */
+  if (srv_is_upgrade_mode) {
+    return;
+  }
+
+  auto &undo_trunc = purge_sys->undo_trunc;
+
+  /* Truncate as many undo spaces as can be truncated.
+  Break the loop and return whenever the process cannot be completed. */
+  for (size_t i = 0; i < undo::spaces->size(); ++i) {
     /* Check current activity and if conditions allow,
     mark the undo space that needs to be truncated. */
     if (!trx_purge_mark_undo_for_truncate(i)) {
@@ -1662,7 +1672,7 @@ static void trx_purge_truncate_history(
 
     /* If any undo logs need to be purged from this marked space,
     try again later. */
-    if (!trx_purge_check_if_marked_undo_is_empty(limit)) {
+    if (!trx_purge_check_if_marked_undo_is_empty()) {
       break;
     }
 
@@ -1862,7 +1872,7 @@ static void trx_purge_choose_next_log(void) {
     trx_purge_read_undo_rec(purge_sys, page_size);
   } else {
     /* There is nothing to do yet. */
-    os_thread_yield();
+    std::this_thread::yield();
   }
 }
 
@@ -2013,8 +2023,8 @@ static MY_ATTRIBUTE((warn_unused_result))
     return nullptr;
   }
 
-  /* fprintf(stderr, "Thread %lu purging trx %llu undo record %llu\n",
-  os_thread_get_curr_id(), iter->trx_no, iter->undo_no); */
+  /* fprintf(stderr, "Thread %s purging trx %llu undo record %llu\n",
+  to_string(std::this_thread::get_id()), iter->trx_no, iter->undo_no); */
 
   *roll_ptr = trx_undo_build_roll_ptr(FALSE, purge_sys->rseg->space_id,
                                       purge_sys->page_no, purge_sys->offset);
@@ -2231,13 +2241,13 @@ static void trx_purge_wait_for_workers_to_complete() {
   /* Ensure that the work queue empties out. */
   while (purge_sys->n_completed.load() != n_submitted) {
     if (++i < 10) {
-      os_thread_yield();
+      std::this_thread::yield();
     } else {
       if (srv_get_task_queue_length() > 0) {
         srv_release_threads(SRV_WORKER, 1);
       }
 
-      os_thread_sleep(20);
+      std::this_thread::sleep_for(std::chrono::microseconds(20));
       i = 0;
     }
   }
@@ -2259,6 +2269,9 @@ static void trx_purge_truncate(void) {
   } else {
     trx_purge_truncate_history(&purge_sys->limit, &purge_sys->view);
   }
+
+  /* Attempt to truncate an undo tablespace. */
+  trx_purge_truncate_undo_spaces();
 }
 
 /** This function runs a purge batch.
@@ -2421,7 +2434,7 @@ void trx_purge_stop(void) {
 
       rw_lock_x_unlock(&purge_sys->latch);
 
-      os_thread_sleep(10000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
       rw_lock_x_lock(&purge_sys->latch);
     }

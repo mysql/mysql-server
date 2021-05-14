@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,8 @@
 class COPY_INFO;
 class Copy_field;
 class Item;
-class SELECT_LEX;
-class SELECT_LEX_UNIT;
+class Query_block;
+class Query_expression;
 class Select_lex_visitor;
 class THD;
 class Temp_table_param;
@@ -47,7 +47,7 @@ struct TABLE_LIST;
 bool records_are_comparable(const TABLE *table);
 bool compare_records(const TABLE *table);
 bool should_switch_to_multi_table_if_subqueries(const THD *thd,
-                                                const SELECT_LEX *select,
+                                                const Query_block *select,
                                                 const TABLE_LIST *table_list);
 
 class Query_result_update final : public Query_result_interceptor {
@@ -124,7 +124,7 @@ class Query_result_update final : public Query_result_interceptor {
       : Query_result_interceptor(), fields(field_list), values(value_list) {}
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   bool optimize() override;
   bool start_execution(THD *thd) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,9 @@ namespace mock {
 
 class Listener_factory : public iface::Listener_factory {
  public:
+  Listener_factory();
+  virtual ~Listener_factory() override;
+
   MOCK_METHOD(iface::Listener *, create_unix_socket_listener_ptr,
               (const std::string &unix_socket_path,
                const iface::Socket_events &event, const uint32_t backlog),

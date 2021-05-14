@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@
 #include <chrono>
 #include <iterator>  // advance
 #include <memory>
+#include <mutex>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -214,11 +215,11 @@ DestMetadataCacheGroup::get_available(
   const auto &managed_servers_vec = managed_servers.instance_vector;
   if (routing_strategy_ == routing::RoutingStrategy::kRoundRobinWithFallback) {
     // if there are no secondaries available we fall-back to primaries
-    auto secondary =
-        std::find_if(managed_servers_vec.begin(), managed_servers_vec.end(),
-                     [](const metadata_cache::ManagedInstance &i) {
-                       return i.mode == metadata_cache::ServerMode::ReadOnly;
-                     });
+    auto secondary = std::find_if(
+        managed_servers_vec.begin(), managed_servers_vec.end(),
+        [](const metadata_cache::ManagedInstance &i) {
+          return i.mode == metadata_cache::ServerMode::ReadOnly && !i.hidden;
+        });
 
     primary_fallback = secondary == managed_servers_vec.end();
   }
@@ -373,13 +374,18 @@ void DestMetadataCacheGroup::init() {
 }
 
 void DestMetadataCacheGroup::subscribe_for_metadata_cache_changes() {
-  cache_api_->add_listener(ha_replicaset_, this);
+  cache_api_->add_state_listener(ha_replicaset_, this);
   subscribed_for_metadata_cache_changes_ = true;
+}
+
+void DestMetadataCacheGroup::subscribe_for_acceptor_handler() {
+  cache_api_->add_acceptor_handler_listener(ha_replicaset_, this);
 }
 
 DestMetadataCacheGroup::~DestMetadataCacheGroup() {
   if (subscribed_for_metadata_cache_changes_) {
-    cache_api_->remove_listener(ha_replicaset_, this);
+    cache_api_->remove_state_listener(ha_replicaset_, this);
+    cache_api_->remove_acceptor_handler_listener(ha_replicaset_, this);
   }
 }
 
@@ -393,6 +399,8 @@ class MetadataCacheDestination : public Destination {
         server_uuid_{std::move(server_uuid)} {}
 
   void connect_status(std::error_code ec) override {
+    last_ec_ = ec;
+
     if (ec != std::error_code{}) {
       balancer_->cache_api()->mark_instance_reachability(
           server_uuid_, metadata_cache::InstanceStatus::Unreachable);
@@ -410,10 +418,16 @@ class MetadataCacheDestination : public Destination {
     }
   }
 
+  std::string server_uuid() const { return server_uuid_; }
+
+  std::error_code last_error_code() const { return last_ec_; }
+
  private:
   DestMetadataCacheGroup *balancer_;
 
   std::string server_uuid_;
+
+  std::error_code last_ec_;
 };
 
 // the first round of destinations didn't succeed.
@@ -425,19 +439,49 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
     // ReplicaSet
     if (routing_strategy_ ==
             routing::RoutingStrategy::kRoundRobinWithFallback &&
-        !previous_dests.primary()) {
+        !previous_dests.primary_already_used()) {
       // get the primaries
       return primary_destinations();
     }
   } else {
     // Group Replication
     if (server_role() == DestMetadataCacheGroup::ServerRole::Primary) {
-      // if connecting to the primary failed, wait for failover and fetch a new
-      // list of candidates.
+      // verify preconditions.
+      assert(!previous_dests.empty() &&
+             "previous destinations MUST NOT be empty");
+
+      assert(previous_dests.is_primary_destination() &&
+             "previous destinations MUST be primary destinations");
+
+      if (previous_dests.empty()) {
+        return stdx::make_unexpected();
+      }
+
+      if (!previous_dests.is_primary_destination()) {
+        return stdx::make_unexpected();
+      }
+
+      // if connecting to the primary failed differentiate between:
       //
-      // in case of timeout, fail
+      // - network failure
+      // - member failure
+      //
+      // On network failure (timeout, network-not-reachable, ...), fail
+      // directly.
+      //
+      // On member failure (connection refused, ...) wait for failover and use
+      // the new primary.
+
+      auto const *primary_member = dynamic_cast<MetadataCacheDestination *>(
+          previous_dests.begin()->get());
+
+      if (primary_member->last_error_code() ==
+          make_error_condition(std::errc::timed_out)) {
+        return stdx::make_unexpected();
+      }
 
       if (cache_api_->wait_primary_failover(ha_replicaset_,
+                                            primary_member->server_uuid(),
                                             kPrimaryFailoverTimeout)) {
         return primary_destinations();
       }
@@ -447,9 +491,17 @@ stdx::expected<Destinations, void> DestMetadataCacheGroup::refresh_destinations(
   return stdx::make_unexpected();
 }
 
+void DestMetadataCacheGroup::advance(size_t n) {
+  std::lock_guard<std::mutex> lk(mutex_update_);
+
+  start_pos_ += n;
+}
+
 Destinations DestMetadataCacheGroup::balance(
     const AvailableDestinations &available, bool primary_fallback) {
   Destinations dests;
+
+  std::lock_guard<std::mutex> lk(mutex_update_);
 
   switch (routing_strategy_) {
     case routing::RoutingStrategy::kFirstAvailable: {
@@ -532,8 +584,13 @@ Destinations DestMetadataCacheGroup::balance(
 
   if (primary_fallback) {
     // announce that we already use the primaries and don't want to fallback
-    dests.primary(true);
+    dests.primary_already_used(true);
   }
+
+  if (server_role() == DestMetadataCacheGroup::ServerRole::Primary) {
+    dests.set_is_primary_destination(true);
+  }
+
   return dests;
 }
 
@@ -585,18 +642,27 @@ void DestMetadataCacheGroup::on_instances_change(
   // we got notified that the metadata has changed.
   // If instances is empty then (most like is empty)
   // the metadata-cache cannot connect to the metadata-servers
-  // In that case we only trigger the callbacks (resulting in disconnects) if
+  // In that case we only disconnect clients if
   // the user configured that it should happen
   // (disconnect_on_metadata_unavailable_ == true)
-  if (!md_servers_reachable && !disconnect_on_metadata_unavailable_) return;
+  const bool disconnect =
+      md_servers_reachable || disconnect_on_metadata_unavailable_;
 
   const std::string reason =
       md_servers_reachable ? "metadata change" : "metadata unavailable";
 
-  const auto &available_nodes =
+  const auto &nodes_for_new_connections =
+      get_available(instances, /*for_new_connections=*/true).first;
+
+  AllowedNodes new_addresses;
+  for (const auto &dest : nodes_for_new_connections) {
+    new_addresses.emplace_back(dest.address.str());
+  }
+
+  const auto &nodes_for_existing_connections =
       get_available(instances, /*for_new_connections=*/false).first;
   AllowedNodes addresses;
-  for (const auto &dest : available_nodes) {
+  for (const auto &dest : nodes_for_existing_connections) {
     addresses.emplace_back(dest.address.str());
   }
 
@@ -605,14 +671,40 @@ void DestMetadataCacheGroup::on_instances_change(
   // notify all the registered listeners about the list of available nodes
   // change
   for (auto &clb : allowed_nodes_change_callbacks_) {
-    clb(addresses, reason);
+    clb(addresses, new_addresses, disconnect, reason);
   }
 }
 
-void DestMetadataCacheGroup::notify(
+void DestMetadataCacheGroup::notify_instances_changed(
     const metadata_cache::LookupResult &instances,
     const bool md_servers_reachable, const unsigned /*view_id*/) noexcept {
   on_instances_change(instances, md_servers_reachable);
+}
+
+bool DestMetadataCacheGroup::update_socket_acceptor_state(
+    const metadata_cache::LookupResult &instances) noexcept {
+  const auto &nodes_for_new_connections =
+      get_available(instances, /*for_new_connections=*/true).first;
+
+  AllowedNodes new_addresses;
+  for (const auto &dest : nodes_for_new_connections) {
+    new_addresses.emplace_back(dest.address.str());
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+    if (!new_addresses.empty() && start_router_socket_acceptor_callback_) {
+      const auto &start_acceptor_res = start_router_socket_acceptor_callback_();
+      return start_acceptor_res ? true : false;
+    }
+
+    if (new_addresses.empty() && stop_router_socket_acceptor_callback_) {
+      stop_router_socket_acceptor_callback_();
+      return true;
+    }
+  }
+
+  return true;
 }
 
 void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
@@ -623,5 +715,6 @@ void DestMetadataCacheGroup::start(const mysql_harness::PluginFuncEnv *env) {
 
   if (!env || is_running(env)) {
     subscribe_for_metadata_cache_changes();
+    subscribe_for_acceptor_handler();
   }
 }

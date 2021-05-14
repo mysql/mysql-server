@@ -1,5 +1,5 @@
 
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,7 +21,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-cmake_minimum_required(VERSION 2.4.4)
+# cmake_minimum_required(VERSION 2.4.4)
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS ON)
 
 set(VERSION "1.2.11")
@@ -140,6 +140,12 @@ string(REGEX REPLACE ".*#define[ \t]+ZLIB_VERSION[ \t]+\"([-0-9A-Za-z.]+)\".*"
 
 ADD_CONVENIENCE_LIBRARY(zlib
   ${ZLIB_SRCS} ${ZLIB_PUBLIC_HDRS} ${ZLIB_PRIVATE_HDRS})
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+IF(HAS_MISSING_PROFILE)
+  TARGET_COMPILE_OPTIONS(zlib_objlib PRIVATE ${HAS_MISSING_PROFILE})
+ENDIF()
+
 
 IF(NOT WIN32)
   ADD_COMPILE_FLAGS(${ZLIB_SRCS} COMPILE_FLAGS "-fvisibility=hidden")

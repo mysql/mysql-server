@@ -1,7 +1,0 @@
-define: DUK_USE_BASE64_SUPPORT
-introduced: 2.3.0
-default: true
-tags:
-  - codec
-description: >
-  Enable base64 encoding/decoding support.

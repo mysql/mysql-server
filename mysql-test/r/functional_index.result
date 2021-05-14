@@ -609,3 +609,32 @@ SELECT j->'$**.used_columns' FROM t2;
 j->'$**.used_columns'
 [["x"]]
 DROP TABLE t1, t2;
+#
+# Bug#32287186: FAILED TO CREATE FUNCTION INDEX,
+# COLUMN NAME IS UPPERCASE CHARACTER
+#
+# Verify that normal index creation is case-insensitive on
+# column name
+CREATE TABLE t1 (id INT, name VARCHAR(50), INDEX (NAME));
+CREATE TABLE t2 (id INT, name VARCHAR(50), INDEX (name));
+CREATE TABLE t3 (id INT, NAME VARCHAR(50), INDEX (name));
+CREATE TABLE t4 (id INT, NAME VARCHAR(50), INDEX (NAME));
+# Now verify that functional index creation is case-insensitive
+# on column name as well
+CREATE TABLE t5 (id INT, name VARCHAR(50),
+INDEX ((SUBSTR(name, 1, 2))));
+CREATE TABLE t6 (id INT, name VARCHAR(50),
+INDEX ((SUBSTR(NAME, 1, 2))));
+CREATE TABLE t7 (id INT, NAME VARCHAR(50),
+INDEX ((SUBSTR(name, 1, 2))));
+CREATE TABLE t8 (id INT, NAME VARCHAR(50),
+INDEX ((SUBSTR(NAME, 1, 2))));
+# Cleanup
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t5;
+DROP TABLE t6;
+DROP TABLE t7;
+DROP TABLE t8;

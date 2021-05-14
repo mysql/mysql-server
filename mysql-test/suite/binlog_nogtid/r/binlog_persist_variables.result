@@ -19,7 +19,8 @@ VARIABLE_NAME LIKE '%rpl%' OR
 VARIABLE_NAME LIKE '%semi_sync%' OR
 VARIABLE_NAME LIKE '%slave%') AND
 (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-'innodb_master_thread_disabled_debug'))
+'innodb_master_thread_disabled_debug',
+'skip_slave_start'))
 ORDER BY VARIABLE_NAME;
 
 include/assert.inc ['Expect 85 variables in the table.']

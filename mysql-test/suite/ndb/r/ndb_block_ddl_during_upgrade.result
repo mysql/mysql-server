@@ -16,52 +16,52 @@ engine ndbcluster;
 # Try various DDLs and verify that they are blocked
 # Create table
 create table t2 (a int) engine ndb;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Inplace alter
 alter table t1 add index idx(a), algorithm = inplace;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Copy alter
 alter table t1 add index idx(a), algorithm = copy;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Rename table
 rename table t1 to t2;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Drop table
 drop table t1;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Create logfile group
 create logfile group lg_2
 add undofile 'undo_2.log'
   initial_size 1M
 undo_buffer_size 2M
 engine ndbcluster;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Alter logfile group
 alter logfile group lg_1
 add undofile 'undo_2.log'
   initial_size 1M
 engine ndbcluster;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Create tablespace
 create tablespace ts_2
 add datafile 'data_2.dat'
   use logfile group lg_1
 initial_size 2M
 engine ndbcluster;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Alter tablespace
 alter tablespace ts_1
 add datafile 'data_2.dat'
   initial_size 2M
 engine ndbcluster;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Verify that database DDLs are still allowed
 create database test1;
 alter database test1 default charset latin1;
 drop database test1;
 # Drop database will still fail if it has tables in it
 drop database test;
-ERROR HY000: DDLs are disallowed on NDB SE as there is atleast one node without MySQL DD support connected to the cluster.
+ERROR HY000: DDLs are disallowed on NDB SE as there is at least one node without MySQL DD support connected to the cluster.
 # Any Non-NDB DDLs are allowed
 create table t1_innodb(a int) engine innodb;
 drop table t1_innodb;

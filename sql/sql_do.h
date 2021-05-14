@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ class Query_result_do final : public Query_result {
   }
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   bool send_eof(THD *thd) override;
-  bool check_simple_select() const override { return false; }
+  bool check_simple_query_block() const override { return false; }
   void abort_result_set(THD *) override {}
   void cleanup(THD *) override {}
 };

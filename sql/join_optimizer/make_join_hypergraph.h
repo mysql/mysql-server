@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,10 +31,30 @@
 #include "sql/mem_root_array.h"
 #include "sql/sql_const.h"
 
-class SELECT_LEX;
+class Field;
+class Item;
+class JOIN;
+class Query_block;
 class THD;
 struct MEM_ROOT;
 struct TABLE;
+
+/**
+  A sargable (from “Search ARGument”) predicate is one that we can attempt
+  to push down into an index (what we'd call “ref access” or “index range
+  scan”/“quick”). This structure denotes one such instance, precomputed from
+  all the predicates in the given hypergraph.
+ */
+struct SargablePredicate {
+  // Index into the “predicates” array in the graph.
+  int predicate_index;
+
+  // The predicate is assumed to be <field> = <other_side>.
+  // Later, we could push down other kinds of relations, such as
+  // greater-than.
+  Field *field;
+  Item *other_side;
+};
 
 /**
   A struct containing a join hypergraph of a single query block, encapsulating
@@ -47,8 +67,11 @@ struct TABLE;
   indexed.
  */
 struct JoinHypergraph {
-  explicit JoinHypergraph(MEM_ROOT *mem_root)
-      : nodes(mem_root), edges(mem_root), predicates(mem_root) {}
+  JoinHypergraph(MEM_ROOT *mem_root, const Query_block *query_block)
+      : nodes(mem_root),
+        edges(mem_root),
+        predicates(mem_root),
+        m_query_block(query_block) {}
 
   hypergraph::Hypergraph graph;
 
@@ -57,17 +80,40 @@ struct JoinHypergraph {
   // except for when scalar-to-derived conversion is active.
   std::array<int, MAX_TABLES> table_num_to_node_num;
 
-  Mem_root_array<TABLE *> nodes;
+  struct Node {
+    TABLE *table;
+
+    // List of all sargable predicates (see SargablePredicate) where
+    // the field is part of this table. When we see the node for
+    // the first time, we will evaluate all of these and consider
+    // creating access paths that exploit these predicates.
+    //
+    // For now, only elements from the “predicates” array
+    // (WHERE conditions) are included; later, we should also include
+    // predicates from join conditions.
+    Mem_root_array<SargablePredicate> sargable_predicates;
+  };
+  Mem_root_array<Node> nodes;
 
   // Note that graph.edges contain each edge twice (see Hypergraph
   // for more information), so edges[i] corresponds to graph.edges[i*2].
   Mem_root_array<JoinPredicate> edges;
 
   Mem_root_array<Predicate> predicates;
+
+  /// Returns a pointer to the query block that is being planned.
+  const Query_block *query_block() const { return m_query_block; }
+
+  /// Returns a pointer to the JOIN object of the query block being planned.
+  const JOIN *join() const;
+
+ private:
+  /// A pointer to the query block being planned.
+  const Query_block *m_query_block;
 };
 
 /**
-  Make a join hypergraph from the query block given by “select_lex”,
+  Make a join hypergraph from the query block given by “graph->query_block”,
   converting from MySQL's join list structures to the ones expected
   by the hypergraph join optimizer. This includes pushdown of WHERE
   predicates, and detection of conditions suitable for hash join.
@@ -77,7 +123,6 @@ struct JoinHypergraph {
   The result is suitable for running DPhyp (subgraph_enumeration.h)
   to find optimal join planning.
  */
-bool MakeJoinHypergraph(THD *thd, SELECT_LEX *select_lex, std::string *trace,
-                        JoinHypergraph *graph);
+bool MakeJoinHypergraph(THD *thd, std::string *trace, JoinHypergraph *graph);
 
 #endif  // SQL_JOIN_OPTIMIZER_MAKE_JOIN_HYPERGRAPH

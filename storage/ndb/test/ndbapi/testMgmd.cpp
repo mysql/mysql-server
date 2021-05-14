@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -228,8 +228,12 @@ public:
 
     if (ret != 9)
     {
-      fprintf(stderr, "stop ret: %u\n", ret);
-      return false; // Can't wait after kill with -9 -> fatal error
+      // The normal case after killing the process with -9 is that wait
+      // returns 9, but other return codes may also be returned for example
+      // when the process has already terminated itself.
+      // The important thing is that the process has terminated, just log return
+      // code and continue releasing resources.
+      fprintf(stderr, "Process %s stopped with ret: %u\n", name(), ret);
     }
 
     delete m_proc;
@@ -377,6 +381,7 @@ public:
     args.add("-c");
     args.add(connect_string.c_str());
     args.add("--ndb-nodeid=", m_nodeid);
+    args.add("--nodaemon");
     return Mgmd::start(working_dir, args);
   }
 };
@@ -696,8 +701,12 @@ int runTestNoConfigCache(NDBT_Context* ctx, NDBT_Step* step)
                                              "config.ini",
                                              NULL).c_str()));
   
+  MgmdProcessList mgmds;
+
   // Start ndb_mgmd  from config.ini
   Mgmd* mgmd = new Mgmd(1);
+  mgmds.push_back(mgmd);
+
   CHECK(mgmd->start_from_config_ini(wd.path(), "--skip-config-cache", NULL));
      
   // Connect the ndb_mgmd(s)
@@ -729,8 +738,12 @@ int runTestNoConfigCache_DontCreateConfigDir(NDBT_Context* ctx, NDBT_Step* step)
                                              "config.ini",
                                              NULL).c_str()));
 
+  MgmdProcessList mgmds;
+
   g_err << "Test no configdir is created with --skip-config-cache" << endl;
   Mgmd* mgmd = new Mgmd(1);
+  mgmds.push_back(mgmd);
+
   CHECK(mgmd->start_from_config_ini(wd.path(),
                                     "--skip-config-cache",
                                     "--config-dir=dir37",
@@ -1439,29 +1452,41 @@ runTestUnresolvedHosts2(NDBT_Context* ctx, NDBT_Step* step)
   char hostname[200];
   CHECK(gethostname(hostname, sizeof(hostname)) == 0);
 
-  /* Create a configuration with AllowUnresolvedHostnames=true  */
-  Properties config, mgm, tcp, api;
-  mgm.put("NodeId", 145);
-  mgm.put("HostName", hostname);
-  mgm.put("PortNumber", ConfigFactory::get_ndbt_base_port() + /* mysqld */ 1);
-  tcp.put("AllowUnresolvedHostnames", "true");
-  api.put("NodeId", 151);
-  config.put("ndb_mgmd", 145, &mgm);
-  config.put("mysqld", 151, &api);
-  config.put("TCP DEFAULT", &tcp);
-
-  /* 144 data nodes. Node 1 has a good hostname.
-     The other 143 data nodes have unresolvable hostnames.
-  */
-  for(int i = 1 ; i <= 144 ; i++) {
-    Properties ndb;
-    ndb.put("NodeId", i);
-    ndb.put("NoOfReplicas", 4);
-    if(i == 1)
-      ndb.put("HostName", hostname);
-    else
-      ndb.put("HostName", "xx-no-such-host.no.oracle.com.");
-    config.put("ndbd", i, &ndb);
+  Properties config;
+  {
+    // 144 ndbds, nodeid 1 -> 144
+    for(int i = 1 ; i <= 144 ; i++) {
+      Properties ndbd;
+      ndbd.put("NodeId", i);
+      ndbd.put("NoOfReplicas", 4);
+      if(i == 1) {
+        // Node 1 has a good hostname.
+        ndbd.put("HostName", hostname);
+      } else  {
+        // The other have unresolvable hostnames.
+        ndbd.put("HostName", "xx-no-such-host.no.oracle.com.");
+      }
+      config.put("ndbd", i, &ndbd);
+    }
+  }
+  {
+    // 1 ndb_mgmd, nodeid 145
+    Properties mgmd;
+    mgmd.put("NodeId", 145);
+    mgmd.put("HostName", hostname);
+    mgmd.put("PortNumber", ConfigFactory::get_ndbt_base_port() + /* mysqld */ 1);
+    config.put("ndb_mgmd", 145, &mgmd);
+  }
+  {
+    // 1 mysqld, nodeid 151
+    Properties mysqld;
+    mysqld.put("NodeId", 151);
+    config.put("mysqld", 151, &mysqld);
+  }
+  {
+    Properties tcp;
+    tcp.put("AllowUnresolvedHostnames", "true");
+    config.put("TCP DEFAULT", &tcp);
   }
 
   CHECK(ConfigFactory::write_config_ini(config,
@@ -1473,10 +1498,9 @@ runTestUnresolvedHosts2(NDBT_Context* ctx, NDBT_Step* step)
      succeed despite the unresolvable host names and large configuration.
   */
   Mgmd mgmd(145);
-  Ndbd ndb1(1);
-  int ndbd_exit_code;
+  Ndbd ndbd1(1);
 
-  CHECK(ndb1.start(wd.path(), mgmd.connectstring(config))); // Start data node 1
+  CHECK(ndbd1.start(wd.path(), mgmd.connectstring(config))); // Start data node 1
   CHECK(mgmd.start_from_config_ini(wd.path()));    // Start management node
   CHECK(mgmd.connect(config));                     // Connect to management node
   CHECK(mgmd.wait_confirmed_config());             // Wait for configuration
@@ -1485,13 +1509,11 @@ runTestUnresolvedHosts2(NDBT_Context* ctx, NDBT_Step* step)
      Expect it to run for at least 20 seconds, trying to allocate a node id.
      But in the second 20-second interval, it will time out and shut down.
   */
-  Ndbd ndb2(2);
-  CHECK(ndb2.start(wd.path(), mgmd.connectstring(config)));
-  CHECK(ndb2.wait(ndbd_exit_code, 200) == 0);   // first 20-second wait
-  CHECK(ndb2.wait(ndbd_exit_code, 200) == 1);   // second 20-second wait
-
-  /* Shut down the cluster */
-  ndb_mgm_stop2(mgmd.handle(), -1, 0, 0);
+  int ndbd_exit_code;
+  Ndbd ndbd2(2);
+  CHECK(ndbd2.start(wd.path(), mgmd.connectstring(config)));
+  CHECK(ndbd2.wait(ndbd_exit_code, 200) == 0);   // first 20-second wait
+  CHECK(ndbd2.wait(ndbd_exit_code, 200) == 1);   // second 20-second wait
 
   return NDBT_OK;
 }

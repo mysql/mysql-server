@@ -18,10 +18,12 @@ CREATE TABLE t1(c1 INT);
 
 # The ibd file for table t1 is loaded when the server
 # is started for the first time after creating the table.
+--let $restart_parameters="restart: --innodb-buffer-pool-load-at-startup=off"
 --source include/restart_mysqld.inc
 
 # Restart the server twice in succession to avoid loading
 # t1.ibd file during server startup
+--let $restart_parameters="restart: --innodb-buffer-pool-load-at-startup=off"
 --source include/restart_mysqld.inc
 
 SET DEBUG='+d,ib_create_table_fail_disk_full';
@@ -36,6 +38,7 @@ SELECT * FROM t1;
 --disable_reconnect
 --source include/wait_until_disconnected.inc
 
+--let $restart_parameters=restart:
 --source include/start_mysqld.inc
 
 --echo # Cleanup

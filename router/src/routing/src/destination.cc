@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 #include <algorithm>  // remove_if
 #include <mutex>      // lock_guard
 #include <stdexcept>  // out_of_range
+#include <system_error>
 
 #include "mysqlrouter/routing.h"
 #include "tcp_address.h"
@@ -47,6 +48,28 @@ void DestinationNodesStateNotifier::unregister_allowed_nodes_change_callback(
     const AllowedNodesChangeCallbacksListIterator &it) {
   std::lock_guard<std::mutex> lock(allowed_nodes_change_callbacks_mtx_);
   allowed_nodes_change_callbacks_.erase(it);
+}
+
+void DestinationNodesStateNotifier::register_start_router_socket_acceptor(
+    const StartSocketAcceptorCallback &callback) {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  start_router_socket_acceptor_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::unregister_start_router_socket_acceptor() {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  start_router_socket_acceptor_callback_ = nullptr;
+}
+
+void DestinationNodesStateNotifier::register_stop_router_socket_acceptor(
+    const StopSocketAcceptorCallback &callback) {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  stop_router_socket_acceptor_callback_ = callback;
+}
+
+void DestinationNodesStateNotifier::unregister_stop_router_socket_acceptor() {
+  std::lock_guard<std::mutex> lock(socket_acceptor_handle_callbacks_mtx);
+  stop_router_socket_acceptor_callback_ = nullptr;
 }
 
 // class RouteDestination

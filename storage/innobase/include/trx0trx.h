@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -766,7 +766,7 @@ no longer be associated with a session when the server is restarted.
 
 A session may be served by at most one thread at a time. The serving
 thread of a session might change in some MySQL implementations.
-Therefore we do not have os_thread_get_curr_id() assertions in the code.
+Therefore we do not have std::this_thread::get_id() assertions in the code.
 
 Normally, only the thread that is currently associated with a running
 transaction may access (read and modify) the trx object, and it may do
@@ -984,7 +984,7 @@ struct trx_t {
                      protected by trx_sys->mutex when
                      trx->in_rw_trx_list holds */
 
-  std::atomic<os_thread_id_t> killed_by; /*!< The thread ID that wants to
+  std::atomic<std::thread::id> killed_by; /*!< The thread ID that wants to
                             kill this transaction asynchronously.
                             This is required because we recursively
                             enter the handlerton methods and need
@@ -1404,7 +1404,7 @@ class TrxInInnoDB {
   @return true if the rollback is being initiated by the thread that
           marked the transaction for asynchronous rollback */
   static bool is_async_rollback(const trx_t *trx) {
-    return (trx->killed_by == os_thread_get_curr_id());
+    return trx->killed_by == std::this_thread::get_id();
   }
 
  private:
@@ -1424,12 +1424,12 @@ class TrxInInnoDB {
       trx_mutex_enter(trx);
       if (!is_forced_rollback(trx) && is_started(trx) &&
           !trx_is_autocommit_non_locking(trx)) {
-        ut_ad(trx->killed_by == 0);
+        ut_ad(trx->killed_by == std::thread::id{});
 
         /* This transaction has crossed the point of
         no return and cannot be rolled back
         asynchronously now. It must commit or rollback
-        synhronously. */
+        synchronously. */
 
         trx->in_innodb |= TRX_FORCE_ROLLBACK_DISABLE;
       }
@@ -1517,7 +1517,7 @@ class TrxInInnoDB {
         sleep_time = 100000;
       }
 
-      os_thread_sleep(sleep_time);
+      std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
 
       trx_mutex_enter(trx);
     }

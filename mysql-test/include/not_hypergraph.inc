@@ -8,7 +8,7 @@
 #
 
 if ($HYPERGRAPH_TEST) {
-  --skip Not supported under "--hypergraph"
+  --skip Not supported under '--hypergraph'
 }
 
 

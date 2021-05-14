@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 
 namespace temptable_test {
 
-#ifdef DBUG_OFF
+#ifdef NDEBUG
 
 /* In release builds there will be an error reported as well
 as my_error generated. */
@@ -89,7 +89,7 @@ class Handler_test : public testing::Test {
   handlerton m_temptable_handlerton;
 
   void init_handlerton() {
-    std::memset(&m_temptable_handlerton, 0, sizeof(m_temptable_handlerton));
+    m_temptable_handlerton = handlerton();
 
     m_temptable_handlerton.file_extensions = nullptr;
     m_temptable_handlerton.state = SHOW_OPTION_YES;
@@ -123,7 +123,7 @@ TEST_F(Handler_test, SimpleTableCreate) {
   EXPECT_EQ(handler.delete_table(table_name, nullptr), 0);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 TEST_F(
     Handler_test,
     TableCreateReturnsRecordFileFullWhenTempTableAllocatorThrowsRecordFileFull) {
@@ -175,7 +175,7 @@ TEST_F(Handler_test,
             HA_ERR_OUT_OF_MEM);
   DBUG_SET("-d,temptable_create_return_non_result_type_exception");
 }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 TEST_F(Handler_test, SimpleTableOpsFixedSize) {
   const char *table_name = "t1";

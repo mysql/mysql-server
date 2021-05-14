@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,6 +33,7 @@
 
 #include <gmock/gmock-matchers.h>
 
+#include "config_builder.h"
 #include "dim.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
@@ -1728,7 +1729,7 @@ TEST_F(RouterLoggingTest, is_debug_logs_disabled_if_no_bootstrap_config_file) {
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
   EXPECT_THAT(router.get_full_output(),
-              testing::Not(testing::HasSubstr("Executing query:")));
+              testing::Not(testing::HasSubstr("SELECT ")));
 }
 
 /**
@@ -1773,7 +1774,12 @@ TEST_F(RouterLoggingTest, is_debug_logs_enabled_if_bootstrap_config_file) {
 
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
-  EXPECT_THAT(router.get_full_output(), testing::HasSubstr("Executing query:"));
+
+  // check if log output contains the SQL queries.
+  //
+  // SQL queries are logged with host:port at the start.
+  EXPECT_THAT(router.get_full_output(),
+              testing::HasSubstr("127.0.0.1:" + std::to_string(server_port)));
 }
 
 /**
@@ -1817,8 +1823,11 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   // check if the bootstraping was successful
   check_exit_code(router, EXIT_SUCCESS);
 
-  auto matcher = [](const std::string &line) -> bool {
-    return line.find("Executing query:") != line.npos;
+  // check if log output contains the SQL queries.
+  //
+  // SQL queries are logged with host:port at the start.
+  auto matcher = [server_port](const std::string &line) -> bool {
+    return line.find("127.0.0.1:" + std::to_string(server_port)) != line.npos;
   };
 
   EXPECT_TRUE(find_in_file(bootstrap_conf.name() + "/mysqlrouter.log", matcher,
@@ -1875,7 +1884,7 @@ TEST_F(RouterLoggingTest, bootstrap_normal_logs_written_to_stdout) {
 
   // check if logs are not written to output
   EXPECT_THAT(router.get_full_output(),
-              testing::Not(testing::HasSubstr("Executing query:")));
+              testing::Not(testing::HasSubstr("SELECT ")));
 
   // check if normal output is written to output
   EXPECT_THAT(router.get_full_output(),
@@ -1981,7 +1990,6 @@ TEST_F(MetadataCacheLoggingTest,
   auto &router =
       launch_router({"-c", init_keyring_and_config_file(conf_dir.name())},
                     EXIT_SUCCESS, false, -1s);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache ERROR [7ff0bb001700] Failed connecting
@@ -2021,7 +2029,6 @@ TEST_F(MetadataCacheLoggingTest,
   auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS, true,
       false, -1s);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache WARNING [7ff0bb001700] Failed connecting
@@ -2059,7 +2066,6 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal) {
   // launch the router with metadata-cache configuration
   auto &router = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   RouterComponentTest::sleep_for(500ms);
 
@@ -2099,7 +2105,6 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
   // launch the router with metadata-cache configuration
   auto &router = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   RouterComponentTest::sleep_for(500ms);
 
@@ -2132,8 +2137,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_by_HUP_signal_no_file_move) {
 }
 
 /**
- * @test Checks that the logs Router continues to log to the file when the
- * SIGHUP gets sent to it and no file replacement is done.
+ * @test Checks that the log file will be recreated after a router restart.
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   TempDirectory conf_dir;
@@ -2141,7 +2145,6 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   // launch the router with metadata-cache configuration
   auto &router = launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   RouterComponentTest::sleep_for(500ms);
 
@@ -2163,35 +2166,48 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_when_router_restarts) {
   chmod(log_file_1.c_str(), S_IRUSR);
 
   // start the router again and check that the new log file got created
-  auto &router2 = launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router2, router_port, 10000ms));
+  launch_router({"-c", init_keyring_and_config_file(conf_dir.name())},
+                EXIT_SUCCESS);
   RouterComponentTest::sleep_for(500ms);
   EXPECT_TRUE(log_file.exists());
 }
 
 /**
- * @test Checks that the logs Router continues to log to the file when the
- * SIGHUP gets sent to it and no file replacement is done.
+ * @test Checks that sending SIGHUP when the log file is read only results in a
+ * failure.
  */
 TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
   TempDirectory conf_dir;
 
-  // launch the router with metadata-cache configuration
+  // We do not need metadata cache configuration, we just want to get to
+  // the ready notification
+  metadata_cache_section = "";
+  routing_section =
+      "[routing:test_default]\n"
+      "bind_port=" +
+      std::to_string(router_port) + "\n" + "destinations=127.0.0.1\n" +
+      "routing_strategy=first-available\n";
+
+  // launch the router with static routing configuration
   auto &router = launch_router(
-      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10s));
+      {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_FAILURE,
+      /*catch_stderr*/ true, /*wait_for_notify_ready*/ 5s);
 
   auto log_file = get_logging_dir();
   log_file.append("mysqlrouter.log");
 
-  unsigned retries = 5;
-  auto kSleep = 100ms;
-  do {
-    RouterComponentTest::sleep_for(kSleep);
-  } while ((--retries > 0) && !log_file.exists());
+  auto wait_for_file = [](const mysql_harness::Path &file) {
+    unsigned retries = 5;
+    auto kSleep = 100ms;
+    while (retries > 0) {
+      if (file.exists()) return true;
+      RouterComponentTest::sleep_for(kSleep);
+      retries--;
+    }
+    return false;
+  };
 
-  EXPECT_TRUE(log_file.exists());
+  EXPECT_TRUE(wait_for_file(log_file));
 
   // move the log_file appending '.1' to its name
   auto log_file_1 = get_logging_dir();
@@ -2203,6 +2219,7 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
     std::ofstream logf(log_file.str());
     EXPECT_TRUE(logf.good());
   }
+  EXPECT_TRUE(wait_for_file(log_file));
   chmod(log_file.c_str(), S_IRUSR);
 
   // send the log-rotate signal
@@ -2225,18 +2242,33 @@ TEST_F(MetadataCacheLoggingTest, log_rotation_read_only) {
 TEST_F(MetadataCacheLoggingTest, log_rotation_stdout) {
   TempDirectory conf_dir;
 
-  // launch the router with metadata-cache configuration
-  auto &router = launch_router(
-      {"-c",
-       init_keyring_and_config_file(conf_dir.name(), /*log_to_console=*/true)},
-      EXIT_SUCCESS);
-  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10s));
+  auto default_section = get_DEFAULT_defaults();
 
-  auto sleep_time = 200ms;
-  RouterComponentTest::sleep_for(sleep_time);
-  const auto pid = static_cast<pid_t>(router.get_pid());
-  ::kill(pid, SIGHUP);
-  RouterComponentTest::sleep_for(sleep_time);
+  // send log to stderr
+  default_section["logging_folder"] = "";
+
+  const auto config = mysql_harness::join(
+      std::vector<std::string>{
+          mysql_harness::ConfigBuilder::build_section("logger",
+                                                      {{"level", "DEBUG"}}),
+          mysql_harness::ConfigBuilder::build_section(
+              "routing",
+              {
+                  {"bind_port", std::to_string(router_port)},
+                  {"destinations", "127.0.0.1:3306"},
+                  {"routing_strategy", "round-robin"},
+              })},
+      "\n");
+
+  auto &router = launch_router(
+      {"-c", create_config_file(conf_dir.name(), config, &default_section)},
+      EXIT_SUCCESS, true, 5s);
+
+  // send SIGHUP, should have no impact.
+  ::kill(router.get_pid(), SIGHUP);
+
+  // wait a bit for the router handle the signal
+  RouterComponentTest::sleep_for(200ms);
 }
 
 #endif

@@ -1212,3 +1212,18 @@ SELECT iu,bu FROM t1;
 
 DROP TABLE t1;
 SET sql_mode = DEFAULT;
+
+--echo #
+--echo # Bug #30156563 TYPE RESOLUTION OF DIV OPERATOR
+--echo #               PRODUCES ONE LESS PRECISION.
+--echo #
+
+SELECT 5.0 + 96 DIV 1;
+CREATE TABLE t1 SELECT
+  5.0 + 96 DIV 1,                     # Dividend is integer
+  5.0 + 96.1234 DIV 1,                # Dividend is decimal
+  5.0 + '96' DIV 1,                   # Dividend is string
+  5.0 + CAST('96' AS SIGNED) DIV 1,   # Dividend is function
+  5.0 + CAST('96' AS UNSIGNED) DIV 1;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;

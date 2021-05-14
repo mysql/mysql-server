@@ -1,4 +1,4 @@
-/*  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,48 @@
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dictionary.h"
 
+/** The minimum idle timeout in seconds. It is kept at 8 hours which is also
+the Server default. Currently recipient sends ACK during state transition.
+In future we could have better time controlled ACK. */
+static const uint32_t MIN_IDLE_TIME_OUT_SEC = 8 * 60 * 60;
+
+/** Minimum read timeout in seconds. Maintain above the donor ACK frequency. */
+static const uint32_t MIN_READ_TIME_OUT_SEC = 30;
+
+/** Minimum write timeout in seconds. Disallow configuring it to too low. We
+might need a separate clone configuration in future or retry on failure. */
+static const uint32_t MIN_WRITE_TIME_OUT_SEC = 60;
+
+/** Set Network read timeout.
+@param[in,out]	net	network object
+@param[in]	timeout	time out in seconds */
+static void set_read_timeout(NET *net, uint32_t timeout) {
+  if (timeout < MIN_READ_TIME_OUT_SEC) {
+    timeout = MIN_READ_TIME_OUT_SEC;
+  }
+  my_net_set_read_timeout(net, timeout);
+}
+
+/** Set Network write timeout.
+@param[in,out]	net	network object
+@param[in]	timeout	time out in seconds */
+static void set_write_timeout(NET *net, uint32_t timeout) {
+  if (timeout < MIN_WRITE_TIME_OUT_SEC) {
+    timeout = MIN_WRITE_TIME_OUT_SEC;
+  }
+  my_net_set_write_timeout(net, timeout);
+}
+
+/** Set Network idle timeout.
+@param[in,out]	net	network object
+@param[in]	timeout	time out in seconds */
+static void set_idle_timeout(NET *net, uint32_t timeout) {
+  if (timeout < MIN_IDLE_TIME_OUT_SEC) {
+    timeout = MIN_IDLE_TIME_OUT_SEC;
+  }
+  my_net_set_read_timeout(net, timeout);
+}
+
 DEFINE_METHOD(void, mysql_clone_start_statement,
               (THD * &thd, PSI_thread_key thread_key,
                PSI_statement_key statement_key)) {
@@ -62,7 +104,7 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 #ifdef HAVE_PSI_THREAD_INTERFACE
   /* Create and set PFS thread key */
   if (thread_key != PSI_NOT_INSTRUMENTED) {
-    DBUG_ASSERT(thd_created);
+    assert(thd_created);
     if (thd_created) {
       PSI_THREAD_CALL(set_thread)(thd->get_psi());
     }
@@ -82,7 +124,7 @@ DEFINE_METHOD(void, mysql_clone_start_statement,
 }
 
 DEFINE_METHOD(void, mysql_clone_finish_statement, (THD * thd)) {
-  DBUG_ASSERT(thd->m_statement_psi == nullptr);
+  assert(thd->m_statement_psi == nullptr);
 
   my_thread_end();
   thd->set_psi(nullptr);
@@ -254,14 +296,15 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
                MYSQL_SOCKET *socket)) {
   DBUG_TRACE;
 
-  /* Set default as 5 seconds */
-  uint net_read_timeout = 5;
-  uint net_write_timeout = 5;
+  /* Set default */
+  uint net_read_timeout = MIN_READ_TIME_OUT_SEC;
+  uint net_write_timeout = MIN_WRITE_TIME_OUT_SEC;
 
   /* Clean any previous Error and Warnings in THD */
   if (thd != nullptr) {
     thd->clear_error();
     thd->get_stmt_da()->reset_condition_info(thd);
+
     net_read_timeout = thd->variables.net_read_timeout;
     net_write_timeout = thd->variables.net_write_timeout;
   }
@@ -335,8 +378,8 @@ DEFINE_METHOD(MYSQL *, mysql_clone_connect,
   net_clear(net, true);
 
   /* Set network read/write timeout */
-  my_net_set_read_timeout(net, net_read_timeout);
-  my_net_set_write_timeout(net, net_write_timeout);
+  set_read_timeout(net, net_read_timeout);
+  set_write_timeout(net, net_write_timeout);
 
   if (thd != nullptr) {
     /* Set current active vio so that shutdown and KILL
@@ -401,7 +444,7 @@ DEFINE_METHOD(int, mysql_clone_send_command,
     err = ER_QUERY_INTERRUPTED;
   }
 
-  DBUG_ASSERT(err != 0);
+  assert(err != 0);
   return err;
 }
 
@@ -424,7 +467,7 @@ DEFINE_METHOD(int, mysql_clone_get_response,
 
   /* Adjust read timeout if specified. */
   if (timeout != 0) {
-    my_net_set_read_timeout(net, timeout);
+    set_read_timeout(net, timeout);
   }
 
   /* Dummy function callback invoked before getting header. */
@@ -457,7 +500,7 @@ DEFINE_METHOD(int, mysql_clone_get_response,
   server_extn.compress_ctx.algorithm = MYSQL_UNCOMPRESSED;
 
   /* Reset timeout back to default value. */
-  my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+  set_read_timeout(net, thd->variables.net_read_timeout);
 
   *packet = net->read_pos;
 
@@ -559,12 +602,15 @@ DEFINE_METHOD(int, mysql_clone_get_command,
   if (!net_flush(net)) {
     net_new_transaction(net);
 
-    /* Use idle timeout while waiting for commands */
-    my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
+    /* Set idle timeout while waiting for commands. Earlier we used server
+    configuration "wait_timeout" but this causes unwanted timeout in clone
+    when user configures the value too low. */
+    set_idle_timeout(net, thd->variables.net_wait_timeout);
 
     *buffer_length = my_net_read(net);
 
-    my_net_set_read_timeout(net, thd->variables.net_read_timeout);
+    set_read_timeout(net, thd->variables.net_read_timeout);
+    set_write_timeout(net, thd->variables.net_write_timeout);
 
     if (*buffer_length != packet_error && *buffer_length != 0) {
       *com_buffer = net->read_pos;
@@ -611,7 +657,7 @@ DEFINE_METHOD(int, mysql_clone_send_response,
 
   int err = static_cast<int>(net->last_errno);
 
-  DBUG_ASSERT(err != 0);
+  assert(err != 0);
   return err;
 }
 
@@ -661,7 +707,7 @@ DEFINE_METHOD(int, mysql_clone_send_error,
     return static_cast<int>(net->last_errno);
   }
 
-  DBUG_ASSERT(!is_fatal);
+  assert(!is_fatal);
 
   /* Clean error in THD */
   thd->clear_error();

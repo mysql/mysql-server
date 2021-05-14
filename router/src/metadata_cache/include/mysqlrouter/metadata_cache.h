@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -37,6 +37,7 @@
 
 #include <rapidjson/document.h>
 
+#include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/datatypes.h"
@@ -202,9 +203,9 @@ class METADATA_API ReplicasetStateListenerInterface {
    * unavailable
    * @param view_id current metadata view_id in case of ReplicaSet cluster
    */
-  virtual void notify(const LookupResult &instances,
-                      const bool md_servers_reachable,
-                      const unsigned view_id) = 0;
+  virtual void notify_instances_changed(const LookupResult &instances,
+                                        const bool md_servers_reachable,
+                                        const unsigned view_id) = 0;
 
   ReplicasetStateListenerInterface() = default;
   // disable copy as it isn't needed right now. Feel free to enable
@@ -217,12 +218,40 @@ class METADATA_API ReplicasetStateListenerInterface {
 };
 
 /**
+ * @brief Abstract class that provides interface for listener on
+ *        whether the listening sockets acceptors state should be updated.
+ */
+class METADATA_API AcceptorUpdateHandlerInterface {
+ public:
+  /**
+   * @brief Callback function that is called when the state of the sockets
+   * acceptors is handled during the metadata refresh.
+   *
+   * @param instances allowed nodes for new connections
+   */
+  virtual bool update_socket_acceptor_state(const LookupResult &instances) = 0;
+
+  AcceptorUpdateHandlerInterface() = default;
+
+  AcceptorUpdateHandlerInterface(const AcceptorUpdateHandlerInterface &) =
+      default;
+  AcceptorUpdateHandlerInterface &operator=(
+      const AcceptorUpdateHandlerInterface &) = default;
+
+  AcceptorUpdateHandlerInterface(AcceptorUpdateHandlerInterface &&) = default;
+  AcceptorUpdateHandlerInterface &operator=(AcceptorUpdateHandlerInterface &&) =
+      default;
+
+  virtual ~AcceptorUpdateHandlerInterface() = default;
+};
+
+/**
  * @brief Abstract class that provides interface for adding and removing
  *        observers on replicaset status changes.
  *
  *        When state of replicaset is changed, then
- * ReplicasetStateListenerInterface::notify function is called for every
- * registered observer.
+ * ReplicasetStateListenerInterface::notify_instances_changed function is called
+ * for every registered observer.
  */
 class METADATA_API ReplicasetStateNotifierInterface {
  public:
@@ -236,19 +265,21 @@ class METADATA_API ReplicasetStateNotifierInterface {
    *
    * @throw std::runtime_error if metadata cache not initialized
    */
-  virtual void add_listener(const std::string &replicaset_name,
-                            ReplicasetStateListenerInterface *listener) = 0;
+  virtual void add_state_listener(
+      const std::string &replicaset_name,
+      ReplicasetStateListenerInterface *listener) = 0;
 
   /**
-   * @brief Unregister observer previously registered with add_listener()
+   * @brief Unregister observer previously registered with add_state_listener()
    *
    * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    *
    * @throw std::runtime_error if metadata cache not initialized
    */
-  virtual void remove_listener(const std::string &replicaset_name,
-                               ReplicasetStateListenerInterface *listener) = 0;
+  virtual void remove_state_listener(
+      const std::string &replicaset_name,
+      ReplicasetStateListenerInterface *listener) = 0;
 
   ReplicasetStateNotifierInterface() = default;
   // disable copy as it isn't needed right now. Feel free to enable
@@ -367,10 +398,13 @@ class METADATA_API MetadataCacheAPIBase
    * and we want to wait until one becomes elected.
    *
    * @param replicaset_name - the name of the replicaset
+   * @param primary_server_uuid - server_uuid of the PRIMARY that shall be
+   * failover from.
    * @param timeout - amount of time to wait for a failover, in seconds
    * @return true if a primary member exists
    */
   virtual bool wait_primary_failover(const std::string &replicaset_name,
+                                     const std::string &primary_server_uuid,
                                      const std::chrono::seconds &timeout) = 0;
 
   /**
@@ -381,17 +415,42 @@ class METADATA_API MetadataCacheAPIBase
    * @param listener Observer object that is notified when replicaset nodes
    * state is changed.
    */
-  void add_listener(const std::string &replicaset_name,
-                    ReplicasetStateListenerInterface *listener) override = 0;
+  void add_state_listener(const std::string &replicaset_name,
+                          ReplicasetStateListenerInterface *listener) override =
+      0;
 
   /**
-   * @brief Unregister observer previously registered with add_listener()
+   * @brief Unregister observer previously registered with add_state_listener()
    *
    * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    */
-  void remove_listener(const std::string &replicaset_name,
-                       ReplicasetStateListenerInterface *listener) override = 0;
+  void remove_state_listener(
+      const std::string &replicaset_name,
+      ReplicasetStateListenerInterface *listener) override = 0;
+
+  /**
+   * @brief Register observer that is notified when the state of listening
+   * socket acceptors should be updated on the next metadata refresh.
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that is notified when replicaset nodes
+   * state is changed.
+   */
+  virtual void add_acceptor_handler_listener(
+      const std::string &replicaset_name,
+      AcceptorUpdateHandlerInterface *listener) = 0;
+
+  /**
+   * @brief Unregister observer previously registered with
+   * add_acceptor_handler_listener()
+   *
+   * @param replicaset_name name of the replicaset
+   * @param listener Observer object that should be unregistered.
+   */
+  virtual void remove_acceptor_handler_listener(
+      const std::string &replicaset_name,
+      AcceptorUpdateHandlerInterface *listener) = 0;
 
   /** @brief Get authentication data (password hash and privileges) for the
    *  given user.
@@ -426,6 +485,11 @@ class METADATA_API MetadataCacheAPIBase
    * 3. auth_cache_refresh_interval > auth_cache_ttl
    */
   virtual void check_auth_metadata_timers() const = 0;
+
+  /**
+   * Toggle socket acceptors state update on next metadata refresh.
+   */
+  virtual void handle_sockets_acceptors_on_md_refresh() = 0;
 
   MetadataCacheAPIBase() = default;
   // disable copy as it isn't needed right now. Feel free to enable
@@ -487,12 +551,23 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
                                   InstanceStatus status) override;
 
   bool wait_primary_failover(const std::string &replicaset_name,
+                             const std::string &primary_server_uuid,
                              const std::chrono::seconds &timeout) override;
 
-  void add_listener(const std::string &replicaset_name,
-                    ReplicasetStateListenerInterface *listener) override;
-  void remove_listener(const std::string &replicaset_name,
-                       ReplicasetStateListenerInterface *listener) override;
+  void add_state_listener(const std::string &replicaset_name,
+                          ReplicasetStateListenerInterface *listener) override;
+
+  void remove_state_listener(
+      const std::string &replicaset_name,
+      ReplicasetStateListenerInterface *listener) override;
+
+  void add_acceptor_handler_listener(
+      const std::string &replicaset_name,
+      AcceptorUpdateHandlerInterface *listener) override;
+
+  void remove_acceptor_handler_listener(
+      const std::string &replicaset_name,
+      AcceptorUpdateHandlerInterface *listener) override;
 
   RefreshStatus get_refresh_status() override;
 
@@ -503,11 +578,16 @@ class METADATA_API MetadataCacheAPI : public MetadataCacheAPIBase {
   void force_cache_update() override;
   void check_auth_metadata_timers() const override;
 
+  void handle_sockets_acceptors_on_md_refresh() override;
+
  private:
-  std::string inst_name_;
+  struct InstData {
+    std::string name;
+  };
+  Monitor<InstData> inst_{{}};
 
   std::atomic<bool> is_initialized_{false};
-  MetadataCacheAPI() {}
+  MetadataCacheAPI() = default;
   MetadataCacheAPI(const MetadataCacheAPI &) = delete;
   MetadataCacheAPI &operator=(const MetadataCacheAPI &) = delete;
 };

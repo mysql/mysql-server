@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -152,7 +152,7 @@ message FetchDone {
 }
 
 /**
-Cursor is opened still the execution of PrepFetch or PrepExecute ended
+Cursor is opened; still, the execution of PrepFetch or PrepExecute ended
 */
 message FetchSuspended {
   option (server_message_id) = RESULTSET_FETCH_SUSPENDED; // comment_out_if PROTOBUF_LITE
@@ -507,7 +507,7 @@ message ColumnMetaData {
   /** datatype of the field in a row */
   required FieldType type = 1;
 
-  /** ame of the column */
+  /** name of the column */
   optional bytes name = 2;
 
   /** name of the column before an alias was applied */
@@ -524,7 +524,7 @@ message ColumnMetaData {
 
   /** catalog the schema originates from
       @note
-        As there is current no support for catalogs in MySQL,
+        As there is currently no support for catalogs in MySQL,
         don't expect this field to be set. In the MySQL C/S
         protocol the field had the value ``def`` all the time */
   optional bytes catalog = 7;
@@ -565,7 +565,7 @@ message ColumnMetaData {
       | BYTES  | 0x0002 | JSON (text encoding)    |
       | BYTES  | 0x0003 | XML (text encoding)     |
       @note
-        This list isn't comprehensive. As guideline: the field's
+        This list isn't comprehensive. As a guideline: the field's
         value is expected to pass a validator check on client
         and server if this field is set. If the server adds more
         internal data types that rely on BLOB storage like image
@@ -602,7 +602,7 @@ A hint about the higher-level encoding of a BYTES field
 |BYTES | 0x0003 | XML (text encoding)     |
 
 @note
-  this list isn't comprehensive. As guideline: the field's value is expected
+  this list isn't comprehensive. As a guideline: the field's value is expected
   to pass a validator check on client and server if this field is set.
   If the server adds more internal datatypes that rely on BLOB storage
   like image manipulation, seeking into complex types in BLOBs, ... more

@@ -1,5 +1,5 @@
 /* -*- c-basic-offset: 4; -*- */
-/* Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -69,16 +69,6 @@ extern char *__progname;
 #define FALSE 0
 #endif
 
-char *
-strupr(char *str)
-{
-  char *s;
-
-  for(s = str; *s; s++)
-    *s = toupper(*s);
-  return str;
-}
-
 static size_t
 print_arg (char *string, size_t len, int mdoc, int longp, struct getargs *arg)
 {
@@ -115,6 +105,16 @@ print_arg (char *string, size_t len, int mdoc, int longp, struct getargs *arg)
 }
 
 #ifdef GETARGMANDOC
+static char *
+strupr(char *str)
+{
+  char *s;
+
+  for(s = str; *s; s++)
+    *s = toupper(*s);
+  return str;
+}
+
 static void
 mandoc_template(struct getargs *args,
 		size_t num_args,

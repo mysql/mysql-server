@@ -1,7 +1,7 @@
 #ifndef SQL_GIS_SRS_SRS_H_INCLUDED
 #define SQL_GIS_SRS_SRS_H_INCLUDED
 
-// Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+// Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,11 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
+#include <assert.h>
 #include <cmath>
 #include <cstdint>
 #include <string>
 
-#include "my_dbug.h"
 #include "sql/gis/srid.h"
 
 namespace gis {
@@ -260,7 +260,7 @@ class Geographic_srs : public Spatial_reference_system {
   bool is_wgs84_based() const override { return m_is_wgs84; }
 
   Axis_direction axis_direction(const int axis) const override {
-    DBUG_ASSERT(axis >= 0 && axis <= 1);
+    assert(axis >= 0 && axis <= 1);
     return m_axes[axis];
   }
 
@@ -335,7 +335,7 @@ class Projected_srs : public Spatial_reference_system {
   virtual Projection_type projection_type() const = 0;
 
   Axis_direction axis_direction(const int axis) const override {
-    DBUG_ASSERT(axis >= 0 && axis <= 1);
+    assert(axis >= 0 && axis <= 1);
     return m_axes[axis];
   }
 

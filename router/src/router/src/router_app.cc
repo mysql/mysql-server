@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -422,6 +422,9 @@ std::map<std::string, std::string> MySQLRouter::get_default_paths(
   std::map<std::string, std::string> params = {
       {"program", kProgramName},
       {"origin", origin.str()},
+#ifdef _WIN32
+      {"event_source_name", MYSQL_ROUTER_PACKAGE_NAME},
+#endif
       {"logging_folder",
        ensure_absolute_path(MYSQL_ROUTER_LOGGING_FOLDER, basedir)},
       {"plugin_folder",

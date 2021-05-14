@@ -1,7 +1,7 @@
 replace_regex
   /TRANSACTIONS[\w\W]*//
   /[\w\W]*LATEST DETECTED DEADLOCK//
-  /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/%DATE%/
+  /\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} .+/%DATE% %THREAD_ID%/
   /0x[0-9a-f]+/%HEXADECIMAL%/
   /thread handle \d+/thread handle %NUMBER%/
   /\b\d+ sec\b/%NUMBER% sec/

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -146,9 +146,9 @@ class NamedPipeTest : public ::testing::Test {
   std::string m_name;
   Server_initializer m_initializer;
 
-  static void (*m_old_error_handler_hook)(uint, const char *, myf);
+  static ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
-void (*NamedPipeTest::m_old_error_handler_hook)(uint, const char *, myf);
+ErrorHandlerFunctionPointer NamedPipeTest::m_old_error_handler_hook;
 
 // Basic test: create a named pipe.
 TEST_F(NamedPipeTest, CreatePipe) {

@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -101,6 +101,7 @@ FOREACH(X xcom_vp)
     FIND_PROGRAM(RPCGEN_EXECUTABLE rpcgen DOC "path to the rpcgen executable")
     MARK_AS_ADVANCED(RPCGEN_EXECUTABLE)
     IF(NOT RPCGEN_EXECUTABLE)
+      WARN_MISSING_RPCGEN_EXECUTABLE()
       MESSAGE(FATAL_ERROR "Could not find rpcgen")
     ENDIF()
 

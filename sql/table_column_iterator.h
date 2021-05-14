@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -83,6 +83,26 @@
                   << std::flush;
       }
     }
+
+  The list of generated columns is kept separately in the `TABLE` class, in
+  the `TABLE::vfield` member. Although we could achieve accurate filtering
+  using the above described methods, as a performance optimization, this
+  class allows applying the filter and iteration directly and exclusively
+  on the generated columns. For that we can use the `VFIELDS_ONLY` option:
+
+    void print_virtual_generated_columns(TABLE *table) {
+      Table_columns_view<> fields{
+          table, [](TABLE const *table, size_t column_index) -> bool {
+            return table->field[column_index]->is_virtual_gcol();
+          },
+          Table_columns_view<>::VFIELDS_ONLY
+      };
+
+      for (auto field : fields) {
+        std::cout << field->field_index << ". " << field << std::endl
+                  << std::flush;
+      }
+    }
  */
 template <typename ExclusionFilter = std::function<bool(TABLE const *, size_t)>>
 class Table_columns_view {
@@ -93,11 +113,26 @@ class Table_columns_view {
   using filter_fn_type = ExclusionFilter;
 
   /**
+    Default set of options.
+   */
+  static constexpr unsigned long DEFAULTS = 0;
+  /**
+    Request the view excluding filter to operate `TABLE::vfields` instead
+    of the full set.
+  */
+  static constexpr unsigned long VFIELDS_ONLY = 1;
+
+  /**
     Empty constructor, only available when the predicate type is a lambda
     function.
+
+    @param options optional parameter for filtering and iterating
+                   options. Options should be combined with `|`. Available
+                   options are `VFIELDS_ONLY`.
    */
   template <typename U = ExclusionFilter>
   Table_columns_view(
+      unsigned long options = 0,
       typename std::enable_if<std::is_same<
           U, std::function<bool(TABLE const *, size_t)>>::value>::type * =
           nullptr);
@@ -106,26 +141,37 @@ class Table_columns_view {
     predicate type is a lambda function.
 
     @param table reference to the target TABLE object.
+    @param options optional parameter for filtering and iterating
+                   options. Options should be combined with `|`. Available
+                   options are `VFIELDS_ONLY`.
    */
   template <typename U = ExclusionFilter>
   Table_columns_view(
-      TABLE const *table,
+      TABLE const *table, unsigned long options = 0,
       typename std::enable_if<std::is_same<
           U, std::function<bool(TABLE const *, size_t)>>::value>::type * = 0);
   /**
     Constructor which takes a predicate used to filter this container iteration.
 
     @param filtering_predicate the predicate to filter this container iteration.
+    @param options optional parameter for filtering and iterating
+                   options. Options should be combined with `|`. Available
+                   options are `VFIELDS_ONLY`.
    */
-  Table_columns_view(ExclusionFilter filtering_predicate);
+  Table_columns_view(ExclusionFilter filtering_predicate,
+                     unsigned long options = 0);
   /**
     Constructor which takes the TABLE object whose field set will be iterated
     and a predicate used to filter this container iteration.
 
     @param table reference to the target TABLE object.
     @param filtering_predicate the predicate to filter this container iteration.
+    @param options optional parameter for filtering and iterating
+                   options. Options should be combined with `|`. Available
+                   options are `VFIELDS_ONLY`.
    */
-  Table_columns_view(TABLE const *table, ExclusionFilter filtering_predicate);
+  Table_columns_view(TABLE const *table, ExclusionFilter filtering_predicate,
+                     unsigned long options = 0);
   /**
     Destructor for the class.
    */
@@ -353,6 +399,10 @@ class Table_columns_view {
     are to be excluded from the replicated row.
    */
   MY_BITMAP m_excluded_fields_bitmap;
+  /**
+    Set of options to apply to view behaviour
+   */
+  unsigned long m_options{0};
 
   /**
     Default filtering predicate.
@@ -363,31 +413,36 @@ class Table_columns_view {
 template <typename F>
 template <typename U>
 Table_columns_view<F>::Table_columns_view(
+    unsigned long options,
     typename std::enable_if<std::is_same<
         U, std::function<bool(TABLE const *, size_t)>>::value>::type *)
-    : m_filtering_predicate{Table_columns_view::default_filter} {
+    : m_filtering_predicate{Table_columns_view::default_filter},
+      m_options{options} {
   this->set_filter(Table_columns_view::default_filter);
 }
 
 template <typename F>
 template <typename U>
 Table_columns_view<F>::Table_columns_view(
-    TABLE const *table,
+    TABLE const *table, unsigned long options,
     typename std::enable_if<std::is_same<
         U, std::function<bool(TABLE const *, size_t)>>::value>::type *)
-    : m_filtering_predicate{Table_columns_view::default_filter} {
+    : m_filtering_predicate{Table_columns_view::default_filter},
+      m_options{options} {
   this->set_filter(Table_columns_view::default_filter)  //
       .set_table(table);
 }
 
 template <typename F>
-Table_columns_view<F>::Table_columns_view(F filtering_predicate)
-    : Table_columns_view{nullptr, filtering_predicate} {}
+Table_columns_view<F>::Table_columns_view(F filtering_predicate,
+                                          unsigned long options)
+    : Table_columns_view{nullptr, filtering_predicate, options} {}
 
 template <typename F>
 Table_columns_view<F>::Table_columns_view(TABLE const *target,
-                                          F filtering_predicate)
-    : m_filtering_predicate{filtering_predicate} {
+                                          F filtering_predicate,
+                                          unsigned long options)
+    : m_filtering_predicate{filtering_predicate}, m_options{options} {
   this->set_filter(filtering_predicate)  //
       .set_table(target);
 }
@@ -498,15 +553,26 @@ Table_columns_view<F> &Table_columns_view<F>::init_fields_bitmaps() {
               this->m_table->s->fields);
 
   this->m_filtered_size = 0;
-  for (size_t idx = 0; idx != this->m_table->s->fields; ++idx) {
-    if (this->m_filtering_predicate(this->m_table, idx)) {
-      bitmap_set_bit(&this->m_excluded_fields_bitmap, idx);
-    } else {
-      bitmap_set_bit(&this->m_included_fields_bitmap, idx);
-      ++this->m_filtered_size;
+  if ((this->m_options & VFIELDS_ONLY) == VFIELDS_ONLY) {
+    bitmap_set_all(&this->m_excluded_fields_bitmap);
+    for (auto fld = this->m_table->vfield; *fld != nullptr; ++fld) {
+      auto idx = (*fld)->field_index();
+      if (!this->m_filtering_predicate(this->m_table, idx)) {
+        bitmap_set_bit(&this->m_included_fields_bitmap, idx);
+        bitmap_clear_bit(&this->m_excluded_fields_bitmap, idx);
+        ++this->m_filtered_size;
+      }
+    }
+  } else {
+    for (size_t idx = 0; idx != this->m_table->s->fields; ++idx) {
+      if (this->m_filtering_predicate(this->m_table, idx)) {
+        bitmap_set_bit(&this->m_excluded_fields_bitmap, idx);
+      } else {
+        bitmap_set_bit(&this->m_included_fields_bitmap, idx);
+        ++this->m_filtered_size;
+      }
     }
   }
-
   return (*this);
 }
 

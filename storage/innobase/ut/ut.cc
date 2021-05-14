@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2020, Oracle and/or its affiliates.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -107,16 +107,15 @@ void ut_print_buf(std::ostream &o, const void *buf, ulint len) {
 /** Prints a timestamp to a file. */
 void ut_print_timestamp(FILE *file) /*!< in: file where to print */
 {
-  auto thread_id = os_thread_handle();
-
 #ifdef _WIN32
   SYSTEMTIME cal_tm;
 
   GetLocalTime(&cal_tm);
 
-  fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %#llx", (int)cal_tm.wYear,
+  fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %s", (int)cal_tm.wYear,
           (int)cal_tm.wMonth, (int)cal_tm.wDay, (int)cal_tm.wHour,
-          (int)cal_tm.wMinute, (int)cal_tm.wSecond, (ulonglong)thread_id);
+          (int)cal_tm.wMinute, (int)cal_tm.wSecond,
+          to_string(std::this_thread::get_id(), true).c_str());
 #else
   struct tm *cal_tm_ptr;
   time_t tm;
@@ -125,9 +124,10 @@ void ut_print_timestamp(FILE *file) /*!< in: file where to print */
   time(&tm);
   localtime_r(&tm, &cal_tm);
   cal_tm_ptr = &cal_tm;
-  fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %#llx", cal_tm_ptr->tm_year + 1900,
+  fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %s", cal_tm_ptr->tm_year + 1900,
           cal_tm_ptr->tm_mon + 1, cal_tm_ptr->tm_mday, cal_tm_ptr->tm_hour,
-          cal_tm_ptr->tm_min, cal_tm_ptr->tm_sec, (ulonglong)thread_id);
+          cal_tm_ptr->tm_min, cal_tm_ptr->tm_sec,
+          to_string(std::this_thread::get_id()).c_str());
 #endif /* _WIN32 */
 }
 

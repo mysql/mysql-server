@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,20 +26,35 @@
  * Test the metadata cache implementation.
  */
 
+#include <gmock/gmock-matchers.h>
+#include <gmock/gmock.h>
+#include <gtest/gtest_prod.h>  // FRIEND_TEST, must be before all other local includes
+#include <tuple>
+
 #include "cluster_metadata_gr.h"
 #include "dim.h"
-#include "gtest/gtest_prod.h"
 #include "metadata_cache_gr.h"
 #include "mysql_session_replayer.h"
+#include "mysqlrouter/metadata_cache.h"
 #include "tcp_address.h"
 #include "test/helpers.h"
-
-#include "gmock/gmock.h"
 
 using namespace std::chrono_literals;
 using namespace metadata_cache;
 
-constexpr unsigned kRouterId = 1;
+static constexpr unsigned kRouterId{1};
+
+static constexpr const char group_uuid[] =
+    "3e4338a1-2c5d-49ac-8baa-e5a25ba61e76";
+
+static constexpr const char node_1_uuid[] =
+    "3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39";
+static constexpr const char node_2_uuid[] =
+    "8148cba4-2ad5-456e-a04e-2ba73eb10cc5";
+static constexpr const char node_3_uuid[] =
+    "f0a2079f-8b90-4324-9eec-a0496c4338e0";
+
+static constexpr const char replicaset_name[] = "default";
 
 class FailoverTest : public ::testing::Test {
  public:
@@ -47,11 +62,9 @@ class FailoverTest : public ::testing::Test {
   std::shared_ptr<ClusterMetadata> cmeta;
   std::shared_ptr<GRMetadataCache> cache;
 
-  FailoverTest() {}
-
   // per-test setup
   void SetUp() override {
-    session.reset(new MySQLSessionReplayer(true));
+    session = std::make_shared<MySQLSessionReplayer>(true);
 
     // setup DI for MySQLSession
     mysql_harness::DIM::instance().set_MySQLSession(
@@ -59,18 +72,18 @@ class FailoverTest : public ::testing::Test {
         [](mysqlrouter::MySQLSession *) {}   // and don't try deleting it!
     );
 
-    cmeta.reset(new GRClusterMetadata("admin", "admin", 1, 1, 1,
-                                      mysqlrouter::SSLOptions()));
+    cmeta = std::make_shared<GRClusterMetadata>("admin", "admin", 1, 1, 1,
+                                                mysqlrouter::SSLOptions());
   }
 
   void init_cache() {
-    cache.reset(
-        new GRMetadataCache(kRouterId, "3e4338a1-2c5d-49ac-8baa-e5a25ba61e76",
-                            {mysql_harness::TCPAddress("localhost", 32275)},
-                            cmeta, std::chrono::seconds(10),
-                            std::chrono::seconds(-1), std::chrono::seconds(20),
-
-                            mysqlrouter::SSLOptions(), "cluster-1"));
+    cache = std::make_shared<GRMetadataCache>(
+        kRouterId, group_uuid,
+        std::vector<mysql_harness::TCPAddress>{
+            {"localhost", 32275},
+        },
+        cmeta, 10s, -1s, 20s, mysqlrouter::SSLOptions(), "cluster-1",
+        mysql_harness::kDefaultStackSizeInKiloBytes, false);
   }
 
   // make queries on metadata schema return a 3 members replicaset
@@ -110,16 +123,13 @@ class FailoverTest : public ::testing::Test {
         7,
         {// replicaset_name, mysql_server_uuid,
          // location, I.addresses->>'$.mysqlClassic', I.addresses->>'$.mysqlX'
-         {m.string_or_null("default"),
-          m.string_or_null("3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39"),
+         {m.string_or_null(replicaset_name), m.string_or_null(node_1_uuid),
           m.string_or_null("localhost:3000"),
           m.string_or_null("localhost:30000")},
-         {m.string_or_null("default"),
-          m.string_or_null("8148cba4-2ad5-456e-a04e-2ba73eb10cc5"),
+         {m.string_or_null(replicaset_name), m.string_or_null(node_2_uuid),
           m.string_or_null("localhost:3001"),
           m.string_or_null("localhost:30010")},
-         {m.string_or_null("default"),
-          m.string_or_null("f0a2079f-8b90-4324-9eec-a0496c4338e0"),
+         {m.string_or_null(replicaset_name), m.string_or_null(node_3_uuid),
           m.string_or_null("localhost:3002"),
           m.string_or_null("localhost:30020")}});
 
@@ -144,13 +154,13 @@ class FailoverTest : public ::testing::Test {
         "'group_replication_applier'");
     m.then_return(5, {// member_id, member_host, member_port, member_state,
                       // @@group_replication_single_primary_mode
-                      {m.string_or_null("3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39"),
+                      {m.string_or_null(node_1_uuid),
                        m.string_or_null("somehost"), m.string_or_null("3000"),
                        m.string_or_null("ONLINE"), m.string_or_null("1")},
-                      {m.string_or_null("8148cba4-2ad5-456e-a04e-2ba73eb10cc5"),
+                      {m.string_or_null(node_2_uuid),
                        m.string_or_null("somehost"), m.string_or_null("3001"),
                        m.string_or_null("ONLINE"), m.string_or_null("1")},
-                      {m.string_or_null("f0a2079f-8b90-4324-9eec-a0496c4338e0"),
+                      {m.string_or_null(node_3_uuid),
                        m.string_or_null("somehost"), m.string_or_null("3002"),
                        m.string_or_null("ONLINE"), m.string_or_null("1")}});
   }
@@ -158,8 +168,7 @@ class FailoverTest : public ::testing::Test {
   // make queries on PFS.replication_group_members return primary in the given
   // state
   void expect_group_members_1_primary_fail(
-      const char *state,
-      const char *primary_override = "3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39") {
+      const char *state, const char *primary_override = node_1_uuid) {
     MySQLSessionReplayer &m = *session;
 
     m.expect_query("show status like 'group_replication_primary_member'");
@@ -177,23 +186,23 @@ class FailoverTest : public ::testing::Test {
       m.then_return(5,
                     {// member_id, member_host, member_port, member_state,
                      // @@group_replication_single_primary_mode
-                     {m.string_or_null("8148cba4-2ad5-456e-a04e-2ba73eb10cc5"),
+                     {m.string_or_null(node_2_uuid),
                       m.string_or_null("somehost"), m.string_or_null("3001"),
                       m.string_or_null("ONLINE"), m.string_or_null("1")},
-                     {m.string_or_null("f0a2079f-8b90-4324-9eec-a0496c4338e0"),
+                     {m.string_or_null(node_3_uuid),
                       m.string_or_null("somehost"), m.string_or_null("3002"),
                       m.string_or_null("ONLINE"), m.string_or_null("1")}});
     } else {
       m.then_return(5,
                     {// member_id, member_host, member_port, member_state,
                      // @@group_replication_single_primary_mode
-                     {m.string_or_null("3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39"),
+                     {m.string_or_null(node_1_uuid),
                       m.string_or_null("somehost"), m.string_or_null("3000"),
                       m.string_or_null(state), m.string_or_null("1")},
-                     {m.string_or_null("8148cba4-2ad5-456e-a04e-2ba73eb10cc5"),
+                     {m.string_or_null(node_2_uuid),
                       m.string_or_null("somehost"), m.string_or_null("3001"),
                       m.string_or_null("ONLINE"), m.string_or_null("1")},
-                     {m.string_or_null("f0a2079f-8b90-4324-9eec-a0496c4338e0"),
+                     {m.string_or_null(node_3_uuid),
                       m.string_or_null("somehost"), m.string_or_null("3002"),
                       m.string_or_null("ONLINE"), m.string_or_null("1")}});
     }
@@ -210,38 +219,51 @@ class DelayCheck {
   time_t start_time_;
 };
 
-TEST_F(FailoverTest, basics) {
-  ASSERT_NO_THROW(init_cache());
-
-  expect_metadata_1();
-  expect_group_members_1();
-  cache->refresh();
-
-  // ensure that the instance list returned by a lookup is the expected one
-  // in the case everything's online and well
-  auto instances = cache->replicaset_lookup("default");
-
-  ASSERT_EQ(3U, instances.size());
-  EXPECT_EQ("3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39",
-            instances[0].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadWrite, instances[0].mode);
-  EXPECT_EQ("8148cba4-2ad5-456e-a04e-2ba73eb10cc5",
-            instances[1].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadOnly, instances[1].mode);
-  EXPECT_EQ("f0a2079f-8b90-4324-9eec-a0496c4338e0",
-            instances[2].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadOnly, instances[2].mode);
-
-  // this should succeed right away
-  DelayCheck t;
-  EXPECT_TRUE(cache->wait_primary_failover("default", 2s));
-  EXPECT_LE(t.time_elapsed(), 1);
-
-  // ensure no expected queries leftover
-  ASSERT_FALSE(session->print_expected());
+std::ostream &operator<<(std::ostream &os, const ServerMode &v) {
+  switch (v) {
+    case ServerMode::ReadOnly:
+      os << "RO";
+      break;
+    case ServerMode::ReadWrite:
+      os << "RW";
+      break;
+    case ServerMode::Unavailable:
+      os << "N/A";
+      break;
+  };
+  return os;
 }
 
-TEST_F(FailoverTest, primary_failover) {
+std::ostream &operator<<(std::ostream &os, const ManagedInstance &v) {
+  os << "{";
+  os << "disconnect_when_hidden: " << v.disconnect_existing_sessions_when_hidden
+     << ", ";
+  os << "hidden: " << v.hidden << ", ";
+  os << "host: " << v.host << ", ";
+  os << "port: " << v.port << ", ";
+  os << "xport: " << v.xport << ", ";
+  os << "mode: " << v.mode << ", ";
+  os << "mysql_server_uuid: " << v.mysql_server_uuid << ", ";
+  os << "replicaset_name: " << v.replicaset_name;
+  os << "}";
+
+  return os;
+}
+
+MATCHER(PartialInstanceMatcher, "" /* defaults to 'uuid matcher' */) {
+  using namespace ::testing;
+
+  const auto &lhs = std::get<0>(arg);  // ManagedInstance
+  const auto &rhs = std::get<1>(arg);  // std::tuple<const char *, ServerMode>
+
+  return ExplainMatchResult(
+      AllOf(Field("mysql_server_uuid", &ManagedInstance::mysql_server_uuid,
+                  Eq(std::get<0>(rhs))),
+            Field("mode", &ManagedInstance::mode, Eq(std::get<1>(rhs)))),
+      lhs, result_listener);
+}
+
+TEST_F(FailoverTest, primary_failover_router_member_network_loss) {
   // normal operation
   // ----------------
 
@@ -250,30 +272,19 @@ TEST_F(FailoverTest, primary_failover) {
   expect_group_members_1();
   cache->refresh();
 
-  // ensure that the instance list returned by a lookup is the expected one
-  // in the case everything's online and well
-  auto instances = cache->replicaset_lookup("default");
-
-  ASSERT_EQ(3U, instances.size());
-  EXPECT_EQ("3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39",
-            instances[0].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadWrite, instances[0].mode);
-  EXPECT_EQ("8148cba4-2ad5-456e-a04e-2ba73eb10cc5",
-            instances[1].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadOnly, instances[1].mode);
-  EXPECT_EQ("f0a2079f-8b90-4324-9eec-a0496c4338e0",
-            instances[2].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadOnly, instances[2].mode);
-
-  // this should succeed right away
-  {
-    DelayCheck t;
-    EXPECT_TRUE(cache->wait_primary_failover("default", 2s));
-    EXPECT_LE(t.time_elapsed(), 1);
-  }
-
   // ensure no expected queries leftover
   ASSERT_FALSE(session->print_expected());
+
+  // ensure that the instance list returned by a lookup is the expected one
+  // in the case everything's online and well
+
+  ASSERT_THAT(cache->replicaset_lookup(replicaset_name),
+              ::testing::Pointwise(
+                  PartialInstanceMatcher(),
+                  std::initializer_list<std::tuple<const char *, ServerMode>>{
+                      std::make_tuple(node_1_uuid, ServerMode::ReadWrite),
+                      std::make_tuple(node_2_uuid, ServerMode::ReadOnly),
+                      std::make_tuple(node_3_uuid, ServerMode::ReadOnly)}));
 
   // now the primary goes down (but group view not updated yet by GR)
   // ----------------------------------------------------------------
@@ -282,56 +293,54 @@ TEST_F(FailoverTest, primary_failover) {
   ASSERT_NO_THROW(cache->refresh());
 
   cache->mark_instance_reachability(
-      "3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39",
-      metadata_cache::InstanceStatus::Unreachable);
+      node_1_uuid, metadata_cache::InstanceStatus::Unreachable);
   // this should fail with timeout b/c no primary yet
   {
     DelayCheck t;
-    EXPECT_FALSE(cache->wait_primary_failover("default", 1s));
+    EXPECT_FALSE(
+        cache->wait_primary_failover(replicaset_name, node_1_uuid, 1s));
     EXPECT_GE(t.time_elapsed(), 1);
   }
+}
 
-  instances = cache->replicaset_lookup("default");
+TEST_F(FailoverTest, primary_failover_reelection) {
+  ASSERT_NO_THROW(init_cache());
+  expect_metadata_1();
+  expect_group_members_1();
+  cache->refresh();
+  // ensure no expected queries leftover
+  ASSERT_FALSE(session->print_expected());
 
-  ASSERT_EQ(3U, instances.size());
   // primary is still visible, even tho it's dead.. that's because we pretend
   // we're getting updates from an instance that hasn't noticed that yet
-  EXPECT_EQ("3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39",
-            instances[0].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadWrite, instances[0].mode);
-  EXPECT_EQ("8148cba4-2ad5-456e-a04e-2ba73eb10cc5",
-            instances[1].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadOnly, instances[1].mode);
-  EXPECT_EQ("f0a2079f-8b90-4324-9eec-a0496c4338e0",
-            instances[2].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadOnly, instances[2].mode);
+  ASSERT_THAT(cache->replicaset_lookup(replicaset_name),
+              ::testing::Pointwise(
+                  PartialInstanceMatcher(),
+                  std::initializer_list<std::tuple<const char *, ServerMode>>{
+                      std::make_tuple(node_1_uuid, ServerMode::ReadWrite),
+                      std::make_tuple(node_2_uuid, ServerMode::ReadOnly),
+                      std::make_tuple(node_3_uuid, ServerMode::ReadOnly)}));
 
   // GR notices the server went down, new primary picked
   // ---------------------------------------------------
   expect_metadata_1();
-  expect_group_members_1_primary_fail(nullptr,
-                                      "8148cba4-2ad5-456e-a04e-2ba73eb10cc5");
-  cache->refresh();
+  expect_group_members_1_primary_fail(nullptr, node_2_uuid);
+  ASSERT_NO_THROW(cache->refresh());
+
+  ASSERT_THAT(cache->replicaset_lookup(replicaset_name),
+              ::testing::Pointwise(
+                  PartialInstanceMatcher(),
+                  std::initializer_list<std::tuple<const char *, ServerMode>>{
+                      std::make_tuple(node_1_uuid, ServerMode::Unavailable),
+                      std::make_tuple(node_2_uuid, ServerMode::ReadWrite),
+                      std::make_tuple(node_3_uuid, ServerMode::ReadOnly)}));
 
   // this should succeed
   {
     DelayCheck t;
-    EXPECT_TRUE(cache->wait_primary_failover("default", 2s));
+    EXPECT_TRUE(cache->wait_primary_failover(replicaset_name, node_1_uuid, 2s));
     EXPECT_LE(t.time_elapsed(), 1);
   }
-
-  instances = cache->replicaset_lookup("default");
-
-  ASSERT_EQ(3U, instances.size());
-  EXPECT_EQ("3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39",
-            instances[0].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::Unavailable, instances[0].mode);
-  EXPECT_EQ("8148cba4-2ad5-456e-a04e-2ba73eb10cc5",
-            instances[1].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadWrite, instances[1].mode);
-  EXPECT_EQ("f0a2079f-8b90-4324-9eec-a0496c4338e0",
-            instances[2].mysql_server_uuid);
-  EXPECT_EQ(ServerMode::ReadOnly, instances[2].mode);
 }
 
 TEST_F(FailoverTest, primary_failover_shutdown) {
@@ -341,15 +350,15 @@ TEST_F(FailoverTest, primary_failover_shutdown) {
   ASSERT_NO_THROW(cache->refresh());
 
   cache->mark_instance_reachability(
-      "3c85a47b-7cc1-4fa8-bb4c-8f2dbf1c3c39",
-      metadata_cache::InstanceStatus::Unreachable);
+      node_1_uuid, metadata_cache::InstanceStatus::Unreachable);
 
   auto wait_failover_thread = std::thread([&] {
     DelayCheck t;
     // even though we wait for 10s for the primary failover the function should
     // return promptly when the catche->stop() gets called (mimicking terminate
     // request)
-    EXPECT_FALSE(cache->wait_primary_failover("default", 10s));
+    EXPECT_FALSE(
+        cache->wait_primary_failover(replicaset_name, node_1_uuid, 10s));
     EXPECT_LE(t.time_elapsed(), 1);
   });
 

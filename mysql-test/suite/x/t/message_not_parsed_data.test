@@ -3,7 +3,7 @@
 --source include/xplugin_create_user.inc
 
 ## TEST STARTS HERE
---write_file $MYSQL_TMP_DIR/validate_not_parsed_data.tmp
+--write_file $MYSQL_TMP_DIR/validate_not_parsed_data.xpl
 -->import wait_until_disconnect.macro
 
 #
@@ -59,7 +59,7 @@ EOF
 SET GLOBAL mysqlx_connect_timeout = 300;
 SET GLOBAL mysqlx_wait_timeout = 300;
 
---exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_not_parsed_data.tmp 2>&1
+--exec $MYSQLXTEST -u x_root  --file=$MYSQL_TMP_DIR/validate_not_parsed_data.xpl 2>&1
 
 --let $wait_condition= SELECT variable_value = 1 FROM performance_schema.global_status WHERE variable_name LIKE 'Mysqlx_sessions_fatal_error'
 --source include/wait_condition_or_abort.inc
@@ -67,5 +67,4 @@ SET GLOBAL mysqlx_wait_timeout = 300;
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
 SET GLOBAL mysqlx_wait_timeout = DEFAULT;
---remove_file $MYSQL_TMP_DIR/validate_not_parsed_data.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

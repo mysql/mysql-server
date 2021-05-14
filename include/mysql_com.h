@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -875,6 +875,12 @@ struct Vio;
 #define MAX_CHAR_WIDTH 255
 /// Default width for blob in bytes @todo - align this with sizes from field.h
 #define MAX_BLOB_WIDTH 16777216
+
+#define NET_ERROR_UNSET 0               /**< No error has occurred yet */
+#define NET_ERROR_SOCKET_RECOVERABLE 1  /**< Socket still usable */
+#define NET_ERROR_SOCKET_UNUSABLE 2     /**< Do not use the socket */
+#define NET_ERROR_SOCKET_NOT_READABLE 3 /**< Try write and close socket */
+#define NET_ERROR_SOCKET_NOT_WRITABLE 4 /**< Try read and close socket */
 
 typedef struct NET {
   MYSQL_VIO vio;

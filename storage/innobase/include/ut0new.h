@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -141,11 +141,13 @@ InnoDB:
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/psi_memory.h"
 
+#include "detail/ut0new.h"
 #include "os0proc.h"
 #include "os0thread.h"
 #include "univ.i"
 #include "ut0byte.h" /* ut_align */
 #include "ut0cpu_cache.h"
+#include "ut0dbg.h"
 #include "ut0ut.h"
 
 #define OUT_OF_MEMORY_MSG                                             \
@@ -686,7 +688,7 @@ class ut_allocator {
         break;
       }
 
-      os_thread_sleep(1000000 /* 1 second */);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     if (ptr == nullptr) {
@@ -789,7 +791,7 @@ class ut_allocator {
         break;
       }
 
-      os_thread_sleep(1000000 /* 1 second */);
+      std::this_thread::sleep_for(std::chrono::seconds(1));
     }
 
     if (pfx_new == nullptr) {
@@ -1295,10 +1297,346 @@ class aligned_array_pointer : public aligned_memory<T_Type, T_Align_to> {
 
 namespace ut {
 
+/** Dynamically allocates storage of given size and at the address aligned to
+    the requested alignment.
+
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @param[in] alignment Alignment requirement for storage to be allocated.
+    @return Pointer to the allocated storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int* x = static_cast<int*>(aligned_alloc(10*sizeof(int), 2));
+ */
+inline void *aligned_alloc(std::size_t size, std::size_t alignment) noexcept {
+  return ut::detail::Aligned_alloc::alloc(size, alignment);
+}
+
+/** Releases storage which has been dynamically allocated through
+    aligned_alloc().
+
+    @param[in] ptr Pointer which has been obtained through aligned_alloc()
+
+    Example:
+     aligned_free(ptr); // ptr must be obtained through aligned_alloc()
+ */
+inline void aligned_free(void *ptr) noexcept {
+  ut::detail::Aligned_alloc::free(ptr);
+}
+
+/** Dynamically allocates storage for an object of type T at address aligned
+    to the requested alignment. Constructs the object of type T with provided
+    Args.
+
+    @param[in] alignment Alignment requirement for storage to be allocated.
+    @param[in] args Arguments one wishes to pass over to T constructor(s)
+    @return Pointer to the allocated storage. Throws std::bad_alloc exception
+    if dynamic storage allocation could not be fulfilled.
+
+    Example 1:
+     int *ptr = aligned_new<int>(2);
+
+    Example 2:
+     int *ptr = aligned_new<int>(2, 10);
+     assert(*ptr == 10);
+
+    Example 3:
+     struct A { A(int x, int y) : _x(x), _y(y) {} int x, y; }
+     A *ptr = aligned_new<A>(2, 1, 2);
+     assert(ptr->x == 1);
+     assert(ptr->y == 2);
+ */
+template <typename T, typename... Args>
+inline T *aligned_new(std::size_t alignment, Args &&... args) {
+  auto mem = ut::aligned_alloc(sizeof(T), alignment);
+  if (mem == nullptr) throw std::bad_alloc();
+  new (mem) T(std::forward<Args>(args)...);
+  return static_cast<T *>(mem);
+}
+
+/** Releases storage which has been dynamically allocated through
+    aligned_new(). Destructs the object of type T.
+
+    @param[in] ptr Pointer which has been obtained through aligned_new()
+
+    Example:
+     aligned_delete(ptr); // ptr must be obtained through aligned_new()
+ */
+template <typename T>
+inline void aligned_delete(T *ptr) noexcept {
+  ptr->~T();
+  ut::aligned_free(ptr);
+}
+
+/** Dynamically allocates storage for an array of T's at address aligned to
+    the requested alignment. Constructs objects of type T with provided Args.
+
+    @param[in] alignment Alignment requirement for storage to be allocated.
+    @param[in] args Arguments one wishes to pass over to T constructor(s)
+    @return Pointer to the first element of allocated storage. Throws
+    std::bad_alloc exception if dynamic storage allocation could not be
+    fulfilled.
+
+    Example 1:
+     int *ptr = aligned_new_arr<int, 5>(2);
+     ptr[0] ... ptr[4]
+
+    Example 2:
+     int *ptr = aligned_new_arr<int, 5>(2, 1, 2, 3, 4, 5);
+     assert(*ptr[0] == 1);
+     assert(*ptr[1] == 2);
+     ...
+     assert(*ptr[4] == 5);
+
+    Example 3:
+     struct A { A(int x, int y) : _x(x), _y(y) {} int x, y; }
+     A *ptr = aligned_new_arr<A, 5>(2, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
+     assert(ptr[0]->x == 1);
+     assert(ptr[0]->y == 2);
+     assert(ptr[1]->x == 3);
+     assert(ptr[1]->y == 4);
+     ...
+     assert(ptr[4]->x == 9);
+     assert(ptr[4]->y == 10);
+ */
+template <typename T, size_t Count, typename... Args>
+inline T *aligned_new_arr(std::size_t alignment, Args &&... args) {
+  static_assert(
+      sizeof...(args) % Count == 0,
+      "Instantiating Count instances of T and invoking their respective "
+      "constructors with possibly different kind and/or different number "
+      "of input arguments is currently not supported.");
+  constexpr auto n_args_per_T = sizeof...(args) / Count;
+  auto tuple = std::make_tuple(args...);
+
+  auto mem = ut::detail::Aligned_alloc_arr::alloc(sizeof(T), Count, alignment);
+  if (mem == nullptr) throw std::bad_alloc();
+  ut::detail::Loop<0, Count, T, 0, n_args_per_T, 0, decltype(tuple)>::run(
+      mem, std::forward<decltype(tuple)>(tuple));
+  return static_cast<T *>(mem);
+}
+
+/** Dynamically allocates storage for an array of T's at address aligned to
+    the requested alignment. Constructs objects of type T using default
+    constructor.
+
+    @param[in] alignment Alignment requirement for storage to be allocated.
+    @param[in] count Number of T elements in an array.
+    @return Pointer to the first element of allocated storage. Throws
+    std::bad_alloc exception if dynamic storage allocation could not be
+    fulfilled.
+
+    Example 1:
+     int *ptr = aligned_new_arr<int>(2, 5);
+     assert(*ptr[0] == 0);
+     assert(*ptr[1] == 0);
+     ...
+     assert(*ptr[4] == 0);
+
+    Example 2:
+     struct A { A) : x(1), y(2) {} int x, y; }
+     A *ptr = aligned_new_arr<A>(2, 5);
+     assert(ptr[0].x == 1);
+     assert(ptr[0].y == 2);
+     ...
+     assert(ptr[4].x == 1);
+     assert(ptr[4].y == 2);
+
+    Example 3:
+     struct A { A(int x, int y) : _x(x), _y(y) {} int x, y; }
+     A *ptr = aligned_new_arr<A>(2, 5);
+     // will not compile, no default constructor
+ */
+template <typename T>
+inline T *aligned_new_arr(std::size_t alignment, size_t count) {
+  auto mem = ut::detail::Aligned_alloc_arr::alloc(sizeof(T), count, alignment);
+  if (mem == nullptr) throw std::bad_alloc();
+  for (size_t offset = 0; offset < sizeof(T) * count; offset += sizeof(T)) {
+    new (reinterpret_cast<void *>(reinterpret_cast<std::uintptr_t>(mem) +
+                                  offset)) T();
+  }
+  return static_cast<T *>(mem);
+}
+
+/** Releases storage which has been dynamically allocated through
+    aligned_new_arr(). Destructs all objects of type T.
+
+    @param[in] ptr Pointer which has been obtained through aligned_new_arr()
+
+    Example:
+     aligned_delete_arr(ptr); // ptr must be obtained through aligned_new_arr()
+ */
+template <typename T>
+inline void aligned_delete_arr(T *ptr) noexcept {
+  const auto n_elements = ut::detail::Aligned_alloc_arr::n_elements(ptr);
+  for (size_t offset = 0; offset < sizeof(T) * n_elements;
+       offset += sizeof(T)) {
+    reinterpret_cast<T *>(reinterpret_cast<std::uintptr_t>(ptr) + offset)->~T();
+  }
+  ut::detail::Aligned_alloc_arr::free(ptr);
+}
+
+/** Lightweight convenience wrapper which manages dynamically allocated
+    over-aligned type. Wrapper makes use of RAII to do the resource cleanup.
+
+    Example usage:
+      struct My_fancy_type {
+        My_fancy_type(int x, int y) : _x(x), _y(y) {}
+        int _x, _y;
+      };
+
+      aligned_pointer<My_fancy_type, 32> ptr;
+      ptr.alloc(10, 5);
+      My_fancy_type *p = ptr;
+      assert(p->_x == 10 && p->_y == 5);
+
+    @tparam T Type to be managed.
+    @tparam Alignment Number of bytes to align the type T to.
+ */
+template <typename T, size_t Alignment>
+class aligned_pointer {
+  T *ptr = nullptr;
+
+ public:
+  /** Destructor. Invokes destructor of the underlying instance of
+      type T. Releases dynamically allocated resources, if there had been
+      left any.
+   */
+  ~aligned_pointer() {
+    if (ptr) dealloc();
+  }
+
+  /** Allocates sufficiently large memory of dynamic storage duration to fit
+      the instance of type T at the address which is aligned to Alignment bytes.
+      Constructs the instance of type T with given Args.
+
+      Underlying instance of type T is accessed through the conversion operator.
+
+      @param[in] args Any number and type of arguments that type T can be
+      constructed with.
+    */
+  template <typename... Args>
+  void alloc(Args &&... args) {
+    ut_ad(ptr == nullptr);
+    ptr = ut::aligned_new<T>(Alignment, args...);
+  }
+
+  /** Invokes the destructor of instance of type T, if applicable.
+      Releases the resources previously allocated with alloc().
+    */
+  void dealloc() {
+    ut_ad(ptr != nullptr);
+    ut::aligned_delete(ptr);
+    ptr = nullptr;
+  }
+
+  /** Conversion operator. Used for accessing the underlying instance of
+      type T.
+    */
+  operator T *() const {
+    ut_ad(ptr != nullptr);
+    return ptr;
+  }
+};
+
+/** Lightweight convenience wrapper which manages a dynamically
+    allocated array of over-aligned types. Only the first element of an array is
+    guaranteed to be aligned to the requested Alignment. Wrapper makes use of
+    RAII to do the resource cleanup.
+
+    Example usage 1:
+      struct My_fancy_type {
+        My_fancy_type() : _x(0), _y(0) {}
+        My_fancy_type(int x, int y) : _x(x), _y(y) {}
+        int _x, _y;
+      };
+
+      aligned_array_pointer<My_fancy_type, 32> ptr;
+      ptr.alloc(3);
+      My_fancy_type *p = ptr;
+      assert(p[0]._x == 0 && p[0]._y == 0);
+      assert(p[1]._x == 0 && p[1]._y == 0);
+      assert(p[2]._x == 0 && p[2]._y == 0);
+
+    Example usage 2:
+      aligned_array_pointer<My_fancy_type, 32> ptr;
+      ptr.alloc<3>(1, 2, 3, 4, 5, 6);
+      My_fancy_type *p = ptr;
+      assert(p[0]._x == 1 && p[0]._y == 2);
+      assert(p[1]._x == 3 && p[1]._y == 4);
+      assert(p[2]._x == 5 && p[2]._y == 6);
+
+    @tparam T Type to be managed.
+    @tparam Alignment Number of bytes to align the first element of array to.
+ */
+template <typename T, size_t Alignment>
+class aligned_array_pointer {
+  T *ptr = nullptr;
+
+ public:
+  /** Destructor. Invokes destructors of the underlying instances of
+      type T. Releases dynamically allocated resources, if there had been
+      left any.
+   */
+  ~aligned_array_pointer() {
+    if (ptr) dealloc();
+  }
+
+  /** Allocates sufficiently large memory of dynamic storage duration to fit
+      the array of size number of elements of type T at the address which is
+      aligned to Alignment bytes. Constructs the size number of instances of
+      type T, each being initialized through the means of default constructor.
+
+      Underlying instances of type T are accessed through the conversion
+      operator.
+
+      @param[in] size Number of T elements in an array.
+    */
+  void alloc(size_t size) {
+    ut_ad(ptr == nullptr);
+    ptr = ut::aligned_new_arr<T>(Alignment, size);
+  }
+
+  /** Allocates sufficiently large memory of dynamic storage duration to fit
+      the array of size number of elements of type T at the address which is
+      aligned to Alignment bytes. Constructs the size number of instances of
+      type T, each being initialized through the means of provided Args and
+      corresponding constructors.
+
+      Underlying instances of type T are accessed through the conversion
+      operator.
+
+      @param[in] args Any number and type of arguments that type T can be
+      constructed with.
+    */
+  template <size_t Size, typename... Args>
+  void alloc(Args &&... args) {
+    ut_ad(ptr == nullptr);
+    ptr = ut::aligned_new_arr<T, Size>(Alignment, args...);
+  }
+
+  /** Invokes destructors of instances of type T, if applicable.
+      Releases the resources previously allocated with any variant of
+      alloc().
+    */
+  void dealloc() {
+    ut::aligned_delete_arr(ptr);
+    ptr = nullptr;
+  }
+
+  /** Conversion operator. Used for accessing the underlying instances of
+      type T.
+    */
+  operator T *() const {
+    ut_ad(ptr != nullptr);
+    return ptr;
+  }
+};
+
 /** Specialization of basic_ostringstream which uses ut_allocator. Please note
 that it's .str() method returns std::basic_string which is not std::string, so
-it has similar API (in particular .c_str()), but you can't assign it to regular,
-std::string. */
+it has similar API (in particular .c_str()), but you can't assign it to
+regular, std::string. */
 using ostringstream =
     std::basic_ostringstream<char, std::char_traits<char>, ut_allocator<char>>;
 

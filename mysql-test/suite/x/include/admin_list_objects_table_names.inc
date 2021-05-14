@@ -9,7 +9,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_table_names.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_table_names.xpl
 --write_file $xtest_file
 -->quiet
 ## Test data
@@ -72,6 +72,5 @@ exec $MYSQLXTEST
   --file=$xtest_file 2>&1;
 
 ## Postamble
---source include/xplugin_drop_user.inc
---remove_file $xtest_file
+--source ../include/xplugin_cleanup.inc
 

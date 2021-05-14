@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,6 +29,7 @@ usr/bin/mysqlbinlog
 usr/bin/myisamchk
 usr/bin/myisamlog
 usr/bin/myisampack
+usr/bin/mysql_migrate_keyring
 usr/bin/mysql_ssl_rsa_setup
 usr/bin/mysql_tzinfo_to_sql
 usr/bin/mysql_upgrade
@@ -88,6 +89,7 @@ usr/lib/mysql/plugin/libpluginmecab.so
 usr/lib/mysql/plugin/version_token.so
 usr/lib/mysql/plugin/group_replication.so
 usr/lib/mysql/plugin/connection_control.so
+usr/lib/mysql/plugin/component_keyring_file.so
 # support files
 usr/share/mysql-@MYSQL_BASE_VERSION@/dictionary.txt
 usr/share/mysql-@MYSQL_BASE_VERSION@/mysql-log-rotate

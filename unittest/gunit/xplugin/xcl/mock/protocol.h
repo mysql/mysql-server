@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,9 @@ namespace mock {
 
 class XProtocol : public xcl::XProtocol {
  public:
+  XProtocol();
+  virtual ~XProtocol() override;
+
   MOCK_METHOD(Handler_id, add_notice_handler,
               (Notice_handler handler, const Handler_position,
                const Handler_priority),

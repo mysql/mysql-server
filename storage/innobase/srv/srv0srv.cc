@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -595,7 +595,7 @@ FILE *srv_misc_tmpfile;
 
 #ifndef UNIV_HOTBACKUP
 static ulint srv_main_thread_process_no = 0;
-static os_thread_id_t srv_main_thread_id = 0;
+static std::thread::id srv_main_thread_id{};
 
 /* The following counts are used by the srv_master_thread. */
 
@@ -688,8 +688,8 @@ priority of the background thread so that it will be scheduled and it
 can release the resource.  This solution is called priority inheritance
 in real-time programming.  A drawback of this solution is that the overhead
 of acquiring a mutex increases slightly, maybe 0.2 microseconds on a 100
-MHz Pentium, because the thread has to call os_thread_get_curr_id.  This may
-be compared to 0.5 microsecond overhead for a mutex lock-unlock pair. Note
+MHz Pentium, because the thread has to call std::this_thread::get_id().  This
+may be compared to 0.5 microsecond overhead for a mutex lock-unlock pair. Note
 that the thread cannot store the information in the resource , say mutex,
 itself, because competing threads could wipe out the information if it is
 stored before acquiring the mutex, and if it stored afterwards, the
@@ -1350,7 +1350,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
 
   ret = true;
   if (nowait) {
-    locksys::Global_exclusive_try_latch guard{};
+    locksys::Global_exclusive_try_latch guard{UT_LOCATION_HERE};
     if (guard.owns_lock()) {
       srv_printf_locks_and_transactions(file, trx_start_pos);
     } else {
@@ -1358,7 +1358,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
       ret = false;
     }
   } else {
-    locksys::Global_exclusive_latch_guard guard{};
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     srv_printf_locks_and_transactions(file, trx_start_pos);
   }
 
@@ -1642,7 +1642,7 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_sampled_pages_skipped = srv_stats.n_sampled_pages_skipped;
 
-  export_vars.innodb_num_open_files = fil_n_file_opened;
+  export_vars.innodb_num_open_files = fil_n_files_open;
 
   export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
 
@@ -1785,8 +1785,8 @@ void srv_error_monitor_thread() {
   lsn_t new_lsn;
   int64_t sig_count;
   /* longest waiting thread for a semaphore */
-  os_thread_id_t waiter = os_thread_get_curr_id();
-  os_thread_id_t old_waiter = waiter;
+  auto waiter = std::this_thread::get_id();
+  auto old_waiter = waiter;
   /* the semaphore that is being waited for */
   const void *sema = nullptr;
   const void *old_sema = nullptr;
@@ -1809,7 +1809,7 @@ loop:
   old_lsn = new_lsn;
 
   if (ut_difftime(ut_time_monotonic(), srv_last_monitor_time) > 60) {
-    /* We referesh InnoDB Monitor values so that averages are
+    /* We refresh InnoDB Monitor values so that averages are
     printed from at most 60 last seconds */
 
     srv_refresh_innodb_monitor_stats();
@@ -1826,7 +1826,7 @@ loop:
   sync_arr_wake_threads_if_sema_free();
 
   if (sync_array_print_long_waits(&waiter, &sema) && sema == old_sema &&
-      os_thread_eq(waiter, old_waiter)) {
+      waiter == old_waiter) {
     fatal_cnt++;
     if (fatal_cnt > 10) {
       ib::fatal(ER_IB_MSG_1047, ulonglong{srv_fatal_semaphore_wait_threshold});
@@ -2006,7 +2006,7 @@ static void srv_master_do_disabled_loop(void) {
         SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS) {
       break;
     }
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
   srv_main_thread_op_info = "";
@@ -2644,7 +2644,7 @@ bool srv_enable_undo_encryption(bool is_boot) {
  checking the state of the server again */
 static void srv_master_sleep(void) {
   srv_main_thread_op_info = "sleeping";
-  os_thread_sleep(1000000);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   srv_main_thread_op_info = "";
 }
 
@@ -2817,7 +2817,7 @@ void srv_master_thread() {
   ut_ad(!srv_read_only_mode);
 
   srv_main_thread_process_no = os_proc_get_number();
-  srv_main_thread_id = os_thread_get_curr_id();
+  srv_main_thread_id = std::this_thread::get_id();
 
   slot = srv_reserve_slot(SRV_MASTER);
   ut_a(slot == srv_sys->sys_threads);

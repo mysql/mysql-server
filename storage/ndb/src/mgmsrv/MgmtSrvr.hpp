@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -104,6 +104,7 @@ public:
     int interactive;
     const char* config_filename;
     int mycnf;
+    const char* cluster_config_suffix;
     int config_cache;
     const char* bind_address;
     int no_nodeid_checks;
@@ -558,17 +559,28 @@ private:
   int try_alloc_from_list(NodeId& nodeid,
                           ndb_mgm_node_type type,
                           Uint32 timeout_ms,
-                          Vector<PossibleNode>& nodes_info,
+                          const Vector<PossibleNode>& nodes_info,
                           int& error_code,
                           BaseString& error_string);
+  struct ConfigNode
+  {
+    unsigned nodeid;
+    BaseString hostname;
+  };
+  bool build_node_list_from_config(NodeId node_id,
+                                   ndb_mgm_node_type type,
+                                   Vector<ConfigNode>& config_nodes,
+                                   int& error_code,
+                                   BaseString& error_string) const;
   int find_node_type(NodeId nodeid,
                      ndb_mgm_node_type type,
-                     const struct sockaddr* client_addr,
-                     Vector<PossibleNode>& nodes_info,
+                     const sockaddr_in6* client_addr,
+                     const Vector<ConfigNode>& config_nodes,
+                     Vector<PossibleNode>& nodes,
                      int& error_code, BaseString& error_string);
   bool alloc_node_id_impl(NodeId& nodeid,
                           ndb_mgm_node_type type,
-                          const struct sockaddr* client_addr,
+                          const sockaddr_in6* client_addr,
                           int& error_code, BaseString& error_string,
                           Uint32 timeout_s = 20);
 public:
@@ -591,7 +603,7 @@ public:
    */
   bool alloc_node_id(NodeId& nodeid,
                      ndb_mgm_node_type type,
-		     const struct sockaddr* client_addr,
+                     const sockaddr_in6* client_addr,
 		     int& error_code, BaseString& error_string,
                      bool log_event = true,
 		     Uint32 timeout_s = 20);

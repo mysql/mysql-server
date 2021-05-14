@@ -2275,6 +2275,6 @@ Ssl_cipher	SSL_CIPHER
 SET @@SESSION.wait_timeout = 2;
 # Wait for ssl_con to be disconnected.
 # Check that ssl_con has been disconnected.
-# CR_SERVER_LOST, CR_SERVER_GONE_ERROR
+# Different behavior depending on how the plattform implements the 
 SELECT 1;
 Got one of the listed errors

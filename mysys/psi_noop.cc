@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -543,6 +543,9 @@ static PSI_metadata_lock *create_metadata_lock_noop(void *, const MDL_key *,
 static void set_metadata_lock_status_noop(PSI_metadata_lock *,
                                           opaque_mdl_status) {}
 
+static void set_metadata_lock_duration_noop(PSI_metadata_lock *,
+                                            opaque_mdl_duration) {}
+
 static void destroy_metadata_lock_noop(PSI_metadata_lock *) {}
 
 static PSI_metadata_locker *start_metadata_wait_noop(
@@ -553,9 +556,9 @@ static PSI_metadata_locker *start_metadata_wait_noop(
 static void end_metadata_wait_noop(PSI_metadata_locker *, int) {}
 
 static PSI_mdl_service_t psi_mdl_noop = {
-    create_metadata_lock_noop, set_metadata_lock_status_noop,
-    destroy_metadata_lock_noop, start_metadata_wait_noop,
-    end_metadata_wait_noop};
+    create_metadata_lock_noop,       set_metadata_lock_status_noop,
+    set_metadata_lock_duration_noop, destroy_metadata_lock_noop,
+    start_metadata_wait_noop,        end_metadata_wait_noop};
 
 struct PSI_mdl_bootstrap *psi_mdl_hook = nullptr;
 PSI_mdl_service_t *psi_mdl_service = &psi_mdl_noop;

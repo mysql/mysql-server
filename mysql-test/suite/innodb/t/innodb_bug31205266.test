@@ -2,7 +2,6 @@
 
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/not_hypergraph.inc  # Depends on the query plan (using the index).
 
 --disable_query_log
 SET @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;

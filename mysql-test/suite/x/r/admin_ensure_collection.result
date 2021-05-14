@@ -177,4 +177,3 @@ Mysqlx_stmt_ensure_collection	15
 SHOW STATUS like 'Mysqlx_stmt_execute_mysqlx';
 Variable_name	Value
 Mysqlx_stmt_execute_mysqlx	20
-DROP SCHEMA IF EXISTS xtest;

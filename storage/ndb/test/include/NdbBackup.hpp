@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
     All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
@@ -26,6 +26,8 @@
 #ifndef NDBT_BACKUP_HPP
 #define NDBT_BACKUP_HPP
 
+#include <string>
+
 #include <mgmapi.h>
 #include <Vector.hpp>
 #include "NdbConfig.hpp"
@@ -34,7 +36,10 @@
 class NdbBackup : public NdbConfig {
 public:
   NdbBackup(const char* _addr = 0)
-    : NdbConfig(_addr) {}
+    : NdbConfig(_addr), m_default_encryption_password(NULL) {}
+
+  // if len == -1, then function will use strlen() to get size of pwd
+  int set_default_encryption_password(const char* pwd, int len);
 
   int start(unsigned & _backup_id,
 	    int flags = 2,
@@ -67,11 +72,15 @@ private:
                   bool _restore_epoch,
 		  int _node_id,
 		  unsigned _backup_id,
-                  unsigned error_insert=0);
+                  unsigned error_insert=0,
+                  const char* encryption_password = nullptr,
+                  int password_length = -1);
 
-  const char * getBackupDataDirForNode(int _node_id);
+  std::string getBackupDataDirForNode(int node_id);
   NdbLogEventHandle log_handle;
   BaseString getNdbRestoreBinaryPath();
+  char * m_default_encryption_password;
+  size_t m_default_encryption_password_length;
 };
 
 #endif

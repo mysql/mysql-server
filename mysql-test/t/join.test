@@ -1486,3 +1486,27 @@ DROP TABLE t1, t2;
 CREATE TABLE A ( pk INTEGER );
 SELECT t1.pk FROM A t1, A t2, A t3, A t4, A t5 GROUP BY t1.pk;
 DROP TABLE A;
+
+--echo #
+--echo # Bug #32234666: HASHJOINITERATOR::READROWFROMPROBEITERATOR(): ASSERTION `!THD()->IS_ERROR()' FAILED.
+--echo #
+
+CREATE TABLE t (
+  a BIT(50),
+  b VARCHAR(22772) character set ucs2,
+  c INTEGER,
+  d TINYBLOB,
+  PRIMARY KEY (a),
+  KEY i0001 (c,d(163))
+);
+
+INSERT INTO t VALUES (1,'',1,'1');
+INSERT INTO t VALUES (0x03ffffffffffff,'2',0,'2');
+
+# These gymnastics are needed to get an error from evaluating a pushed index condition.
+--error ER_DATA_OUT_OF_RANGE
+SELECT t2.b FROM t AS t1
+LEFT JOIN t AS t2 ON t2.c < 70
+WHERE t2.a - from_unixtime(0) > 0;
+
+DROP TABLE t;

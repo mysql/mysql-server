@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -64,6 +64,10 @@ std::chrono::milliseconds MySQLRoutingAPI::get_destination_connect_timeout()
 std::vector<mysql_harness::TCPAddress> MySQLRoutingAPI::get_destinations()
     const {
   return r_->get_destinations();
+}
+
+bool MySQLRoutingAPI::is_accepting_connections() const {
+  return r_->is_accepting_connections();
 }
 
 std::vector<MySQLRoutingAPI::ConnData> MySQLRoutingAPI::get_connections()

@@ -13,7 +13,7 @@ SELECT * FROM t1;
 ERROR HY000: Got error 4009 'Cluster Failure' from NDBCLUSTER
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1296	Could not open NDB_SHARE for './test/t1'
+Warning	1296	Could not open NDB_SHARE for 'test.t1'
 Error	1296	Got error 4009 'Cluster Failure' from NDBCLUSTER
 SET SESSION debug=@save_debug;
 # Cleanup and remove the table

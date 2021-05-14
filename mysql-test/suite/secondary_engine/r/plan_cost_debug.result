@@ -1,0 +1,83 @@
+#
+# Bug#29023387: GET PLAN COST FROM SECONDARY ENGINE
+#
+CREATE TABLE t1(x INT, y INT) SECONDARY_ENGINE MOCK;
+CREATE TABLE t2(x INT, y INT) SECONDARY_ENGINE MOCK;
+CREATE TABLE t3(x INT, y INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 VALUES (1, 2), (3, 4);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t3 VALUES (1, 2), (3, 4);
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+ALTER TABLE t3 SECONDARY_LOAD;
+ANALYZE TABLE t1, t2, t3;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
+test.t3	analyze	status	OK
+SET @@optimizer_trace='enabled=on';
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using secondary engine MOCK
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join); Using secondary engine MOCK
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y`,`test`.`t3`.`x` AS `x`,`test`.`t3`.`y` AS `y` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`y` = `test`.`t2`.`x`)) where (`test`.`t1`.`x` = `test`.`t2`.`y`)
+SELECT TRACE->'$**.secondary_engine_cost' FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+TRACE->'$**.secondary_engine_cost'
+[9.10036, 5.90021]
+SET @@optimizer_trace='enabled=off';
+SET DEBUG = '+d,secondary_engine_mock_change_join_order';
+EXPLAIN SELECT * FROM t1 AS X JOIN t2 ON X.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using secondary engine MOCK
+1	SIMPLE	X	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join); Using secondary engine MOCK
+EXPLAIN SELECT * FROM t1 JOIN t2 AS X ON t1.x = X.y LEFT JOIN t3 ON X.x = t3.y;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	X	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using secondary engine MOCK
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (hash join); Using secondary engine MOCK
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 AS X ON t2.x = X.y;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	Using secondary engine MOCK
+1	SIMPLE	X	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join); Using secondary engine MOCK
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (hash join); Using secondary engine MOCK
+SET DEBUG = '-d,secondary_engine_mock_change_join_order';
+SET DEBUG = '+d,secondary_engine_mock_compare_cost_error';
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	8	12.50	Using where; Using join buffer (hash join)
+1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (hash join)
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y`,`test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y`,`test`.`t3`.`x` AS `x`,`test`.`t3`.`y` AS `y` from `test`.`t1` join `test`.`t2` left join `test`.`t3` on((`test`.`t3`.`y` = `test`.`t2`.`x`)) where (`test`.`t1`.`x` = `test`.`t2`.`y`)
+SET DEBUG = '-d,secondary_engine_mock_compare_cost_error';
+SET optimizer_trace = 'enabled=on';
+SET use_secondary_engine = 'FORCED';
+SELECT * FROM t1 a, t2 b, t1 c, t2 d
+WHERE a.x = b.x AND b.x = c.y AND a.x >= d.y;
+x	y	x	y	x	y	x	y
+SELECT JSON_LENGTH(
+TRACE->'$**.considered_execution_plans**.secondary_engine_cost')
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+JSON_LENGTH(
+TRACE->'$**.considered_execution_plans**.secondary_engine_cost')
+3
+SET DEBUG = '+d,secondary_engine_mock_choose_first_plan';
+SELECT * FROM t1 a, t2 b, t1 c, t2 d
+WHERE a.x = b.x AND b.x = c.y AND a.x >= d.y;
+x	y	x	y	x	y	x	y
+SELECT JSON_LENGTH(
+TRACE->'$**.considered_execution_plans**.secondary_engine_cost')
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+JSON_LENGTH(
+TRACE->'$**.considered_execution_plans**.secondary_engine_cost')
+1
+SET DEBUG = '-d,secondary_engine_mock_choose_first_plan';
+SET use_secondary_engine = DEFAULT;
+SET optimizer_trace = 'enabled=off';
+DROP TABLE t1, t2, t3;

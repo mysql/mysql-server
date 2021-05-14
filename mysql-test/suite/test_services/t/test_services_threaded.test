@@ -1,5 +1,4 @@
 #--source include/have_daemon_example_plugin.inc
---source include/not_hypergraph.inc  # Gets confused by different logging.
 
 # Restart of server to get deterministic results.
 --let server_log= $MYSQLTEST_VARDIR/log/test_services_threaded.err

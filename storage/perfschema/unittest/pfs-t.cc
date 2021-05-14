@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -236,6 +236,8 @@ static void test_bootstrap() {
   ok(psi == nullptr, "no mdl version 0");
   psi = mdl_boot->get_interface(PSI_MDL_VERSION_1);
   ok(psi != nullptr, "mdl version 1");
+  psi = mdl_boot->get_interface(PSI_MDL_VERSION_2);
+  ok(psi != nullptr, "mdl version 2");
 
   psi = idle_boot->get_interface(0);
   ok(psi == nullptr, "no idle version 0");
@@ -390,7 +392,7 @@ static void load_perfschema(
   *table_service =
       (PSI_table_service_t *)table_boot->get_interface(PSI_TABLE_VERSION_1);
   *mdl_service =
-      (PSI_mdl_service_t *)mdl_boot->get_interface(PSI_MDL_VERSION_1);
+      (PSI_mdl_service_t *)mdl_boot->get_interface(PSI_CURRENT_MDL_VERSION);
   *idle_service =
       (PSI_idle_service_t *)idle_boot->get_interface(PSI_IDLE_VERSION_1);
   *stage_service =
@@ -1916,7 +1918,8 @@ static void test_event_name_index() {
   table_service =
       (PSI_table_service_t *)table_boot->get_interface(PSI_TABLE_VERSION_1);
   ok(table_service != nullptr, "table_service");
-  mdl_service = (PSI_mdl_service_t *)mdl_boot->get_interface(PSI_MDL_VERSION_1);
+  mdl_service =
+      (PSI_mdl_service_t *)mdl_boot->get_interface(PSI_CURRENT_MDL_VERSION);
   ok(mdl_service != nullptr, "mdl_service");
   idle_service =
       (PSI_idle_service_t *)idle_boot->get_interface(PSI_IDLE_VERSION_1);
@@ -2538,7 +2541,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(359);
+  plan(360);
 
   MY_INIT("pfs-t");
   do_all_tests();

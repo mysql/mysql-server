@@ -1,4 +1,0 @@
-/* OpenBSD */
-#if defined(__OpenBSD__) || defined(__OpenBSD)
-#define DUK_F_OPENBSD
-#endif

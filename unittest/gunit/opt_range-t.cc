@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <gtest/gtest.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -27,9 +28,9 @@
 #include <string>
 #include <vector>
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
-#include "sql/opt_range.cc"
+#include "sql/opt_range.h"
+#include "sql/opt_range_internal.h"
 #include "sql/parse_tree_helpers.h"
 #include "unittest/gunit/fake_range_opt_param.h"
 #include "unittest/gunit/fake_table.h"
@@ -315,7 +316,7 @@ Item_func *OptRangeTest::create_item(Item_func::Functype type, Field *fld,
       break;
     default:
       result = nullptr;
-      DBUG_ASSERT(false);
+      assert(false);
       return result;
   }
   Item *itm = static_cast<Item *>(result);
@@ -434,7 +435,8 @@ const SEL_ARG *null_arg = nullptr;
 
 static void print_selarg_ranges(String *s, SEL_ARG *sel_arg,
                                 const KEY_PART_INFO *kpi) {
-  for (SEL_ARG *cur = sel_arg->first(); cur != null_element; cur = cur->right) {
+  for (SEL_ARG *cur = sel_arg->first(); cur != opt_range::null_element;
+       cur = cur->right) {
     String current_range;
     append_range(&current_range, kpi, cur->min_value, cur->max_value,
                  cur->min_flag | cur->max_flag);
@@ -1618,7 +1620,7 @@ TEST_F(OptRangeTest, RowConstructorIn2) {
   all_args->push_front(new_Item_row(3, 4));
   all_args->push_front(new_Item_row(m_opt_param->table->field, 2));
   Item *cond = new Item_func_in(POS(), all_args, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   // ... and resolve it.
@@ -1648,7 +1650,7 @@ TEST_F(OptRangeTest, RowConstructorIn3) {
   all_args->push_front(new_Item_row(4, 5, 6));
   all_args->push_front(new_Item_row(m_opt_param->table->field, 3));
   Item *cond = new Item_func_in(POS(), all_args, false);
-  Parse_context pc(thd(), thd()->lex->current_select());
+  Parse_context pc(thd(), thd()->lex->current_query_block());
   EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   // ... and resolve it.

@@ -58,7 +58,7 @@ struct PSI_socket_locker_state_v1 {
   struct PSI_socket *m_socket;
   struct PSI_thread *m_thread;
   size_t m_number_of_bytes;
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0};
   unsigned long long (*m_timer)(void);
   enum PSI_socket_operation m_operation;
   const char *m_src_file;

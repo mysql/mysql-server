@@ -386,7 +386,8 @@ DROP VIEW v1, v2;
 --echo #------------------------------------------------------------------------
 --echo # Test case to verify INFORMATION_SCHEMA.COLUMNS result set.
 --echo #------------------------------------------------------------------------
-SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='test';
+SELECT TABLE_NAME, COLUMN_NAME, EXTRA FROM INFORMATION_SCHEMA.COLUMNS
+WHERE TABLE_SCHEMA='test' ORDER BY TABLE_NAME, COLUMN_NAME;
 DROP VIEW v3;
 
 
@@ -550,4 +551,13 @@ SELECT * FROM t1 JOIN t2 WHERE (t1.b = t2.b);
 SELECT * FROM t1 JOIN t2 ON (t1.b = t2.b);
 SELECT * FROM t1 JOIN t2 USING(b) ORDER BY (b);
 
+DROP TABLE t1, t2;
+
+
+--echo #------------------------------------------------------------------------
+--echo # Test case to verify my_row_id name usage for invisible columns.
+--echo #------------------------------------------------------------------------
+CREATE TABLE t1(a INT, my_row_id INT);
+# Following statement should not fail.
+CREATE TABLE t2(a INT, my_row_id INT INVISIBLE);
 DROP TABLE t1, t2;

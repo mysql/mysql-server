@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -38,6 +38,9 @@ namespace mock {
 
 class Authentication_container : public iface::Authentication_container {
  public:
+  Authentication_container();
+  virtual ~Authentication_container() override;
+
   std::unique_ptr<iface::Authentication> get_auth_handler(
       const std::string &name, iface::Session *session) override {
     return std::unique_ptr<iface::Authentication>{

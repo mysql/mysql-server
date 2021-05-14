@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_config\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_CONFIG\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_CONFIG\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -68,7 +68,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.28.\ \&Command\-line options for the ndb_config program
+.B Table\ \&23.29.\ \&Command\-line options used with the program ndb_config
 .TS
 allbox tab(:);
 lB lB lB.
@@ -96,7 +96,18 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
 lB l l.
+T{
+.PP
+\fB \fR\fB--cluster-config-suffix=name\fR\fB \fR
+T}:T{
+Override defaults group suffix when reading cluster_config sections in
+              my.cnf file; used in testing
+T}:T{
+.PP
+ADDED: NDB 8.0.24
+T}
 T{
 .PP
 \fB \fR\fB--config-file=file_name\fR\fB \fR
@@ -104,7 +115,7 @@ T}:T{
 Set the path to config.ini file
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -114,7 +125,7 @@ Obtain configuration data from the node having this ID (must be a data
               node)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -125,7 +136,7 @@ Dumps information about all NDB configuration parameters in text format
               to obtain XML output
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -137,7 +148,7 @@ Print connections information ([tcp], [tcp default], [sci], [sci
               --nodes
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -146,7 +157,7 @@ T}:T{
 Print only configuration parameters that have non-default values
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -157,7 +168,7 @@ T}:T{
 Field separator
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -166,7 +177,7 @@ T}:T{
 Specify host
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -175,7 +186,7 @@ T}:T{
 Read configuration data from my.cnf file
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -184,7 +195,7 @@ T}:T{
 Get configuration of node with this ID
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -195,7 +206,7 @@ Print node information ([ndbd] or [ndbd default] section of cluster
               --connections
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -204,7 +215,7 @@ T}:T{
 Short form for --ndb-connectstring
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -215,7 +226,7 @@ T}:T{
 One or more query options (attributes)
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -226,7 +237,7 @@ T}:T{
 Dumps all parameters and values to a single comma-delimited string
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -237,7 +248,7 @@ T}:T{
 Row separator
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -247,7 +258,7 @@ Print SYSTEM section information only (see ndb_config --configinfo
               output). Cannot be used with --nodes or --connections
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -256,7 +267,7 @@ T}:T{
 Specify node type
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -267,10 +278,51 @@ Use --xml with --configinfo to obtain a dump of all NDB configuration
               minimum values
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fBcluster\-config\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--cluster-config-suffix=name
+T}
+T{
+Introduced
+T}:T{
+8.0.24-ndb-8.0.24
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Override defaults group suffix when reading cluster configuration sections in
+my\&.cnf; used in testing\&.
+.RE
 .sp
 .RS 4
 .ie n \{\
@@ -1171,7 +1223,7 @@ to provide output as XML by adding this option\&. A portion of such output is sh
 .\}
 .nf
 shell> \fBndb_config \-\-configinfo \-\-xml\fR
-<configvariables protocolversion="1" ndbversionstring="5\&.7\&.32\-ndb\-7\&.5\&.20"
+<configvariables protocolversion="1" ndbversionstring="5\&.7\&.33\-ndb\-7\&.5\&.22"
                     ndbversion="460032" ndbversionmajor="7" ndbversionminor="5"
                     ndbversionbuild="0">
   <section name="SYSTEM">
@@ -1293,7 +1345,7 @@ deprecated
 attribute is indicated only when the parameter is deprecated, with
 deprecated="true", and does not appear at all for parameters which are not deprecated\&. (Bug #21127135)
 .sp
-Beginning with NDB 7\&.5\&.0, parameters that are required are indicated with
+Parameters that are required are indicated with
 mandatory="true", as shown here:
 .sp
 .if n \{\
@@ -1512,7 +1564,7 @@ option\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

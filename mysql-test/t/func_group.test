@@ -1,9 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
---source include/have_myisam.inc
-
 #
 # simple test of all group functions
 #
@@ -139,6 +133,7 @@ drop table t1;
 create table t1 (a1 int, a2 char(3), key k1(a1), key k2(a2));
 insert into t1 values(10,'aaa'), (10,null), (10,'bbb'), (20,'zzz');
 create table t2(a1 char(3), a2 int, a3 real, key k1(a1), key k2(a2, a1));
+analyze table t1, t2;
 select * from t1;
 # The following returned NULL in 4.0.10
 select min(a2) from t1;
@@ -184,6 +179,7 @@ select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_an
 insert into t1 values (3,1);
 select a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b) from t1 group by a;
 select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
+analyze table t1;
 explain select SQL_BIG_RESULT a,count(b), sum(b), avg(b), std(b), min(b), max(b), bit_and(b), bit_or(b), bit_xor(b) from t1 group by a;
 drop table t1;
 
@@ -254,8 +250,12 @@ insert into t2 values('NOL','New Orleans','LA','GTM');
 insert into t2 values('LAK','Los Angeles','CA','TWU');
 insert into t2 values('AAA','AAA','AA','AME');
 
+analyze table t1, t2;
+
 # Show the table contents
+--sorted_result
 select * from t1;
+--sorted_result
 select * from t2;
 
 # Queries with min/max functions 
@@ -573,6 +573,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (id int PRIMARY KEY, b char(3), INDEX(b));
 INSERT INTO t1 VALUES (1,'xx'), (2,'aa');
+--sorted_result
 SELECT * FROM t1;
 
 SELECT MAX(b) FROM t1 WHERE b < 'ppppp';
@@ -582,6 +583,7 @@ DROP TABLE t1;
 
 CREATE TABLE t1 (id int PRIMARY KEY, b char(16), INDEX(b(4)));
 INSERT INTO t1 VALUES (1, 'xxxxbbbb'), (2, 'xxxxaaaa');
+ANALYZE TABLE t1;
 SELECT MAX(b) FROM t1;
 EXPLAIN SELECT MAX(b) FROM t1;
 DROP TABLE t1;
@@ -592,6 +594,7 @@ INSERT INTO t1 VALUES
   (1,CONCAT(REPEAT('_', 250), "aa")), (1,CONCAT(REPEAT('_', 250), "ff"));
 
 SELECT MAX(b) FROM t1;
+ANALYZE TABLE t1;
 EXPLAIN SELECT MAX(b) FROM t1;
 DROP TABLE t1;
 #
@@ -869,27 +872,32 @@ DROP TABLE t1;
 #
 CREATE TABLE t1 ( a INT, b INT, KEY(a) );
 INSERT INTO t1 VALUES (NULL, 1), (NULL, 2);
+ANALYZE TABLE t1;
 EXPLAIN SELECT MIN(a), MIN(b) FROM t1;
 SELECT MIN(a), MIN(b) FROM t1;
 
 CREATE TABLE t2( a INT, b INT, c INT, KEY(a, b) );
 INSERT INTO t2 ( a, b, c ) VALUES ( 1, NULL, 2 ), ( 1, 3, 4 ), ( 1, 4, 4 );
+ANALYZE TABLE t2;
 EXPLAIN SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 SELECT MIN(b), MIN(c) FROM t2 WHERE a = 1;
 
 CREATE TABLE t3 (a INT, b INT, c int, KEY(a, b));
 INSERT INTO t3 VALUES (1, NULL, 1), (2, NULL, 2),  (2, NULL, 2),  (3, NULL, 3);
+ANALYZE TABLE t3;
 EXPLAIN SELECT MIN(a), MIN(b) FROM t3 where a = 2;
 SELECT MIN(a), MIN(b) FROM t3 where a = 2;
 
 CREATE TABLE t4 (a INT, b INT, c int, KEY(a, b));
 INSERT INTO t4 VALUES (1, 1, 1), (2, NULL, 2),  (2, NULL, 2),  (3, 1, 3);
+ANALYZE TABLE t4;
 EXPLAIN SELECT MIN(a), MIN(b) FROM t4 where a = 2;
 SELECT MIN(a), MIN(b) FROM t4 where a = 2;
 SELECT MIN(b), min(c) FROM t4 where a = 2;
 
 CREATE TABLE t5( a INT, b INT, KEY( a, b) ); 
 INSERT INTO t5 VALUES( 1, 1 ), ( 1, 2 );
+ANALYZE TABLE t5;
 EXPLAIN SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1;
 SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1;
 SELECT MIN(a), MIN(b) FROM t5 WHERE a = 1 and b > 1;
@@ -950,6 +958,7 @@ set SQL_MODE=ONLY_FULL_GROUP_BY;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3),(4);
 CREATE VIEW v1 AS SELECT a,(a + 1) AS y FROM t1;
+ANALYZE TABLE t1;
 EXPLAIN SELECT y FROM v1 GROUP BY v1.y;
 
 DROP VIEW v1;
@@ -1071,6 +1080,7 @@ FROM t1
 ORDER BY max;
 
 --echo
+ANALYZE TABLE t1;
 EXPLAIN
 SELECT MAX(pk) as max, i
 FROM t1
@@ -1360,8 +1370,19 @@ BEGIN
 END|
 DELIMITER ;|
 
+ANALYZE TABLE t1;
 EXPLAIN SELECT f1(MAX(f1)) FROM t1;
 SELECT f1(MAX(f1)) FROM t1;
 
 DROP TABLE t1;
 DROP FUNCTION f1;
+
+--echo #
+--echo # Bug#31848191: ITEM_SUM_STD AND _VARIANCE HAS INCORRECT IS_NULL()
+--echo #
+
+CREATE TABLE t1 (f1 INTEGER,f2 INTEGER);
+INSERT INTO t1 VALUES (1,10),(1,20),(2,NULL),(2,NULL),(3,50);
+SELECT f1, STD(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING STD(f2) IS NULL;
+SELECT f1, STD(f2) FROM t1 GROUP BY f1 WITH ROLLUP HAVING STD(f2) IS NOT NULL;
+DROP TABLE t1;

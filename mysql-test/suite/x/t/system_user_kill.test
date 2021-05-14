@@ -19,7 +19,7 @@ grant system_user on *.* to sys_user_role;
 grant sys_user_role to unpriv@localhost;
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/system_user_kill.tmp
+--write_file $MYSQL_TMP_DIR/system_user_kill.xpl
 ## Test data
 
 -->stmtadmin list_clients
@@ -96,8 +96,7 @@ drop role sys_user_role;
 EOF
 
 --replace_regex /([a-z]*.+localhost[ 	]+)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/system_user_kill.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/system_user_kill.xpl 2>&1
 
 ## Cleanup
---source include/xplugin_drop_user.inc
---remove_file $MYSQL_TMP_DIR/system_user_kill.tmp
+--source ../include/xplugin_cleanup.inc

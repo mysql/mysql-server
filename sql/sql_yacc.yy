@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,7 +42,7 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #define YYINITDEPTH 100
 #define YYMAXDEPTH 3200                        /* Because of 64K stack */
 #define Lex (YYTHD->lex)
-#define Select Lex->current_select()
+#define Select Lex->current_query_block()
 
 #include <sys/types.h>  // TODO: replace with cstdint
 
@@ -259,7 +259,7 @@ int yylex(void *yylval, void *yythd);
   } while(0)
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #define YYDEBUG 1
 #else
 #define YYDEBUG 0
@@ -294,13 +294,13 @@ void MYSQLerror(YYLTYPE *location, THD *thd, Parse_tree_root **, const char *s)
     my_error(ER_DA_OOM, MYF(0));
   } else {
     // Find omitted error messages in the generated file (sql_yacc.cc) and fix:
-    DBUG_ASSERT(false);
+    assert(false);
     my_error(ER_UNKNOWN_ERROR, MYF(0));
   }
 }
 
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 void turn_parser_debug_on()
 {
   /*
@@ -1355,6 +1355,9 @@ void warn_about_deprecated_binary(THD *thd)
 %token<lexer.keyword> SOURCE_USER_SYM 1187                     /* MYSQL */
 %token<lexer.keyword> SOURCE_ZSTD_COMPRESSION_LEVEL_SYM 1188   /* MYSQL */
 
+%token<lexer.keyword> ST_COLLECT_SYM 1189                      /* MYSQL */
+
+%token<lexer.keyword> KEYRING_SYM 1190                         /* MYSQL */
 /*
   Precedence rules used to resolve the ambiguity when using keywords as idents
   in the case e.g.:
@@ -2509,7 +2512,7 @@ change:
               Clear LEX_MASTER_INFO struct. repl_ignore_server_ids is cleared
               in THD::cleanup_after_query. So it is guaranteed to be empty here.
             */
-            DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.empty());
+            assert(Lex->mi.repl_ignore_server_ids.empty());
             lex->mi.set_unspecified();
           }
           source_defs opt_channel
@@ -2521,7 +2524,7 @@ change:
           {
             THD *thd= YYTHD;
             LEX* lex= thd->lex;
-            DBUG_ASSERT(!lex->m_sql_cmd);
+            assert(!lex->m_sql_cmd);
             lex->sql_command = SQLCOM_CHANGE_REPLICATION_FILTER;
             lex->m_sql_cmd= NEW_PTN Sql_cmd_change_repl_filter();
             if (lex->m_sql_cmd == NULL)
@@ -2543,42 +2546,42 @@ filter_def:
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_DO_DB);
           }
         | REPLICATE_IGNORE_DB EQ opt_filter_db_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_IGNORE_DB);
           }
         | REPLICATE_DO_TABLE EQ opt_filter_table_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
            filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_DO_TABLE);
           }
         | REPLICATE_IGNORE_TABLE EQ opt_filter_table_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_IGNORE_TABLE);
           }
         | REPLICATE_WILD_DO_TABLE EQ opt_filter_string_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_WILD_DO_TABLE);
           }
         | REPLICATE_WILD_IGNORE_TABLE EQ opt_filter_string_list
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3,
                                              OPT_REPLICATE_WILD_IGNORE_TABLE);
           }
@@ -2586,7 +2589,7 @@ filter_def:
           {
             Sql_cmd_change_repl_filter * filter_sql_cmd=
               (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
-            DBUG_ASSERT(filter_sql_cmd);
+            assert(filter_sql_cmd);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_REWRITE_DB);
           }
         ;
@@ -4270,7 +4273,7 @@ sp_decl:
             LEX *cursor_lex= Lex;
             sp_head *sp= cursor_lex->sphead;
 
-            DBUG_ASSERT(cursor_lex->sql_command == SQLCOM_SELECT);
+            assert(cursor_lex->sql_command == SQLCOM_SELECT);
 
             if (cursor_lex->result)
             {
@@ -4872,7 +4875,7 @@ sp_proc_stmt_statement:
               instructions for them were already added during processing
               of "set" rule.
             */
-            DBUG_ASSERT((lex->sql_command != SQLCOM_SET_OPTION &&
+            assert((lex->sql_command != SQLCOM_SET_OPTION &&
                          lex->sql_command != SQLCOM_SET_PASSWORD) ||
                         lex->var_list.is_empty());
             if (lex->sql_command != SQLCOM_SET_OPTION &&
@@ -6755,9 +6758,10 @@ create_table_option:
           {
             $$= NEW_PTN PT_create_connection_option($3);
           }
-        | KEY_BLOCK_SIZE opt_equal ulong_num
+        | KEY_BLOCK_SIZE opt_equal signed_num
           {
-            $$= NEW_PTN PT_create_key_block_size_option($3);
+            $$= NEW_PTN
+            PT_create_key_block_size_option(static_cast<std::uint32_t>($3));
           }
         | START_SYM TRANSACTION_SYM
           {
@@ -9590,7 +9594,7 @@ table_to_table:
           table_ident TO_SYM table_ident
           {
             LEX *lex=Lex;
-            SELECT_LEX *sl= Select;
+            Query_block *sl= Select;
             if (!sl->add_table_to_list(lex->thd, $1,NULL,TL_OPTION_UPDATING,
                                        TL_IGNORE, MDL_EXCLUSIVE) ||
                 !sl->add_table_to_list(lex->thd, $3,NULL,TL_OPTION_UPDATING,
@@ -10250,7 +10254,7 @@ predicate:
           }
         | bit_expr LIKE simple_expr
           {
-            $$ = NEW_PTN Item_func_like(@$, $1, $3, nullptr);
+            $$ = NEW_PTN Item_func_like(@$, $1, $3);
           }
         | bit_expr LIKE simple_expr ESCAPE_SYM simple_expr %prec LIKE
           {
@@ -10258,7 +10262,7 @@ predicate:
           }
         | bit_expr not LIKE simple_expr
           {
-            auto item = NEW_PTN Item_func_like(@$, $1, $4, nullptr);
+            auto item = NEW_PTN Item_func_like(@$, $1, $4);
             $$ = NEW_PTN Item_func_not(@$, item);
           }
         | bit_expr not LIKE simple_expr ESCAPE_SYM simple_expr %prec LIKE
@@ -11017,6 +11021,14 @@ sum_expr:
             $$ = NEW_PTN Item_sum_json_object(
                 @$, $3, $5, $7, std::move(wrapper), std::move(object));
           }
+        | ST_COLLECT_SYM '(' in_sum_expr ')' opt_windowing_clause
+          {
+            $$= NEW_PTN Item_sum_collect(@$, $3, $5, false);
+          }
+        | ST_COLLECT_SYM '(' DISTINCT in_sum_expr ')' opt_windowing_clause
+          {
+            $$= NEW_PTN Item_sum_collect(@$, $4, $6, true );
+          }
         | BIT_XOR_SYM  '(' in_sum_expr ')' opt_windowing_clause
           {
             $$= NEW_PTN Item_sum_xor(@$, $3, $5);
@@ -11614,6 +11626,55 @@ cast_type:
             $$.target = ITEM_CAST_FLOAT;
             $$.charset = nullptr;
             $$.length = $2.length;
+            $$.dec = nullptr;
+          }
+        | POINT_SYM
+          {
+            $$.target = ITEM_CAST_POINT;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | LINESTRING_SYM
+          {
+            $$.target = ITEM_CAST_LINESTRING;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | POLYGON_SYM
+          {
+            $$.target = ITEM_CAST_POLYGON;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | MULTIPOINT_SYM
+          {
+            $$.target = ITEM_CAST_MULTIPOINT;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | MULTILINESTRING_SYM
+          {
+            $$.target = ITEM_CAST_MULTILINESTRING;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | MULTIPOLYGON_SYM
+          {
+            $$.target = ITEM_CAST_MULTIPOLYGON;
+            $$.charset = nullptr;
+            $$.length = nullptr;
+            $$.dec = nullptr;
+          }
+        | GEOMETRYCOLLECTION_SYM
+          {
+            $$.target = ITEM_CAST_GEOMETRYCOLLECTION;
+            $$.charset = nullptr;
+            $$.length = nullptr;
             $$.dec = nullptr;
           }
         ;
@@ -14183,7 +14244,7 @@ use:
           {
             LEX *lex=Lex;
             lex->sql_command=SQLCOM_CHANGE_DB;
-            lex->select_lex->db= $2.str;
+            lex->query_block->db= $2.str;
           }
         ;
 
@@ -15186,6 +15247,7 @@ ident_keywords_unambiguous:
         | JSON_SYM
         | JSON_VALUE_SYM
         | KEY_BLOCK_SIZE
+        | KEYRING_SYM
         | LAST_SYM
         | LEAVES
         | LESS_SYM
@@ -15408,6 +15470,7 @@ ident_keywords_unambiguous:
         | STORAGE_SYM
         | STREAM_SYM
         | STRING_SYM
+        | ST_COLLECT_SYM
         | SUBCLASS_ORIGIN_SYM
         | SUBDATE_SYM
         | SUBJECT_SYM
@@ -16031,6 +16094,9 @@ alter_instance_action:
             }
             $$ = NEW_PTN PT_alter_instance(ALTER_INSTANCE_DISABLE_INNODB_REDO, EMPTY_CSTR);
           }
+        | RELOAD KEYRING_SYM {
+            $$ = NEW_PTN PT_alter_instance(RELOAD_KEYRING, EMPTY_CSTR);
+          }
         ;
 
 /*
@@ -16380,7 +16446,7 @@ grant_ident:
           {
             LEX *lex= Lex;
             size_t dummy;
-            if (lex->copy_db_to(&lex->current_select()->db, &dummy))
+            if (lex->copy_db_to(&lex->current_query_block()->db, &dummy))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
               lex->grant = DB_OP_ACLS;
@@ -16393,7 +16459,7 @@ grant_ident:
         | schema '.' '*'
           {
             LEX *lex= Lex;
-            lex->current_select()->db = $1.str;
+            lex->current_query_block()->db = $1.str;
             if (lex->grant == GLOBAL_ACLS)
               lex->grant = DB_OP_ACLS;
             else if (lex->columns.elements)
@@ -16405,7 +16471,7 @@ grant_ident:
         | '*' '.' '*'
           {
             LEX *lex= Lex;
-            lex->current_select()->db = NULL;
+            lex->current_query_block()->db = NULL;
             if (lex->grant == GLOBAL_ACLS)
               lex->grant= GLOBAL_ACLS & ~GRANT_ACL;
             else if (lex->columns.elements)
@@ -16420,7 +16486,7 @@ grant_ident:
             if (tmp == NULL)
               MYSQL_YYABORT;
             LEX *lex=Lex;
-            if (!lex->current_select()->add_table_to_list(lex->thd, tmp, NULL,
+            if (!lex->current_query_block()->add_table_to_list(lex->thd, tmp, NULL,
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
@@ -16434,7 +16500,7 @@ grant_ident:
             if (tmp == NULL)
               MYSQL_YYABORT;
             LEX *lex=Lex;
-            if (!lex->current_select()->add_table_to_list(lex->thd, tmp, NULL,
+            if (!lex->current_query_block()->add_table_to_list(lex->thd, tmp, NULL,
                                                         TL_OPTION_UPDATING))
               MYSQL_YYABORT;
             if (lex->grant == GLOBAL_ACLS)
@@ -17042,7 +17108,7 @@ view_tail:
             LEX *lex= thd->lex;
             lex->sql_command= SQLCOM_CREATE_VIEW;
             /* first table in list is target VIEW name */
-            if (!lex->select_lex->add_table_to_list(thd, $3, NULL,
+            if (!lex->query_block->add_table_to_list(thd, $3, NULL,
                                                     TL_OPTION_UPDATING,
                                                     TL_IGNORE,
                                                     MDL_EXCLUSIVE))
@@ -17072,10 +17138,10 @@ view_tail:
                 set_derived_column_names(static_cast<Create_col_name_list* >(rawmem));
             }
           }
-          AS view_select
+          AS view_query_block
         ;
 
-view_select:
+view_query_block:
           query_expression_or_parens view_check_option
           {
             THD *thd= YYTHD;
@@ -17091,14 +17157,14 @@ view_select:
               table_list finally.
 
               @todo: Don't save the CREATE destination table in
-                     SELECT_LEX::table_list and remove this backup & restore.
+                     Query_block::table_list and remove this backup & restore.
 
               The following work only with the local list, the global list
               is created correctly in this case
             */
             SQL_I_List<TABLE_LIST> save_list;
-            SELECT_LEX * const save_select= Select;
-            save_select->table_list.save_and_clear(&save_list);
+            Query_block * const save_query_block= Select;
+            save_query_block->table_list.save_and_clear(&save_list);
 
             CONTEXTUALIZE($1);
 
@@ -17106,7 +17172,7 @@ view_select:
               The following work only with the local list, the global list
               is created correctly in this case
             */
-            save_select->table_list.push_front(&save_list);
+            save_query_block->table_list.push_front(&save_list);
 
             Lex->create_view_check= $2;
 
@@ -17116,10 +17182,10 @@ view_select:
               so let use explicit @1 and @2 to memdup this view definition:
             */
             const size_t len= @2.cpp.end - @1.cpp.start;
-            lex->create_view_select.str=
+            lex->create_view_query_block.str=
               static_cast<char *>(thd->memdup(@1.cpp.start, len));
-            lex->create_view_select.length= len;
-            trim_whitespace(thd->charset(), &lex->create_view_select);
+            lex->create_view_query_block.length= len;
+            trim_whitespace(thd->charset(), &lex->create_view_query_block);
 
             lex->parsing_options.allows_variable= true;
             lex->parsing_options.allows_select_into= true;
@@ -17220,7 +17286,7 @@ trigger_tail:
               sp_proc_stmt alternatives are not saving/restoring LEX, so
               lex->query_tables can be wiped out.
             */
-            if (!lex->select_lex->add_table_to_list(thd, $6,
+            if (!lex->query_block->add_table_to_list(thd, $6,
                                                     nullptr,
                                                     TL_OPTION_UPDATING,
                                                     TL_READ_NO_INSERT,
@@ -17729,17 +17795,17 @@ vcpu_num_or_range:
             auto cpu_id= my_strtoull($1.str, nullptr, 10);
             $$.start= $$.end=
               static_cast<resourcegroups::platform::cpu_id_t>(cpu_id);
-            DBUG_ASSERT($$.start == cpu_id); // truncation check
+            assert($$.start == cpu_id); // truncation check
           }
         | NUM '-' NUM
           {
             auto start= my_strtoull($1.str, nullptr, 10);
             $$.start= static_cast<resourcegroups::platform::cpu_id_t>(start);
-            DBUG_ASSERT($$.start == start); // truncation check
+            assert($$.start == start); // truncation check
 
             auto end= my_strtoull($3.str, nullptr, 10);
             $$.end= static_cast<resourcegroups::platform::cpu_id_t>(end);
-            DBUG_ASSERT($$.end == end); // truncation check
+            assert($$.end == end); // truncation check
           }
         ;
 

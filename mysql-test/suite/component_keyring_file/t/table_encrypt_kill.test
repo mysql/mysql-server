@@ -1,0 +1,9 @@
+--source include/have_component_keyring_file.inc
+--source include/no_valgrind_without_big.inc
+--source include/big_test.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/innodb/table_encrypt_kill.inc
+--source ../inc/teardown_component.inc

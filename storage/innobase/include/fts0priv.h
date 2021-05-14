@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,8 +57,8 @@ enum fts_table_state_enum {
 
 typedef enum fts_table_state_enum fts_table_state_t;
 
-/** The default time to wait for the background thread (in microsecnds). */
-#define FTS_MAX_BACKGROUND_THREAD_WAIT 10000
+/** The default time to wait for the background thread (in microseconds). */
+#define FTS_MAX_BACKGROUND_THREAD_WAIT_US 10000
 
 /** Maximum number of iterations to wait before we complain */
 #define FTS_BACKGROUND_THREAD_WAIT_COUNT 1000

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -748,6 +748,18 @@ void log_sink_buffer_check_timeout(void);
       .source_file(MY_BASENAME)      \
       .function(__FUNCTION__)        \
       .lookup(ecode, ##__VA_ARGS__)
+
+#define LogComponentErr(severity, ecode, ...)                           \
+  LogEvent()                                                            \
+      .prio(severity)                                                   \
+      .errcode(ecode)                                                   \
+      .subsys(LOG_SUBSYSTEM_TAG)                                        \
+      .component("component:" LOG_COMPONENT_TAG)                        \
+      .source_line(__LINE__)                                            \
+      .source_file(MY_BASENAME)                                         \
+      .function(__FUNCTION__)                                           \
+      .lookup_quoted(ecode, "Component " LOG_COMPONENT_TAG " reported", \
+                     ##__VA_ARGS__)
 
 #define LogPluginErr(severity, ecode, ...)                           \
   LogEvent()                                                         \

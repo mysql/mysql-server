@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,9 @@ namespace mock {
 
 class System : public iface::System {
  public:
+  System();
+  virtual ~System() override;
+
   MOCK_METHOD(int32_t, unlink, (const char *), (override));
   MOCK_METHOD(int32_t, kill, (int32_t, int32_t), (override));
 

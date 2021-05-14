@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,9 @@ namespace mock {
 
 class Protocol_monitor : public iface::Protocol_monitor {
  public:
+  Protocol_monitor();
+  virtual ~Protocol_monitor() override;
+
   MOCK_METHOD(void, init, (iface::Client *), (override));
   MOCK_METHOD(void, on_notice_warning_send, (), (override));
   MOCK_METHOD(void, on_notice_other_send, (), (override));

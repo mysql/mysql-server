@@ -891,7 +891,9 @@ CREATE TABLE t1(col1 INT AS(1), KEY(col1))
 ENGINE=INNODB
 PARTITION BY KEY(col1) PARTITIONS 2;
 
+--disable_warnings
 SELECT * FROM t1 WHERE sha(uuid_short());
+--enable_warnings
 
 DROP TABLE t1;
 

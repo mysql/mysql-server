@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -184,7 +184,7 @@ static dberr_t srv_conc_enter_innodb_with_atomics(
       srv_thread_sleep_delay = static_cast<ulong>(sleep_in_us);
     }
 
-    os_thread_sleep(sleep_in_us);
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_in_us));
 
     trx->op_info = "";
 

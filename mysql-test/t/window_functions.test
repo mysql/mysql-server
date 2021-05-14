@@ -4335,3 +4335,23 @@ SET @@session.max_heap_table_size=default;
 SET @@session.tmp_table_size=default;
 SET @@session.internal_tmp_mem_storage_engine=default;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32497850 RECENT CRASH IN MY_DECIMAL::MY_DECIMAL
+--echo #
+
+SELECT (3.14 DIV (
+  FIRST_VALUE(
+    FROM_DAYS(2486378174430980553)
+  )
+  OVER()
+  )
+);
+
+SELECT (3.14 DIV (
+  NTH_VALUE(
+    FROM_DAYS(2486378174430980553), 1
+  )
+  OVER()
+  )
+);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -252,11 +252,17 @@ static inline int is_prefix(const char *s, const char *t) {
   return 1; /* WRONG */
 }
 
+/*
+   Replace the deprecated character set name "utf8" with "utf8mb3".
+ */
+static inline const char *replace_utf8_utf8mb3(const char *csname) {
+  return (native_strcasecmp(csname, "utf8") != 0) ? csname : "utf8mb3";
+}
+
 /* Conversion routines */
 typedef enum { MY_GCVT_ARG_FLOAT, MY_GCVT_ARG_DOUBLE } my_gcvt_arg_type;
 
 double my_strtod(const char *str, const char **end, int *error);
-double my_atof(const char *nptr);
 size_t my_fcvt(double x, int precision, char *to, bool *error);
 size_t my_fcvt_compact(double x, char *to, bool *error);
 size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,

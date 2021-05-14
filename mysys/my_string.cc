@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,7 @@ bool dynstr_trunc(DYNAMIC_STRING *str, size_t n) {
 }
 
 /*
-  Concatenates any number of strings, escapes any OS quote in the result then
+  Concatenates any number of strings, escapes any quote in the result then
   surround the whole affair in another set of quotes which is finally appended
   to specified DYNAMIC_STRING.  This function is especially useful when
   building strings to be executed with the system() function.
@@ -133,19 +133,12 @@ bool dynstr_trunc(DYNAMIC_STRING *str, size_t n) {
   @return True = Success.
 */
 
-bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...) {
-#ifdef _WIN32
-  const char *quote_str = "\"";
-  const uint quote_len = 1;
-#else
-  const char *quote_str = "\'";
-  const uint quote_len = 1;
-#endif /* _WIN32 */
+static bool dynstr_append_quoted_inner(DYNAMIC_STRING *str,
+                                       const char *quote_str,
+                                       const uint quote_len, const char *append,
+                                       va_list dirty_text) {
   bool ret = true;
-  va_list dirty_text;
-
   ret &= dynstr_append_mem(str, quote_str, quote_len); /* Leading quote */
-  va_start(dirty_text, append);
   while (append != NullS) {
     const char *cur_pos = append;
     const char *next_pos = cur_pos;
@@ -164,6 +157,30 @@ bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...) {
   ret &= dynstr_append_mem(str, quote_str, quote_len); /* Trailing quote */
 
   return ret;
+}
+
+bool dynstr_append_os_quoted(DYNAMIC_STRING *str, const char *append, ...) {
+#ifdef _WIN32
+  const char *quote_str = "\"";
+  const uint quote_len = 1;
+#else
+  const char *quote_str = "\'";
+  const uint quote_len = 1;
+#endif /* _WIN32 */
+  va_list dirty_text;
+
+  va_start(dirty_text, append);
+  return dynstr_append_quoted_inner(str, quote_str, quote_len, append,
+                                    dirty_text);
+}
+
+bool dynstr_append_quoted(DYNAMIC_STRING *str, const char *quote_str,
+                          const uint quote_len, const char *append, ...) {
+  va_list dirty_text;
+
+  va_start(dirty_text, append);
+  return dynstr_append_quoted_inner(str, quote_str, quote_len, append,
+                                    dirty_text);
 }
 
 void dynstr_free(DYNAMIC_STRING *str) {

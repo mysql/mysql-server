@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,15 +22,21 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <chrono>
 #include <functional>
 #include <map>
 #include <stdexcept>
 #include <string>
-
-#include <mysqld_error.h>
 #include <system_error>
 
-#include "authentication.h"
+#ifdef _WIN32
+#include <WinSock2.h>
+#include <Windows.h>
+#endif
+
+#include <mysqld_error.h>
+#include <openssl/ssl.h>
+
 #include "duk_logging.h"
 #include "duk_module_shim.h"
 #include "duk_node_fs.h"
@@ -40,10 +46,23 @@
 #include "mysql/harness/logging/logging.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysqlrouter/classic_protocol.h"
+#include "statement_reader.h"
 
 IMPORT_LOG_FUNCTIONS()
 
 namespace server_mock {
+
+static duk_int_t process_get_shared(duk_context *ctx);
+static duk_int_t process_set_shared(duk_context *ctx);
+static duk_int_t process_get_keys(duk_context *ctx);
+static void check_stmts_section(duk_context *ctx);
+static bool check_notices_section(duk_context *ctx);
+static void check_handshake_section(duk_context *ctx);
+static duk_int_t process_erase(duk_context *ctx);
+static duk_int_t process_set_shared(duk_context *ctx);
+duk_int_t duk_pcompile_file(duk_context *ctx, const char *path,
+                            int compile_type);
+
 /*
  * get the names of the type.
  *
@@ -172,7 +191,248 @@ MySQLColumnType column_type_from_string(const std::string &type) {
   return static_cast<MySQLColumnType>(res);
 }
 
+/**
+ * memory heap of duk contexts.
+ *
+ * contains:
+ *
+ * - execution threads
+ * - stacks
+ * - stashes
+ * - ...
+ */
+class DukHeap {
+ public:
+  DukHeap(const std::vector<std::string> &module_prefixes,
+          std::shared_ptr<MockServerGlobalScope> shared_globals)
+      : heap_{duk_create_heap(nullptr, nullptr, nullptr, nullptr,
+                              [](void *, const char *msg) {
+                                log_error("%s", msg);
+                                abort();
+                              })},
+        shared_{std::move(shared_globals)} {
+    duk_module_shim_init(context(), module_prefixes);
+  }
+
+  void prepare(const std::string &filename,
+               const std::map<std::string, std::string> &session_data) {
+    auto ctx = context();
+    duk_push_global_stash(ctx);
+    if (nullptr == shared_.get()) {
+      // why is the shared-ptr empty?
+      throw std::logic_error(
+          "expected shared global variable object to be set, but it isn't.");
+    }
+
+    // process.*
+    prepare_process_object();
+
+    // mysqld.*
+    prepare_mysqld_object(session_data);
+
+    load_script(filename);
+
+    if (!duk_is_object(ctx, -1)) {
+      throw std::runtime_error(
+          filename + ": expected statement handler to return an object, got " +
+          duk_get_type_names(ctx, -1));
+    }
+
+    // check if the sections have the right types
+    check_stmts_section(ctx);
+    check_handshake_section(ctx);
+  }
+
+  duk_context *context() { return heap_.get(); }
+
+ private:
+  class HeapDeleter {
+   public:
+    void operator()(duk_context *p) { duk_destroy_heap(p); }
+  };
+
+  void prepare_process_object() {
+    auto ctx = context();
+
+    duk_push_pointer(ctx, shared_.get());
+    duk_put_prop_string(ctx, -2, "shared");
+    duk_pop(ctx);  // stash
+
+    duk_get_global_string(ctx, "process");
+    if (duk_is_undefined(ctx, -1)) {
+      // duk_module_shim_init() is expected to initialize it.
+      throw std::runtime_error(
+          "expected 'process' to exist, but it is undefined.");
+    }
+    duk_push_c_function(ctx, process_get_shared, 1);
+    duk_put_prop_string(ctx, -2, "get_shared");
+
+    duk_push_c_function(ctx, process_set_shared, 2);
+    duk_put_prop_string(ctx, -2, "set_shared");
+
+    duk_push_c_function(ctx, process_get_keys, 0);
+    duk_put_prop_string(ctx, -2, "get_keys");
+
+    duk_push_c_function(ctx, process_erase, 1);
+    duk_put_prop_string(ctx, -2, "erase");
+
+    duk_pop(ctx);
+  }
+
+  void prepare_mysqld_object(
+      const std::map<std::string, std::string> &session_data) {
+    auto ctx = context();
+    // mysqld = {
+    //   session: {
+    //     port: 3306
+    //   }
+    //   global: // proxy that calls process.get_shared()/.set_shared()
+    // }
+    duk_push_global_object(ctx);
+    duk_push_object(ctx);
+    duk_push_object(ctx);
+
+    // map of string and json-string
+    for (auto &el : session_data) {
+      duk_push_lstring(ctx, el.second.data(), el.second.size());
+      duk_json_decode(ctx, -1);
+      duk_put_prop_lstring(ctx, -2, el.first.data(), el.first.size());
+    }
+
+    duk_put_prop_string(ctx, -2, "session");
+
+    if (DUK_EXEC_SUCCESS !=
+        duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
+                            "function () {\n"
+                            "  return new Proxy({}, {\n"
+                            "    ownKeys: function(target) {\n"
+                            "      process.get_keys().forEach(function(el) {\n"
+                            "        Object.defineProperty(\n"
+                            "          target, el, {\n"
+                            "            configurable: true,\n"
+                            "            enumerable: true});\n"
+                            "      });\n"
+                            "      return Object.keys(target);\n"
+                            "    },\n"
+                            "    get: function(target, key, recv) {\n"
+                            "      return process.get_shared(key);},\n"
+                            "    set: function(target, key, val, recv) {\n"
+                            "      return process.set_shared(key, val);},\n"
+                            "    deleteProperty: function(target, prop) {\n"
+                            "      if (process.erase(prop) > 0) {\n"
+                            "        delete target[prop];\n"
+                            "      }\n"
+                            "    },\n"
+                            "  });\n"
+                            "}\n")) {
+      throw DuktapeRuntimeError(ctx, -1);
+    }
+    if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
+      throw DuktapeRuntimeError(ctx, -1);
+    }
+
+    duk_put_prop_string(ctx, -2, "global");
+
+    duk_put_prop_string(ctx, -2, "mysqld");
+  }
+
+  void load_script(const std::string &filename) {
+    std::lock_guard<std::mutex> lk(scripts_mtx_);
+
+    auto ctx = context();
+    if (scripts_.find(filename) != scripts_.end()) {
+      // use the cached version of the script.
+      const auto &buffer = scripts_[filename];
+
+      auto *p = duk_push_fixed_buffer(ctx, buffer.size());
+      std::copy(buffer.begin(), buffer.end(), static_cast<char *>(p));
+    } else {
+      // load the script.
+      if (DUK_EXEC_SUCCESS !=
+          duk_pcompile_file(ctx, filename.c_str(), DUK_COMPILE_EVAL)) {
+        throw DuktapeRuntimeError(ctx, -1);
+      }
+// On Solaris we disable cache functionality as it causes mock server crash:
+// uncaught: 'invalid bytecode'
+//     Application got fatal signal: 6
+//              server_mock::DukHeap::DukHeap(std::string const&,
+//              std::shared_ptr<MockServerGlobalScope>)::{lambda(void*, char
+//              const*)#1}::__invoke(char const, {lambda(void*, char
+//              const*)#1})+0x28 [0xffffff02c0133bc8]
+#ifndef __sun
+      duk_dump_function(ctx);
+      // store the compiled bytecode in our cache
+      size_t sz;
+      const auto *p = static_cast<const char *>(duk_get_buffer(ctx, -1, &sz));
+      scripts_[filename] = std::string(p, p + sz);
+#endif
+    }
+
+#ifndef __sun
+    duk_load_function(ctx);
+#endif
+
+    duk_push_global_object(ctx);
+    if (DUK_EXEC_SUCCESS != duk_pcall_method(ctx, 0)) {
+      throw DuktapeRuntimeError(ctx, -1);
+    }
+  }
+
+  std::unique_ptr<duk_context, HeapDeleter> heap_{};
+  std::shared_ptr<MockServerGlobalScope> shared_;
+
+  static std::mutex scripts_mtx_;
+  static std::map<std::string, std::string> scripts_;
+};
+
+/*static*/ std::map<std::string, std::string> DukHeap::scripts_{};
+/*static*/ std::mutex DukHeap::scripts_mtx_{};
+
+class DukHeapPool {
+ public:
+  static DukHeapPool *instance() { return &instance_; }
+
+  std::unique_ptr<DukHeap> get(
+      const std::string &filename,
+      const std::vector<std::string> &module_prefixes,
+      std::map<std::string, std::string> session_data,
+      std::shared_ptr<MockServerGlobalScope> shared_globals) {
+    {
+      std::lock_guard<std::mutex> lock(pool_mtx_);
+      if (pool_.size() > 0) {
+        auto result = std::move(pool_.front());
+        pool_.pop_front();
+        result->prepare(filename, session_data);
+        return result;
+      }
+    }
+
+    // there is no free context object, create new one
+    auto result = std::make_unique<DukHeap>(module_prefixes, shared_globals);
+    result->prepare(filename, session_data);
+
+    return result;
+  }
+
+  void release(std::unique_ptr<DukHeap> heap) {
+    std::lock_guard<std::mutex> lock(pool_mtx_);
+    pool_.push_back(std::move(heap));
+  }
+
+ private:
+  DukHeapPool() = default;
+  static DukHeapPool instance_;
+
+  std::list<std::unique_ptr<DukHeap>> pool_;
+  std::mutex pool_mtx_;
+};
+
+DukHeapPool DukHeapPool::instance_;
+
 struct DuktapeStatementReader::Pimpl {
+  Pimpl(std::unique_ptr<DukHeap> heap)
+      : heap_(std::move(heap)), ctx(heap_->context()) {}
+
   std::string get_object_string_value(duk_idx_t idx, const std::string &field,
                                       const std::string &default_val = "",
                                       bool is_required = false) {
@@ -234,29 +494,29 @@ struct DuktapeStatementReader::Pimpl {
     return value;
   }
 
-  std::unique_ptr<Response> get_ok(duk_idx_t idx) {
+  OkResponse get_ok(duk_idx_t idx) {
     if (!duk_is_object(ctx, idx)) {
       throw std::runtime_error("expect an object");
     }
 
-    return std::unique_ptr<Response>(new OkResponse(
-        get_object_integer_value<uint16_t>(-1, "last_insert_id", 0),
-        get_object_integer_value<uint16_t>(-1, "warning_count", 0)));
+    return {0,  // affected_rows
+            get_object_integer_value<uint16_t>(-1, "last_insert_id", 0),
+            0,  // status
+            get_object_integer_value<uint16_t>(-1, "warning_count", 0)};
   }
 
-  std::unique_ptr<Response> get_error(duk_idx_t idx) {
+  ErrorResponse get_error(duk_idx_t idx) {
     if (!duk_is_object(ctx, idx)) {
       throw std::runtime_error("expect an object");
     }
 
-    return std::unique_ptr<Response>(new ErrorResponse(
-        get_object_integer_value<uint16_t>(-1, "code", 0, true),
-        get_object_string_value(-1, "message", "", true),
-        get_object_string_value(-1, "sql_state", "HY000")));
+    return {get_object_integer_value<uint16_t>(-1, "code", 0, true),
+            get_object_string_value(-1, "message", "", true),
+            get_object_string_value(-1, "sql_state", "HY000")};
   }
 
-  std::unique_ptr<Response> get_result(duk_idx_t idx) {
-    auto response = std::make_unique<ResultsetResponse>();
+  ResultsetResponse get_result(duk_idx_t idx) {
+    ResultsetResponse response;
     if (!duk_is_object(ctx, idx)) {
       throw std::runtime_error("expect an object");
     }
@@ -270,30 +530,25 @@ struct DuktapeStatementReader::Pimpl {
     while (duk_next(ctx, -1, 1)) {
       // @-2 column-ndx
       // @-1 column
-      RowValueType row_values;
-
-      column_info_type column_info{
-          get_object_string_value(-1, "name", "", true),
-          column_type_from_string(
-              get_object_string_value(-1, "type", "", true)),
-          get_object_string_value(-1, "orig_name"),
-          get_object_string_value(-1, "table"),
-          get_object_string_value(-1, "orig_table"),
-          get_object_string_value(-1, "schema"),
-          get_object_string_value(-1, "catalog", "def"),
-          get_object_integer_value<uint16_t>(-1, "flags"),
-          get_object_integer_value<uint8_t>(-1, "decimals"),
-          get_object_integer_value<uint32_t>(-1, "length"),
-          get_object_integer_value<uint16_t>(-1, "character_set", 63),
-          1  // repeat
-      };
 
       if (duk_get_prop_string(ctx, -1, "repeat")) {
         throw std::runtime_error("repeat is not supported");
       }
       duk_pop(ctx);
 
-      response->columns.push_back(column_info);
+      response.columns.emplace_back(
+          get_object_string_value(-1, "catalog", "def"),
+          get_object_string_value(-1, "schema"),
+          get_object_string_value(-1, "table"),
+          get_object_string_value(-1, "orig_table"),
+          get_object_string_value(-1, "name", "", true),
+          get_object_string_value(-1, "orig_name"),
+          get_object_integer_value<uint16_t>(-1, "character_set", 63),
+          get_object_integer_value<uint32_t>(-1, "length"),
+          static_cast<uint8_t>(column_type_from_string(
+              get_object_string_value(-1, "type", "", true))),
+          get_object_integer_value<uint16_t>(-1, "flags"),
+          get_object_integer_value<uint8_t>(-1, "decimals"));
 
       duk_pop(ctx);  // row
       duk_pop(ctx);  // row-ndx
@@ -316,15 +571,15 @@ struct DuktapeStatementReader::Pimpl {
         duk_enum(ctx, -1, DUK_ENUM_ARRAY_INDICES_ONLY);
         while (duk_next(ctx, -1, 1)) {
           if (duk_is_null(ctx, -1)) {
-            row_values.push_back(std::make_pair(false, ""));
+            row_values.emplace_back(stdx::make_unexpected());
           } else {
-            row_values.push_back(std::make_pair(true, duk_to_string(ctx, -1)));
+            row_values.emplace_back(duk_to_string(ctx, -1));
           }
           duk_pop(ctx);  // field
           duk_pop(ctx);  // field-ndx
         }
         duk_pop(ctx);  // field-enum
-        response->rows.push_back(row_values);
+        response.rows.push_back(row_values);
 
         duk_pop(ctx);  // row
         duk_pop(ctx);  // row-ndx
@@ -337,68 +592,7 @@ struct DuktapeStatementReader::Pimpl {
 
     duk_pop(ctx);  // "rows"
 
-#ifdef __SUNPRO_CC
-    return std::move(response);
-#else
     return response;
-#endif
-  }
-  duk_context *ctx{nullptr};
-
-  bool authenticate(const std::string &auth_username,
-                    const std::vector<uint8_t> &auth_response) {
-    // std::optional would be neat
-    std::string username;
-    bool username_set{false};
-    std::string password;
-    bool password_set{false};
-
-    duk_get_prop_string(ctx, -1, "handshake");
-    if (duk_is_object(ctx, -1)) {
-      duk_get_prop_string(ctx, -1, "auth");
-      if (duk_is_object(ctx, -1)) {
-        duk_get_prop_literal(ctx, -1, "username");
-        if (duk_is_string(ctx, -1)) {
-          username = duk_to_string(ctx, -1);
-          username_set = true;
-        }
-        duk_pop(ctx);
-
-        duk_get_prop_literal(ctx, -1, "password");
-        if (duk_is_string(ctx, -1)) {
-          password = duk_to_string(ctx, -1);
-          password_set = true;
-        }
-        duk_pop(ctx);
-      }
-      duk_pop(ctx);
-    }
-    duk_pop(ctx);
-
-    if (username_set && username != auth_username) {
-      return false;
-    }
-
-    if (password_set) {
-      if (auth_method_ == CachingSha2Password::name) {
-        auto scramble_res = CachingSha2Password::scramble(nonce_, password);
-        return scramble_res && (scramble_res.value() == auth_response);
-      } else if (auth_method_ == MySQLNativePassword::name) {
-        auto scramble_res = MySQLNativePassword::scramble(nonce_, password);
-        return scramble_res && (scramble_res.value() == auth_response);
-      } else if (auth_method_ == ClearTextPassword::name) {
-        auto scramble_res = ClearTextPassword::scramble(nonce_, password);
-        return scramble_res && (scramble_res.value() == auth_response);
-      } else {
-        // there is also
-        // - old_password (3.23, 4.0)
-        // - sha256_password (5.6, ...)
-        // - windows_authentication (5.6, ...)
-        return false;
-      }
-    }
-
-    return true;
   }
 
   enum class HandshakeState {
@@ -414,11 +608,12 @@ struct DuktapeStatementReader::Pimpl {
   bool first_stmt_{true};
 
   std::string nonce_;
-  std::string auth_method_;
-  std::string username_;
+  std::unique_ptr<DukHeap> heap_;
+  duk_context *ctx{nullptr};
 };
 
-duk_int_t duk_peval_file(duk_context *ctx, const char *path) {
+duk_int_t duk_pcompile_file(duk_context *ctx, const char *path,
+                            int compile_type) {
   duk_push_c_function(ctx, duk_node_fs_read_file_sync, 1);
   duk_push_string(ctx, path);
   if (duk_int_t rc = duk_pcall(ctx, 1)) {
@@ -427,11 +622,11 @@ duk_int_t duk_peval_file(duk_context *ctx, const char *path) {
 
   duk_buffer_to_string(ctx, -1);
   duk_push_string(ctx, path);
-  if (duk_int_t rc = duk_pcompile(ctx, DUK_COMPILE_EVAL)) {
+  if (duk_int_t rc = duk_pcompile(ctx, compile_type)) {
     return rc;
   }
-  duk_push_global_object(ctx);
-  return duk_pcall_method(ctx, 0);
+
+  return 0;
 }
 
 static duk_int_t process_get_keys(duk_context *ctx) {
@@ -595,151 +790,110 @@ static void check_handshake_section(duk_context *ctx) {
 }
 
 DuktapeStatementReader::DuktapeStatementReader(
-    const std::string &filename, const std::string &module_prefix,
+    const std::string &filename,
+    const std::vector<std::string> &module_prefixes,
     std::map<std::string, std::string> session_data,
     std::shared_ptr<MockServerGlobalScope> shared_globals)
-    : pimpl_{new Pimpl()}, shared_{std::move(shared_globals)} {
-  auto *ctx = duk_create_heap_default();
-
-  // free the duk_context if an exception gets thrown as
-  // DuktapeStatementReaders's destructor will not be called in that case.
-  ScopeGuard duk_guard{[&ctx]() { duk_destroy_heap(ctx); }};
-
-  // init module-loader
-  duk_module_shim_init(ctx, module_prefix.c_str());
-
-  duk_push_global_stash(ctx);
-  if (nullptr == shared_.get()) {
-    // why is the shared-ptr empty?
-    throw std::logic_error(
-        "expected shared global variable object to be set, but it isn't.");
-  }
-
-  duk_push_pointer(ctx, shared_.get());
-  duk_put_prop_string(ctx, -2, "shared");
-  duk_pop(ctx);  // stash
-
-  duk_get_global_string(ctx, "process");
-  if (duk_is_undefined(ctx, -1)) {
-    // duk_module_shim_init() is expected to initialize it.
-    throw std::runtime_error(
-        "expected 'process' to exist, but it is undefined.");
-  }
-  duk_push_c_function(ctx, process_get_shared, 1);
-  duk_put_prop_string(ctx, -2, "get_shared");
-
-  duk_push_c_function(ctx, process_set_shared, 2);
-  duk_put_prop_string(ctx, -2, "set_shared");
-
-  duk_push_c_function(ctx, process_get_keys, 0);
-  duk_put_prop_string(ctx, -2, "get_keys");
-
-  duk_push_c_function(ctx, process_erase, 1);
-  duk_put_prop_string(ctx, -2, "erase");
-
-  duk_pop(ctx);
-
-  // mysqld = {
-  //   session: {
-  //     port: 3306
-  //   }
-  //   global: // proxy that calls process.get_shared()/.set_shared()
-  // }
-  duk_push_global_object(ctx);
-  duk_push_object(ctx);
-  duk_push_object(ctx);
-
-  // map of string and json-string
-  for (auto &el : session_data) {
-    duk_push_lstring(ctx, el.second.data(), el.second.size());
-    duk_json_decode(ctx, -1);
-    duk_put_prop_lstring(ctx, -2, el.first.data(), el.first.size());
-  }
-
-  duk_put_prop_string(ctx, -2, "session");
-
-  if (DUK_EXEC_SUCCESS !=
-      duk_pcompile_string(ctx, DUK_COMPILE_FUNCTION,
-                          "function () {\n"
-                          "  return new Proxy({}, {\n"
-                          "    ownKeys: function(target) {\n"
-                          "      process.get_keys().forEach(function(el) {\n"
-                          "        Object.defineProperty(\n"
-                          "          target, el, {\n"
-                          "            configurable: true,\n"
-                          "            enumerable: true});\n"
-                          "      });\n"
-                          "      return Object.keys(target);\n"
-                          "    },\n"
-                          "    get: function(target, key, recv) {\n"
-                          "      return process.get_shared(key);},\n"
-                          "    set: function(target, key, val, recv) {\n"
-                          "      return process.set_shared(key, val);},\n"
-                          "    deleteProperty: function(target, prop) {\n"
-                          "      if (process.erase(prop) > 0) {\n"
-                          "        delete target[prop];\n"
-                          "      }\n"
-                          "    },\n"
-                          "  });\n"
-                          "}\n")) {
-    throw DuktapeRuntimeError(ctx, -1);
-  }
-  if (DUK_EXEC_SUCCESS != duk_pcall(ctx, 0)) {
-    throw DuktapeRuntimeError(ctx, -1);
-  }
-
-  duk_put_prop_string(ctx, -2, "global");
-
-  duk_put_prop_string(ctx, -2, "mysqld");
-
-  if (DUK_EXEC_SUCCESS != duk_peval_file(ctx, filename.c_str())) {
-    throw DuktapeRuntimeError(ctx, -1);
-  }
-
-  if (!duk_is_object(ctx, -1)) {
-    throw std::runtime_error(
-        filename + ": expected statement handler to return an object, got " +
-        duk_get_type_names(ctx, -1));
-  }
-
-  // check if the sections have the right types
-  check_stmts_section(ctx);
+    : pimpl_{std::make_unique<Pimpl>(DukHeapPool::instance()->get(
+          filename, module_prefixes, session_data, shared_globals))} {
+  auto ctx = pimpl_->ctx;
   has_notices_ = check_notices_section(ctx);
-  check_handshake_section(ctx);
-
-  // we are still alive, dismiss the guard
-  pimpl_->ctx = ctx;
-  duk_guard.dismiss();
 }
 
 DuktapeStatementReader::~DuktapeStatementReader() {
-  // duk_pop(pimpl_->ctx);
-
-  if (pimpl_->ctx) duk_destroy_heap(pimpl_->ctx);
+  DukHeapPool::instance()->release(std::move(pimpl_->heap_));
 }
 
-/*
- * @pre on the stack is an object
- */
-HandshakeResponse DuktapeStatementReader::handle_handshake_init(
-    const std::vector<uint8_t> &, HandshakeState &next_state) {
-  HandshakeResponse response;
-
-  response.exec_time = get_default_exec_time();
-
+stdx::expected<classic_protocol::message::server::Greeting, std::error_code>
+DuktapeStatementReader::server_greeting(bool with_tls) {
   auto *ctx = pimpl_->ctx;
 
   // defaults
-  std::string server_version = "8.0.5-mock";
+  std::string server_version = "8.0.23-mock";
   uint32_t connection_id = 0;
   classic_protocol::capabilities::value_type server_capabilities =
+      classic_protocol::capabilities::long_password |
+      classic_protocol::capabilities::found_rows |
+      classic_protocol::capabilities::long_flag |
+      classic_protocol::capabilities::connect_with_schema |
+      classic_protocol::capabilities::no_schema |
+      // compress (not yet)
+      classic_protocol::capabilities::odbc |
+      // local_files (never)
+      // ignore_space (client only)
       classic_protocol::capabilities::protocol_41 |
+      // interactive (client-only)
+      // ssl (below)
+      // ignore sigpipe (client-only)
+      classic_protocol::capabilities::transactions |
+      classic_protocol::capabilities::secure_connection |
+      // multi_statements (not yet)
+      // multi_results (not yet)
+      // ps_multi_results (not yet)
       classic_protocol::capabilities::plugin_auth |
-      classic_protocol::capabilities::secure_connection;
+      classic_protocol::capabilities::connect_attributes |
+      // client_auth_method_data_varint
+      classic_protocol::capabilities::expired_passwords
+      // session_track (not yet)
+      // text_result_with_session_tracking (not yet)
+      // optional_resultset_metadata (not yet)
+      // compress_zstd (not yet)
+      ;
+
+  if (with_tls) {
+    server_capabilities |= classic_protocol::capabilities::ssl;
+  }
+
   uint16_t status_flags = 0;
   uint8_t character_set = 0;
   std::string auth_method = MySQLNativePassword::name;
   std::string nonce = "01234567890123456789";
+
+  duk_get_prop_string(ctx, -1, "handshake");
+  if (!duk_is_undefined(ctx, -1)) {
+    if (!duk_is_object(ctx, -1)) {
+      throw std::runtime_error("handshake must be an object, if set. Is " +
+                               duk_get_type_names(ctx, -1));
+    }
+    duk_get_prop_string(ctx, -1, "greeting");
+    if (!duk_is_undefined(ctx, -1)) {
+      if (!duk_is_object(ctx, -1)) {
+        throw std::runtime_error(
+            "handshake.greeting must be an object, if set. Is " +
+            duk_get_type_names(ctx, -1));
+      }
+
+      server_version =
+          pimpl_->get_object_string_value(-1, "server_version", server_version);
+      connection_id = pimpl_->get_object_integer_value<uint32_t>(
+          -1, "connection_id", connection_id);
+      status_flags = pimpl_->get_object_integer_value<uint16_t>(
+          -1, "status_flags", status_flags);
+      character_set = pimpl_->get_object_integer_value<uint8_t>(
+          -1, "character_set", character_set);
+      auth_method =
+          pimpl_->get_object_string_value(-1, "auth_method", auth_method);
+      nonce = pimpl_->get_object_string_value(-1, "nonce", nonce);
+    }
+    duk_pop(ctx);
+  }
+  duk_pop(ctx);
+
+  return {stdx::in_place,
+          0x0a,
+          server_version,
+          connection_id,
+          nonce + std::string(1, '\0'),
+          server_capabilities,
+          character_set,
+          status_flags,
+          auth_method};
+}
+
+std::chrono::microseconds DuktapeStatementReader::server_greeting_exec_time() {
+  std::chrono::microseconds exec_time{};
+
+  auto *ctx = pimpl_->ctx;
 
   duk_get_prop_string(ctx, -1, "handshake");
   if (!duk_is_undefined(ctx, -1)) {
@@ -766,175 +920,99 @@ HandshakeResponse DuktapeStatementReader::handle_handshake_init(
         }
 
         // exec_time is written in the tracefile as microseconds
-        response.exec_time = std::chrono::microseconds(
+        exec_time = std::chrono::microseconds(
             static_cast<long>(duk_get_number(ctx, -1) * 1000));
       }
       duk_pop(ctx);
-
-      server_version =
-          pimpl_->get_object_string_value(-1, "server_version", server_version);
-      connection_id = pimpl_->get_object_integer_value<uint32_t>(
-          -1, "connection_id", connection_id);
-      status_flags = pimpl_->get_object_integer_value<uint16_t>(
-          -1, "status_flags", status_flags);
-      character_set = pimpl_->get_object_integer_value<uint8_t>(
-          -1, "character_set", character_set);
-      auth_method =
-          pimpl_->get_object_string_value(-1, "auth_method", auth_method);
-      nonce = pimpl_->get_object_string_value(-1, "nonce", nonce);
     }
     duk_pop(ctx);
   }
   duk_pop(ctx);
 
-  response.response_type = HandshakeResponse::ResponseType::GREETING;
-  response.response = std::make_unique<Greeting>(
-      server_version, connection_id, server_capabilities, status_flags,
-      character_set, auth_method, nonce);
-
-  pimpl_->server_capabilities_ = server_capabilities;
-  pimpl_->auth_method_ = auth_method;
-  pimpl_->nonce_ = nonce;
-  next_state = HandshakeState::GREETED;
-
-  return response;
+  return exec_time;
 }
 
-HandshakeResponse DuktapeStatementReader::handle_handshake_greeted(
-    const std::vector<uint8_t> &payload, HandshakeState &next_state) {
-  HandshakeResponse response;
+stdx::expected<DuktapeStatementReader::handshake_data, std::error_code>
+DuktapeStatementReader::handshake() {
+  auto *ctx = pimpl_->ctx;
 
-  response.exec_time = get_default_exec_time();
+  stdx::expected<ErrorResponse, void> error{stdx::make_unexpected()};
 
-  // decode the payload
+  stdx::expected<std::string, void> username{stdx::make_unexpected()};
+  stdx::expected<std::string, void> password{stdx::make_unexpected()};
+  bool cert_required{false};
+  stdx::expected<std::string, void> cert_issuer{stdx::make_unexpected()};
+  stdx::expected<std::string, void> cert_subject{stdx::make_unexpected()};
 
-  auto decode_res =
-      classic_protocol::decode<classic_protocol::message::client::Greeting>(
-          net::buffer(payload), pimpl_->server_capabilities_);
+  std::error_code ec{};
 
-  if (!decode_res) {
-    throw std::system_error(decode_res.error(),
-                            "decoding client greeting failed");
-  }
-
-  auto greeting = decode_res.value().second;
-
-  pimpl_->username_ = greeting.username();
-  if (greeting.capabilities().test(
-          classic_protocol::capabilities::pos::plugin_auth)) {
-    pimpl_->auth_method_ = greeting.auth_method_name();
-  } else {
-    // 4.1 or so
-    pimpl_->auth_method_ = MySQLNativePassword::name;
-  }
-
-  if (pimpl_->auth_method_ == CachingSha2Password::name) {
-    // auth_response() should be empty
-    //
-    // ask for the real full authentication
-    pimpl_->nonce_ = std::string(20, 'a');
-
-    response.response_type = HandshakeResponse::ResponseType::AUTH_SWITCH;
-    response.response =
-        std::make_unique<AuthSwitch>(pimpl_->auth_method_, pimpl_->nonce_);
-
-    next_state = HandshakeState::AUTH_SWITCHED;
-  } else if (pimpl_->auth_method_ == MySQLNativePassword::name ||
-             pimpl_->auth_method_ == ClearTextPassword::name) {
-    auto auth_method_data = greeting.auth_method_data();
-
-    // authenticate wants a vector<uint8_t>
-    std::vector<uint8_t> auth_method_data_vec(auth_method_data.begin(),
-                                              auth_method_data.end());
-    if (pimpl_->authenticate(pimpl_->username_, auth_method_data_vec)) {
-      response.response_type = HandshakeResponse::ResponseType::OK;
-      response.response = std::make_unique<OkResponse>();
-
-      next_state = HandshakeState::DONE;
-    } else {
-      response.response_type = HandshakeResponse::ResponseType::ERROR;
-      response.response = std::make_unique<ErrorResponse>(
-          ER_ACCESS_DENIED_ERROR,  // 1045
-          "Access Denied for user '" + pimpl_->username_ + "'@'localhost'",
-          "28000");
-      next_state = HandshakeState::DONE;
+  duk_get_prop_string(ctx, -1, "handshake");
+  if (duk_is_object(ctx, -1)) {
+    duk_get_prop_string(ctx, -1, "error");
+    if (!duk_is_undefined(ctx, -1)) {
+      error = pimpl_->get_error(-1);
     }
-  } else {
-    response.response_type = HandshakeResponse::ResponseType::ERROR;
-    response.response =
-        std::make_unique<ErrorResponse>(0, "unknown auth-method");
+    duk_pop(ctx);
 
-    next_state = HandshakeState::DONE;
-  }
+    duk_get_prop_string(ctx, -1, "auth");
+    if (duk_is_object(ctx, -1)) {
+      duk_get_prop_literal(ctx, -1, "username");
+      if (duk_is_string(ctx, -1)) {
+        username = std::string(duk_to_string(ctx, -1));
+      } else if (!duk_is_undefined(ctx, -1)) {
+        ec = make_error_code(std::errc::invalid_argument);
+      }
+      duk_pop(ctx);
 
-  harness_assert(response.response_type !=
-                 HandshakeResponse::ResponseType::UNKNOWN);
+      duk_get_prop_literal(ctx, -1, "password");
+      if (duk_is_string(ctx, -1)) {
+        password = std::string(duk_to_string(ctx, -1));
+      } else if (!duk_is_undefined(ctx, -1)) {
+        ec = make_error_code(std::errc::invalid_argument);
+      }
+      duk_pop(ctx);
 
-  return response;
-}
-HandshakeResponse DuktapeStatementReader::handle_handshake_auth_switched(
-    const std::vector<uint8_t> &payload, HandshakeState &next_state) {
-  HandshakeResponse response;
+      duk_get_prop_literal(ctx, -1, "certificate");
+      if (duk_is_object(ctx, -1)) {
+        cert_required = true;
 
-  response.exec_time = get_default_exec_time();
+        duk_get_prop_literal(ctx, -1, "issuer");
+        if (duk_is_string(ctx, -1)) {
+          cert_issuer = std::string(duk_to_string(ctx, -1));
+        } else if (!duk_is_undefined(ctx, -1)) {
+          ec = make_error_code(std::errc::invalid_argument);
+        }
+        duk_pop(ctx);
 
-  // empty password is signaled by {0},
-  // -> authenticate expects {}
-  // -> client expects OK, instead of AUTH_FAST in this case
-  if (payload == std::vector<uint8_t>{0} &&
-      pimpl_->authenticate(pimpl_->username_, {})) {
-    response.response_type = HandshakeResponse::ResponseType::OK;
-    response.response = std::make_unique<OkResponse>();
-
-    next_state = HandshakeState::DONE;
-  } else if (pimpl_->authenticate(pimpl_->username_, payload)) {
-    if (pimpl_->auth_method_ == CachingSha2Password::name) {
-      // caching-sha2-password is special and needs the auth-fast state
-      response.response_type = HandshakeResponse::ResponseType::AUTH_FAST;
-      response.response = std::make_unique<AuthFast>();
-    } else {
-      response.response_type = HandshakeResponse::ResponseType::OK;
-      response.response = std::make_unique<OkResponse>();
+        duk_get_prop_literal(ctx, -1, "subject");
+        if (duk_is_string(ctx, -1)) {
+          cert_subject = std::string(duk_to_string(ctx, -1));
+        } else if (!duk_is_undefined(ctx, -1)) {
+          ec = make_error_code(std::errc::invalid_argument);
+        }
+        duk_pop(ctx);
+      }
+      duk_pop(ctx);
+    } else if (!duk_is_undefined(ctx, -1)) {
+      ec = make_error_code(std::errc::invalid_argument);
     }
+    duk_pop(ctx);
+  } else if (!duk_is_undefined(ctx, -1)) {
+    ec = make_error_code(std::errc::invalid_argument);
+  }
+  duk_pop(ctx);
 
-    next_state = HandshakeState::DONE;
-  } else {
-    response.response_type = HandshakeResponse::ResponseType::ERROR;
-    response.response = std::make_unique<ErrorResponse>(
-        ER_ACCESS_DENIED_ERROR,
-        "Access Denied for user '" + pimpl_->username_ + "'@'localhost'",
-        "28000");
-    next_state = HandshakeState::DONE;
+  if (ec) {
+    return stdx::make_unexpected(ec);
   }
 
-  return response;
-}
-
-HandshakeResponse DuktapeStatementReader::handle_handshake(
-    const std::vector<uint8_t> &payload) {
-  switch (handshake_state_) {
-    case HandshakeState::INIT:
-      return handle_handshake_init(payload, handshake_state_);
-    case HandshakeState::GREETED:
-      return handle_handshake_greeted(payload, handshake_state_);
-    case HandshakeState::AUTH_SWITCHED:
-      return handle_handshake_auth_switched(payload, handshake_state_);
-    default: {
-      HandshakeResponse response;
-
-      response.response_type = HandshakeResponse::ResponseType::ERROR;
-      response.response =
-          std::make_unique<ErrorResponse>(0, "wrong handshake state");
-
-      handshake_state_ = HandshakeState::DONE;
-      return response;
-    }
-  }
+  return handshake_data{error,         username,     password,
+                        cert_required, cert_subject, cert_issuer};
 }
 
 // @pre on the stack is an object
-StatementResponse DuktapeStatementReader::handle_statement(
-    const std::string &statement) {
+void DuktapeStatementReader::handle_statement(const std::string &statement,
+                                              ProtocolBase *protocol) {
   auto *ctx = pimpl_->ctx;
   bool is_enumable = false;
 
@@ -983,7 +1061,10 @@ StatementResponse DuktapeStatementReader::handle_statement(
     // @-1 is an enumarator
     if (0 == duk_next(ctx, -1, true)) {
       duk_pop(ctx);
-      return {};
+
+      // startement received, but no matching statement in the iterator.
+      protocol->send_error(1064, "Unknown statement. (end of stmts)");
+      return;
     }
     // @-3 is an enumarator
     // @-2 is key
@@ -997,7 +1078,7 @@ StatementResponse DuktapeStatementReader::handle_statement(
                              duk_get_type_names(ctx, -1));
   }
 
-  StatementResponse response;
+  std::chrono::microseconds exec_time{};
   duk_get_prop_string(ctx, -1, "exec_time");
   if (!duk_is_undefined(ctx, -1)) {
     if (!duk_is_number(ctx, -1)) {
@@ -1009,27 +1090,28 @@ StatementResponse DuktapeStatementReader::handle_statement(
     }
 
     // exec_time is written in the tracefile as microseconds
-    response.exec_time = std::chrono::microseconds(
+    exec_time = std::chrono::microseconds(
         static_cast<long>(duk_get_number(ctx, -1) * 1000));
   }
   duk_pop(ctx);
 
+  bool response_sent{false};
   duk_get_prop_string(ctx, -1, "result");
   if (!duk_is_undefined(ctx, -1)) {
-    response.response_type = StatementResponse::ResponseType::RESULT;
-    response.response = pimpl_->get_result(-1);
+    protocol->send_resultset(pimpl_->get_result(-1), exec_time);
+    response_sent = true;
   } else {
     duk_pop(ctx);  // result
     duk_get_prop_string(ctx, -1, "error");
     if (!duk_is_undefined(ctx, -1)) {
-      response.response_type = StatementResponse::ResponseType::ERROR;
-      response.response = pimpl_->get_error(-1);
+      protocol->send_error(pimpl_->get_error(-1));
+      response_sent = true;
     } else {
       duk_pop(ctx);  // error
       duk_get_prop_string(ctx, -1, "ok");
       if (!duk_is_undefined(ctx, -1)) {
-        response.response_type = StatementResponse::ResponseType::OK;
-        response.response = pimpl_->get_ok(-1);
+        protocol->send_ok(pimpl_->get_ok(-1));
+        response_sent = true;
       } else {
         throw std::runtime_error("expected 'error', 'ok' or 'result'");
       }
@@ -1042,7 +1124,9 @@ StatementResponse DuktapeStatementReader::handle_statement(
     duk_pop(ctx);  // key
   }
 
-  return response;
+  if (!response_sent) {
+    protocol->send_error(1064, "Unsupported command");
+  }
 }
 
 std::chrono::microseconds DuktapeStatementReader::get_default_exec_time() {
@@ -1146,6 +1230,24 @@ std::vector<AsyncNotice> DuktapeStatementReader::get_async_notices() {
   duk_pop_n(ctx, 2);
 
   return result;
+}
+
+void DuktapeStatementReader::set_session_ssl_info(const SSL *ssl) {
+  auto *ctx = pimpl_->ctx;
+
+  duk_push_global_object(ctx);
+  duk_get_prop_string(ctx, -1, "mysqld");
+  duk_get_prop_string(ctx, -1, "session");
+
+  duk_push_string(ctx, SSL_get_cipher_name(ssl));
+  duk_put_prop_string(ctx, -2, "ssl_cipher");
+
+  duk_push_string(ctx, SSL_get_cipher_name(ssl));
+  duk_put_prop_string(ctx, -2, "mysqlx_ssl_cipher");
+
+  duk_pop(ctx);
+  duk_pop(ctx);
+  duk_pop(ctx);
 }
 
 }  // namespace server_mock

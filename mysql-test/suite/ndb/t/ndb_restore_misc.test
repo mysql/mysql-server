@@ -480,9 +480,7 @@ drop table t1,t2,t3,t4,t5,t6,t7,t8,t9,t10,t11,t11_c;
 # Test BUG#10287
 #
 
---disable_query_log
 source include/ndb_backup_id.inc;
---enable_query_log
 
 # End of 5.0 tests (4.1 test intermixed to save test time)
 
@@ -544,33 +542,22 @@ drop table t1;
 create table t1 (a int, b int, c int not null, 
 primary key (a) using hash, unique(c) using hash)
 engine = ndb;
+# Save table id of t1
+let $t1_id =
+  `SELECT id FROM ndbinfo.dict_obj_info WHERE fq_name = 'test/def/t1'`;
 insert into t1 values (1,1,1), (2,2,2), (3,3,3);
 --source include/ndb_backup.inc
 --exec $NDB_RESTORE -b $the_backup_id -n 1 --disable-indexes --rebuild-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 select * from t1 order by 1;
 drop table t1;
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-  id INT,
-  type VARCHAR(20),
-  state VARCHAR(20),
-  logging VARCHAR(20),
-  _database VARCHAR(255),
-  _schema VARCHAR(20),
-  name VARCHAR(255)
-);
---source ndb_show_tables_result.inc
-# the db fields include single quotes...
---disable_warnings
-select id into @tmp1 from ndb_show_tables_results
-where name like '%ndb_index_stat_sample_x1%';
---enable_warnings
-select * from ndb_show_tables_results
-where type like '%Index%'
-and _database = 'test'
-and name not like '%ndb_index_stat_sample_x1%'
-and name not like concat('%NDB$INDEX_',@tmp1,'_CUSTOM%')
-order by 1,2,3,4,5,6,7;
-drop table ndb_show_tables_results;
+# Check that all objects related to t1 was dropped
+if (`SELECT COUNT(*) FROM ndbinfo.dict_obj_info WHERE parent_obj_id = $t1_id`)
+{
+  echo Detected failure to drop all objects related to t1;
+  echo t1_id: $t1_id;
+  SELECT * FROM ndbinfo.dict_obj_info WHERE parent_obj_id = $t1_id;
+  die Failed to drop all objects for t1;
+}
 
 #
 # Bug#51432

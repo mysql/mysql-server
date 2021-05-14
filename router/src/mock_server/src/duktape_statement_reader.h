@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,6 +28,9 @@
 #include <map>
 #include <string>
 
+#include "mock_session.h"
+#include "mysql/harness/stdx/expected.h"
+#include "mysqlrouter/classic_protocol_message.h"
 #include "mysqlrouter/mock_server_global_scope.h"
 #include "statement_reader.h"
 
@@ -37,59 +40,19 @@ class DuktapeStatementReader : public StatementReaderBase {
   enum class HandshakeState { INIT, GREETED, AUTH_SWITCHED, DONE };
 
   DuktapeStatementReader(const std::string &filename,
-                         const std::string &module_prefix,
+                         const std::vector<std::string> &module_prefixes,
                          std::map<std::string, std::string> session_data,
                          std::shared_ptr<MockServerGlobalScope> shared_globals);
-  /**
-   * handle handshake's init state.
-   *
-   * @param payload payload of the current client packet
-   * @param next_state next state of the handshake handler
-   *
-   * @return response to send to client
-   */
-  HandshakeResponse handle_handshake_init(const std::vector<uint8_t> &payload,
-                                          HandshakeState &next_state);
-
-  /**
-   * handle handshake's greeted state.
-   *
-   * @param payload payload of the current client packet
-   * @param next_state next state of the handshake handler
-   *
-   * @return response to send to client
-   */
-  HandshakeResponse handle_handshake_greeted(
-      const std::vector<uint8_t> &payload, HandshakeState &next_state);
-
-  /**
-   * handle handshake's auth_switched state.
-   *
-   * @param payload payload of the current client packet
-   * @param next_state next state of the handshake handler
-   *
-   * @return response to send to client
-   */
-  HandshakeResponse handle_handshake_auth_switched(
-      const std::vector<uint8_t> &payload, HandshakeState &next_state);
-
-  /**
-   * handle the handshake payload received from the client.
-   *
-   * @param payload payload of the client's current handshake packet
-   * @returns response to send to client
-   */
-  HandshakeResponse handle_handshake(
-      const std::vector<uint8_t> &payload) override;
 
   /**
    * handle the clients statement
    *
    * @param statement statement-text of the current clients
-   *COM_QUERY/StmtExecute
-   * @returns response to send to client
+   *                  COM_QUERY/StmtExecute
+   * @param protocol protocol to send response to
    */
-  StatementResponse handle_statement(const std::string &statement) override;
+  void handle_statement(const std::string &statement,
+                        ProtocolBase *protocol) override;
 
   std::chrono::microseconds get_default_exec_time() override;
 
@@ -97,10 +60,18 @@ class DuktapeStatementReader : public StatementReaderBase {
 
   std::vector<AsyncNotice> get_async_notices() override;
 
+  stdx::expected<classic_protocol::message::server::Greeting, std::error_code>
+  server_greeting(bool with_tls) override;
+
+  stdx::expected<handshake_data, std::error_code> handshake() override;
+
+  std::chrono::microseconds server_greeting_exec_time() override;
+
+  void set_session_ssl_info(const SSL *ssl) override;
+
  private:
   struct Pimpl;
   std::unique_ptr<Pimpl> pimpl_;
-  std::shared_ptr<MockServerGlobalScope> shared_;
   bool has_notices_{false};
 
   HandshakeState handshake_state_{HandshakeState::INIT};

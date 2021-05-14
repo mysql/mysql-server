@@ -1,0 +1,66 @@
+--source include/have_debug.inc
+--source include/have_multi_ndb.inc
+
+#
+#  Bug#31680765 FAILURE TO ADD NDB_STORED_USER
+#
+# Set ndb_binlog_setup_slow, then drop ndb_apply_status. The binlog thread
+# will sleep for 10 seconds before setting up. When it reaches 'Waiting for
+# ndbcluster to start', GRANT NDB_STORED_USER to a user. This should produce
+# a client warning message that schema distribution is not available. When
+# the status reaches 'Waiting for event from ndbcluster', SHOW GRANTS FOR USER
+# must succeed rather than returning an error.
+#
+
+## Common parameters for wait_show_condition.inc:
+let $show_statement= SHOW PROCESSLIST;
+let $field= State;
+
+##
+### Setup
+##
+disable_query_log;
+set @save_debug= @@global.debug;
+set global debug =  "+d,ndb_binlog_setup_slow";
+CREATE USER mcm0765@localhost;
+
+##
+### Wait for 'Waiting for ndbcluster to start'
+##
+exec $NDB_DROP_TABLE -d mysql ndb_apply_status >> $NDB_TOOLS_OUTPUT;
+let $condition= = 'Waiting for ndbcluster to start';
+source include/wait_show_condition.inc;
+
+##
+### This GRANT statement should produce a warning
+##
+enable_query_log ONCE;
+GRANT NDB_STORED_USER ON *.* TO mcm0765@localhost;
+SHOW WARNINGS;
+
+##
+### Wait for 'Waiting for event from ndbcluster'
+##
+let $condition= = 'Waiting for event from ndbcluster';
+source include/wait_show_condition.inc;
+
+##
+### SHOW GRANTS must not fail
+##
+disable_result_log;
+SHOW GRANTS FOR mcm0765@localhost;
+
+# Grant again (after schema distribution is running) to bring the system
+# back to normal.
+GRANT NDB_STORED_USER ON *.* TO mcm0765@localhost;
+
+# Cleanup
+--connection server2
+call mtr.add_suppression("cluster disconnect An incident event has been written");
+--connection default
+call mtr.add_suppression("cluster disconnect An incident event has been written");
+call mtr.add_suppression("NDB: Failed to distribute");
+DROP USER mcm0765@localhost;
+set global debug= @save_debug;
+remove_file $NDB_TOOLS_OUTPUT;
+

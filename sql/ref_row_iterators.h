@@ -1,7 +1,7 @@
 #ifndef SQL_REF_ROW_ITERATORS_H
 #define SQL_REF_ROW_ITERATORS_H
 
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -106,7 +106,7 @@ class EQRefIterator final : public TableRowIterator {
   // since it (by definition) can never scan more than one row. Normally,
   // we should not get this (for nested loop joins, PFS batch mode is not
   // enabled if the innermost iterator is an EQRefIterator); however,
-  // we cannot DBUG_ASSERT(false), since it could happen if we only have
+  // we cannot assert(false), since it could happen if we only have
   // a single table. Thus, just ignore the call should it happen.
   void StartPSIBatchMode() override {}
 

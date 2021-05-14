@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,9 @@ namespace mock {
 
 class Capability_handler : public iface::Capability_handler {
  public:
+  Capability_handler();
+  virtual ~Capability_handler() override;
+
   MOCK_METHOD(std::string, name, (), (const, override));
   MOCK_METHOD(bool, is_supported, (), (const, override));
   MOCK_METHOD(bool, is_settable, (), (const, override));

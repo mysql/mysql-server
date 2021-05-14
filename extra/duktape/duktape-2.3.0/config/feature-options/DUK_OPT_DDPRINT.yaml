@@ -1,8 +1,0 @@
-define: DUK_OPT_DDPRINT
-introduced: 1.0.0
-requires:
-  - DUK_OPT_DEBUG
-tags:
-  - debug
-description: >
-  Enable more debug printouts.

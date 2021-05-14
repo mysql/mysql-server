@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ TableCollection::TableCollection(const JOIN *join, table_map tables,
   // (so we can't use it for the non-hypergraph optimizer), but the hypergraph
   // optimizer does not use semijoin materialization.
   if (join->thd->lex->using_hypergraph_optimizer) {
-    for (TABLE_LIST *tl = join->select_lex->leaf_tables; tl;
+    for (TABLE_LIST *tl = join->query_block->leaf_tables; tl;
          tl = tl->next_leaf) {
       TABLE *table = tl->table;
       if (table == nullptr || table->pos_in_table_list == nullptr) {
@@ -187,7 +187,7 @@ static size_t CalculateColumnStorageSize(const Column &column) {
     case MYSQL_TYPE_INVALID:      // Should not occur
     case MYSQL_TYPE_TYPED_ARRAY:  // Type only used for replication
     {
-      DBUG_ASSERT(false);
+      assert(false);
       return 0;
     }
   }
@@ -232,12 +232,12 @@ bool StoreFromTableBuffers(const TableCollection &tables, String *buffer) {
   } else {
     // If the table doesn't have any blob columns, we expect that the caller
     // already has reserved enough space in the provided buffer.
-    DBUG_ASSERT(buffer->alloced_length() >= ComputeRowSizeUpperBound(tables));
+    assert(buffer->alloced_length() >= ComputeRowSizeUpperBound(tables));
   }
 
   char *dptr = pointer_cast<char *>(
       StoreFromTableBuffersRaw(tables, pointer_cast<uchar *>(buffer->ptr())));
-  DBUG_ASSERT(dptr <= buffer->ptr() + buffer->alloced_length());
+  assert(dptr <= buffer->ptr() + buffer->alloced_length());
   const size_t actual_length = dptr - buffer->ptr();
   buffer->length(actual_length);
   return false;

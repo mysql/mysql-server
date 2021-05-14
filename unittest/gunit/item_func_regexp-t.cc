@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@ class ItemFuncRegexpTest : public ::testing::Test {
                   std::initializer_list<const char *> args) {
     auto items = new (thd()->mem_root) Mock_pt_item_list(args);
     Item *item = new Item_type(POS(), items);
-    Parse_context pc(thd(), thd()->lex->select_lex);
+    Parse_context pc(thd(), thd()->lex->query_block);
     item->itemize(&pc, &item);
     item->fix_fields(thd(), nullptr);
     String buf;

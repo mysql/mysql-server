@@ -6,7 +6,7 @@
 --source include/xplugin_create_user.inc
 
 
---write_file $MYSQL_TMP_DIR/compression-none.tmp
+--write_file $MYSQL_TMP_DIR/compression-none.xpl
 -->import assert_status_variable.macro
 SELECT "Send some data which might trigger server side compression" as Column1;
 -->expecterror 2512
@@ -35,7 +35,7 @@ callmacro Assert_client_message_count	Mysqlx.Connection.Compression	==	0;
 EOF
 
 
---write_file $MYSQL_TMP_DIR/compression-both.tmp
+--write_file $MYSQL_TMP_DIR/compression-both.xpl
 -->import assert_status_variable.macro
 SELECT "Send some data which might trigger server side compression" as Column1;
 -->begin_compress
@@ -141,7 +141,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -153,7 +153,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -165,7 +165,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -179,7 +179,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -199,7 +199,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -211,7 +211,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -225,7 +225,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -237,7 +237,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -249,7 +249,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -263,7 +263,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -275,7 +275,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -287,7 +287,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -301,7 +301,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -313,7 +313,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -325,7 +325,7 @@ exec $MYSQLXTEST
   --schema=test
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 --echo
 --echo # 6.a
@@ -339,7 +339,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
   --compression-algorithm=deflate_stream
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -353,7 +353,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
   --compression-algorithm=deflate_stream
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -366,7 +366,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
   --compression-algorithm=deflate_stream
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -381,7 +381,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -395,7 +395,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -408,7 +408,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -423,7 +423,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -437,7 +437,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -450,7 +450,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -465,7 +465,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -478,7 +478,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -491,7 +491,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -506,7 +506,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -519,7 +519,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -532,7 +532,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
   --compression-algorithm=lz4_message
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -547,7 +547,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
   --compression-algorithm=deflate_stream
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -560,7 +560,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
   --compression-algorithm=deflate_stream
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -573,7 +573,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
   --compression-algorithm=deflate_stream
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -588,7 +588,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=DISABLED
   --compression-algorithm=zstd_stream
-  --file=$MYSQL_TMP_DIR/compression-none.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-none.xpl 2>&1;
 
 
 --echo
@@ -601,7 +601,7 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=REQUIRED
   --compression-algorithm=zstd_stream
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 --echo
@@ -614,12 +614,10 @@ exec $MYSQLXTEST
   --ssl-mode=REQUIRED
   --compression-mode=PREFERRED
   --compression-algorithm=zstd_stream
-  --file=$MYSQL_TMP_DIR/compression-both.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/compression-both.xpl 2>&1;
 
 
 
 ## Cleanup
 SET GLOBAL mysqlx_compression_algorithms=DEFAULT;
---remove_file $MYSQL_TMP_DIR/compression-none.tmp
---remove_file $MYSQL_TMP_DIR/compression-both.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

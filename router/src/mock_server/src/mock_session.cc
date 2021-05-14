@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,12 +31,17 @@
 #include <system_error>
 #include <thread>  // sleep_for
 
+#include <openssl/err.h>
+
 #include "classic_mock_session.h"
 #include "harness_assert.h"
 #include "mysql/harness/logging/logging.h"  // log_
+#include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysql/harness/net_ts/internet.h"  // net::ip::tcp
 #include "mysql/harness/net_ts/socket.h"
 #include "mysql/harness/stdx/expected.h"
+#include "mysql/harness/tls_error.h"
+#include "mysql/harness/tls_server_context.h"
 #include "x_mock_session.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -46,20 +51,24 @@ using namespace std::chrono_literals;
 namespace server_mock {
 
 ProtocolBase::ProtocolBase(net::ip::tcp::socket &&client_sock,
-                           net::impl::socket::native_handle_type wakeup_fd)
-    : client_socket_{std::move(client_sock)}, wakeup_fd_{wakeup_fd} {
+                           net::impl::socket::native_handle_type wakeup_fd,
+                           TlsServerContext &tls_ctx)
+    : client_socket_{std::move(client_sock)},
+      wakeup_fd_{wakeup_fd},
+      tls_ctx_{tls_ctx} {
   // if it doesn't work, no problem.
   //
   client_socket_.set_option(net::ip::tcp::no_delay{true});
   client_socket_.native_non_blocking(true);
 }
 
-// check if the current socket is readable/open
-stdx::expected<bool, std::error_code> ProtocolBase::socket_has_data(
+static stdx::expected<bool, std::error_code> wait_socket(
+    net::impl::socket::native_handle_type sock_fd,
+    net::impl::socket::native_handle_type wakeup_fd, short ev,
     std::chrono::milliseconds timeout) {
   std::array<pollfd, 2> fds = {{
-      {client_socket_.native_handle(), POLLIN, 0},
-      {wakeup_fd_, POLLIN, 0},
+      {sock_fd, ev, 0},
+      {wakeup_fd, POLLIN, 0},
   }};
 
   const auto poll_res = net::impl::poll::poll(fds.data(), fds.size(), timeout);
@@ -79,50 +88,81 @@ stdx::expected<bool, std::error_code> ProtocolBase::socket_has_data(
   return stdx::make_unexpected(make_error_code(std::errc::operation_canceled));
 }
 
+// check if the current socket is readable/open
+stdx::expected<bool, std::error_code> ProtocolBase::wait_until_socket_has_data(
+    std::chrono::milliseconds timeout) {
+  return wait_socket(client_socket_.native_handle(), wakeup_fd_, POLLIN,
+                     timeout);
+}
+
+stdx::expected<bool, std::error_code>
+ProtocolBase::wait_until_socket_is_writable(std::chrono::milliseconds timeout) {
+  return wait_socket(client_socket_.native_handle(), wakeup_fd_, POLLOUT,
+                     timeout);
+}
+
 void ProtocolBase::send_buffer(net::const_buffer buf) {
   while (buf.size() > 0) {
-    auto send_res = client_socket_.send(buf);
-    if (!send_res) {
-      if (send_res.error() == std::errc::operation_would_block) {
-        auto writable_res = socket_has_data(-1ms);
+    if (is_tls()) {
+      const auto ssl_res = SSL_write(ssl_.get(), buf.data(), buf.size());
+      if (ssl_res <= 0) {
+        const auto ec = make_tls_ssl_error(ssl_.get(), ssl_res);
 
-        if (writable_res) continue;
+        if (ec == make_error_code(TlsErrc::kWantWrite)) {
+          if (wait_until_socket_is_writable(-1ms)) continue;
+        }
 
-        throw std::system_error(writable_res.error(), "send_buffer()");
+        throw std::system_error(ec, "send_buffer()");
       }
-      throw std::system_error(send_res.error(), "send_buffer()");
-    }
 
-    buf += send_res.value();
+      buf += ssl_res;
+    } else {
+      const auto send_res = client_socket_.send(buf);
+      if (!send_res) {
+        if (send_res.error() == std::errc::operation_would_block) {
+          if (wait_until_socket_is_writable(-1ms)) continue;
+        }
+        throw std::system_error(send_res.error(), "send_buffer()");
+      }
+
+      buf += send_res.value();
+    }
   }
 }
 
 void ProtocolBase::read_buffer(net::mutable_buffer &buf) {
   while (buf.size() > 0) {
-    auto recv_res = client_socket_.receive(buf);
-    if (!recv_res) {
-      if (recv_res.error() == std::errc::operation_would_block) {
-        auto readable_res = socket_has_data(std::chrono::milliseconds{-1});
-        if (readable_res) continue;
+    if (is_tls()) {
+      const auto res = SSL_read(ssl_.get(), buf.data(), buf.size());
+      if (res <= 0) {
+        const auto ec = make_tls_ssl_error(ssl_.get(), res);
 
-        throw std::system_error(readable_res.error(), "read_buffer()");
+        if (ec == TlsErrc::kWantRead) {
+          const auto readable_res = wait_until_socket_has_data(-1ms);
+          if (readable_res) continue;
+
+          throw std::system_error(readable_res.error(), "read_buffer()::wait");
+        }
+
+        throw std::system_error(ec, "SSL_read()");
+      }
+      buf += res;
+    } else {
+      auto recv_res = client_socket_.receive(buf);
+      if (!recv_res) {
+        if (recv_res.error() == std::errc::operation_would_block) {
+          auto readable_res = wait_until_socket_has_data(-1ms);
+          if (readable_res) continue;
+
+          throw std::system_error(readable_res.error(), "read_buffer()");
+        }
+
+        throw std::system_error(recv_res.error(), "read_buffer()");
       }
 
-      throw std::system_error(recv_res.error(), "read_buffer()");
+      buf += recv_res.value();
     }
-
-    buf += recv_res.value();
   }
-}
-
-static void debug_trace_result(const ResultsetResponse *resultset) {
-  std::cout << "QUERY RESULT:\n";
-  for (auto const &row : resultset->rows) {
-    for (const auto &cell : row)
-      std::cout << "  |  " << (cell.first ? cell.second : "NULL");
-    std::cout << "  |\n";
-  }
-  std::cout << "\n\n\n" << std::flush;
 }
 
 MySQLServerMockSession::MySQLServerMockSession(
@@ -147,42 +187,6 @@ void MySQLServerMockSession::run() {
     }
   } catch (const std::exception &e) {
     log_warning("Exception caught in connection loop: %s", e.what());
-  }
-}
-
-void MySQLServerMockSession::handle_statement(
-    const StatementResponse &statement) {
-  using ResponseType = StatementResponse::ResponseType;
-
-  switch (statement.response_type) {
-    case ResponseType::OK: {
-      if (debug_mode_) std::cout << std::endl;  // visual separator
-      auto *response = dynamic_cast<OkResponse *>(statement.response.get());
-
-      harness_assert(response);
-      std::this_thread::sleep_for(statement.exec_time);
-      protocol_->send_ok(0, response->last_insert_id, 0,
-                         response->warning_count);
-    } break;
-    case ResponseType::RESULT: {
-      auto *response =
-          dynamic_cast<ResultsetResponse *>(statement.response.get());
-      harness_assert(response);
-      if (debug_mode_) {
-        debug_trace_result(response);
-      }
-
-      protocol_->send_resultset(*response, statement.exec_time);
-    } break;
-    case ResponseType::ERROR: {
-      if (debug_mode_) std::cout << std::endl;  // visual separator
-      auto *response = dynamic_cast<ErrorResponse *>(statement.response.get());
-      harness_assert(response);
-      protocol_->send_error(response->code, response->msg);
-    } break;
-    default:;
-      throw std::runtime_error("Unsupported command in handle_statement(): " +
-                               std::to_string((int)statement.response_type));
   }
 }
 

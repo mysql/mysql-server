@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -57,6 +57,8 @@
 #include "x_protocol_splicer.h"
 
 // #define DEBUG_SSL
+// #define DEBUG_IO
+// #define DEBUG_STATE
 
 IMPORT_LOG_FUNCTIONS()
 
@@ -164,215 +166,255 @@ class Splicer : public std::enable_shared_from_this<
     conn_->disassociate();
   }
 
-  template <bool to_server>
-  void transfer(std::error_code ec) {
+  void client_recv_ready(const std::error_code ec) {
     // cancel timers before they interrupt us.
-    if (to_server) {
-      client_read_timer_.cancel();
-    } else {
-      server_read_timer_.cancel();
-    }
+    client_read_timer_.cancel();
     if (ec == std::errc::operation_canceled) {
       if (splicer_->state() != State::DONE) splicer_->state(finish());
       return;
     }
 
-    run<to_server>();
+    // not waiting anymore.
+    splicer_->client_waiting_recv(false);
+
+    const bool finished = recv_client_channel();
+
+    if (!finished) return;
+
+    run();
   }
 
-  template <bool to_server>
-  void handle_timeout(std::error_code ec) {
+  void server_recv_ready(const std::error_code ec) {
+    // cancel timers before they interrupt us.
+    server_read_timer_.cancel();
+
+    if (ec == std::errc::operation_canceled) {
+      if (splicer_->state() != State::DONE) splicer_->state(finish());
+      return;
+    }
+
+    // not waiting anymore.
+    splicer_->server_waiting_recv(false);
+
+    const bool finished = recv_server_channel();
+
+    if (!finished) return;
+
+    run();
+  }
+
+  void client_send_ready(const std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      if (splicer_->state() != State::DONE) splicer_->state(finish());
+      return;
+    }
+
+    // not waiting anymore.
+    splicer_->client_waiting_send(false);
+
+    const bool finished = send_client_channel();
+    if (!finished) return;
+
+    run();
+  }
+
+  void server_send_ready(const std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      if (splicer_->state() != State::DONE) splicer_->state(finish());
+      return;
+    }
+
+    // not waiting anymore.
+    splicer_->server_waiting_send(false);
+
+    const bool finished = send_server_channel();
+    if (!finished) return;
+
+    run();
+  }
+
+  void handle_client_read_timeout(const std::error_code ec) {
     if (ec == std::errc::operation_canceled) {
       return;
     }
 
-    // timeout fired.
-    if (to_server) {
-      conn_->client_socket().cancel();
-    } else {
-      conn_->server_socket().cancel();
-    }
+    // timeout fired, interrupt client socket wait.
+    conn_->client_socket().cancel();
   }
+
+  void handle_server_read_timeout(const std::error_code ec) {
+    if (ec == std::errc::operation_canceled) {
+      return;
+    }
+
+    // timeout fired, interrupt server socket wait
+    conn_->server_socket().cancel();
+  }
+
+  enum class ToDirection { SERVER, CLIENT };
+  enum class FromDirection { SERVER, CLIENT };
 
   /**
    * write the send-buffer from a channel to a socket.
    *
-   * data that is successfully written to the socket and removed from the
-   * send-buffer.
+   * success -> track bytes written
+   * would-block -> wait for writable
+   * connection close -> FINISH
+   * failure -> log it -> FINISH
    *
    * @param sock a connected socket.
    * @param channel a channel with a send-buffer.
    */
-  template <class Socket>
-  static stdx::expected<size_t, std::error_code> send_to_socket(
-      Socket &sock, Channel *channel) {
-    size_t transferred{};
+  template <ToDirection direction, class Socket>
+  bool send_channel(Socket &sock, Channel *channel) {
+    if (channel->send_buffer().empty()) return true;
 
-    while (!channel->send_buffer().empty()) {
-      // if there is data to send to the client, send it.
-      const auto write_res =
-          net::write(sock, net::dynamic_buffer(channel->send_buffer()));
-      if (!write_res) {
-        if (write_res.error() ==
-                make_error_condition(std::errc::operation_would_block) &&
-            transferred != 0) {
-          return transferred;
+    const char *to = (direction == ToDirection::SERVER) ? "server" : "client";
+
+    const auto send_res =
+        net::write(sock, net::dynamic_buffer(channel->send_buffer()));
+    if (send_res) {
+#if defined(DEBUG_IO)
+      log_debug("%d: %s::send() = %zu", __LINE__, to, send_res.value());
+#endif
+      if ((direction == ToDirection::SERVER)) {
+        conn_->transfered_to_server(send_res.value());
+      } else {
+        conn_->transfered_to_client(send_res.value());
+      }
+
+      if (channel->send_buffer().empty()) return true;
+
+      // there is still data in the send-buffer.
+      if ((direction == ToDirection::SERVER)) {
+        async_wait_server_send();
+      } else {
+        async_wait_client_send();
+      }
+
+      // not finished yet, we need to send more.
+      return false;
+    } else {
+      const auto ec = send_res.error();
+#if defined(DEBUG_IO)
+      log_debug("%d: %s::send() = %s", __LINE__, to,
+                send_res.error().message().c_str());
+#endif
+
+      if (ec == make_error_condition(std::errc::operation_would_block)) {
+        if ((direction == ToDirection::SERVER)) {
+          async_wait_server_send();
+        } else {
+          async_wait_client_send();
         }
 
-        return write_res;
+        // not finished yet, we need to send more.
+        return false;
       } else {
-        transferred += write_res.value();
+        if (ec == make_error_condition(std::errc::broken_pipe)) {
+          // the connection got closed by the other side.
+          channel->send_buffer().clear();
+        } else {
+          // connection reset? abort? network?
+          log_warning("%s::write() failed: %s (%s:%d). Aborting connection.",
+                      to, ec.message().c_str(), ec.category().name(),
+                      ec.value());
+        }
+        splicer_->state(State::FINISH);
       }
     }
-    return transferred;
+
+    return true;
   }
 
-  template <bool to_server>
-  void run() {
-#if 0
-    if (to_server) {
-      log_debug("%d: -- transfer to server: %d -> %d", __LINE__,
-                conn_->client_socket().native_handle(),
-                conn_->server_socket().native_handle());
-    } else {
-      log_debug("%d: -- transfer to client: %d <- %d", __LINE__,
-                conn_->client_socket().native_handle(),
-                conn_->server_socket().native_handle());
+  bool send_server_channel() {
+    return send_channel<ToDirection::SERVER>(conn_->server_socket(),
+                                             splicer_->server_channel());
+  }
+
+  bool send_client_channel() {
+    return send_channel<ToDirection::CLIENT>(conn_->client_socket(),
+                                             splicer_->client_channel());
+  }
+
+  // @retval true finished.
+  // @retval false would-block
+  template <FromDirection direction, class Socket>
+  bool recv_channel(Socket &sock, Channel *channel) {
+    if (channel->want_recv() == 0) return true;
+    if (direction == FromDirection::SERVER ? splicer_->server_waiting_recv()
+                                           : splicer_->client_waiting_recv()) {
+      // already waiting to receive something, don't try again.
+      return true;
     }
-#endif
 
+    const char *from =
+        (direction == FromDirection::SERVER) ? "server" : "client";
+
+    auto want_read = channel->want_recv();
+#if defined(DEBUG_IO)
+    log_debug("%s::recv(%d, %zu)", from, sock.native_handle(), want_read);
+#endif
+    const auto read_res =
+        net::read(sock, net::dynamic_buffer(channel->recv_buffer()),
+                  net::transfer_at_least(want_read));
+    if (!read_res) {
+      const auto ec = read_res.error();
+#if defined(DEBUG_IO)
+      log_debug("%s::recv() failed: %s", from, ec.message().c_str());
+#endif
+      if (ec ==
+              make_error_condition(std::errc::resource_unavailable_try_again) ||
+          ec == make_error_condition(std::errc::operation_would_block)) {
+        if ((direction == FromDirection::SERVER)) {
+          async_wait_server_recv();
+        } else {
+          async_wait_client_recv();
+        }
+
+        // not finished yet, we need to read more.
+        return false;
+      } else {
+        if (ec != net::stream_errc::eof &&
+            ec != make_error_condition(std::errc::connection_reset) &&
+            ec != make_error_condition(std::errc::connection_aborted)) {
+          log_info("%s::recv() failed: %s (%s:%d)", from, ec.message().c_str(),
+                   ec.category().name(), ec.value());
+        }
+        splicer_->state(State::FINISH);
+      }
+    } else {
+#if defined(DEBUG_IO)
+      log_debug("%s::recv() = %zu", from, read_res.value());
+#endif
+      want_read -= std::min(want_read, read_res.value());
+
+      channel->want_recv(want_read);
+    }
+
+    return true;
+  }
+
+  bool recv_server_channel() {
+    return recv_channel<FromDirection::SERVER>(conn_->server_socket(),
+                                               splicer_->server_channel());
+  }
+
+  bool recv_client_channel() {
+    return recv_channel<FromDirection::CLIENT>(conn_->client_socket(),
+                                               splicer_->client_channel());
+  }
+
+  void run() {
     while (true) {
-      // if there is anything to send to the client, send it now.
-      if (!splicer_->client_channel()->send_buffer().empty()) {
-        const auto send_res =
-            send_to_socket(conn_->client_socket(), splicer_->client_channel());
-        if (send_res) {
-          conn_->transfered_to_client(send_res.value());
-        } else if (send_res.error() ==
-                   make_error_condition(std::errc::broken_pipe)) {
-          splicer_->client_channel()->send_buffer().clear();
-          splicer_->state(State::FINISH);
-        } else {
-          const auto ec = send_res.error();
-          log_info("client::write() failed: %s (%s:%d)", ec.message().c_str(),
-                   ec.category().name(), ec.value());
-          splicer_->state(State::FINISH);
-        }
-      }
-
-      // if there is anything to send to the server, send it now.
-      if (!splicer_->server_channel()->send_buffer().empty()) {
-        const auto send_res =
-            send_to_socket(conn_->server_socket(), splicer_->server_channel());
-        if (send_res) {
-          conn_->transfered_to_server(send_res.value());
-        } else if (send_res.error() ==
-                   make_error_condition(std::errc::broken_pipe)) {
-          splicer_->server_channel()->send_buffer().clear();
-          splicer_->state(State::FINISH);
-        } else {
-          const auto ec = send_res.error();
-          log_info("server::write() failed: %s (%s:%d)", ec.message().c_str(),
-                   ec.category().name(), ec.value());
-          splicer_->state(State::FINISH);
-        }
-      }
-
-      // if we want to recv something from the client, read
-      if (splicer_->client_channel()->want_recv() &&
-          (!splicer_->client_waiting() || to_server)) {
-#if 0
-        log_debug("%d: reading from client %d", __LINE__,
-                  conn_->client_socket().native_handle());
-#endif
-        splicer_->client_waiting(false);
-        auto want_read = splicer_->client_channel()->want_recv();
-        auto read_res = net::read(
-            conn_->client_socket(),
-            net::dynamic_buffer(splicer_->client_channel()->recv_buffer()),
-            net::transfer_at_least(want_read));
-        if (!read_res) {
-#if 0
-          log_debug("%d: read from client %d failed: %s", __LINE__,
-                    conn_->client_socket().native_handle(),
-                    read_res.error().message().c_str());
-#endif
-          if (read_res.error() ==
-                  make_error_condition(
-                      std::errc::resource_unavailable_try_again) ||
-              read_res.error() ==
-                  make_error_condition(std::errc::operation_would_block)) {
-            async_wait_client();
-            return;
-          } else if (read_res.error() == net::stream_errc::eof ||
-                     read_res.error() ==
-                         make_error_condition(std::errc::connection_reset) ||
-                     read_res.error() ==
-                         make_error_condition(std::errc::connection_aborted)) {
-            splicer_->state(State::FINISH);
-          } else {
-            const auto ec = read_res.error();
-            log_info("client::recv() failed: %s (%s:%d)", ec.message().c_str(),
-                     ec.category().name(), ec.value());
-            splicer_->state(State::FINISH);
-          }
-        } else {
-#if 0
-          log_debug("%d: read from client %d: %zu", __LINE__,
-                    conn_->client_socket().native_handle(), read_res.value());
-#endif
-          want_read -= std::min(want_read, read_res.value());
-          splicer_->client_channel()->want_recv(want_read);
-        }
-      }
-
-      if (splicer_->server_channel()->want_recv() &&
-          (!splicer_->server_waiting() || !to_server)) {
-        splicer_->server_waiting(false);
-        auto want_read = splicer_->server_channel()->want_recv();
-#if 0
-        log_debug("server::recv(%d, %zu)",
-                  conn_->server_socket().native_handle(), want_read);
-#endif
-        auto read_res = net::read(
-            conn_->server_socket(),
-            net::dynamic_buffer(splicer_->server_channel()->recv_buffer()),
-            net::transfer_at_least(want_read));
-        if (!read_res) {
-#if 0
-          log_debug("server::recv() failed: %s",
-                    read_res.error().message().c_str());
-#endif
-          if (read_res.error() ==
-                  make_error_condition(
-                      std::errc::resource_unavailable_try_again) ||
-              read_res.error() ==
-                  make_error_condition(std::errc::operation_would_block)) {
-            async_wait_server();
-            return;
-          } else if (read_res.error() == net::stream_errc::eof) {
-            splicer_->state(State::FINISH);
-          } else {
-            const auto ec = read_res.error();
-            log_info("server::recv() failed: %s (%s:%d)", ec.message().c_str(),
-                     ec.category().name(), ec.value());
-            splicer_->state(State::FINISH);
-          }
-        } else {
-#if 0
-          log_debug("%d: read from server: %zu", __LINE__, read_res.value());
-#endif
-          want_read -= std::min(want_read, read_res.value());
-
-          splicer_->server_channel()->want_recv(want_read);
-        }
-      }
-
-#if 0
+#if defined(DEBUG_STATE)
       log_debug("%d: state: %s", __LINE__,
                 BasicSplicer::state_to_string(splicer_->state()));
 #endif
-      switch (splicer_->state()) {
+
+      const auto before_state = splicer_->state();
+
+      switch (before_state) {
         case State::SERVER_GREETING:
           splicer_->state(splicer_->server_greeting());
           break;
@@ -401,31 +443,17 @@ class Splicer : public std::enable_shared_from_this<
           splicer_->state(splicer_->splice<true>());
           splicer_->state(splicer_->splice<false>());
 
-          // initiate the
-          //
-          // - move client to server and
-          // - move server to client
-          //
-          // ... but as we are always called in the context of a "c->s" or
-          // "c<-s" we have to initiate the other direction manually.
-          //
-          // When we are 'to_server', the io-section above will set the
-          // client-channel to async_wait_client(), but nothing would start the
-          // server side with async_wait_server().
-
-          if (!to_server && !splicer_->client_waiting() &&
-              splicer_->client_channel()->want_recv()) {
-            async_wait_client();
-          }
-
-          if (to_server && !splicer_->server_waiting() &&
-              splicer_->server_channel()->want_recv()) {
-            async_wait_server();
-          }
-
           break;
         case State::SPLICE:
-          splicer_->state(splicer_->splice<to_server>());
+          if (splicer_->client_channel()->want_recv() == 0 &&
+              !splicer_->client_channel()->recv_buffer().empty()) {
+            splicer_->state(splicer_->splice<true>());
+          }
+
+          if (splicer_->server_channel()->want_recv() == 0 &&
+              !splicer_->server_channel()->recv_buffer().empty()) {
+            splicer_->state(splicer_->splice<false>());
+          }
           break;
         case State::ERROR:
           return;
@@ -438,17 +466,63 @@ class Splicer : public std::enable_shared_from_this<
         case State::DONE:
           return;
       }
+
+      // send_buffer -> send() -> would_block -> async_wait ->
+      //   transfer() -> run()
+      const auto send_client_finished = send_client_channel();
+      const auto send_server_finished = send_server_channel();
+
+      if (!send_client_finished) {
+        return;
+      }
+      if (!send_server_finished) {
+        return;
+      }
+
+      // want_read() -> recv() -> would_block -> async_wait ->
+      //   transfer() -> run()
+      //
+      if (splicer_->client_channel()->want_recv() != 0 ||
+          splicer_->server_channel()->want_recv() != 0) {
+        // some receive is wanted. Try to read and check if we can make some
+        // progress.
+
+        bool some_recv_finished{false};
+        if (splicer_->client_channel()->want_recv() &&
+            !splicer_->client_waiting_recv()) {
+          const bool finished = recv_client_channel();
+          some_recv_finished |= finished;
+        }
+
+        if (splicer_->server_channel()->want_recv() &&
+            !splicer_->server_waiting_recv()) {
+          const bool finished = recv_server_channel();
+          some_recv_finished |= finished;
+        }
+
+        // no progress made even though it was requested, let's wait for
+        // readiness.
+        if (!some_recv_finished && before_state == splicer_->state()) {
+#if defined(DEBUG_STATE)
+          log_debug(
+              "%d: sent everything, received nothing, no state-change (%s). "
+              "Leaving.",
+              __LINE__, BasicSplicer::state_to_string(splicer_->state()));
+#endif
+          return;
+        }
+      }
     }
   }
 
-  void async_wait_client() {
+  void async_wait_client_recv() {
     using namespace std::chrono_literals;
 
-#if 0
+#if defined(DEBUG_IO)
     log_debug("%d: waiting for the client::read(%d, ...)", __LINE__,
               conn_->client_socket().native_handle());
 #endif
-    splicer_->client_waiting(true);
+    splicer_->client_waiting_recv(true);
 
     if (splicer_->state() == State::CLIENT_GREETING) {
       // wait for the client to respond within 100ms
@@ -456,24 +530,24 @@ class Splicer : public std::enable_shared_from_this<
           conn_->context().get_client_connect_timeout());
 
       client_read_timer_.async_wait(std::bind(
-          &Splicer<ClientProtocol, ServerProtocol>::handle_timeout<true>,
+          &Splicer<ClientProtocol, ServerProtocol>::handle_client_read_timeout,
           this->shared_from_this(), std::placeholders::_1));
     }
 
     conn_->client_socket().async_wait(
         net::socket_base::wait_read,
-        std::bind(&Splicer<ClientProtocol, ServerProtocol>::transfer<true>,
+        std::bind(&Splicer<ClientProtocol, ServerProtocol>::client_recv_ready,
                   this->shared_from_this(), std::placeholders::_1));
   }
 
-  void async_wait_server() {
+  void async_wait_server_recv() {
     using namespace std::chrono_literals;
 
-#if 0
+#if defined(DEBUG_IO)
     log_debug("%d: waiting for the server::read(%d, ...)", __LINE__,
               conn_->server_socket().native_handle());
 #endif
-    splicer_->server_waiting(true);
+    splicer_->server_waiting_recv(true);
 
     if (splicer_->state() == State::SERVER_GREETING) {
       // should this timer include the time to connect() to the backend?
@@ -481,25 +555,54 @@ class Splicer : public std::enable_shared_from_this<
           conn_->context().get_destination_connect_timeout());
 
       server_read_timer_.async_wait(std::bind(
-          &Splicer<ClientProtocol, ServerProtocol>::handle_timeout<false>,
+          &Splicer<ClientProtocol, ServerProtocol>::handle_server_read_timeout,
           this->shared_from_this(), std::placeholders::_1));
     }
 
     conn_->server_socket().async_wait(
         net::socket_base::wait_read,
-        std::bind(&Splicer<ClientProtocol, ServerProtocol>::transfer<false>,
+        std::bind(&Splicer<ClientProtocol, ServerProtocol>::server_recv_ready,
+                  this->shared_from_this(), std::placeholders::_1));
+  }
+
+  void async_wait_client_send() {
+    using namespace std::chrono_literals;
+
+#if defined(DEBUG_IO)
+    log_debug("%d: waiting for the client::read(%d, ...)", __LINE__,
+              conn_->client_socket().native_handle());
+#endif
+    splicer_->client_waiting_send(true);
+
+    conn_->client_socket().async_wait(
+        net::socket_base::wait_write,
+        std::bind(&Splicer<ClientProtocol, ServerProtocol>::client_send_ready,
+                  this->shared_from_this(), std::placeholders::_1));
+  }
+
+  void async_wait_server_send() {
+    using namespace std::chrono_literals;
+
+#if defined(DEBUG_IO)
+    log_debug("%d: waiting for the server::read(%d, ...)", __LINE__,
+              conn_->server_socket().native_handle());
+#endif
+    splicer_->server_waiting_send(true);
+
+    conn_->server_socket().async_wait(
+        net::socket_base::wait_write,
+        std::bind(&Splicer<ClientProtocol, ServerProtocol>::server_send_ready,
                   this->shared_from_this(), std::placeholders::_1));
   }
 
   void async_run() {
     conn_->connected();
 
-    const bool from_client = splicer_->start();
-    if (from_client) {
-      run<true>();
-    } else {
-      run<false>();
-    }
+    // set the initial state of the state-machine.
+    splicer_->start();
+
+    // run the state-machine until it has to block.
+    run();
   }
 
  private:

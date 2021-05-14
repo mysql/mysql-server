@@ -266,7 +266,7 @@ grant select on testdb_1.v1 to mysqltest_1@localhost;
 select table_schema, table_name, view_definition from information_schema.views
 where table_name='v1';
 TABLE_SCHEMA	TABLE_NAME	VIEW_DEFINITION
-testdb_1	v1	
+testdb_1	v1	select `testdb_1`.`t1`.`a` AS `a` from `testdb_1`.`t1`
 show create view testdb_1.v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `testdb_1`.`v1` AS select `testdb_1`.`t1`.`a` AS `a` from `testdb_1`.`t1`	utf8mb4	utf8mb4_0900_ai_ci

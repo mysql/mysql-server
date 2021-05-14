@@ -15,10 +15,12 @@
 # Waiting time when (re)starting the server
 --let $explicit_default_wait_counter=10000
 
+--let $PLUGIN_DIR   =   `select @@plugin_dir`
 --disable_query_log
 call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
-call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring plugin is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[Error\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
+call mtr.add_suppression(" Encryption information in datafile:");
 --enable_query_log
 
 --echo #########################################################################
@@ -81,7 +83,7 @@ SET GLOBAL innodb_master_thread_disabled_debug = 1;
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 --echo # Restart after crash without Keyring plugin loaded
 --error 1,42
---exec $MYSQLD_CMD --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
+--exec $MYSQLD_CMD --plugin-dir=$PLUGIN_DIR --log-error=$MYSQLTEST_VARDIR/log/my_restart.err
 
 # Search the failure pattern in error log
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
@@ -89,7 +91,7 @@ let SEARCH_PATTERN=CORRUPT LOG RECORD FOUND;
 --source include/search_pattern.inc
 
 --echo # Server shouldn't have restarted, so query should fail.
---error CR_SERVER_GONE_ERROR
+--error CR_SERVER_LOST
 SELECT * from test.t1 limit 10;
 
 --echo #########################################################################

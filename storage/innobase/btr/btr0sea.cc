@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1277,7 +1277,55 @@ void btr_search_drop_page_hash_when_freed(const page_id_t &page_id,
 
   mtr_commit(&mtr);
 }
+static void btr_drop_next_batch(const page_size_t &page_size,
+                                const dict_index_t **first,
+                                const dict_index_t **last) {
+  static constexpr unsigned batch_size = 1024;
+  std::vector<page_id_t> to_drop;
+  to_drop.reserve(batch_size);
 
+  for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
+    to_drop.clear();
+    buf_pool_t *buf_pool = buf_pool_from_array(i);
+    mutex_enter(&buf_pool->LRU_list_mutex);
+    const buf_page_t *prev;
+
+    for (const buf_page_t *bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+         bpage != nullptr; bpage = prev) {
+      prev = UT_LIST_GET_PREV(LRU, bpage);
+
+      ut_a(buf_page_in_file(bpage));
+      if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
+          bpage->buf_fix_count > 0) {
+        continue;
+      }
+
+      const dict_index_t *block_index =
+          reinterpret_cast<const buf_block_t *>(bpage)->index;
+
+      /* index == nullptr means the page is no longer in AHI, so no need to
+      attempt freeing it */
+      if (block_index == nullptr) {
+        continue;
+      }
+      /* pages io fixed for read have index == nullptr */
+      ut_ad(!bpage->was_io_fix_read());
+
+      if (std::find(first, last, block_index) != last) {
+        to_drop.emplace_back(bpage->id);
+        if (to_drop.size() == batch_size) {
+          break;
+        }
+      }
+    }
+
+    mutex_exit(&buf_pool->LRU_list_mutex);
+
+    for (const page_id_t &page_id : to_drop) {
+      btr_search_drop_page_hash_when_freed(page_id, page_size);
+    }
+  }
+}
 /** Drop any adaptive hash index entries for a table.
 @param[in,out]	table	to drop indexes of this table */
 void btr_drop_ahi_for_table(dict_table_t *table) {
@@ -1288,10 +1336,6 @@ void btr_drop_ahi_for_table(dict_table_t *table) {
   }
 
   const dict_index_t *indexes[MAX_INDEXES];
-  static constexpr unsigned DROP_BATCH = 1024;
-
-  std::vector<page_id_t> drop;
-  drop.reserve(DROP_BATCH);
   const page_size_t page_size(dict_table_page_size(table));
 
   for (;;) {
@@ -1315,63 +1359,22 @@ void btr_drop_ahi_for_table(dict_table_t *table) {
       return;
     }
 
-    for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-      drop.clear();
-      buf_pool_t *buf_pool = buf_pool_from_array(i);
-      mutex_enter(&buf_pool->LRU_list_mutex);
-      const buf_page_t *prev;
+    btr_drop_next_batch(page_size, indexes, end);
 
-      for (const buf_page_t *bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-           bpage != nullptr; bpage = prev) {
-        prev = UT_LIST_GET_PREV(LRU, bpage);
-
-        ut_a(buf_page_in_file(bpage));
-
-        if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
-            (bpage->io_fix != BUF_IO_NONE && bpage->io_fix != BUF_IO_WRITE) ||
-            bpage->buf_fix_count > 0) {
-          continue;
-        }
-
-        const dict_index_t *index =
-            reinterpret_cast<const buf_block_t *>(bpage)->index;
-        if (index == nullptr) {
-          continue;
-        }
-
-        if (std::search_n(indexes, end, 1, index) != end) {
-          drop.emplace_back(bpage->id);
-          if (drop.size() == DROP_BATCH) {
-            break;
-          }
-        }
-      }
-
-      mutex_exit(&buf_pool->LRU_list_mutex);
-
-      for (const page_id_t &page_id : drop) {
-        btr_search_drop_page_hash_when_freed(page_id, page_size);
-      }
-    }
-
-    os_thread_yield();
+    std::this_thread::yield();
   }
 }
 
 /** Drop any adaptive hash index entries for a index.
 @param[in,out]	index	to drop hash indexes for this index */
-void btr_drop_ahi_for_index(dict_index_t *index) {
+void btr_drop_ahi_for_index(const dict_index_t *index) {
   ut_ad(index->is_committed());
 
   if (index->disable_ahi || index->search_info->ref_count == 0) {
     return;
   }
 
-  static constexpr unsigned DROP_BATCH = 1024;
-
   const dict_table_t *table = index->table;
-  std::vector<page_id_t> drop;
-  drop.reserve(DROP_BATCH);
   const page_size_t page_size(dict_table_page_size(table));
 
   while (true) {
@@ -1379,45 +1382,9 @@ void btr_drop_ahi_for_index(dict_index_t *index) {
       return;
     }
 
-    for (ulint i = 0; i < srv_buf_pool_instances; ++i) {
-      drop.clear();
+    btr_drop_next_batch(page_size, &index, &index + 1);
 
-      buf_pool_t *buf_pool = buf_pool_from_array(i);
-      mutex_enter(&buf_pool->LRU_list_mutex);
-      const buf_page_t *prev;
-
-      for (const buf_page_t *bpage = UT_LIST_GET_LAST(buf_pool->LRU);
-           bpage != nullptr; bpage = prev) {
-        prev = UT_LIST_GET_PREV(LRU, bpage);
-
-        ut_a(buf_page_in_file(bpage));
-
-        if (buf_page_get_state(bpage) != BUF_BLOCK_FILE_PAGE ||
-            (bpage->io_fix != BUF_IO_NONE && bpage->io_fix != BUF_IO_WRITE) ||
-            bpage->buf_fix_count > 0) {
-          continue;
-        }
-
-        const dict_index_t *block_index =
-            reinterpret_cast<const buf_block_t *>(bpage)->index;
-        if (block_index == nullptr || block_index != index) {
-          continue;
-        }
-
-        drop.emplace_back(bpage->id);
-        if (drop.size() == DROP_BATCH) {
-          break;
-        }
-      }
-
-      mutex_exit(&buf_pool->LRU_list_mutex);
-
-      for (const page_id_t &page_id : drop) {
-        btr_search_drop_page_hash_when_freed(page_id, page_size);
-      }
-    }
-
-    os_thread_yield();
+    std::this_thread::yield();
   }
 }
 
@@ -1974,7 +1941,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
     give other queries a chance to run. */
     if ((i != 0) && ((i % chunk_size) == 0)) {
       btr_search_x_unlock_all();
-      os_thread_yield();
+      std::this_thread::yield();
       btr_search_x_lock_all();
 
       ulint curr_cell_count =
@@ -2083,7 +2050,7 @@ static ibool btr_search_hash_table_validate(ulint hash_table_id) {
     give other queries a chance to run. */
     if (i != 0) {
       btr_search_x_unlock_all();
-      os_thread_yield();
+      std::this_thread::yield();
       btr_search_x_lock_all();
 
       ulint curr_cell_count =

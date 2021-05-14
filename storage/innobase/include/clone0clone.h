@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1116,6 +1116,12 @@ class Clone_Sys {
   /** @return GTID persistor */
   Clone_persist_gtid &get_gtid_persistor() { return (m_gtid_persister); }
 
+  /** Remember that all innodb spaces are initialized after last startup. */
+  void set_space_initialized() { m_space_initialized.store(true); }
+
+  /** @return true if all innodb spaces are initialized. */
+  bool is_space_initialized() const { return m_space_initialized.load(); }
+
  private:
   /** Find free index to allocate new clone handle.
   @param[in]	hdl_type	clone handle type
@@ -1146,7 +1152,10 @@ class Clone_Sys {
   ib_mutex_t m_clone_sys_mutex;
 
   /** Clone unique ID generator */
-  ib_uint64_t m_clone_id_generator;
+  uint64_t m_clone_id_generator;
+
+  /** If all innodb tablespaces are initialized. */
+  std::atomic<bool> m_space_initialized;
 
   /** GTID persister */
   Clone_persist_gtid m_gtid_persister;

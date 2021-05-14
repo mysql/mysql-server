@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -39,7 +40,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h" /* Needed for MY_ERRNO_ERANGE */
@@ -216,7 +217,7 @@ size_t my_caseup_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen MY_ATTRIBUTE((unused))) {
   char *end = src + srclen;
   const uchar *map = cs->to_upper;
-  DBUG_ASSERT(src == dst && srclen == dstlen);
+  assert(src == dst && srclen == dstlen);
   for (; src != end; src++) *src = (char)map[(uchar)*src];
   return srclen;
 }
@@ -226,7 +227,7 @@ size_t my_casedn_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen MY_ATTRIBUTE((unused))) {
   char *end = src + srclen;
   const uchar *map = cs->to_lower;
-  DBUG_ASSERT(src == dst && srclen == dstlen);
+  assert(src == dst && srclen == dstlen);
   for (; src != end; src++) *src = (char)map[(uchar)*src];
   return srclen;
 }
@@ -982,11 +983,7 @@ uint my_instr_simple(const CHARSET_INFO *cs, const char *b, size_t b_length,
 extern "C" {
 static size_t my_well_formed_len_ascii(
     const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *start,
-    const char *end, size_t nchars, int *error) {
-  /**
-    @todo: Currently return warning on invalid character.
-           Return error in future release.
-  */
+    const char *end, size_t nchars MY_ATTRIBUTE((unused)), int *error) {
   const char *oldstart = start;
   *error = 0;
   while (start < end) {
@@ -996,7 +993,7 @@ static size_t my_well_formed_len_ascii(
     }
     start++;
   }
-  return std::min<size_t>(end - oldstart, nchars);
+  return start - oldstart;
 }
 }  // extern "C"
 

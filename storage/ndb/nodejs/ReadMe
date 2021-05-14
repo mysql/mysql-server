@@ -1,4 +1,4 @@
-Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,18 +25,35 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 This is some sample application code illustrating Database Jones,
 including a pre-built jones-ndb for this version of MySQL Cluster.
 
-This jones-ndb is built using node.js, version 0.12.15.
-It will not run with other versions of node.
+This jones-ndb is built using node.js, version 12.20.1
+It may not run with other versions of node.
 
 For more information about Database Jones, see https://github.com/mysql/mysql-js
 
 To test:
 
-npm install database-jones@1.2.3
-npm install jones-mysql
-npm install jones-test
+Build and install MySQL.
 
-node run-jones-test-suite.js
+From the install directory, cd to share/nodejs and install the modules:
+
+ cd share/nodejs    # From the install directory
+ npm install database-jones
+ npm install jones-mysql
+ npm install jones-test
+ npm install ./jones-ndb
+
+From the install directory, use mysql-test-run start a MySQL cluster:
+
+  cd mysql-test
+  ./mtr --start ndb_basic
+
+After the "Waiting for server(s) to exit..." message appears, you can begin
+testing.  First create a user:
+  cd share/nodejs   # From the install directory
+  ../../bin/mysql -u root -h 127.0.0.1 --port=13001 < create-test-user.sql
+
+Then run the test suite:
+  node run-jones-test-suite.js -E mtr
 
 You should see output ending with something like:
 

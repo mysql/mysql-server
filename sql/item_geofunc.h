@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <cstddef>
 #include <vector>
 
 #include "field_types.h"  // MYSQL_TYPE_BLOB
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/services/bits/psi_bits.h"
@@ -67,6 +68,7 @@ class Spatial_reference_system;
 
 namespace gis {
 class Geometry;
+class Point;
 }  // namespace gis
 
 /**
@@ -364,7 +366,7 @@ class Item_func_geometry_type : public Item_str_ascii_func {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     // "MultiLinestring" is the longest
     set_data_type_string(15, default_charset());
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -863,7 +865,7 @@ class Item_func_spatial_decomp : public Item_geometry_func {
       case SP_EXTERIORRING:
         return "st_exteriorring";
       default:
-        DBUG_ASSERT(0);  // Should never happened
+        assert(0);  // Should never happened
         return "spatial_decomp_unknown";
     }
   }
@@ -893,7 +895,7 @@ class Item_func_spatial_decomp_n : public Item_geometry_func {
       case SP_INTERIORRINGN:
         return "st_interiorringn";
       default:
-        DBUG_ASSERT(0);  // Should never happened
+        assert(0);  // Should never happened
         return "spatial_decomp_n_unknown";
     }
   }
@@ -968,7 +970,7 @@ class Item_func_spatial_mbr_rel : public Item_bool_func2 {
     Item_func::print(thd, str, query_type);
   }
   bool resolve_type(THD *) override {
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   bool is_null() override {
@@ -1039,7 +1041,7 @@ class Item_func_spatial_relation : public Item_bool_func2 {
     // Spatial relation functions may return NULL if either parameter is NULL or
     // an empty geometry. Since we can't check for empty geometries at resolve
     // time, this item is always nullable.
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
   void print(const THD *thd, String *str,
@@ -1461,7 +1463,7 @@ class Item_func_isempty : public Item_bool_func {
   const char *func_name() const override { return "st_isempty"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1485,7 +1487,7 @@ class Item_func_isclosed : public Item_bool_func {
   const char *func_name() const override { return "st_isclosed"; }
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1512,7 +1514,7 @@ class Item_func_dimension : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1707,7 +1709,7 @@ class Item_func_numgeometries : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1722,7 +1724,7 @@ class Item_func_numinteriorring : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1737,7 +1739,7 @@ class Item_func_numpoints : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     max_length = 10;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1750,7 +1752,7 @@ class Item_func_st_area : public Item_real_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     // ST_Area returns NULL if the geometry is empty.
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1767,7 +1769,7 @@ class Item_func_st_length : public Item_real_func {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
     if (Item_real_func::resolve_type(thd)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1819,12 +1821,12 @@ class Item_func_distance : public Item_real_func {
       Either operand can be an empty geometry collection, and it's meaningless
       for a distance between them.
     */
-    maybe_null = true;
+    set_nullable(true);
   }
 
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 
@@ -1841,7 +1843,7 @@ class Item_func_st_frechet_distance : public Item_real_func {
   bool resolve_type(THD *thd) override {
     param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY);
     if (Item_real_func::resolve_type(thd)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1855,7 +1857,7 @@ class Item_func_st_hausdorff_distance : public Item_real_func {
   bool resolve_type(THD *thd) override {
     param_type_is_default(thd, 0, -1, MYSQL_TYPE_GEOMETRY);
     if (Item_real_func::resolve_type(thd)) return true;
-    maybe_null = true;
+    set_nullable(true);
     return false;
   }
 };
@@ -1873,6 +1875,56 @@ class Item_func_st_distance_sphere : public Item_real_func {
   }
 };
 
+// The abstract superclass for interpolating point(s) along a line.
+class Item_func_lineinterpolate : public Item_geometry_func {
+ public:
+  Item_func_lineinterpolate(const POS &pos, Item *a, Item *b)
+      : Item_geometry_func(pos, a, b) {}
+  String *val_str(String *str) override;
+
+ protected:
+  virtual bool isFractionalDistance() const = 0;
+  virtual bool returnMultiplePoints() const = 0;
+  bool resolve_type(THD *thd) override {
+    if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY)) return true;
+    if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
+    return Item_geometry_func::resolve_type(thd);
+  }
+};
+
+class Item_func_lineinterpolatepoint final : public Item_func_lineinterpolate {
+ public:
+  Item_func_lineinterpolatepoint(const POS &pos, Item *a, Item *b)
+      : Item_func_lineinterpolate(pos, a, b) {}
+
+ protected:
+  const char *func_name() const override { return "st_lineinterpolatepoint"; }
+  bool isFractionalDistance() const override { return true; }
+  bool returnMultiplePoints() const override { return false; }
+};
+
+class Item_func_lineinterpolatepoints final : public Item_func_lineinterpolate {
+ public:
+  Item_func_lineinterpolatepoints(const POS &pos, Item *a, Item *b)
+      : Item_func_lineinterpolate(pos, a, b) {}
+
+ protected:
+  const char *func_name() const override { return "st_lineinterpolatepoints"; }
+  bool isFractionalDistance() const override { return true; }
+  bool returnMultiplePoints() const override { return true; }
+};
+
+class Item_func_st_pointatdistance final : public Item_func_lineinterpolate {
+ public:
+  Item_func_st_pointatdistance(const POS &pos, Item *a, Item *b)
+      : Item_func_lineinterpolate(pos, a, b) {}
+
+ protected:
+  const char *func_name() const override { return "st_pointatdistance"; }
+  bool isFractionalDistance() const override { return false; }
+  bool returnMultiplePoints() const override { return false; }
+};
+
 /// This class implements ST_Transform function that transforms a geometry from
 /// one SRS to another.
 class Item_func_st_transform final : public Item_geometry_func {
@@ -1883,6 +1935,138 @@ class Item_func_st_transform final : public Item_geometry_func {
 
  private:
   const char *func_name() const override { return "st_transform"; }
+};
+
+// This is an abstract class that is inherited by geometry cast items.
+class Item_typecast_geometry : public Item_geometry_func {
+ public:
+  Item_typecast_geometry(const POS &pos, Item *a)
+      : Item_geometry_func(pos, a) {}
+  String *val_str(String *str) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override = 0;
+  const char *func_name() const override = 0;
+  enum Functype functype() const override { return TYPECAST_FUNC; }
+  Field::geometry_type get_geometry_type() const override = 0;
+  bool resolve_type(THD *thd) override {
+    param_type_is_default(thd, 0, 1, MYSQL_TYPE_GEOMETRY);
+    return Item_geometry_func::resolve_type(thd);
+  }
+
+  /// Casts certain geometry types to certain target geometry types.
+  ///
+  /// @param[in] srs The srs of the geometry being cast.
+  /// @param[in] source_geometry The geometry being cast.
+  /// @param[out] target_geometry The result geometry of the cast.
+  ///
+  /// @retval false Success.
+  /// @retval true An error has occurred. The error has been reported with
+  /// my_error().
+
+  virtual bool cast(const dd::Spatial_reference_system *srs,
+                    std::unique_ptr<gis::Geometry> *source_geometry,
+                    std::unique_ptr<gis::Geometry> *target_geometry) const = 0;
+};
+
+// This class implements CAST from certain geometries to POINT type.
+class Item_typecast_point : public Item_typecast_geometry {
+ public:
+  Item_typecast_point(const POS &pos, Item *a)
+      : Item_typecast_geometry(pos, a) {}
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  const char *func_name() const override { return "cast_as_point"; }
+  Field::geometry_type get_geometry_type() const override;
+  bool cast(const dd::Spatial_reference_system *,
+            std::unique_ptr<gis::Geometry> *source_geometry,
+            std::unique_ptr<gis::Geometry> *target_geometry) const override;
+};
+
+// This class implements CAST from certain geometries to LINESTRING type.
+class Item_typecast_linestring : public Item_typecast_geometry {
+ public:
+  Item_typecast_linestring(const POS &pos, Item *a)
+      : Item_typecast_geometry(pos, a) {}
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  const char *func_name() const override { return "cast_as_linestring"; }
+  Field::geometry_type get_geometry_type() const override;
+  bool cast(const dd::Spatial_reference_system *,
+            std::unique_ptr<gis::Geometry> *source_geometry,
+            std::unique_ptr<gis::Geometry> *target_geometry) const override;
+};
+
+// This class implements CAST from certain geometries to POLYGON type.
+class Item_typecast_polygon : public Item_typecast_geometry {
+ public:
+  Item_typecast_polygon(const POS &pos, Item *a)
+      : Item_typecast_geometry(pos, a) {}
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  const char *func_name() const override { return "cast_as_polygon"; }
+  Field::geometry_type get_geometry_type() const override;
+  bool cast(const dd::Spatial_reference_system *srs,
+            std::unique_ptr<gis::Geometry> *source_geometry,
+            std::unique_ptr<gis::Geometry> *target_geometry) const override;
+};
+
+// This class implements CAST from certain geometries to MULTIPOINT type.
+class Item_typecast_multipoint : public Item_typecast_geometry {
+ public:
+  Item_typecast_multipoint(const POS &pos, Item *a)
+      : Item_typecast_geometry(pos, a) {}
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  const char *func_name() const override { return "cast_as_multipoint"; }
+  Field::geometry_type get_geometry_type() const override;
+  bool cast(const dd::Spatial_reference_system *,
+            std::unique_ptr<gis::Geometry> *source_geometry,
+            std::unique_ptr<gis::Geometry> *target_geometry) const override;
+};
+
+// This class implements CAST from certain geometries to MULTILINESTRING type.
+class Item_typecast_multilinestring : public Item_typecast_geometry {
+ public:
+  Item_typecast_multilinestring(const POS &pos, Item *a)
+      : Item_typecast_geometry(pos, a) {}
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  const char *func_name() const override { return "cast_as_multilinestring"; }
+  Field::geometry_type get_geometry_type() const override;
+  bool cast(const dd::Spatial_reference_system *,
+            std::unique_ptr<gis::Geometry> *source_geometry,
+            std::unique_ptr<gis::Geometry> *target_geometry) const override;
+};
+
+// This class implements CAST from certain geometries to MULTIPOLYGON type.
+class Item_typecast_multipolygon : public Item_typecast_geometry {
+ public:
+  Item_typecast_multipolygon(const POS &pos, Item *a)
+      : Item_typecast_geometry(pos, a) {}
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  const char *func_name() const override { return "cast_as_multipolygon"; }
+  Field::geometry_type get_geometry_type() const override;
+  bool cast(const dd::Spatial_reference_system *srs,
+            std::unique_ptr<gis::Geometry> *source_geometry,
+            std::unique_ptr<gis::Geometry> *target_geometry) const override;
+};
+
+// This class implements CAST from certain geometries to GEOMETRYCOLLECTION
+// type.
+class Item_typecast_geometrycollection : public Item_typecast_geometry {
+ public:
+  Item_typecast_geometrycollection(const POS &pos, Item *a)
+      : Item_typecast_geometry(pos, a) {}
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  const char *func_name() const override {
+    return "cast_as_geometrycollection";
+  }
+  Field::geometry_type get_geometry_type() const override;
+  bool cast(const dd::Spatial_reference_system *,
+            std::unique_ptr<gis::Geometry> *source_geometry,
+            std::unique_ptr<gis::Geometry> *target_geometry) const override;
 };
 
 #endif /*ITEM_GEOFUNC_INCLUDED*/

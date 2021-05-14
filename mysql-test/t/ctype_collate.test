@@ -102,10 +102,20 @@ SELECT latin1_f,count(*) FROM t1 GROUP BY latin1_f COLLATE koi8r_general_ci;
 
 # DISTINCT
 
+--skip_if_hypergraph   # Chooses different group representatives.
+--sorted_result
 SELECT DISTINCT latin1_f                           FROM t1;
+--skip_if_hypergraph   # Chooses different group representatives.
+--sorted_result
 SELECT DISTINCT latin1_f COLLATE latin1_swedish_ci FROM t1;
+--skip_if_hypergraph   # Chooses different group representatives.
+--sorted_result
 SELECT DISTINCT latin1_f COLLATE latin1_german2_ci FROM t1;
+--skip_if_hypergraph   # Chooses different group representatives.
+--sorted_result
 SELECT DISTINCT latin1_f COLLATE latin1_general_ci FROM t1;
+--skip_if_hypergraph   # Chooses different group representatives.
+--sorted_result
 SELECT DISTINCT latin1_f COLLATE latin1_bin        FROM t1;
 --error 1273
 SELECT DISTINCT latin1_f COLLATE koi8r             FROM t1;

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -239,6 +239,12 @@ ADD_LIBRARY(innodb_zipdecompress STATIC ${INNOBASE_ZIP_DECOMPRESS_SOURCES})
 TARGET_COMPILE_DEFINITIONS(
   innodb_zipdecompress PRIVATE UNIV_LIBRARY UNIV_NO_ERR_MSGS)
 ADD_DEPENDENCIES(innodb_zipdecompress GenError)
+
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+IF(HAS_MISSING_PROFILE)
+  TARGET_COMPILE_OPTIONS(innodb_zipdecompress PRIVATE ${HAS_MISSING_PROFILE})
+ENDIF()
+
 
 UNSET(NUMA_LIBRARY)
 IF(HAVE_LIBNUMA)

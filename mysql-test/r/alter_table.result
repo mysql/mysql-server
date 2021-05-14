@@ -1057,7 +1057,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` text CHARACTER SET utf8 COLLATE utf8_general_ci
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 drop table t1;
 create table t1 (a mediumtext character set latin1);
 alter table t1 convert to character set utf8;
@@ -1067,7 +1067,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` longtext CHARACTER SET utf8 COLLATE utf8_general_ci
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 drop table t1;
 End of 5.0 tests
 create table t1 (i int);
@@ -3022,7 +3022,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `fld1` int NOT NULL,
   PRIMARY KEY (`fld1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 # Without fix, the temporary .frm file is not cleaned up.
 DROP TABLE t1;
 # Test cases added for coverage.
@@ -3044,7 +3044,7 @@ t1	CREATE TABLE `t1` (
   `fld1` int NOT NULL,
   `fld2` char(10) CHARACTER SET gbk DEFAULT NULL,
   PRIMARY KEY (`fld1`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
 DROP TABLE t1;
 #
 # Bug#22227958: ASSERT IN DD::FILL_DD_TABLE_FROM_CREATE_INFO, DDL
@@ -3972,13 +3972,13 @@ Warnings:
 Warning	1265	Data truncated for column 'my_t3_fld1' at row 1
 SELECT LENGTH(my_t1_fld1) FROM t1;
 LENGTH(my_t1_fld1)
-44
+255
 SELECT LENGTH(my_t2_fld1) FROM t2;
 LENGTH(my_t2_fld1)
-144
+65535
 SELECT LENGTH(my_t3_fld1) FROM t3;
 LENGTH(my_t3_fld1)
-84
+16777215
 DROP TABLE t1, t2, t3;
 SET SQL_MODE=default;
 SET GLOBAL max_allowed_packet=default;
@@ -4560,3 +4560,37 @@ no_default_newer_than_alter	create_default_newer_than_alter	alter_default_newer_
 1	1	1
 DROP TABLE t2, t1;
 SET TIMESTAMP=default;
+#
+# Bug#32187507: MEMORY LEAK WHEN SETTING SECONDARY_ENGINE_ATTRIBUTE
+#
+# Verify that CREATE TABLE with invalid type and SECONDARY_ENGINE
+# attribute does not leak.
+CREATE TABLE t1(a VARBINARY(9223372036854775806) SECONDARY_ENGINE_ATTRIBUTE '');
+ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
+# Verify that ALTER TABLE with invalid type and SECONDARY_ENGINE
+# attribute does not leak.
+ALTER TABLE t1 ADD COLUMN b VARBINARY(9223372036854775806)
+SECONDARY_ENGINE_ATTRIBUTE '';
+ERROR 42000: Display width out of range for column 'b' (max = 4294967295)
+#
+# Bug#32235058: PREPARE_DEFAULT_VALUE: ASSERTION
+# `FIELD.CONSTANT_DEFAULT->TYPE() != ITEM::FUNC_ITEM' FAILED.
+#
+CREATE TABLE t1(a INT);
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT TRUE;
+DROP TABLE t1;
+#
+# Bug#32235671: ITEM_FUNC_CONV_CHARSET::VAL_STR(: ASSERTION `FIXED == 1' FAILED.
+# (duplicate of Bug#32235058 above).
+#
+CREATE TABLE t1(a SET('a') CHARACTER SET BINARY);
+ALTER TABLE t1 ALTER COLUMN a SET DEFAULT TRUE;
+ERROR 42000: Invalid default value for 'a'
+DROP TABLE t1;
+#
+# Bug#32234194: DDL: DIAGNOSTICS_AREA::SET_OK_STATUS: ASSERTION `!IS_SET()'
+#
+CREATE TABLE t1(a INT);
+ALTER TABLE t1 MODIFY COLUMN a DECIMAL DEFAULT '4648-04-10';
+ERROR HY000: Incorrect decimal value: '4648-04-10' for column 'a' at row 1
+DROP TABLE t1;

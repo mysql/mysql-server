@@ -2,12 +2,12 @@
 .\"     Title: \fBmysqlbinlog\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLBINLOG\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQLBINLOG\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -52,7 +52,7 @@ like this:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIlog_file\fR\fR\fB \&.\&.\&.\fR
+mysqlbinlog [\fIoptions\fR] \fIlog_file\fR \&.\&.\&.
 .fi
 .if n \{\
 .RE
@@ -65,7 +65,7 @@ binlog\&.000003, use this command:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog binlog\&.0000003\fR
+mysqlbinlog binlog\&.0000003
 .fi
 .if n \{\
 .RE
@@ -707,9 +707,9 @@ Section\ \&6.2.17, \(lqPluggable Authentication\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -724,9 +724,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
 \fIfile_name\fR
-is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
+is not an absolute path name, it is interpreted relative to the current directory\&.
 .sp
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
@@ -752,9 +752,8 @@ normally reads the
 [client]
 and
 [mysqlbinlog]
-groups\&. If the
-\fB\-\-defaults\-group\-suffix=_other\fR
-option is given,
+groups\&. If this option is given as
+\fB\-\-defaults\-group\-suffix=_other\fR,
 \fBmysqlbinlog\fR
 also reads the
 [client_other]
@@ -927,7 +926,7 @@ For data loading operations corresponding to
 LOAD DATA
 statements,
 \fBmysqlbinlog\fR
-extracts the files from the binary log events, writes them as temporary ffiles to the local file system, and writes
+extracts the files from the binary log events, writes them as temporary files to the local file system, and writes
 LOAD DATA LOCAL
 statements to cause the files to be loaded\&. By default,
 \fBmysqlbinlog\fR
@@ -1014,13 +1013,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
+file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. (\&.mylogin\&.cnf
-is created by the
+is used\&. To create
+\&.mylogin\&.cnf, use the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.)
+\fBmysql_config_editor\fR(1)\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1289,8 +1288,10 @@ Require row\-based binary logging format for events\&. This option enforces row\
 output\&. The stream of events produced with this option would be accepted by a replication channel that is secured using the
 REQUIRE_ROW_FORMAT
 option of the
+CHANGE REPLICATION SOURCE TO
+statement (from MySQL 8\&.0\&.23) or
 CHANGE MASTER TO
-statement\&.
+statement (before MySQL 8\&.0\&.23)\&.
 binlog_format=ROW
 must be set on the server where the binary log was written\&. When you specify this option,
 \fBmysqlbinlog\fR
@@ -1352,8 +1353,8 @@ To employ multiple rewrite rules, specify the option multiple times, as shown he
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-\-rewrite\-db=\*(Aqdbcurrent\->dbold\*(Aq \-\-rewrite\-db=\*(Aqdbtest\->dbcurrent\*(Aq \e
-                     binlog\&.00001 > /tmp/statements\&.sql\fR
+mysqlbinlog \-\-rewrite\-db=\*(Aqdbcurrent\->dbold\*(Aq \-\-rewrite\-db=\*(Aqdbtest\->dbcurrent\*(Aq \e
+    binlog\&.00001 > /tmp/statements\&.sql
 .fi
 .if n \{\
 .RE
@@ -1516,9 +1517,9 @@ Do not display any GTIDs in the output\&. This is needed when writing to a dump 
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-\-skip\-gtids binlog\&.000001 >  /tmp/dump\&.sql\fR
-shell> \fBmysqlbinlog \-\-skip\-gtids binlog\&.000002 >> /tmp/dump\&.sql\fR
-shell> \fBmysql \-u root \-p \-e "source /tmp/dump\&.sql"\fR
+mysqlbinlog \-\-skip\-gtids binlog\&.000001 >  /tmp/dump\&.sql
+mysqlbinlog \-\-skip\-gtids binlog\&.000002 >> /tmp/dump\&.sql
+mysql \-u root \-p \-e "source /tmp/dump\&.sql"
 .fi
 .if n \{\
 .RE
@@ -1558,7 +1559,7 @@ system variable\&.
 \fB\-\-ssl*\fR
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using encryption and indicate where to find SSL keys and certificates\&. See
 the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
@@ -1667,7 +1668,7 @@ data types\&. For example:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-\-start\-datetime="2005\-12\-25 11:25:56" binlog\&.000003\fR
+mysqlbinlog \-\-start\-datetime="2005\-12\-25 11:25:56" binlog\&.000003
 .fi
 .if n \{\
 .RE
@@ -1932,7 +1933,7 @@ Section\ \&7.5, \(lqPoint-in-Time (Incremental) Recovery\(rq)\&. For example:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog binlog\&.000001 | mysql \-u root \-p\fR
+mysqlbinlog binlog\&.000001 | mysql \-u root \-p
 .fi
 .if n \{\
 .RE
@@ -1944,7 +1945,7 @@ Or:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog binlog\&.[0\-9]* | mysql \-u root \-p\fR
+mysqlbinlog binlog\&.[0\-9]* | mysql \-u root \-p
 .fi
 .if n \{\
 .RE
@@ -1972,9 +1973,9 @@ program:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog binlog\&.000001 > tmpfile\fR
-shell> \&.\&.\&. \fIedit tmpfile\fR \&.\&.\&.
-shell> \fBmysql \-u root \-p < tmpfile\fR
+mysqlbinlog binlog\&.000001 > tmpfile
+\&.\&.\&. \fIedit tmpfile\fR \&.\&.\&.
+mysql \-u root \-p < tmpfile
 .fi
 .if n \{\
 .RE
@@ -1996,8 +1997,8 @@ option (to be able to say, for example,
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog binlog\&.000001 | mysql \-u root \-p # DANGER!!\fR
-shell> \fBmysqlbinlog binlog\&.000002 | mysql \-u root \-p # DANGER!!\fR
+mysqlbinlog binlog\&.000001 | mysql \-u root \-p # DANGER!!
+mysqlbinlog binlog\&.000002 | mysql \-u root \-p # DANGER!!
 .fi
 .if n \{\
 .RE
@@ -2021,7 +2022,7 @@ process to execute the contents of all binary logs that you want to process\&. H
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog binlog\&.000001 binlog\&.000002 | mysql \-u root \-p\fR
+mysqlbinlog binlog\&.000001 binlog\&.000002 | mysql \-u root \-p
 .fi
 .if n \{\
 .RE
@@ -2033,9 +2034,9 @@ Another approach is to write all the logs to a single file and then process the 
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog binlog\&.000001 >  /tmp/statements\&.sql\fR
-shell> \fBmysqlbinlog binlog\&.000002 >> /tmp/statements\&.sql\fR
-shell> \fBmysql \-u root \-p \-e "source /tmp/statements\&.sql"\fR
+mysqlbinlog binlog\&.000001 >  /tmp/statements\&.sql
+mysqlbinlog binlog\&.000002 >> /tmp/statements\&.sql
+mysql \-u root \-p \-e "source /tmp/statements\&.sql"
 .fi
 .if n \{\
 .RE
@@ -2059,7 +2060,7 @@ client for execution:
 .RS 4
 .\}
 .nf
-shell> \fBgzip \-cd binlog\-files_1\&.gz | \&./mysqlbinlog \- | \&./mysql \-uroot\ \& \-p\fR
+gzip \-cd binlog\-files_1\&.gz | \&./mysqlbinlog \- | \&./mysql \-uroot\ \& \-p
 .fi
 .if n \{\
 .RE
@@ -2071,7 +2072,7 @@ You can specify more than one archive file, for example:
 .RS 4
 .\}
 .nf
-shell> \fBgzip \-cd binlog\-files_1\&.gz binlog\-files_2\&.gz | \&./mysqlbinlog \- | \&./mysql \-uroot\ \& \-p\fR
+gzip \-cd binlog\-files_1\&.gz binlog\-files_2\&.gz | \&./mysqlbinlog \- | \&./mysql \-uroot\ \& \-p
 .fi
 .if n \{\
 .RE
@@ -2137,7 +2138,7 @@ to produce a hex dump of the binary log contents:
 .RS 4
 .\}
 .nf
-shell> \fBmysqlbinlog \-\-hexdump source\-bin\&.000001\fR
+mysqlbinlog \-\-hexdump source\-bin\&.000001
 .fi
 .if n \{\
 .RE
@@ -3181,7 +3182,7 @@ specifies a nonzero server ID\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

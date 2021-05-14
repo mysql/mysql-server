@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -170,8 +170,11 @@
   - added table
   performance_schema.replication_asynchronous_connection_failover_managed
 
+  80024:
+  performance_schema tables changed in MySQL 8.0.24
+  - WL#13446 added performance_schema.keyring_component_status
 */
 
-static const uint PFS_DD_VERSION = 80023;
+static const uint PFS_DD_VERSION = 80024;
 
 #endif /* PFS_DD_VERSION_H */

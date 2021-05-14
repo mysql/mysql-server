@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,6 @@
 #include <sstream>
 
 #include "sql/sql_class.h"                            // THD
-#include "sql/sql_table.h"                            // build_table_filename
 #include "storage/ndb/include/ndbapi/Ndb.hpp"         // Ndb
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_setup_table
 #include "storage/ndb/plugin/ndb_dd.h"                // ndb_dd_fs_name_case
@@ -73,7 +72,7 @@ std::string Ndb_metadata_sync::object_type_and_name_str(
       break;
     }
     default: {
-      DBUG_ASSERT(false);
+      assert(false);
       type_name_str << "";
     }
   }
@@ -246,12 +245,12 @@ bool Ndb_metadata_sync::get_excluded_object_for_validation(
       } break;
       case object_validation_state::IN_PROGRESS: {
         // Not possible since there can't be two objects being validated at once
-        DBUG_ASSERT(false);
+        assert(false);
         return false;
       } break;
       default:
         // Unknown state, not possible
-        DBUG_ASSERT(false);
+        assert(false);
         return false;
     }
   }
@@ -408,7 +407,7 @@ bool Ndb_metadata_sync::check_object_mismatch(THD *thd,
     } break;
     default:
       ndb_log_error("Unknown object type found");
-      DBUG_ASSERT(false);
+      assert(false);
   }
   return true;
 }
@@ -432,7 +431,7 @@ void Ndb_metadata_sync::validate_excluded_object(bool check_mismatch_result) {
       return;
     }
   }
-  DBUG_ASSERT(false);
+  assert(false);
 }
 
 void Ndb_metadata_sync::reset_excluded_objects_state() {
@@ -805,32 +804,12 @@ bool Ndb_metadata_sync::sync_schema(THD *thd, const std::string &schema_name,
   return true;
 }
 
-class Mutex_guard {
- public:
-  Mutex_guard(mysql_mutex_t &mutex) : m_mutex(mutex) {
-    mysql_mutex_lock(&m_mutex);
-  }
-  Mutex_guard(const Mutex_guard &) = delete;
-  ~Mutex_guard() { mysql_mutex_unlock(&m_mutex); }
-
- private:
-  mysql_mutex_t &m_mutex;
-};
-
-extern mysql_mutex_t ndbcluster_mutex;
 void Ndb_metadata_sync::drop_ndb_share(const char *schema_name,
                                        const char *table_name) const {
-  char key[FN_REFLEN + 1];
-  build_table_filename(key, sizeof(key) - 1, schema_name, table_name, "", 0);
   NDB_SHARE *share =
-      NDB_SHARE::acquire_reference_by_key(key,
-                                          "table_sync");  // temporary ref
+      NDB_SHARE::acquire_reference(schema_name, table_name, "table_sync");
   if (share) {
-    Mutex_guard ndbcluster_mutex_guard(ndbcluster_mutex);
-    NDB_SHARE::mark_share_dropped(&share);
-    DBUG_ASSERT(share);
-    NDB_SHARE::release_reference_have_lock(share,
-                                           "table_sync");  // temporary ref
+    NDB_SHARE::mark_share_dropped_and_release(share, "table_sync");
   }
 }
 
@@ -929,29 +908,19 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     drop_ndb_share(schema_name.c_str(), table_name.c_str());
     ndb_tdc_close_cached_table(thd, schema_name.c_str(), table_name.c_str());
 
-    // Invalidate the table in NdbApi
-    if (ndb->setDatabaseName(schema_name.c_str())) {
-      ndb_log_error("Failed to set database name of NDB object");
-      error_msg = "Failed to set database name of NDB object";
-      return false;
-    }
     dd_client.commit();
     ndb_log_info("Table '%s.%s' dropped from DD", schema_name.c_str(),
                  table_name.c_str());
-    Ndb_table_guard ndbtab_guard(dict, table_name.c_str());
+
+    // Invalidate the table in NdbApi
+    Ndb_table_guard ndbtab_guard(ndb, schema_name.c_str(), table_name.c_str());
     ndbtab_guard.invalidate();
     return true;
   }
 
   // Table exists in NDB but not in DD. Correct this by installing the table in
   // the DD
-  if (ndb->setDatabaseName(schema_name.c_str())) {
-    ndb_log_error("Failed to set database name of NDB object");
-    error_msg = "Failed to set database name of NDB object";
-    return false;
-  }
-
-  Ndb_table_guard ndbtab_guard(dict, table_name.c_str());
+  Ndb_table_guard ndbtab_guard(ndb, schema_name.c_str(), table_name.c_str());
   const NdbDictionary::Table *ndbtab = ndbtab_guard.get_table();
   if (ndbtab == nullptr) {
     // Mismatch doesn't exist any more, return success
@@ -1007,7 +976,8 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
       temp_error = true;
       return false;
     }
-    if (!Ndb_metadata::compare(thd, ndb, ndbtab, dd_table)) {
+    if (!Ndb_metadata::compare(thd, ndb, schema_name.c_str(), ndbtab,
+                               dd_table)) {
       log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
       ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                     schema_name.c_str(), table_name.c_str());
@@ -1126,7 +1096,7 @@ bool Ndb_metadata_sync::sync_table(THD *thd, const std::string &schema_name,
     temp_error = true;
     return false;
   }
-  if (!Ndb_metadata::compare(thd, ndb, ndbtab, dd_table)) {
+  if (!Ndb_metadata::compare(thd, ndb, schema_name.c_str(), ndbtab, dd_table)) {
     log_and_clear_thd_conditions(thd, condition_logging_level::ERROR);
     ndb_log_error("Definition of table '%s.%s' in NDB Dictionary has changed",
                   schema_name.c_str(), table_name.c_str());

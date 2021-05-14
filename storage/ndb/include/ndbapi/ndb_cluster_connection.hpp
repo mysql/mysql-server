@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -300,6 +300,9 @@ public:
   const char *get_connectstring(char *buf, int buf_sz) const;
   int get_connected_port() const;
   const char *get_connected_host() const;
+
+  // Get generation of the configuration used to configure the NdbApi
+  Uint32 get_config_generation() const;
 
   void set_optimized_node_selection(int val);
 

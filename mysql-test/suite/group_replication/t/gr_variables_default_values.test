@@ -15,6 +15,7 @@
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
+SET @@GLOBAL.group_replication_ip_allowlist= "AUTOMATIC";
 --source include/start_and_bootstrap_group_replication.inc
 
 # Try set DEFAULT values while Group Replication is running.

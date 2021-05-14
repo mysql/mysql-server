@@ -91,6 +91,18 @@ SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
 # Clear XCom configuration on all servers.
 --source include/gr_clear_configuration.inc
 
+--replace_result $_group_replication_ip_allowlist GROUP_LOCAL_IP_ALLOWLIST
+--eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $_group_replication_ip_allowlist GROUP_LOCAL_IP_ALLOWLIST
+--eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 --echo #######################################################
 --echo #  1. Try setting bootstrap_group variable with invalid
 --echo #     values. It must fail.

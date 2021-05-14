@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -399,7 +399,7 @@ static std::string key_value_str_get_value(const std::string &kv_str,
   std::string kv_pair;
   while (std::getline(kv_ss, kv_pair, ';')) {
     int key_length = kv_pair.find('=');
-    DBUG_ASSERT(key_length > 0);
+    assert(key_length > 0);
     if (kv_pair.substr(0, key_length).compare(key) == 0) {
       return kv_pair.substr(key_length + 1);
     }
@@ -465,8 +465,8 @@ bool Ndb_schema_dist_table::get_schema_uuid(std::string *schema_uuid) const {
 
   NdbError ndb_err;
   if (!ndb_trans_retry(get_ndb(), get_thd(), ndb_err, read_ndb_schema_func)) {
-    push_warning("Failed to read the schema UUID tuple: %s(%d).",
-                 ndb_err.message, ndb_err.code);
+    ndb_log_warning("Failed to read the schema UUID tuple: %s(%d).",
+                    ndb_err.message, ndb_err.code);
     return false;
   }
 
@@ -480,7 +480,7 @@ bool Ndb_schema_dist_table::get_schema_uuid(std::string *schema_uuid) const {
   // pair of form "schema_uuid=<UUID>;". Extract the value and return.
   schema_uuid->assign(
       key_value_str_get_value(query_col_value, SCHEMA_UUID_KEY));
-  DBUG_ASSERT(schema_uuid->size() == UUID_LENGTH);
+  assert(schema_uuid->size() == UUID_LENGTH);
   ndb_log_verbose(19, "Schema UUID read from NDB : %s", schema_uuid->c_str());
   return true;
 }
@@ -490,7 +490,7 @@ bool Ndb_schema_dist_table::update_schema_uuid_in_NDB(
   DBUG_TRACE;
 
   const NdbDictionary::Table *ndb_table = get_table();
-  DBUG_ASSERT(ndb_table != nullptr);
+  assert(ndb_table != nullptr);
 
   // Store the UUID as a key value pair of form "schema_uuid=<UUID>;"
   std::map<std::string, std::string> ndb_schema_props;
@@ -548,7 +548,7 @@ bool Ndb_schema_dist_table::update_schema_uuid_in_NDB(
 
   NdbError ndb_err;
   if (!ndb_trans_retry(get_ndb(), get_thd(), ndb_err, write_schema_op_func)) {
-    push_warning(
+    ndb_log_warning(
         "Failed to update schema UUID in 'mysql.ndb_schema' table. Code : %d. "
         "Error : %s",
         ndb_err.code, ndb_err.message);

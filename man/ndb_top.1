@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_top\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 11/26/2020
+.\"      Date: 03/07/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_TOP\FR" "1" "11/26/2020" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_TOP\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -134,7 +134,7 @@ The following table includes all options that are specific to the NDB Cluster pr
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.47.\ \&Command\-line options for the ndb_top program
+.B Table\ \&23.49.\ \&Command\-line options used with the program ndb_top
 .TS
 allbox tab(:);
 lB lB lB.
@@ -169,7 +169,7 @@ T}:T{
 Show ASCII graphs in color; use --skip-colors to disable
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -180,7 +180,7 @@ T}:T{
 Display data using graphs; use --skip-graphs to disable
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -191,7 +191,7 @@ T}:T{
 Show program usage information
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -202,7 +202,7 @@ T}:T{
 Host name or IP address of MySQL Server to connect to
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -213,7 +213,7 @@ T}:T{
 Show measured load by thread
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -224,7 +224,7 @@ T}:T{
 Watch node having this node ID
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -235,7 +235,7 @@ T}:T{
 Show load measured by operating system
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -246,7 +246,7 @@ T}:T{
 Connect using this password
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -258,7 +258,7 @@ T}:T{
 Port number to use when connecting to MySQL Server
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -269,7 +269,7 @@ T}:T{
 Time to wait between display refreshes, in seconds
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -280,7 +280,7 @@ T}:T{
 Socket file to use for connection
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -291,7 +291,7 @@ T}:T{
 Sort threads by usage; use --skip-sort to disable
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -303,7 +303,7 @@ T}:T{
 Display data using text
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -314,21 +314,10 @@ T}:T{
 Connect as this MySQL user
 T}:T{
 .PP
-(Supported in all MySQL 8.0 based releases)
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 .TE
 .sp 1
-.PP
-In NDB 7\&.6\&.6 and later,
-\fBndb_top\fR
-also supports the common
-NDB
-program options
-\fB\-\-defaults\-file\fR,
-\fB\-\-defaults\-extra\-file\fR,
-\fB\-\-print\-defaults\fR,
-\fB\-\-no\-defaults\fR, and
-\fB\-\-defaults\-group\-suffix\fR\&. (Bug #86614, Bug #26236298)
 Additional Options
 .sp
 .RS 4
@@ -594,45 +583,6 @@ must be true; both options may be true\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-passwd[\fR=\fIpassword]\fR,
-\fB\-p\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---passwd[=password]
-T}
-T{
-Type
-T}:T{
-Boolean
-T}
-T{
-Default Value
-T}:T{
-NULL
-T}
-.TE
-.sp 1
-Connect using this password\&.
-.sp
-This option is deprecated in NDB 7\&.6\&.4\&. It is removed in NDB 7\&.6\&.6, where it is replaced by the
-\fB\-\-password\fR
-option\&. (Bug #26907833)
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-password[\fR=\fIpassword]\fR,
 \fB\-p\fR
 .TS
@@ -657,11 +607,12 @@ NULL
 T}
 .TE
 .sp 1
-Connect using this password\&.
+Connect to a MySQL Server using this password and the MySQL user specified by
+\fB\-\-user\fR\&.
 .sp
-This option was added in NDB 7\&.6\&.6 as a replacement for the
-\fB\-\-passwd\fR
-option used previously\&. (Bug #26907833)
+This password is associated with a MySQL user account only, and is not related in any way to the password used with encrypted
+NDB
+backups\&.
 .RE
 .sp
 .RS 4
@@ -673,9 +624,7 @@ option used previously\&. (Bug #26907833)
 .IP \(bu 2.3
 .\}
 \fB\-\-port[\fR=\fI#]\fR,
-\fB\-t\fR
-(NDB 7\&.6\&.6 and later:
-\fB\-P\fR)
+\fB\-P\fR
 .TS
 allbox tab(:);
 lB l
@@ -700,12 +649,9 @@ T}
 .sp 1
 Port number to use when connecting to MySQL Server\&.
 .sp
-Beginning with NDB 7\&.6\&.6, the short form for this option is
-\fB\-P\fR, and
-\fB\-t\fR
-is repurposed as the short form for the
-\fB\-\-text\fR
-option\&. (Bug #26907833)
+(Formerly, the short form for this option was
+\fB\-t\fR, which was repurposed as the short form of
+\fB\-\-text\fR\&.)
 .RE
 .sp
 .RS 4
@@ -776,8 +722,6 @@ T}
 .TE
 .sp 1
 Use the specified socket file for the connection\&.
-.sp
-Added in NDB 7\&.6\&.6\&. (Bug #86614, Bug #26236298)
 .RE
 .sp
 .RS 4
@@ -853,9 +797,9 @@ Display data using text\&. This option or
 \fB\-\-graph\fR
 must be true; both options may be true\&.
 .sp
-The short form for this option was
+(The short form for this option was
 \fB\-x\fR
-in previous versions of NDB Cluster, but this is no longer supported\&.
+in previous versions of NDB Cluster, but this is no longer supported\&.)
 .RE
 .sp
 .RS 4
@@ -890,7 +834,9 @@ root
 T}
 .TE
 .sp 1
-Connect as this MySQL user\&.
+Connect as this MySQL user\&. Normally requires a password supplied by the
+\fB\-\-password\fR
+option\&.
 .RE
 .PP
 \fBSample Output\fR. The next figure shows
@@ -919,7 +865,7 @@ also shows spin times for threads, displayed in green\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2020, Oracle and/or its affiliates.
+Copyright \(co 1997, 2021, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

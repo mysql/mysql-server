@@ -18,7 +18,7 @@ CALL mtr.add_suppression("Error initializing session for connection: Too many co
 
 #
 # I.1
-# restart: --debug=+d,xplugin_init_wait --max_connections=1 --loose-mysqlx_cache_cleaner=0
+# restart: --debug=+d,xplugin_init_wait --loose-mysqlx_cache_cleaner=0
 
 #
 # I.1.a

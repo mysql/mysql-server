@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -101,7 +101,7 @@
 
 bool Column_name_comparator::operator()(const String *lhs,
                                         const String *rhs) const {
-  DBUG_ASSERT(lhs->charset()->number == rhs->charset()->number);
+  assert(lhs->charset()->number == rhs->charset()->number);
   return sortcmp(lhs, rhs, lhs->charset()) < 0;
 }
 
@@ -196,7 +196,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   if (!ext || !ext[0] || !ext[1]) goto end;  // No data file
 
   /* A MERGE table must not come here. */
-  DBUG_ASSERT(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
+  assert(table->file->ht->db_type != DB_TYPE_MRG_MYISAM);
 
   /*
     Storage engines supporting atomic DDL do not come here either.
@@ -206,7 +206,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     to table re-creation in SE needs to be adjusted to at least
     commit the transaction.
   */
-  DBUG_ASSERT(!(table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL));
+  assert(!(table->file->ht->flags & HTON_SUPPORTS_ATOMIC_DDL));
 
   // Name of data file
   strxmov(from, table->s->normalized_path.str, ext[1], NullS);
@@ -349,14 +349,14 @@ bool Sql_cmd_analyze_table::send_histogram_results(
 
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("Op", 10));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("Msg_type", 10));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(
       item = new Item_empty_string("Msg_text", SQL_ADMIN_MSG_TEXT_SIZE));
-  item->maybe_null = true;
+  item->set_nullable(true);
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF)) {
     return true; /* purecov: deadcode */
@@ -478,7 +478,7 @@ static Check_result check_for_upgrade(THD *thd, dd::String_type &sname,
   if (dc->acquire(sname, tname, &t)) {
     return {true, HA_ADMIN_FAILED};
   }
-  DBUG_ASSERT(t != nullptr);
+  assert(t != nullptr);
 
   if (is_checked_for_upgrade(*t)) {
     DBUG_PRINT("admin", ("Table %s (%llu) already checked for upgrade, "
@@ -551,7 +551,7 @@ static bool mysql_admin_table(
   dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
 
   TABLE_LIST *table;
-  SELECT_LEX *select = thd->lex->select_lex;
+  Query_block *select = thd->lex->query_block;
   Item *item;
   Protocol *protocol = thd->get_protocol();
   LEX *lex = thd->lex;
@@ -566,14 +566,14 @@ static bool mysql_admin_table(
   mem_root_deque<Item *> field_list(thd->mem_root);
   field_list.push_back(item =
                            new Item_empty_string("Table", NAME_CHAR_LEN * 2));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("Op", 10));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(item = new Item_empty_string("Msg_type", 10));
-  item->maybe_null = true;
+  item->set_nullable(true);
   field_list.push_back(
       item = new Item_empty_string("Msg_text", SQL_ADMIN_MSG_TEXT_SIZE));
-  item->maybe_null = true;
+  item->set_nullable(true);
   if (thd->send_result_metadata(field_list,
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
@@ -766,7 +766,7 @@ static bool mysql_admin_table(
           trans_rollback_stmt(thd);
           trans_rollback(thd);
           /* Make sure this table instance is not reused after the operation. */
-          if (table->table) table->table->m_needs_reopen = true;
+          if (table->table) table->table->invalidate_dict();
           close_thread_tables(thd);
           thd->mdl_context.release_transactional_locks();
           DBUG_PRINT("admin", ("simple error, admin next table"));
@@ -836,7 +836,7 @@ static bool mysql_admin_table(
         trans_commit(thd, ignore_grl_on_analyze);
       }
       /* Make sure this table instance is not reused after the operation. */
-      if (table->table) table->table->m_needs_reopen = true;
+      if (table->table) table->table->invalidate_dict();
       close_thread_tables(thd);
       thd->mdl_context.release_transactional_locks();
       lex->reset_query_tables_list(false);
@@ -906,12 +906,12 @@ static bool mysql_admin_table(
           require upgrade. So we don't need to pre-open them before calling
           mysql_recreate_table().
         */
-        DBUG_ASSERT(!table->table->s->tmp_table);
+        assert(!table->table->s->tmp_table);
 
         trans_rollback_stmt(thd);
         trans_rollback(thd);
         /* Make sure this table instance is not reused after the operation. */
-        if (table->table) table->table->m_needs_reopen = true;
+        if (table->table) table->table->invalidate_dict();
         close_thread_tables(thd);
         thd->mdl_context.release_transactional_locks();
 
@@ -1181,7 +1181,7 @@ static bool mysql_admin_table(
         protocol->store(operator_name, system_charset_info);
         if (result_code)  // either mysql_recreate_table or analyze failed
         {
-          DBUG_ASSERT(thd->is_error() || thd->killed);
+          assert(thd->is_error() || thd->killed);
           if (thd->is_error()) {
             Diagnostics_area *da = thd->get_stmt_da();
             if (!thd->get_protocol()->connection_alive()) {
@@ -1207,7 +1207,7 @@ static bool mysql_admin_table(
             thd->clear_error();
           }
           /* Make sure this table instance is not reused after the operation. */
-          if (table->table) table->table->m_needs_reopen = true;
+          if (table->table) table->table->invalidate_dict();
         }
         result_code = result_code ? HA_ADMIN_FAILED : HA_ADMIN_OK;
         table->next_local = save_next_local;
@@ -1254,7 +1254,7 @@ static bool mysql_admin_table(
           tables will not create pre 5.0 decimal types. Hence, control should
           never reach here.
         */
-        DBUG_ASSERT(false);
+        assert(false);
 
         char buf[MYSQL_ERRMSG_SIZE];
         size_t length;
@@ -1291,8 +1291,21 @@ static bool mysql_admin_table(
         if (open_for_modify && !open_error)
           table->table->file->info(HA_STATUS_CONST);
       } else if (open_for_modify || fatal_error) {
-        tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
-                         table->table_name, false);
+        if (operator_func == &handler::ha_analyze)
+          /*
+            Force update of key distribution statistics in rec_per_key array and
+            info in TABLE::file::stats by marking existing TABLE instances as
+            needing reopening. Any subsequent statement that uses this table
+            will have to call handler::open() which will cause this information
+            to be updated. OTOH, such subsequent statements won't have to wait
+            for already running statements to go away since we do not invalidate
+            TABLE_SHARE.
+          */
+          tdc_remove_table(thd, TDC_RT_MARK_FOR_REOPEN, table->db,
+                           table->table_name, false);
+        else
+          tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
+                           table->table_name, false);
       } else {
         /*
           Reset which partitions that should be processed
@@ -1362,7 +1375,7 @@ err:
   if (thd->sp_runtime_ctx) thd->sp_runtime_ctx->end_partial_result_set = true;
 
   /* Make sure this table instance is not reused after the operation. */
-  if (table->table) table->table->m_needs_reopen = true;
+  if (table->table) table->table->invalidate_dict();
   close_thread_tables(thd);  // Shouldn't be needed
   thd->mdl_context.release_transactional_locks();
   return true;
@@ -1433,7 +1446,7 @@ bool Sql_cmd_load_index::preload_keys(THD *thd, TABLE_LIST *tables) {
 }
 
 bool Sql_cmd_analyze_table::set_histogram_fields(List<String> *fields) {
-  DBUG_ASSERT(m_histogram_fields.empty());
+  assert(m_histogram_fields.empty());
 
   List_iterator<String> it(*fields);
   String *field;
@@ -1450,7 +1463,7 @@ bool Sql_cmd_analyze_table::set_histogram_fields(List<String> *fields) {
 bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
                                                      TABLE_LIST *table) {
   // This should not be empty here.
-  DBUG_ASSERT(!get_histogram_fields().empty());
+  assert(!get_histogram_fields().empty());
 
   histograms::results_map results;
   bool res = false;
@@ -1498,7 +1511,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
           }
           break;
         case Histogram_command::NONE:
-          DBUG_ASSERT(false); /* purecov: deadcode */
+          assert(false); /* purecov: deadcode */
           break;
       }
 
@@ -1524,7 +1537,7 @@ bool Sql_cmd_analyze_table::handle_histogram_command(THD *thd,
 }
 
 bool Sql_cmd_analyze_table::execute(THD *thd) {
-  TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *first_table = thd->lex->query_block->get_table_list();
   bool res = true;
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   DBUG_TRACE;
@@ -1555,7 +1568,7 @@ bool Sql_cmd_analyze_table::execute(THD *thd) {
     */
     res = write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
-  thd->lex->select_lex->table_list.first = first_table;
+  thd->lex->query_block->table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1563,7 +1576,7 @@ error:
 }
 
 bool Sql_cmd_check_table::execute(THD *thd) {
-  TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *first_table = thd->lex->query_block->get_table_list();
   thr_lock_type lock_type = TL_READ_NO_INSERT;
   bool res = true;
   DBUG_TRACE;
@@ -1576,7 +1589,7 @@ bool Sql_cmd_check_table::execute(THD *thd) {
                           lock_type, false, false, HA_OPEN_FOR_REPAIR, nullptr,
                           &handler::ha_check, 1, m_alter_info, true);
 
-  thd->lex->select_lex->table_list.first = first_table;
+  thd->lex->query_block->table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1584,7 +1597,7 @@ error:
 }
 
 bool Sql_cmd_optimize_table::execute(THD *thd) {
-  TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *first_table = thd->lex->query_block->get_table_list();
   bool res = true;
   DBUG_TRACE;
 
@@ -1604,7 +1617,7 @@ bool Sql_cmd_optimize_table::execute(THD *thd) {
     */
     res = write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
-  thd->lex->select_lex->table_list.first = first_table;
+  thd->lex->query_block->table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1612,7 +1625,7 @@ error:
 }
 
 bool Sql_cmd_repair_table::execute(THD *thd) {
-  TABLE_LIST *first_table = thd->lex->select_lex->get_table_list();
+  TABLE_LIST *first_table = thd->lex->query_block->get_table_list();
   bool res = true;
   DBUG_TRACE;
 
@@ -1632,7 +1645,7 @@ bool Sql_cmd_repair_table::execute(THD *thd) {
     */
     res = write_bin_log(thd, true, thd->query().str, thd->query().length);
   }
-  thd->lex->select_lex->table_list.first = first_table;
+  thd->lex->query_block->table_list.first = first_table;
   thd->lex->query_tables = first_table;
 
 error:
@@ -1679,7 +1692,7 @@ class Alter_instance_reload_tls : public Alter_instance {
       case Ssl_acceptor_context_type::context_last:
         // Fall through
       default:
-        DBUG_ASSERT(false);
+        assert(false);
         return false;
     }
     if (error != SSL_INITERR_NOERROR) {
@@ -1748,8 +1761,11 @@ bool Sql_cmd_alter_instance::execute(THD *thd) {
     case ALTER_INSTANCE_DISABLE_INNODB_REDO:
       alter_instance = new Innodb_redo_log(thd, false);
       break;
+    case RELOAD_KEYRING:
+      alter_instance = new Reload_keyring(thd);
+      break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "ALTER INSTANCE");
       return true;
   }
@@ -1812,7 +1828,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
     return true;
   }
 
-  DBUG_ASSERT(m_clone == nullptr);
+  assert(m_clone == nullptr);
   m_clone = clone_plugin_lock(thd, &m_plugin);
 
   if (m_clone == nullptr) {
@@ -1821,7 +1837,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
   }
 
   if (is_local()) {
-    DBUG_ASSERT(!is_replace);
+    assert(!is_replace);
     auto err = m_clone->clone_local(thd, m_data_dir.str);
     clone_plugin_unlock(thd, m_plugin);
 
@@ -1833,7 +1849,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
     return false;
   }
 
-  DBUG_ASSERT(!is_local());
+  assert(!is_local());
 
   enum mysql_ssl_mode ssl_mode = SSL_MODE_DISABLED;
 
@@ -1842,7 +1858,7 @@ bool Sql_cmd_clone::execute(THD *thd) {
   } else if (thd->lex->ssl_type == SSL_TYPE_SPECIFIED) {
     ssl_mode = SSL_MODE_REQUIRED;
   } else {
-    DBUG_ASSERT(thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED);
+    assert(thd->lex->ssl_type == SSL_TYPE_NOT_SPECIFIED);
     ssl_mode = SSL_MODE_PREFERRED;
   }
 
@@ -1899,8 +1915,8 @@ bool Sql_cmd_clone::execute(THD *thd) {
 
 bool Sql_cmd_clone::load(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_clone == nullptr);
-  DBUG_ASSERT(!is_local());
+  assert(m_clone == nullptr);
+  assert(!is_local());
 
   auto sctx = thd->security_context();
 
@@ -1922,7 +1938,7 @@ bool Sql_cmd_clone::load(THD *thd) {
 
 bool Sql_cmd_clone::execute_server(THD *thd) {
   DBUG_TRACE;
-  DBUG_ASSERT(!is_local());
+  assert(!is_local());
 
   bool ret = false;
   auto net = thd->get_protocol_classic()->get_net();

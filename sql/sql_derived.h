@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,11 @@
 struct NESTED_JOIN;
 /**
   Class which handles pushing conditions down to a materialized derived
-  table. In SELECT_LEX::prepare, if it is the outermost query block, and
+  table. In Query_block::prepare, if it is the outermost query block, and
   if we are at the end of preparation, a WHERE condition from the query
   block is checked to see if it can be pushed to the materialized derived
   table.
-  SELECT_LEX::prepare
+  Query_block::prepare
   push_conditions_to_derived_tables()
     For every materialized derived table,
     If there is a where condition in this query block,

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@ along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+#include <limits>
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
 // if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
 // globally and require to include my_rapidjson_size_t.h
@@ -53,7 +54,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include <thread>
 
 using mysqlrouter::MySQLSession;
-using ::testing::PrintToString;
 using namespace std::chrono_literals;
 
 namespace {
@@ -245,10 +245,13 @@ class GrNotificationsTest : public RouterComponentTest {
 
   int get_ttl_queries_count(const std::string &json_string) {
     rapidjson::Document json_doc;
-    json_doc.Parse(json_string.c_str());
+    json_doc.Parse(json_string.data(), json_string.size());
     if (json_doc.HasMember("md_query_count")) {
-      EXPECT_TRUE(json_doc["md_query_count"].IsInt());
-      return json_doc["md_query_count"].GetInt();
+      const auto &md_query_count = json_doc["md_query_count"];
+      EXPECT_TRUE(md_query_count.IsInt())
+          << "got type: " << md_query_count.GetType() << " for json:\n"
+          << json_string;
+      return md_query_count.GetInt();
     }
     return 0;
   }
@@ -266,7 +269,7 @@ class GrNotificationsTest : public RouterComponentTest {
     return get_ttl_queries_count(server_globals);
   }
 
-  int wait_for_md_queries(const int expected_md_queries_count,
+  int wait_for_md_queries(const int expected_md_queries_count_min,
                           const uint16_t http_port,
                           std::chrono::milliseconds timeout = 40s) {
     auto kRetrySleep = 100ms;
@@ -279,8 +282,9 @@ class GrNotificationsTest : public RouterComponentTest {
     do {
       std::this_thread::sleep_for(kRetrySleep);
       md_queries_count = get_current_queries_count(http_port);
+
       timeout -= kRetrySleep;
-    } while (md_queries_count != expected_md_queries_count && timeout > 0ms);
+    } while (md_queries_count < expected_md_queries_count_min && timeout > 0ms);
 
     return md_queries_count;
   }
@@ -962,7 +966,11 @@ INSTANTIATE_TEST_SUITE_P(
         ConfErrorTestParams{"invalid",
                             "Configuration error: option use_gr_notifications "
                             "in [metadata_cache:test] needs value between 0 "
-                            "and 1 inclusive, was 'invalid'"}));
+                            "and 1 inclusive, was 'invalid'"},
+        ConfErrorTestParams{"0x1",
+                            "Configuration error: option use_gr_notifications "
+                            "in [metadata_cache:test] needs value between 0 "
+                            "and 1 inclusive, was '0x1'"}));
 
 /**
  * @test
@@ -1035,13 +1043,6 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
   const std::string routing_section_ro = get_metadata_cache_routing_section(
       router_port_ro, "SECONDARY", "round-robin", "ro");
 
-  SCOPED_TRACE("// Launch ther router");
-  launch_router(temp_test_dir.name(), metadata_cache_section,
-                routing_section_rw + routing_section_ro, state_file);
-
-  wait_for_new_md_queries(2, http_ports[0], 1s);
-  EXPECT_TRUE(wait_for_port_ready(router_port_ro));
-
   SCOPED_TRACE("// Prepare a new node before adding it to the cluster");
   nodes_ports.push_back(port_pool_.get_next_available());
   nodes_xports.push_back(port_pool_.get_next_available());
@@ -1068,6 +1069,14 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
                       /*send=*/true, cluster_nodes_ports);
   }
 
+  SCOPED_TRACE("// Launch ther router");
+  auto &router =
+      launch_router(temp_test_dir.name(), metadata_cache_section,
+                    routing_section_rw + routing_section_ro, state_file);
+
+  wait_for_new_md_queries(2, http_ports[0], 1s);
+  EXPECT_TRUE(wait_for_port_ready(router_port_ro));
+
   // wait for the md update resulting from the GR notification that we have
   // scheduled
   wait_for_new_md_queries(2, http_ports[0], 2000ms);
@@ -1079,9 +1088,12 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
                       /*send=*/true, nodes_ports);
   }
 
-  // we wait 5 query refresh cycles for slower machines to be sure the changes
-  // on the mock server side propagated to the Router
-  wait_for_new_md_queries(5, http_ports[0], 2000ms);
+  // wait for the second RO to be visible after metadata cache update
+  EXPECT_TRUE(wait_log_contains(router,
+                                "127.0.0.1:" + std::to_string(nodes_ports[2]) +
+                                    " / " + std::to_string(nodes_xports[2]) +
+                                    " - mode=RO",
+                                10s));
 
   SCOPED_TRACE(
       "// Make 2 connections to the RO port, the newly added node should be "
@@ -1093,8 +1105,17 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
                                            "username", "password", "", ""));
 
     auto result{client.query_one("select @@port")};
-    used_ports.insert(
-        static_cast<uint16_t>(std::stoul(std::string((*result)[0]))));
+
+    const auto &port_str = (*result)[0];
+
+    char *errptr = nullptr;
+    auto port = std::strtoul(port_str, &errptr, 10);
+    ASSERT_NE(errptr, nullptr);
+    EXPECT_EQ(*errptr, '\0') << port_str;
+    EXPECT_GT(port, 0);  // 0 isn't valid port.
+    EXPECT_LE(port, std::numeric_limits<uint16_t>::max());
+
+    used_ports.insert(port);
   }
   EXPECT_EQ(1u, used_ports.count(nodes_ports[2]));
 }

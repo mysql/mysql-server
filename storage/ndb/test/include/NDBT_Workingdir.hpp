@@ -1,5 +1,5 @@
 /*
-   Copyright 2009 Sun Microsystems, Inc.
+   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 
    Use is subject to license terms.
 

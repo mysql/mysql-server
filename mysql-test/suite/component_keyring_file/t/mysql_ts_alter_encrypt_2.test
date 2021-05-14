@@ -1,0 +1,29 @@
+--source include/have_component_keyring_file.inc
+################################################################################
+# InnoDB transparent tablespace data encryption for mysql.tablespace.
+# For mysql.tablespace, this test will test
+#    1 - Alter mysql.tablespace with
+#        - and without loading keyring plugin
+#        - valid/invalid encryption option
+#        -ENCRYPTION='n' to ENCRYPTION='y'
+#    2 - Actual encryption taking place or not
+#    3 - Create/Alter table using mysql.tablespace
+#    4 - Alter table part of innodb_file_per_table/general/innodb_system/mysql ts to mysql ts
+#    5 - Create view using mysql.tablespace
+#    6 - Delete/truncate/drop DD table part of mysql tablespace
+#    7 - Changing encryption attribute of tables in mysql tablespace
+#    8 - Restart with same keyring plugin option and access mysql tables
+#    9 - Restart without keyring plugin option, Install plugin explicitly and alter encryption to Y
+#   10 - Monitor progress of encryption in performance_schema table
+#   11 - Rename/drop mysql tablespace
+#   12 - Create tablespace with name as mysql
+################################################################################
+
+--source include/big_test.inc
+--source include/have_debug.inc
+# Disable in valgrind because of timeout, cf. Bug#22760145
+--source include/not_valgrind.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/innodb/mysql_ts_alter_encrypt_2.inc
+--source ../inc/teardown_component.inc

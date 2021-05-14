@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/hash_join_buffer.h"
 
+#include <assert.h>
 #include <cstddef>
 #include <cstring>
 #include <iterator>
@@ -34,7 +35,7 @@
 #include "my_bit.h"
 #include "my_bitmap.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -103,7 +104,7 @@ void LoadBufferRowIntoTableBuffers(const TableCollection &tables,
                                    BufferRow row) {
   const uchar *end MY_ATTRIBUTE((unused)) =
       LoadIntoTableBuffers(tables, row.data());
-  DBUG_ASSERT(end == row.data() + row.size());
+  assert(end == row.data() + row.size());
 }
 
 void LoadImmutableStringIntoTableBuffers(const TableCollection &tables,

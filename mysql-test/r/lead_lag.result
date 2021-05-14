@@ -1825,6 +1825,8 @@ DO MONTHNAME(LEAD(CHARSET(CONVERT((MOD(CURTIME(4),STDDEV(NULL)))USING CP850)),12
 DO LAST_DAY(LAG(NULL,113) OVER());
 DO LAST_DAY(LEAD(-2201 ,98)RESPECT NULLS OVER());
 DO OCTET_LENGTH(((LAST_DAY(LEAD(-28178,163)OVER()))OR(COLLATION(@E))));
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'binary'
 DO LAST_DAY(LAG('*',36)RESPECT NULLS OVER());
 DO LAST_DAY(LEAD( _CP932 '',241)OVER(RANGE UNBOUNDED PRECEDING));
 Assertion used to fail: !check_time_mmssff_range(ltime)
@@ -1895,6 +1897,8 @@ SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
 ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
 162)OVER())))>=(CONNECTION_ID()))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'NULL'
 SELECT ((QUOTE(JSON_KEYS(LEAD(JSON_KEYS(EXP(-15676),ABS('d0')),
 0)OVER())))>=(CONNECTION_ID()));
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.

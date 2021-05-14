@@ -172,3 +172,94 @@ Sort_range	0
 Sort_rows	2
 Sort_scan	2
 DROP TABLE t1, t2, tmp;
+Bug#32038406: Filesort used for ORDER BY .. DESC even when
+descending index available and used
+CREATE TABLE t (
+col1 INTEGER NOT NULL,
+col2 BINARY(16) NOT NULL,
+col3 VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+col4 INTEGER NOT NULL,
+col5 TIMESTAMP(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+col6 BLOB,
+PRIMARY KEY (col1),
+UNIQUE KEY uc_key (col2, col3, col4)
+);
+INSERT INTO t VALUES(1, x'4142434445464748494a414243444546', 'WRITEBACK',
+0, TIMESTAMP'2020-01-01 00:00:00.000000', NULL);
+SELECT t.col1, t.col2, t.col3, t.col4, t.col5, t.col6
+FROM t
+WHERE t.col2 IN (x'4142434445464748494a414243444546') AND
+t.col3 IN ('WRITEBACK')
+ORDER BY t.col2 DESC, t.col3 DESC, t.col4 DESC
+LIMIT 1;
+col1	col2	col3	col4	col5	col6
+1	ABCDEFGHIJABCDEF	WRITEBACK	0	2020-01-01 00:00:00.000000	NULL
+explain SELECT t.col1, t.col2, t.col3, t.col4, t.col5, t.col6
+FROM t
+WHERE t.col2 IN (x'4142434445464748494a414243444546') AND
+t.col3 IN ('WRITEBACK')
+ORDER BY t.col2 DESC, t.col3 DESC, t.col4 DESC
+LIMIT 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t	NULL	ref	uc_key	uc_key	782	const,const	1	100.00	Using where; Backward index scan
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`col1` AS `col1`,`test`.`t`.`col2` AS `col2`,`test`.`t`.`col3` AS `col3`,`test`.`t`.`col4` AS `col4`,`test`.`t`.`col5` AS `col5`,`test`.`t`.`col6` AS `col6` from `test`.`t` where ((`test`.`t`.`col2` = 0x4142434445464748494a414243444546) and (`test`.`t`.`col3` = 'WRITEBACK')) order by `test`.`t`.`col2` desc,`test`.`t`.`col3` desc,`test`.`t`.`col4` desc limit 1
+DROP TABLE t;
+Here, latin1 is used because it matches collation of temporal const
+CREATE TABLE t1(vc VARCHAR(20) CHARACTER SET latin1);
+INSERT INTO t1 VALUES('2021-02-08'), ('21-02-08');
+Verify that a string const value removes ORDER BY clause
+SELECT * FROM t1 WHERE vc = '2021-02-08' ORDER BY vc ASC;
+vc
+2021-02-08
+explain SELECT * FROM t1 WHERE vc = '2021-02-08' ORDER BY vc ASC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`vc` AS `vc` from `test`.`t1` where (`test`.`t1`.`vc` = '2021-02-08') order by `test`.`t1`.`vc`
+SELECT * FROM t1 WHERE vc = '2021-02-08' ORDER BY vc DESC;
+vc
+2021-02-08
+explain SELECT * FROM t1 WHERE vc = '2021-02-08' ORDER BY vc DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`vc` AS `vc` from `test`.`t1` where (`test`.`t1`.`vc` = '2021-02-08') order by `test`.`t1`.`vc` desc
+Verify the same with a variable (which is const for execution)
+set @strvar = _latin1'2021-02-08';
+SELECT * FROM t1 WHERE vc = @strvar ORDER BY vc ASC;
+vc
+2021-02-08
+explain SELECT * FROM t1 WHERE vc = @strvar ORDER BY vc ASC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`vc` AS `vc` from `test`.`t1` where (`test`.`t1`.`vc` = <cache>((@`strvar`))) order by `test`.`t1`.`vc`
+SELECT * FROM t1 WHERE vc = @strvar ORDER BY vc DESC;
+vc
+2021-02-08
+explain SELECT * FROM t1 WHERE vc = @strvar ORDER BY vc DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`vc` AS `vc` from `test`.`t1` where (`test`.`t1`.`vc` = <cache>((@`strvar`))) order by `test`.`t1`.`vc` desc
+Verify that a date const value does not remove ORDER BY clause
+SELECT * FROM t1 WHERE vc = DATE'2021-02-08' ORDER BY vc ASC;
+vc
+2021-02-08
+21-02-08
+explain SELECT * FROM t1 WHERE vc = DATE'2021-02-08' ORDER BY vc ASC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`vc` AS `vc` from `test`.`t1` where (`test`.`t1`.`vc` = DATE'2021-02-08') order by `test`.`t1`.`vc`
+SELECT * FROM t1 WHERE vc = DATE'2021-02-08' ORDER BY vc DESC;
+vc
+21-02-08
+2021-02-08
+explain SELECT * FROM t1 WHERE vc = DATE'2021-02-08' ORDER BY vc DESC;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; Using filesort
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`vc` AS `vc` from `test`.`t1` where (`test`.`t1`.`vc` = DATE'2021-02-08') order by `test`.`t1`.`vc` desc
+DROP TABLE t1;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -618,6 +618,7 @@ ErrorBundle ErrorCodes[] = {
   { 796,  DMEC, SE, "Out of schema transaction memory" },
   { 798,  DMEC, AE, "A disk table must not be specified as no logging" },
   { 799,  HA_WRONG_CREATE_OPTION, SE, "Non default partitioning without partitions" },
+  { 4377, DMEC, AE, "Database and schema name must be set on Ndb object"},
 
   /**
    * FunctionNotImplemented

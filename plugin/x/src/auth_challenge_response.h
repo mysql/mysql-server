@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,7 @@ Sasl_challenge_response_auth<Account_type, Auth_verificator_t>::handle_start(
 
   const iface::Account_verification *verificator =
       m_verification_handler->get_account_verificator(Account_type);
-  DBUG_ASSERT(verificator);
+  assert(verificator);
   m_state = S_waiting_response;
   return {Status::k_ongoing, 0, verificator->get_salt()};
 }

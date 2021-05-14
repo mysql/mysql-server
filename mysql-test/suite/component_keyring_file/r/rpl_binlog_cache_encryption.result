@@ -1,0 +1,49 @@
+# ----------------------------------------------------------------------
+# Setup
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+[connection slave]
+[connection master]
+# Part 1 - binlog_encryption = OFF
+CREATE TABLE t1 (c1 INT PRIMARY KEY AUTO_INCREMENT, c2 TEXT);
+# Inserting 50 transactions with save points
+SHOW BINLOG EVENTS shall not fail on the un-encrypted binlog file
+SHOW BINLOG EVENTS IN 'PLAIN_MASTER_FILE';
+# Restarting the server with "--binlog_encryption=ON" and keyring
+include/rpl_restart_server.inc [server_number=1]
+include/assert.inc [binlog_encryption option shall be ON]
+include/assert.inc [Binary log is encrypted using 1st master key]
+# Part 2 - binlog_encryption = ON
+# Inserting 50 transactions with save points
+SHOW BINLOG EVENTS shall not fail on the encrypted binlog file
+SHOW BINLOG EVENTS IN 'ENCRYPTED_MASTER_FILE';
+# Restarting the server without "--binlog_encryption=ON"
+include/rpl_restart_server.inc [server_number=1]
+[connection slave]
+include/start_slave.inc
+[connection master]
+include/sync_slave_sql_with_master.inc
+include/diff_tables.inc [master:t1, slave:t1]
+[connection master]
+DROP TABLE t1;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl_end.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

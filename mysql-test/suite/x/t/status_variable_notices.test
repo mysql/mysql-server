@@ -4,7 +4,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---let $xtest_result= $MYSQL_TMP_DIR/status_variable_notices.tmp
+--let $xtest_result= $MYSQL_TMP_DIR/status_variable_notices.xpl
 --write_file $xtest_result
 -->import assert_variable.macro
 -->quiet
@@ -25,6 +25,4 @@ CREATE TABLE xtest.tab (c INT);
 --exec $MYSQLXTEST --import=$MYSQLXTEST_MACRO_DIR -ux_root --password='' --file=$xtest_result 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_result
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

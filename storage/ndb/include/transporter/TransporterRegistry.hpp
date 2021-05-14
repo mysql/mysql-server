@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -414,7 +414,7 @@ public:
    * correct.
    */
   Uint64 get_total_max_send_buffer() {
-    DBUG_ASSERT(m_total_max_send_buffer > 0);
+    assert(m_total_max_send_buffer > 0);
     return m_total_max_send_buffer;
   } 
 

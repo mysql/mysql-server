@@ -174,5 +174,4 @@ exec $MYSQLXTEST
 
 ## Cleanup
 set @@global.max_connections = default;
---remove_file $MYSQL_TMP_DIR/session_reset_keep_open.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

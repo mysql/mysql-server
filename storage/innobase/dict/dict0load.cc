@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1287,8 +1287,7 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
     if (fsp_is_system_or_temp_tablespace(space_id) ||
         fsp_is_undo_tablespace(space_id) ||
         !fsp_is_shared_tablespace(fsp_flags) ||
-        fil_space_exists_in_mem(space_id, space_name, false, true, nullptr,
-                                0)) {
+        fil_space_exists_in_mem(space_id, space_name, false, true)) {
       continue;
     }
 
@@ -1306,9 +1305,8 @@ space_id_t dict_check_sys_tablespaces(bool validate) {
     }
 
     /* Check that the .ibd file exists. */
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, space_name, filepath, true, true);
+    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
+                               fsp_flags, space_name, filepath, true, true);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_191) << "Ignoring tablespace " << id_name_t(space_name)
@@ -1523,8 +1521,7 @@ space_id_t dict_check_sys_tables(bool validate) {
     whether it is a shared tablespace or a single table
     tablespace, look to see if it is already in the tablespace
     cache. */
-    if (fil_space_exists_in_mem(space_id, space_name, false, true, nullptr,
-                                0)) {
+    if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
       ut_free(table_name.m_name);
       ut_free(space_name_from_dict);
       continue;
@@ -1566,9 +1563,8 @@ space_id_t dict_check_sys_tables(bool validate) {
     }
 
     /* Check that the .ibd file exists. */
-    dberr_t err =
-        fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id, fsp_flags,
-                     space_name, tbl_name, filepath, true, true);
+    dberr_t err = fil_ibd_open(validate, FIL_TYPE_TABLESPACE, space_id,
+                               fsp_flags, space_name, filepath, true, true);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_194) << "Ignoring tablespace " << id_name_t(space_name)
@@ -2259,8 +2255,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   }
 
   /* The tablespace may already be open. */
-  if (fil_space_exists_in_mem(table->space, space_name, false, true, heap,
-                              table->id)) {
+  if (fil_space_exists_in_mem(table->space, space_name, false, true)) {
     ut_free(shared_space_name);
     return;
   }
@@ -2312,7 +2307,7 @@ void dict_load_tablespace(dict_table_t *table, mem_heap_t *heap,
   /* This dict_load_tablespace() is only used on old 5.7 database during
   upgrade */
   dberr_t err = fil_ibd_open(true, FIL_TYPE_TABLESPACE, table->space, fsp_flags,
-                             space_name, tbl_name, filepath, true, true);
+                             space_name, filepath, true, true);
 
   if (err != DB_SUCCESS) {
     /* We failed to find a sensible tablespace file */

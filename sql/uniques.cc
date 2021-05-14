@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2001, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -176,9 +176,9 @@ static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
   org_max_rows = max_rows = param->max_rows;
 
   /* The following will fire if there is not enough space in sort_buffer */
-  DBUG_ASSERT(maxcount != 0);
+  assert(maxcount != 0);
 
-  DBUG_ASSERT(param->unique_buff != nullptr);
+  assert(param->unique_buff != nullptr);
 
   cmp = param->compare;
   first_cmp_arg = &param->cmp_context;
@@ -768,7 +768,7 @@ static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
     top->set_max_keys(max_key_count_per_piece);
     bytes_read = uniq_read_to_buffer(file, top, &uniq_param);
     if (bytes_read == (uint)(-1)) goto end;
-    DBUG_ASSERT(bytes_read);
+    assert(bytes_read);
     queue.push(top);
   }
   top = queue.top();
@@ -890,11 +890,12 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg) {
 */
 
 bool Unique::get(TABLE *table) {
+  THD *thd = current_thd;
   table->unique_result.found_records = elements + tree.elements_in_tree;
 
   if (my_b_tell(&file) == 0) {
     /* Whole tree is in memory;  Don't use disk if you don't need to */
-    DBUG_ASSERT(table->unique_result.sorted_result == nullptr);
+    assert(table->unique_result.sorted_result == nullptr);
     table->unique_result.sorted_result.reset(
         (uchar *)my_malloc(key_memory_Filesort_info_record_pointers,
                            size * tree.elements_in_tree, MYF(0)));
@@ -914,7 +915,7 @@ bool Unique::get(TABLE *table) {
   bool error = true;
 
   /* Open cached file if it isn't open */
-  DBUG_ASSERT(table->unique_result.io_cache == nullptr);
+  assert(table->unique_result.io_cache == nullptr);
   outfile = table->unique_result.io_cache = (IO_CACHE *)my_malloc(
       key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE), MYF(MY_ZEROFILL));
 
@@ -944,15 +945,14 @@ bool Unique::get(TABLE *table) {
   uniq_param.cmp_context.key_compare_arg = tree.custom_arg;
 
   /* Merge the buffers to one file, removing duplicates */
-  if (merge_many_buff(table->in_use, &uniq_param,
-                      Sort_buffer(sort_memory, num_bytes),
+  if (merge_many_buff(thd, &uniq_param, Sort_buffer(sort_memory, num_bytes),
                       Merge_chunk_array(file_ptrs.begin(), file_ptrs.size()),
                       &num_chunks, &file))
     goto err;
   if (flush_io_cache(&file) ||
       reinit_io_cache(&file, READ_CACHE, 0L, false, false))
     goto err;
-  if (merge_buffers(table->in_use, &uniq_param, &file, outfile,
+  if (merge_buffers(thd, &uniq_param, &file, outfile,
                     Sort_buffer(sort_memory, num_bytes), file_ptr,
                     Merge_chunk_array(file_ptr, num_chunks), 0))
     goto err;
@@ -969,6 +969,7 @@ err:
 }
 
 bool Unique_on_insert::unique_add(void *ptr) {
+  THD *thd = current_thd;
   Field *key = *m_table->visible_field_ptr();
   if (key->store((const char *)ptr, m_size, &my_charset_bin) != TYPE_OK)
     return true; /* purecov: inspected */
@@ -977,8 +978,7 @@ bool Unique_on_insert::unique_add(void *ptr) {
   if (res) {
     bool dup = false;
     if (res == HA_ERR_FOUND_DUPP_KEY) return true;
-    if (create_ondisk_from_heap(m_table->in_use, m_table, res, false, &dup) ||
-        dup)
+    if (create_ondisk_from_heap(thd, m_table, res, false, &dup) || dup)
       return true;
   }
   return false;
@@ -1001,6 +1001,6 @@ bool Unique_on_insert::init() {
 
 void Unique_on_insert::cleanup() {
   reset(false);
-  close_tmp_table(m_table->in_use, m_table);
+  close_tmp_table(m_table);
   free_tmp_table(m_table);
 }

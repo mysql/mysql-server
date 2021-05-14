@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,30 +23,13 @@
 */
 
 #include <chrono>
-#include <cstring>
-#include <initializer_list>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <thread>
-#include <typeinfo>
 
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
-#ifndef _WIN32
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/file.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <unistd.h>
-#else
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#endif
 
 #include "config_builder.h"
 #include "mysql/harness/net_ts/impl/resolver.h"
@@ -55,10 +38,23 @@
 #include "mysql_session.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"
-#include "socket_operations.h"
+#include "socket_operations.h"  // socket_t
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
+
+namespace std {
+
+// pretty printer for std::chrono::duration<>
+template <class T, class R>
+std::ostream &operator<<(std::ostream &os,
+                         const std::chrono::duration<T, R> &duration) {
+  return os << std::chrono::duration_cast<std::chrono::milliseconds>(duration)
+                   .count()
+            << "ms";
+}
+
+}  // namespace std
 
 using mysqlrouter::MySQLSession;
 
@@ -117,6 +113,120 @@ TEST_F(RouterRoutingTest, RoutingOk) {
       "MySQL Router configured for the InnoDB Cluster 'mycluster'"));
 }
 
+/**
+ * check connect-timeout is honored.
+ */
+TEST_F(RouterRoutingTest, ConnectTimeout) {
+  const auto router_port = port_pool_.get_next_available();
+
+  const auto router_connect_timeout = 1s;
+  const auto client_connect_timeout = 10s;
+
+  // the test requires a address:port which is not responding to SYN packets:
+  //
+  // - all the TEST-NET-* return "network not reachable" right away.
+  // - RFC2606 defines example.org and its TCP port 81 is currently blocking
+  // packets (which is what this test needs)
+  //
+  // if there is no DNS or no network, the test may fail.
+
+  SCOPED_TRACE("// build router config with connect_timeout=" +
+               std::to_string(router_connect_timeout.count()));
+  const auto routing_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:timeout",
+      {{"bind_port", std::to_string(router_port)},
+       {"mode", "read-write"},
+       {"connect_timeout", std::to_string(router_connect_timeout.count())},
+       {"destinations", "example.org:81"}});
+
+  std::string conf_file =
+      create_config_file(get_test_temp_dir_name(), routing_section);
+
+  // launch the router with simple static routing configuration
+  /*auto &router_static =*/launch_router({"-c", conf_file});
+
+  SCOPED_TRACE("// connect and trigger a timeout in the router");
+  mysqlrouter::MySQLSession sess;
+
+  using clock_type = std::chrono::steady_clock;
+
+  const auto start = clock_type::now();
+  try {
+    sess.connect("127.0.0.1", router_port, "user", "pass", "", "",
+                 client_connect_timeout.count());
+    FAIL() << "expected connect fail.";
+  } catch (const MySQLSession::Error &e) {
+    EXPECT_EQ(e.code(), 2003) << e.what();
+    EXPECT_THAT(
+        e.what(),
+        ::testing::HasSubstr(
+            "Can't connect to remote MySQL server for client connected to"))
+        << e.what();
+  } catch (...) {
+    FAIL() << "expected connect fail with a mysql-error";
+  }
+  const auto end = clock_type::now();
+
+  // check the wait was long enough, but not too long.
+  EXPECT_GE(end - start, router_connect_timeout);
+  EXPECT_LT(end - start, router_connect_timeout + 5s);
+}
+
+/**
+ * check connect-timeout doesn't block shutdown.
+ */
+TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
+  const auto router_port = port_pool_.get_next_available();
+
+  const auto router_connect_timeout = 10s;
+  const auto client_connect_timeout = 1s;
+
+  // the test requires a address:port which is not responding to SYN packets:
+  //
+  // - all the TEST-NET-* return "network not reachable" right away.
+  // - RFC2606 defines example.org and its TCP port 81 is currently blocking
+  // packets (which is what this test needs)
+  //
+  // if there is no DNS or no network, the test may fail.
+
+  SCOPED_TRACE("// build router config with connect_timeout=" +
+               std::to_string(router_connect_timeout.count()));
+  const auto routing_section = mysql_harness::ConfigBuilder::build_section(
+      "routing:timeout",
+      {{"bind_port", std::to_string(router_port)},
+       {"mode", "read-write"},
+       {"connect_timeout", std::to_string(router_connect_timeout.count())},
+       {"destinations", "example.org:81"}});
+
+  TempDirectory conf_dir("conf");
+  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
+
+  // launch the router with simple static routing configuration
+  /*auto &router_static =*/launch_router({"-c", conf_file});
+
+  SCOPED_TRACE("// connect and trigger a timeout in the router");
+  mysqlrouter::MySQLSession sess;
+
+  using clock_type = std::chrono::steady_clock;
+
+  const auto start = clock_type::now();
+  try {
+    sess.connect("127.0.0.1", router_port, "user", "pass", "", "",
+                 client_connect_timeout.count());
+    FAIL() << "expected connect fail.";
+  } catch (const MySQLSession::Error &e) {
+    EXPECT_EQ(e.code(), 2013) << e.what();
+    EXPECT_THAT(e.what(), ::testing::HasSubstr("Lost connection")) << e.what();
+  } catch (...) {
+    FAIL() << "expected connect fail with a mysql-error";
+  }
+  const auto end = clock_type::now();
+
+  // check the wait was long enough, but not too long.
+  EXPECT_GE(end - start, client_connect_timeout);
+  EXPECT_LT(end - start, client_connect_timeout + 5s);
+}
+
 TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
@@ -144,6 +254,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
 
   // launch the router with the created configuration
   launch_router({"-c", conf_file});
+  EXPECT_TRUE(wait_for_port_not_available(router_port));
 
   // try to create 3 connections, the third should fail
   // because of the max_connections limit being exceeded
@@ -155,6 +266,67 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   ASSERT_THROW_LIKE(
       client3.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""),
       std::runtime_error, "Too many connections to MySQL Router (1040)");
+}
+
+/**
+ * @test
+ * This test verifies that:
+ *   1. When the server returns an error when the client expects Greetings
+ *      message this error is correctly forwarded to the clinet
+ *   2. This scenario is not treated as connection error (connection error is
+ *      not incremented)
+ */
+TEST_F(RouterRoutingTest, RoutingTooManyServerConnections) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_port = port_pool_.get_next_available();
+
+  // doesn't really matter which file we use here, we are not going to do any
+  // queries
+  const std::string json_stmts =
+      get_data_dir().join("handshake_too_many_con_error.js").str();
+
+  // launch the server mock
+  launch_mysql_server_mock(json_stmts, server_port, false);
+
+  // create a config with routing that has max_connections == 2
+  const std::string routing_section =
+      "[routing:basic]\n"
+      "bind_port = " +
+      std::to_string(router_port) +
+      "\n"
+      "mode = read-write\n"
+      "destinations = 127.0.0.1:" +
+      std::to_string(server_port) + "\n";
+
+  TempDirectory conf_dir("conf");
+  std::string conf_file = create_config_file(conf_dir.name(), routing_section);
+
+  // launch the router with the created configuration
+  auto &router = launch_router({"-c", conf_file});
+
+  // try to make a connection, the client should get the error from server
+  // forwarded
+  mysqlrouter::MySQLSession client;
+
+  // The client should get the original server error about the connections limit
+  // being reached
+  ASSERT_THROW_LIKE(
+      client.connect("127.0.0.1", router_port, "root", "fake-pass", "", ""),
+      std::runtime_error, "Too many connections");
+
+  // The Router log should contain debug info with the error while waiting
+  // for the Greeting message
+  EXPECT_TRUE(wait_log_contains(
+      router,
+      "DEBUG .* Error from the server while waiting for greetings "
+      "message: 1040, 'Too many connections'",
+      5s));
+
+  // There should be no trace of the connection errors counter incremented as a
+  // result of the result from error
+  const auto log_content = router.get_full_logfile();
+  const std::string pattern = "1 connection errors for 127.0.0.1";
+  ASSERT_FALSE(pattern_found(log_content, pattern)) << log_content;
 }
 
 template <class T>
@@ -173,8 +345,8 @@ template <class T>
 
     return ::testing::AssertionSuccess();
   } catch (...) {
-    // as T may be std::exception we can't use it as default case and need to do
-    // this extra round
+    // as T may be std::exception we can't use it as default case and need to
+    // do this extra round
     try {
       throw;
     } catch (const std::exception &e) {
@@ -193,8 +365,8 @@ template <class T>
                 // on Unix, they're implemented using Unix sockets
 TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
   /**
-   * @test Verify that unix socket has the required file permissions so that it
-   *       can be connected to by all users. According to man 7 unix, only r+w
+   * @test Verify that unix socket has the required file permissions so that
+   * it can be connected to by all users. According to man 7 unix, only r+w
    *       permissions are required, but Server sets x as well, so we do the
    * same.
    */
@@ -214,7 +386,7 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
   TempDirectory conf_dir("conf");
   const std::string conf_file =
       create_config_file(conf_dir.name(), routing_section);
-  launch_router({"-c", conf_file});
+  auto &router = launch_router({"-c", conf_file});
 
   // loop until socket file appears and has correct permissions
   auto wait_for_correct_perms = [&socket_file](int timeout_ms) {
@@ -238,6 +410,10 @@ TEST_F(RouterRoutingTest, named_socket_has_right_permissions) {
   };
 
   EXPECT_THAT(wait_for_correct_perms(5000), testing::Eq(true));
+  EXPECT_TRUE(wait_log_contains(router,
+                                "Start accepting connections for routing "
+                                "routing:basic listening on named socket",
+                                5s));
 }
 #endif
 
@@ -340,10 +516,10 @@ static void make_bad_connection(uint16_t port) {
 
   // MySQL protocol handshake phase
   // To simplify code, instead of alternating between reading and writing
-  // protocol packets, we write a lot of garbage upfront, and then read whatever
-  // Router sends back. Router will read what we wrote in chunks, inbetween its
-  // writes, thinking they're replies to its handshake packets. Eventually it
-  // will finish the handshake with error and disconnect.
+  // protocol packets, we write a lot of garbage upfront, and then read
+  // whatever Router sends back. Router will read what we wrote in chunks,
+  // inbetween its writes, thinking they're replies to its handshake packets.
+  // Eventually it will finish the handshake with error and disconnect.
   std::vector<char> bogus_data(1024, 0);
   const auto write_res =
       net::impl::socket::write(sock, bogus_data.data(), bogus_data.size());
@@ -355,7 +531,7 @@ static void make_bad_connection(uint16_t port) {
 
 /**
  * @test
- * This test Verifies that:
+ * This test verifies that:
  *   1. Router will block a misbehaving client after consecutive
  *      <max_connect_errors> connection errors
  *   2. Router will reset its connection error counter if client establishes a
@@ -391,13 +567,13 @@ TEST_F(RouterRoutingTest, error_counters) {
   SCOPED_TRACE(
       "// make good and bad connections (connect() + 1024 0-bytes) to check "
       "blocked client gets reset");
-  // we loop just for good measure, to additionally test that this behaviour is
-  // repeatable
+  // we loop just for good measure, to additionally test that this behaviour
+  // is repeatable
   for (int i = 0; i < 5; i++) {
-    // good connection, followed by 2 bad ones. Good one should reset the error
-    // counter
-    mysqlrouter::MySQLSession client;
+    // good connection, followed by 2 bad ones. Good one should reset the
+    // error counter
     try {
+      mysqlrouter::MySQLSession client;
       client.connect("127.0.0.1", router_port, "root", "fake-pass", "", "");
     } catch (const std::exception &e) {
       FAIL() << e.what();
@@ -411,8 +587,8 @@ TEST_F(RouterRoutingTest, error_counters) {
   // blocking us
   make_bad_connection(router_port);
 
-  // we loop just for good measure, to additionally test that this behaviour is
-  // repeatable
+  // we loop just for good measure, to additionally test that this behaviour
+  // is repeatable
   for (int i = 0; i < 5; i++) {
     // now trying to make a good connection should fail due to blockage
     mysqlrouter::MySQLSession client;
@@ -616,6 +792,20 @@ const RoutingConfigParam routing_config_param[] = {
                        "option thread_stack_size in [routing] needs "
                        "value between 1 and 65535 inclusive, was 'dfs4'")));
      }},
+    {"thread_stack_size_hex",
+     {
+         {"destinations", "127.0.0.1:3306"},
+         {"bind_address", "127.0.0.1"},
+         {"bind_port", "6000"},
+         {"routing_strategy", "first-available"},
+         {"thread_stack_size", "0xff"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "option thread_stack_size in [routing] needs "
+                       "value between 1 and 65535 inclusive, was '0xff'")));
+     }},
     {"invalid_destination_host_start",
      {
          {"bind_address", "127.0.0.1"},
@@ -737,6 +927,93 @@ const RoutingConfigParam routing_config_param[] = {
                    ::testing::Contains(::testing::HasSubstr(
                        "option bind_port in [routing] needs value "
                        "between 1 and 65535 inclusive, was '{mysqld@1}'")));
+     }},
+    {"destinations_trailing_comma",
+     {
+         {"destinations", "localhost:13005,localhost:13003,localhost:13004,"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "empty address found in destination list (was "
+                       "'localhost:13005,localhost:13003,localhost:13004,')")));
+     }},
+    {"destinations_trailing_comma_and_spaces",
+     {
+         {"destinations",
+          "localhost:13005,localhost:13003,localhost:13004, , ,"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(
+           lines,
+           ::testing::Contains(::testing::HasSubstr(
+               "empty address found in destination list (was "
+               "'localhost:13005,localhost:13003,localhost:13004, , ,')")));
+     }},
+    {"destinations_empty_and_spaces",
+     {
+         {"destinations", "localhost:13005, ,,localhost:13003,localhost:13004"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(
+           lines,
+           ::testing::Contains(::testing::HasSubstr(
+               "empty address found in destination list (was "
+               "'localhost:13005, ,,localhost:13003,localhost:13004')")));
+     }},
+    {"destinations_leading_comma",
+     {
+         {"destinations", ",localhost:13005,localhost:13003,localhost:13004"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "empty address found in destination list (was "
+                       "',localhost:13005,localhost:13003,localhost:13004')")));
+     }},
+    {"destinations_only_commas",
+     {
+         {"destinations", ",, ,"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                              "empty address found in destination list (was "
+                              "',, ,')")));
+     }},
+    {"destinations_leading_trailing_comma",
+     {
+         {"destinations",
+          ",localhost:13005, ,,localhost:13003,localhost:13004, ,"},
+
+         {"bind_address", "127.0.0.1"},
+         {"routing_strategy", "first-available"},
+
+     },
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(
+           lines,
+           ::testing::Contains(::testing::HasSubstr(
+               "empty address found in destination list (was "
+               "',localhost:13005, ,,localhost:13003,localhost:13004, ,')")));
      }},
 };
 

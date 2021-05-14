@@ -66,7 +66,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/resultset.tmp
+--write_file $MYSQL_TMP_DIR/resultset.xpl
 -->import assert_status_variable.macro
 
 -->echo
@@ -135,7 +135,7 @@ exec $MYSQLXTEST
   --compression-combine-mixed-messages=0
   --compression-max-combine-messages=1
   -v%COMP_COUNT%=59
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -151,7 +151,7 @@ exec $MYSQLXTEST
   -v%COMP_COUNT%=59
   -v%MULTIPLE_COUNT%=0
   -v%GROUP_COUNT%=0
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -165,7 +165,7 @@ exec $MYSQLXTEST
   --compression-combine-mixed-messages=0
   --compression-max-combine-messages=0
   -v%COMP_COUNT%=39
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -179,7 +179,7 @@ exec $MYSQLXTEST
   --compression-combine-mixed-messages=0
   --compression-max-combine-messages=0
   -v%COMP_COUNT%=39
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -193,7 +193,7 @@ exec $MYSQLXTEST
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=0
   -v%COMP_COUNT%=7
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -207,7 +207,7 @@ exec $MYSQLXTEST
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=0
   -v%COMP_COUNT%=7
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 --echo
 --echo ## G. Execute the test using zstd/single
@@ -223,7 +223,7 @@ exec $MYSQLXTEST
   -v%COMP_COUNT%=59
   -v%MULTIPLE_COUNT%=0
   -v%GROUP_COUNT%=0
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 --echo
 --echo ## H. Execute the test using zstd/multiple
@@ -237,7 +237,7 @@ exec $MYSQLXTEST
   --compression-combine-mixed-messages=0
   --compression-max-combine-messages=0
   -v%COMP_COUNT%=39
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 --echo
 --echo ## I. Execute the test using zstd/group
@@ -251,9 +251,7 @@ exec $MYSQLXTEST
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=0
   -v%COMP_COUNT%=7
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 ## Cleanup
-DROP SCHEMA xtest;
---remove_file $MYSQL_TMP_DIR/resultset.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

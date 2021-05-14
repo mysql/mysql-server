@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -202,7 +202,7 @@ extern bool opt_require_secure_transport;
 
 extern bool opt_slave_preserve_commit_order;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 extern uint slave_rows_last_search_algorithm_used;
 #endif
 extern ulong mts_parallel_option;
@@ -428,14 +428,10 @@ extern PSI_mutex_key key_LOCK_thd_query;
 extern PSI_mutex_key key_LOCK_cost_const;
 extern PSI_mutex_key key_LOCK_current_cond;
 extern PSI_mutex_key key_RELAYLOG_LOCK_commit;
-extern PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
-extern PSI_mutex_key key_RELAYLOG_LOCK_done;
-extern PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log_end_pos;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync;
-extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
@@ -473,9 +469,7 @@ extern PSI_cond_key key_relay_log_info_sleep_cond;
 extern PSI_cond_key key_cond_slave_parallel_pend_jobs;
 extern PSI_cond_key key_cond_slave_parallel_worker;
 extern PSI_cond_key key_cond_mts_gaq;
-extern PSI_cond_key key_RELAYLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_update_cond;
-extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_thr_lock;
 extern PSI_cond_key key_cond_slave_worker_hash;
@@ -793,4 +787,7 @@ extern SERVICE_TYPE_NO_CONST(registry) * srv_registry;
    mysql_server component */
 extern SERVICE_TYPE(dynamic_loader_scheme_file) * scheme_file_srv;
 extern SERVICE_TYPE(dynamic_loader) * dynamic_loader_srv;
+
+class Deployed_components;
+extern Deployed_components *g_deployed_components;
 #endif /* MYSQLD_INCLUDED */

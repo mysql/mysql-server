@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -46,6 +46,10 @@ IF(EXISTS "/etc/fedora-release")
       FEDORA_RELEASE MATCHES "28")
     SET(LINUX_FEDORA_28 1)
   ENDIF()
+  IF(FEDORA_RELEASE MATCHES "Fedora" AND
+      FEDORA_RELEASE MATCHES "34")
+    SET(LINUX_FEDORA_34 1)
+  ENDIF()
 ENDIF()
 
 IF(EXISTS "/etc/os-release")
@@ -58,14 +62,6 @@ IF(EXISTS "/etc/os-release")
     SET(LINUX_DEBIAN 1)
   ELSEIF(MY_OS_RELEASE MATCHES "Ubuntu")
     SET(LINUX_UBUNTU 1)
-  ENDIF()
-ENDIF()
-
-IF(MY_HOST_SYSTEM_VERSION AND MY_HOST_FILESYSTEM_NAME)
-  IF( MY_HOST_SYSTEM_VERSION MATCHES "\\.el6(uek)?\\."
-      OR
-      MY_HOST_FILESYSTEM_NAME MATCHES "\\.el6\\.")
-    SET(LINUX_RHEL6 1)
   ENDIF()
 ENDIF()
 

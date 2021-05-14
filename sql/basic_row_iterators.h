@@ -1,7 +1,7 @@
 #ifndef SQL_BASIC_ROW_ITERATORS_H_
 #define SQL_BASIC_ROW_ITERATORS_H_
 
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -323,7 +323,7 @@ class FakeSingleRowIterator final : public RowIterator {
   }
 
   void SetNullRowFlag(bool is_null_row MY_ATTRIBUTE((unused))) override {
-    DBUG_ASSERT(!is_null_row);
+    assert(!is_null_row);
   }
 
   void UnlockRow() override {}
@@ -352,7 +352,7 @@ class UnqualifiedCountIterator final : public RowIterator {
 
   int Read() override;
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool) override { assert(false); }
 
   void UnlockRow() override {}
 
@@ -383,7 +383,7 @@ class ZeroRowsIterator final : public RowIterator {
   int Read() override { return -1; }
 
   void SetNullRowFlag(bool is_null_row) override {
-    DBUG_ASSERT(m_child_iterator != nullptr);
+    assert(m_child_iterator != nullptr);
     m_child_iterator->SetNullRowFlag(is_null_row);
   }
 
@@ -393,7 +393,7 @@ class ZeroRowsIterator final : public RowIterator {
   unique_ptr_destroy_only<RowIterator> m_child_iterator;
 };
 
-class SELECT_LEX;
+class Query_block;
 
 /**
   Like ZeroRowsIterator, but produces a single output row, since there are
@@ -416,7 +416,7 @@ class ZeroRowsAggregatedIterator final : public RowIterator {
 
   int Read() override;
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool) override { assert(false); }
 
   void UnlockRow() override {}
 
@@ -481,6 +481,7 @@ class FollowTailIterator final : public TableRowIterator {
   bool RepositionCursorAfterSpillToDisk();
 
  private:
+  bool m_inited = false;
   uchar *const m_record;
   const double m_expected_rows;
   ha_rows *const m_examined_rows;
@@ -499,7 +500,7 @@ class FollowTailIterator final : public TableRowIterator {
 
   The iterator is passed the field list of its parent JOIN object, which may
   contain Item_values_column objects that are created during
-  SELECT_LEX::prepare_values(). This is required so that Read() can replace the
+  Query_block::prepare_values(). This is required so that Read() can replace the
   currently selected row by simply changing the references of Item_values_column
   objects to the next row.
 
@@ -519,7 +520,7 @@ class TableValueConstructorIterator final : public RowIterator {
   bool Init() override;
   int Read() override;
 
-  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
+  void SetNullRowFlag(bool) override { assert(false); }
 
   void UnlockRow() override {}
 

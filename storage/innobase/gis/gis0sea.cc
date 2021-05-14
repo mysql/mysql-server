@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1118,7 +1118,7 @@ void rtr_check_discard_page(dict_index_t *index, btr_cur_t *cursor,
 
   mutex_exit(&index->rtr_track->rtr_active_mutex);
 
-  locksys::Shard_latch_guard guard{block->get_page_id()};
+  locksys::Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_hash);
   lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
 }

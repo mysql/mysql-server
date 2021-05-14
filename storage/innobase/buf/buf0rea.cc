@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -320,68 +320,6 @@ bool buf_read_page_background(const page_id_t &page_id,
   return (count > 0);
 }
 
-size_t buf_phy_read_ahead(const page_id_t &page_id,
-                          const page_size_t &page_size, size_t n_pages) {
-  buf_pool_t *buf_pool = buf_pool_get(page_id);
-
-  if (srv_startup_is_before_trx_rollback_phase) {
-    /* No read-ahead to avoid thread deadlocks */
-    return (0);
-  }
-
-  auto low = page_id.page_no();
-  auto high = low + n_pages;
-
-  /* Remember the tablespace version before we ask the tablespace size
-  below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
-  do not try to read outside the bounds of the tablespace! */
-  page_no_t space_size{};
-
-  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
-    space_size = space->size;
-
-    fil_space_release(space);
-
-    if (high > space_size) {
-      /* The area is not whole */
-      return (0);
-    }
-  } else {
-    return (0);
-  }
-
-  size_t count{};
-
-  /* Since Windows XP seems to schedule the i/o handler thread
-  very eagerly, and consequently it does not wait for the
-  full read batch to be posted, we use special heuristics here */
-
-  os_aio_simulated_put_read_threads_to_sleep();
-
-  for (page_no_t i = low; i < high; ++i) {
-    dberr_t err;
-    const page_id_t cur_page_id(page_id.space(), i);
-
-    count +=
-        buf_read_page_low(&err, false, IORequest::DO_NOT_WAKE,
-                          BUF_READ_ANY_PAGE, cur_page_id, page_size, false);
-
-    ut_a(err != DB_TABLESPACE_DELETED);
-  }
-
-  /* In simulated AIO we wake the AIO handler threads only after
-  queuing all AIO requests. */
-
-  os_aio_simulated_wake_handler_threads();
-
-  /* Read ahead is considered one I/O operation for the purpose of
-  LRU policy decision. */
-  buf_LRU_stat_inc_io();
-
-  buf_pool->stat.n_ra_pages_read += count;
-  return (count);
-}
-
 ulint buf_read_ahead_linear(const page_id_t &page_id,
                             const page_size_t &page_size, bool inside_ibuf) {
   buf_pool_t *buf_pool = buf_pool_get(page_id);
@@ -656,7 +594,7 @@ void buf_read_ibuf_merge_pages(bool sync, const space_id_t *space_ids,
     os_rmb;
     while (buf_pool->n_pend_reads >
            buf_pool->curr_size / BUF_READ_AHEAD_PEND_LIMIT) {
-      os_thread_sleep(500000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
     }
 
     dberr_t err;
@@ -730,7 +668,7 @@ void buf_read_recv_pages(bool sync, space_id_t space_id,
 
     while (buf_pool->n_pend_reads >= recv_n_pool_free_frames / 2) {
       os_aio_simulated_wake_handler_threads();
-      os_thread_sleep(10000);
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
 
       count++;
 

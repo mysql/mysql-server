@@ -7,7 +7,7 @@
 
 # Tests
 
---write_file $MYSQL_TMP_DIR/performance_schema_memory.tmp
+--write_file $MYSQL_TMP_DIR/performance_schema_memory.xpl
 -->quiet
 
 -->echo See for existence of required events in the tables
@@ -106,8 +106,7 @@ SELECT IF(@MY_CURRENT_NUMBER_OF_BYTES_USED1 >= @MY_LOW_NUMBER_OF_BYTES_USED1, "S
 EOF
 
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/performance_schema_memory.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/performance_schema_memory.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/performance_schema_memory.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

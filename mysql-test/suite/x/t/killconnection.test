@@ -10,20 +10,20 @@ call mtr.add_suppression("Plugin mysqlx reported: '5.1: Unhandled message of typ
 
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/mysqlx-connection.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection.xpl
 -->sql
 create user killsession@localhost identified by 'killsession';
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->endsql
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.xpl
 -->sql
 select user(),current_user(),@@bind_address;
 -->endsql
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection.processlist.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection.processlist.xpl
 -->fatalerrors
 -->sql
 set @current := connection_id();
@@ -36,7 +36,7 @@ kill @current;
 -->endsql
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_killiunprivileged.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_killiunprivileged.xpl
 -->sql
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->endsql
@@ -47,7 +47,7 @@ select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 -->endsql
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_killmysqlxsession.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_killmysqlxsession.xpl
 -->fatalerrors
 -->sql
 set @current := connection_id();
@@ -59,7 +59,7 @@ kill @current;
 -->endsql
 EOF
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection_killinvalid.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection_killinvalid.xpl
 -->fatalerrors
 -->sql
 select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
@@ -72,13 +72,13 @@ EOF
 
 
 --replace_regex /localhost:[0-9]*/localhost/ /Execute/Query/
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.xpl 2>&1
 
 ###try killing with unprivileged user both mysqlx and mysql session ids using mysqlx protocol
 ###processlist should show the current session info even privileges are minimal
 let $MYSQLTEST_CONNID_1=`select connection_id()`;
 --replace_regex /localhost:[0-9]*/localhost/ /kill [0-9]+/kill $CONNECTION_ID/ /thread [0-9]+/thread $CONNECTION_ID/
---exec $MYSQLXTEST -u killsession --password='killsession' --file=$MYSQL_TMP_DIR/mysqlx-connection_killiunprivileged.tmp -v%MYSQLTEST_CONNECTION_ID%=$MYSQLTEST_CONNID_1 2>&1
+--exec $MYSQLXTEST -u killsession --password='killsession' --file=$MYSQL_TMP_DIR/mysqlx-connection_killiunprivileged.xpl -v%MYSQLTEST_CONNECTION_ID%=$MYSQLTEST_CONNID_1 2>&1
 
 --connection default
 let $wait_for_status_variable =
@@ -89,7 +89,7 @@ source ../include/wait_for_status_variables.inc;
 ###try killing sessionid which doesn't exists when mysqlxplugin installed using mysqlx protocol
 ###show processlist returns 0 rows effected even more rows are returned Bug#21392187
 --replace_regex /localhost:[0-9]*/localhost/ /Execute/Query/
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_killinvalid.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_killinvalid.xpl 2>&1
 
 --connection default
 let $wait_for_status_variable =
@@ -101,7 +101,7 @@ source ../include/wait_for_status_variables.inc;
 let $MYSQLTEST_CONNID_2=`select connection_id()`;
 ###try killing both mysqlx and mysql session ids using mysqlx protocol (expect error from getting killed)
 --replace_regex /localhost:[0-9]*/localhost/ /kill [0-9]+/kill CONNECTION_ID/ /Execute/Query/
---exec $MYSQLXTEST --expect-error CR_SERVER_GONE_ERROR -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.processlist.tmp -v%MYSQLTEST_CONNECTION_ID%=$MYSQLTEST_CONNID_2 2>&1
+--exec $MYSQLXTEST --expect-error CR_SERVER_GONE_ERROR -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection.processlist.xpl -v%MYSQLTEST_CONNECTION_ID%=$MYSQLTEST_CONNID_2 2>&1
 
 --connection default
 let $wait_for_status_variable =
@@ -114,7 +114,7 @@ select USER,COMMAND,STATE from information_schema.processlist order by ID desc;
 
 ###kill mysqlx protocol session using mysqlx protocol when mysqlxplugin installed (expect error again)
 --replace_regex /localhost:[0-9]*/localhost/ /Execute/Query/
---exec $MYSQLXTEST --expect-error CR_SERVER_GONE_ERROR -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_killmysqlxsession.tmp 2>&1
+--exec $MYSQLXTEST --expect-error CR_SERVER_GONE_ERROR -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection_killmysqlxsession.xpl 2>&1
 
 --connection default
 let $wait_for_status_variable =
@@ -129,10 +129,4 @@ show status like 'Mysqlx_sessions%';
 
 ## Cleanup
 drop user killsession@localhost;
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_current_user.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_killinvalid.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_killmysqlxsession.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection.processlist.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-connection_killiunprivileged.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

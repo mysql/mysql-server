@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -29,9 +29,11 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* The InnoDB handler: the interface between MySQL and InnoDB. */
 
+#include <assert.h>
 #include <sys/types.h>
 #include "handler.h"
-#include "my_dbug.h"
+#include "mysql/components/services/clone_protocol_service.h"
+
 #include "row0pread-adapter.h"
 #include "row0pread-histogram.h"
 #include "trx0trx.h"
@@ -39,6 +41,9 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
 extern const char innobase_index_reserve_name[];
+
+/** Clone protocol service. */
+extern SERVICE_TYPE(clone_protocol) * clone_protocol_svc;
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
@@ -94,7 +99,7 @@ class ha_innobase : public handler {
     /* This method is never used for FULLTEXT or SPATIAL keys.
     We rely on handler::ha_table_flags() to check if such keys
     are supported. */
-    DBUG_ASSERT(key_alg != HA_KEY_ALG_FULLTEXT && key_alg != HA_KEY_ALG_RTREE);
+    assert(key_alg != HA_KEY_ALG_FULLTEXT && key_alg != HA_KEY_ALG_RTREE);
     return key_alg == HA_KEY_ALG_BTREE;
   }
 
@@ -794,7 +799,7 @@ int validate_autoextend_size_value(uint64_t ext_size) {
 
   /* Validate following for the AUTOEXTEND_SIZE attribute
   1. The autoextend_size should be a multiple of size of 4 extents
-  2. The autoextend_size value should be between size of 4 extents and 64M */
+  2. The autoextend_size value should be between size of 4 extents and 4G */
   if (ext_size < (FSP_FREE_ADD * extent_size_pages * srv_page_size) ||
       ext_size > FSP_MAX_AUTOEXTEND_SIZE) {
     my_error(ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE, MYF(0),

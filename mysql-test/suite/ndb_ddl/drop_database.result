@@ -1,0 +1,9 @@
+# Test drop of database containing two NDB tables
+CREATE DATABASE testdb;
+CREATE TABLE testdb.t1 (a int PRIMARY KEY) ENGINE = NDB;
+CREATE TABLE testdb.t2 (a int PRIMARY KEY) ENGINE = NDB;
+DROP DATABASE testdb;
+# Test drop of database containing several NDB tables
+CREATE DATABASE testdb;
+# Creating tables
+DROP DATABASE testdb;

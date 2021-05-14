@@ -549,5 +549,11 @@ NULL	NULL
 # Bug #32092739: MYSQL HELP OUTPUT INCORRECT FOR QUERY_ATTRIBUTES
 #
 include/assert_grep.inc [look for query_attributes in help]
+#
+# Bug #30787660: CONTRIBUTION: INCLUDE PORT NUMBER IN CLIENT ERROR
+#   MESSAGE
+#
+# Success criteria: port number present in the error text
+ERROR 2003 (HY000): Can't connect to MySQL server on '127.0.0.1:99999' (XXX)
 
 End of tests

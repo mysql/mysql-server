@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,7 @@
 #include "sql/sql_tmp_table.h"  // create_tmp_table_from_fields
 #include "template_utils.h"     // delete_container_pointers
 
-class SELECT_LEX_UNIT;
+class Query_expression;
 
 extern "C" void sql_alloc_error_handler(void);
 
@@ -71,7 +71,7 @@ sp_rcontext::~sp_rcontext() {
 
   delete_container_pointers(m_activated_handlers);
   delete_container_pointers(m_visible_handlers);
-  DBUG_ASSERT(m_ccount == 0);
+  assert(m_ccount == 0);
 
   // Leave m_var_items and m_case_expr_holders untouched.
   // They are allocated in mem roots and will be freed accordingly.
@@ -117,7 +117,7 @@ bool sp_rcontext::init_var_table(THD *thd) {
 
   m_root_parsing_ctx->retrieve_field_definitions(&field_def_lst);
 
-  DBUG_ASSERT(field_def_lst.elements == m_root_parsing_ctx->max_var_index());
+  assert(field_def_lst.elements == m_root_parsing_ctx->max_var_index());
 
   if (!(m_var_table = create_tmp_table_from_fields(thd, field_def_lst)))
     return true;
@@ -145,7 +145,7 @@ bool sp_rcontext::init_var_items(THD *thd) {
 }
 
 bool sp_rcontext::set_return_value(THD *thd, Item **return_value_item) {
-  DBUG_ASSERT(m_return_value_fld);
+  assert(m_return_value_fld);
 
   m_return_value_set = true;
 
@@ -172,7 +172,7 @@ bool sp_rcontext::push_cursor(sp_instr_cpush *i) {
 }
 
 void sp_rcontext::pop_cursors(uint count) {
-  DBUG_ASSERT(m_ccount >= count);
+  assert(m_ccount >= count);
 
   while (count--) {
     m_ccount--;
@@ -216,7 +216,7 @@ void sp_rcontext::pop_handler_frame(THD *thd) {
   m_activated_handlers.pop_back();
 
   // Also pop matching DA and copy new conditions.
-  DBUG_ASSERT(thd->get_stmt_da() == &frame->handler_da);
+  assert(thd->get_stmt_da() == &frame->handler_da);
   thd->pop_diagnostics_area();
   // Out with the old, in with the new!
   thd->get_stmt_da()->reset_condition_info(thd);
@@ -333,7 +333,7 @@ bool sp_rcontext::handle_sql_condition(THD *thd, uint *ip,
   //  - there is a pending SQL-condition (error or warning);
   //  - there is an SQL-handler for it.
 
-  DBUG_ASSERT(found_condition);
+  assert(found_condition);
 
   sp_handler_entry *handler_entry = nullptr;
   for (size_t i = 0; i < m_visible_handlers.size(); ++i) {
@@ -479,7 +479,7 @@ bool sp_cursor::close() {
   return false;
 }
 
-void sp_cursor::destroy() { DBUG_ASSERT(m_server_side_cursor == nullptr); }
+void sp_cursor::destroy() { assert(m_server_side_cursor == nullptr); }
 
 bool sp_cursor::fetch(List<sp_variable> *vars) {
   if (m_server_side_cursor == nullptr) {
@@ -521,7 +521,7 @@ bool sp_cursor::fetch(List<sp_variable> *vars) {
 ///////////////////////////////////////////////////////////////////////////
 
 bool sp_cursor::Query_fetch_into_spvars::prepare(
-    THD *thd, const mem_root_deque<Item *> &fields, SELECT_LEX_UNIT *u) {
+    THD *thd, const mem_root_deque<Item *> &fields, Query_expression *u) {
   /*
     Cache the number of columns in the result set in order to easily
     return an error if column count does not match value count.
@@ -536,8 +536,8 @@ bool sp_cursor::Query_fetch_into_spvars::send_data(
   auto item_iter = VisibleFields(items).begin();
   sp_variable *spvar;
 
-  DBUG_ASSERT(items.size() == CountVisibleFields(items));
-  DBUG_ASSERT(spvar_list->size() == items.size());
+  assert(items.size() == CountVisibleFields(items));
+  assert(spvar_list->size() == items.size());
 
   /*
     Assign the row fetched from a server side cursor to stored

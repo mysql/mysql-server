@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020 Oracle and/or its affiliates.
+Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -275,7 +275,6 @@ struct Tester {
 
   /** Set the dblwr::Force_crash to the desired page.  This will
   crash the server after flushing the page to dblwr.
-  @param[in]   tokens   the given command line
   @return RET_PASS on success, or the error code. */
   DISPATCH_FUNCTION(dblwr_force_crash);
 

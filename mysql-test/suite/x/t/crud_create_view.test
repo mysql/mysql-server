@@ -6,7 +6,7 @@
 
 ## Test data
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/create_view.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/create_view.xpl
 --write_file $xtest_file
 -->quiet
 
@@ -235,7 +235,6 @@ CREATE USER xuser;
 --source include/assert.inc
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
+--source ../include/xplugin_cleanup.inc
+# `xuser` is definer of the view dropped in xplugin_cleanup.inc (xtest schema is dropped).
 DROP USER xuser;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc

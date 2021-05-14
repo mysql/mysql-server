@@ -1,8 +1,3 @@
-# Performance schema tests generally depend on specific query plans
-# and behavior, and much of the perfschema suite is therefore disabled
-# if the hypergraph optimizer is active.
---source include/not_hypergraph.inc
-
 # Tests for PERFORMANCE_SCHEMA
 
 --source ../include/start_server_common.inc
@@ -41,12 +36,10 @@ select COUNT_STAR from performance_schema.table_io_waits_summary_by_index_usage
 FLUSH TABLES;
 
 # Stats are now missing
---skip_if_hypergraph  # Assumes we are using the index.
 select COUNT_STAR from performance_schema.table_io_waits_summary_by_table
        where OBJECT_SCHEMA='db1' and OBJECT_NAME='t1';
 
 # Stats are now missing
---skip_if_hypergraph  # Assumes we are using the index.
 select COUNT_STAR from performance_schema.table_io_waits_summary_by_index_usage
        where INDEX_NAME!='NULL';
 

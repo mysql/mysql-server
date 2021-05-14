@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,11 @@
 #ifndef UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SRV_SESSION_SERVICES_H_
 #define UNITTEST_GUNIT_XPLUGIN_XPL_MOCK_SRV_SESSION_SERVICES_H_
 
+#include <assert.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_dbug.h"          // NOLINT(build/include_subdir)
+// NOLINT(build/include_subdir)
 #include "my_thread_local.h"  // NOLINT(build/include_subdir)
 #include "mysql/service_srv_session_bits.h"
 
@@ -45,11 +46,8 @@ namespace mock {
 
 class Srv_session {
  public:
-  Srv_session() {
-    DBUG_ASSERT(nullptr == m_srv_session);
-    m_srv_session = this;
-  }
-  ~Srv_session() { m_srv_session = nullptr; }
+  Srv_session();
+  ~Srv_session();
 
   MOCK_METHOD(int, init_session_thread, (const void *plugin));
   MOCK_METHOD(void, deinit_session_thread, ());
@@ -66,11 +64,8 @@ class Srv_session {
 
 class Srv_session_info {
  public:
-  Srv_session_info() {
-    DBUG_ASSERT(nullptr == m_srv_session_info);
-    m_srv_session_info = this;
-  }
-  ~Srv_session_info() { m_srv_session_info = nullptr; }
+  Srv_session_info();
+  ~Srv_session_info();
 
   MOCK_METHOD(my_thread_id, get_session_id, (MYSQL_SESSION session));
 

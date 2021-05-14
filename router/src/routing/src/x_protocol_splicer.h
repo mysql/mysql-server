@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -46,12 +46,9 @@ class XProtocolSplicer : public BasicSplicer {
         client_xprotocol_{std::make_unique<XProtocolState>()},
         server_xprotocol_{std::make_unique<XProtocolState>()} {}
 
-  bool start() override {
+  void start() override {
     state(State::SPLICE_INIT);
     client_channel()->want_recv(4);
-
-    // read packets from client first.
-    return true;
   }
 
   State server_greeting() override { return State::ERROR; }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -774,9 +774,6 @@ byte *fsp_parse_init_file_page(
     byte *end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
     buf_block_t *block)                   /*!< in: block or NULL */
 {
-  ut_ad(ptr != nullptr);
-  ut_ad(end_ptr != nullptr);
-
   if (block) {
     fsp_init_file_page_low(block);
   }
@@ -1252,6 +1249,26 @@ MY_ATTRIBUTE((warn_unused_result)) bool fsp_try_extend_data_file_with_pages(
   return success;
 }
 
+/* Adjust the amount to extend an undo tablespace. */
+static UNIV_COLD void adjust_undo_extend(fil_space_t *space) {
+  ut_ad(space->m_undo_extend != 0);
+  ut_ad(fsp_is_undo_tablespace(space->id));
+
+  if (space->m_last_extended.elapsed() < 100) {
+    /* Aggressive Growth: increase the extend amount. */
+    if (space->m_undo_extend < (16 * UNDO_INITIAL_SIZE_IN_PAGES)) {
+      space->m_undo_extend *= 2;
+    }
+  } else if (space->m_undo_extend > UNDO_INITIAL_SIZE_IN_PAGES) {
+    /* No longer Aggressive Growth: decrease the extend amount. */
+    os_offset_t smaller = space->m_undo_extend /= 2;
+    smaller = std::max(smaller, UNDO_INITIAL_SIZE_IN_PAGES);
+    space->m_undo_extend = smaller;
+  }
+
+  space->m_last_extended.reset();
+}
+
 /** Try to extend the last data file of a tablespace if it is auto-extending.
 @param[in,out]	space	Tablespace
 @param[in,out]	header	Tablespace header
@@ -1340,18 +1357,8 @@ static UNIV_COLD ulint fsp_try_extend_data_file(fil_space_t *space,
     }
 
     /* There is an additional algorithm for extending an undo tablespace. */
-    if (fsp_is_undo_tablespace(space->id)) {
-      if (space->m_last_extended.elapsed() < 100) {
-        /* Aggressive Growth: increase the extend amount. */
-        if (space->m_undo_extend < (16 * INITIAL_UNDO_SPACE_SIZE_IN_PAGES)) {
-          space->m_undo_extend *= 2;
-        }
-      } else if (space->m_undo_extend > INITIAL_UNDO_SPACE_SIZE_IN_PAGES) {
-        /* No longer Aggressive Growth: decrease the extend amount. */
-        space->m_undo_extend /= 2;
-      }
-
-      space->m_last_extended.reset();
+    if (space->m_undo_extend != 0) {
+      adjust_undo_extend(space);
 
       /* Use whichever increases the file size the most. */
       size_increase = std::max(size_increase, space->m_undo_extend);
@@ -2327,9 +2334,13 @@ buf_block_t *fseg_create_general(
     }
   }
 
-  if (!has_done_reservation &&
-      !fsp_reserve_free_extents(&n_reserved, space_id, 2, FSP_NORMAL, mtr)) {
-    return nullptr;
+  if (!has_done_reservation) {
+    fsp_reserve_t alloc_type =
+        (fsp_is_undo_tablespace(space_id) ? FSP_UNDO : FSP_NORMAL);
+
+    if (!fsp_reserve_free_extents(&n_reserved, space_id, 2, alloc_type, mtr)) {
+      return nullptr;
+    }
   }
 
   space_header = fsp_get_space_header(space_id, page_size, mtr);
@@ -4332,12 +4343,6 @@ static inline dberr_t init_before_processing(fil_space_t *space,
                      : init_before_decrypt_processing(space, space_id));
 }
 
-/** Encrypt/Unencrypt a tablespace.
-@param[in]	thd		current thread
-@param[in]	space_id	Tablespace id
-@param[in]	to_encrypt	true if to encrypt, false if to decrypt
-@param[in,out]	dd_space_in	dd tablespace object
-@return 0 for success, otherwise error code */
 dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
                                      bool to_encrypt, void *dd_space_in) {
   dberr_t err = DB_SUCCESS;

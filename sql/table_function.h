@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,10 @@
 #ifndef TABLE_FUNCTION_INCLUDED
 #define TABLE_FUNCTION_INCLUDED
 
+#include <assert.h>
 #include <sys/types.h>
 #include <array>  // std::array
 
-#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/create_field.h"
@@ -51,21 +51,19 @@ class THD;
 
 class Table_function {
  protected:
-  /// Thread handler
-  THD *thd;
   /// Table function's result table
   TABLE *table;
   /// Whether the table funciton was already initialized
   bool inited;
 
  public:
-  explicit Table_function(THD *thd_arg)
-      : thd(thd_arg), table(nullptr), inited(false) {}
+  explicit Table_function() : table(nullptr), inited(false) {}
 
   virtual ~Table_function() {}
   /**
     Create, but not instantiate the result table
 
+    @param thd         thread handler
     @param options     options to create table
     @param table_alias table's alias
 
@@ -73,7 +71,8 @@ class Table_function {
       true  on error
       false on success
   */
-  bool create_result_table(ulonglong options, const char *table_alias);
+  bool create_result_table(THD *thd, ulonglong options,
+                           const char *table_alias);
   /**
     Write current record to the result table and handle overflow to disk
 
@@ -92,7 +91,7 @@ class Table_function {
       field with given index
   */
   Field *get_field(uint i) {
-    DBUG_ASSERT(i < table->s->fields);
+    assert(i < table->s->fields);
     return table->field[i];
   }
   /**
@@ -136,6 +135,7 @@ class Table_function {
   /**
     Print table function
 
+    @param thd         thread handler
     @param str         string to print to
     @param query_type  type of the query
 
@@ -143,7 +143,8 @@ class Table_function {
       true  on error
       false on success
   */
-  virtual bool print(String *str, enum_query_type query_type) const = 0;
+  virtual bool print(const THD *thd, String *str,
+                     enum_query_type query_type) const = 0;
   /**
     Clean up table function after one execution
   */
@@ -333,7 +334,7 @@ class Table_function_json final : public Table_function {
   Item *source;
 
  public:
-  Table_function_json(THD *thd_arg, const char *alias, Item *a,
+  Table_function_json(const char *alias, Item *a,
                       List<Json_table_column> *cols);
 
   ~Table_function_json() override {
@@ -371,6 +372,7 @@ class Table_function_json final : public Table_function {
   /**
     JSON_TABLE printout
 
+    @param thd        thread handler
     @param str        string to print to
     @param query_type type of query
 
@@ -378,7 +380,8 @@ class Table_function_json final : public Table_function {
       true  on error
       false on success
   */
-  bool print(String *str, enum_query_type query_type) const override;
+  bool print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override;
 

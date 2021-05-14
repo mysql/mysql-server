@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,9 @@ namespace mock {
 
 class Waiting_for_io : public iface::Waiting_for_io {
  public:
+  Waiting_for_io();
+  virtual ~Waiting_for_io() override;
+
   MOCK_METHOD(bool, has_to_report_idle_waiting, (), (override));
   MOCK_METHOD(bool, on_idle_or_before_read, (), (override));
 };

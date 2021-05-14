@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -175,11 +175,45 @@ BasicSplicer::State ClassicProtocolSplicer::server_greeting() {
     return state();
   }
 
+  const auto buffer = net::buffer(server_channel()->recv_buffer());
+
+  // check first if that is not an Error message
+  if (buffer.size() > 4 && static_cast<uint8_t *>(buffer.data())[4] == 0xff) {
+    const auto decode_error_res =
+        classic_protocol::decode<classic_protocol::frame::Frame<
+            classic_protocol::message::server::Error>>(buffer, 0);
+
+    if (decode_error_res) {
+      const auto error_msg = decode_error_res->second.payload();
+
+      log_debug(
+          "Error from the server while waiting for greetings message: %u, '%s'",
+          error_msg.error_code(), error_msg.message().c_str());
+
+      // we got an error from the server, let's send it to the client.
+      // encode directly into the send-buffer as connection is still
+      // plaintext.
+      const auto encode_res = classic_protocol::encode(
+          classic_protocol::frame::Frame<
+              classic_protocol::message::server::Error>(
+              client_protocol_->seq_id(),
+              {error_msg.error_code(), error_msg.message()}),
+          {}, net::dynamic_buffer(client_channel()->send_buffer()));
+
+      if (!encode_res) {
+        return log_fatal_error_code("encoding error failed",
+                                    encode_res.error());
+      }
+
+      handshake_done(true);
+      return State::FINISH;
+    }
+  }
+
   // decode server-greeting msg from frame.
   const auto decode_res =
       classic_protocol::decode<classic_protocol::frame::Frame<
-          classic_protocol::message::server::Greeting>>(
-          net::buffer(server_channel()->recv_buffer()), 0);
+          classic_protocol::message::server::Greeting>>(buffer, 0);
   if (!decode_res) {
     if (decode_res.error() == classic_protocol::codec_errc::not_enough_input) {
       server_channel()->want_recv(1);

@@ -1,4 +1,4 @@
-// Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+// Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -607,6 +607,7 @@ void abort_not_supported_test(const char *fmt, ...)
     MY_ATTRIBUTE((format(printf, 1, 2))) MY_ATTRIBUTE((noreturn));
 void verbose_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
 void log_msg(const char *fmt, ...) MY_ATTRIBUTE((format(printf, 1, 2)));
+void flush_ds_res();
 
 VAR *var_from_env(const char *, const char *);
 VAR *var_init(VAR *v, const char *name, size_t name_len, const char *val,
@@ -1198,7 +1199,7 @@ static void check_command_args(struct st_command *command, char *arguments,
         break;
 
       default:
-        DBUG_ASSERT("Unknown argument type");
+        assert("Unknown argument type");
         break;
     }
 
@@ -1562,7 +1563,7 @@ static void cleanup_and_exit(int exit_code) {
         break;
       default:
         printf("unknown exit code: %d\n", exit_code);
-        DBUG_ASSERT(0);
+        assert(0);
     }
   }
 
@@ -1603,6 +1604,9 @@ void die(const char *fmt, ...) {
   static int dying = 0;
   va_list args;
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
+
+  // Flush whatever was printed by the failing command before it died.
+  flush_ds_res();
 
   // Protect against dying twice first time 'die' is called, try to
   // write log files second time, just exit.
@@ -1689,6 +1693,20 @@ void log_msg(const char *fmt, ...) {
 
   dynstr_append_mem(&ds_res, buff, len);
   dynstr_append(&ds_res, "\n");
+}
+
+void flush_ds_res() {
+  if (ds_res.length) {
+    if (log_file.write(ds_res.str, ds_res.length) || log_file.flush())
+      cleanup_and_exit(1);
+
+    if (!result_file_name) {
+      std::fwrite(ds_res.str, 1, ds_res.length, stdout);
+      std::fflush(stdout);
+    }
+
+    dynstr_set(&ds_res, nullptr);
+  }
 }
 
 /*
@@ -2169,7 +2187,7 @@ static void check_result() {
   const char *mess = "Result content mismatch\n";
 
   DBUG_TRACE;
-  DBUG_ASSERT(result_file_name);
+  assert(result_file_name);
   DBUG_PRINT("enter", ("result_file_name: %s", result_file_name));
 
   /*
@@ -2410,7 +2428,7 @@ void var_set(const char *var_name, const char *var_name_end,
       v->str_val_len = std::strlen(v->str_val);
     }
     /* setenv() expects \0-terminated strings */
-    DBUG_ASSERT(v->name[v->name_len] == 0);
+    assert(v->name[v->name_len] == 0);
     setenv(v->name, v->str_val, 1);
   }
 }
@@ -2750,6 +2768,68 @@ static void var_set_convert_error(struct st_command *command, VAR *var) {
   }
 }
 
+/**
+  Allocate memory for the buffer holding the string value of a variable.
+
+  @param var The variable
+  @param length The number of string characters, not counting the \0.
+*/
+static void alloc_var(VAR *var, size_t length) {
+  // Make space for '\0'
+  ++length;
+  if (var->alloced_len < length) {
+    // At least double the length, so we don't have to allocate so often.
+    if (length < var->alloced_len * 2) length = var->alloced_len * 2;
+    var->str_val = (char *)my_realloc(PSI_NOT_INSTRUMENTED, var->str_val,
+                                      length, MYF(MY_WME));
+    if (!var->str_val) die("Out of memory");
+    var->alloced_len = length;
+  }
+}
+
+/**
+  Process a "let $variable = escape(CHARACTER,TEXT)" command.
+
+  This will parse the text starting after 'escape'.  If parsing is
+  successful, it inserts a backslash character before each occurrence
+  of 'CHARACTER' in 'TEXT' and stores the result to $variable.  If
+  parsing fails, it prints an error message and aborts the progrma.
+
+  @param command The st_command structure, where the 'first_argument'
+  member points to the character just after 'escape'.
+
+  @param dst VAR object representing $variable
+*/
+static void var_set_escape(struct st_command *command, VAR *dst) {
+  // command->query contains the statement escape(character,text)
+  static const std::regex arg_re("^\\(([^\\r\\n]),((?:.|[\\r\\n])*)\\)$",
+                                 std::regex::optimize);
+  // Parse arguments.
+  std::cmatch arg_match;
+  if (std::regex_search(command->first_argument, arg_match, arg_re)) {
+    std::string character_str = arg_match[1];
+    char character = character_str[0];
+    std::string src = arg_match[2];
+    // Compute length of escaped string
+    auto dst_len = src.length();
+    for (char c : src)
+      if (c == character) dst_len++;
+    // Allocate space for escaped string
+    alloc_var(dst, dst_len);
+    auto dst_char = dst->str_val;
+    // Compute escaped string
+    for (char c : src) {
+      if (c == character) *dst_char++ = '\\';
+      *dst_char++ = c;
+    }
+    dst->str_val_len = dst_len;
+  } else {
+    die("Invalid format of 'escape' arguments: <%.100s>",
+        command->first_argument);
+    return;
+  }
+}
+
 /*
   Set variable from the result of a field in a query
 
@@ -2925,32 +3005,26 @@ void eval_expr(VAR *v, const char *p, const char **p_end, bool open_end,
   }
 
   {
-    /* Check if this is a "let $var= query_get_value()" */
-    const char *get_value_str = "query_get_value";
-    const size_t len = std::strlen(get_value_str);
-    if (std::strncmp(p, get_value_str, len) == 0) {
-      struct st_command command;
-      memset(&command, 0, sizeof(command));
-      command.query = const_cast<char *>(p);
-      command.first_word_len = len;
-      command.first_argument = command.query + len;
-      command.end = const_cast<char *>(*p_end);
-      var_set_query_get_value(&command, v);
-      return;
-    }
-    /* Check if this is a "let $var= convert_error()" */
-    const char *get_value_str1 = "convert_error";
-    const size_t len1 = std::strlen(get_value_str1);
-    if (std::strncmp(p, get_value_str1, len1) == 0) {
-      struct st_command command;
-      memset(&command, 0, sizeof(command));
-      command.query = const_cast<char *>(p);
-      command.first_word_len = len;
-      command.first_argument = command.query + len;
-      command.end = const_cast<char *>(*p_end);
-      var_set_convert_error(&command, v);
-      return;
-    }
+    auto parse_function =
+        [&](const char *prefix,
+            void (*parser)(struct st_command *, VAR *)) -> bool {
+      const size_t len = std::strlen(prefix);
+      if (std::strncmp(p, prefix, len) == 0) {
+        struct st_command command;
+        memset(&command, 0, sizeof(command));
+        command.query = const_cast<char *>(p);
+        command.first_word_len = len;
+        command.first_argument = command.query + len;
+        command.end = const_cast<char *>(*p_end);
+        parser(&command, v);
+        return true;
+      }
+      return false;
+    };
+
+    if (parse_function("query_get_value", var_set_query_get_value)) return;
+    if (parse_function("convert_error", var_set_convert_error)) return;
+    if (parse_function("escape", var_set_escape)) return;
   }
 
 NO_EVAL : {
@@ -3262,7 +3336,7 @@ static void do_exec(struct st_command *command, bool run_in_background) {
 #ifdef WIN32
       // Replace CRLF char with LF.
       // See bug#22608247 and bug#22811243
-      DBUG_ASSERT(!std::strcmp(mode, "rb"));
+      assert(!std::strcmp(mode, "rb"));
       replace_crlf_with_lf(buf);
 #endif
       if (trace_exec) {
@@ -5714,7 +5788,7 @@ static bool check_and_filter_once_property(DYNAMIC_STRING ds_property,
 
     // Filter out the keyword and save only the warnings.
     std::size_t position = warn_argument->find(" ONCE");
-    DBUG_ASSERT(position != std::string::npos);
+    assert(position != std::string::npos);
     warn_argument->erase(position, 5);
     return true;
   }
@@ -6570,7 +6644,8 @@ static void do_connect(struct st_command *command) {
   if (opt_compress || con_compress)
     mysql_options(&con_slot->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&con_slot->mysql, MYSQL_OPT_LOCAL_INFILE, nullptr);
-  mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_NAME, charset_info->csname);
+  mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_NAME,
+                replace_utf8_utf8mb3(charset_info->csname));
   if (opt_charsets_dir)
     mysql_options(&con_slot->mysql, MYSQL_SET_CHARSET_DIR, opt_charsets_dir);
 
@@ -7479,7 +7554,7 @@ static struct my_option my_long_options[] = {
      nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"database", 'D', "Database to use.", &opt_db, &opt_db, nullptr, GET_STR,
      REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -7655,7 +7730,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
                            char *argument) {
   switch (optid) {
     case '#':
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       DBUG_PUSH(argument ? argument : "d:t:S:i:O,/tmp/mysqltest.trace");
       debug_check_flag = true;
 #endif
@@ -7670,7 +7745,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
         argument = buff;
       }
       fn_format(buff, argument, "", "", MY_UNPACK_FILENAME);
-      DBUG_ASSERT(cur_file == file_stack && cur_file->file == nullptr);
+      assert(cur_file == file_stack && cur_file->file == nullptr);
       if (!(cur_file->file = fopen(buff, "rb")))
         die("Could not open '%s' for reading, errno: %d", buff, errno);
       cur_file->file_name = my_strdup(PSI_NOT_INSTRUMENTED, buff, MYF(MY_FAE));
@@ -7692,8 +7767,8 @@ static bool get_one_option(int optid, const struct my_option *opt,
       if (argument == disabled_my_option) {
         // Don't require password
         static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
         argument = empty_password;
       }
       if (argument) {
@@ -8313,7 +8388,7 @@ static int append_warnings(DYNAMIC_STRING *ds, MYSQL *mysql) {
   // If one day we will support execution of multi-statements
   // through PS API we should not issue SHOW WARNINGS until
   // we have not read all results.
-  DBUG_ASSERT(!mysql_more_results(mysql));
+  assert(!mysql_more_results(mysql));
 
   MYSQL_RES *warn_res;
   if (mysql_real_query_wrapper(mysql, "SHOW WARNINGS", 13))
@@ -8442,7 +8517,7 @@ static void run_query_normal(struct st_connection *cn,
   }
 
   // Successful and there are no more results.
-  DBUG_ASSERT(error == -1);
+  assert(error == -1);
 
   // If we come here the query is both executed and read successfully.
   handle_no_error(command);
@@ -9367,11 +9442,13 @@ int main(int argc, char **argv) {
                   (void *)&opt_connect_timeout);
   if (opt_compress) mysql_options(&con->mysql, MYSQL_OPT_COMPRESS, NullS);
   mysql_options(&con->mysql, MYSQL_OPT_LOCAL_INFILE, nullptr);
-  if (std::strcmp(default_charset, charset_info->csname) &&
+  if (0 != std::strcmp(replace_utf8_utf8mb3(default_charset),
+                       replace_utf8_utf8mb3(charset_info->csname)) &&
       !(charset_info =
             get_charset_by_csname(default_charset, MY_CS_PRIMARY, MYF(MY_WME))))
     die("Invalid character set specified.");
-  mysql_options(&con->mysql, MYSQL_SET_CHARSET_NAME, charset_info->csname);
+  mysql_options(&con->mysql, MYSQL_SET_CHARSET_NAME,
+                replace_utf8_utf8mb3(charset_info->csname));
   if (opt_charsets_dir)
     mysql_options(&con->mysql, MYSQL_SET_CHARSET_DIR, opt_charsets_dir);
 
@@ -9997,15 +10074,7 @@ int main(int argc, char **argv) {
     if (opt_mark_progress) mark_progress(&progress_file, parser.current_line);
 
     // Write result from command to log file immediately.
-    if (log_file.write(ds_res.str, ds_res.length) || log_file.flush())
-      cleanup_and_exit(1);
-
-    if (!result_file_name) {
-      std::fwrite(ds_res.str, 1, ds_res.length, stdout);
-      std::fflush(stdout);
-    }
-
-    dynstr_set(&ds_res, nullptr);
+    flush_ds_res();
   }
 
   start_lineno = 0;
@@ -10401,7 +10470,7 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
       DBUG_PRINT("exit", ("Found end of from string"));
       return;
     }
-    DBUG_ASSERT(from <= str + len);
+    assert(from <= str + len);
     start = from;
     rep_pos = rep;
   }

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,7 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
   SET(EXECUTABLE_OPTIONS
     ENABLE_EXPORTS
     EXCLUDE_FROM_ALL   # add target, but do not build it by default
+    EXCLUDE_FROM_PGO   # add target, but do not build for PGO
     EXCLUDE_ON_SOLARIS # do not build by default on Solaris
     SKIP_INSTALL       # do not install it
     )
@@ -82,6 +83,14 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
   ENDIF()
   IF(ARG_LINK_LIBRARIES)
     TARGET_LINK_LIBRARIES(${target} ${ARG_LINK_LIBRARIES})
+  ENDIF()
+
+  IF(ARG_EXCLUDE_FROM_PGO)
+    IF(FPROFILE_GENERATE OR FPROFILE_USE)
+      SET(ARG_EXCLUDE_FROM_ALL TRUE)
+      SET(ARG_SKIP_INSTALL TRUE)
+      UNSET(ARG_ADD_TEST)
+    ENDIF()
   ENDIF()
 
   IF(SOLARIS AND ARG_EXCLUDE_ON_SOLARIS)

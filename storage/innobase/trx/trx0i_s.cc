@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -961,7 +961,7 @@ int trx_i_s_possibly_fetch_data_into_cache(
 
   {
     /* We need to read trx_sys and record/table lock queues */
-    locksys::Global_exclusive_latch_guard guard{};
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
     trx_sys_mutex_enter();
 

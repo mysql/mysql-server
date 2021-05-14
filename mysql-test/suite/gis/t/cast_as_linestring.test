@@ -1,0 +1,183 @@
+###############################################################################
+#                                                                             #
+# CAST(... AS LINESTRING) allows casting geometries of type                   #
+# LINESTRING, POLYGON, MULTIPOINT, MULTILINESTRING and GEOMETRYCOLLECTION     #
+# to type LINESTRING.                                                         #
+#                                                                             #
+# Creation Date: 2020-08-02                                                   #
+# Author: Magnus Rushfeldt                                                    #
+#                                                                             #
+###############################################################################
+
+--echo ############################################
+--echo # Requirement F-8a:                        #
+--echo # CAST(linestring AS LINESTRING)           #
+--echo ############################################
+--echo #
+
+--echo # Casting from LINESTRING to LINESTRING is always allowed.
+--echo # Must return Linestring.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS LINESTRING));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'), CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS LINESTRING));
+--echo #
+
+--echo #
+--echo ############################################
+--echo # Requirement F-8b:                        #
+--echo # CAST(polygon AS LINESTRING)              #
+--echo ############################################
+--echo #
+
+--echo # Casting from POLYGON with only exterior ring to LINESTRING is allowed.
+--echo # Must return Linestring.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 2 2, 3 3, 1 1))') AS LINESTRING));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2, 3 3, 1 1)'), CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 2 2, 3 3, 1 1))') AS LINESTRING));
+--echo #
+
+--echo # Casting from POLYGON with multiple rings to LINESTRING is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 2 2, 3 3, 1 1), (4 4, 5 5, 6 6, 4 4))') AS LINESTRING));
+
+--echo #
+--echo ############################################
+--echo # Requirement F-8c:                        #
+--echo # CAST(multipoint AS LINESTRING)           #
+--echo ############################################
+--echo #
+
+--echo # Casting from MULTIPOINT with two or more points to LINESTRING is allowed.
+--echo # Must return Linestring.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS LINESTRING));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'), CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS LINESTRING));
+--echo #
+
+--echo # Casting from MULTIPOINT with only one point to LINESTRING is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1))') AS LINESTRING));
+
+--echo #
+--echo ############################################
+--echo # Requirement F-8d:                        #
+--echo # CAST(multilinestring AS LINESTRING)      #
+--echo ############################################
+--echo #
+
+--echo # Casting from MULTILINESTRING with only one Linestring to LINESTRING is allowed.
+--echo # Must return Linestring.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2))') AS LINESTRING));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'), CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2))') AS LINESTRING));
+--echo #
+
+--echo # Casting from MULTILINESTRING with multiple Linestrings to LINESTRING is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (3 3, 4 4))') AS LINESTRING));
+
+--echo #
+--echo ############################################
+--echo # Requirement F-8e:                        #
+--echo # CAST(geometrycollection AS LINESTRING)   #
+--echo ############################################
+--echo #
+
+--echo # Casting from GEOMETRYCOLLECTION with only one Linestring to LINESTRING is allowed.
+--echo # Must return Linestring.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1, 2 2))') AS LINESTRING));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)'), CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1, 2 2))') AS LINESTRING));
+--echo #
+
+--echo # Casting from empty GEOMETRYCOLLECTION to LINESTRING is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()') AS LINESTRING));
+--echo #
+
+--echo # Casting from GEOMETRYCOLLECTION with multiple Linestrings to LINESTRING is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1, 2 2), LINESTRING(3 3, 4 4))') AS LINESTRING));
+--echo #
+
+--echo # Casting from GEOMETRYCOLLECTION with other geometries than Linestrings to LINESTRING is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(1 1, 2 2), GEOMETRYCOLLECTION())') AS LINESTRING));
+
+--echo #
+--echo ############################################
+--echo # Requirement F-8d:                        #
+--echo # Disallowed casts to LINESTRING           #
+--echo ############################################
+--echo #
+
+--echo # Casting from POINT to LINESTRING is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS LINESTRING));
+--echo #
+
+--echo # Casting from MULTIPOLYGON to LINESTRING is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 2 2, 3 3, 1 1)))') AS LINESTRING));
+--echo #
+
+--echo #############################################
+--echo # Testing result of WKT input               #
+--echo #############################################
+--echo #
+
+--echo # Casting from ST_GEOMFROMTEXT(<wkt>) to LINESTRING must return expected linestring.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS LINESTRING));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((3 3, 4 3, 4 4, 3 4, 3 3))') AS LINESTRING));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((5 5), (6 6))') AS LINESTRING));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((7 7, 8 8))') AS LINESTRING));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(9 9, 10 10))') AS LINESTRING));
+--echo #
+
+--echo #############################################
+--echo # Testing result of user variable input     #
+--echo #############################################
+--echo #
+
+SET @linestring = ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)');
+SET @polygon = ST_GEOMFROMTEXT('POLYGON((3 3, 4 3, 4 4, 3 4, 3 3))');
+SET @multipoint = ST_GEOMFROMTEXT('MULTIPOINT((5 5), (6 6))');
+SET @multilinestring = ST_GEOMFROMTEXT('MULTILINESTRING((7 7, 8 8))');
+SET @geomcollection = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(9 9, 10 10))');
+--echo #
+
+--echo # Casting from geometry in user variable to LINESTRING must return expected linestring.
+SELECT ST_ASTEXT(CAST(@linestring AS LINESTRING));
+SELECT ST_ASTEXT(CAST(@multipoint AS LINESTRING));
+SELECT ST_ASTEXT(CAST(@multilinestring AS LINESTRING));
+SELECT ST_ASTEXT(CAST(@geomcollection AS LINESTRING));
+--echo #
+
+--echo #############################################
+--echo # Testing result of table column input      #
+--echo #############################################
+--echo #
+
+CREATE TABLE gis_linestring_castable (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+INSERT INTO gis_linestring_castable VALUES
+(101, ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)')),
+(102, ST_GEOMFROMTEXT('POLYGON((3 3, 4 3, 4 4, 3 4, 3 3))')),
+(103, ST_GEOMFROMTEXT('MULTIPOINT((5 5), (6 6))')),
+(104, ST_GEOMFROMTEXT('MULTILINESTRING((7 7, 8 8))')),
+(105, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(LINESTRING(9 9, 10 10))'));
+--echo #
+
+--echo # Casting from geometry column to LINESTRING must return expected linestring.
+SELECT ST_ASTEXT(CAST(g AS LINESTRING)) FROM gis_linestring_castable;
+--echo #
+
+--echo # Cleanup.
+DROP TABLE gis_linestring_castable;

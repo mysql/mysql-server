@@ -37,7 +37,7 @@ SHOW ENGINE INNODB STATUS;
 Type	Name	Status
 InnoDB		
 ------------------------
-%DATE% %HEXADECIMAL%
+%DATE% %THREAD_ID%
 *** (1) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1
@@ -179,7 +179,7 @@ SHOW ENGINE INNODB STATUS;
 Type	Name	Status
 InnoDB		
 ------------------------
-%DATE% %HEXADECIMAL%
+%DATE% %THREAD_ID%
 *** (1) TRANSACTION:
 TRANSACTION %NUMBER%, ACTIVE %NUMBER% sec starting index read
 mysql tables in use 1, locked 1

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1215,7 +1215,7 @@ NdbQueryBuilderImpl::~NdbQueryBuilderImpl()
 
 void NdbQueryBuilderImpl::setErrorCode(int aErrorCode)
 { 
-  DBUG_ASSERT(aErrorCode != 0);
+  assert(aErrorCode != 0);
   m_error.code = aErrorCode;
   m_hasError = true;
 }
@@ -1579,7 +1579,7 @@ NdbGenericConstOperandImpl::convert2ColumnType()
   }
   else
   {
-    DBUG_ASSERT(0);
+    assert(0);
   }
 
   memcpy (dst, m_value, len);

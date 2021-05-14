@@ -1,0 +1,69 @@
+--source include/have_debug.inc
+# Offloading planning to a secondary engine is not yet supported by hypergraph.
+--source include/not_hypergraph.inc
+
+--disable_query_log
+eval INSTALL PLUGIN MOCK SONAME '$MOCK_PLUGIN';
+--enable_query_log
+
+--echo #
+--echo # Bug#29023387: GET PLAN COST FROM SECONDARY ENGINE
+--echo #
+CREATE TABLE t1(x INT, y INT) SECONDARY_ENGINE MOCK;
+CREATE TABLE t2(x INT, y INT) SECONDARY_ENGINE MOCK;
+CREATE TABLE t3(x INT, y INT) SECONDARY_ENGINE MOCK;
+INSERT INTO t1 VALUES (1, 2), (3, 4);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t2 VALUES (1, 2), (3, 4);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t3 VALUES (1, 2), (3, 4);
+ALTER TABLE t1 SECONDARY_LOAD;
+ALTER TABLE t2 SECONDARY_LOAD;
+ALTER TABLE t3 SECONDARY_LOAD;
+ANALYZE TABLE t1, t2, t3;
+SET @@optimizer_trace='enabled=on';
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+SELECT TRACE->'$**.secondary_engine_cost' FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET @@optimizer_trace='enabled=off';
+# Set a debug flag so that the join order is chosen based on how early
+# a table with the alias X is.
+SET DEBUG = '+d,secondary_engine_mock_change_join_order';
+# The note in the warning from EXPLAIN shows the alias X in different case
+# on different platforms, so disable warnings to hide the differences.
+--disable_warnings
+EXPLAIN SELECT * FROM t1 AS X JOIN t2 ON X.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+EXPLAIN SELECT * FROM t1 JOIN t2 AS X ON t1.x = X.y LEFT JOIN t3 ON X.x = t3.y;
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 AS X ON t2.x = X.y;
+--enable_warnings
+SET DEBUG = '-d,secondary_engine_mock_change_join_order';
+SET DEBUG = '+d,secondary_engine_mock_compare_cost_error';
+# The injected error causes fallback to the primary engine.
+EXPLAIN SELECT * FROM t1 JOIN t2 ON t1.x = t2.y LEFT JOIN t3 ON t2.x = t3.y;
+SET DEBUG = '-d,secondary_engine_mock_compare_cost_error';
+
+let $query =
+  SELECT * FROM t1 a, t2 b, t1 c, t2 d
+    WHERE a.x = b.x AND b.x = c.y AND a.x >= d.y;
+let $count_plans =
+  SELECT JSON_LENGTH(
+           TRACE->'\$**.considered_execution_plans**.secondary_engine_cost')
+    FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+SET optimizer_trace = 'enabled=on';
+SET use_secondary_engine = 'FORCED';
+# Expect multiple plans to be evaluated.
+--eval $query
+--eval $count_plans
+# Expect a single plan to be evaluated when this debug flag is set.
+SET DEBUG = '+d,secondary_engine_mock_choose_first_plan';
+--eval $query
+--eval $count_plans
+SET DEBUG = '-d,secondary_engine_mock_choose_first_plan';
+SET use_secondary_engine = DEFAULT;
+SET optimizer_trace = 'enabled=off';
+
+DROP TABLE t1, t2, t3;
+
+--disable_query_log
+UNINSTALL PLUGIN mock;
+--enable_query_log

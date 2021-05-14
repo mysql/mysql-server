@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -45,6 +45,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "sql/strfunc.h"
 
 #include "dict0dd.h"
+#include "ha_innodb.h"
 #include "sql/dd/cache/dictionary_client.h"
 #include "sql/dd/dictionary.h"
 #include "sql/dd/impl/dictionary_impl.h"  // dd::dd_tablespace_id()
@@ -255,6 +256,10 @@ user opens a table. Clone needs to read this from innodb space object.
 @param[in,out]	thd	session THD */
 static void clone_init_compression(THD *thd);
 
+/** Open all Innodb tablespaces.
+@param[in,out]	thd	session THD */
+static void clone_init_tablespaces(THD *thd);
+
 /** Set security context to skip privilege check.
 @param[in,out]	thd	session THD
 @param[in,out]	sctx	security context */
@@ -403,8 +408,10 @@ int innodb_clone_begin(handlerton *hton, THD *thd, const byte *&loc,
     mutex_exit(clone_sys->get_mutex());
     err = clone_hdl->add_task(thd, nullptr, 0, task_id);
 
-    /* Initialize compression option for all compressed tablesapces. */
+    /* 1. Open all tablespaces in Innodb if not done during bootstrap.
+       2. Initialize compression option for all compressed tablesapces. */
     if (err == 0 && task_id == 0) {
+      clone_init_tablespaces(thd);
       clone_init_compression(thd);
     }
 
@@ -498,6 +505,46 @@ int innodb_clone_ack(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   return (err);
 }
 
+/** Timeout while waiting for recipient after network failure.
+@param[in,out]	thd	server thread handle
+@return donor timeout in minutes. */
+static Clone_Min get_donor_timeout(THD *thd) {
+  int timeout = 5;
+
+  ut_ad(clone_protocol_svc != nullptr);
+  if (clone_protocol_svc == nullptr) {
+    return Clone_Min(timeout);
+  }
+
+  /* Get timeout configuration in string format and convert to integer.
+  Currently there is no interface to get the integer value directly. The
+  variable is in clone plugin and innodb cannot access it directly. */
+  Mysql_Clone_Key_Values timeout_confs = {
+      {"clone_donor_timeout_after_network_failure", ""}};
+
+  auto err = clone_protocol_svc->mysql_clone_get_configs(thd, timeout_confs);
+
+  std::string err_str(
+      "Error reading clone_donor_timeout_after_network_failure"
+      " configuration");
+  if (err != 0) {
+    ib::error(ER_IB_CLONE_INTERNAL) << err_str;
+    return Clone_Min(timeout);
+  }
+
+  try {
+    timeout = std::stoi(timeout_confs[0].second);
+  } catch (const std::exception &e) {
+    err_str.append(" Exception: ");
+    err_str.append(e.what());
+    ib::error(ER_IB_CLONE_INTERNAL) << err_str;
+    ut_ad(false);
+    timeout = 5;
+  }
+
+  return Clone_Min(timeout);
+}
+
 int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
                      uint task_id, int in_err) {
   /* Acquire clone system mutex which would automatically get released
@@ -558,14 +605,25 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
     return (0);
   }
 
-  auto da = thd->get_stmt_da();
-  ib::info(ER_IB_CLONE_RESTART)
-      << "Clone Master wait for restart"
-      << " after n/w error code: " << in_err << ": "
-      << ((da == nullptr || !da->is_error()) ? "" : da->message_text());
-
   ut_ad(clone_hdl->is_copy_clone());
   ut_ad(is_master);
+
+  auto da = thd->get_stmt_da();
+  ib::info(ER_IB_CLONE_RESTART)
+      << "Clone Master n/w error code: " << in_err << ": "
+      << ((da == nullptr || !da->is_error()) ? "" : da->message_text());
+
+  auto time_out = get_donor_timeout(thd);
+
+  if (time_out.count() <= 0) {
+    ib::info(ER_IB_CLONE_RESTART)
+        << "Clone Master Skip wait after n/w error. Dropping Snapshot.";
+    clone_sys->drop_clone(clone_hdl);
+    return (0);
+  }
+
+  ib::info(ER_IB_CLONE_RESTART) << "Clone Master wait " << time_out.count()
+                                << " minutes for restart after n/w error";
 
   /* Set state to idle and wait for re-connect */
   clone_hdl->set_state(CLONE_STATE_IDLE);
@@ -573,9 +631,8 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
   Clone_Msec sleep_time(Clone_Sec(1));
   /* Generate alert message every minute. */
   Clone_Sec alert_interval(Clone_Min(1));
-  /* Wait for 5 minutes for client to reconnect back */
-  Clone_Sec time_out(Clone_Min(5));
 
+  /* Wait for client to reconnect back */
   bool is_timeout = false;
   auto err = Clone_Sys::wait(
       sleep_time, time_out, alert_interval,
@@ -616,9 +673,10 @@ int innodb_clone_end(handlerton *hton, THD *thd, const byte *loc, uint loc_len,
       clone_sys->get_mutex(), is_timeout);
 
   if (err == 0 && is_timeout && clone_hdl->is_idle()) {
-    ib::info(ER_IB_CLONE_TIMEOUT) << "Clone End Master wait "
-                                     "for restart timed out after "
-                                     "5 Minutes. Dropping Snapshot";
+    ib::info(ER_IB_CLONE_TIMEOUT)
+        << "Clone End Master wait "
+           "for restart timed out after "
+        << time_out.count() << " minutes. Dropping Snapshot";
   }
   /* Last task should drop the clone handle. */
   clone_sys->drop_clone(clone_hdl);
@@ -1854,7 +1912,7 @@ class Fixup_data {
   bool m_drop;
 };
 
-/** All configuration tables for which data should not be cloned. From
+/* All configuration tables for which data should not be cloned. From
 replication configurations only clone slave_master_info table needed by GR. */
 const std::array<const char *, Fixup_data::S_NUM_CONFIG_TABLES>
     Fixup_data::s_config_tables = {};
@@ -2340,4 +2398,89 @@ static void clone_init_compression(THD *thd) {
                                   dd_index->tablespace_id());
   }
   compression_initialized = true;
+}
+
+static void clone_init_tablespaces(THD *thd) {
+  if (clone_sys->is_space_initialized()) {
+    return;
+  }
+  auto dc = dd::get_dd_client(thd);
+  Releaser releaser(dc);
+
+  /* We don't bother about MDL lock here as clone holds X backup lock
+  preventing all DDL. */
+  DD_Objs<dd::Tablespace> dd_spaces;
+
+  if (dc->fetch_global_components(&dd_spaces)) {
+    ut_ad(false);
+    return;
+  }
+
+  for (auto dd_space : dd_spaces) {
+    /* Ignore non-innodb tablespaces. */
+    if (dd_space->engine() != innobase_hton_name) {
+      continue;
+    }
+
+    /* Get SE private data and extract space ID, name & flags */
+    const auto &se_data = dd_space->se_private_data();
+
+    /* Get space name. */
+    const char *space_name = dd_space->name().c_str();
+
+    /* Get space ID. */
+    space_id_t space_id = dict_sys_t::s_invalid_space_id;
+
+    if (!se_data.exists(dd_space_key_strings[DD_SPACE_ID]) ||
+        se_data.get(dd_space_key_strings[DD_SPACE_ID], &space_id)) {
+      ib::error(ER_IB_CLONE_INTERNAL)
+          << "Clone Error getting ID from DD, space: : " << space_name;
+      ut_ad(false);
+      continue;
+    }
+
+    /* This function has a side effect to adjust space name. The operation
+    is idempotent and done under shard mutex. We check first without acquiring
+    expensive dict sys mutex to skip tables that are already loaded. */
+    if (fil_space_exists_in_mem(space_id, space_name, false, true)) {
+      continue;
+    }
+
+    /* Get space flags. */
+    uint32_t space_flags = 0;
+    if (!se_data.exists(dd_space_key_strings[DD_SPACE_FLAGS]) ||
+        se_data.get(dd_space_key_strings[DD_SPACE_FLAGS], &space_flags)) {
+      ib::error(ER_IB_CLONE_INTERNAL)
+          << "Clone Error getting flags from DD, space: : " << space_name;
+      ut_ad(false);
+      continue;
+    }
+
+    /* Get the filename. */
+    const auto file = *dd_space->files().begin();
+    std::string filename;
+    filename.assign(file->filename().c_str());
+
+    /* Acquire dict mutex to prevent race against concurrent DML trying to
+    load the space. */
+    IB_mutex_guard sys_mutex(&dict_sys->mutex);
+
+    /* Re-check if space exists after acquiring dict sys mutex. Concurrent
+    DML could have already loaded the space. Space name is already adjusted
+    in previous call. */
+    if (fil_space_exists_in_mem(space_id, space_name, false, false)) {
+      continue;
+    }
+
+    auto err = fil_ibd_open(false, FIL_TYPE_TABLESPACE, space_id, space_flags,
+                            space_name, filename.c_str(), false, false);
+
+    if (err != DB_SUCCESS) {
+      ib::error(ER_IB_CLONE_INTERNAL)
+          << "Clone Error opening space: " << space_name
+          << " File: " << filename;
+    }
+  }
+
+  clone_sys->set_space_initialized();
 }

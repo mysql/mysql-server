@@ -1,25 +1,10 @@
 create table t1 (x int primary key) engine=ndbcluster;
-CREATE TEMPORARY TABLE IF NOT EXISTS ndb_show_tables_results (
-id INT,
-type VARCHAR(20),
-state VARCHAR(20),
-logging VARCHAR(20),
-_database VARCHAR(255),
-_schema VARCHAR(20),
-name VARCHAR(255)
-);
-
-ndb_show_tables completed.....
-
-select name from ndb_show_tables_results
-where type like '%HashMap%' and name like '%HASHMAP%-7%';
-name
+select fq_name from ndbinfo.dict_obj_info
+where type = 24 /* HashMap */ and fq_name like '%HASHMAP%-7%';
+fq_name
 alter table t1 partition by key() partitions 7;
-
-ndb_show_tables completed.....
-
-select name from ndb_show_tables_results
-where type like '%HashMap%' and name like '%HASHMAP%-7%';
-name
-'DEFAULT-HASHMAP-116-7'
-drop table t1, ndb_show_tables_results;
+select fq_name from ndbinfo.dict_obj_info
+where type = 24 /* HashMap */ and fq_name like '%HASHMAP%-7%';
+fq_name
+DEFAULT-HASHMAP-116-7
+drop table t1;
