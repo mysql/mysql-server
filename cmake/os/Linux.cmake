@@ -52,6 +52,18 @@ IF(EXISTS "/etc/fedora-release")
   ENDIF()
 ENDIF()
 
+# Use dpkg-buildflags --get CPPFLAGS | CFLAGS | CXXFLAGS | LDFLAGS
+# to get flags for this platform.
+IF(LINUX_DEBIAN OR LINUX_UBUNTU)
+  SET(LINUX_DEB_PLATFORM 1)
+ENDIF()
+
+# Use CMAKE_C_FLAGS | CMAKE_CXX_FLAGS = rpm --eval %optflags
+# to get flags for this platform.
+IF(LINUX_FEDORA OR LINUX_RHEL OR LINUX_SUSE)
+  SET(LINUX_RPM_PLATFORM 1)
+ENDIF()
+
 # We require at least GCC 5.3 or Clang 3.4.
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_GNU)
