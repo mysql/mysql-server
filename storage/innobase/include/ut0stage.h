@@ -193,9 +193,6 @@ class Alter_stage {
   /** Number of pages to flush. */
   page_no_t m_n_flush_pages{};
 
-  /** Number of entries applied from the row log to the index. */
-  uint64_t m_n_log_index{};
-
   /** Current phase. */
   enum {
     /** Init phase. */
@@ -289,12 +286,8 @@ inline void Alter_stage::inc(uint64_t inc_val) {
       break;
     }
     case FLUSH:
-      break;
     case LOG_INDEX:
-      m_n_log_index += inc_val;
-      break;
     case LOG_TABLE:
-      break;
     case END:
       break;
   }
@@ -418,10 +411,10 @@ inline void Alter_stage::reestimate() {
       m_n_flush_pages + row_log_estimate_work(m_pk);
 
   auto progress = m_stages.back().second.first;
-  const auto complated = (uint64_t)mysql_stage_get_work_completed(progress);
+  const auto completed = (uint64_t)mysql_stage_get_work_completed(progress);
 
   /* Prevent estimate < completed */
-  mysql_stage_set_work_estimated(progress, std::max(estimate, complated));
+  mysql_stage_set_work_estimated(progress, std::max(estimate, completed));
 }
 
 inline void Alter_stage::change_phase(const PSI_stage_info *new_stage) {
@@ -454,15 +447,17 @@ inline void Alter_stage::change_phase(const PSI_stage_info *new_stage) {
 
   Stage stage{new_stage, {mysql_set_stage(new_stage->m_key), {}}};
 
-  m_stages.push_back(stage);
+  if (stage.second.first != nullptr) {
+    m_stages.push_back(stage);
 
-  auto &counter = m_stages.back().second.second;
+    auto &counter = m_stages.back().second.second;
 
-  counter.first = c;
-  counter.second = e;
+    counter.first = c;
+    counter.second = e;
 
-  mysql_stage_set_work_completed(stage.second.first, c);
-  mysql_stage_set_work_estimated(stage.second.first, e);
+    mysql_stage_set_work_completed(stage.second.first, c);
+    mysql_stage_set_work_estimated(stage.second.first, e);
+  }
 }
 
 inline void Alter_stage::aggregate(const Alter_stages &alter_stages) noexcept {
@@ -482,6 +477,13 @@ inline void Alter_stage::aggregate(const Alter_stages &alter_stages) noexcept {
         continue;
       }
       auto progress = mysql_set_stage(stage.first->m_key);
+
+      if (progress == nullptr) {
+        /* The user can disable the instrument clas and that can return
+        nullptr. That forces us to skip and will break the state transitions
+        and counts.*/
+        return;
+      }
 
       auto c = mysql_stage_get_work_completed(progress);
       auto e = mysql_stage_get_work_estimated(progress);
