@@ -491,8 +491,11 @@ INSERT INTO tj(j) VALUES ('3.14');
 INSERT INTO tj(j) VALUES ('[1,2,3]');
 INSERT INTO tj(j) VALUES (NULL);
 SELECT STD(j) OVER () AS JSON FROM tj;
+# Different line numbers in warnings in hypergraph optimizer.
+--disable_warnings
 SELECT j, JSON_TYPE(j), STD(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
 SELECT j, JSON_TYPE(j), VARIANCE(j) OVER (ORDER BY j ROWS 3 PRECEDING) FROM tj;
+--enable_warnings
 --error ER_WINDOW_RANGE_FRAME_ORDER_TYPE
 SELECT j, JSON_TYPE(j), JSON_TYPE(STD(j) OVER (ORDER BY j RANGE 3 PRECEDING)) FROM tj;
 INSERT INTO tj(j) VALUES ('3.14');
@@ -526,9 +529,10 @@ SELECT i, STD(i) OVER (), MOD(STD(i),2) FROM tj2 GROUP BY i ;
 SELECT i, VARIANCE(VARIANCE(i)) OVER (), VARIANCE(i) OVER (ORDER BY i), MOD(VARIANCE(i),2), VARIANCE(i) FROM tj2 GROUP BY i ;
 --sorted_result
 SELECT i, STD(i) OVER (ORDER BY i) FROM tj UNION ALL SELECT i, STD(i) OVER (ORDER BY i) FROM tj;
-SELECT j,CAST(STD(j) OVER (PARTITION BY i) AS JSON), CAST(VARIANCE(j) OVER () AS JSON) FROM tj;
-# Different line numbers in warnings in hypergraph optimizer.
+# Different line numbers in warnings, and roundoff (due to different window ordering), in hypergraph optimizer.
 --disable_warnings
+--replace_numeric_round 14
+SELECT j,CAST(STD(j) OVER (PARTITION BY i) AS JSON), CAST(VARIANCE(j) OVER () AS JSON) FROM tj;
 SELECT j,CAST(STD(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(VARIANCE(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
 --enable_warnings
 

@@ -712,11 +712,13 @@ SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), RANK() OVER
 SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), PERCENT_RANK() OVER (ORDER BY sex) FROM t1) alias ORDER BY id;
 SELECT * from (SELECT t1.*, SUM(id) OVER (ROWS UNBOUNDED PRECEDING), CUME_DIST() OVER (ORDER BY sex) FROM t1) alias ORDER BY id;
 
+--sorted_result
 SELECT t1.*, SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING),
              RANK() OVER (ORDER BY sex,id),
              ROW_NUMBER() OVER (ORDER BY sex,id)
              FROM t1;
 
+--sorted_result
 SELECT t1.*, SUM(id) OVER (ORDER BY id ROWS UNBOUNDED PRECEDING),
              PERCENT_RANK() OVER (ORDER BY sex,id),
              CUME_DIST() OVER (ORDER BY sex,id),
@@ -1383,6 +1385,7 @@ SELECT LAST_VALUE(j) OVER w, FIRST_VALUE(j) OVER w FROM tj WINDOW w AS (PARTITIO
 SELECT i, LAST_VALUE((CAST(j AS UNSIGNED))) OVER w, FIRST_VALUE(CAST(j AS UNSIGNED)) OVER w FROM tj
     WINDOW w AS (PARTITION BY i ORDER BY CAST(j AS UNSIGNED) RANGE UNBOUNDED PRECEDING);
 --echo Fix for lineno in warnings buffered and unbuffered windows
+--skip_if_hypergraph  # Different line numbers in warnings in hypergraph optimizer, since it applies the windows in different order.
 SELECT j,CAST(SUM(j) OVER (PARTITION BY i) AS JSON), CAST(SUM(j) OVER () AS JSON) FROM tj;
 --skip_if_hypergraph  # Different line numbers in warnings in hypergraph optimizer, since it does not use a temporary table here.
 SELECT j,CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON), CAST(SUM(j) OVER (PARTITION BY i ROWS UNBOUNDED PRECEDING) AS JSON) FROM tj;
