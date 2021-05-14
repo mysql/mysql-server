@@ -10036,6 +10036,16 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
       /* Fall through */
     case Instant_Type::INSTANT_NO_CHANGE:
     case Instant_Type::INSTANT_VIRTUAL_ONLY:
+      if (altered_table->s->fields > REC_MAX_N_USER_FIELDS) {
+        /* Deny the inplace ALTER TABLE. MySQL will try to
+        re-create the table and ha_innobase::create() will
+        return an error too. This is how we effectively
+        deny adding too many columns to a table. */
+        ha_alter_info->unsupported_reason =
+            innobase_get_err_msg(ER_TOO_MANY_FIELDS);
+        return HA_ALTER_INPLACE_NOT_SUPPORTED;
+      }
+
       ha_alter_info->handler_trivial_ctx = instant_type_to_int(instant_type);
       return HA_ALTER_INPLACE_INSTANT;
   }
