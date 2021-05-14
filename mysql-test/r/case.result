@@ -478,3 +478,6 @@ SELECT col_int FROM t1
 WHERE CASE WHEN POWER(col_double, col_int) THEN j ELSE j END;
 ERROR 22003: DOUBLE value is out of range in 'pow(`test`.`t1`.`col_double`,`test`.`t1`.`col_int`)'
 DROP TABLE t1;
+# Bug#32865008: GROUP_CONCAT: setup_fields: assertion `!thd->is_error()' failed
+DO GROUP_CONCAT(DISTINCT NULLIF(1, PERIOD_ADD(0x6f09c5f8 ,'7451-01-27')));
+ERROR HY000: Incorrect arguments to period_add

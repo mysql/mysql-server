@@ -3577,7 +3577,12 @@ bool Item_func_nullif::val_json(Json_wrapper *wr) {
 }
 
 bool Item_func_nullif::is_null() {
-  return (null_value = (!cmp.compare() ? 1 : args[0]->null_value));
+  const int result = cmp.compare();
+  if (current_thd->is_error()) {
+    null_value = true;
+    return true;
+  }
+  return (null_value = result == 0 ? true : args[0]->null_value);
 }
 
 /**
