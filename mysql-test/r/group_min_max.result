@@ -4487,3 +4487,12 @@ Warnings:
 Note	1276	Field or reference 'test.t1.b' of SELECT #2 was resolved in SELECT #1
 DROP TABLE t1, t2;
 # End of test for Bug#30242457
+#
+# Bug #32769369: SIG11 IN ITEM_FIELD::ITEM_FIELD|SQL/ITEM.CC WITH HYPERGRAPH
+#
+CREATE TABLE t1 (a INTEGER, KEY (a));
+INSERT INTO t1 VALUES (1);
+SELECT SQL_BUFFER_RESULT MIN(t1.a) FROM t1, t1 AS t2;
+MIN(t1.a)
+1
+DROP TABLE t1;

@@ -2272,8 +2272,13 @@ TABLE *CreateTemporaryTableFromSelectList(
 
   // Most items have been added to items_to_copy in create_tmp_field(), but not
   // aggregate funtions, so add them here.
+  //
+  // Note that MIN/MAX in the presence of an index have special semantics
+  // where they are filled out elsewhere and may not have a result field,
+  // so we need to skip those that don't have one.
   for (Item *item : *join->fields) {
-    if (item->type() == Item::SUM_FUNC_ITEM) {
+    if (item->type() == Item::SUM_FUNC_ITEM &&
+        item->get_result_field() != nullptr) {
       temp_table_param->items_to_copy->push_back(
           Func_ptr{item, item->get_result_field()});
     }
