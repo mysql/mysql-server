@@ -6750,3 +6750,14 @@ NULL
 Warnings:
 Warning	1411	Incorrect string value: ''w'' for function unhex
 DROP VIEW v;
+#
+# Bug #32854203: DUMP/RESTORE FAILS WITH NESTED VIEWS HAVING ROLLUP OVER DISTINCT GROUPS
+#
+CREATE VIEW v2 AS SELECT 1 AS c;
+CREATE VIEW v1 AS SELECT 4711 AS a, COUNT(DISTINCT c) FROM v2 GROUP BY a WITH ROLLUP;
+DROP VIEW v2;
+CREATE VIEW v2 AS SELECT 1 AS c;
+SHOW CREATE VIEW v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select 4711 AS `a`,count(distinct `v2`.`c`) AS `COUNT(DISTINCT c)` from `v2` group by `a` with rollup	utf8mb4	utf8mb4_0900_ai_ci
+DROP VIEW v1, v2;
