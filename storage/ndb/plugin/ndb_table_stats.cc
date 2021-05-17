@@ -23,7 +23,7 @@
 */
 
 // Implements the interface defined in
-#include "storage/ndb/plugin/ndb_stats.h"
+#include "storage/ndb/plugin/ndb_table_stats.h"
 
 // Using
 #include "my_dbug.h"

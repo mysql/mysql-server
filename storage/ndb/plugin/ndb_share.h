@@ -32,7 +32,7 @@
 
 #include "my_alloc.h"                          // MEM_ROOT
 #include "storage/ndb/include/ndbapi/Ndb.hpp"  // Ndb::TupleIdRange
-#include "storage/ndb/plugin/ndb_stats.h"
+#include "storage/ndb/plugin/ndb_table_stats.h"
 #include "thr_lock.h"  // THR_LOCK
 
 class ha_ndbcluster;
