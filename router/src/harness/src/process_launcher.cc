@@ -47,7 +47,7 @@
 #include <unistd.h>
 #endif
 
-#include "iostream"
+#include "common.h"
 
 using namespace std::chrono_literals;
 using namespace std::string_literals;
@@ -214,12 +214,6 @@ void ProcessLauncher::start() {
 
   std::string arguments = win32::cmdline_from_args(executable_path, args);
 
-  si.cb = sizeof(STARTUPINFO);
-  if (redirect_stderr) si.hStdError = child_out_wr;
-  si.hStdOutput = child_out_wr;
-  si.hStdInput = child_in_rd;
-  si.dwFlags |= STARTF_USESTDHANDLES;
-
   // as CreateProcess may/will modify the arguments (split filename and args
   // with a \0) keep a copy of it for error-reporting.
   std::string create_process_arguments = arguments;
@@ -227,17 +221,73 @@ void ProcessLauncher::start() {
     SetEnvironmentVariable(env_var.first.c_str(), env_var.second.c_str());
   }
 
+  // The code below makes sure the process we are launching only inherits the
+  // in/out pipes FDs
+  SIZE_T size = 0;
+  // figure out the size needed for a 1-elem list
+  if (InitializeProcThreadAttributeList(NULL, 1, 0, &size) == FALSE &&
+      GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+    throw std::system_error(last_error_code(),
+                            "Failed to InitializeProcThreadAttributeList() "
+                            "when launching a process " +
+                                arguments);
+  }
+
+  // allocate the memory for the list
+  auto attribute_list = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(
+      HeapAlloc(GetProcessHeap(), 0, size));
+  if (attribute_list == nullptr) {
+    throw std::system_error(
+        last_error_code(),
+        "Failed to HeapAlloc() when launchin a process " + arguments);
+  }
+  mysql_harness::ScopeGuard clean_attribute_list_guard(
+      [&]() { DeleteProcThreadAttributeList(attribute_list); });
+
+  if (InitializeProcThreadAttributeList(attribute_list, 1, 0, &size) == FALSE) {
+    throw std::system_error(last_error_code(),
+                            "Failed to InitializeProcThreadAttributeList() 2 "
+                            "when launching a process " +
+                                arguments);
+  }
+
+  // fill up the list
+  HANDLE handles_to_inherit[] = {child_out_wr, child_in_rd};
+  if (UpdateProcThreadAttribute(attribute_list, 0,
+                                PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                                handles_to_inherit, sizeof(handles_to_inherit),
+                                NULL, NULL) == FALSE) {
+    throw std::system_error(
+        last_error_code(),
+        "Failed to UpdateProcThreadAttribute() when launching a process " +
+            arguments);
+  }
+
+  // prepare the process' startup parameters structure
+  si.cb = sizeof(STARTUPINFO);
+  if (redirect_stderr) si.hStdError = child_out_wr;
+  si.hStdOutput = child_out_wr;
+  si.hStdInput = child_in_rd;
+  si.dwFlags |= STARTF_USESTDHANDLES;
+  STARTUPINFOEX si_ex;
+  ZeroMemory(&si_ex, sizeof(si_ex));
+  si_ex.StartupInfo = si;
+  si_ex.StartupInfo.cb = sizeof(si_ex);
+  si_ex.lpAttributeList = attribute_list;
+
+  // launch the process
   BOOL bSuccess =
       CreateProcess(NULL,                               // lpApplicationName
                     &create_process_arguments.front(),  // lpCommandLine
                     NULL,                               // lpProcessAttributes
                     NULL,                               // lpThreadAttributes
                     TRUE,                               // bInheritHandles
-                    CREATE_NEW_PROCESS_GROUP,           // dwCreationFlags
-                    NULL,                               // lpEnvironment
-                    NULL,                               // lpCurrentDirectory
-                    &si,                                // lpStartupInfo
-                    &pi);                               // lpProcessInformation
+                    CREATE_NEW_PROCESS_GROUP |
+                        EXTENDED_STARTUPINFO_PRESENT,  // dwCreationFlags
+                    NULL,                              // lpEnvironment
+                    NULL,                              // lpCurrentDirectory
+                    &si_ex.StartupInfo,                // lpStartupInfo
+                    &pi);                              // lpProcessInformation
 
   if (!bSuccess) {
     throw std::system_error(last_error_code(),
