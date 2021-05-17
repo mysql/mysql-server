@@ -206,8 +206,6 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     return (DB_IO_ERROR);
   }
 
-  dberr_t err = DB_SUCCESS;
-
   /* Write SDI Index */
   if (has_sdi) {
     dict_mutex_enter_for_mysql();
@@ -217,21 +215,21 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
     dict_mutex_exit_for_mysql();
 
     ut_ad(index != nullptr);
-    err = row_quiesce_write_one_index(index, file, thd);
+    const auto err = row_quiesce_write_one_index(index, file, thd);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
   }
 
   /* Write the table indexes meta data. */
-  for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr && err == DB_SUCCESS;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
-    err = row_quiesce_write_one_index(index, file, thd);
+  for (const dict_index_t *index : table->indexes) {
+    const auto err = row_quiesce_write_one_index(index, file, thd);
+    if (err != DB_SUCCESS) {
+      return err;
+    }
   }
 
-  if (err != DB_SUCCESS) {
-    return (err);
-  }
-
-  return (err);
+  return DB_SUCCESS;
 }
 
 /** Write the metadata (table columns) config file. Serialise the contents
@@ -727,8 +725,7 @@ static bool row_quiesce_table_has_fts_index(
 
   dict_mutex_enter_for_mysql();
 
-  for (const dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (const dict_index_t *index : table->indexes) {
     if (index->type & DICT_FTS) {
       exists = true;
       break;

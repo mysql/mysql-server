@@ -3068,35 +3068,6 @@ void srv_start_threads_after_ddl_recovery() {
   dict_persist_to_dd_table_buffer();
 }
 
-#if 0
-/********************************************************************
-Sync all FTS cache before shutdown */
-static
-void
-srv_fts_close(void)
-{
-	dict_table_t*	table;
-
-	for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
-	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		fts_t*	fts = table->fts;
-
-		if (fts != NULL) {
-			fts_sync_table(table);
-		}
-	}
-
-	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
-	     table; table = UT_LIST_GET_NEXT(table_LRU, table)) {
-		fts_t*	fts = table->fts;
-
-		if (fts != NULL) {
-			fts_sync_table(table);
-		}
-	}
-}
-#endif
-
 /** Set srv_shutdown_state to a given state and validate change is proper.
 @remarks This function is used only from the main thread, and only during
 startup or shutdown.

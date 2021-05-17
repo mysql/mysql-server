@@ -263,16 +263,15 @@ struct btr_search_t {
   the range is 0 .. BTR_SEARCH_BUILD_LIMIT + 5 */
   /** @} */
   /**---------------------- @{ */
-  ulint n_fields;  /*!< recommended prefix length for hash search:
-                   number of full fields */
-  ulint n_bytes;   /*!< recommended prefix: number of bytes in
-                   an incomplete field
-                   @see BTR_PAGE_MAX_REC_SIZE */
-  ibool left_side; /*!< TRUE or FALSE, depending on whether
-                   the leftmost record of several records with
-                   the same prefix should be indexed in the
-                   hash index */
-                   /*---------------------- @} */
+  /** recommended prefix length for hash search: number of full fields */
+  ulint n_fields;
+  /** recommended prefix: number of bytes in an incomplete field
+  @see BTR_PAGE_MAX_REC_SIZE */
+  ulint n_bytes;
+  /** true or false, depending on whether the leftmost record of several records
+  with the same prefix should be indexed in the hash index */
+  bool left_side;
+  /*---------------------- @} */
 #ifdef UNIV_SEARCH_PERF_STAT
   ulint n_hash_succ; /*!< number of successful hash searches thus
                      far */

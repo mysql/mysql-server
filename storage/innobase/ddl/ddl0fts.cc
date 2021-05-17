@@ -93,7 +93,7 @@ struct Insert {
 
 /** Structure stores information from string tokenization operation */
 struct Tokenize_ctx {
-  using Token_list = UT_LIST_BASE_NODE_T(Token);
+  using Token_list = UT_LIST_BASE_NODE_T(Token, m_token_list);
 
   /** Processed string length */
   size_t m_processed_len{};
@@ -108,7 +108,7 @@ struct Tokenize_ctx {
   ib_rbt_t *m_cached_stopword{};
 
   /** Token list. */
-  Token_list m_token_list{&Token::m_token_list};
+  Token_list m_token_list{};
 };
 
 /** For parsing and sorting the documents. */
@@ -617,8 +617,6 @@ bool FTS::Parser::doc_tokenize(doc_id_t doc_id, fts_doc_t *doc,
 
     if (parser != nullptr) {
       if (t_ctx->m_processed_len == 0) {
-        UT_LIST_INIT(t_ctx->m_token_list, &Token::m_token_list);
-
         /* Parse the whole doc and cache tokens. */
         tokenize(doc, parser, t_ctx);
 
@@ -809,7 +807,7 @@ void FTS::Parser::parse(Builder *builder) noexcept {
   dtype_t word_dtype;
   uint64_t total_rec{};
   dberr_t err{DB_SUCCESS};
-  Tokenize_ctx t_ctx;
+  Tokenize_ctx t_ctx{};
   size_t n_doc_processed{};
   FTS::Doc_item *doc_item{};
 

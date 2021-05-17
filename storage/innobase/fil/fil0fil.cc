@@ -675,8 +675,8 @@ class Tablespace_dirs {
 #endif /* _WIN32 */
 
 class Fil_shard {
-  using File_list = UT_LIST_BASE_NODE_T(fil_node_t);
-  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t);
+  using File_list = UT_LIST_BASE_NODE_T(fil_node_t, LRU);
+  using Space_list = UT_LIST_BASE_NODE_T(fil_space_t, unflushed_spaces);
   using Spaces = std::unordered_map<space_id_t, fil_space_t *>;
 
   using Names = std::unordered_map<const char *, fil_space_t *, Char_Ptr_Hash,
@@ -1992,8 +1992,7 @@ void Fil_shard::validate() const {
 
   UT_LIST_CHECK(m_LRU);
 
-  for (auto file = UT_LIST_GET_FIRST(m_LRU); file != nullptr;
-       file = UT_LIST_GET_NEXT(LRU, file)) {
+  for (auto file : m_LRU) {
     ut_a(file->is_open);
     ut_a(file->n_pending == 0);
     ut_a(fil_system->space_belongs_in_LRU(file->space));
@@ -2073,8 +2072,8 @@ Fil_shard::Fil_shard(size_t shard_id)
     : m_id(shard_id),
       m_spaces(),
       m_names(),
-      m_LRU(&fil_node_t::LRU),
-      m_unflushed_spaces(&fil_space_t::unflushed_spaces),
+      m_LRU(),
+      m_unflushed_spaces(),
       m_modification_counter() {
   mutex_create(LATCH_ID_FIL_SHARD, &m_mutex);
 }
@@ -8494,8 +8493,7 @@ void Fil_shard::flush_file_spaces(uint8_t purpose) {
 
   mutex_acquire();
 
-  for (auto space = UT_LIST_GET_FIRST(m_unflushed_spaces); space != nullptr;
-       space = UT_LIST_GET_NEXT(unflushed_spaces, space)) {
+  for (auto space : m_unflushed_spaces) {
     if ((to_int(space->purpose) & purpose) && !space->stop_new_ops) {
       space_ids.push_back(space->id);
     }

@@ -306,7 +306,7 @@ static dict_table_t *dict_stats_table_clone_create(
   dict_table_stats_lock()/unlock() routines will do nothing. */
   dict_table_stats_latch_create(t, false);
 
-  UT_LIST_INIT(t->indexes, &dict_index_t::indexes);
+  UT_LIST_INIT(t->indexes);
 
   for (index = table->first_index(); index != nullptr; index = index->next()) {
     if (dict_stats_should_ignore_index(index)) {
@@ -3637,7 +3637,7 @@ void test_dict_stats_save() {
   table.stat_n_rows = TEST_N_ROWS;
   table.stat_clustered_index_size = TEST_CLUSTERED_INDEX_SIZE;
   table.stat_sum_of_other_index_sizes = TEST_SUM_OF_OTHER_INDEX_SIZES;
-  UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
+  UT_LIST_INIT(table.indexes);
   UT_LIST_ADD_LAST(table.indexes, &index1);
   UT_LIST_ADD_LAST(table.indexes, &index2);
   ut_d(table.magic_n = DICT_TABLE_MAGIC_N);
@@ -3767,7 +3767,7 @@ void test_dict_stats_fetch_from_ps() {
 
   /* craft a dummy dict_table_t */
   table.name.m_name = (char *)(TEST_DATABASE_NAME "/" TEST_TABLE_NAME);
-  UT_LIST_INIT(table.indexes, &dict_index_t::indexes);
+  UT_LIST_INIT(table.indexes);
   UT_LIST_ADD_LAST(table.indexes, &index1);
   UT_LIST_ADD_LAST(table.indexes, &index2);
   ut_d(table.magic_n = DICT_TABLE_MAGIC_N);

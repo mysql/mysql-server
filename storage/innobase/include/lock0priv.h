@@ -250,6 +250,8 @@ struct lock_t {
   }
 };
 
+UT_LIST_NODE_GETTER_DEFINITION(lock_t, trx_locks)
+
 /** Convert the member 'type_mode' into a human readable string.
 @return human readable string */
 inline std::string lock_t::type_mode_string() const {

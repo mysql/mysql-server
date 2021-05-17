@@ -3673,8 +3673,7 @@ int ha_innopart::info_low(uint flag, bool is_analyze) {
       created, because MySQL will only consider
       the fully built indexes here. */
 
-      for (const dict_index_t *index = UT_LIST_GET_FIRST(ib_table->indexes);
-           index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+      for (const dict_index_t *index : ib_table->indexes) {
         /* First, online index creation is
         completed inside InnoDB, and then
         MySQL attempts to upgrade the

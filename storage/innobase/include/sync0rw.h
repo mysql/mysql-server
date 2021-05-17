@@ -110,9 +110,6 @@ of concurrent read locks before the rw_lock breaks. */
 struct rw_lock_debug_t;
 #endif /* UNIV_DEBUG */
 
-typedef UT_LIST_BASE_NODE_T(rw_lock_t) rw_lock_list_t;
-
-extern rw_lock_list_t rw_lock_list;
 extern ib_mutex_t rw_lock_list_mutex;
 
 #ifndef UNIV_LIBRARY
@@ -541,13 +538,7 @@ struct rw_lock_t
     : public latch_t
 #endif /* UNIV_DEBUG */
 {
-  rw_lock_t()
-#ifdef UNIV_DEBUG
-      : debug_list(&rw_lock_debug_t::list)
-#endif
-  {
-  }
-
+  rw_lock_t() = default;
   /** rw_lock_t is not a copyable object, the reasoning
   behind this is the same as the reasoning behind why
   std::mutex is not copyable. It is supposed to represent
@@ -645,7 +636,7 @@ struct rw_lock_t
   uint32_t magic_n = {MAGIC_N};
 
   /** In the debug version: pointer to the debug info list of the lock */
-  UT_LIST_BASE_NODE_T(rw_lock_debug_t) debug_list;
+  UT_LIST_BASE_NODE_T(rw_lock_debug_t, list) debug_list{};
 
   /** Level in the global latching order. */
   latch_level_t level;
@@ -841,4 +832,8 @@ void pfs_rw_lock_free_func(rw_lock_t *lock); /*!< in: rw-lock */
 #endif /* !UNIV_HOTBACKUP */
 
 #endif /* !UNIV_LIBRARY */
+typedef UT_LIST_BASE_NODE_T(rw_lock_t, list) rw_lock_list_t;
+
+extern rw_lock_list_t rw_lock_list;
+
 #endif /* sync0rw.h */

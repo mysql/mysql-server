@@ -280,8 +280,7 @@ void MutexMonitor::reset() {
 
   mutex_enter(&rw_lock_list_mutex);
 
-  for (rw_lock_t *rw_lock = UT_LIST_GET_FIRST(rw_lock_list); rw_lock != nullptr;
-       rw_lock = UT_LIST_GET_NEXT(list, rw_lock)) {
+  for (auto rw_lock : rw_lock_list) {
     rw_lock->count_os_wait = 0;
   }
 

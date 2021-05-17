@@ -321,7 +321,7 @@ struct que_fork_t {
   ulint state;         /*!< state of the fork node */
   que_thr_t *caller;   /*!< pointer to a possible calling query
                        thread */
-  UT_LIST_BASE_NODE_T(que_thr_t)
+  UT_LIST_BASE_NODE_T(que_thr_t, thrs)
   thrs; /*!< list of query threads */
   /*------------------------------*/
   /* The fields in this section are defined only in the root node */

@@ -52,8 +52,8 @@ sym_tab_t *sym_tab_create(
 
   sym_tab = static_cast<sym_tab_t *>(mem_heap_alloc(heap, sizeof(sym_tab_t)));
 
-  UT_LIST_INIT(sym_tab->sym_list, &sym_node_t::sym_list);
-  UT_LIST_INIT(sym_tab->func_node_list, &func_node_t::func_node_list);
+  UT_LIST_INIT(sym_tab->sym_list);
+  UT_LIST_INIT(sym_tab->func_node_list);
 
   sym_tab->heap = heap;
 
@@ -65,12 +65,9 @@ sym_tab_t *sym_tab_create(
  originally created. Frees also SQL explicit cursor definitions. */
 void sym_tab_free_private(sym_tab_t *sym_tab) /*!< in, own: symbol table */
 {
-  sym_node_t *sym;
-  func_node_t *func;
   THD *thd = current_thd;
 
-  for (sym = UT_LIST_GET_FIRST(sym_tab->sym_list); sym != nullptr;
-       sym = UT_LIST_GET_NEXT(sym_list, sym)) {
+  for (auto sym : sym_tab->sym_list) {
     /* Close the tables opened in pars_retrieve_table_def(). */
 
     if (sym->token_type == SYM_TABLE_REF_COUNTED) {
@@ -97,8 +94,7 @@ void sym_tab_free_private(sym_tab_t *sym_tab) /*!< in, own: symbol table */
     }
   }
 
-  for (func = UT_LIST_GET_FIRST(sym_tab->func_node_list); func != nullptr;
-       func = UT_LIST_GET_NEXT(func_node_list, func)) {
+  for (auto func : sym_tab->func_node_list) {
     eval_node_free_val_buf(func);
   }
 }

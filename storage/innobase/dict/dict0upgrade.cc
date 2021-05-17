@@ -791,8 +791,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
                           << "Partition Index " << part_index->name()
                           << " from server for table: " << part_table->name;);
 
-      for (dict_index_t *index = UT_LIST_GET_FIRST(part_table->indexes);
-           index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+      for (auto index : part_table->indexes) {
         if (strcmp(part_index->name().c_str(), index->name()) == 0) {
           uint64_t read_auto_inc = 0;
           dd_upgrade_process_index(part_index, index, part_table->dd_space_id,
@@ -991,8 +990,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
                         << "Index " << dd_index->name()
                         << " from server for table: " << ib_table->name;);
 
-    for (dict_index_t *index = UT_LIST_GET_FIRST(ib_table->indexes);
-         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+    for (auto index : ib_table->indexes) {
       if (strcmp(dd_index->name().c_str(), index->name()) == 0) {
         if (!dd_index->is_hidden()) {
           failure = dd_upgrade_match_index(srv_table, index);

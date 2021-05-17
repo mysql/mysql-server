@@ -115,7 +115,7 @@ static void ins_node_create_entry_list(
 
   ut_ad(node->entry_sys_heap);
 
-  UT_LIST_INIT(node->entry_list, &dtuple_t::tuple_list);
+  UT_LIST_INIT(node->entry_list);
 
   /* We will include all indexes (include those corrupted
   secondary indexes) in the entry list. Filteration of

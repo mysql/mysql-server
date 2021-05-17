@@ -2477,7 +2477,6 @@ fts_trx_t *fts_trx_create(trx_t *trx) {
   fts_trx_t *ftt;
   ib_alloc_t *heap_alloc;
   mem_heap_t *heap = mem_heap_create(1024);
-  trx_named_savept_t *savep;
 
   ut_a(trx->fts_trx == nullptr);
 
@@ -2498,8 +2497,7 @@ fts_trx_t *fts_trx_create(trx_t *trx) {
   fts_savepoint_create(ftt->last_stmt, nullptr, nullptr);
 
   /* Copy savepoints that already set before. */
-  for (savep = UT_LIST_GET_FIRST(trx->trx_savepoints); savep != nullptr;
-       savep = UT_LIST_GET_NEXT(trx_savepoints, savep)) {
+  for (auto savep : trx->trx_savepoints) {
     fts_savepoint_take(trx, ftt, savep->name);
   }
 

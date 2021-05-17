@@ -3712,8 +3712,7 @@ ulint buf_pool_get_dirty_pages_count(
 
   buf_flush_list_mutex_enter(buf_pool);
 
-  for (auto bpage = UT_LIST_GET_FIRST(buf_pool->flush_list); bpage != nullptr;
-       bpage = UT_LIST_GET_NEXT(list, bpage)) {
+  for (auto bpage : buf_pool->flush_list) {
     ut_ad(buf_page_in_file(bpage) ||
           buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
     ut_ad(bpage->in_flush_list);

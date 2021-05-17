@@ -523,7 +523,6 @@ static bool sync_array_detect_deadlock(
   rw_lock_t *lock;
   std::thread::id thread;
   ibool ret;
-  rw_lock_debug_t *debug;
 
   ut_a(arr);
   ut_a(start);
@@ -641,8 +640,7 @@ static bool sync_array_detect_deadlock(
 
       lock = cell->latch.lock;
 
-      for (debug = UT_LIST_GET_FIRST(lock->debug_list); debug != nullptr;
-           debug = UT_LIST_GET_NEXT(list, debug)) {
+      for (auto debug : lock->debug_list) {
         thread = debug->thread_id;
 
         switch (debug->lock_type) {
@@ -678,8 +676,7 @@ static bool sync_array_detect_deadlock(
 
       lock = cell->latch.lock;
 
-      for (debug = UT_LIST_GET_FIRST(lock->debug_list); debug != nullptr;
-           debug = UT_LIST_GET_NEXT(list, debug)) {
+      for (auto debug : lock->debug_list) {
         thread = debug->thread_id;
 
         switch (debug->lock_type) {
@@ -712,8 +709,7 @@ static bool sync_array_detect_deadlock(
 
       lock = cell->latch.lock;
 
-      for (debug = UT_LIST_GET_FIRST(lock->debug_list); debug != nullptr;
-           debug = UT_LIST_GET_NEXT(list, debug)) {
+      for (auto debug : lock->debug_list) {
         thread = debug->thread_id;
 
         if (debug->lock_type == RW_LOCK_X ||
