@@ -3373,7 +3373,7 @@ inline int ha_ndbcluster::next_result(uchar *buf) {
         // changes has occurred.
         DEBUG_SYNC(table->in_use, "ndb.before_commit_count_check");
 
-        if (copying_alter.check_saved_commit_count(m_thd_ndb->ndb, m_table)) {
+        if (copying_alter.check_saved_commit_count(m_thd_ndb, m_table)) {
           my_printf_error(
               ER_TABLE_DEF_CHANGED,
               "Detected change to data in source table during copying ALTER "
@@ -6433,9 +6433,12 @@ int ha_ndbcluster::read_range_next() {
 }
 
 bool ha_ndbcluster::Copying_alter::save_commit_count(
-    Ndb *ndb, const NdbDictionary::Table *ndbtab) {
+    Thd_ndb *thd_ndb, const NdbDictionary::Table *ndbtab) {
+  NdbError ndb_err;
   Uint64 commit_count;
-  if (ndb_get_table_commit_count(ndb, ndbtab, &commit_count)) {
+  if (ndb_get_table_commit_count(thd_ndb->ndb, ndbtab, ndb_err,
+                                 &commit_count)) {
+    thd_ndb->push_ndb_error_warning(ndb_err);
     return true;
   }
 
@@ -6446,9 +6449,12 @@ bool ha_ndbcluster::Copying_alter::save_commit_count(
 
 // Check that commit count have not changed since it was saved
 bool ha_ndbcluster::Copying_alter::check_saved_commit_count(
-    Ndb *ndb, const NdbDictionary::Table *ndbtab) const {
+    Thd_ndb *thd_ndb, const NdbDictionary::Table *ndbtab) const {
+  NdbError ndb_err;
   Uint64 commit_count;
-  if (ndb_get_table_commit_count(ndb, ndbtab, &commit_count)) {
+  if (ndb_get_table_commit_count(thd_ndb->ndb, ndbtab, ndb_err,
+                                 &commit_count)) {
+    thd_ndb->push_ndb_error_warning(ndb_err);
     return true;
   }
 
@@ -6467,7 +6473,7 @@ int ha_ndbcluster::rnd_init(bool) {
   if (m_thd_ndb->sql_command() == SQLCOM_ALTER_TABLE) {
     // Detected start of scan for copying ALTER TABLE. Save commit count of the
     // scanned (source) table.
-    if (copying_alter.save_commit_count(m_thd_ndb->ndb, m_table)) {
+    if (copying_alter.save_commit_count(m_thd_ndb, m_table)) {
       my_printf_error(ER_UNKNOWN_ERROR,
                       "Failed to save commit count for copying ALTER TABLE",
                       MYF(0));

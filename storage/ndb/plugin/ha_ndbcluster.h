@@ -725,10 +725,13 @@ class ha_ndbcluster : public handler, public Partition_handler {
     Uint64 m_saved_commit_count;
 
    public:
-    // Save the commit count for source table during copying ALTER
-    bool save_commit_count(Ndb *ndb, const NdbDictionary::Table *ndbtab);
-    // Check commit count for source table during copying ALTER
-    bool check_saved_commit_count(Ndb *ndb,
+    // Save the commit count for source table during copying ALTER,
+    // returns false on success and true on error
+    bool save_commit_count(Thd_ndb *thd_ndb,
+                           const NdbDictionary::Table *ndbtab);
+    // Check commit count for source table during copying ALTER,
+    // returns false on success and true on error
+    bool check_saved_commit_count(Thd_ndb *thd_ndb,
                                   const NdbDictionary::Table *ndbtab) const;
   } copying_alter;
 

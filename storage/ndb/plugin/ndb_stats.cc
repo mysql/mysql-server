@@ -178,10 +178,8 @@ bool ndb_get_table_statistics(THD *thd, Ndb *ndb,
 }
 
 bool ndb_get_table_commit_count(Ndb *ndb, const NdbDictionary::Table *ndbtab,
-                                Uint64 *commit_count) {
+                                NdbError &ndb_error, Uint64 *commit_count) {
   DBUG_TRACE;
-
-  NdbError ndb_error;
 
   Uint64 fragment_commit_count;
   NdbOperation::GetValueSpec extraGets[1];

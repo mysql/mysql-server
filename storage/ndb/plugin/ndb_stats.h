@@ -67,12 +67,13 @@ bool ndb_get_table_statistics(THD *thd, Ndb *ndb,
 
   @param ndb                 The Ndb object instance
   @param ndbtab              The NDB table to return statistics for
+  @param[out] ndb_err        The NDB error which caused function to fail
   @param[out] commit_count   Pointer to variable where to return the commit
                              count for the table.
 
   @return false on success
 */
 bool ndb_get_table_commit_count(Ndb *ndb, const NdbDictionary::Table *ndbtab,
-                                Uint64 *commit_count);
+                                NdbError &ndb_error, Uint64 *commit_count);
 
 #endif
