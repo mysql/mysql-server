@@ -680,3 +680,22 @@ SELECT g, ROW_NUMBER() OVER (PARTITION BY g) AS r FROM t1
 ) w ON w.g=t1.g AND w.r=1 WHERE w.g IS NULL;
 
 DROP TABLE t1;
+
+--echo #
+--echo # BUG#32863713: CTE CRASH IN QUERY_BLOCK::MASTER_QUERY_EXPRESSION
+--echo #
+
+CREATE TABLE t(f1 INTEGER);
+# Checking if condition pushdown to a derived table does not
+# crash the server when one of derived table is merged.
+EXPLAIN SELECT a1, a2
+ FROM (SELECT MAX(2) AS a1 FROM t) as dt1,
+ (SELECT @a AS a2 FROM t) as dt2
+ WHERE dt1.a1 <= dt2.a2;
+
+SELECT a1, a2
+ FROM (SELECT MAX(f1) AS a1 FROM t) as dt1,
+ (SELECT @a AS a2 FROM t) as dt2
+ WHERE dt1.a1 <= dt2.a2;
+
+DROP TABLE t;
