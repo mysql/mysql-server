@@ -119,7 +119,7 @@ static MYSQL_SYSVAR_ULONGLONG(
   "The maximum number of rows in a Fastbit partition.  An entire partition must fit in the cache.",
   NULL,
   NULL,
-  4000000,
+  1000000,
   64000,
   1ULL<<63,
   0
@@ -132,8 +132,8 @@ static MYSQL_SYSVAR_ULONGLONG(
   "Fastbit file cache size",
   NULL,
   NULL,
-  1024ULL * 1024 * 1024 * 4,
-  1024ULL * 1024 * 1024 * 4,
+  1024ULL * 1024 * 1024 * 1,
+  1024ULL * 1024 * 1024 * 1,
   1ULL<<63,
   0
 );

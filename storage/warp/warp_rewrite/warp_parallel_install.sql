@@ -1,5 +1,4 @@
 #a vim: set ts=2: set expandtab:
-DELIMITER ;;
 /*  Pro Parallel (async) (part of the Swanhart Toolkit)
     Copyright 2015 Justin Swanhart
 
@@ -28,6 +27,7 @@ CREATE DATABASE IF NOT EXISTS warpsql;
 
 USE warpsql;
 
+DELIMITER ;;
 CREATE DEFINER=root@localhost PROCEDURE warpsql.check_reqs()
 READS SQL DATA
 SQL SECURITY DEFINER
@@ -38,9 +38,9 @@ BEGIN
   END IF;
 END;;
 
-CALL check_reqs();
+CALL check_reqs();;
 
-select 'Creating setup procedure' as message;
+select 'Creating setup procedure' as message;;
 
 DROP PROCEDURE IF EXISTS setup;;
 
@@ -371,47 +371,14 @@ CALL wait_list(@query_list);
 SET @query_list = '';
 END;;
 
-
-SELECT 'Creating parallel query worker using events' as message;
+SELECT 'Creating parallel query worker using events' as message;;
 CREATE EVENT IF NOT EXISTS start_async_worker
 ON SCHEDULE EVERY 1 SECOND
-DO CALL worker;
+DO CALL worker;;
 
 
 SELECT 'Creating parallel query tables' as message;;
 call warpsql.setup();;
-
-SELECT 'Creating triggers' as message; 
--- The triggers can't be created in stored routines, so they 
--- have to be created here.  They aren't vital to behavior so
--- it is not so bad if they go missing
-CREATE TRIGGER trg_before_delete before DELETE ON warpsql.settings
-FOR EACH ROW 
-BEGIN  
-    SIGNAL SQLSTATE '99999'   
-    SET MESSAGE_TEXT = 'You may not delete rows in this table';
-END;;
-
-CREATE TRIGGER trg_before_insert before INSERT ON warpsql.settings
-FOR EACH ROW 
-BEGIN  
-    SIGNAL SQLSTATE '99999'   
-    SET MESSAGE_TEXT = 'You may not insert rows in this table';
-END;;
-
-CREATE TRIGGER trg_before_update before UPDATE ON warpsql.settings
-FOR EACH ROW 
-BEGIN  
-    IF new.variable != 'thread_count' THEN 
-        SIGNAL SQLSTATE '99999'   
-        SET MESSAGE_TEXT = 'Only the thread_count variable is supported at this time';
-    END IF;
-    IF new.variable = 'thread_count' AND CAST(new.value AS SIGNED) < 1 THEN 
-        SIGNAL SQLSTATE '99999'   
-        SET MESSAGE_TEXT = 'Thread count must be greater than or equal to 1';
-    END IF;
-END;;
-
 
 drop procedure if exists warpsql.parallel_query;;
 create definer=root@localhost 

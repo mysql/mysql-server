@@ -154,7 +154,7 @@ static int warp_init_func(void *p) {
   handlerton *warp_hton;
   ibis::fileManager::adjustCacheSize(my_cache_size);
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(0);
+  ibis::util::setVerboseLevel(1);
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
 #endif
