@@ -9047,7 +9047,17 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
     was stopped (as we don't wan't to touch the other thread), so set the
     bit to 0 for the other thread
   */
-  if (thd->lex->slave_thd_opt) thread_mask &= thd->lex->slave_thd_opt;
+  if (thd->lex->slave_thd_opt) {
+    thread_mask &= thd->lex->slave_thd_opt;
+
+    /*
+      If we are stopping IO thread, we also need to consider
+      IO Monitor thread.
+    */
+    if ((thread_mask & SLAVE_IO) && mi->is_source_connection_auto_failover()) {
+      thread_mask |= SLAVE_MONITOR;
+    }
+  }
 
   if (thread_mask) {
     slave_errno =
