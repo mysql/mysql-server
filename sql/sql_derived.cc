@@ -565,6 +565,7 @@ Item *TABLE_LIST::get_clone_for_derived_expr(THD *thd, Item *item,
   // Set the correct query block to parse the item. In some cases, like
   // fulltext functions, parser needs to add them to ftfunc_list of the
   // query block.
+  thd->lex->unit = context->query_block->master_query_expression();
   thd->lex->set_current_query_block(context->query_block);
   bool result = parse_sql(thd, &parser_state, nullptr);
 
