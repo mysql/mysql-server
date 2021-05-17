@@ -2,7 +2,7 @@
 # Bug#32788564: TOO MANY COLUMNS ON PARTITIONED TABLE MAKES DATABASE BROKEN #
 #############################################################################
 
---source include/have_innodb_min_16k.inc
+--source include/have_innodb_16k.inc
 
 # This test verifies the bug#32788564 where the server crashed while
 # executing TRUNCATE TABLE on a partitioned table, if an
