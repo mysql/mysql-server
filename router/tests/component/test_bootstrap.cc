@@ -704,18 +704,20 @@ TEST_P(RouterBootstrapOnlySockets, BootstrapOnlySockets) {
       "--conf-skip-tcp",
       "--conf-use-sockets"};
 
-  const std::vector<std::string> expected_output{
 #ifndef _WIN32
+  const std::vector<std::string> expected_output{
       "- Read/Write Connections: .*/mysqlx.sock",
-      "- Read/Only Connections: .*/mysqlxro.sock"
+      "- Read/Only Connections: .*/mysqlxro.sock"};
+  const auto expected_result = EXIT_SUCCESS;
 #else
-      "Error: unknown option '--conf-skip-tcp'"
+  const std::vector<std::string> expected_output{
+      "Error: unknown option '--conf-skip-tcp'"};
+  const auto expected_result = EXIT_FAILURE;
 #endif
-  };
 
   ASSERT_NO_FATAL_FAILURE(
       bootstrap_failover(mock_servers, GetParam().cluster_type, router_options,
-                         EXIT_SUCCESS, expected_output));
+                         expected_result, expected_output));
 }
 
 INSTANTIATE_TEST_SUITE_P(
