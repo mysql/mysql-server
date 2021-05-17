@@ -174,12 +174,12 @@
   performance_schema tables changed in MySQL 8.0.24
   - WL#13446 added performance_schema.keyring_component_status
 
-  80025:
-  performance_schema tables changed in MySQL 8.0.25
+  80027:
+  performance_schema tables changed in MySQL 8.0.27
   - WL#9852 added replication_group_members column
-    MEMBER_INCOMING_COMMUNICATION_PROTOCOL
+    MEMBER_COMMUNICATION_PROTOCOL_STACK
 */
 
-static const uint PFS_DD_VERSION = 80025;
+static const uint PFS_DD_VERSION = 80027;
 
 #endif /* PFS_DD_VERSION_H */

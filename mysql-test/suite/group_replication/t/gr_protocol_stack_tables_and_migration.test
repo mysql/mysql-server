@@ -50,7 +50,7 @@ while ($_rpl_server)
   --let $server_uuid= `SELECT @@server_uuid`
 
   --let $comm_stack_value= `SELECT @@group_replication_communication_stack`
-  --let $incoming_ps_value= `SELECT MEMBER_INCOMING_COMMUNICATION_PROTOCOL FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
+  --let $incoming_ps_value= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
 
   --let $assert_cond= "$comm_stack_value" = "$incoming_ps_value"
   --let $assert_text= Assert that the configured communication stack is the same as reported in P_S tables
@@ -68,7 +68,7 @@ while ($_rpl_server)
 --source include/stop_group_replication.inc
 
 --let $server_2_uuid= `SELECT @@server_uuid`
---let $incoming_ps_value_server2_stopped= `SELECT MEMBER_INCOMING_COMMUNICATION_PROTOCOL FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_2_uuid"`
+--let $incoming_ps_value_server2_stopped= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_2_uuid"`
 --let $assert_cond= "$communication_stack_save_2" = "$incoming_ps_value_server2_stopped"
 --let $assert_text= Assert that the configured communication stack remains valid with a stopped server
 --source include/assert.inc
@@ -116,7 +116,7 @@ while ($_rpl_server)
   --let $server_uuid= `SELECT @@server_uuid`
 
   --let $comm_stack_value= `SELECT @@group_replication_communication_stack`
-  --let $incoming_ps_value= `SELECT MEMBER_INCOMING_COMMUNICATION_PROTOCOL FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
+  --let $incoming_ps_value= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
 
   --let $assert_cond= "$comm_stack_value" = "$incoming_ps_value"
   --let $assert_text= Assert that the configured communication stack is the same as reported in P_S tables
@@ -134,7 +134,7 @@ SET GLOBAL group_replication_communication_stack= XCOM;
 --let $server_uuid= `SELECT @@server_uuid`
 
 --let $comm_stack_value= `SELECT @@group_replication_communication_stack`
---let $incoming_ps_value= `SELECT MEMBER_INCOMING_COMMUNICATION_PROTOCOL FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
+--let $incoming_ps_value= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
 
 --let $assert_cond= "$comm_stack_value" != "$incoming_ps_value"
 --let $assert_text= Assert that the configured communication stack is different then the one reported in P_S tables
@@ -152,7 +152,7 @@ SET GLOBAL group_replication_communication_stack= XCOM;
 --let $server_uuid= `SELECT @@server_uuid`
 
 --let $comm_stack_value= `SELECT @@group_replication_communication_stack`
---let $incoming_ps_value= `SELECT MEMBER_INCOMING_COMMUNICATION_PROTOCOL FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
+--let $incoming_ps_value= `SELECT MEMBER_COMMUNICATION_STACK FROM performance_schema.replication_group_members WHERE MEMBER_ID="$server_uuid"`
 
 --let $assert_cond= "$comm_stack_value" != "$incoming_ps_value"
 --let $assert_text= Assert that the configured communication stack is different then the one reported in P_S tables
