@@ -1356,6 +1356,7 @@ class Item_func_st_intersection final : public Item_func_spatial_operation {
  public:
   Item_func_st_intersection(const POS &pos, Item *a, Item *b)
       : Item_func_spatial_operation(pos, a, b, op_intersection) {}
+  String *val_str(String *) override;
   const char *func_name() const override { return "st_intersection"; }
 };
 

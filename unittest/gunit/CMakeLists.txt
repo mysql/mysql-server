@@ -233,6 +233,7 @@ SET(SERVER_TESTS
   gis_frechet_distance
   gis_geometries
   gis_hausdorff_distance
+  gis_intersection
   gis_is_simple
   gis_isvalid
   gis_line_interpolate_point
