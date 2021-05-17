@@ -557,7 +557,13 @@ static void ndbcluster_acl_notify(THD *thd,
 
   if (strategy == Ndb_stored_grants::Strategy::SNAPSHOT) {
     ndb_log_verbose(9, "ACL change distribution: SNAPSHOT");
-    if (!schema_dist_client.acl_notify(user_list)) raise_error("as snapshot");
+    NdbTransaction *lock_trans = Ndb_stored_grants::acquire_snapshot_lock(thd);
+    if (lock_trans) {
+      if (!schema_dist_client.acl_notify(user_list)) raise_error("as snapshot");
+      Ndb_stored_grants::release_snapshot_lock(lock_trans);
+    } else {
+      raise_error("- did not acquire snapshot lock");
+    }
     return;
   }
 

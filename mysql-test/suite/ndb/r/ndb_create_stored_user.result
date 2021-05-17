@@ -1,0 +1,7 @@
+call mtr.add_suppression("did not acquire snapshot lock");
+call mtr.add_suppression("did not acquire snapshot lock");
+CREATE USER IF NOT EXISTS "tx"@"localhost";
+GRANT NDB_STORED_USER ON *.* TO "tx"@"localhost";
+CREATE USER IF NOT EXISTS "tx"@"localhost";
+GRANT NDB_STORED_USER ON *.* TO "tx"@"localhost";
+DROP USER "tx"@"localhost";
