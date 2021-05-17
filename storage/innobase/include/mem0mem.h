@@ -352,15 +352,13 @@ struct mem_block_info_t {
   char file_name[16]; /* file name where the mem heap was created */
   ulint line;         /*!< line number where the mem heap was created */
 #endif                /* UNIV_DEBUG */
-  UT_LIST_BASE_NODE_T(mem_block_t)
-  base; /* In the first block in the
-the list this is the base node of the list of blocks;
-in subsequent blocks this is undefined */
-  UT_LIST_NODE_T(mem_block_t)
-  list;             /* This contains pointers to next
-  and prev in the list. The first block allocated
-  to the heap is also the first block in this list,
-  though it also contains the base node of the list. */
+  /** This contains pointers to next and prev in the list. The first block
+  allocated to the heap is also the first block in this list,
+  though it also contains the base node of the list.*/
+  UT_LIST_NODE_T(mem_block_t) list;
+  /** In the first block of the list this is the base node of the list of
+  blocks; in subsequent blocks this is undefined */
+  UT_LIST_BASE_NODE_T_EXTERN(mem_block_t, list) base;
   ulint len;        /*!< physical length of this block in bytes */
   ulint total_size; /*!< physical length in bytes of all blocks
                 in the heap. This is defined only in the base
@@ -382,6 +380,9 @@ in subsequent blocks this is undefined */
   pool, this contains the buf_block_t handle;
   otherwise, this is NULL */
 };
+/* We use the UT_LIST_BASE_NODE_T_EXTERN instead of simpler UT_LIST_BASE_NODE_T
+because DevStudio12.6 initializes the pointer-to-member offset to 0 otherwise.*/
+UT_LIST_NODE_GETTER_DEFINITION(mem_block_t, list)
 
 #define MEM_BLOCK_MAGIC_N 0x445566778899AABB
 #define MEM_FREED_BLOCK_MAGIC_N 0xBBAA998877665544

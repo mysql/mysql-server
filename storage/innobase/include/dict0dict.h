@@ -1080,13 +1080,12 @@ struct dict_sys_t {
   dict_table_t *ddl_log;
   /** Permanent handle to mysql.innodb_dynamic_metadata */
   dict_table_t *dynamic_metadata;
+  using Table_LRU_list_base = UT_LIST_BASE_NODE_T(dict_table_t, table_LRU);
 
-  UT_LIST_BASE_NODE_T(dict_table_t)
-  table_LRU; /*!< List of tables that can be evicted
-             from the cache */
-  UT_LIST_BASE_NODE_T(dict_table_t)
-  table_non_LRU; /*!< List of tables that can't be
-                 evicted from the cache */
+  /** List of tables that can be evicted from the cache */
+  Table_LRU_list_base table_LRU;
+  /** List of tables that can't be evicted from the cache */
+  Table_LRU_list_base table_non_LRU;
 
   /** Iterate each table.
   @tparam Functor visitor
@@ -1213,12 +1212,12 @@ struct dict_persist_t {
   tree latch, the latch level of this mutex then has to be right
   before the SYNC_INDEX_TREE. */
   ib_mutex_t mutex;
-
+#ifndef UNIV_HOTBACKUP
   /** List of tables whose dirty_status are marked as METADATA_DIRTY,
   or METADATA_BUFFERED. It's protected by the mutex */
-  UT_LIST_BASE_NODE_T(dict_table_t)
+  UT_LIST_BASE_NODE_T(dict_table_t, dirty_dict_tables)
   dirty_dict_tables;
-
+#endif
   /** Number of the tables which are of status METADATA_DIRTY.
   It's protected by the mutex */
   std::atomic<uint32_t> num_dirty_tables;

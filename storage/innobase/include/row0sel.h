@@ -295,18 +295,14 @@ struct plan_t {
   ibool no_prefetch;       /*!< no prefetch for this table */
   sym_node_list_t columns; /*!< symbol table nodes for the columns
                            to retrieve from the table */
-  UT_LIST_BASE_NODE_T(func_node_t)
-  end_conds; /*!< conditions which determine the
-             fetch limit of the index segment we
-             have to look at: when one of these
-             fails, the result set has been
-             exhausted for the cursor in this
-             index; these conditions are normalized
-             so that in a comparison the column
-             for this table is the first argument */
-  UT_LIST_BASE_NODE_T(func_node_t)
-  other_conds;               /*!< the rest of search conditions we can
-                             test at this table in a join */
+  using Cond_list = UT_LIST_BASE_NODE_T_EXTERN(func_node_t, cond_list);
+  /** conditions which determine the fetch limit of the index segment we have to
+  look at: when one of these fails, the result set has been exhausted for the
+  cursor in this index; these conditions are normalized so that in a comparison
+  the column for this table is the first argument */
+  Cond_list end_conds;
+  /** the rest of search conditions we can test at this table in a join */
+  Cond_list other_conds;
   ibool must_get_clust;      /*!< TRUE if index is a non-clustered
                              index and we must also fetch the
                              clustered index record; this is the
@@ -370,23 +366,18 @@ struct sel_node_t {
   /*!< TRUE if the aggregate row has
   already been fetched for the current
   cursor */
-  ibool can_get_updated;       /*!< this is TRUE if the select
-                               is in a single-table explicit
-                               cursor which can get updated
-                               within the stored procedure,
-                               or in a searched update or
-                               delete; NOTE that to determine
-                               of an explicit cursor if it
-                               can get updated, the parser
-                               checks from a stored procedure
-                               if it contains positioned
-                               update or delete statements */
-  sym_node_t *explicit_cursor; /*!< not NULL if an explicit cursor */
-  UT_LIST_BASE_NODE_T(sym_node_t)
-  copy_variables; /*!< variables whose values we have to
-                  copy when an explicit cursor is opened,
-                  so that they do not change between
-                  fetches */
+
+  /** this is TRUE if the select is in a single-table explicit cursor which can
+  get updated within the stored procedure, or in a searched update or delete;
+  NOTE that to determine of an explicit cursor if it can get updated, the
+  parser checks from a stored procedure if it contains positioned update or
+  delete statements */
+  ibool can_get_updated;
+  /** not NULL if an explicit cursor */
+  sym_node_t *explicit_cursor;
+  /** variables whose values we have to copy when an explicit cursor is opened,
+  so that they do not change between fetches */
+  sym_node_list_t copy_variables;
 };
 
 /** Fetch statement node */

@@ -317,7 +317,7 @@ enum recv_addr_state {
 
 /** Hashed page file address struct */
 struct recv_addr_t {
-  using List = UT_LIST_BASE_NODE_T(recv_t);
+  using List = UT_LIST_BASE_NODE_T(recv_t, rec_list);
 
   /** recovery state of the page */
   recv_addr_state state;

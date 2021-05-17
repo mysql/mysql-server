@@ -1018,8 +1018,8 @@ void dict_init(void) {
 
   dict_sys = static_cast<dict_sys_t *>(ut_zalloc_nokey(sizeof(*dict_sys)));
 
-  UT_LIST_INIT(dict_sys->table_LRU, &dict_table_t::table_LRU);
-  UT_LIST_INIT(dict_sys->table_non_LRU, &dict_table_t::table_LRU);
+  UT_LIST_INIT(dict_sys->table_LRU);
+  UT_LIST_INIT(dict_sys->table_non_LRU);
 
   mutex_create(LATCH_ID_DICT_SYS, &dict_sys->mutex);
 
@@ -1431,20 +1431,16 @@ static const dict_index_t *dict_table_find_index_on_id(
 @param[in]	id	index identifier
 @return index or NULL if not found */
 const dict_index_t *dict_index_find(const index_id_t &id) {
-  const dict_table_t *table;
-
   ut_ad(mutex_own(&dict_sys->mutex));
 
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table != nullptr;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_LRU) {
     const dict_index_t *index = dict_table_find_index_on_id(table, id);
     if (index != nullptr) {
       return (index);
     }
   }
 
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table != nullptr;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_non_LRU) {
     const dict_index_t *index = dict_table_find_index_on_id(table, id);
     if (index != nullptr) {
       return (index);
@@ -3835,8 +3831,7 @@ void dict_persist_init(void) {
   mutex_create(LATCH_ID_DICT_PERSIST_DIRTY_TABLES, &dict_persist->mutex);
 
 #ifndef UNIV_HOTBACKUP
-  UT_LIST_INIT(dict_persist->dirty_dict_tables,
-               &dict_table_t::dirty_dict_tables);
+  UT_LIST_INIT(dict_persist->dirty_dict_tables);
 #endif /* !UNIV_HOTBACKUP */
 
   dict_persist->num_dirty_tables = 0;
@@ -4066,7 +4061,9 @@ void dict_table_mark_dirty(dict_table_t *table) {
       break;
     case METADATA_CLEAN:
       /* Not in dirty_tables list, add it now */
+#ifndef UNIV_HOTBACKUP
       UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
+#endif
       ut_d(table->in_dirty_dict_tables_list = true);
       /* Fall through */
     case METADATA_BUFFERED:
@@ -4180,7 +4177,7 @@ void dict_table_persist_to_dd_table_buffer(dict_table_t *table) {
 
   mutex_exit(&dict_persist->mutex);
 }
-
+#ifndef UNIV_HOTBACKUP
 /** Check if any table has any dirty persistent data, if so
 write dirty persistent data of table to mysql.innodb_dynamic_metadata
 accordingly. */
@@ -4194,13 +4191,10 @@ void dict_persist_to_dd_table_buffer() {
 
   mutex_enter(&dict_persist->mutex);
 
-  for (dict_table_t *table = UT_LIST_GET_FIRST(dict_persist->dirty_dict_tables);
-       table != nullptr;) {
-    dict_table_t *next = UT_LIST_GET_NEXT(dirty_dict_tables, table);
-
+  for (dict_table_t *table : dict_persist->dirty_dict_tables.removable()) {
+    ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
     ut_ad(table->dirty_status.load() == METADATA_DIRTY ||
           table->dirty_status.load() == METADATA_BUFFERED);
-    ut_ad(next == nullptr || next->magic_n == DICT_TABLE_MAGIC_N);
 
     if (table->dirty_status.load() == METADATA_DIRTY) {
       /* We should not attempt to write to data pages while shutting down
@@ -4212,8 +4206,6 @@ void dict_persist_to_dd_table_buffer() {
         persisted = true;
       }
     }
-
-    table = next;
   }
 
   ut_ad(dict_persist->num_dirty_tables == 0);
@@ -4237,8 +4229,6 @@ void dict_persist_to_dd_table_buffer() {
     log_write_up_to(*log_sys, persisted_lsn, true);
   }
 }
-
-#ifndef UNIV_HOTBACKUP
 
 /** Calculate and update the redo log margin for current tables which
 have some changed dynamic metadata in memory and have not been written
@@ -4295,11 +4285,9 @@ static void dict_persist_update_log_margin() {
 @param[in]	list			pointer to the list of tables
 @param[in]	merge_threshold_all	value to set for all indexes */
 inline void dict_set_merge_threshold_list_debug(
-    UT_LIST_BASE_NODE_T(dict_table_t) * list, uint merge_threshold_all) {
-  for (dict_table_t *table = UT_LIST_GET_FIRST(*list); table != nullptr;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
-    for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+    dict_sys_t::Table_LRU_list_base *list, uint merge_threshold_all) {
+  for (auto table : *list) {
+    for (auto index : table->indexes) {
       rw_lock_x_lock(dict_index_get_lock(index));
       index->merge_threshold = merge_threshold_all;
       rw_lock_x_unlock(dict_index_get_lock(index));
@@ -4444,7 +4432,6 @@ void dict_table_check_for_dup_indexes(const dict_table_t *table,
   /* Check for duplicates, ignoring indexes that are marked
   as to be dropped */
 
-  const dict_index_t *index1;
   const dict_index_t *index2;
 
   ut_ad(mutex_own(&dict_sys->mutex));
@@ -4452,9 +4439,7 @@ void dict_table_check_for_dup_indexes(const dict_table_t *table,
   /* The primary index _must_ exist */
   ut_a(UT_LIST_GET_LEN(table->indexes) > 0);
 
-  index1 = UT_LIST_GET_FIRST(table->indexes);
-
-  do {
+  for (auto index1 : table->indexes) {
     if (!index1->is_committed()) {
       ut_a(!index1->is_clustered());
 
@@ -4482,9 +4467,7 @@ void dict_table_check_for_dup_indexes(const dict_table_t *table,
       ut_ad(index1->is_committed() != index2->is_committed() ||
             strcmp(index1->name, index2->name) != 0);
     }
-
-    index1 = UT_LIST_GET_NEXT(indexes, index1);
-  } while (index1);
+  }
 }
 #endif /* UNIV_DEBUG */
 
@@ -4546,8 +4529,6 @@ void dict_fs2utf8(const char *db_and_table, char *db_utf8, size_t db_utf8_size,
 
 /** Resize the hash tables besed on the current buffer pool size. */
 void dict_resize() {
-  dict_table_t *table;
-
   mutex_enter(&dict_sys->mutex);
 
   /* all table entries are in table_LRU and table_non_LRU lists */
@@ -4560,8 +4541,7 @@ void dict_resize() {
   dict_sys->table_id_hash = hash_create(
       buf_pool_get_curr_size() / (DICT_POOL_PER_TABLE_HASH * UNIV_WORD_SIZE));
 
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_LRU) {
     ulint fold = ut_fold_string(table->name.m_name);
     ulint id_fold = ut_fold_ull(table->id);
 
@@ -4570,8 +4550,7 @@ void dict_resize() {
     HASH_INSERT(dict_table_t, id_hash, dict_sys->table_id_hash, id_fold, table);
   }
 
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_non_LRU) {
     ulint fold = ut_fold_string(table->name.m_name);
     ulint id_fold = ut_fold_ull(table->id);
 
@@ -4665,17 +4644,13 @@ void dict_close(void) {
 /** Validate the dictionary table LRU list.
  @return true if valid */
 static ibool dict_lru_validate(void) {
-  dict_table_t *table;
-
   ut_ad(mutex_own(&dict_sys->mutex));
 
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table != nullptr;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_LRU) {
     ut_a(table->can_be_evicted);
   }
 
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table != nullptr;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_non_LRU) {
     ut_a(!table->can_be_evicted);
   }
 
@@ -4687,13 +4662,10 @@ static ibool dict_lru_validate(void) {
 static ibool dict_lru_find_table(
     const dict_table_t *find_table) /*!< in: table to find */
 {
-  dict_table_t *table;
-
   ut_ad(find_table != nullptr);
   ut_ad(mutex_own(&dict_sys->mutex));
 
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table != nullptr;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_LRU) {
     ut_a(table->can_be_evicted);
 
     if (table == find_table) {
@@ -4709,13 +4681,10 @@ static ibool dict_lru_find_table(
 static ibool dict_non_lru_find_table(
     const dict_table_t *find_table) /*!< in: table to find */
 {
-  dict_table_t *table;
-
   ut_ad(find_table != nullptr);
   ut_ad(mutex_own(&dict_sys->mutex));
 
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table != nullptr;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_non_LRU) {
     ut_a(!table->can_be_evicted);
 
     if (table == find_table) {

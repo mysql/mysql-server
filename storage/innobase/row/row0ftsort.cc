@@ -253,7 +253,7 @@ dberr_t row_fts_psort_info_init(trx_t *trx, row_merge_dup_t *dup,
   each parallel sort thread. Each "sort bucket" holds records for
   a particular "FTS index partition" */
   for (j = 0; j < fts_sort_pll_degree; j++) {
-    UT_LIST_INIT(psort_info[j].fts_doc_list, &fts_doc_item_t::doc_list);
+    UT_LIST_INIT(psort_info[j].fts_doc_list);
 
     for (i = 0; i < FTS_NUM_AUX_INDEX; i++) {
       psort_info[j].merge_file[i] =

@@ -500,7 +500,7 @@ void pfs_rw_lock_create_func(
     const char *cfile_name,  /*!< in: file name where created */
     ulint cline)             /*!< in: file line where created */
 {
-  new (lock) rw_lock_t;
+  new (lock) rw_lock_t{};
 
   /* Initialize the rwlock for performance schema */
   lock->pfs_psi = PSI_RWLOCK_CALL(init_rwlock)(key.m_value, lock);

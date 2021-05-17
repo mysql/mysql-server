@@ -2303,7 +2303,7 @@ struct buf_pool_t {
   FlushHp oldest_hp;
 
   /** Base node of the modified block list */
-  UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
+  UT_LIST_BASE_NODE_T(buf_page_t, list) flush_list;
 
   /** This is true when a flush of the given type is being initialized.
   Protected by flush_state_mutex. */
@@ -2350,12 +2350,12 @@ struct buf_pool_t {
   /** @{ */
 
   /** Base node of the free block list */
-  UT_LIST_BASE_NODE_T(buf_page_t) free;
+  UT_LIST_BASE_NODE_T(buf_page_t, list) free;
 
   /** base node of the withdraw block list. It is only used during shrinking
   buffer pool size, not to reuse the blocks will be removed.  Protected by
   free_list_mutex */
-  UT_LIST_BASE_NODE_T(buf_page_t) withdraw;
+  UT_LIST_BASE_NODE_T(buf_page_t, list) withdraw;
 
   /** Target length of withdraw block list, when withdrawing */
   ulint withdraw_target;
@@ -2373,7 +2373,7 @@ struct buf_pool_t {
   LRUItr single_scan_itr;
 
   /** Base node of the LRU list */
-  UT_LIST_BASE_NODE_T(buf_page_t) LRU;
+  UT_LIST_BASE_NODE_T(buf_page_t, LRU) LRU;
 
   /** Pointer to the about LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV oldest blocks in
   the LRU list; NULL if LRU length less than BUF_LRU_OLD_MIN_LEN; NOTE: when
@@ -2388,7 +2388,7 @@ struct buf_pool_t {
 
   /** Base node of the unzip_LRU list. The list is protected by the
   LRU_list_mutex. */
-  UT_LIST_BASE_NODE_T(buf_block_t) unzip_LRU;
+  UT_LIST_BASE_NODE_T(buf_block_t, unzip_LRU) unzip_LRU;
 
   /** @} */
   /** @name Buddy allocator fields
@@ -2398,11 +2398,11 @@ struct buf_pool_t {
   /** @{ */
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
   /** Unmodified compressed pages */
-  UT_LIST_BASE_NODE_T(buf_page_t) zip_clean;
+  UT_LIST_BASE_NODE_T(buf_page_t, list) zip_clean;
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
   /** Buddy free lists */
-  UT_LIST_BASE_NODE_T(buf_buddy_free_t) zip_free[BUF_BUDDY_SIZES_MAX];
+  UT_LIST_BASE_NODE_T(buf_buddy_free_t, list) zip_free[BUF_BUDDY_SIZES_MAX];
 
   /** Sentinel records for buffer pool watches. Scanning the array is protected
   by taking all page_hash latches in X. Updating or reading an individual

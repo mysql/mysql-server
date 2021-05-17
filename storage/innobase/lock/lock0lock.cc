@@ -387,17 +387,14 @@ void lock_sys_resize(ulint n_cells) {
     buf_pool_t *buf_pool = buf_pool_from_array(i);
 
     mutex_enter(&buf_pool->LRU_list_mutex);
-    buf_page_t *bpage;
-    bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
 
-    while (bpage != nullptr) {
+    for (auto bpage : buf_pool->LRU) {
       if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
         buf_block_t *block;
         block = reinterpret_cast<buf_block_t *>(bpage);
 
         block->lock_hash_val = lock_rec_hash(bpage->id);
       }
-      bpage = UT_LIST_GET_NEXT(LRU, bpage);
     }
     mutex_exit(&buf_pool->LRU_list_mutex);
   }
@@ -913,8 +910,7 @@ static bool lock_rec_other_trx_holds_expl(ulint precise_mode, const trx_t *trx,
     ulint heap_no = page_rec_get_heap_no(rec);
     mutex_enter(&trx_sys->mutex);
 
-    for (const trx_t *t = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); t != nullptr;
-         t = UT_LIST_GET_NEXT(trx_list, t)) {
+    for (auto t : trx_sys->rw_trx_list) {
       const lock_t *expl_lock =
           lock_rec_has_expl(precise_mode, block, heap_no, t);
 
@@ -2537,14 +2533,11 @@ static void lock_rec_move_low(
 /** Move all the granted locks to the front of the given lock list.
 All the waiting locks will be at the end of the list.
 @param[in,out]	lock_list	the given lock list.  */
-static void lock_move_granted_locks_to_front(UT_LIST_BASE_NODE_T(lock_t) &
-                                             lock_list) {
-  lock_t *lock;
-
+static void lock_move_granted_locks_to_front(trx_lock_list_t &lock_list) {
   bool seen_waiting_lock = false;
-
-  for (lock = UT_LIST_GET_FIRST(lock_list); lock != nullptr;
-       lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+  /* Note: We need iterator to removable container, as the ut_list_move_to_front
+  effectively removes the current element as part of its operation. */
+  for (auto lock : lock_list.removable()) {
     if (!seen_waiting_lock) {
       if (lock->is_waiting()) {
         seen_waiting_lock = true;
@@ -2555,10 +2548,7 @@ static void lock_move_granted_locks_to_front(UT_LIST_BASE_NODE_T(lock_t) &
     ut_ad(seen_waiting_lock);
 
     if (!lock->is_waiting()) {
-      lock_t *prev = UT_LIST_GET_PREV(trx_locks, lock);
-      ut_a(prev);
-      UT_LIST_MOVE_TO_FRONT(lock_list, lock);
-      lock = prev;
+      ut_list_move_to_front(lock_list, lock);
     }
   }
 }
@@ -2592,7 +2582,7 @@ void lock_move_reorganize_page(
                                reorganized page */
 {
   lock_t *lock;
-  UT_LIST_BASE_NODE_T(lock_t) old_locks(&lock_t::trx_locks);
+  trx_lock_list_t old_locks;
   mem_heap_t *heap = nullptr;
   ulint comp;
   {
@@ -2636,8 +2626,7 @@ void lock_move_reorganize_page(
     DBUG_EXECUTE_IF("do_lock_reverse_page_reorganize",
                     UT_LIST_REVERSE(old_locks););
 
-    for (lock = UT_LIST_GET_FIRST(old_locks); lock != nullptr;
-         lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+    for (auto lock : old_locks) {
       /* NOTE: we copy also the locks set on the infimum and
       supremum of the page; the infimum may carry locks if an
       update of a record is occurring on the page, and its locks
@@ -3257,11 +3246,10 @@ void lock_rec_restore_from_page_infimum(const buf_block_t *block,
 }
 
 /*========================= TABLE LOCKS ==============================*/
-
-/** Functor for accessing the embedded node within a table lock. */
 struct TableLockGetNode {
-  ut_list_node<lock_t> &operator()(lock_t &elem) {
-    return (elem.tab_lock.locks);
+  /** Functor for accessing the embedded node within a table lock. */
+  static const ut_list_node<lock_t> &get_node(const lock_t &lock) {
+    return lock.tab_lock.locks;
   }
 };
 
@@ -3319,7 +3307,7 @@ lock_t *lock_table_create(dict_table_t *table, /*!< in/out: database table
 
   locksys::add_to_trx_locks(lock);
 
-  ut_list_append(table->locks, lock, TableLockGetNode());
+  ut_list_append(table->locks, lock);
 
   if (type_mode & LOCK_WAIT) {
     lock_set_lock_and_trx_wait(lock);
@@ -3446,7 +3434,7 @@ void lock_table_remove_low(lock_t *lock) /*!< in/out: table lock */
 
   locksys::remove_from_trx_locks(lock);
 
-  ut_list_remove(table->locks, lock, TableLockGetNode());
+  ut_list_remove(table->locks, lock);
 
   MONITOR_INC(MONITOR_TABLELOCK_REMOVED);
   MONITOR_DEC(MONITOR_NUM_TABLELOCK);
@@ -3687,7 +3675,6 @@ or nullptr if it can be granted now */
 static const lock_t *lock_table_has_to_wait_in_queue(
     const lock_t *wait_lock, const trx_t *blocking_trx = nullptr) {
   const dict_table_t *table;
-  const lock_t *lock;
 
   ut_ad(lock_get_wait(wait_lock));
 
@@ -3710,9 +3697,8 @@ static const lock_t *lock_table_has_to_wait_in_queue(
       table->count_by_mode[LOCK_S] == 0 && table->count_by_mode[LOCK_X] == 0) {
     return (nullptr);
   }
-
-  for (lock = UT_LIST_GET_FIRST(table->locks); lock != wait_lock;
-       lock = UT_LIST_GET_NEXT(tab_lock.locks, lock)) {
+  for (auto lock : table->locks) {
+    if (lock == wait_lock) break;
     if ((blocking_trx == nullptr || blocking_trx == lock->trx) &&
         lock_has_to_wait(wait_lock, lock)) {
       return (lock);
@@ -3758,7 +3744,9 @@ static void lock_table_dequeue(
   const auto table = in_lock->tab_lock.table;
 
   lock_t *lock = UT_LIST_GET_NEXT(tab_lock.locks, in_lock);
-
+  /* This call can remove the last lock on the table, in which case it's unsafe
+  to access the table object in the code below, because it can get freed as soon
+  as the last lock on it is removed (@see lock_table_has_locks). */
   lock_table_remove_low(in_lock);
 
   // According to lock_compatibility_matrix, an intention lock can block only
@@ -3770,8 +3758,9 @@ static void lock_table_dequeue(
   // need to get an intention lock to perform their action - while this never
   // causes them to wait for a "data lock", it might cause them to wait for
   // lock_sys table shard latch for the duration of table lock queue operation.
-  if ((mode == LOCK_IS || mode == LOCK_IX) &&
-      table->count_by_mode[LOCK_S] == 0 && table->count_by_mode[LOCK_X] == 0) {
+  if (!lock || ((mode == LOCK_IS || mode == LOCK_IX) &&
+                table->count_by_mode[LOCK_S] == 0 &&
+                table->count_by_mode[LOCK_X] == 0)) {
     return;
   }
 
@@ -4079,19 +4068,14 @@ static bool try_release_read_locks_in_s_mode(trx_t *trx, bool only_gap) {
   */
   ut_ad(trx_mutex_own(trx));
   ut_ad(locksys::owns_shared_global_latch());
-  lock_t *lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 
-  while (lock != nullptr) {
+  for (auto lock : trx->lock.trx_locks.removable()) {
     ut_ad(trx_mutex_own(trx));
     /* We didn't latch the lock_sys shard this `lock` is in, so we only read a
     bare minimum set of information from the `lock`, such as the type, space,
     page_no, and next pointer, which, as long as we hold trx->mutex, should be
     immutable.
-
-    Store the pointer to the next lock in the list, because in some cases we are
-    going to remove `lock` from the list, which clears the pointer to next lock
     */
-    auto next_lock = UT_LIST_GET_NEXT(trx_locks, lock);
     if (lock_get_type_low(lock) == LOCK_REC) {
       /* Following call temporarily releases trx->mutex */
       if (!try_relatch_trx_and_shard_and_do(
@@ -4101,9 +4085,8 @@ static bool try_release_read_locks_in_s_mode(trx_t *trx, bool only_gap) {
         return false;
       }
     }
-    /* As we have verified that the version has not changed, it must be the case
-    that the next_lock is still the next lock as well */
-    lock = next_lock;
+    /* As we have verified that the version was not changed by another thread,
+    we can safely continue iteration even if we have removed the lock.*/
   }
   return true;
 }
@@ -4121,18 +4104,10 @@ static void lock_trx_release_read_locks_in_x_mode(trx_t *trx, bool only_gap) {
   locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
   trx_mutex_enter_first_of_two(trx);
 
-  lock_t *lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
-
-  while (lock != nullptr) {
+  for (auto lock : trx->lock.trx_locks.removable()) {
     DEBUG_SYNC_C("lock_trx_release_read_locks_in_x_mode_will_release");
-    /* Store the pointer to the next lock in the list, because in some cases
-    we are going to remove `lock` from the list, which clears the pointer to
-    next lock */
-    lock_t *next_lock = UT_LIST_GET_NEXT(trx_locks, lock);
 
     lock_release_read_lock(lock, only_gap);
-
-    lock = next_lock;
   }
 
   trx_mutex_exit(trx);
@@ -4277,8 +4252,7 @@ static ulint lock_remove_recovered_trx_record_locks(
 
   mutex_enter(&trx_sys->mutex);
 
-  for (trx_t *trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list); trx != nullptr;
-       trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+  for (trx_t *trx : trx_sys->rw_trx_list) {
     assert_trx_in_rw_list(trx);
 
     if (!trx->is_recovered) {
@@ -4292,17 +4266,12 @@ static ulint lock_remove_recovered_trx_record_locks(
     implicit locks cannot be converted to explicit ones
     while we are scanning the explicit locks. */
 
-    lock_t *next_lock;
-
-    for (lock_t *lock = UT_LIST_GET_FIRST(trx->lock.trx_locks); lock != nullptr;
-         lock = next_lock) {
+    for (auto lock : trx->lock.trx_locks.removable()) {
       ut_a(lock->trx == trx);
 
       /* Recovered transactions can't wait on a lock. */
 
       ut_a(!lock_get_wait(lock));
-
-      next_lock = UT_LIST_GET_NEXT(trx_locks, lock);
 
       switch (lock_get_type_low(lock)) {
         default:
@@ -4338,17 +4307,10 @@ void lock_remove_all_on_table(
     ibool remove_also_table_sx_locks) /*!< in: also removes
                                    table S and X locks */
 {
-  lock_t *lock;
-
   /* We will iterate over locks (including record locks) from various shards */
   locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
 
-  for (lock = UT_LIST_GET_FIRST(table->locks); lock != nullptr;
-       /* No op */) {
-    lock_t *prev_lock;
-
-    prev_lock = UT_LIST_GET_PREV(tab_lock.locks, lock);
-
+  for (auto lock : table->locks.removable()) {
     /* If we should remove all locks (remove_also_table_sx_locks
     is true), or if the lock is not table-level S or X lock,
     then check we are not going to remove a wait lock. */
@@ -4359,24 +4321,6 @@ void lock_remove_all_on_table(
 
     lock_remove_all_on_table_for_trx(table, lock->trx,
                                      remove_also_table_sx_locks);
-
-    if (prev_lock == nullptr) {
-      if (lock == UT_LIST_GET_FIRST(table->locks)) {
-        /* lock was not removed, pick its successor */
-        lock = UT_LIST_GET_NEXT(tab_lock.locks, lock);
-      } else {
-        /* lock was removed, pick the first one */
-        lock = UT_LIST_GET_FIRST(table->locks);
-      }
-    } else if (UT_LIST_GET_NEXT(tab_lock.locks, prev_lock) != lock) {
-      /* If lock was removed by
-      lock_remove_all_on_table_for_trx() then pick the
-      successor of prev_lock ... */
-      lock = UT_LIST_GET_NEXT(tab_lock.locks, prev_lock);
-    } else {
-      /* ... otherwise pick the successor of lock. */
-      lock = UT_LIST_GET_NEXT(tab_lock.locks, lock);
-    }
   }
 
   /* Note: Recovered transactions don't have table level IX or IS locks
@@ -4638,19 +4582,17 @@ class TrxLockIterator {
   /** Get the m_index(th) lock of a transaction.
   @return current lock or 0 */
   const lock_t *current(const trx_t *trx) const {
-    lock_t *lock;
     ulint i = 0;
     /* Writes to trx->lock.trx_locks are protected by trx->mutex combined with a
     shared lock_sys global latch, and we assume we have the exclusive latch on
     lock_sys here. */
     ut_ad(locksys::owns_exclusive_global_latch());
-    for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
-         lock != nullptr && i < m_index;
-         lock = UT_LIST_GET_NEXT(trx_locks, lock), ++i) {
-      /* No op */
+    for (auto lock : trx->lock.trx_locks) {
+      if (i++ == m_index) {
+        return lock;
+      }
     }
-
-    return (lock);
+    return nullptr;
   }
 
   /** Set the ordinal value to 0 */
@@ -4665,13 +4607,13 @@ class TrxLockIterator {
   ulint m_index;
 };
 
-/** This iterates over both the RW and RO trx_sys lists. We need to keep
+/** This iterates over RW trx_sys lists only. We need to keep
 track where the iterator was up to and we do that using an ordinal value. */
 
 class TrxListIterator {
  public:
   TrxListIterator() : m_index() {
-    /* We iterate over the RW trx list first. */
+    /* We iterate over the RW trx list only. */
 
     m_trx_list = &trx_sys->rw_trx_list;
   }
@@ -4698,26 +4640,26 @@ class TrxListIterator {
 
   @return transaction instance or 0 */
   const trx_t *reposition() const {
-    ulint i;
-    trx_t *trx;
+    ulint i = 0;
 
     /* Make the transaction at the ordinal value of m_index
     the current transaction. ie. reposition/restore */
 
-    for (i = 0, trx = UT_LIST_GET_FIRST(*m_trx_list);
-         trx != nullptr && (i < m_index);
-         trx = UT_LIST_GET_NEXT(trx_list, trx), ++i) {
+    for (auto trx : *m_trx_list) {
+      if (i++ == m_index) {
+        return trx;
+      }
       check_trx_state(trx);
     }
 
-    return (trx);
+    return nullptr;
   }
 
   /** Ordinal value of the transaction in the current transaction list */
   ulint m_index;
 
   /** Current transaction list */
-  trx_ut_list_t *m_trx_list;
+  decltype(trx_sys->rw_trx_list) *m_trx_list;
 
   /** For iterating over a transaction's locks */
   TrxLockIterator m_lock_iter;
@@ -4938,14 +4880,11 @@ void lock_print_info_all_transactions(FILE *file) {
 static bool lock_table_queue_validate(
     const dict_table_t *table) /*!< in: table */
 {
-  const lock_t *lock;
-
   /* We actually hold exclusive latch here, but we require just the shard */
   ut_ad(locksys::owns_table_shard(*table));
   ut_ad(trx_sys_mutex_own());
 
-  for (lock = UT_LIST_GET_FIRST(table->locks); lock != nullptr;
-       lock = UT_LIST_GET_NEXT(tab_lock.locks, lock)) {
+  for (auto lock : table->locks) {
     /* lock->trx->state cannot change from or to NOT_STARTED
     while we are holding the trx_sys->mutex. It may change
     from ACTIVE to PREPARED. It may become COMMITTED_IN_MEMORY even though we
@@ -5166,34 +5105,21 @@ function_exit:
   return (true);
 }
 
-/** Validates the table locks.
- @return true if ok */
-static bool lock_validate_table_locks(
-    const trx_ut_list_t *trx_list) /*!< in: trx list */
-{
-  const trx_t *trx;
-
+/** Validates the table locks. */
+static void lock_validate_table_locks() {
   /* We need exclusive access to lock_sys to iterate over trxs' locks */
   ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
 
-  ut_ad(trx_list == &trx_sys->rw_trx_list);
-
-  for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
-       trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-    const lock_t *lock;
-
+  for (const trx_t *trx : trx_sys->rw_trx_list) {
     check_trx_state(trx);
 
-    for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks); lock != nullptr;
-         lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+    for (const lock_t *lock : trx->lock.trx_locks) {
       if (lock_get_type_low(lock) & LOCK_TABLE) {
         lock_table_queue_validate(lock->tab_lock.table);
       }
     }
   }
-
-  return (true);
 }
 
 /** Validate a record lock's block */
@@ -5235,7 +5161,7 @@ bool lock_validate() {
     locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     mutex_enter(&trx_sys->mutex);
 
-    ut_a(lock_validate_table_locks(&trx_sys->rw_trx_list));
+    lock_validate_table_locks();
 
     /* Iterate over all the record locks and validate the locks. We
     don't want to hog the lock_sys global latch and the trx_sys_t::mutex.
@@ -5847,8 +5773,6 @@ void lock_get_psi_event(const lock_t *lock, ulonglong *thread_id,
 #endif
 }
 
-trx_lock_t::trx_lock_t() : trx_locks{&lock_t::trx_locks} {}
-
 /** Get the first lock of a trx lock list.
 @param[in]	trx_lock	the trx lock
 @return The first lock
@@ -6209,17 +6133,11 @@ dberr_t lock_trx_handle_wait(trx_t *trx) /*!< in/out: trx lock state */
 }
 
 #ifdef UNIV_DEBUG
-/** Do an exhaustive check for any locks (table or rec) against the table.
- @return lock if found */
-static const lock_t *lock_table_locks_lookup(
-    const dict_table_t *table,     /*!< in: check if there are
-                                   any locks held on records in
-                                   this table or on the table
-                                   itself */
-    const trx_ut_list_t *trx_list) /*!< in: trx list to check */
-{
-  const trx_t *trx;
-
+/** Scans all locks of all transactions in the rw_trx_list searching for any
+lock (table or rec) against the table.
+@param[in]  table   the table for which we perform the search
+@return lock if found */
+static const lock_t *lock_table_locks_lookup(const dict_table_t *table) {
   ut_a(table != nullptr);
   /* We are going to iterate over multiple transactions, so even though we know
   which table we are looking for we can not narrow required latch to just the
@@ -6228,14 +6146,10 @@ static const lock_t *lock_table_locks_lookup(
   ut_ad(locksys::owns_exclusive_global_latch());
   ut_ad(trx_sys_mutex_own());
 
-  for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
-       trx = UT_LIST_GET_NEXT(trx_list, trx)) {
-    const lock_t *lock;
-
+  for (auto trx : trx_sys->rw_trx_list) {
     check_trx_state(trx);
 
-    for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks); lock != nullptr;
-         lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
+    for (auto lock : trx->lock.trx_locks) {
       ut_a(lock->trx == trx);
 
       if (lock_get_type_low(lock) == LOCK_REC) {
@@ -6264,9 +6178,9 @@ bool lock_table_has_locks(const dict_table_t *table) {
 
   bool has_locks = table->n_rec_locks.load() > 0;
   if (!has_locks) {
-    /* TBD: can we remove latch protection despite
-    lock_trx_table_locks_remove(lock) possibly still going on? */
-    locksys::Shard_latch_guard table_latch_guard{UT_LOCATION_HERE, *table};
+    /* As soon as we return false the caller might free the table object, so it
+    is crucial that when lock_table_dequeue() removes the last lock on the table
+    then the thread calling it won't dereference the table pointer anymore. */
     has_locks = UT_LIST_GET_LEN(table->locks) > 0;
   }
 
@@ -6275,7 +6189,7 @@ bool lock_table_has_locks(const dict_table_t *table) {
     locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     mutex_enter(&trx_sys->mutex);
 
-    ut_ad(!lock_table_locks_lookup(table, &trx_sys->rw_trx_list));
+    ut_ad(!lock_table_locks_lookup(table));
 
     mutex_exit(&trx_sys->mutex);
   }
@@ -6283,13 +6197,6 @@ bool lock_table_has_locks(const dict_table_t *table) {
 
   return (has_locks);
 }
-
-/** Initialise the table lock list.
-@param[out] lock_list List to initialise */
-void lock_table_lock_list_init(table_lock_list_t *lock_list) {
-  UT_LIST_INIT(*lock_list, &lock_table_t::locks);
-}
-
 /** Set the lock system timeout event. */
 void lock_set_timeout_event() { os_event_set(lock_sys->timeout_event); }
 

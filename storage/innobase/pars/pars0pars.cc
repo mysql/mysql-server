@@ -871,7 +871,7 @@ sel_node_t *pars_select_statement(
          que_node_list_get_len(select_node->select_list));
   }
 
-  UT_LIST_INIT(select_node->copy_variables, &sym_node_t::col_var_list);
+  UT_LIST_INIT(select_node->copy_variables);
 
   pars_resolve_exp_list_columns(table_list, select_node->select_list);
   pars_resolve_exp_list_variables_and_types(select_node,
@@ -1090,7 +1090,7 @@ upd_node_t *pars_update_statement(
   pars_retrieve_table_def(table_sym);
   node->table = table_sym->table;
 
-  UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
+  UT_LIST_INIT(node->columns);
 
   /* Make the single table node into a list of table nodes of length 1 */
 
@@ -1711,7 +1711,6 @@ void yyerror(const char *s MY_ATTRIBUTE((unused)))
 que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
                 const char *str)   /*!< in: SQL string */
 {
-  sym_node_t *sym_node;
   mem_heap_t *heap;
   que_t *graph;
 
@@ -1733,12 +1732,8 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
 
   yyparse();
 
-  sym_node = UT_LIST_GET_FIRST(pars_sym_tab_global->sym_list);
-
-  while (sym_node) {
+  for (auto sym_node : pars_sym_tab_global->sym_list) {
     ut_a(sym_node->resolved);
-
-    sym_node = UT_LIST_GET_NEXT(sym_list, sym_node);
   }
 
   graph = pars_sym_tab_global->query_graph;

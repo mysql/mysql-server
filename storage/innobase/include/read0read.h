@@ -118,7 +118,7 @@ class MVCC {
   MVCC &operator=(const MVCC &);
 
  private:
-  typedef UT_LIST_BASE_NODE_T(ReadView) view_list_t;
+  typedef UT_LIST_BASE_NODE_T(ReadView, m_view_list) view_list_t;
 
   /** Free views ready for reuse. */
   view_list_t m_free;

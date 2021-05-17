@@ -3747,14 +3747,12 @@ static void innobase_dict_cache_reset(const char *schema_name,
 definition could be different with XA commit/rollback of DDL operations */
 static void innobase_dict_cache_reset_tables_and_tablespaces() {
   mutex_enter(&dict_sys->mutex);
-  dict_table_t *table = UT_LIST_GET_FIRST(dict_sys->table_LRU);
 
   /* There should be no DDL/DML activity at this stage, so access
   the LRU chain without mutex. We only invalidates the table
   in LRU list */
-  while (table) {
+  for (auto table : dict_sys->table_LRU.removable()) {
     /* Make sure table->is_dd_table is set */
-    dict_table_t *next_table = UT_LIST_GET_NEXT(table_LRU, table);
 
     std::string db_str;
     std::string tbl_str;
@@ -3765,7 +3763,6 @@ static void innobase_dict_cache_reset_tables_and_tablespaces() {
     if (db_str.compare("mysql") == 0 || table->is_dd_table ||
         table->is_corrupted() ||
         DICT_TF2_FLAG_IS_SET(table, DICT_TF2_RESURRECT_PREPARED)) {
-      table = next_table;
       continue;
     }
 
@@ -3774,7 +3771,6 @@ static void innobase_dict_cache_reset_tables_and_tablespaces() {
     dd_table_close(table, nullptr, nullptr, true);
 
     dict_table_remove_from_cache(table);
-    table = next_table;
   }
   mutex_exit(&dict_sys->mutex);
 }
@@ -13041,8 +13037,7 @@ void innobase_parse_hint_from_comment(THD *thd, dict_table_t *table,
   }
 
   /* update in memory */
-  for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
     if (dict_index_is_auto_gen_clust(index)) {
       /* GEN_CLUST_INDEX should use merge_threshold_table */
 
@@ -13790,14 +13785,13 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
   dict_table_t *handler = priv->lookup_table_handler(norm_name);
 
   if (handler != nullptr) {
-    for (dict_index_t *index = UT_LIST_GET_FIRST(handler->indexes);
-         index != nullptr && index->last_ins_cur;
-         index = UT_LIST_GET_NEXT(indexes, index)) {
-      /* last_ins_cur and last_sel_cur are allocated
-      together,therfore only checking last_ins_cur
-      before releasing mtr */
-      index->last_ins_cur->release();
-      index->last_sel_cur->release();
+    for (auto index : handler->indexes) {
+      if (index->last_ins_cur) {
+        /* last_ins_cur and last_sel_cur are allocated together, therefore only
+        checking last_ins_cur before releasing mtr */
+        index->last_ins_cur->release();
+        index->last_sel_cur->release();
+      }
     }
   } else if (srv_read_only_mode ||
              srv_force_recovery >= SRV_FORCE_NO_UNDO_LOG_SCAN) {
@@ -15487,10 +15481,8 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
   }
 
   /* Rename any in-memory cached table->tablespace */
-  dict_table_t *table = nullptr;
   mutex_enter(&dict_sys->mutex);
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_LRU); table;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_LRU) {
     if (table->tablespace && strcmp(from, table->tablespace) == 0) {
       old_size = mem_heap_get_size(table->heap);
 
@@ -15501,8 +15493,7 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
     }
   }
 
-  for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU); table;
-       table = UT_LIST_GET_NEXT(table_LRU, table)) {
+  for (auto table : dict_sys->table_non_LRU) {
     if (table->tablespace && strcmp(from, table->tablespace) == 0) {
       old_size = mem_heap_get_size(table->heap);
 
@@ -16860,8 +16851,7 @@ int ha_innobase::info_low(uint flag, bool is_analyze) {
     created, because MySQL will only consider
     the fully built indexes here. */
 
-    for (const dict_index_t *index = UT_LIST_GET_FIRST(ib_table->indexes);
-         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+    for (const dict_index_t *index : ib_table->indexes) {
       /* First, online index creation is
       completed inside InnoDB, and then
       MySQL attempts to upgrade the
@@ -17306,8 +17296,7 @@ static bool innobase_get_index_column_cardinality(
     return (true);
   }
 
-  for (const dict_index_t *index = UT_LIST_GET_FIRST(ib_table->indexes);
-       index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (const dict_index_t *index : ib_table->indexes) {
     if (index->is_committed() && ut_strcmp(index_name, index->name) == 0) {
       if (ib_table->stat_initialized == 0) {
         dict_stats_init(ib_table);
@@ -17596,8 +17585,7 @@ int ha_innobase::enable_indexes(uint mode) {
 
   if (m_prebuilt->table->is_intrinsic()) {
     ut_ad(mode == HA_KEY_SWITCH_ALL);
-    for (dict_index_t *index = UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
-         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+    for (auto index : m_prebuilt->table->indexes) {
       /* InnoDB being clustered index we can't disable/enable
       clustered index itself. */
       if (index->is_clustered()) {
@@ -17623,8 +17611,7 @@ int ha_innobase::disable_indexes(uint mode) {
 
   if (m_prebuilt->table->is_intrinsic()) {
     ut_ad(mode == HA_KEY_SWITCH_ALL);
-    for (dict_index_t *index = UT_LIST_GET_FIRST(m_prebuilt->table->indexes);
-         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+    for (auto index : m_prebuilt->table->indexes) {
       /* InnoDB being clustered index we can't disable/enable
       clustered index itself. */
       if (index->is_clustered()) {
@@ -18766,8 +18753,7 @@ static int innodb_show_rwlock_status(handlerton *hton, THD *thd,
 
   mutex_enter(&rw_lock_list_mutex);
 
-  for (rw_lock_t *rw_lock = UT_LIST_GET_FIRST(rw_lock_list); rw_lock != nullptr;
-       rw_lock = UT_LIST_GET_NEXT(list, rw_lock)) {
+  for (auto rw_lock : rw_lock_list) {
     if (rw_lock->count_os_wait == 0) {
       continue;
     }

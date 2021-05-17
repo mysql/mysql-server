@@ -195,13 +195,11 @@ bool buf_buddy_check_free(buf_pool_t *buf_pool, const buf_buddy_free_t *buf,
   ut_ad(!ut_align_offset(buf, size));
   ut_ad(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
 
-  buf_buddy_free_t *itr;
-
-  for (itr = UT_LIST_GET_FIRST(buf_pool->zip_free[i]); itr && itr != buf;
-       itr = UT_LIST_GET_NEXT(list, itr)) {
+  for (auto itr : buf_pool->zip_free[i]) {
+    if (itr == buf) return true;
   }
 
-  return (itr == buf);
+  return false;
 }
 #endif /* UNIV_DEBUG */
 
@@ -255,7 +253,7 @@ UNIV_INLINE
 void buf_buddy_add_to_free(buf_pool_t *buf_pool, buf_buddy_free_t *buf,
                            ulint i) {
   ut_ad(mutex_own(&buf_pool->zip_free_mutex));
-  ut_ad(buf_pool->zip_free[i].start != buf);
+  ut_ad(buf_pool->zip_free[i].first_element != buf);
 
   buf_buddy_stamp_free(buf, i);
   UT_LIST_ADD_FIRST(buf_pool->zip_free[i], buf);

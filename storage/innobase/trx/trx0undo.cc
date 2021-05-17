@@ -2142,28 +2142,22 @@ bool trx_undo_truncate_tablespace(undo::Tablespace *marked_space) {
     ut_a(UT_LIST_GET_LEN(rseg->update_undo_list) == 0);
     ut_a(UT_LIST_GET_LEN(rseg->insert_undo_list) == 0);
 
-    trx_undo_t *next_undo;
-
-    for (trx_undo_t *undo = UT_LIST_GET_FIRST(rseg->update_undo_cached);
-         undo != nullptr; undo = next_undo) {
-      next_undo = UT_LIST_GET_NEXT(undo_list, undo);
+    for (auto undo : rseg->update_undo_cached.removable()) {
       UT_LIST_REMOVE(rseg->update_undo_cached, undo);
       MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
       trx_undo_mem_free(undo);
     }
 
-    for (trx_undo_t *undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached);
-         undo != nullptr; undo = next_undo) {
-      next_undo = UT_LIST_GET_NEXT(undo_list, undo);
+    for (auto undo : rseg->insert_undo_cached.removable()) {
       UT_LIST_REMOVE(rseg->insert_undo_cached, undo);
       MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
       trx_undo_mem_free(undo);
     }
 
-    UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
-    UT_LIST_INIT(rseg->update_undo_cached, &trx_undo_t::undo_list);
-    UT_LIST_INIT(rseg->insert_undo_list, &trx_undo_t::undo_list);
-    UT_LIST_INIT(rseg->insert_undo_cached, &trx_undo_t::undo_list);
+    rseg->update_undo_list.clear();
+    rseg->update_undo_cached.clear();
+    rseg->insert_undo_list.clear();
+    rseg->insert_undo_cached.clear();
 
     rseg->max_size =
         mtr_read_ulint(rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, &mtr);

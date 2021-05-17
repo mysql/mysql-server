@@ -127,19 +127,13 @@ page_no_t trx_rseg_header_create(space_id_t space_id,
 /** Free an instance of the rollback segment in memory.
 @param[in]	rseg	pointer to an rseg to free */
 void trx_rseg_mem_free(trx_rseg_t *rseg) {
-  trx_undo_t *undo;
-  trx_undo_t *next_undo;
-
   mutex_free(&rseg->mutex);
 
   /* There can't be any active transactions. */
   ut_a(UT_LIST_GET_LEN(rseg->update_undo_list) == 0);
   ut_a(UT_LIST_GET_LEN(rseg->insert_undo_list) == 0);
 
-  for (undo = UT_LIST_GET_FIRST(rseg->update_undo_cached); undo != nullptr;
-       undo = next_undo) {
-    next_undo = UT_LIST_GET_NEXT(undo_list, undo);
-
+  for (auto undo : rseg->update_undo_cached.removable()) {
     UT_LIST_REMOVE(rseg->update_undo_cached, undo);
 
     MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
@@ -147,10 +141,7 @@ void trx_rseg_mem_free(trx_rseg_t *rseg) {
     trx_undo_mem_free(undo);
   }
 
-  for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached); undo != nullptr;
-       undo = next_undo) {
-    next_undo = UT_LIST_GET_NEXT(undo_list, undo);
-
+  for (auto undo : rseg->insert_undo_cached.removable()) {
     UT_LIST_REMOVE(rseg->insert_undo_cached, undo);
 
     MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
@@ -237,10 +228,10 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
     mutex_create(LATCH_ID_TRX_SYS_RSEG, &rseg->mutex);
   }
 
-  UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
-  UT_LIST_INIT(rseg->update_undo_cached, &trx_undo_t::undo_list);
-  UT_LIST_INIT(rseg->insert_undo_list, &trx_undo_t::undo_list);
-  UT_LIST_INIT(rseg->insert_undo_cached, &trx_undo_t::undo_list);
+  UT_LIST_INIT(rseg->update_undo_list);
+  UT_LIST_INIT(rseg->update_undo_cached);
+  UT_LIST_INIT(rseg->insert_undo_list);
+  UT_LIST_INIT(rseg->insert_undo_cached);
 
   auto rseg_header = trx_rsegf_get_new(space_id, page_no, page_size, mtr);
 

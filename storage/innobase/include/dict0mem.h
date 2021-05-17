@@ -1431,9 +1431,8 @@ std::ostream &operator<<(std::ostream &s, const table_name_t &table_name);
 /** List of locks that different transactions have acquired on a table. This
 list has a list node that is embedded in a nested union/structure. We have to
 generate a specific template for it. */
-
-typedef ut_list_base<lock_t, ut_list_node<lock_t> lock_table_t::*>
-    table_lock_list_t;
+struct TableLockGetNode;
+typedef ut_list_base<lock_t, TableLockGetNode> table_lock_list_t;
 #endif /* !UNIV_HOTBACKUP */
 
 /** mysql template structure defined in row0mysql.cc */
@@ -1689,14 +1688,7 @@ struct dict_table_t {
   dict_index_t *fts_doc_id_index;
 
   /** List of indexes of the table. */
-  UT_LIST_BASE_NODE_T(dict_index_t) indexes;
-
-  /** List of foreign key constraints in the table. These refer to
-  columns in other tables. */
-  UT_LIST_BASE_NODE_T(dict_foreign_t) foreign_list;
-
-  /** List of foreign key constraints which refer to this table. */
-  UT_LIST_BASE_NODE_T(dict_foreign_t) referenced_list;
+  UT_LIST_BASE_NODE_T(dict_index_t, indexes) indexes;
 
   /** Node of the LRU list of tables. */
   UT_LIST_NODE_T(dict_table_t) table_LRU;
@@ -2455,10 +2447,6 @@ class Persisters {
 };
 
 #ifndef UNIV_HOTBACKUP
-
-/** Initialise the table lock list.
-@param[out] lock_list List to initialise */
-void lock_table_lock_list_init(table_lock_list_t *lock_list);
 
 /** A function object to add the foreign key constraint to the referenced set
 of the referenced table, if it exists in the dictionary cache. */

@@ -1367,9 +1367,9 @@ dberr_t row_import::match_schema(THD *thd,
   }
 
   /* Check if the SDI index definitions match */
-  const dict_index_t *index;
 
   if (m_has_sdi) {
+    const dict_index_t *index;
     dict_mutex_enter_for_mysql();
 
     index = dict_sdi_get_index(m_table->space);
@@ -1397,8 +1397,7 @@ dberr_t row_import::match_schema(THD *thd,
   }
 
   /* Check if the index definitions match. */
-  for (index = UT_LIST_GET_FIRST(m_table->indexes); index != nullptr;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : m_table->indexes) {
     dberr_t index_err;
 
     index_err = match_index_columns(thd, index);
@@ -1500,8 +1499,7 @@ dberr_t row_import::set_root_by_heuristic() UNIV_NOTHROW {
     ++i;
   }
 
-  for (dict_index_t *index = UT_LIST_GET_FIRST(m_table->indexes);
-       index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : m_table->indexes) {
     if (index->type & DICT_FTS) {
       dict_set_corrupted(index);
       ib::warn(ER_IB_MSG_940) << "Skipping FTS index: " << index->name;
@@ -2322,8 +2320,7 @@ static void row_import_discard_changes(
   However, we need to ensure that the in memory root page numbers
   are reset to "NULL". */
 
-  for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
     index->page = FIL_NULL;
     index->space = FIL_NULL;
   }

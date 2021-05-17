@@ -103,8 +103,8 @@ struct row_mysql_drop_t {
 ALTER TABLE in MySQL requires that the table handler can drop the
 table in background when there are no queries to it any
 more.  Protected by row_drop_list_mutex. */
-static UT_LIST_BASE_NODE_T(row_mysql_drop_t) row_mysql_drop_list{
-    &row_mysql_drop_t::row_mysql_drop_list};
+static UT_LIST_BASE_NODE_T(row_mysql_drop_t,
+                           row_mysql_drop_list) row_mysql_drop_list;
 
 /** Mutex protecting the background table drop list. */
 static ib_mutex_t row_drop_list_mutex;
@@ -1760,7 +1760,7 @@ upd_node_t *row_create_update_node_for_mysql(
 
   node->update_n_fields = table->get_n_cols();
 
-  UT_LIST_INIT(node->columns, &sym_node_t::col_var_list);
+  UT_LIST_INIT(node->columns);
 
   node->has_clust_rec_x_lock = TRUE;
   node->cmpl_info = 0;
@@ -1968,7 +1968,7 @@ just in case update action following delete fails.
 @return error code or DB_SUCCESS */
 static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
                                                  cursors_t &delete_entries,
-                                                 bool restore_delete) {
+                                                 const bool restore_delete) {
   mtr_t mtr;
   dict_table_t *table = node->table;
   mem_heap_t *heap = node->heap;
@@ -1978,9 +1978,10 @@ static dberr_t row_delete_for_mysql_using_cursor(const upd_node_t *node,
   mtr_start(&mtr);
   dict_disable_redo_if_temporary(table, &mtr);
 
-  for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr && err == DB_SUCCESS && !restore_delete;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
+    if (err != DB_SUCCESS || restore_delete) {
+      break;
+    }
     entry = row_build_index_entry(node->row, node->ext, index, heap);
 
     btr_pcur_t pcur;
@@ -2096,9 +2097,10 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
   /* Step-3: Check if UPDATE can lead to DUPLICATE key violation.
   If yes, then avoid executing it and return error. Only after ensuring
   that UPDATE is safe execute it as we can't rollback. */
-  for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr && err == DB_SUCCESS;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
+    if (err != DB_SUCCESS) {
+      break;
+    }
     entry = row_build_index_entry(node->upd_row, node->upd_ext, index, heap);
 
     if (index->is_clustered()) {
@@ -2117,9 +2119,10 @@ static dberr_t row_update_for_mysql_using_cursor(const upd_node_t *node,
   }
 
   /* Step-4: It is now safe to execute update if there is no error */
-  for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-       index != nullptr && err == DB_SUCCESS;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
+    if (err != DB_SUCCESS) {
+      break;
+    }
     entry = row_build_index_entry(node->upd_row, node->upd_ext, index, heap);
 
     if (index->is_clustered()) {
@@ -2190,8 +2193,7 @@ static dberr_t row_del_upd_for_mysql_using_cursor(const byte *mysql_rec,
 
     dict_table_t *table = prebuilt->table;
 
-    for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-         index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+    for (auto index : table->indexes) {
       key_changed = row_upd_changes_ord_field_binary(
           index, node->update, thr, node->upd_row, node->upd_ext, nullptr);
 
@@ -2465,8 +2467,7 @@ void row_delete_all_rows(dict_table_t *table) {
   /* Step-1: Now truncate all the indexes and re-create them.
   Note: This is ddl action even though delete all rows is
   DML action. Any error during this action is ir-reversible. */
-  for (index = UT_LIST_GET_FIRST(table->indexes); index != nullptr;
-       index = UT_LIST_GET_NEXT(indexes, index)) {
+  for (auto index : table->indexes) {
     ut_ad(index->space == table->space);
     const page_id_t root(index->space, index->page);
     btr_free(root, page_size);
@@ -3268,15 +3269,12 @@ static ibool row_add_table_to_background_drop_list(
   /* WL6049, remove after WL6049. */
   ut_ad(0);
 
-  row_mysql_drop_t *drop;
-
   mutex_enter(&row_drop_list_mutex);
 
   ut_a(row_mysql_drop_list_inited);
 
   /* Look if the table already is in the drop list */
-  for (drop = UT_LIST_GET_FIRST(row_mysql_drop_list); drop != nullptr;
-       drop = UT_LIST_GET_NEXT(row_mysql_drop_list, drop)) {
+  for (auto drop : row_mysql_drop_list) {
     if (strcmp(drop->table_name, name) == 0) {
       /* Already in the list */
 
@@ -3286,7 +3284,7 @@ static ibool row_add_table_to_background_drop_list(
     }
   }
 
-  drop = static_cast<row_mysql_drop_t *>(
+  auto drop = static_cast<row_mysql_drop_t *>(
       ut_malloc_nokey(sizeof(row_mysql_drop_t)));
 
   drop->table_name = mem_strdup(name);
@@ -3512,8 +3510,7 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
 
       /* Reset the root page numbers. */
 
-      for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-           index != nullptr; index = UT_LIST_GET_NEXT(indexes, index)) {
+      for (auto index : table->indexes) {
         index->page = FIL_NULL;
         index->space = FIL_NULL;
       }
@@ -3713,8 +3710,7 @@ dberr_t row_drop_table_from_cache(dict_table_t *table, trx_t *trx) {
     btr_drop_ahi_for_table(table);
     dict_table_remove_from_cache(table);
   } else {
-    for (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes);
-         index != nullptr; index = UT_LIST_GET_FIRST(table->indexes)) {
+    while (dict_index_t *index = UT_LIST_GET_FIRST(table->indexes)) {
       rw_lock_free(&index->lock);
 
       UT_LIST_REMOVE(table->indexes, index);

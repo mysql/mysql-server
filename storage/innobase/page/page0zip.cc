@@ -1358,7 +1358,6 @@ ibool page_zip_validate_low(
                                     TRUE=ignore the MIN_REC_FLAG */
 {
   page_zip_des_t temp_page_zip;
-  byte *temp_page_buf;
   page_t *temp_page;
   ibool valid;
 

@@ -58,7 +58,7 @@ struct fts_doc_item {
 
 /** This defines the list type that scan thread would feed the parallel
 tokenization threads and sort threads. */
-typedef UT_LIST_BASE_NODE_T(fts_doc_item_t) fts_doc_list_t;
+typedef UT_LIST_BASE_NODE_T(fts_doc_item_t, doc_list) fts_doc_list_t;
 
 #define FTS_PLL_MERGE 1
 
@@ -107,7 +107,7 @@ struct row_fts_token_t {
   token_list; /*!< next token link */
 };
 
-typedef UT_LIST_BASE_NODE_T(row_fts_token_t) fts_token_list_t;
+typedef UT_LIST_BASE_NODE_T(row_fts_token_t, token_list) fts_token_list_t;
 
 /** Structure stores information from string tokenization operation */
 struct fts_tokenize_ctx {
@@ -122,7 +122,7 @@ struct fts_tokenize_ctx {
   ib_rbt_t *cached_stopword{nullptr}; /*!< in: stopword list */
   dfield_t sort_field[FTS_NUM_FIELDS_SORT];
   /*!< in: sort field */
-  fts_token_list_t fts_token_list{&row_fts_token_t::token_list};
+  fts_token_list_t fts_token_list{};
 };
 
 typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;

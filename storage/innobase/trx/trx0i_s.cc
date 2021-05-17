@@ -860,29 +860,30 @@ static void trx_i_s_cache_clear(
 }
 
 /** Fetches the data needed to fill the 3 INFORMATION SCHEMA tables into the
- table cache buffer. Cache must be locked for write. */
-static void fetch_data_into_cache_low(
-    trx_i_s_cache_t *cache,  /*!< in/out: cache */
-    bool read_write,         /*!< in: only read-write
-                             transactions */
-    trx_ut_list_t *trx_list) /*!< in: trx list */
-{
+ table cache buffer. Cache must be locked for write.
+@param[in,out]  cache       the cache
+@param[in]      trx_list    the list to scan
+*/
+template <typename Trx_list>
+static void fetch_data_into_cache_low(trx_i_s_cache_t *cache,
+                                      Trx_list *trx_list) {
   /* We are going to iterate over many different shards of lock_sys so we need
   exclusive access */
   ut_ad(locksys::owns_exclusive_global_latch());
-  trx_t *trx;
-  bool rw_trx_list = trx_list == &trx_sys->rw_trx_list;
+  constexpr bool rw_trx_list =
+      std::is_same<Trx_list, decltype(trx_sys->rw_trx_list)>::value;
 
-  ut_ad(rw_trx_list || trx_list == &trx_sys->mysql_trx_list);
+  static_assert(
+      rw_trx_list ||
+          std::is_same<Trx_list, decltype(trx_sys->mysql_trx_list)>::value,
+      "only rw_trx_list and mysql_trx_list are supported");
 
   /* Iterate over the transaction list and add each one
   to innodb_trx's cache. We also add all locks that are relevant
   to each transaction into innodb_locks' and innodb_lock_waits'
   caches. */
 
-  for (trx = UT_LIST_GET_FIRST(*trx_list); trx != nullptr;
-       trx = (rw_trx_list ? UT_LIST_GET_NEXT(trx_list, trx)
-                          : UT_LIST_GET_NEXT(mysql_trx_list, trx))) {
+  for (auto trx : *trx_list) {
     i_s_trx_row_t *trx_row;
     i_s_locks_row_t *requested_lock_row;
 
@@ -941,10 +942,10 @@ static void fetch_data_into_cache(trx_i_s_cache_t *cache) /*!< in/out: cache */
 
   /* Capture the state of the read-write transactions. This includes
   internal transactions too. They are not on mysql_trx_list */
-  fetch_data_into_cache_low(cache, true, &trx_sys->rw_trx_list);
+  fetch_data_into_cache_low(cache, &trx_sys->rw_trx_list);
 
   /* Capture the state of the read-only active transactions */
-  fetch_data_into_cache_low(cache, false, &trx_sys->mysql_trx_list);
+  fetch_data_into_cache_low(cache, &trx_sys->mysql_trx_list);
 
   cache->is_truncated = false;
 }

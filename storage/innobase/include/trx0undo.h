@@ -426,6 +426,8 @@ struct trx_undo_t {
   segment are chained into lists */
 };
 
+UT_LIST_NODE_GETTER_DEFINITION(trx_undo_t, undo_list)
+
 /** For saving GTID add update undo slot, if required.
 @param[in]	trx		transaction
 @param[in]	prepare		operation is prepare

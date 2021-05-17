@@ -360,8 +360,9 @@ void MetadataRecover::apply() {
       the list */
       if (!buffered) {
         ut_ad(!table->in_dirty_dict_tables_list);
-
+#ifndef UNIV_HOTBACKUP
         UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
+#endif
       }
 
       table->dirty_status.store(METADATA_DIRTY);
@@ -2357,7 +2358,7 @@ static void recv_add_to_hash_table(mlog_id_t type, space_id_t space_id,
     recv_addr->page_no = page_no;
     recv_addr->state = RECV_NOT_PROCESSED;
 
-    UT_LIST_INIT(recv_addr->rec_list, &recv_t::rec_list);
+    UT_LIST_INIT(recv_addr->rec_list);
 
     using Value = recv_sys_t::Pages::value_type;
 
@@ -2590,8 +2591,7 @@ void recv_recover_page_func(
   lsn_t start_lsn = 0;
   bool modification_to_page = false;
 
-  for (auto recv = UT_LIST_GET_FIRST(recv_addr->rec_list); recv != nullptr;
-       recv = UT_LIST_GET_NEXT(rec_list, recv)) {
+  for (auto recv : recv_addr->rec_list) {
 #ifndef UNIV_HOTBACKUP
     end_lsn = recv->end_lsn;
 

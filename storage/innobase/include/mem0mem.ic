@@ -478,8 +478,7 @@ mem_heap_t *mem_heap_create_func(ulint size,
   ut_ad(block->buf_block == nullptr);
 #endif /* !UNIV_LIBRARY */
 #endif /* UNIV_HOTBACKUP */
-
-  UT_LIST_INIT(block->base, &mem_block_t::list);
+  UT_LIST_INIT(block->base);
 
   /* Add the created block itself as the first block in the list */
   UT_LIST_ADD_FIRST(block->base, block);

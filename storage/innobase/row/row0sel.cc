@@ -443,16 +443,10 @@ void sel_reset_aggregate_vals(sel_node_t *node) /*!< in: select node */
 UNIV_INLINE
 void row_sel_copy_input_variable_vals(sel_node_t *node) /*!< in: select node */
 {
-  sym_node_t *var;
-
-  var = UT_LIST_GET_FIRST(node->copy_variables);
-
-  while (var) {
+  for (auto var : node->copy_variables) {
     eval_node_copy_val(var, var->alias);
 
     var->indirection = nullptr;
-
-    var = UT_LIST_GET_NEXT(col_var_list, var);
   }
 }
 
@@ -580,7 +574,6 @@ void sel_col_prefetch_buf_free(
 static void sel_dequeue_prefetched_row(
     plan_t *plan) /*!< in: plan node for a table */
 {
-  sym_node_t *column;
   sel_buf_t *sel_buf;
   dfield_t *val;
   byte *data;
@@ -589,9 +582,7 @@ static void sel_dequeue_prefetched_row(
 
   ut_ad(plan->n_rows_prefetched > 0);
 
-  column = UT_LIST_GET_FIRST(plan->columns);
-
-  while (column) {
+  for (auto column : plan->columns) {
     val = que_node_get_val(column);
 
     if (!column->copy_val) {
@@ -602,7 +593,7 @@ static void sel_dequeue_prefetched_row(
       ut_ad(que_node_get_val_buf_size(column) == 0);
       ut_d(dfield_set_null(val));
 
-      goto next_col;
+      continue;
     }
 
     ut_ad(column->prefetch_buf);
@@ -624,8 +615,6 @@ static void sel_dequeue_prefetched_row(
 
     dfield_set_data(val, data, len);
     que_node_set_val_buf_size(column, val_buf_size);
-  next_col:
-    column = UT_LIST_GET_NEXT(col_var_list, column);
   }
 
   plan->n_rows_prefetched--;
@@ -638,7 +627,6 @@ static void sel_dequeue_prefetched_row(
 UNIV_INLINE
 void sel_enqueue_prefetched_row(plan_t *plan) /*!< in: plan node for a table */
 {
-  sym_node_t *column;
   sel_buf_t *sel_buf;
   dfield_t *val;
   byte *data;
@@ -662,8 +650,7 @@ void sel_enqueue_prefetched_row(plan_t *plan) /*!< in: plan node for a table */
 
   ut_ad(pos < SEL_MAX_N_PREFETCH);
 
-  for (column = UT_LIST_GET_FIRST(plan->columns); column != nullptr;
-       column = UT_LIST_GET_NEXT(col_var_list, column)) {
+  for (auto column : plan->columns) {
     if (!column->copy_val) {
       /* There is no sense to push pointers to database
       page fields when we do not keep latch on the page! */
@@ -766,13 +753,10 @@ ibool row_sel_test_end_conds(
                   already have been retrieved and the right sides of
                   comparisons evaluated */
 {
-  func_node_t *cond;
-
   /* All conditions in end_conds are comparisons of a column to an
   expression */
 
-  for (cond = UT_LIST_GET_FIRST(plan->end_conds); cond != nullptr;
-       cond = UT_LIST_GET_NEXT(cond_list, cond)) {
+  for (auto cond : plan->end_conds) {
     /* Evaluate the left side of the comparison, i.e., get the
     column value if there is an indirection */
 
@@ -795,18 +779,12 @@ ibool row_sel_test_other_conds(
     plan_t *plan) /*!< in: plan for the table; the column values must
                   already have been retrieved */
 {
-  func_node_t *cond;
-
-  cond = UT_LIST_GET_FIRST(plan->other_conds);
-
-  while (cond) {
+  for (auto cond : plan->other_conds) {
     eval_exp(cond);
 
     if (!eval_node_get_ibool_val(cond)) {
       return (FALSE);
     }
-
-    cond = UT_LIST_GET_NEXT(cond_list, cond);
   }
 
   return (TRUE);
@@ -1210,7 +1188,6 @@ static void row_sel_open_pcur(plan_t *plan, /*!< in: table plan */
                               mtr_t *mtr) /*!< in: mtr */
 {
   dict_index_t *index;
-  func_node_t *cond;
   que_node_t *exp;
   ulint n_fields;
   ulint has_search_latch = 0; /* RW_S_LATCH or 0 */
@@ -1226,12 +1203,8 @@ static void row_sel_open_pcur(plan_t *plan, /*!< in: table plan */
   get their expressions evaluated when we evaluate the right sides of
   end_conds */
 
-  cond = UT_LIST_GET_FIRST(plan->end_conds);
-
-  while (cond) {
+  for (auto cond : plan->end_conds) {
     eval_exp(que_node_get_next(cond->args));
-
-    cond = UT_LIST_GET_NEXT(cond_list, cond);
   }
 
   if (plan->tuple) {

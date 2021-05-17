@@ -51,7 +51,6 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0trx.h"
 
 #ifndef UNIV_HOTBACKUP
-typedef UT_LIST_BASE_NODE_T(trx_t) trx_ut_list_t;
 
 // Forward declaration
 class MVCC;
@@ -499,7 +498,7 @@ struct trx_sys_t {
   /** Tracks minimal transaction id which has received trx->no, but has
   not yet finished commit for the mtr writing the trx commit. Protected
   by the serialisation_mutex. Ordered on the trx->no field. */
-  trx_ut_list_t serialisation_list;
+  UT_LIST_BASE_NODE_T(trx_t, no_list) serialisation_list;
 
 #ifdef UNIV_DEBUG
   /** Max trx number of read-write transactions added for purge. */
@@ -530,7 +529,7 @@ struct trx_sys_t {
 
   /** List of active and committed in memory read-write transactions, sorted
   on trx id, biggest first. Recovered transactions are always on this list. */
-  trx_ut_list_t rw_trx_list;
+  UT_LIST_BASE_NODE_T(trx_t, trx_list) rw_trx_list;
 
   char pad6[ut::INNODB_CACHE_LINE_SIZE];
 
@@ -539,7 +538,7 @@ struct trx_sys_t {
   recovered transactions that will not be in the mysql_trx_list.
   Additionally, mysql_trx_list may contain transactions that have not yet
   been started in InnoDB. */
-  trx_ut_list_t mysql_trx_list;
+  UT_LIST_BASE_NODE_T(trx_t, mysql_trx_list) mysql_trx_list;
 
   /** Array of Read write transaction IDs for MVCC snapshot. A ReadView would
   take a snapshot of these transactions whose changes are not visible to it.
