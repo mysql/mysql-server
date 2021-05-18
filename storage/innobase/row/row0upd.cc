@@ -1894,6 +1894,11 @@ static void row_upd_store_v_row(upd_node_t *node, const upd_t *update, THD *thd,
             } else {
               dfield_dup(dfield, node->heap);
             }
+            if (dfield_is_null(dfield)) {
+              innobase_get_computed_value(node->row, col, index, &heap,
+                                          node->heap, NULL, thd, mysql_table,
+                                          NULL, NULL, NULL);
+            }
           }
         } else {
           /* Need to compute, this happens when
