@@ -66,6 +66,7 @@ class Sharded_rw_lock {
       mysql_pfs_key_t pfs_key,
 #endif
       latch_level_t latch_level, size_t n_shards) {
+    ut_ad(ut_is_2pow(n_shards));
     m_n_shards = n_shards;
 
     m_shards = static_cast<Shard *>(ut_zalloc_nokey(sizeof(Shard) * n_shards));
@@ -91,7 +92,8 @@ class Sharded_rw_lock {
   }
 
   size_t s_lock(ut::Location location) {
-    const size_t shard_no = ut_rnd_interval(0, m_n_shards - 1);
+    const size_t shard_no =
+        default_indexer_t<>::get_rnd_index() & (m_n_shards - 1);
     rw_lock_s_lock_inline(&m_shards[shard_no], 0, location.filename,
                           location.line);
     return shard_no;
