@@ -45,8 +45,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	fold	folded value of the searched data
 @return pointer to the data of the first hash table node in chain
 having the fold number, NULL if not found */
-UNIV_INLINE
-const rec_t *ha_search_and_get_data(hash_table_t *table, ulint fold);
+static inline const rec_t *ha_search_and_get_data(hash_table_t *table,
+                                                  ulint fold);
 
 /** Looks for an element when we know the pointer to the data and updates
  the pointer to data if found.
@@ -151,9 +151,9 @@ from the hash table if found.
 @param[in]	fold	folded value of the searched data
 @param[in]	data	pointer to the data
 @return true if found */
-UNIV_INLINE
-ibool ha_search_and_delete_if_found(hash_table_t *table, ulint fold,
-                                    const rec_t *data);
+static inline ibool ha_search_and_delete_if_found(hash_table_t *table,
+                                                  ulint fold,
+                                                  const rec_t *data);
 
 #ifndef UNIV_HOTBACKUP
 

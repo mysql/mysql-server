@@ -81,18 +81,17 @@ int cmp_data_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
 @retval 0 if dfield1 is equal to dfield2
 @retval negative if dfield1 is less than dfield2
 @retval positive if dfield1 is greater than dfield2 */
-UNIV_INLINE
-int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
-                      bool is_asc) MY_ATTRIBUTE((warn_unused_result));
+static inline int cmp_dfield_dfield(const dfield_t *dfield1,
+                                    const dfield_t *dfield2, bool is_asc)
+    MY_ATTRIBUTE((warn_unused_result));
 
 /** Compare two data fields, the first one can be of any form of multi-value
 field, while the second one must be one field from multi-value index
 @param[in]	dfield1	multi-value data field;
 @param[in]	dfield2	data field; must have type field set
 @return 0 if dfield1 has dfield2 or they are equal if both NULL, otherwise 1 */
-UNIV_INLINE
-int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
-                                  const dfield_t *dfield2)
+static inline int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
+                                                const dfield_t *dfield2)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Compare a GIS data tuple to a physical record.
@@ -226,22 +225,24 @@ within the first field not completely matched
 @param[in]  cmp_btree_recs  true if the both the records are b-tree records
 @return positive, 0, negative if rec1 is greater, equal, less, than rec2,
 respectively */
-UNIV_INLINE
-int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
-                const ulint *offsets2, const dict_index_t *index,
-                bool spatial_index_non_leaf, ulint *matched_fields = nullptr,
-                bool cmp_btree_recs = true);
+static inline int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2,
+                              const ulint *offsets1, const ulint *offsets2,
+                              const dict_index_t *index,
+                              bool spatial_index_non_leaf,
+                              ulint *matched_fields = nullptr,
+                              bool cmp_btree_recs = true);
 
+#ifndef UNIV_HOTBACKUP
 /** Compare two data fields.
 @param[in] dfield1 data field
 @param[in] dfield2 data field
 @return the comparison result of dfield1 and dfield2
 @retval true if dfield1 is equal to dfield2, or a prefix of dfield1
 @retval false otherwise */
-UNIV_INLINE
-bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
-                                 const dfield_t *dfield2)
+static inline bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
+                                               const dfield_t *dfield2)
     MY_ATTRIBUTE((warn_unused_result));
+#endif /* !UNIV_HOTBACKUP */
 
 #include "rem0cmp.ic"
 

@@ -62,8 +62,7 @@ void sel_col_prefetch_buf_free(
 @param[in]	node	select node
 @param[in]	i	get ith plan node
 @return plan node */
-UNIV_INLINE
-plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
+static inline plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
 
 /** Performs a select step. This is a high-level function used in SQL execution
  graphs.
@@ -71,8 +70,7 @@ plan_t *sel_node_get_nth_plan(sel_node_t *node, ulint i);
 que_thr_t *row_sel_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs an execution step of an open or close cursor statement node.
  @return query thread to run next or NULL */
-UNIV_INLINE
-que_thr_t *open_step(que_thr_t *thr); /*!< in: query thread */
+static inline que_thr_t *open_step(que_thr_t *thr); /*!< in: query thread */
 /** Performs a fetch for a cursor.
  @return query thread to run next or NULL */
 que_thr_t *fetch_step(que_thr_t *thr); /*!< in: query thread */
@@ -163,10 +161,9 @@ position and fetch next or fetch prev must not be tried to the cursor!
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-UNIV_INLINE
-dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
-                             row_prebuilt_t *prebuilt, ulint match_mode,
-                             ulint direction)
+static inline dberr_t row_search_for_mysql(byte *buf, page_cur_mode_t mode,
+                                           row_prebuilt_t *prebuilt,
+                                           ulint match_mode, ulint direction)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Searches for rows in the database using cursor.

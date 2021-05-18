@@ -51,8 +51,7 @@ extern thread_local ulint ut_rnd_ulint_counter;
 /** The following function generates a series of 'random' ulint integers.
  This function is now based on thread local variables.
  @return the next 'random' number */
-UNIV_INLINE
-ulint ut_rnd_gen_next_ulint(
+static inline ulint ut_rnd_gen_next_ulint(
     ulint rnd) /*!< in: the previous random number value */
 {
   ulint n_bits;
@@ -91,8 +90,7 @@ ulint ut_rnd_gen_ulint() {
 /** Generates a random integer from a given interval.
  This function is now based on thread local variables.
  @return the 'random' number */
-UNIV_INLINE
-ulint ut_rnd_interval(
+static inline ulint ut_rnd_interval(
     ulint low,  /*!< in: low limit; can generate also this value */
     ulint high) /*!< in: high limit; can generate also this value */
 {
@@ -113,9 +111,8 @@ ulint ut_rnd_interval(
  to a hash table of size table_size, which should be a prime
  or some random number for the hash table to work reliably.
  @return hash value */
-UNIV_INLINE
-ulint ut_hash_ulint(ulint key,        /*!< in: value to be hashed */
-                    ulint table_size) /*!< in: hash table size */
+static inline ulint ut_hash_ulint(ulint key, /*!< in: value to be hashed */
+                                  ulint table_size) /*!< in: hash table size */
 {
   ut_ad(table_size);
   key = key ^ UT_HASH_RANDOM_MASK2;
@@ -125,16 +122,15 @@ ulint ut_hash_ulint(ulint key,        /*!< in: value to be hashed */
 
 /** Folds a 64-bit integer.
  @return folded value */
-UNIV_INLINE
-ulint ut_fold_ull(ib_uint64_t d) /*!< in: 64-bit integer */
+static inline ulint ut_fold_ull(ib_uint64_t d) /*!< in: 64-bit integer */
 {
   return (ut_fold_ulint_pair((ulint)d & ULINT32_MASK, (ulint)(d >> 32)));
 }
 
 /** Folds a character string ending in the null character.
  @return folded value */
-UNIV_INLINE
-ulint ut_fold_string(const char *str) /*!< in: null-terminated string */
+static inline ulint ut_fold_string(
+    const char *str) /*!< in: null-terminated string */
 {
   ulint fold = 0;
 
@@ -150,9 +146,8 @@ ulint ut_fold_string(const char *str) /*!< in: null-terminated string */
 
 /** Folds a pair of ulints.
  @return folded value */
-UNIV_INLINE
-ulint ut_fold_ulint_pair(ulint n1, /*!< in: ulint */
-                         ulint n2) /*!< in: ulint */
+static inline ulint ut_fold_ulint_pair(ulint n1, /*!< in: ulint */
+                                       ulint n2) /*!< in: ulint */
 {
   return (
       ((((n1 ^ n2 ^ UT_HASH_RANDOM_MASK2) << 8) + n1) ^ UT_HASH_RANDOM_MASK) +
@@ -161,9 +156,8 @@ ulint ut_fold_ulint_pair(ulint n1, /*!< in: ulint */
 
 /** Folds a binary string.
  @return folded value */
-UNIV_INLINE
-ulint ut_fold_binary(const byte *str, /*!< in: string of bytes */
-                     ulint len)       /*!< in: length */
+static inline ulint ut_fold_binary(const byte *str, /*!< in: string of bytes */
+                                   ulint len)       /*!< in: length */
 {
   ulint fold = 0;
   const byte *str_end = str + (len & 0xFFFFFFF8);

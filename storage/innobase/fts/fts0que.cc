@@ -386,9 +386,8 @@ fts_query_terms_in_document(
 /********************************************************************
 Compare two fts_doc_freq_t doc_ids.
 @return < 0 if n1 < n2, 0 if n1 == n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_freq_doc_id_cmp(const void *p1, /*!< in: id1 */
-                        const void *p2) /*!< in: id2 */
+static inline int fts_freq_doc_id_cmp(const void *p1, /*!< in: id1 */
+                                      const void *p2) /*!< in: id2 */
 {
   const fts_doc_freq_t *fq1 = (const fts_doc_freq_t *)p1;
   const fts_doc_freq_t *fq2 = (const fts_doc_freq_t *)p2;
@@ -1445,9 +1444,9 @@ static dberr_t fts_merge_doc_ids(
 
 /** Skip non-whitespace in a string. Move ptr to the next word boundary.
  @return pointer to first whitespace character or end */
-UNIV_INLINE
-byte *fts_query_skip_word(byte *ptr,       /*!< in: start of scan */
-                          const byte *end) /*!< in: pointer to end of string */
+static inline byte *fts_query_skip_word(
+    byte *ptr,       /*!< in: start of scan */
+    const byte *end) /*!< in: pointer to end of string */
 {
   /* TODO: Does this have to be UTF-8 too ? */
   while (ptr < end && !(ispunct(*ptr) || isspace(*ptr))) {

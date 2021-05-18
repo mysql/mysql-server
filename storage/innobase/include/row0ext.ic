@@ -36,8 +36,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Looks up a column prefix of an externally stored column.
  @return column prefix, or NULL if the column is not stored externally,
  or pointer to field_ref_zero if the BLOB pointer is unset */
-UNIV_INLINE
-const byte *row_ext_lookup_ith(
+static inline const byte *row_ext_lookup_ith(
     const row_ext_t *ext, /*!< in/out: column prefix cache */
     ulint i,              /*!< in: index of ext->ext[] */
     ulint *len)           /*!< out: length of prefix, in bytes,
@@ -63,14 +62,14 @@ const byte *row_ext_lookup_ith(
 /** Looks up a column prefix of an externally stored column.
  @return column prefix, or NULL if the column is not stored externally,
  or pointer to field_ref_zero if the BLOB pointer is unset */
-UNIV_INLINE
-const byte *row_ext_lookup(const row_ext_t *ext, /*!< in: column prefix cache */
-                           ulint col,  /*!< in: column number in the InnoDB
-                                       table object, as reported by
-                                       dict_col_get_no(); NOT relative to the
-                                       records in the clustered index */
-                           ulint *len) /*!< out: length of prefix, in bytes,
-                                       at most ext->max_len */
+static inline const byte *row_ext_lookup(
+    const row_ext_t *ext, /*!< in: column prefix cache */
+    ulint col,            /*!< in: column number in the InnoDB
+                          table object, as reported by
+                          dict_col_get_no(); NOT relative to the
+                          records in the clustered index */
+    ulint *len)           /*!< out: length of prefix, in bytes,
+                          at most ext->max_len */
 {
   ulint i;
 

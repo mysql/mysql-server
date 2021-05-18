@@ -163,17 +163,17 @@ already in it.
 @param[in]	start_lsn	start lsn of the first mtr in a set of mtr's
 @param[in]	end_lsn		end lsn of the last mtr in the set of mtr's
 @param[in]	observer	flush observer */
-UNIV_INLINE
-void buf_flush_note_modification(buf_block_t *block, lsn_t start_lsn,
-                                 lsn_t end_lsn, FlushObserver *observer);
+static inline void buf_flush_note_modification(buf_block_t *block,
+                                               lsn_t start_lsn, lsn_t end_lsn,
+                                               FlushObserver *observer);
 
 /** This function should be called when recovery has modified a buffer page.
 @param[in]	block		block which is modified
 @param[in]	start_lsn	start lsn of the first mtr in a set of mtr's
 @param[in]	end_lsn		end lsn of the last mtr in the set of mtr's */
-UNIV_INLINE
-void buf_flush_recv_note_modification(buf_block_t *block, lsn_t start_lsn,
-                                      lsn_t end_lsn);
+static inline void buf_flush_recv_note_modification(buf_block_t *block,
+                                                    lsn_t start_lsn,
+                                                    lsn_t end_lsn);
 
 /** Returns TRUE if the file page block is immediately suitable for replacement,
 i.e., the transition FILE_PAGE => NOT_USED allowed. The caller must hold the

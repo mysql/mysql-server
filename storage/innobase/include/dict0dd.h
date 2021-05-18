@@ -685,7 +685,7 @@ MY_COMPILER_DIAGNOSTIC_POP()
 @param[in]	table	table name
 @retval false if acquired, or trylock timed out
 @retval true if failed (my_error() will have been called) */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
+static inline MY_ATTRIBUTE((warn_unused_result)) bool dd_mdl_acquire(
     THD *thd, MDL_ticket **mdl, const char *db, const char *table);
 
 /** Release a metadata lock.
@@ -997,15 +997,15 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
 @param[in]	table_id	table id
 @param[in]	dict_locked	TRUE=data dictionary locked
 @return table, NULL if does not exist */
-UNIV_INLINE
-dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id, bool dict_locked);
+static inline dict_table_t *dd_table_open_on_id_in_mem(table_id_t table_id,
+                                                       bool dict_locked);
 
 /** Returns a cached table object based on table name.
 @param[in]	name		table name
 @param[in]	dict_locked	TRUE=data dictionary locked
 @return table, NULL if does not exist */
-UNIV_INLINE
-dict_table_t *dd_table_open_on_name_in_mem(const char *name, ibool dict_locked);
+static inline dict_table_t *dd_table_open_on_name_in_mem(const char *name,
+                                                         ibool dict_locked);
 
 MY_COMPILER_DIAGNOSTIC_PUSH()
 MY_COMPILER_CLANG_WORKAROUND_TPARAM_DOCBUG()
@@ -1105,8 +1105,8 @@ innodb_session_t *&thd_to_innodb_session(THD *thd);
 @param[in]	name		column name
 @return the column
 @retval nullptr if not found */
-UNIV_INLINE
-const dd::Column *dd_find_column(const dd::Table *dd_table, const char *name);
+static inline const dd::Column *dd_find_column(const dd::Table *dd_table,
+                                               const char *name);
 
 /** Add a hidden column when creating a table.
 @param[in,out]	dd_table	table containing user columns and indexes
@@ -1114,24 +1114,24 @@ const dd::Column *dd_find_column(const dd::Table *dd_table, const char *name);
 @param[in]	length		length of the column, in bytes
 @param[in]	type		column type
 @return the added column, or NULL if there already was a column by that name */
-UNIV_INLINE
-dd::Column *dd_add_hidden_column(dd::Table *dd_table, const char *name,
-                                 uint length, dd::enum_column_types type);
+static inline dd::Column *dd_add_hidden_column(dd::Table *dd_table,
+                                               const char *name, uint length,
+                                               dd::enum_column_types type);
 
 /** Add a hidden index element at the end.
 @param[in,out]	index	created index metadata
 @param[in]	column	column of the index */
-UNIV_INLINE
-void dd_add_hidden_element(dd::Index *index, const dd::Column *column);
+static inline void dd_add_hidden_element(dd::Index *index,
+                                         const dd::Column *column);
 
 /** Initialize a hidden unique B-tree index.
 @param[in,out]	index	created index metadata
 @param[in]	name	name of the index
 @param[in]	column	column of the index
 @return the initialized index */
-UNIV_INLINE
-dd::Index *dd_set_hidden_unique_index(dd::Index *index, const char *name,
-                                      const dd::Column *column);
+static inline dd::Index *dd_set_hidden_unique_index(dd::Index *index,
+                                                    const char *name,
+                                                    const dd::Column *column);
 
 /** Check whether there exist a column named as "FTS_DOC_ID", which is
 reserved for InnoDB FTS Doc ID
@@ -1143,21 +1143,19 @@ reserved for InnoDB FTS Doc ID
                                 ULINT_UNDEFINED if column is of the
                                 wrong type/name/size
 @return true if there exist a "FTS_DOC_ID" column */
-UNIV_INLINE
-bool create_table_check_doc_id_col(THD *thd, const TABLE *form,
-                                   ulint *doc_id_col);
+static inline bool create_table_check_doc_id_col(THD *thd, const TABLE *form,
+                                                 ulint *doc_id_col);
 
 /** Return a display name for the row format
 @param[in]	row_format	Row Format
 @return row format name */
-UNIV_INLINE
-const char *get_row_format_name(enum row_type row_format);
+static inline const char *get_row_format_name(enum row_type row_format);
 
 /** Get the file name of a tablespace.
 @param[in]	dd_space	Tablespace metadata
 @return file name */
-UNIV_INLINE
-const char *dd_tablespace_get_filename(const dd::Tablespace *dd_space) {
+static inline const char *dd_tablespace_get_filename(
+    const dd::Tablespace *dd_space) {
   ut_ad(dd_space->id() != dd::INVALID_OBJECT_ID);
   ut_ad(dd_space->files().size() == 1);
   return ((*dd_space->files().begin())->filename().c_str());

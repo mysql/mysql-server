@@ -46,23 +46,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /** Gets the offset of the DB_TRX_ID field, in bytes relative to the origin of
  a clustered index record.
  @return offset of DATA_TRX_ID */
-UNIV_INLINE
-ulint row_get_trx_id_offset(
+static inline ulint row_get_trx_id_offset(
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: record offsets */
     MY_ATTRIBUTE((warn_unused_result));
 /** Reads the trx id field from a clustered index record.
  @return value of the field */
-UNIV_INLINE
-trx_id_t row_get_rec_trx_id(
+static inline trx_id_t row_get_rec_trx_id(
     const rec_t *rec,          /*!< in: record */
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
     MY_ATTRIBUTE((warn_unused_result));
 /** Reads the roll pointer field from a clustered index record.
  @return value of the field */
-UNIV_INLINE
-roll_ptr_t row_get_rec_roll_ptr(
+static inline roll_ptr_t row_get_rec_roll_ptr(
     const rec_t *rec,          /*!< in: record */
     const dict_index_t *index, /*!< in: clustered index */
     const ulint *offsets)      /*!< in: rec_get_offsets(rec, index) */
@@ -96,8 +93,7 @@ dtuple_t *row_build_index_entry_low(
  @return index entry which should be inserted or purged, or NULL if the
  externally stored columns in the clustered index record are
  unavailable and ext != NULL */
-UNIV_INLINE
-dtuple_t *row_build_index_entry(
+static inline dtuple_t *row_build_index_entry(
     const dtuple_t *row,       /*!< in: row which should be
                                inserted or purged */
     const row_ext_t *ext,      /*!< in: externally stored column
@@ -242,9 +238,9 @@ search the clustered index record.
 @param[in]	rec	record in the index; must be preserved while ref is
                         used, as we do not copy field values to heap
 @param[in]	offsets	array returned by rec_get_offsets() */
-UNIV_INLINE
-void row_build_row_ref_fast(dtuple_t *ref, const ulint *map, const rec_t *rec,
-                            const ulint *offsets);
+static inline void row_build_row_ref_fast(dtuple_t *ref, const ulint *map,
+                                          const rec_t *rec,
+                                          const ulint *offsets);
 
 /** Searches the clustered index record for a row, if we have the row
  reference.

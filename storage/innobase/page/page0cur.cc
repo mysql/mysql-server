@@ -91,8 +91,7 @@ upper limit record
 lower limit record
 @param[out]	cursor			page cursor
 @return true on success */
-UNIV_INLINE
-bool page_cur_try_search_shortcut(
+static inline bool page_cur_try_search_shortcut(
     const buf_block_t *block, const dict_index_t *index, const dtuple_t *tuple,
     ulint *iup_matched_fields, ulint *ilow_matched_fields, page_cur_t *cursor) {
   const rec_t *rec;
@@ -162,8 +161,7 @@ lower limit record
 first partially matched field in the lower limit record
 @param[out]	cursor			page cursor
 @return true on success */
-UNIV_INLINE
-bool page_cur_try_search_shortcut_bytes(
+static inline bool page_cur_try_search_shortcut_bytes(
     const buf_block_t *block, const dict_index_t *index, const dtuple_t *tuple,
     ulint *iup_matched_fields, ulint *iup_matched_bytes,
     ulint *ilow_matched_fields, ulint *ilow_matched_bytes, page_cur_t *cursor) {
@@ -1953,10 +1951,8 @@ rec_t *page_cur_insert_rec_zip(
 @param[out]	log_ptr	4-byte field where to write the log data length
 @retval true if mtr log is opened successfully.
 @retval false if mtr log is not opened. One case is when redo is disabled. */
-UNIV_INLINE
-bool page_copy_rec_list_to_created_page_write_log(page_t *page,
-                                                  dict_index_t *index,
-                                                  mtr_t *mtr, byte *&log_ptr) {
+static inline bool page_copy_rec_list_to_created_page_write_log(
+    page_t *page, dict_index_t *index, mtr_t *mtr, byte *&log_ptr) {
   ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
 
   const bool opened = mlog_open_and_write_index(
@@ -2195,8 +2191,7 @@ void page_copy_rec_list_end_to_created_page(
 }
 
 /** Writes log record of a record delete on a page. */
-UNIV_INLINE
-void page_cur_delete_rec_write_log(
+static inline void page_cur_delete_rec_write_log(
     rec_t *rec,                /*!< in: record to be deleted */
     const dict_index_t *index, /*!< in: record descriptor */
     mtr_t *mtr)                /*!< in: mini-transaction handle */

@@ -80,8 +80,7 @@ void hash_table_free(hash_table_t *table); /*!< in, own: hash table */
 @param[in]	fold	folded value
 @param[in]	table	hash table
 @return hashed value */
-UNIV_INLINE
-ulint hash_calc_hash(ulint fold, hash_table_t *table);
+static inline ulint hash_calc_hash(ulint fold, hash_table_t *table);
 
 /** Inserts a struct to a hash table. */
 
@@ -205,17 +204,15 @@ ulint hash_calc_hash(ulint fold, hash_table_t *table);
 @param[in]	table	hash table
 @param[in]	n	cell index
 @return pointer to cell */
-UNIV_INLINE
-hash_cell_t *hash_get_nth_cell(hash_table_t *table, ulint n);
+static inline hash_cell_t *hash_get_nth_cell(hash_table_t *table, ulint n);
 
 /** Clears a hash table so that all the cells become empty. */
-UNIV_INLINE
-void hash_table_clear(hash_table_t *table); /*!< in/out: hash table */
+static inline void hash_table_clear(
+    hash_table_t *table); /*!< in/out: hash table */
 
 /** Returns the number of cells in a hash table.
  @return number of cells */
-UNIV_INLINE
-ulint hash_get_n_cells(hash_table_t *table); /*!< in: table */
+static inline ulint hash_get_n_cells(hash_table_t *table); /*!< in: table */
 /** Deletes a struct which is stored in the heap of the hash table, and compacts
  the heap. The fold value must be stored in the struct NODE in a field named
  'fold'. */
@@ -300,29 +297,25 @@ ulint hash_get_n_cells(hash_table_t *table); /*!< in: table */
 @param[in]	table	hash table
 @param[in]	fold	fold
 @return index */
-UNIV_INLINE
-ulint hash_get_sync_obj_index(hash_table_t *table, ulint fold);
+static inline ulint hash_get_sync_obj_index(hash_table_t *table, ulint fold);
 
 /** Gets the heap for a fold value in a hash table.
 @param[in]	table	hash table
 @param[in]	fold	fold
 @return mem heap */
-UNIV_INLINE
-mem_heap_t *hash_get_heap(hash_table_t *table, ulint fold);
+static inline mem_heap_t *hash_get_heap(hash_table_t *table, ulint fold);
 
 /** Gets the nth rw_lock in a hash table.
 @param[in]	table	hash table
 @param[in]	i	index of the rw_lock
 @return rw_lock */
-UNIV_INLINE
-rw_lock_t *hash_get_nth_lock(hash_table_t *table, ulint i);
+static inline rw_lock_t *hash_get_nth_lock(hash_table_t *table, ulint i);
 
 /** Gets the rw_lock for a fold value in a hash table.
 @param[in]	table	hash table
 @param[in]	fold	fold
 @return rw_lock */
-UNIV_INLINE
-rw_lock_t *hash_get_lock(hash_table_t *table, ulint fold);
+static inline rw_lock_t *hash_get_lock(hash_table_t *table, ulint fold);
 
 /** If not appropriate rw_lock for a fold value in a hash table,
 relock S-lock the another rw_lock until appropriate for a fold value.
@@ -330,9 +323,8 @@ relock S-lock the another rw_lock until appropriate for a fold value.
 @param[in]	table		hash table
 @param[in]	fold		fold value
 @return	latched rw_lock */
-UNIV_INLINE
-rw_lock_t *hash_lock_s_confirm(rw_lock_t *hash_lock, hash_table_t *table,
-                               ulint fold);
+static inline rw_lock_t *hash_lock_s_confirm(rw_lock_t *hash_lock,
+                                             hash_table_t *table, ulint fold);
 
 /** If not appropriate rw_lock for a fold value in a hash table,
 relock X-lock the another rw_lock until appropriate for a fold value.
@@ -340,9 +332,8 @@ relock X-lock the another rw_lock until appropriate for a fold value.
 @param[in]	table		hash table
 @param[in]	fold		fold value
 @return	latched rw_lock */
-UNIV_INLINE
-rw_lock_t *hash_lock_x_confirm(rw_lock_t *hash_lock, hash_table_t *table,
-                               ulint fold);
+static inline rw_lock_t *hash_lock_x_confirm(rw_lock_t *hash_lock,
+                                             hash_table_t *table, ulint fold);
 
 #ifdef UNIV_DEBUG
 

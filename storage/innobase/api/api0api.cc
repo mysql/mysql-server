@@ -219,8 +219,7 @@ operation, we only do it every INNOBASE_WAKE_INTERVAL'th step. */
 
 /** Check whether the InnoDB persistent cursor is positioned.
  @return IB_true if positioned */
-UNIV_INLINE
-ib_bool_t ib_btr_cursor_is_positioned(
+static inline ib_bool_t ib_btr_cursor_is_positioned(
     btr_pcur_t *pcur) /*!< in: InnoDB persistent cursor */
 {
   return (pcur->is_positioned());
@@ -246,8 +245,7 @@ static dict_table_t *ib_lookup_table_by_name(
  time calls srv_active_wake_master_thread. This function should be used
  when a single database operation may introduce a small need for
  server utility activity, like checkpointing. */
-UNIV_INLINE
-void ib_wake_master_thread(void) {
+static inline void ib_wake_master_thread(void) {
   static ulint ib_signal_counter = 0;
 
   ++ib_signal_counter;
@@ -1000,8 +998,7 @@ ib_err_t ib_cursor_close(ib_crsr_t ib_crsr) /*!< in,own: InnoDB cursor */
 
 /** Run the insert query and do error handling.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-ib_err_t ib_insert_row_with_lock_retry(
+static inline ib_err_t ib_insert_row_with_lock_retry(
     que_thr_t *thr,       /*!< in: insert query graph */
     ins_node_t *node,     /*!< in: insert node for the query */
     trx_savept_t *savept) /*!< in: savepoint to rollback to
@@ -1188,8 +1185,8 @@ ib_err_t ib_cursor_insert_row(
 
 /** Gets pointer to a prebuilt update vector used in updates.
  @return update vector */
-UNIV_INLINE
-upd_t *ib_update_vector_create(ib_cursor_t *cursor) /*!< in: current cursor */
+static inline upd_t *ib_update_vector_create(
+    ib_cursor_t *cursor) /*!< in: current cursor */
 {
   trx_t *trx = cursor->prebuilt->trx;
   mem_heap_t *heap = cursor->query_heap;
@@ -1307,8 +1304,7 @@ static ib_err_t ib_calc_diff(
 
 /** Run the update query and do error handling.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-ib_err_t ib_update_row_with_lock_retry(
+static inline ib_err_t ib_update_row_with_lock_retry(
     que_thr_t *thr,       /*!< in: Update query graph */
     upd_node_t *node,     /*!< in: Update node for the query */
     trx_savept_t *savept) /*!< in: savepoint to rollback to
@@ -1354,8 +1350,7 @@ ib_err_t ib_update_row_with_lock_retry(
 
 /** Does an update or delete of a row.
  @return DB_SUCCESS or err code */
-UNIV_INLINE
-ib_err_t ib_execute_update_query_graph(
+static inline ib_err_t ib_execute_update_query_graph(
     ib_cursor_t *cursor, /*!< in: Cursor instance */
     btr_pcur_t *pcur)    /*!< in: Btree persistent cursor */
 {
@@ -1662,8 +1657,7 @@ ib_err_t ib_cursor_read_row(
 
 /** Move cursor to the first record in the table.
  @return DB_SUCCESS or err code */
-UNIV_INLINE
-ib_err_t ib_cursor_position(
+static inline ib_err_t ib_cursor_position(
     ib_cursor_t *cursor, /*!< in: InnoDB cursor instance */
     ib_srch_mode_t mode) /*!< in: Search mode */
 {
@@ -1782,9 +1776,9 @@ void ib_cursor_set_match_mode(
 
 /** Get the dfield instance for the column in the tuple.
  @return dfield instance in tuple */
-UNIV_INLINE
-dfield_t *ib_col_get_dfield(ib_tuple_t *tuple, /*!< in: tuple instance */
-                            ulint col_no)      /*!< in: col no. in tuple */
+static inline dfield_t *ib_col_get_dfield(
+    ib_tuple_t *tuple, /*!< in: tuple instance */
+    ulint col_no)      /*!< in: col no. in tuple */
 {
   dfield_t *dfield;
 
@@ -1795,8 +1789,8 @@ dfield_t *ib_col_get_dfield(ib_tuple_t *tuple, /*!< in: tuple instance */
 
 /** Predicate to check whether a column type contains variable length data.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-ib_err_t ib_col_is_capped(const dtype_t *dtype) /*!< in: column type */
+static inline ib_err_t ib_col_is_capped(
+    const dtype_t *dtype) /*!< in: column type */
 {
   return (static_cast<ib_err_t>((dtype_get_mtype(dtype) == DATA_VARCHAR ||
                                  dtype_get_mtype(dtype) == DATA_CHAR ||
@@ -2010,8 +2004,7 @@ ib_ulint_t ib_col_get_len(ib_tpl_t ib_tpl, /*!< in: tuple instance */
 
 /** Copy a column value from the tuple.
  @return bytes copied or IB_SQL_NULL */
-UNIV_INLINE
-ib_ulint_t ib_col_copy_value_low(
+static inline ib_ulint_t ib_col_copy_value_low(
     ib_tpl_t ib_tpl, /*!< in: tuple instance */
     ib_ulint_t i,    /*!< in: column index in tuple */
     void *dst,       /*!< out: copied data value */
@@ -2111,8 +2104,8 @@ ib_ulint_t ib_col_copy_value(
 
 /** Get the InnoDB column attribute from the internal column precise type.
  @return precise type in api format */
-UNIV_INLINE
-ib_col_attr_t ib_col_get_attr(ulint prtype) /*!< in: column definition */
+static inline ib_col_attr_t ib_col_get_attr(
+    ulint prtype) /*!< in: column definition */
 {
   ib_col_attr_t attr = IB_COL_NONE;
 
@@ -2167,8 +2160,7 @@ const char *ib_get_idx_field_name(
 
 /** Get a column type, length and attributes from the tuple.
  @return len of column data */
-UNIV_INLINE
-ib_ulint_t ib_col_get_meta_low(
+static inline ib_ulint_t ib_col_get_meta_low(
     ib_tpl_t ib_tpl,            /*!< in: tuple instance */
     ib_ulint_t i,               /*!< in: column index in tuple */
     ib_col_meta_t *ib_col_meta) /*!< out: column meta data */
@@ -2198,11 +2190,11 @@ ib_ulint_t ib_col_get_meta_low(
 }
 
 /** Read a signed int 8 bit column from an InnoDB tuple. */
-UNIV_INLINE
-ib_err_t ib_tuple_check_int(ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
-                            ib_ulint_t i,    /*!< in: column number */
-                            ib_bool_t usign, /*!< in: true if unsigned */
-                            ulint size)      /*!< in: size of integer */
+static inline ib_err_t ib_tuple_check_int(
+    ib_tpl_t ib_tpl, /*!< in: InnoDB tuple */
+    ib_ulint_t i,    /*!< in: column number */
+    ib_bool_t usign, /*!< in: true if unsigned */
+    ulint size)      /*!< in: size of integer */
 {
   ib_col_meta_t ib_col_meta;
 

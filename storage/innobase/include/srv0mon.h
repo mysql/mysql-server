@@ -924,21 +924,19 @@ void srv_mon_process_existing_counter(
 /** This function is used to calculate the maximum counter value
  since the start of monitor counter
  @return max counter value since start. */
-UNIV_INLINE
-mon_type_t srv_mon_calc_max_since_start(
+static inline mon_type_t srv_mon_calc_max_since_start(
     monitor_id_t monitor); /*!< in: monitor id */
 /** This function is used to calculate the minimum counter value
  since the start of monitor counter
  @return min counter value since start. */
-UNIV_INLINE
-mon_type_t srv_mon_calc_min_since_start(
+static inline mon_type_t srv_mon_calc_min_since_start(
     monitor_id_t monitor); /*!< in: monitor id*/
 /** Reset a monitor, create a new base line with the current monitor
  value. This baseline is recorded by MONITOR_VALUE_RESET(monitor) */
 void srv_mon_reset(monitor_id_t monitor); /*!< in: monitor id*/
 /** This function resets all values of a monitor counter */
-UNIV_INLINE
-void srv_mon_reset_all(monitor_id_t monitor); /*!< in: monitor id*/
+static inline void srv_mon_reset_all(
+    monitor_id_t monitor); /*!< in: monitor id*/
 /** Turn on monitor counters that are marked as default ON. */
 void srv_mon_default_on(void);
 

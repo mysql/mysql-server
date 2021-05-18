@@ -140,7 +140,7 @@ void lock_prdt_set_prdt(lock_t *lock, const lock_prdt_t *prdt);
 /*********************************************************************//**
 Get predicate lock's minimum bounding box
 @return the minimum bounding box*/
-UNIV_INLINE
+static inline
 rtr_mbr_t*
 prdt_get_mbr_from_prdt(
 	const lock_prdt_t*	prdt);	/*!< in: the lock predicate */

@@ -172,6 +172,7 @@ ulint btr_height_get(dict_index_t *index, /*!< in: index tree */
                      mtr_t *mtr)          /*!< in/out: mini-transaction */
     MY_ATTRIBUTE((warn_unused_result));
 
+#ifndef UNIV_HOTBACKUP
 /** Gets a buffer page and declares its latching order level.
 @param[in]	page_id		Page id
 @param[in]	page_size	Page size
@@ -186,14 +187,15 @@ ulint btr_height_get(dict_index_t *index, /*!< in: index tree */
 /**
 @param[in,out]	mtr		Mini-transaction
 @return block */
-UNIV_INLINE
-buf_block_t *btr_block_get_func(const page_id_t &page_id,
-                                const page_size_t &page_size, ulint mode,
-                                const char *file, ulint line,
+static inline buf_block_t *btr_block_get_func(const page_id_t &page_id,
+                                              const page_size_t &page_size,
+                                              ulint mode, const char *file,
+                                              ulint line,
 #ifdef UNIV_DEBUG
-                                const dict_index_t *index,
+                                              const dict_index_t *index,
 #endif /* UNIV_DEBUG */
-                                mtr_t *mtr);
+                                              mtr_t *mtr);
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /** Gets a buffer page and declares its latching order level.
@@ -227,34 +229,36 @@ buf_block_t *btr_block_get_func(const page_id_t &page_id,
   buf_block_get_frame(btr_block_get(page_id, page_size, mode, index, mtr))
 /** Gets the index id field of a page.
  @return index id */
-UNIV_INLINE
-space_index_t btr_page_get_index_id(const page_t *page) /*!< in: index page */
+static inline space_index_t btr_page_get_index_id(
+    const page_t *page) /*!< in: index page */
     MY_ATTRIBUTE((warn_unused_result));
 /** Gets the node level field in an index page.
  @return level, leaf level == 0 */
-UNIV_INLINE
-ulint btr_page_get_level_low(const page_t *page) /*!< in: index page */
+static inline ulint btr_page_get_level_low(
+    const page_t *page) /*!< in: index page */
     MY_ATTRIBUTE((warn_unused_result));
 #define btr_page_get_level(page, mtr) btr_page_get_level_low(page)
 /** Gets the next index page number.
  @return next page number */
-UNIV_INLINE
-page_no_t btr_page_get_next(const page_t *page, /*!< in: index page */
-                            mtr_t *mtr) /*!< in: mini-transaction handle */
+static inline page_no_t btr_page_get_next(
+    const page_t *page, /*!< in: index page */
+    mtr_t *mtr)         /*!< in: mini-transaction handle */
     MY_ATTRIBUTE((warn_unused_result));
 /** Gets the previous index page number.
  @return prev page number */
-UNIV_INLINE
-page_no_t btr_page_get_prev(const page_t *page, /*!< in: index page */
-                            mtr_t *mtr) /*!< in: mini-transaction handle */
+static inline page_no_t btr_page_get_prev(
+    const page_t *page, /*!< in: index page */
+    mtr_t *mtr)         /*!< in: mini-transaction handle */
     MY_ATTRIBUTE((warn_unused_result));
 
+#ifndef UNIV_HOTBACKUP
 /** Releases the latch on a leaf page and bufferunfixes it.
 @param[in]	block		buffer block
 @param[in]	latch_mode	BTR_SEARCH_LEAF or BTR_MODIFY_LEAF
 @param[in]	mtr		mtr */
-UNIV_INLINE
-void btr_leaf_page_release(buf_block_t *block, ulint latch_mode, mtr_t *mtr);
+static inline void btr_leaf_page_release(buf_block_t *block, ulint latch_mode,
+                                         mtr_t *mtr);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Gets the child node file address in a node pointer.
  NOTE: the offsets array must contain all offsets for the record since
@@ -262,8 +266,7 @@ void btr_leaf_page_release(buf_block_t *block, ulint latch_mode, mtr_t *mtr);
  the child page number. In other words offsets must have been retrieved
  with rec_get_offsets(n_fields=ULINT_UNDEFINED).
  @return child node address */
-UNIV_INLINE
-page_no_t btr_node_ptr_get_child_page_no(
+static inline page_no_t btr_node_ptr_get_child_page_no(
     const rec_t *rec,     /*!< in: node pointer record */
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
     MY_ATTRIBUTE((warn_unused_result));

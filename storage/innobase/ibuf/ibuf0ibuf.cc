@@ -219,8 +219,7 @@ static ulint ibuf_counts[IBUF_COUNT_N_SPACES][IBUF_COUNT_N_PAGES];
 
 /** Checks that the indexes to ibuf_counts[][] are within limits.
 @param[in]	page_id	page id */
-UNIV_INLINE
-void ibuf_count_check(const page_id_t &page_id) {
+static inline void ibuf_count_check(const page_id_t &page_id) {
   if (page_id.space() < IBUF_COUNT_N_SPACES &&
       page_id.page_no() < IBUF_COUNT_N_PAGES) {
     return;
@@ -332,8 +331,7 @@ dropped! So, there seems to be no problem. */
 
 /** Sets the flag in the current mini-transaction record indicating we're
  inside an insert buffer routine. */
-UNIV_INLINE
-void ibuf_enter(mtr_t *mtr) /*!< in/out: mini-transaction */
+static inline void ibuf_enter(mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   ut_ad(!mtr->is_inside_ibuf());
   mtr->enter_ibuf();
@@ -341,8 +339,7 @@ void ibuf_enter(mtr_t *mtr) /*!< in/out: mini-transaction */
 
 /** Sets the flag in the current mini-transaction record indicating we're
  exiting an insert buffer routine. */
-UNIV_INLINE
-void ibuf_exit(mtr_t *mtr) /*!< in/out: mini-transaction */
+static inline void ibuf_exit(mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   ut_ad(mtr->is_inside_ibuf());
   mtr->exit_ibuf();
@@ -350,8 +347,7 @@ void ibuf_exit(mtr_t *mtr) /*!< in/out: mini-transaction */
 
 /** Commits an insert buffer mini-transaction and sets the persistent
  cursor latch mode to BTR_NO_LATCHES, that is, detaches the cursor. */
-UNIV_INLINE
-void ibuf_btr_pcur_commit_specify_mtr(
+static inline void ibuf_btr_pcur_commit_specify_mtr(
     btr_pcur_t *pcur, /*!< in/out: persistent cursor */
     mtr_t *mtr)       /*!< in/out: mini-transaction */
 {
@@ -623,14 +619,13 @@ bitmap page */
 /**
 @param[in]	bit		IBUF_BITMAP_FREE, IBUF_BITMAP_BUFFERED, ...
 @return value of bits */
-UNIV_INLINE
-ulint ibuf_bitmap_page_get_bits_low(const page_t *page,
-                                    const page_id_t &page_id,
-                                    const page_size_t &page_size,
+static inline ulint ibuf_bitmap_page_get_bits_low(const page_t *page,
+                                                  const page_id_t &page_id,
+                                                  const page_size_t &page_size,
 #ifdef UNIV_DEBUG
-                                    ulint latch_type, mtr_t *mtr,
+                                                  ulint latch_type, mtr_t *mtr,
 #endif /* UNIV_DEBUG */
-                                    ulint bit) {
+                                                  ulint bit) {
   ulint byte_offset;
   ulint bit_offset;
   ulint map_byte;
@@ -715,9 +710,8 @@ static void ibuf_bitmap_page_set_bits(page_t *page, const page_id_t &page_id,
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @return the bitmap page id where the file page is mapped */
-UNIV_INLINE
-const page_id_t ibuf_bitmap_page_no_calc(const page_id_t &page_id,
-                                         const page_size_t &page_size) {
+static inline const page_id_t ibuf_bitmap_page_no_calc(
+    const page_id_t &page_id, const page_size_t &page_size) {
   page_no_t bitmap_page_no;
 
   bitmap_page_no = FSP_IBUF_BITMAP_OFFSET +
@@ -766,8 +760,7 @@ is x-latched */
  separate mini-transaction, hence this operation does not restrict further work
  to only ibuf bitmap operations, which would result if the latch to the bitmap
  page were kept. */
-UNIV_INLINE
-void ibuf_set_free_bits_low(
+static inline void ibuf_set_free_bits_low(
     const buf_block_t *block, /*!< in: index page; free bits are set if
                               the index is non-clustered and page
                               level is 0 */
@@ -983,9 +976,8 @@ void ibuf_update_free_bits_for_two_pages_low(
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @return true if a fixed address ibuf i/o page */
-UNIV_INLINE
-ibool ibuf_fixed_addr_page(const page_id_t &page_id,
-                           const page_size_t &page_size) {
+static inline ibool ibuf_fixed_addr_page(const page_id_t &page_id,
+                                         const page_size_t &page_size) {
   return ((page_id.space() == IBUF_SPACE_ID &&
            page_id.page_no() == IBUF_TREE_ROOT_PAGE_NO) ||
           ibuf_bitmap_page(page_id, page_size));
@@ -1482,12 +1474,12 @@ static dtuple_t *ibuf_build_entry_from_ibuf_rec_func(
 
 /** Get the data size.
  @return size of fields */
-UNIV_INLINE
-ulint ibuf_rec_get_size(const rec_t *rec,  /*!< in: ibuf record */
-                        const byte *types, /*!< in: fields */
-                        ulint n_fields,    /*!< in: number of fields */
-                        ulint comp)        /*!< in: 0=ROW_FORMAT=REDUNDANT,
-                                           nonzero=ROW_FORMAT=COMPACT */
+static inline ulint ibuf_rec_get_size(
+    const rec_t *rec,  /*!< in: ibuf record */
+    const byte *types, /*!< in: fields */
+    ulint n_fields,    /*!< in: number of fields */
+    ulint comp)        /*!< in: 0=ROW_FORMAT=REDUNDANT,
+                       nonzero=ROW_FORMAT=COMPACT */
 {
   ulint i;
   ulint field_offset;
@@ -1818,8 +1810,7 @@ static dtuple_t *ibuf_search_tuple_build(
 /** Checks if there are enough pages in the free list of the ibuf tree that we
  dare to start a pessimistic insert to the insert buffer.
  @return true if enough free pages in list */
-UNIV_INLINE
-ibool ibuf_data_enough_free_for_insert(void) {
+static inline ibool ibuf_data_enough_free_for_insert(void) {
   ut_ad(mutex_own(&ibuf_mutex));
 
   /* We want a big margin of free pages, because a B-tree can sometimes
@@ -1834,8 +1825,7 @@ ibool ibuf_data_enough_free_for_insert(void) {
 /** Checks if there are enough pages in the free list of the ibuf tree that we
  should remove them and free to the file space management.
  @return true if enough free pages in list */
-UNIV_INLINE
-ibool ibuf_data_too_much_free(void) {
+static inline ibool ibuf_data_too_much_free(void) {
   ut_ad(mutex_own(&ibuf_mutex));
 
   return (ibuf->free_list_len >= 3 + (ibuf->size / 2) + 3 * ibuf->height);
@@ -2514,8 +2504,7 @@ ulint ibuf_merge_in_background(bool full) {
 }
 
 /** Contract insert buffer trees after insert if they are too big. */
-UNIV_INLINE
-void ibuf_contract_after_insert(
+static inline void ibuf_contract_after_insert(
     ulint entry_size) /*!< in: size of a record which was inserted
                       into an ibuf tree */
 {

@@ -440,8 +440,7 @@ ulint lock_get_size(void) { return ((ulint)sizeof(lock_t)); }
 
 /** Sets the wait flag of a lock and the back pointer in trx to lock.
 @param[in]  lock  The lock on which a transaction is waiting */
-UNIV_INLINE
-void lock_set_lock_and_trx_wait(lock_t *lock) {
+static inline void lock_set_lock_and_trx_wait(lock_t *lock) {
   auto trx = lock->trx;
   ut_ad(trx_mutex_own(trx));
   ut_a(trx->lock.wait_lock == nullptr);
@@ -454,8 +453,7 @@ void lock_set_lock_and_trx_wait(lock_t *lock) {
 
 /** Gets the gap flag of a record lock.
  @return LOCK_GAP or 0 */
-UNIV_INLINE
-ulint lock_rec_get_gap(const lock_t *lock) /*!< in: record lock */
+static inline ulint lock_rec_get_gap(const lock_t *lock) /*!< in: record lock */
 {
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
@@ -464,8 +462,8 @@ ulint lock_rec_get_gap(const lock_t *lock) /*!< in: record lock */
 
 /** Gets the LOCK_REC_NOT_GAP flag of a record lock.
  @return LOCK_REC_NOT_GAP or 0 */
-UNIV_INLINE
-ulint lock_rec_get_rec_not_gap(const lock_t *lock) /*!< in: record lock */
+static inline ulint lock_rec_get_rec_not_gap(
+    const lock_t *lock) /*!< in: record lock */
 {
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
@@ -474,8 +472,8 @@ ulint lock_rec_get_rec_not_gap(const lock_t *lock) /*!< in: record lock */
 
 /** Gets the waiting insert flag of a record lock.
  @return LOCK_INSERT_INTENTION or 0 */
-UNIV_INLINE
-ulint lock_rec_get_insert_intention(const lock_t *lock) /*!< in: record lock */
+static inline ulint lock_rec_get_insert_intention(
+    const lock_t *lock) /*!< in: record lock */
 {
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
@@ -484,8 +482,7 @@ ulint lock_rec_get_insert_intention(const lock_t *lock) /*!< in: record lock */
 
 /** Checks if a lock request for a new lock has to wait for request lock2.
  @return true if new lock has to wait for lock2 to be removed */
-UNIV_INLINE
-bool lock_rec_has_to_wait(
+static inline bool lock_rec_has_to_wait(
     const trx_t *trx,    /*!< in: trx of new lock */
     ulint type_mode,     /*!< in: precise mode of the new lock
                        to set: LOCK_S or LOCK_X, possibly
@@ -632,8 +629,7 @@ ulint lock_rec_find_next_set_bit(const lock_t *lock, ulint heap_no) {
 @param[in,out] lock record lock
 @param[in] i index of the bit that will be reset
 @return previous value of the bit */
-UNIV_INLINE
-byte lock_rec_reset_nth_bit(lock_t *lock, ulint i) {
+static inline byte lock_rec_reset_nth_bit(lock_t *lock, ulint i) {
   ut_ad(lock_get_type_low(lock) == LOCK_REC);
   ut_ad(i < lock->rec_lock.n_bits);
 
@@ -745,9 +741,9 @@ const lock_t *lock_rec_get_prev(
 @param[in]    heap_no       heap number of the record
 @param[in]    trx           transaction
 @return lock or NULL */
-UNIV_INLINE
-const lock_t *lock_rec_has_expl(ulint precise_mode, const buf_block_t *block,
-                                ulint heap_no, const trx_t *trx) {
+static inline const lock_t *lock_rec_has_expl(ulint precise_mode,
+                                              const buf_block_t *block,
+                                              ulint heap_no, const trx_t *trx) {
   ut_ad(locksys::owns_page_shard(block->get_page_id()));
   ut_ad((precise_mode & LOCK_MODE_MASK) == LOCK_S ||
         (precise_mode & LOCK_MODE_MASK) == LOCK_X);
@@ -1383,10 +1379,9 @@ page: no new struct is needed, if a suitable old is found.
 @param[out] found_waiter_before_lock  true iff there is a waiting lock before
                                       the returned lock
 @return lock or nullptr if there is no lock we could reuse*/
-UNIV_INLINE
-lock_t *lock_rec_find_similar_on_page(uint32_t type_mode, size_t heap_no,
-                                      lock_t *lock, const trx_t *trx,
-                                      bool &found_waiter_before_lock) {
+static inline lock_t *lock_rec_find_similar_on_page(
+    uint32_t type_mode, size_t heap_no, lock_t *lock, const trx_t *trx,
+    bool &found_waiter_before_lock) {
   ut_ad(locksys::owns_page_shard(lock->rec_lock.page_id));
   found_waiter_before_lock = false;
   for (/* No op */; lock != nullptr; lock = lock_rec_get_next_on_page(lock)) {
@@ -1517,8 +1512,7 @@ static void lock_rec_add_to_queue(ulint type_mode, const buf_block_t *block,
  a page supremum record, a gap type lock.
  @return whether the locking succeeded LOCK_REC_SUCCESS,
  LOCK_REC_SUCCESS_CREATED, LOCK_REC_FAIL */
-UNIV_INLINE
-lock_rec_req_status lock_rec_lock_fast(
+static inline lock_rec_req_status lock_rec_lock_fast(
     bool impl,                /*!< in: if true, no lock is set
                               if no wait is necessary: we
                               assume that the caller will
@@ -2384,8 +2378,7 @@ void lock_on_statement_end(trx_t *trx) { trx->lock.inherit_all.store(false); }
 at least till the end of the current statement which requires it to be inherited
 as gap locks even in READ COMMITTED isolation level.
 @param[in]  thr     the requesting thread */
-UNIV_INLINE
-void lock_protect_locks_till_statement_end(que_thr_t *thr) {
+static inline void lock_protect_locks_till_statement_end(que_thr_t *thr) {
   thr_get_trx(thr)->lock.inherit_all.store(true);
 }
 
@@ -2555,17 +2548,17 @@ static void lock_move_granted_locks_to_front(trx_lock_list_t &lock_list) {
 
 /** Moves the locks of a record to another record and resets the lock bits of
  the donating record. */
-UNIV_INLINE
-void lock_rec_move(const buf_block_t *receiver, /*!< in: buffer block containing
-                                                the receiving record */
-                   const buf_block_t *donator,  /*!< in: buffer block containing
-                                                the donating record */
-                   ulint receiver_heap_no,      /*!< in: heap_no of the record
-                                       which gets the locks; there
-                                               must be no lock requests
-                                               on it! */
-                   ulint donator_heap_no)       /*!< in: heap_no of the record
-                                                which gives the locks */
+static inline void lock_rec_move(
+    const buf_block_t *receiver, /*!< in: buffer block containing
+                                 the receiving record */
+    const buf_block_t *donator,  /*!< in: buffer block containing
+                                 the donating record */
+    ulint receiver_heap_no,      /*!< in: heap_no of the record
+                        which gets the locks; there
+                                must be no lock requests
+                                on it! */
+    ulint donator_heap_no)       /*!< in: heap_no of the record
+                                 which gives the locks */
 {
   lock_rec_move_low(lock_sys->rec_hash, receiver, donator, receiver_heap_no,
                     donator_heap_no);
@@ -3256,12 +3249,12 @@ struct TableLockGetNode {
 /** Creates a table lock object and adds it as the last in the lock queue
  of the table. Does NOT check for deadlocks or lock compatibility.
  @return own: new lock object */
-UNIV_INLINE
-lock_t *lock_table_create(dict_table_t *table, /*!< in/out: database table
-                                               in dictionary cache */
-                          ulint type_mode, /*!< in: lock mode possibly ORed with
-                                         LOCK_WAIT */
-                          trx_t *trx)      /*!< in: trx */
+static inline lock_t *lock_table_create(
+    dict_table_t *table, /*!< in/out: database table
+                         in dictionary cache */
+    ulint type_mode,     /*!< in: lock mode possibly ORed with
+                       LOCK_WAIT */
+    trx_t *trx)          /*!< in: trx */
 {
   lock_t *lock;
 
@@ -3322,8 +3315,7 @@ lock_t *lock_table_create(dict_table_t *table, /*!< in/out: database table
 /** Pops autoinc lock requests from the transaction's autoinc_locks. We
  handle the case where there are gaps in the array and they need to
  be popped off the stack. */
-UNIV_INLINE
-void lock_table_pop_autoinc_locks(
+static inline void lock_table_pop_autoinc_locks(
     trx_t *trx) /*!< in/out: transaction that owns the AUTOINC locks */
 {
   /* We will access and modify trx->lock.autoinc_locks so we need trx->mutex */
@@ -3344,8 +3336,7 @@ void lock_table_pop_autoinc_locks(
 }
 
 /** Removes an autoinc lock request from the transaction's autoinc_locks. */
-UNIV_INLINE
-void lock_table_remove_autoinc_lock(
+static inline void lock_table_remove_autoinc_lock(
     lock_t *lock, /*!< in: table lock */
     trx_t *trx)   /*!< in/out: transaction that owns the lock */
 {
@@ -3396,8 +3387,8 @@ void lock_table_remove_autoinc_lock(
 /** Removes a table lock request from the queue and the trx list of locks;
  this is a low-level function which does NOT check if waiting requests
  can now be granted. */
-UNIV_INLINE
-void lock_table_remove_low(lock_t *lock) /*!< in/out: table lock */
+static inline void lock_table_remove_low(
+    lock_t *lock) /*!< in/out: table lock */
 {
   trx_t *trx;
   dict_table_t *table;
@@ -3500,8 +3491,7 @@ static dberr_t lock_table_enqueue_waiting(ulint mode, dict_table_t *table,
 /** Checks if other transactions have an incompatible mode lock request in
  the lock queue.
  @return lock or NULL */
-UNIV_INLINE
-const lock_t *lock_table_other_has_incompatible(
+static inline const lock_t *lock_table_other_has_incompatible(
     const trx_t *trx,          /*!< in: transaction, or NULL if all
                                transactions should be included */
     ulint wait,                /*!< in: LOCK_WAIT if also
@@ -5671,8 +5661,7 @@ dberr_t lock_clust_rec_read_check_and_lock_alt(
 
 /** Release the last lock from the transaction's autoinc locks.
 @param[in]  trx   trx which vector of AUTOINC locks to modify */
-UNIV_INLINE
-void lock_release_autoinc_last_lock(trx_t *trx) {
+static inline void lock_release_autoinc_last_lock(trx_t *trx) {
   ulint last;
   lock_t *lock;
 
@@ -5882,8 +5871,7 @@ const char *lock_get_type_str(const lock_t *lock) /*!< in: lock */
 
 /** Gets the table on which the lock is.
  @return table */
-UNIV_INLINE
-dict_table_t *lock_get_table(const lock_t *lock) /*!< in: lock */
+static inline dict_table_t *lock_get_table(const lock_t *lock) /*!< in: lock */
 {
   switch (lock_get_type_low(lock)) {
     case LOCK_REC:

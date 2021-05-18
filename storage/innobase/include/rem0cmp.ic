@@ -42,9 +42,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @retval 0 if dfield1 is equal to dfield2
 @retval negative if dfield1 is less than dfield2
 @retval positive if dfield1 is greater than dfield2 */
-UNIV_INLINE
-int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
-                      bool is_asc) {
+static inline int cmp_dfield_dfield(const dfield_t *dfield1,
+                                    const dfield_t *dfield2, bool is_asc) {
   const dtype_t *type;
 
   /* The multi-value array data is not expected, however, if it's one
@@ -65,9 +64,8 @@ int cmp_dfield_dfield(const dfield_t *dfield1, const dfield_t *dfield2,
       dfield_get_len(dfield2)));
 }
 
-UNIV_INLINE
-int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
-                                  const dfield_t *dfield2) {
+static inline int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
+                                                const dfield_t *dfield2) {
   ut_ad(dfield_is_multi_value(dfield1));
   ut_ad(dfield_is_multi_value(dfield2));
   ut_ad(dfield_is_null(dfield2) ||
@@ -97,11 +95,11 @@ int cmp_multi_value_dfield_dfield(const dfield_t *dfield1,
               : 1);
 }
 
-UNIV_INLINE
-int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
-                const ulint *offsets2, const dict_index_t *index,
-                bool spatial_index_non_leaf, ulint *matched_fields,
-                bool cmp_btree_recs) {
+static inline int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2,
+                              const ulint *offsets1, const ulint *offsets2,
+                              const dict_index_t *index,
+                              bool spatial_index_non_leaf,
+                              ulint *matched_fields, bool cmp_btree_recs) {
   ulint match_f;
   int ret;
 
@@ -123,9 +121,8 @@ int cmp_rec_rec(const rec_t *rec1, const rec_t *rec2, const ulint *offsets1,
 @return the comparison result of dfield1 and dfield2
 @retval true if dfield1 is equal to dfield2, or a prefix of dfield1
 @retval false otherwise */
-UNIV_INLINE
-bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
-                                 const dfield_t *dfield2) {
+static inline bool cmp_dfield_dfield_eq_prefix(const dfield_t *dfield1,
+                                               const dfield_t *dfield2) {
   const dtype_t *type;
 
   ut_ad(dfield_check_typed(dfield1));

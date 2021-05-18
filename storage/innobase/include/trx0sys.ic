@@ -62,16 +62,14 @@ void trx_sys_write_max_trx_id(void);
 /** Checks if a page address is the trx sys header page.
 @param[in]	page_id	page id
 @return true if trx sys header page */
-UNIV_INLINE
-bool trx_sys_hdr_page(const page_id_t &page_id) {
+static inline bool trx_sys_hdr_page(const page_id_t &page_id) {
   return (page_id.space() == TRX_SYS_SPACE &&
           page_id.page_no() == TRX_SYS_PAGE_NO);
 }
 
 /** Gets a pointer to the transaction system header and x-latches its page.
  @return pointer to system header, page x-latched. */
-UNIV_INLINE
-trx_sysf_t *trx_sysf_get(mtr_t *mtr) /*!< in: mtr */
+static inline trx_sysf_t *trx_sysf_get(mtr_t *mtr) /*!< in: mtr */
 {
   buf_block_t *block;
   trx_sysf_t *header;
@@ -90,8 +88,7 @@ trx_sysf_t *trx_sysf_get(mtr_t *mtr) /*!< in: mtr */
 /** Gets the space of the nth rollback segment slot in the trx system
  file copy.
  @return space id */
-UNIV_INLINE
-space_id_t trx_sysf_rseg_get_space(
+static inline space_id_t trx_sysf_rseg_get_space(
     trx_sysf_t *sys_header, /*!< in: trx sys header */
     ulint slot,             /*!< in: slot index == rseg id */
     mtr_t *mtr)             /*!< in: mtr */
@@ -107,8 +104,7 @@ space_id_t trx_sysf_rseg_get_space(
 /** Gets the page number of the nth rollback segment slot in the trx system
  header.
  @return page number, FIL_NULL if slot unused */
-UNIV_INLINE
-page_no_t trx_sysf_rseg_get_page_no(
+static inline page_no_t trx_sysf_rseg_get_page_no(
     trx_sysf_t *sys_header, /*!< in: trx system header */
     ulint slot,             /*!< in: slot index == rseg id */
     mtr_t *mtr)             /*!< in: mtr */
@@ -124,8 +120,7 @@ page_no_t trx_sysf_rseg_get_page_no(
 
 /** Sets the space id of the nth rollback segment slot in the trx system
  file copy. */
-UNIV_INLINE
-void trx_sysf_rseg_set_space(
+static inline void trx_sysf_rseg_set_space(
     trx_sysf_t *sys_header, /*!< in: trx sys file copy */
     ulint slot,             /*!< in: slot index == rseg id */
     space_id_t space,       /*!< in: space id */
@@ -141,8 +136,7 @@ void trx_sysf_rseg_set_space(
 
 /** Sets the page number of the nth rollback segment slot in the trx system
  header. */
-UNIV_INLINE
-void trx_sysf_rseg_set_page_no(
+static inline void trx_sysf_rseg_set_page_no(
     trx_sysf_t *sys_header, /*!< in: trx sys header */
     ulint slot,             /*!< in: slot index == rseg id */
     page_no_t page_no,      /*!< in: page number, FIL_NULL if the
@@ -161,9 +155,9 @@ void trx_sysf_rseg_set_page_no(
 /** Writes a trx id to an index page. In case that the id size changes in
  some future version, this function should be used instead of
  mach_write_... */
-UNIV_INLINE
-void trx_write_trx_id(byte *ptr,   /*!< in: pointer to memory where written */
-                      trx_id_t id) /*!< in: id */
+static inline void trx_write_trx_id(
+    byte *ptr,   /*!< in: pointer to memory where written */
+    trx_id_t id) /*!< in: id */
 {
   ut_ad(id > 0);
   mach_write_to_6(ptr, id);
@@ -174,15 +168,13 @@ void trx_write_trx_id(byte *ptr,   /*!< in: pointer to memory where written */
  some future version, this function should be used instead of
  mach_read_...
  @return id */
-UNIV_INLINE
-trx_id_t trx_read_trx_id(
+static inline trx_id_t trx_read_trx_id(
     const byte *ptr) /*!< in: pointer to memory from where to read */
 {
   return (mach_read_from_6(ptr));
 }
 
-UNIV_INLINE
-trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id) {
+static inline trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id) {
   ut_ad(trx_id > 0);
   ut_ad(trx_sys_mutex_own());
 
@@ -202,8 +194,7 @@ the trx can possibly be active. (But, you must look at the trx->state
 to find out if the minimum trx id transaction itself is active, or already
 committed.). The caller must be holding the trx_sys_t::mutex in shared mode.
 @return the minimum trx id, or trx_sys->rw_max_trx_id+1 if the list is empty */
-UNIV_INLINE
-trx_id_t trx_rw_min_trx_id_low(void) {
+static inline trx_id_t trx_rw_min_trx_id_low(void) {
   trx_id_t id;
 
   ut_ad(trx_sys_mutex_own());
@@ -223,8 +214,8 @@ trx_id_t trx_rw_min_trx_id_low(void) {
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /** Assert that a transaction has been recovered.
  @return true */
-UNIV_INLINE
-ibool trx_assert_recovered(trx_id_t trx_id) /*!< in: transaction identifier */
+static inline ibool trx_assert_recovered(
+    trx_id_t trx_id) /*!< in: transaction identifier */
 {
   const trx_t *trx;
 
@@ -239,8 +230,7 @@ ibool trx_assert_recovered(trx_id_t trx_id) /*!< in: transaction identifier */
 }
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
-UNIV_INLINE
-trx_id_t trx_rw_min_trx_id(void) {
+static inline trx_id_t trx_rw_min_trx_id(void) {
   trx_sys_mutex_enter();
 
   trx_id_t id = trx_rw_min_trx_id_low();
@@ -250,8 +240,7 @@ trx_id_t trx_rw_min_trx_id(void) {
   return (id);
 }
 
-UNIV_INLINE
-trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt) {
+static inline trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt) {
   trx_t *trx;
 
   ut_ad(trx_sys_mutex_own());
@@ -278,8 +267,8 @@ trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt) {
   return (trx);
 }
 
-UNIV_INLINE
-trx_t *trx_rw_is_active(trx_id_t trx_id, ibool *corrupt, bool do_ref_count) {
+static inline trx_t *trx_rw_is_active(trx_id_t trx_id, ibool *corrupt,
+                                      bool do_ref_count) {
   trx_t *trx;
 
   /* Fast checking. If it's smaller than minimal active trx id, just
@@ -346,8 +335,7 @@ inline trx_id_t trx_sys_allocate_trx_no() {
 
 /** Reads trx->no up to which all transactions have been serialised.
  @return minimum value which is still possibly not serialised */
-UNIV_INLINE
-trx_id_t trx_get_serialisation_min_trx_no(void) {
+static inline trx_id_t trx_get_serialisation_min_trx_no(void) {
   return (trx_sys->serialisation_min_trx_no.load());
 }
 
@@ -357,8 +345,7 @@ inline trx_id_t trx_sys_get_next_trx_id_or_no() {
 
 /** Determine if there are incomplete transactions in the system.
 @return whether incomplete transactions need rollback */
-UNIV_INLINE
-bool trx_sys_need_rollback() {
+static inline bool trx_sys_need_rollback() {
   ulint n_trx;
 
   trx_sys_mutex_enter();
@@ -375,8 +362,7 @@ bool trx_sys_need_rollback() {
 /**
 Add the transaction to the RW transaction set
 @param trx		transaction instance to add */
-UNIV_INLINE
-void trx_sys_rw_trx_add(trx_t *trx) {
+static inline void trx_sys_rw_trx_add(trx_t *trx) {
   ut_ad(trx->id != 0);
 
   trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));

@@ -665,8 +665,7 @@ static ibool row_merge_fts_doc_tokenize(
 }
 
 /** Get next doc item from fts_doc_list */
-UNIV_INLINE
-void row_merge_fts_get_next_doc_item(
+static inline void row_merge_fts_get_next_doc_item(
     fts_psort_t *psort_info,   /*!< in: psort_info */
     fts_doc_item_t **doc_item) /*!< in/out: doc item */
 {

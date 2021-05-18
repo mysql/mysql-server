@@ -261,8 +261,8 @@ void lock_sys_resize(ulint n_cells);
 void lock_sys_close(void);
 /** Gets the heap_no of the smallest user record on a page.
  @return heap_no of smallest user record, or PAGE_HEAP_NO_SUPREMUM */
-UNIV_INLINE
-ulint lock_get_min_heap_no(const buf_block_t *block); /*!< in: buffer block */
+static inline ulint lock_get_min_heap_no(
+    const buf_block_t *block); /*!< in: buffer block */
 /** Updates the lock table when we have reorganized a page. NOTE: we copy
  also the locks set on the infimum of the page; the infimum may carry
  locks if an update of a record is occurring on the page, and its locks
@@ -647,19 +647,16 @@ void lock_remove_all_on_table(
  searching for a lock in the hash table.
  @param  page_id    specifies the page
  @return folded value */
-UNIV_INLINE
-ulint lock_rec_fold(const page_id_t page_id);
+static inline ulint lock_rec_fold(const page_id_t page_id);
 
 /** Calculates the hash value of a page file address: used in inserting or
 searching for a lock in the hash table.
 @param  page_id    specifies the page
 @return hashed value */
-UNIV_INLINE
-ulint lock_rec_hash(const page_id_t &page_id);
+static inline ulint lock_rec_hash(const page_id_t &page_id);
 
 /** Get the lock hash table */
-UNIV_INLINE
-hash_table_t *lock_hash_get(ulint mode); /*!< in: lock mode */
+static inline hash_table_t *lock_hash_get(ulint mode); /*!< in: lock mode */
 
 /** Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
  if none found.

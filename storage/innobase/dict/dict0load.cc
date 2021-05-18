@@ -1253,8 +1253,7 @@ Ignore system and file-per-table tablespaces.
 If it is valid, add it to the file_system list.
 @param[in]	validate	true when the previous shutdown was not clean
 @return the highest space ID found. */
-UNIV_INLINE
-space_id_t dict_check_sys_tablespaces(bool validate) {
+static inline space_id_t dict_check_sys_tablespaces(bool validate) {
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;
@@ -1404,8 +1403,7 @@ file_system list.  Perform extra validation on the table if recovery from
 the REDO log occurred.
 @param[in]	validate	Whether to do validation on the table.
 @return the highest space ID found. */
-UNIV_INLINE
-space_id_t dict_check_sys_tables(bool validate) {
+static inline space_id_t dict_check_sys_tables(bool validate) {
   space_id_t max_space_id = 0;
   btr_pcur_t pcur;
   const rec_t *rec;

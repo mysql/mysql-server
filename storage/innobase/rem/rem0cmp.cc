@@ -71,9 +71,9 @@ has more fields than the other. */
 @param[in] b_length length of b, in bytes (not UNIV_SQL_NULL)
 @return positive, 0, negative, if a is greater, equal, less than b,
 respectively */
-UNIV_INLINE
-int innobase_mysql_cmp(ulint prtype, const byte *a, size_t a_length,
-                       const byte *b, size_t b_length) {
+static inline int innobase_mysql_cmp(ulint prtype, const byte *a,
+                                     size_t a_length, const byte *b,
+                                     size_t b_length) {
 #ifdef UNIV_DEBUG
   switch (prtype & DATA_MYSQL_TYPE_MASK) {
     case MYSQL_TYPE_BIT:
@@ -693,8 +693,7 @@ int cmp_dtuple_rec_with_match_low(const dtuple_t *dtuple, const rec_t *rec,
 @param[in]	type SQL data type
 @return		pad character code point
 @retval		ULINT_UNDEFINED if no padding is specified */
-UNIV_INLINE
-ulint cmp_get_pad_char(const dtype_t *type) {
+static inline ulint cmp_get_pad_char(const dtype_t *type) {
   switch (type->mtype) {
     case DATA_FIXBINARY:
     case DATA_BINARY:

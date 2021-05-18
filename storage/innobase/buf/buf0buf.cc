@@ -3217,8 +3217,8 @@ got_block:
 }
 
 /** Initialize some fields of a control block. */
-UNIV_INLINE
-void buf_block_init_low(buf_block_t *block) /*!< in: block to init */
+static inline void buf_block_init_low(
+    buf_block_t *block) /*!< in: block to init */
 {
   /* No adaptive hash index entries may point to a previously
   unused (and now freshly allocated) block. */

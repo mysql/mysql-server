@@ -382,8 +382,7 @@ void rw_lock_x_lock_move_ownership(
 
 /** Function for the next writer to call. Waits for readers to exit.
  The caller must have already decremented lock_word by X_LOCK_DECR. */
-UNIV_INLINE
-void rw_lock_x_lock_wait_func(
+static inline void rw_lock_x_lock_wait_func(
     rw_lock_t *lock, /*!< in: pointer to rw-lock */
 #ifdef UNIV_DEBUG
     ulint pass, /*!< in: pass value; != 0, if the lock will
@@ -455,8 +454,7 @@ void rw_lock_x_lock_wait_func(
 
 /** Low-level function for acquiring an exclusive lock.
  @return false if did not succeed, true if success. */
-UNIV_INLINE
-bool rw_lock_x_lock_low(
+static inline bool rw_lock_x_lock_low(
     rw_lock_t *lock,       /*!< in: pointer to rw-lock */
     ulint pass,            /*!< in: pass value; != 0, if the lock will
                            be passed to another thread to unlock */

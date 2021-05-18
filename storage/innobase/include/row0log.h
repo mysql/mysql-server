@@ -67,21 +67,22 @@ bool row_log_allocate(
 /** Free the row log for an index that was being created online. */
 void row_log_free(row_log_t *&log); /*!< in,own: row log */
 
+#ifndef UNIV_HOTBACKUP
 /** Free the row log for an index on which online creation was aborted. */
-UNIV_INLINE
-void row_log_abort_sec(dict_index_t *index); /*!< in/out: index (x-latched) */
+static inline void row_log_abort_sec(
+    dict_index_t *index); /*!< in/out: index (x-latched) */
 
 /** Try to log an operation to a secondary index that is
  (or was) being created.
  @retval true if the operation was logged or can be ignored
  @retval false if online index creation is not taking place */
-UNIV_INLINE
-bool row_log_online_op_try(
+static inline bool row_log_online_op_try(
     dict_index_t *index,   /*!< in/out: index, S or X latched */
     const dtuple_t *tuple, /*!< in: index tuple */
     trx_id_t trx_id)       /*!< in: transaction ID for insert,
                            or 0 for delete */
     MY_ATTRIBUTE((warn_unused_result));
+#endif /* !UNIV_HOTBACKUP */
 /** Logs an operation to a secondary index that is (or was) being created. */
 void row_log_online_op(
     dict_index_t *index,   /*!< in/out: index, S or X latched */

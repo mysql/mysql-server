@@ -294,13 +294,10 @@ static bool row_vers_find_matching(
  NOTE that this function can return false positives but never false
  negatives. The caller must confirm all positive results by calling checking if
  the trx is still active.*/
-UNIV_INLINE
-trx_t *row_vers_impl_x_locked_low(const rec_t *const clust_rec,
-                                  const dict_index_t *const clust_index,
-                                  const rec_t *const sec_rec,
-                                  const dict_index_t *const sec_index,
-                                  const ulint *const sec_offsets,
-                                  mtr_t *const mtr) {
+static inline trx_t *row_vers_impl_x_locked_low(
+    const rec_t *const clust_rec, const dict_index_t *const clust_index,
+    const rec_t *const sec_rec, const dict_index_t *const sec_index,
+    const ulint *const sec_offsets, mtr_t *const mtr) {
   trx_id_t trx_id;
   ibool corrupt;
   ulint comp;

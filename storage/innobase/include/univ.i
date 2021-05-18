@@ -267,12 +267,6 @@ rarely invoked function for size instead for speed. */
 #define UNIV_COLD /* empty */
 #endif
 
-#ifdef UNIV_HOTBACKUP
-#define UNIV_INLINE inline
-#else /* UNIV_HOTBACKUP */
-#define UNIV_INLINE static inline
-#endif /* UNIV_HOTBACKUP */
-
 #ifdef _WIN32
 #ifdef _WIN64
 constexpr size_t UNIV_WORD_SIZE = 8;

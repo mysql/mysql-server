@@ -352,11 +352,9 @@ supplied information.
 the clustered type
 @param[in]	type		DICT_UNIQUE, DICT_CLUSTERED, ... ORed
 @param[in]	n_fields	number of fields */
-UNIV_INLINE void dict_mem_fill_index_struct(dict_index_t *index,
-                                            mem_heap_t *heap,
-                                            const char *table_name,
-                                            const char *index_name, ulint space,
-                                            ulint type, ulint n_fields);
+static inline void dict_mem_fill_index_struct(
+    dict_index_t *index, mem_heap_t *heap, const char *table_name,
+    const char *index_name, ulint space, ulint type, ulint n_fields);
 
 /** Frees an index memory object. */
 void dict_mem_index_free(dict_index_t *index); /*!< in: index */

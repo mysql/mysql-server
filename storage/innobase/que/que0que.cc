@@ -217,8 +217,7 @@ que_thr_t *que_thr_end_lock_wait(trx_t *trx) /*!< in: transaction with que_state
 }
 
 /** Inits a query thread for a command. */
-UNIV_INLINE
-void que_thr_init_command(que_thr_t *thr) /*!< in: query thread */
+static inline void que_thr_init_command(que_thr_t *thr) /*!< in: query thread */
 {
   thr->run_node = thr;
   thr->prev_node = thr->common.parent;
@@ -835,8 +834,7 @@ static MY_ATTRIBUTE((warn_unused_result)) const char *que_node_type_string(
 /** Performs an execution step on a query thread.
  @return query thread to run next: it may differ from the input
  parameter if, e.g., a subprocedure call is made */
-UNIV_INLINE
-que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
+static inline que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
 {
   que_node_t *node;
   que_thr_t *old_thr;
