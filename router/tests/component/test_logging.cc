@@ -57,6 +57,7 @@ using testing::HasSubstr;
 using testing::Not;
 using testing::StartsWith;
 using namespace std::chrono_literals;
+using namespace std::string_literals;
 
 class RouterLoggingTest : public RouterComponentTest {
  protected:
@@ -2021,15 +2022,17 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
     init_keyring(default_section, temp_test_dir.name());
     default_section["logging_folder"] =
         log_to_console ? "" : get_logging_dir().str();
-    return create_config_file(conf_dir,
-                              mysql_harness::ConfigBuilder::build_section(
-                                  "logger",
-                                  {
-                                      {"level", "DEBUG"},
-                                      {"sinks", "consolelog,filelog"},
-                                  }) +
-                                  "\n" + config,
-                              &default_section);
+    const std::string sinks =
+        (log_to_console ? "consolelog,"s : "") + "filelog";
+    return create_config_file(
+        conf_dir,
+        mysql_harness::ConfigBuilder::build_section("logger",
+                                                    {
+                                                        {"level", "DEBUG"},
+                                                        {"sinks", sinks},
+                                                    }) +
+            "\n" + config,
+        &default_section);
   }
 
   TempDirectory temp_test_dir;
@@ -2092,7 +2095,7 @@ TEST_F(MetadataCacheLoggingTest,
   set_mock_metadata(http_port, "", cluster_nodes_ports);
 
   // launch the router with metadata-cache configuration
-  auto &router = ProcessManager::launch_router(
+  /* auto &router = */ ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS, true,
       false, -1s);
 
@@ -2107,8 +2110,7 @@ TEST_F(MetadataCacheLoggingTest,
   };
 
   EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
-                           info_matcher, 10000ms))
-      << router.get_full_logfile();
+                           info_matcher, 10s));
 
   auto warning_matcher = [](const std::string &line) -> bool {
     return line.find("metadata_cache WARNING") != line.npos &&
@@ -2117,8 +2119,7 @@ TEST_F(MetadataCacheLoggingTest,
                "replicaset") != line.npos;
   };
   EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
-                           warning_matcher, 10000ms))
-      << router.get_full_logfile();
+                           warning_matcher, 10s));
 }
 
 #ifndef _WIN32
