@@ -2792,20 +2792,18 @@ void PromoteCycleJoinPredicates(
       continue;
     }
     RelationalExpression *expr = graph->edges[edge_idx / 2].expr;
+    expr->join_predicate_first = graph->predicates.size();
     for (Item *condition : expr->equijoin_conditions) {
-      int predicate_idx = AddPredicate(
-          thd, condition, /*was_join_condition=*/true,
-          FindSourceMultipleEquality(condition, multiple_equalities), root,
-          graph, trace);
-      expr->join_predicate_bitmap |= uint64_t{1} << predicate_idx;
+      AddPredicate(thd, condition, /*was_join_condition=*/true,
+                   FindSourceMultipleEquality(condition, multiple_equalities),
+                   root, graph, trace);
     }
     for (Item *condition : expr->join_conditions) {
-      int predicate_idx = AddPredicate(
-          thd, condition, /*was_join_condition=*/true,
-          FindSourceMultipleEquality(condition, multiple_equalities), root,
-          graph, trace);
-      expr->join_predicate_bitmap |= uint64_t{1} << predicate_idx;
+      AddPredicate(thd, condition, /*was_join_condition=*/true,
+                   FindSourceMultipleEquality(condition, multiple_equalities),
+                   root, graph, trace);
     }
+    expr->join_predicate_last = graph->predicates.size();
   }
 }
 
@@ -3176,11 +3174,6 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
     }
   }
 
-  if (graph->predicates.size() > sizeof(table_map) * CHAR_BIT) {
-    my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0),
-             "more than 64 WHERE/ON predicates");
-    return true;
-  }
   graph->num_where_predicates = graph->predicates.size();
 
   return false;

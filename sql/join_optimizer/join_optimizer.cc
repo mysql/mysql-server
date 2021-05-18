@@ -370,8 +370,9 @@ class CostingReceiver {
   void ProposeAccessPathForBaseTable(int node_idx,
                                      const char *description_for_trace,
                                      AccessPath *path);
-  void ProposeAccessPathForIndex(int node_idx, uint64_t applied_predicates,
-                                 uint64_t subsumed_predicates,
+  void ProposeAccessPathForIndex(int node_idx,
+                                 OverflowBitset applied_predicates,
+                                 OverflowBitset subsumed_predicates,
                                  const char *description_for_trace,
                                  AccessPath *path);
   void ProposeAccessPathWithOrderings(NodeMap nodes,
@@ -386,9 +387,9 @@ class CostingReceiver {
   bool ProposeRefAccess(TABLE *table, int node_idx, unsigned key_idx,
                         bool reverse, table_map allowed_parameter_tables,
                         int ordering_idx);
-  bool AlreadyAppliedThroughSargable(Item_func_eq *cond,
-                                     uint64_t applied_sargable_join_predicates,
-                                     NodeMap left, NodeMap right);
+  bool AlreadyAppliedThroughSargable(
+      Item_func_eq *cond, OverflowBitset applied_sargable_join_predicates,
+      NodeMap left, NodeMap right);
   bool ProposeAllFullTextIndexScans(TABLE *table, int node_idx);
   bool ProposeFullTextIndexScan(TABLE *table, int node_idx,
                                 Item_func_match *match, int predicate_idx,
@@ -403,18 +404,17 @@ class CostingReceiver {
                        FunctionalDependencySet new_fd_set,
                        OrderingSet new_obsolete_orderings,
                        bool rewrite_semi_to_inner, bool *wrote_trace);
-  void ApplyPredicatesForBaseTable(int node_idx, uint64_t applied_predicates,
-                                   uint64_t subsumed_predicates,
+  void ApplyPredicatesForBaseTable(int node_idx,
+                                   OverflowBitset applied_predicates,
+                                   OverflowBitset subsumed_predicates,
                                    bool materialize_subqueries,
                                    AccessPath *path,
                                    FunctionalDependencySet *new_fd_set);
-  void ApplyDelayedPredicatesAfterJoin(NodeMap left, NodeMap right,
-                                       const AccessPath *left_path,
-                                       const AccessPath *right_path,
-                                       uint64_t join_predicate_bitmap,
-                                       bool materialize_subqueries,
-                                       AccessPath *join_path,
-                                       FunctionalDependencySet *new_fd_set);
+  void ApplyDelayedPredicatesAfterJoin(
+      NodeMap left, NodeMap right, const AccessPath *left_path,
+      const AccessPath *right_path, int join_predicate_first,
+      int join_predicate_last, bool materialize_subqueries,
+      AccessPath *join_path, FunctionalDependencySet *new_fd_set);
 };
 
 /// Lists the current secondary engine flags in use. If there is no secondary
@@ -808,8 +808,10 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
 
   double num_output_rows = table->file->stats.records;
 
-  uint64_t applied_predicates = 0;
-  uint64_t subsumed_predicates = 0;
+  MutableOverflowBitset applied_predicates{m_thd->mem_root,
+                                           m_graph.predicates.size()};
+  MutableOverflowBitset subsumed_predicates{m_thd->mem_root,
+                                            m_graph.predicates.size()};
   for (size_t i = 0; i < m_graph.predicates.size(); ++i) {
     int keypart_idx = WasPushedDownToRef(m_graph.predicates[i].condition,
                                          keyparts, matched_keyparts);
@@ -822,12 +824,12 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
       // since it was part of a cycle. For purposes of sargable predicates,
       // we always see all relevant join conditions, so skip it this time
       // so that we don't double-count its selectivity.
-      applied_predicates |= uint64_t{1} << i;
+      applied_predicates.SetBit(i);
       continue;
     }
 
     num_output_rows *= m_graph.predicates[i].selectivity;
-    applied_predicates |= uint64_t{1} << i;
+    applied_predicates.SetBit(i);
 
     const KeypartForRef &keypart = keyparts[keypart_idx];
     if (ref_lookup_subsumes_comparison(keypart.field, keypart.val)) {
@@ -837,7 +839,7 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
                          ItemToString(m_graph.predicates[i].condition).c_str(),
                          table->alias, keypart.field->field_name);
       }
-      subsumed_predicates |= uint64_t{1} << i;
+      subsumed_predicates.SetBit(i);
     } else {
       if (m_trace != nullptr) {
         *m_trace += StringPrintf(
@@ -899,14 +901,28 @@ bool CostingReceiver::ProposeRefAccess(TABLE *table, int node_idx,
       parameter_tables & ~table->pos_in_table_list->map(),
       m_graph.table_num_to_node_num);
 
-  ProposeAccessPathForIndex(node_idx, applied_predicates, subsumed_predicates,
-                            key->name, &path);
+  ProposeAccessPathForIndex(node_idx, std::move(applied_predicates),
+                            std::move(subsumed_predicates), key->name, &path);
   return false;
 }
 
 void CostingReceiver::ProposeAccessPathForIndex(
-    int node_idx, uint64_t applied_predicates, uint64_t subsumed_predicates,
-    const char *description_for_trace, AccessPath *path) {
+    int node_idx, OverflowBitset applied_predicates,
+    OverflowBitset subsumed_predicates, const char *description_for_trace,
+    AccessPath *path) {
+  MutableOverflowBitset applied_sargable_join_predicates_tmp =
+      applied_predicates.Clone(m_thd->mem_root);
+  applied_sargable_join_predicates_tmp.ClearBits(0,
+                                                 m_graph.num_where_predicates);
+  OverflowBitset applied_sargable_join_predicates =
+      std::move(applied_sargable_join_predicates_tmp);
+
+  MutableOverflowBitset subsumed_sargable_join_predicates_tmp =
+      subsumed_predicates.Clone(m_thd->mem_root);
+  subsumed_sargable_join_predicates_tmp.ClearBits(0,
+                                                  m_graph.num_where_predicates);
+  OverflowBitset subsumed_sargable_join_predicates =
+      std::move(subsumed_sargable_join_predicates_tmp);
   for (bool materialize_subqueries : {false, true}) {
     FunctionalDependencySet new_fd_set;
     ApplyPredicatesForBaseTable(node_idx, applied_predicates,
@@ -914,11 +930,12 @@ void CostingReceiver::ProposeAccessPathForIndex(
                                 path, &new_fd_set);
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
-    path->applied_sargable_join_predicates |=
-        applied_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
-    path->subsumed_sargable_join_predicates |=
-        subsumed_predicates & ~BitsBetween(0, m_graph.num_where_predicates);
-
+    path->applied_sargable_join_predicates() = OverflowBitset::Or(
+        m_thd->mem_root, path->applied_sargable_join_predicates(),
+        applied_sargable_join_predicates);
+    path->subsumed_sargable_join_predicates() = OverflowBitset::Or(
+        m_thd->mem_root, path->subsumed_sargable_join_predicates(),
+        subsumed_sargable_join_predicates);
     ProposeAccessPathWithOrderings(
         TableBitmap(node_idx), new_fd_set, /*new_obsolete_orderings=*/0, path,
         materialize_subqueries ? "mat. subq" : description_for_trace);
@@ -995,7 +1012,8 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
     materialize_path->cost = path.cost;
     materialize_path->filter_predicates = path.filter_predicates;
     materialize_path->delayed_predicates = path.delayed_predicates;
-    new_path->filter_predicates = new_path->delayed_predicates = 0;
+    new_path->filter_predicates.Clear();
+    new_path->delayed_predicates.Clear();
 
     // Some information schema tables have zero as estimate, which can lead
     // to completely wild plans. Add a placeholder to make sure we have
@@ -1056,7 +1074,8 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
 
     materialize_path->filter_predicates = path.filter_predicates;
     materialize_path->delayed_predicates = path.delayed_predicates;
-    stable_path->filter_predicates = stable_path->delayed_predicates = 0;
+    stable_path->filter_predicates.Clear();
+    stable_path->delayed_predicates.Clear();
     path = *materialize_path;
     assert(path.cost >= 0.0);
   }
@@ -1305,8 +1324,10 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
   assert(predicate_idx == -1 ||
          match == GetSargableFullTextPredicate(*predicate));
 
-  uint64_t applied_predicates = 0;
-  uint64_t subsumed_predicates = 0;
+  MutableOverflowBitset applied_predicates{m_thd->mem_root,
+                                           m_graph.predicates.size()};
+  MutableOverflowBitset subsumed_predicates{m_thd->mem_root,
+                                            m_graph.predicates.size()};
   double num_output_rows_from_index;
   double num_output_rows_from_filter;
   if (predicate == nullptr) {
@@ -1325,7 +1346,7 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
       // The predicate can be fully subsumed by the index. Apply the full
       // selectivity on the index scan and mark the predicate as subsumed.
       index_selectivity = predicate->selectivity;
-      subsumed_predicates = uint64_t{1} << predicate_idx;
+      subsumed_predicates.SetBit(predicate_idx);
     } else {
       // The predicate uses <, <=, > or >=, and it cannot be subsumed. For
       // example MATCH(...) AGAINST(...) > 0.5. In this case, the selectivity of
@@ -1338,7 +1359,7 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
       // num_output_rows_from_index and num_output_rows_from_filter below, so
       // mark the predicate as applied to avoid double-counting of the
       // selectivity.
-      applied_predicates = uint64_t{1} << predicate_idx;
+      applied_predicates.SetBit(predicate_idx);
     }
 
     num_output_rows_from_index = table->file->stats.records * index_selectivity;
@@ -1366,7 +1387,8 @@ bool CostingReceiver::ProposeFullTextIndexScan(TABLE *table, int node_idx,
   path->init_cost = path->init_once_cost = 0;
   path->ordering_state = ordering_state;
 
-  ProposeAccessPathForIndex(node_idx, applied_predicates, subsumed_predicates,
+  ProposeAccessPathForIndex(node_idx, std::move(applied_predicates),
+                            std::move(subsumed_predicates),
                             table->key_info[key_idx].name, path);
   return false;
 }
@@ -1375,9 +1397,13 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
     int node_idx, const char *description_for_trace, AccessPath *path) {
   for (bool materialize_subqueries : {false, true}) {
     FunctionalDependencySet new_fd_set;
-    ApplyPredicatesForBaseTable(node_idx, /*applied_predicates=*/0,
-                                /*subsumed_predicates=*/0,
-                                materialize_subqueries, path, &new_fd_set);
+    ApplyPredicatesForBaseTable(
+        node_idx,
+        /*applied_predicates=*/
+        MutableOverflowBitset{m_thd->mem_root, m_graph.predicates.size()},
+        /*subsumed_predicates=*/
+        MutableOverflowBitset{m_thd->mem_root, m_graph.predicates.size()},
+        materialize_subqueries, path, &new_fd_set);
     path->ordering_state =
         m_orderings->ApplyFDs(path->ordering_state, new_fd_set);
     ProposeAccessPathWithOrderings(
@@ -1412,19 +1438,21 @@ void CostingReceiver::ProposeAccessPathForBaseTable(
     non-materialized subqueries.
  */
 void CostingReceiver::ApplyPredicatesForBaseTable(
-    int node_idx, uint64_t applied_predicates, uint64_t subsumed_predicates,
-    bool materialize_subqueries, AccessPath *path,
-    FunctionalDependencySet *new_fd_set) {
+    int node_idx, OverflowBitset applied_predicates,
+    OverflowBitset subsumed_predicates, bool materialize_subqueries,
+    AccessPath *path, FunctionalDependencySet *new_fd_set) {
   double materialize_cost = 0.0;
 
   const NodeMap my_map = TableBitmap(node_idx);
   path->num_output_rows = path->num_output_rows_before_filter;
   path->cost = path->cost_before_filter;
-  path->filter_predicates = 0;
-  path->delayed_predicates = 0;
+  MutableOverflowBitset filter_predicates{m_thd->mem_root,
+                                          m_graph.predicates.size()};
+  MutableOverflowBitset delayed_predicates{m_thd->mem_root,
+                                           m_graph.predicates.size()};
   new_fd_set->reset();
   for (size_t i = 0; i < m_graph.num_where_predicates; ++i) {
-    if (subsumed_predicates & (uint64_t{1} << i)) {
+    if (IsBitSet(i, subsumed_predicates)) {
       // Apply functional dependencies for the base table, but no others;
       // this ensures we get the same functional dependencies set no matter what
       // access path we choose. (The ones that refer to multiple tables,
@@ -1439,12 +1467,12 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
         // The other side of the join will mark it as delayed, so we
         // need to do so, too. Otherwise, we would never apply the
         // associated functional dependency at the right time.
-        path->delayed_predicates |= uint64_t{1} << i;
+        delayed_predicates.SetBit(i);
       }
       continue;
     }
     if (m_graph.predicates[i].total_eligibility_set == my_map) {
-      path->filter_predicates |= uint64_t{1} << i;
+      filter_predicates.SetBit(i);
       FilterCost cost =
           EstimateFilterCost(m_thd, path->num_output_rows,
                              m_graph.predicates[i].condition, m_query_block);
@@ -1454,7 +1482,7 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
       } else {
         path->cost += cost.cost_if_not_materialized;
       }
-      if (applied_predicates & (uint64_t{1} << i)) {
+      if (IsBitSet(i, applied_predicates)) {
         // We already factored in this predicate when calculating
         // the selectivity of the ref access, so don't do it again.
       } else {
@@ -1462,9 +1490,11 @@ void CostingReceiver::ApplyPredicatesForBaseTable(
       }
       *new_fd_set |= m_graph.predicates[i].functional_dependencies;
     } else if (Overlaps(m_graph.predicates[i].total_eligibility_set, my_map)) {
-      path->delayed_predicates |= uint64_t{1} << i;
+      delayed_predicates.SetBit(i);
     }
   }
+  path->filter_predicates = std::move(filter_predicates);
+  path->delayed_predicates = std::move(delayed_predicates);
 
   if (materialize_subqueries) {
     ExpandSingleFilterAccessPath(m_thd, path, m_graph.predicates,
@@ -1575,8 +1605,12 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
       // ordering properties through joins.
       AccessPath *zero_path = NewZeroRowsAccessPath(
           m_thd, right_path, "Join condition rejects all rows");
-      zero_path->applied_sargable_join_predicates =
-          right_path->applied_sargable_join_predicates;
+      MutableOverflowBitset applied_sargable_join_predicates =
+          right_path->applied_sargable_join_predicates().Clone(m_thd->mem_root);
+      applied_sargable_join_predicates.ClearBits(0,
+                                                 m_graph.num_where_predicates);
+      zero_path->filter_predicates =
+          std::move(applied_sargable_join_predicates);
       zero_path->delayed_predicates = right_path->delayed_predicates;
       right_path = zero_path;
     }
@@ -1782,7 +1816,8 @@ void CostingReceiver::ProposeHashJoin(
   {
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
+        left, right, left_path, right_path, edge->expr->join_predicate_first,
+        edge->expr->join_predicate_last,
         /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
     // Hash join destroys all ordering information (even from the left side,
     // since we may have spill-to-disk).
@@ -1797,7 +1832,8 @@ void CostingReceiver::ProposeHashJoin(
                m_graph.materializable_predicates)) {
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
+        left, right, left_path, right_path, edge->expr->join_predicate_first,
+        edge->expr->join_predicate_last,
         /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
     // Hash join destroys all ordering information (even from the left side,
     // since we may have spill-to-disk).
@@ -1813,8 +1849,8 @@ void CostingReceiver::ProposeHashJoin(
 // ones that need to be delayed further.
 void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
     NodeMap left, NodeMap right, const AccessPath *left_path,
-    const AccessPath *right_path, uint64_t join_predicate_bitmap,
-    bool materialize_subqueries, AccessPath *join_path,
+    const AccessPath *right_path, int join_predicate_first,
+    int join_predicate_last, bool materialize_subqueries, AccessPath *join_path,
     FunctionalDependencySet *new_fd_set) {
   // We build up a new FD set each time; it should be the same for the same
   // left/right pair, so it is somewhat redundant, but it allows us to verify
@@ -1855,7 +1891,8 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
   // (except for functional dependencies). We simply track which ones have been
   // applied this iteration by keeping a bitmap of them.
   uint64_t multiple_equality_bitmap = 0;
-  for (int pred_idx : BitsSetIn(join_predicate_bitmap)) {
+  for (int pred_idx = join_predicate_first; pred_idx < join_predicate_last;
+       ++pred_idx) {
     const Predicate &pred = m_graph.predicates[pred_idx];
     if (pred.source_multiple_equality_idx != -1) {
       multiple_equality_bitmap |= uint64_t{1}
@@ -1865,25 +1902,34 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
 
   double materialize_cost = 0.0;
 
-  // Keep the information about applied_sargable_join_predicates,
-  // but reset the one pertaining to filter_predicates.
-  join_path->applied_sargable_join_predicates =
-      (left_path->applied_sargable_join_predicates |
-       right_path->applied_sargable_join_predicates) &
-      ~TablesBetween(0, m_graph.num_where_predicates);
-  join_path->delayed_predicates =
-      left_path->delayed_predicates ^ right_path->delayed_predicates;
-  join_path->delayed_predicates &= ~join_predicate_bitmap;
+  // filter_predicates holds both filter_predicates and
+  // applied_sargable_join_predicates. Keep the information about the latter,
+  // but reset the one pertaining to the former.
+  MutableOverflowBitset filter_predicates = OverflowBitset::Or(
+      m_thd->mem_root, left_path->applied_sargable_join_predicates(),
+      right_path->applied_sargable_join_predicates());
+  filter_predicates.ClearBits(0, m_graph.num_where_predicates);
+
+  // Predicates we are still delaying.
+  MutableOverflowBitset delayed_predicates =
+      OverflowBitset::Xor(m_thd->mem_root, left_path->delayed_predicates,
+                          right_path->delayed_predicates);
+  delayed_predicates.ClearBits(join_predicate_first, join_predicate_last);
+
+  // Predicates that were delayed, but that we need to check now.
+  MutableOverflowBitset ready_predicates =
+      OverflowBitset::And(m_thd->mem_root, left_path->delayed_predicates,
+                          right_path->delayed_predicates);
+  ready_predicates.ClearBits(join_predicate_first, join_predicate_last);
+
   const NodeMap ready_tables = left | right;
-  for (int pred_idx :
-       BitsSetIn(left_path->delayed_predicates &
-                 right_path->delayed_predicates & ~join_predicate_bitmap)) {
+  for (int pred_idx : BitsSetIn(std::move(ready_predicates))) {
     const Predicate &pred = m_graph.predicates[pred_idx];
     if (IsSubset(pred.total_eligibility_set, ready_tables)) {
       if (pred.source_multiple_equality_idx == -1 ||
           !IsBitSet(pred.source_multiple_equality_idx,
                     multiple_equality_bitmap)) {
-        join_path->filter_predicates |= uint64_t{1} << pred_idx;
+        filter_predicates.SetBit(pred_idx);
         FilterCost cost = EstimateFilterCost(m_thd, join_path->num_output_rows,
                                              pred.condition, m_query_block);
         if (materialize_subqueries) {
@@ -1900,9 +1946,11 @@ void CostingReceiver::ApplyDelayedPredicatesAfterJoin(
       }
       *new_fd_set |= pred.functional_dependencies;
     } else {
-      join_path->delayed_predicates |= uint64_t{1} << pred_idx;
+      delayed_predicates.SetBit(pred_idx);
     }
   }
+  join_path->filter_predicates = std::move(filter_predicates);
+  join_path->delayed_predicates = std::move(delayed_predicates);
 
   if (materialize_subqueries) {
     ExpandSingleFilterAccessPath(m_thd, join_path, m_graph.predicates,
@@ -1940,7 +1988,7 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
   (e.g., in the given example, we'd see the t2=t3 join).
  */
 bool CostingReceiver::AlreadyAppliedThroughSargable(
-    Item_func_eq *join_cond, uint64_t applied_sargable_join_predicates,
+    Item_func_eq *join_cond, OverflowBitset applied_sargable_join_predicates,
     NodeMap left, NodeMap right) {
   if (join_cond->source_multiple_equality == nullptr) {
     return false;
@@ -2029,12 +2077,12 @@ void CostingReceiver::ProposeNestedLoopJoin(
         static_cast<JoinType>(edge->expr->type);
   }
 
-  const uint64_t applied_sargable_join_predicates =
-      left_path->applied_sargable_join_predicates |
-      right_path->applied_sargable_join_predicates;
-  const uint64_t subsumed_sargable_join_predicates =
-      left_path->subsumed_sargable_join_predicates |
-      right_path->subsumed_sargable_join_predicates;
+  const OverflowBitset applied_sargable_join_predicates = OverflowBitset::Or(
+      m_thd->mem_root, left_path->applied_sargable_join_predicates(),
+      right_path->applied_sargable_join_predicates());
+  const OverflowBitset subsumed_sargable_join_predicates = OverflowBitset::Or(
+      m_thd->mem_root, left_path->subsumed_sargable_join_predicates(),
+      right_path->subsumed_sargable_join_predicates());
 
   double already_applied_selectivity = 1.0;
   if (edge->expr->join_conditions_reject_all_rows) {
@@ -2066,15 +2114,13 @@ void CostingReceiver::ProposeNestedLoopJoin(
       const auto it = m_graph.sargable_join_predicates.find(condition);
       bool subsumed = false;
       if (it != m_graph.sargable_join_predicates.end() &&
-          Overlaps(applied_sargable_join_predicates,
-                   uint64_t{1} << it->second)) {
+          IsBitSet(it->second, applied_sargable_join_predicates)) {
         // This predicate was already applied as a ref access earlier.
         // Make sure not to double-count its selectivity, and also
         // that we don't reapply it if it was subsumed by the ref access.
         already_applied_selectivity *=
             m_graph.predicates[it->second].selectivity;
-        subsumed = Overlaps(subsumed_sargable_join_predicates,
-                            uint64_t{1} << it->second);
+        subsumed = IsBitSet(it->second, subsumed_sargable_join_predicates);
       } else if (AlreadyAppliedThroughSargable(condition,
                                                applied_sargable_join_predicates,
                                                left, right)) {
@@ -2144,7 +2190,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
   {
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
+        left, right, left_path, right_path, edge->expr->join_predicate_first,
+        edge->expr->join_predicate_last,
         /*materialize_subqueries=*/false, &join_path, &filter_fd_set);
     join_path.ordering_state = m_orderings->ApplyFDs(
         join_path.ordering_state, new_fd_set | filter_fd_set);
@@ -2158,7 +2205,8 @@ void CostingReceiver::ProposeNestedLoopJoin(
                m_graph.materializable_predicates)) {
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
-        left, right, left_path, right_path, edge->expr->join_predicate_bitmap,
+        left, right, left_path, right_path, edge->expr->join_predicate_first,
+        edge->expr->join_predicate_last,
         /*materialize_subqueries=*/true, &join_path, &filter_fd_set);
     join_path.ordering_state = m_orderings->ApplyFDs(
         join_path.ordering_state, new_fd_set | filter_fd_set);
@@ -2370,7 +2418,7 @@ void CostingReceiver::ProposeAccessPath(
     }
     assert(!m_thd->is_error());
     assert(path->init_cost <= path->cost);
-    if (path->filter_predicates != 0) {
+    if (!IsEmpty(path->filter_predicates)) {
       assert(path->num_output_rows <= path->num_output_rows_before_filter);
       assert(path->cost_before_filter <= path->cost);
       assert(path->init_cost <= path->cost_before_filter);
@@ -2480,15 +2528,20 @@ void CostingReceiver::ProposeAccessPath(
   return;
 }
 
-AccessPath MakeSortPathWithoutFilesort(AccessPath *child, ORDER *order,
-                                       int ordering_state,
+AccessPath MakeSortPathWithoutFilesort(THD *thd, AccessPath *child,
+                                       ORDER *order, int ordering_state,
                                        int num_where_predicates) {
   AccessPath sort_path;
   sort_path.type = AccessPath::SORT;
   sort_path.ordering_state = ordering_state;
-  sort_path.applied_sargable_join_predicates =
-      child->applied_sargable_join_predicates &
-      ~BitsBetween(0, num_where_predicates);
+  if (!child->applied_sargable_join_predicates()
+           .empty()) {  // Will be empty after grouping.
+    MutableOverflowBitset applied_sargable_join_predicates =
+        child->applied_sargable_join_predicates().Clone(thd->mem_root);
+    applied_sargable_join_predicates.ClearBits(0, num_where_predicates);
+    sort_path.applied_sargable_join_predicates() =
+        std::move(applied_sargable_join_predicates);
+  }
   sort_path.delayed_predicates = child->delayed_predicates;
   sort_path.count_examined_rows = false;
   sort_path.sort().child = child;
@@ -2573,8 +2626,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
     }
 
     AccessPath sort_path =
-        MakeSortPathWithoutFilesort(path, sort_ahead_ordering.order, new_state,
-                                    m_graph.num_where_predicates);
+        MakeSortPathWithoutFilesort(m_thd, path, sort_ahead_ordering.order,
+                                    new_state, m_graph.num_where_predicates);
 
     char buf[256];
     if (m_trace != nullptr) {
@@ -3902,7 +3955,7 @@ static Prealloced_array<AccessPath *, 4> ApplyWindowFunctions(
       }
 
       AccessPath sort_path = MakeSortPathWithoutFilesort(
-          root_path, sort_ahead_orderings[sort_ahead_ordering_idx].order,
+          thd, root_path, sort_ahead_orderings[sort_ahead_ordering_idx].order,
           /*ordering_state=*/0, num_where_predicates);
       sort_path.ordering_state = orderings.ApplyFDs(
           orderings.SetOrder(
@@ -5089,12 +5142,14 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
 
   // Find out which predicates contain subqueries.
-  graph.materializable_predicates = 0;
+  MutableOverflowBitset materializable_predicates{thd->mem_root,
+                                                  graph.predicates.size()};
   for (unsigned i = 0; i < graph.predicates.size(); ++i) {
     if (ContainsSubqueries(graph.predicates[i].condition)) {
-      graph.materializable_predicates |= uint64_t{1} << i;
+      materializable_predicates.SetBit(i);
     }
   }
+  graph.materializable_predicates = std::move(materializable_predicates);
 
   NodeMap fulltext_tables = 0;
   uint64_t sargable_fulltext_predicates = 0;
@@ -5197,6 +5252,9 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         AccessPath path = *root_path;
         double init_once_cost = 0.0;
 
+        MutableOverflowBitset filter_predicates =
+            path.filter_predicates.Clone(thd->mem_root);
+
         // Apply any predicates that don't belong to any
         // specific table, or which are nondeterministic.
         for (size_t i = 0; i < graph.num_where_predicates; ++i) {
@@ -5204,7 +5262,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                         TablesBetween(0, graph.nodes.size())) ||
               Overlaps(graph.predicates[i].total_eligibility_set,
                        RAND_TABLE_BIT)) {
-            path.filter_predicates |= uint64_t{1} << i;
+            filter_predicates.SetBit(i);
             FilterCost cost =
                 EstimateFilterCost(thd, root_path->num_output_rows,
                                    graph.predicates[i].condition, query_block);
@@ -5219,6 +5277,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         }
         path.ordering_state = orderings.ApplyFDs(path.ordering_state, fd_set);
 
+        path.filter_predicates = std::move(filter_predicates);
         const bool contains_subqueries =
             Overlaps(path.filter_predicates, graph.materializable_predicates);
 

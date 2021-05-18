@@ -839,53 +839,46 @@ void FindTablesToGetRowidFor(AccessPath *path) {
 }
 
 static Item *ConditionFromFilterPredicates(
-    const Mem_root_array<Predicate> &predicates, uint64_t mask) {
-  if (IsSingleBitSet(mask)) {
-    return predicates[FindLowestBitSet(mask)].condition;
-  } else {
-    List<Item> items;
-    for (int pred_idx : BitsSetIn(mask)) {
-      items.push_back(predicates[pred_idx].condition);
-    }
-    Item *condition = new Item_cond_and(items);
-    condition->quick_fix_field();
-    condition->update_used_tables();
-    condition->apply_is_true();
-    return condition;
+    const Mem_root_array<Predicate> &predicates, OverflowBitset mask,
+    int num_where_predicates) {
+  List<Item> items;
+  for (int pred_idx : BitsSetIn(mask)) {
+    if (pred_idx >= num_where_predicates) break;
+    items.push_back(predicates[pred_idx].condition);
   }
+  return CreateConjunction(&items);
 }
 
 void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path,
                                   const Mem_root_array<Predicate> &predicates,
                                   unsigned num_where_predicates) {
-  uint64_t filter_predicates =
-      path->filter_predicates & BitsBetween(0, num_where_predicates);
-  if (filter_predicates != 0) {
-    Item *condition =
-        ConditionFromFilterPredicates(predicates, filter_predicates);
-    AccessPath *new_path = new (thd->mem_root) AccessPath(*path);
-    new_path->filter_predicates = 0;
-    new_path->num_output_rows = path->num_output_rows_before_filter;
-    new_path->cost = path->cost_before_filter;
-
-    // We don't really know how much of init_cost comes from the filter,
-    // but we need to heed the invariant that cost >= init_cost
-    // also for the new (non-filter) path we're creating, even if it's
-    // just for display. Heuristically allocate as much as possible to
-    // the filter.
-    double filter_only_cost = path->cost - path->cost_before_filter;
-    new_path->init_cost = std::max(new_path->init_cost - filter_only_cost, 0.0);
-    new_path->init_once_cost =
-        std::max(new_path->init_once_cost - filter_only_cost, 0.0);
-    assert(new_path->cost >= new_path->init_cost);
-    assert(new_path->init_cost >= new_path->init_once_cost);
-
-    path->type = AccessPath::FILTER;
-    path->filter().condition = condition;
-    path->filter().child = new_path;
-    path->filter().materialize_subqueries = false;
-    path->filter_predicates = 0;
+  Item *condition = ConditionFromFilterPredicates(
+      predicates, path->filter_predicates, num_where_predicates);
+  if (condition == nullptr) {
+    return;
   }
+  AccessPath *new_path = new (thd->mem_root) AccessPath(*path);
+  new_path->filter_predicates.Clear();
+  new_path->num_output_rows = path->num_output_rows_before_filter;
+  new_path->cost = path->cost_before_filter;
+
+  // We don't really know how much of init_cost comes from the filter,
+  // but we need to heed the invariant that cost >= init_cost
+  // also for the new (non-filter) path we're creating, even if it's
+  // just for display. Heuristically allocate as much as possible to
+  // the filter.
+  double filter_only_cost = path->cost - path->cost_before_filter;
+  new_path->init_cost = std::max(new_path->init_cost - filter_only_cost, 0.0);
+  new_path->init_once_cost =
+      std::max(new_path->init_once_cost - filter_only_cost, 0.0);
+  assert(new_path->cost >= new_path->init_cost);
+  assert(new_path->init_cost >= new_path->init_once_cost);
+
+  path->type = AccessPath::FILTER;
+  path->filter().condition = condition;
+  path->filter().child = new_path;
+  path->filter().materialize_subqueries = false;
+  path->filter_predicates.Clear();
 }
 
 void ExpandFilterAccessPaths(THD *thd, AccessPath *path_arg, const JOIN *join,
