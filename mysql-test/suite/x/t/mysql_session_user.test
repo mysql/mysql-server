@@ -72,10 +72,10 @@ call mtr.add_suppression("Plugin mysqlx reported: 'Unable to switch context to u
 --echo #
 
 --source include/xplugin_reset_and_wait.inc
+--source ../include/xplugin_cleanup.inc
 
 call mtr.add_suppression("Unable to use user mysql.session context *.*");
 call mtr.add_suppression("On plugin shutdown it was not possible to reset the server read mode settings. Try to reset it manually.");
-
 --disable_query_log ONCE
 --eval UPDATE mysql.tables_priv SET timestamp ='$date_to_restore_priv' WHERE USER= 'mysql.session'
 --disable_query_log ONCE

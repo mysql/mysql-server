@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -80,10 +80,10 @@ BuildRequires:  cmake3 >= 3.6.1
 %endif
 %{?el6:BuildRequires:  devtoolset-8-gcc}
 %{?el6:BuildRequires:  devtoolset-8-gcc-c++}
-%{?el7:BuildRequires:  devtoolset-9-gcc}
-%{?el7:BuildRequires:  devtoolset-9-gcc-c++}
-%{?el8:BuildRequires:  gcc-toolset-9-gcc}
-%{?el8:BuildRequires:  gcc-toolset-9-gcc-c++}
+%{?el7:BuildRequires:  devtoolset-10-gcc}
+%{?el7:BuildRequires:  devtoolset-10-gcc-c++}
+%{?el8:BuildRequires:  gcc-toolset-10-gcc}
+%{?el8:BuildRequires:  gcc-toolset-10-gcc-c++}
 BuildRequires:  bison >= 2.1
 BuildRequires:  time
 BuildRequires:  cyrus-sasl-devel
@@ -188,7 +188,6 @@ mkdir release
            %{?mecab_option} \
 %if 0%{?cluster}
            -DWITH_NDBCLUSTER=1 \
-           -DWITH_MCC=0 \
            -DNDB_UTILS_LINK_DYNAMIC=1 \
 %endif
 %if 0%{?commercial}
@@ -231,15 +230,15 @@ for f in innochecksum ibd2sdi myisamchk myisam_ftdump myisamlog myisampack \
          my_safe_process mysqlbinlog mysqlcheck mysql_client_test \
          mysql_config_editor mysqld_multi mysqld_safe mysqldumpslow mysqlimport \
          mysql_secure_installation mysqlshow mysqlslap mysqltest mysqltest_safe_process mysqlxtest \
-         comp_err perror lz4_decompress zlib_decompress ; do
+         comp_err perror lz4_decompress zlib_decompress mysql_keyring_encryption_test; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 
 %if 0%{?cluster}
-for f in mcc_config.py ndb_error_reporter ndb_move_data \
+for f in ndb_error_reporter ndb_move_data \
          ndb_perror ndb_print_backup_file ndb_print_file ndb_print_frag_file \
          ndb_print_schema_file ndb_print_sys_file \
-         ndb_setup.py ndb_size.pl ; do
+         ndb_size.pl ; do
     rm -f %{buildroot}%{_bindir}/$f
 done
 %endif
@@ -315,14 +314,9 @@ rm -f %{buildroot}%{_datadir}/mysql-*/{mysql.server,mysqld_multi.server,mysql-lo
 
 # Extra files/dirs removed from Cluster build
 %if 0%{?cluster}
-rm -rf %{buildroot}/usr/share/mysql-*/mcc
-rm -f %{buildroot}/lib/memcached_path.pl
-rm -f %{buildroot}/%{_bindir}/memclient
 rm -rf %{buildroot}%{_datadir}/mysql-*/nodejs/
 rm -rf %{buildroot}%{_datadir}/mysql-*/java/
-rm -rf %{buildroot}%{_sbindir}/memcached
 rm -rf %{buildroot}%{_libdir}/mysql/ndb_engine.so
-rm -rf %{buildroot}%{_datadir}/mysql-*/memcache-api/
 rm -rf %{buildroot}%{_libdir}/mysql/libndbclient_static.a
 rm -rf %{buildroot}%{_libdir}/mysql/libndbclient.so
 %endif
@@ -400,6 +394,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
 %attr(755, root, root) %{_bindir}/my_print_defaults
+%attr(755, root, root) %{_bindir}/mysql_migrate_keyring
 
 %dir %{_libdir}/mysql/private
 %attr(755, root, root) %{_libdir}/mysql/private/libprotobuf-lite.so.3.11.4
@@ -416,6 +411,8 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_mysqlbackup.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/component_audit_api_message_emit.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_query_attributes.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_reference_cache.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/connection_control.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/ddl_rewriter.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
@@ -436,6 +433,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/validate_password.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/version_token.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_file.so
 %dir %{_datadir}/mysql-*/
 %{_datadir}/mysql-*/charsets/
 %{_datadir}/mysql-*/bulgarian/
@@ -486,6 +484,7 @@ rm -r $(readlink var) var
 %attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/openssl_udf.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/firewall.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/component_keyring_encrypted_file.so
 %if 0%{?aws_sdk}
 %attr(755, root, root) %{_libdir}/mysql/plugin/keyring_aws.so
 %endif # aws_sdk
@@ -498,7 +497,18 @@ rm -r $(readlink var) var
 %dir %attr(750, mysql, mysql) /var/lib/mysql-keyring
 
 %changelog
-* Wed May 18 2020 Ivo Roylev <ivo.roylev@oracle.com> - 8.0.20-1
+* Mon Sep 21 2020 Murthy Sidagam <venkata.sidagam@oracle.com> - 8.0.23-1
+- Added component_reference_cache.so component
+
+* Wed Sep 09 2020 Joro Kodinov <georgi.kodinov@oracle.com> - 8.0.23-1
+- Add a new component_query_attributes
+
+* Mon Aug 03 2020 Harin Vadodaria <harin.vadodaria@oracle.com> - 8.0.22-1
+- Added component_keyring_file component
+- Added component_keyring_encrypted_file component
+- Added mysql_migrate_keyring
+
+* Mon May 18 2020 Ivo Roylev <ivo.roylev@oracle.com> - 8.0.20-1
 - added keyring_oci plugin
 
 * Wed Jan 8 2020 Piotr Obrzut <piotr.obrzut@oracle.com> - 8.0.20-1

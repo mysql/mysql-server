@@ -25,12 +25,7 @@ call mtr.add_suppression("NDB: Tables not available after [0-9]* seconds. Consid
 --connection server1
 --error 1005
 --reap
-
-# Restart Server2 and check if it starts with NDB
---connection server2
 --exec $NDB_MGM -e'all error 0' > /dev/null
---let $mysqld_name=mysqld.2.1
---source include/restart_mysqld.inc
 drop table t1;
 
 --let $assert_text= Checking if ndb-wait-setup timeout

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,8 +125,8 @@ int get_or_create_user_conn(THD *thd, const char *user, const char *host,
   char temp_user[USER_HOST_BUFF_SIZE];
   struct user_conn *uc = nullptr;
 
-  DBUG_ASSERT(user != nullptr);
-  DBUG_ASSERT(host != nullptr);
+  assert(user != nullptr);
+  assert(host != nullptr);
 
   user_len = strlen(user);
   temp_len = (my_stpcpy(my_stpcpy(temp_user, user) + 1, host) - temp_user) + 1;
@@ -250,7 +250,7 @@ end:
 void decrease_user_connections(USER_CONN *uc) {
   DBUG_TRACE;
   mysql_mutex_lock(&LOCK_user_conn);
-  DBUG_ASSERT(uc->connections);
+  assert(uc->connections);
   if (!--uc->connections && !mqh_used) {
     /* Last connection for user; Delete it */
     hash_user_connections->erase(std::string(uc->user, uc->len));
@@ -272,7 +272,7 @@ void release_user_connection(THD *thd) {
 
   if (uc) {
     mysql_mutex_lock(&LOCK_user_conn);
-    DBUG_ASSERT(uc->connections > 0);
+    assert(uc->connections > 0);
     thd->decrement_user_connections_counter();
     if (!uc->connections && !mqh_used) {
       /* Last connection for user; Delete it */
@@ -292,7 +292,7 @@ bool check_mqh(THD *thd, uint check_command) {
   bool error = false;
   const USER_CONN *uc = thd->get_user_connect();
   DBUG_TRACE;
-  DBUG_ASSERT(uc != nullptr);
+  assert(uc != nullptr);
 
   mysql_mutex_lock(&LOCK_user_conn);
 
@@ -441,11 +441,11 @@ static int check_connection(THD *thd) {
   uint connect_errors = 0;
   int auth_rc;
   NET *net = thd->get_protocol_classic()->get_net();
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   char desc[VIO_DESCRIPTION_SIZE];
   vio_description(net->vio, desc);
   DBUG_PRINT("info", ("New connection received on %s", desc));
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
   thd->set_active_vio(net->vio);
 
@@ -842,7 +842,7 @@ static void prepare_new_connection_state(THD *thd) {
                   sctx->host_or_ip().str, what, da->mysql_errno(),
                   da->message_text());
 
-      thd->lex->set_current_select(nullptr);
+      thd->lex->set_current_query_block(nullptr);
       my_net_set_read_timeout(net, thd->variables.net_wait_timeout);
       thd->clear_error();
       net_new_transaction(net);

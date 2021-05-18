@@ -173,18 +173,33 @@ insert into t1 values
 (6, -1695.31), (6, 1003.77), (6, 499.72), (6, 191.82);
 ANALYZE TABLE t1;
 explain select sum(b) s from t1 group by a;
+--sorted_result
 select sum(b) s from t1 group by a;
+--sorted_result
 select sum(b) s from t1 group by a having s <> 0;
+--sorted_result
 select sum(b) s from t1 group by a having s <> 0 order by s;
+--sorted_result
 select sum(b) s from t1 group by a having s <=> 0;
+--sorted_result
 select sum(b) s from t1 group by a having s <=> 0 order by s;
 alter table t1 add key (a, b);
 ANALYZE TABLE t1;
 explain select sum(b) s from t1 group by a;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a having s <> 0;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a having s <> 0 order by s;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a having s <=> 0;
+--sorted_result
+--skip_if_hypergraph  # Does not use the index, gets different rounding.
 select sum(b) s from t1 group by a having s <=> 0 order by s;
 drop table t1;
 

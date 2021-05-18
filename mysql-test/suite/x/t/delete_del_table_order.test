@@ -8,7 +8,7 @@
 create schema xtest;
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/delete_del_table_order.tmp
+--write_file $MYSQL_TMP_DIR/delete_del_table_order.xpl
 ## Test data
 
 -->stmtadmin create_collection	{"schema":"xtest","name":"mycoll"}
@@ -88,9 +88,7 @@ SELECT doc FROM xtest.mycoll ORDER BY JSON_UNQUOTE(JSON_EXTRACT(doc,'$.name'));
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/delete_del_table_order.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/delete_del_table_order.xpl 2>&1
 
 ## Cleanup
-drop schema if exists xtest;
---remove_file $MYSQL_TMP_DIR/delete_del_table_order.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

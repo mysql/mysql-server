@@ -36,7 +36,7 @@ select sleep(2);
 sleep(2)
 0
 Run backup snapshotstart
-Starting backup
+Starting SNAPSHOTSTART backup
 Backup started
 Waiting for backup to complete
 Backup completed

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,10 @@ class StateTrackingDestination : public Destination {
     if (ec != std::error_code{}) {
       // mark the current ndx as invalid
       balancer_->mark_ndx_invalid(ndx_);
+
+      if (balancer_->valid_ndx() >= balancer_->destinations().size()) {
+        balancer_->stop_listening_router_socket();
+      }
     }
   }
 
@@ -62,7 +66,7 @@ Destinations DestNextAvailable::destinations() {
 
     for (size_t ndx{}; cur != end; ++cur, ++ndx) {
       dests.push_back(std::make_unique<StateTrackingDestination>(
-          cur->str(), cur->addr, cur->port, this, ndx));
+          cur->str(), cur->address(), cur->port(), this, ndx));
     }
   }
 

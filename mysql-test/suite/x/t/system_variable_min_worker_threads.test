@@ -5,7 +5,7 @@ SET GLOBAL Mysqlx_min_worker_threads= 50;
 SET GLOBAL Mysqlx_max_connections= 200;
 SET GLOBAL Mysqlx_idle_worker_thread_timeout= 2;
 
---write_file $MYSQL_TMP_DIR/worker_threads.tmp
+--write_file $MYSQL_TMP_DIR/worker_threads.xpl
 
 -->repeat 100	%I%
 -->newsession con %I%	x_root
@@ -14,7 +14,7 @@ SET GLOBAL Mysqlx_idle_worker_thread_timeout= 2;
 EOF
 
 --error 2
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/worker_threads.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/worker_threads.xpl 2>&1
 
 let $wait_condition=
       SELECT VARIABLE_VALUE <51 FROM  performance_schema.global_status gs where VARIABLE_NAME = 'mysqlx_worker_threads';
@@ -26,5 +26,4 @@ SHOW STATUS like 'mysqlx_worker_threads';
 SET GLOBAL Mysqlx_min_worker_threads= DEFAULT;
 SET GLOBAL Mysqlx_max_connections= DEFAULT;
 SET GLOBAL Mysqlx_idle_worker_thread_timeout= DEFAULT;
---remove_file $MYSQL_TMP_DIR/worker_threads.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

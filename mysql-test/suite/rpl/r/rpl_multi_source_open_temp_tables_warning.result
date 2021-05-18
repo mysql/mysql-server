@@ -44,7 +44,7 @@ include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_3']
 include/assert.inc [Slave_open_temp_tables is correctly set to 0 after dropping last temp table]
 Stopping slave on channel_3 only
 include/stop_slave.inc [FOR CHANNEL 'channel_3']
-CHANGE MASTER TO MASTER_PORT = 4711 FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO SOURCE_PORT = 4711 FOR CHANNEL 'channel_3';
 RESET SLAVE ALL;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

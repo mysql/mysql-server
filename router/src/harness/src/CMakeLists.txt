@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -237,6 +237,47 @@ SET_TARGET_PROPERTIES(harness_stdx PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
   LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory)
 INSTALL(TARGETS harness_stdx
+  RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
+  ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
+  NAMELINK_SKIP
+  )
+
+## harness_tls
+
+ADD_LIBRARY(harness_tls SHARED
+  tls_client_context.cc
+  tls_context.cc
+  tls_error.cc
+  tls_server_context.cc
+  )
+
+IF(TARGET copy_openssl_dlls)
+  ADD_DEPENDENCIES(harness_tls copy_openssl_dlls)
+ENDIF()
+
+## the rpath for the bundled openssl
+ADD_INSTALL_RPATH_FOR_OPENSSL(harness_tls)
+SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(harness_tls)
+
+GENERATE_EXPORT_HEADER(harness_tls
+  EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/../include/mysql/harness/tls_export.h)
+
+TARGET_INCLUDE_DIRECTORIES(harness_tls
+  PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/../include/
+  ${CMAKE_CURRENT_BINARY_DIR}/../include/
+  )
+TARGET_LINK_LIBRARIES(harness_tls
+  PUBLIC ${SSL_LIBRARIES}
+  )
+SET_TARGET_PROPERTIES(harness_tls PROPERTIES
+  OUTPUT_NAME "mysqlharness_tls"
+  SOVERSION 1
+  RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
+  LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/library_output_directory
+  )
+INSTALL(TARGETS harness_tls
   RUNTIME DESTINATION ${ROUTER_INSTALL_BINDIR} COMPONENT Router
   ARCHIVE DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
   LIBRARY DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router

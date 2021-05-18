@@ -230,6 +230,9 @@ The following options may be given as the first argument:
  --bulk-insert-buffer-size=# 
  Size of tree cache used in bulk insert optimisation. Note
  that this is a limit per thread!
+ --caching-sha2-password-digest-rounds=# 
+ Number of SHA2 rounds to be done when storing a password
+ hash onto disk.
  --caching-sha2-password-private-key-path=name 
  A fully qualified path to the private RSA key used for
  authentication.
@@ -400,11 +403,23 @@ The following options may be given as the first argument:
  EVENTUAL, BEFORE_ON_PRIMARY_FAILOVER, BEFORE, AFTER,
  BEFORE_AND_AFTER
  --gtid-executed-compression-period[=#] 
- When binlog is disabled, a background thread wakes up to
- compress the gtid_executed table every
- gtid_executed_compression_period transactions, as a
- special case, if variable is 0, the thread never wakes up
- to compress the gtid_executed table.
+ Compress the mysql.gtid_executed table whenever this
+ number of transactions have been added, by waking up a
+ foreground thread (compress_gtid_table). This compression
+ method only operates when binary logging is disabled on
+ the replica; if binary logging is enabled, the table is
+ compressed every time the binary log is rotated, and this
+ value is ignored. Before MySQL 8.0.23, the default is
+ 1000, and from MySQL 8.0.23, the default is zero, which
+ disables this compression method. This is because in
+ releases from MySQL 8.0.17, InnoDB transactions are
+ written to the mysql.gtid_executed table by a separate
+ process to non-InnoDB transactions. If the server has a
+ mix of InnoDB and non-InnoDB transactions, attempting to
+ compress the table with the compress_gtid_table thread
+ can slow this process, so from MySQL 8.0.17 it is
+ recommended that you set gtid_executed_compression_period
+ to 0.
  --gtid-mode=name    Controls whether Global Transaction Identifiers (GTIDs)
  are enabled. Can be OFF, OFF_PERMISSIVE, ON_PERMISSIVE,
  or ON. OFF means that no transaction has a GTID.
@@ -465,9 +480,8 @@ The following options may be given as the first argument:
  --key-cache-division-limit=# 
  The minimum percentage of warm blocks in key cache
  --keyring-migration-destination=name 
- Keyring plugin to which the keys are migrated to. This
- option must be specified along with
- --keyring-migration-source.
+ Keyring plugin or component to which the keys are
+ migrated to.
  --keyring-migration-host=name 
  Connect to host.
  -p, --keyring-migration-password[=name] 
@@ -480,6 +494,8 @@ The following options may be given as the first argument:
  Keyring plugin from where the keys needs to be migrated
  to. This option must be specified along with
  --keyring-migration-destination.
+ --keyring-migration-to-component 
+ Migrate from keyring plugin to keyring component.
  --keyring-migration-user=name 
  User to login to server.
  -L, --language=name Client error messages in given language. May be given as
@@ -1126,6 +1142,15 @@ The following options may be given as the first argument:
  replicate-wild-ignore-table=foo%.bar% will not do updates
  to tables in databases that start with foo and whose
  table names start with bar.
+ --replication-optimize-for-static-plugin-config 
+ Optional flag that blocks plugin install/uninstall and
+ allows skipping the acquisition of the lock to read from
+ the plugin list and the usage of read-optimized
+ spin-locks. Use only when plugin hook callback needs
+ optimization (a lot of semi-sync slaves, for instance).
+ --replication-sender-observe-commit-only 
+ Optional flag that allows for only calling back observer
+ hooks at commit.
  --report-host=name  Hostname or IP of the slave to be reported to the master
  during slave registration. Will appear in the output of
  SHOW SLAVE HOSTS. Leave unset if you do not want the
@@ -1381,6 +1406,10 @@ The following options may be given as the first argument:
  --tc-heuristic-recover=name 
  Decision to use in heuristic recover process. Possible
  values are OFF, COMMIT or ROLLBACK.
+ --temptable-max-mmap=# 
+ Maximum amount of memory (in bytes) the TempTable storage
+ engine is allowed to allocate from MMAP-backed files
+ before starting to store data on disk.
  --temptable-max-ram=# 
  Maximum amount of memory (in bytes) the TempTable storage
  engine is allowed to allocate from the main memory (RAM)
@@ -1494,6 +1523,7 @@ binlog-transaction-dependency-history-size 25000
 binlog-transaction-dependency-tracking COMMIT_ORDER
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
+caching-sha2-password-digest-rounds 5000
 caching-sha2-password-private-key-path private_key.pem
 caching-sha2-password-public-key-path public_key.pem
 character-set-client-handshake TRUE
@@ -1543,7 +1573,7 @@ general-log FALSE
 generated-random-password-length 20
 group-concat-max-len 1024
 group-replication-consistency EVENTUAL
-gtid-executed-compression-period 1000
+gtid-executed-compression-period 0
 gtid-mode OFF
 help TRUE
 histogram-generation-max-mem-size 20000000
@@ -1566,6 +1596,7 @@ keyring-migration-destination (No default value)
 keyring-migration-host (No default value)
 keyring-migration-port 0
 keyring-migration-source (No default value)
+keyring-migration-to-component FALSE
 keyring-migration-user (No default value)
 lc-messages en_US
 lc-time-names en_US
@@ -1636,7 +1667,7 @@ myisam-stats-method nulls_unequal
 myisam-use-mmap FALSE
 mysql-native-password-proxy-users FALSE
 named-pipe FALSE
-named-pipe-full-access-group *everyone*
+named-pipe-full-access-group 
 net-buffer-length 16384
 net-read-timeout 30
 net-retry-count 10
@@ -1747,6 +1778,8 @@ relay-log-purge TRUE
 relay-log-recovery FALSE
 relay-log-space-limit 0
 replicate-same-server-id FALSE
+replication-optimize-for-static-plugin-config FALSE
+replication-sender-observe-commit-only FALSE
 report-host (No default value)
 report-password (No default value)
 report-port 0
@@ -1814,6 +1847,7 @@ table-encryption-privilege-check FALSE
 table-open-cache-instances 16
 tablespace-definition-cache 256
 tc-heuristic-recover OFF
+temptable-max-mmap 1073741824
 temptable-max-ram 1073741824
 temptable-use-mmap TRUE
 thread-cache-size 9

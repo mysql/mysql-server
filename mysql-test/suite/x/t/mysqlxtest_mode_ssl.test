@@ -10,10 +10,10 @@ call mtr.add_suppression("Failed to initialize TLS for channel: mysql_main");
 call mtr.add_suppression(".*Failed to set up SSL.*");
 
 --let $SS_VERIFY=--ssl-ca=$MYSQL_TEST_DIR/std_data/ca-cert-verify.pem
---let $MYSQLXTEST_SSLCA_TEST=$MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp $SS_VERIFY --quiet
---let $MYSQLXTEST_TEST=$MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp --quiet
+--let $MYSQLXTEST_SSLCA_TEST=$MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.xpl $SS_VERIFY --quiet
+--let $MYSQLXTEST_TEST=$MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connection-info.xpl --quiet
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection-info.xpl
 -->echo [Verify that SSL_cert and SSL_mode=%OPTION_SSL_MODE%, makes 'mysqlx_ssl_active' status variable set to %EXPECT%]
 -->stmtsql SELECT variable_value FROM performance_schema.global_status WHERE variable_name LIKE 'mysqlx_ssl_active';
 -->recvtovar %IS_SSL_ACTIVE%
@@ -27,5 +27,4 @@ EOF
 --let $restart_parameters = restart:
 --source include/restart_mysqld.inc
 
---remove_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

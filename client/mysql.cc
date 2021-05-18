@@ -1,25 +1,25 @@
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License, version 2.0,
-   as published by the Free Software Foundation.
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License, version 2.0,
+as published by the Free Software Foundation.
 
-   This program is also distributed with certain software (including
-   but not limited to OpenSSL) that is licensed under separate terms,
-   as designated in a particular file or component or in included license
-   documentation.  The authors of MySQL hereby grant you an additional
-   permission to link the program and your derivative works with the
-   separately licensed software that they have included with MySQL.
+This program is also distributed with certain software (including
+but not limited to OpenSSL) that is licensed under separate terms,
+as designated in a particular file or component or in included license
+documentation.  The authors of MySQL hereby grant you an additional
+permission to link the program and your derivative works with the
+separately licensed software that they have included with MySQL.
 
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License, version 2.0, for more details.
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License, version 2.0, for more details.
 
-   You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
 // mysql command tool
@@ -38,6 +38,7 @@
 #include <time.h>
 
 #include "client/client_priv.h"
+#include "client/client_query_attributes.h"
 #include "client/my_readline.h"
 #include "client/pattern_matcher.h"
 #include "compression.h"
@@ -249,7 +250,7 @@ const char *default_dbug_option = "d:t:o,/tmp/mysql.trace";
 
   For using this feature in test case, we add the option in debug code.
 */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static bool opt_build_completion_hash = false;
 #endif
 
@@ -308,7 +309,8 @@ static int com_quit(String *str, char *), com_go(String *str, char *),
     com_notee(String *str, char *), com_charset(String *str, char *),
     com_prompt(String *str, char *), com_delimiter(String *str, char *),
     com_warnings(String *str, char *), com_nowarnings(String *str, char *),
-    com_resetconnection(String *str, char *);
+    com_resetconnection(String *str, char *),
+    com_query_attributes(String *str, char *);
 static int com_shell(String *str, char *);
 
 #ifdef USE_POPEN
@@ -352,7 +354,7 @@ static void get_current_os_sudouser();
 
 typedef struct {
   const char *name;                 /* User printable name of the function. */
-  char cmd_char;                    /* msql command character */
+  char cmd_char;                    /* mysql command character. NULL if none */
   int (*func)(String *str, char *); /* Function to call to do the job. */
   bool takes_params;                /* Max parameters for command */
   const char *doc;                  /* Documentation for this function.  */
@@ -402,6 +404,9 @@ static COMMANDS commands[] = {
      "Don't show warnings after every statement."},
     {"resetconnection", 'x', com_resetconnection, false,
      "Clean session context."},
+    {"query_attributes", 0, com_query_attributes, true,
+     "Sets string parameters (name1 value1 name2 value2 ...) for the next "
+     "query to pick up."},
     /* Get bash-like expansion for some commands */
     {"create table", 0, nullptr, false, ""},
     {"create database", 0, nullptr, false, ""},
@@ -1325,6 +1330,7 @@ int main(int argc, char *argv[]) {
   completion_hash_init(&ht, 128);
   init_alloc_root(PSI_NOT_INSTRUMENTED, &hash_mem_root, 16384, 0);
   memset(&mysql, 0, sizeof(mysql));
+  global_attrs = new client_query_attributes();
   if (sql_connect(current_host, current_db, current_user, opt_password,
                   opt_silent)) {
     quick = true;  // Avoid history
@@ -1491,6 +1497,10 @@ void mysql_end(int sig) {
   my_free(current_prompt);
   mysql_server_end();
   my_end(my_end_arg);
+  if (global_attrs != nullptr) {
+    delete global_attrs;
+    global_attrs = nullptr;
+  }
   exit(status.exit_status);
 }
 
@@ -1675,7 +1685,7 @@ static struct my_option my_long_options[] = {
     {"compress", 'C', "Use compression in server/client protocol.",
      &opt_compress, &opt_compress, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr,
      0, nullptr},
-#ifdef DBUG_OFF
+#ifdef NDEBUG
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
     {"debug-check", OPT_DEBUG_CHECK,
@@ -1906,7 +1916,7 @@ static struct my_option my_long_options[] = {
      "password sandbox mode.",
      &opt_connect_expired_password, &opt_connect_expired_password, nullptr,
      GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"build-completion-hash", 0,
      "Build completion hash even when it is in batch mode. It is used for "
      "test purpose, so it is just built when DEBUG is on.",
@@ -2037,8 +2047,8 @@ bool get_one_option(int optid,
       if (argument == disabled_my_option) {
         // Don't require password
         static char empty_password[] = {'\0'};
-        DBUG_ASSERT(empty_password[0] ==
-                    '\0');  // Check that it has not been overwritten
+        assert(empty_password[0] ==
+               '\0');  // Check that it has not been overwritten
         argument = empty_password;
       }
       if (argument) {
@@ -2387,7 +2397,7 @@ static COMMANDS *find_command(char *name) {
   char *end;
   DBUG_TRACE;
 
-  DBUG_ASSERT(name != nullptr);
+  assert(name != nullptr);
   DBUG_PRINT("enter", ("name: '%s'", name));
 
   while (my_isspace(charset_info, *name)) name++;
@@ -2711,6 +2721,9 @@ static void initialize_readline(char *name) {
   /* Allow conditional parsing of the ~/.inputrc file. */
   rl_readline_name = name;
 
+  /* Accept all locales. */
+  setlocale(LC_ALL, "");
+
   /* Tell the completer that we want a crack first. */
 #if defined(EDITLINE_HAVE_COMPLETION_CHAR)
   rl_attempted_completion_function = &new_mysql_completion;
@@ -2718,7 +2731,6 @@ static void initialize_readline(char *name) {
 
   rl_add_defun("magic-space", &fake_magic_space, -1);
 #elif defined(EDITLINE_HAVE_COMPLETION_INT)
-  setlocale(LC_ALL, ""); /* so as libedit use isprint */
   rl_attempted_completion_function = &new_mysql_completion;
   rl_completion_entry_function = &no_completion;
   rl_add_defun("magic-space", &fake_magic_space, -1);
@@ -2820,7 +2832,7 @@ static void build_completion_hash(bool rehash, bool write_info) {
   int i, j, num_fields;
   DBUG_TRACE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!opt_build_completion_hash)
 #endif
   {
@@ -3032,11 +3044,19 @@ static int reconnect(void) {
   return 0;
 }
 
-static void get_current_db() {
+/**
+  Checks the current DB and updates the global variable current_db
+  If the command fails hen he current_db is set to nullptr.
+
+  @return Error state
+    @retval true An error occurred
+    @retval false Success; current_db is updated
+*/
+static bool get_current_db() {
   MYSQL_RES *res;
 
   /* If one_database is set, current_db is not supposed to change. */
-  if (one_database) return;
+  if (one_database) return false;
 
   my_free(current_db);
   current_db = nullptr;
@@ -3047,24 +3067,35 @@ static void get_current_db() {
     if (row && row[0])
       current_db = my_strdup(PSI_NOT_INSTRUMENTED, row[0], MYF(MY_WME));
     mysql_free_result(res);
+  } else {
+    /* We failed to issue the command and we likely lost connection */
+    return true;
   }
+  return false;
 }
 
 /***************************************************************************
  The different commands
 ***************************************************************************/
 
-static int mysql_real_query_for_lazy(const char *buf, size_t length) {
+static int mysql_real_query_for_lazy(const char *buf, size_t length,
+                                     bool set_params = false) {
+  int error = 0;
   for (uint retry = 0;; retry++) {
-    int error;
+    error = 0;
 
-    if (!mysql_real_query(&mysql, buf, (ulong)length)) return 0;
+    if (set_params && global_attrs->set_params(&mysql)) break;
+    if (!mysql_real_query(&mysql, buf, (ulong)length)) break;
     error = put_error(&mysql);
-    if (mysql_errno(&mysql) != CR_SERVER_GONE_ERROR || retry > 1 ||
-        !opt_reconnect)
-      return error;
-    if (reconnect()) return error;
+    if ((mysql_errno(&mysql) != CR_SERVER_GONE_ERROR &&
+         mysql_errno(&mysql) != CR_SERVER_LOST &&
+         mysql.net.error != NET_ERROR_SOCKET_UNUSABLE) ||
+        retry > 1 || !opt_reconnect)
+      break;
+    if (reconnect()) break;
   }
+  if (set_params) global_attrs->clear(connected ? &mysql : nullptr);
+  return error;
 }
 
 static int mysql_store_result_for_lazy(MYSQL_RES **result) {
@@ -3208,9 +3239,13 @@ static int com_help(String *buffer MY_ATTRIBUTE((unused)),
     end = my_stpcpy(buff, commands[i].name);
     for (j = (int)strlen(commands[i].name); j < 10; j++)
       end = my_stpcpy(end, " ");
-    if (commands[i].func)
-      tee_fprintf(stdout, "%s(\\%c) %s\n", buff, commands[i].cmd_char,
-                  commands[i].doc);
+    if (commands[i].func) {
+      if (commands[i].cmd_char)
+        tee_fprintf(stdout, "%s(\\%c) %s\n", buff, commands[i].cmd_char,
+                    commands[i].doc);
+      else
+        tee_fprintf(stdout, "%s %s\n", buff, commands[i].doc);
+    }
   }
   if (connected && mysql_get_server_version(&mysql) >= 40100)
     put_info("\nFor server side help, type 'help contents'\n", INFO_INFO);
@@ -3237,8 +3272,8 @@ static int com_charset(String *buffer MY_ATTRIBUTE((unused)), char *line) {
   new_cs = get_charset_by_csname(param, MY_CS_PRIMARY, MYF(MY_WME));
   if (new_cs) {
     charset_info = new_cs;
-    mysql_set_character_set(&mysql, charset_info->csname);
-    default_charset = charset_info->csname;
+    mysql_set_character_set(&mysql, replace_utf8_utf8mb3(charset_info->csname));
+    default_charset = replace_utf8_utf8mb3(charset_info->csname);
     put_info("Charset changed", INFO_INFO);
   } else
     put_info("Charset is not found", INFO_INFO);
@@ -3290,7 +3325,7 @@ static int com_go(String *buffer, char *line MY_ATTRIBUTE((unused))) {
 
   timer = start_timer();
   executing_query = true;
-  error = mysql_real_query_for_lazy(buffer->ptr(), buffer->length());
+  error = mysql_real_query_for_lazy(buffer->ptr(), buffer->length(), true);
 
   if (status.add_to_history) {
     buffer->append(vertical ? "\\G" : delimiter);
@@ -3387,8 +3422,7 @@ end:
   /* Show warnings if any or error occurred */
   if (show_warnings == 1 && (warnings >= 1 || error)) print_warnings();
 
-  if (!error && !status.batch &&
-      (mysql.server_status & SERVER_STATUS_DB_DROPPED))
+  if (!error && (mysql.server_status & SERVER_STATUS_DB_DROPPED))
     get_current_db();
 
   executing_query = false;
@@ -3525,11 +3559,19 @@ static void print_as_hex(FILE *output_file, const char *str, ulong len,
                          ulong total_bytes_to_send) {
   const char *ptr = str, *end = ptr + len;
   ulong i;
-  fprintf(output_file, "0x");
-  for (; ptr < end; ptr++)
-    fprintf(output_file, "%02X", *(pointer_cast<const uchar *>(ptr)));
-  for (i = 2 * len + 2; i < total_bytes_to_send; i++)
-    tee_putc((int)' ', output_file);
+
+  if (len > 0) {
+    fprintf(output_file, "0x");
+    for (; ptr < end; ptr++)
+      fprintf(output_file, "%02X",
+              *(static_cast<const uchar *>(static_cast<const void *>(ptr))));
+    /* Printed string length: two chars "0x" + two chars for each byte. */
+    i = 2 + len * 2;
+  } else {
+    i = fprintf(output_file, "NULL");
+  }
+  for (; i < total_bytes_to_send; i++)
+    tee_putc(static_cast<int>(' '), output_file);
 }
 
 static void print_table_data(MYSQL_RES *result) {
@@ -3683,9 +3725,9 @@ static int get_result_width(MYSQL_RES *result) {
   MYSQL_FIELD *field;
   MYSQL_FIELD_OFFSET offset;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   offset = mysql_field_tell(result);
-  DBUG_ASSERT(offset == 0);
+  assert(offset == 0);
 #else
   offset = 0;
 #endif
@@ -4243,8 +4285,9 @@ static int com_use(String *buffer MY_ATTRIBUTE((unused)), char *line) {
     We need to recheck the current database, because it may change
     under our feet, for example if DROP DATABASE or RENAME DATABASE
     (latter one not yet available by the time the comment was written)
+    If this command fails we assume we lost connection.
   */
-  get_current_db();
+  if (get_current_db()) connected = false;
 
   if (!current_db || cmp_database(charset_info, current_db, tmp)) {
     if (one_database) {
@@ -4354,6 +4397,30 @@ static int com_nowarnings(String *buffer MY_ATTRIBUTE((unused)),
                           char *line MY_ATTRIBUTE((unused))) {
   show_warnings = false;
   put_info("Show warnings disabled.", INFO_INFO);
+  return 0;
+}
+
+static int com_query_attributes(String *buffer MY_ATTRIBUTE((unused)),
+                                char *line) {
+  char buff[1024], *param, name[1024];
+  memset(buff, 0, sizeof(buff));
+  strmake(buff, line, sizeof(buff) - 1);
+  param = buff;
+  global_attrs->clear(connected ? &mysql : nullptr);
+  do {
+    param = get_arg(param, param != buff);
+    if (!param || !*param) break;
+
+    strncpy(name, param, sizeof(name) - 1);
+    param = get_arg(param, true);
+    if (!param || !*param) {
+      return put_info("Usage: query_attributes name1 value1 name2 value2 ...",
+                      INFO_ERROR, 0);
+    }
+
+    if (global_attrs->push_param(name, param))
+      return put_info("Failed to push a parameter", INFO_ERROR, 0);
+  } while (param != 0);
   return 0;
 }
 
@@ -4724,8 +4791,10 @@ static int com_status(String *buffer MY_ATTRIBUTE((unused)),
     mysql_free_result(result);
   } else {
     /* Probably pre-4.1 server */
-    tee_fprintf(stdout, "Client characterset:\t%s\n", charset_info->csname);
-    tee_fprintf(stdout, "Server characterset:\t%s\n", mysql.charset->csname);
+    tee_fprintf(stdout, "Client characterset:\t%s\n",
+                replace_utf8_utf8mb3(charset_info->csname));
+    tee_fprintf(stdout, "Server characterset:\t%s\n",
+                replace_utf8_utf8mb3(mysql.charset->csname));
   }
 
   if (strstr(mysql_get_host_info(&mysql), "TCP/IP") || !mysql.unix_socket)
@@ -5264,6 +5333,7 @@ static int com_prompt(String *buffer MY_ATTRIBUTE((unused)), char *line) {
 static int com_resetconnection(String *buffer MY_ATTRIBUTE((unused)),
                                char *line MY_ATTRIBUTE((unused))) {
   int error;
+  global_attrs->clear(connected ? &mysql : nullptr);
   error = mysql_reset_connection(&mysql);
   if (error) {
     if (status.batch) return 0;

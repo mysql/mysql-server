@@ -3,7 +3,7 @@
 --source include/xplugin_create_user.inc
 
 # Tests
---write_file $MYSQL_TMP_DIR/assert.tmp
+--write_file $MYSQL_TMP_DIR/assert.xpl
 -->echo
 -->echo # 1.
 -->echo #
@@ -156,9 +156,8 @@ exec $MYSQLXTEST
   -ux_root --password=''
   --host=127.0.0.1
   --schema=test
-  --file=$MYSQL_TMP_DIR/assert.tmp  2>&1;
+  --file=$MYSQL_TMP_DIR/assert.xpl  2>&1;
 
 
 ## Cleanup
- --source include/xplugin_drop_user.inc
- --remove_file $MYSQL_TMP_DIR/assert.tmp
+--source ../include/xplugin_cleanup.inc

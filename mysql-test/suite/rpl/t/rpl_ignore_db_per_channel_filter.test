@@ -34,9 +34,9 @@ call mtr.add_suppression("There are per-channel replication filter.s. configured
 
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
-eval CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=$MASTER_MYPORT,MASTER_USER='root' for CHANNEL '';
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost',SOURCE_PORT=$MASTER_MYPORT,SOURCE_USER='root' for CHANNEL '';
 --replace_result $SERVER_MYPORT_3 MASTER_PORT_3
-eval CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=$SERVER_MYPORT_3,MASTER_USER='root' for CHANNEL 'channel_3_2';
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost',SOURCE_PORT=$SERVER_MYPORT_3,SOURCE_USER='root' for CHANNEL 'channel_3_2';
 --enable_warnings
 
 --source include/start_slave.inc
@@ -172,9 +172,9 @@ RESET SLAVE ALL FOR CHANNEL 'channel_3_2';
 
 --disable_warnings
 --replace_result $MASTER_MYPORT MASTER_PORT
-eval CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=$MASTER_MYPORT,MASTER_USER='root' for CHANNEL 'channel_1';
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost',SOURCE_PORT=$MASTER_MYPORT,SOURCE_USER='root' for CHANNEL 'channel_1';
 --replace_result $SERVER_MYPORT_3 MASTER_PORT_3
-eval CHANGE MASTER TO MASTER_HOST='localhost',MASTER_PORT=$SERVER_MYPORT_3,MASTER_USER='root' for CHANNEL 'channel_3';
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost',SOURCE_PORT=$SERVER_MYPORT_3,SOURCE_USER='root' for CHANNEL 'channel_3';
 --enable_warnings
 
 --let $rpl_channel_name=

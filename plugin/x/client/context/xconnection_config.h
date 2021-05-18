@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -40,6 +40,7 @@ class Connection_config {
   int64_t m_timeout_session_connect{-1};
   int64_t m_timeout_read{-1};
   int64_t m_timeout_write{-1};
+  int64_t m_buffer_receive_size{64 * 1024};
   std::string m_network_namespace;
 };
 

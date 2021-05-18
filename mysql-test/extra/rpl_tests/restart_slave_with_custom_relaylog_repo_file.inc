@@ -146,6 +146,123 @@ localhost
 EOF
 END_OF_PROCEDURE
 
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_no_assign_gtids_to_anonymous_transactions.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+12
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+root
+localhost
+0
+1
+EOF
+END_OF_PROCEDURE
+
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_type_assign_gtids_to_anonymous_transactions.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+14
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+root
+localhost
+0
+1
+6
+
+EOF
+END_OF_PROCEDURE
+
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_default_value_for_type_off_assign_gtids_to_anonymous_transactions.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+14
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+root
+localhost
+0
+1
+1
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaaa
+EOF
+END_OF_PROCEDURE
+
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_value_for_type_not_off_assign_gtids_to_anonymous_transactions.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+14
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+root
+localhost
+0
+1
+3
+
+EOF
+END_OF_PROCEDURE
+
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_value_assign_gtids_to_anonymous_transactions.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+14
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+root
+localhost
+0
+1
+3
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa
+EOF
+END_OF_PROCEDURE
+
+--write_file $MYSQL_TMP_DIR/create_file_repo_with_no_value_assign_gtids_to_anonymous_transactions.inc END_OF_PROCEDURE
+  --write_file $MYSQLD_DATADIR/$filename
+13
+./slave-relay-bin.000001
+4
+
+0
+0
+0
+1
+
+root
+localhost
+0
+1
+3
+EOF
+END_OF_PROCEDURE
+
 --let $MYSQLD_DATADIR= `select @@datadir`
 --let $filename = `SELECT @@relay_log_info_file`
 
@@ -178,7 +295,24 @@ if ($sub_testcase == no_require_table_primary_key_check) {
 if ($sub_testcase == invalid_require_table_primary_key_check) {
   --source $MYSQL_TMP_DIR/create_file_repo_with_invalid_require_table_primary_key_check.inc
 }
-
+if ($sub_testcase == no_assign_gtids_to_anonymous_transactions) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_no_assign_gtids_to_anonymous_transactions.inc
+}
+if ($sub_testcase == invalid_type_assign_gtids_to_anonymous_transactions) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_invalid_type_assign_gtids_to_anonymous_transactions.inc
+}
+if ($sub_testcase == invalid_default_value_for_type_off_assign_gtids_to_anonymous_transactions) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_invalid_default_value_for_type_off_assign_gtids_to_anonymous_transactions.inc
+}
+if ($sub_testcase == invalid_value_for_type_not_off_assign_gtids_to_anonymous_transactions) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_invalid_value_for_type_not_off_assign_gtids_to_anonymous_transactions.inc
+}
+if ($sub_testcase == invalid_value_assign_gtids_to_anonymous_transactions) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_invalid_value_assign_gtids_to_anonymous_transactions.inc
+}
+if ($sub_testcase == no_value_assign_gtids_to_anonymous_transactions) {
+  --source $MYSQL_TMP_DIR/create_file_repo_with_no_value_assign_gtids_to_anonymous_transactions.inc
+}
 --let $rpl_server_parameters= $rpl_server_restart_parameters
 
 --let $explicit_default_wait_counter = 15000
@@ -192,3 +326,9 @@ if ($sub_testcase == invalid_require_table_primary_key_check) {
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_nonexist_PCU.inc
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_no_require_table_primary_key_check.inc
 --remove_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_require_table_primary_key_check.inc
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_no_assign_gtids_to_anonymous_transactions.inc
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_type_assign_gtids_to_anonymous_transactions.inc
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_default_value_for_type_off_assign_gtids_to_anonymous_transactions.inc
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_value_assign_gtids_to_anonymous_transactions.inc
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_invalid_value_for_type_not_off_assign_gtids_to_anonymous_transactions.inc
+--remove_file $MYSQL_TMP_DIR/create_file_repo_with_no_value_assign_gtids_to_anonymous_transactions.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 
 #include "storage/perfschema/table_status_by_account.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <new>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -124,33 +124,21 @@ table_status_by_account::table_status_by_account()
     : PFS_engine_table(&m_share, &m_pos),
       m_status_cache(true),
       m_pos(),
-      m_next_pos(),
-      m_context(nullptr) {}
+      m_next_pos() {}
 
 void table_status_by_account::reset_position(void) {
   m_pos.reset();
   m_next_pos.reset();
 }
 
-int table_status_by_account::rnd_init(bool scan) {
+int table_status_by_account::rnd_init(bool /* scan */) {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_client_session();
 
-  /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-
-  m_context = (table_status_by_account_context *)current_thd->alloc(
-      sizeof(table_status_by_account_context));
-  new (m_context) table_status_by_account_context(status_version, !scan);
   return 0;
 }
 
 int table_status_by_account::rnd_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   /*
     For each account, build a cache of status variables using totals from all
     threads associated with the account.
@@ -176,13 +164,8 @@ int table_status_by_account::rnd_next(void) {
 }
 
 int table_status_by_account::rnd_pos(const void *pos) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index_1 < global_account_container.get_row_count());
+  assert(m_pos.m_index_1 < global_account_container.get_row_count());
 
   PFS_account *pfs_account = global_account_container.get(m_pos.m_index_1);
 
@@ -200,14 +183,8 @@ int table_status_by_account::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
    * materializing. */
   m_status_cache.initialize_client_session();
 
-  /* Record the version of the global status variable, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-  m_context = (table_status_by_account_context *)current_thd->alloc(
-      sizeof(table_status_by_account_context));
-  new (m_context) table_status_by_account_context(status_version, false);
-
   PFS_index_status_by_account *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_status_by_account);
   m_opened_index = result;
   m_index = result;
@@ -215,11 +192,6 @@ int table_status_by_account::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_status_by_account::index_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   /*
     For each account, build a cache of status variables using totals from all
     threads associated with the account.
@@ -283,7 +255,7 @@ int table_status_by_account::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -301,7 +273,7 @@ int table_status_by_account::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

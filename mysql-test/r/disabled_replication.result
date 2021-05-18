@@ -13,7 +13,7 @@ ERROR HY000: Slave is not configured or failed to initialize properly. You must 
 SELECT MASTER_POS_WAIT('non-existent', 0);
 MASTER_POS_WAIT('non-existent', 0)
 NULL
-CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 1, SOURCE_HEARTBEAT_PERIOD = 1.01;
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 FLUSH LOGS;
 FLUSH RELAY LOGS;

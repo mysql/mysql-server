@@ -3,10 +3,10 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-CHANGE MASTER TO MASTER_CONNECT_RETRY = 1, MASTER_RETRY_COUNT = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY = 1, SOURCE_RETRY_COUNT = 1;
 #### Test 1: invalid credentials ####
 [connection slave]
-CHANGE MASTER TO MASTER_USER = 'foo';
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'foo';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -22,7 +22,7 @@ include/assert.inc [Error should contain the reason (Access denied for user foo)
 include/assert.inc [Error should be the same in both SSS and P_S]
 #### Test 2: invalid port ####
 [connection slave]
-CHANGE MASTER TO MASTER_PORT = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT = 1;
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -35,7 +35,7 @@ include/assert.inc [Error should contain the reason (Cant connect to MySQL serve
 include/assert.inc [Error should be the same in both SSS and P_S]
 #### Test 3: invalid host ####
 [connection slave]
-CHANGE MASTER TO MASTER_HOST = '999.999.999.999';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '999.999.999.999';
 START SLAVE IO_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -50,7 +50,7 @@ include/assert.inc [Error should be the same in both SSS and P_S]
 RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = PORT, MASTER_USER = 'root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = PORT, SOURCE_USER = 'root';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

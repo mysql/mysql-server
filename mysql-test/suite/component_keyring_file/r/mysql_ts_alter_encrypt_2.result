@@ -1,0 +1,335 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+#########
+# SETUP #
+#########
+
+# Taking backup of local manifest file for MySQL server instance
+#########################################################################
+# START : WITHOUT KEYRING
+#########################################################################
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
+ALTER TABLESPACE mysql ENCRYPTION='N';
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ERROR HY000: Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully.
+#########################################################################
+# RESTART 1 : WITH KEYRING
+#########################################################################
+# Restore local manifest file for MySQL server instance from backup
+--------------------------------------------------
+By Default, mysql tablespace should be unencrypted
+--------------------------------------------------
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+# Print result
+table space is Encrypted.
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+# Print result
+table space is Encrypted.
+-----------------------------------------------------
+ALTER mysql TABLESPACE WITH INVALID ENCRYPTION OPTION
+-----------------------------------------------------
+ALTER TABLESPACE mysql ENCRYPTION='R';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION='TRUE';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION='True';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION='true';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION=TRUE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'TRUE' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=True;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'True' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=true;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'true' at line 1
+ALTER TABLESPACE mysql ENCRYPTION='FALSE';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION='False';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION='false';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION=FALSE;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'FALSE' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=False;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'False' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=false;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'false' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '0' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '1' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=null;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'null' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=-1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-1' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=n;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'n' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=N;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'N' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=y;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'y' at line 1
+ALTER TABLESPACE mysql ENCRYPTION=Y;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'Y' at line 1
+ALTER TABLESPACE mysql ENCRYPTION='1';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION='1True';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION='@';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION='null';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION='';
+ERROR HY000: Invalid encryption option.
+ALTER TABLESPACE mysql ENCRYPTION="";
+ERROR HY000: Invalid encryption option.
+----------------------------------------------------
+ALTER MYSQL TABLESPACE WITH VALID ENCRYPTION OPTION
+----------------------------------------------------
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+ALTER TABLESPACE mysql ENCRYPTION='y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+ALTER TABLESPACE mysql ENCRYPTION='n';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+ALTER TABLESPACE mysql ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+ALTER TABLESPACE mysql ENCRYPTION="Y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+ALTER TABLESPACE mysql ENCRYPTION="y";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+ALTER TABLESPACE mysql ENCRYPTION="n";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+ALTER TABLESPACE mysql ENCRYPTION="N";
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+-----------------------------------------------------
+Create/Alter table using mysql.tablespace
+-----------------------------------------------------
+CREATE TABLE t1(i int) TABLESPACE mysql;
+ERROR HY000: The table 't1' may not be created in the reserved tablespace 'mysql'.
+CREATE TEMPORARY TABLE t1(i int) TABLESPACE mysql;
+ERROR HY000: The table 't1' may not be created in the reserved tablespace 'mysql'.
+CREATE TABLE t1(i int);
+ALTER TABLE t1 TABLESPACE mysql;
+ERROR HY000: The table 't1' may not be created in the reserved tablespace 'mysql'.
+DROP TABLE t1;
+CREATE TABLESPACE encrypt_ts ADD DATAFILE 'encrypt_ts.ibd' engine=INNODB;
+CREATE TABLE t1(i int) TABLESPACE encrypt_ts;
+ALTER TABLE t1 TABLESPACE mysql;
+ERROR HY000: The table 't1' may not be created in the reserved tablespace 'mysql'.
+DROP TABLE t1;
+CREATE TABLE t1(i int) TABLESPACE innodb_system;
+ALTER TABLE t1 TABLESPACE mysql;
+ERROR HY000: The table 't1' may not be created in the reserved tablespace 'mysql'.
+DROP TABLE t1;
+ALTER TABLE mysql.component TABLESPACE mysql;
+CREATE TEMPORARY TABLE t1(i int);
+ALTER TABLE t1 TABLESPACE mysql;
+ERROR HY000: The table 't1' may not be created in the reserved tablespace 'mysql'.
+DROP TABLE t1;
+-----------------------------------------------------
+Create view using mysql.tablespace
+-----------------------------------------------------
+CREATE TABLE t1(i int);
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+CREATE VIEW v1 AS SELECT * FROM t1 TABLESPACE mysql;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'mysql' at line 1
+DROP TABLE t1;
+------------------------------------------------------------
+Alter DD table part of mysql.tablespace to other tablespaces
+------------------------------------------------------------
+ALTER TABLE mysql.events TABLESPACE innodb_file_per_table ENCRYPTION='Y';
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+ALTER TABLE mysql.events TABLESPACE innodb_file_per_table;
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+ALTER TABLE mysql.events TABLESPACE innodb_temporary ENCRYPTION='Y';
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+ALTER TABLE mysql.events TABLESPACE innodb_temporary;
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+ALTER TABLE mysql.events TABLESPACE innodb_system ENCRYPTION='Y';
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+ALTER TABLE mysql.events TABLESPACE innodb_system;
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+ALTER TABLE mysql.events TABLESPACE encrypt_ts ENCRYPTION='Y';
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+ALTER TABLE mysql.events TABLESPACE encrypt_ts;
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+DROP TABLESPACE encrypt_ts;
+-------------------------------------------------------
+Delete/truncate/drop DD table part of mysql tablespace
+-------------------------------------------------------
+DELETE FROM mysql.events;
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+TRUNCATE TABLE mysql.events;
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+DROP TABLE mysql.events;
+ERROR HY000: Access to data dictionary table 'mysql.events' is rejected.
+--------------------------------------------------
+Alter encryption of table part of mysql tablespace
+--------------------------------------------------
+ALTER TABLE mysql.component ENCRYPTION='Y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE mysql.component ENCRYPTION='y';
+ERROR HY000: Request to create 'encrypted' table while using an 'unencrypted' tablespace.
+ALTER TABLE mysql.component ENCRYPTION='N';
+ALTER TABLE mysql.component ENCRYPTION='n';
+---------------------------------------------------------------------
+Metadata for a table in mysql ts should not show encryption attribute
+---------------------------------------------------------------------
+SHOW CREATE TABLE mysql.plugin;
+Table	Create Table
+plugin	CREATE TABLE `plugin` (
+  `name` varchar(64) NOT NULL DEFAULT '',
+  `dl` varchar(128) NOT NULL DEFAULT '',
+  PRIMARY KEY (`name`)
+) /*!50100 TABLESPACE `mysql` */ ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 STATS_PERSISTENT=0 ROW_FORMAT=DYNAMIC COMMENT='MySQL plugins'
+-------------------
+Drop mysql database
+-------------------
+DROP DATABASE mysql;
+ERROR HY000: Access to system schema 'mysql' is rejected.
+-----------------------------------------------------
+Other DDL operation not allowed on 'mysql' tablespace
+-----------------------------------------------------
+CREATE TABLESPACE mysql ADD DATAFILE 'mysql.ibd' ENGINE=INNODB;
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+DROP TABLESPACE mysql;
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+ALTER TABLESPACE mysql RENAME TO xyz;
+ERROR 42000: InnoDB: `mysql` is a reserved tablespace name.
+ALTER TABLESPACE mysql ENGINE=myisam;
+ERROR HY000: Engine 'myisam' does not match stored engine 'InnoDB' for tablespace 'mysql'
+ALTER TABLESPACE mysql ENGINE=memory;
+ERROR HY000: Engine 'memory' does not match stored engine 'InnoDB' for tablespace 'mysql'
+#########################################################################
+# Restart with same keyring option
+#   - tables in mysql ts should be accessible
+#########################################################################
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+SELECT help_keyword_id FROM mysql.help_keyword ORDER BY help_keyword_id LIMIT 2;
+help_keyword_id
+0
+1
+ALTER TABLESPACE mysql ENCRYPTION='N';
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+ALTER INSTANCE ROTATE INNODB MASTER KEY;
+ALTER TABLESPACE mysql ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES where NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+# Set Encryption process to wait after page 5 so that we can monitor
+# progress in performance_schema table
+SET DEBUG_SYNC = 'alter_encrypt_tablespace_wait_after_page5 SIGNAL s1 WAIT_FOR s2';
+ALTER TABLESPACE mysql ENCRYPTION='Y';
+# Monitoring connection
+SET DEBUG_SYNC = 'now WAIT_FOR s1';
+# Wait for Encryption progress monitoring to appear in PFS table
+# Wait for some progress to appear in PFS table
+select WORK_COMPLETED
+FROM performance_schema.events_stages_current
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)';
+WORK_COMPLETED
+5
+SET DEBUG_SYNC = 'now SIGNAL s2';
+# Default connection
+# Once done, select count from PFS tables
+SELECT COUNT(*)
+FROM performance_schema.events_stages_current
+WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+COUNT(*)
+0
+SELECT COUNT(*)
+FROM performance_schema.events_stages_history
+WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+COUNT(*)
+0
+SELECT COUNT(*)
+FROM performance_schema.events_stages_history_long
+WHERE EVENT_NAME='stage/innodb/alter tablespace (encryption)';
+COUNT(*)
+3
+SELECT COUNT(*)
+FROM performance_schema.events_stages_summary_global_by_event_name
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+COUNT_STAR>0;
+COUNT(*)
+1
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM performance_schema.events_stages_summary_by_user_by_event_name
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+COUNT_STAR>0;
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM performance_schema.events_stages_summary_by_host_by_event_name
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+COUNT_STAR>0;
+COUNT(*)
+1
+SELECT COUNT(*)
+FROM performance_schema.events_stages_summary_by_account_by_event_name
+WHERE EVENT_NAME = 'stage/innodb/alter tablespace (encryption)' AND
+COUNT_STAR>0;
+COUNT(*)
+1
+# Check that Encryption done successfully.
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	Y
+SELECT help_keyword_id FROM mysql.help_keyword ORDER BY help_keyword_id LIMIT 2;
+help_keyword_id
+0
+1
+###########
+# Cleanup #
+###########
+ALTER TABLESPACE mysql ENCRYPTION='N';
+SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='mysql';
+NAME	ENCRYPTION
+mysql	N
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

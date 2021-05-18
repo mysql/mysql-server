@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include "Defragger.hpp"
 
 #include <NdbOut.hpp>
+#include "NdbTCP.h"
 #include <NdbApiSignal.hpp>
 #include <kernel_types.h>
 #include <GlobalSignalNumbers.h>
@@ -77,15 +78,6 @@
 
 #include <LogBuffer.hpp>
 #include <BufferedLogHandler.hpp>
-#include <DnsCache.hpp>
-
-enum class HostnameMatch
-{
-   no_resolve,       // failure: could not resolve hostname
-   no_match,         // failure: hostname does not match socket address
-   ok_exact_match,   // success: exact match
-   ok_wildcard,      // success: match not required
-};
 
 int g_errorInsert = 0;
 #define ERROR_INSERTED(x) (g_errorInsert == x)
@@ -438,7 +430,7 @@ MgmtSrvr::start_transporter(const Config* config)
   m_config_manager->set_facade(theFacade);
 
   if (theFacade->start_instance(_ownNodeId,
-                                config->m_configValues) < 0)
+                                config->m_configuration) < 0)
   {
     g_eventLogger->error("Failed to start transporter");
     delete theFacade;
@@ -701,7 +693,7 @@ MgmtSrvr::configure_eventlogger(const BaseString& logdestination) const
 void
 MgmtSrvr::setClusterLog(const Config* config)
 {
-  DBUG_ASSERT(_ownNodeId);
+  assert(_ownNodeId);
 
   ConfigIter iter(config, CFG_SECTION_NODE);
   require(iter.find(CFG_NODE_ID, _ownNodeId) == 0);
@@ -811,7 +803,7 @@ MgmtSrvr::config_changed(NodeId node_id, const Config* new_config)
   if (theFacade)
   {
     if (!theFacade->configure(_ownNodeId,
-                              m_local_config->m_configValues))
+                              m_local_config->m_configuration))
     {
       g_eventLogger->warning("Could not reconfigure everything online, "
                              "this node need a restart");
@@ -3476,9 +3468,9 @@ MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
   if (no < 1)
     return -1;
 
+#ifdef ERROR_INSERT
   switch(args[0])
   {
-#ifdef ERROR_INSERT
   case 9994:
   {
     /* Transporter send blocking */
@@ -3525,10 +3517,10 @@ MgmtSrvr::dumpStateSelf(const Uint32 args[], Uint32 no)
     theFacade->release_consumed_sendbuffer();
     break;
   }
-#endif
   default:
     ;
   }
+#endif
 
   return 0;
 }
@@ -4004,112 +3996,171 @@ MgmtSrvr::alloc_node_id_req(NodeId free_node_id,
   return 0;
 }
 
-inline struct in6_addr * get_in6_addr(const struct sockaddr *clnt_addr) {
-  return clnt_addr ? &((sockaddr_in6*)clnt_addr)->sin6_addr : nullptr;
-}
-
-inline bool is_loopback(const struct in6_addr *addr) {
+static inline bool is_loopback(const struct in6_addr *addr) {
   return (IN6_IS_ADDR_LOOPBACK(addr) ||
          (IN6_IS_ADDR_V4MAPPED(addr) && addr->s6_addr[12] == 0x7f));
 }
 
-static HostnameMatch
-match_hostname(const struct sockaddr *clnt_addr,
-               const char *config_hostname,
-               LocalDnsCache & dnsCache)
+enum class HostnameMatch
 {
-  const struct in6_addr *clnt_in6_addr = get_in6_addr(clnt_addr);
+   no_resolve,       // failure: could not resolve hostname
+   no_match,         // failure: hostname does not match socket address
+   ok_exact_match,   // success: exact match
+   ok_wildcard,      // success: match not required
+};
 
-  if ((clnt_addr == nullptr) || is_loopback(clnt_in6_addr)) {
-    if (SocketServer::tryBind(0, config_hostname))
+static HostnameMatch
+match_hostname(const in6_addr *client_in6_addr,
+               const char *config_hostname)
+{
+  if (config_hostname == nullptr || config_hostname[0] == 0) {
+    return HostnameMatch::ok_wildcard;
+  }
+
+  // Check if the configured hostname can be resolved.
+  // NOTE! Without this step it's not possible to:
+  // - try to bind() the socket (since that requires resolve)
+  // - compare the resolved address with the clients.
+  struct in6_addr resolved_addr;
+  if (Ndb_getInAddr6(&resolved_addr, config_hostname) != 0)
+    return HostnameMatch::no_resolve;
+
+  // Special case for client connecting on loopback address, check if it
+  // can use this hostname by trying to bind the configured hostname. If this
+  // process can bind it also means the client can use it (is on same machine).
+  if (is_loopback(client_in6_addr)) {
+    if (SocketServer::tryBind(0, config_hostname)) {
+      // Match clients connecting on loopback address by trying to bind the
+      // configured hostname, if it binds the client could use it as well.
       return HostnameMatch::ok_exact_match;
+    }
     return HostnameMatch::no_match;
   }
 
-  struct in6_addr resolved_addr;
-  if(dnsCache.getAddress(&resolved_addr, config_hostname) != 0)
-    return HostnameMatch::no_resolve;
-
   // Bitwise comparison of the two IPv6 addresses
-  if (memcmp(&resolved_addr, clnt_in6_addr, sizeof(resolved_addr)) != 0)
+  if (memcmp(&resolved_addr, client_in6_addr, sizeof(resolved_addr)) != 0)
     return HostnameMatch::no_match;
 
   return HostnameMatch::ok_exact_match;
 }
 
-int
-MgmtSrvr::find_node_type(NodeId node_id,
-                         ndb_mgm_node_type type,
-                         const struct sockaddr* client_addr,
-                         Vector<PossibleNode>& nodes,
-                         int& error_code, BaseString& error_string)
-{
-  const char* found_config_hostname= 0;
-  unsigned type_c= (unsigned)type;
-  bool found_unresolved_hosts = false;
-  LocalDnsCache dnsCache;
 
+/**
+   @brief Build list of nodes in configuration
+
+   @param config_nodes List of nodes
+   @return true if list was filled properly, false otherwise
+ */
+bool
+MgmtSrvr::build_node_list_from_config(NodeId node_id,
+                                      ndb_mgm_node_type type,
+                                      Vector<ConfigNode>& config_nodes,
+                                      int& error_code,
+                                      BaseString& error_string) const
+{
   Guard g(m_local_config_mutex);
 
   ConfigIter iter(m_local_config, CFG_SECTION_NODE);
   for(iter.first(); iter.valid(); iter.next())
   {
-    unsigned id;
+    // Check current nodeid, the caller either asks to find any
+    // nodeid (nodeid=0) or a specific node (nodeid=x)
+    unsigned current_node_id;
+    require(iter.get(CFG_NODE_ID, &current_node_id) == 0);
+    if (node_id && node_id != current_node_id) continue;
+
+    // Check the optional Dedicated setting
     unsigned dedicated_node = 0;
-
-    if (iter.get(CFG_NODE_ID, &id))
-      require(false);
-    if (node_id && node_id != id)
-      continue;
-
     iter.get(CFG_NODE_DEDICATED, &dedicated_node);
-    if (dedicated_node && id != node_id)
-    {
-      // id is only handed out if explicitly requested.
+    if (dedicated_node && current_node_id != node_id) {
+      // This node id is only handed out if explicitly requested.
       continue;
     }
-    if (iter.get(CFG_TYPE_OF_SECTION, &type_c))
-      require(false);
-    if (type_c != (unsigned)type)
-    {
-      if (node_id) break;
+
+    // Check type of node, the caller will ask for API, MGM or NDB
+    unsigned current_node_type;
+    require(iter.get(CFG_TYPE_OF_SECTION, &current_node_type) == 0);
+    if (current_node_type != (unsigned)type) {
+      if (node_id) {
+        // Caller asked for this exact nodeid, but it is not the correct type.
+        BaseString type_string, current_type_string;
+        const char *alias, *str;
+        alias = ndb_mgm_get_node_type_alias_string(type, &str);
+        type_string.assfmt("%s(%s)", alias, str);
+        alias = ndb_mgm_get_node_type_alias_string(
+            (enum ndb_mgm_node_type)current_node_type, &str);
+        current_type_string.assfmt("%s(%s)", alias, str);
+        error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
+                            node_id, current_type_string.c_str(),
+                            type_string.c_str());
+        error_code= NDB_MGM_ALLOCID_CONFIG_MISMATCH;
+        return false;
+      }
       continue;
     }
-    const char *config_hostname= 0;
-    HostnameMatch matchType;
 
-    if (iter.get(CFG_NODE_HOST, &config_hostname))
-      require(false);
-    if (config_hostname == 0 || config_hostname[0] == 0)
-    {
-      config_hostname= "";
-      matchType = HostnameMatch::ok_wildcard;
-    }
-    else
-    {
-      found_config_hostname= config_hostname;
-      matchType = match_hostname(client_addr, config_hostname, dnsCache);
-    }
+    // Get configured HostName of this node
+    const char *config_hostname;
+    require(iter.get(CFG_NODE_HOST, &config_hostname) == 0);
 
+    if (config_nodes.push_back({current_node_id,
+                               config_hostname}) != 0)
+    {
+      error_string.assfmt("Failed to build config_nodes list");
+      error_code = NDB_MGM_ALLOCID_ERROR;
+      return false;
+    }
+  }
+  return true;
+}
+
+int
+MgmtSrvr::find_node_type(NodeId node_id,
+                         ndb_mgm_node_type type,
+                         const sockaddr_in6* client_addr,
+                         const Vector<ConfigNode>& config_nodes,
+                         Vector<PossibleNode>& nodes,
+                         int& error_code, BaseString& error_string)
+{
+  const char* found_config_hostname = nullptr;
+  bool found_unresolved_hosts = false;
+
+  for (unsigned i = 0; i < config_nodes.size(); i++)
+  {
+    const ConfigNode& node = config_nodes[i];
+
+    // Get current nodeid
+    const unsigned current_node_id = node.nodeid;
+
+    // Get configured HostName of this node
+    const char *config_hostname = node.hostname.c_str();
+
+    // Check if the connecting clients address matches the configured hostname
+    const HostnameMatch matchType = match_hostname(&(client_addr->sin6_addr),
+                                                   config_hostname);
     switch(matchType)
     {
       case HostnameMatch::no_resolve:
+        found_config_hostname = config_hostname;
         found_unresolved_hosts = true;
         break;
 
       case HostnameMatch::no_match:
+        found_config_hostname = config_hostname;
         break;
 
       case HostnameMatch::ok_wildcard:
-        nodes.push_back({id, config_hostname, false});
+        nodes.push_back({current_node_id, "", false});
         break;
 
       case HostnameMatch::ok_exact_match:
       {
+        found_config_hostname = config_hostname;
+
         unsigned int pos = 0;
         // Insert this node into the list ahead of the non-exact matches
         for(; pos < nodes.size() && nodes[pos].exact_match ; pos++);
-        nodes.push({id, config_hostname, true}, pos);
+        nodes.push({current_node_id, config_hostname, true}, pos);
         break;
       }
     }
@@ -4132,8 +4183,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
     alias= ndb_mgm_get_node_type_alias_string(type, &str);
     type_string.assfmt("%s(%s)", alias, str);
 
-    struct in6_addr conn_addr =
-      ((struct sockaddr_in6*)(client_addr))->sin6_addr;
+    struct in6_addr conn_addr = client_addr->sin6_addr;
     char* addr_str =
         Ndb_inet_ntop(AF_INET6,
                       static_cast<void*>(&conn_addr),
@@ -4154,27 +4204,12 @@ MgmtSrvr::find_node_type(NodeId node_id,
   error_code= NDB_MGM_ALLOCID_CONFIG_MISMATCH;
   if (node_id)
   {
-    if (type_c != (unsigned) type)
-    {
-      BaseString type_string, type_c_string;
-      const char *alias, *str;
-      alias= ndb_mgm_get_node_type_alias_string(type, &str);
-      type_string.assfmt("%s(%s)", alias, str);
-      alias= ndb_mgm_get_node_type_alias_string((enum ndb_mgm_node_type)type_c,
-                                                &str);
-      type_c_string.assfmt("%s(%s)", alias, str);
-      error_string.appfmt("Id %d configured as %s, connect attempted as %s.",
-                          node_id, type_c_string.c_str(),
-                          type_string.c_str());
-      return -1;
-    }
     if (found_config_hostname)
     {
       char addr_buf[NDB_ADDR_STRLEN];
       {
         // Append error describing which host the faulty connection was from
-        struct in6_addr conn_addr =
-          ((struct sockaddr_in6*)(client_addr))->sin6_addr;
+        struct in6_addr conn_addr = client_addr->sin6_addr;
         char* addr_str =
             Ndb_inet_ntop(AF_INET6,
                           static_cast<void*>(&conn_addr),
@@ -4206,8 +4241,7 @@ MgmtSrvr::find_node_type(NodeId node_id,
   if (found_config_hostname)
   {
     char addr_buf[NDB_ADDR_STRLEN];
-    struct in6_addr conn_addr =
-      ((struct sockaddr_in6*)(client_addr))->sin6_addr;
+    struct in6_addr conn_addr = client_addr->sin6_addr;
     char *addr_str = Ndb_inet_ntop(AF_INET6,
                                    static_cast<void*>(&conn_addr),
                                    addr_buf,
@@ -4302,7 +4336,7 @@ int
 MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
                               ndb_mgm_node_type type,
                               Uint32 timeout_ms,
-                              Vector<PossibleNode>& nodes,
+                              const Vector<PossibleNode>& nodes,
                               int& error_code,
                               BaseString& error_string)
 {
@@ -4369,7 +4403,7 @@ MgmtSrvr::try_alloc_from_list(NodeId& nodeid,
 bool
 MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
                              enum ndb_mgm_node_type type,
-                             const struct sockaddr* client_addr,
+                             const sockaddr_in6* client_addr,
                              int& error_code, BaseString& error_string,
                              Uint32 timeout_s)
 {
@@ -4437,9 +4471,19 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
     }
   }
 
+  // Build list of nodes fom configuration, this is done as a separate step
+  // in order to hold the config mutex only for a short time and also
+  // avoid holding it while resolving addresses.
+  Vector<ConfigNode> config_nodes;
+  if (!build_node_list_from_config(nodeid, type, config_nodes,
+                                   error_code, error_string)) {
+    assert(error_string.length() > 0);
+    return false;
+  }
+
   /* Find possible nodeids */
   Vector<PossibleNode> nodes;
-  if (find_node_type(nodeid, type, client_addr,
+  if (find_node_type(nodeid, type, client_addr, config_nodes,
                      nodes, error_code, error_string))
     return false;
 
@@ -4454,7 +4498,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   }
 
   // nodes.size() == 0 handled inside find_node_type
-  DBUG_ASSERT(nodes.size() != 0);
+  assert(nodes.size() != 0);
 
   if (type == NDB_MGM_NODE_TYPE_MGM && nodes.size() > 1)
   {
@@ -4549,14 +4593,14 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
 
 bool
 MgmtSrvr::alloc_node_id(NodeId& nodeid,
-			enum ndb_mgm_node_type type,
-			const struct sockaddr* client_addr,
-			int& error_code, BaseString& error_string,
+                        enum ndb_mgm_node_type type,
+                        const sockaddr_in6* client_addr,
+                        int& error_code, BaseString& error_string,
                         bool log_event,
                         Uint32 timeout_s)
 {
   char addr_buf[NDB_ADDR_STRLEN];
-  struct in6_addr conn_addr = ((sockaddr_in6*)client_addr)->sin6_addr;
+  struct in6_addr conn_addr = client_addr->sin6_addr;
   const char* type_str = ndb_mgm_get_node_type_string(type);
   char* addr_str = Ndb_inet_ntop(AF_INET6,
                                  static_cast<void*>(&conn_addr),
@@ -4916,7 +4960,7 @@ MgmtSrvr::setDbParameter(int node, int param, const char * value,
     ret = iter.get(CFG_NODE_ID, &node);
     assert(ret == 0);
 
-    ConfigValues::Iterator i2(m_local_config->m_configValues->m_config, 
+    ConfigValues::Iterator i2(m_local_config->m_configuration->m_config_values, 
 			      iter.m_config);
     switch(p_type){
     case 0:
@@ -5251,9 +5295,12 @@ MgmtSrvr::reload_config(const char* config_filename, bool mycnf,
     }
   }
 
-  Config* new_conf_ptr;
-  if ((new_conf_ptr= ConfigManager::load_config(config_filename,
-                                                mycnf, msg)) == NULL)
+  Config* new_conf_ptr =
+      ConfigManager::load_config(config_filename,
+                                 mycnf,
+                                 msg,
+                                 m_opts.cluster_config_suffix);
+  if (new_conf_ptr == nullptr)
     return false;
   Config new_conf(new_conf_ptr);
 

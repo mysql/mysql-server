@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,7 @@ UBool QueryNotKilled(const void *thd, int32_t) {
 const char *icu_version_string() { return U_ICU_VERSION; }
 
 void Regexp_engine::Reset(const std::u16string &subject) {
+  m_error_code = U_ZERO_ERROR;
   auto usubject = subject.data();
   int length = subject.size();
   uregex_setText(m_re, pointer_cast<const UChar *>(usubject), length,
@@ -82,7 +83,7 @@ const std::u16string &Regexp_engine::Replace(const std::u16string &replacement,
     call to uregex_appendReplacement() leads to ICU trying to free the buffer
     that we own, thus causing a double-delete.
   */
-  if (!found && m_error_code == U_ZERO_ERROR) return m_current_subject;
+  if (!found && U_SUCCESS(m_error_code)) return m_current_subject;
 
   m_replace_buffer.resize(std::min(m_current_subject.size(), HardLimit()));
 
@@ -121,14 +122,14 @@ void Regexp_engine::AppendHead(size_t size) {
   // This won't be written to in case of errors.
   int32_t text_length32 = 0;
   auto text = uregex_getText(m_re, &text_length32, &m_error_code);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   size_t text_length = text_length32;
 #endif
 
   // We make sure we are not in an error state before we start copying.
   if (m_error_code != U_ZERO_ERROR) return;
 
-  DBUG_ASSERT(size <= text_length);
+  assert(size <= text_length);
   if (m_replace_buffer.size() < size) m_replace_buffer.resize(size);
   std::copy(text, text + size, &m_replace_buffer.at(0));
   m_replace_buffer_pos = size;

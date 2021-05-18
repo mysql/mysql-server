@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -149,7 +149,9 @@ class PFS_connection_iterator {
     @param thd the THD to visit.
     @param visitor the visitor to call.
   */
-  static void visit_THD(THD *thd, PFS_connection_visitor *visitor);
+  static inline void visit_THD(THD *thd, PFS_connection_visitor *visitor) {
+    visitor->visit_THD(thd);
+  }
 };
 
 /**
@@ -487,7 +489,7 @@ class PFS_connection_memory_visitor : public PFS_connection_visitor {
   /** EVENT_NAME instrument index. */
   uint m_index;
   /** Statement statistic collected. */
-  PFS_memory_safe_stat m_stat;
+  PFS_memory_monitoring_stat m_stat;
 };
 
 /**

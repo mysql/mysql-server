@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,16 +23,17 @@
 #ifndef SORT_PARAM_INCLUDED
 #define SORT_PARAM_INCLUDED
 
+#include <assert.h>
 #include <algorithm>
 
 #include "field_types.h"   // enum_field_types
 #include "my_base.h"       // ha_rows
 #include "my_byteorder.h"  // uint4korr
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_io.h"      // mysql_com.h needs my_socket
 #include "mysql_com.h"  // Item_result
-#include "prealloced_array.h"
+#include "sql/mem_root_array.h"
 #include "sql/sql_array.h"  // Bounds_checked_array
 #include "sql/sql_const.h"
 #include "sql/sql_sort.h"  // Filesort_info
@@ -131,7 +132,7 @@ class Addon_fields {
         m_addon_buf(nullptr),
         m_addon_buf_length(0),
         m_using_packed_addons(false) {
-    DBUG_ASSERT(!arr.is_null());
+    assert(!arr.is_null());
   }
 
   Sort_addon_field *begin() { return m_field_descriptors.begin(); }
@@ -141,7 +142,7 @@ class Addon_fields {
   /// SortFileIterator needs an extra buffer when unpacking.
   uchar *allocate_addon_buf(uint sz) {
     if (m_addon_buf != nullptr) {
-      DBUG_ASSERT(m_addon_buf_length == sz);
+      assert(m_addon_buf_length == sz);
       return m_addon_buf;
     }
     m_addon_buf = static_cast<uchar *>((*THR_MALLOC)->Alloc(sz));
@@ -325,8 +326,12 @@ class Sort_param {
   /// make_sortkey() check the read set at runtime, at the cost of slightly less
   /// precise estimation of packed row size.
   void decide_addon_fields(Filesort *file_sort,
-                           const Prealloced_array<TABLE *, 4> &tables,
+                           const Mem_root_array<TABLE *> &tables,
                            bool sort_positions);
+
+  /// Reset the decision made in decide_addon_fields(). Only used in exceptional
+  /// circumstances (see NewWeedoutAccessPathForTables()).
+  void clear_addon_fields();
 
   /**
     Initialize this struct for filesort() usage.
@@ -341,8 +346,7 @@ class Sort_param {
   */
   void init_for_filesort(Filesort *file_sort,
                          Bounds_checked_array<st_sort_field> sf_array,
-                         uint sortlen,
-                         const Prealloced_array<TABLE *, 4> &tables,
+                         uint sortlen, const Mem_root_array<TABLE *> &tables,
                          ha_rows maxrows, bool remove_duplicates);
 
   /**
@@ -358,8 +362,8 @@ class Sort_param {
 
   /// Are we packing the "addon fields"?
   bool using_packed_addons() const {
-    DBUG_ASSERT(m_using_packed_addons == (addon_fields != nullptr &&
-                                          addon_fields->using_packed_addons()));
+    assert(m_using_packed_addons ==
+           (addon_fields != nullptr && addon_fields->using_packed_addons()));
     return m_using_packed_addons;
   }
 
@@ -385,12 +389,12 @@ class Sort_param {
       provably fit within the destination buffer.
    */
   uint make_sortkey(Bounds_checked_array<uchar> dst,
-                    const Prealloced_array<TABLE *, 4> &tables,
+                    const Mem_root_array<TABLE *> &tables,
                     size_t *longest_addons);
 
   // Adapter for Bounded_queue.
   uint make_sortkey(uchar *dst, size_t dst_len,
-                    const Prealloced_array<TABLE *, 4> &tables) {
+                    const Mem_root_array<TABLE *> &tables) {
     size_t longest_addons = 0;  // Unused.
     return make_sortkey(Bounds_checked_array<uchar>(dst, dst_len), tables,
                         &longest_addons);

@@ -53,11 +53,11 @@ start slave;
 # it (so when master.info is bad, people have to use RESET SLAVE first).
 --replace_column 2 ####
 --error ER_MASTER_INFO
-eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root';
+eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root';
 reset slave;
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
-eval change master to master_host='127.0.0.1',master_port=$MASTER_MYPORT, master_user='root'; 
+eval CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'; 
 connection master;
 reset master;
 connection slave;

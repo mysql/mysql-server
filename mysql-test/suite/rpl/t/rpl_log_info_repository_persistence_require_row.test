@@ -126,7 +126,7 @@ END_OF_PROCEDURE
 
 STOP SLAVE;
 
-CHANGE MASTER TO MASTER_HOST="localhost", REQUIRE_ROW_FORMAT = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_ROW_FORMAT = 1;
 
 --source $MYSQL_TMP_DIR/check_require_row_format_enabled_in_file_repo.inc
 
@@ -134,7 +134,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", REQUIRE_ROW_FORMAT = 1;
 --echo # 1.2. Set REQUIRE_ROW_FORMAT to 0
 --echo #      Check the performance_schema table and file repository are correct
 
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
 --source $MYSQL_TMP_DIR/check_require_row_format_disabled_in_file_repo.inc
 
@@ -166,7 +166,7 @@ CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
 
 --echo # Reset the repository to default values
 
-CHANGE MASTER TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER=NULL, REQUIRE_ROW_FORMAT = 0;
 
 --source $MYSQL_TMP_DIR/check_require_row_format_disabled_in_file_repo.inc
 
@@ -229,11 +229,11 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;
 --echo #       3. A channel with a privileged user (default channel)
 --echo #     REQUIRE_ROW_FORMAT must be 0 for 1) and 3). It must be 1 for 2)
 
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 --disable_warnings
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER = 'replication_applier'@'localhost' FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'replication_applier'@'localhost' FOR CHANNEL "";
 
 # Revert the table to 10 lines (pre upgrade)
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_row_format;

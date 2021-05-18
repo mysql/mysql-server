@@ -29,7 +29,7 @@ CREATE SCHEMA mysqlxcoll;
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/mysqlx-update_itemreplace.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-update_itemreplace.xpl
 
 -->stmtadmin create_collection	{"schema":"mysqlxcoll","name":"maincoll"}
 -->recvresult
@@ -1005,8 +1005,8 @@ SET SQL_SAFE_UPDATES = 1;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u upditemreplace --password='upditemreplace' --file=$MYSQL_TMP_DIR/mysqlx-update_itemreplace.tmp 2>&1
+--exec $MYSQLXTEST -u upditemreplace --password='upditemreplace' --file=$MYSQL_TMP_DIR/mysqlx-update_itemreplace.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-update_itemreplace.tmp
+--source ../include/xplugin_cleanup.inc
 

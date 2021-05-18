@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,8 @@
  */
 
 #include "plugin/x/tests/driver/connector/session_holder.h"
+
+#include <array>
 
 #include "my_dbug.h"         // NOLINT(build/include_subdir)
 #include "template_utils.h"  // NOLINT(build/include_subdir)
@@ -314,6 +316,24 @@ void Session_holder::setup_msg_callbacks() {
           return trace_send_messages(protocol, msg_id, msg);
         });
   }
+
+  protocol.add_received_message_handler(
+      [](xcl::XProtocol *protocol,
+         const xcl::XProtocol::Server_message_type_id msg_id,
+         const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
+        DBUG_LOG("debug", "log message "
+                              << "recv: " << msg);
+        return xcl::Handler_result::Continue;
+      });
+
+  protocol.add_send_message_handler(
+      [](xcl::XProtocol *protocol,
+         const xcl::XProtocol::Client_message_type_id msg_id,
+         const xcl::XProtocol::Message &msg) -> xcl::Handler_result {
+        DBUG_LOG("debug", "log message "
+                              << "send: " << msg);
+        return xcl::Handler_result::Continue;
+      });
 }
 
 void Session_holder::remove_notice_handler() {
@@ -359,17 +379,18 @@ xcl::Handler_result Session_holder::count_received_messages(
   if (msg_name != Mysqlx::Notice::Frame::descriptor()->full_name())
     return xcl::Handler_result::Continue;
 
-  static const std::string notice_type_id[] = {
+  static const std::array<std::string, 5> k_notice_type_id = {
       Mysqlx::Notice::Warning::descriptor()->full_name(),
       Mysqlx::Notice::SessionVariableChanged::descriptor()->full_name(),
       Mysqlx::Notice::SessionStateChanged::descriptor()->full_name(),
       Mysqlx::Notice::GroupReplicationStateChanged::descriptor()->full_name(),
-      Mysqlx::Notice::ServerHello::descriptor()->full_name()};
+      Mysqlx::Notice::ServerHello::descriptor()->full_name(),
+  };
 
   const auto notice_type =
       static_cast<const Mysqlx::Notice::Frame *>(&msg)->type() - 1u;
-  if (notice_type < array_elements(notice_type_id))
-    ++m_received_msg_counters[notice_type_id[notice_type]];
+  if (notice_type < k_notice_type_id.size())
+    ++m_received_msg_counters[k_notice_type_id[notice_type]];
 
   /** None of processed messages should be filtered out*/
   return xcl::Handler_result::Continue;

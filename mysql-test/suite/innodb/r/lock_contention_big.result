@@ -371,6 +371,8 @@ WHERE col_int0 BETWEEN @t1_half - 2500 AND @t1_half + 2500;
 COMMIT;
 SHOW ENGINE INNODB STATUS;
 #    pass
+# NOTE: The fix for Bug#32225367: RW_LOCK_STATS OPERATION HAS REGRESSION FROM 5.6, LOWER CACHE EFFICIENCY
+# deprecated the "innodb_rwlock_*" counter growth for performance.
 INSERT INTO my_metrics
 SELECT NAME, COUNT, MAX_COUNT, MIN_COUNT, AVG_COUNT,
 COUNT_RESET, MAX_COUNT_RESET, MIN_COUNT_RESET, AVG_COUNT_RESET,
@@ -385,7 +387,9 @@ WHERE NAME LIKE 'innodb_rwlock_sx_%';
 #       - One UPDATE statement modifying a huge slice of t1.
 #       Any of them causes heavy use of SX lock and therefore COUNT_RESET
 #       must have grown for ALL = @sx_count entries.
-#    pass
+# NOTE: The fix for Bug#32225367: RW_LOCK_STATS OPERATION HAS REGRESSION FROM 5.6, LOWER CACHE EFFICIENCY
+# deprecated the "innodb_rwlock_*" counter growth for performance.
+#    skip
 # TC-09 Heavy activity after reset.
 #       COUNT_RESET = MAX_COUNT_RESET for ALL = @sx_count entries
 #       needs to stay valid though he counters will have grown.
@@ -412,7 +416,9 @@ WHERE NAME LIKE 'innodb_rwlock_sx_%';
 # TC-17 We had heavy activity causing big counters and after that a reset.
 #       Reset causes COUNT > COUNT_RESET AND MAX_COUNT > MAX_COUNT_RESET
 #       for ALL @sx_count entries.
-#    pass
+# NOTE: The fix for Bug#32225367: RW_LOCK_STATS OPERATION HAS REGRESSION FROM 5.6, LOWER CACHE EFFICIENCY
+# deprecated the "innodb_rwlock_*" counter growth for performance.
+#    skip
 # TC-18 We had some reset but this must not decrease COUNT or MAX_COUNT
 #       after.COUNT >= before.COUNT AND
 #       after.MAX_COUNT >= before.MAX_COUNT for ALL @sx_count entries.
@@ -421,7 +427,9 @@ WHERE NAME LIKE 'innodb_rwlock_sx_%';
 #       after.COUNT_RESET < before.COUNT_RESET
 #       AND after.MAX_COUNT_RESET < before.MAX_COUNT_RESET AND
 #       for ALL @sx_count entries.
-#    pass
+# NOTE: The fix for Bug#32225367: RW_LOCK_STATS OPERATION HAS REGRESSION FROM 5.6, LOWER CACHE EFFICIENCY
+# deprecated the "innodb_rwlock_*" counter growth for performance.
+#    skip
 USE test;
 DROP SCHEMA my_schema;
 SET GLOBAL innodb_monitor_disable   = all;

@@ -133,7 +133,7 @@ SET GLOBAL group_replication_recovery_retry_count= 31536001;
 --echo #
 
 --disable_warnings
---eval CHANGE MASTER TO MASTER_USER="$recovery_user", MASTER_PASSWORD="$recovery_password" FOR CHANNEL 'group_replication_recovery'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER="$recovery_user", SOURCE_PASSWORD="$recovery_password" FOR CHANNEL 'group_replication_recovery'
 --enable_warnings
 
 --eval SET GLOBAL group_replication_group_name= "$group_replication_group_name";

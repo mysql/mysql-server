@@ -763,6 +763,8 @@ SELECT ((QUOTE(JSON_KEYS(NTH_VALUE(JSON_KEYS(EXP(-15676),ABS('d0')),
 ((QUOTE(JSON_KEYS(NTH_VALUE(JSON_KEYS(EXP(-15676),ABS('d0')),
 162)OVER())))>=(CONNECTION_ID()))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'NULL'
 SELECT ((QUOTE(JSON_KEYS(NTH_VALUE(JSON_KEYS(EXP(-15676),ABS('d0')),
 1)OVER())))>=(CONNECTION_ID()));
 ERROR 22032: Invalid data type for JSON data in argument 1 to function json_keys; a JSON string or JSON type is required.

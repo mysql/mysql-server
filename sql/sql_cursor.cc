@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,7 @@
 
 #include "sql/sql_cursor.h"
 
+#include <assert.h>
 #include <sys/types.h>
 
 #include <algorithm>
@@ -31,7 +32,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql_com.h"
@@ -73,7 +74,7 @@
 
 class Materialized_cursor final : public Server_side_cursor {
   /// A fake unit to supply to Query_result_send when fetching
-  SELECT_LEX_UNIT fake_unit;
+  Query_expression fake_query_expression;
   /// Cursor to the table that contains the materialized result
   TABLE *table{nullptr};
   /**
@@ -121,9 +122,9 @@ class Query_result_materialize final : public Query_result_union {
     if (materialized_cursor != nullptr)
       materialized_cursor->set_result(result_arg);
   }
-  bool check_simple_select() const override { return false; }
+  bool check_simple_query_block() const override { return false; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               SELECT_LEX_UNIT *u) override;
+               Query_expression *u) override;
   bool start_execution(THD *thd) override;
   bool send_result_set_metadata(THD *thd, const mem_root_deque<Item *> &list,
                                 uint flags) override;
@@ -218,7 +219,7 @@ bool mysql_open_cursor(THD *thd, Query_result *result,
   } else {
     result_materialize =
         down_cast<Query_result_materialize *>(sql_cmd->query_result());
-    DBUG_ASSERT(sql_cmd->query_result() == result_materialize);
+    assert(sql_cmd->query_result() == result_materialize);
     result_materialize->set_result(result);
   }
 
@@ -288,7 +289,7 @@ void Server_side_cursor::operator delete(void *, size_t) {}
 
 Materialized_cursor::Materialized_cursor(Query_result *result_arg)
     : Server_side_cursor(result_arg),
-      fake_unit(CTX_NONE),
+      fake_query_expression(CTX_NONE),
       item_list(*THR_MALLOC) {}
 
 /// Bind a temporary table with a materialized cursor.
@@ -318,8 +319,7 @@ int Materialized_cursor::send_result_set_metadata(
       return true;
     }
 
-    DBUG_ASSERT(CountVisibleFields(send_result_set_metadata) ==
-                item_list.size());
+    assert(CountVisibleFields(send_result_set_metadata) == item_list.size());
 
     /*
       Unless we preserve the original metadata, it will be lost,
@@ -356,7 +356,7 @@ int Materialized_cursor::send_result_set_metadata(
 
   thd->swap_query_arena(backup_arena, &m_arena);
 
-  DBUG_ASSERT(!thd->is_error());
+  assert(!thd->is_error());
 
   return false;
 }
@@ -369,7 +369,7 @@ bool Materialized_cursor::open(THD *thd) {
 
   /* Create a list of fields and start sequential scan. */
 
-  rc = result->prepare(thd, item_list, &fake_unit);
+  rc = result->prepare(thd, item_list, &fake_query_expression);
   rc = !rc && table->file->ha_rnd_init(true);
   is_rnd_inited = !rc;
 
@@ -403,7 +403,7 @@ bool Materialized_cursor::open(THD *thd) {
 */
 
 bool Materialized_cursor::fetch(ulong num_rows) {
-  THD *thd = table->in_use;
+  THD *thd = current_thd;
 
   int res = 0;
   result->begin_dataset();
@@ -442,14 +442,14 @@ void Materialized_cursor::close() {
     (void)table->file->ha_rnd_end();
     is_rnd_inited = false;
   }
-  close_tmp_table(table->in_use, table);
+  close_tmp_table(table);
   m_arena.free_items();
   item_list.clear();
   mem_root.ClearForReuse();
 }
 
 Materialized_cursor::~Materialized_cursor() {
-  DBUG_ASSERT(!is_open());
+  assert(!is_open());
   if (table != nullptr) free_tmp_table(table);
 }
 
@@ -459,12 +459,12 @@ Materialized_cursor::~Materialized_cursor() {
 
 bool Query_result_materialize::prepare(THD *thd,
                                        const mem_root_deque<Item *> &fields,
-                                       SELECT_LEX_UNIT *u) {
+                                       Query_expression *u) {
   unit = u;
 
   if (result->prepare(thd, fields, u)) return true;
 
-  DBUG_ASSERT(table == nullptr && materialized_cursor == nullptr);
+  assert(table == nullptr && materialized_cursor == nullptr);
 
   materialized_cursor = new (thd->mem_root) Materialized_cursor(result);
   if (materialized_cursor == nullptr) return true;

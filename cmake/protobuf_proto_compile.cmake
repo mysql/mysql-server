@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -196,8 +196,6 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
     ${ARGN}
   )
 
-  MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
-
   ADD_LIBRARY(${TARGET_NAME} STATIC
     ${PROTO_SRCS}
   )
@@ -236,7 +234,9 @@ FUNCTION(MYSQL_PROTOBUF_GENERATE_CPP_LIBRARY TARGET_NAME)
       SET(MY_PROTOBUF_FLAGS "${MY_PROTOBUF_FLAGS} -Wno-sign-compare")
       SET(MY_PUBLIC_PROTOBUF_FLAGS "${MY_PUBLIC_PROTOBUF_FLAGS} -Wno-sign-compare")
     ELSE()
-      SET(MY_PROTOBUF_FLAGS "${MY_PROTOBUF_FLAGS} /wd4018")
+      # /wd4018 'expression' : signed/unsigned mismatch
+      # /wd4251 'type' : class 'type1' needs to have dll-interface to be used by clients of class 'type2'
+      SET(MY_PROTOBUF_FLAGS "${MY_PROTOBUF_FLAGS} /wd4018 /wd4251")
     ENDIF()
   ENDIF(MSVC)
 

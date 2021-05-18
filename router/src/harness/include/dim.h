@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -415,14 +415,6 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
     deleter_MySQLSession_ = deleter;
   }
 
-  // Ofstream
-  void set_Ofstream(
-      const std::function<mysqlrouter::Ofstream *(void)> &factory,
-      const std::function<void(mysqlrouter::Ofstream *)> &deleter) {
-    factory_Ofstream_ = factory;
-    deleter_Ofstream_ = deleter;
-  }
-
   // RandomGenerator
   void set_RandomGenerator(
       const std::function<mysql_harness::RandomGeneratorInterface *(void)>
@@ -489,11 +481,6 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
     return new_generic(factory_MySQLSession_, deleter_MySQLSession_);
   }
 
-  // Ofstream
-  UniquePtr<mysqlrouter::Ofstream> new_Ofstream() const {
-    return new_generic(factory_Ofstream_, deleter_Ofstream_);
-  }
-
  private:
   ////////////////////////////////////////////////////////////////////////////////
   // factory and deleter functions [step 4]
@@ -509,10 +496,6 @@ class HARNESS_EXPORT DIM {  // DIM = Dependency Injection Manager
   // MySQLSession
   std::function<mysqlrouter::MySQLSession *(void)> factory_MySQLSession_;
   std::function<void(mysqlrouter::MySQLSession *)> deleter_MySQLSession_;
-
-  // Ofstream
-  std::function<mysqlrouter::Ofstream *(void)> factory_Ofstream_;
-  std::function<void(mysqlrouter::Ofstream *)> deleter_Ofstream_;
 
   // RandomGenerator
   std::function<mysql_harness::RandomGeneratorInterface *(void)>

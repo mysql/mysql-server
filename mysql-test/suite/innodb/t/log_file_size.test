@@ -42,7 +42,8 @@ DELETE FROM t1;
 
 --source include/kill_mysqld.inc
 
---error 1
+# InnoDB aborts, so ASAN may report leaks
+--error 1,42
 --exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
 let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
 --source include/search_pattern.inc

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,19 +25,20 @@
 #ifndef ROUTING_DESTINATION_INCLUDED
 #define ROUTING_DESTINATION_INCLUDED
 
-#include "mysqlrouter/destination.h"
-#include "router_config.h"
-
 #include <atomic>
 #include <cstdint>
 #include <list>
 #include <mutex>
 #include <string>
+#include <system_error>
 #include <vector>
 
+#include "my_compiler.h"  // MY_ATTRIBUTE
+#include "mysql/harness/net_ts/io_context.h"
+#include "mysqlrouter/destination.h"
 #include "mysqlrouter/routing.h"
 #include "protocol/protocol.h"
-#include "socket_operations.h"
+#include "router_config.h"
 #include "tcp_address.h"
 
 namespace mysql_harness {
@@ -46,16 +47,24 @@ class PluginFuncEnv;
 
 using AllowedNodes = std::vector<std::string>;
 // first argument is the new set of the allowed nodes
-// second argument is the description of the condition that triggered the change
-// (like ' metadata change' etc.) can be used for logging purposes by the caller
+// second argument is a set of nodes that can be used for new connections
+// third argument is an indication whether we should disconnect existing
+// connections (based on disconnect_on_metadata_unavailable setting)
+// fourth argument is the description of the condition that triggered the change
+// (like 'metadata change' etc.) can be used for logging purposes by the caller
 using AllowedNodesChangedCallback =
-    std::function<void(const AllowedNodes &, const std::string &)>;
+    std::function<void(const AllowedNodes &, const AllowedNodes &, const bool,
+                       const std::string &)>;
 // NOTE: this has to be container like std::list that does not invalidate
 // iterators when it is modified as we return the iterator to the insterted
 // callback to the caller to allow unregistering
 using AllowedNodesChangeCallbacksList = std::list<AllowedNodesChangedCallback>;
 using AllowedNodesChangeCallbacksListIterator =
     AllowedNodesChangeCallbacksList::iterator;
+// Starting a socket acceptor returns a value indicating if the start succeeded.
+using StartSocketAcceptorCallback =
+    std::function<stdx::expected<void, std::error_code>()>;
+using StopSocketAcceptorCallback = std::function<void()>;
 
 /** @class DestinationNodesStateNotifier
  *
@@ -84,9 +93,42 @@ class DestinationNodesStateNotifier {
   void unregister_allowed_nodes_change_callback(
       const AllowedNodesChangeCallbacksListIterator &it);
 
+  /**
+   * Registers the callback for notification that the routing socket acceptor
+   * should accept new connections.
+   *
+   * @param clb callback that should be called
+   */
+  void register_start_router_socket_acceptor(
+      const StartSocketAcceptorCallback &clb);
+
+  /**
+   * Unregisters the callback registered with
+   * register_start_router_socket_acceptor().
+   */
+  void unregister_start_router_socket_acceptor();
+
+  /**
+   * Registers the callback for notification that the routing socket acceptor
+   * should stop accepting new connections.
+   *
+   * @param clb callback that should be called
+   */
+  void register_stop_router_socket_acceptor(
+      const StopSocketAcceptorCallback &clb);
+
+  /**
+   * Unregisters the callback registered with
+   * register_stop_router_socket_acceptor().
+   */
+  void unregister_stop_router_socket_acceptor();
+
  protected:
   AllowedNodesChangeCallbacksList allowed_nodes_change_callbacks_;
+  StartSocketAcceptorCallback start_router_socket_acceptor_callback_;
+  StopSocketAcceptorCallback stop_router_socket_acceptor_callback_;
   std::mutex allowed_nodes_change_callbacks_mtx_;
+  std::mutex socket_acceptor_handle_callbacks_mtx;
 };
 
 /** @class RouteDestination
@@ -107,16 +149,13 @@ class RouteDestination : public DestinationNodesStateNotifier {
 
   /** @brief Default constructor
    *
+   * @param io_ctx context for IO operations
    * @param protocol Protocol for the destination, defaults to value returned
    *        by Protocol::get_default()
-   * @param sock_ops Socket operations implementation to use, defaults
-   *        to "real" (not mock) implementation
-   * (mysql_harness::SocketOperations)
    */
-  RouteDestination(Protocol::Type protocol = Protocol::get_default(),
-                   mysql_harness::SocketOperationsBase *sock_ops =
-                       mysql_harness::SocketOperations::instance())
-      : sock_ops_(sock_ops), protocol_(protocol) {}
+  RouteDestination(net::io_context &io_ctx,
+                   Protocol::Type protocol = Protocol::get_default())
+      : io_ctx_(io_ctx), protocol_(protocol) {}
 
   /** @brief Destructor */
   virtual ~RouteDestination() = default;
@@ -222,6 +261,12 @@ class RouteDestination : public DestinationNodesStateNotifier {
     return stdx::make_unexpected();
   }
 
+  /**
+   * Trigger listening socket acceptors state handler based on the destination
+   * type.
+   */
+  virtual void handle_sockets_acceptors() {}
+
  protected:
   /** @brief List of destinations */
   AddrVector destinations_;
@@ -229,7 +274,7 @@ class RouteDestination : public DestinationNodesStateNotifier {
   /** @brief Mutex for updating destinations and iterator */
   std::mutex mutex_update_;
 
-  mysql_harness::SocketOperationsBase *sock_ops_;
+  net::io_context &io_ctx_;
 
   /** @brief Protocol for the destination */
   Protocol::Type protocol_;

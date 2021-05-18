@@ -53,9 +53,7 @@ DROP TABLESPACE ts3;
 DROP LOGFILE GROUP lg1
   ENGINE=NDB;
 
---disable_query_log
 --source include/ndb_backup_id.inc
---enable_query_log
 
 --echo "Restore backup"
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT

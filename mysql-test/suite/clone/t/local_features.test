@@ -81,6 +81,12 @@ SELECT col1, col2, col3, SUBSTRING(col4, 1000, 32) FROM t2 ORDER BY col1 LIMIT 1
 ## Test-2: Clone with dirty pages and redo log
 
 --echo # In connection default - Cloning database
+# Bug#32340112 Clone should not depend on server idle timeout
+if($remote_clone) {
+  SET GLOBAL wait_timeout = 1;
+  SET GLOBAL CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE = 0;
+}
+
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
 --source ../include/clone_command_send.inc
@@ -88,11 +94,17 @@ SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
 --echo # In connection con1 - Running Update Random [0 - 200 Key Range]
 connect (con1,localhost,root,,);
 SET DEBUG_SYNC = 'now WAIT_FOR start_dml1';
+
+if($remote_clone) {
+  SET GLOBAL wait_timeout = default;
+}
+
 START TRANSACTION;
 CALL execute_dml(1, 0, 200, 500, 100, 1);
 COMMIT;
 --echo # Flush all dirty buffers
 SET GLOBAL innodb_buf_flush_list_now = 1;
+
 SET DEBUG_SYNC = 'now SIGNAL resume_clone1';
 
 SET DEBUG_SYNC = 'now WAIT_FOR start_dml2';

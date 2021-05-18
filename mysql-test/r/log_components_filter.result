@@ -674,7 +674,7 @@ INSERT INTO my_rules VALUES(NULL, 'IF EXISTS thread THEN set thread:=0.'),
 (NULL, 'IF EXISTS user THEN unset user.'),
 (NULL, 'IF EXISTS host THEN unset host.'),
 (NULL, 'IF EXISTS query_id THEN set query_id:=0.'),
-(NULL, 'IF EXISTS time THEN set time:="1970-01-01T00:00:00.000000Z".'),
+(NULL, 'IF EXISTS time THEN set time:="1970-01-01T00:00:00.012345Z".'),
 (NULL, 'IF EXISTS _pid THEN unset _pid.'),
 (NULL, 'IF EXISTS _platform THEN unset platform.'),
 (NULL, 'IF EXISTS _client_version THEN unset _client_version.'),
@@ -682,6 +682,7 @@ INSERT INTO my_rules VALUES(NULL, 'IF EXISTS thread THEN set thread:=0.'),
 INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val1 < 1 THEN set wl9651_result1:="IF" ELSE IF wl9651_val1 == 1 THEN set wl9651_result1:="ELSEIF1" ELSE IF wl9651_val1 == 2 THEN set wl9651_result1:="ELSEIF2" ELSE set wl9651_result1:="ELSE".');
 INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val2==1 OR wl9651_val2==2 OR wl9651_val2==3 THEN set wl9651_result2:="SUCCESS" ELSE set wl9651_result2:="FAILURE".');
 INSERT INTO my_rules VALUES(NULL, 'IF wl9651_val3a==1 AND wl9651_val3b==2 AND wl9651_val3c==3 THEN set wl9651_result3:="SUCCESS" ELSE set wl9651_result3:="FAILURE".');
+INSERT INTO my_rules VALUES(NULL, 'IF err_code==011825 THEN drop.');
 SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules;
 SET @@global.dragnet.log_error_filter_rules= @rules;
 INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".');
@@ -769,295 +770,295 @@ SET @@global.log_error_verbosity=DEFAULT;
 ### error log file
 ###
 
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@session.debug="+d,log_error_normalize"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.log_error_services
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules= DEFAULT
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_filter_dragnet"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW STATUS LIKE "dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_sink_internal; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_filter_dragnet"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='ELSE drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a=1. IF NOT EXISTS a THEN SET a='asd'."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF EXISTS a THEN SET a='asd'."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF NOT EXISTS a THEN SET a='asd'."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='DRAUGR.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b==2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP' THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP\" THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==\"ER_STARTUP' THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF misc_cstring=='1' THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF a=='1' THEN set misc_cstring:='abc'."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS misc_cstring THEN drop."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1..5."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set prio:=1.5."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF NOT field THEN action."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF\t \t\tEXISTS   field\rTHEN\nDROP.\nIF EXISTS field2 THEN DROP."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code=="ER_STARTUP" THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 AND b==3 THEN unset.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a>0 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field THEN AND."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field DROP."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set :=2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=NULL
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET PERSIST dragnet.log_error_filter_rules= ''
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@session.dragnet.log_error_filter_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: RESET PERSIST
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: select @@datadir
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. "
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. "
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 ."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/0."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/-1."
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1.5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/b.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a/.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle -1/2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 0/2.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256))
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1!="stringx" THEN set cmp02:="NE/S works" ELSE set cmp02:="NE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="string" THEN set cmp03:="GE/S works" ELSE set cmp03:="GE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strin" THEN set cmp04:="GE/S works" ELSE set cmp04:="GE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strinx" THEN set cmp04:="GE/S is broken" ELSE set cmp04:="GE/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strinx" THEN set cmp05:="GT/S is broken" ELSE set cmp05:="GT/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"string" THEN set cmp06:="GT/S is broken" ELSE set cmp06:="GT/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strin" THEN set cmp07:="GT/S works" ELSE set cmp07:="GT/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="string" THEN set cmp08:="LE/S works" ELSE set cmp08:="LE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strin" THEN set cmp09:="LE/S is broken" ELSE set cmp09:="LE/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strinx" THEN set cmp10:="LE/S works" ELSE set cmp10:="LE/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"string" THEN set cmp11:="LT/S is broken" ELSE set cmp11:="LT/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strin" THEN set cmp12:="LT/S is broken" ELSE set cmp12:="LT/S works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strinx" THEN set cmp1:="LT/S works" ELSE set cmp13:="LT/S is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set f1:=1.4. IF f1>=1.4 THEN set cmp14:="GE/# works" ELSE set cmp14:="GE/# is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1 THEN set cmp15:="GE/# works" ELSE set cmp15:="GE/# is broken".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1.5 THEN set cmp16:="GE/# is broken" ELSE set cmp16:="GE/# works".')
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET SESSION group_concat_max_len=65535
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: DROP TABLE my_rules
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT   "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT   "file://component_log_sink_json"
-[prio=3];[err_code=10000];[subsystem=Server];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_test"];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[prio=3];[err_symbol=ER_PARSER_TRACE];[msg=using log_message() in external service];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[prio=1];[err_symbol=ER_PARSER_TRACE];[subsystem=Server];[msg=using log_message() with duplicate source-line k/v pair];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-[prio=1];[err_symbol=ER_PARSER_TRACE];[key=val];[msg=using log_message() with duplicate generic C-string k/v pair];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-[prio=1];[err_symbol=ER_PARSER_TRACE];[key=4711];[msg=using log_message() with duplicate generic mixed k/v pair];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-[prio=1];[err_symbol=ER_PARSER_TRACE];[msg=using log_message() with errno 0];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-[prio=1];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[SQL_state=HY000];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-[prio=1];[err_symbol=ER_SERVER_TEST_MESSAGE];[msg=using log_message() with errsymbol];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_code=13151];[SQL_state=HY000];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-[prio=1];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[test_float=3.141592692700];[test_int=739241];[test_cstring=cstring];[test_lexstring=lexstring];[msg=using LogEvent() object in external service];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#1): NOT_FOUND];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#2): CLASS_MISMATCH];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#2): KEY_MISMATCH];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#3): KEY_NULL];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#4): STRING_NULL];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#5): OK];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[SQL_state=XX999];[subsystem=log_sink_test];[component=log_sink_test];[source_file=log_sink_test];[msg=below: 3*unknown error per writer == correct.  >3*unknown error per writer == filter fail. 0*unknown error == log_sink_test fail.];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta in medias res) 1];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta ex post) 0];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[err_code=10000];[meow=test_me_for_presence];[bark=delete_me_by_rule];[prio_change=yes];[subsystem=log_sink_test];[component=log_sink_test];[source_file=log_sink_test];[msg=filter_rules: (add_item delta in medias res) 3];[prio=1];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-[log_type=1];[err_code=10000];[meow=test_me_for_presence];[bark=delete_me_by_rule];[prio_change=yes];[subsystem=log_sink_test];[component=log_sink_test];[source_file=log_sink_test];[msg=filter_rules: (add_item delta ex post) 0];[prio=1];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=0];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=IF];[wl9651_result2=SUCCESS];[wl9651_result3=SUCCESS];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=1];[wl9651_val2=2];[wl9651_val3a=0];[wl9651_val3b=2];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSEIF1];[wl9651_result2=SUCCESS];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=2];[wl9651_val2=3.100000000000];[wl9651_val3a=1];[wl9651_val3b=0];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSEIF2];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=3];[wl9651_val2=4];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=0];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=-7];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=IF];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
-[label=log_sink_test: broken item with class 3, type 131072];[err_code=10000];[prio=1];[time=1970-01-01T00:00:00.000000Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_dragnet; log_sink_json\"", "time" : "1970-01-01T00:00:00.000000Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= REPEAT(\"IF prio>9 THEN drop. \", 1025)", "time" : "1970-01-01T00:00:00.000000Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000000Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @rules= CONCAT(\"IF \", REPEAT(\"x\", 20000), \">9 THEN drop.\")", "time" : "1970-01-01T00:00:00.000000Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules", "time" : "1970-01-01T00:00:00.000000Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000000Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
-{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name=\"dragnet.Status\"", "time" : "1970-01-01T00:00:00.000000Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] This is a message from the Server subsystem
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Repl] Dropping subsystem if it is "Server" and setting it to Repl
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [InnoDB] The subsystem for this message has been overriden to InnoDB
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] This message is seen as the the subsystem is specified in upper case
-1970-01-01T00:00:00.000000Z 0 [System] [MY-010000] [Server] System messages should not be suppressed
-1970-01-01T00:00:00.000000Z 0 [ERROR] [MY-010000] [Server] Errors should not be suppressed
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_suppression_list=@save_suppression_list
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=@save_filters
-1970-01-01T00:00:00.000000Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_filter_dragnet"
+1970-01-01T00:00:00.000001Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@session.debug="+d,log_error_normalize"
+1970-01-01T00:00:00.000002Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.log_error_services
+1970-01-01T00:00:00.000003Z 0 [Note] [MY-010000] [Server] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000004Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules= DEFAULT
+1970-01-01T00:00:00.000005Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT "file://component_log_filter_dragnet"
+1970-01-01T00:00:00.000006Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000007Z 0 [Note] [MY-010000] [Server] Parser saw: SET @save_filters= @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000008Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
+1970-01-01T00:00:00.000009Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000010Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW STATUS LIKE "dragnet.Status"
+1970-01-01T00:00:00.000011Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
+1970-01-01T00:00:00.000012Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000013Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS source_line THEN unset source_line."
+1970-01-01T00:00:00.000014Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000015Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_sink_internal; log_sink_internal"
+1970-01-01T00:00:00.000016Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_filter_dragnet"
+1970-01-01T00:00:00.000017Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
+1970-01-01T00:00:00.000018Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='drop.'
+1970-01-01T00:00:00.000019Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000020Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='ELSE drop.'
+1970-01-01T00:00:00.000021Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000024Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b THEN drop.'
+1970-01-01T00:00:00.000025Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000026Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a AND NOT EXISTS b OR c>=5 THEN drop.'
+1970-01-01T00:00:00.000027Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000028Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a=1. IF NOT EXISTS a THEN SET a='asd'."
+1970-01-01T00:00:00.000029Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF EXISTS a THEN SET a='asd'."
+1970-01-01T00:00:00.000030Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS prio THEN SET a='qwerty'. IF NOT EXISTS a THEN SET a='asd'."
+1970-01-01T00:00:00.000031Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>0 THEN drop.'
+1970-01-01T00:00:00.000032Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000033Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<3 THEN drop.'
+1970-01-01T00:00:00.000034Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000035Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a>=0 THEN drop.'
+1970-01-01T00:00:00.000036Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000037Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<=3 THEN drop.'
+1970-01-01T00:00:00.000038Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000039Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=>0 THEN drop.'
+1970-01-01T00:00:00.000040Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000041Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=<3 THEN drop.'
+1970-01-01T00:00:00.000042Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000043Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000044Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000045Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a!=2 THEN drop.'
+1970-01-01T00:00:00.000046Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000047Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a<>2 THEN drop.'
+1970-01-01T00:00:00.000048Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000049Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop.'
+1970-01-01T00:00:00.000050Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000053Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000054Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000055Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5.'
+1970-01-01T00:00:00.000056Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000057Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 5/30.'
+1970-01-01T00:00:00.000058Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000059Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.'
+1970-01-01T00:00:00.000060Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000061Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b=2.'
+1970-01-01T00:00:00.000062Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000063Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b= 2.'
+1970-01-01T00:00:00.000064Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000065Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:="2".'
+1970-01-01T00:00:00.000066Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000067Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=2.0.'
+1970-01-01T00:00:00.000068Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000069Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
+1970-01-01T00:00:00.000070Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000071Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN unset.'
+1970-01-01T00:00:00.000072Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000073Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF NOT EXISTS a THEN unset.'
+1970-01-01T00:00:00.000074Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000075Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
+1970-01-01T00:00:00.000076Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000077Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset a.'
+1970-01-01T00:00:00.000078Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000079Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==ER_STARTUP THEN drop.'
+1970-01-01T00:00:00.000080Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000081Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN drop.'
+1970-01-01T00:00:00.000082Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000083Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN drop.'
+1970-01-01T00:00:00.000084Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000085Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP' THEN drop."
+1970-01-01T00:00:00.000086Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000087Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code==ER_STARTUP THEN set err_code:=ER_YES.'
+1970-01-01T00:00:00.000088Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000089Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol=="ER_STARTUP" THEN set err_symbol:="ER_YES".'
+1970-01-01T00:00:00.000090Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000091Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a=="\\\\a\\\"\\\'" THEN set err_symbol:="ER_YES".'
+1970-01-01T00:00:00.000092Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000093Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='DRAUGR.'
+1970-01-01T00:00:00.000094Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000095Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b==2.'
+1970-01-01T00:00:00.000096Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000097Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP THEN drop."
+1970-01-01T00:00:00.000098Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000099Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP' THEN drop."
+1970-01-01T00:00:00.000100Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000101Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol=='ER_STARTUP\" THEN drop."
+1970-01-01T00:00:00.000102Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000103Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==\"ER_STARTUP' THEN drop."
+1970-01-01T00:00:00.000104Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000105Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF misc_cstring=='1' THEN drop."
+1970-01-01T00:00:00.000106Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000107Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF a=='1' THEN set misc_cstring:='abc'."
+1970-01-01T00:00:00.000108Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000109Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS misc_cstring THEN drop."
+1970-01-01T00:00:00.000110Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000111Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1."
+1970-01-01T00:00:00.000112Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000113Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set component:=1..5."
+1970-01-01T00:00:00.000114Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000115Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS foo THEN set prio:=1.5."
+1970-01-01T00:00:00.000116Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000117Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF err_symbol==ER_STARTUP"
+1970-01-01T00:00:00.000118Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000119Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF NOT field THEN action."
+1970-01-01T00:00:00.000120Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000121Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF\tEXISTS\tfield\tTHEN\tDROP."
+1970-01-01T00:00:00.000122Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000123Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF\t \t\tEXISTS   field\rTHEN\nDROP.\nIF EXISTS field2 THEN DROP."
+1970-01-01T00:00:00.000124Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000125Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_symbol==ER_STARTUP THEN drop.'
+1970-01-01T00:00:00.000126Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000127Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF err_code=="ER_STARTUP" THEN drop.'
+1970-01-01T00:00:00.000128Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000129Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN unset.'
+1970-01-01T00:00:00.000130Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 AND b==3 THEN unset.'
+1970-01-01T00:00:00.000131Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000132Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a>0 THEN drop.'
+1970-01-01T00:00:00.000133Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000134Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF EXISTS a THEN drop'
+1970-01-01T00:00:00.000135Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000136Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field THEN AND."
+1970-01-01T00:00:00.000137Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF EXISTS field DROP."
+1970-01-01T00:00:00.000138Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set.'
+1970-01-01T00:00:00.000139Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000140Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b.'
+1970-01-01T00:00:00.000141Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000142Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
+1970-01-01T00:00:00.000143Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000144Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set b:=.'
+1970-01-01T00:00:00.000145Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000146Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN set :=2.'
+1970-01-01T00:00:00.000147Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000148Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop'
+1970-01-01T00:00:00.000149Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000150Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000151Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=NULL
+1970-01-01T00:00:00.000152Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000153Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000154Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=""
+1970-01-01T00:00:00.000155Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000156Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000157Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop.'
+1970-01-01T00:00:00.000158Z 0 [Note] [MY-010000] [Server] Parser saw: SET PERSIST dragnet.log_error_filter_rules= ''
+1970-01-01T00:00:00.000159Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000160Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000161Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@global.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000162Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT @@session.dragnet.log_error_filter_rules
+1970-01-01T00:00:00.000163Z 0 [Note] [MY-010000] [Server] Parser saw: RESET PERSIST
+1970-01-01T00:00:00.000164Z 0 [Note] [MY-010000] [Server] Parser saw: select @@datadir
+1970-01-01T00:00:00.000165Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>9999 THEN set prio:=WARNING."
+1970-01-01T00:00:00.000166Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000181Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg== \'Parser saw: select 1\' THEN set a:=1. "
+1970-01-01T00:00:00.000182Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000183Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF msg==\'Parser saw: select 1\' THEN set a:=1. "
+1970-01-01T00:00:00.000184Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000185Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 1/1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111 ."
+1970-01-01T00:00:00.000186Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000187Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN drop. IF EXISTS source_line THEN unset source_line. IF err_code == 001045 THEN throttle 1/1.1."
+1970-01-01T00:00:00.000188Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000189Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/3600."
+1970-01-01T00:00:00.000190Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000191Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604800."
+1970-01-01T00:00:00.000192Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000193Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/604801."
+1970-01-01T00:00:00.000194Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000195Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/0."
+1970-01-01T00:00:00.000196Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000197Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules="IF prio>=9999 THEN throttle 111/-1."
+1970-01-01T00:00:00.000198Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000199Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN drop a.'
+1970-01-01T00:00:00.000200Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000201Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a.'
+1970-01-01T00:00:00.000202Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000203Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1.5.'
+1970-01-01T00:00:00.000204Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000205Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/b.'
+1970-01-01T00:00:00.000206Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000207Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle a/.'
+1970-01-01T00:00:00.000208Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000209Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle -1/2.'
+1970-01-01T00:00:00.000210Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000211Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 0/2.'
+1970-01-01T00:00:00.000212Z 0 [Note] [MY-010000] [Server] Parser saw: SHOW WARNINGS
+1970-01-01T00:00:00.000213Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE throttle 1/30.'
+1970-01-01T00:00:00.000233Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSEIF a==5 THEN throttle 1/30.'
+1970-01-01T00:00:00.000234Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000235Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/2 ELSE IF a==5 THEN throttle 1/30.'
+1970-01-01T00:00:00.000236Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000237Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSEIF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
+1970-01-01T00:00:00.000238Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000239Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules='IF a==2 THEN throttle 1/5 ELSE IF a==5 THEN throttle 2/5 ELSE throttle 3/5.'
+1970-01-01T00:00:00.000240Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name="dragnet.Status"
+1970-01-01T00:00:00.000241Z 0 [Note] [MY-010000] [Server] Parser saw: CREATE TABLE my_rules (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY, rule VARCHAR(256))
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set s1:="string". IF s1=="string" THEN set cmp01:="EQ/S works" ELSE set cmp01:="EQ/S is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1!="stringx" THEN set cmp02:="NE/S works" ELSE set cmp02:="NE/S is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="string" THEN set cmp03:="GE/S works" ELSE set cmp03:="GE/S is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strin" THEN set cmp04:="GE/S works" ELSE set cmp04:="GE/S is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>="strinx" THEN set cmp04:="GE/S is broken" ELSE set cmp04:="GE/S works".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strinx" THEN set cmp05:="GT/S is broken" ELSE set cmp05:="GT/S works".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"string" THEN set cmp06:="GT/S is broken" ELSE set cmp06:="GT/S works".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1>"strin" THEN set cmp07:="GT/S works" ELSE set cmp07:="GT/S is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="string" THEN set cmp08:="LE/S works" ELSE set cmp08:="LE/S is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strin" THEN set cmp09:="LE/S is broken" ELSE set cmp09:="LE/S works".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<="strinx" THEN set cmp10:="LE/S works" ELSE set cmp10:="LE/S is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"string" THEN set cmp11:="LT/S is broken" ELSE set cmp11:="LT/S works".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strin" THEN set cmp12:="LT/S is broken" ELSE set cmp12:="LT/S works".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF s1<"strinx" THEN set cmp1:="LT/S works" ELSE set cmp13:="LT/S is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF NOT EXISTS does_not_exist THEN set f1:=1.4. IF f1>=1.4 THEN set cmp14:="GE/# works" ELSE set cmp14:="GE/# is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1 THEN set cmp15:="GE/# works" ELSE set cmp15:="GE/# is broken".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSERT INTO my_rules VALUES(NULL, 'IF f1>=1.5 THEN set cmp16:="GE/# is broken" ELSE set cmp16:="GE/# works".')
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: SET SESSION group_concat_max_len=65535
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: SELECT group_concat(rule ORDER BY id SEPARATOR ' ') FROM my_rules INTO @rules
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: DROP TABLE my_rules
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT   "file://component_log_sink_test"
+1970-01-01T00:00:00.012345Z 0 [Note] [MY-010000] [Server] Parser saw: INSTALL COMPONENT   "file://component_log_sink_json"
+[prio=3];[err_code=10000];[subsystem=Server];[source_file=sql_parse.cc];[function=dispatch_command];[msg=Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_test"];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[prio=3];[err_symbol=ER_PARSER_TRACE];[msg=using log_message() in external service];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[prio=1];[err_symbol=ER_PARSER_TRACE];[subsystem=Server];[msg=using log_message() with duplicate source-line k/v pair];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[err_symbol=ER_PARSER_TRACE];[key=val];[msg=using log_message() with duplicate generic C-string k/v pair];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[err_symbol=ER_PARSER_TRACE];[key=4711];[msg=using log_message() with duplicate generic mixed k/v pair];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[err_symbol=ER_PARSER_TRACE];[msg=using log_message() with errno 0];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_code=10000];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[SQL_state=HY000];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[err_symbol=ER_SERVER_TEST_MESSAGE];[msg=using log_message() with errsymbol];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_code=13151];[SQL_state=HY000];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[prio=1];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[test_float=3.141592692700];[test_int=739241];[test_cstring=cstring];[test_lexstring=lexstring];[msg=using LogEvent() object in external service];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#1): NOT_FOUND];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#2): CLASS_MISMATCH];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#2): KEY_MISMATCH];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#3): KEY_NULL];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#4): STRING_NULL];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[msg=item_inconsistent(#5): OK];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[SQL_state=XX999];[subsystem=log_sink_test];[component=log_sink_test];[source_file=log_sink_test];[msg=below: 3*unknown error per writer == correct.  >3*unknown error per writer == filter fail. 0*unknown error == log_sink_test fail.];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta in medias res) 1];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=HY000];[source_file=log_sink_test];[err_code=13151];[msg=Simulated error];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_SERVER_TEST_MESSAGE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[subsystem=log_sink_test];[component=log_sink_test];[SQL_state=XX999];[source_file=log_sink_test];[msg=filter_rules: (throttle: delta ex post) 0];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[err_code=10000];[meow=test_me_for_presence];[bark=delete_me_by_rule];[prio_change=yes];[subsystem=log_sink_test];[component=log_sink_test];[source_file=log_sink_test];[msg=filter_rules: (add_item delta in medias res) 3];[prio=1];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[log_type=1];[err_code=10000];[meow=test_me_for_presence];[bark=delete_me_by_rule];[prio_change=yes];[subsystem=log_sink_test];[component=log_sink_test];[source_file=log_sink_test];[msg=filter_rules: (add_item delta ex post) 0];[prio=1];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=0];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-IF, r2-SUCCESS, r3-SUCCESS];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=IF];[wl9651_result2=SUCCESS];[wl9651_result3=SUCCESS];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=1];[wl9651_val2=2];[wl9651_val3a=0];[wl9651_val3b=2];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-ELSEIF1, r2-SUCCESS, r3-FAILURE];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSEIF1];[wl9651_result2=SUCCESS];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=2];[wl9651_val2=3.100000000000];[wl9651_val3a=1];[wl9651_val3b=0];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-ELSEIF2, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSEIF2];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=3];[wl9651_val2=4];[wl9651_val3a=1];[wl9651_val3b=2];[wl9651_val3c=0];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-ELSE, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[log_type=1];[prio=3];[err_code=10000];[wl9651_val1=-7];[wl9651_val2=1];[wl9651_val3a=1];[wl9651_val3c=3];[subsystem=log_sink_test];[component=log_sink_test];[msg=WL#9651 expected: r1-IF, r2-FAILURE, r3-FAILURE];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[wl9651_result1=IF];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Note];
+[label=log_sink_test: broken item with class 3, type 131072];[err_code=10000];[prio=1];[time=1970-01-01T00:00:00.012345Z];[ts=0];[thread=0];[err_symbol=ER_PARSER_TRACE];[SQL_state=XX999];[subsystem=Server];[wl9651_result1=ELSE];[wl9651_result2=FAILURE];[wl9651_result3=FAILURE];[label=Error];
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.log_error_services=\"log_filter_dragnet; log_sink_json\"", "time" : "1970-01-01T00:00:00.012345Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= REPEAT(\"IF prio>9 THEN drop. \", 1025)", "time" : "1970-01-01T00:00:00.012345Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.012345Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @rules= CONCAT(\"IF \", REPEAT(\"x\", 20000), \">9 THEN drop.\")", "time" : "1970-01-01T00:00:00.012345Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "wl9651_result1" : "ELSE", "wl9651_result2" : "FAILURE", "wl9651_result3" : "FAILURE", "s1" : "string", "cmp01" : "EQ/S works", "cmp02" : "NE/S works", "cmp03" : "GE/S works", "cmp04" : "GE/S works", "cmp05" : "GT/S works", "cmp06" : "GT/S works", "cmp07" : "GT/S works", "cmp08" : "LE/S works", "cmp09" : "LE/S works", "cmp10" : "LE/S works", "cmp11" : "LT/S works", "cmp12" : "LT/S works", "cmp1" : "LT/S works", "f1" : 1.400000000000, "cmp14" : "GE/# works", "cmp15" : "GE/# works", "cmp16" : "GE/# works", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SET @@global.dragnet.log_error_filter_rules= @rules", "time" : "1970-01-01T00:00:00.000320Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SHOW WARNINGS", "time" : "1970-01-01T00:00:00.000321Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+{ "prio" : 3, "err_code" : 10000, "subsystem" : "Server", "source_file" : "sql_parse.cc", "function" : "dispatch_command", "msg" : "Parser saw: SELECT variable_value AS decompiled_filter_rules FROM performance_schema.global_status WHERE variable_name=\"dragnet.Status\"", "time" : "1970-01-01T00:00:00.000322Z", "ts" : 0, "thread" : 0, "err_symbol" : "ER_PARSER_TRACE", "SQL_state" : "XX999", "label" : "Note" }
+1970-01-01T00:00:00.000323Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_services="log_filter_dragnet; log_sink_internal"
+1970-01-01T00:00:00.000324Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_test"
+1970-01-01T00:00:00.000325Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_sink_json"
+1970-01-01T00:00:00.000326Z 0 [Note] [MY-010000] [Server] This is a message from the Server subsystem
+1970-01-01T00:00:00.000327Z 0 [Note] [MY-010000] [Repl] Dropping subsystem if it is "Server" and setting it to Repl
+1970-01-01T00:00:00.000328Z 0 [Note] [MY-010000] [InnoDB] The subsystem for this message has been overriden to InnoDB
+1970-01-01T00:00:00.000329Z 0 [Note] [MY-010000] [Server] This message is seen as the the subsystem is specified in upper case
+1970-01-01T00:00:00.000336Z 0 [System] [MY-010000] [Server] System messages should not be suppressed
+1970-01-01T00:00:00.000337Z 0 [ERROR] [MY-010000] [Server] Errors should not be suppressed
+1970-01-01T00:00:00.000343Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.log_error_suppression_list=@save_suppression_list
+1970-01-01T00:00:00.000344Z 0 [Note] [MY-010000] [Server] Parser saw: SET @@global.dragnet.log_error_filter_rules=@save_filters
+1970-01-01T00:00:00.000345Z 0 [Note] [MY-010000] [Server] Parser saw: UNINSTALL COMPONENT "file://component_log_filter_dragnet"
 SET @@global.log_error_verbosity=@old_log_error_verbosity;
 
 ###

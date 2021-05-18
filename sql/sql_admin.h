@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,12 @@
 #ifndef SQL_TABLE_MAINTENANCE_H
 #define SQL_TABLE_MAINTENANCE_H
 
+#include <assert.h>
 #include <stddef.h>
 #include <set>
 
 #include "lex_string.h"
-#include "my_dbug.h"
+
 #include "my_sqlcommand.h"
 #include "sql/histograms/histogram.h"
 #include "sql/mem_root_allocator.h"
@@ -232,10 +233,10 @@ class Sql_cmd_set_role : public Sql_cmd {
       : role_type(role_type_arg),
         role_list(nullptr),
         except_roles(except_roles_arg) {
-    DBUG_ASSERT(role_type == role_enum::ROLE_NONE ||
-                role_type == role_enum::ROLE_DEFAULT ||
-                role_type == role_enum::ROLE_ALL);
-    DBUG_ASSERT(role_type == role_enum::ROLE_ALL || except_roles == nullptr);
+    assert(role_type == role_enum::ROLE_NONE ||
+           role_type == role_enum::ROLE_DEFAULT ||
+           role_type == role_enum::ROLE_ALL);
+    assert(role_type == role_enum::ROLE_ALL || except_roles == nullptr);
   }
   explicit Sql_cmd_set_role(const List<LEX_USER> *role_arg)
       : role_type(role_enum::ROLE_NAME), role_list(role_arg) {}
@@ -356,9 +357,10 @@ enum alter_instance_action_enum {
   ALTER_INSTANCE_RELOAD_TLS,
   ALTER_INSTANCE_RELOAD_TLS_ROLLBACK_ON_ERROR,
   ROTATE_BINLOG_MASTER_KEY,
-  LAST_MASTER_KEY, /* Add new master key type before this */
   ALTER_INSTANCE_ENABLE_INNODB_REDO,
-  ALTER_INSTANCE_DISABLE_INNODB_REDO
+  ALTER_INSTANCE_DISABLE_INNODB_REDO,
+  RELOAD_KEYRING,
+  LAST_ACTION /* Add new master key type before this */
 };
 
 /**

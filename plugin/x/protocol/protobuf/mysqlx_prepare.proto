@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -54,7 +54,7 @@ Prepare a new statement
 @returns @ref Mysqlx::Ok or @ref Mysqlx::Error
 */
 message Prepare {
-  /** client side assigned statement id, which is going to identify
+  /** client-side assigned statement ID, which is going to identify
       the result of preparation */
   required uint32 stmt_id = 1;
 
@@ -86,7 +86,7 @@ message Prepare {
 
 
 /**
-Execute already prepared statement
+Execute already-prepared statement
 
 @startuml
 
@@ -101,7 +101,7 @@ end
 @returns @ref Mysqlx::Ok
 */
 message Execute {
-  /** client side assigned statement id, must be already prepared */
+  /** client-side assigned statement ID, must be already prepared */
   required uint32 stmt_id = 1;
 
   /** Arguments to bind to the prepared statement */
@@ -116,7 +116,7 @@ message Execute {
 
 
 /**
-Deallocate already prepared statement
+Deallocate already-prepared statement
 
 @startuml
   client -> server: Deallocate
@@ -130,7 +130,7 @@ Deallocate already prepared statement
 @returns @ref Mysqlx::Ok or @ref Mysqlx::Error
 */
 message Deallocate {
-  /** client side assigned statement id, must be already prepared */
+  /** client-side assigned statement ID, must be already prepared */
   required uint32 stmt_id = 1;
 
   option (client_message_id) = PREPARE_DEALLOCATE; // comment_out_if PROTOBUF_LITE

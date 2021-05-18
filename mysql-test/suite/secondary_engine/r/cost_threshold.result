@@ -22,85 +22,6 @@ t1 t10, t1 t11, t1 t12, t1 t13;
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
-EXPLAIN SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
-SHOW STATUS LIKE 'Last_query_cost';
-Variable_name	Value
-Last_query_cost	0.549000
-EXPLAIN SELECT (SELECT y FROM t1 WHERE x = 1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`y` from `test`.`t1` where (`test`.`t1`.`x` = 1)) AS `(SELECT y FROM t1 WHERE x = 1)`
-SHOW STATUS LIKE 'Last_query_cost';
-Variable_name	Value
-Last_query_cost	0.549000
-EXPLAIN SELECT * FROM v1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x1`,`test`.`t2`.`x` AS `x2`,`test`.`t3`.`x` AS `x3`,`test`.`t4`.`x` AS `x4`,`test`.`t5`.`x` AS `x5`,`test`.`t6`.`x` AS `x6`,`test`.`t7`.`x` AS `x7`,`test`.`t8`.`x` AS `x8`,`test`.`t9`.`x` AS `x9`,`test`.`t10`.`x` AS `x10`,`test`.`t11`.`x` AS `x11`,`test`.`t12`.`x` AS `x12`,`test`.`t13`.`x` AS `x13` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`
-SHOW STATUS LIKE 'Last_query_cost';
-Variable_name	Value
-Last_query_cost	239195.262369
-EXPLAIN SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = (/* select#2 */ select count(0) from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`))
-SHOW STATUS LIKE 'Last_query_cost';
-Variable_name	Value
-Last_query_cost	239152.098000
-EXPLAIN SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where (`test`.`tt`.`x` = (/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1`))
-SHOW STATUS LIKE 'Last_query_cost';
-Variable_name	Value
-Last_query_cost	1.098000
-EXPLAIN SELECT * FROM t1 tt
-WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Note	1276	Field or reference 'test.tt.y' of SELECT #3 was resolved in SELECT #1
-Note	1249	Select 3 was reduced during optimization
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1` where (`test`.`t1`.`x` = `test`.`tt`.`y`) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
-SHOW STATUS LIKE 'Last_query_cost';
-Variable_name	Value
-Last_query_cost	2.196000
 ALTER TABLE t1 SECONDARY_ENGINE MOCK;
 ALTER TABLE t1 SECONDARY_LOAD;
 ANALYZE TABLE t1;
@@ -112,83 +33,18 @@ SELECT @@secondary_engine_cost_threshold,
 @@secondary_engine_cost_threshold	@@global.secondary_engine_cost_threshold
 0.000000	0.000000
 FLUSH STATUS;
-EXPLAIN SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
 SELECT * FROM t1;
 x	y
-EXPLAIN SELECT (SELECT y FROM t1 WHERE x = 1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`y` from `test`.`t1` where (`test`.`t1`.`x` = 1)) AS `(SELECT y FROM t1 WHERE x = 1)`
 SELECT (SELECT y FROM t1 WHERE x = 1);
 (SELECT y FROM t1 WHERE x = 1)
 NULL
-EXPLAIN SELECT * FROM v1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x1`,`test`.`t2`.`x` AS `x2`,`test`.`t3`.`x` AS `x3`,`test`.`t4`.`x` AS `x4`,`test`.`t5`.`x` AS `x5`,`test`.`t6`.`x` AS `x6`,`test`.`t7`.`x` AS `x7`,`test`.`t8`.`x` AS `x8`,`test`.`t9`.`x` AS `x9`,`test`.`t10`.`x` AS `x10`,`test`.`t11`.`x` AS `x11`,`test`.`t12`.`x` AS `x12`,`test`.`t13`.`x` AS `x13` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`
 SELECT * FROM v1;
 x1	x2	x3	x4	x5	x6	x7	x8	x9	x10	x11	x12	x13
-EXPLAIN SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`) `derived_1_2` where (`test`.`t1`.`x` = `derived_1_2`.`COUNT(*)`)
 SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 x	y
-EXPLAIN SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` join (/* select#2 */ select sum(`test`.`t1`.`x`) AS `SUM(x)` from `test`.`t1`) `derived_1_2` where (`test`.`tt`.`x` = `derived_1_2`.`SUM(x)`)
 SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
 x	y
-EXPLAIN SELECT * FROM t1 tt
-WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Note	1276	Field or reference 'test.tt.y' of SELECT #3 was resolved in SELECT #1
-Note	1249	Select 3 was reduced during optimization
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1` where (`test`.`t1`.`x` = `test`.`tt`.`y`) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
-SELECT * FROM t1 tt
-WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
-x	y
+# All five queries are offloaded to the secondary engine.
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	5
@@ -198,85 +54,25 @@ SELECT @@secondary_engine_cost_threshold,
 @@secondary_engine_cost_threshold	@@global.secondary_engine_cost_threshold
 100.000000	0.000000
 FLUSH STATUS;
-EXPLAIN SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
 SELECT * FROM t1;
 x	y
 1	2
 2	3
 3	4
-EXPLAIN SELECT (SELECT y FROM t1 WHERE x = 1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`y` from `test`.`t1` where (`test`.`t1`.`x` = 1)) AS `(SELECT y FROM t1 WHERE x = 1)`
 SELECT (SELECT y FROM t1 WHERE x = 1);
 (SELECT y FROM t1 WHERE x = 1)
 2
-EXPLAIN SELECT * FROM v1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x1`,`test`.`t2`.`x` AS `x2`,`test`.`t3`.`x` AS `x3`,`test`.`t4`.`x` AS `x4`,`test`.`t5`.`x` AS `x5`,`test`.`t6`.`x` AS `x6`,`test`.`t7`.`x` AS `x7`,`test`.`t8`.`x` AS `x8`,`test`.`t9`.`x` AS `x9`,`test`.`t10`.`x` AS `x10`,`test`.`t11`.`x` AS `x11`,`test`.`t12`.`x` AS `x12`,`test`.`t13`.`x` AS `x13` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`
 SELECT * FROM v1;
 x1	x2	x3	x4	x5	x6	x7	x8	x9	x10	x11	x12	x13
-EXPLAIN SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	<derived2>	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where; Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-2	DERIVED	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-2	DERIVED	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join); Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` join (/* select#2 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`) `derived_1_2` where (`test`.`t1`.`x` = `derived_1_2`.`COUNT(*)`)
+# The first three queries are not offloaded to the secondary engine.
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
 SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
 x	y
-EXPLAIN SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where (`test`.`tt`.`x` = (/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1`))
 SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
 x	y
-EXPLAIN SELECT * FROM t1 tt
-WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Note	1276	Field or reference 'test.tt.y' of SELECT #3 was resolved in SELECT #1
-Note	1249	Select 3 was reduced during optimization
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1` where (`test`.`t1`.`x` = `test`.`tt`.`y`) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
-SELECT * FROM t1 tt
-WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
-x	y
+# The last two queries are offloaded to the secondary engine.
 SHOW STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	2
@@ -285,93 +81,53 @@ SELECT @@secondary_engine_cost_threshold,
 @@global.secondary_engine_cost_threshold;
 @@secondary_engine_cost_threshold	@@global.secondary_engine_cost_threshold
 1000000.000000	0.000000
-EXPLAIN SELECT * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
-EXPLAIN SELECT (SELECT y FROM t1 WHERE x = 1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Note	1003	/* select#1 */ select (/* select#2 */ select `test`.`t1`.`y` from `test`.`t1` where (`test`.`t1`.`x` = 1)) AS `(SELECT y FROM t1 WHERE x = 1)`
-EXPLAIN SELECT * FROM v1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-1	SIMPLE	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (hash join)
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x1`,`test`.`t2`.`x` AS `x2`,`test`.`t3`.`x` AS `x3`,`test`.`t4`.`x` AS `x4`,`test`.`t5`.`x` AS `x5`,`test`.`t6`.`x` AS `x6`,`test`.`t7`.`x` AS `x7`,`test`.`t8`.`x` AS `x8`,`test`.`t9`.`x` AS `x9`,`test`.`t10`.`x` AS `x10`,`test`.`t11`.`x` AS `x11`,`test`.`t12`.`x` AS `x12`,`test`.`t13`.`x` AS `x13` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`
-EXPLAIN SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t6	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t7	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t8	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t9	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t10	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t11	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t12	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-2	SUBQUERY	t13	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1` where (`test`.`t1`.`x` = (/* select#2 */ select count(0) from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` join `test`.`t1` `t5` join `test`.`t1` `t6` join `test`.`t1` `t7` join `test`.`t1` `t8` join `test`.`t1` `t9` join `test`.`t1` `t10` join `test`.`t1` `t11` join `test`.`t1` `t12` join `test`.`t1` `t13`))
-EXPLAIN SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where (`test`.`tt`.`x` = (/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1`))
-EXPLAIN SELECT * FROM t1 tt
-WHERE x IN (SELECT SUM(x) FROM t1 WHERE x = (SELECT tt.y));
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	tt	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
-Warnings:
-Note	1276	Field or reference 'test.tt.y' of SELECT #3 was resolved in SELECT #1
-Note	1249	Select 3 was reduced during optimization
-Note	1003	/* select#1 */ select `test`.`tt`.`x` AS `x`,`test`.`tt`.`y` AS `y` from `test`.`t1` `tt` where <in_optimizer>(`test`.`tt`.`x`,<exists>(/* select#2 */ select sum(`test`.`t1`.`x`) from `test`.`t1` where (`test`.`t1`.`x` = `test`.`tt`.`y`) having (<cache>(`test`.`tt`.`x`) = <ref_null_helper>(sum(`test`.`t1`.`x`)))))
-EXPLAIN SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 0) */ * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select /*+ SET_VAR(secondary_engine_cost_threshold=0) */ `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
-EXPLAIN SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 100) */ * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select /*+ SET_VAR(secondary_engine_cost_threshold=100) */ `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
-EXPLAIN
+FLUSH STATUS;
+SELECT * FROM t1;
+SELECT (SELECT y FROM t1 WHERE x = 1);
+SELECT * FROM v1;
+SELECT * FROM t1 WHERE x = (SELECT COUNT(*) FROM v1);
+SELECT * FROM t1 tt WHERE x = (SELECT SUM(x) FROM t1);
+# All queries are executed in the primary storage engine.
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+# Set the threshold in a hint.
+FLUSH STATUS;
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 0) */ * FROM t1;
+x	y
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
+SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 100) */ * FROM t1;
+x	y
+1	2
+2	3
+3	4
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+# The use_secondary_engine variable overrides the threshold.
+FLUSH STATUS;
 SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 1000000)
 SET_VAR(use_secondary_engine = FORCED) */
 * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using secondary engine MOCK
-Warnings:
-Note	1003	/* select#1 */ select /*+ SET_VAR(secondary_engine_cost_threshold=1000000) SET_VAR(use_secondary_engine='FORCED') */ `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
-EXPLAIN
+x	y
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	1
+FLUSH STATUS;
 SELECT /*+ SET_VAR(secondary_engine_cost_threshold = 0)
 SET_VAR(use_secondary_engine = OFF) */
 * FROM t1;
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-Warnings:
-Note	1003	/* select#1 */ select /*+ SET_VAR(secondary_engine_cost_threshold=0) SET_VAR(use_secondary_engine='OFF') */ `test`.`t1`.`x` AS `x`,`test`.`t1`.`y` AS `y` from `test`.`t1`
+x	y
+1	2
+2	3
+3	4
+SHOW STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+# The threshold is evaluated on each execution.
 FLUSH STATUS;
 PREPARE ps FROM 'SELECT * FROM t1';
 SET @@secondary_engine_cost_threshold = 0;

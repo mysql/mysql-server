@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -245,6 +245,8 @@ class Protocol_impl : public XProtocol,
   void use_compression(const Compression_algorithm algo) override;
   void use_compression(const Compression_algorithm algo,
                        const int32_t level) override;
+
+  void reset_buffering() override;
 
  private:
   using CodedInputStream = google::protobuf::io::CodedInputStream;

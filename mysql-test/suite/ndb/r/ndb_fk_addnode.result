@@ -73,11 +73,8 @@ HashMap DEFAULT-HASHMAP-3840-2
 
 
 
-
 Nodegroup 1 created
-
 Drop Node Group 1 done
-
 Nodegroup 1 created
 alter table t2 algorithm=inplace, reorganize partition;
 alter table t1 algorithm=inplace, reorganize partition;
@@ -149,9 +146,7 @@ HashMap DEFAULT-HASHMAP-3840-4
 
 
 
-
 *  1006: Illegal reply from server
 *        error: -2
 drop table t2,t1;
-
 Drop Node Group 1 done

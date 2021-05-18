@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -20,6 +20,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+ADD_HARNESS_PLUGIN(routertestplugin_logger NO_INSTALL
+  DESTINATION harness
+  SOURCES logger_testplugin.cc)
+
 MYSQL_ADD_EXECUTABLE(master_key_test_writer
   ../helpers/master_key_test_writer.cc
   COMPONENT Router
@@ -27,11 +31,13 @@ MYSQL_ADD_EXECUTABLE(master_key_test_writer
   )
 
 ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
+ADD_DEFINITIONS(-DCMAKE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 FOREACH(test_file
     test_async_replicaset.cc
     test_bootstrap.cc
     test_bootstrap_account.cc
     test_bootstrap_system_deployment.cc
+    test_bootstrap_tls_endpoint.cc
     test_component_test_framework.cc
     test_config.cc
     test_gr_notifications.cc
@@ -40,7 +46,6 @@ FOREACH(test_file
     test_logging_eventlog.cc
     test_master_key_reader_writer.cc
     test_metadata_ttl.cc
-    test_mock_server.cc
     test_pidfile.cc
     test_rest_api.cc
     test_rest_api_enable.cc
@@ -57,6 +62,7 @@ FOREACH(test_file
     test_state_file.cc
     test_user_option.cc
     test_metadata_http_auth_backend.cc
+    test_socket_close.cc
     )
 add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   MODULE "component"
@@ -69,6 +75,42 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_client
   http_common
   mock_server_rest_client
+  mysql_protocol
+
+  DEPENDS
+  http_auth_backend
+  http_auth_realm
+  http_server
+  master_key_test_writer
+  metadata_cache
+  mock_server
+  mysql_server_mock
+  mysqlrouter_passwd
+  mysqlrouter
+  rest_api
+  rest_metadata_cache
+  rest_router
+  rest_routing
+  router_openssl
+  router_protobuf
+  routing
+  routertestplugin_logger
+  )
+ENDFOREACH()
+
+FOREACH(test_file
+    test_routing_splicer.cc
+    test_mock_server.cc
+    )
+add_router_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
+  MODULE "component"
+  SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
+                      ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
+  INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/plugin/x/client/
+  LIB_DEPENDS
+  mysqlxclient_lite
+  mysqlxmessages_lite
+  ${PROTOBUF_LITE_LIBRARY}
 
   DEPENDS
   http_auth_backend
@@ -83,6 +125,8 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   rest_metadata_cache
   rest_router
   rest_routing
+  router_openssl
+  router_protobuf
   routing
   )
 ENDFOREACH()

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 
 #include "storage/perfschema/table_global_status.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <new>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -110,32 +110,21 @@ table_global_status::table_global_status()
     : PFS_engine_table(&m_share, &m_pos),
       m_status_cache(false),
       m_pos(0),
-      m_next_pos(0),
-      m_context(nullptr) {}
+      m_next_pos(0) {}
 
 void table_global_status::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_global_status::rnd_init(bool scan) {
+int table_global_status::rnd_init(bool /* scan */) {
   /* Build a cache of all global status variables. Sum across threads. */
   m_status_cache.materialize_global();
 
-  /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-  m_context = (table_global_status_context *)current_thd->alloc(
-      sizeof(table_global_status_context));
-  new (m_context) table_global_status_context(status_version, !scan);
   return 0;
 }
 
 int table_global_status::rnd_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_status_cache.size();
        m_pos.next()) {
     const Status_variable *status_var = m_status_cache.get(m_pos.m_index);
@@ -148,11 +137,6 @@ int table_global_status::rnd_next(void) {
 }
 
 int table_global_status::rnd_pos(const void *pos) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   set_position(pos);
   const Status_variable *status_var = m_status_cache.get(m_pos.m_index);
   if (status_var != nullptr) {
@@ -166,14 +150,8 @@ int table_global_status::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   /* Build a cache of all global status variables. Sum across threads. */
   m_status_cache.materialize_global();
 
-  /* Record the version of the global status variable array, store in TLS. */
-  ulonglong status_version = m_status_cache.get_status_array_version();
-  m_context = (table_global_status_context *)current_thd->alloc(
-      sizeof(table_global_status_context));
-  new (m_context) table_global_status_context(status_version, false);
-
   PFS_index_global_status *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_global_status);
   m_opened_index = result;
   m_index = result;
@@ -181,11 +159,6 @@ int table_global_status::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_global_status::index_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    status_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_status_cache.size();
        m_pos.next()) {
     const Status_variable *status_var = m_status_cache.get(m_pos.m_index);
@@ -217,7 +190,7 @@ int table_global_status::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -231,7 +204,7 @@ int table_global_status::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -380,6 +380,106 @@ TEST_F(ConsumingBuffers, consume_some_all) {
 
   // consumed more than we had
   EXPECT_EQ(buf_seq.total_consumed(), 10);
+}
+
+/**
+ * a socket (SyncStream) which would-block after some bytes are written.
+ *
+ * satisfies the requirements of SyncWriteStream.
+ */
+class WouldBlockSyncStream {
+ public:
+  WouldBlockSyncStream(size_t block_after) : block_after_{block_after} {}
+
+  template <class ConstBufferSequence>
+  stdx::expected<size_t, std::error_code> write_some(
+      const ConstBufferSequence &buffer_seq) {
+    const auto buf_size = net::buffer_size(buffer_seq);
+
+    // if there is nothing to write(), return 0
+    if (buf_size == 0) return 0;
+
+    // time to block?
+    if (block_after_ == 0) {
+      return stdx::make_unexpected(
+          make_error_code(std::errc::operation_would_block));
+    }
+
+    const auto written = std::min(buf_size, block_after_);
+
+    block_after_ -= written;
+
+    return written;
+  }
+
+ private:
+  size_t block_after_{};
+};
+
+/**
+ * check a write which blocks directly returns the expected error-code.
+ *
+ * - ConstBufferSequence.
+ */
+TEST(NetWrite, write_would_block_const_buffer) {
+  WouldBlockSyncStream sock{0};
+
+  // just some data.
+  std::vector<uint8_t> buf{0x00, 0x01, 0x02, 0x03};
+
+  const auto res = net::write(sock, net::buffer(buf));
+  EXPECT_EQ(res, stdx::make_unexpected(
+                     make_error_code(std::errc::operation_would_block)));
+}
+
+/**
+ * check a write which blocks directly returns the expected error-code.
+ *
+ * - DynamicBuffer.
+ */
+TEST(NetWrite, write_would_block_dynamic_buffer) {
+  WouldBlockSyncStream sock{0};
+
+  // just some data.
+  std::vector<uint8_t> buf{0x00, 0x01, 0x02, 0x03};
+
+  const auto res = net::write(sock, net::dynamic_buffer(buf));
+  EXPECT_EQ(res, stdx::make_unexpected(
+                     make_error_code(std::errc::operation_would_block)));
+}
+
+/**
+ * check a partial write, returns the right written-count.
+ *
+ * - ConstBufferSequence.
+ */
+TEST(NetWrite, write_some_const_buffer) {
+  WouldBlockSyncStream sock{2};
+
+  // just some data.
+  std::vector<uint8_t> buf{0x00, 0x01, 0x02, 0x03};
+
+  const auto res = net::write(sock, net::buffer(buf));
+  ASSERT_TRUE(res) << res.error();
+
+  EXPECT_EQ(res.value(), 2);
+}
+
+/**
+ * check a partial write, returns the right written-count.
+ *
+ * - DynamicBuffer.
+ */
+TEST(NetWrite, write_some_dynamic_buffer) {
+  WouldBlockSyncStream sock{2};
+
+  // just some data.
+  std::vector<uint8_t> buf{0x00, 0x01, 0x02, 0x03};
+
+  const auto res = net::write(sock, net::dynamic_buffer(buf));
+  ASSERT_TRUE(res) << res.error();
+
+  EXPECT_EQ(res.value(), 2);
 }
 
 int main(int argc, char *argv[]) {

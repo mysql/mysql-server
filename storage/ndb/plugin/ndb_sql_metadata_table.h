@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,13 +55,13 @@ class Ndb_sql_metadata_table : public Ndb_util_table {
 
 /* Class provides an API for using the table, NdbRecord-style.
    It has a default constructor, so it can be statically allocated,
-   but it cannot be used until after setup_records() is called.
+   but it cannot be used until after setup() is called.
 */
 class Ndb_sql_metadata_api {
  public:
   Ndb_sql_metadata_api()
-      : m_record_layout(5)  // five columns in table
-  {}
+      : m_record_layout(5),  // five columns in table
+        m_restart_in_progress(false) {}
   ~Ndb_sql_metadata_api() = default;
   Ndb_sql_metadata_api(const Ndb_sql_metadata_api &) = delete;
   Ndb_sql_metadata_api &operator=(const Ndb_sql_metadata_api &) = delete;
@@ -73,6 +73,9 @@ class Ndb_sql_metadata_api {
   void setup(NdbDictionary::Dictionary *, const NdbDictionary::Table *);
   void clear(NdbDictionary::Dictionary *);
   bool isInitialized() const { return m_ordered_index_rec; }
+
+  void setRestarting() { m_restart_in_progress = true; }
+  bool isRestarting() { return m_restart_in_progress; }
 
   NdbRecord *rowNdbRecord() const { return m_row_rec; }
   NdbRecord *noteNdbRecord() const { return m_note_rec; }
@@ -119,6 +122,8 @@ class Ndb_sql_metadata_api {
   size_t m_full_record_size{0};
   size_t m_note_record_size{0};
   size_t m_key_record_size{0};
+
+  bool m_restart_in_progress;
 };
 
 #endif

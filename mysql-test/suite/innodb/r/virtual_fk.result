@@ -828,3 +828,48 @@ SELECT f1, f3 FROM t2;
 f1	f3
 3	2
 DROP TABLE t2, t1;
+#
+# Bug#32124113 MYSQL CRASH FOR GENERATED COLUMN DELETE WITH FOREIGN KEY
+#
+CREATE TABLE `emails` (
+`id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE `email_stats` (
+`id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+`email_id` int(10) unsigned DEFAULT NULL,
+`date_sent` datetime NOT NULL,
+`generated_sent_date` date GENERATED ALWAYS AS
+(concat(year(`date_sent`),'-',lpad(month(`date_sent`),2,'0'),
+'-',lpad(dayofmonth(`date_sent`),2,'0'))) VIRTUAL,
+PRIMARY KEY (`id`),
+KEY `IDX_ES1` (`email_id`),
+KEY `mautic_generated_sent_date_email_id`
+(`generated_sent_date`,`email_id`),
+CONSTRAINT `FK_ES1` FOREIGN KEY (`email_id`) REFERENCES
+`emails` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE TABLE `emails_metadata` (
+`email_id` int(10) unsigned NOT NULL,
+PRIMARY KEY (`email_id`),
+CONSTRAINT `FK_EM1` FOREIGN KEY (`email_id`) REFERENCES
+`emails` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+ROW_FORMAT=DYNAMIC;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO `emails` VALUES (1);
+INSERT INTO `email_stats` (`id`, `email_id`,  `date_sent`) VALUES
+(1,1,'2020-10-22 13:32:41');
+INSERT INTO `emails_metadata` VALUES (1);
+DELETE FROM `emails`;
+DROP TABLE `email_stats`;
+DROP TABLE `emails_metadata`;
+DROP TABLE `emails`;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -459,10 +459,8 @@ static void log_wait_for_space_after_reserving(log_t &log,
 static inline void log_buffer_s_lock_wait(log_t &log, const sn_t start_sn) {
   int64_t signal_count = 0;
   uint32_t i = 0;
-  uint64_t count_os_wait = 0;
 
   if (log.sn_locked.load(std::memory_order_acquire) <= start_sn) {
-    rw_lock_stats.rw_s_spin_wait_count.inc();
     do {
       if (srv_spin_wait_delay) {
         ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
@@ -470,7 +468,6 @@ static inline void log_buffer_s_lock_wait(log_t &log, const sn_t start_sn) {
       if (i < srv_n_spin_wait_rounds) {
         i++;
       } else {
-        count_os_wait++;
         signal_count = os_event_reset(log.sn_lock_event);
         if ((log.sn.load(std::memory_order_acquire) & SN_LOCKED) == 0 ||
             log.sn_locked.load(std::memory_order_acquire) > start_sn) {
@@ -480,11 +477,6 @@ static inline void log_buffer_s_lock_wait(log_t &log, const sn_t start_sn) {
       }
     } while ((log.sn.load(std::memory_order_acquire) & SN_LOCKED) != 0 &&
              log.sn_locked.load(std::memory_order_acquire) <= start_sn);
-
-    if (count_os_wait > 0) {
-      rw_lock_stats.rw_s_os_wait_count.add(count_os_wait);
-    }
-    rw_lock_stats.rw_s_spin_round_count.add(i);
   }
 }
 
@@ -499,10 +491,12 @@ static inline sn_t log_buffer_s_lock_enter_reserve(log_t &log, size_t len) {
   PSI_rwlock_locker *locker = nullptr;
   PSI_rwlock_locker_state state;
   if (log.pfs_psi != nullptr) {
-    /* Instrumented to inform we are aquiring a shared rwlock */
-    locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
-        &state, log.pfs_psi, PSI_RWLOCK_SHAREDLOCK, __FILE__,
-        static_cast<uint>(__LINE__));
+    if (log.pfs_psi->m_enabled) {
+      /* Instrumented to inform we are acquiring a shared rwlock */
+      locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
+          &state, log.pfs_psi, PSI_RWLOCK_SHAREDLOCK, __FILE__,
+          static_cast<uint>(__LINE__));
+    }
   }
 #endif /* UNIV_PFS_RWLOCK */
 
@@ -533,9 +527,11 @@ static inline void log_buffer_s_lock_exit_close(log_t &log, lsn_t start_lsn,
                                                 lsn_t end_lsn) {
 #ifdef UNIV_PFS_RWLOCK
   if (log.pfs_psi != nullptr) {
-    /* Inform performance schema we are unlocking the lock */
-    PSI_RWLOCK_CALL(unlock_rwlock)
-    (log.pfs_psi, PSI_RWLOCK_SHAREDUNLOCK);
+    if (log.pfs_psi->m_enabled) {
+      /* Inform performance schema we are unlocking the lock */
+      PSI_RWLOCK_CALL(unlock_rwlock)
+      (log.pfs_psi, PSI_RWLOCK_SHAREDUNLOCK);
+    }
   }
 #endif /* UNIV_PFS_RWLOCK */
   ut_d(rw_lock_remove_debug_info(log.sn_lock_inst, 0, RW_LOCK_S));
@@ -550,11 +546,13 @@ void log_buffer_x_lock_enter(log_t &log) {
   PSI_rwlock_locker *locker = nullptr;
   PSI_rwlock_locker_state state;
   if (log.pfs_psi != nullptr) {
-    /* Record the acquisition of a read-write lock in exclusive
-    mode in performance schema */
-    locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
-        &state, log.pfs_psi, PSI_RWLOCK_EXCLUSIVELOCK, __FILE__,
-        static_cast<uint>(__LINE__));
+    if (log.pfs_psi->m_enabled) {
+      /* Record the acquisition of a read-write lock in exclusive
+      mode in performance schema */
+      locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
+          &state, log.pfs_psi, PSI_RWLOCK_EXCLUSIVELOCK, __FILE__,
+          static_cast<uint>(__LINE__));
+    }
   }
 #endif /* UNIV_PFS_RWLOCK */
 
@@ -581,7 +579,6 @@ void log_buffer_x_lock_enter(log_t &log) {
     const lsn_t current_lsn = log_translate_sn_to_lsn(sn);
     lsn_t closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
     uint32_t i = 0;
-    bool slept = false;
     /* must wait for closed_lsn == current_lsn */
     while (i < srv_n_spin_wait_rounds && closed_lsn < current_lsn) {
       if (srv_spin_wait_delay) {
@@ -595,23 +592,13 @@ void log_buffer_x_lock_enter(log_t &log) {
       closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
     }
     if (closed_lsn < current_lsn) {
-      os_thread_yield();
+      std::this_thread::yield();
       closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
     }
     while (closed_lsn < current_lsn) {
-      os_thread_sleep(20);
-      slept = true;
+      std::this_thread::sleep_for(std::chrono::microseconds(20));
       log.recent_closed.advance_tail();
       closed_lsn = log_buffer_dirty_pages_added_up_to_lsn(log);
-    }
-
-    if (i > 0) {
-      rw_lock_stats.rw_x_spin_wait_count.inc();
-      if (slept) {
-        /* sleep loop is counted as 1 os_wait */
-        rw_lock_stats.rw_x_os_wait_count.inc();
-      }
-      rw_lock_stats.rw_x_spin_round_count.add(i);
     }
   }
 
@@ -631,9 +618,11 @@ void log_buffer_x_lock_exit(log_t &log) {
 
 #ifdef UNIV_PFS_RWLOCK
   if (log.pfs_psi != nullptr) {
-    /* Inform performance schema we are unlocking the lock */
-    PSI_RWLOCK_CALL(unlock_rwlock)
-    (log.pfs_psi, PSI_RWLOCK_EXCLUSIVEUNLOCK);
+    if (log.pfs_psi->m_enabled) {
+      /* Inform performance schema we are unlocking the lock */
+      PSI_RWLOCK_CALL(unlock_rwlock)
+      (log.pfs_psi, PSI_RWLOCK_EXCLUSIVEUNLOCK);
+    }
   }
 #endif /* UNIV_PFS_RWLOCK */
   ut_d(rw_lock_remove_debug_info(log.sn_lock_inst, 0, RW_LOCK_X));
@@ -1046,7 +1035,7 @@ void log_buffer_write_completed(log_t &log, const Log_handle &handle,
   while (!log.recent_written.has_space(start_lsn)) {
     os_event_set(log.writer_event);
     ++wait_loops;
-    os_thread_sleep(20);
+    std::this_thread::sleep_for(std::chrono::microseconds(20));
   }
 
   if (unlikely(wait_loops != 0)) {
@@ -1099,7 +1088,7 @@ void log_wait_for_space_in_log_recent_closed(log_t &log, lsn_t lsn) {
 
   while (!log.recent_closed.has_space(lsn)) {
     ++wait_loops;
-    os_thread_sleep(20);
+    std::this_thread::sleep_for(std::chrono::microseconds(20));
   }
 
   if (unlikely(wait_loops != 0)) {
@@ -1254,7 +1243,7 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
 
 /** @{ */
 
-bool log_advance_ready_for_write_lsn(log_t &log) {
+void log_advance_ready_for_write_lsn(log_t &log) {
   ut_ad(log_writer_mutex_own(log));
   ut_d(log_writer_thread_active_validate(log));
 
@@ -1297,11 +1286,6 @@ bool log_advance_ready_for_write_lsn(log_t &log) {
     ut_a(log_buffer_ready_for_write_lsn(log) > previous_lsn);
 
     std::atomic_thread_fence(std::memory_order_acquire);
-
-    return (true);
-
-  } else {
-    return (false);
   }
 }
 

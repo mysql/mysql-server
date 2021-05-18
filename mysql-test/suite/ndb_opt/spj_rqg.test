@@ -2071,5 +2071,39 @@ eval explain format=tree $query;
 eval $query;
 
 
+####################################################
+## Bug#32354817
+##    CRASH IN HA_NDBCLUSTER HANDLER INTERFACE WHEN PREPARING A PUSHED JOIN
+####################################################
+let $query=
+SELECT
+  table6.col_varchar_256 AS field1, table3.col_varchar_256 AS field2
+FROM
+  f AS table1
+    LEFT JOIN a AS table2 ON table1.col_int = table2.col_int_unique
+    LEFT JOIN r AS table3
+      JOIN g AS table4 ON table3.col_int = table4.col_int AND
+                          table3.col_int_unique = table4.col_int_unique
+    ON table3.col_int IN (9)
+    LEFT JOIN f AS table5
+      JOIN z AS table6 ON table5.col_int = table6.col_int
+      JOIN g AS table7 ON table6.col_int_key = table7.pk
+      LEFT JOIN b AS table8
+        LEFT JOIN m AS table9 ON (table8.col_int = table9.col_int AND
+	                          table8.col_int_key = table9.col_int_key AND
+				  table8.col_int_unique = table9.col_int_unique) IS TRUE
+	LEFT JOIN h AS table10 ON table8.col_int_key = table10.col_int_key AND
+	                          table9.col_int_unique = table10.col_int_unique
+      ON table6.col_int = table8.col_int AND
+         table6.col_int_unique = table8.col_int_unique
+    ON table2.col_int = table6.col_int AND
+       table2.col_int_unique = table6.col_int_unique;
+
+--replace_regex /cost=\d+\.\d+\ rows=\d+//
+eval explain format=tree $query;
+--sorted_result
+eval $query;
+
+
 ######################################################
 DROP TABLE a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z;

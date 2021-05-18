@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,9 @@
 #include <event2/http.h>   // evhttp_new
 #include <event2/util.h>   // evutil_socket_t
 
+#include "mysql/harness/net_ts/impl/socket_constants.h"
 #include "mysqlrouter/http_server_component.h"
 #include "posix_re.h"
-#include "socket_operations.h"  // mysql_harness::socket_t
-
-using harness_socket_t = mysql_harness::socket_t;
 
 void stop_eventloop(evutil_socket_t, short, void *cb_arg);
 
@@ -102,7 +100,9 @@ class HttpRequestThread {
                            EVHTTP_REQ_TRACE);
   }
 
-  harness_socket_t get_socket_fd() { return accept_fd_; }
+  using native_handle_type = net::impl::socket::native_handle_type;
+
+  native_handle_type get_socket_fd() { return accept_fd_; }
 
   void accept_socket();
   void set_request_router(HttpRequestRouter &router);
@@ -113,7 +113,7 @@ class HttpRequestThread {
   std::unique_ptr<evhttp, decltype(&evhttp_free)> ev_http;
   std::unique_ptr<event, decltype(&event_free)> ev_shutdown_timer;
 
-  harness_socket_t accept_fd_{mysql_harness::kInvalidSocket};
+  native_handle_type accept_fd_{net::impl::socket::kInvalidSocket};
 };
 
 class HttpServer {

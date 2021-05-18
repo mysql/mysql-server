@@ -35,7 +35,7 @@ CALL mtr.add_suppression("Statement is unsafe because it is being used inside a 
 
 --write_file $MYSQL_TMP_DIR/start_slave.tmp
 -->sql
-CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_USER= 'root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_USER= 'root';
 START SLAVE;
 -->endsql
 EOF

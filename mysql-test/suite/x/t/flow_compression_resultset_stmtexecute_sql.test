@@ -190,6 +190,4 @@ exec $MYSQLXTEST
   --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_files_wildcard $MYSQL_TMP_DIR *.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

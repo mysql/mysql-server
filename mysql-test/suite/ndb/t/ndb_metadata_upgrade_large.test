@@ -83,5 +83,4 @@ while($i < $db_number)
 }
 
 --remove_file $NDB_TOOLS_OUTPUT
-let NDB_RESTORE=;
 --enable_query_log

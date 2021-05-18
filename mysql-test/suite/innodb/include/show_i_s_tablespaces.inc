@@ -9,6 +9,8 @@ SELECT s.name 'Space_Name',
 	s.space_type 'Space_Type',
 	s.page_size 'Page_Size',
 	s.zip_page_size 'Zip_Size',
+	s.fs_block_size!=0 'BlockSize!=0',
+	s.file_size!=0 'FileSize!=0',
 	s.row_format 'Formats_Permitted',
 	d.path 'Path'
 	FROM information_schema.innodb_tablespaces s,

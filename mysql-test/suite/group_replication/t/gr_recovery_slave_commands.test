@@ -75,13 +75,13 @@ set session sql_log_bin=1;
 --echo # CHM for 'group_replication_recovery' channel won't accept parameters other than
 --echo # MASTER_USER and MASTER_PASSWORD
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
 
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";
 
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_recovery";
 
 --echo
 --echo # ERROR when executing STOP SLAVE on GR recovery channel
@@ -154,7 +154,7 @@ call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replicat
 set session sql_log_bin=1;
 
 --disable_warnings
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
 --source include/start_group_replication.inc
 
@@ -245,7 +245,7 @@ LOCK TABLE t1 READ;
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --disable_warnings
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
 
 --echo
@@ -286,7 +286,7 @@ START SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 --echo
 --echo # START SLAVE IO_THREAD with UNTIL option is blocked on GR recovery channel
 --error ER_SLAVE_CHANNEL_OPERATION_NOT_ALLOWED
-START SLAVE IO_THREAD UNTIL MASTER_LOG_FILE = 'server-binary-log.000001', MASTER_LOG_POS = 754 FOR CHANNEL 'group_replication_recovery';
+START SLAVE IO_THREAD UNTIL SOURCE_LOG_FILE = 'server-binary-log.000001', SOURCE_LOG_POS = 754 FOR CHANNEL 'group_replication_recovery';
 
 --echo
 --echo # STOP SLAVE SQL_THREAD is blocked on GR recovery channel

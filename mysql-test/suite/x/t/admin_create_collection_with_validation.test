@@ -7,7 +7,7 @@
 
 create schema xtest default charset 'utf8mb4';
 
---let $xtest_file= $MYSQL_TMP_DIR/admin_create_collection_with_validation.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_create_collection_with_validation.xpl
 --write_file $xtest_file
 -->import validation_schema.macro
 -->varlet %TEST_COLL% test_coll
@@ -409,7 +409,7 @@ callmacro Insert_value_to_collection	%TEST_COLL%
 
 EOF
 
---let $xtest_file_2= $MYSQL_TMP_DIR/admin_ensure_collection_validation_custom.tmp
+--let $xtest_file_2= $MYSQL_TMP_DIR/admin_ensure_collection_validation_custom.xpl
 --write_file $xtest_file_2
 
 -->echo
@@ -542,7 +542,4 @@ EOF
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file_2 -vCOMMAND=$command 2>&1
 
 ## Cleanup
---remove_file $xtest_file
---remove_file $xtest_file_2
---source include/xplugin_drop_user.inc
-drop schema if exists xtest;
+--source ../include/xplugin_cleanup.inc

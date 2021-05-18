@@ -1792,9 +1792,39 @@ JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
 0	0
 0	0
 0	0
+[connection master]
+# Update via an updatable view.
+CREATE VIEW json_data_view AS SELECT * FROM json_data;
+UPDATE json_data_view SET jd = JSON_SET(jd, '$.key', '[]'),
+jd = JSON_REMOVE(jd, '$[0].a');
+include/sync_slave_sql_with_master.inc
+[Connection Slave]
+# Check whether values were updated
+SELECT * FROM json_data;
+pk	id	jd	td	gcol	gcol2	gcol3	gcol4
+1	10	{"key": "[]"}	characters	47	29	[10, {"key": "[]"}, "characters", 47, 29]	{"10": {"key": "[]"}, "47": "characters"}
+2	20	[10, 20, 30]	alphabet	14	0	[20, [10, 20, 30], "alphabet", 14, 0]	{"14": "alphabet", "20": [10, 20, 30]}
+3	30	[{}, {"b": "abcd"}]	words	44	12	[30, [{}, {"b": "abcd"}], "words", 44, 12]	{"30": [{}, {"b": "abcd"}], "44": "words"}
+4	40	{"key": "[]"}	letters	45	27	[40, {"key": "[]"}, "letters", 45, 27]	{"40": {"key": "[]"}, "45": "letters"}
+5	50	{"key": "[]"}	strings	66	48	[50, {"key": "[]"}, "strings", 66, 48]	{"50": {"key": "[]"}, "66": "strings"}
+SELECT JSON_STORAGE_SIZE(gcol3), JSON_STORAGE_SIZE(gcol4) FROM json_data;
+JSON_STORAGE_SIZE(gcol3)	JSON_STORAGE_SIZE(gcol4)
+48	51
+42	45
+57	60
+45	48
+45	48
+SELECT JSON_STORAGE_FREE(gcol3), JSON_STORAGE_FREE(gcol4) FROM json_data;
+JSON_STORAGE_FREE(gcol3)	JSON_STORAGE_FREE(gcol4)
+0	0
+0	0
+0	0
+0	0
+0	0
 include/diff_tables.inc [master:json_data, slave:json_data]
 [Connection Master]
 # Clean up
+DROP VIEW json_data_view;
 DROP TABLE json_data;
 include/sync_slave_sql_with_master.inc
 #

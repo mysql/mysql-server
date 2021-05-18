@@ -79,7 +79,7 @@
 
 # This test assumes the slave is working using the default: STREAM
 --let $_pk_key_check_value = `SELECT require_table_primary_key_check FROM performance_schema.replication_applier_configuration WHERE channel_name=""`
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 
 --echo
 --echo # 1. While REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM.
@@ -123,7 +123,7 @@ STOP SLAVE;
 
 --eval REVOKE SESSION_VARIABLES_ADMIN ON *.* FROM $applier_user
 
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 
 --source include/rpl_connection_master.inc
 
@@ -174,7 +174,7 @@ START SLAVE;
 
 STOP SLAVE;
 
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 
 START SLAVE;
 
@@ -208,7 +208,7 @@ CALL mtr.add_suppression(".*Unable to create or change a table without a primary
 
 --source include/stop_slave_sql.inc
 --replace_result $_pk_key_check_value PRIMARY_KEY_CHECK_VALUE
---eval CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = $_pk_key_check_value
 --source include/start_slave_sql.inc
 
 --source include/rpl_end.inc

@@ -1,0 +1,88 @@
+include/rpl_init.inc [topology=1->3, 2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+==== INITIALIZE ====
+SET @@global.enforce_gtid_consistency = ON;
+SET @@global.gtid_mode = OFF_PERMISSIVE;
+SET @@global.gtid_mode = ON_PERMISSIVE;
+SET @@global.gtid_mode = ON;
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL FOR CHANNEL 'channel_1';
+Warnings:
+Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL FOR CHANNEL 'channel_2';
+Warnings:
+Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
+include/start_slave_io.inc
+==== TEST ====
+# Create the table and procedure on all nodes. Invoke the procedure on the sources.
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT);
+CREATE PROCEDURE workload() BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE i < 100 DO
+INSERT INTO t VALUES (i);
+SET i = i + 1;
+END WHILE;
+END;
+SET @@session.sql_log_bin = 1;
+CALL workload();
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT);
+CREATE PROCEDURE workload() BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE i < 100 DO
+INSERT INTO t VALUES (i);
+SET i = i + 1;
+END WHILE;
+END;
+SET @@session.sql_log_bin = 1;
+CALL workload();
+SET @@session.sql_log_bin = 0;
+CREATE TABLE t (a INT);
+CREATE PROCEDURE workload() BEGIN
+DECLARE i INT DEFAULT 0;
+WHILE i < 100 DO
+INSERT INTO t VALUES (i);
+SET i = i + 1;
+END WHILE;
+END;
+SET @@session.sql_log_bin = 1;
+# Wait for replica to receive (but not apply) all transactions on both channels.
+include/sync_slave_io_with_master.inc [FOR CHANNEL 'channel_1']
+include/sync_slave_io_with_master.inc [FOR CHANNEL 'channel_2']
+# Start applying from both channels.
+include/start_slave_sql.inc
+# Concurrently, execute the same workload on replica.
+CALL workload();
+include/assert.inc [Replica should have applied 300 distinct GTIDs]
+==== CLEAN UP ====
+SET @@session.sql_log_bin = 0;
+DROP PROCEDURE workload;
+DROP TABLE t;
+SET @@session.sql_log_bin = 1;
+SET @@session.sql_log_bin = 0;
+DROP PROCEDURE workload;
+DROP TABLE t;
+SET @@session.sql_log_bin = 1;
+SET @@session.sql_log_bin = 0;
+DROP PROCEDURE workload;
+DROP TABLE t;
+SET @@session.sql_log_bin = 1;
+include/stop_slave.inc
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL 'channel_1';
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF FOR CHANNEL 'channel_2';
+SET @@global.gtid_mode = ON_PERMISSIVE;
+SET @@global.gtid_mode = OFF_PERMISSIVE;
+SET @@global.gtid_mode = OFF;
+SET @@global.enforce_gtid_consistency = OFF;
+include/rpl_end.inc
+Warnings:
+Note	3084	Replication thread(s) for channel 'channel_1' are already stopped.
+Warnings:
+Note	3084	Replication thread(s) for channel 'channel_2' are already stopped.
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_2';

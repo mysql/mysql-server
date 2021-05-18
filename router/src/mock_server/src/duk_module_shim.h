@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,14 +25,12 @@
 #ifndef DUK_MODULE_SHIM_INCLUDED
 #define DUK_MODULE_SHIM_INCLUDED
 
+#include <string>
+#include <vector>
+
 #include "duktape.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-void duk_module_shim_init(duk_context *ctx, const char *prefix);
-#ifdef __cplusplus
-}
-#endif
+void duk_module_shim_init(duk_context *ctx,
+                          const std::vector<std::string> &prefixes);
 
 #endif

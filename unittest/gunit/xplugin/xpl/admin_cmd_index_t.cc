@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,7 +30,10 @@
 #include "plugin/x/src/admin_cmd_index.h"
 #include "plugin/x/src/xpl_error.h"
 #include "unittest/gunit/xplugin/xpl/assert_error_code.h"
+#include "unittest/gunit/xplugin/xpl/mock/client.h"
+#include "unittest/gunit/xplugin/xpl/mock/protocol_encoder.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
+#include "unittest/gunit/xplugin/xpl/mock/sql_session.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 #include "unittest/gunit/xplugin/xpl/one_row_resultset.h"
 
@@ -68,10 +71,10 @@ class Admin_command_index_test : public ::testing::Test {
     args.reset(new Admin_command_arguments_object(list));
   }
 
-  StrictMock<Mock_sql_data_context> data_context;
-  StrictMock<Mock_client> client;
-  StrictMock<Mock_protocol_encoder> encoder;
-  StrictMock<Mock_session> session;
+  StrictMock<mock::Sql_session> data_context;
+  StrictMock<mock::Client> client;
+  StrictMock<mock::Protocol_encoder> encoder;
+  StrictMock<mock::Session> session;
   std::unique_ptr<Admin_command_index_stub> command;
   Admin_command_arguments_object::List list;
   std::unique_ptr<Admin_command_arguments_object> args;

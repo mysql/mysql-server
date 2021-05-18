@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,8 @@
 #ifndef SQL_CMD_DML_INCLUDED
 #define SQL_CMD_DML_INCLUDED
 
-#include "my_dbug.h"
+#include <assert.h>
+
 #include "sql/sql_cmd.h"
 #include "sql/sql_prepare.h"
 
@@ -107,7 +108,7 @@ class Sql_cmd_dml : public Sql_cmd {
           - Check empty query expression for INSERT
   */
   bool is_empty_query() const {
-    DBUG_ASSERT(is_prepared());
+    assert(is_prepared());
     return m_empty_query;
   }
 
@@ -125,14 +126,14 @@ class Sql_cmd_dml : public Sql_cmd {
     is later used during checking of column privileges.
     Note that at preparation time, views are not expanded yet. Privilege
     checking is thus rudimentary and must be complemented with later calls to
-    SELECT_LEX::check_view_privileges().
+    Query_block::check_view_privileges().
     The reason to call this function at such an early stage is to be able to
     quickly reject statements for which the user obviously has insufficient
     privileges.
     This function is called before preparing the statement.
     The function must also be complemented with proper privilege checks for all
     involved columns (e.g. check_column_grant_*).
-    @see also the function comment of SELECT_LEX::prepare().
+    @see also the function comment of Query_block::prepare().
     During execution of a prepared statement, call check_privileges() instead.
 
     @param thd thread handler
@@ -197,6 +198,15 @@ class Sql_cmd_dml : public Sql_cmd {
 
   /// Save command properties, such as prepared query details and table props
   virtual bool save_cmd_properties(THD *thd);
+
+  /**
+    Helper function that checks if the command is eligible for secondary engine
+    and if that's true returns the name of that eligible secondary storage
+    engine.
+
+    @return nullptr if not eligible or the name of the engine otherwise
+  */
+  const MYSQL_LEX_CSTRING *get_eligible_secondary_engine() const;
 
  protected:
   LEX *lex;              ///< Pointer to LEX for this statement

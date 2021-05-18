@@ -241,7 +241,7 @@ UPDATE bit1 SET b5=b'1111111' WHERE pk = 1;
 REPLACE INTO bit1(pk, b3) VALUES(6, B'110011');
 SELECT pk,BIN(b1),BIN(b2),BIN(b3),BIN(b4),BIN(b5) FROM bit1 ORDER BY pk;
 
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 DROP TABLE bit1;
 --echo *************************************************************
 --echo * Test adding a unique index to a column with a default value

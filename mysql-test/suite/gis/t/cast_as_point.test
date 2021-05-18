@@ -1,0 +1,148 @@
+###############################################################################
+#                                                                             #
+# CAST(... AS POINT) allows casting geometries of type                        #
+# Point, Multipoint and Geometrycollection                                    #
+# to type Point.                                                              #
+#                                                                             #
+# Creation Date: 2020-08-02                                                   #
+# Author: Magnus Rushfeldt                                                    #
+#                                                                             #
+###############################################################################
+
+--echo ########################################
+--echo # Requirement F-7a:                    #
+--echo # CAST(point AS POINT)                 #
+--echo ########################################
+--echo #
+
+--echo # Casting from POINT to POINT is always allowed.
+--echo # Must return Point.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS POINT));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(1 1)'), CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS POINT));
+--echo #
+
+--echo ########################################
+--echo # Requirement F-7b:                    #
+--echo # CAST(multipoint AS POINT)            #
+--echo ########################################
+--echo #
+
+--echo # Casting from MULTIPOINT with only one point to POINT is allowed.
+--echo # Must return Point.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1))') AS POINT));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(1 1)'), CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1))') AS POINT));
+--echo #
+
+--echo # Casting from MULTIPOINT with multiple points to POINT is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((1 1), (2 2))') AS POINT));
+--echo #
+
+--echo ########################################
+--echo # Requirement F-7c:                    #
+--echo # CAST(geometrycollection AS POINT)    #
+--echo ########################################
+--echo #
+
+--echo # Casting from GEOMETRYCOLLECTION with only one point to POINT is allowed.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1))') AS POINT));
+--echo # Must return 1.
+SELECT ST_EQUALS(ST_GEOMFROMTEXT('POINT(1 1)'), CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1))') AS POINT));
+--echo #
+
+--echo # Casting from empty GEOMETRYCOLLECTION to POINT is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION()') AS POINT));
+--echo #
+
+--echo # Casting from GEOMETRYCOLLECTION with multiple points to POINT is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), POINT(2 2))') AS POINT));
+--echo #
+
+--echo # Casting from GEOMETRYCOLLECTION with not only points to POINT is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(1 1), GEOMETRYCOLLECTION())') AS POINT));
+--echo #
+
+--echo ########################################
+--echo # Requirement F-7d:                    #
+--echo # Disallowed casts to POINT            #
+--echo ########################################
+--echo #
+
+--echo # Casting from LINESTRING to POINT is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('LINESTRING(1 1, 2 2)') AS POINT));
+--echo #
+
+--echo # Casting from POLYGON to POINT is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POLYGON((1 1, 2 2, 3 3, 1 1))') AS POINT));
+--echo #
+
+--echo # Casting from MULTILINESTRING to POINT is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTILINESTRING((1 1, 2 2), (1 1, 2 2))') AS POINT));
+--echo #
+
+--echo # Casting from MULTIPOLYGON to POINT is not allowed.
+--echo # Must raise error.
+--error ER_INVALID_CAST_TO_GEOMETRY
+DO ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOLYGON(((1 1, 2 2, 3 3, 1 1)), ((1 1, 2 2, 3 3, 1 1)))') AS POINT));
+--echo #
+
+--echo #############################################
+--echo # Testing result of WKT input               #
+--echo #############################################
+--echo #
+
+--echo # Casting from ST_GEOMFROMTEXT(<wkt>) to POINT must return expected point.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS POINT));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((2 2))') AS POINT));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(3 3))') AS POINT));
+--echo #
+
+--echo #############################################
+--echo # Testing result of user variable input     #
+--echo #############################################
+--echo #
+
+SET @point = ST_GEOMFROMTEXT('POINT(1 1)');
+SET @multipoint = ST_GEOMFROMTEXT('MULTIPOINT((2 2))');
+SET @geomcollection = ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(3 3))');
+--echo #
+
+--echo # Casting from geometry in user variable to POINT must return expected point.
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('POINT(1 1)') AS POINT));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('MULTIPOINT((2 2))') AS POINT));
+SELECT ST_ASTEXT(CAST(ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(3 3))') AS POINT));
+--echo #
+
+--echo #############################################
+--echo # Testing result of table column input      #
+--echo #############################################
+--echo #
+
+CREATE TABLE gis_point_castable (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRY);
+INSERT INTO gis_point_castable values
+(101, ST_GEOMFROMTEXT('POINT(1 1)')),
+(102, ST_GEOMFROMTEXT('MULTIPOINT((2 2))')),
+(103, ST_GEOMFROMTEXT('GEOMETRYCOLLECTION(POINT(3 3))'));
+--echo #
+
+--echo # Casting from geometry column to POINT must return expected point.
+SELECT ST_ASTEXT(CAST(g AS POINT)) FROM gis_point_castable;
+--echo #
+
+--echo # Cleanup.
+DROP TABLE gis_point_castable;

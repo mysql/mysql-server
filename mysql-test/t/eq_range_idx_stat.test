@@ -96,7 +96,7 @@ while ($iterations)
   select * from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1 limit 5;
 
-  select * from t1
+  select st_a, swt1a, st_b, swt1b from t1
   where st_a=1 and swt1a=1 and st_b=1 and swt1b=1 and swt1b=1 limit 5;
 
   --echo

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -365,7 +365,7 @@ static int var_update_fac(char *fac) {
     make facility
   */
 
-  DBUG_ASSERT(fac != nullptr);
+  assert(fac != nullptr);
 
   log_syslog_find_facility(fac, &rsf);
 
@@ -429,7 +429,7 @@ static int sysvar_check_tag(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
   if (proposed_value == nullptr) return true;
 
-  DBUG_ASSERT(proposed_value[value_len] == '\0');
+  assert(proposed_value[value_len] == '\0');
 
   if (var_check_tag(proposed_value) != 0)  // no complaints?
     return true;
@@ -477,7 +477,7 @@ static int sysvar_install_tag(void) {
 
   values_tag.def_val = const_cast<char *>("");
 
-  DBUG_ASSERT(buffer_tag == nullptr);
+  assert(buffer_tag == nullptr);
 
   if (mysql_service_component_sys_variable_register->register_variable(
           MY_NAME, OPT_TAG, PLUGIN_VAR_STR | PLUGIN_VAR_MEMALLOC,
@@ -561,7 +561,7 @@ static int sysvar_check_fac(MYSQL_THD thd MY_ATTRIBUTE((unused)),
 
   if (proposed_value == nullptr) return true;
 
-  DBUG_ASSERT(proposed_value[value_len] == '\0');
+  assert(proposed_value[value_len] == '\0');
 
   if (var_check_fac(proposed_value) != 0)  // if value is invalid, bail
     return true;
@@ -725,13 +725,10 @@ done:
   label will be ignored (one will be generated from priority by the syslogger).
   If the message is not \0 terminated, it will be terminated.
 
-  @param           instance             instance's state
-  @param           ll                   the log line to write
-
-  @retval          >=0                  number of accepted fields, if any
-  @retval LOG_SERVICE_NOT_AVAILABLE     log was not open
-  @retval LOG_SERVICE_INVALID_ARGUMENT  could not sanitize log message
-  @retval LOG_SERVICE_MISC_ERROR        failure not otherwise specified
+  @returns       >=0                  number of accepted fields, if any
+  @returns	 LOG_SERVICE_NOT_AVAILABLE     log was not open
+  @returns 	 LOG_SERVICE_INVALID_ARGUMENT  could not sanitize log message
+  @returns 	 LOG_SERVICE_MISC_ERROR        failure not otherwise specified
 */
 DEFINE_METHOD(int, log_service_imp::run,
               (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
@@ -911,20 +908,8 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush,
 /**
   Open a new instance.
 
-  @param   ll        optional arguments
-  @param   instance  If state is needed, the service may allocate and
-                     initialize it and return a pointer to it here.
-                     (This of course is particularly pertinent to
-                     components that may be opened multiple times,
-                     such as the JSON log writer.)
-                     This state is for use of the log-service component
-                     in question only and can take any layout suitable
-                     to that component's need. The state is opaque to
-                     the server/logging framework. It must be released
-                     on close.
-
-  @retval  LOG_SERVICE_SUCCESS        success, returned hande is valid
-  @retval  otherwise                  a new instance could not be created
+  @returns  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @returns  otherwise                  a new instance could not be created
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,
               (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
@@ -938,12 +923,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::open,
 /**
   Close and release an instance. Flushes any buffers.
 
-  @param   instance  State-pointer that was returned on open.
-                     If memory was allocated for this state,
-                     it should be released, and the pointer
-                     set to nullptr.
-
-  @retval  LOG_SERVICE_SUCCESS
+  @returns  LOG_SERVICE_SUCCESS
 */
 DEFINE_METHOD(log_service_error, log_service_imp::close,
               (void **instance MY_ATTRIBUTE((unused)))) {
@@ -953,8 +933,8 @@ DEFINE_METHOD(log_service_error, log_service_imp::close,
 /**
   Get characteristics of a log-service.
 
-  @retval  <0        an error occurred
-  @retval  >=0       characteristics (a set of log_service_chistics flags)
+  @returns  <0        an error occurred
+  @returns  >=0       characteristics (a set of log_service_chistics flags)
 */
 DEFINE_METHOD(int, log_service_imp::characteristics, (void)) {
   return LOG_SERVICE_SINK | LOG_SERVICE_SINGLETON | LOG_SERVICE_PFS_SUPPORT;

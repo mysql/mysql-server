@@ -82,21 +82,18 @@ connect (con_none_4, localhost, user_none, , );
 --send update test.t1 set s1 = s1 + 1, s2 = s2 + 2;
 
 --echo
---echo # Connection con_00
---connection con_00
+--echo # Connection con_all_1
+--connection con_all_1
+
+# Note: When expecting processlist results for all users, the wait_condition
+# and subsequent execution of SHOW PROCESSLIST should be conducted from the
+# same connection to ensure consistent values in the Command and Info columns.
 
 --echo
 --echo # Wait for queries to appear in the processlist table
 let $wait_condition = select count(*) >= 2 from information_schema.processlist
                       where state like '%metadata%';
 --source include/wait_condition.inc
-
---echo
---echo # Connection con_all_1
---connection con_all_1
-
-# Note: For consistent results on PB2, the setup and execution are conducted
-# from con_all_1 to overwrite Command and Info columns.
 
 --echo
 --echo ### Execute SHOW PROCESSLIST with all privileges
@@ -119,7 +116,6 @@ let $pfs_spl = off;
 --echo ### Expect processes only from user_none
 --echo
 --echo # New SHOW PROCESSLIST
---connection con_00
 let $pfs_spl = on;
 --source ../include/processlist_set.inc
 

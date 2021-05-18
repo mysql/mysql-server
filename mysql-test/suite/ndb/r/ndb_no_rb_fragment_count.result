@@ -427,7 +427,7 @@ create table t1 (a int primary key) engine ndb
 COMMENT="NDB_TABLE=NOLOGGING=1";
 alter table t1 algorithm=inplace,
 COMMENT="NDB_TABLE=NOLOGGING=0";
-ERROR HY000: Table storage engine 'ndbcluster' does not support the create option 'Cannot alter nologging inplace. Try ALGORITHM=copy'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Cannot alter NOLOGGING inplace. Try ALGORITHM=COPY.
 drop table t1;
 create table t1 (a bigint, b bigint, c bigint, d bigint, primary key (a,b,c,d))
 engine=ndb comment="NDB_TABLE=PARTITION_BALANCE=FOR_RP_BY_LDM";

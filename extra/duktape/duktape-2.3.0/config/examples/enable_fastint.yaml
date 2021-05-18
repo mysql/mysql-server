@@ -1,3 +1,0 @@
-# Enable fastint support.
-
-DUK_USE_FASTINT: true

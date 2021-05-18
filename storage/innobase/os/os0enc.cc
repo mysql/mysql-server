@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -39,10 +39,161 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #include "ut0crc32.h"
 
 #include <errno.h>
+#include <mysql/components/services/keyring_generator.h>
+#include <mysql/components/services/keyring_reader_with_status.h>
+#include <mysql/components/services/keyring_writer.h>
+#include <scope_guard.h>
+#include "keyring_operations_helper.h"
 #include "my_aes.h"
 #include "my_rnd.h"
 #include "mysql/service_mysql_keyring.h"
 #include "mysqld.h"
+
+namespace innobase {
+namespace encryption {
+#ifndef UNIV_HOTBACKUP
+SERVICE_TYPE(keyring_reader_with_status) *keyring_reader_service = nullptr;
+SERVICE_TYPE(keyring_writer) *keyring_writer_service = nullptr;
+SERVICE_TYPE(keyring_generator) *keyring_generator_service = nullptr;
+
+/**
+  Initialize keyring component service handles
+
+  @param [in] reg_srv Handle to registry service
+
+  @returns status of keyring service initialization
+    @retval true  Success
+    @retval false Error
+*/
+bool init_keyring_services(SERVICE_TYPE(registry) * reg_srv) {
+  DBUG_TRACE;
+
+  if (reg_srv == nullptr) {
+    return false;
+  }
+
+  my_h_service h_keyring_reader_service = nullptr;
+  my_h_service h_keyring_writer_service = nullptr;
+  my_h_service h_keyring_generator_service = nullptr;
+
+  auto cleanup = [&]() {
+    if (h_keyring_reader_service) {
+      reg_srv->release(h_keyring_reader_service);
+    }
+    if (h_keyring_writer_service) {
+      reg_srv->release(h_keyring_writer_service);
+    }
+    if (h_keyring_generator_service) {
+      reg_srv->release(h_keyring_generator_service);
+    }
+
+    keyring_reader_service = nullptr;
+    keyring_writer_service = nullptr;
+    keyring_generator_service = nullptr;
+  };
+
+  if (reg_srv->acquire("keyring_reader_with_status",
+                       &h_keyring_reader_service) ||
+      reg_srv->acquire_related("keyring_writer", h_keyring_reader_service,
+                               &h_keyring_writer_service) ||
+      reg_srv->acquire_related("keyring_generator", h_keyring_reader_service,
+                               &h_keyring_generator_service)) {
+    cleanup();
+    return false;
+  }
+
+  keyring_reader_service =
+      reinterpret_cast<SERVICE_TYPE(keyring_reader_with_status) *>(
+          h_keyring_reader_service);
+  keyring_writer_service = reinterpret_cast<SERVICE_TYPE(keyring_writer) *>(
+      h_keyring_writer_service);
+  keyring_generator_service =
+      reinterpret_cast<SERVICE_TYPE(keyring_generator) *>(
+          h_keyring_generator_service);
+
+  return true;
+}
+
+/**
+  Deinitialize keyring component service handles
+
+  @param [in] reg_srv Handle to registry service
+*/
+void deinit_keyring_services(SERVICE_TYPE(registry) * reg_srv) {
+  DBUG_TRACE;
+
+  if (reg_srv == nullptr) {
+    return;
+  }
+
+  using keyring_reader_t = SERVICE_TYPE_NO_CONST(keyring_reader_with_status);
+  using keyring_writer_t = SERVICE_TYPE_NO_CONST(keyring_writer);
+  using keyring_generator_t = SERVICE_TYPE_NO_CONST(keyring_generator);
+
+  if (keyring_reader_service) {
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<keyring_reader_t *>(keyring_reader_service)));
+  }
+  if (keyring_writer_service) {
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<keyring_writer_t *>(keyring_writer_service)));
+  }
+  if (keyring_generator_service) {
+    reg_srv->release(reinterpret_cast<my_h_service>(
+        const_cast<keyring_generator_t *>(keyring_generator_service)));
+  }
+
+  keyring_reader_service = nullptr;
+  keyring_writer_service = nullptr;
+  keyring_generator_service = nullptr;
+}
+
+/**
+  Generate a new key
+
+  @param [in] key_id     Key identifier
+  @param [in] key_type   Type of the key
+  @param [in] key_length Length of the key
+
+  @returns status of key generation
+    @retval true  Success
+    @retval fales Error. No error is raised.
+*/
+bool generate_key(const char *key_id, const char *key_type, size_t key_length) {
+  if (key_id == nullptr || key_type == nullptr || key_length == 0) {
+    return false;
+  }
+
+  if (keyring_generator_service->generate(key_id, nullptr, key_type,
+                                          key_length) == true) {
+    return false;
+  }
+  return true;
+}
+
+/**
+  Remove a key from keyring
+
+  @param [in] key_id Key to be removed
+*/
+void remove_key(const char *key_id) {
+  if (key_id == nullptr) {
+    return;
+  }
+
+  /* We don't care about the removal status */
+  (void)keyring_writer_service->remove(key_id, nullptr);
+}
+
+#else
+
+bool init_keyring_services(SERVICE_TYPE(registry) *) { return false; }
+
+void deinit_keyring_services(SERVICE_TYPE(registry) *) { return; }
+
+#endif  // !UNIV_HOTBACKUP
+}  // namespace encryption
+}  // namespace innobase
 
 constexpr char Encryption::KEY_MAGIC_V1[];
 constexpr char Encryption::KEY_MAGIC_V2[];
@@ -52,6 +203,8 @@ constexpr char Encryption::DEFAULT_MASTER_KEY[];
 
 /** Minimum length needed for encryption */
 constexpr size_t MIN_ENCRYPTION_LEN = 2 * MY_AES_BLOCK_SIZE + FIL_PAGE_DATA;
+/** Key type */
+constexpr char innodb_key_type[] = "AES";
 
 /** Current master key id */
 uint32_t Encryption::s_master_key_id = Encryption::DEFAULT_MASTER_KEY_ID;
@@ -94,16 +247,18 @@ void Encryption::create_master_key(byte **master_key) noexcept {
   snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%s-" UINT32PF,
            MASTER_KEY_PREFIX, s_uuid, s_master_key_id + 1);
 
-  /* We call key ring API to generate master key here. */
-  int ret = my_key_generate(key_name, "AES", nullptr, KEY_LEN);
+  /* We call keyring API to generate master key here. */
+  bool ret =
+      innobase::encryption::generate_key(key_name, innodb_key_type, KEY_LEN);
 
-  /* We call key ring API to get master key here. */
-  ret = my_key_fetch(key_name, &key_type, nullptr,
-                     reinterpret_cast<void **>(master_key), &key_len);
+  /* We call keyring API to get master key here. */
+  int retval = keyring_operations_helper::read_secret(
+      innobase::encryption::keyring_reader_service, key_name, nullptr,
+      master_key, &key_len, &key_type, PSI_INSTRUMENT_ME);
 
-  if (ret != 0 || *master_key == nullptr) {
+  if (retval == -1 || *master_key == nullptr) {
     ib::error(ER_IB_MSG_831) << "Encryption can't find master key,"
-                             << " please check the keyring plugin is loaded."
+                             << " please check the keyring is loaded."
                              << " ret=" << ret;
 
     *master_key = nullptr;
@@ -139,9 +294,13 @@ void Encryption::get_master_key(uint32_t master_key_id, char *srv_uuid,
   }
 
 #ifndef UNIV_HOTBACKUP
-  /* We call key ring API to get master key here. */
-  int ret = my_key_fetch(key_name, &key_type, nullptr,
-                         reinterpret_cast<void **>(master_key), &key_len);
+  /* We call keyring API to get master key here. */
+  int ret =
+      (keyring_operations_helper::read_secret(
+           innobase::encryption::keyring_reader_service, key_name, nullptr,
+           master_key, &key_len, &key_type, PSI_INSTRUMENT_ME) > -1)
+          ? 0
+          : 1;
 #else  /* !UNIV_HOTBACKUP */
   /* We call MEB to get master key here. */
   int ret = meb_key_fetch(key_name, &key_type, nullptr,
@@ -156,7 +315,7 @@ void Encryption::get_master_key(uint32_t master_key_id, char *srv_uuid,
     *master_key = nullptr;
 
     ib::error(ER_IB_MSG_832) << "Encryption can't find master key,"
-                             << " please check the keyring plugin is loaded.";
+                             << " please check the keyring is loaded.";
   }
 
 #ifdef UNIV_ENCRYPT_DEBUG
@@ -174,11 +333,11 @@ void Encryption::get_master_key(uint32_t master_key_id, char *srv_uuid,
 void Encryption::get_master_key(uint32_t *master_key_id,
                                 byte **master_key) noexcept {
 #ifndef UNIV_HOTBACKUP
-  int ret;
   size_t key_len;
   char *key_type = nullptr;
   char key_name[MASTER_KEY_NAME_MAX_LEN];
   extern ib_mutex_t master_key_id_mutex;
+  int retval;
   bool key_id_locked = false;
 
   if (s_master_key_id == DEFAULT_MASTER_KEY_ID) {
@@ -204,19 +363,21 @@ void Encryption::get_master_key(uint32_t *master_key_id,
     snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%s-1", MASTER_KEY_PREFIX,
              s_uuid);
 
-    /* We call key ring API to generate master key here. */
-    ret = my_key_generate(key_name, "AES", nullptr, KEY_LEN);
+    /* We call keyring API to generate master key here. */
+    (void)innobase::encryption::generate_key(key_name, innodb_key_type,
+                                             KEY_LEN);
 
-    /* We call key ring API to get master key here. */
-    ret = my_key_fetch(key_name, &key_type, nullptr,
-                       reinterpret_cast<void **>(master_key), &key_len);
+    /* We call keyring API to get master key here. */
+    retval = keyring_operations_helper::read_secret(
+        innobase::encryption::keyring_reader_service, key_name, nullptr,
+        master_key, &key_len, &key_type, PSI_INSTRUMENT_ME);
 
-    if (ret == 0 && *master_key != nullptr) {
+    if (retval > -1 && *master_key != nullptr) {
       ++s_master_key_id;
       *master_key_id = s_master_key_id;
     }
 #ifdef UNIV_ENCRYPT_DEBUG
-    if (ret == 0 && *master_key != nullptr) {
+    if (retval > -1 && *master_key != nullptr) {
       std::ostringstream msg;
 
       ut_print_buf(msg, *master_key, key_len);
@@ -231,27 +392,31 @@ void Encryption::get_master_key(uint32_t *master_key_id,
     snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%s-" UINT32PF,
              MASTER_KEY_PREFIX, s_uuid, *master_key_id);
 
-    /* We call key ring API to get master key here. */
-    ret = my_key_fetch(key_name, &key_type, nullptr,
-                       reinterpret_cast<void **>(master_key), &key_len);
+    /* We call keyring API to get master key here. */
+    retval = keyring_operations_helper::read_secret(
+        innobase::encryption::keyring_reader_service, key_name, nullptr,
+        master_key, &key_len, &key_type, PSI_INSTRUMENT_ME);
 
     /* For compitability with 5.7.11, we need to try to get master
     key with server id when get master key with server uuid
     failure. */
-    if (ret != 0 || *master_key == nullptr) {
+    if (retval != 1) {
+      ut_ad(key_type == nullptr);
       if (key_type != nullptr) {
         my_free(key_type);
+        key_type = nullptr;
       }
 
       snprintf(key_name, MASTER_KEY_NAME_MAX_LEN, "%s-%lu-" UINT32PF,
                MASTER_KEY_PREFIX, server_id, *master_key_id);
 
-      ret = my_key_fetch(key_name, &key_type, nullptr,
-                         reinterpret_cast<void **>(master_key), &key_len);
+      retval = keyring_operations_helper::read_secret(
+          innobase::encryption::keyring_reader_service, key_name, nullptr,
+          master_key, &key_len, &key_type, PSI_INSTRUMENT_ME);
     }
 
 #ifdef UNIV_ENCRYPT_DEBUG
-    if (ret == 0 && *master_key != nullptr) {
+    if (retval == 1) {
       std::ostringstream msg;
 
       ut_print_buf(msg, *master_key, key_len);
@@ -262,14 +427,15 @@ void Encryption::get_master_key(uint32_t *master_key_id,
 #endif /* UNIV_ENCRYPT_DEBUG */
   }
 
-  if (ret != 0) {
+  if (retval == -1) {
     *master_key = nullptr;
     ib::error(ER_IB_MSG_836) << "Encryption can't find master key, please check"
-                             << " the keyring plugin is loaded.";
+                             << " the keyring is loaded.";
   }
 
   if (key_type != nullptr) {
     my_free(key_type);
+    key_type = nullptr;
   }
 
   if (key_id_locked) {
@@ -285,7 +451,7 @@ bool Encryption::fill_encryption_info(byte *key, byte *iv, byte *encrypt_info,
   uint32_t master_key_id = DEFAULT_MASTER_KEY_ID;
   bool is_default_master_key = false;
 
-  /* Get master key from key ring. For bootstrap, we use a default
+  /* Get master key from keyring. For bootstrap, we use a default
   master key which master_key_id is 0. */
   if (encrypt_key) {
     if (is_boot
@@ -766,32 +932,12 @@ byte *Encryption::encrypt_log(const IORequest &type, byte *src, ulint src_len,
   return (dst);
 }
 
-byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
-                          byte *dst, ulint *dst_len) noexcept {
-  ut_ad(m_type != NONE);
-  ut_ad(!type.is_log());
-
-#ifdef UNIV_ENCRYPT_DEBUG
-  const page_id_t page_id(
-      mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID),
-      mach_read_from_4(src + FIL_PAGE_OFFSET));
-
-  {
-    std::ostringstream msg{};
-    msg << "Encrypting page: " << page_id << " src_len: " << src_len
-        << std::endl;
-
-    ut_print_buf(msg, m_key, 32);
-    msg << std::endl;
-    ut_print_buf(msg, m_iv, 32);
-    ib::info() << msg.str();
-  }
-#endif /* UNIV_ENCRYPT_DEBUG */
+bool Encryption::encrypt_low(byte *src, ulint src_len, byte *dst,
+                             ulint *dst_len) noexcept {
+  const uint16_t page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
 
   /* Shouldn't encrypt an already encrypted page. */
   ut_ad(!is_encrypted_page(src));
-
-  const uint16_t page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
 
   /* This is data size which need to encrypt. */
   auto src_enc_len = src_len;
@@ -841,7 +987,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
         ib::error(ER_IB_MSG_844) << " Can't encrypt data of page " << page_id;
         *dst_len = src_len;
-        return src;
+        return false;
       }
 
       const auto len = static_cast<size_t>(elen);
@@ -867,7 +1013,7 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
 
           ib::error(ER_IB_MSG_845) << " Can't encrypt data of page," << page_id;
           *dst_len = src_len;
-          return src;
+          return false;
         }
 
         ut_a(static_cast<size_t>(elen) == trailer_len);
@@ -906,33 +1052,55 @@ byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
     memset(dst + src_enc_len, 0, src_len - src_enc_len);
   }
 
-#ifdef UNIV_ENCRYPT_DEBUG
-  auto *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
-  auto *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
-
-  memcpy(check_buf, dst, src_len);
-
-  auto err = decrypt(type, check_buf, src_len, buf2, src_len);
-  if (err != DB_SUCCESS ||
-      memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
-             src_len - FIL_PAGE_DATA) != 0) {
-    std::ostringstream msg{};
-    ut_print_buf(msg, src, src_len);
-    ib::error() << msg.str();
-
-    msg.seekp(0);
-
-    ut_print_buf(msg, check_buf, src_len);
-    ib::fatal() << msg.str();
-  }
-  ut_free(buf2);
-  ut_free(check_buf);
-
-  ib::info() << "Encrypted page: " << page_id;
-#endif /* UNIV_ENCRYPT_DEBUG */
-
   *dst_len = src_len;
 
+  return (true);
+}
+
+byte *Encryption::encrypt(const IORequest &type, byte *src, ulint src_len,
+                          byte *dst, ulint *dst_len) noexcept {
+  /* For encrypting redo log, take another way. */
+  ut_ad(!type.is_log());
+
+#ifdef UNIV_ENCRYPT_DEBUG
+  {
+    ulint space_id = mach_read_from_4(src + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID);
+    ulint page_no = mach_read_from_4(src + FIL_PAGE_OFFSET);
+
+    fprintf(stderr, "Encrypting page:%lu.%lu len:%lu\n", space_id, page_no,
+            src_len);
+    ut_print_buf(stderr, m_key, 32);
+    ut_print_buf(stderr, m_iv, 32);
+  }
+#endif /* UNIV_ENCRYPT_DEBUG */
+
+  ut_ad(m_type != NONE);
+
+  if (!encrypt_low(src, src_len, dst, dst_len)) {
+    return (src);
+  }
+
+#ifdef UNIV_ENCRYPT_DEBUG
+  {
+    byte *check_buf = static_cast<byte *>(ut_malloc_nokey(src_len));
+    byte *buf2 = static_cast<byte *>(ut_malloc_nokey(src_len));
+
+    memcpy(check_buf, dst, src_len);
+
+    dberr_t err = decrypt(type, check_buf, src_len, buf2, src_len);
+    if (err != DB_SUCCESS ||
+        memcmp(src + FIL_PAGE_DATA, check_buf + FIL_PAGE_DATA,
+               src_len - FIL_PAGE_DATA) != 0) {
+      ut_print_buf(stderr, src, src_len);
+      ut_print_buf(stderr, check_buf, src_len);
+      ut_ad(0);
+    }
+    ut_free(buf2);
+    ut_free(check_buf);
+
+    fprintf(stderr, "Encrypted page:%lu.%lu\n", space_id, page_no);
+  }
+#endif /* UNIV_ENCRYPT_DEBUG */
   return dst;
 }
 
@@ -1087,22 +1255,29 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
   ulint main_len;
   ulint remain_len;
   ulint original_type;
-  ulint page_type;
   byte remain_buf[MY_AES_BLOCK_SIZE * 2];
   file::Block *block;
 
+  /* If the page is encrypted, then we need key to decrypt it. */
+  if (is_encrypted_page(src) && m_type == NONE) {
+    return DB_IO_DECRYPT_FAIL;
+  }
+
   if (!is_encrypted_page(src) || m_type == NONE) {
     /* There is nothing we can do. */
-    return (DB_SUCCESS);
+    return DB_SUCCESS;
   }
 
   /* For compressed page, we need to get the compressed size
   for decryption */
-  page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
+  const ulint page_type = mach_read_from_2(src + FIL_PAGE_TYPE);
+
+  /* Actual length of the compressed data */
+  uint16_t z_len = 0;
+
   if (page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
-    src_len = static_cast<uint16_t>(
-                  mach_read_from_2(src + FIL_PAGE_COMPRESS_SIZE_V1)) +
-              FIL_PAGE_DATA;
+    z_len = mach_read_from_2(src + FIL_PAGE_COMPRESS_SIZE_V1);
+    src_len = z_len + FIL_PAGE_DATA;
 
     Compression::meta_t header;
     Compression::deserialize_header(src, &header);
@@ -1171,6 +1346,7 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
                               reinterpret_cast<unsigned char *>(m_key),
                               static_cast<uint32>(m_klen), my_aes_256_cbc,
                               reinterpret_cast<unsigned char *>(m_iv), false);
+
         if (elen == MY_AES_BAD_DATA) {
           if (block != nullptr) {
             os_free_block(block);
@@ -1178,6 +1354,8 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
 
           return (DB_IO_DECRYPT_FAIL);
         }
+
+        ut_ad(static_cast<ulint>(elen) == remain_len);
 
         /* Copy the other data bytes to temp area. */
         memcpy(dst, ptr, data_len - remain_len);
@@ -1240,6 +1418,19 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
     os_free_block(block);
   }
 
+#ifdef UNIV_DEBUG
+  {
+    /* Check if all the padding bytes are zeroes. */
+    if (page_type == FIL_PAGE_COMPRESSED_AND_ENCRYPTED) {
+      uint32_t padding = src_len - FIL_PAGE_DATA - z_len;
+      for (uint32_t i = 0; i < padding; ++i) {
+        byte *pad = src + z_len + FIL_PAGE_DATA + i;
+        ut_ad(*pad == 0x0);
+      }
+    }
+  }
+#endif /* UNIV_DEBUG */
+
 #ifdef UNIV_ENCRYPT_DEBUG
   ib::info(ER_IB_MSG_850) << "Decrypted page: " << page_id;
 #endif /* UNIV_ENCRYPT_DEBUG */
@@ -1251,37 +1442,64 @@ dberr_t Encryption::decrypt(const IORequest &type, byte *src, ulint src_len,
 
 #ifndef UNIV_HOTBACKUP
 bool Encryption::check_keyring() noexcept {
-  size_t key_len;
   bool ret = false;
-  char *key_type = nullptr;
-  char *master_key = nullptr;
-  char key_name[MASTER_KEY_NAME_MAX_LEN];
+  byte *master_key = nullptr;
 
-  key_name[sizeof(DEFAULT_MASTER_KEY)] = 0;
+  /* During bootstrap, default master key is used */
+  if (s_master_key_id == DEFAULT_MASTER_KEY_ID) {
+    static bool checked = false;
+    if (checked) {
+      return true;
+    }
 
-  strncpy(key_name, DEFAULT_MASTER_KEY, sizeof(key_name));
+    /* Generate/Fetch/Delete a dummy master key to confirm keyring is up and
+    running. */
+    size_t key_len;
+    char *key_type = nullptr;
+    char key_name[MASTER_KEY_NAME_MAX_LEN];
 
-  /* We call key ring API to generate master key here. */
-  int my_ret = my_key_generate(key_name, "AES", nullptr, KEY_LEN);
+    key_name[sizeof(DEFAULT_MASTER_KEY)] = 0;
 
-  /* We call key ring API to get master key here. */
-  my_ret = my_key_fetch(key_name, &key_type, nullptr,
-                        reinterpret_cast<void **>(&master_key), &key_len);
+    strncpy(key_name, DEFAULT_MASTER_KEY, sizeof(key_name));
 
-  if (my_ret != 0) {
-    ib::error(ER_IB_MSG_851) << "Check keyring plugin fail, please check the"
-                             << " keyring plugin is loaded.";
+    /*
+      We call keyring API to generate master key here.
+      We don't care about failure at this point because
+      master key may very well be present in keyring.
+      All we are trying to check is keyring is functional.
+    */
+    (void)innobase::encryption::generate_key(key_name, innodb_key_type,
+                                             KEY_LEN);
+
+    /* We call keyring API to get master key here. */
+    int retval = keyring_operations_helper::read_secret(
+        innobase::encryption::keyring_reader_service, key_name, nullptr,
+        &master_key, &key_len, &key_type, PSI_INSTRUMENT_ME);
+
+    if (retval == -1) {
+      ib::error(ER_IB_MSG_851) << "Check keyring fail, please check the"
+                               << " keyring is loaded.";
+    } else {
+      innobase::encryption::remove_key(key_name);
+      ret = true;
+      checked = true;
+    }
+
+    if (key_type != nullptr) {
+      my_free(key_type);
+    }
+
+    if (master_key != nullptr) {
+      my_free(master_key);
+    }
   } else {
-    my_key_remove(key_name, nullptr);
-    ret = true;
-  }
+    uint32_t master_key_id;
 
-  if (key_type != nullptr) {
-    my_free(key_type);
-  }
-
-  if (master_key != nullptr) {
-    my_free(master_key);
+    Encryption::get_master_key(&master_key_id, &master_key);
+    if (master_key != nullptr) {
+      my_free(master_key);
+      ret = true;
+    }
   }
 
   return (ret);

@@ -30,7 +30,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/admin_ping.tmp
+--write_file $MYSQL_TMP_DIR/compression_server.xpl
 -->import connection.macro
 use performance_schema;
 
@@ -102,7 +102,7 @@ exec $MYSQLXTEST
   --compression-algorithm=deflate_stream
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=0
-  -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_ping.tmp 2>&1;
+  -ux_root --password='' --file=$MYSQL_TMP_DIR/compression_server.xpl 2>&1;
 
 echo ## 2. Verify compression at server side using LZ4frame algorithm;
 exec $MYSQLXTEST
@@ -110,7 +110,7 @@ exec $MYSQLXTEST
   --compression-algorithm=lz4_message
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=0
-  -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_ping.tmp 2>&1;
+  -ux_root --password='' --file=$MYSQL_TMP_DIR/compression_server.xpl 2>&1;
 
 echo ## 3. Verify compression at server side using ZSTD algorithm;
 exec $MYSQLXTEST
@@ -118,8 +118,7 @@ exec $MYSQLXTEST
   --compression-algorithm=zstd_stream
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=0
-  -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_ping.tmp 2>&1;
+  -ux_root --password='' --file=$MYSQL_TMP_DIR/compression_server.xpl 2>&1;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/admin_ping.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

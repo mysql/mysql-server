@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,7 @@ class Rpl_info : public Slave_reporting_capability {
   std::atomic<uint> slave_running;
   std::atomic<ulong> slave_run_id;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   int events_until_exit;
 #endif
 

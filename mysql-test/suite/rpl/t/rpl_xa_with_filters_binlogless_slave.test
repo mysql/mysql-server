@@ -60,7 +60,7 @@ XA COMMIT '1';
 #
 # Retry the transaction
 #
-START SLAVE SQL_THREAD;
+START REPLICA SQL_THREAD;
 --let $slave_sql_errno= convert_error(ER_XA_REPLICATION_FILTERS)
 --source include/wait_for_slave_sql_error.inc
 

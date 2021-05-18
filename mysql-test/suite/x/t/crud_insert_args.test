@@ -4,12 +4,11 @@
 --source include/xplugin_create_user.inc
 
 ## Test data
-DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
 CREATE TABLE xtest.xtable (value FLOAT);
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_insert_args.tmp
+--write_file $MYSQL_TMP_DIR/crud_insert_args.xpl
 
 ##-- missing arg
 -->quiet
@@ -104,11 +103,9 @@ Mysqlx.Crud.Insert {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_args.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_args.xpl 2>&1
 
 SELECT * FROM xtest.xtable;
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/crud_insert_args.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

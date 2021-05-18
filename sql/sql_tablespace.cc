@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -103,15 +103,19 @@ st_alter_tablespace::st_alter_tablespace(
       undo_buffer_size{opts.undo_buffer_size},
       redo_buffer_size{opts.redo_buffer_size},
       initial_size{opts.initial_size},
-      autoextend_size{opts.autoextend_size},
       max_size{opts.max_size},
       file_block_size{opts.file_block_size},
       nodegroup_id{opts.nodegroup_id},
       wait_until_completed{opts.wait_until_completed},
-      ts_comment{opts.ts_comment.str} {}
+      ts_comment{opts.ts_comment.str},
+      encryption{opts.encryption.str} {
+  if (opts.autoextend_size.has_value()) {
+    autoextend_size = opts.autoextend_size.value();
+  }
+}
 
 bool validate_tablespace_name_length(const char *tablespace_name) {
-  DBUG_ASSERT(tablespace_name != nullptr);
+  assert(tablespace_name != nullptr);
   LEX_CSTRING tspname = {tablespace_name, strlen(tablespace_name)};
   return validate_tspnamelen(tspname);
 }
@@ -119,8 +123,8 @@ bool validate_tablespace_name_length(const char *tablespace_name) {
 bool validate_tablespace_name(ts_command_type ts_cmd,
                               const char *tablespace_name,
                               const handlerton *engine) {
-  DBUG_ASSERT(tablespace_name != nullptr);
-  DBUG_ASSERT(engine != nullptr);
+  assert(tablespace_name != nullptr);
+  assert(engine != nullptr);
 
   // Length must be valid.
   if (validate_tablespace_name_length(tablespace_name)) {
@@ -274,7 +278,7 @@ Mod_pair<T> get_mod_pair(dd::cache::Dictionary_client *dcp,
   if (dcp->acquire_for_modification(name, &ret.second)) {
     return {nullptr, nullptr};
   }
-  DBUG_ASSERT(ret.second != nullptr);
+  assert(ret.second != nullptr);
   return ret;
 }
 
@@ -292,7 +296,7 @@ Mod_pair<T> get_mod_pair(dd::cache::Dictionary_client *dcp,
   if (dcp->acquire_for_modification(sch_name, name, &ret.second)) {
     return {nullptr, nullptr};
   }
-  DBUG_ASSERT(ret.second != nullptr);
+  assert(ret.second != nullptr);
   return ret;
 }
 
@@ -356,7 +360,7 @@ bool get_dd_hton(THD *thd, const dd::String_type &dd_engine,
     return true;
   }
 
-  DBUG_ASSERT(hton->alter_tablespace);
+  assert(hton->alter_tablespace);
   if (hton->alter_tablespace == nullptr) {
     my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0), dd_engine.c_str(), stmt);
     return true;
@@ -430,7 +434,7 @@ Sql_cmd_tablespace::Sql_cmd_tablespace(const LEX_STRING &name,
 
 /* purecov: begin inspected */
 enum_sql_command Sql_cmd_tablespace::sql_command_code() const {
-  DBUG_ASSERT(false);
+  assert(false);
   return SQLCOM_ALTER_TABLESPACE;
 }
 /* purecov: end */
@@ -555,6 +559,11 @@ bool Sql_cmd_create_tablespace::execute(THD *thd) {
   // Add datafile
   tablespace->add_file()->set_filename(
       dd::make_string_type(tblspc_datafile_name));
+
+  tablespace->options().set("autoextend_size",
+                            m_options->autoextend_size.has_value()
+                                ? m_options->autoextend_size.value()
+                                : 0);
 
   // Write changes to dictionary.
   if (dc.store(tablespace.get())) {
@@ -952,6 +961,11 @@ bool Sql_cmd_alter_tablespace::execute(THD *thd) {
 
   if (m_options->engine_attribute.str) {
     tsmp.second->set_engine_attribute(m_options->engine_attribute);
+  }
+
+  if (m_options->autoextend_size.has_value()) {
+    tsmp.second->options().set("autoextend_size",
+                               m_options->autoextend_size.value());
   }
 
   /*
@@ -1491,9 +1505,9 @@ Sql_cmd_alter_undo_tablespace::Sql_cmd_alter_undo_tablespace(
       m_at_type(at_type),
       m_options(options) {
   // These only at_type values that the syntax currently accepts
-  DBUG_ASSERT(at_type == TS_ALTER_TABLESPACE_TYPE_NOT_DEFINED ||
-              at_type == ALTER_UNDO_TABLESPACE_SET_ACTIVE ||
-              at_type == ALTER_UNDO_TABLESPACE_SET_INACTIVE);
+  assert(at_type == TS_ALTER_TABLESPACE_TYPE_NOT_DEFINED ||
+         at_type == ALTER_UNDO_TABLESPACE_SET_ACTIVE ||
+         at_type == ALTER_UNDO_TABLESPACE_SET_INACTIVE);
 }
 
 bool Sql_cmd_alter_undo_tablespace::execute(THD *thd) {

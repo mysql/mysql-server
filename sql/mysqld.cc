@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -210,9 +210,33 @@
     - @subpage page_protocol_connection_lifecycle
 */
 
-// placeholder in TOC
-/**
-  @page mysqlx_protocol X %Protocol
+/** @page page_mysqlx_protocol X %Protocol
+
+@par Topics in this section:
+
+- @subpage mysqlx_protocol_lifecycle
+- @subpage mysqlx_protocol_authentication
+- @subpage mysqlx_protocol_messages
+- @subpage mysqlx_protocol_expectations
+- @subpage mysqlx_protocol_notices
+- @subpage mysqlx_protocol_xplugin
+- @subpage mysqlx_protocol_use_cases
+- @subpage mysqlx_protocol_implementation
+- @subpage mysqlx_protocol_comparison
+- @subpage mysqlx_community_connector
+
+The X %Protocol is implemented by the X Plugin and the following
+MySQL clients support the protocol:
+
+-  MYSQLXSHELL
+
+-  MySQL for Visual Studio 2.0.2 or higher
+
+-  MySQL Connector/J 6.0.2 or higher
+
+-  MySQL Connector/Net 7.0.2 or higher
+
+-  MySQL Connector/Node.js
 */
 
 
@@ -293,6 +317,7 @@
   @page PAGE_SECURITY Security
 
   @subpage AUTHORIZATION_PAGE
+  @subpage PAGE_KEYRING_COMPONENT
 */
 
 
@@ -690,7 +715,7 @@
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_statement.h"
 #include "mysql/psi/mysql_thread.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_data_lock.h"
 #include "mysql/psi/psi_error.h"
@@ -717,6 +742,7 @@
 #include "mysys_err.h"  // EXIT_OUT_OF_MEMORY
 #include "pfs_thread_provider.h"
 #include "print_version.h"
+#include "scope_guard.h"                           // create_scope_guard()
 #include "server_component/log_sink_buffer.h"      // log_error_stage_set()
 #include "server_component/log_sink_perfschema.h"  // log_error_read_log()
 #ifdef _WIN32
@@ -770,8 +796,6 @@
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
-#include "sql/rpl_async_conn_failover_add_source_udf.h"
-#include "sql/rpl_async_conn_failover_delete_source_udf.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_gtid_persist.h"  // Gtid_table_persistor
@@ -794,6 +818,7 @@
 #include "sql/sql_base.h"
 #include "sql/sql_callback.h"  // MUSQL_CALLBACK
 #include "sql/sql_class.h"     // THD
+#include "sql/sql_component.h"
 #include "sql/sql_connect.h"
 #include "sql/sql_error.h"
 #include "sql/sql_initialize.h"  // opt_initialize_insecure
@@ -822,6 +847,7 @@
 #include "sql/thr_malloc.h"
 #include "sql/transaction.h"
 #include "sql/tztime.h"  // Time_zone
+#include "sql/udf_service_impl.h"
 #include "sql/xa.h"
 #include "sql_common.h"  // mysql_client_plugin_init
 #include "sql_string.h"
@@ -917,6 +943,7 @@
 #include "sql/server_component/component_sys_var_service_imp.h"
 #include "sql/server_component/log_builtins_filter_imp.h"
 #include "sql/server_component/log_builtins_imp.h"
+#include "sql/server_component/mysql_server_keyring_lockable_imp.h"
 #include "sql/server_component/persistent_dynamic_loader_imp.h"
 #include "sql/srv_session.h"
 
@@ -1038,6 +1065,7 @@ static PSI_rwlock_key key_rwlock_LOCK_system_variables_hash;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_connect;
 static PSI_rwlock_key key_rwlock_LOCK_sys_init_slave;
 static PSI_cond_key key_BINLOG_COND_done;
+static PSI_cond_key key_BINLOG_COND_flush_queue;
 static PSI_cond_key key_BINLOG_update_cond;
 static PSI_cond_key key_BINLOG_prep_xids_cond;
 static PSI_cond_key key_COND_manager;
@@ -1066,6 +1094,7 @@ static PSI_mutex_key key_LOCK_keyring_operations;
 static PSI_mutex_key key_LOCK_tls_ctx_options;
 static PSI_mutex_key key_LOCK_admin_tls_ctx_options;
 static PSI_mutex_key key_LOCK_rotate_binlog_master_key;
+static PSI_mutex_key key_LOCK_partial_revokes;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -1098,6 +1127,7 @@ static const char *default_collation_name;
 const char *default_storage_engine;
 const char *default_tmp_storage_engine;
 ulonglong temptable_max_ram;
+ulonglong temptable_max_mmap;
 bool temptable_use_mmap;
 static char compiled_default_collation_name[] = MYSQL_DEFAULT_COLLATION_NAME;
 static bool binlog_format_used = false;
@@ -1139,6 +1169,7 @@ ulong opt_keyring_migration_port = 0;
 bool migrate_connect_options = false;
 uint host_cache_size;
 ulong log_error_verbosity = 3;  // have a non-zero value during early start-up
+bool opt_keyring_migration_to_component = false;
 
 #if defined(_WIN32)
 /*
@@ -1198,7 +1229,7 @@ uint opt_large_page_size = 0;
 uint default_password_lifetime = 0;
 bool password_require_current = false;
 std::atomic<bool> partial_revokes;
-bool opt_partial_revokes;
+bool opt_partial_revokes;  // Intialized through Sys_var
 
 mysql_mutex_t LOCK_default_password_lifetime;
 mysql_mutex_t LOCK_mandatory_roles;
@@ -1206,6 +1237,7 @@ mysql_mutex_t LOCK_password_history;
 mysql_mutex_t LOCK_password_reuse_interval;
 mysql_mutex_t LOCK_tls_ctx_options;
 mysql_mutex_t LOCK_admin_tls_ctx_options;
+mysql_mutex_t LOCK_partial_revokes;
 
 #if defined(ENABLED_DEBUG_SYNC)
 MYSQL_PLUGIN_IMPORT uint opt_debug_sync_timeout = 0;
@@ -1274,7 +1306,7 @@ ulong opt_mts_slave_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
 ulonglong slave_rows_search_algorithms_options;
 bool opt_slave_preserve_commit_order;
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 uint slave_rows_last_search_algorithm_used;
 #endif
 ulong mts_parallel_option;
@@ -1302,6 +1334,12 @@ bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
+
+/**
+  This variable holds handle to the object that's responsible
+  for loading/unloading components from manifest file
+*/
+Deployed_components *g_deployed_components = nullptr;
 
 /**
   Limit of the total number of prepared statements in the server.
@@ -1436,8 +1474,7 @@ Le_creator le_creator;
 
 Rpl_global_filter rpl_global_filter;
 Rpl_filter *binlog_filter;
-Rpl_async_conn_failover_add_source rpl_async_conn_failover_add_source;
-Rpl_async_conn_failover_delete_source rpl_async_conn_failover_delete_source;
+Udf_load_service udf_load_service;
 
 struct System_variables global_system_variables;
 struct System_variables max_system_variables;
@@ -1663,7 +1700,7 @@ void substitute_progpath(char **argv) {
 
   // my_realpath() cannot resolve it, it must be a bare executable
   // name in path
-  DBUG_ASSERT(strchr(argv[0], FN_LIBCHAR) == nullptr);
+  assert(strchr(argv[0], FN_LIBCHAR) == nullptr);
 
   const char *spbegin = getenv("PATH");
   if (spbegin == nullptr) spbegin = "";
@@ -1680,7 +1717,7 @@ void substitute_progpath(char **argv) {
     if (my_access(cand.c_str(), X_OK) == 0) {
       if (my_realpath(my_progpath, cand.c_str(), MYF(0))) {
         // Fallback to raw cand
-        DBUG_ASSERT(cand.length() < FN_REFLEN);
+        assert(cand.length() < FN_REFLEN);
         std::copy(cand.begin(), cand.end(), my_progpath);
         my_progpath[cand.length()] = '\0';
       }
@@ -1689,7 +1726,7 @@ void substitute_progpath(char **argv) {
       break;
     }
     if (colonend == spend) {
-      DBUG_ASSERT(false);
+      assert(false);
       break;
     }
   }  // while (true)
@@ -1742,8 +1779,8 @@ ulong sql_rnd_with_mutex() {
 }
 
 struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated) {
-  DBUG_ASSERT(thd != nullptr);
-  DBUG_ASSERT(aggregated != nullptr);
+  assert(thd != nullptr);
+  assert(aggregated != nullptr);
   *aggregated = thd->status_var_aggregated;
   return &thd->status_var;
 }
@@ -1808,9 +1845,13 @@ static char restart_event_name[40];
 static NTService Service;  ///< Service object for WinNT
 #endif                     /* _WIN32 */
 
-static bool dynamic_plugins_are_initialized = false;
+/**
+   Flag indicating if dynamic plugins have been loaded. Only to be accessed
+   by main thread.
+ */
+bool dynamic_plugins_are_initialized = false;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static const char *default_dbug_option;
 #endif
 
@@ -1877,6 +1918,12 @@ extern bool initialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) *
                                        *registry);
 extern bool deinitialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) *
                                          registry);
+/*
+  List of components to be loaded directly using dynamic loader load.
+  These components should to be present in the plugin directory path.
+*/
+const char *component_urns[] = {"file://component_reference_cache"};
+#define NUMBER_OF_COMPONENTS 1
 
 /**
   Initializes component infrastructure by bootstrapping core component
@@ -1887,6 +1934,7 @@ extern bool deinitialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) *
   @retval true failure
 */
 static bool component_infrastructure_init() {
+  bool retval = false;
   if (initialize_minimal_chassis(&srv_registry)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_BOOTSTRAP);
     return true;
@@ -1937,7 +1985,7 @@ static bool component_infrastructure_init() {
   mysql_service_mysql_runtime_error =
       reinterpret_cast<SERVICE_TYPE(mysql_runtime_error) *>(error_service);
 
-  return false;
+  return retval;
 }
 
 /**
@@ -1982,6 +2030,7 @@ static bool mysql_component_infrastructure_init() {
 */
 static bool component_infrastructure_deinit() {
   persistent_dynamic_loader_deinit();
+  bool retval = false;
 
   srv_registry->release(reinterpret_cast<my_h_service>(
       const_cast<loader_scheme_type_t *>(scheme_file_srv)));
@@ -1996,9 +2045,36 @@ static bool component_infrastructure_deinit() {
 
   if (deinitialize_minimal_chassis(srv_registry)) {
     LogErr(ERROR_LEVEL, ER_COMPONENTS_INFRASTRUCTURE_SHUTDOWN);
+    retval = true;
+  }
+  return retval;
+}
+
+static bool initialize_manifest_file_components() {
+  /*
+    Read components from manifest file
+
+    Note that the word 'components' is used differently in the server.
+    Here we address the component service infrastructure, but in other places,
+    like init_server_components() the word is used in bit different context
+    and may mean general idea of modularity.
+  */
+  g_deployed_components = new (std::nothrow) Deployed_components(my_progname);
+  if (g_deployed_components == nullptr ||
+      g_deployed_components->valid() == false) {
+    /*Error would have been raised by Deployed_components constructor */
+    g_deployed_components = nullptr;
     return true;
   }
   return false;
+}
+
+static void deinitialize_manifest_file_components() {
+  if (g_deployed_components != nullptr) {
+    /* Error if any would have been raised */
+    delete g_deployed_components;
+    g_deployed_components = nullptr;
+  }
 }
 
 /**
@@ -2047,8 +2123,8 @@ class Set_kill_conn : public Do_THD_Impl {
         return;
       }
       DBUG_EXECUTE_IF("Check_dump_thread_is_alive", {
-        DBUG_ASSERT(killing_thd->get_command() != COM_BINLOG_DUMP &&
-                    killing_thd->get_command() != COM_BINLOG_DUMP_GTID);
+        assert(killing_thd->get_command() != COM_BINLOG_DUMP &&
+               killing_thd->get_command() != COM_BINLOG_DUMP_GTID);
       };);
     }
     mysql_mutex_lock(&killing_thd->LOCK_thd_data);
@@ -2299,9 +2375,8 @@ static void unireg_abort(int exit_code) {
 void clean_up_mysqld_mutexes() { clean_up_mutexes(); }
 
 static void mysqld_exit(int exit_code) {
-  DBUG_ASSERT(
-      (exit_code >= MYSQLD_SUCCESS_EXIT && exit_code <= MYSQLD_ABORT_EXIT) ||
-      exit_code == MYSQLD_RESTART_EXIT);
+  assert((exit_code >= MYSQLD_SUCCESS_EXIT && exit_code <= MYSQLD_ABORT_EXIT) ||
+         exit_code == MYSQLD_RESTART_EXIT);
   mysql_audit_finalize();
   Srv_session::module_deinit();
   delete_optimizer_cost_module();
@@ -2397,6 +2472,9 @@ static void clean_up(bool print_message) {
 
   memcached_shutdown();
 
+  release_keyring_handles();
+  keyring_lockable_deinit();
+
   /*
     make sure that handlers finish up
     what they have that is dependent on the binlog
@@ -2408,8 +2486,7 @@ static void clean_up(bool print_message) {
   injector::free_instance();
   mysql_bin_log.cleanup();
 
-  rpl_async_conn_failover_add_source.deinit();
-  rpl_async_conn_failover_delete_source.deinit();
+  udf_load_service.deinit();
 
   if (use_slave_mask) bitmap_free(&slave_error_mask);
   my_tz_free();
@@ -2494,6 +2571,7 @@ static void clean_up(bool print_message) {
   }
 #endif
   deinit_tls_psi_keys();
+  deinitialize_manifest_file_components();
   component_infrastructure_deinit();
   /*
     component unregister_variable() api depends on system_variable_hash.
@@ -2566,6 +2644,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_rotate_binlog_master_key);
   mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
+  mysql_mutex_destroy(&LOCK_partial_revokes);
 }
 
 /****************************************************************************
@@ -2625,7 +2704,7 @@ static PasswdValue check_user(const char *user) {
     }
     return PasswdValue{};
   }
-  DBUG_ASSERT(user_id == 0);  // we are running as root
+  assert(user_id == 0);  // we are running as root
 
   if (!user) {
     if (!opt_initialize && !is_help_or_validate_option()) {
@@ -2665,7 +2744,7 @@ PasswdValue check_user_drv(const char *user) { return check_user(user); }
 
 static void set_user(const char *user, const PasswdValue &user_info_arg) {
   /* purecov: begin tested */
-  DBUG_ASSERT(user_info_arg.IsVoid() == false);
+  assert(user_info_arg.IsVoid() == false);
 #ifdef HAVE_INITGROUPS
   initgroups(user, user_info_arg.pw_gid);
 #endif
@@ -2689,7 +2768,7 @@ static void set_user(const char *user, const PasswdValue &user_info_arg) {
 }
 
 static void set_effective_user(const PasswdValue &user_info_arg) {
-  DBUG_ASSERT(user_info_arg.IsVoid() == false);
+  assert(user_info_arg.IsVoid() == false);
   if (setregid((gid_t)-1, user_info_arg.pw_gid) == -1) {
     LogErr(ERROR_LEVEL, ER_FAIL_SETREGID, strerror(errno));
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -3017,7 +3096,7 @@ static bool network_init(void) {
 
     if (report_port == 0) report_port = mysqld_port;
 
-    if (!opt_disable_networking) DBUG_ASSERT(report_port != 0);
+    if (!opt_disable_networking) assert(report_port != 0);
   }
 #ifdef _WIN32
   // Create named pipe
@@ -3371,7 +3450,7 @@ static void start_signal_handler() {
 #endif
   if (0 !=
       my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize)) {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   /*
@@ -3494,7 +3573,7 @@ extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
           while (socket_listener_active) {
             DBUG_PRINT("info", ("Killing socket listener"));
             if (pthread_kill(main_thread_id, SIGALRM)) {
-              DBUG_ASSERT(false);
+              assert(false);
               break;
             }
             mysql_cond_wait(&COND_socket_listener_active,
@@ -3554,7 +3633,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
   DBUG_TRACE;
   DBUG_PRINT("error", ("error: %u  message: '%s'", error, str));
 
-  DBUG_ASSERT(str != nullptr);
+  assert(str != nullptr);
   /*
     An error should have a valid error number (!= 0), so it can be caught
     in stored procedures by SQL exception handlers.
@@ -3562,12 +3641,12 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
     Remaining known places to fix:
     - storage/myisam/mi_create.c, my_printf_error()
     TODO:
-    DBUG_ASSERT(error != 0);
+    assert(error != 0);
   */
 
   if (error == 0) {
     /* At least, prevent new abuse ... */
-    DBUG_ASSERT(strncmp(str, "MyISAM table", 12) == 0);
+    assert(strncmp(str, "MyISAM table", 12) == 0);
     error = ER_UNKNOWN_ERROR;
   }
 
@@ -3630,7 +3709,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
       range). SIGNALing an error-code from the error-log range
       will not result in writing to that log to prevent abuse.
     */
-    DBUG_ASSERT(error < ER_SERVER_RANGE_START);
+    assert(error < ER_SERVER_RANGE_START);
   }
 
   /* When simulating OOM, skip writing to error log to avoid mtr errors */
@@ -3686,8 +3765,8 @@ void my_message_sql(uint error, const char *str, myf MyFlags) {
       (We're bailing after rather than before printing to make the
       culprit easier to track down.)
     */
-    DBUG_ASSERT((error == ER_FEATURE_NOT_AVAILABLE) ||
-                (error >= ER_SERVER_RANGE_START));
+    assert((error == ER_FEATURE_NOT_AVAILABLE) ||
+           (error >= ER_SERVER_RANGE_START));
   }
 
   /*
@@ -3816,6 +3895,9 @@ SHOW_VAR com_status_vars[] = {
     {"change_repl_filter",
      (char *)offsetof(System_status_var,
                       com_stat[(uint)SQLCOM_CHANGE_REPLICATION_FILTER]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"change_replication_source",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_CHANGE_MASTER]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"check", (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_CHECK]),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
@@ -4313,7 +4395,7 @@ static void init_sql_statement_names() {
     ptr = var->value;
     if ((first_com <= ptr) && (ptr <= last_com)) {
       com_index = ((int)(ptr - first_com)) / record_size;
-      DBUG_ASSERT(com_index < (uint)SQLCOM_END);
+      assert(com_index < (uint)SQLCOM_END);
       sql_statement_names[com_index].str = var->name;
       /* TODO: Change SHOW_VAR::name to a LEX_STRING, to avoid strlen() */
       sql_statement_names[com_index].length = strlen(var->name);
@@ -4321,10 +4403,8 @@ static void init_sql_statement_names() {
     var++;
   }
 
-  DBUG_ASSERT(strcmp(sql_statement_names[(uint)SQLCOM_SELECT].str, "select") ==
-              0);
-  DBUG_ASSERT(strcmp(sql_statement_names[(uint)SQLCOM_SIGNAL].str, "signal") ==
-              0);
+  assert(strcmp(sql_statement_names[(uint)SQLCOM_SELECT].str, "select") == 0);
+  assert(strcmp(sql_statement_names[(uint)SQLCOM_SIGNAL].str, "signal") == 0);
 
   sql_statement_names[(uint)SQLCOM_END].str = "error";
 }
@@ -4469,9 +4549,9 @@ int init_common_variables() {
       key_BINLOG_LOCK_flush_queue, key_BINLOG_LOCK_log,
       key_BINLOG_LOCK_binlog_end_pos, key_BINLOG_LOCK_sync,
       key_BINLOG_LOCK_sync_queue, key_BINLOG_LOCK_xids, key_BINLOG_COND_done,
-      key_BINLOG_update_cond, key_BINLOG_prep_xids_cond, key_file_binlog,
-      key_file_binlog_index, key_file_binlog_cache,
-      key_file_binlog_index_cache);
+      key_BINLOG_COND_flush_queue, key_BINLOG_update_cond,
+      key_BINLOG_prep_xids_cond, key_file_binlog, key_file_binlog_index,
+      key_file_binlog_cache, key_file_binlog_index_cache);
 #endif
 
   /*
@@ -4534,7 +4614,7 @@ int init_common_variables() {
   */
   if (add_status_vars(status_vars)) return 1;  // an error was already reported
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /*
     We have few debug-only commands in com_status_vars, only visible in debug
     builds. for simplicity we enable the assert only in debug builds
@@ -4552,19 +4632,20 @@ int init_common_variables() {
       Com_stmt_reset           => com_stmt_reset
       Com_stmt_send_long_data  => com_stmt_send_long_data
 
-    We also have aliases for 4 com_status_vars:
+    We also have aliases for 5 com_status_vars:
 
       Com_slave_start              => Com_replica_start
       Com_slave_stop               => Com_replica_stop
       Com_show_slave_status        => Com_show_replica_status
       Com_show_slave_hosts         => Com_show_replicas
+      Com_change_master            => Com_change_replication_source
 
     With this correction the number of Com_ variables (number of elements in
     the array, excluding the last element - terminator) must match the number
     of SQLCOM_ constants.
   */
   static_assert(sizeof(com_status_vars) / sizeof(com_status_vars[0]) - 1 ==
-                    SQLCOM_END + 11,
+                    SQLCOM_END + 12,
                 "");
 #endif
 
@@ -5009,6 +5090,8 @@ static int init_thread_environment() {
                    &LOCK_rotate_binlog_master_key, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_admin_tls_ctx_options, &LOCK_admin_tls_ctx_options,
                    MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_partial_revokes, &LOCK_partial_revokes,
+                   MY_MUTEX_INIT_FAST);
   return 0;
 }
 
@@ -5297,7 +5380,7 @@ static bool initialize_storage_engine(const char *se_name, const char *se_kind,
       LogErr(ERROR_LEVEL, ER_DEFAULT_SE_UNAVAILABLE, se_kind, se_name);
       return true;
     }
-    DBUG_ASSERT(*dest_plugin);
+    assert(*dest_plugin);
   } else {
     /*
       Need to unlock as global_system_variables.table_plugin
@@ -5534,7 +5617,7 @@ static int setup_error_log_components() {
     If LOG_ERROR_STAGE_EXTERNAL_SERVICES_AVAILABLE is set, also add the
     flushed events to performance_schema.error_log.
   */
-  DBUG_ASSERT((log_error_dest != nullptr) && (log_error_dest[0] != '\0'));
+  assert((log_error_dest != nullptr) && (log_error_dest[0] != '\0'));
 
   if (!strcmp(log_error_dest, "stderr")) {
     // If we logging to stderr, there will be no log-file to read.
@@ -5579,6 +5662,18 @@ static int init_server_components() {
   partitioning_init();
   if (table_def_init() | hostname_cache_init(host_cache_size))
     unireg_abort(MYSQLD_ABORT_EXIT);
+
+  /*
+    This load function has to be called after the opt_plugin_dir variable
+    is initialized else it will fail to load.
+    The unload of these components will be done by minimal_chassis_deinit().
+    So, no need to call unload of these components.
+    Since, it is an optional component required for GR, audit log etc. The
+    error check of the service availability has to be done by those
+    plugins/components.
+  */
+  if (!is_help_or_validate_option() && !opt_initialize)
+    dynamic_loader_srv->load(component_urns, NUMBER_OF_COMPONENTS);
 
   /*
     Timers not needed if only starting with --help.
@@ -5626,8 +5721,8 @@ static int init_server_components() {
     LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-format");
 
   /* Check that we have not let the format to unspecified at this point */
-  DBUG_ASSERT((uint)global_system_variables.binlog_format <=
-              array_elements(binlog_format_names) - 1);
+  assert((uint)global_system_variables.binlog_format <=
+         array_elements(binlog_format_names) - 1);
 
   opt_server_id_mask = ~ulong(0);
   opt_server_id_mask =
@@ -5828,7 +5923,7 @@ static int init_server_components() {
           LogErr(WARNING_LEVEL, err, msg);
           break;
         default:
-          DBUG_ASSERT(0); /* purecov: deadcode */
+          assert(0); /* purecov: deadcode */
       }
     }
   }
@@ -5857,11 +5952,11 @@ static int init_server_components() {
       We have to call a function in log_resource.cc, or its references
       won't be visible to plugins.
     */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     int dummy =
 #endif
         Log_resource::dummy_function_to_ensure_we_are_linked_into_the_server();
-    DBUG_ASSERT(dummy == 1);
+    assert(dummy == 1);
   }
 
   /*
@@ -5971,18 +6066,39 @@ static int init_server_components() {
       opt_upgrade_mode != UPGRADE_MINIMAL)
     flags |= PLUGIN_INIT_DELAY_UNTIL_AFTER_UPGRADE;
 
-  if (plugin_register_dynamic_and_init_all(&remaining_argc, remaining_argv,
-                                           flags)) {
-    // Delete all DD tables in case of error in initializing plugins.
-    if (dd::upgrade_57::in_progress())
-      (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
+  /*
+    Initialize the cost model, but delete it after the plugins are initialized.
+    Cost model is needed while dropping and creating pfs tables to
+    update metadata of referencing views (if there are any).
+   */
+  init_optimizer_cost_module(true);
+  {  // New scope in which the error handler hook is modified.
+    ErrorHandlerFunctionPointer ehh_val = error_handler_hook;
+    auto restore_ehh = create_scope_guard([ehh_val]() {
+      assert(ehh_val == my_message_stderr);
+      error_handler_hook = ehh_val;
+    });
+    error_handler_hook = +[](uint c, const char *s, myf f) {
+      if (c != ER_NO_SUCH_TABLE || strstr(s, "mysql.server_cost") == nullptr) {
+        my_message_stderr(c, s, f);
+      }
+    };
+    if (plugin_register_dynamic_and_init_all(&remaining_argc, remaining_argv,
+                                             flags)) {
+      delete_optimizer_cost_module();
+      // Delete all DD tables in case of error in initializing plugins.
+      if (dd::upgrade_57::in_progress())
+        (void)dd::init(dd::enum_dd_init_type::DD_DELETE);
 
-    if (!opt_validate_config)
-      LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
+      if (!opt_validate_config)
+        LogErr(ERROR_LEVEL, ER_CANT_INITIALIZE_DYNAMIC_PLUGINS);
+      unireg_abort(MYSQLD_ABORT_EXIT);
+    }
+  }  // End of extra scope where missing server_cost errors are not logged
+  assert(error_handler_hook == my_message_stderr);
   dynamic_plugins_are_initialized =
       true; /* Don't separate from init function */
+  delete_optimizer_cost_module();
 
   LEX_CSTRING plugin_name = {STRING_WITH_LEN("thread_pool")};
   if (Connection_handler_manager::thread_handling !=
@@ -6190,6 +6306,16 @@ static int init_server_components() {
     opt_general_log = false;
 
   /*
+    Each server should have one UUID. We will create it automatically, if it
+    does not exist. It should be initialized before opening binlog file. Because
+    server's uuid will be stored into the new binlog file.
+  */
+  if (init_server_auto_options()) {
+    LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
+
+  /*
     Set the default storage engines
   */
   if (initialize_storage_engine(default_storage_engine, "",
@@ -6261,16 +6387,6 @@ static int init_server_components() {
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
 
-  /*
-    Each server should have one UUID. We will create it automatically, if it
-    does not exist. It should be initialized before opening binlog file. Because
-    server's uuid will be stored into the new binlog file.
-  */
-  if (init_server_auto_options()) {
-    LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
-    unireg_abort(MYSQLD_ABORT_EXIT);
-  }
-
   if (rpl_encryption.initialize()) {
     LogErr(ERROR_LEVEL, ER_SERVER_RPL_ENCRYPTION_UNABLE_TO_INITIALIZE);
     unireg_abort(MYSQLD_ABORT_EXIT);
@@ -6282,7 +6398,7 @@ static int init_server_components() {
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
       corretly compute the set of previous gtids.
     */
-    DBUG_ASSERT(!mysql_bin_log.is_relay_log);
+    assert(!mysql_bin_log.is_relay_log);
     mysql_mutex_t *log_lock = mysql_bin_log.get_log_lock();
     mysql_mutex_lock(log_lock);
 
@@ -6308,17 +6424,9 @@ static int init_server_components() {
     }
   } else if (expire_logs_days_supplied)
     binlog_expire_logs_seconds = 0;
-  DBUG_ASSERT(expire_logs_days == 0 || binlog_expire_logs_seconds == 0);
+  assert(expire_logs_days == 0 || binlog_expire_logs_seconds == 0);
 
-  if (opt_bin_log) {
-    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
-      time_t purge_time = my_time(0) - binlog_expire_logs_seconds -
-                          expire_logs_days * 24 * 60 * 60;
-      DBUG_EXECUTE_IF("expire_logs_always_at_start",
-                      { purge_time = my_time(0); });
-      mysql_bin_log.purge_logs_before_date(purge_time, true);
-    }
-  } else {
+  if (!opt_bin_log) {
     if (binlog_expire_logs_seconds_supplied)
       LogErr(WARNING_LEVEL, ER_NEED_LOG_BIN, "--binlog-expire-logs-seconds");
     if (expire_logs_days_supplied)
@@ -6345,8 +6453,7 @@ static int init_server_components() {
 #endif
     locked_in_memory = false;
 
-  rpl_async_conn_failover_add_source.init();
-  rpl_async_conn_failover_delete_source.init();
+  udf_load_service.init();
 
   /* Initialize the optimizer cost module */
   init_optimizer_cost_module(true);
@@ -6415,7 +6522,7 @@ static void create_shutdown_and_restart_thread() {
 }
 #endif /* _WIN32 */
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /*
   Debugging helper function to keep the locale database
   (see sql_locale.cc) and max_month_name_length and
@@ -6441,11 +6548,11 @@ static void test_lc_time_sz() {
         (*loc)->max_day_name_length != max_day_len) {
       DBUG_PRINT("Wrong max day name(or month name) length for locale:",
                  ("%s", (*loc)->name));
-      DBUG_ASSERT(0);
+      assert(0);
     }
   }
 }
-#endif  // DBUG_OFF
+#endif  // NDEBUG
 
 /*
   @brief : Set opt_super_readonly to user supplied value before
@@ -6862,12 +6969,14 @@ int mysqld_main(int argc, char **argv)
     unireg_abort(MYSQLD_ABORT_EXIT);  // Will do exit
   }
 
+  keyring_lockable_init();
+
   my_init_signals();
 
   size_t guardize = 0;
 #ifndef _WIN32
   int retval = pthread_attr_getguardsize(&connection_attrib, &guardize);
-  DBUG_ASSERT(retval == 0);
+  assert(retval == 0);
   if (retval != 0) guardize = my_thread_stack_size;
 #endif
 
@@ -6881,7 +6990,7 @@ int mysqld_main(int argc, char **argv)
 
   if (0 != my_thread_attr_setstacksize(&connection_attrib,
                                        my_thread_stack_size + guardize)) {
-    DBUG_ASSERT(false);
+    assert(false);
   }
 
   {
@@ -6901,7 +7010,7 @@ int mysqld_main(int argc, char **argv)
     }
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   test_lc_time_sz();
   srand(static_cast<uint>(time(nullptr)));
 #endif
@@ -6987,30 +7096,36 @@ int mysqld_main(int argc, char **argv)
   */
   if (opt_keyring_migration_source || opt_keyring_migration_destination ||
       migrate_connect_options) {
-    Migrate_keyring mk;
-    my_getopt_skip_unknown = TRUE;
-    if (mk.init(remaining_argc, remaining_argv, opt_keyring_migration_source,
-                opt_keyring_migration_destination, opt_keyring_migration_user,
-                opt_keyring_migration_host, opt_keyring_migration_password,
-                opt_keyring_migration_socket, opt_keyring_migration_port)) {
-      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
+    int exit_state = MYSQLD_ABORT_EXIT;
+    while (true) {
+      Migrate_keyring mk;
+      my_getopt_skip_unknown = true;
+      if (mk.init(remaining_argc, remaining_argv, opt_keyring_migration_source,
+                  opt_keyring_migration_destination, opt_keyring_migration_user,
+                  opt_keyring_migration_host, opt_keyring_migration_password,
+                  opt_keyring_migration_socket, opt_keyring_migration_port,
+                  opt_keyring_migration_to_component)) {
+        LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
+        log_error_dest = "stderr";
+        flush_error_log_messages();
+        break;
+      }
+
+      if (mk.execute()) {
+        LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
+        log_error_dest = "stderr";
+        flush_error_log_messages();
+        break;
+      }
+
+      my_getopt_skip_unknown = false;
+      LogErr(INFORMATION_LEVEL, ER_KEYRING_MIGRATION_SUCCESSFUL);
       log_error_dest = "stderr";
       flush_error_log_messages();
-      unireg_abort(MYSQLD_ABORT_EXIT);
+      exit_state = MYSQLD_SUCCESS_EXIT;
+      break;
     }
-
-    if (mk.execute()) {
-      LogErr(ERROR_LEVEL, ER_KEYRING_MIGRATION_FAILED);
-      log_error_dest = "stderr";
-      flush_error_log_messages();
-      unireg_abort(MYSQLD_ABORT_EXIT);
-    }
-
-    my_getopt_skip_unknown = false;
-    LogErr(INFORMATION_LEVEL, ER_KEYRING_MIGRATION_SUCCESSFUL);
-    log_error_dest = "stderr";
-    flush_error_log_messages();
-    unireg_abort(MYSQLD_SUCCESS_EXIT);
+    unireg_abort(exit_state);
   }
 
   /*
@@ -7024,6 +7139,15 @@ int mysqld_main(int argc, char **argv)
            my_strerror(errbuf, sizeof(errbuf), errno));
     unireg_abort(MYSQLD_ABORT_EXIT); /* purecov: inspected */
   }
+
+  if (initialize_manifest_file_components()) unireg_abort(MYSQLD_ABORT_EXIT);
+
+  /*
+    If keyring component was loaded through manifest file, services provided
+    by such a component should get priority over keyring plugin. That's why
+    we have to set defaults before proxy keyring services are loaded.
+  */
+  set_srv_keyring_implementation_as_default();
 
   /*
    The subsequent calls may take a long time : e.g. innodb log read.
@@ -7140,7 +7264,7 @@ int mysqld_main(int argc, char **argv)
                    (gtids_in_binlog - purged_gtids_from_binlog)
                  = gtids_only_in_table + purged_gtids_from_binlog;
     */
-    DBUG_ASSERT(lost_gtids->is_empty());
+    assert(lost_gtids->is_empty());
     if (lost_gtids->add_gtid_set(gtids_only_in_table) != RETURN_STATUS_OK ||
         lost_gtids->add_gtid_set(&purged_gtids_from_binlog) !=
             RETURN_STATUS_OK) {
@@ -7172,6 +7296,14 @@ int mysqld_main(int argc, char **argv)
 
     if (mysql_bin_log.write_event_to_binlog_and_sync(&prev_gtids_ev))
       unireg_abort(MYSQLD_ABORT_EXIT);
+
+    if (expire_logs_days > 0 || binlog_expire_logs_seconds > 0) {
+      time_t purge_time = my_time(0) - binlog_expire_logs_seconds -
+                          expire_logs_days * 24 * 60 * 60;
+      DBUG_EXECUTE_IF("expire_logs_always_at_start",
+                      { purge_time = my_time(0); });
+      mysql_bin_log.purge_logs_before_date(purge_time, true);
+    }
 
     (void)RUN_HOOK(server_state, after_engine_recovery, (nullptr));
   }
@@ -7256,15 +7388,6 @@ int mysqld_main(int argc, char **argv)
    to be used by ACL objects.
   */
   if (opt_initialize) init_acl_memory();
-
-  /*
-    Turn ON the system variable '@@partial_revokes' during server
-    start in case there exist at least one restrictions instance.
-  */
-  if (mysqld_partial_revokes() == false && is_partial_revoke_exists(nullptr)) {
-    set_mysqld_partial_revokes(true);
-    LogErr(WARNING_LEVEL, ER_TURNING_ON_PARTIAL_REVOKES);
-  }
 
   if (abort || my_tz_init((THD *)nullptr, default_tz_name, opt_initialize) ||
       grant_init(opt_noacl)) {
@@ -8003,7 +8126,7 @@ static void adjust_table_def_size() {
 
   default_value = min<ulong>(400 + table_cache_size / 2, 2000);
   var = intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
-  DBUG_ASSERT(var != nullptr);
+  assert(var != nullptr);
   var->update_default(default_value);
 
   if (!table_definition_cache_specified) table_def_size = default_value;
@@ -8058,9 +8181,7 @@ struct my_option my_long_early_options[] = {
      &opt_keyring_migration_source, &opt_keyring_migration_source, nullptr,
      GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"keyring-migration-destination", OPT_KEYRING_MIGRATION_DESTINATION,
-     "Keyring plugin to which the keys are "
-     "migrated to. This option must be specified along with "
-     "--keyring-migration-source.",
+     "Keyring plugin or component to which the keys are migrated to.",
      &opt_keyring_migration_destination, &opt_keyring_migration_destination,
      nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"keyring-migration-user", OPT_KEYRING_MIGRATION_USER,
@@ -8083,6 +8204,10 @@ struct my_option my_long_early_options[] = {
      "Port number to use for connection.", &opt_keyring_migration_port,
      &opt_keyring_migration_port, nullptr, GET_ULONG, REQUIRED_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
+    {"keyring-migration-to-component", OPT_KEYRING_MIGRATION_TO_COMPONENT,
+     "Migrate from keyring plugin to keyring component.",
+     &opt_keyring_migration_to_component, &opt_keyring_migration_to_component,
+     nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"no-dd-upgrade", 0,
      "Abort restart if automatic upgrade or downgrade of the data dictionary "
      "is needed. Deprecated option. Use --upgrade=NONE instead.",
@@ -8349,9 +8474,6 @@ struct my_option my_long_options[] = {
     {"skip-new", OPT_SKIP_NEW, "Don't use new, possibly wrong routines.",
      nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
-    {"skip-slave-start", 0, "If set, slave is not autostarted.",
-     &opt_skip_slave_start, &opt_skip_slave_start, nullptr, GET_BOOL, NO_ARG, 0,
-     0, 0, nullptr, 0, nullptr},
     {"skip-stack-trace", OPT_SKIP_STACK_TRACE,
      "Don't print a stack trace on failure.", nullptr, nullptr, nullptr,
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
@@ -8565,11 +8687,12 @@ static int show_connection_errors_max_connection(THD *, SHOW_VAR *var,
   return 0;
 }
 
-static int show_connection_errors_select(THD *, SHOW_VAR *var, char *buff) {
+static int show_connection_errors_query_block(THD *, SHOW_VAR *var,
+                                              char *buff) {
   var->type = SHOW_LONG;
   var->value = buff;
   long *value = reinterpret_cast<long *>(buff);
-  *value = static_cast<long>(get_connection_errors_select());
+  *value = static_cast<long>(get_connection_errors_query_block());
   return 0;
 }
 
@@ -8709,7 +8832,7 @@ static int show_heartbeat_period(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 static int show_slave_rows_last_search_algorithm_used(THD *, SHOW_VAR *var,
                                                       char *buff) {
   uint res = slave_rows_last_search_algorithm_used;
@@ -8883,19 +9006,19 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Acl_cache_items_count", (char *)&show_acl_cache_items_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"Ongoing_anonymous_gtid_violating_transaction_count",
      (char *)&show_ongoing_anonymous_gtid_violating_transaction_count,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-#endif  //! DBUG_OFF
+#endif  //! NDEBUG
     {"Ongoing_anonymous_transaction_count",
      (char *)&show_ongoing_anonymous_transaction_count, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"Ongoing_automatic_gtid_violating_transaction_count",
      (char *)&show_ongoing_automatic_gtid_violating_transaction_count,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
-#endif  //! DBUG_OFF
+#endif  //! NDEBUG
     {"Binlog_cache_disk_use", (char *)&binlog_cache_disk_use, SHOW_LONG,
      SHOW_SCOPE_GLOBAL},
     {"Binlog_cache_use", (char *)&binlog_cache_use, SHOW_LONG,
@@ -8929,7 +9052,7 @@ SHOW_VAR status_vars[] = {
      SHOW_SCOPE_GLOBAL},
     {"Connection_errors_peer_address", (char *)&connection_errors_peer_addr,
      SHOW_LONG, SHOW_SCOPE_GLOBAL},
-    {"Connection_errors_select", (char *)&show_connection_errors_select,
+    {"Connection_errors_select", (char *)&show_connection_errors_query_block,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Connection_errors_tcpwrap", (char *)&show_connection_errors_tcpwrap,
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
@@ -9086,7 +9209,7 @@ SHOW_VAR status_vars[] = {
      SHOW_FUNC, SHOW_SCOPE_GLOBAL},
     {"Slave_last_heartbeat", (char *)&show_slave_last_heartbeat, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     {"Slave_rows_last_search_algorithm_used",
      (char *)&show_slave_rows_last_search_algorithm_used, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
@@ -9262,7 +9385,7 @@ static bool operator<(const my_option &a, const my_option &b) {
         return false;
     }
   }
-  DBUG_ASSERT(a.name == b.name);
+  assert(a.name == b.name);
   return false;
 }
 
@@ -9433,9 +9556,11 @@ static int mysql_init_variables() {
   character_set_filesystem_name = "binary";
   lc_messages = mysqld_default_locale_name;
   lc_time_names_name = mysqld_default_locale_name;
+  opt_replication_optimize_for_static_plugin_config = 0;
+  opt_replication_sender_observe_commit_only = 0;
 
   /* Variables that depends on compile options */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   default_dbug_option =
       IF_WIN("d:t:i:O,\\mysqld.trace", "d:t:i:o,/tmp/mysqld.trace");
 #endif
@@ -9496,7 +9621,7 @@ void parse_filter_arg(char **channel_name, char **filter_val, char *argument) {
 
   char *p = strchr(argument, ':');
 
-  DBUG_ASSERT(p != nullptr);
+  assert(p != nullptr);
 
   /*
     If argument='channel_1:db1', then channel_name='channel_1'
@@ -9556,7 +9681,7 @@ bool mysqld_get_one_option(int optid,
 
   switch (optid) {
     case '#':
-#ifndef DBUG_OFF
+#ifndef NDEBUG
       DBUG_SET_INITIAL(argument ? argument : default_dbug_option);
 #endif
       opt_endinfo = true; /* unireg: memory allocation */
@@ -10038,6 +10163,13 @@ bool mysqld_get_one_option(int optid,
       push_deprecated_warn_no_replacement(nullptr,
                                           "--slave-rows-search-algorithms");
       break;
+    case OPT_MASTER_INFO_REPOSITORY:
+      push_deprecated_warn_no_replacement(nullptr, "--master-info-repository");
+      break;
+    case OPT_RELAY_LOG_INFO_REPOSITORY:
+      push_deprecated_warn_no_replacement(nullptr,
+                                          "--relay-log-info-repository");
+      break;
   }
   return false;
 }
@@ -10155,7 +10287,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
           log_builtins_filter_parse_suppression_list(
               opt_log_error_suppression_list, true);
         } else {
-          DBUG_ASSERT(false); /* purecov: inspected */
+          assert(false); /* purecov: inspected */
         }
       }
     }
@@ -10198,16 +10330,6 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
       !global_system_variables.explicit_defaults_for_timestamp)
     LogErr(WARNING_LEVEL, ER_DEPRECATED_TIMESTAMP_IMPLICIT_DEFAULTS);
 
-  if (!is_help_or_validate_option() &&
-      opt_mi_repository_id == INFO_REPOSITORY_FILE)
-    push_deprecated_warn(nullptr, "--master-info-repository=FILE",
-                         "'--master-info-repository=TABLE'");
-
-  if (!is_help_or_validate_option() &&
-      opt_rli_repository_id == INFO_REPOSITORY_FILE)
-    push_deprecated_warn(nullptr, "--relay-log-info-repository=FILE",
-                         "'--relay-log-info-repository=TABLE'");
-
   opt_init_connect.length = strlen(opt_init_connect.str);
   opt_init_slave.length = strlen(opt_init_slave.str);
   opt_mandatory_roles.length = strlen(opt_mandatory_roles.str);
@@ -10246,8 +10368,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 
   // Synchronize @@global.autocommit metadata on --autocommit
   my_option *opt = &my_long_options[3];
-  DBUG_ASSERT(strcmp(opt->name, "autocommit") == 0);
-  DBUG_ASSERT(opt->arg_source != nullptr);
+  assert(strcmp(opt->name, "autocommit") == 0);
+  assert(opt->arg_source != nullptr);
   Sys_autocommit_ptr->set_source_name(opt->arg_source->m_path_name);
   Sys_autocommit_ptr->set_source(opt->arg_source->m_source);
 
@@ -10317,7 +10439,7 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 static void set_server_version(void) {
   char *end MY_ATTRIBUTE((unused)) = strxmov(
       server_version, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end = my_stpcpy(end, "-debug");
 #endif
@@ -10886,14 +11008,10 @@ PSI_mutex_key key_LOCK_thd_query;
 PSI_mutex_key key_LOCK_cost_const;
 PSI_mutex_key key_LOCK_current_cond;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
-PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
-PSI_mutex_key key_RELAYLOG_LOCK_done;
-PSI_mutex_key key_RELAYLOG_LOCK_flush_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
 PSI_mutex_key key_RELAYLOG_LOCK_log;
 PSI_mutex_key key_RELAYLOG_LOCK_log_end_pos;
 PSI_mutex_key key_RELAYLOG_LOCK_sync;
-PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_object_cache_mutex;  // TODO need to initialize
@@ -10903,6 +11021,7 @@ PSI_mutex_key key_mts_gaq_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 PSI_mutex_key key_commit_order_manager_mutex;
 PSI_mutex_key key_mutex_slave_worker_hash;
+PSI_mutex_key key_monitor_info_run_lock;
 
 /* clang-format off */
 static PSI_mutex_info all_server_mutexes[]=
@@ -10919,14 +11038,10 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_BINLOG_LOCK_sync_queue, "MYSQL_BIN_LOG::LOCK_sync_queue", 0, 0, PSI_DOCUMENT_ME},
   { &key_BINLOG_LOCK_xids, "MYSQL_BIN_LOG::LOCK_xids", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_LOCK_commit, "MYSQL_RELAY_LOG::LOCK_commit", 0, 0, PSI_DOCUMENT_ME},
-  { &key_RELAYLOG_LOCK_commit_queue, "MYSQL_RELAY_LOG::LOCK_commit_queue", 0, 0, PSI_DOCUMENT_ME},
-  { &key_RELAYLOG_LOCK_done, "MYSQL_RELAY_LOG::LOCK_done", 0, 0, PSI_DOCUMENT_ME},
-  { &key_RELAYLOG_LOCK_flush_queue, "MYSQL_RELAY_LOG::LOCK_flush_queue", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_LOCK_log, "MYSQL_RELAY_LOG::LOCK_log", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_LOCK_log_end_pos, "MYSQL_RELAY_LOG::LOCK_log_end_pos", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_LOCK_sync, "MYSQL_RELAY_LOG::LOCK_sync", 0, 0, PSI_DOCUMENT_ME},
-  { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_LOCK_xids, "MYSQL_RELAY_LOG::LOCK_xids", 0, 0, PSI_DOCUMENT_ME},
   { &key_hash_filo_lock, "hash_filo::lock", 0, 0, PSI_DOCUMENT_ME},
   { &Gtid_set::key_gtid_executed_free_intervals_mutex, "Gtid_set::gtid_executed::free_intervals_mutex", 0, 0, PSI_DOCUMENT_ME},
@@ -10991,7 +11106,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_keyring_operations, "LOCK_keyring_operations", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_tls_ctx_options, "LOCK_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options for client server connection port"},
   { &key_LOCK_admin_tls_ctx_options, "LOCK_admin_tls_ctx_options", 0, 0, "A lock to control all of the --ssl-* CTX related command line options for administrative connection port"},
-  { &key_LOCK_rotate_binlog_master_key, "LOCK_rotate_binlog_master_key", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
+  { &key_LOCK_rotate_binlog_master_key, "LOCK_rotate_binlog_master_key", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_monitor_info_run_lock, "Source_IO_monitor::run_lock", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 
@@ -11056,12 +11172,11 @@ PSI_cond_key key_cond_slave_parallel_pend_jobs;
 PSI_cond_key key_cond_slave_parallel_worker;
 PSI_cond_key key_cond_mts_gaq;
 PSI_cond_key key_RELAYLOG_update_cond;
-PSI_cond_key key_RELAYLOG_COND_done;
-PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
 PSI_cond_key key_COND_thr_lock;
 PSI_cond_key key_commit_order_manager_cond;
 PSI_cond_key key_cond_slave_worker_hash;
+PSI_cond_key key_monitor_info_run_cond;
 
 /* clang-format off */
 static PSI_cond_info all_server_conds[]=
@@ -11070,11 +11185,10 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_active, "TC_LOG_MMAP::COND_active", 0, 0, PSI_DOCUMENT_ME},
   { &key_COND_pool, "TC_LOG_MMAP::COND_pool", 0, 0, PSI_DOCUMENT_ME},
   { &key_BINLOG_COND_done, "MYSQL_BIN_LOG::COND_done", 0, 0, PSI_DOCUMENT_ME},
+  { &key_BINLOG_COND_flush_queue, "MYSQL_BIN_LOG::COND_flush_queue", 0, 0, PSI_DOCUMENT_ME},
   { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_BINLOG_prep_xids_cond, "MYSQL_BIN_LOG::prep_xids_cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_RELAYLOG_COND_done, "MYSQL_RELAY_LOG::COND_done", 0, 0, PSI_DOCUMENT_ME},
   { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_RELAYLOG_prep_xids_cond, "MYSQL_RELAY_LOG::prep_xids_cond", 0, 0, PSI_DOCUMENT_ME},
 #if defined(_WIN32)
   { &key_COND_handler_count, "COND_handler_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
 #endif
@@ -11102,7 +11216,8 @@ static PSI_cond_info all_server_conds[]=
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME}
+  { &key_cond_slave_worker_hash, "Relay_log_info::slave_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_monitor_info_run_cond, "Source_IO_monitor::run_cond", 0, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 
@@ -11281,6 +11396,9 @@ PSI_stage_info stage_waiting_for_no_channel_reference= { 0, "Waiting for no chan
 PSI_stage_info stage_hook_begin_trans= { 0, "Executing hook on transaction begin.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_binlog_transaction_compress= { 0, "Compressing transaction changes.", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_binlog_transaction_decompress= { 0, "Decompressing transaction changes.", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_rpl_failover_fetching_source_member_details= { 0, "Fetching source member details from connected source", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_rpl_failover_updating_source_member_details= { 0, "Updating fetched source member details on receiver", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_rpl_failover_wait_before_next_fetch= { 0, "Wait before trying to fetch next membership changes from source", 0, PSI_DOCUMENT_ME};
 /* clang-format on */
 
 extern PSI_stage_info stage_waiting_for_disk_space;
@@ -11374,7 +11492,10 @@ PSI_stage_info *all_server_stages[] = {
     &stage_hook_begin_trans,
     &stage_waiting_for_disk_space,
     &stage_binlog_transaction_compress,
-    &stage_binlog_transaction_decompress};
+    &stage_binlog_transaction_decompress,
+    &stage_rpl_failover_fetching_source_member_details,
+    &stage_rpl_failover_updating_source_member_details,
+    &stage_rpl_failover_wait_before_next_fetch};
 
 PSI_socket_key key_socket_tcpip;
 PSI_socket_key key_socket_unix;
@@ -11538,7 +11659,7 @@ bool create_native_table_for_pfs(const Plugin_table *t) {
   if (!is_builtin_and_core_se_initialized()) return true;
 
   THD *thd = current_thd;
-  DBUG_ASSERT(thd);
+  assert(thd);
   return do_create_native_table_for_pfs(thd, t);
 }
 
@@ -11577,7 +11698,7 @@ bool drop_native_table_for_pfs(const char *schema_name,
   /* During bootstrap error cleanup, we don't have THD. */
   THD *thd = current_thd;
   if (thd == nullptr) {
-    DBUG_ASSERT(get_server_state() == SERVER_BOOTING);
+    assert(get_server_state() == SERVER_BOOTING);
     return false;
   }
   return do_drop_native_table_for_pfs(thd, schema_name, table_name);
@@ -11614,4 +11735,24 @@ bool mysqld_partial_revokes() {
 */
 void set_mysqld_partial_revokes(bool value) {
   partial_revokes.store(value, std::memory_order_relaxed);
+}
+
+/**
+  If there exists at least one restrictions on any user,
+  then update global variables which track the partial_revokes.
+
+  @param thd  THD handle
+
+  @return a bool indicating partial_revokes status of the server.
+    @retval true  Parital revokes exists; updated the global variables.
+    @retval false Partial revokes does not exist.
+*/
+bool check_and_update_partial_revokes_sysvar(THD *thd) {
+  if (is_partial_revoke_exists(thd)) {
+    MUTEX_LOCK(lock, &LOCK_partial_revokes);
+    set_mysqld_partial_revokes(true);
+    opt_partial_revokes = true;
+    return true;
+  }
+  return false;
 }

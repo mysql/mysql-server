@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -282,6 +282,8 @@ IF(LINUX AND HAVE_ASAN)
 
 ENDIF()
 
+MY_CHECK_CXX_COMPILER_WARNING("-Wmissing-profile" HAS_MISSING_PROFILE)
+
 FOREACH(googletest_library
     gmock
     gtest
@@ -291,6 +293,12 @@ FOREACH(googletest_library
   TARGET_INCLUDE_DIRECTORIES(${googletest_library} SYSTEM PUBLIC
     ${GMOCK_INCLUDE_DIRS}
     )
+  IF(MY_COMPILER_IS_SUNPRO)
+    TARGET_COMPILE_OPTIONS(${googletest_library} PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO4>)
+  ENDIF()
+  IF(HAS_MISSING_PROFILE)
+    TARGET_COMPILE_OPTIONS(${googletest_library} PRIVATE ${HAS_MISSING_PROFILE})
+  ENDIF()
 ENDFOREACH()
 
 IF(MY_COMPILER_IS_SUNPRO)

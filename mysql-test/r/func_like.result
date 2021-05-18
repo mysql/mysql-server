@@ -263,7 +263,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	PRIMARY	t2	NULL	ALL	idx	NULL	NULL	NULL	2	50.00	Using where; Using filesort
 2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t2` where (`test`.`t2`.`y` like 'abc%%') order by `test`.`t2`.`y`
+Note	1003	/* select#1 */ select `test`.`t2`.`x` AS `x`,`test`.`t2`.`y` AS `y` from `test`.`t2` where (`test`.`t2`.`y` like 'abc%%' escape (/* select#2 */ select 'c' from `test`.`t1`)) order by `test`.`t2`.`y`
 SELECT * FROM t2 WHERE y LIKE 'abc%%' ESCAPE (SELECT 'c' FROM t1) ORDER BY y;
 x	y
 2	ab%cde
@@ -430,3 +430,51 @@ prepare s from 'select 1 from t1 where a like ?';
 execute s using @pattern;
 1
 drop table t1;
+#
+# Bug#26086751: LIKE LOSES ESCAPE CLAUSE WHEN USED IN VIEW
+# Bug#29224931: LIKE ... ESCAPE IS NOT WRITTEN TO DICTIONARY
+# Bug#30211596: `EXPLAIN ... LIKE ... ESCAPE` DOESN'T OUTPUT `ESCAPE`
+#               CLAUSE IN THE WARNING
+#
+EXPLAIN SELECT 'abba' LIKE 'abba' ESCAPE 'b';
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select ('abba' like 'abba' escape 'b') AS `'abba' LIKE 'abba' ESCAPE 'b'`
+CREATE TABLE t(x VARCHAR(10),
+gc INTEGER GENERATED ALWAYS AS (x LIKE 'abba' ESCAPE 'b'));
+INSERT INTO t(x) VALUES ('abba'), ('aba'), ('abbbba');
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `x` varchar(10) DEFAULT NULL,
+  `gc` int GENERATED ALWAYS AS ((`x` like _utf8mb4'abba' escape _utf8mb4'b')) VIRTUAL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT x FROM t WHERE gc <> 0;
+x
+aba
+CREATE VIEW v AS SELECT x, 'abba' LIKE x ESCAPE 'b' AS y FROM t;
+SHOW CREATE VIEW v;
+View	Create View	character_set_client	collation_connection
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t`.`x` AS `x`,('abba' like `t`.`x` escape 'b') AS `y` from `t`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT x FROM v WHERE y <> 0;
+x
+abbbba
+DROP VIEW v;
+DROP TABLE t;
+#
+# Bug#32446508: INCONSISTENT HANDLING OF LIKE WITH AN EMPTY ESCAPE SEQUENCE
+#
+# Used to return (0, 1, 1), should return (0, 0, 0).
+SELECT _latin1'abc' LIKE _latin1'a\\bc' ESCAPE _latin1'' AS col1,
+_utf8mb4'abc' LIKE _utf8mb4'a\\bc' ESCAPE _utf8mb4'' AS col2,
+_latin1'abc' LIKE _latin1'a\\bc' ESCAPE _ascii'' AS col3;
+col1	col2	col3
+0	0	0
+SET sql_mode = CONCAT(@@sql_mode, ',NO_BACKSLASH_ESCAPES');
+# Used to return (1, 0), should return (1, 1).
+SELECT _latin1'a\bc' LIKE _latin1'a\%' AS col1,
+_utf8mb4'a\bc' LIKE _utf8mb4'a\%' AS col2;
+col1	col2
+1	1
+SET sql_mode = DEFAULT;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,18 +22,20 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "ndb_config.h"
 
 #ifdef _WIN32
 #include <malloc.h> // _aligned_alloc
 #include <Windows.h>
 #else
 #include <stdlib.h> // aligned_alloc or posix_memalign
+#define __STDC_WANT_LIB_EXT1__ 1
+#include <string.h> // explict_bzero or memset_s
 #include <sys/mman.h>
 #include <unistd.h> // sysconf
 #endif
 
 #include <NdbMem.h>
-
 
 int NdbMem_MemLockAll(int i){
   if (i == 1)
@@ -208,6 +210,24 @@ int NdbMem_PopulateSpace(void* ptr, size_t len)
     ret = madvise(ptr, len, MADV_DODUMP);
     if (ret == -1)
     {
+#ifdef __sun
+      if (errno == EINVAL)
+      {
+        /*
+         * Assume reservation of space was done without MADV_DONTDUMP too.
+         * Probably not using NdbMem_ReserveSpace but by calling mmap in some
+         * other way.
+         * In that case all memory is dumped anyway.
+         *
+         * This was a problem when compiling on a newer Solaris supporting
+         * MADV_DONTDUMP and MADV_DODUMP and then running on an older Solaris
+         * not supporting these.
+         */
+        errno = 0;
+        return 0;
+      }
+#endif
+      /* Unexpected failure, make memory unaccessible again. */
       (void) mprotect(ptr, len, PROT_NONE);
     }
 #endif
@@ -290,5 +310,34 @@ size_t NdbMem_GetSystemPageSize()
   SYSTEM_INFO si;
   GetSystemInfo(&si);
   return si.dwPageSize;
+#endif
+}
+
+void NdbMem_SecureClear(void* ptr, size_t len)
+{
+#if defined(_WIN32)
+  SecureZeroMemory(ptr, len);
+#elif defined(HAVE_MEMSET_S)
+  memset_s(ptr, len, 0, len);
+
+  /*
+   * Solaris 11.4 SRU 12 explicit_bzero was introduced.
+   *
+   * But since we allow builds on such new Solaris to run on older Solaris 11.4
+   * versions there system libraries does not have explicit_bzero we can get a
+   * runtime link error.
+   *
+   * To avoid that we will avoid explicit_bzero on Solaris.
+   */
+#elif defined(HAVE_EXPLICIT_BZERO) && !defined(__sun)
+  explicit_bzero(ptr, len);
+#else
+  /*
+   * As long as no compiler take the effort and optimize away calls to
+   * NdbMem_SecureClear, the memset should always be part of
+   * NdbMem_SecureClear since whether cleared area will be further accessed or
+   * not is beyond knowledge in this scope.
+   */
+  memset(ptr, 0, len);
 #endif
 }

@@ -1484,32 +1484,92 @@ ARMENIAN SMALL ZA		’¶	00	’¶	’¶
 SET CHARACTER SET 'binary';
 SELECT * FROM t1;
 comment	koi8_ru_f	utf8_f	bin_f	ucs2_f	armscii8_f	greek_f
-LAT SMALL A	a	a	a	 a		
-LAT SMALL B	b	b	b	 b		
-LAT SMALL C	c	c	c	 c		
-LAT SMALL D	d	d	d	 d		
-LAT SMALL E	e	e	e	 e		
-LAT SMALL F	f	f	f	 f		
-LAT SMALL G	g	g	g	 g		
-LAT SMALL H	h	h	h	 h		
-LAT SMALL I	i	i	i	 i		
-LAT SMALL J	j	j	j	 j		
-LAT SMALL K	k	k	k	 k		
-LAT SMALL L	l	l	l	 l		
-LAT SMALL M	m	m	m	 m		
-LAT SMALL N	n	n	n	 n		
-LAT SMALL O	o	o	o	 o		
-LAT SMALL P	p	p	p	 p		
-LAT SMALL Q	q	q	q	 q		
-LAT SMALL R	r	r	r	 r		
-LAT SMALL S	s	s	s	 s		
-LAT SMALL T	t	t	t	 t		
-LAT SMALL U	u	u	u	 u		
-LAT SMALL V	v	v	v	 v		
-LAT SMALL W	w	w	w	 w		
-LAT SMALL X	x	x	x	 x		
-LAT SMALL Y	y	y	y	 y		
-LAT SMALL Z	z	z	z	 z		
+ARMENIAN CAPIT AYB		‘±	 	1	≤	
+ARMENIAN CAPIT BEN		‘≤	 	2	¥	
+ARMENIAN CAPIT DA		‘¥	 	4	∏	
+ARMENIAN CAPIT ECH		‘µ	 	5	∫	
+ARMENIAN CAPIT GIM		‘≥	 	3	∂	
+ARMENIAN CAPIT ZA		‘∂	 	6	º	
+ARMENIAN SMALL BEN		’¢	 	b	µ	
+ARMENIAN SMALL DA		’§	 	d	π	
+ARMENIAN SMALL ECH		’•	 	e	ª	
+ARMENIAN SMALL GIM		’£	 	c	∑	
+ARMENIAN SMALL YAB		’°	 	a	≥	
+ARMENIAN SMALL ZA		’¶	 	f	Ω	
+CYR CAPIT A	·	–ê	·			
+CYR CAPIT BE	‚	–ë	‚			
+CYR CAPIT CHE	˛	–ß	˛	'		
+CYR CAPIT DE	‰	–î	‰			
+CYR CAPIT E	¸	–≠	¸	-		
+CYR CAPIT EF	Ê	–§	Ê	$		
+CYR CAPIT EL	Ï	–õ	Ï			
+CYR CAPIT EM	Ì	–ú	Ì			
+CYR CAPIT EN	Ó	–ù	Ó			
+CYR CAPIT ER	Ú	–†	Ú	 		
+CYR CAPIT ES	Û	–°	Û	!		
+CYR CAPIT GE	Á	–ì	Á			
+CYR CAPIT HA	Ë	–•	Ë	%		
+CYR CAPIT HARD SIGN	ˇ	–™	ˇ	*		
+CYR CAPIT I	È	–ò	È			
+CYR CAPIT IE	Â	–ï	Â			
+CYR CAPIT IO	≥	–Å	≥			
+CYR CAPIT KA	Î	–ö	Î			
+CYR CAPIT O	Ô	–û	Ô			
+CYR CAPIT PE		–ü				
+CYR CAPIT SCHA	˝	–©	˝	)		
+CYR CAPIT SHA	˚	–®	˚	(		
+CYR CAPIT SOFT SIGN	¯	–¨	¯	,		
+CYR CAPIT TE	Ù	–¢	Ù	"		
+CYR CAPIT TSE	„	–¶	„	&		
+CYR CAPIT U	ı	–£	ı	#		
+CYR CAPIT VE	˜	–í	˜			
+CYR CAPIT YA	Ò	–Ø	Ò	/		
+CYR CAPIT YERU	˘	–´	˘	+		
+CYR CAPIT YU	‡	–Æ	‡	.		
+CYR CAPIT ZE	˙	–ó	˙			
+CYR CAPIT ZHE	ˆ	–ñ	ˆ			
+CYR SMALL A	¡	–∞	¡	0		
+CYR SMALL BE	¬	–±	¬	1		
+CYR SMALL CHE	ﬁ	—á	ﬁ	G		
+CYR SMALL DE	ƒ	–¥	ƒ	4		
+CYR SMALL E	‹	—ç	‹	M		
+CYR SMALL EF	∆	—Ñ	∆	D		
+CYR SMALL EL	Ã	–ª	Ã	;		
+CYR SMALL EM	Õ	–º	Õ	<		
+CYR SMALL EN	Œ	–Ω	Œ	=		
+CYR SMALL ER	“	—Ä	“	@		
+CYR SMALL ES	”	—Å	”	A		
+CYR SMALL GE	«	–≥	«	3		
+CYR SMALL HA	»	—Ö	»	E		
+CYR SMALL HARD SIGN	ﬂ	—ä	ﬂ	J		
+CYR SMALL I	…	–∏	…	8		
+CYR SMALL IE	≈	–µ	≈	5		
+CYR SMALL IO	£	—ë	£	Q		
+CYR SMALL KA	À	–∫	À	:		
+CYR SMALL O	œ	–æ	œ	>		
+CYR SMALL PE	–	–ø	–	?		
+CYR SMALL SCHA	›	—â	›	I		
+CYR SMALL SHA	€	—à	€	H		
+CYR SMALL SOFT SIGN	ÿ	—å	ÿ	L		
+CYR SMALL TE	‘	—Ç	‘	B		
+CYR SMALL TSE	√	—Ü	√	F		
+CYR SMALL U	’	—É	’	C		
+CYR SMALL VE	◊	–≤	◊	2		
+CYR SMALL YA	—	—è	—	O		
+CYR SMALL YERU	Ÿ	—ã	Ÿ	K		
+CYR SMALL YU	¿	—é	¿	N		
+CYR SMALL ZE	⁄	–∑	⁄	7		
+CYR SMALL ZHE	÷	–∂	÷	6		
+GREEK CAPIT ALPHA		Œë	 	ë		¡
+GREEK CAPIT BETA		Œí	 	í		¬
+GREEK CAPIT DELTA		Œî	 	î		ƒ
+GREEK CAPIT EPSILON		Œï	 	ï		≈
+GREEK CAPIT GAMMA		Œì	 	ì		√
+GREEK SMALL ALPHA		Œ±	 	±		·
+GREEK SMALL BETA		Œ≤	 	≤		‚
+GREEK SMALL DELTA		Œ¥	 	¥		‰
+GREEK SMALL EPSILON		Œµ	 	µ		Â
+GREEK SMALL GAMMA		Œ≥	 	≥		„
 LAT CAPIT A	A	A	A	 A		
 LAT CAPIT B	B	B	B	 B		
 LAT CAPIT C	C	C	C	 C		
@@ -1536,94 +1596,76 @@ LAT CAPIT W	W	W	W	 W
 LAT CAPIT X	X	X	X	 X		
 LAT CAPIT Y	Y	Y	Y	 Y		
 LAT CAPIT Z	Z	Z	Z	 Z		
-CYR SMALL A	¡	–∞	¡	0		
-CYR SMALL BE	¬	–±	¬	1		
-CYR SMALL VE	◊	–≤	◊	2		
-CYR SMALL GE	«	–≥	«	3		
-CYR SMALL DE	ƒ	–¥	ƒ	4		
-CYR SMALL IE	≈	–µ	≈	5		
-CYR SMALL IO	£	—ë	£	Q		
-CYR SMALL ZHE	÷	–∂	÷	6		
-CYR SMALL ZE	⁄	–∑	⁄	7		
-CYR SMALL I	…	–∏	…	8		
-CYR SMALL KA	À	–∫	À	:		
-CYR SMALL EL	Ã	–ª	Ã	;		
-CYR SMALL EM	Õ	–º	Õ	<		
-CYR SMALL EN	Œ	–Ω	Œ	=		
-CYR SMALL O	œ	–æ	œ	>		
-CYR SMALL PE	–	–ø	–	?		
-CYR SMALL ER	“	—Ä	“	@		
-CYR SMALL ES	”	—Å	”	A		
-CYR SMALL TE	‘	—Ç	‘	B		
-CYR SMALL U	’	—É	’	C		
-CYR SMALL EF	∆	—Ñ	∆	D		
-CYR SMALL HA	»	—Ö	»	E		
-CYR SMALL TSE	√	—Ü	√	F		
-CYR SMALL CHE	ﬁ	—á	ﬁ	G		
-CYR SMALL SHA	€	—à	€	H		
-CYR SMALL SCHA	›	—â	›	I		
-CYR SMALL HARD SIGN	ﬂ	—ä	ﬂ	J		
-CYR SMALL YERU	Ÿ	—ã	Ÿ	K		
-CYR SMALL SOFT SIGN	ÿ	—å	ÿ	L		
-CYR SMALL E	‹	—ç	‹	M		
-CYR SMALL YU	¿	—é	¿	N		
-CYR SMALL YA	—	—è	—	O		
-CYR CAPIT A	·	–ê	·			
-CYR CAPIT BE	‚	–ë	‚			
-CYR CAPIT VE	˜	–í	˜			
-CYR CAPIT GE	Á	–ì	Á			
-CYR CAPIT DE	‰	–î	‰			
-CYR CAPIT IE	Â	–ï	Â			
-CYR CAPIT IO	≥	–Å	≥			
-CYR CAPIT ZHE	ˆ	–ñ	ˆ			
-CYR CAPIT ZE	˙	–ó	˙			
-CYR CAPIT I	È	–ò	È			
-CYR CAPIT KA	Î	–ö	Î			
-CYR CAPIT EL	Ï	–õ	Ï			
-CYR CAPIT EM	Ì	–ú	Ì			
-CYR CAPIT EN	Ó	–ù	Ó			
-CYR CAPIT O	Ô	–û	Ô			
-CYR CAPIT PE		–ü				
-CYR CAPIT ER	Ú	–†	Ú	 		
-CYR CAPIT ES	Û	–°	Û	!		
-CYR CAPIT TE	Ù	–¢	Ù	"		
-CYR CAPIT U	ı	–£	ı	#		
-CYR CAPIT EF	Ê	–§	Ê	$		
-CYR CAPIT HA	Ë	–•	Ë	%		
-CYR CAPIT TSE	„	–¶	„	&		
-CYR CAPIT CHE	˛	–ß	˛	'		
-CYR CAPIT SHA	˚	–®	˚	(		
-CYR CAPIT SCHA	˝	–©	˝	)		
-CYR CAPIT HARD SIGN	ˇ	–™	ˇ	*		
-CYR CAPIT YERU	˘	–´	˘	+		
-CYR CAPIT SOFT SIGN	¯	–¨	¯	,		
-CYR CAPIT E	¸	–≠	¸	-		
-CYR CAPIT YU	‡	–Æ	‡	.		
-CYR CAPIT YA	Ò	–Ø	Ò	/		
-GREEK CAPIT ALPHA		Œë	 	ë		¡
-GREEK CAPIT BETA		Œí	 	í		¬
-GREEK CAPIT GAMMA		Œì	 	ì		√
-GREEK CAPIT DELTA		Œî	 	î		ƒ
-GREEK CAPIT EPSILON		Œï	 	ï		≈
-GREEK SMALL ALPHA		Œ±	 	±		·
-GREEK SMALL BETA		Œ≤	 	≤		‚
-GREEK SMALL GAMMA		Œ≥	 	≥		„
-GREEK SMALL DELTA		Œ¥	 	¥		‰
-GREEK SMALL EPSILON		Œµ	 	µ		Â
-ARMENIAN CAPIT AYB		‘±	 	1	≤	
-ARMENIAN CAPIT BEN		‘≤	 	2	¥	
-ARMENIAN CAPIT GIM		‘≥	 	3	∂	
-ARMENIAN CAPIT DA		‘¥	 	4	∏	
-ARMENIAN CAPIT ECH		‘µ	 	5	∫	
-ARMENIAN CAPIT ZA		‘∂	 	6	º	
-ARMENIAN SMALL YAB		’°	 	a	≥	
-ARMENIAN SMALL BEN		’¢	 	b	µ	
-ARMENIAN SMALL GIM		’£	 	c	∑	
-ARMENIAN SMALL DA		’§	 	d	π	
-ARMENIAN SMALL ECH		’•	 	e	ª	
-ARMENIAN SMALL ZA		’¶	 	f	Ω	
+LAT SMALL A	a	a	a	 a		
+LAT SMALL B	b	b	b	 b		
+LAT SMALL C	c	c	c	 c		
+LAT SMALL D	d	d	d	 d		
+LAT SMALL E	e	e	e	 e		
+LAT SMALL F	f	f	f	 f		
+LAT SMALL G	g	g	g	 g		
+LAT SMALL H	h	h	h	 h		
+LAT SMALL I	i	i	i	 i		
+LAT SMALL J	j	j	j	 j		
+LAT SMALL K	k	k	k	 k		
+LAT SMALL L	l	l	l	 l		
+LAT SMALL M	m	m	m	 m		
+LAT SMALL N	n	n	n	 n		
+LAT SMALL O	o	o	o	 o		
+LAT SMALL P	p	p	p	 p		
+LAT SMALL Q	q	q	q	 q		
+LAT SMALL R	r	r	r	 r		
+LAT SMALL S	s	s	s	 s		
+LAT SMALL T	t	t	t	 t		
+LAT SMALL U	u	u	u	 u		
+LAT SMALL V	v	v	v	 v		
+LAT SMALL W	w	w	w	 w		
+LAT SMALL X	x	x	x	 x		
+LAT SMALL Y	y	y	y	 y		
+LAT SMALL Z	z	z	z	 z		
 SELECT min(comment),count(*) FROM t1 GROUP BY ucs2_f;
 min(comment)	count(*)
+ARMENIAN CAPIT AYB	2
+ARMENIAN CAPIT BEN	2
+ARMENIAN CAPIT DA	2
+ARMENIAN CAPIT ECH	2
+ARMENIAN CAPIT GIM	2
+ARMENIAN CAPIT ZA	2
+CYR CAPIT A	2
+CYR CAPIT BE	2
+CYR CAPIT CHE	2
+CYR CAPIT DE	2
+CYR CAPIT E	2
+CYR CAPIT EF	2
+CYR CAPIT EL	2
+CYR CAPIT EM	2
+CYR CAPIT EN	2
+CYR CAPIT ER	2
+CYR CAPIT ES	2
+CYR CAPIT GE	2
+CYR CAPIT HA	2
+CYR CAPIT HARD SIGN	2
+CYR CAPIT I	2
+CYR CAPIT IE	4
+CYR CAPIT KA	2
+CYR CAPIT O	2
+CYR CAPIT PE	2
+CYR CAPIT SCHA	2
+CYR CAPIT SHA	2
+CYR CAPIT SOFT SIGN	2
+CYR CAPIT TE	2
+CYR CAPIT TSE	2
+CYR CAPIT U	2
+CYR CAPIT VE	2
+CYR CAPIT YA	2
+CYR CAPIT YERU	2
+CYR CAPIT YU	2
+CYR CAPIT ZE	2
+CYR CAPIT ZHE	2
+GREEK CAPIT ALPHA	2
+GREEK CAPIT BETA	2
+GREEK CAPIT DELTA	2
+GREEK CAPIT EPSILON	2
+GREEK CAPIT GAMMA	2
 LAT CAPIT A	2
 LAT CAPIT B	2
 LAT CAPIT C	2
@@ -1650,48 +1692,6 @@ LAT CAPIT W	2
 LAT CAPIT X	2
 LAT CAPIT Y	2
 LAT CAPIT Z	2
-CYR CAPIT A	2
-CYR CAPIT BE	2
-CYR CAPIT VE	2
-CYR CAPIT GE	2
-CYR CAPIT DE	2
-CYR CAPIT IE	4
-CYR CAPIT ZHE	2
-CYR CAPIT ZE	2
-CYR CAPIT I	2
-CYR CAPIT KA	2
-CYR CAPIT EL	2
-CYR CAPIT EM	2
-CYR CAPIT EN	2
-CYR CAPIT O	2
-CYR CAPIT PE	2
-CYR CAPIT ER	2
-CYR CAPIT ES	2
-CYR CAPIT TE	2
-CYR CAPIT U	2
-CYR CAPIT EF	2
-CYR CAPIT HA	2
-CYR CAPIT TSE	2
-CYR CAPIT CHE	2
-CYR CAPIT SHA	2
-CYR CAPIT SCHA	2
-CYR CAPIT HARD SIGN	2
-CYR CAPIT YERU	2
-CYR CAPIT SOFT SIGN	2
-CYR CAPIT E	2
-CYR CAPIT YU	2
-CYR CAPIT YA	2
-GREEK CAPIT ALPHA	2
-GREEK CAPIT BETA	2
-GREEK CAPIT GAMMA	2
-GREEK CAPIT DELTA	2
-GREEK CAPIT EPSILON	2
-ARMENIAN CAPIT AYB	2
-ARMENIAN CAPIT BEN	2
-ARMENIAN CAPIT GIM	2
-ARMENIAN CAPIT DA	2
-ARMENIAN CAPIT ECH	2
-ARMENIAN CAPIT ZA	2
 DROP TABLE t1;
 #
 # Start of 5.1 tests
@@ -1810,6 +1810,7 @@ Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 INSERT INTO t1 VALUES ('a'), ('b');
 CREATE TABLE t2 (a BINARY(1));
+INSERT INTO t2 VALUES ('z');
 SELECT * FROM t2 WHERE a=(SELECT a FROM t1) AND a=_LATIN1'x';
 ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t2;

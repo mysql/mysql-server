@@ -742,8 +742,8 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
-test	t1_bi	test	t1	set @a:=new.id
 test	t1_ai	test	t1	set @b:=new.id
+test	t1_bi	test	t1	set @a:=new.id
 rename table t1 to t2;
 insert into t2 values (102);
 select @a, @b;
@@ -753,8 +753,8 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
-test	t1_bi	test	t2	set @a:=new.id
 test	t1_ai	test	t2	set @b:=new.id
+test	t1_bi	test	t2	set @a:=new.id
 alter table t2 rename to t3;
 insert into t3 values (103);
 select @a, @b;
@@ -764,8 +764,8 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
-test	t1_bi	test	t3	set @a:=new.id
 test	t1_ai	test	t3	set @b:=new.id
+test	t1_bi	test	t3	set @a:=new.id
 alter table t3 rename to t4, add column val int default 0;
 insert into t4 values (104, 1);
 select @a, @b;
@@ -775,8 +775,8 @@ select trigger_schema, trigger_name, event_object_schema,
 event_object_table, action_statement from information_schema.triggers
 where event_object_schema = 'test';
 TRIGGER_SCHEMA	TRIGGER_NAME	EVENT_OBJECT_SCHEMA	EVENT_OBJECT_TABLE	ACTION_STATEMENT
-test	t1_bi	test	t4	set @a:=new.id
 test	t1_ai	test	t4	set @b:=new.id
+test	t1_bi	test	t4	set @a:=new.id
 drop trigger t1_bi;
 drop trigger t1_ai;
 drop table t4;
@@ -2160,7 +2160,7 @@ ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 DROP USER 'u1'@'localhost';
 CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
-CHANGE MASTER TO MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_SSL = 0;
 ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 DROP TABLE t1;
 #

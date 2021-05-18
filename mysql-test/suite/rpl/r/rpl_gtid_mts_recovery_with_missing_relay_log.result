@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 CALL mtr.add_suppression("Error looking for file after*");
 CALL mtr.add_suppression("Recovery from master pos*");
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
 include/start_slave.inc
 # Sourcing extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_begin.inc
 [connection slave]
@@ -45,7 +45,7 @@ DROP DATABASE d2;
 include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=1;
 include/start_slave.inc
 # Sourcing extra/rpl_tests/rpl_generate_mts_gap_with_missing_relaylog_begin.inc
 [connection slave]

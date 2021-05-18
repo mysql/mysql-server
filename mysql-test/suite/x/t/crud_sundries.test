@@ -5,14 +5,13 @@
 --source include/xplugin_create_user.inc
 
 ## Test data
-DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
 USE xtest;
 CREATE TABLE xtable (doc JSON);
 INSERT INTO xtable (doc) VALUES ('{"a":10, "b":20, "c":"30", "d":"40", "e":"foo", "f":"bar", "g":"2015.10.05"}');
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_sundries.tmp
+--write_file $MYSQL_TMP_DIR/crud_sundries.xpl
 -->quiet
 ##-- function concat
 Mysqlx.Crud.Find {
@@ -890,9 +889,7 @@ Mysqlx.Crud.Find {
 
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_sundries.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_sundries.xpl 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/crud_sundries.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

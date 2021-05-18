@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -138,9 +138,14 @@ void MetadataCacheAPI::cache_init(
   is_initialized_ = true;
 }
 
-std::string MetadataCacheAPI::instance_name() const { return inst_name_; }
+std::string MetadataCacheAPI::instance_name() const {
+  // read by rest_api
+  return inst_([](auto &inst) { return inst.name; });
+}
+
 void MetadataCacheAPI::instance_name(const std::string &inst_name) {
-  inst_name_ = inst_name;
+  // set by metadata_cache_plugin's start()
+  return inst_([&inst_name](auto &inst) { inst.name = inst_name; });
 }
 
 std::string MetadataCacheAPI::cluster_type_specific_id() const {
@@ -189,36 +194,67 @@ void MetadataCacheAPI::cache_stop() noexcept {
  */
 LookupResult MetadataCacheAPI::lookup_replicaset(
     const std::string &replicaset_name) {
-  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  // We only want to keep the lock when checking if the metadata cache global is
+  // initialized. The object itself protects its shared state in its
+  // replicaset_lookup.
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
 
   return LookupResult(g_metadata_cache->replicaset_lookup(replicaset_name));
 }
 
 void MetadataCacheAPI::mark_instance_reachability(
     const std::string &instance_id, InstanceStatus status) {
-  LOCK_METADATA_AND_CHECK_INITIALIZED();
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
 
   g_metadata_cache->mark_instance_reachability(instance_id, status);
 }
 
 bool MetadataCacheAPI::wait_primary_failover(
-    const std::string &replicaset_name, const std::chrono::seconds &timeout) {
+    const std::string &replicaset_name, const std::string &primary_server_uuid,
+    const std::chrono::seconds &timeout) {
   { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
 
-  return g_metadata_cache->wait_primary_failover(replicaset_name, timeout);
+  return g_metadata_cache->wait_primary_failover(replicaset_name,
+                                                 primary_server_uuid, timeout);
 }
 
-void MetadataCacheAPI::add_listener(
+void MetadataCacheAPI::add_state_listener(
     const std::string &replicaset_name,
     ReplicasetStateListenerInterface *listener) {
-  LOCK_METADATA_AND_CHECK_INITIALIZED();
-  g_metadata_cache->add_listener(replicaset_name, listener);
+  // We only want to keep the lock when checking if the metadata cache global is
+  // initialized. The object itself protects its shared state in its
+  // add_state_listener.
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
+  g_metadata_cache->add_state_listener(replicaset_name, listener);
 }
-void MetadataCacheAPI::remove_listener(
+void MetadataCacheAPI::remove_state_listener(
     const std::string &replicaset_name,
     ReplicasetStateListenerInterface *listener) {
-  LOCK_METADATA_AND_CHECK_INITIALIZED();
-  g_metadata_cache->remove_listener(replicaset_name, listener);
+  // We only want to keep the lock when checking if the metadata cache global is
+  // initialized. The object itself protects its shared state in its
+  // remove_state_listener.
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
+  g_metadata_cache->remove_state_listener(replicaset_name, listener);
+}
+
+void MetadataCacheAPI::add_acceptor_handler_listener(
+    const std::string &replicaset_name,
+    AcceptorUpdateHandlerInterface *listener) {
+  // We only want to keep the lock when checking if the metadata cache global is
+  // initialized. The object itself protects its shared state in its
+  // add_acceptor_handler_listener.
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
+  g_metadata_cache->add_acceptor_handler_listener(replicaset_name, listener);
+}
+
+void MetadataCacheAPI::remove_acceptor_handler_listener(
+    const std::string &replicaset_name,
+    AcceptorUpdateHandlerInterface *listener) {
+  // We only want to keep the lock when checking if the metadata cache global is
+  // initialized. The object itself protects its shared state in its
+  // remove_acceptor_handler_listener.
+  { LOCK_METADATA_AND_CHECK_INITIALIZED(); }
+  g_metadata_cache->remove_acceptor_handler_listener(replicaset_name, listener);
 }
 
 MetadataCacheAPI::RefreshStatus MetadataCacheAPI::get_refresh_status() {
@@ -246,6 +282,12 @@ void MetadataCacheAPI::force_cache_update() {
 void MetadataCacheAPI::check_auth_metadata_timers() const {
   LOCK_METADATA_AND_CHECK_INITIALIZED();
   return g_metadata_cache->check_auth_metadata_timers();
+}
+
+void MetadataCacheAPI::handle_sockets_acceptors_on_md_refresh() {
+  LOCK_METADATA_AND_CHECK_INITIALIZED();
+
+  g_metadata_cache->handle_sockets_acceptors_on_md_refresh();
 }
 
 }  // namespace metadata_cache

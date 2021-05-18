@@ -26,9 +26,9 @@ SET debug_sync = 'RESET';
 [connection master]
 include/save_binlog_position.inc
 [connection slave]
-CHANGE MASTER TO MASTER_LOG_FILE = "BINLOG_FILE",
-MASTER_LOG_POS = BINLOG_POS, MASTER_USER='root',
-MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = "BINLOG_FILE",
+SOURCE_LOG_POS = BINLOG_POS, SOURCE_USER='root',
+SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -58,9 +58,9 @@ SET debug_sync = 'RESET';
 [connection master]
 include/save_binlog_position.inc
 [connection slave]
-CHANGE MASTER TO MASTER_LOG_FILE = "BINLOG_FILE",
-MASTER_LOG_POS = BINLOG_POS, MASTER_USER='root',
-MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = "BINLOG_FILE",
+SOURCE_LOG_POS = BINLOG_POS, SOURCE_USER='root',
+SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

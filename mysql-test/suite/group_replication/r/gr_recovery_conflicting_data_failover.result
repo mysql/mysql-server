@@ -53,7 +53,7 @@ call mtr.add_suppression(".*This member has more executed transactions *.*");
 call mtr.add_suppression("The member contains transactions not present in the group. It is only allowed to *.*");
 SET SESSION sql_log_bin= 1;
 SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
-CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';
 SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 SET SESSION sql_log_bin= 0;
 CREATE TABLE lost_test_table (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;

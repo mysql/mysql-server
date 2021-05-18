@@ -24,7 +24,7 @@ SHOW GRANTS FOR xuser@localhost;
 # 1x MTR connection (open as root/SUPER) + 1x mysqlx default session + 2x new session
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/clien_session.tmp
+--write_file $MYSQL_TMP_DIR/clien_session.xpl
 -->newsession second_session	xuser	xuser_pwd
 
 -->newsession thrid_session	xuser	xuser_pwd
@@ -39,7 +39,7 @@ SHOW GRANTS FOR xuser@localhost;
 -->newsession sixth_session	root
 EOF
 
---exec $MYSQLXTEST -u xuser --password='xuser_pwd' -h127.0.0.1 --file=$MYSQL_TMP_DIR/clien_session.tmp 2>&1
+--exec $MYSQLXTEST -u xuser --password='xuser_pwd' -h127.0.0.1 --file=$MYSQL_TMP_DIR/clien_session.xpl 2>&1
 
 ##todo: without sleep it crashes
 --sleep 0.1
@@ -48,5 +48,5 @@ EOF
 SET @@GLOBAL.MAX_CONNECTIONS= DEFAULT;
 SET @@GLOBAL.MYSQLX_MAX_CONNECTIONS= DEFAULT;
 DROP USER xuser@localhost;
---remove_file $MYSQL_TMP_DIR/clien_session.tmp
+--source ../include/xplugin_cleanup.inc
 

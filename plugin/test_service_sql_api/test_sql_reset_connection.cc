@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -145,7 +145,8 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
   auto pctx = (struct st_plugin_ctx *)ctx;
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info",
+             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
   pctx->num_cols = num_cols;
   pctx->resultcs = resultcs;
@@ -409,6 +410,7 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 static const char *fieldtype2str(enum enum_field_types type) {
@@ -496,6 +498,7 @@ static void query_execute(MYSQL_SESSION session, st_plugin_ctx *pctx,
   pctx->reset();
 
   COM_DATA cmd;
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = query.c_str();
   cmd.com_query.length = query.size();
   if (command_service_run_command(session, COM_QUERY, &cmd,

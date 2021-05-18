@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2007, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,7 @@ class PosixAsyncFile : public AsyncFile
 {
   friend class Ndbfs;
 public:
-  PosixAsyncFile(SimulatedBlock& fs);
+  PosixAsyncFile(Ndbfs& fs);
 
   void removeReq(Request *request) override;
   void rmrfReq(Request *request, const char * path, bool removePath) override;

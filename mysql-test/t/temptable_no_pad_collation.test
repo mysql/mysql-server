@@ -61,7 +61,9 @@ INSERT INTO table_varchar_pad_space VALUES ('XYZ');
 INSERT INTO table_varchar_pad_space VALUES ('XYZ ');
 INSERT INTO table_varchar_pad_space VALUES ('ABC ');
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_tables';
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 
 --echo #
@@ -93,7 +95,9 @@ SELECT f1 FROM (SELECT * FROM table_varchar_pad_space) AS dt WHERE f1 = 'ABC';
 --sorted_result
 SELECT f1 FROM (SELECT * FROM table_char_pad_space) AS dt WHERE f1 = 'ABC';
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_tables';
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 
 --echo #
@@ -120,7 +124,9 @@ SELECT f1 FROM (SELECT * FROM table_varchar_pad_space) AS dt WHERE f1 = 'ABC';
 --sorted_result
 SELECT f1 FROM (SELECT * FROM table_char_pad_space) AS dt WHERE f1 = 'ABC';
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_tables';
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 
 -- echo #
@@ -152,7 +158,9 @@ SELECT f1 FROM (SELECT * FROM table_varchar_pad_space) AS dt WHERE f1 = 'ABC';
 --sorted_result
 SELECT f1 FROM (SELECT * FROM table_char_pad_space) AS dt WHERE f1 = 'ABC';
 
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_tables';
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW STATUS LIKE 'Created_tmp_disk_tables';
 
 --echo #

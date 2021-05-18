@@ -1,0 +1,45 @@
+--source include/have_debug.inc
+--let $MYSQLD_DATADIR=`select @@datadir`
+--let $DB = `SELECT DATABASE()`
+
+select @@binlog_encryption;
+select @@innodb_redo_log_encrypt;
+select @@innodb_undo_log_encrypt;
+
+create table t1 (f1 int, f2 blob) ENCRYPTION='Y';
+
+show create table t1;
+
+START TRANSACTION;
+
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+INSERT INTO t1 VALUES(4, repeat('-',12));
+INSERT INTO t1 VALUES(5, repeat('.',12));
+
+COMMIT WORK;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+--source include/kill_and_restart_mysqld.inc
+
+select 2;
+
+SET SESSION innodb_interpreter = 'init';
+SET SESSION innodb_interpreter = 'print_dblwr_has_encrypted_pages';
+SET SESSION innodb_interpreter = 'destroy';
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= Double write file has encrypted pages;
+--source include/search_pattern.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN= \\[Note\\] \\[MY-\\d+\\] \\[InnoDB\\] Recovered page \\[page id: space=\\d+, page number=\\d+\\] from the doublewrite buffer;
+--source include/search_pattern.inc
+
+
+DROP TABLE t1;
+--echo # Test End

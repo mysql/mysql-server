@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include <ConfigValues.hpp>
 
 struct ndb_mgm_configuration {
-  ConfigValues m_config;
+  ConfigValues m_config_values;
 };
 
 /**
@@ -43,7 +43,7 @@ struct ndb_mgm_configuration_iterator {
   Uint32 m_typeOfSection;
   ConfigValues::ConstIterator m_config;
 
-  ndb_mgm_configuration_iterator(const ndb_mgm_configuration &, unsigned type);
+  ndb_mgm_configuration_iterator(const ndb_mgm_configuration *, unsigned type);
 
   /** 
     Go to the first section instance. Return 0 if successful, i.e. if there is

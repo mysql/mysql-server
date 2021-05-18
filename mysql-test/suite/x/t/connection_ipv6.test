@@ -18,7 +18,7 @@ CREATE USER `user_0::0000:0000:0000:0000:0001`@`0000:0000:0000:0000:0000:0000:00
 CREATE USER `user_0:0:0:0:0:FFFF:127.0.0.1`@`0:0:0:0:0:FFFF:127.0.0.1`;
 CREATE USER `user_::FFFF:127.0.0.1`@`::FFFF:127.0.0.1`;
 
---write_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-connection-info.xpl
 -->sql
 SELECT user();
 SELECT @@global.mysqlx_bind_address;
@@ -26,7 +26,7 @@ SHOW STATUS LIKE 'mysqlx_address';
 -->endsql
 EOF
 
---let $MYSQLXTEST_INFO= $MYSQLXTEST --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 
+--let $MYSQLXTEST_INFO= $MYSQLXTEST --file=$MYSQL_TMP_DIR/mysqlx-connection-info.xpl
 
 --echo #
 --echo #
@@ -143,4 +143,4 @@ DROP USER `user_0::0000:0000:0000:0000:0001`@`0000:0000:0000:0000:0000:0000:0000
 DROP USER `user_0:0:0:0:0:FFFF:127.0.0.1`@`0:0:0:0:0:FFFF:127.0.0.1`;
 DROP USER `user_::FFFF:127.0.0.1`@`::FFFF:127.0.0.1`;
 
---remove_file $MYSQL_TMP_DIR/mysqlx-connection-info.tmp
+--source ../include/xplugin_cleanup.inc

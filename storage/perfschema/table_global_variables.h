@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -60,16 +60,6 @@ class PFS_index_global_variables : public PFS_engine_index {
 };
 
 /**
-  Store and retrieve table state information during queries that reinstantiate
-  the table object.
-*/
-class table_global_variables_context : public PFS_table_context {
- public:
-  table_global_variables_context(ulonglong hash_version, bool restore)
-      : PFS_table_context(hash_version, restore, THR_PFS_VG) {}
-};
-
-/**
   A row of table
   PERFORMANCE_SCHEMA.GLOBAL_VARIABLES.
 */
@@ -124,9 +114,6 @@ class table_global_variables : public PFS_engine_table {
   pos_t m_pos;
   /** Next position. */
   pos_t m_next_pos;
-
-  /** Table context with system variable hash version. */
-  table_global_variables_context *m_context;
 
   PFS_index_global_variables *m_opened_index;
 };

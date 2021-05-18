@@ -79,7 +79,7 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("coverage")	{
                 "table": "`t1`",
                 "table_scan": {
                   "rows": 3,
-                  "cost": 0.5073
+                  "cost": 0.507324
                 }
               }
             ]
@@ -101,7 +101,7 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("coverage")	{
                     },
                     {
                       "access_type": "scan",
-                      "cost": 0.8073,
+                      "cost": 0.807324,
                       "rows": 3,
                       "chosen": false,
                       "cause": "cost"

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -196,7 +196,7 @@ class View_metadata_updater_error_handler final
   }
 
  private:
-  void (*m_old_error_handler_hook)(uint, const char *, myf);
+  ErrorHandlerFunctionPointer m_old_error_handler_hook;
 
  private:
   uint m_sql_errno = 0;
@@ -334,7 +334,7 @@ static bool mark_all_views_invalid(THD *thd, const char *db,
                                    std::vector<TABLE_LIST *> *views_list,
                                    bool commit_dd_changes) {
   DBUG_TRACE;
-  DBUG_ASSERT(!views_list->empty());
+  assert(!views_list->empty());
 
   // Acquire lock on all the views.
   MDL_request_list mdl_requests;
@@ -467,9 +467,22 @@ static bool open_views_and_update_metadata(
     */
     uint counter = 0;
     DML_prelocking_strategy prelocking_strategy;
-    view->select_lex = thd->lex->select_lex;
+    view->query_block = thd->lex->query_block;
+    /*
+      open_tables() will normally switch the current memory allocation context
+      from the execution context to the prepared statement context, if
+      such context is active. However, open_views_and_update_metadata() should
+      be done only as part of a single execution, and will be fully cleaned up
+      as part of that execution.
+      The following code forces the preparation code in open_tables() to
+      be performed on the execution mem_root, regardless of the current
+      embedding memory allocation context.
+    */
+    MEM_ROOT *saved_arena_mem_root = thd->stmt_arena->mem_root;
+    thd->stmt_arena->mem_root = thd->mem_root;
     if (open_tables(thd, &view, &counter, MYSQL_OPEN_NO_NEW_TABLE_IN_SE,
                     &prelocking_strategy)) {
+      thd->stmt_arena->mem_root = saved_arena_mem_root;
       thd->pop_internal_handler();
 
       if (error_handler.is_view_invalid()) {
@@ -489,6 +502,7 @@ static bool open_views_and_update_metadata(
       }
       continue;
     }
+    thd->stmt_arena->mem_root = saved_arena_mem_root;
     if (view->is_view() == false) {
       // In between listing views and locking(opening), if view is dropped and
       // created as table then skip it.
@@ -535,7 +549,7 @@ static bool open_views_and_update_metadata(
 
     if (thd->lex->unit->is_mergeable() &&
         view->algorithm != VIEW_ALGORITHM_TEMPTABLE) {
-      for (ORDER *order = thd->lex->select_lex->order_list.first; order;
+      for (ORDER *order = thd->lex->query_block->order_list.first; order;
            order = order->next)
         order->used_alias = false;  /// @see Item::print_for_order()
     }
@@ -551,7 +565,7 @@ static bool open_views_and_update_metadata(
     if (thd->dd_client()->acquire_for_modification(view->db, view->table_name,
                                                    &new_view))
       return true;
-    DBUG_ASSERT(new_view != nullptr);
+    assert(new_view != nullptr);
     bool res = dd::update_view(thd, new_view, view);
 
     if (commit_dd_changes) {
@@ -611,7 +625,7 @@ static bool is_view_metadata_update_needed(THD *thd, const char *db,
       retval = is_non_dictionary_or_temp_table();
       break;
     case SQLCOM_ALTER_TABLE: {
-      DBUG_ASSERT(thd->lex->alter_info);
+      assert(thd->lex->alter_info);
 
       // Alter operations which affects view column metadata.
       const uint alter_operations =
@@ -734,7 +748,7 @@ bool update_referencing_views_metadata(
     const char *new_table_name, bool commit_dd_changes,
     Uncommitted_tables_guard *uncommitted_tables) {
   DBUG_TRACE;
-  DBUG_ASSERT(table != nullptr);
+  assert(table != nullptr);
 
   bool error = update_referencing_views_metadata(
       thd, table->get_db_name(), table->get_table_name(), new_db,
@@ -753,7 +767,7 @@ bool update_referencing_views_metadata(
     THD *thd, const char *db_name, const char *table_name,
     bool commit_dd_changes, Uncommitted_tables_guard *uncommitted_tables) {
   DBUG_TRACE;
-  DBUG_ASSERT(db_name && table_name);
+  assert(db_name && table_name);
 
   bool error = update_referencing_views_metadata(
       thd, db_name, table_name, nullptr, nullptr, commit_dd_changes,
@@ -763,7 +777,7 @@ bool update_referencing_views_metadata(
 
 bool update_referencing_views_metadata(THD *thd, const sp_name *spname) {
   DBUG_TRACE;
-  DBUG_ASSERT(spname);
+  assert(spname);
 
   /*
     Updates to view metatdata for DDL on stored routines does not include

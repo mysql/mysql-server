@@ -14,11 +14,11 @@ include/start_and_bootstrap_group_replication.inc
 
 # CHM for 'group_replication_recovery' channel won't accept parameters other than
 # MASTER_USER and MASTER_PASSWORD
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES="foo" FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
 
 # ERROR when executing STOP SLAVE on GR recovery channel
@@ -73,7 +73,7 @@ set session sql_log_bin=0;
 call mtr.add_suppression("Transaction cannot be executed while Group Replication is recovering.*");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
 set session sql_log_bin=1;
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 include/start_group_replication.inc
 
 # Test commands for recovery channel when MEMBER_STATE: ONLINE and
@@ -133,7 +133,7 @@ INSERT INTO t1 VALUES (3);
 [connection server_2]
 LOCK TABLE t1 READ;
 [connection server2]
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 
 # Ensure that M2 is blocked in recovery stage so channel exists
 include/start_group_replication.inc
@@ -158,7 +158,7 @@ START SLAVE IO_THREAD FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: START SLAVE IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_recovery'.
 
 # START SLAVE IO_THREAD with UNTIL option is blocked on GR recovery channel
-START SLAVE IO_THREAD UNTIL MASTER_LOG_FILE = 'server-binary-log.000001', MASTER_LOG_POS = 754 FOR CHANNEL 'group_replication_recovery';
+START SLAVE IO_THREAD UNTIL SOURCE_LOG_FILE = 'server-binary-log.000001', SOURCE_LOG_POS = 754 FOR CHANNEL 'group_replication_recovery';
 ERROR HY000: START SLAVE IO_THREAD FOR CHANNEL cannot be performed on channel 'group_replication_recovery'.
 
 # STOP SLAVE SQL_THREAD is blocked on GR recovery channel

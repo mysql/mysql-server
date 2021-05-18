@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All Rights Reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -129,9 +129,6 @@ struct Memory<Source::MMAP_FILE> {
    * [in] Size of the memory to be allocated.
    * @return Pointer to allocated memory. */
   static void *allocate(size_t bytes) {
-    if (!temptable_use_mmap) {
-      throw Result::RECORD_FILE_FULL;
-    }
     void *memory = fetch(bytes);
     if (memory == nullptr) {
       throw Result::RECORD_FILE_FULL;

@@ -27,7 +27,7 @@ general_log	CREATE TABLE `general_log` (
   `server_id` int unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
   `argument` mediumblob NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
+) ENGINE=CSV DEFAULT CHARSET=utf8mb3 COMMENT='General log'
 show create table mysql.slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
@@ -43,7 +43,7 @@ slow_log	CREATE TABLE `slow_log` (
   `server_id` int unsigned NOT NULL,
   `sql_text` mediumblob NOT NULL,
   `thread_id` bigint unsigned NOT NULL
-) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
+) ENGINE=CSV DEFAULT CHARSET=utf8mb3 COMMENT='Slow log'
 alter table mysql.general_log engine=myisam;
 alter table mysql.slow_log engine=myisam;
 show create table mysql.general_log;
@@ -55,7 +55,7 @@ general_log	CREATE TABLE `general_log` (
   `server_id` int unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
   `argument` mediumblob NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='General log'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COMMENT='General log'
 show create table mysql.slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
@@ -71,7 +71,7 @@ slow_log	CREATE TABLE `slow_log` (
   `server_id` int unsigned NOT NULL,
   `sql_text` mediumblob NOT NULL,
   `thread_id` bigint unsigned NOT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Slow log'
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COMMENT='Slow log'
 set global general_log='ON';
 set global slow_query_log='ON';
 select * from mysql.general_log;

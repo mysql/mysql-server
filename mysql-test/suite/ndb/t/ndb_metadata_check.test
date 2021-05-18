@@ -1,0 +1,182 @@
+--source include/have_ndb.inc
+--source suite/ndb/include/backup_restore_setup.inc
+
+#
+# Basic testing for the metadata check. This test covers the
+# metadata check in the following scenarios:
+#
+# 1. CREATE TABLE
+# 2. ALTER TABLE (COPY)
+# 3. ALTER TABLE (INPLACE)
+# 4. TRUNCATE TABLE
+# 5. Table discovery
+#
+# Additional coverage is provided by pretty much every NDB test
+#
+
+# Table with various data types
+CREATE TABLE t1 (
+  c1 INT PRIMARY KEY AUTO_INCREMENT,
+  c2 INT UNSIGNED NOT NULL DEFAULT 0,
+  c3 FLOAT DEFAULT 1.5,
+  c4 VARCHAR(255) NOT NULL DEFAULT '',
+  c5 TIME,
+  c6 DATE,
+  c7 DATETIME,
+  c8 BLOB,
+  c9 CHAR(30) DEFAULT 'a',
+  c10 VARBINARY(255),
+  c11 DECIMAL(5,2),
+  c12 DATETIME(6),
+  c13 TIMESTAMP(2),
+  c14 TIMESTAMP,
+  c15 YEAR,
+  c16 INT NOT NULL,
+  UNIQUE KEY xc2(c2),
+  UNIQUE KEY uk(c16) USING HASH,
+  INDEX idx(c16)
+) ENGINE NDB;
+
+ALTER TABLE t1 DROP INDEX uk;
+
+INSERT INTO t1 VALUES(1,1,2.5,'a','23:59:59','2018-01-30','2018-01-30 13:46:00','b','c','d',78.3,'2020-06-01 16:36:04.297','2020-06-01 16:36:04.297','2020-06-01 16:36:04','1918',35);
+
+# Table with a virtual generated column
+CREATE TABLE t2 (
+  c1 INT PRIMARY KEY,
+  c2 INT GENERATED ALWAYS AS (c1*c1) VIRTUAL
+) ENGINE NDB;
+
+INSERT INTO t2(c1) VALUES(2);
+
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 1M
+UNDO_BUFFER_SIZE = 1M
+ENGINE=NDB;
+
+CREATE TABLESPACE ts1
+ADD DATAFILE 'datafile.dat'
+USE LOGFILE GROUP lg1
+INITIAL_SIZE 8M
+EXTENT_SIZE 256k
+ENGINE NDB;
+
+# Table with explicit column with disk storage
+CREATE TABLE t3 (
+  a INT STORAGE DISK,
+  b INT COLUMN_FORMAT DYNAMIC,
+  c BIT(8) NOT NULL
+) TABLESPACE ts1 ENGINE NDB;
+
+INSERT INTO t3 VALUES (10000,325,b'1');
+
+TRUNCATE TABLE t3;
+
+# Some more CREATE statements
+CREATE TABLE t4 (
+  a INT PRIMARY KEY
+) STORAGE DISK TABLESPACE ts1 ENGINE NDB;
+
+INSERT INTO t4 VALUES (10001);
+
+CREATE TABLE t5 (
+  a INT PRIMARY KEY
+) ENGINE NDB;
+ALTER TABLE t5 STORAGE DISK TABLESPACE ts1;
+
+INSERT INTO t5 VALUES (15980);
+
+CREATE TABLE t6 (
+  a INT,
+  b INT COLUMN_FORMAT FIXED,
+  PRIMARY KEY pk USING HASH(a)
+) ENGINE NDB;
+
+CREATE TABLE t7 (
+  a INT PRIMARY KEY,
+  b BIT(3) DEFAULT b'111'
+) ENGINE NDB;
+
+CREATE TABLE t8 (
+  a INT PRIMARY KEY
+) ENGINE NDB;
+
+ALTER TABLE t8 ALGORITHM=INPLACE,
+  ADD COLUMN b INT COLUMN_FORMAT DYNAMIC;
+
+DROP TABLE t1,t2,t3,t4,t5,t6,t7,t8;
+
+ALTER TABLESPACE ts1
+DROP DATAFILE 'datafile.dat';
+
+DROP TABLESPACE ts1;
+
+DROP LOGFILE GROUP lg1
+  ENGINE NDB;
+
+# Foreign key related checks
+CREATE TABLE parent (
+  col1 INT PRIMARY KEY,
+  col2 INT,
+  UNIQUE p_ukc2(col2)
+) ENGINE NDB;
+
+CREATE TABLE child (
+  c1 INT,
+  c2 INT,
+  INDEX c_xc1 (c1),
+  INDEX c_xc2 (c2),
+  CONSTRAINT c_fk1
+    FOREIGN KEY (c1)
+    REFERENCES parent(col1),
+  CONSTRAINT c_fk2
+    FOREIGN KEY (c2)
+    REFERENCES parent(col2)
+) ENGINE NDB;
+
+INSERT INTO parent VALUES (1,1);
+
+DROP TABLE child,parent;
+
+# Self referential foreign key
+CREATE TABLE parent (
+  pk INT PRIMARY KEY,
+  id1 INT UNIQUE,
+  id2 INT UNIQUE,
+  id3 INT UNIQUE,
+  ref1 INT,
+  ref2 INT,
+  ref3 INT
+) ENGINE NDB;
+
+CREATE TABLE child (
+  pk INT PRIMARY KEY,
+  ref1 INT,
+  ref2 INT
+) ENGINE NDB;
+
+ALTER TABLE parent
+  ADD CONSTRAINT fk_p1 FOREIGN KEY ref1_idx(ref1) REFERENCES parent(id1),
+  ALGORITHM = COPY;
+
+DROP TABLE child,parent;
+
+# Table discovery
+CREATE TABLE t1 (
+  c1 INT PRIMARY KEY,
+  c2 INT
+) ENGINE NDB;
+
+--source include/ndb_backup.inc
+
+DROP TABLE t1;
+
+--exec $NDB_RESTORE -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+# Discover the table
+SHOW CREATE TABLE t1;
+
+DROP TABLE t1;
+--source suite/ndb/include/backup_restore_cleanup.inc
+--remove_file $NDB_TOOLS_OUTPUT

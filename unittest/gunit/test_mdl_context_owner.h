@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,8 @@ class Test_MDL_context_owner : public MDL_context_owner {
 
   int is_killed() const final { return 0; }
   bool is_connected() override { return true; }
+  bool might_have_commit_order_waiters() const override { return false; }
+
   THD *get_thd() override {
     /*
       MDL_lock::object_lock_notify_conflicting_locks() checks THD of

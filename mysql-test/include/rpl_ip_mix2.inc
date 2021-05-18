@@ -10,10 +10,10 @@ save_master_pos;
 --echo connection slave;
 connection slave;
 reset slave;
-let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
 --echo Master-Host: $master_host
-eval change master to master_host='$IPv6';
-let $master_host= query_get_value(SHOW SLAVE STATUS, Master_Host, 1);
+eval CHANGE REPLICATION SOURCE to SOURCE_HOST='$IPv6';
+let $master_host= query_get_value(SHOW REPLICA STATUS, Source_Host, 1);
 --echo Master-Host: $master_host
 --echo disconnect slave;
 disconnect slave;

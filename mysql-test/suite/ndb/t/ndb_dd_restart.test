@@ -158,18 +158,18 @@ SELECT COUNT(*) FROM t1;
 # Restart node 2 to ensure node 1 is master.
 #
 
---exec $NDB_MGM --verbose=0 -e "2 restart -n -i"
+--exec $NDB_MGM -e "2 restart -n -i"
 --exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
---exec $NDB_MGM --verbose=0 -e "2 start"
+--exec $NDB_MGM -e "2 start"
 --exec $NDB_WAITER > /dev/null
 
 #
 # Restart slave (node 2)
 #
 
---exec $NDB_MGM --verbose=0 -e "2 restart -n"
+--exec $NDB_MGM -e "2 restart -n"
 --exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
---exec $NDB_MGM --verbose=0 -e "2 start"
+--exec $NDB_MGM -e "2 start"
 --exec $NDB_WAITER > /dev/null
 
 SELECT COUNT(*) FROM t1;
@@ -179,9 +179,9 @@ SELECT COUNT(*) FROM t1;
 # Makes node 2 new master.
 #
 
---exec $NDB_MGM --verbose=0 -e "1 restart -n"
+--exec $NDB_MGM -e "1 restart -n"
 --exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
---exec $NDB_MGM --verbose=0 -e "1 start"
+--exec $NDB_MGM -e "1 start"
 --exec $NDB_WAITER > /dev/null
 
 SELECT COUNT(*) FROM t1;
@@ -190,9 +190,9 @@ SELECT COUNT(*) FROM t1;
 # Restart slave (node 1) initial
 #
 
---exec $NDB_MGM --verbose=0 -e "1 restart -n -i"
+--exec $NDB_MGM -e "1 restart -n -i"
 --exec $NDB_WAITER --nowait-nodes=2 --not-started > /dev/null
---exec $NDB_MGM --verbose=0 -e "1 start"
+--exec $NDB_MGM -e "1 start"
 --exec $NDB_WAITER > /dev/null
 
 SELECT COUNT(*) FROM t1;
@@ -201,9 +201,9 @@ SELECT COUNT(*) FROM t1;
 # Restart master (node 2) initial
 #
 
---exec $NDB_MGM --verbose=0 -e "2 restart -n -i"
+--exec $NDB_MGM -e "2 restart -n -i"
 --exec $NDB_WAITER --nowait-nodes=1 --not-started > /dev/null
---exec $NDB_MGM --verbose=0 -e "2 start"
+--exec $NDB_MGM -e "2 start"
 --exec $NDB_WAITER > /dev/null
 
 SELECT COUNT(*) FROM t1;

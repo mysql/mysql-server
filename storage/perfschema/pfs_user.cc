@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,9 @@
 
 #include "storage/perfschema/pfs_user.h"
 
+#include <assert.h>
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "storage/perfschema/pfs.h"
 #include "storage/perfschema/pfs_buffer_container.h"
@@ -68,9 +69,9 @@ static const uchar *user_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_user *user;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_user *const *>(entry);
-  DBUG_ASSERT(typed_entry != nullptr);
+  assert(typed_entry != nullptr);
   user = *typed_entry;
-  DBUG_ASSERT(user != nullptr);
+  assert(user != nullptr);
   *length = user->m_key.m_key_length;
   result = user->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -109,7 +110,7 @@ static LF_PINS *get_user_hash_pins(PFS_thread *thread) {
 
 static void set_user_key(PFS_user_key *key, const char *user,
                          uint user_length) {
-  DBUG_ASSERT(user_length <= USERNAME_LENGTH);
+  assert(user_length <= USERNAME_LENGTH);
 
   char *ptr = &key->m_hash_key[0];
   if (user_length > 0) {
@@ -249,15 +250,26 @@ void PFS_user::rebase_memory_stats() {
   }
 }
 
-void PFS_user::carry_memory_stat_delta(PFS_memory_stat_delta *delta,
-                                       uint index) {
+void PFS_user::carry_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
+                                             uint index) {
   PFS_memory_shared_stat *event_name_array;
   PFS_memory_shared_stat *stat;
-  PFS_memory_stat_delta delta_buffer;
+  PFS_memory_stat_alloc_delta delta_buffer;
 
   event_name_array = write_instr_class_memory_stats();
   stat = &event_name_array[index];
-  (void)stat->apply_delta(delta, &delta_buffer);
+  (void)stat->apply_alloc_delta(delta, &delta_buffer);
+}
+
+void PFS_user::carry_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                            uint index) {
+  PFS_memory_shared_stat *event_name_array;
+  PFS_memory_shared_stat *stat;
+  PFS_memory_stat_free_delta delta_buffer;
+
+  event_name_array = write_instr_class_memory_stats();
+  stat = &event_name_array[index];
+  (void)stat->apply_free_delta(delta, &delta_buffer);
 }
 
 PFS_user *sanitize_user(PFS_user *unsafe) {
@@ -274,7 +286,7 @@ static void purge_user(PFS_thread *thread, PFS_user *user) {
   entry = reinterpret_cast<PFS_user **>(lf_hash_search(
       &user_hash, pins, user->m_key.m_hash_key, user->m_key.m_key_length));
   if (entry && (entry != MY_LF_ERRPTR)) {
-    DBUG_ASSERT(*entry == user);
+    assert(*entry == user);
     if (user->get_refcount() == 0) {
       lf_hash_delete(&user_hash, pins, user->m_key.m_hash_key,
                      user->m_key.m_key_length);

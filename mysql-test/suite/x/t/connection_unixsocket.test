@@ -44,7 +44,7 @@ call mtr.add_suppression("Plugin mysqlx reported: '1.1: Unsuccessful login attem
 call mtr.add_suppression("Plugin mysqlx reported: '2.1: Unsuccessful login attempt: Invalid user or password'");
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/basic_connection.tmp
+--write_file $MYSQL_TMP_DIR/basic_connection.xpl
 ## Test data
 
 # Test plan 1.1.4.1
@@ -56,7 +56,7 @@ Mysqlx.Sql.StmtExecute {
 ## expect Mysqlx.Sql.StmtExecuteOk
 -->recvresult
 
--->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+-->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 -->recvresult
 
 Mysqlx.Crud.Find {
@@ -94,38 +94,38 @@ EOF
 --file_exists $MASTER_X_MYSOCK
 --file_exists $MASTER_X_MYSOCK.lock
 
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR --socket=$MASTER_X_MYSOCK -uuser_127_0_0_1 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR --socket=$MASTER_X_MYSOCK -uuser_127_0_0_1 --password='' --file=$MYSQL_TMP_DIR/basic_connection.xpl 2>&1
 
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR --socket=$MASTER_X_MYSOCK -uuser_8_8_8_8 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR --socket=$MASTER_X_MYSOCK -uuser_8_8_8_8 --password='' --file=$MYSQL_TMP_DIR/basic_connection.xpl 2>&1
 
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_all --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_all --password='' --file=$MYSQL_TMP_DIR/basic_connection.xpl 2>&1
 
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_localhost --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_localhost --password='' --file=$MYSQL_TMP_DIR/basic_connection.xpl 2>&1
 
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_localhost_8_8_8_8 --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_localhost_8_8_8_8 --password='' --file=$MYSQL_TMP_DIR/basic_connection.xpl 2>&1
 
---exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR --socket=$MASTER_X_MYSOCK -uuser_requires_ssl --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
+--exec $MYSQLXTEST --expect-error ER_ACCESS_DENIED_ERROR --socket=$MASTER_X_MYSOCK -uuser_requires_ssl --password='' --file=$MYSQL_TMP_DIR/basic_connection.xpl 2>&1
 
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_requires_ssl --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp --ssl-mode=REQUIRED 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -uuser_requires_ssl --password='' --file=$MYSQL_TMP_DIR/basic_connection.xpl --ssl-mode=REQUIRED 2>&1
 
 --echo Check if mysqlx_socket has correct value
 --disable_query_log
 --eval select @@mysqlx_socket like "$MASTER_X_MYSOCK" as 'result';
 --enable_query_log
 
---write_file $MYSQL_TMP_DIR/parallel_connections.tmp
+--write_file $MYSQL_TMP_DIR/parallel_connections.xpl
 ## Test data
 
 #Ensure that each of following uses UNIX Socket
--->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+-->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 -->recvresult
 
 -->newsession session2	x_root
--->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+-->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 -->recvresult
 
 -->newsession session3	x_root
--->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+-->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 -->recvresult
 
 #Do query in parallel
@@ -150,10 +150,10 @@ EOF
 
 EOF
 
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/parallel_connections.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/parallel_connections.xpl 2>&1
 
 
---write_file $MYSQL_TMP_DIR/plain_connection.tmp
+--write_file $MYSQL_TMP_DIR/plain_connection.xpl
 -->import connection.macro
 -->callmacro Verify_its_xprotocol_connection
 
@@ -175,20 +175,20 @@ Mysqlx.Session.AuthenticateStart {
 -->recvuntil Mysqlx.Session.AuthenticateOk do_not_show_intermediate
 EOF
 
---exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/plain_connection.tmp 2>&1
+--exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/plain_connection.xpl 2>&1
 
 
 --echo #
 --echo # Lets confirm that user can connect through UNIX socket connection is secure one
 --echo #
 SET GLOBAL require_secure_transport:=1;
---exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/basic_connection.tmp 2>&1
---exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/plain_connection.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/basic_connection.xpl 2>&1
+--exec $MYSQLXTEST -q -n --socket=$MASTER_X_MYSOCK -ux_root --password='' --file=$MYSQL_TMP_DIR/plain_connection.xpl 2>&1
 SET GLOBAL require_secure_transport:=0;
 
 #
---write_file $MYSQL_TMP_DIR/check_unixsocket.tmp
--->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
+--write_file $MYSQL_TMP_DIR/check_unixsocket.xpl
+-->stmtsql SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query' and PROCESSLIST_ID=connection_id();
 -->recvresult
 EOF
 
@@ -205,10 +205,10 @@ let $restart_parameters = restart: --mysqlx-socket=$MYSQL_TMP_DIR/valid_mysqlx.s
 --file_exists $MASTER_X_MYSOCK.lock
 
 # Check if the X Plugin is accessible through new file
---exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--exec $MYSQLXTEST --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -ux_root --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1
 
 # Connect through unixsocket using PLAIN authentication
---exec $MYSQLXTEST --plain-auth --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.tmp 2>&1
+--exec $MYSQLXTEST --plain-auth --socket=$MYSQL_TMP_DIR/valid_mysqlx.sock -uroot --password='' --file=$MYSQL_TMP_DIR/check_unixsocket.xpl 2>&1
 
 ## Cleanup
 --let $restart_parameters = restart:
@@ -224,8 +224,4 @@ DROP USER user_localhost_8_8_8_8@localhost;
 DROP USER user_localhost_8_8_8_8@8.8.8.8;
 DROP USER user_requires_ssl;
 
---remove_file $MYSQL_TMP_DIR/basic_connection.tmp
---remove_file $MYSQL_TMP_DIR/parallel_connections.tmp
---remove_file $MYSQL_TMP_DIR/plain_connection.tmp
---remove_file $MYSQL_TMP_DIR/check_unixsocket.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

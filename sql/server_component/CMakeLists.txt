@@ -1,4 +1,4 @@
-# Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -52,6 +52,8 @@ SET(MYSQL_SERVER_COMPONENT_SOURCES
   system_variable_source_imp.cc
   udf_metadata_imp.cc
   audit_api_connection_service_imp.cc
+  mysql_query_attributes_imp.cc
+  mysql_server_keyring_lockable_imp.cc
   )
 
 # This static library is used to build mysqld binary and in some unit test cases

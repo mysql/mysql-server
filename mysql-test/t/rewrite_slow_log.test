@@ -47,22 +47,22 @@ SET GLOBAL master_info_repository = 'TABLE';
 SET GLOBAL relay_log_info_repository = 'TABLE';
 
 --disable_warnings
-CHANGE MASTER TO MASTER_PASSWORD='azundris3',
-  MASTER_BIND = 'eth4n',
-  MASTER_TLS_CIPHERSUITES = ''
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='azundris3',
+  SOURCE_BIND = 'eth4n',
+  SOURCE_TLS_CIPHERSUITES = ''
   FOR CHANNEL 'chan_jackie';
-CHANGE MASTER TO MASTER_PASSWORD='azundris3',
-  MASTER_CONNECT_RETRY = 1, MASTER_HEARTBEAT_PERIOD = 1.01,
-  MASTER_LOG_FILE = 'master_log_name', MASTER_LOG_POS = 0,
-  MASTER_SSL = 0, MASTER_SSL_CA = 'ca_file_name',
-  MASTER_SSL_CAPATH = 'ca_directory_name',
-  MASTER_SSL_CERT = 'cert_file_name', MASTER_SSL_KEY = 'key_file_name',
-  MASTER_SSL_CIPHER = 'cipher_list', MASTER_SSL_VERIFY_SERVER_CERT = 1,
-  MASTER_SSL_CRL = 'crl_file_name', MASTER_SSL_CRLPATH = 'crl_directory_name',
-  IGNORE_SERVER_IDS = (99,100), MASTER_TLS_VERSION = 'TLSv1.2',
-  MASTER_TLS_CIPHERSUITES = NULL,
-  MASTER_BIND = 'eth4n', MASTER_RETRY_COUNT = 7,
-  MASTER_DELAY = 4711, MASTER_AUTO_POSITION = 0 FOR CHANNEL 'chan_jackie';
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='azundris3',
+  SOURCE_CONNECT_RETRY = 1, SOURCE_HEARTBEAT_PERIOD = 1.01,
+  SOURCE_LOG_FILE = 'master_log_name', SOURCE_LOG_POS = 0,
+  SOURCE_SSL = 0, SOURCE_SSL_CA = 'ca_file_name',
+  SOURCE_SSL_CAPATH = 'ca_directory_name',
+  SOURCE_SSL_CERT = 'cert_file_name', SOURCE_SSL_KEY = 'key_file_name',
+  SOURCE_SSL_CIPHER = 'cipher_list', SOURCE_SSL_VERIFY_SERVER_CERT = 1,
+  SOURCE_SSL_CRL = 'crl_file_name', SOURCE_SSL_CRLPATH = 'crl_directory_name',
+  IGNORE_SERVER_IDS = (99,100), SOURCE_TLS_VERSION = 'TLSv1.2',
+  SOURCE_TLS_CIPHERSUITES = NULL,
+  SOURCE_BIND = 'eth4n', SOURCE_RETRY_COUNT = 7,
+  SOURCE_DELAY = 4711, SOURCE_AUTO_POSITION = 0 FOR CHANNEL 'chan_jackie';
 --enable_warnings
 
 RESET SLAVE ALL;
@@ -102,11 +102,11 @@ SELECT count(*)=1 OR count(*)=2 FROM mysql.slow_log WHERE sql_text LIKE '%REPLAC
 
 --echo ------ from file ------
 SELECT count(*)=1 OR count(*)=2 FROM test_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
-SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
+SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE REPLICATION SOURCE TO SOURCE_BIND %';
 SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%';
 --echo ------ from table ------
 SELECT count(*)=1 OR count(*)=2 FROM mysql.slow_log WHERE sql_text LIKE 'CREATE USER %' AND sql_text LIKE '%<secret>%';
-SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE MASTER TO MASTER_BIND %';
+SELECT sql_text FROM test_log WHERE sql_text LIKE 'CHANGE REPLICATION SOURCE TO SOURCE_BIND %';
 SELECT count(*) FROM test_log WHERE sql_text LIKE 'SET PASSWORD %' AND sql_text LIKE '%<secret>%';
 --echo ------ done ------
 

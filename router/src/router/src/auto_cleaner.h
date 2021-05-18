@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,10 +58,10 @@ namespace mysqlrouter {
  */
 class AutoCleaner {
  public:
-  bool add_file_delete(const std::string &file);
-  bool add_directory_delete(const std::string &d, bool recursive = false);
-  bool add_file_revert(const std::string &file);
-  bool add_file_revert(const std::string &file, const std::string &backup_file);
+  void add_file_delete(const std::string &file);
+  void add_directory_delete(const std::string &d, bool recursive = false);
+  void add_file_revert(const std::string &file);
+  void add_file_revert(const std::string &file, const std::string &backup_file);
   void add_cleanup_callback(std::function<void()> callback) noexcept;
   void clear_cleanup_callbacks() noexcept;
   void remove(const std::string &file) noexcept;
@@ -80,12 +80,12 @@ class AutoCleaner {
   enum Type { Directory, DirectoryRecursive, File, FileBackup };
 
   /*
-   * The map stores all the files that are scheduled to be auto-removed or
+   * The vector stores all the files that are scheduled to be auto-removed or
    * restored from backup if clean() wasn't called.
-   * The key is a name of file to backup, and value is a pair of
-   * backup's type and name of backup file (used only for FileBackup type).
+   * The first value of pair is a name of file to backup, and second is a pair
+   * of backup's type and name of backup file (used only for FileBackup type).
    */
-  std::map<std::string, std::pair<Type, std::string>> files_;
+  std::vector<std::pair<std::string, std::pair<Type, std::string>>> files_;
 
   /*
    * The vector stores callbacks that are scheduled to be called if clean()

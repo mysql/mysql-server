@@ -16,7 +16,6 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
-"Starting backup as nowait"
 Starting backup
 Backup started
 "Update tables during backup"
@@ -169,8 +168,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
-"Starting backup as nowait,snapshotstart"
-Starting backup
+Starting SNAPSHOTSTART backup
 Backup started
 "Update tables during backup"
 
@@ -322,7 +320,6 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
-"Starting backup as nowait"
 Starting backup
 Backup started
 "Update tables during backup"
@@ -475,8 +472,7 @@ Warning	1681	Integer display width is deprecated and will be removed in a future
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
 
-"Starting backup as nowait,snapshotstart"
-Starting backup
+Starting SNAPSHOTSTART backup
 Backup started
 "Update tables during backup"
 

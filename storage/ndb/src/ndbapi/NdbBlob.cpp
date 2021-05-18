@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -954,7 +954,7 @@ NdbBlob::getBlobKeyHash()
     const Uint64 lnr1 = (Uint64) nr1;
     m_keyHash = theTable->m_id ^ lnr1 ^ (lnr1 >> 32);
     m_keyHashSet = true;
-    DBUG_PRINT("info", ("table id %u, nr1 %lu", theTable->m_id, nr1));
+    DBUG_PRINT("info", ("table id %u, nr1 %llu", theTable->m_id, (Uint64)nr1));
   }
 
   DBUG_PRINT("info", ("key hash is %u", m_keyHash));

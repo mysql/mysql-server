@@ -19,7 +19,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/resultset.tmp
+--write_file $MYSQL_TMP_DIR/resultset.xpl
 
 -->echo
 -->echo
@@ -113,7 +113,7 @@ exec $MYSQLXTEST
   --compression-mode=preferred
   --compression-algorithm=deflate_stream
   --compression-combine-mixed-messages=0
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -124,7 +124,7 @@ exec $MYSQLXTEST
   --compression-mode=preferred
   --compression-algorithm=deflate_stream
   --compression-combine-mixed-messages=1
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -136,7 +136,7 @@ exec $MYSQLXTEST
   --compression-algorithm=deflate_stream
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=1
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -148,7 +148,7 @@ exec $MYSQLXTEST
   --compression-algorithm=deflate_stream
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=2
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -159,7 +159,7 @@ exec $MYSQLXTEST
   --compression-mode=preferred
   --compression-algorithm=lz4_message
   --compression-combine-mixed-messages=0
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -170,7 +170,7 @@ exec $MYSQLXTEST
   --compression-mode=preferred
   --compression-algorithm=lz4_message
   --compression-combine-mixed-messages=1
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -182,7 +182,7 @@ exec $MYSQLXTEST
   --compression-algorithm=lz4_message
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=1
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -194,7 +194,7 @@ exec $MYSQLXTEST
   --compression-algorithm=lz4_message
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=2
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -205,7 +205,7 @@ exec $MYSQLXTEST
   --compression-mode=preferred
   --compression-algorithm=zstd_stream
   --compression-combine-mixed-messages=0
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -216,7 +216,7 @@ exec $MYSQLXTEST
   --compression-mode=preferred
   --compression-algorithm=zstd_stream
   --compression-combine-mixed-messages=1
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -228,7 +228,7 @@ exec $MYSQLXTEST
   --compression-algorithm=zstd_stream
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=1
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -240,8 +240,7 @@ exec $MYSQLXTEST
   --compression-algorithm=zstd_stream
   --compression-combine-mixed-messages=1
   --compression-max-combine-messages=2
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/resultset.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

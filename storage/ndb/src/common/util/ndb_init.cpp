@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,6 +49,8 @@ extern void NdbLockCpu_End();
 extern void NdbTick_Init();
 extern void NdbOut_Init();
 extern void NdbSpin_Init();
+extern int NdbHW_Init();
+extern void NdbHW_End();
 
 extern "C"
 {
@@ -119,6 +121,8 @@ ndb_init_internal(Uint32 caller)
       (void)res;
       exit(1);
     }
+    if (caller != MYSQLD_USER)
+      NdbHW_Init();
   }
 }
 
@@ -180,6 +184,8 @@ ndb_end_internal(Uint32 caller)
     NdbLockCpu_End();
     NdbThread_End();
     NdbMutex_SysEnd();
+    if (caller != MYSQLD_USER)
+      NdbHW_End();
   }
 }
 

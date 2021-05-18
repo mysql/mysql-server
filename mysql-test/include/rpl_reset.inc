@@ -7,7 +7,7 @@
 #  - remove all binlogs and relay logs (RESET MASTER and RESET REPLICA),
 #  - start all slaves again (START REPLICA).
 #
-# It does not execute CHANGE MASTER, so the replication topology is
+# It does not execute CHANGE REPLICATION SOURCE, so the replication topology is
 # kept intact.
 #
 #

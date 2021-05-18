@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -190,11 +190,12 @@ class Commit_stage_manager {
     @param key_LOCK_commit_queue mutex instrumentation key
     @param key_LOCK_done mutex instrumentation key
     @param key_COND_done cond instrumentation key
+    @param key_COND_flush_queue cond instrumentation key
   */
   void init(PSI_mutex_key key_LOCK_flush_queue,
             PSI_mutex_key key_LOCK_sync_queue,
             PSI_mutex_key key_LOCK_commit_queue, PSI_mutex_key key_LOCK_done,
-            PSI_cond_key key_COND_done);
+            PSI_cond_key key_COND_done, PSI_cond_key key_COND_flush_queue);
 
   /**
     Deinitializes m_stage_cond_binlog, m_stage_cond_commit_order,
@@ -251,7 +252,7 @@ class Commit_stage_manager {
     return m_queue[stage].pop_front();
   }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /**
      The method ensures the follower's execution path can be preempted
      by the leader's thread.
@@ -377,7 +378,7 @@ class Commit_stage_manager {
   /** Mutex used for the stage level locks */
   mysql_mutex_t m_queue_lock[STAGE_COUNTER - 1];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Save pointer to leader thread which is used later to awake leader */
   THD *leader_thd;
 

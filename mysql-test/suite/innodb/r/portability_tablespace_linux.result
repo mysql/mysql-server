@@ -50,8 +50,8 @@ SUBPARTITION BY HASH (to_days(`purchased`))
   SUBPARTITION s3 DATA DIRECTORY = '../part3' ENGINE = InnoDB)) */
 SELECT TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE FROM INFORMATION_SCHEMA.FILES ORDER BY TABLESPACE_NAME,FILE_TYPE,TABLE_NAME,ENGINE;
 TABLESPACE_NAME	FILE_TYPE	TABLE_NAME	ENGINE
-#	NULL	NULL	InnoDB
-#	NULL	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
+#	TABLESPACE	NULL	InnoDB
 #	TEMPORARY	NULL	InnoDB
 #	UNDO LOG	NULL	InnoDB
 #	UNDO LOG	NULL	InnoDB
@@ -69,9 +69,6 @@ TABLESPACE_NAME	FILE_TYPE	TABLE_NAME	ENGINE
 #	UNDO LOG	NULL	InnoDB
 #	UNDO LOG	NULL	InnoDB
 #	UNDO LOG	NULL	InnoDB
-Warnings:
-#	1812	Tablespace is missing for table innodb_system.
-#	1812	Tablespace is missing for table innodb_system.
 ## Stop DB server
 ## restart the server with --datadir and innodb-directories
 ## Check new datadir
@@ -175,7 +172,7 @@ id	purchased
 6	1997-05-31
 3	1998-05-31
 ## Stop DB server for moving tablespaces around
-## Moving tablespace files in criss-cross form 
+## Moving tablespace files in criss-cross form
 ## Start winDB with --innodb-directories
 ## Check new datadir
 SELECT @@datadir;
@@ -332,4 +329,3 @@ SELECT * FROM tab;
 c1
 10
 DROP TABLE tab;
-call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Tablespace 'innodb_system' filename is unknown. Use \\--innodb-directories to locate of the file.");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef SQL_ALTER_INSTANCE_INCLUDED
 #define SQL_ALTER_INSTANCE_INCLUDED
+
+#include <my_inttypes.h>
 
 class THD;
 /*
@@ -75,6 +77,24 @@ class Innodb_redo_log : public Alter_instance {
  private:
   /** Enable or disable redo logging. */
   bool m_enable;
+};
+
+class Reload_keyring : public Alter_instance {
+ public:
+  explicit Reload_keyring(THD *thd) : Alter_instance(thd) {}
+
+  /**
+    Execute keyring reload operation by calling required APIs
+
+    @returns status of the operation
+      @retval false Success
+      @retval true  Error
+  */
+  bool execute() override;
+  virtual ~Reload_keyring() override = default;
+
+ private:
+  const static size_t s_error_message_length;
 };
 
 #endif /* SQL_ALTER_INSTANCE_INCLUDED */

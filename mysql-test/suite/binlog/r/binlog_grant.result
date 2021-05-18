@@ -27,3 +27,37 @@ GRANT REPLICATION CLIENT ON *.* TO 'mysqltest_1'@'localhost';
 SHOW MASTER LOGS;
 SHOW BINARY LOGS;
 DROP USER 'mysqltest_1'@'localhost';
+#
+# Bug #31869146: 'GRANT SELECT, GRANT OPTION ON *.* ' WOULD NOT WRITE
+#   THE PRIVILEGES TO BINLOG
+#
+CREATE USER b31869146@localhost;
+CREATE DATABASE b31869146_db;
+CREATE TABLE b31869146_db.t1 (a INT);
+GRANT SELECT,GRANT OPTION ON *.* TO b31869146@localhost AS 'root'@'localhost' WITH ROLE NONE;
+GRANT SELECT,GRANT OPTION ON b31869146_db.* TO b31869146@localhost;
+GRANT SELECT,GRANT OPTION ON b31869146_db.t1 TO b31869146@localhost;
+GRANT SELECT (a),GRANT OPTION ON b31869146_db.t1 TO b31869146@localhost;
+GRANT SELECT ON *.* TO b31869146@localhost WITH GRANT OPTION AS 'root'@'localhost' WITH ROLE NONE;
+GRANT SELECT ON b31869146_db.* TO b31869146@localhost WITH GRANT OPTION;
+GRANT SELECT ON b31869146_db.t1 TO b31869146@localhost WITH GRANT OPTION;
+GRANT SELECT (a) ON b31869146_db.t1 TO b31869146@localhost WITH GRANT OPTION;
+# Success must contain SELECT for all of the GRANTS
+# Show binlog events
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+binlog.000001	#	Query	#	#	use `test`; CREATE USER 'b31869146'@'localhost' IDENTIFIED WITH 'caching_sha2_password'
+binlog.000001	#	Query	#	#	CREATE DATABASE b31869146_db
+binlog.000001	#	Query	#	#	use `test`; CREATE TABLE b31869146_db.t1 (a INT)
+binlog.000001	#	Query	#	#	use `test`; GRANT SELECT, GRANT OPTION ON *.* TO 'b31869146'@'localhost' WITH GRANT OPTION AS 'root'@'localhost' WITH ROLE NONE
+binlog.000001	#	Query	#	#	use `test`; GRANT SELECT, GRANT OPTION ON `b31869146_db`.* TO 'b31869146'@'localhost' WITH GRANT OPTION
+binlog.000001	#	Query	#	#	use `test`; GRANT SELECT, GRANT OPTION ON `b31869146_db`.`t1` TO 'b31869146'@'localhost' WITH GRANT OPTION
+binlog.000001	#	Query	#	#	use `test`; GRANT SELECT (`a`), GRANT OPTION ON `b31869146_db`.`t1` TO 'b31869146'@'localhost' WITH GRANT OPTION
+binlog.000001	#	Query	#	#	use `test`; GRANT SELECT ON *.* TO 'b31869146'@'localhost' WITH GRANT OPTION AS 'root'@'localhost' WITH ROLE NONE
+binlog.000001	#	Query	#	#	use `test`; GRANT SELECT ON `b31869146_db`.* TO 'b31869146'@'localhost' WITH GRANT OPTION
+binlog.000001	#	Query	#	#	use `test`; GRANT SELECT ON `b31869146_db`.`t1` TO 'b31869146'@'localhost' WITH GRANT OPTION
+binlog.000001	#	Query	#	#	use `test`; GRANT SELECT (`a`) ON `b31869146_db`.`t1` TO 'b31869146'@'localhost' WITH GRANT OPTION
+# cleanup
+DROP USER b31869146@localhost;
+DROP DATABASE b31869146_db;
+# End of 8.0 tests

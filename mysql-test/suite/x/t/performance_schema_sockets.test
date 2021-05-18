@@ -6,13 +6,11 @@
 --source include/xplugin_create_user.inc
 
 # Tests
---write_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
+--write_file $MYSQL_TMP_DIR/performance_schema_socket_num.xpl
 -->quiet
 -->macro check_xconnection_count %EXPECTED_NUM_OF_CONNECTIONS%
 -->echo Verify [Checking if X Plugin reports %EXPECTED_NUM_OF_CONNECTIONS% connections]
--->stmtsql SELECT count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection'
--->recvtovar %NUM%
--->assert_eq %EXPECTED_NUM_OF_CONNECTIONS%	%NUM%
+-->wait_for %EXPECTED_NUM_OF_CONNECTIONS%	SELECT  count(*) as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection'
 -->endmacro
 
 
@@ -56,20 +54,34 @@
 -->noquiet
 EOF
 
---write_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp
+--write_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.xpl
+
+-->macro socket_current_xconnection	%VAR%
+stmtsql select OBJECT_INSTANCE_BEGIN FROM `performance_schema`.socket_instances WHERE
+               THREAD_ID in (select THREAD_ID from `performance_schema`.threads WHERE PROCESSLIST_ID = connection_id());
+recvtovar %VAR%;
+-->endmacro
+
+-->macro socket_tcp_xlisten	%VAR%
+stmtsql  select OBJECT_INSTANCE_BEGIN  from `performance_schema`.socket_instances where
+                EVENT_NAME like 'wait/io/socket/mysqlx/tcpip_socket';
+recvtovar %VAR%;
+-->endmacro
+
 -->macro Verify_increase %VARI% %COLUMN% %EVENT_NAME%
 # Kick client socket counters
--->quiet
--->stmtsql SELECT 1
--->recvresult be-quiet
-# Check
-# Get %COLUMN% counter at latest created connection (`OBJECT_INSTANCE_BEGIN`)
--->stmtsql SELECT %COLUMN% FROM `performance_schema`.`socket_summary_by_instance` WHERE  `EVENT_NAME` LIKE %EVENT_NAME% and OBJECT_INSTANCE_BEGIN IN  (SELECT MAX(OBJECT_INSTANCE_BEGIN) FROM `performance_schema`.`socket_summary_by_instance` WHERE  `EVENT_NAME` LIKE %EVENT_NAME%);
--->recvtovar %TMP%
--->echo Verify [Checking if data in column %COLUMN% had increased]
--->assert_gt %TMP%	%VARI%
--->varlet %VARI% %TMP%
--->noquiet
+quiet;
+stmtsql SELECT 1;
+recvresult be-quiet;
+callmacro %EVENT_NAME%	%OBJ_ID%;
+stmtsql SELECT %COLUMN% FROM `performance_schema`.`socket_summary_by_instance`
+    WHERE
+      OBJECT_INSTANCE_BEGIN = %OBJ_ID%;
+recvtovar %TMP%;
+echo Verify [Checking if data in column %COLUMN% had increased];
+assert_gt %TMP%	%VARI%;
+varlet %VARI% %TMP%;
+noquiet;
 -->endmacro
 
 # This function doesn't get latest entry !
@@ -88,29 +100,29 @@ EOF
 -->endmacro
 
 -->varlet %READ_CNT% 0
--->callmacro Verify_increase	%READ_CNT%	`COUNT_READ`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%READ_CNT%	`COUNT_READ`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%READ_CNT%	`COUNT_READ`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%READ_CNT%	`COUNT_READ`	'wait/io/socket/mysqlx/client_connection'
+-->callmacro Verify_increase	%READ_CNT%	`COUNT_READ`	socket_current_xconnection
+-->callmacro Verify_increase	%READ_CNT%	`COUNT_READ`	socket_current_xconnection
+-->callmacro Verify_increase	%READ_CNT%	`COUNT_READ`	socket_current_xconnection
+-->callmacro Verify_increase	%READ_CNT%	`COUNT_READ`	socket_current_xconnection
 
 -->varlet %WRITE_CNT% 0
--->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	'wait/io/socket/mysqlx/client_connection'
+-->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	socket_current_xconnection
+-->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	socket_current_xconnection
+-->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	socket_current_xconnection
+-->callmacro Verify_increase	%WRITE_CNT%	`COUNT_WRITE`	socket_current_xconnection
 
 
 -->varlet %READ_BYTES1% 0
--->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	'wait/io/socket/mysqlx/client_connection'
+-->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	socket_current_xconnection
+-->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	socket_current_xconnection
+-->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	socket_current_xconnection
+-->callmacro Verify_increase	%READ_BYTES1%	`SUM_NUMBER_OF_BYTES_READ`	socket_current_xconnection
 
 -->varlet %WRITE_BYTES% 0
--->callmacro Verify_increase	%WRITE_BYTES%	`SUM_NUMBER_OF_BYTES_WRITE`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%WRITE_BYTES%	`SUM_NUMBER_OF_BYTES_WRITE`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%WRITE_BYTES%	`SUM_NUMBER_OF_BYTES_WRITE`	'wait/io/socket/mysqlx/client_connection'
--->callmacro Verify_increase	%WRITE_BYTES%	`SUM_NUMBER_OF_BYTES_WRITE`	'wait/io/socket/mysqlx/client_connection'
+-->callmacro Verify_increase	%WRITE_BYTES%	`SUM_NUMBER_OF_BYTES_WRITE`	socket_current_xconnection
+-->callmacro Verify_increase	%WRITE_BYTES%	`SUM_NUMBER_OF_BYTES_WRITE`	socket_current_xconnection
+-->callmacro Verify_increase	%WRITE_BYTES%	`SUM_NUMBER_OF_BYTES_WRITE`	socket_current_xconnection
+-->callmacro Verify_increase	%WRITE_BYTES%	`SUM_NUMBER_OF_BYTES_WRITE`	socket_current_xconnection
 
 -->varlet %READ_TIME% 0
 -->callmacro Verify_greater_or_equal	%READ_TIME%	`SUM_TIMER_READ`	`socket_summary_by_instance`	'wait/io/socket/mysqlx/client_connection'
@@ -127,13 +139,13 @@ EOF
 -->newsession second_session	x_root
 -->varlet %READ_BYTES2% 0
 -->repeat 40
--->callmacro Verify_increase	%READ_BYTES2%	`SUM_NUMBER_OF_BYTES_READ`	'wait/io/socket/mysqlx/client_connection'
+-->callmacro Verify_increase	%READ_BYTES2%	`SUM_NUMBER_OF_BYTES_READ`	socket_current_xconnection
 -->endrepeat
 
 -->varlet %ACCETP_COUNT% 0
 -->repeat 40
 -->newsession temporary_connection	x_root
--->callmacro Verify_increase	%ACCETP_COUNT%	`COUNT_MISC`	'wait/io/socket/mysqlx/tcpip_socket'
+-->callmacro Verify_increase	%ACCETP_COUNT%	`COUNT_MISC`	socket_tcp_xlisten
 -->closesession
 -->endrepeat
 
@@ -171,16 +183,14 @@ if ( $XPlugin_port != $XPlugin_port_expected) {
 }
 
 --echo Check if clinet_socket are reported in proper way in PFS
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/performance_schema_socket_num.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/performance_schema_socket_num.xpl 2>&1
 
 --echo No socket should be reported by X Plugin
 let $wait_condition=
   SELECT count(*)= 0 as Num FROM performance_schema.socket_instances WHERE EVENT_NAME LIKE 'wait/io/socket/mysqlx/client_connection';
 --source include/wait_condition_or_abort.inc
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/performance_schema_socket_io_stats.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/performance_schema_socket_num.tmp
---remove_file $MYSQL_TMP_DIR/performance_schema_socket_io_stats.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

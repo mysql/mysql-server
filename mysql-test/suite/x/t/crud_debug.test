@@ -21,7 +21,7 @@
 
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 -->sql
 #-- "Creating database for testcase"
 DROP DATABASE IF EXISTS xplugintest;
@@ -83,16 +83,16 @@ EOF
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/xplugin_wait_for_interfaces.inc
 --error 1
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
-#--cat_file $MYSQL_TMP_DIR/mysqlx-out.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out.xpl 2>&1
+#--cat_file $MYSQL_TMP_DIR/mysqlx-out.xpl
+--remove_file $MYSQL_TMP_DIR/mysqlx-in.xpl
+--remove_file $MYSQL_TMP_DIR/mysqlx-out.xpl
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 # No rows
 SELECT * FROM xplugintest.table2;
 
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 #-- "Index with  unique(true), index column NOT NULL (true)"
 -->stmtadmin create_collection_index	{"schema":"xplugintest", "collection":"table2", "name":"name_index" , "unique":true, "fields":{"field":"$.name", "type":"TEXT(50)","required":true}}
 -->recvresult
@@ -194,8 +194,8 @@ EOF
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/xplugin_wait_for_interfaces.inc
 --error 1
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp >$MYSQL_TMP_DIR/mysqlx-out.tmp 2>&1
-#--cat_file $MYSQL_TMP_DIR/mysqlx-out.tmp
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl >$MYSQL_TMP_DIR/mysqlx-out.xpl 2>&1
+#--cat_file $MYSQL_TMP_DIR/mysqlx-out.xpl
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -206,6 +206,4 @@ SELECT * FROM xplugintest.table2;
 
 ## Cleanup
 DROP DATABASE IF EXISTS xplugintest;
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---remove_file $MYSQL_TMP_DIR/mysqlx-out.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

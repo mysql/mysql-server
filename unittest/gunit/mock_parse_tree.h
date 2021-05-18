@@ -1,6 +1,6 @@
 #ifndef MOCK_PARSE_TREE_INCLUDED
 #define MOCK_PARSE_TREE_INCLUDED
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 namespace my_testing {
 
 inline void fix(THD *thd, std::initializer_list<Item *> items) {
-  Parse_context pc(thd, thd->lex->select_lex);
+  Parse_context pc(thd, thd->lex->query_block);
   for (Item *item : items) {
     item->itemize(&pc, &item);
     item->fix_fields(thd, nullptr);

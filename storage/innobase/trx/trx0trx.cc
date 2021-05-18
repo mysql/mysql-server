@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -219,8 +219,7 @@ static void trx_init(trx_t *trx) {
   the transaction. */
 
   if (!TrxInInnoDB::is_async_rollback(trx)) {
-    os_thread_id_t thread_id = trx->killed_by;
-    os_compare_and_swap_thread_id(&trx->killed_by, thread_id, 0);
+    trx->killed_by.store(std::thread::id{});
 
     /* Note: Do not set to 0, the ref count is decremented inside
     the TrxInInnoDB() destructor. We only need to clear the flags. */
@@ -367,7 +366,7 @@ struct TrxFactory {
 
     ut_ad(!trx->abort);
 
-    ut_ad(trx->killed_by == 0);
+    ut_ad(trx->killed_by == std::thread::id{});
 
     return (true);
   }
@@ -1056,15 +1055,15 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
   less than rsegs->size(). */
   ulint target_rollback_segments = srv_rollback_segments;
 
-  static ulint rseg_counter = 0;
+  static std::atomic<ulint> rseg_counter{0};
   trx_rseg_t *rseg = nullptr;
   ulint current = rseg_counter;
 
-  /* Increment the static redo_rseg_slot so the next call from any thread
-  starts with the next rseg. */
-  os_atomic_increment_ulint(&rseg_counter, 1);
-
   while (rseg == nullptr) {
+    /* Increment the static redo_rseg_slot so the next call from any thread
+    starts with the next rseg. */
+    rseg_counter.fetch_add(1);
+
     /* Traverse the rsegs like this: (space, rseg_id)
     (0,0), (1,0), ... (n,0), (0,1), (1,1), ... (n,1), ... */
     ulint window =
@@ -1107,7 +1106,7 @@ static trx_rseg_t *get_next_redo_rseg_from_undo_spaces() {
 The assigned slots may have gaps but the vector does not.
 @return assigned rollback segment instance */
 static trx_rseg_t *get_next_redo_rseg_from_trx_sys() {
-  static ulint rseg_counter = 0;
+  static std::atomic<ulint> rseg_counter{0};
   ulong n_rollback_segments = srv_rollback_segments;
 
   /* Versions 5.6 and 5.7 of InnoDB would allow 128 as the max for
@@ -1125,8 +1124,7 @@ static trx_rseg_t *get_next_redo_rseg_from_trx_sys() {
   ut_ad(n_rollback_segments <= trx_sys->rsegs.size());
 
   /* Try the next slot that no other thread is looking at */
-  ulint slot =
-      os_atomic_increment_ulint(&rseg_counter, 1) % n_rollback_segments;
+  ulint slot = (rseg_counter.fetch_add(1) + 1) % n_rollback_segments;
 
   /* s_lock the vector since it might be sorted when added to. */
   trx_sys->rsegs.s_lock();
@@ -1156,14 +1154,13 @@ static trx_rseg_t *get_next_redo_rseg() {
 /** Get the next noredo rollback segment.
 @return assigned rollback segment instance */
 static trx_rseg_t *get_next_temp_rseg() {
-  static ulint temp_rseg_counter = 0;
+  static std::atomic<ulint> temp_rseg_counter{0};
   ulong n_rollback_segments = srv_rollback_segments;
 
   ut_ad(n_rollback_segments <= trx_sys->tmp_rsegs.size());
 
   /* Try the next slot that no other thread is looking at */
-  ulint slot =
-      os_atomic_increment_ulint(&temp_rseg_counter, 1) % n_rollback_segments;
+  ulint slot = (temp_rseg_counter.fetch_add(1) + 1) % n_rollback_segments;
 
   /* No need to s_lock the vector since it is only added to at the end,
   and it is never resized or sorted. */
@@ -1514,7 +1511,7 @@ static bool trx_write_serialisation_history(
 
       /* Set flag if GTID information need to persist. */
       auto undo_ptr = &trx->rsegs.m_redo;
-      trx_undo_gtid_set(trx, undo_ptr->update_undo);
+      trx_undo_gtid_set(trx, undo_ptr->update_undo, false);
 
       trx_undo_update_cleanup(trx, undo_ptr, undo_hdr_page, update_rseg_len,
                               (update_rseg_len ? 1 : 0), mtr);
@@ -1711,8 +1708,6 @@ static void trx_erase_lists(trx_t *trx, bool serialised, Gtid_desc &gtid_desc) {
   ut_ad(trx_sys_mutex_own());
 
   if (serialised) {
-    UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
-
     /* Add GTID to be persisted to disk table. It must be done ...
     1.After the transaction is marked committed in undo. Otherwise
       GTID might get committed before the transaction commit on disk.
@@ -1722,6 +1717,10 @@ static void trx_erase_lists(trx_t *trx, bool serialised, Gtid_desc &gtid_desc) {
       auto &gtid_persistor = clone_sys->get_gtid_persistor();
       gtid_persistor.add(gtid_desc);
     }
+    /* Do after adding GTID as trx_sys mutex could now be released and
+    re-acquired while adding GTID and we still need to satisfy condition
+    [2] above. */
+    UT_LIST_REMOVE(trx_sys->serialisation_list, trx);
   }
 
   trx_ids_t::iterator it = std::lower_bound(trx_sys->rw_trx_ids.begin(),
@@ -1899,7 +1898,7 @@ written */
     }
 
     /* NOTE that we could possibly make a group commit more
-    efficient here: call os_thread_yield here to allow also other
+    efficient here: call std::this_thread::yield() here to allow also other
     trxs to come to commit! */
 
     /*-------------------------------------*/
@@ -2272,7 +2271,8 @@ dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
   DEBUG_SYNC_C("trx_commit_for_mysql_checks_for_aborted");
   TrxInInnoDB trx_in_innodb(trx, true);
 
-  if (trx_in_innodb.is_aborted() && trx->killed_by != os_thread_get_curr_id()) {
+  if (trx_in_innodb.is_aborted() &&
+      trx->killed_by != std::this_thread::get_id()) {
     return (DB_FORCED_ABORT);
   }
 
@@ -2300,9 +2300,6 @@ dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
       if (db_err != DB_SUCCESS) {
         return (db_err);
       }
-
-      /* Flush prepare GTID for XA prepared transactions. */
-      trx_undo_gtid_flush_prepare(trx);
 
       if (trx->id != 0) {
         trx_update_mod_tables_timestamp(trx);
@@ -2507,7 +2504,7 @@ void trx_print_latched(FILE *f, const trx_t *trx, ulint max_query_len) {
 
 void trx_print(FILE *f, const trx_t *trx, ulint max_query_len) {
   /* trx_print_latched() requires exclusive global latch */
-  locksys::Global_exclusive_latch_guard guard{};
+  locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
   mutex_enter(&trx_sys->mutex);
   trx_print_latched(f, trx, max_query_len);
   mutex_exit(&trx_sys->mutex);
@@ -2755,7 +2752,7 @@ static lsn_t trx_prepare_low(
 
     if (undo_ptr->update_undo != nullptr) {
       if (!noredo_logging) {
-        trx_undo_gtid_set(trx, undo_ptr->update_undo);
+        trx_undo_gtid_set(trx, undo_ptr->update_undo, true);
       }
       trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, false, &mtr);
     }
@@ -2884,7 +2881,8 @@ dberr_t trx_prepare_for_mysql(trx_t *trx) {
 
   TrxInInnoDB trx_in_innodb(trx, true);
 
-  if (trx_in_innodb.is_aborted() && trx->killed_by != os_thread_get_curr_id()) {
+  if (trx_in_innodb.is_aborted() &&
+      trx->killed_by != std::this_thread::get_id()) {
     return (DB_FORCED_ABORT);
   }
 
@@ -3286,7 +3284,7 @@ void trx_kill_blocking(trx_t *trx) {
         sleep_time = 100000;
       }
 
-      os_thread_sleep(sleep_time);
+      std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
 
       trx_mutex_enter(victim_trx);
     }
@@ -3313,7 +3311,7 @@ void trx_kill_blocking(trx_t *trx) {
     ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
     ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK);
     ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
-    ut_ad(victim_trx->killed_by == os_thread_get_curr_id());
+    ut_ad(victim_trx->killed_by == std::this_thread::get_id());
     ut_ad(victim_trx->version == it->m_version);
 
     /* We don't kill Read Only, Background or high priority
@@ -3345,8 +3343,7 @@ void trx_kill_blocking(trx_t *trx) {
     version++;
     ut_ad(victim_trx->version == version);
 
-    os_thread_id_t thread_id = victim_trx->killed_by;
-    os_compare_and_swap_thread_id(&victim_trx->killed_by, thread_id, 0);
+    victim_trx->killed_by.store(std::thread::id{});
 
     victim_trx->in_innodb &= TRX_FORCE_ROLLBACK_MASK;
 

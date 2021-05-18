@@ -5,13 +5,12 @@
 --source include/xplugin_create_user.inc
 
 ## Test data
-DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
 USE xtest;
 CREATE TABLE xtable (nodoc JSON);
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_insert_nodoc.tmp
+--write_file $MYSQL_TMP_DIR/crud_insert_nodoc.xpl
 
 -->quiet
 Mysqlx.Crud.Insert {
@@ -37,9 +36,7 @@ Mysqlx.Crud.Insert {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_nodoc.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_nodoc.xpl 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/crud_insert_nodoc.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

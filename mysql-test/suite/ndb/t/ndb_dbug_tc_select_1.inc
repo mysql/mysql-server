@@ -6,7 +6,7 @@ eval create table t1(
   primary key(a),
   unique(b)
 ) charset latin1 engine ndb;
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 8072" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 8072" >> $NDB_TOOLS_OUTPUT
 
 --echo # verify tc select on insert using simple int key
 --disable_query_log
@@ -96,5 +96,5 @@ dec $i;
 --enable_result_log
 
 --echo # Cleanup
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 drop table t1;

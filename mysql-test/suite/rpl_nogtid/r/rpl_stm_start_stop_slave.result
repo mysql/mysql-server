@@ -69,7 +69,7 @@ include/start_slave.inc
 DROP TABLE t1;
 RESET MASTER;
 include/stop_slave.inc
-CHANGE MASTER TO master_log_pos=MASTER_POS;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS=MASTER_POS;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

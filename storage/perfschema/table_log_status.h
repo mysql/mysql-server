@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,5 +92,4 @@ class table_log_status : public PFS_engine_table {
   int rnd_pos(const void *pos) override;
 };
 
-/** @} */
 #endif

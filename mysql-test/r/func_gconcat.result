@@ -1276,3 +1276,57 @@ Warnings:
 Warning	1260	Row 5 was cut by GROUP_CONCAT()
 SET group_concat_max_len= DEFAULT;
 DROP TABLE t1, t2, t3;
+#
+# Bug #32118201 GET RID OF MY_ATOF
+#
+CREATE TABLE t2 (grp INT, a CHAR(2));
+INSERT INTO t2 VALUES (1,"a"), (2,"2"), (2,"4"), (3,"c");
+SELECT grp, GROUP_concat(a SEPARATOR "") + 1.0  FROM t2 GROUP BY grp;
+grp	GROUP_concat(a SEPARATOR "") + 1.0
+1	1
+2	25
+3	1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+Warning	1292	Truncated incorrect DOUBLE value: 'c'
+DROP TABLE t2;
+# Bug#32053547: Assertion `item->hidden == hidden' failed.
+#               group_concat with ORDER BY clause
+prepare s from 'DO GROUP_CONCAT((SELECT COUNT(1)) ORDER BY 1)';
+execute s;
+execute s;
+deallocate prepare s;
+# Bug#31947466: Assertion failure with GROUP_CONCAT(... ORDER BY)
+#               and prepared statements
+CREATE TABLE t1 (name VARCHAR(100), square GEOMETRY);
+INSERT INTO t1 VALUES
+("center", ST_GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))')),
+("small",  ST_GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))')),
+("big",    ST_GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))')),
+("up",     ST_GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))')),
+("up2",    ST_GeomFromText('POLYGON (( 0 2, 0 4, 2 4, 2 2, 0 2))')),
+("up3",    ST_GeomFromText('POLYGON (( 0 3, 0 5, 2 5, 2 3, 0 3))')),
+("down",   ST_GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))')),
+("down2",  ST_GeomFromText('POLYGON (( 0 -2, 0  0, 2  0, 2 -2, 0 -2))')),
+("down3",  ST_GeomFromText('POLYGON (( 0 -3, 0 -1, 2 -1, 2 -3, 0 -3))')),
+("right",  ST_GeomFromText('POLYGON (( 1 0, 1 2, 3 2, 3 0, 1 0))')),
+("right2", ST_GeomFromText('POLYGON (( 2 0, 2 2, 4 2, 4 0, 2 0))')),
+("right3", ST_GeomFromText('POLYGON (( 3 0, 3 2, 5 2, 5 0, 3 0))')),
+("left",   ST_GeomFromText('POLYGON (( -1 0, -1 2,  1 2,  1 0, -1 0))')),
+("left2",  ST_GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0 0, -2 0))')),
+("left3",  ST_GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
+CREATE VIEW v AS SELECT * FROM t1;
+prepare s from '
+SELECT GROUP_CONCAT(a2.name ORDER BY a2.name) AS mbrcontains
+FROM v a1 JOIN v a2 ON MBRContains(a1.square, a2.square)
+WHERE a1.name = "center"
+GROUP BY a1.name';
+execute s;
+mbrcontains
+center,small
+execute s;
+mbrcontains
+center,small
+deallocate prepare s;
+DROP VIEW v;
+DROP TABLE t1;

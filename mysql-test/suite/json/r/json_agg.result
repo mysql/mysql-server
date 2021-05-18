@@ -640,7 +640,7 @@ EXPLAIN
               "prefix_cost": "0.35",
               "data_read_per_join": "8"
             },
-            "attached_condition": "(0 <> json_arrayagg(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where true))))"
+            "attached_condition": "(0 <> json_arrayagg(<cache>(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where true)))))"
           },
           "optimized_away_subqueries": [
             {
@@ -674,7 +674,7 @@ EXPLAIN
 }
 Warnings:
 Warning	3986	Evaluating a JSON value in SQL boolean context does an implicit comparison against JSON integer 0; if this is not what you want, consider converting JSON to a SQL numeric type with JSON_VALUE RETURNING
-Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t` where (0 <> json_arrayagg(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where true))))) AS `(SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)))`
+Note	1003	/* select#1 */ select (/* select#2 */ select 1 from `test`.`t` where (0 <> json_arrayagg(<cache>(<in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t` where true)))))) AS `(SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)))`
 SELECT (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)));
 (SELECT 1 FROM t WHERE JSON_ARRAYAGG(1 IN (SELECT 1 FROM t)))
 NULL

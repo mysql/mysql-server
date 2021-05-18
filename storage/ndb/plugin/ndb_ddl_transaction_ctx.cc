@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,9 @@
 #include "storage/ndb/plugin/ndb_table_guard.h"
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 
-void Ndb_DDL_transaction_ctx::log_create_table(const std::string &path_name) {
-  log_ddl_stmt(Ndb_DDL_stmt::CREATE_TABLE, path_name);
+void Ndb_DDL_transaction_ctx::log_create_table(const std::string &db_name,
+                                               const std::string &table_name) {
+  log_ddl_stmt(Ndb_DDL_stmt::CREATE_TABLE, db_name, table_name);
 }
 
 bool Ndb_DDL_transaction_ctx::rollback_create_table(
@@ -46,12 +47,9 @@ bool Ndb_DDL_transaction_ctx::rollback_create_table(
 
   /* extract info from ddl_info */
   const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
-  DBUG_ASSERT(ddl_info.size() == 1);
-  const char *path_name = ddl_info[0].c_str();
-  char db_name[FN_HEADLEN];
-  char table_name[FN_HEADLEN];
-  ndb_set_dbname(path_name, db_name);
-  ndb_set_tabname(path_name, table_name);
+  assert(ddl_info.size() == 2);
+  const char *db_name = ddl_info[0].c_str();
+  const char *table_name = ddl_info[1].c_str();
 
   /* Prepare schema client for rollback if required */
   Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
@@ -76,7 +74,7 @@ bool Ndb_DDL_transaction_ctx::rollback_create_table(
   Ndb *ndb = thd_ndb->ndb;
   if (drop_table_impl(m_thd, ndb,
                       schema_dist_prepared ? &schema_dist_client : nullptr,
-                      path_name, db_name, table_name)) {
+                      db_name, table_name)) {
     thd_ndb->push_warning("Failed to rollback after CREATE TABLE failure.");
     return false;
   }
@@ -99,7 +97,7 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
 
   /* extract info from ddl_info */
   const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
-  DBUG_ASSERT(ddl_info.size() == 7);
+  assert(ddl_info.size() == 7);
   const char *old_db_name = ddl_info[0].c_str();
   const char *old_table_name = ddl_info[1].c_str();
   const char *new_db_name = ddl_info[2].c_str();
@@ -115,12 +113,10 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
   /* Load the table from NDB */
   Thd_ndb *thd_ndb = get_thd_ndb(m_thd);
   Ndb *ndb = thd_ndb->ndb;
-  ndb->setDatabaseName(new_db_name);
-  Ndb_table_guard ndbtab_g(ndb->getDictionary(), new_table_name);
+  Ndb_table_guard ndbtab_g(ndb, new_db_name, new_table_name);
   const NdbDictionary::Table *renamed_table;
   if (!(renamed_table = ndbtab_g.get_table())) {
-    const NdbError err = ndb->getDictionary()->getNdbError();
-    thd_ndb->push_ndb_error_warning(err);
+    thd_ndb->push_ndb_error_warning(ndbtab_g.getNdbError());
     thd_ndb->push_warning("Failed to rename table during rollback.");
     return false;
   }
@@ -163,7 +159,7 @@ bool Ndb_DDL_transaction_ctx::rollback_rename_table(
           ndb_final_rename_stmt->get_info();
 
       /* Extract info and use them to set the rename_table_impl parameters */
-      DBUG_ASSERT(final_rename_ddl_info.size() == 7);
+      assert(final_rename_ddl_info.size() == 7);
       std::string final_db_name = final_rename_ddl_info[2];
       std::string final_table_name = final_rename_ddl_info[3];
       if ((final_db_name.compare(old_db_name) != 0) ||
@@ -254,7 +250,7 @@ bool Ndb_DDL_transaction_ctx::update_table_id_and_version_in_DD(
 bool Ndb_DDL_transaction_ctx::post_ddl_hook_rename_table(
     const Ndb_DDL_stmt &ddl_stmt) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_ddl_status != DDL_IN_PROGRESS);
+  assert(m_ddl_status != DDL_IN_PROGRESS);
 
   if (m_ddl_status == DDL_COMMITED) {
     /* DDL committed. Nothing to do */
@@ -274,14 +270,11 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_rename_table(
     return true;
   }
 
-  ndb->setDatabaseName(db_name);
-
   /* Load the table from NDB */
-  Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
+  Ndb_table_guard ndbtab_g(ndb, db_name, table_name);
   const NdbDictionary::Table *ndb_table;
   if (!(ndb_table = ndbtab_g.get_table())) {
-    const NdbError err = ndb->getDictionary()->getNdbError();
-    thd_ndb->push_ndb_error_warning(err);
+    thd_ndb->push_ndb_error_warning(ndbtab_g.getNdbError());
     thd_ndb->push_warning("Unable to load table during rollback");
     return false;
   }
@@ -297,14 +290,14 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_rename_table(
 }
 
 void Ndb_DDL_transaction_ctx::log_drop_temp_table(
-    const std::string &path_name) {
-  log_ddl_stmt(Ndb_DDL_stmt::DROP_TABLE, path_name);
+    const std::string &db_name, const std::string &table_name) {
+  log_ddl_stmt(Ndb_DDL_stmt::DROP_TABLE, db_name, table_name);
 }
 
 bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
     const Ndb_DDL_stmt &ddl_stmt) {
   DBUG_TRACE;
-  DBUG_ASSERT(m_ddl_status != DDL_IN_PROGRESS);
+  assert(m_ddl_status != DDL_IN_PROGRESS);
 
   if (m_ddl_status == DDL_ROLLED_BACK) {
     /* DDL was rollbacked. Nothing to do */
@@ -316,24 +309,20 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
 
   /* extract info from ddl_info */
   const std::vector<std::string> &ddl_info = ddl_stmt.get_info();
-  DBUG_ASSERT(ddl_info.size() == 1);
-  const char *path_name = ddl_info[0].c_str();
-  char db_name[FN_HEADLEN];
-  char table_name[FN_HEADLEN];
-  ndb_set_dbname(path_name, db_name);
-  ndb_set_tabname(path_name, table_name);
+  assert(ddl_info.size() == 2);
+  const char *db_name = ddl_info[0].c_str();
+  const char *table_name = ddl_info[1].c_str();
 
-  /* Verify that the table is a temp table. */
+  /* Verify that the table is a table with temporary name. */
   if (!ndb_name_is_temp(table_name)) {
-    DBUG_ASSERT(false);
+    assert(false);
     return false;
   }
 
   DBUG_PRINT("info", ("Dropping table '%s.%s'", db_name, table_name));
 
   /* Finally drop the temp table as the DDL has been committed  */
-  if (drop_table_impl(m_thd, ndb, nullptr, path_name, db_name, table_name) !=
-      0) {
+  if (drop_table_impl(m_thd, ndb, nullptr, db_name, table_name) != 0) {
     thd_ndb->push_warning("Failed to drop a temp table.");
     return false;
   }
@@ -361,9 +350,9 @@ bool Ndb_DDL_transaction_ctx::post_ddl_hook_drop_temp_table(
     DBUG_PRINT("info", ("ALTER to different engine = '%s' detected",
                         ha_resolve_storage_engine_name(create_info->db_type)));
 
-    const char *orig_db_name = m_thd->lex->select_lex->table_list.first->db;
+    const char *orig_db_name = m_thd->lex->query_block->table_list.first->db;
     const char *orig_table_name =
-        m_thd->lex->select_lex->table_list.first->table_name;
+        m_thd->lex->query_block->table_list.first->table_name;
     DBUG_PRINT("info",
                ("original table name: '%s.%s'", orig_db_name, orig_table_name));
 
@@ -415,7 +404,7 @@ Ndb_DDL_transaction_ctx::retrieve_copy_alter_final_rename_stmt() {
 
 void Ndb_DDL_transaction_ctx::commit() {
   DBUG_TRACE;
-  DBUG_ASSERT(m_ddl_status == DDL_IN_PROGRESS);
+  assert(m_ddl_status == DDL_IN_PROGRESS);
   /* The schema changes would have been already committed internally to the NDB
      by the respective handler functions that made the change. So just update
      the status of the DDL and make note of the latest stmt on which the
@@ -426,7 +415,7 @@ void Ndb_DDL_transaction_ctx::commit() {
 
 bool Ndb_DDL_transaction_ctx::rollback() {
   DBUG_TRACE;
-  DBUG_ASSERT(m_ddl_status == DDL_IN_PROGRESS);
+  assert(m_ddl_status == DDL_IN_PROGRESS);
 
   bool result = true;
   m_ddl_status = DDL_ROLLED_BACK;
@@ -446,7 +435,7 @@ bool Ndb_DDL_transaction_ctx::rollback() {
         break;
       default:
         result = false;
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }
   }
@@ -459,7 +448,7 @@ bool Ndb_DDL_transaction_ctx::run_post_ddl_hooks() {
     /* Nothing to run */
     return true;
   }
-  DBUG_ASSERT(m_ddl_status == DDL_COMMITED || m_ddl_status == DDL_ROLLED_BACK);
+  assert(m_ddl_status == DDL_COMMITED || m_ddl_status == DDL_ROLLED_BACK);
   bool result = true;
   for (auto it = m_executed_ddl_stmts.begin(); it != m_executed_ddl_stmts.end();
        ++it) {

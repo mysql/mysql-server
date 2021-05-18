@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 
 #include "storage/perfschema/table_global_variables.h"
 
+#include <assert.h>
 #include <stddef.h>
 #include <new>
 
-#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -102,35 +102,24 @@ table_global_variables::table_global_variables()
     : PFS_engine_table(&m_share, &m_pos),
       m_sysvar_cache(false),
       m_pos(0),
-      m_next_pos(0),
-      m_context(nullptr) {}
+      m_next_pos(0) {}
 
 void table_global_variables::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_global_variables::rnd_init(bool scan) {
+int table_global_variables::rnd_init(bool /* scan */) {
   /*
     Build a list of system variables from the global system variable hash.
     Filter by scope.
   */
   m_sysvar_cache.materialize_global();
 
-  /* Record the version of the system variable hash, store in TLS. */
-  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
-  m_context = (table_global_variables_context *)current_thd->alloc(
-      sizeof(table_global_variables_context));
-  new (m_context) table_global_variables_context(hash_version, !scan);
   return 0;
 }
 
 int table_global_variables::rnd_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    system_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next()) {
     const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
@@ -143,13 +132,8 @@ int table_global_variables::rnd_next(void) {
 }
 
 int table_global_variables::rnd_pos(const void *pos) {
-  if (m_context && !m_context->versions_match()) {
-    system_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   set_position(pos);
-  DBUG_ASSERT(m_pos.m_index < m_sysvar_cache.size());
+  assert(m_pos.m_index < m_sysvar_cache.size());
 
   const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
   if (system_var != nullptr) {
@@ -165,14 +149,8 @@ int table_global_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   */
   m_sysvar_cache.materialize_global();
 
-  /* Record the version of the system variable hash, store in TLS. */
-  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
-  m_context = (table_global_variables_context *)current_thd->alloc(
-      sizeof(table_global_variables_context));
-  new (m_context) table_global_variables_context(hash_version, false);
-
   PFS_index_global_variables *result = nullptr;
-  DBUG_ASSERT(idx == 0);
+  assert(idx == 0);
   result = PFS_NEW(PFS_index_global_variables);
   m_opened_index = result;
   m_index = result;
@@ -181,11 +159,6 @@ int table_global_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_global_variables::index_next(void) {
-  if (m_context && !m_context->versions_match()) {
-    system_variable_warning();
-    return HA_ERR_END_OF_FILE;
-  }
-
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next()) {
     const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
@@ -226,7 +199,7 @@ int table_global_variables::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 1);
+  assert(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -240,7 +213,7 @@ int table_global_variables::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
-          DBUG_ASSERT(false);
+          assert(false);
       }
     }
   }

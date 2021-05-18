@@ -208,7 +208,7 @@ SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('01010101-0101-0101-0101-010101010101:1
 
 --echo ===== CHANGE MASTER without 'FOR CHANNEL' clause should throw error.
 --error ER_SLAVE_MULTIPLE_CHANNELS_CMD
-CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=10,  MASTER_CONNECT_RETRY=10, MASTER_RETRY_COUNT=10;
+CHANGE REPLICATION SOURCE TO SOURCE_HEARTBEAT_PERIOD=10,  SOURCE_CONNECT_RETRY=10, SOURCE_RETRY_COUNT=10;
 
 ###############################################################################
 # Step-3.7: Flush relay logs without empty channel acts on all replication
@@ -367,7 +367,7 @@ while ($i <= $number_of_channels)
   #############################################################################
 
   --echo ===== Executing CHANGE MASTER FOR CHANNEL on channel $channel_name.
-  --eval CHANGE MASTER TO MASTER_CONNECT_RETRY=100, MASTER_RETRY_COUNT=100 FOR CHANNEL $channel_name
+  --eval CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=100, SOURCE_RETRY_COUNT=100 FOR CHANNEL $channel_name
   --let $status_items=Connect_Retry, Master_Retry_Count, Slave_IO_State,Slave_SQL_Running_State, Channel_Name
   --let $rpl_channel_name=$channel_name
   --source include/show_slave_status.inc

@@ -9,6 +9,7 @@
 # of partitions when no partition-spec is part of
 # the create / alter table stmt.
 #
+PartitionsPerNode=1
 ThreadConfig=ldm={count=1}
 
 [cluster_config.1]

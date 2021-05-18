@@ -89,18 +89,13 @@ while ($i)
   (NULL,NULL,10,10,10,10,10,10.1,NULL,NULL,10,10,10,10,10,
    NULL,'two','two',NULL,NULL,NULL,NULL);
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039"
+--exec $NDB_MGM -e "all error 10039"
 
 if ($snapshotstart)
 {
-  --echo "Starting backup as nowait,snapshotstart"
-  --source suite/ndb/t/ndb_backup_nowait_snapshotstart_start.inc
+  let $start_backup_extra = SNAPSHOTSTART;
 }
-if (!$snapshotstart)
-{
-  --echo "Starting backup as nowait"
-  --source suite/ndb/t/ndb_backup_nowait_start.inc
-}
+--source suite/ndb/t/ndb_backup_nowait_start.inc
 
 --echo "Update tables during backup"
 --disable_query_log
@@ -121,7 +116,7 @@ options='two',flags='two', date_field='1922-02-22',year_field='1922',
 time_field='22:22:22',date_time='1922-02-22 22:22:22' where auto=1;
 --enable_query_log
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0"
+--exec $NDB_MGM -e "all error 0"
 
 --echo "Wait for backup to complete"
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
@@ -139,9 +134,9 @@ drop table t6;
 drop table t7;
 drop table t8;
 drop table t9;
+--enable_query_log
 
 --source include/ndb_backup_id.inc
---enable_query_log
 
 if (!$serialrestore)
 {

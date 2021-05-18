@@ -1159,3 +1159,17 @@ do regexp_like(0, "^{18446744073709551616");
 ERROR HY000: Decimal number in regular expression is too large.
 do regexp_instr(0, "^{18446744073709551616");
 ERROR HY000: Decimal number in regular expression is too large.
+#
+# Bug #32053093 ASSERTION `MAYBE_NULL' FAILED.
+#               WHEN USING REGEXP_LIKE FUNCTION
+#
+SET SQL_MODE='';
+DO INSERT(regexp_like(1, '['), 0, 1, '');
+ERROR HY000: The regular expression contains an unclosed bracket expression.
+DO INSERT(regexp_instr(1, '['), 0, 1, '');
+ERROR HY000: The regular expression contains an unclosed bracket expression.
+SET NAMES latin1;
+DO INSERT(regexp_replace(1, '[', 42), 0, 1, '');
+ERROR HY000: The regular expression contains an unclosed bracket expression.
+SET NAMES DEFAULT;
+SET SQL_MODE=DEFAULT;

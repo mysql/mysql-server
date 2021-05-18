@@ -1,0 +1,102 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+#########
+# SETUP #
+#########
+
+#########################################################################
+# WITH KEYRING
+#########################################################################
+# Create a new 'unencrypted' tablespace 'encrypt_ts'
+SELECT NAME, FLAG, SPACE_TYPE FROM information_schema.INNODB_TABLESPACES
+where NAME="encrypt_ts";
+NAME	FLAG	SPACE_TYPE
+create tablespace encrypt_ts add datafile 'encrypt_ts.ibd'
+	 engine=INNODB encryption='N';
+SELECT NAME, FLAG, SPACE_TYPE FROM information_schema.INNODB_TABLESPACES
+where NAME="encrypt_ts";
+NAME	FLAG	SPACE_TYPE
+encrypt_ts	18432	General
+# Create a table test.t1 in 'encrypt_ts' tablespace and insert some records.
+create table test.t1 (c char(20)) tablespace encrypt_ts;
+insert into test.t1 values ("samplerecord");
+set global innodb_buf_flush_list_now = 1;
+#############################################################
+# INITIAL SETUP : Tablespace is created as unencrypted      #
+#                 A table is created and rows are inserted  #
+#############################################################
+# Check that tablespace file is not encrypted yet
+# Print result
+table space is Unencrypted.
+############################################################
+# ALTER TABLESPACE 1 :    Unencrypted => Encrypted         #
+############################################################
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+set global innodb_buf_flush_list_now = 1;
+# Check that tablespace file is encrypted now
+# Print result
+table space is Encrypted.
+############################################################
+# ALTER TABLESPACE 2 :    Encrypted => Unencrypted         #
+############################################################
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+set global innodb_buf_flush_list_now = 1;
+# Check that tablespace file is not encrypted now
+# Print result
+table space is Unencrypted.
+
+################# CRASH/RECOVERY TESTING ###################
+
+############################################################
+# ALTER TABLESPACE 3 :    Unencrypted => Encrypted         #
+#                         (crash at page 10)               #
+############################################################
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
+4096
+set global innodb_buf_flush_list_now = 1;
+# Check that tablespace file is still unencrypted
+# Print result
+table space is Unencrypted.
+# Set Encryption process to crash at page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
+# Wait for Encryption processing to finish in background thread
+# After restart/recovery, check that Encryption was roll-forward and
+# tablespace file is encrypted now
+# Print result
+table space is Encrypted.
+############################################################
+# ALTER TABLESPACE 4 :    Encrypted => Unencrypted         #
+#                         (crash at page 10)               #
+############################################################
+SELECT COUNT(*) FROM test.t1;
+COUNT(*)
+4096
+# Check that tablespace file is Encrypted
+# Print result
+table space is Encrypted.
+# Set Encryption process to crash after page 10
+SET SESSION debug= '+d,alter_encrypt_tablespace_page_10';
+ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
+# Wait for Unencryption processing to finish in background thread
+# After restart/recovery, check that Unencryption was roll-forward and
+# tablespace file is Unencrypted now
+# Print result
+table space is Unencrypted.
+###########
+# CLEANUP #
+###########
+DROP TABLE test.t1;
+DROP TABLESPACE encrypt_ts;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

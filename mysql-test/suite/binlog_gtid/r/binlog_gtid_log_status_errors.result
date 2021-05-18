@@ -1,4 +1,4 @@
-CHANGE MASTER TO MASTER_HOST='127.0.0.1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1';
 # Adding debug point 'log_status_oom_mi' to @@GLOBAL.debug
 SELECT * FROM performance_schema.log_status;
 ERROR HY000: Unable to collect information for column 'REPLICATION': failed to allocate memory to collect information from replication channel ''.

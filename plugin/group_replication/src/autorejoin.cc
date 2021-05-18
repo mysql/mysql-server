@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -170,7 +170,7 @@ void Autorejoin_thread::execute_rejoin_process() {
     const char act[] =
         "now signal signal.autorejoin_entering_loop wait_for "
         "signal.autorejoin_enter_loop";
-    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   while (!m_abort && num_attempts++ < m_attempts) {
@@ -184,7 +184,7 @@ void Autorejoin_thread::execute_rejoin_process() {
       const char act[] =
           "now signal signal.autorejoin_waiting wait_for "
           "signal.autorejoin_continue";
-      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
 
     // Attempt a single rejoin.
@@ -247,12 +247,13 @@ void Autorejoin_thread::execute_rejoin_process() {
 
 [[noreturn]] void Autorejoin_thread::autorejoin_thread_handle() {
   // Initialize the MySQL thread infrastructure.
-  m_thd = new THD;
+  THD *thd = new THD;
   my_thread_init();
-  m_thd->set_new_thread_id();
-  m_thd->thread_stack = reinterpret_cast<const char *>(&m_thd);
-  m_thd->store_globals();
-  global_thd_manager_add_thd(m_thd);
+  thd->set_new_thread_id();
+  thd->thread_stack = reinterpret_cast<const char *>(&thd);
+  thd->store_globals();
+  global_thd_manager_add_thd(thd);
+  m_thd = thd;
 
   // Update the thread state and toggle the auto-rejoin ongoing flag.
   mysql_mutex_lock(&m_run_lock);

@@ -12,17 +12,17 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #
 #  1. Test ER_SLAVE_MULTIPLE_CHANNELS_CMD
 #
-CHANGE MASTER TO MASTER_USER = "root";
+CHANGE REPLICATION SOURCE TO SOURCE_USER = "root";
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 SHOW RELAYLOG EVENTS;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 SELECT MASTER_POS_WAIT("dummy-bin.000001", 4);
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
-START SLAVE UNTIL MASTER_LOG_FILE = "dummy-bin.0000001", MASTER_LOG_POS = 1729
+START SLAVE UNTIL SOURCE_LOG_FILE = "dummy-bin.0000001", SOURCE_LOG_POS = 1729
 #--error ER_SLAVE_MULTIPLE_CHANNELS_CMD
 #SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS("1111-1111-1111-1111:1");
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
-START SLAVE UNTIL MASTER_LOG_FILE = "dummy-bin.000001", MASTER_LOG_POS = 4;
+START SLAVE UNTIL SOURCE_LOG_FILE = "dummy-bin.000001", SOURCE_LOG_POS = 4;
 ERROR HY000: Multiple channels exist on the slave. Please provide channel name as an argument.
 #
 # 2. Test errors of commands on an invalid channel
@@ -50,23 +50,23 @@ Warning	1287	'WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS' is deprecated and will be remov
 #  3a) Test that proper error messages are sent out when invalid
 #      channel names are given for change master command.
 #
-CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root" FOR CHANNEL "A123456789A123456789A123456789A123456789A123456789A123456789A123456789";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root" FOR CHANNEL "A123456789A123456789A123456789A123456789A123456789A123456789A123456789";
 ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
-CHANGE MASTER TO MASTER_HOST = "127.0.0.1", MASTER_USER = "root" FOR CHANNEL "         ";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST = "127.0.0.1", SOURCE_USER = "root" FOR CHANNEL "         ";
 ERROR HY000: Couldn't create channel: Channel name is either invalid or too long.
 #
 #  3.b) Check that maximum channels permitted error is issued.
 #
 SET GLOBAL DEBUG = "+d, max_replication_channels_exceeded";
-CHANGE MASTER TO MASTER_LOG_POS = 4 FOR CHANNEL "257th_channel";
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_POS = 4 FOR CHANNEL "257th_channel";
 ERROR HY000: Maximum number of replication channels allowed exceeded.
 SET GLOBAL DEBUG=@old_debug;
 #
 #  3.c) Check that restricted channel names cannot be used
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_applier";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_applier'.
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "group_replication_recovery";
 ERROR HY000: CHANGE MASTER with the given parameters cannot be performed on channel 'group_replication_recovery'.
 # Assert that channels are not created for failed CHANGE MASTER command.
 # and number of channels configured must be 2

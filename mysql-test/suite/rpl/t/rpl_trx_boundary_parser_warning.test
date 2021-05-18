@@ -34,7 +34,7 @@ call mtr.add_suppression("QUERY.* is not expected in an event stream");
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since*");
 # Disable GTID auto positioning
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 #--source include/start_slave.inc
 
 --source include/rpl_connection_master.inc
@@ -316,7 +316,7 @@ RESET SLAVE;
 if ($use_gtids)
 {
   --disable_query_log
-  CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+  CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
   --enable_query_log
 }
 --source include/start_slave.inc

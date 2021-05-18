@@ -9,7 +9,6 @@
 
 --source include/count_sessions.inc
 --source include/have_debug.inc
---source include/not_hypergraph.inc  # Seems to depend on the query plan.
 
 --echo #
 --echo # Bug #21143276	HANGING DUE TO ASYNC_ROLLBACK

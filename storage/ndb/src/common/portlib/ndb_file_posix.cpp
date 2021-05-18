@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -368,6 +368,15 @@ bool ndb_file::have_direct_io_support() const
 #endif
 }
 
+bool ndb_file::avoid_direct_io_on_append() const
+{
+#if (defined(HAVE_DIRECTIO) && defined(DIRECTIO_ON))
+  return true;
+#else
+  return false;
+#endif
+}
+
 int ndb_file::set_direct_io(bool assume_implicit_datasync)
 {
 #if defined(O_DIRECT)
@@ -390,9 +399,25 @@ int ndb_file::set_direct_io(bool assume_implicit_datasync)
 
   ret = detect_direct_io_block_size_and_alignment();
   if ((ret == -1) ||
+#ifdef BUG32198728
+      /*
+       * Disabled check, see Bug#32198728.
+       *
+       * The i/o block size from fstat() gives a "preferred" block size.
+       * Reading or writing smaller blocks may be suboptimal and may cause
+       * notable worse performance.
+       * Still the i/o should not fail due to too small block size is used.
+       * For NFS mounted devices block size 1MiB have been seen in test there
+       * this check made that visible by stopping node.
+       *
+       * Until the check is configurable in some way we disable it such that it
+       * does not cause node failure in production.
+       * The check was added recently in 8.0.22.
+       */
       (m_block_size < m_direct_io_block_size) ||
-      (m_block_alignment < m_direct_io_block_alignment) ||
       (m_block_size % m_direct_io_block_size != 0) ||
+#endif
+      (m_block_alignment < m_direct_io_block_alignment) ||
       (m_block_alignment % m_direct_io_block_alignment != 0))
   {
 #if defined(O_DIRECT)

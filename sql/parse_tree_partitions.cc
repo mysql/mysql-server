@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,10 @@
 
 #include "sql/parse_tree_partitions.h"
 
+#include <assert.h>
 #include "m_ctype.h"
 #include "my_alloc.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
@@ -43,7 +44,7 @@ Partition_parse_context::Partition_parse_context(
     THD *thd_arg, partition_info *part_info_arg,
     partition_element *current_partition_arg,
     partition_element *curr_part_elem_arg, bool is_add_or_reorganize_partition)
-    : Parse_context(thd_arg, thd_arg->lex->current_select()),
+    : Parse_context(thd_arg, thd_arg->lex->current_query_block()),
       Parser_partition_info(part_info_arg, current_partition_arg,
                             curr_part_elem_arg, nullptr, 0),
       is_add_or_reorganize_partition(is_add_or_reorganize_partition) {}
@@ -196,8 +197,7 @@ bool PT_part_values_in_list::contextualize(Partition_parse_context *pc) {
 }
 
 bool PT_part_definition::contextualize(Partition_parse_context *pc) {
-  DBUG_ASSERT(pc->current_partition == nullptr &&
-              pc->curr_part_elem == nullptr);
+  assert(pc->current_partition == nullptr && pc->curr_part_elem == nullptr);
 
   if (super::contextualize(pc)) return true;
 
@@ -268,7 +268,7 @@ bool PT_part_definition::contextualize(Partition_parse_context *pc) {
       if (opt_part_values->contextualize(&ppc)) return true;
     } break;
     default:
-      DBUG_ASSERT(false);
+      assert(false);
       error(&ppc, pos, ER_THD(pc->thd, ER_UNKNOWN_ERROR));
       return true;
   }

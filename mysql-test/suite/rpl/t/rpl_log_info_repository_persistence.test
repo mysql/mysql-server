@@ -401,9 +401,9 @@ FLUSH PRIVILEGES;
 #  1. issue change master for default channel "" to set privilege_checks_user.
 STOP SLAVE;
 # NULL value is accepted
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=NULL;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER=NULL;
 # and NON-NULL value is accepted
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 FLUSH RELAY LOGS;
 START SLAVE;
 #   2. verify that pfs table has correct PRIVILEGE_CHECKS_USER
@@ -434,7 +434,7 @@ STOP SLAVE FOR CHANNEL "";
 --echo #
 #      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
 --error ER_WRONG_STRING_LENGTH
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "";
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $debug_point = simulate_priv_check_username_above_limit
 --let $slave_server_num = 2
@@ -447,14 +447,14 @@ START SLAVE FOR CHANNEL "";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --echo #
 --echo # TC.E.F2: privilege_checks_hostname has more than 255 length.
 --echo #
 #      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
 --error ER_WRONG_STRING_LENGTH
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $debug_point = simulate_priv_check_hostname_above_limit
 --source $MYSQL_TMP_DIR/restart_slave_with_debug_point.inc
@@ -467,14 +467,14 @@ START SLAVE FOR CHANNEL "";
 --let $debug_point =
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --echo #
 --echo # TC.E.F3: privilege_checks_hostname has @.
 --echo #
 #      a. CHANGE MASTER will result in ER_UNKNOWN_ERROR.
 --error ER_UNKNOWN_ERROR
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $sub_testcase = host_name_has_@
 --let $slave_server_num = 2
@@ -490,14 +490,14 @@ START SLAVE FOR CHANNEL "";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --echo #
 --echo # TC.E.F5. privilege_checks_username is anonymous.
 --echo #
 #      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS.
 --error ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $sub_testcase = anonymous_user
 --let $slave_server_num = 2
@@ -510,7 +510,7 @@ START SLAVE FOR CHANNEL "";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --echo #
 --echo # TC.E.F6. privilege_checks_user is a non existent user.
@@ -518,7 +518,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 #      a. CHANGE MASTER will result in
 #         ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 --error ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "" ;
 #      b. server start will result in
 #         ER_LOG_WARN_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 --let $sub_testcase = nonexist_user
@@ -535,7 +535,7 @@ START SLAVE FOR CHANNEL "";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 
 --let $assert_text = Found 4 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err
@@ -578,8 +578,8 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=
 #   1. create two channels ch1 and ch2 when slave is configured with TABLE type
 #      repo. "ch1" has not PRIVILEGE_CHECKS_USER, "ch2" has
 #      'replication_applier'@'localhost' as PRIVILEGE_CHECK_USER.
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11, PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11, PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;
 FLUSH RELAY LOGS FOR CHANNEL "ch1";
 FLUSH RELAY LOGS FOR CHANNEL "ch2";
 #   2. verify that there are three channel entries in both pfs and
@@ -674,7 +674,7 @@ STOP SLAVE FOR CHANNEL "ch1";
 --echo #
 #      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
 --error ER_WRONG_STRING_LENGTH
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "ch1";
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $debug_point = simulate_priv_check_username_above_limit
 --let $priv_chks_username = "repl_priv_chcks_usr_more_than_32"
@@ -687,14 +687,14 @@ START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
 --echo # TC.E.T2: privilege_checks_hostname has more than 255 length.
 --echo #
 #      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_CORRUPT.
 --error ER_WRONG_STRING_LENGTH
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "ch1" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $debug_point = simulate_priv_check_hostname_above_limit
 --let $priv_chks_username = "replication_applier"
@@ -708,14 +708,14 @@ START SLAVE FOR CHANNEL "ch1";
 --let $debug_point =
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
 --echo # TC.E.T3: privilege_checks_hostname has @.
 --echo #
 #      a. CHANGE MASTER will result in ER_UNKNOWN_ERROR.
 --error ER_UNKNOWN_ERROR
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "ch1" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $priv_chks_username = 'replication_applier'
 --let $priv_chks_hostname = 'l@calhost'
@@ -726,7 +726,7 @@ START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
 --echo # TC.E.T4. privilege_checks_username is NULL and
@@ -742,7 +742,7 @@ START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
 --echo # TC.E.T5. privilege_checks_username is anonymous.
@@ -750,7 +750,7 @@ CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
 #      a. CHANGE MASTER will result in
 #         ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS.
 --error ER_CLIENT_PRIVILEGE_CHECKS_USER_CANNOT_BE_ANONYMOUS
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "ch1" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_CORRUPT.
 --let $priv_chks_username = ""
 --let $priv_chks_hostname = "localhost"
@@ -761,14 +761,14 @@ START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 
 --echo #
 --echo # TC.E.T6. privilege_checks_user is a non existent user.
 --echo #
 #      a. CHANGE MASTER will result in ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 --error ER_CLIENT_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "ch1" ;
 #      b. server start will result in ER_LOG_WARN_PRIVILEGE_CHECKS_USER_DOES_NOT_EXIST.
 --let $priv_chks_username = "replication_applier_nonexist"
 --let $priv_chks_hostname = "localhost"
@@ -779,7 +779,7 @@ START SLAVE FOR CHANNEL "ch1";
 
 # Restore the correct channel config after error test case.
 RESET SLAVE FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 
 --let $assert_text = Found 5 warning in the error log
 --let $assert_file = $MYSQLTEST_VARDIR/tmp/rpl_log_info_repository_persistence.2.err

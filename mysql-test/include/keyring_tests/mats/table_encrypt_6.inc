@@ -1,0 +1,77 @@
+#
+# Test negative scenarios, lifted from other table_encrypt tests
+#
+# Create a table with encryption, should fail since keyring is not
+# loaded
+
+--disable_query_log
+call mtr.add_suppression(".*Encryption can't find master key.*");
+call mtr.add_suppression(".*Encryption information in datafile.*");
+--enable_query_log
+
+--source include/keyring_tests/helper/instance_backup_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+--source include/restart_mysqld_no_echo.inc
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+
+CREATE TABLE t1(c1 INT, c2 char(20)) ENGINE = InnoDB;
+
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+ALTER TABLE t1 ENCRYPTION="Y", algorithm=copy;
+
+DROP TABLE t1;
+
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+# Create a table with encryption
+CREATE TABLE t1(c1 INT, c2 char(20)) ENCRYPTION="Y" ENGINE = InnoDB;
+
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(0, "aaaaa");
+INSERT INTO t1 VALUES(1, "bbbbb");
+INSERT INTO t1 VALUES(2, "ccccc");
+INSERT INTO t1 VALUES(3, "ddddd");
+INSERT INTO t1 VALUES(4, "eeeee");
+INSERT INTO t1 VALUES(5, "fffff");
+INSERT INTO t1 VALUES(6, "ggggg");
+INSERT INTO t1 VALUES(7, "hhhhh");
+INSERT INTO t1 VALUES(8, "iiiii");
+INSERT INTO t1 VALUES(9, "jjjjj");
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+INSERT INTO t1 select * from t1;
+
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+
+--disable_query_log
+SET DEBUG='+d,os_block_cache_busy';
+--enable_query_log
+
+# Restart without key ring to check the encrypted table can't be open.
+--source include/keyring_tests/helper/instance_backup_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+--error ER_CANNOT_FIND_KEY_IN_KEYRING
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+
+# Restart with keyring to check that we can now open the table
+--source include/keyring_tests/helper/instance_restore_manifest.inc
+let $restart_parameters = restart: $PLUGIN_DIR_OPT;
+--source include/restart_mysqld_no_echo.inc
+
+--disable_query_log
+SET DEBUG='-d,os_block_cache_busy';
+--enable_query_log
+
+SELECT * FROM t1 ORDER BY c1 LIMIT 10;
+
+DROP TABLE t1;

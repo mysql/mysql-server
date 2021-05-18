@@ -7,7 +7,7 @@
 
 ###################################################################
 
---write_file $MYSQL_TMP_DIR/mysqlx-timeouting-read.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-timeouting-read.xpl
 -->sql
 SELECT CONNECTION_TYPE from performance_schema.threads where processlist_command='Query';
 SELECT USER();
@@ -45,7 +45,7 @@ let $wait_condition=
 exec $MYSQLXTEST
   --user temp_user
   --password='auth_string'
-  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-read.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-read.xpl 2>&1;
 
 let $wait_condition=
     SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
@@ -60,7 +60,7 @@ exec $MYSQLXTEST
   --user temp_user
   --password='auth_string'
   --ssl-mode=REQUIRED
-  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-read.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/mysqlx-timeouting-read.xpl 2>&1;
 
 let $wait_condition=
     SELECT 1 FROM performance_schema.global_status WHERE VARIABLE_NAME
@@ -70,6 +70,6 @@ let $wait_condition=
 
 # Cleanup
 SET GLOBAL mysqlx_read_timeout = DEFAULT;
---remove_file $MYSQL_TMP_DIR/mysqlx-timeouting-read.tmp
+--source ../include/xplugin_cleanup.inc
 
 DROP USER temp_user@localhost;

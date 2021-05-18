@@ -1,0 +1,5 @@
+--source include/have_component_keyring_file.inc
+
+--source ../inc/setup_component.inc
+--source include/keyring_tests/mats/keyring_component_status.inc
+--source ../inc/teardown_component.inc

@@ -21,7 +21,7 @@ RESET REPLICA;
 # Revert variables.
 eval SET @@global.relay_log_purge= $_fake_relay_log_purge;
 
-eval CHANGE MASTER TO MASTER_HOST = '$_fake_old_master_host';
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = '$_fake_old_master_host';
 
 
 --let $include_filename= cleanup_fake_relay_log.inc

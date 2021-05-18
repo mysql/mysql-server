@@ -12,10 +12,6 @@ switched to session default
 RUN SET GLOBAL Mysqlx_max_allowed_packet=1024
 
 0 rows affected
-switched to session default
-RUN LOCK TABLES `first_table` WRITE
-
-0 rows affected
 connecting...
 active session is now 'test1'
 send Mysqlx.Sql.StmtExecute {
@@ -24,11 +20,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 Test sends 4 messages
-LOCK TABLE stops processing of following commands 
-switched to session default
-RUN UNLOCK TABLES
-
-0 rows affected
+LOCK TABLE stops processing of following commands
 switched to session test1
 
 0 rows affected
@@ -58,10 +50,6 @@ switched to session default
 RUN SET GLOBAL Mysqlx_max_allowed_packet=4094
 
 0 rows affected
-switched to session default
-RUN LOCK TABLES `first_table` WRITE
-
-0 rows affected
 connecting...
 active session is now 'test2'
 send Mysqlx.Sql.StmtExecute {
@@ -70,11 +58,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 Test sends 4 messages
-LOCK TABLE stops processing of following commands 
-switched to session default
-RUN UNLOCK TABLES
-
-0 rows affected
+LOCK TABLE stops processing of following commands
 switched to session test2
 
 0 rows affected
@@ -99,10 +83,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 switched to session default
-switched to session default
-RUN LOCK TABLES `first_table` WRITE
-
-0 rows affected
 connecting...
 active session is now 'test3'
 send Mysqlx.Sql.StmtExecute {
@@ -111,11 +91,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 Test sends 4 messages
-LOCK TABLE stops processing of following commands 
-switched to session default
-RUN UNLOCK TABLES
-
-0 rows affected
+LOCK TABLE stops processing of following commands
 switched to session test3
 
 0 rows affected
@@ -140,10 +116,6 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 switched to session default
-switched to session default
-RUN LOCK TABLES `first_table` WRITE
-
-0 rows affected
 connecting...
 active session is now 'test4'
 send Mysqlx.Sql.StmtExecute {
@@ -152,11 +124,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 Test sends 4 messages
-LOCK TABLE stops processing of following commands 
-switched to session default
-RUN UNLOCK TABLES
-
-0 rows affected
+LOCK TABLE stops processing of following commands
 switched to session test4
 
 0 rows affected
@@ -187,10 +155,6 @@ switched to session default
 RUN SET GLOBAL Mysqlx_max_allowed_packet=8188
 
 0 rows affected
-switched to session default
-RUN LOCK TABLES `first_table` WRITE
-
-0 rows affected
 connecting...
 active session is now 'test5'
 send Mysqlx.Sql.StmtExecute {
@@ -199,11 +163,7 @@ send Mysqlx.Sql.StmtExecute {
 }
 
 Test sends 4 messages
-LOCK TABLE stops processing of following commands 
-switched to session default
-RUN UNLOCK TABLES
-
-0 rows affected
+LOCK TABLE stops processing of following commands
 switched to session test5
 
 0 rows affected

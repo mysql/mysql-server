@@ -3,7 +3,7 @@
 --source include/xplugin_create_user.inc
 
 ## TEST STARTS HERE
---write_file $MYSQL_TMP_DIR/too_large.tmp
+--write_file $MYSQL_TMP_DIR/too_large.xpl
 -->import wait_until_disconnect.macro
 
 -->vargen %LARGE_TEXT% . 2000
@@ -26,11 +26,10 @@ SET GLOBAL mysqlx_connect_timeout = 300;
 SET GLOBAL mysqlx_wait_timeout = 300;
 SET GLOBAL mysqlx_max_allowed_packet = 1000;
 
---exec $MYSQLXTEST -u x_root --file=$MYSQL_TMP_DIR/too_large.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --file=$MYSQL_TMP_DIR/too_large.xpl 2>&1
 
 ## Cleanup
 SET GLOBAL mysqlx_connect_timeout= DEFAULT;
 SET GLOBAL mysqlx_wait_timeout = DEFAULT;
 SET GLOBAL mysqlx_max_allowed_packet = DEFAULT;
---remove_file $MYSQL_TMP_DIR/too_large.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

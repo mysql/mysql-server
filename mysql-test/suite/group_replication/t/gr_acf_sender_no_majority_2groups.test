@@ -1,0 +1,261 @@
+################################################################################
+# Validate that when the monitoring worker notices that the sender to which the
+# receiver is connected is not in the primary partition (lost quorum), then
+# - it SHALL automatically stop the receiver,
+# - issue an entry in the error log (ER_RPL_ASYNC_CHANNEL_STOPPED_QUORUM_LOST).
+# As a consequence the receiver (IO thread) SHALL also automatically failover to
+# another sender with highest weight.
+#
+# Test:
+# 0. The test requires 5 servers:
+#      server1: group A primary
+#      server2: group A secondary
+#      server3: group B primary
+#      server4: group B secondary
+#      server5: single server
+# 1. Deploy a 2 members group A in single primary mode.
+# 2. Deploy a 2 members group B in single primary mode.
+# 3. Configure replica to manage the asynchronous connection
+#    to groups A and B.
+# 4. Create and start the managed channel.
+# 5. Kill server2, group A will block due no majority.
+# 6. Since the group A has no majority, the replica will connect
+#    to server3 on group B.
+# 7. Assert that group A information did not change, since it
+#    lost the majority.
+# 8. Clean up.
+################################################################################
+
+--source include/big_test.inc
+--source include/not_valgrind.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 5
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Deploy a 2 members group A in single primary mode.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $server1_uuid= `SELECT @@server_uuid`
+--let $group_replication_group_name= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--let $group_a= $group_replication_group_name
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_1,localhost:$SERVER_GR_PORT_2"
+--enable_query_log
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $server2_uuid= `SELECT @@server_uuid`
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_1,localhost:$SERVER_GR_PORT_2"
+--enable_query_log
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 2. Deploy a 2 members group B in single primary mode.
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $server3_uuid= `SELECT @@server_uuid`
+--let $group_replication_group_name= bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb
+--let $group_b= $group_replication_group_name
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_3,localhost:$SERVER_GR_PORT_4"
+--enable_query_log
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--disable_query_log
+--eval SET GLOBAL group_replication_group_seeds= "localhost:$SERVER_GR_PORT_3,localhost:$SERVER_GR_PORT_4"
+--enable_query_log
+--source include/start_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Configure replica to manage the asynchronous connection
+--echo #    to groups A and B.
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+--replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $group_a GROUP_A
+--eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_a', '127.0.0.1', $SERVER_MYPORT_1, '', 90, 70);
+
+--replace_result $SERVER_MYPORT_3 SERVER_MYPORT_3 $group_b GROUP_B
+--eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', '$group_b', '127.0.0.1', $SERVER_MYPORT_3, '', 85, 65);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover for server1'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE port=$SERVER_MYPORT_1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover for server3'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE port=$SERVER_MYPORT_3, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group A'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed WHERE managed_name="$group_a", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group B'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed WHERE managed_name="$group_b", count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Create and start the managed channel.
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_1 SERVER_1_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+--let $rpl_channel_name='ch1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+--let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
+--let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\' AND source_uuid=\'$server1_uuid\', SERVICE_STATE, 1]" = "ON"
+--source include/assert.inc
+
+--let $wait_condition= SELECT COUNT(*)=4 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+
+--echo
+--echo ############################################################
+--echo # 5. Kill server2, group A will block due no majority.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--shutdown_server 0
+--source include/wait_until_disconnected.inc
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_member_state= UNREACHABLE
+--let $group_replication_member_id= $server2_uuid
+--source include/gr_wait_for_member_state.inc
+
+
+--echo
+--echo ############################################################
+--echo # 6. Since the group A has no majority, the replica will connect
+--echo #    to server3 on group B.
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+--echo Wait until ch1 IO_THREAD is connected to server3
+--let $wait_condition= SELECT service_state="ON" FROM performance_schema.replication_connection_status WHERE channel_name="ch1" AND source_uuid="$server3_uuid"
+--source include/wait_condition.inc
+
+--let $assert_only_after = CURRENT_TEST: group_replication.gr_acf_sender_no_majority_2groups
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.5.err
+--let $assert_select= The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.
+--let $assert_count= 1
+--let $assert_text= The ER_RPL_ASYNC_CHANNEL_STOPPED_QUORUM_LOST error is logged
+--source include/assert_grep.inc
+
+
+--echo
+--echo ############################################################
+--echo # 7. Assert that group A information did not change, since it
+--echo #    lost the majority.
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover for server1'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE port=$SERVER_MYPORT_1 AND weight=90 AND managed_name="$group_a" , count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover for server2'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE port=$SERVER_MYPORT_2 AND weight=70 AND managed_name="$group_a" , count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 8. Clean up.
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+--let $rpl_channel_name='ch1'
+--source include/stop_slave.inc
+
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--replace_result $group_a GROUP_A
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1', '$group_a')
+
+--let $assert_text= 'There are 0 rows in performance_schema.replication_asynchronous_connection_failover_managed for group A'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed WHERE managed_name="$group_a", count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed for group B'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed WHERE managed_name="$group_b", count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There are 0 rows in performance_schema.replication_asynchronous_connection_failover for group A'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE managed_name="$group_a" , count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover for group B'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE managed_name="$group_b" , count, 1] = 2
+--source include/assert.inc
+
+--replace_result $group_b GROUP_B
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1', '$group_b')
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
+--source include/assert.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The source .* for channel 'ch1' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually.*");
+call mtr.add_suppression("The IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.");
+call mtr.add_suppression("The Monitor IO thread detected that the source .* does not belong to the group majority, thence the channel .* will try to connect to another source.*");
+call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1', thence it will try to connect to another source.");
+call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
+call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
+SET SESSION sql_log_bin = 1;
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("\\[GCS\\] Timeout while waiting for the group communication engine to exit!");
+call mtr.add_suppression("\\[GCS\\] The member has failed to gracefully leave the group.");
+SET SESSION sql_log_bin = 1;
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--enable_reconnect
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--source include/group_replication_end.inc

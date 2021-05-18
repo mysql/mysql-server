@@ -15,7 +15,8 @@ SET optimizer_trace = 'enabled=on';
 SELECT /*+ SET_VAR(secondary_engine_cost_threshold=100000) */
   * FROM t ORDER BY x;
 SET optimizer_trace = 'enabled=off';
-SELECT JSON_PRETTY(TRACE->'$**.secondary_engine_not_used')
+SELECT JSON_PRETTY(JSON_REMOVE(TRACE->'$**.secondary_engine_not_used',
+                               '$[0].cost')) AS trace
   FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DROP TABLE t;
 

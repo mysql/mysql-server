@@ -22,7 +22,6 @@
 #
 
 --source include/have_binlog_format_mixed.inc
---disable_ps_protocol
 
 RESET MASTER;
 
@@ -130,4 +129,3 @@ DROP USER u1;
 DROP USER u2;
 DROP TABLE t1;
 SET @@sql_mode := @old_sql_mode ;
---enable_ps_protocol

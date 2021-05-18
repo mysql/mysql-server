@@ -20,6 +20,8 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1);
 include/rpl_sync.inc
 [connection server_4]
+SET @old_debug= @@GLOBAL.DEBUG;
+SET GLOBAL debug = '+d,async_conn_failover_disable_weight_check';
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
 SET SESSION sql_log_bin= 1;
@@ -36,7 +38,7 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    performance_schema.replication_connection_configuration.
 #
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_CONNECT_RETRY=1, MASTER_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 include/start_slave.inc
 include/assert.inc ['Asynchronous Replication Connection Failover is enabled']
 #
@@ -52,7 +54,6 @@ include/rpl_stop_server.inc [server_number=3]
 #
 [connection server_4]
 include/wait_for_slave_io_error.inc [errno=2003]
-include/assert_grep.inc [Assert that the IO thread fails with as there is not alternative source to connect.]
 #
 # 7. Verify that asynchronous replication tries connecting to server 3
 #    two (retry_count=2) times before it fails.
@@ -113,37 +114,46 @@ INSERT INTO t1 VALUES (3);
 # 15. Stop server 1.
 #
 [connection server_4]
-SET @old_debug= @@GLOBAL.DEBUG;
 SET GLOBAL debug = '+d,replica_retry_count_exceed';
 include/rpl_stop_server.inc [server_number=1]
 #
 # 16. Even after all source are stopped the replica IO thread keeps
 #     on re-trying to connect with all logged source in
 #     performance_schema.replication_asynchronous_connection_failover
-#     table. It tries connecting to server 3, 2 and again server 3.
+#     table. It tries connecting to server 3, 2, 1, and again 3, 2 1.
 #
 [connection server_4]
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
-include/assert_grep.inc [Assert that the IO thread tried two times connecting to server_1]
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
-include/assert_grep.inc [Assert that the IO thread tried two times connecting to server_3]
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
-include/assert_grep.inc [Assert that the IO thread tried two times connecting to server_2]
 SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
 SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
-include/assert_grep.inc [Assert that the IO thread tried two times connecting to server_3]
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
+SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
+SET DEBUG_SYNC= 'now WAIT_FOR wait_for_retry_count_exceed';
+SET @@GLOBAL.DEBUG= @old_debug;
+SET DEBUG_SYNC= 'now SIGNAL continue_retry_count_exceed';
+SET DEBUG_SYNC= 'RESET';
 #
 # 17. Stop replica IO
 #
-SET @@GLOBAL.DEBUG= @old_debug;
-include/stop_slave_io.inc
+include/stop_slave.inc
 #
 # 18. Clean up
 #
-CHANGE MASTER TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_2, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_2, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '');;
+asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_1, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
 include/rpl_start_server.inc [server_number=1]
 [connection server_2]
 include/rpl_start_server.inc [server_number=2]
@@ -152,7 +162,7 @@ include/start_slave.inc
 include/rpl_start_server.inc [server_number=3]
 include/start_slave.inc
 [connection server_4]
-include/start_slave_io.inc
+include/start_slave.inc
 [connection server_1]
 DROP TABLE t1;
 include/rpl_sync.inc

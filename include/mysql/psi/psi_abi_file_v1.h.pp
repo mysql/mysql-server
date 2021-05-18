@@ -3,6 +3,15 @@
 #include "my_psi_config.h"
 #include "my_sharedlib.h"
 #include "mysql/components/services/psi_file_bits.h"
+#include <mysql/components/services/bits/psi_bits.h>
+static constexpr unsigned PSI_INSTRUMENT_ME = 0;
+static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
+struct PSI_placeholder {
+  int m_placeholder;
+};
+struct PSI_instr {
+  bool m_enabled;
+};
 #include <mysql/components/services/my_io_bits.h>
 typedef int File;
 typedef mode_t MY_MODE;
@@ -49,9 +58,9 @@ struct PSI_file_locker_state_v1 {
   void *m_class;
   struct PSI_thread *m_thread;
   size_t m_number_of_bytes;
-  unsigned long long m_timer_start;
+  unsigned long long m_timer_start{0ULL};
   unsigned long long (*m_timer)(void);
-  void *m_wait;
+  void *m_wait{nullptr};
 };
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state_v1;
 typedef void (*register_file_v1_t)(const char *category,

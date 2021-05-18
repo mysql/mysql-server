@@ -284,9 +284,12 @@ CREATE TABLE `表一` (c1 CHAR(20), INDEX(c1)) DEFAULT CHARSET = utf8mb4;
 INSERT INTO `表一` VALUES ('12345678900987654321'), ('一二三四五伍肆叁贰壹'), ('六七八'), ('九十'), ('百'), ('𠻜𠻝𠻞𠻟');
 INSERT INTO `表一` VALUES ('䑃'), ('一䑃二三四'), ('𠀂𨡃');
 
+--sorted_result
 SELECT c1, LENGTH(c1) FROM `表一`;
 
+--sorted_result
 SELECT c1, LPAD(c1, 20, '中') FROM `表一`;
+--sorted_result
 SELECT c1, RPAD(c1, 20, '𤈼') FROM `表一`;
 
 TRUNCATE `表一`;
@@ -335,11 +338,16 @@ INSERT INTO `表一` VALUES ('𠻞𠻞一䑃二𤈼三𠻟');
 INSERT INTO `表一` VALUES ('𠻞𠻞𠻞一䑃二𤈼三𠻟');
 INSERT INTO `表一` VALUES ('   一䑃二𤈼三𠻟   ');
 
+--sorted_result
 SELECT c1, TRIM(TRAILING '𠻞' FROM c1) FROM `表一`;
+--sorted_result
 SELECT c1, TRIM(LEADING '𠻞' FROM c1) FROM `表一`;
+--sorted_result
 SELECT c1, TRIM(BOTH '𠻞' FROM c1) FROM `表一`;
+--sorted_result
 SELECT c1, TRIM(c1) FROM `表一`;
 
+--sorted_result
 SELECT REVERSE(c1) FROM `表一`;
 
 TRUNCATE `表一`;

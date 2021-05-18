@@ -1,0 +1,535 @@
+--source include/big_test.inc
+--source include/have_innodb_16k.inc
+
+--echo #
+--echo # Tests for CREATE/ALTER TABLE with AUTOEXTEND_SIZE clause
+--echo #
+
+--echo # Test error situations for CREATE TABLE
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 48k;
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 1M;
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 5G;
+
+--error ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 5M;
+
+--error ER_PARSE_ERROR
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE=1.5M;
+
+--echo # Create table with autoextend_size > 0
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+SHOW CREATE TABLE mytable;
+
+ALTER TABLE mytable AUTOEXTEND_SIZE 0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+SHOW CREATE TABLE mytable;
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+ALTER TABLE mytable AUTOEXTEND_SIZE 48k;
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+ALTER TABLE mytable AUTOEXTEND_SIZE 1M;
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+ALTER TABLE mytable AUTOEXTEND_SIZE 5G;
+
+--error ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
+ALTER TABLE mytable AUTOEXTEND_SIZE 5M;
+
+DROP TABLE mytable;
+
+--echo # Create table with autoextend_size = 0
+CREATE TABLE mytable(c1 INT) AUTOEXTEND_SIZE=0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+SHOW CREATE TABLE mytable;
+
+DROP TABLE mytable;
+
+--echo # Test CREATE/ALTER TABLE with AUTOEXTEND_SIZE value specified as
+--echo # absolute number of bytes without K, M or G qualifiers
+CREATE TABLE mytable (c1 INT) AUTOEXTEND_SIZE 4194304;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+ALTER TABLE mytable AUTOEXTEND_SIZE 8388608;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+DROP TABLE mytable;
+
+--echo # Test CREATE TABLE LIKE statement for non-partitioned tables
+CREATE TABLE mytable (c1 INT) AUTOEXTEND_SIZE 4M;
+SHOW CREATE TABLE mytable;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+CREATE TABLE mytable_copy LIKE mytable;
+SHOW CREATE TABLE mytable_copy;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable_copy%';
+
+DROP TABLE mytable_copy;
+
+ALTER TABLE mytable AUTOEXTEND_SIZE 0;
+SHOW CREATE TABLE mytable;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+CREATE TABLE mytable_copy LIKE mytable;
+SHOW CREATE TABLE mytable_copy;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable_copy%';
+
+DROP TABLE mytable_copy;
+
+ALTER TABLE mytable AUTOEXTEND_SIZE 64M;
+SHOW CREATE TABLE mytable;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+CREATE TABLE mytable_copy LIKE mytable;
+SHOW CREATE TABLE mytable_copy;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable_copy%';
+
+DROP TABLE mytable_copy;
+
+DROP TABLE mytable;
+
+--echo # Validate the initial size of the table when created without the AUTOEXTEND_SIZE clause
+CREATE TABLE mytable (c1 INT);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+SHOW CREATE TABLE mytable;
+
+--echo # Verify the autoextend_size attribute is updated in the data dictionary
+ALTER TABLE mytable AUTOEXTEND_SIZE=4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+--echo # Validate SHOW CREATE TABLE displays autoextend_size clause
+SHOW CREATE TABLE mytable;
+
+--echo # Validate that the AUTOEXTEND_SIZE attribute is persisted properly and seen beyond server restart
+--source include/restart_mysqld.inc
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+DROP TABLE mytable;
+
+--echo # Test that the initial size of the table is same as AUTOEXTEND_SIZE, if the clause if mentioned
+CREATE TABLE mytable(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 8M;
+INSERT INTO mytable VALUES (1, 'aaaaaa');
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+
+--echo # Test ALTER TABLE statement
+ALTER TABLE mytable ADD COLUMN c3 INT, AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+SELECT * FROM mytable;
+
+ALTER TABLE mytable DROP COLUMN c3, AUTOEXTEND_SIZE=0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%mytable%';
+SHOW CREATE TABLE mytable;
+SELECT * FROM mytable;
+
+DROP TABLE mytable;
+
+--echo # Test that AUTOEXTEND_SIZE does not change after ALTER TABLE ... ALGORITHM COPY
+CREATE TABLE t1 (c1 INT , c2 varchar(100)) AUTOEXTEND_SIZE =4m;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+ALTER TABLE t1 ADD INDEX idx (c2), ALGORITHM=copy;
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%t1%';
+
+DROP TABLE t1;
+
+--echo # Tests for partitioned tables. The autoextend_size should be updated
+--echo # for each partitioned tablespace
+
+--echo # Create a non-partitioned table and add partitions to it and verify that the
+--echo # autoextend_size attribute is applied to all the partitions
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+ALTER TABLE tpart PARTITION BY RANGE (c1) (PARTITION p0 VALUES LESS THAN (50),
+  PARTITION p1 VALUES LESS THAN (100));
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+SHOW CREATE TABLE tpart;
+
+ALTER TABLE tpart ADD PARTITION (PARTITION p2 VALUES LESS THAN (200));
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+ALTER TABLE tpart DROP PARTITION p1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+DROP TABLE tpart;
+
+--echo # Create a non-partitioned table and alter it to add partitions while also modifying
+--echo # the autoextend_size
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+ALTER TABLE tpart AUTOEXTEND_SIZE 1M PARTITION BY RANGE (c1) (PARTITION p0 VALUES LESS THAN (50),
+  PARTITION p1 VALUES LESS THAN (100));
+
+ALTER TABLE tpart AUTOEXTEND_SIZE 8M PARTITION BY RANGE (c1) (PARTITION p0 VALUES LESS THAN (50),
+  PARTITION p1 VALUES LESS THAN (100));
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+SHOW CREATE TABLE tpart;
+
+ALTER TABLE tpart ADD PARTITION (PARTITION p2 VALUES LESS THAN (200));
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+DROP TABLE tpart;
+
+--echo # Create a partitioned table and verify autoextend_size value for the partitions
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 1M PARTITION BY RANGE (c1) (
+  PARTITION p0 VALUES LESS THAN (50),
+  PARTITION p1 VALUES LESS THAN (100));
+
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M PARTITION BY RANGE (c1) (
+  PARTITION p0 VALUES LESS THAN (50),
+  PARTITION p1 VALUES LESS THAN (100));
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+SHOW CREATE TABLE tpart;
+
+DROP TABLE tpart;
+
+CREATE TABLE tpart(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M PARTITION BY RANGE (c1) (
+  PARTITION p0 VALUES LESS THAN (50),
+  PARTITION p1 VALUES LESS THAN (100));
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+SHOW CREATE TABLE tpart;
+
+CREATE TABLE tpart_copy LIKE tpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart_copy%';
+
+SHOW CREATE TABLE tpart_copy;
+
+DROP TABLE tpart_copy;
+
+--echo # Test ALTER TABLE ... AUTOEXTEND_SIZE changes on partitioned tableѕ
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+ALTER TABLE tpart AUTOEXTEND_SIZE 48k;
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+ALTER TABLE tpart AUTOEXTEND_SIZE 1M;
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+ALTER TABLE tpart AUTOEXTEND_SIZE 5G;
+
+--error ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
+ALTER TABLE tpart AUTOEXTEND_SIZE 5M;
+
+ALTER TABLE tpart AUTOEXTEND_SIZE 8M;
+
+SHOW CREATE TABLE tpart;
+
+DROP TABLE tpart;
+
+--echo # Test ALTER TABLE ... REMOVE PARTITIONING and ALTER TABLE ... EXCHANGE PARTITION
+--echo # for partitioned table
+CREATE TABLE tpart (
+  id INT NOT NULL,
+  fname VARCHAR(30),
+  lname VARCHAR(30)
+) AUTOEXTEND_SIZE = 8M
+PARTITION BY RANGE (id) (
+  PARTITION p0 VALUES LESS THAN (50),
+  PARTITION p1 VALUES LESS THAN (100),
+  PARTITION p2 VALUES LESS THAN (150),
+  PARTITION p3 VALUES LESS THAN (MAXVALUE));
+
+SHOW CREATE TABLE tpart;
+INSERT INTO tpart VALUES (1669, "Jim", "Smith"), (337, "Mary", "Jones"), (16, "Frank", "White"), (2005, "Linda", "Black");
+SELECT COUNT(*) FROM tpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+
+CREATE TABLE tcopy_part LIKE tpart;
+SHOW CREATE TABLE tcopy_part;
+
+--echo # Remove partitioning and validate the value of AUTOEXTEND_SIZE
+ALTER TABLE tcopy_part REMOVE PARTITIONING;
+SHOW CREATE TABLE tcopy_part;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tcopy_part%';
+
+--echo # Exchange a partition
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'tpart';
+ALTER TABLE tpart EXCHANGE PARTITION p3 WITH TABLE tcopy_part;
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'tpart';
+
+SELECT COUNT(*) FROM tpart;
+SELECT COUNT(*) FROM tcopy_part;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tpart%';
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tcopy_part%';
+
+DROP TABLE tpart;
+DROP TABLE tcopy_part;
+
+--echo # Tests for sub-partitioned tables. The autoextend_size should be updated
+--echo # for each sub-partition
+
+--echo # Create a non-partitioned table and add sub-partitions to it
+CREATE TABLE tsubpart(a INT NOT NULL PRIMARY KEY, b INT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+ALTER TABLE tsubpart PARTITION BY RANGE (a) SUBPARTITION BY HASH (a)
+  SUBPARTITIONS 3 (
+    PARTITION p1 VALUES LESS THAN (10),
+    PARTITION p2 VALUES LESS THAN (20),
+    PARTITION p3 VALUES LESS THAN maxvalue);
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+SHOW CREATE TABLE tsubpart;
+
+ALTER TABLE tsubpart DROP PARTITION p3;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+DROP TABLE tsubpart;
+
+--echo # Create a non-partitioned table and add sub-partitions to it whle also modifying
+--echo # autoextend_size
+CREATE TABLE tsubpart(a INT NOT NULL PRIMARY KEY, b INT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+ALTER TABLE tsubpart AUTOEXTEND_SIZE 8M PARTITION BY RANGE (a) SUBPARTITION BY HASH (a)
+  SUBPARTITIONS 3 (
+    PARTITION p1 VALUES LESS THAN (10),
+    PARTITION p2 VALUES LESS THAN (20),
+    PARTITION p3 VALUES LESS THAN maxvalue);
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+SHOW CREATE TABLE tsubpart;
+
+ALTER TABLE tsubpart DROP PARTITION p3;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+DROP TABLE tsubpart;
+
+--echo # Create a sub-partitioned table and verify that changes to AUTOEXTEND_SIZE
+--echo # are applied to all the subpartitions
+CREATE TABLE tsubpart (a INT NOT NULL PRIMARY KEY, b INT)
+  AUTOEXTEND_SIZE 4M
+  PARTITION BY RANGE (a)
+  SUBPARTITION BY HASH (a)
+  SUBPARTITIONS 3 (
+    PARTITION p1 values less than (10),
+    PARTITION p2 values less than (20),
+    PARTITION p3 values less than maxvalue);
+
+SHOW CREATE TABLE tsubpart;
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+CREATE TABLE tsubpart_copy LIKE tsubpart;
+SHOW CREATE TABLE tsubpart_copy;
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart_copy%';
+
+DROP TABLE tsubpart_copy;
+
+ALTER TABLE tsubpart AUTOEXTEND_SIZE 8M;
+SHOW CREATE TABLE tsubpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+ALTER TABLE tsubpart AUTOEXTEND_SIZE 0;
+SHOW CREATE TABLE tsubpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+DROP TABLE tsubpart;
+
+--echo # Test ALTER TABLE ... REMOVE PARTITIONING and ALTER TABLE ... EXCHANGE PARTITION
+--echo # for sub-partitioned table
+CREATE TABLE tsubpart (
+  id INT NOT NULL,
+  fname VARCHAR(30),
+  lname VARCHAR(30)
+) AUTOEXTEND_SIZE = 8M
+PARTITION BY RANGE (id)
+SUBPARTITION BY KEY (lname)
+SUBPARTITIONS 2 (
+  PARTITION p0 VALUES LESS THAN (50),
+  PARTITION p1 VALUES LESS THAN (100),
+  PARTITION p2 VALUES LESS THAN (150),
+  PARTITION p3 VALUES LESS THAN (MAXVALUE));
+
+SHOW CREATE TABLE tsubpart;
+INSERT INTO tsubpart VALUES (1669, "Jim", "Smith"), (337, "Mary", "Jones"), (16, "Frank", "White"), (2005, "Linda", "Black");
+SELECT COUNT(*) FROM tsubpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+
+CREATE TABLE tcopy_subpart LIKE tsubpart;
+SHOW CREATE TABLE tcopy_subpart;
+
+--echo # Remove partitioning and validate the value of AUTOEXTEND_SIZE
+ALTER TABLE tcopy_subpart REMOVE PARTITIONING;
+SHOW CREATE TABLE tcopy_subpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tcopy_subpart%';
+
+--echo # Exchange a partition
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'tsubpart';
+ALTER TABLE tsubpart EXCHANGE PARTITION p3sp0 WITH TABLE tcopy_subpart;
+SELECT PARTITION_NAME, TABLE_ROWS FROM INFORMATION_SCHEMA.PARTITIONS WHERE TABLE_NAME = 'tsubpart';
+
+SELECT COUNT(*) FROM tsubpart;
+SELECT COUNT(*) FROM tcopy_subpart;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tsubpart%';
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME LIKE '%tcopy_subpart%';
+
+DROP TABLE tsubpart;
+DROP TABLE tcopy_subpart;
+
+--echo # Validate that AUTOEXTEND_SIZE clause is not supported with temporary tables
+--error ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE
+CREATE TEMPORARY TABLE temp1 (c1 int) AUTOEXTEND_SIZE 4M;
+
+CREATE TEMPORARY TABLE temp1(c1 INT);
+
+--error ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE
+ALTER TABLE temp1 AUTOEXTEND_SIZE 4M;
+
+DROP TEMPORARY TABLE temp1;
+
+--echo # Validate that AUTOEXTEND_SIZE value is effective when the server is started
+--echo # with --skip-innodb-validate-tablespace-paths command like option
+CREATE TABLE t1(c1 INT, c2 TEXT) AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%t1%';
+
+DELIMITER |;
+CREATE PROCEDURE bulk_insert()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i < 10000 DO
+    INSERT INTO t1 VALUES (i, repeat('aaaaaa', 10000));
+    COMMIT;
+    SET i = i + 1;
+  END WHILE;
+END
+|
+DELIMITER ;|
+
+--let $restart_parameters = restart: --skip-innodb-validate-tablespace-paths
+--source include/restart_mysqld.inc
+
+call bulk_insert();
+
+SELECT COUNT(*) FROM t1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%t1%';
+
+DROP PROCEDURE bulk_insert;
+DROP TABLE t1;
+
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+
+--echo # Bug#32235621 - Concurrent execution of ALTER TABLE and SHOW CREATE TABLE crashes
+--echo # the server
+
+CREATE TABLE t1(
+  `c0001` int NOT NULL /*!80023 INVISIBLE */,
+  `c0000` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `c0002` decimal(65,14) DEFAULT NULL,
+  `c0004` tinyblob NOT NULL,
+  KEY `i0001` (`c0002`, `c0001`),
+  KEY `i0002` (`c0000`(112))
+) AUTOEXTEND_SIZE=8M ENGINE=InnoDB;
+
+delimiter |;
+CREATE PROCEDURE alter_table()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 20 DO
+    ALTER TABLE t1 FORCE;
+    SET i = i + 1;
+  END WHILE;
+END |
+
+CREATE PROCEDURE show_create_table()
+BEGIN
+  DECLARE i INT DEFAULT 0;
+  WHILE i < 20 DO
+    SHOW CREATE TABLE t1;
+    SET i = i + 1;
+  END WHILE;
+END |
+delimiter ;|
+
+# Create connections to execute the stored procedures concurrently
+connect (conn1, localhost, root,,);
+connect (conn2, localhost, root,,);
+
+# Execute SHOW CREATE TABLE in the background
+--connection conn1
+--send CALL show_create_table()
+
+# Execute ALTER TABLE on another thread
+--connection conn2
+CALL alter_table();
+
+--connection conn1
+--reap
+
+--connection default
+--disconnect conn1
+--disconnect conn2
+
+# Cleanup
+DROP TABLE t1;
+DROP PROCEDURE show_create_table;
+DROP PROCEDURE alter_table;

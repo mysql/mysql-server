@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -21,6 +21,8 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 # 
 # Test session API
+
+DISABLE_MISSING_PROFILE_WARNING()
 
 MYSQL_ADD_PLUGIN(test_session_in_thd
   test_session_in_thd.cc
@@ -103,6 +105,12 @@ MYSQL_ADD_PLUGIN(test_sql_shutdown
   MODULE_ONLY
   MODULE_OUTPUT_NAME "libtest_sql_shutdown"
   TEST_ONLY
+  )
+MYSQL_ADD_PLUGIN(test_sql_sleep_is_connected
+  test_sql_sleep_is_connected.cc
+  TEST_ONLY
+  MODULE_ONLY
+  MODULE_OUTPUT_NAME "libtest_sql_sleep_is_connected"
   )
 MYSQL_ADD_PLUGIN(test_sql_stored_procedures_functions
   test_sql_stored_procedures_functions.cc

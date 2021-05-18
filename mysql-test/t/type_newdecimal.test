@@ -1188,6 +1188,7 @@ select cast(a as DECIMAL(3,2))
   UNION select 12.1234
  ) t;
 
+--skip_if_hypergraph  # Different warnings.
 select cast(a as DECIMAL(3,2)), count(*)
  from (select 11.1233 as a
   UNION select 11.1234
@@ -1222,6 +1223,7 @@ SELECT CAST(1 AS decimal(65,31));
 
 CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
 INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
+--sorted_result
 SELECT a+CAST(1 AS decimal(65,30)) AS aa, SUM(b) FROM t1 GROUP BY aa;
 --error ER_TOO_BIG_SCALE
 SELECT a+CAST(1 AS decimal(65,31)) AS aa, SUM(b) FROM t1 GROUP BY aa;
@@ -1236,6 +1238,7 @@ CREATE TABLE t1 (a int DEFAULT NULL, b int DEFAULT NULL);
 INSERT INTO t1 VALUES (3,30), (1,10), (2,10);
 
 SET @a= CAST(1 AS decimal);
+--skip_if_hypergraph  # Undefined results.
 SELECT 1 FROM t1 GROUP BY @b := @a, @b;
 
 DROP TABLE t1;

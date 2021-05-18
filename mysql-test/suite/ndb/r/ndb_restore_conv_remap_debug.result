@@ -160,7 +160,7 @@ a	b	length(c)	sha1(c)
 5	5	1234	0651c1d347cfdb9fa28d35b6522bf99063e144f3
 6	6	3333	187698f203586e5b36663ef3b2361ae7c89b358f
 Cause backup stall
-Starting backup
+Starting SNAPSHOTSTART backup
 Backup started
 insert into t1 (b,c) values
 (7, repeat('D', 999));

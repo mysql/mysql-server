@@ -4,12 +4,11 @@
 --source include/xplugin_create_user.inc
 
 ## Test data
-DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
 CREATE TABLE xtest.xtable (value FLOAT);
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_find_args.tmp
+--write_file $MYSQL_TMP_DIR/crud_find_args.xpl
 
 -->macro prepare_values
 -->quiet
@@ -262,9 +261,7 @@ Mysqlx.Crud.Find {
 -->recvresult
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_find_args.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_find_args.xpl 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/crud_find_args.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

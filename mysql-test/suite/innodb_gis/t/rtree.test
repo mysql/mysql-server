@@ -18,6 +18,7 @@ analyze table t1;
 # Select by R-tree index.
 set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 explain select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
+--sorted_result
 select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 
 # Delete values.
@@ -25,6 +26,7 @@ set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 delete from t1 where MBRWithin(t1.g, @g1);
 check table t1;
 
+--sorted_result
 select ST_astext(t1.g) from t1;
 
 # Update values.
@@ -32,6 +34,7 @@ set @g1 = ST_GeomFromText('Polygon((5 5,5 5,5 5,5 5,5 5))');
 update t1 set g = POINT(2,2) where MBRWithin(t1.g, @g1);
 check table t1;
 
+--sorted_result
 select ST_astext(t1.g) from t1;
 
 # Show index.
@@ -65,12 +68,19 @@ INSERT INTO t1 VALUES("left2",  ST_GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0
 INSERT INTO t1 VALUES("left3",  ST_GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
 
 SET @p = ST_GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))');
+--sorted_result
 SELECT name, ST_AsText(square) from t1 where MBRContains(@p, square);
+--sorted_result
 SELECT name, ST_AsText(square) from t1 where MBRDisjoint(@p, square);
+--sorted_result
 SELECT name, ST_AsText(square) from t1 where MBREquals(@p, square);
+--sorted_result
 SELECT name, ST_AsText(square) from t1 where MBRIntersects(@p, square);
+--sorted_result
 SELECT name, ST_AsText(square) from t1 where MBROverlaps(@p, square);
+--sorted_result
 SELECT name, ST_AsText(square) from t1 where MBRTouches(@p, square);
+--sorted_result
 SELECT name, ST_AsText(square) from t1 where MBRWithin(@p, square);
 
 # MBROverlaps needs a few more tests, with point and line dimensions
@@ -138,6 +148,7 @@ analyze table t1;
 # Select by R-tree index.
 set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 explain select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
+--sorted_result
 select ST_astext(t1.g) from t1 where MBRWithin(t1.g, @g1);
 
 # Delete values.
@@ -145,6 +156,7 @@ set @g1 = ST_GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
 delete from t1 where MBRWithin(t1.g, @g1);
 check table t1;
 
+--sorted_result
 select ST_astext(t1.g) from t1;
 
 # Update values.
@@ -152,6 +164,7 @@ set @g1 = ST_GeomFromText('Polygon((5 5,5 5,5 5,5 5,5 5))');
 update t1 set g = POINT(2,2) where MBRWithin(t1.g, @g1);
 check table t1;
 
+--sorted_result
 select ST_astext(t1.g) from t1;
 
 # Show index.

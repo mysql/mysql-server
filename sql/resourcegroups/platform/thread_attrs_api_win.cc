@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,7 @@ bool bind_to_cpu(cpu_id_t cpu_id, my_thread_os_id_t thread_id) {
                       thread_id);
   if (handle != nullptr) {
     DWORD_PTR cpu_mask = 0;
-    cpu_mask |= 1 << cpu_id;
+    cpu_mask |= 1ULL << cpu_id;
     res = SetThreadAffinityMask(handle, cpu_mask);
     if (!res) {
       char errbuf[MYSQL_ERRMSG_SIZE];
@@ -77,7 +77,7 @@ bool bind_to_cpus(const std::vector<cpu_id_t> &cpu_ids,
                       thread_id);
   if (handle != nullptr) {
     DWORD_PTR cpu_mask = 0;
-    for (const auto &cpu_id : cpu_ids) cpu_mask |= 1 << cpu_id;
+    for (const auto &cpu_id : cpu_ids) cpu_mask |= 1ULL << cpu_id;
     res = SetThreadAffinityMask(handle, cpu_mask);
     if (res == 0) {
       char errbuf[MYSQL_ERRMSG_SIZE];
@@ -122,7 +122,7 @@ bool unbind_thread(my_thread_os_id_t thread_id) {
 }
 
 int thread_priority(my_thread_os_id_t thread_id) {
-  DBUG_ASSERT(0);
+  assert(0);
   return 0;
 }
 
@@ -144,7 +144,7 @@ static inline int map_to_win_priority(int priority) {
 }
 
 bool set_thread_priority(int priority) {
-  DBUG_ASSERT(is_valid_thread_priority(priority));
+  assert(is_valid_thread_priority(priority));
 
   BOOL res =
       SetThreadPriority(GetCurrentThread(), map_to_win_priority(priority));
@@ -155,7 +155,7 @@ bool set_thread_priority(int priority) {
 bool set_thread_priority(int priority, my_thread_os_id_t thread_id) {
   DBUG_TRACE;
 
-  DBUG_ASSERT(is_valid_thread_priority(priority));
+  assert(is_valid_thread_priority(priority));
   HANDLE handle;
   BOOL res = FALSE;
   handle = OpenThread(THREAD_QUERY_INFORMATION | THREAD_SET_INFORMATION, TRUE,

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -96,14 +96,6 @@ pages, it may happen that the page at the given page number does not
 get read even if we return a positive value! */
 ulint buf_read_ahead_random(const page_id_t &page_id,
                             const page_size_t &page_size, bool inside_ibuf);
-
-/** Unconditionally reads the next N pages from the the starting page.
-@param[in]	page_id		          Start reading from this page.
-@param[in]	page_size	          Tablespace page size
-@param[in]  n_pages             Number of pages to read ahead.
-@return number of page read requests issued */
-size_t buf_phy_read_ahead(const page_id_t &page_id,
-                          const page_size_t &page_size, size_t n_pages);
 
 /** Applies linear read-ahead if in the buf_pool the page is a border page of
 a linear read-ahead area and all the pages in the area have been accessed.

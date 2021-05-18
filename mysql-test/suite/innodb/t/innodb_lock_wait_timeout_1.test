@@ -160,18 +160,26 @@ connection con1;
 begin;
 --echo # Delete in series of 3 records so that full scan
 --echo # is not used and we're not blocked on record (2,null)
+--skip_if_hypergraph  # Does not support indexes.
 delete from t1 where a in (1,3,4);
+--skip_if_hypergraph  # Does not support indexes.
 delete from t1 where a in (5,6,7);
+--skip_if_hypergraph  # Does not support indexes.
 delete from t1 where a in (8,9,10);
+--skip_if_hypergraph  # Does not support indexes.
 delete from t1 where a in (11,12,13);
+--skip_if_hypergraph  # Does not support indexes.
 delete from t1 where a in (14,15,16);
+--skip_if_hypergraph  # Does not support indexes.
 delete from t1 where a in (17,18);
+--skip_if_hypergraph  # Does not support indexes.
 delete from t1 where a in (19,20);
 --echo # 
 --echo # Record (2, null) is locked. This is actually unnecessary, 
 --echo # because the previous select returned no rows. 
 --echo # Just demonstrate the effect.
 --echo #
+--skip_if_hypergraph  # Does not always lock the given row; depends on the plan.
 --error ER_LOCK_WAIT_TIMEOUT
 delete from t1;
 rollback;

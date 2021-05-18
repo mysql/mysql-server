@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -176,6 +176,7 @@ class METADATA_API GRClusterMetadata : public ClusterMetadata {
               UpdateReplicasetStatus_PrimaryMember_FailQueryOnAllNodes);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnNode1);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_Status_FailQueryOnAllNodes);
+  FRIEND_TEST(MetadataTest, CheckClusterStatus_1Online1RecoveringNotInMetadata);
   FRIEND_TEST(MetadataTest, UpdateReplicasetStatus_SimpleSunnyDayScenario);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_3NodeSetup);
   FRIEND_TEST(MetadataTest, CheckReplicasetStatus_VariableNodeSetup);

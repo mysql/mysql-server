@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1026,7 +1026,7 @@ TEST_F(JsonDomTest, AttemptBinaryUpdate_Error) {
   EXPECT_EQ(enum_json_type::J_ERROR, error.type());
 
   // Expect the calls to attempt_binary_update() to fail.
-  const auto old_error_handler_hook = error_handler_hook;
+  const ErrorHandlerFunctionPointer old_error_handler_hook = error_handler_hook;
   error_handler_hook = my_message_sql;
   String buffer;
   bool success;

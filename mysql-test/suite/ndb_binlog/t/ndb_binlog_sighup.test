@@ -13,6 +13,14 @@ let $mysqld_name=mysqld.1.1;
 let MYSQLD_PIDFILE= `SELECT @@pid_file;`;
 
 --echo #
+--echo # Trigger problem reported by "Bug#32357856 SIGHUP CAUSES CRASH IN
+--echo # CACHED TABLE DEF CLOSE" by creating and using a NDB table in order
+--echo # to have it be added to open table cache and then closed by SIGHUP
+--echo #
+CREATE TABLE t1 (a int PRIMARY KEY) ENGINE = NDB;
+SELECT * FROM t1;
+
+--echo #
 --echo # Flush the log by sending SIGHUP from perl script.
 --echo #
 --perl
@@ -39,6 +47,7 @@ EOF
 --file_exists $MYSQLD_LOG
 --file_exists $MYSQLD_LOG.1
 
+DROP TABLE t1;
 
 call mtr.add_suppression("mysqld startup An incident event has been written");
 --echo # CLEAN UP

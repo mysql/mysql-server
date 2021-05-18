@@ -5,7 +5,7 @@
 
 --source suite/ndb/include/turn_off_ndb_read_backup.inc
 
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 
 # make ndb nodes die if correct tc is not selected
 
@@ -42,7 +42,7 @@ inc $j;
 --echo #
 --echo # 2-way join tc selection in pk
 --echo #
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 8072" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 8072" >> $NDB_TOOLS_OUTPUT
 --replace_column 10 # 11 #
 explain select t2.c from t1,t2 where t1.a=50 and t2.a=t1.a and t2.b=t1.b;
 --disable_query_log
@@ -59,7 +59,7 @@ dec $i;
 --echo #
 --echo # 2-way join tc selection in unique key
 --echo #
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 8071" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 8071" >> $NDB_TOOLS_OUTPUT
 --replace_column 10 # 11 #
 explain select t1.b from t1,t2 where t2.d=50 and t1.a=t2.a;
 --disable_query_log
@@ -74,7 +74,7 @@ dec $i;
 --enable_result_log
 
 # cleanup
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 drop table t1,t2;
 
 
@@ -108,7 +108,7 @@ inc $j;
 --enable_query_log
 --enable_result_log
 
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 8071" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 8071" >> $NDB_TOOLS_OUTPUT
 --replace_column 10 # 11 #
 explain select t2.c from t1,t2 where t1.a=50 and t2.a=t1.a and t2.b=t1.b;
 --disable_query_log
@@ -123,7 +123,7 @@ dec $i;
 --enable_result_log
 
 # cleanup
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT
 drop table t1,t2;
 
 

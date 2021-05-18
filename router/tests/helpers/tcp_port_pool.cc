@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,7 @@
 */
 
 #include "mysql/harness/filesystem.h"
+#include "mysql/harness/net_ts/io_context.h"
 
 #ifndef _WIN32
 #include <netdb.h>
@@ -41,13 +42,12 @@
 #include <cstring>
 #include <stdexcept>
 
-#include "mysql/harness/net_ts/impl/socket.h"
+#include "mysql/harness/net_ts/internet.h"
 #include "mysqlrouter/utils.h"
-#include "socket_operations.h"
+#include "router_test_helpers.h"
 #include "tcp_port_pool.h"
 
 using mysql_harness::Path;
-using mysqlrouter::get_socket_errno;
 
 const unsigned TcpPortPool::kPortsRange;
 
@@ -56,6 +56,11 @@ bool UniqueId::lock_file(const std::string &file_name) {
   lock_file_fd_ = open(file_name.c_str(), O_RDWR | O_CREAT, 0666);
 
   if (lock_file_fd_ >= 0) {
+    // don't pass the lock-fd to the child processes
+    int flag = fcntl(lock_file_fd_, F_GETFD);
+    flag |= FD_CLOEXEC;
+    fcntl(lock_file_fd_, F_SETFD, &flag);
+
     // open() honours umask and we want to make sure this directory is
     // accessible for every user regardless of umask settings
     ::chmod(file_name.c_str(), 0666);
@@ -74,6 +79,7 @@ bool UniqueId::lock_file(const std::string &file_name) {
     if (lock) {
       // no lock so no luck, try the next one
       close(lock_file_fd_);
+      lock_file_fd_ = -1;
       return false;
     }
 
@@ -207,69 +213,9 @@ UniqueId::UniqueId(UniqueId &&other) {
   other.lock_file_name_ = "";
 }
 
-#ifndef _WIN32
-/*
- * Check whether we can connect on a given port.
- * It returns false if the connect returns any error (ECONNREFUSED, ENETUNREACH,
- * EACCESS etc.)
- * */
-static bool try_to_connect(uint16_t port,
-                           const std::chrono::milliseconds socket_probe_timeout,
-                           const std::string &hostname = "127.0.0.1") {
-  struct addrinfo hints, *ainfo;
-  memset(&hints, 0, sizeof hints);
-  hints.ai_family = AF_UNSPEC;
-  hints.ai_socktype = SOCK_STREAM;
-  hints.ai_flags = AI_PASSIVE;
+uint16_t TcpPortPool::get_next_available() {
+  net::io_context io_ctx;
 
-  auto socket_ops = mysql_harness::SocketOperations::instance();
-
-  int status = getaddrinfo(hostname.c_str(), std::to_string(port).c_str(),
-                           &hints, &ainfo);
-  if (status != 0) {
-    throw std::runtime_error(
-        std::string("try_to_connect(): getaddrinfo() failed: ") +
-        gai_strerror(status));
-  }
-  std::shared_ptr<void> exit_freeaddrinfo(nullptr,
-                                          [&](void *) { freeaddrinfo(ainfo); });
-
-  auto sock_id =
-      socket(ainfo->ai_family, ainfo->ai_socktype, ainfo->ai_protocol);
-  if (sock_id < 0) {
-    throw std::runtime_error("try_to_connect(): socket() failed: " +
-                             std::to_string(get_socket_errno()));
-  }
-  std::shared_ptr<void> exit_close_socket(
-      nullptr, [&](void *) { socket_ops->close(sock_id); });
-
-  socket_ops->set_socket_blocking(sock_id, false);
-  auto connect_res =
-      net::impl::socket::connect(sock_id, ainfo->ai_addr, ainfo->ai_addrlen);
-  if (connect_res) {
-    return true;
-  }
-
-  if (connect_res.error() ==
-          make_error_condition(std::errc::operation_in_progress) ||
-      connect_res.error() ==
-          make_error_condition(std::errc::operation_would_block)) {
-    const auto wait_res = socket_ops->connect_non_blocking_wait(
-        sock_id, std::chrono::milliseconds(socket_probe_timeout));
-
-    if (!wait_res) {
-      return false;
-    }
-
-    return socket_ops->connect_non_blocking_status(sock_id).has_value();
-  }
-
-  return false;
-}
-#endif
-
-uint16_t TcpPortPool::get_next_available(
-    const std::chrono::milliseconds socket_probe_timeout) {
   while (true) {
     if (number_of_ids_used_ % kPortsPerFile == 0) {
       number_of_ids_used_ = 0;
@@ -286,21 +232,6 @@ uint16_t TcpPortPool::get_next_available(
     unsigned result = 10000 + unique_ids_.back().get() * kPortsPerFile +
                       number_of_ids_used_++;
 
-#ifndef _WIN32
-    // there is no lock file for a given port but let's also check if there
-    // really is nothing that will accept our connection attempt on that port
-    if (!try_to_connect(result, socket_probe_timeout, "127.0.0.1"))
-      return result;
-
-    std::cerr << "get_next_available(): port " << result
-              << " seems busy, not using\n";
-#else
-    UNREFERENCED_PARAMETER(socket_probe_timeout);
-    // On Windows we skip that as this introduces a big time overhead (500ms)
-    // for each try. Windows' connect() will not fail right away but will block
-    // for that long if the port is available (which is most of the cases we
-    // expect here).
-    return result;
-#endif
+    if (is_port_available(result)) return result;
   }
 }

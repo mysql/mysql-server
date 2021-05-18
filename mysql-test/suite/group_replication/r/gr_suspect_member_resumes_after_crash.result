@@ -6,13 +6,13 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 ############################################################
 # 1. Set group_replication_member_expel_timeout to
-#    60 seconds.
+#    3600 seconds.
 [connection server1]
-SET GLOBAL group_replication_member_expel_timeout = 60;
+SET GLOBAL group_replication_member_expel_timeout = 3600;
 [connection server2]
-SET GLOBAL group_replication_member_expel_timeout = 60;
+SET GLOBAL group_replication_member_expel_timeout = 3600;
 [connection server3]
-SET GLOBAL group_replication_member_expel_timeout = 60;
+SET GLOBAL group_replication_member_expel_timeout = 3600;
 set session sql_log_bin=0;
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
@@ -61,12 +61,17 @@ ERROR HY000: The server is not configured properly to be an active member of the
 ############################################################
 # 7. Wait until server 3 is expelled from the group.
 [connection server1]
+SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
+[connection server2]
+SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
+[connection server1]
 [connection server2]
 
 ############################################################
 # 8. Server 3 was expelled! Start GR on server 3.
 [connection server3]
 include/start_group_replication.inc
+SET GLOBAL group_replication_member_expel_timeout = DEFAULT;
 [connection server1]
 [connection server2]
 [connection server3]

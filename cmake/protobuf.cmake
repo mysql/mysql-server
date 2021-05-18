@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -77,6 +77,7 @@ MACRO(MYSQL_USE_BUNDLED_PROTOBUF)
   SET(PROTOBUF_PROTOC_LIBRARY_DEBUG libprotoc CACHE INTERNAL "")
   SET(PROTOBUF_LITE_LIBRARY libprotobuf-lite CACHE INTERNAL "")
   SET(PROTOBUF_LITE_LIBRARY_DEBUG libprotobuf-lite CACHE INTERNAL "")
+  INCLUDE_DIRECTORIES(BEFORE SYSTEM ${BUNDLED_PROTO_SRCDIR})
 ENDMACRO()
 
 MACRO(MYSQL_CHECK_PROTOBUF)

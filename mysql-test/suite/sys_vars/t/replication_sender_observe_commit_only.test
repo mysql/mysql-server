@@ -1,0 +1,108 @@
+# Variable Name: replication_sender_observe_commit_only
+# Scope: Global
+# Access Type: Static
+# Data Type: boolean
+#
+# Creation Date: 2019-12-22
+# Author : Pedro Figueiredo
+
+--let $saved_global_replication_sender_observe_commit_only = `SELECT @@global.replication_sender_observe_commit_only`
+
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+
+--let $assert_text = Default GLOBAL value is FALSE
+--let $assert_cond = [SELECT @@global.replication_sender_observe_commit_only = 0]
+--source include/assert.inc
+
+####################################################################
+#   Check if Value can set and that P_S reports the correct value  #
+####################################################################
+
+# 1, TRUE, ON, 0, FALSE, OFF
+--let $j=6
+
+while($j>0)
+{
+  if ($j == 6)
+  {
+    --let $to_set = OFF
+    --let $expected = OFF
+  }
+  if ($j == 5)
+  {
+    --let $to_set = FALSE
+    --let $expected = OFF
+  }
+  if ($j == 4)
+  {
+    --let $to_set = 0
+    --let $expected = OFF
+  }
+  if ($j == 3)
+  {
+    --let $to_set = ON
+    --let $expected = ON
+  }
+  if ($j == 2)
+  {
+    --let $to_set = TRUE
+    --let $expected = ON
+  }
+  if ($j == 1)
+  {
+    --let $to_set = 1
+    --let $expected = ON
+  }
+
+  --let $scope = GLOBAL
+  --let $ps_table = global_variables
+
+  --eval SET @@$scope.replication_sender_observe_commit_only = $to_set
+  --let $reported=`SELECT variable_value FROM performance_schema.$ps_table WHERE variable_name = 'replication_sender_observe_commit_only'`
+
+  --let $assert_text= Reported value matches the one set (set $to_set in $scope scope)
+  --let $assert_cond = "$reported" = "$expected"
+  --source include/assert.inc
+
+  --dec $j
+}
+
+####################################################################
+# Privileges                                                       #
+####################################################################
+
+CREATE USER user1;
+--connect(conn_user1,localhost,user1,,)
+
+# assert that one cannot change the value without privileges
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET GLOBAL replication_sender_observe_commit_only = 1;
+
+# assert that one can change the value if SUPER is given
+--connection default
+GRANT SUPER ON *.* TO user1@'%';
+FLUSH PRIVILEGES;
+--connect(conn2_user1,localhost,user1,,)
+SET GLOBAL replication_sender_observe_commit_only = 1;
+
+--connection default
+DROP USER user1;
+
+####################################################################
+# Transactional context                                            #
+####################################################################
+
+BEGIN;
+
+# can change the variable's value in global scope while inside a transaction
+SET GLOBAL replication_sender_observe_commit_only = ON;
+
+ROLLBACK;
+
+####################################################################
+# End of tests                                                     #
+####################################################################
+
+--eval SET @@global.replication_sender_observe_commit_only = $saved_global_replication_sender_observe_commit_only

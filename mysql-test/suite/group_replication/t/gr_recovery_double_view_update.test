@@ -46,7 +46,7 @@ SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET @debug_save_ret_count= @@GLOBAL.group_replication_recovery_retry_count;
 
 --disable_warnings
-CHANGE MASTER TO MASTER_PASSWORD='bad_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='bad_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --eval SET GLOBAL group_replication_recovery_reconnect_interval= 10 # seconds
@@ -120,7 +120,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 
 --source include/stop_group_replication.inc
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 --source include/start_group_replication.inc
 

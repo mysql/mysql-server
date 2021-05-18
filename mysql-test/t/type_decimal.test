@@ -603,3 +603,8 @@ WHERE CONCAT(t1.col1, CAST(subq.col0 AS DECIMAL));
 
 DROP TABLE t1, t2;
 SET sql_mode = default;
+
+--echo #
+--echo # Bug#32591589: ASSERTION `DIGITS <= DECIMAL_INT_PART()' FAILED|SQL/ITEM_FUNC.CC
+--echo #
+SELECT CAST(9.9 AS SIGNED INTEGER) AS f;

@@ -1,21 +1,21 @@
 # ==== Requirements ====
 #
-# R1. If the intersection of slave's MASTER_COMPRESSION_ALGORITHMS with
+# R1. If the intersection of slave's SOURCE_COMPRESSION_ALGORITHMS with
 # master's @@global.protocol_compression_algorithms is nonempty, then
 # the connection in START SLAVE shall succeed and use zlib if
 # possible; otherwise zstd; otherwise uncompressed.
 #
-# R2. If the intersection of slave's MASTER_COMPRESSION_ALGORITHMS with
+# R2. If the intersection of slave's SOURCE_COMPRESSION_ALGORITHMS with
 # master's @@global.protocol_compression_algorithms is empty, then
 # connection shall fail with an error.
 #
-# R3. If slave connects with MASTER_COMPRESSION_ALGORITHMS = 'zlib' or
+# R3. If slave connects with SOURCE_COMPRESSION_ALGORITHMS = 'zlib' or
 # 'zstd', the connection should be compressed.
 #
-# R4. If slave connects with MASTER_COMPRESSION_ALGORITHMS = NULL, the
+# R4. If slave connects with SOURCE_COMPRESSION_ALGORITHMS = NULL, the
 # connection should be uncompressed.
 #
-# R5. When using the zstd algorithm, MASTER_ZSTD_COMPRESSION_LEVEL=N
+# R5. When using the zstd algorithm, SOURCE_ZSTD_COMPRESSION_LEVEL=N
 # shall provide better compression ratio than M, if N > M.
 #
 # ==== References ====
@@ -38,7 +38,7 @@
 # Don't replicate the auxiliary tables.
 SET sql_log_bin = 0;
 
-# List of possible values for MASTER_COMPRESSION_ALGORITHMS
+# List of possible values for SOURCE_COMPRESSION_ALGORITHMS
 CREATE TABLE algorithms (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name TEXT NOT NULL);
@@ -68,7 +68,7 @@ INSERT INTO algorithms(name) VALUES
 
 --let $algorithm_count = `SELECT COUNT(*) FROM algorithms`
 
-# List of tested values for MASTER_ZSTD_COMPRESSION_LEVEL
+# List of tested values for SOURCE_ZSTD_COMPRESSION_LEVEL
 CREATE TABLE levels (
   id INT AUTO_INCREMENT PRIMARY KEY COMMENT 'order in which to set option',
   level TEXT NOT NULL COMMENT 'compression level',
@@ -109,7 +109,7 @@ END|
 SET sql_log_bin = 1;
 
 # Statement to reset replication
---let $change_master_base = CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $SERVER_MYPORT_1, MASTER_USER = 'root', MASTER_RETRY_COUNT=3, MASTER_CONNECT_RETRY=1;
+--let $change_master_base = CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = $SERVER_MYPORT_1, SOURCE_USER = 'root', SOURCE_RETRY_COUNT=3, SOURCE_CONNECT_RETRY=1;
 
 --let $script_dir = $MYSQLTEST_VARDIR
 
@@ -119,24 +119,24 @@ SET sql_log_bin = 1;
 #
 # ---- Usage ----
 #
-# --let $change_master_base = <CHANGE MASTER STATEMENT>
-# --let $change_master_algorithm = <CHANGE MASTER STATEMENT>
-# --let $change_master_level = <CHANGE MASTER STATEMENT>
+# --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $slave_compressed_protocol = [0|1]
 # --source $script_dir/configure_slave.inc
 #
 # Parameters:
 #
 #   $change_master_base
-#     CHANGE MASTER statement that sets non-compression attributes to
+#     CHANGE REPLICATION SOURCE statement that sets non-compression attributes to
 #     do the base configuration of the channel; for instance
-#     MASTER_HOST, MASTER_USER, etc.
+#     SOURCE_HOST, SOURCE_USER, etc.
 #
 #   $change_master_algorithm
-#     CHANGE MASTER statement that sets MASTER_COMPRESSION_ALGORITHMS.
+#     CHANGE REPLICATION SOURCE statement that sets SOURCE_COMPRESSION_ALGORITHMS.
 #
 #   $change_master_level
-#     CHANGE MASTER statement that sets MASTER_ZSTD_COMPRESSION_LEVEL.
+#     CHANGE REPLICATION SOURCE statement that sets SOURCE_ZSTD_COMPRESSION_LEVEL.
 #
 #   $slave_compressed_protocol
 #     Set @@global.slave_compressed_protocol to this value.
@@ -169,9 +169,9 @@ EOF
 #
 # ---- Usage ----
 #
-# --let $change_master_base = <CHANGE MASTER STATEMENT>
-# --let $change_master_algorithm = <CHANGE MASTER STATEMENT>
-# --let $change_master_level = <CHANGE MASTER STATEMENT>
+# --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $slave_compressed_protocol = [0|1]
 # --let $data_size = size of data in event
 # --let $expected_algorithm = [zlib|zstd|uncompressed]
@@ -193,7 +193,7 @@ EOF
 #
 # ---- Implementation ----
 #
-# - Configure slave using CHANGE MASTER
+# - Configure slave using CHANGE REPLICATION SOURCE
 # - Start replication threads
 # - Measure the number of bytes sent on the connection before and after
 # - If the expected algorithm is uncompressed, assert that it sent
@@ -253,9 +253,9 @@ EOF
 #
 # ---- Usage ----
 #
-# --let $change_master_base = <CHANGE MASTER STATEMENT>
-# --let $change_master_algorithm = <CHANGE MASTER STATEMENT>
-# --let $change_master_level = <CHANGE MASTER STATEMENT>
+# --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_level = <CHANGE REPLICATION SOURCE STATEMENT>
 # --let $slave_compressed_protocol = [0|1]
 # --let $data_size = size of data in event
 # --let $expected_algorithm = [zlib|zstd|uncompressed]
@@ -275,7 +275,7 @@ EOF
 # ---- Implementation ----
 #
 # - Fetch the compression level from the levels table.
-# - Add MASTER_ZSTD_COMPRESSION_LEVEL to the CHANGE MASTER statement text
+# - Add SOURCE_ZSTD_COMPRESSION_LEVEL to the CHANGE REPLICATION SOURCE statement text
 # - Source test_master_slave_compression
 # - If level_it != 1 (it's not the first level we try for the
 #   algorithm), compare the compression ratio with the compression
@@ -324,15 +324,15 @@ EOF
 #
 # ---- Usage ----
 #
-# --let $change_master_base = <CHANGE MASTER STATEMENT>
-# --let $change_master_algorithm = <CHANGE MASTER STATEMENT>
+# --let $change_master_base = <CHANGE REPLICATION SOURCE STATEMENT>
+# --let $change_master_algorithm = <CHANGE REPLICATION SOURCE STATEMENT>
 # --source $script_dir/test_master_slave_compression_error.inc
 #
 # Parameters: See test_master_slave_compression.inc.
 #
 # ---- Implementation ----
 #
-# - Execute the CHANGE MASTER statement
+# - Execute the CHANGE REPLICATION SOURCE statement
 # - Execute START SLAVE IO_THREAD
 # - Wait until error happens.
 --write_file $script_dir/test_master_slave_compression_error.inc
@@ -386,7 +386,7 @@ while ($master_algorithm_it <= $algorithm_count) {
     --source include/rpl_connection_master.inc
     --let $slave_algorithm_text = `SELECT name FROM algorithms WHERE id = $slave_algorithm_it`
     --let $slave_algorithm = $slave_algorithm_text
-    --let $change_master_algorithm = CHANGE MASTER TO MASTER_COMPRESSION_ALGORITHMS = '$slave_algorithm'
+    --let $change_master_algorithm = CHANGE REPLICATION SOURCE TO SOURCE_COMPRESSION_ALGORITHMS = '$slave_algorithm'
     if ($slave_algorithm == default) {
       --let $slave_algorithm = uncompressed
       --let $change_master_algorithm =
@@ -420,11 +420,11 @@ while ($master_algorithm_it <= $algorithm_count) {
             # Get the compression level from the table.
             --let $level = `SELECT level FROM levels WHERE id = $level_it`
 
-            # If $level != 'default', set MASTER_ZSTD_COMPRESSION_LEVEL.
+            # If $level != 'default', set SOURCE_ZSTD_COMPRESSION_LEVEL.
             # Otherwise don't.
             --let $change_master_level =
             if ($level != 'default') {
-              --let $change_master_level = CHANGE MASTER TO MASTER_ZSTD_COMPRESSION_LEVEL = $level
+              --let $change_master_level = CHANGE REPLICATION SOURCE TO SOURCE_ZSTD_COMPRESSION_LEVEL = $level
             }
 
             --echo ---- master:$master_algorithm slave:$slave_algorithm slave_option:$slave_compressed_protocol expect:$expected_algorithm level:$level ----
@@ -470,7 +470,7 @@ SET sql_log_bin = 1;
 
 --source include/rpl_connection_slave.inc
 --disable_query_log
-eval CHANGE MASTER TO MASTER_HOST = '127.0.0.1', MASTER_PORT = $SERVER_MYPORT_1, MASTER_USER = 'root';
+eval CHANGE REPLICATION SOURCE TO SOURCE_HOST = '127.0.0.1', SOURCE_PORT = $SERVER_MYPORT_1, SOURCE_USER = 'root';
 --enable_query_log
 
 # Tell rpl_end to not try to sync

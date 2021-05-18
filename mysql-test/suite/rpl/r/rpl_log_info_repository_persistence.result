@@ -23,8 +23,8 @@ FLUSH PRIVILEGES;
 STOP SLAVE;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER=NULL;
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER=NULL;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 FLUSH RELAY LOGS;
 START SLAVE;
 Warnings:
@@ -56,13 +56,13 @@ Note	3084	Replication thread(s) for channel '' are already stopped.
 #
 # TC.E.F1: privilege_checks_username has more than 32 length.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "";
 ERROR HY000: String 'repli_priv_checks_user_more_than_32' is too long for user name (should be no longer than 32)
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start --debug=d,simulate_priv_check_username_above_limit]
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK
-	0	<INVALID>	NO	STREAM
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	<INVALID>	NO	STREAM	OFF	NULL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_username_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "";
@@ -70,17 +70,17 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 #
 # TC.E.F2: privilege_checks_hostname has more than 255 length.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "" ;
 ERROR HY000: String 'replication_privilege_checks_hostname_more_than_255_replication_privil' is too long for host name (should be no longer than 255)
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start --debug=d,simulate_priv_check_hostname_above_limit]
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK
-	0	<INVALID>	NO	STREAM
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	<INVALID>	NO	STREAM	OFF	NULL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 # Removing debug point 'simulate_priv_check_hostname_above_limit' from @@GLOBAL.debug
 START SLAVE FOR CHANNEL "";
@@ -88,11 +88,11 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 #
 # TC.E.F3: privilege_checks_hostname has @.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "" ;
 ERROR HY000: Malformed hostname (illegal symbol: '@')
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
@@ -103,36 +103,36 @@ Matching lines are:
 l@calhost
 Occurrences of 'l@calhost' in the input file: 1
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK
-	0	<INVALID>	NO	STREAM
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	<INVALID>	NO	STREAM	OFF	NULL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 #
 # TC.E.F5. privilege_checks_username is anonymous.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "" ;
 ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel '' was set to ``@`localhost`, but anonymous users are disallowed for PRIVILEGE_CHECKS_USER.
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK
-	0	<INVALID>	NO	STREAM
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	<INVALID>	NO	STREAM	OFF	NULL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 #
 # TC.E.F6. privilege_checks_user is a non existent user.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "" ;
 ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel '' was set to `replication_applier_nonexist`@`localhost`, but this is not an existing user.
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --skip_slave_start]
@@ -143,15 +143,15 @@ Matching lines are:
 localhost
 Occurrences of 'localhost' in the input file: 1
 SELECT * FROM performance_schema.replication_applier_configuration;
-CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK
-	0	<INVALID>	NO	STREAM
+CHANNEL_NAME	DESIRED_DELAY	PRIVILEGE_CHECKS_USER	REQUIRE_ROW_FORMAT	REQUIRE_TABLE_PRIMARY_KEY_CHECK	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE	ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE
+	0	<INVALID>	NO	STREAM	OFF	NULL
 include/assert.inc [Check entry for default channel "" in performance_schema.replication_applier_configuration]
 START SLAVE FOR CHANNEL "";
 ERROR HY000: Slave failed to initialize relay log info structure from the repository
 RESET SLAVE FOR CHANNEL "";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost';
 include/assert_grep.inc [Found 4 warning in the error log]
 include/assert_grep.inc [Found 1 warning in the error log]
 #
@@ -165,8 +165,8 @@ include/assert.inc [Check that priv_chks_hostname for channel "" is correct]
 #
 # TC.P.T1: CHANGE MASTER sets the PRIVILEGE_CHECKS_USER correctly.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11, PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "ch1";
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11, PRIVILEGE_CHECKS_USER=NULL FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'localhost' FOR CHANNEL "ch2" ;
 FLUSH RELAY LOGS FOR CHANNEL "ch1";
 FLUSH RELAY LOGS FOR CHANNEL "ch2";
 include/assert.inc [Check that mysql.slave_relay_log_info has 3 entries for 3 channels]
@@ -211,7 +211,7 @@ Note	3084	Replication thread(s) for channel 'ch1' are already stopped.
 #
 # TC.E.T1: privilege_checks_username has more than 32 length.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10, PRIVILEGE_CHECKS_USER='repli_priv_checks_user_more_than_32'@'localhost' FOR CHANNEL "ch1";
 ERROR HY000: String 'repli_priv_checks_user_more_than_32' is too long for user name (should be no longer than 32)
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="repl_priv_chcks_usr_more_than_32", Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
@@ -224,11 +224,11 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 #
 # TC.E.T2: privilege_checks_hostname has more than 255 length.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than_255_replication_privilege_checks_hostname_more_than255' FOR CHANNEL "ch1" ;
 ERROR HY000: String 'replication_privilege_checks_hostname_more_than_255_replication_privil' is too long for host name (should be no longer than 255)
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="replication_applier", Privilege_checks_hostname="replication_applier_hostname_more_than_255" WHERE Channel_name="ch1";
@@ -241,11 +241,11 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 #
 # TC.E.T3: privilege_checks_hostname has @.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier'@'l@calhost' FOR CHANNEL "ch1" ;
 ERROR HY000: Malformed hostname (illegal symbol: '@')
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username='replication_applier', Privilege_checks_hostname='l@calhost' WHERE Channel_name="ch1";
@@ -257,7 +257,7 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 #
 # TC.E.T4. privilege_checks_username is NULL and
 #
@@ -271,11 +271,11 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 #
 # TC.E.T5. privilege_checks_username is anonymous.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER=''@'localhost' FOR CHANNEL "ch1" ;
 ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel 'ch1' was set to ``@`localhost`, but anonymous users are disallowed for PRIVILEGE_CHECKS_USER.
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="", Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
@@ -287,11 +287,11 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 #
 # TC.E.T6. privilege_checks_user is a non existent user.
 #
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER='replication_applier_nonexist'@'localhost' FOR CHANNEL "ch1" ;
 ERROR HY000: PRIVILEGE_CHECKS_USER for replication channel 'ch1' was set to `replication_applier_nonexist`@`localhost`, but this is not an existing user.
 BEGIN;
 UPDATE mysql.slave_relay_log_info SET Privilege_checks_username="replication_applier_nonexist", Privilege_checks_hostname="localhost" WHERE Channel_name="ch1";
@@ -303,7 +303,7 @@ ERROR HY000: Slave failed to initialize relay log info structure from the reposi
 RESET SLAVE FOR CHANNEL "ch1";
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=11 FOR CHANNEL "ch1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=11 FOR CHANNEL "ch1";
 include/assert_grep.inc [Found 5 warning in the error log]
 include/assert_grep.inc [Found 1 warning in the error log]
 DROP USER 'replication_applier'@'localhost';

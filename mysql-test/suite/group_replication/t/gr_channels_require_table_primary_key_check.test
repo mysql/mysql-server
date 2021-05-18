@@ -25,7 +25,7 @@
 --echo #    Start a member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
 
 
---eval CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "group_replication_applier"
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "group_replication_applier"
 
 --source include/start_and_bootstrap_group_replication.inc
 
@@ -46,7 +46,7 @@
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
---eval CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON FOR CHANNEL "group_replication_recovery"
+--eval CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON FOR CHANNEL "group_replication_recovery"
 
 --let $group_replication_start_member_state= RECOVERING
 --source include/start_group_replication.inc

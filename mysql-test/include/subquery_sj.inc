@@ -493,6 +493,7 @@ where c.a in (select a from t1 d);
 flush status;
 select count(*) from t0 a, t0 b, t0 c
 where c.a in (select a from t1 d);
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Created_tmp_disk_tables';
 
 set @@max_heap_table_size= @save_max_heap_table_size;
@@ -500,6 +501,7 @@ set session internal_tmp_mem_storage_engine=default;
 flush status;
 select count(*) from t0 a, t0 b, t0 c
 where c.a in (select a from t1 d);
+--skip_if_hypergraph  # Depends on the query plan.
 show status like 'Created_tmp_disk_tables';
 
 drop table t0, t1;
@@ -932,6 +934,7 @@ explain select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -942,6 +945,7 @@ explain select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -1014,6 +1018,7 @@ explain select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
@@ -1086,6 +1091,7 @@ explain select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -1096,6 +1102,7 @@ explain select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -1168,6 +1175,7 @@ explain select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -1178,6 +1186,7 @@ explain select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
 
+--skip_if_hypergraph  # Differing warnings.
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -1979,11 +1988,14 @@ INSERT INTO t2 VALUES
 CREATE TABLE t3 LIKE t1;
 INSERT INTO t3 VALUES
 (10,8,'2007-08-19 08:08:38','i'),(11,0,'2000-05-21 03:51:51','');
- 
+
+# Hypergraph optimizer has different warnings. 
+--disable_warnings
 SELECT DISTINCT datetime_key FROM t1
 WHERE (int_nokey, pk)  
   IN (SELECT t3.pk, t3.pk FROM t2 LEFT JOIN t3 ON t3.varchar_key)  
   AND pk = 9;
+--enable_warnings 
 
 DROP TABLE t1, t2, t3;
 
@@ -2257,6 +2269,8 @@ WHERE t1field IN (SELECT * FROM v2)
 ";
 
 EXECUTE stmt;
+--echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
 --echo
 EXECUTE stmt;
 
@@ -2741,6 +2755,8 @@ WHERE EMPNUM IN
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
 --echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2768,6 +2784,8 @@ WHERE EMPNUM IN
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
 --echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
+--echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
@@ -2793,6 +2811,8 @@ WHERE EMPNUM IN
         FROM t2
         WHERE PTYPE = 'Design'))";
 EXECUTE stmt;
+--echo
+--echo This line is only in place to help --skip_if_hypergraph diffing some more.
 --echo
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;

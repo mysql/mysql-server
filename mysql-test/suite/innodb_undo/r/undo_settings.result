@@ -2,6 +2,8 @@
 # and also after crashes.
 # Note that innodb_undo_tablespaces is now fixed at 2 so only
 # innodb_rollback_segments is tested here.
+# Also make sure that --innodb_validate_tablespace_paths=OFF does not
+# affect the validation of undo tablespaces. (See undo_settings-master.opt)
 SET DEFAULT_STORAGE_ENGINE=InnoDB;
 SET GLOBAL innodb_monitor_enable='module_buffer_page';
 SET GLOBAL innodb_monitor_enable='trx_rseg_current_size';
@@ -400,7 +402,7 @@ undo_005.ibu
 # Restart mysqld with these smaller settings.
 #
 ALTER UNDO TABLESPACE `undo_003` SET INACTIVE;
-# restart: --innodb_rollback_segments=4
+# restart: --innodb_rollback_segments=4 --innodb_validate_tablespace_paths=0
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
 innodb_rollback_segments	4
@@ -459,7 +461,7 @@ INSERT INTO t1  VALUES (6, repeat('f',15));
 INSERT INTO t2  VALUES (6, repeat('f',15));
 INSERT INTO t3  VALUES (6, repeat('f',15));
 # Connection default
-# Kill and restart: --innodb_rollback_segments=2
+# Kill and restart: --innodb_rollback_segments=2 --innodb_validate_tablespace_paths=0
 SHOW VARIABLES LIKE 'innodb_rollback_segments';
 Variable_name	Value
 innodb_rollback_segments	2

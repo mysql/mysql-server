@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -89,6 +89,7 @@ protected:
                        Page_cache_client::Request& req,
                        Uint32 flags);
 
+  void set_lsn(Page_cache_client& caller, Local_key key, Uint64 lsn);
   void update_lsn(Signal *signal,
                   Page_cache_client& caller,
                   Local_key key, Uint64 lsn);

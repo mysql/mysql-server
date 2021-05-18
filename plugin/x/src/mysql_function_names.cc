@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -200,6 +200,7 @@ const char *const native_mysql_functions[] = {
     "ST_ENVELOPE",
     "ST_EQUALS",
     "ST_EXTERIORRING",
+    "ST_FRECHETDISTANCE",
     "ST_GEOHASH",
     "ST_GEOMCOLLFROMTEXT",
     "ST_GEOMCOLLFROMTXT",
@@ -213,6 +214,7 @@ const char *const native_mysql_functions[] = {
     "ST_GEOMFROMGEOJSON",
     "ST_GEOMFROMTEXT",
     "ST_GEOMFROMWKB",
+    "ST_HAUSDORFFDISTANCE",
     "ST_INTERIORRINGN",
     "ST_INTERSECTION",
     "ST_INTERSECTS",
@@ -382,7 +384,6 @@ const char *const other_mysql_functions[] = {
     "MULTIPOINT",
     "MULTIPOLYGON",
     "NTH_VALUE",
-    "NTILE",
     "PASSWORD",
     "PERCENT_RANK",
     "POINT",

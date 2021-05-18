@@ -282,24 +282,24 @@ INSERT INTO t1 (col2) VALUES (CAST('2004-10-15 10:15' AS DATETIME));
 INSERT INTO t1 (col3) VALUES (CAST('2004-10-15 10:15' AS DATETIME));
 INSERT INTO t1 (col1) VALUES(CAST('0000-10-31' AS DATE));
 INSERT INTO t1 (col1) VALUES(CAST('2004-10-0' AS DATE));
-ERROR 22007: Incorrect date value: '2004-10-00' for column 'col1' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0'
 INSERT INTO t1 (col1) VALUES(CAST('2004-0-10' AS DATE));
-ERROR 22007: Incorrect date value: '2004-00-10' for column 'col1' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10'
 INSERT INTO t1 (col1) VALUES(CAST('0000-00-00' AS DATE));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col2) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
 INSERT INTO t1 (col2) VALUES(CAST('2004-10-0 15:30' AS DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col2' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30'
 INSERT INTO t1 (col2) VALUES(CAST('2004-0-10 15:30' AS DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col2' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10 15:30'
 INSERT INTO t1 (col2) VALUES(CAST('0000-00-00' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col3) VALUES(CAST('0000-10-31 15:30' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(CAST('2004-10-0 15:30' AS DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col3' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30'
 INSERT INTO t1 (col3) VALUES(CAST('2004-0-10 15:30' AS DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col3' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10 15:30'
 INSERT INTO t1 (col3) VALUES(CAST('0000-00-00' AS DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 drop table t1;
@@ -309,24 +309,24 @@ INSERT INTO t1 (col2) VALUES (CONVERT('2004-10-15 10:15',DATETIME));
 INSERT INTO t1 (col3) VALUES (CONVERT('2004-10-15 10:15',DATETIME));
 INSERT INTO t1 (col1) VALUES(CONVERT('0000-10-31' , DATE));
 INSERT INTO t1 (col1) VALUES(CONVERT('2004-10-0' , DATE));
-ERROR 22007: Incorrect date value: '2004-10-00' for column 'col1' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0'
 INSERT INTO t1 (col1) VALUES(CONVERT('2004-0-10' , DATE));
-ERROR 22007: Incorrect date value: '2004-00-10' for column 'col1' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10'
 INSERT INTO t1 (col1) VALUES(CONVERT('0000-00-00',DATE));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col2) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
 INSERT INTO t1 (col2) VALUES(CONVERT('2004-10-0 15:30',DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col2' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30'
 INSERT INTO t1 (col2) VALUES(CONVERT('2004-0-10 15:30',DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col2' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10 15:30'
 INSERT INTO t1 (col2) VALUES(CONVERT('0000-00-00',DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 INSERT INTO t1 (col3) VALUES(CONVERT('0000-10-31 15:30',DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-10-31 15:30:00' for column 'col3' at row 1
 INSERT INTO t1 (col3) VALUES(CONVERT('2004-10-0 15:30',DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-10-00 15:30:00' for column 'col3' at row 1
+ERROR 22007: Incorrect datetime value: '2004-10-0 15:30'
 INSERT INTO t1 (col3) VALUES(CONVERT('2004-0-10 15:30',DATETIME));
-ERROR 22007: Incorrect datetime value: '2004-00-10 15:30:00' for column 'col3' at row 1
+ERROR 22007: Incorrect datetime value: '2004-0-10 15:30'
 INSERT INTO t1 (col3) VALUES(CONVERT('0000-00-00',DATETIME));
 ERROR 22007: Incorrect datetime value: '0000-00-00'
 drop table t1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,10 @@
 #include <functional>  // std::function
 
 #include "lex_string.h"
-#include "my_dbug.h"
+
 #include "my_io.h"
 #include "my_sqlcommand.h"
-#include "mysql/psi/psi_base.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/gis/srid.h"
@@ -71,13 +71,13 @@ class Alter_drop {
 
   Alter_drop(drop_type par_type, const char *par_name)
       : name(par_name), type(par_type) {
-    DBUG_ASSERT(par_name != nullptr);
+    assert(par_name != nullptr);
   }
 };
 
 /**
-  Class representing SET DEFAULT, DROP DEFAULT and RENAME
-  COLUMN clause in ALTER TABLE statement.
+  Class representing SET DEFAULT, DROP DEFAULT, RENAME COLUMN, SET VISIBLE and
+  SET INVISIBLE clause in ALTER TABLE statement.
 */
 
 class Alter_column {
@@ -94,7 +94,13 @@ class Alter_column {
   /// The new colum name.
   const char *m_new_name;
 
-  enum class Type { SET_DEFAULT, DROP_DEFAULT, RENAME_COLUMN };
+  enum class Type {
+    SET_DEFAULT,
+    DROP_DEFAULT,
+    RENAME_COLUMN,
+    SET_COLUMN_VISIBLE,
+    SET_COLUMN_INVISIBLE
+  };
 
  public:
   /// Type of change requested in ALTER TABLE.
@@ -127,6 +133,13 @@ class Alter_column {
         def(nullptr),
         m_new_name(new_name),
         m_type(Type::RENAME_COLUMN) {}
+
+  /// Constructor used while altering column visibility.
+  Alter_column(const char *par_name, bool par_is_visible)
+      : name(par_name), def(nullptr), m_new_name(nullptr) {
+    m_type = (par_is_visible ? Type::SET_COLUMN_VISIBLE
+                             : Type::SET_COLUMN_INVISIBLE);
+  }
 
  private:
   Type m_type;
@@ -179,7 +192,7 @@ class Alter_constraint_enforcement {
   Alter_constraint_enforcement(Type par_type, const char *par_name,
                                bool par_is_enforced)
       : name(par_name), type(par_type), is_enforced(par_is_enforced) {
-    DBUG_ASSERT(par_name != nullptr);
+    assert(par_name != nullptr);
   }
 };
 
@@ -328,7 +341,10 @@ class Alter_info {
     /// this is NOT to be set for SECONDARY_ENGINE_ATTRIBUTE as this flag
     /// controls if execution should check if SE supports engine
     /// attributes.
-    ANY_ENGINE_ATTRIBUTE = 1ULL << 39
+    ANY_ENGINE_ATTRIBUTE = 1ULL << 39,
+
+    /// Set for column visibility attribute alter.
+    ALTER_COLUMN_VISIBILITY = 1ULL << 40
   };
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
@@ -522,7 +538,7 @@ class Alter_table_ctx {
      @return path to the original table.
   */
   const char *get_path() const {
-    DBUG_ASSERT(!tmp_table);
+    assert(!tmp_table);
     return path;
   }
 
@@ -571,7 +587,7 @@ class Alter_table_ctx {
   char new_path[FN_REFLEN + 1];
   char tmp_path[FN_REFLEN + 1];
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   /** Indicates that we are altering temporary table. Used only in asserts. */
   bool tmp_table;
 #endif

@@ -28,8 +28,6 @@ INSERT INTO t1 (value) VALUES
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 
---source suite/ndb/include/ndb_find_print_file_tool.inc
-
 --error 256,1
 --exec $NDB_PRINT_FILE
 --error 256,1

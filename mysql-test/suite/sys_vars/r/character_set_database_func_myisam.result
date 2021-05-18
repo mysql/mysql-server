@@ -11,7 +11,7 @@ Warning	1681	Updating 'character_set_database' is deprecated. It will be made re
 'connection con1'
 SELECT @@global.character_set_database;
 @@global.character_set_database
-utf8
+utf8mb3
 SELECT @@session.character_set_database;
 @@session.character_set_database
 utf8mb4

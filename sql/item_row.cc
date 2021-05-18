@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,14 +87,14 @@ void Item_row::illegal_method_call(
     const char *method MY_ATTRIBUTE((unused))) const {
   DBUG_TRACE;
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
-  DBUG_ASSERT(0);
+  assert(0);
   my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
 }
 
 bool Item_row::fix_fields(THD *thd, Item **) {
-  DBUG_ASSERT(fixed == 0);
+  assert(fixed == 0);
   null_value = false;
-  maybe_null = false;
+  set_nullable(false);
   bool types_assigned = true;
   Item **arg, **arg_end;
   for (arg = items, arg_end = items + arg_count; arg != arg_end; arg++) {
@@ -116,7 +116,7 @@ bool Item_row::fix_fields(THD *thd, Item **) {
     // item->is_null() may have raised an error.
     if (thd->is_error()) return true;
 
-    maybe_null |= item->maybe_null;
+    set_nullable(is_nullable() | item->is_nullable());
     add_accum_properties(item);
   }
   if (types_assigned) set_data_type(MYSQL_TYPE_NULL);
@@ -149,19 +149,19 @@ void Item_row::update_used_tables() {
   }
 }
 
-void Item_row::fix_after_pullout(SELECT_LEX *parent_select,
-                                 SELECT_LEX *removed_select) {
+void Item_row::fix_after_pullout(Query_block *parent_query_block,
+                                 Query_block *removed_query_block) {
   used_tables_cache = 0;
   not_null_tables_cache = 0;
   for (uint i = 0; i < arg_count; i++) {
-    items[i]->fix_after_pullout(parent_select, removed_select);
+    items[i]->fix_after_pullout(parent_query_block, removed_query_block);
     used_tables_cache |= items[i]->used_tables();
     not_null_tables_cache |= items[i]->not_null_tables();
   }
 }
 
 bool Item_row::propagate_type(THD *thd, const Type_properties &type) {
-  DBUG_ASSERT(data_type() == MYSQL_TYPE_INVALID);
+  assert(data_type() == MYSQL_TYPE_INVALID);
   for (uint i = 0; i < arg_count; i++) {
     if (items[i]->data_type() == MYSQL_TYPE_INVALID &&
         items[i]->propagate_type(thd, type))

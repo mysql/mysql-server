@@ -57,7 +57,7 @@ SET GLOBAL group_replication_recovery_use_ssl= FALSE;
 SET @group_replication_recovery_retry_count= @@GLOBAL.group_replication_recovery_retry_count;
 SET GLOBAL group_replication_recovery_retry_count= 1;
 
-CHANGE MASTER TO MASTER_USER='u1_caching_sha2_password', MASTER_PASSWORD='pwd' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u1_caching_sha2_password', SOURCE_PASSWORD='pwd' FOR CHANNEL 'group_replication_recovery';
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server. Please check that group_replication_recovery channel credentials.*");

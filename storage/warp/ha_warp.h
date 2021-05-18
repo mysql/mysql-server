@@ -19,6 +19,14 @@
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+/*
+ * ha_warp.cc:76:
+/data/warp/storage/warp/ha_warp.h:23:32: error: ‘-Werror=suggest-override’ is not an option that controls warnings [-Werror=pragmas]
+*/
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsuggest-override"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wswitch"
 #ifndef HA_WARP_HDR
 #define HA_WARP_HDR
 #define MYSQL_SERVER 1
@@ -92,6 +100,7 @@
   1 - Initial Version. That is, the version when the metafile was introduced.
 */
 const uint16_t WARP_VERSION = 2;
+const uint64_t WARP_ROWID_BATCH_SIZE = 10000;
 
 #define BLOB_MEMROOT_ALLOC_SIZE 8192
 
@@ -110,8 +119,8 @@ static MYSQL_SYSVAR_ULONGLONG(
   "The maximum number of rows in a Fastbit partition.  An entire partition must fit in the cache.",
   NULL,
   NULL,
-  1024 * 1024,
-  1024 * 1024,
+  1000000,
+  64000,
   1ULL<<63,
   0
 );
@@ -123,8 +132,8 @@ static MYSQL_SYSVAR_ULONGLONG(
   "Fastbit file cache size",
   NULL,
   NULL,
-  1024ULL * 1024 * 1024 * 4,
-  1024ULL * 1024 * 1024 * 4,
+  1024ULL * 1024 * 1024 * 1,
+  1024ULL * 1024 * 1024 * 1,
   1ULL<<63,
   0
 );
@@ -136,8 +145,8 @@ static MYSQL_SYSVAR_ULONGLONG(
   "Fastbit file cache size",
   NULL,
   NULL,
-  1000000,
-  1000000,
+  200000,
+  32000,
   1ULL<<63,
   0
 );
@@ -163,12 +172,16 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
                           "for a lock before being rolled back.",
                           nullptr, nullptr, 50, 0, ULONG_MAX, 0);
 
+static MYSQL_THDVAR_STR(partition_filter, PLUGIN_VAR_RQCMDARG|PLUGIN_VAR_MEMALLOC,
+                          "Set partition to scan in a particular table using alias.partname",
+                          nullptr, nullptr, "");
 
 SYS_VAR* system_variables[] = {
   MYSQL_SYSVAR(partition_max_rows),
   MYSQL_SYSVAR(cache_size),
   MYSQL_SYSVAR(write_cache_size),
   MYSQL_SYSVAR(lock_wait_timeout),
+  MYSQL_SYSVAR(partition_filter),
   NULL
 };
 
@@ -179,6 +192,7 @@ struct WARP_SHARE {
   uint table_name_length, use_count;
   char data_dir_name[FN_REFLEN];
   uint64_t next_rowid = 0;  
+  uint64_t rowids_generated = 0;
   mysql_mutex_t mutex;
   THR_LOCK lock;
 };
@@ -255,7 +269,7 @@ class warp_pushdown_information {
 };
 
 // maps the table aliases for this query to pushdown information info
-std::unordered_map<THD*, std::unordered_map<const char*, warp_pushdown_information*> * > pd_info;
+std::unordered_map<THD*, std::unordered_map<std::string, warp_pushdown_information*> * > pd_info;
 // held when accessing or modifying the pushdown info
 std::mutex pushdown_mtx;
 
@@ -388,6 +402,7 @@ class warp_global_data {
 
   std::mutex lock_mtx;
   std::mutex history_lock_mtx;
+  char history_lock_writing = 0;
   std::string shutdown_clean_file = "shutdown_clean.warp";
   std::string warp_state_file     = "state.warp";
   std::string commit_filename     = "commits.warp";
@@ -533,6 +548,10 @@ class ha_warp : public handler {
 
 
  private:
+  // used in combination with THDVAR partition_filter
+  // to limit the partition scanned by a query
+  std::string partition_filter_alias;
+  std::string partition_filter_partition_name;
 
   ibis::partList* partitions;
   ibis::partList::iterator part_it;

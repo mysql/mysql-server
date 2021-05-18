@@ -19,7 +19,7 @@ insert into test.t1 values
         ("6a","6b","6c","6d");
 
 --echo Stall backup completion
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -34,7 +34,7 @@ update test.t1 set d=concat(d, "-modified");
 delete from test.t1 where a in ("5a","8a");
 
 --echo Allow backup to complete...
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
@@ -231,7 +231,7 @@ insert into test.t1 (a,b,c,d) values
         ("6a","6b","6c","6d");
 
 --echo Stall backup completion
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 10039" >> $NDB_TOOLS_OUTPUT 2>&1
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -246,7 +246,7 @@ update test.t1 set d=concat(d, "-modified");
 delete from test.t1 where a in ("5a","8a");
 
 --echo Allow backup to complete...
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
@@ -303,7 +303,7 @@ insert into test.t1 values
         ("6a","6b","6c","6d","6e");
 
 --echo Stall backup completion
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039"  >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 10039"  >> $NDB_TOOLS_OUTPUT 2>&1
 --echo Run backup
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
@@ -328,7 +328,7 @@ update test.t1 set c=c, d=d, e=concat(d, "-e");
 delete from test.t1 where a in ("5a","8a");
 
 --echo Allow backup to complete...
---exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
+--exec $NDB_MGM -e "all error 0" >> $NDB_TOOLS_OUTPUT 2>&1
 
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 

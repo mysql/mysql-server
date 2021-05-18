@@ -153,7 +153,7 @@ call mtr.add_suppression("The server was automatically set into read only mode a
 set session sql_log_bin=1;
 
 --disable_warnings
-CHANGE MASTER TO MASTER_USER= 'rec_ssl_user', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'rec_ssl_user', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --eval SET GLOBAL group_replication_recovery_use_ssl=1

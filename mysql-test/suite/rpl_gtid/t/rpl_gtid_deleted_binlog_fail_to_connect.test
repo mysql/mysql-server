@@ -76,7 +76,7 @@ INSERT INTO t1 VALUES (2);
 --echo #    MASTER TO MASTER_AUTO_POSITION=1.
 --echo #
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 
 START SLAVE;
 
@@ -108,7 +108,7 @@ START SLAVE;
 --echo #    MASTER TO MASTER_LOG_POS.
 --echo #
 --replace_result $master_file MASTER_FILE $master_pos MASTER_POS
---eval CHANGE MASTER TO MASTER_LOG_FILE = '$master_file', MASTER_LOG_POS = $master_pos, MASTER_AUTO_POSITION = 0
+--eval CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = '$master_file', SOURCE_LOG_POS = $master_pos, SOURCE_AUTO_POSITION = 0
 
 --source include/start_slave.inc
 --sync_with_master

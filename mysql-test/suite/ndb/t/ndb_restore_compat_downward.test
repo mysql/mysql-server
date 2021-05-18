@@ -111,9 +111,9 @@ drop table t1;
 # bug#54613
 
 --error 1
---exec $NDB_RESTORE -b 2 -n 2 -m --core-file=0 --include-databases=ham --skip-unknown-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 2 -n 2 -m --include-databases=ham --skip-unknown-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
 
 --error 0
---exec $NDB_RESTORE -b 2 -n 2 -m --core-file=0 --include-databases=ham --skip-unknown-objects --skip-broken-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE -b 2 -n 2 -m --include-databases=ham --skip-unknown-objects --skip-broken-objects $NDB_SAVED_BACKUPS/bug54613 >> $NDB_TOOLS_OUTPUT
 
 --remove_file $NDB_TOOLS_OUTPUT

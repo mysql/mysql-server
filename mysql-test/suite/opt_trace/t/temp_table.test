@@ -4,6 +4,7 @@
 
 # Test requires: sp-protocol/ps-protocol/view-protocol/cursor-protocol disabled
 --source include/no_protocol.inc
+--source include/not_hypergraph.inc  # Does not output the same optimizer trace.
 
 SET optimizer_trace_max_mem_size=1048576; # 1MB
 SET optimizer_trace="enabled=on,one_line=off";

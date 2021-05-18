@@ -17,7 +17,7 @@ include/start_and_bootstrap_group_replication.inc
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @recovery_reconnect_interval_save= @@GLOBAL.GROUP_REPLICATION_RECOVERY_RECONNECT_INTERVAL;
 SET @recovery_retry_count_save= @@GLOBAL.group_replication_recovery_retry_count;
-CHANGE MASTER TO MASTER_USER="user_does_not_exist" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="user_does_not_exist" FOR CHANNEL "group_replication_recovery";
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("Maximum number of retries when trying to connect to a donor reached. Aborting group replication incremental recovery.");
 call mtr.add_suppression("Fatal error during the incremental recovery process of Group Replication. The server will leave the group.");

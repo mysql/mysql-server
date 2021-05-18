@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -502,6 +502,14 @@ const PasswdFrontendTestParam password_frontend_param[]{
      "",
      "",
      "--work-factor is negative",
+     kPasswdEmpty},
+    {"set: work-factor, hex",
+     "",
+     {"set", kPasswdPlaceholder, "karl", "--work-factor=0xff"},
+     EXIT_FAILURE,
+     "",
+     "",
+     "--work-factor is not a positive integer",
      kPasswdEmpty},
 
     // delete

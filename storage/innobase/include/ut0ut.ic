@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -161,7 +161,7 @@ inline static Wait_stats ut_wait_for(uint64_t spins_limit, uint64_t sleep,
 #endif
       }
 
-      os_thread_sleep(sleep);
+      std::this_thread::sleep_for(std::chrono::microseconds(sleep));
 
     } else {
       ++spins;

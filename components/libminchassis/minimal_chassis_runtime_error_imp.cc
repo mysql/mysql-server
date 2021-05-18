@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "minimal_chassis_runtime_error_imp.h"
 #include <mysql/components/service_implementation.h>
 #include <stdio.h>
-
-/**
-  This is the default implementation for emit api.
-  @param error_id    error ID.
-  @param flags error flags
-  @param args  va_list type, which hold the error message string.
-*/
 
 DEFINE_METHOD(void, mysql_runtime_error_imp::emit,
               (int error_id, int flags, va_list args)) {

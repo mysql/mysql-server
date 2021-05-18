@@ -12,7 +12,7 @@
  # Bug #24384561: 5.7.14 COMPLAINS ABOUT WRONG
  #                SLAVE_MASTER_INFO AFTER UPGRADE FROM 5.7.13
  #
---source include/no_valgrind_without_big.inc
+--source include/big_test.inc
 --source include/mysql_upgrade_preparation.inc
 
 USE test;

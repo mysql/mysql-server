@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -178,15 +178,14 @@ bool Item_func_regexp_instr::resolve_type(THD *thd) {
 
 longlong Item_func_regexp_instr::val_int() {
   DBUG_TRACE;
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   Nullable<int> pos = position();
   Nullable<int> occ = occurrence();
   Nullable<int> retopt = return_option();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value() ||
       !retopt.has_value()) {
-    null_value = true;
-    return 0;
+    return error_int();
   }
 
   Nullable<int32_t> result =
@@ -198,11 +197,10 @@ longlong Item_func_regexp_instr::val_int() {
 
 longlong Item_func_regexp_like::val_int() {
   DBUG_TRACE;
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   if (set_pattern()) {
-    null_value = true;
-    return 0;
+    return error_int();
   }
 
   /*
@@ -252,20 +250,18 @@ bool Item_func_regexp_replace::resolve_type(THD *thd) {
 }
 
 String *Item_func_regexp_replace::val_str(String *buf) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   Nullable<int> pos = position();
   Nullable<int> occ = occurrence();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value()) {
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
-    null_value = true;
-    return nullptr;
+    return error_str();
   }
 
   buf->set_charset(collation.collation);
@@ -281,23 +277,21 @@ bool Item_func_regexp_substr::resolve_type(THD *thd) {
   if (param_type_is_rejected(4, 5))  // as we evaluate it in fix_fields
     return true;
   set_data_type_string(subject()->max_char_length());
-  maybe_null = true;
+  set_nullable(true);
   return false;
 }
 
 String *Item_func_regexp_substr::val_str(String *buf) {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
   Nullable<int> pos = position();
   Nullable<int> occ = occurrence();
 
   if (set_pattern() || !pos.has_value() || !occ.has_value()) {
-    null_value = true;
-    return nullptr;
+    return null_return_str();
   }
   if (pos.value() < 1) {
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
-    null_value = true;
-    return nullptr;
+    return null_return_str();
   }
   buf->set_charset(collation.collation);
   String *result = m_facade->Substr(subject(), pos.value(), occ.value(), buf);

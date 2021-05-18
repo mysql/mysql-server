@@ -4475,10 +4475,17 @@ POINT	POINT	0	0	0	0	1	1	0	0
 POINT	POINT	0	0	0	0	1	1	0	0
 # Checking the aggregate functions on the geometry class properties 
 # Checking the SUM function
-# Checking the SUM function
-SELECT SUM(ST_GEOMETRYTYPE(g)) FROM gis_geometry;
+SELECT SUM(ST_GEOMETRYTYPE(g)) FROM gis_geometry WHERE fid % 100 = 1;
 SUM(ST_GEOMETRYTYPE(g))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT'
+Warning	1292	Truncated incorrect DOUBLE value: 'LINESTRING'
+Warning	1292	Truncated incorrect DOUBLE value: 'POLYGON'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOINT'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTILINESTRING'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOLYGON'
+Warning	1292	Truncated incorrect DOUBLE value: 'GEOMCOLLECTION'
 SELECT SUM(ST_SRID(g)) FROM gis_geometry;
 SUM(ST_SRID(g))
 0
@@ -4524,9 +4531,17 @@ SELECT MIN(ST_ISEMPTY(g)) FROM gis_geometry;
 MIN(ST_ISEMPTY(g))
 0
 # Checking the STD function
-SELECT STD(ST_GEOMETRYTYPE(g)) FROM gis_geometry;
+SELECT STD(ST_GEOMETRYTYPE(g)) FROM gis_geometry WHERE fid % 100 = 1;
 STD(ST_GEOMETRYTYPE(g))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT'
+Warning	1292	Truncated incorrect DOUBLE value: 'LINESTRING'
+Warning	1292	Truncated incorrect DOUBLE value: 'POLYGON'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOINT'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTILINESTRING'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOLYGON'
+Warning	1292	Truncated incorrect DOUBLE value: 'GEOMCOLLECTION'
 SELECT STD(ST_SRID(g)) FROM gis_geometry;
 STD(ST_SRID(g))
 0
@@ -4540,9 +4555,17 @@ SELECT STD(ST_ISEMPTY(g)) FROM gis_geometry;
 STD(ST_ISEMPTY(g))
 0
 # Checking the AVG function
-SELECT AVG(ST_GEOMETRYTYPE(g)) FROM gis_geometry;
+SELECT AVG(ST_GEOMETRYTYPE(g)) FROM gis_geometry WHERE fid % 100 = 1;
 AVG(ST_GEOMETRYTYPE(g))
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'POINT'
+Warning	1292	Truncated incorrect DOUBLE value: 'LINESTRING'
+Warning	1292	Truncated incorrect DOUBLE value: 'POLYGON'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOINT'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTILINESTRING'
+Warning	1292	Truncated incorrect DOUBLE value: 'MULTIPOLYGON'
+Warning	1292	Truncated incorrect DOUBLE value: 'GEOMCOLLECTION'
 SELECT AVG(ST_SRID(g)) FROM gis_geometry;
 AVG(ST_SRID(g))
 0.0000

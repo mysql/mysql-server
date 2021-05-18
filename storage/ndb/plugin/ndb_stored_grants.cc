@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020 Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,15 @@
 #include <mutex>
 #include <unordered_set>
 
+#include "mysql/components/my_service.h"
+#include "mysql/components/services/dynamic_privilege.h"
 #include "sql/auth/acl_change_notification.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_prepare.h"
 #include "storage/ndb/plugin/ndb_local_connection.h"
 #include "storage/ndb/plugin/ndb_log.h"
+#include "storage/ndb/plugin/ndb_mysql_services.h"
 #include "storage/ndb/plugin/ndb_retry.h"
 #include "storage/ndb/plugin/ndb_sql_metadata_table.h"
 #include "storage/ndb/plugin/ndb_thd.h"
@@ -47,9 +50,9 @@ using ChangeNotice = const Acl_change_notification;
 namespace {
 
 /* Static file-scope data */
-Ndb_sql_metadata_api metadata_table;
-std::unordered_set<std::string> local_granted_users;
-std::mutex local_granted_users_mutex;
+static Ndb_sql_metadata_api metadata_table;
+static std::unordered_set<std::string> local_granted_users;
+static std::mutex local_granted_users_mutex;
 
 /* Utility functions */
 
@@ -282,7 +285,7 @@ void ThreadContext::deserialize_users(std::string &str) {
 
 /* returns false on success */
 bool ThreadContext::exec_sql(const std::string &statement) {
-  DBUG_ASSERT(m_closed);
+  assert(m_closed);
   uint ignore_mysql_errors[1] = {0};  // Don't ignore any errors
   MYSQL_LEX_STRING sql_text = {const_cast<char *>(statement.c_str()),
                                statement.length()};
@@ -520,7 +523,7 @@ const NdbError *ThreadContext::write_snapshot(NdbTransaction *tx) {
 
     if (tx->execute(NoCommit)) return &tx->getNdbError();
 
-    DBUG_ASSERT(m_read_keys.size() == m_grant_count.size());
+    assert(m_read_keys.size() == m_grant_count.size());
     for (size_t i = 0; i < m_read_keys.size(); i++) {
       unsigned int n_stored_grants;
       const NdbError &op_error = read_ops[i]->getNdbError();
@@ -607,7 +610,7 @@ void ThreadContext::drop_user(std::string user, bool is_revoke) {
 int ThreadContext::drop_users(ChangeNotice *notice,
                               const Mem_root_array<std::string> &list) {
   for (std::string user : list) {
-    DBUG_ASSERT(local_granted_users.count(user));
+    assert(local_granted_users.count(user));
     drop_user(user, (notice->get_operation() != SQLCOM_DROP_USER));
   }
   return list.size();
@@ -655,7 +658,7 @@ void ThreadContext::create_user(std::string &name, std::string &statement) {
 
   /* Locate the part between DEFAULT ROLE and REQUIRE */
   size_t require_pos = statement.find("REQUIRE ", default_role_pos + 14);
-  DBUG_ASSERT(require_pos != std::string::npos);
+  assert(require_pos != std::string::npos);
   size_t role_clause_len = require_pos - default_role_pos;
 
   /*  Set default role. The role has not yet been granted, so this statement
@@ -707,7 +710,7 @@ void ThreadContext::apply_current_snapshot() {
         break;
       default:
         /* These records should have come from a bounded index scan */
-        DBUG_ASSERT(false);
+        assert(false);
         break;
     }  // switch()
   }    // for()
@@ -750,8 +753,8 @@ void ThreadContext::write_status_message_to_server_log() {
    Return the number of elements in m_statement_users.
 */
 int ThreadContext::get_user_lists_for_statement(ChangeNotice *notice) {
-  DBUG_ASSERT(m_statement_users.size() == 0);
-  DBUG_ASSERT(m_intersection.size() == 0);
+  assert(m_statement_users.size() == 0);
+  assert(m_intersection.size() == 0);
 
   for (const ChangeNotice::User &notice_user : notice->get_user_list()) {
     std::string user;
@@ -888,10 +891,34 @@ Ndb_stored_grants::Strategy ThreadContext::handle_change(ChangeNotice *notice) {
 // Public interface
 //
 
-/* initialize() is run as part of binlog setup.
+bool Ndb_stored_grants::init() {
+  const Ndb_mysql_services services;
+
+  // Register the NDB_STORED_USER dynamic privilege
+  // NOTE! This privilege is never unregistered
+  my_service<SERVICE_TYPE(dynamic_privilege_register)> service(
+      "dynamic_privilege_register.mysql_server", services);
+  if (!service.is_valid() ||
+      service->register_privilege(STRING_WITH_LEN("NDB_STORED_USER"))) {
+    return false;
+  }
+  return true;
+}
+
+/* setup() is run as part of binlog setup.
  */
-bool Ndb_stored_grants::initialize(THD *thd, Thd_ndb *thd_ndb) {
-  if (metadata_table.isInitialized()) return true;
+bool Ndb_stored_grants::setup(THD *thd, Thd_ndb *thd_ndb) {
+  ThreadContext context(thd);
+
+  if (metadata_table.isRestarting()) {
+    ndb_log_info("Ndb_stored_grants::setup() -- after deferred shutdown");
+    metadata_table.clear(thd_ndb->ndb->getDictionary());
+  } else if (metadata_table.isInitialized()) {
+    ndb_log_info("Ndb_stored_grants::setup() -- no op");
+    return true;
+  } else {
+    ndb_log_info("Ndb_stored_grants::setup() -- normal setup");
+  }
 
   /* Create or upgrade the ndb_sql_metadata table.
      If this fails, create_or_upgrade() will log an error message,
@@ -906,17 +933,29 @@ bool Ndb_stored_grants::initialize(THD *thd, Thd_ndb *thd_ndb) {
   return true;
 }
 
-void Ndb_stored_grants::shutdown(Thd_ndb *thd_ndb) {
-  metadata_table.clear(thd_ndb->ndb->getDictionary());
-}
-
-bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
-  if (!metadata_table.isInitialized()) {
-    ndb_log_error("stored grants: initialization has failed.");
-    return false;
+void Ndb_stored_grants::shutdown(THD *thd, Thd_ndb *thd_ndb, bool restarting) {
+  if (!(thd && thd_ndb)) {
+    ndb_log_info("Ndb_stored_grants::shutdown() -- no op");
+    return;
   }
 
   ThreadContext context(thd);
+  if (restarting) {
+    ndb_log_info("Ndb_stored_grants::shutdown() -- deferred");
+    metadata_table.setRestarting();
+  } else {
+    ndb_log_info("Ndb_stored_grants::shutdown() -- normal shutdown");
+    metadata_table.clear(thd_ndb->ndb->getDictionary());
+  }
+}
+
+bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
+  ThreadContext context(thd);
+
+  if (!metadata_table.isInitialized()) {
+    ndb_log_error("stored grants: not initialized.");
+    return false;
+  }
 
   if (!context.read_snapshot()) return false;
 
@@ -932,8 +971,10 @@ bool Ndb_stored_grants::apply_stored_grants(THD *thd) {
 Ndb_stored_grants::Strategy Ndb_stored_grants::handle_local_acl_change(
     THD *thd, const Acl_change_notification *notice, std::string *user_list,
     bool *schema_dist_use_db, bool *must_refresh) {
+  ThreadContext context(thd);
+
   if (!metadata_table.isInitialized()) {
-    ndb_log_error("stored grants: initialization has failed.");
+    ndb_log_error("stored grants: not intialized.");
     return Strategy::ERROR;
   }
 
@@ -943,7 +984,6 @@ Ndb_stored_grants::Strategy Ndb_stored_grants::handle_local_acl_change(
   const enum_sql_command operation = notice->get_operation();
   if (operation == SQLCOM_CREATE_USER) return Strategy::NONE;
 
-  ThreadContext context(thd);
   Strategy strategy = context.handle_change(notice);
 
   /* Set flags for caller.
@@ -966,12 +1006,12 @@ void Ndb_stored_grants::maintain_cache(THD *thd) {
 
 bool Ndb_stored_grants::update_users_from_snapshot(THD *thd,
                                                    std::string users) {
+  ThreadContext context(thd);
+
   if (!metadata_table.isInitialized()) {
-    ndb_log_error("stored grants: initialization has failed.");
+    ndb_log_error("stored grants: not intialized.");
     return false;
   }
-
-  ThreadContext context(thd);
 
   context.deserialize_users(users);
   if (!context.read_snapshot()) return false;

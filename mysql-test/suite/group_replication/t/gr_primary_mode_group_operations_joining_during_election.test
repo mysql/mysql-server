@@ -89,7 +89,7 @@ INSERT INTO t1 VALUES (1);
 --echo # 4. Make server 1 return insuring it uses server 3 as a donor
 
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='rpl' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --source include/start_group_replication.inc

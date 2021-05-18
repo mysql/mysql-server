@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -159,7 +159,8 @@ static int sql_start_result_metadata(void *, uint num_cols, uint,
                                      const CHARSET_INFO *resultcs) {
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info",
+             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
   row_count = 0;
   sql_num_cols = num_cols;
@@ -325,6 +326,7 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 /****************************************************************************************/
@@ -353,6 +355,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
       "-----------------------------------------------------------------\n");
   memset(&sql_str_value, 0, 64 * 64 * 256 * sizeof(char));
   memset(&sql_str_len, 0, 64 * 64 * sizeof(size_t));
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "SELECT id,info FROM information_schema.processlist";
   cmd.com_query.length = strlen(cmd.com_query.query);
   WRITE_VAL("%s\n", cmd.com_query.query);
@@ -390,6 +393,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
       "-----------------------------------------------------------------\n");
   memset(&sql_str_value, 0, 64 * 64 * 256 * sizeof(char));
   memset(&sql_str_len, 0, 64 * 64 * sizeof(size_t));
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query =
       "SELECT * FROM performance_schema.global_variables WHERE variable_name "
       "LIKE 'INNODB_READ_IO_THREADS'";
@@ -427,6 +431,7 @@ static void test_com_query(void *p MY_ATTRIBUTE((unused))) {
 
   // 3. statement must fail
   cbd.reset();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "garbage";
   cmd.com_query.length = strlen(cmd.com_query.query);
 
@@ -557,6 +562,7 @@ static void *test_session_thread(Test_data *tdata) {
   WRITE_VAL("session is dead? %i\n",
             thd_killed(srv_session_info_get_thd(tdata->session)));
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "select sleep(10)";
   cmd.com_query.length = strlen("select sleep(10)");
 
@@ -635,6 +641,7 @@ static int test_query_kill(void *p) {
   snprintf(buffer, sizeof(buffer), "kill query %i",
            srv_session_info_get_session_id(st_session_victim));
   WRITE_STR("run KILL QUERY\n");
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = buffer;
   cmd.com_query.length = strlen(buffer);
   ENSURE_API_OK(command_service_run_command(
@@ -698,6 +705,7 @@ static int test_priv(void *p) {
 
   switch_user(root_session, user_privileged);
 
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "create user ordinary@localhost";
   cmd.com_query.length = strlen(cmd.com_query.query);
   ENSURE_API_OK(command_service_run_command(
@@ -712,6 +720,7 @@ static int test_priv(void *p) {
     switch_user(ordinary_session, user_ordinary);
 
     cbd.reset();
+    memset(&cmd, 0, sizeof(cmd));
     cmd.com_query.query = "create user bogus@localhost";
     cmd.com_query.length = strlen(cmd.com_query.query);
     ENSURE_API_OK(command_service_run_command(
@@ -725,6 +734,7 @@ static int test_priv(void *p) {
   }
 
   cbd.reset();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = "drop user ordinary@localhost";
   cmd.com_query.length = strlen(cmd.com_query.query);
   ENSURE_API_OK(command_service_run_command(

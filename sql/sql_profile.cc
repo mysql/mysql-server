@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -86,7 +86,7 @@ int fill_query_profile_statistics_info(
                         ? "SHOW PROFILE"
                         : "INFORMATION_SCHEMA.PROFILING";
 
-  DBUG_ASSERT(thd->lex->sql_command != SQLCOM_SHOW_PROFILES);
+  assert(thd->lex->sql_command != SQLCOM_SHOW_PROFILES);
 
   push_deprecated_warn(thd, old, "Performance Schema");
   return (thd->profiling->fill_statistics_info(thd, tables));
@@ -146,7 +146,7 @@ int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table) {
   };
 
   ST_FIELD_INFO *field_info;
-  Name_resolution_context *context = &thd->lex->select_lex->context;
+  Name_resolution_context *context = &thd->lex->query_block->context;
   int i;
 
   for (i = 0; schema_table->fields_info[i].field_name != nullptr; i++) {
@@ -223,7 +223,7 @@ void PROF_MEASUREMENT::set_label(const char *status_arg,
 
   allocated_status_memory = (char *)my_malloc(
       key_memory_PROFILE, sizes[0] + sizes[1] + sizes[2], MYF(0));
-  DBUG_ASSERT(allocated_status_memory != nullptr);
+  assert(allocated_status_memory != nullptr);
 
   cursor = allocated_status_memory;
 
@@ -298,7 +298,7 @@ void QUERY_PROFILE::set_query_source(const char *query_source_arg,
   /* Truncate to avoid DoS attacks. */
   size_t length = min(MAX_QUERY_LENGTH, query_length_arg);
 
-  DBUG_ASSERT(m_query_source.str == nullptr); /* we don't leak memory */
+  assert(m_query_source.str == nullptr); /* we don't leak memory */
   if (query_source_arg != nullptr) {
     m_query_source.str =
         my_strndup(key_memory_PROFILE, query_source_arg, length, MYF(0));
@@ -311,7 +311,7 @@ void QUERY_PROFILE::new_status(const char *status_arg, const char *function_arg,
   PROF_MEASUREMENT *prof;
   DBUG_TRACE;
 
-  DBUG_ASSERT(status_arg != nullptr);
+  assert(status_arg != nullptr);
 
   if ((function_arg != nullptr) && (file_arg != nullptr))
     prof = new PROF_MEASUREMENT(this, status_arg, function_arg,
@@ -380,7 +380,7 @@ void PROFILING::start_new_query(const char *initial_state) {
 
   if (!enabled) return;
 
-  DBUG_ASSERT(current == nullptr);
+  assert(current == nullptr);
   current = new QUERY_PROFILE(this, initial_state);
 }
 
@@ -441,8 +441,8 @@ bool PROFILING::show_profiles() {
                                 Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     return true;
 
-  SELECT_LEX *sel = thd->lex->select_lex;
-  SELECT_LEX_UNIT *unit = thd->lex->unit;
+  Query_block *sel = thd->lex->query_block;
+  Query_expression *unit = thd->lex->unit;
   ha_rows idx = 0;
   Protocol *protocol = thd->get_protocol();
 

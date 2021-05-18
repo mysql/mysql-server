@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -202,9 +202,6 @@ static dberr_t trx_rollback_low(trx_t *trx) {
       trx_undo_gtid_add_update_undo(trx, false, true);
       ut_ad(!trx_is_autocommit_non_locking(trx));
       if (trx->rsegs.m_redo.rseg != nullptr && trx_is_redo_rseg_updated(trx)) {
-        /* Flush prepare GTID for XA prepared transactions. */
-        trx_undo_gtid_flush_prepare(trx);
-
         /* Change the undo log state back from
         TRX_UNDO_PREPARED to TRX_UNDO_ACTIVE
         so that if the system gets killed,
@@ -222,7 +219,7 @@ static dberr_t trx_rollback_low(trx_t *trx) {
         }
 
         if (undo_ptr->update_undo != nullptr) {
-          trx_undo_gtid_set(trx, undo_ptr->update_undo);
+          trx_undo_gtid_set(trx, undo_ptr->update_undo, false);
           trx_undo_set_state_at_prepare(trx, undo_ptr->update_undo, true, &mtr);
         }
         trx->rsegs.m_redo.rseg->unlatch();
@@ -771,7 +768,7 @@ void trx_recovery_rollback_thread() {
     if (srv_shutdown_state.load() >= SRV_SHUTDOWN_RECOVERY_ROLLBACK) {
       break;
     }
-    os_thread_sleep(1000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
   trx_rollback_or_clean_recovered(TRUE);

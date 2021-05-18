@@ -61,7 +61,7 @@ call mtr.add_suppression("Error leaving the group");
 call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
 call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
 set session sql_log_bin=1;
-CHANGE MASTER TO MASTER_USER= 'rec_ssl_user', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER= 'rec_ssl_user', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 SET GLOBAL group_replication_recovery_use_ssl=1;
 SET GLOBAL group_replication_recovery_ssl_ca= '/bad_path_parameter/file';
 SET GLOBAL group_replication_recovery_retry_count= 1;

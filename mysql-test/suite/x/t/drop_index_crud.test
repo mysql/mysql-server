@@ -23,7 +23,7 @@ call mtr.add_suppression("Error parsing message of type 12: args");
 call mtr.add_suppression("Error handling message: args");
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 
 
 -->macro Create_collection_index %INDEX_NAME% %TYPE%
@@ -715,8 +715,7 @@ DROP DATABASE IF EXISTS xplugintest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp 2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -441,6 +441,7 @@ CREATE TABLE t1 (a varchar(150) NOT NULL, KEY (a)) charset latin1;
 INSERT t1 VALUES ("can \tcan"); 
 INSERT t1 VALUES ("can   can"); 
 INSERT t1 VALUES ("can"); 
+--sorted_result
 SELECT * FROM t1;
 CHECK TABLE t1;
 DROP TABLE t1;
@@ -485,6 +486,7 @@ insert into t2 values (1),(2);
 select sql_big_result distinct t1.a from t1,t2 order by t2.a;
 FLUSH STATUS;
 select distinct t1.a from t1,t2 order by t2.a;
+--skip_if_hypergraph  # Depends on the query plan.
 SHOW SESSION STATUS LIKE 'Sort_scan%';
 select sql_big_result distinct t1.a from t1,t2;
 explain select sql_big_result distinct t1.a from t1,t2 order by t2.a;
@@ -1738,6 +1740,7 @@ insert into t1 values (0),(1),(2),(3),(4);
 insert into t2 select A.a + 10 *B.a, 1, 'filler' from t1 A, t1 B;
 
 explain select * from t1, t2 where t2.a=t1.a and t2.b + 1;
+--sorted_result
 select * from t1, t2 where t2.a=t1.a and t2.b + 1;
 
 drop table t1,t2;
