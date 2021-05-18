@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -263,7 +263,13 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
   // `member_status` not present in `instances`). It's O(n*m), but the CPU time
   // is negligible while keeping code simple.
 
+  using metadata_cache::ReplicasetStatus;
+  using metadata_cache::ServerMode;
+  using GR_State = GroupReplicationMember::State;
+  using GR_Role = GroupReplicationMember::Role;
+
   metadata_gr_discrepancy = false;
+  auto number_of_all_members = member_status.size();
   for (const auto &status_node : member_status) {
     using MI = metadata_cache::ManagedInstance;
     auto found = std::find_if(instances.begin(), instances.end(),
@@ -272,19 +278,30 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
                                        metadata_node.mysql_server_uuid;
                               });
     if (found == instances.end()) {
+      if (status_node.second.state == GR_State::Recovering) {
+        log_info(
+            "GR member %s:%d (%s) Recovering, missing in the metadata, "
+            "ignoring",
+            status_node.second.host.c_str(), status_node.second.port,
+            status_node.first.c_str());
+        // if the node is Recovering and it is missing in the metadata it can't
+        // increase the pool used for quorum calculations. This is for example
+        // important when we have single node cluster and we add another node
+        // with cloning. While cloning the new node will be present in the GR
+        // tables but missing in the metadata.
+        --number_of_all_members;
+      } else {
+        log_warning("GR member %s:%d (%s) %s, missing in the metadata",
+                    status_node.second.host.c_str(), status_node.second.port,
+                    status_node.first.c_str(),
+                    to_string(status_node.second.state));
+      }
+
+      // we want to set this in both cases as it increases the metadata refresh
+      // rate
       metadata_gr_discrepancy = true;
-      log_error(
-          "Member %s:%d (%s) found in replicaset, yet is not defined in "
-          "metadata!",
-          status_node.second.host.c_str(), status_node.second.port,
-          status_node.first.c_str());
     }
   }
-
-  using metadata_cache::ReplicasetStatus;
-  using metadata_cache::ServerMode;
-  using GR_State = GroupReplicationMember::State;
-  using GR_Role = GroupReplicationMember::Role;
 
   // we do two things here:
   // 1. for all `instances`, set .mode according to corresponding .status found
@@ -336,7 +353,7 @@ metadata_cache::ReplicasetStatus GRClusterMetadata::check_replicaset_status(
   // quorum_count is based on nodes from `instances` instead of `member_status`.
   // This is okay, because all nodes in `member_status` are present in
   // `instances` (our assumption described at the top)
-  bool have_quorum = (quorum_count > member_status.size() / 2);
+  bool have_quorum = (quorum_count > number_of_all_members / 2);
 
   // if we don't have quorum, we don't allow any access. Some configurations
   // might allow RO access in this case, but we don't support it at the momemnt

@@ -35,4 +35,4 @@ echo #;
 --source ../include/test_session_reset.inc
 
 ## Cleanup
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

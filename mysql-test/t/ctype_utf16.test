@@ -377,6 +377,7 @@ set names latin1;
 # Bug #14290: character_maximum_length for text fields
 #
 create table t1(a blob, b text charset utf16);
+--sorted_result
 select data_type, character_octet_length, character_maximum_length
   from information_schema.columns where table_name='t1';
 drop table t1;

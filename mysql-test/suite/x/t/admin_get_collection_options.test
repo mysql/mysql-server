@@ -8,7 +8,7 @@
 CREATE SCHEMA xtest;
 CREATE USER test_user@localhost;
 
---let $xtest_file= $MYSQL_TMP_DIR/admin_get_collection_options.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_get_collection_options.xpl
 --write_file $xtest_file
 -->import validation_schema.macro
 -->import assert_status_variable.macro
@@ -183,7 +183,5 @@ EOF
 
 
 ## Cleanup
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
-DROP SCHEMA IF EXISTS xtest;
+--source ../include/xplugin_cleanup.inc
 DROP USER test_user@localhost;

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,6 @@ SET(MAN1_NDB
   ndb_restore.1
   ndb_select_all.1
   ndb_select_count.1
-  ndb_setup.py.1
   ndb_show_tables.1
   ndb_size.pl.1
   ndb_top.1

@@ -114,7 +114,7 @@ ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Privilege_checks_hostname;
 
 # 8) Change `PRIVILEGE_CHECKS_USER` and check the table is consistent.
 --source include/stop_slave.inc
---eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = NULL
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = NULL
 --source include/start_slave.inc
 
 --let $channels_in_table = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE Privilege_checks_username is NULL AND Privilege_checks_hostname is NULL`

@@ -91,7 +91,7 @@ RESET SLAVE FOR CHANNEL 'channel_1';
 
 # CHANGE MASTER TO generates a warning because there are open temp tables in the channel.
 --disable_query_log
-eval CHANGE MASTER TO MASTER_PORT = $SERVER_MYPORT_3 FOR CHANNEL 'channel_3';
+eval CHANGE REPLICATION SOURCE TO SOURCE_PORT = $SERVER_MYPORT_3 FOR CHANNEL 'channel_3';
 --enable_query_log
 
 # Dropping the table that is still open will decrease the value to zero.
@@ -116,7 +116,7 @@ DROP TEMPORARY TABLE t3;
 
 # CHANGE MASTER TO will not generate a warning because there are no open temp tables in
 # the channel.
-CHANGE MASTER TO MASTER_PORT = 4711 FOR CHANNEL 'channel_3';
+CHANGE REPLICATION SOURCE TO SOURCE_PORT = 4711 FOR CHANNEL 'channel_3';
 
 RESET SLAVE ALL;
 --let $rpl_skip_sync= 1

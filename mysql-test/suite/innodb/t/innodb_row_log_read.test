@@ -1,0 +1,45 @@
+--echo #
+--echo # Bug #31529221	ALTER TABLE FAILS AND REPORTS INCORRECT KEY FILE FOR TABLE T1
+--echo #
+
+--source include/have_innodb_16k.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/big_test.inc
+
+SET @old_innodb_online_alter_log_max_size := @@innodb_online_alter_log_max_size;
+SET @old_max_allowed_packet := @@max_allowed_packet;
+set global innodb_online_alter_log_max_size=1342177280000;
+set global max_allowed_packet=1024*1024*1024;
+
+create table t1(d1 longblob);
+
+--connect (con1,localhost,root,,test,,)
+insert into t1(d1) values (repeat(UNHEX('000f'), 1022*1022*88));
+SET DEBUG_SYNC= 'alter_table_inplace_after_lock_downgrade SIGNAL proceed_insert WAIT_FOR proceed_alter';
+--send alter table t1 ADD COLUMN `d2` char(128) not null default '0' after d1;
+
+--connect (con2,localhost,root,,test,,)
+SET DEBUG_SYNC= 'now WAIT_FOR proceed_insert';
+
+#insert sufficient records so that the operation gets logged in the temporary file
+--disable_query_log
+let $c=3241;
+while($c) {
+  insert into t1(d1) values (repeat(UNHEX('000f'), 1022*3));
+  dec $c;
+}
+--enable_query_log
+SET DEBUG_SYNC= 'now SIGNAL proceed_alter';
+
+--connection con1
+--reap
+
+--connection default
+disconnect con1;
+disconnect con2;
+SET DEBUG_SYNC= 'RESET';
+drop table t1;
+SET GLOBAL innodb_online_alter_log_max_size = @old_innodb_online_alter_log_max_size;
+set global max_allowed_packet = @old_max_allowed_packet;
+

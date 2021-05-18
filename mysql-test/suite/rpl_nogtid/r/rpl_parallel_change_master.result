@@ -18,16 +18,16 @@ INSERT INTO d1.t1 VALUES (1);
 FLUSH LOGS;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY=5;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY=5;
 include/start_slave.inc
 INSERT INTO d1.t1 VALUES (3);
 INSERT INTO d1.t1 VALUES (5);
 FLUSH LOGS;
 include/stop_slave.inc
-CHANGE MASTER TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
 include/start_slave.inc
 include/stop_slave.inc
-CHANGE MASTER TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS, MASTER_DELAY=0;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS, SOURCE_DELAY=0;
 include/start_slave.inc
 BEGIN;
 INSERT INTO d1.t1 VALUES (13);
@@ -43,7 +43,7 @@ INSERT INTO d2.t1 VALUES (9);
 COMMIT;
 include/wait_for_slave_sql_error.inc [errno=1062]
 include/stop_slave_io.inc
-CHANGE MASTER TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
+CHANGE REPLICATION SOURCE TO RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
 ERROR HY000: CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL.
 SET @@global.slave_parallel_workers= @save.slave_parallel_workers;
 include/rpl_restart_server.inc [server_number=2 parameters: --relay-log-recovery --skip-slave-start]
@@ -68,7 +68,11 @@ include/stop_slave.inc
 SET @save.slave_parallel_workers=@@global.slave_parallel_workers;
 SET @@global.slave_parallel_workers=2;
 SET @save.relay_log_info_repository=@@global.relay_log_info_repository;
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET @@global.relay_log_info_repository='TABLE';
+Warnings:
+Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 include/start_slave.inc
 [connection master]
 CREATE DATABASE d1;
@@ -96,12 +100,12 @@ include/stop_slave_io.inc
 [connection master]
 FLUSH LOGS;
 [connection slave]
-CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT, MASTER_USER= 'root',MASTER_LOG_FILE = 'FILE', MASTER_LOG_POS = POS ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POS ;
 ERROR HY000: CHANGE MASTER cannot be executed when the slave was stopped with an error or killed in MTS mode. Consider using RESET SLAVE or START SLAVE UNTIL.
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-CHANGE MASTER TO MASTER_HOST= '127.0.0.1', MASTER_PORT= MASTER_PORT, MASTER_USER= 'root',MASTER_LOG_FILE = 'FILE', MASTER_LOG_POS = POS ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST= '127.0.0.1', SOURCE_PORT= MASTER_PORT, SOURCE_USER= 'root',SOURCE_LOG_FILE = 'FILE', SOURCE_LOG_POS = POS ;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

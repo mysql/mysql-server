@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -94,9 +94,6 @@ class RouterPidfileTest : public RouterComponentTest {
 
   void start_router() {
     router = &ProcessManager::launch_router(router_cmdline);
-    // make sure to get past the setup of the signal handler, otherwise
-    // ProcessManager will complain about the "signal 15"
-    wait_log_contains(*router, "Starting all plugins", 5s);
   }
 
   void stop_router() {

@@ -950,14 +950,14 @@ alter table t3 add column (b int);
 
 if (!$have_debug)
 {
-  --replace_regex /19/X/
-  call p_verify_status_increment(19, 4, 2, 0);
+  --replace_regex /20/X/
+  call p_verify_status_increment(20, 4, 2, 0);
 }
 
 if ($have_debug)
 {
-  --replace_regex /20/X/
-  call p_verify_status_increment(20, 4, 2, 0);
+  --replace_regex /21/X/
+  call p_verify_status_increment(21, 4, 2, 0);
 }
 
 alter table t3 rename t4;
@@ -968,14 +968,14 @@ truncate table t3;
 
 if (!$have_debug)
 {
-  --replace_regex /9/X/
-  call p_verify_status_increment(9, 4, 4, 0);
+  --replace_regex /10/X/
+  call p_verify_status_increment(10, 4, 4, 0);
 }
 
 if ($have_debug)
 {
-  --replace_regex /10/X/
-  call p_verify_status_increment(10, 4, 4, 0);
+  --replace_regex /11/X/
+  call p_verify_status_increment(11, 4, 4, 0);
 }
 
 create view v1 as select * from t2;

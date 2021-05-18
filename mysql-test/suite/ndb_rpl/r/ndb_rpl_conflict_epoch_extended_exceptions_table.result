@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 Setup circular replication
 RESET MASTER;
 SLAVE_SERVER_ID: 3
-CHANGE MASTER TO master_host="127.0.0.1",master_port=SLAVE_PORT,master_user="root";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=SLAVE_PORT,SOURCE_USER="root";
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -40,7 +40,7 @@ c varchar(2000),
 primary key (a,b)) engine=ndb;
 MySQLD error output for server 1.1 matching pattern %Exceptions table %
 relevant
-[warning] ndb slave: exceptions table t1$ex has wrong definition (column 1): 
+[warning] ndb replica: exceptions table t1$ex has wrong definition (column 1): 
 drop table test.t1$EX, test.t1;
 create table test.t1$EX
 (NDB$SERVER_ID         int unsigned,
@@ -60,7 +60,7 @@ c varchar(2000),
 primary key (a,b)) engine=ndb;
 MySQLD error output for server 1.1 matching pattern %Exceptions table %
 relevant
-[warning] ndb slave: exceptions table t1$ex has wrong definition (column 5): old or new values of primary key columns cannot be referenced since primary keys cannot be updated, column a$new in table t1$ex
+[warning] ndb replica: exceptions table t1$ex has wrong definition (column 5): old or new values of primary key columns cannot be referenced since primary keys cannot be updated, column a$new in table t1$ex
 drop table test.t1$EX, test.t1;
 create table test.t1$EX
 (NDB$SERVER_ID         int unsigned,
@@ -80,7 +80,7 @@ c varchar(2000),
 primary key (a,b)) engine=ndb CHARACTER SET latin1;
 MySQLD error output for server 1.1 matching pattern %Exceptions table %
 relevant
-[warning] ndb slave: exceptions table t1$ex has wrong definition (column 5): old or new column reference c$new in table t1$ex is not nullable and doesn't have a default value
+[warning] ndb replica: exceptions table t1$ex has wrong definition (column 5): old or new column reference c$new in table t1$ex is not nullable and doesn't have a default value
 drop table test.t1$EX, test.t1;
 create table test.t1$EX
 (NDB$SERVER_ID         int unsigned,

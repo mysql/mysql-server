@@ -9,7 +9,7 @@
 let $dump_file = $MYSQLTEST_VARDIR/tmp/event_list.txt;
 
 # Build the string used for executing ndb_show_tables
-let $show_cmd = $NDB_SHOW_TABLES --no-defaults;
+let $show_cmd = $NDB_SHOW_TABLES;
 let $show_cmd = $show_cmd -p;  # parsable format
 let $show_cmd = $show_cmd --type=11; # Only show events
 #echo show_cmd: $show_cmd;

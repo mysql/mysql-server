@@ -3,6 +3,7 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
+--source include/not_hypergraph.inc  # The hypergraph optimizer does not support safe limits.
 
 #
 # test of safe selects

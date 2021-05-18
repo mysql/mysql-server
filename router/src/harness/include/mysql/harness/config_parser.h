@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -200,6 +200,11 @@ class HARNESS_EXPORT ConfigSection {
    */
   std::string get_section_name(const std::string &option) const;
 
+  /*
+   * Returns name of the section.
+   */
+  std::string get_section_name() const;
+
 #ifndef NDEBUG
   bool assert_default(const ConfigSection *def) const {
     return def == defaults_.get();
@@ -252,9 +257,21 @@ class HARNESS_EXPORT Config {
    */
   static constexpr const char *DEFAULT_PATTERN = "*.cfg";
 
+  /**
+   * Construct a configuration.
+   *
+   * @param flags flags.
+   */
   explicit Config(unsigned int flags = 0U) noexcept;
 
-  /** @overload */  // throws bad_option
+  /**
+   * Construct a configuration.
+   *
+   * @tparam AssocT Associate container type
+   * @arg @c parameters Associative container with parameters.
+   * @arg @c flags flags.
+   * @throws bad_option on bad options
+   */
   template <class AssocT>
   explicit Config(const AssocT &parameters, unsigned int flags = 0U)
       : Config(flags) {
@@ -269,12 +286,13 @@ class HARNESS_EXPORT Config {
    * and overriding the values read from a list of supplied
    * parameters.
    *
-   * @param parameters Associative container with parameters.
-   * @param reserved Sequence container of reserved words.
-   * @param flags flags.
+   * @tparam AssocT Associate container type
+   * @tparam SeqT  Sequence container type
+   * @arg @c parameters Associative container with parameters.
+   * @arg @c reserved Sequence container of reserved words.
+   * @arg @c flags flags.
+   * @throws bad_option on bad options
    */
-
-  /** @overload */  // throws bad_option
   template <class AssocT, class SeqT>
   explicit Config(const AssocT &parameters, const SeqT &reserved,
                   unsigned int flags = 0U)

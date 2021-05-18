@@ -6,7 +6,7 @@
 
 ## Test data
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/create_view.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/create_view.xpl
 --write_file $xtest_file
 -->quiet
 
@@ -49,6 +49,4 @@ SHOW CREATE VIEW xtest.xview;
 --source include/assert.inc
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

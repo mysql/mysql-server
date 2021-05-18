@@ -169,7 +169,7 @@ CREATE TABLE t5 (
 ) ENGINE NDB;
 
 # Drop table from NDB only to cause mismatch
---exec $NDB_DROP_TABLE --no-defaults -d test t5 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t5 >> $NDB_TOOLS_OUTPUT
 
 # Store initial counts of both detected and synchronized objects
 --let $initial_detected_count = query_get_value(SHOW STATUS LIKE 'Ndb_metadata_detected_count', Value, 1)

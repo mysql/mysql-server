@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,11 +50,13 @@
 #include "unittest/gunit/temptable/mock_field_varstring.h"
 #include "unittest/gunit/test_utils.h"
 
+using pack_rows::TableCollection;
+
 namespace hash_join_unittest {
 
 using std::vector;
 
-static hash_join_buffer::TableCollection CreateTenTableJoin(
+static TableCollection CreateTenTableJoin(
     const my_testing::Server_initializer &initializer, MEM_ROOT *mem_root,
     bool store_data) {
   constexpr int kNumColumns = 10;
@@ -63,8 +65,8 @@ static hash_join_buffer::TableCollection CreateTenTableJoin(
 
   // Set up a ten-table join. For simplicity, allocate everything on a MEM_ROOT
   // that will take care of releasing allocated memory.
-  SELECT_LEX *select_lex = parse(&initializer, "SELECT * FROM dummy", 0);
-  JOIN join(initializer.thd(), select_lex);
+  Query_block *query_block = parse(&initializer, "SELECT * FROM dummy", 0);
+  JOIN join(initializer.thd(), query_block);
   join.qep_tab = mem_root->ArrayAlloc<QEP_TAB>(kNumTablesInJoin);
   join.tables = kNumTablesInJoin;
   for (int i = 0; i < kNumTablesInJoin; ++i) {
@@ -85,14 +87,13 @@ static hash_join_buffer::TableCollection CreateTenTableJoin(
     }
   }
 
-  return hash_join_buffer::TableCollection(
-      &join, TablesBetween(0, kNumTablesInJoin), /*store_rowids=*/false,
-      /*tables_to_get_rowid_for=*/0);
+  return TableCollection(&join, TablesBetween(0, kNumTablesInJoin),
+                         /*store_rowids=*/false,
+                         /*tables_to_get_rowid_for=*/0);
 }
 
-static void DestroyFakeTables(
-    const hash_join_buffer::TableCollection &table_collection) {
-  for (const hash_join_buffer::Table &table : table_collection.tables())
+static void DestroyFakeTables(const TableCollection &table_collection) {
+  for (const pack_rows::Table &table : table_collection.tables())
     destroy(pointer_cast<Fake_TABLE *>(table.table));
 }
 
@@ -102,7 +103,7 @@ static void BM_StoreFromTableBuffersNoData(size_t num_iterations) {
   my_testing::Server_initializer initializer;
   initializer.SetUp();
   MEM_ROOT mem_root;
-  hash_join_buffer::TableCollection table_collection =
+  TableCollection table_collection =
       CreateTenTableJoin(initializer, &mem_root, false);
 
   String buffer;
@@ -110,8 +111,7 @@ static void BM_StoreFromTableBuffersNoData(size_t num_iterations) {
 
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; ++i) {
-    ASSERT_FALSE(
-        hash_join_buffer::StoreFromTableBuffers(table_collection, &buffer));
+    ASSERT_FALSE(StoreFromTableBuffers(table_collection, &buffer));
     ASSERT_GT(buffer.length(), 0);
   }
   StopBenchmarkTiming();
@@ -128,7 +128,7 @@ static void BM_StoreFromTableBuffersWithData(size_t num_iterations) {
   initializer.SetUp();
 
   MEM_ROOT mem_root;
-  hash_join_buffer::TableCollection table_collection =
+  TableCollection table_collection =
       CreateTenTableJoin(initializer, &mem_root, true);
 
   String buffer;
@@ -136,8 +136,7 @@ static void BM_StoreFromTableBuffersWithData(size_t num_iterations) {
 
   StartBenchmarkTiming();
   for (size_t i = 0; i < num_iterations; ++i) {
-    ASSERT_FALSE(
-        hash_join_buffer::StoreFromTableBuffers(table_collection, &buffer));
+    ASSERT_FALSE(StoreFromTableBuffers(table_collection, &buffer));
     ASSERT_GT(buffer.length(), 0);
   }
   StopBenchmarkTiming();
@@ -312,10 +311,10 @@ class HashJoinTestHelper {
     bitmap_set_all(m_right_table->write_set);
     bitmap_set_all(m_right_table->read_set);
 
-    SELECT_LEX *select_lex =
+    Query_block *query_block =
         parse(initializer,
               "SELECT * FROM t1 JOIN t2 ON (t1.column1 = t2.column1);", 0);
-    JOIN *join = new (&m_mem_root) JOIN(initializer->thd(), select_lex);
+    JOIN *join = new (&m_mem_root) JOIN(initializer->thd(), query_block);
     join->tables = 2;
     join->qep_tab = m_mem_root.ArrayAlloc<QEP_TAB>(join->tables);
 

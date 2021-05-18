@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 using mysqlrouter::ClusterType;
 using mysqlrouter::MySQLSession;
-using ::testing::PrintToString;
 using namespace std::chrono_literals;
 
 Path g_origin_path;
@@ -322,11 +321,7 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
                    {cluster_nodes_ports[0], cluster_nodes_ports[1]}, view_id);
 
   SCOPED_TRACE("// Make a connection to the secondary");
-  MySQLSession client1;
-  client1.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result{client1.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[1]);
+  auto client1 = make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
   SCOPED_TRACE(
       "// Now let's change the md on the PRIMARY adding 2nd SECONDARY, also "
@@ -343,18 +338,13 @@ TEST_F(AsyncReplicasetTest, SecondaryAdded) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id + 1);
 
   SCOPED_TRACE("// Check that the existing connection is still alive");
-  ASSERT_NO_THROW(client1.query_one("select @@port"));
+  verify_existing_connection_ok(client1.get());
 
   SCOPED_TRACE("// Check that newly added node is used for ro connections ");
-  MySQLSession client2, client3;
-  client2.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result2{client2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[1]);
-  client3.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result3{client3.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result3)[0]))),
-            cluster_nodes_ports[2]);
+  /*auto client2 =*/make_new_connection_ok(router_port_ro,
+                                           cluster_nodes_ports[1]);
+  /*auto client3 =*/make_new_connection_ok(router_port_ro,
+                                           cluster_nodes_ports[2]);
 }
 
 /**
@@ -419,15 +409,8 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
   SCOPED_TRACE(
       "// Let's make a connection to the both secondaries, both should be "
       "successful");
-  MySQLSession client1, client2;
-  client1.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result{client1.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[1]);
-  client2.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result2{client2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[2]);
+  auto client1 = make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
+  auto client2 = make_new_connection_ok(router_port_ro, cluster_nodes_ports[2]);
 
   SCOPED_TRACE(
       "// Now let's change the md on the first SECONDARY removing 2nd "
@@ -449,8 +432,8 @@ TEST_F(AsyncReplicasetTest, SecondaryRemovedStillReachable) {
   SCOPED_TRACE(
       "// The connection to the first secondary should still be alive, the "
       "connection to the second secondary should be dropped");
-  ASSERT_NO_THROW(client1.query_one("select @@port"));
-  EXPECT_TRUE(wait_connection_dropped(client2));
+  verify_existing_connection_ok(client1.get());
+  EXPECT_TRUE(wait_connection_dropped(*client2.get()));
 }
 
 /**
@@ -481,7 +464,7 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
                       view_id);
   }
 
-  SCOPED_TRACE("// Create a router state file the 3 members");
+  SCOPED_TRACE("// Create a router state file with 3 members");
   const std::string state_file = create_state_file(
       temp_test_dir.name(),
       create_state_file_content(cluster_id, cluster_nodes_ports, view_id));
@@ -513,14 +496,14 @@ TEST_F(AsyncReplicasetTest, ClusterIdChanged) {
       "// Check our state file content, it should first contain all 3 members");
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
 
-  SCOPED_TRACE(
-      "// Now let's change the md on the PRIMARY: different cluster_id and "
-      "increased view_id");
+  SCOPED_TRACE("// Now let's change the md on the PRIMARY: " + cluster_id +
+               ", " + std::to_string(view_id) + " (cluster_id, view_id) to " +
+               changed_cluster_id + ", " + std::to_string(view_id + 1));
   set_mock_metadata(cluster_http_ports[0], changed_cluster_id,
                     {cluster_nodes_ports[0], cluster_nodes_ports[1]}, 0,
                     view_id + 1);
 
-  SCOPED_TRACE("// Wait untill the router sees this change");
+  SCOPED_TRACE("// Wait until the router sees this change");
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE(
@@ -663,15 +646,8 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
-  MySQLSession client1, client2;
-  client1.connect("127.0.0.1", router_port_rw, "username", "password", "", "");
-  auto result{client1.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[0]);
-  client2.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result2{client2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[1]);
+  auto client1 = make_new_connection_ok(router_port_rw, cluster_nodes_ports[0]);
+  auto client2 = make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
   SCOPED_TRACE(
       "// Make both members to start returning errors on metadata query now");
@@ -686,8 +662,8 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromSecondary) {
 
   SCOPED_TRACE(
       "// RW connection should have survived, RO one should have been closed");
-  ASSERT_NO_THROW(client1.query_one("select @@port"));
-  EXPECT_TRUE(wait_connection_dropped(client2));
+  verify_existing_connection_ok(client1.get());
+  EXPECT_TRUE(wait_connection_dropped(*client2.get()));
 
   SCOPED_TRACE(
       "// Make sure the state file did not change, it should still contain "
@@ -754,15 +730,8 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
-  MySQLSession client1, client2;
-  client1.connect("127.0.0.1", router_port_rw, "username", "password", "", "");
-  auto result{client1.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[0]);
-  client2.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result2{client2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[1]);
+  auto client1 = make_new_connection_ok(router_port_rw, cluster_nodes_ports[0]);
+  auto client2 = make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
   SCOPED_TRACE(
       "// Make both members to start returning errors on metadata query now");
@@ -777,8 +746,8 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
 
   SCOPED_TRACE(
       "// RO connection should have survived, RW one should have been closed");
-  EXPECT_TRUE(wait_connection_dropped(client1));
-  ASSERT_NO_THROW(client2.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(*client1.get()));
+  verify_existing_connection_ok(client2.get());
 
   /////////////////////////////////////////
   // here comes the TS_R-FR2.2_4 part
@@ -794,11 +763,8 @@ TEST_F(AsyncReplicasetTest, MetadataUnavailableDisconnectFromPrimary) {
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// We should be able to connect to the PRIMARY again ");
-  MySQLSession client3;
-  client3.connect("127.0.0.1", router_port_rw, "username", "password", "", "");
-  auto result3{client3.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result3)[0]))),
-            cluster_nodes_ports[0]);
+  /*auto client3 =*/make_new_connection_ok(router_port_rw,
+                                           cluster_nodes_ports[0]);
 }
 
 /**
@@ -934,15 +900,8 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make 2 RO connections, one for each SECONDARY");
-  MySQLSession client1, client2;
-  client1.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result{client1.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[1]);
-  client2.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result2{client2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[2]);
+  auto client1 = make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
+  auto client2 = make_new_connection_ok(router_port_ro, cluster_nodes_ports[2]);
 
   SCOPED_TRACE("// Now let's remove the second SECONDARY from the metadata");
   std::vector<uint16_t> new_cluster_members{cluster_nodes_ports[0],
@@ -961,17 +920,14 @@ TEST_F(AsyncReplicasetTest, SecondaryRemoved) {
   SCOPED_TRACE(
       "// Check that the existing connection to the second SECONDARY got "
       "dropped");
-  ASSERT_NO_THROW(client1.query_one("select @@port"));
-  EXPECT_TRUE(wait_connection_dropped(client2));
+  verify_existing_connection_ok(client1.get());
+  EXPECT_TRUE(wait_connection_dropped(*client2.get()));
 
   SCOPED_TRACE(
       "// Check that new RO connections are made to the first secondary");
   for (int i = 0; i < 2; i++) {
-    MySQLSession client;
-    client.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-    auto result{client.query_one("select @@port")};
-    EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-              cluster_nodes_ports[1]);
+    /*auto client =*/make_new_connection_ok(router_port_ro,
+                                            cluster_nodes_ports[1]);
   }
 }
 
@@ -1030,17 +986,10 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
   check_state_file(state_file, cluster_id, initial_cluster_members, view_id);
 
   SCOPED_TRACE("// Make one RW and one RO connection");
-  MySQLSession client_rw, client_ro;
-  client_rw.connect("127.0.0.1", router_port_rw, "username", "password", "",
-                    "");
-  auto result{client_rw.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[0]);
-  client_ro.connect("127.0.0.1", router_port_ro, "username", "password", "",
-                    "");
-  auto result2{client_ro.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[1]);
+  auto client_rw =
+      make_new_connection_ok(router_port_rw, cluster_nodes_ports[0]);
+  auto client_ro =
+      make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
   SCOPED_TRACE("// Now let's remove old primary and add a new one");
   std::vector<uint16_t> new_cluster_members{cluster_nodes_ports[1],
@@ -1058,16 +1007,12 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldGone) {
 
   SCOPED_TRACE(
       "// Check that the existing connection to the old PRIMARY got dropped");
-  EXPECT_TRUE(wait_connection_dropped(client_rw));
-  ASSERT_NO_THROW(client_ro.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(*client_rw.get()));
+  verify_existing_connection_ok(client_ro.get());
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
-  MySQLSession client_rw2;
-  client_rw2.connect("127.0.0.1", router_port_rw, "username", "password", "",
-                     "");
-  auto result_rw2{client_rw2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result_rw2)[0]))),
-            cluster_nodes_ports[2]);
+  /*auto client_rw2 =*/make_new_connection_ok(router_port_rw,
+                                              cluster_nodes_ports[2]);
 }
 
 /**
@@ -1122,17 +1067,10 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make one RW and one RO connection");
-  MySQLSession client_rw, client_ro;
-  client_rw.connect("127.0.0.1", router_port_rw, "username", "password", "",
-                    "");
-  auto result{client_rw.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[0]);
-  client_ro.connect("127.0.0.1", router_port_ro, "username", "password", "",
-                    "");
-  auto result2{client_ro.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[1]);
+  auto client_rw =
+      make_new_connection_ok(router_port_rw, cluster_nodes_ports[0]);
+  auto client_ro =
+      make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
   SCOPED_TRACE(
       "// Now let's change the primary from node[0] to node[1] and let "
@@ -1146,16 +1084,12 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondary) {
   SCOPED_TRACE(
       "// Check that the existing connection to the old PRIMARY got dropped "
       "and the ro connection to the new PRIMARY is still up");
-  EXPECT_TRUE(wait_connection_dropped(client_rw));
-  ASSERT_NO_THROW(client_ro.query_one("select @@port"));
+  EXPECT_TRUE(wait_connection_dropped(*client_rw.get()));
+  verify_existing_connection_ok(client_ro.get());
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
-  MySQLSession client_rw2;
-  client_rw2.connect("127.0.0.1", router_port_rw, "username", "password", "",
-                     "");
-  auto result_rw2{client_rw2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result_rw2)[0]))),
-            cluster_nodes_ports[1]);
+  /*auto client_rw2 =*/make_new_connection_ok(router_port_rw,
+                                              cluster_nodes_ports[1]);
 }
 
 /**
@@ -1212,17 +1146,10 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make one RW and one RO connection");
-  MySQLSession client_rw, client_ro;
-  client_rw.connect("127.0.0.1", router_port_rw, "username", "password", "",
-                    "");
-  auto result{client_rw.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[0]);
-  client_ro.connect("127.0.0.1", router_port_ro, "username", "password", "",
-                    "");
-  auto result2{client_ro.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[1]);
+  auto client_rw =
+      make_new_connection_ok(router_port_rw, cluster_nodes_ports[0]);
+  auto client_ro =
+      make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
   SCOPED_TRACE(
       "// Now let's change the primary from node[0] to node[1] and let "
@@ -1237,16 +1164,12 @@ TEST_F(AsyncReplicasetTest, NewPrimaryOldBecomesSecondaryDisconnectOnPromoted) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id + 1);
 
   SCOPED_TRACE("// Check that both RW and RO connections are down");
-  EXPECT_TRUE(wait_connection_dropped(client_rw));
-  EXPECT_TRUE(wait_connection_dropped(client_ro));
+  EXPECT_TRUE(wait_connection_dropped(*client_rw.get()));
+  EXPECT_TRUE(wait_connection_dropped(*client_ro.get()));
 
   SCOPED_TRACE("// Check that new RW connections is made to the new PRIMARY");
-  MySQLSession client_rw2;
-  client_rw2.connect("127.0.0.1", router_port_rw, "username", "password", "",
-                     "");
-  auto result_rw2{client_rw2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result_rw2)[0]))),
-            cluster_nodes_ports[1]);
+  /*auto client_rw2 =*/make_new_connection_ok(router_port_rw,
+                                              cluster_nodes_ports[1]);
 }
 
 /**
@@ -1301,19 +1224,12 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make one RW and one RO connection");
-  MySQLSession client_rw, client_ro;
-  client_rw.connect("127.0.0.1", router_port_rw, "username", "password", "",
-                    "");
-  auto result{client_rw.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[0]);
-  client_ro.connect("127.0.0.1", router_port_ro, "username", "password", "",
-                    "");
-  auto result2{client_ro.query_one("select @@port")};
+  auto client_rw =
+      make_new_connection_ok(router_port_rw, cluster_nodes_ports[0]);
   // the ro port is configured for PRIMARY_AND_SECONDARY so the first connection
   // will be directed to the PRIMARY
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[0]);
+  auto client_ro =
+      make_new_connection_ok(router_port_ro, cluster_nodes_ports[0]);
 
   SCOPED_TRACE(
       "// Now let's change the primary from node[0] to node[1] and let "
@@ -1329,17 +1245,13 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRWAndRO) {
                    view_id + 1);
 
   SCOPED_TRACE("// Check that both RW and RO connections are down");
-  EXPECT_TRUE(wait_connection_dropped(client_rw));
-  EXPECT_TRUE(wait_connection_dropped(client_ro));
+  EXPECT_TRUE(wait_connection_dropped(*client_rw.get()));
+  EXPECT_TRUE(wait_connection_dropped(*client_ro.get()));
 
   SCOPED_TRACE(
       "// Check that new RO connection is now made to the new PRIMARY");
-  MySQLSession client_ro2;
-  client_ro2.connect("127.0.0.1", router_port_ro, "username", "password", "",
-                     "");
-  auto result_ro2{client_ro2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result_ro2)[0]))),
-            cluster_nodes_ports[1]);
+  /*auto client_ro2 =*/make_new_connection_ok(router_port_ro,
+                                              cluster_nodes_ports[1]);
 }
 
 /**
@@ -1394,12 +1306,8 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
   check_state_file(state_file, cluster_id, cluster_nodes_ports, view_id);
 
   SCOPED_TRACE("// Make one RO connection");
-  MySQLSession client_ro;
-  client_ro.connect("127.0.0.1", router_port_ro, "username", "password", "",
-                    "");
-  auto result{client_ro.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[1]);
+  auto client_ro =
+      make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
   SCOPED_TRACE("// Now let's bring the only SECONDARY down");
   set_mock_metadata(cluster_http_ports[0], cluster_id, {cluster_nodes_ports[0]},
@@ -1413,10 +1321,8 @@ TEST_F(AsyncReplicasetTest, OnlyPrimaryLeftAcceptsRW) {
                    view_id + 1);
 
   SCOPED_TRACE("// Check that RO connection is down and no new is accepted");
-  EXPECT_TRUE(wait_connection_dropped(client_ro));
-  MySQLSession client_ro2;
-  ASSERT_ANY_THROW(client_ro.connect("127.0.0.1", router_port_ro, "username",
-                                     "password", "", ""));
+  EXPECT_TRUE(wait_connection_dropped(*client_ro.get()));
+  verify_new_connection_fails(router_port_ro);
 }
 
 class NodeUnavailableTest : public AsyncReplicasetTest,
@@ -1484,23 +1390,20 @@ TEST_P(NodeUnavailableTest, NodeUnavailable) {
       "// Make 3 RO connections, even though one of the secondaries is down "
       "each of them should be successfull");
   for (size_t i = 0; i < 3; ++i) {
-    MySQLSession client_ro;
-    ASSERT_NO_THROW(client_ro.connect("127.0.0.1", router_port_ro, "username",
-                                      "password", "", ""));
-    auto result{client_ro.query_one("select @@port")};
-    const auto port =
-        static_cast<uint16_t>(std::stoul(std::string((*result)[0])));
+    uint16_t expected_port{0};
     if (routing_strategy == "round-robin" ||
         routing_strategy == "round-robin-with-fallback") {
       // for round-robin we should round-robin on nodes with id 2 and 3
       // (0-based)
-      EXPECT_EQ(port, cluster_nodes_ports[2 + i % 2]);
+      expected_port = cluster_nodes_ports[2 + i % 2];
     } else {
       ASSERT_STREQ(routing_strategy.c_str(), "first-available");
       // for fiirst-available we should go with the node id = 2 each time as the
       // node id = 1 is not available
-      EXPECT_EQ(port, cluster_nodes_ports[2]);
+      expected_port = cluster_nodes_ports[2];
     }
+
+    /*auto client_ro =*/make_new_connection_ok(router_port_ro, expected_port);
   }
 }
 
@@ -1573,17 +1476,11 @@ TEST_P(NodeUnavailableAllNodesDownTest, NodeUnavailableAllNodesDown) {
       "// Attempt 2 RO connections, each should fail unless we fallback to the "
       "PRIMARY");
   for (size_t i = 0; i < 2; ++i) {
-    MySQLSession client_ro;
     if (routing_strategy != "round-robin-with-fallback") {
-      ASSERT_ANY_THROW(client_ro.connect("127.0.0.1", router_port_ro,
-                                         "username", "password", "", ""));
+      verify_new_connection_fails(router_port_ro);
     } else {
-      ASSERT_NO_THROW(client_ro.connect("127.0.0.1", router_port_ro, "username",
-                                        "password", "", ""));
-      auto result{client_ro.query_one("select @@port")};
-      const auto port =
-          static_cast<uint16_t>(std::stoul(std::string((*result)[0])));
-      EXPECT_EQ(cluster_nodes_ports[0], port);
+      /*auto client_ro =*/make_new_connection_ok(router_port_ro,
+                                                 cluster_nodes_ports[0]);
     }
   }
 }
@@ -1732,16 +1629,8 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
   ASSERT_TRUE(wait_for_transaction_count_increase(cluster_http_ports[0], 2));
 
   SCOPED_TRACE("// Let's make a connection to the both servers RW and RO");
-  MySQLSession client1, client2;
-  ASSERT_NO_THROW(client1.connect("127.0.0.1", router_port_rw, "username",
-                                  "password", "", ""));
-  auto result{client1.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result)[0]))),
-            cluster_nodes_ports[0]);
-  client2.connect("127.0.0.1", router_port_ro, "username", "password", "", "");
-  auto result2{client2.query_one("select @@port")};
-  EXPECT_EQ(static_cast<uint16_t>(std::stoul(std::string((*result2)[0]))),
-            cluster_nodes_ports[1]);
+  auto client1 = make_new_connection_ok(router_port_rw, cluster_nodes_ports[0]);
+  auto client2 = make_new_connection_ok(router_port_ro, cluster_nodes_ports[1]);
 
   SCOPED_TRACE(
       "// Make all members to start returning invalid data when queried for "
@@ -1754,8 +1643,8 @@ TEST_P(UnexpectedResultFromMDRefreshTest, UnexpectedResultFromMDRefreshQuery) {
   }
 
   SCOPED_TRACE("// Both connections should get dropped");
-  EXPECT_TRUE(wait_connection_dropped(client1));
-  EXPECT_TRUE(wait_connection_dropped(client2));
+  EXPECT_TRUE(wait_connection_dropped(*client1.get()));
+  EXPECT_TRUE(wait_connection_dropped(*client2.get()));
   // check that the router did not crash (happens automatically)
 }
 

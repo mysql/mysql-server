@@ -9,8 +9,8 @@ set @save_slave_net_timeout = @@global.slave_net_timeout;
 set @@global.general_log = ON;
 set @@global.log_output = 'table,file';
 include/stop_slave.inc
-change master to master_host = '127.0.0.1',master_port = MASTER_PORT,
-master_user = 'root', master_heartbeat_period = 0;
+CHANGE REPLICATION SOURCE to SOURCE_HOST = '127.0.0.1',SOURCE_PORT = MASTER_PORT,
+SOURCE_USER = 'root', SOURCE_HEARTBEAT_PERIOD = 0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

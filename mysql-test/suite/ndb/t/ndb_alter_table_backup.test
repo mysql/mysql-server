@@ -35,7 +35,7 @@ call mtr.add_suppression("NDB: Failed to install table");
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE t1;
 SHOW WARNINGS;
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 
 #
 # Restore backup files (from big endian)
@@ -50,5 +50,5 @@ SHOW WARNINGS;
 SHOW CREATE TABLE t1;
 SHOW WARNINGS;
 
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 --remove_file $NDB_TOOLS_OUTPUT

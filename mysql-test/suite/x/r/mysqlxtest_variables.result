@@ -53,6 +53,5 @@ active session is now 'second_session'
 # * SOCKET_ID must have a new value
 # * CLIENT_ID must have a new value
 ok
-DROP DATABASE xtest;
 DROP USER 'user1'@'127.0.0.1';
 DROP USER 'user2'@'127.0.0.1';

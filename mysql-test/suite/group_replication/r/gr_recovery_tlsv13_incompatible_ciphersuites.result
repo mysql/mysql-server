@@ -40,7 +40,7 @@ SET GLOBAL tls_version='TLSv1.3';
 SET @tls_ciphersuites_saved= @@GLOBAL.tls_ciphersuites;
 SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
 ALTER INSTANCE RELOAD TLS;
-CHANGE MASTER TO MASTER_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="rec_ssl_user" FOR CHANNEL "group_replication_recovery";
 SET @group_replication_recovery_use_ssl_saved= @@GLOBAL.group_replication_recovery_use_ssl;
 SET GLOBAL group_replication_recovery_use_ssl=1;
 SET @group_replication_recovery_tls_ciphersuites_saved= @@GLOBAL.group_replication_recovery_tls_ciphersuites;

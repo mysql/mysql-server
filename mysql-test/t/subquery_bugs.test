@@ -455,6 +455,7 @@ INSERT INTO t1 VALUES (4, 'v');
 INSERT INTO t1 VALUES (5, 'E');
 
 ANALYZE TABLE t1, t2;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 WHERE pk IN ( SELECT pk FROM t1 LEFT JOIN v2 USING (pk) WHERE f1 >= 'o' );
 
 DROP TABLE t1, t2;
@@ -515,6 +516,7 @@ CREATE TABLE t2 (
 
 ANALYZE TABLE t1, t2;
 
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree SELECT * FROM t1 LEFT JOIN t1 AS t3 ON t1.pk = t3.pk AND t1.f2 IN ( SELECT f2 FROM t2 )
 WHERE EXISTS ( SELECT * FROM t1 AS t4, t2 AS t5 ) AND t1.f1 = 80 AND t1.pk > t1.f1;
 
@@ -626,6 +628,7 @@ let $query = SELECT * FROM t1 WHERE pk IN (
     RIGHT JOIN t2 ON t3.col_int_key <> t2.pk
 );
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 
@@ -642,6 +645,7 @@ set optimizer_switch=default;
 CREATE TABLE t1 ( pk integer, f1 varchar(1) );
 INSERT INTO t1 VALUES (1,'D'), (20,'G');
 ANALYZE TABLE t1;
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=TREE SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 SELECT * FROM ( SELECT DISTINCT * FROM t1 ) AS d0 LEFT JOIN t1 ON d0.pk IN ( SELECT 1 FROM t1 ) ORDER BY d0.f1;
 DROP TABLE t1;
@@ -760,6 +764,7 @@ let $query = SELECT (
         WHERE t2.f1 > table1.f2
 ) FROM t1 AS table1;
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
@@ -812,6 +817,7 @@ WHERE 1 IN (SELECT 1 FROM t1 AS subq
            );
 
 eval explain $query;
+--sorted_result
 eval $query;
 
 DROP TABLE t1;
@@ -884,6 +890,7 @@ let $query =
      )
    );
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
@@ -917,8 +924,11 @@ let $query =
 
 # Verify that we get a query plan with semijoin materialization.
 # If the optimizer chooses a different strategy, consider deleting this test.
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 
+# Order depends on the query plan.
+--replace_result 5,2,3,8,1 1,2,3,5,8
 eval $query;
 
 DROP TABLE table_city, table_user, table_city_user;
@@ -951,6 +961,7 @@ WHERE d.c IN (
 # Shouldn't use Semijoin LooseScan, as the iterator for this strategy
 # cannot handle when the LooseScan driving table (b) is not
 # inner-joined with the next table in nest (c).
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=tree $query;
 eval $query;
 DROP TABLE b, c, d;
@@ -971,6 +982,7 @@ let $query=
   t1 WHERE 3 IN (SELECT t3.col_int_nokey FROM t1 AS t3);
 
 eval EXPLAIN $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 
 # Outer join: the jump target could be to constant table t1, but
@@ -986,6 +998,7 @@ let $query=
   WHERE t1.pk=26;
 
 eval EXPLAIN $query;
+--skip_if_hypergraph  # Depends on the query plan.
 eval EXPLAIN FORMAT=TREE $query;
 
 DROP TABLE t1;
@@ -1101,6 +1114,7 @@ ANALYZE TABLE t1, t2, t3, t4;
 # Verify that the IS NOT NULL condition added on t3 refers to t3 and not t1,
 # even though we have substituted t3 with t1 elsewhere when re-resolving
 # multi-equalities for the hash join condition.
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree
   SELECT * FROM
     t1
@@ -1132,6 +1146,7 @@ ANALYZE TABLE t1,t2,t3;
 # Very much like the previous test case; verify that the BETWEEN attached to t3
 # refers to t3 and not to t2, even though we have substituted t3 with t2
 # elsewhere when re-resolving multi-equalities for the hash join condition.
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN FORMAT=tree
   SELECT /*+ JOIN_ORDER(t3,t2,t1) */ * FROM t1
   WHERE t1.col1 = ANY (
@@ -1171,6 +1186,7 @@ WHERE t3.pk+6 NOT IN (
   SELECT /*+ subquery(materialization) */
     table1s.col_int_unique AS field4 FROM t2 AS table1s);
 
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format = tree $query;
 eval $query;
 
@@ -1485,12 +1501,14 @@ SET optimizer_switch='semijoin=on';
 # non-zero OFFSET expect a non-semijoin plan
 let $query = SELECT a.c2 FROM  t1 AS a WHERE
                       EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 1,1);
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format = tree $query;
 eval $query;
 
 # zero OFFSET expect a semijoin plan
 let $query = SELECT a.c2 FROM  t1 AS a WHERE
                       EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,1);
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format=tree $query;
 eval $query;
 
@@ -1500,6 +1518,7 @@ let $query = SELECT a.c2 FROM  t1 AS a WHERE
                       EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT ?,1);
 let $explain_query = PREPARE explain_stmt FROM "EXPLAIN format = tree $query";
 eval $explain_query;
+--skip_if_hypergraph  # Depends on the query plan.
 EXECUTE explain_stmt USING @offset_value;
 
 let $execute_query = PREPARE stmt FROM "$query";
@@ -1509,6 +1528,7 @@ EXECUTE stmt USING @offset_value;
 # zero LIMIT expect a non-semijoin plan
 let $query = SELECT a.c2 FROM  t1 AS a WHERE
                       EXISTS (SELECT 1 FROM  t1 AS b WHERE b.c2 = a.c2 LIMIT 0,0);
+--skip_if_hypergraph  # Depends on the query plan.
 eval explain format = tree $query;
 eval $query;
 

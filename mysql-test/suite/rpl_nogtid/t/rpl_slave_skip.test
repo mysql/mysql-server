@@ -38,7 +38,7 @@ connection slave;
 
 # Stop when reaching the the first table map event.
 --replace_result $master_log_pos MASTER_LOG_POS
-eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$master_log_pos;
+eval START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_log_pos;
 source include/wait_for_slave_sql_to_stop.inc;
 let $slave_param= Exec_Master_Log_Pos;
 let $slave_param_value= $master_log_pos;
@@ -75,7 +75,7 @@ source include/show_binlog_events.inc;
 
 connection slave;
 --replace_result $master_log_pos MASTER_LOG_POS
-eval START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=$master_log_pos;
+eval START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=$master_log_pos;
 source include/wait_for_slave_sql_to_stop.inc;
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=2;
 START SLAVE;

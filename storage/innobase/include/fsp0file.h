@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -298,6 +298,12 @@ class Datafile {
   dberr_t validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
                               bool for_import)
       MY_ATTRIBUTE((warn_unused_result));
+
+  /** Get LSN of first page */
+  lsn_t get_flush_lsn() {
+    ut_ad(m_first_page != nullptr);
+    return mach_read_from_8(m_first_page + FIL_PAGE_LSN);
+  }
 
   /** Get Datafile::m_name.
   @return m_name */

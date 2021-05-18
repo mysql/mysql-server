@@ -90,7 +90,7 @@ STOP SLAVE;
 --connection server1
 SET GLOBAL SUPER_READ_ONLY=0; # Bug#22097534
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_3, MASTER_AUTO_POSITION=1 FOR CHANNEL "channel_1"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_AUTO_POSITION=1 FOR CHANNEL "channel_1"
 
 --let $assert_text= 'The slave channel is present'
 --let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_relay_log_info WHERE channel_name="channel_1", count, 1] = 1
@@ -131,7 +131,7 @@ RESET SLAVE ALL;
 
 --connection server1
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_3, MASTER_AUTO_POSITION=1 FOR CHANNEL "channel_1"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_AUTO_POSITION=1 FOR CHANNEL "channel_1"
 --source include/start_slave.inc
 
 --let $assert_text= 'The created slave channel is ON'
@@ -201,7 +201,7 @@ DROP TABLE t1;
 --connection server1
 
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "channel_1";
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "channel_1";
 
 --source include/start_group_replication.inc
 

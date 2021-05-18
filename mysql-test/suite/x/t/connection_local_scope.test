@@ -5,6 +5,13 @@
 --source include/have_lo0_local_scope.inc
 --source include/xplugin_preamble.inc
 
+# In case when Your system is missing "lo0" iterface,
+# then to execute this test, You may add it by executing
+# following commands:
+#
+#    ip link add name lo0 type dummy
+#    ip addr add  fe80::1 dev lo0
+#
 
 --echo #
 --echo ## Testcase

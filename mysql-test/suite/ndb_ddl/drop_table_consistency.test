@@ -27,7 +27,7 @@ while ($counter <= 6)
 }
 
 --echo Drop the table using ndb_drop_table
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 
 --error ER_GET_ERRMSG
 SHOW CREATE TABLE t1;
@@ -69,7 +69,7 @@ while ($counter <= 6)
 }
 
 --echo Drop the table using ndb_drop_table
---exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d test t1 >> $NDB_TOOLS_OUTPUT
 
 --disable_query_log ONCE
 call mtr.add_suppression("Incorrect information in file");
@@ -113,7 +113,7 @@ while ($counter <= 6)
 
 --connection mysqld3
 --echo Drop the table using ndb_drop_table
---exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test3 t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE -d ndb_ddl_test3 t1 >> $NDB_TOOLS_OUTPUT
 
 DROP DATABASE ndb_ddl_test3;
 

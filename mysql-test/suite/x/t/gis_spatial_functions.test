@@ -7,7 +7,7 @@
 create user insertsqluser@localhost identified by 'insertsqluser';
 grant all on *.* to insertsqluser@localhost;
 
---write_file $MYSQL_TMP_DIR/mysqlx-gis_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-gis_sql.xpl
 -->sql
 
 DROP SCHEMA if EXISTS mysqlxplugin;
@@ -106,10 +106,10 @@ SELECT c1,ST_Astext(c4) FROM tab WHERE ST_Touches(tab.c4, @g1) ORDER BY c1;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-gis_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-gis_sql.tmp
+--exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-gis_sql.xpl 2>&1
+--remove_file $MYSQL_TMP_DIR/mysqlx-gis_sql.xpl
 
---write_file $MYSQL_TMP_DIR/mysqlx-gis_sql.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-gis_sql.xpl
 -->sql
 USE  mysqlxplugin;
 DROP TABLE tab;
@@ -119,6 +119,7 @@ DROP USER insertsqluser@localhost;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-gis_sql.tmp 2>&1
---remove_file $MYSQL_TMP_DIR/mysqlx-gis_sql.tmp
+--exec $MYSQLXTEST -u insertsqluser --password='insertsqluser' --file=$MYSQL_TMP_DIR/mysqlx-gis_sql.xpl 2>&1
 
+# Cleanup
+--source ../include/xplugin_cleanup.inc

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -163,6 +163,7 @@ int srv_session_server_is_available();
   THD associated with session is attached.
 
   @param session  Session to attach
+  @param ret_previous_thd Previously attached THD
 
   @returns
     0  success

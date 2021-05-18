@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -260,7 +260,7 @@ TEST_F(DecimalTest, NegativeZeroAdd) {
   my_decimal sum;
   EXPECT_EQ(E_DEC_OK, decimal_add(&d1, &d2, &sum));
   EXPECT_TRUE(sum.sign());
-  // This one will DBUG_ASSERT
+  // This one will assert
   // EXPECT_EQ(0, my_decimal_cmp(&sum, &decimal_zero));
 }
 

@@ -61,7 +61,7 @@ connection server_1;
 # asking it to stop before creation of t3.
 
 --replace_result $master_log_file MASTER_LOG_FILE $master_log_pos_1 MASTER_LOG_POS
-eval start slave until master_log_file="$master_log_file",master_log_pos=$master_log_pos_1;
+eval start slave until SOURCE_LOG_FILE="$master_log_file",SOURCE_LOG_POS=$master_log_pos_1;
 --source include/wait_for_slave_sql_to_stop.inc
 
 # then BUG#13861 causes t3 to show up below (because stopped too
@@ -71,13 +71,13 @@ show tables;
 
 # ensure that we do not break set @a=1; insert into t3 values(@a);
 --replace_result $master_log_file MASTER_LOG_FILE $master_log_pos_2 MASTER_LOG_POS
-eval start slave until master_log_file="$master_log_file",master_log_pos=$master_log_pos_2;
+eval start slave until SOURCE_LOG_FILE="$master_log_file",SOURCE_LOG_POS=$master_log_pos_2;
 --source include/wait_for_slave_sql_to_stop.inc
 select * from t3;
 
 # ensure that we do not break transaction
 --replace_result $master_log_file MASTER_LOG_FILE $master_log_pos_3 MASTER_LOG_POS
-eval start slave until master_log_file="$master_log_file",master_log_pos=$master_log_pos_3;
+eval start slave until SOURCE_LOG_FILE="$master_log_file",SOURCE_LOG_POS=$master_log_pos_3;
 --source include/wait_for_slave_sql_to_stop.inc
 select * from t3;
 

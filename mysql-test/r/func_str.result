@@ -1087,6 +1087,8 @@ Warning	1292	Truncated incorrect DOUBLE value: 'notnumber'
 SELECT * FROM t1, t2 WHERE num=substring(str from 1 for 6);
 str	num
 notnumber	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'notnum'
 DROP TABLE t1,t2;
 CREATE TABLE t1(
 id int(11) NOT NULL auto_increment,
@@ -2252,16 +2254,16 @@ CREATE VIEW v1 AS SELECT CRC32(a) AS C FROM t1;
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10);
 SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1;
 CRC32(a)	COUNT(*)
-2212294583	1
-450215437	1
-1842515611	1
-4088798008	1
-2226203566	1
-498629140	1
 1790921346	1
-4194326291	1
+1842515611	1
+2212294583	1
+2226203566	1
 2366072709	1
 2707236321	1
+4088798008	1
+4194326291	1
+450215437	1
+498629140	1
 SELECT CRC32(a), COUNT(*) FROM t1 GROUP BY 1 ORDER BY 1;
 CRC32(a)	COUNT(*)
 450215437	1
@@ -2276,44 +2278,44 @@ CRC32(a)	COUNT(*)
 4194326291	1
 SELECT * FROM (SELECT CRC32(a) FROM t1) t2;
 CRC32(a)
-2212294583
-450215437
-1842515611
-4088798008
-2226203566
-498629140
 1790921346
-4194326291
+1842515611
+2212294583
+2226203566
 2366072709
 2707236321
+4088798008
+4194326291
+450215437
+498629140
 CREATE TABLE t2 SELECT CRC32(a) FROM t1;
 desc t2;
 Field	Type	Null	Key	Default	Extra
 CRC32(a)	int unsigned	YES		NULL	
 SELECT * FROM v1;
 C
-2212294583
-450215437
-1842515611
-4088798008
-2226203566
-498629140
 1790921346
-4194326291
+1842515611
+2212294583
+2226203566
 2366072709
 2707236321
+4088798008
+4194326291
+450215437
+498629140
 SELECT * FROM (SELECT * FROM v1) x;
 C
-2212294583
-450215437
-1842515611
-4088798008
-2226203566
-498629140
 1790921346
-4194326291
+1842515611
+2212294583
+2226203566
 2366072709
 2707236321
+4088798008
+4194326291
+450215437
+498629140
 DROP TABLE t1, t2;
 DROP VIEW v1;
 SELECT LOCATE('foo', NULL) FROM DUAL;
@@ -4474,6 +4476,8 @@ INSERT INTO t1 VALUES ();
 SELECT (SELECT (SELECT 1 FROM t1 a WHERE t1.a <_ucs2'a')) AS d5 FROM t1 GROUP BY 1;
 d5
 NULL
+Warnings:
+Warning	1292	Incorrect time value: 'a' for column 'a' at row 1
 DROP TABLE t1;
 #
 # Bug#21317406 TRUNCATED DATA WITH SUBQUERY & UTF8
@@ -5111,6 +5115,7 @@ Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - 
 do ((repeat(1,9223372036854775808))or(convert((0x6d5b5d8d)using dec8)));
 Warnings:
 Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+Warning	1292	Truncated incorrect DOUBLE value: 'm[]'
 set sql_mode=default;
 #
 # Bug #30114420 ASSERTION `CURRENT_THD->IS_ERROR()'
@@ -5178,3 +5183,123 @@ ERROR 42000: For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column
 # Bug #31798093 RECENT REGRESSION:
 #               ARG_COMPARATOR::COMPARE JUMPING TO INVALID CODE IN MEMORY
 DO CONVERT( NULLIF( @a , 'c' ) USING BINARY);
+#
+# Bug #31887870
+# QUERY WITH RPAD FUNCTION USING CHINESE STRING LEADS TO MESSY CODE
+#
+CREATE TABLE t1 (
+id INT NOT NULL,
+c1 VARCHAR(10)
+);
+INSERT INTO t1 VALUES (111,'111');
+SELECT
+RPAD(id, 11, _utf8mb4 x'E4B8ADE69687') as rpad_id,
+LPAD(id, 11, _utf8mb4 x'E4B8ADE69687') as lpad_id,
+RPAD(c1, 11, _utf8mb4 x'E4B8ADE69687') as rpad_c1,
+LPAD(c1, 11, _utf8mb4 x'E4B8ADE69687') as lpad_c1
+FROM t1;
+rpad_id	lpad_id	rpad_c1	lpad_c1
+111中文中文中文中文	中文中文中文中文111	111中文中文中文中文	中文中文中文中文111
+DROP TABLE t1;
+#
+# Bug #22523946 GET MESS CODE FOR FUNC INSERT()
+#               WITH STR AS INT CONST AND NEWSTR AS MULTI-BYTE
+#
+SELECT INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687');
+INSERT(1, 1, 2, _utf8mb4 x'E4B8ADE69687')
+中文
+#
+# Bug #21943299 FAILED CAST OF STRING-RETURNING FUNCTION TO DOUBLE
+#               EMITS NO WARNING
+SELECT 'a' + 0;
+'a' + 0
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+SELECT CAST('a' as DOUBLE);
+CAST('a' as DOUBLE)
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+SELECT CAST(CONCAT('a') as DOUBLE);
+CAST(CONCAT('a') as DOUBLE)
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'a'
+# Bug #22538859 "CONCAT( '2005' , '-01-01') - 100"
+#               DOESN'T THROW ANY WARNING
+#
+SELECT '2005-01-01' - 100;
+'2005-01-01' - 100
+1905
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2005-01-01'
+SELECT CONCAT('2005' , '-01-01') - 100;
+CONCAT('2005' , '-01-01') - 100
+1905
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '2005-01-01'
+# Bug#32096341: ISNULL continuously returns the same value for LOAD_FILE
+CREATE TABLE t1(id INTEGER NOT NULL PRIMARY KEY);
+INSERT INTO t1 VALUES(0);
+CALL p1();
+is null
+1
+CALL p1();
+is null
+0
+DROP PROCEDURE p1;
+DROP TABLE t1;
+#
+# Bug #32163391 ASSERTION `CRC32_Z(CRC, POS, LENGTH)
+#               < STD::NUMERIC_LIMITS<HA_CHECKSUM>::MAX()' FAILED.
+do crc32(char(1.134475e+308));
+#
+# Bug#32192454: WL14340: RPDSERVER SIG11 AT
+# RPDMPR_BVFLT_RPDMPR_DTYPE_SB8_RPDOQC_OPT_TYPE_GT_TRUE
+#
+CREATE TABLE t(x LONGTEXT);
+SELECT UNHEX(x) FROM t;
+Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is_null	Flags	Decimals	Charsetnr
+def					UNHEX(x)	251	2147483648	0	Y	128	31	63
+UNHEX(x)
+DROP TABLE t;
+Bug#32501472: Concatenation may create invalid UTF8 strings
+CREATE TABLE t1(a CHAR(1) CHARACTER SET utf8mb4);
+INSERT INTO t1 VALUES('a');
+SELECT CONCAT(a, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT CONCAT_WS(',', a, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT CONCAT_WS(x'ff', a, a) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT INSERT(a, 1, 1, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+DROP TABLE t1;
+CREATE TABLE t1(a VARCHAR(3), b VARCHAR(3));
+INSERT INTO t1 VALUES('on','off');
+SELECT EXPORT_SET(7, a, b, x'ff', 4) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT EXPORT_SET(7, a, x'ff', b, 4) FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+SELECT MAKE_SET(7, a, b, x'ff') FROM t1;
+ERROR HY000: Cannot convert string '\xFF' from binary to utf8mb4
+DROP TABLE t1;
+Bug#30746908: Assertion `(tlen % 4) == 0' in my_strnncollsp_utf32
+CREATE TABLE t(a INTEGER);
+INSERT INTO t VALUES (1),(2);
+SELECT (SELECT 1
+FROM t
+WHERE CONVERT(1 USING utf32) <> GROUP_CONCAT(1)
+);
+(SELECT 1
+FROM t
+WHERE CONVERT(1 USING utf32) <> GROUP_CONCAT(1)
+)
+NULL
+SELECT (SELECT 1
+FROM t
+WHERE CONVERT(1 USING gb18030) <> GROUP_CONCAT(x'a3')
+);
+ERROR HY000: Cannot convert string '\xA3' from binary to gb18030
+DROP TABLE t;

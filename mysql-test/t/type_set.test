@@ -115,3 +115,20 @@ set('1','2','3','4','5','6','7','8','9','10','11','12','13','14','15','16',
 INSERT INTO bar VALUES ("100");
 SELECT * FROM bar;
 DROP TABLE bar; 
+
+--echo #
+--echo # Bug #31019130 CASTING DOUBLE TO LONGLONG CAUSES UB
+--echo #               IN FIELD_*::STORE(DOUBLE)
+--echo #
+
+CREATE TABLE t_double (a double not null);
+INSERT INTO t_double (a) VALUES
+(-20000000000000000000000000000.0001), (20000000000000000000000000000.0001);
+
+CREATE TABLE t_set (
+  b set('up', 'down')
+);
+INSERT IGNORE INTO t_set (b) SELECT a from t_double;
+SELECT b FROM t_set;
+
+DROP TABLE t_double, t_set;

@@ -41,6 +41,7 @@ if ($c == 1)
 set optimizer_switch="firstmatch=off,materialization=on";
 }
 
+--replace_result hypergraph_optimizer=on hypergraph_optimizer=off
 select @@optimizer_switch;
 
 let $query=
@@ -96,6 +97,7 @@ ON (t1.a IN
 (SELECT /*+ NO_SEMIJOIN(FIRSTMATCH,LOOSESCAN,DUPSWEEDOUT) */ a FROM
 t1 t3 WHERE a > 2));
 eval EXPLAIN FORMAT=JSON $query;
+--sorted_result
 eval $query;
 
 # Verify that AJ nest isn't in SJ-or-AJ nest: the middle-level
@@ -359,8 +361,6 @@ SELECT * FROM t1 LEFT JOIN t1 AS t2
 ON 1 AND t1.col_int > ( SELECT @var FROM t1 as t3 ) AND
 NOT EXISTS ( SELECT * FROM t1 as t4);
 eval EXPLAIN $query;
-# Show that the iterator executor is used
-eval EXPLAIN FORMAT=TREE $query;
 eval $query;
 
 # Also crashed without any antijoin

@@ -7,7 +7,7 @@
 ## Setup
 #
 
---write_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
+--write_file $MYSQL_TMP_DIR/try_login_using_memory.xpl
 -->import connection_auth_mechanism_memory_helpers.macro
 
 callmacro Login_ok	REQUIRED	plain	xuser_ssl	pass;
@@ -39,13 +39,12 @@ CREATE USER xuser_ssl@localhost
 
 exec $MYSQLXTEST
   --user x_root
-  --file=$MYSQL_TMP_DIR/try_login_using_memory.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/try_login_using_memory.xpl 2>&1;
 
 
 #
 # Postamble
 #
---remove_file $MYSQL_TMP_DIR/try_login_using_memory.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc
 DROP USER xuser_ssl@localhost;
 

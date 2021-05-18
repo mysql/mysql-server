@@ -1,7 +1,51 @@
-!include suite/ndb/my.cnf
+!include include/default_mysqld.cnf
+!include include/default_ndbd.cnf
 
-[cluster_config]
-#######
-DataMemory=50M
+[cluster_config.1]
+ndbd=,
+ndb_mgmd=
+# ClusterJ test runs with 1 mysqld and 4 ndbapi nodes
+mysqld=
+ndbapi=,,,
+DataMemory            = 50M
 MaxNoOfOrderedIndexes = 150
-#
+
+[cluster_config.mysqld.1.1]
+NodeId=64
+Dedicated=1
+
+[cluster_config.ndbapi.1.1]
+NodeId=49
+
+[cluster_config.ndbapi.2.1]
+NodeId=50
+
+# Dedicated ndbapi node ids to
+# be used by the ConnectionPoolTest
+[cluster_config.ndbapi.3.1]
+NodeId=51
+Dedicated=1
+
+[cluster_config.ndbapi.4.1]
+NodeId=52
+Dedicated=1
+
+[mysqld.1.1]
+ndbcluster
+ndb-nodeid=64
+ndb-wait-connected=30
+ndb-wait-setup=120
+ndb-extra-logging=99
+# Set error log verbosity to max, otherwise info messages
+# are filtered away
+log-error-verbosity=3
+# Enable load data local functionality
+local-infile=true
+# This suite (--suite=ndb) is designed to be run without binlogging,
+# turn off binlogging (and thus also slave updates) for this mysqld
+skip-log-bin
+skip-log-slave-updates
+
+[ENV]
+NDB_CONNECTSTRING = @mysql_cluster.1.ndb_connectstring
+MASTER_MYPORT     = @mysqld.1.1.port

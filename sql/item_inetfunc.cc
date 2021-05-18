@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -55,8 +55,8 @@ static const char HEX_DIGITS[] = "0123456789abcdef";
 ///////////////////////////////////////////////////////////////////////////
 
 longlong Item_func_inet_aton::val_int() {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(arg_count == 1);
+  assert(fixed);
+  assert(arg_count == 1);
   null_value = true;
 
   uint byte_result = 0;
@@ -126,8 +126,8 @@ err:
 ///////////////////////////////////////////////////////////////////////////
 
 String *Item_func_inet_ntoa::val_str(String *str) {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(arg_count == 1);
+  assert(fixed);
+  assert(arg_count == 1);
   null_value = true;
   ulonglong n = (ulonglong)args[0]->val_int();
 
@@ -190,16 +190,20 @@ String *Item_func_inet_ntoa::val_str(String *str) {
 */
 
 longlong Item_func_inet_bool_base::val_int() {
-  DBUG_ASSERT(fixed);
+  assert(fixed);
 
   if (args[0]->result_type() != STRING_RESULT)  // String argument expected
     return 0;
 
+  null_value = false;
+
   String buffer;
   String *arg_str = args[0]->val_str(&buffer);
 
-  if (!arg_str)  // Out-of memory happened. The error has been reported.
-    return 0;    // Or: the underlying field is NULL
+  if (arg_str == nullptr || args[0]->null_value) {
+    null_value = true;
+    return 0;
+  }
 
   return calc_value(arg_str) ? 1 : 0;
 }
@@ -215,8 +219,8 @@ longlong Item_func_inet_bool_base::val_int() {
 */
 
 String *Item_func_inet_str_base::val_str_ascii(String *buffer) {
-  DBUG_ASSERT(fixed);
-  DBUG_ASSERT(arg_count == 1);
+  assert(fixed);
+  assert(arg_count == 1);
   null_value = true;
   String *arg_str;
 
@@ -247,7 +251,7 @@ err:
                       ER_WRONG_VALUE_FOR_TYPE,
                       ER_THD(current_thd, ER_WRONG_VALUE_FOR_TYPE), "string",
                       err.c_ptr_safe(), func_name());
-  return nullptr;
+  return error_str();
 }
 
 ///////////////////////////////////////////////////////////////////////////
@@ -495,7 +499,7 @@ static bool str_to_ipv6(const char *str, int str_length,
       group_value <<= 4;
       group_value |= hdp - HEX_DIGITS;
 
-      DBUG_ASSERT(group_value <= 0xffff);
+      assert(group_value <= 0xffff);
 
       ++chars_in_group;
     }

@@ -338,7 +338,7 @@ set sql_log_bin=1;
 create user rpl@127.0.0.1 identified by 'rpl';
 grant replication slave on *.* to rpl@127.0.0.1;
 flush privileges;
-change master to master_user='rpl',master_password='rpl', get_master_public_key=1;
+CHANGE REPLICATION SOURCE to SOURCE_USER='rpl',SOURCE_PASSWORD='rpl', GET_SOURCE_PUBLIC_KEY=1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -391,6 +391,11 @@ Rpl_semi_sync_master_no_tx	1
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
 Rpl_semi_sync_master_yes_tx	2
+select subsystem, error_code
+from performance_schema.error_log
+where error_code="MY-011170" limit 1;
+subsystem	error_code
+Repl	MY-011170
 #
 # Test semi-sync slave connect to non-semi-sync master
 #
@@ -485,7 +490,7 @@ Rpl_semi_sync_slave_status	OFF
 #
 include/uninstall_semisync.inc
 include/stop_slave.inc
-change master to master_user='root',master_password='', get_master_public_key=0;
+CHANGE REPLICATION SOURCE to SOURCE_USER='root',SOURCE_PASSWORD='', GET_SOURCE_PUBLIC_KEY=0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

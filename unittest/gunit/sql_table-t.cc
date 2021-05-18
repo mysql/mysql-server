@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -135,7 +135,7 @@ TEST_F(SqlTableTest, FileNameToTableName) {
   size_t name_length;
   name_length = filename_to_tablename(test_filename, test_tablename,
                                       sizeof(test_tablename)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                           ,
                                       true
 #endif
@@ -145,7 +145,7 @@ TEST_F(SqlTableTest, FileNameToTableName) {
   // This one used to fail if compiled with -DHAVE_VALGRIND
   name_length =
       filename_to_tablename(foo.str, test_tablename, sizeof(test_tablename)
-#ifndef DBUG_OFF
+#ifndef NDEBUG
                                                          ,
                             true
 #endif

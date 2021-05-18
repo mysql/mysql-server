@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,8 +25,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <assert.h>
 #include <errno.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +40,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-#include "my_dbug.h"
+
 #include "my_inttypes.h"
 #include "my_macros.h"
 #include "my_sys.h" /* Needed for MY_ERRNO_ERANGE */
@@ -215,7 +217,7 @@ size_t my_caseup_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen MY_ATTRIBUTE((unused))) {
   char *end = src + srclen;
   const uchar *map = cs->to_upper;
-  DBUG_ASSERT(src == dst && srclen == dstlen);
+  assert(src == dst && srclen == dstlen);
   for (; src != end; src++) *src = (char)map[(uchar)*src];
   return srclen;
 }
@@ -225,7 +227,7 @@ size_t my_casedn_8bit(const CHARSET_INFO *cs, char *src, size_t srclen,
                       size_t dstlen MY_ATTRIBUTE((unused))) {
   char *end = src + srclen;
   const uchar *map = cs->to_lower;
-  DBUG_ASSERT(src == dst && srclen == dstlen);
+  assert(src == dst && srclen == dstlen);
   for (; src != end; src++) *src = (char)map[(uchar)*src];
   return srclen;
 }
@@ -981,11 +983,7 @@ uint my_instr_simple(const CHARSET_INFO *cs, const char *b, size_t b_length,
 extern "C" {
 static size_t my_well_formed_len_ascii(
     const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), const char *start,
-    const char *end, size_t nchars, int *error) {
-  /**
-    @todo: Currently return warning on invalid character.
-           Return error in future release.
-  */
+    const char *end, size_t nchars MY_ATTRIBUTE((unused)), int *error) {
   const char *oldstart = start;
   *error = 0;
   while (start < end) {
@@ -995,7 +993,7 @@ static size_t my_well_formed_len_ascii(
     }
     start++;
   }
-  return std::min<size_t>(end - oldstart, nchars);
+  return start - oldstart;
 }
 }  // extern "C"
 
@@ -1143,9 +1141,9 @@ int my_mb_ctype_8bit(const CHARSET_INFO *cs, int *ctype, const uchar *s,
   return 1;
 }
 
-#define CUTOFF (ULLONG_MAX / 10)
-#define CUTLIM (ULLONG_MAX % 10)
-#define DIGITS_IN_ULONGLONG 20
+constexpr const uint64_t CUTOFF{ULLONG_MAX / 10};
+constexpr const uint64_t CUTLIM{ULLONG_MAX % 10};
+constexpr const int DIGITS_IN_ULONGLONG{20};
 
 static ulonglong d10[DIGITS_IN_ULONGLONG] = {1,
                                              10,
@@ -1232,7 +1230,8 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
   ulonglong ull;
   ulong ul;
   uchar ch;
-  int shift = 0, digits = 0, negative, addon;
+  int shift = 0, digits = 0, addon;
+  bool negative;
 
   /* Skip leading spaces and tabs */
   for (; str < end && (*str == ' ' || *str == '\t'); str++)
@@ -1309,8 +1308,7 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     if (*str == '.') {
       if (dot) {
         /* The second dot character */
-        addon = 0;
-        goto exp;
+        goto dotshift;
       } else {
         dot = str + 1;
       }
@@ -1320,6 +1318,8 @@ ulonglong my_strntoull10rnd_8bit(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
     /* Unknown character, exit the loop */
     break;
   }
+
+dotshift:
   shift = dot ? (int)(dot - str) : 0; /* Right shift */
   addon = 0;
 
@@ -1335,7 +1335,7 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
     if (str < end) {
       longlong negative_exp, exponent;
       if ((negative_exp = (*str == '-')) || *str == '+') {
-        if (++str == end) goto ret_sign;
+        if (++str == end) goto check_shift_overflow;
       }
       for (exponent = 0; str < end && (ch = (uchar)(*str - '0')) < 10; str++) {
         if (exponent <= (std::numeric_limits<longlong>::max() - ch) / 10)
@@ -1364,12 +1364,13 @@ exp: /* [ E [ <sign> ] <unsigned integer> ] */
       goto ret_zero; /* Exponent is a big negative number, return 0 */
 
     d = d10[-shift];
-    r = (ull % d) * 2;
+    r = ull % d;
     ull /= d;
-    if (r >= d) ull++;
+    if (r >= d / 2) ull++;
     goto ret_sign;
   }
 
+check_shift_overflow:
   if (shift > DIGITS_IN_ULONGLONG) /* Huge left shift */
   {
     if (!ull) goto ret_sign;
@@ -1425,8 +1426,13 @@ ret_edom:
 ret_too_big:
   *endptr = str;
   *error = MY_ERRNO_ERANGE;
-  return unsigned_flag ? ULLONG_MAX
-                       : negative ? (ulonglong)LLONG_MIN : (ulonglong)LLONG_MAX;
+  if (unsigned_flag) {
+    if (negative) return 0;
+    return ULLONG_MAX;
+  } else {
+    if (negative) return LLONG_MIN;
+    return LLONG_MAX;
+  }
 }
 
 /*

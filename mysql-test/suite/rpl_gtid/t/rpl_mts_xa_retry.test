@@ -2,8 +2,9 @@
 # Test case for BUG#30198097
 #
 
---source include/master-slave.inc
 --source include/have_binlog_format_row.inc
+--source include/no_slave_preserve_commit_order.inc
+--source include/master-slave.inc
 
 --source include/rpl_connection_master.inc
 --let $saved_master_binlog_transaction_compression=`SELECT @@session.binlog_transaction_compression`

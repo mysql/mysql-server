@@ -198,6 +198,7 @@ GROUP BY c1;
 --replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_method;
 
 let query=
@@ -206,6 +207,7 @@ GROUP BY c1;
 --replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_method;
 
 let query=
@@ -214,6 +216,7 @@ GROUP BY c1;
 --replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_method;
 
 let query=
@@ -223,6 +226,7 @@ GROUP BY c1;
 --replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_method;
 
 let query=
@@ -232,6 +236,7 @@ GROUP BY c1,i1;
 --replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_method;
 
 let query=
@@ -241,6 +246,7 @@ GROUP BY c1,i1;
 --replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_method;
 
 let query=
@@ -250,6 +256,7 @@ GROUP BY c1,i1;
 --replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
+--skip_if_hypergraph  # Does not output the same optimizer trace.
 eval $show_method;
 
 SET optimizer_trace_max_mem_size=DEFAULT;
@@ -403,6 +410,7 @@ SET optimizer_trace="enabled=on";
 
 eval $query1;
 SELECT TRACE INTO @trace FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+--skip_if_hypergraph  # Optimizer trace does not contain the same contents.
 SELECT @trace RLIKE "keypart_reference_from_where_clause";
 
 SET optimizer_trace="enabled=off";

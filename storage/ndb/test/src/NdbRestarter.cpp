@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -47,7 +47,6 @@
 NdbRestarter::NdbRestarter(const char* _addr, Ndb_cluster_connection * con):
   handle(NULL),
   connected(false),
-  m_config(0),
   m_reconnect(false),
   m_cluster_connection(con)
 {
@@ -1054,14 +1053,17 @@ int NdbRestarter::exitSingleUserMode(){
   return reply.return_code;  
 }
 
-ndb_mgm_configuration*
-NdbRestarter::getConfig(){
-  if(m_config) return m_config;
+/*
+   Fetch configuration from ndb_mgmd unless config has already been fetched
+   (and thus cached earlier). Return pointer to configuration.
+*/
+const ndb_mgm_configuration* NdbRestarter::getConfig(){
+  if(m_config) return m_config.get();
 
   if (!isConnected())
     return 0;
-  m_config = ndb_mgm_get_configuration(handle, 0);
-  return m_config;
+  m_config.reset(ndb_mgm_get_configuration(handle, 0));
+  return m_config.get();
 }
 
 int

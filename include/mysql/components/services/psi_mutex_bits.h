@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -22,6 +22,8 @@
 
 #ifndef COMPONENTS_SERVICES_PSI_MUTEX_BITS_H
 #define COMPONENTS_SERVICES_PSI_MUTEX_BITS_H
+
+#include <mysql/components/services/bits/psi_bits.h>
 
 /**
   @file
@@ -91,7 +93,7 @@ struct PSI_mutex_info_v1 {
   Interface for an instrumented mutex.
   This is an opaque structure.
 */
-struct PSI_mutex;
+struct PSI_mutex : PSI_instr {};
 typedef struct PSI_mutex PSI_mutex;
 
 /**

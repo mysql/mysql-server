@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -46,13 +46,12 @@
 #include "storage/ndb/plugin/ndb_schema_dist_table.h"
 
 bool ndb_sdi_serialize(THD *thd, const dd::Table *table_def,
-                       const char *schema_name_str, dd::sdi_t &sdi) {
-  const dd::String_type schema_name(schema_name_str);
+                       const char *schema_name, dd::sdi_t &sdi) {
   // Require the table to be visible, hidden by SE(like mysql.ndb_schema)
   // or else have temporary name
-  DBUG_ASSERT(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
-              table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE ||
-              ndb_name_is_temp(table_def->name().c_str()));
+  assert(table_def->hidden() == dd::Abstract_table::HT_VISIBLE ||
+         table_def->hidden() == dd::Abstract_table::HT_HIDDEN_SE ||
+         ndb_name_is_temp(table_def->name().c_str()));
 
   // Make a copy of the table definition to allow it to
   // be modified before serialization
@@ -60,8 +59,8 @@ bool ndb_sdi_serialize(THD *thd, const dd::Table *table_def,
 
   // Check that dd::Table::clone() properly clones the table definition
   // by comparing the serialized table def before and after clone()
-  DBUG_ASSERT(ndb_dd_sdi_serialize(thd, *table_def, schema_name) ==
-              ndb_dd_sdi_serialize(thd, *table_def_clone, schema_name));
+  assert(ndb_dd_sdi_serialize(thd, *table_def, schema_name) ==
+         ndb_dd_sdi_serialize(thd, *table_def_clone, schema_name));
 
   // Don't include the se_private_id in the serialized table def.
   table_def_clone->set_se_private_id(dd::INVALID_OBJECT_ID);
@@ -97,7 +96,7 @@ void ndb_dd_fix_inplace_alter_table_def(dd::Table *table_def,
   DBUG_PRINT("enter", ("proper_table_name: %s", proper_table_name));
 
   // Check that the proper_table_name is not a temporary name
-  DBUG_ASSERT(!ndb_name_is_temp(proper_table_name));
+  assert(!ndb_name_is_temp(proper_table_name));
 
   table_def->set_name(proper_table_name);
   table_def->set_hidden(dd::Abstract_table::HT_VISIBLE);
@@ -244,6 +243,7 @@ bool ndb_dd_update_schema_uuid(THD *thd, const std::string &ndb_schema_uuid) {
   @param[out] dd_table_def    The DD table object on which the foreign keys
                               are to be defined.
   @param ndb                  The Ndb object.
+  @param schema_name          The schema name of the NDB table
   @param ndb_table            The NDB table object from which the foreign key
                               definitions are to be extracted.
 
@@ -251,6 +251,7 @@ bool ndb_dd_update_schema_uuid(THD *thd, const std::string &ndb_schema_uuid) {
   @return false       On failure
 */
 bool ndb_dd_upgrade_foreign_keys(dd::Table *dd_table_def, Ndb *ndb,
+                                 const char *schema_name,
                                  const NdbDictionary::Table *ndb_table) {
   DBUG_TRACE;
 
@@ -266,7 +267,7 @@ bool ndb_dd_upgrade_foreign_keys(dd::Table *dd_table_def, Ndb *ndb,
     char child_schema_name[FN_REFLEN + 1];
     const char *child_table_name =
         fk_split_name(child_schema_name, ndb_fk.getChildTable());
-    if (strcmp(child_schema_name, ndb->getDatabaseName()) != 0 ||
+    if (strcmp(child_schema_name, schema_name) != 0 ||
         strcmp(child_table_name, ndb_table->getName())) {
       // The FK is just referencing the table. Skip it.
       // It will be handled by the table on which it exists.

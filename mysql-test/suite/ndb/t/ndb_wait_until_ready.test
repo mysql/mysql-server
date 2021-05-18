@@ -46,8 +46,8 @@ let $mysqld_restart_time_partial_cluster_limit =
 #echo $mysqld_restart_time_partial_cluster_limit;
 
 # Stop two data nodes, one with node group, one without
---exec $NDB_MGM --no-defaults --verbose=0 --execute "2 restart -n"
---exec $NDB_MGM --no-defaults --verbose=0 --execute "4 restart -n -a"
+--exec $NDB_MGM --execute "2 restart -n"
+--exec $NDB_MGM --execute "4 restart -n -a"
 
 --echo # Check that there are only _2_ connections from second mysqld
 connection server1;
@@ -83,9 +83,9 @@ let $wait_condition = select count(*) = 2
 --source include/wait_condition.inc
 
 --echo # Start all data nodes again.
---exec $NDB_MGM --no-defaults --verbose=0 --execute "2 start"
---exec $NDB_MGM --no-defaults --verbose=0 --execute "4 start"
---exec $NDB_WAITER --no-defaults --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --execute "2 start"
+--exec $NDB_MGM --execute "4 start"
+--exec $NDB_WAITER --wait-nodes=2,4 >> $NDB_TOOLS_OUTPUT
 
 --echo # Check that there are again 4 connections from second mysqld
 connection server1;

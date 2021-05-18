@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,9 @@
 
 #include "plugin/x/src/interface/notice_output_queue.h"
 
+#include "plugin/x/src/session.h"
 #include "plugin/x/src/xpl_dispatcher.h"
 #include "plugin/x/src/xpl_error.h"
-#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 ngs::Error_code Dispatcher::execute(const ngs::Message_request &command) {

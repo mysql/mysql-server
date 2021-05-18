@@ -123,13 +123,18 @@ if ( $_privilege_checks_user == NULL)
   --let $assert_cond = $count = 1
   --source include/assert.inc
 
-  --let $assert_text = In the file the field is set to $require_table_primary_key_check_file_value
-  --let $assert_file = $MYSQLD_DATADIR/$rl_info_filename
-  --let $assert_only_after = $_privilege_checks_user_host
-  --let $assert_select = $require_table_primary_key_check_file_value
-  --let $assert_count = 1
-  --source include/assert_grep.inc
+# There might be more occurence of same value as of $require_table_primary_key_check_file_value in the file so
+# just extract the relay-log.info file just till the value of $require_table_primary_key_check_file_value
 
+  CREATE TABLE relay_log_info_content (line_content TEXT);
+  --replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+  --eval LOAD DATA INFILE '$MYSQLD_DATADIR/$rl_info_filename' INTO TABLE relay_log_info_content
+
+  --let $expected_value = `SELECT *from relay_log_info_content LIMIT 12,13`
+  --let $assert_text = In the file the field is set to $require_table_primary_key_check_file_value
+  --let $assert_cond = $require_table_primary_key_check_file_value = $expected_value
+  --source include/assert.inc
+  DROP TABLE relay_log_info_content;
 END_OF_PROCEDURE
 
 --let $MYSQLD_DATADIR= `select @@datadir`
@@ -146,11 +151,11 @@ STOP SLAVE;
 --disable_query_log
 if ( $_privilege_checks_user == NULL)
 {
-  CHANGE MASTER TO PRIVILEGE_CHECKS_USER = 'root'@'localhost', REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+  CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = 'root'@'localhost', REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 }
 if ( $_privilege_checks_user != NULL)
 {
-  CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+  CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 }
 --enable_query_log
 
@@ -166,7 +171,7 @@ START SLAVE;
 
 STOP SLAVE;
 
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF;
 
 START SLAVE;
 
@@ -180,7 +185,7 @@ START SLAVE;
 
 STOP SLAVE;
 
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = STREAM;
 
 START SLAVE;
 
@@ -251,11 +256,11 @@ UPDATE mysql.slave_relay_log_info SET Number_of_lines = 11;
 --echo #       3. A channel with a privileged user (default channel)
 --echo #     REQUIRE_TABLE_PRIMARY_KEY_CHECK is set to STREAM for all channels
 
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12 FOR CHANNEL "ch1" ;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12 FOR CHANNEL "ch1" ;
 --disable_warnings
-CHANGE MASTER TO MASTER_USER="root" FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO SOURCE_USER="root" FOR CHANNEL "group_replication_recovery";
 --enable_warnings
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=12, PRIVILEGE_CHECKS_USER = 'root'@'localhost' FOR CHANNEL "";
 
 # Revert the table to 11 lines (pre upgrade)
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Require_table_primary_key_check;
@@ -287,7 +292,7 @@ RESET SLAVE ALL FOR CHANNEL "group_replication_recovery";
 --echo #      The option should not be affected
 --echo #      It also survives a server restart
 
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON;
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'ON'`
 --let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
@@ -326,7 +331,7 @@ RESET SLAVE ALL;
 --echo # 5.3. Make RESET SLAVE fail due to persistence issues
 --echo #      Check that errors on slave info persistence are gracefully handled
 
-CHANGE MASTER TO MASTER_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "";
 
 --let $count = `SELECT COUNT(*) FROM mysql.slave_relay_log_info WHERE REQUIRE_TABLE_PRIMARY_KEY_CHECK = 'OFF'`
 --let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
@@ -358,7 +363,7 @@ CALL mtr.add_suppression("Slave SQL for channel '': Slave failed to initialize r
 
 --disable_warnings
 --disable_query_log
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='root'
 --enable_query_log
 --enable_warnings
 

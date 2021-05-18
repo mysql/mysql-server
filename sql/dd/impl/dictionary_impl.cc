@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,8 @@
 #include "sql/dd/impl/tables/table_partitions.h"  // dd::tables::Table_partitions
 #include "sql/dd/impl/tables/tables.h"            // dd::tables::Tables
 #include "sql/dd/impl/tables/tablespaces.h"       // dd::tables::Tablespaces
-#include "sql/dd/impl/utils.h"                    // dd::tables::Tablespaces
+#include "sql/dd/impl/upgrade/server.h"
+#include "sql/dd/impl/utils.h"            // dd::tables::Tablespaces
 #include "sql/dd/info_schema/metadata.h"  // dd::info_schema::store_dynamic...
 #include "sql/dd/types/abstract_table.h"  // dd::Abstract_table::DD_table
 #include "sql/dd/types/column.h"          // dd::Column::DD_table
@@ -65,6 +66,7 @@
 #include "sql/derror.h"
 #include "sql/handler.h"
 #include "sql/mdl.h"
+#include "sql/mysqld.h"                 //next_query_id()
 #include "sql/opt_costconstantcache.h"  // init_optimizer_cost_module
 #include "sql/plugin_table.h"
 #include "sql/sql_base.h"   // close_cached_tables
@@ -101,7 +103,7 @@ const String_type Dictionary_impl::DEFAULT_CATALOG_NAME("def");
 bool Dictionary_impl::init(enum_dd_init_type dd_init) {
   if (dd_init == enum_dd_init_type::DD_INITIALIZE ||
       dd_init == enum_dd_init_type::DD_RESTART_OR_UPGRADE) {
-    DBUG_ASSERT(!Dictionary_impl::s_instance);
+    assert(!Dictionary_impl::s_instance);
 
     if (Dictionary_impl::s_instance) return false; /* purecov: inspected */
 
@@ -212,8 +214,8 @@ uint Dictionary_impl::get_actual_dd_version(THD *thd) {
   uint version = 0;
   bool error MY_ATTRIBUTE((unused)) = tables::DD_properties::instance().get(
       thd, "DD_VERSION", &version, &exists);
-  DBUG_ASSERT(!error);
-  DBUG_ASSERT(exists);
+  assert(!error);
+  assert(exists);
   return version;
 }
 
@@ -230,8 +232,8 @@ uint Dictionary_impl::get_actual_I_S_version(THD *thd) {
   uint version = 0;
   bool error MY_ATTRIBUTE((unused)) = tables::DD_properties::instance().get(
       thd, "IS_VERSION", &version, &exists);
-  DBUG_ASSERT(!error);
-  DBUG_ASSERT(exists);
+  assert(!error);
+  assert(exists);
   return version;
 }
 
@@ -252,8 +254,8 @@ uint Dictionary_impl::get_actual_P_S_version(THD *thd) {
   uint version = 0;
   bool error MY_ATTRIBUTE((unused)) = tables::DD_properties::instance().get(
       thd, "PS_VERSION", &version, &exists);
-  DBUG_ASSERT(!error);
-  DBUG_ASSERT(exists);
+  assert(!error);
+  assert(exists);
   return version;
 }
 
@@ -731,6 +733,23 @@ void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst) {
     return;
   }
   thd->locked_tables_list.add_rename_tablespace_mdls(src, dst);
+}
+
+bool alter_tablespace_encryption(THD *thd, const char *tablespace_name,
+                                 bool encryption) {
+  dd::upgrade::Bootstrap_error_handler error_handler;
+  bool save_log_error = dd::upgrade::Bootstrap_error_handler::m_log_error;
+  error_handler.set_log_error(false);
+
+  thd->set_query_id(next_query_id());
+
+  dd::String_type query = dd::String_type("ALTER TABLESPACE ") +
+                          tablespace_name + dd::String_type(" ENCRYPTION = ") +
+                          dd::String_type(encryption ? "'Y'" : "'N'");
+
+  bool res = execute_query(thd, query);
+  error_handler.set_log_error(save_log_error);
+  return res;
 }
 
 }  // namespace dd

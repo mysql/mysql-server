@@ -29,7 +29,7 @@
 --let $slave_sleep= 2
 
 --source include/rpl_connection_slave.inc
---eval CHANGE MASTER TO MASTER_DELAY= $delay
+--eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay
 source include/start_slave.inc;
 
 # Verify that the DESIRED_DELAY in replication_applier_configuration table
@@ -82,7 +82,7 @@ DROP TABLE t1;
 --source include/rpl_connection_slave.inc
 --source include/remove_debug_point.inc
 --source include/stop_slave_sql.inc
-CHANGE MASTER TO MASTER_DELAY= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
 --source include/start_slave_sql.inc
 
 --source include/rpl_connection_master.inc

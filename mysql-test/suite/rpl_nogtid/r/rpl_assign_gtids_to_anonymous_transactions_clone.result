@@ -1,0 +1,86 @@
+#
+# 1. Set up source server_1 with server_2 being a replica.
+include/rpl_init.inc [topology=1->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+#
+# 2. Create a table for testing
+[connection server_1]
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+#
+# 3. Configure ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL on server 2
+#    verify the UUID used while creating gtid_events from the corresponding
+#    anonymous_gtid_event.
+#    Install clone on server 2
+#    Configure server 3 to invoke clone
+[connection server_2]
+include/rpl_set_gtid_mode.inc [ON on servers 2]
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL for channel 'channel_1';
+Warnings:
+Note	4017	Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation.
+include/start_slave.inc [FOR CHANNEL 'channel_1']
+[connection server_1]
+INSERT INTO t1 VALUES(10);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+include/gtid_step_assert.inc [count=1, only_count=1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+[connection server_3]
+include/spawn_monitoring_process.inc
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+SET GLOBAL clone_valid_donor_list = 'localhost:SERVER2_PORT';
+CLONE INSTANCE FROM root@localhost:SERVER2_PORT IDENTIFIED BY '';
+include/rpl_reconnect.inc
+#
+# Verify the UUID being used for converting Gtid event from
+# anonymous_gtid event.
+include/rpl_set_gtid_mode.inc [ON on servers 3]
+include/start_slave.inc
+[connection server_1]
+INSERT INTO t1 VALUES (1);
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+USE test;
+include/gtid_step_assert.inc [count=1, only_count=1]
+include/gtid_step_assert.inc [count=0, only_count=1]
+include/assert.inc [All info from server 1 is present]
+include/assert.inc [ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_VALUE_CHECK for channel_1 in performance_schema.replication_applier_configuration is ]
+include/assert.inc [Check entry for  channel_1 in mysql.slave_relay_log_info]
+#
+# 8. Cleanup
+[connection server_1]
+DROP TABLE t1;
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_1]
+include/sync_slave_sql_with_master.inc [FOR CHANNEL 'channel_1']
+[connection server_2]
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF for channel 'channel_1';
+include/rpl_set_gtid_mode.inc [OFF on servers 2]
+include/start_slave.inc [FOR CHANNEL 'channel_1']
+UNINSTALL PLUGIN clone;
+[connection server_3]
+include/stop_slave.inc [FOR CHANNEL 'channel_1']
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF for channel 'channel_1';
+include/rpl_set_gtid_mode.inc [OFF on servers 3]
+include/start_slave.inc [FOR CHANNEL 'channel_1']
+UNINSTALL PLUGIN clone;
+include/clean_monitoring_process.inc
+include/stop_slave.inc
+RESET SLAVE ALL;
+Warnings:
+Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
+set session sql_log_bin=0;
+CALL mtr.add_suppression("Clone removing all user data for provisioning: Started");
+CALL mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+CALL mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]+\.[0-9]+ for channel 'channel_1'*");
+CALL mtr.add_suppression("Recovery from master pos [0-9]+ and file [a-zA-Z-]+\.[0-9]+ for channel 'channel_3'*");
+CALL mtr.add_suppression("Relay log information for channel 'channel_1' was found after a clone operation. Relay log recovery*");
+CALL mtr.add_suppression("Relay log information for channel 'channel_3' was found after a clone operation. Relay log recovery*");
+CALL mtr.add_suppression("If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF");
+CALL mtr.add_suppression(".*Failed to initialize the master info structure for channel.*");
+CALL mtr.add_suppression("Error reading relay log configuration");
+set session sql_log_bin=1;
+include/gtid_utils_end.inc
+include/rpl_end.inc

@@ -7,7 +7,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 ############################################################
 # 0. Check that there are no persisted variables.
 [connection server1]
-include/assert.inc ['Expect 0 persisted variables.']
+include/assert.inc ['Expect 1 persisted variables.']
 
 ############################################################
 # 1. Test SET PERSIST_ONLY. Verify persisted variables.
@@ -162,3 +162,5 @@ SET GLOBAL group_replication_start_on_boot= OFF;
 SET GLOBAL group_replication_bootstrap_group= OFF;
 DROP TABLE grvars;
 include/group_replication_end.inc
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

@@ -452,7 +452,7 @@ SET GLOBAL DEBUG= '+d, skip_purge_check_shutdown';
     "dd_object": {
         "name": "test/t1",
         "comment": "",
-        "options": "encryption=N;",
+        "options": "autoextend_size=0;encryption=N;",
         "se_private_data": "flags=X;id=Y;server_version=Z;space_version=M;state=normal;",
         "engine": "InnoDB",
         "engine_attribute": "",

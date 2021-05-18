@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -103,18 +103,6 @@ class PFS_index_status_by_user : public PFS_engine_index {
   PFS_key_variable_name m_key_2;
 };
 
-/**
-  Store and retrieve table state information for queries that reinstantiate
-  the table object.
-*/
-class table_status_by_user_context : public PFS_table_context {
- public:
-  table_status_by_user_context(ulonglong current_version, bool restore)
-      : PFS_table_context(current_version,
-                          global_user_container.get_row_count(), restore,
-                          THR_PFS_SBU) {}
-};
-
 /** Table PERFORMANCE_SCHEMA.STATUS_BY_USER. */
 class table_status_by_user : public PFS_engine_table {
   typedef pos_status_by_user pos_t;
@@ -161,10 +149,6 @@ class table_status_by_user : public PFS_engine_table {
   pos_t m_pos;
   /** Next position. */
   pos_t m_next_pos;
-
-  /** Table context with global status array version and map of materialized
-   * threads. */
-  table_status_by_user_context *m_context;
 
   PFS_index_status_by_user *m_opened_index;
 };

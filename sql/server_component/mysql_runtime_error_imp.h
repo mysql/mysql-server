@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ class mysql_server_runtime_error_imp {
     It calls the server SQL error generation function and adds the error
     into the THD's error context
 
-    @param id     error id is used to retrive the error description.
+    @param id     error id is used to retrieve the error description.
     @param flags  this will tell, whether the error is a fatal statement
                   error or write the error to error log file.
     @param args   variable list which holds error message format string

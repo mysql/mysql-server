@@ -38,6 +38,7 @@
 --write_file $MYSQL_TMP_DIR/bootstrap_server.tmp
 -->sql
 SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-eeee-aaaa-aaaa-aaaaaaaaaaaa';
+SET @@GLOBAL.group_replication_ip_allowlist= "AUTOMATIC";
 SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=1;
 START GROUP_REPLICATION;
 SET GLOBAL GROUP_REPLICATION_BOOTSTRAP_GROUP=0;

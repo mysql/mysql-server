@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -34,11 +34,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "my_sys.h"
 #include "mysql/components/my_service.h"
 #include "mysql/components/service.h"
+#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/dynamic_privilege.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/registry.h"
 #include "mysql/mysql_lex_string.h"
-#include "mysql/psi/psi_base.h"
 #include "mysql/service_plugin_registry.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_common.h"
@@ -88,7 +88,7 @@ Dynamic_privilege_register *get_dynamic_privilege_register(void) {
 bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
   DBUG_TRACE;
   bool error = false;
-  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
+  assert(assert_acl_cache_write_lock(thd));
   Acl_table_intact table_intact(thd);
 
   if (table_intact.check(tablelst[0].table, ACL_TABLES::TABLE_DYNAMIC_PRIV))

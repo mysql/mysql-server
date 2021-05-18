@@ -3,7 +3,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/stmtexecute_query_result_mysqlx.xpl
 --write_file $xtest_file
 -->quiet
 
@@ -137,5 +137,4 @@ EOF
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

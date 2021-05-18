@@ -48,7 +48,7 @@ include/assert.inc [Verify group_replication_primary_member is SERVER_UUID]
 # 4. Configure server 1 with recovery credentials from server
 # 3 and start group replication.
 [connection server1]
-CHANGE MASTER TO MASTER_USER='recovery_user', MASTER_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='recovery_user', SOURCE_PASSWORD='recovery_password' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
 
 ###########################################################

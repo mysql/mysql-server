@@ -112,7 +112,7 @@ source include/stop_slave.inc;
 --echo # of heartbeats and last heartbeat timestamp!= zeros.
 --echo
 
-change master to master_heartbeat_period= 0.5;
+CHANGE REPLICATION SOURCE to SOURCE_HEARTBEAT_PERIOD= 0.5;
 
 set @restore_slave_net_timeout= @@global.slave_net_timeout;
 set @@global.slave_net_timeout= 10;
@@ -175,9 +175,9 @@ set @@global.slave_net_timeout= @restore_slave_net_timeout;
 source include/stop_slave.inc;
 replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR;
 replace_column 2 ####;
-eval change master to
-  master_user='replssl',
-  master_password='';
+eval CHANGE REPLICATION SOURCE to
+  SOURCE_USER='replssl',
+  SOURCE_PASSWORD='';
 
 start slave io_thread;
 let $slave_param= Last_IO_Errno;
@@ -338,9 +338,9 @@ source include/rpl_restart_server.inc;
 
 --connection slave
 replace_column 2 ####;
-change master to
- master_user = 'root',
- master_auto_position= 1;
+CHANGE REPLICATION SOURCE to
+ SOURCE_USER = 'root',
+ SOURCE_AUTO_POSITION= 1;
 source include/start_slave.inc;
 
 --connection master

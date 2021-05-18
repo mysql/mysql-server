@@ -250,7 +250,7 @@ insert into t2 select C.a*2+1, 'yes' from t1 C;
 explain 
 select * from t2 where a NOT IN (0, 2,4,6,8,10,12,14,16,18);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	5	NULL	12	100.00	Using index condition; Using MRR
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	11	100.00	Using index condition; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` not in (0,2,4,6,8,10,12,14,16,18))
 select * from t2 where a NOT IN (0, 2,4,6,8,10,12,14,16,18);
@@ -267,12 +267,12 @@ a	filler
 19	yes
 explain select * from t2 force index(a) where a NOT IN (2,2,2,2,2,2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	5	NULL	912	100.00	Using index condition; Using MRR
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	910	100.00	Using index condition; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` FORCE INDEX (`a`) where (`test`.`t2`.`a` not in (2,2,2,2,2,2))
 explain select * from t2 force index(a) where a <> 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	5	NULL	912	100.00	Using index condition; Using MRR
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	910	100.00	Using index condition; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` FORCE INDEX (`a`) where (`test`.`t2`.`a` <> 2)
 drop table t2;
@@ -286,7 +286,7 @@ select * from t2 where a NOT IN (
 '2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00', 
 '2006-04-25 10:06:00', '2006-04-25 10:08:00');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	6	NULL	12	100.00	Using index condition; Using MRR
+1	SIMPLE	t2	NULL	range	a	a	6	NULL	11	100.00	Using index condition; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` not in ('2006-04-25 10:00:00','2006-04-25 10:02:00','2006-04-25 10:04:00','2006-04-25 10:06:00','2006-04-25 10:08:00'))
 select * from t2 where a NOT IN (
@@ -312,7 +312,7 @@ insert into t2 values ('fon', '1'), ('fop','1'), ('barbaq','1'),
 ('barbas','1'), ('bazbazbay', '1'),('zz','1');
 explain select * from t2 where a not in('foo','barbar', 'bazbazbaz');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	13	NULL	7	100.00	Using index condition; Using MRR
+1	SIMPLE	t2	NULL	range	a	a	13	NULL	6	100.00	Using index condition; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` not in ('foo','barbar','bazbazbaz'))
 drop table t2;
@@ -325,7 +325,7 @@ insert into t2 values (0, '1'), (22334.123,'1'), (33333,'1'),
 explain
 select * from t2 where a not in (345.67890, 43245.34, 64224.56344);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	7	NULL	7	100.00	Using index condition; Using MRR
+1	SIMPLE	t2	NULL	range	a	a	7	NULL	5	100.00	Using index condition; Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`filler` AS `filler` from `test`.`t2` where (`test`.`t2`.`a` not in (345.67890,43245.34,64224.56344))
 select * from t2 where a not in (345.67890, 43245.34, 64224.56344);
@@ -528,6 +528,9 @@ DROP TABLE t1;
 End of 5.0 tests
 create table t1(f1 char(1));
 insert into t1 values ('a'),('b'),('1');
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
 select f1 from t1 where f1 in ('a',1);
 f1
 1
@@ -948,6 +951,8 @@ DROP TABLE t1;
 SELECT LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.max_allowed_packet,1,"");
 LEFT(ST_GEOMFROMTEXT("POINT(0 0)"),1) IN (@@global.max_allowed_packet,1,"")
 0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '\x00'
 # End of test BUG#11764651-57510
 End of 5.1 tests
 set optimizer_switch=default;

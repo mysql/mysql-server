@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,22 +25,25 @@
    Unit test of the Optimizer trace API (WL#5257)
 */
 
-// First include (the generated) my_config.h, to get correct platform defines.
-#include "my_config.h"
-
 #include <gtest/gtest.h>
+#include <limits.h>
+#include <string.h>
 #include <sys/types.h>
+#include <cmath>
+#include <limits>
+#include <regex>
+#include <string>
 
+#include "m_ctype.h"
+#include "m_string.h"  // llstr
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_macros.h"
-
-#include "m_string.h"    // llstr
-#include "mysys_err.h"   // for testing of OOM
-#include "sql/mysqld.h"  // system_charset_info
+#include "my_sys.h"
+#include "mysys_err.h"  // for testing of OOM
+#include "sql/json_dom.h"
 #include "sql/opt_trace.h"
-#ifdef HAVE_SYS_WAIT_H
-#include <sys/wait.h>  // for WEXITSTATUS
-#endif
+#include "sql/opt_trace_context.h"
 
 namespace opt_trace_unittest {
 
@@ -59,36 +62,24 @@ const ulonglong all_features = Opt_trace_context::default_features;
 
 /**
    Checks compliance of a trace with JSON syntax rules.
-   This is a helper which has interest only when developing the test; once you
-   know that the produced trace is compliant and has expected content, just
-   set "expected" to it, add a comparison with "expected", and don't use this
-   function.
    @param  str     pointer to trace
    @param  length  trace's length
 */
 static void do_check_json_compliance(const char *str, size_t length) {
-  return;
-  /*
-    Read from stdin, eliminate comments, parse as JSON. If invalid, an
-    exception is thrown by Python, uncaught, which produces a non-zero error
-    code.
-  */
-#ifndef _WIN32
-  const char python_cmd[] =
-      "python -c \""
-      "import json, re, sys;"
-      "s= sys.stdin.read();"
-      "s= re.sub('/\\\\*[ A-Za-z_]* \\\\*/', '', s);"
-      "json.loads(s, 'utf-8')\"";
-  // Send the trace to this new process' stdin:
-  FILE *fd = popen(python_cmd, "w");
-  ASSERT_TRUE(nullptr != fd);
-  ASSERT_NE(0U, length);  // empty is not compliant
-  ASSERT_EQ(1U, fwrite(str, length, 1, fd));
-  int rc = pclose(fd);
-  rc = WEXITSTATUS(rc);
-  EXPECT_EQ(0, rc);
-#endif
+  // There is an option for outputting end markers as comments in the optimizer
+  // trace. Comments are not understood by our JSON parser, so eliminate them
+  // before validating the trace.
+  std::string json_document(str, length);
+  std::regex comment_re("/\\*[ A-Za-z_]* \\*/");
+  json_document = std::regex_replace(json_document, comment_re, "");
+
+  const char *errmsg = nullptr;
+  size_t errpos = 0;
+  Json_dom_ptr dom = Json_dom::parse(json_document.data(), json_document.size(),
+                                     &errmsg, &errpos);
+  ASSERT_NE(nullptr, dom) << "Parse error: " << errmsg
+                          << "\nError position: " << errpos << "\nDocument:\n"
+                          << json_document;
 }
 
 extern "C" void my_error_handler(uint error, const char *str, myf MyFlags);
@@ -98,9 +89,6 @@ class TraceContentTest : public ::testing::Test {
   Opt_trace_context trace;
   static bool oom;  ///< whether we got an OOM error from opt trace
  protected:
-  static void SetUpTestCase() {
-    system_charset_info = &my_charset_utf8_general_ci;
-  }
   void SetUp() override {
     /* Save original and install our custom error hook. */
     m_old_error_handler_hook = error_handler_hook;
@@ -111,10 +99,10 @@ class TraceContentTest : public ::testing::Test {
   }
   void TearDown() override { error_handler_hook = m_old_error_handler_hook; }
 
-  static void (*m_old_error_handler_hook)(uint, const char *, myf);
+  static ErrorHandlerFunctionPointer m_old_error_handler_hook;
 };
 bool TraceContentTest::oom;
-void (*TraceContentTest::m_old_error_handler_hook)(uint, const char *, myf);
+ErrorHandlerFunctionPointer TraceContentTest::m_old_error_handler_hook;
 
 void my_error_handler(uint error, const char *, myf) {
   const uint EE = static_cast<uint>(EE_OUTOFMEMORY);
@@ -132,7 +120,7 @@ TEST_F(TraceContentTest, Empty) {
   EXPECT_TRUE(trace.support_I_S());
   /*
     Add at least an object to it. A really empty trace ("") is not
-    JSON-compliant, at least Python's JSON module raises an exception.
+    JSON-compliant.
   */
   { Opt_trace_object oto(&trace); }
   /* End trace */
@@ -174,7 +162,6 @@ TEST_F(TraceContentTest, NormalUsage) {
       }
       ota.add_alnum("one string element");
       ota.add(true);
-      ota.add_hex(12318421343459ULL);
     }
     oto.add("yet another key", -1000LL);
     {
@@ -197,8 +184,7 @@ TEST_F(TraceContentTest, NormalUsage) {
       "      \"another key\": 100\n"
       "    },\n"
       "    \"one string element\",\n"
-      "    true,\n"
-      "    0x0b341b20dce3\n"
+      "    true\n"
       "  ] /* one array */,\n"
       "  \"yet another key\": -1000,\n"
       "  \"another array\": [\n"
@@ -662,7 +648,7 @@ void open_object(uint count, Opt_trace_context *trace, bool simulate_oom) {
   open_object(count, trace, simulate_oom);
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 /// Test reaction to out-of-memory condition in trace buffer
 TEST_F(TraceContentTest, OOMinBuffer) {
@@ -748,7 +734,7 @@ TEST_F(TraceContentTest, OOMinPurge) {
   EXPECT_FALSE(oom);
 }
 
-#endif  // !DBUG_OFF
+#endif  // !NDEBUG
 
 /** Test filtering by feature */
 TEST_F(TraceContentTest, FilteringByFeature) {
@@ -918,7 +904,7 @@ TEST_F(TraceContentTest, Indent) {
       trace.start(true, false, false, false, -1, 1, ULONG_MAX, all_features));
   {
     Opt_trace_object oto(&trace);
-    open_object(100, &trace, false);
+    open_object(99, &trace, false);
   }
   trace.end();
   Opt_trace_iterator it(&trace);
@@ -941,18 +927,18 @@ TEST_F(TraceContentTest, Indent) {
     So I(N) = 2 * N and
     S(N+1) - S(N) = 11 + 4 * N
     So S(N) = 3 + 11 * (N - 1) + 2 * N * (N - 1).
-    For 100 calls, the final size is S(101) = 21303.
+    For 99 calls, the final size is S(100) = 20892.
     Each call adds 10 non-space characters, so there should be
-    21303
-    - 10 * 100 (added non-spaces characters)
+    20892
+    - 10 * 99 (added non-spaces characters)
     - 3 (non-spaces of initial object before first function call)
-    = 20300 spaces.
+    = 19899 spaces.
   */
-  EXPECT_EQ(21303U, info.trace_length);
+  EXPECT_EQ(20892U, info.trace_length);
   uint spaces = 0;
   for (uint i = 0; i < info.trace_length; i++)
     if (info.trace_ptr[i] == ' ') spaces++;
-  EXPECT_EQ(20300U, spaces);
+  EXPECT_EQ(19899U, spaces);
   check_json_compliance(info.trace_ptr, info.trace_length);
   EXPECT_EQ(0U, info.missing_bytes);
   EXPECT_FALSE(info.missing_priv);
@@ -1122,6 +1108,84 @@ TEST_F(TraceContentTest, NoOptTraceStmt) {
   trace.end();
   trace.end();
   trace.end();
+}
+
+TEST_F(TraceContentTest, DoubleValues) {
+  ASSERT_FALSE(
+      trace.start(true, false, false, false, -1, 1, ULONG_MAX, all_features));
+  {
+    Opt_trace_object oto(&trace);
+    oto.add("max", std::numeric_limits<double>::max());
+    oto.add("lowest", std::numeric_limits<double>::lowest());
+    oto.add("min", std::numeric_limits<double>::min());
+    oto.add("pi", M_PI);
+    oto.add("e", M_E);
+    oto.add("zero", 0);
+    oto.add("one", 1);
+    oto.add("0.123456", 0.123456);
+    oto.add("-0.123456", -0.123456);
+    oto.add("1.123456", 1.123456);
+    oto.add("-1.123456", -1.123456);
+    oto.add("12.123456", 12.123456);
+    oto.add("-12.123456", -12.123456);
+    oto.add("123.123456", 123.123456);
+    oto.add("-123.123456", -123.123456);
+    oto.add("1234.123456", 1234.123456);
+    oto.add("-1234.123456", -1234.123456);
+    oto.add("12345.123456", 12345.123456);
+    oto.add("-12345.123456", -12345.123456);
+    oto.add("123456.123456", 123456.123456);
+    oto.add("-123456.123456", -123456.123456);
+    oto.add("1234567.123456", 1234567.123456);
+    oto.add("-1234567.123456", -1234567.123456);
+    oto.add("12345678.123456", 12345678.123456);
+    oto.add("-12345678.123456", -12345678.123456);
+    oto.add("123456789.123456", 123456789.123456);
+    oto.add("-123456789.123456", -123456789.123456);
+  }
+  trace.end();
+
+  Opt_trace_iterator it(&trace);
+  ASSERT_FALSE(it.at_end());
+  Opt_trace_info info;
+  it.get_value(&info);
+  check_json_compliance(info.trace_ptr, info.trace_length);
+  const char expected[] = R"({
+  "max": 1.79769e+308,
+  "lowest": -1.79769e+308,
+  "min": 2.22507e-308,
+  "pi": 3.14159,
+  "e": 2.71828,
+  "zero": 0,
+  "one": 1,
+  "0.123456": 0.123456,
+  "-0.123456": -0.123456,
+  "1.123456": 1.12346,
+  "-1.123456": -1.12346,
+  "12.123456": 12.1235,
+  "-12.123456": -12.1235,
+  "123.123456": 123.123,
+  "-123.123456": -123.123,
+  "1234.123456": 1234.12,
+  "-1234.123456": -1234.12,
+  "12345.123456": 12345.1,
+  "-12345.123456": -12345.1,
+  "123456.123456": 123456,
+  "-123456.123456": -123456,
+  "1234567.123456": 1.23457e+06,
+  "-1234567.123456": -1.23457e+06,
+  "12345678.123456": 1.23457e+07,
+  "-12345678.123456": -1.23457e+07,
+  "123456789.123456": 1.23457e+08,
+  "-123456789.123456": -1.23457e+08
+})";
+  EXPECT_STREQ(expected, info.trace_ptr);
+  EXPECT_EQ(sizeof(expected) - 1, info.trace_length);
+  EXPECT_EQ(0, info.missing_bytes);
+  EXPECT_FALSE(info.missing_priv);
+  EXPECT_FALSE(oom);
+  it.next();
+  ASSERT_TRUE(it.at_end());
 }
 
 }  // namespace opt_trace_unittest

@@ -1,0 +1,266 @@
+--source include/big_test.inc
+--source include/have_innodb_16k.inc
+
+--echo #
+--echo # Tests for CREATE/ALTER TABLESPACE with AUTOEXTEND_SIZE clause
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* InnoDB: Size of tablespace myspace is more than the maximum size allowed.");
+call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* The table 'tsp' is full");
+--enable_query_log
+
+--echo # Test error conditions for CREATE TABLESPACE
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE 48K;
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE 5G;
+
+--error ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE 5M;
+
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE=8M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'myspace';
+
+--echo # Test error conditions with ALTER TABLESPACE
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE 2M;
+
+--error ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE 5G;
+
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE=4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'myspace';
+
+--echo # Validate that the autoextend_size attribute is persisted properly
+--source include/restart_mysqld.inc
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'myspace';
+
+DROP TABLESPACE myspace;
+
+--echo # CREATE/ALTER TABLESPACE with AUTOEXTEND_SIZE value set to absolute sizes
+--echo # in bytes not qualified with K, M or G
+--error ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' AUTOEXTEND_SIZE 5000000;
+
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' AUTOEXTEND_SIZE 4194304;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'myspace';
+
+DROP TABLESPACE myspace;
+
+--echo # CREATE TABLESPACE with autoextend_size > 0
+CREATE TABLESPACE myspace AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'myspace';
+
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE 0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'myspace';
+DROP TABLESPACE myspace;
+
+--echo # CREATE TABLESPACE with default AUTOEXTEND_SIZE
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace1.ibd';
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'myspace';
+
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE=4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'myspace';
+
+ALTER TABLESPACE myspace AUTOEXTEND_SIZE 0;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'myspace';
+
+DROP TABLESPACE myspace;
+
+--echo # Validate ALTER TABLESPACE cannot alter AUTOEXTEND_SIZE for a table with
+--echo # file_per_tablespace
+CREATE TABLE mytable(c1 INT);
+--error 1064
+ALTER TABLESPACE test.mytable AUTOEXTEND_SIZE=1M;
+DROP TABLE mytable;
+
+--echo # CREATE TABLE in a general tablespace with AUTOEXTEND_SIZE attribute
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd';
+--error ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE
+CREATE TABLE mytable (c1 INT) TABLESPACE myspace AUTOEXTEND_SIZE 4M;
+--error ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE
+CREATE TABLE mytable (c1 INT) TABLESPACE myspace AUTOEXTEND_SIZE=1M;
+
+CREATE TABLE mytable (c1 INT) TABLESPACE myspace;
+SHOW CREATE TABLE mytable;
+
+--error ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE
+ALTER TABLE mytable AUTOEXTEND_SIZE 8M;
+
+SHOW CREATE TABLE mytable;
+
+DROP TABLE mytable;
+
+DROP TABLESPACE myspace;
+
+--echo # Validate that AUTOEXTEND_SIZE value is effective when the server
+--echo # is started with --skip-innodb-validate-tablespace-paths command line option
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' AUTOEXTEND_SIZE 4M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%myspace%';
+
+CREATE TABLE tsp(c1 INT, c2 TEXT) TABLESPACE myspace;
+
+DELIMITER |;
+CREATE PROCEDURE bulk_insert()
+BEGIN
+  DECLARE i INT DEFAULT 1;
+  WHILE i < 10000 DO
+    INSERT INTO tsp VALUE(i, repeat('aaaaaa', 10000));
+    COMMIT;
+    SET i = i + 1;
+  END WHILE;
+END
+|
+DELIMITER ;|
+
+--let $restart_parameters = restart: --skip-innodb-validate-tablespace-paths
+--source include/restart_mysqld.inc
+
+call bulk_insert();
+
+SELECT COUNT(*) FROM tsp;
+
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%myspace%';
+
+DROP TABLE tsp;
+
+DROP TABLESPACE myspace;
+
+--echo # Validate movement of table from file_per_table tablespace to general tablespace
+--echo #   and vice versa
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' AUTOEXTEND_SIZE 8M;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%myspace%';
+
+CREATE TABLE tsp(c1 int) AUTOEXTEND_SIZE 4m;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsp%';
+
+ALTER TABLE tsp TABLESPACE myspace;
+# Table tsp should not be visible in innodb_tablespaces
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsp%' OR NAME LIKE '%myspace%';
+
+# Move the table back to a file_per_table tablespace
+ALTER TABLE tsp TABLESPACE innodb_file_per_table;
+# Table tsp should be visible in innodb_tablespaces and autoextend_size should be
+# 0 as no autoextend_size option specified with the ALTER TABLE ... TABLESPACE statement
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsp%' OR NAME LIKE '%myspace%';
+
+DROP TABLE tsp;
+
+DROP TABLESPACE myspace;
+
+DROP PROCEDURE bulk_insert;
+
+--echo # Test scenarios with autoextend_size specified while moving the table between
+--echo #   different tablespaces
+CREATE TABLESPACE myspace ADD DATAFILE 'myspace.ibd' AUTOEXTEND_SIZE 64m;
+CREATE TABLE tsp(c1 int, c2 text) AUTOEXTEND_SIZE 4m;
+INSERT INTO tsp VALUES (1, repeat('aaaaaa', 10000));
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsp%' OR NAME LIKE '%myspace%';
+SHOW CREATE TABLE tsp;
+
+# Move the table to the general tablespace while attempting to change the autoextend_size
+# value
+
+# AUTOEXTEND_SIZE value for a general tablespace cannot be changed with ALTER TABLE statement
+--error ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE
+ALTER TABLE tsp TABLESPACE myspace AUTOEXTEND_SIZE 32m;
+
+--error ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE
+ALTER TABLE tsp ADD COLUMN c3 INT, TABLESPACE myspace, AUTOEXTEND_SIZE 32m;
+
+ALTER TABLE tsp TABLESPACE myspace;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsp%' OR NAME LIKE '%myspace%';
+SHOW CREATE TABLE tsp;
+SELECT COUNT(*) FROM tsp;
+
+# Move the table to another general tablespace
+CREATE TABLESPACE myspace1 ADD DATAFILE 'myspace1.ibd' AUTOEXTEND_SIZE 4m;
+
+--error ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE
+ALTER TABLE tsp TABLESPACE myspace1, AUTOEXTEND_SIZE 16M;
+
+ALTER TABLE tsp TABLESPACE myspace1;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsp%' OR NAME LIKE '%myspace%';
+SHOW CREATE TABLE tsp;
+SELECT COUNT(*) FROM tsp;
+
+# Move the table to the system tablespace
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE tsp TABLESPACE innodb_system, AUTOEXTEND_SIZE 4m;
+
+ALTER TABLE tsp TABLESPACE innodb_system;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsp%' OR NAME LIKE '%myspace%' OR NAME LIKE '%innodb_system%';
+SHOW CREATE TABLE tsp;
+SELECT COUNT(*) FROM tsp;
+
+# Move the table to the innodb_file_per_table tablespace
+ALTER TABLE tsp TABLESPACE innodb_file_per_table, AUTOEXTEND_SIZE 8m;
+SELECT NAME, FILE_SIZE, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+  WHERE NAME LIKE '%tsp%' OR NAME LIKE '%myspace%';
+SHOW CREATE TABLE tsp;
+SELECT COUNT(*) FROM tsp;
+
+DROP TABLE tsp;
+DROP TABLESPACE myspace1;
+DROP TABLESPACE myspace;
+
+--let $restart_parameters =
+--source include/restart_mysqld.inc
+
+--echo # Validate AUTOEXTEND_SIZE is not supported on system tablespace
+
+--echo # Validate that CREATE TABLE returns error when the table is created with
+--echo # AUTOEXTEND_SIZE attribute on a system tablespace
+
+--echo # Set the default tablespace as a system tablespace
+SET GLOBAL innodb_file_per_table=0;
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
+CREATE TABLE tsystem(c1 INT) ENGINE=InnoDB AUTOEXTEND_SIZE 4M;
+
+SET GLOBAL innodb_file_per_table=1;
+
+--echo # Validate AUTOEXTEND_SIZE option works for the data dictionary
+--echo # tablespace mysql
+SELECT NAME, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'mysql';
+
+ALTER TABLESPACE mysql AUTOEXTEND_SIZE 4M;
+SELECT NAME, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'mysql';
+
+ALTER TABLESPACE mysql AUTOEXTEND_SIZE 0;
+SELECT NAME, AUTOEXTEND_SIZE FROM information_schema.innodb_tablespaces
+    WHERE NAME = 'mysql';
+
+--echo # Validate that autoextend_size is not supported for
+--echo # innodb_temporary and undo tablespaces
+--error ER_PARSE_ERROR
+CREATE UNDO TABLESPACE undotest ADD DATAFILE 'undotest.ibu' AUTOEXTEND_SIZE 4M;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE innodb_undo_001 AUTOEXTEND_SIZE 4M;
+
+--error ER_WRONG_TABLESPACE_NAME
+ALTER TABLESPACE innodb_temporary AUTOEXTEND_SIZE 4M;

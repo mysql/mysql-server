@@ -47,7 +47,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld6
-include/assert_grep.inc [Detect normal system restart in MySQL Server 6]
+include/assert_grep.inc [Detect schema dist setup in MySQL Server 6]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -60,7 +60,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld5
-include/assert_grep.inc [Detect normal system restart in MySQL Server 5]
+include/assert_grep.inc [Detect schema dist setup in MySQL Server 5]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -73,7 +73,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld4
-include/assert_grep.inc [Detect normal system restart in MySQL Server 4]
+include/assert_grep.inc [Detect schema dist setup in MySQL Server 4]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -86,7 +86,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld3
-include/assert_grep.inc [Detect normal system restart in MySQL Server 3]
+include/assert_grep.inc [Detect schema dist setup in MySQL Server 3]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null
@@ -99,7 +99,7 @@ pk	a	b
 1	hello	24
 DROP TABLE t1;
 Checking mysqld2
-include/assert_grep.inc [Detect normal system restart in MySQL Server 2]
+include/assert_grep.inc [Detect schema dist setup in MySQL Server 2]
 CREATE TABLE t1(
 pk int not null,
 a varchar(37) not null

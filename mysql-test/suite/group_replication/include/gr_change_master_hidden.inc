@@ -1,5 +1,5 @@
-# This test verifies that the CHANGE MASTER FOR recovery channel command
-# is logged in the slow log, query_log and error log, but the password
+# This test verifies that the CHANGE REPLICATION SOURCE FOR recovery channel
+# command is logged in the slow log, query_log and error log, but the password
 # value is either masked with '<secret>' or is not logged.
 #
 
@@ -26,9 +26,9 @@ TRUNCATE mysql.general_log;
 
 --source include/start_and_bootstrap_group_replication.inc
 
---echo # CHANGE MASTER with valid options will work fine and the password part will be masked with <secret>
+--echo # CHANGE REPLICATION SOURCE with valid options will work fine and the password part will be masked with <secret>
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='manish', SOURCE_PASSWORD='unique_password' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --echo # Since MASTER_PASSWORD is not stored in the performance schema table
@@ -37,9 +37,9 @@ CHANGE MASTER TO MASTER_USER='manish', MASTER_PASSWORD='unique_password' FOR CHA
 SELECT password FROM performance_schema.replication_connection_configuration;
 
 --echo server1
---let $change_count= `SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'CHANGE MASTER TO MASTER_USER = \'manish\', MASTER_PASSWORD = <secret> FOR CHANNEL \'group_replication_recovery\''`
+--let $change_count= `SELECT COUNT(*) FROM mysql.general_log WHERE argument LIKE 'CHANGE REPLICATION SOURCE TO SOURCE_USER = \'manish\', SOURCE_PASSWORD = <secret> FOR CHANNEL \'group_replication_recovery\''`
 --let $assert_cond= "$change_count" = 1
---let $assert_text= The CHANGE MASTER is logged with the password value replaced with the keyword <secret>.
+--let $assert_text= The CHANGE REPLICATION SOURCE TO is logged with the password value replaced with the keyword <secret>.
 --source include/assert.inc
 
 # Checking the default values for the User_name and User_password field.
@@ -66,7 +66,7 @@ START GROUP_REPLICATION;
 --connection server1
 
 # Cleanup
-RESET SLAVE ALL FOR CHANNEL 'group_replication_recovery';
+RESET REPLICA ALL FOR CHANNEL 'group_replication_recovery';
 SET sql_log_bin=0;
 DROP USER manish;
 SET sql_log_bin=1;

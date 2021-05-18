@@ -14,7 +14,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "channel1";
 #
 # Check that the names of relay log files per channel are properly set
 #
@@ -35,7 +35,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 #
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --relay-log-index=idx-msr-relay]
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "channel1";
 #
 # Check that the names of relay log files per channel are properly set
 #
@@ -56,7 +56,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 #    These extensions shall be stripped off
 include/rpl_stop_server.inc [server_number=2]
 include/rpl_start_server.inc [server_number=2 parameters: --relay-log-index=idx-msr-relay.index1 --relay-log=msr-relay.log1]
-CHANGE MASTER TO MASTER_HOST="localhost", MASTER_PORT=10 FOR CHANNEL "channel1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="localhost", SOURCE_PORT=10 FOR CHANNEL "channel1";
 #
 # Check that the names of relay log files per channel are properly set
 #
@@ -76,7 +76,7 @@ Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release
 # so that in the  next test case if the server restarts there is no mismatch
 # with the current options and the default option (i.e relay-log=slave-relay-bin)
 #
-CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_PORT=MYPORT,
-MASTER_USER="root";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_PORT=MYPORT,
+SOURCE_USER="root";
 include/start_slave.inc
 include/rpl_end.inc

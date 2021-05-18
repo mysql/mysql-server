@@ -118,7 +118,7 @@ t1	CREATE TABLE `t1` (
   `a` int NOT NULL,
   `b` varchar(10) COLLATE utf8_bin DEFAULT NULL,
   PRIMARY KEY (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+) ENGINE=MyISAM DEFAULT CHARSET=utf8mb3 COLLATE=utf8_bin
 DROP TABLE s2.t1;
 DROP SCHEMA s2;
 SET @@global.collation_server=latin1_swedish_ci;

@@ -1,6 +1,5 @@
 # WL#12637 Distribute ACL changes in MySQL Cluster.
 --source include/have_ndb.inc
---source suite/ndb/include/ndb_find_tools.inc
 
 # The ACL statements here are similar to distributed_grants.test, but mysql
 # server 2 is shut down at the start of this test. When restarted, it will

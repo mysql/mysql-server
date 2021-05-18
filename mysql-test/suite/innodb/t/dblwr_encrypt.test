@@ -1,0 +1,79 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # WL#13775 - InnoDB: Encrypt DBLWR files
+--echo #
+
+--echo #
+--echo # Test Begin: Test if recovery works if first page of user
+--echo # tablespace is corrupted.  Valid copy of that page is there
+--echo # in DBLWR file.
+--echo #
+
+--disable_query_log
+call mtr.add_suppression("Checksum mismatch in datafile");
+call mtr.add_suppression("\\[ERROR\\] .* Space ID in fsp header is \\d+, but in the page header it is \\d+");
+call mtr.add_suppression("\\[ERROR\\] .* A bad Space ID was found in datafile");
+--enable_query_log
+
+SET SESSION innodb_interpreter = 'init';
+
+CREATE TABLE t1 (f1 INT PRIMARY KEY, f2 BLOB) ENCRYPTION='Y';
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(1, repeat('#',12));
+INSERT INTO t1 VALUES(2, repeat('+',12));
+INSERT INTO t1 VALUES(3, repeat('/',12));
+COMMIT WORK;
+
+SELECT space from INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name = 'test/t1' INTO @space_id;
+
+--echo # Ensure that dirty pages of table t1 is flushed.
+FLUSH TABLES t1 FOR EXPORT;
+UNLOCK TABLES;
+
+SET SESSION innodb_interpreter = 'find_tablespace_file_name test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_file_name;
+
+SET SESSION innodb_interpreter = 'find_tablespace_physical_page_size test/t1';
+SELECT @@session.innodb_interpreter_output INTO @space_page_size;
+
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+let PAGE_NO=0;
+let FILE_NAME=`select @space_file_name`;
+let PAGE_SIZE=`select @space_page_size`;
+
+START TRANSACTION;
+INSERT INTO t1 VALUES(4, repeat('.',12));
+
+# Ensure that the desired page is available in the dblwr file.
+SET SESSION innodb_interpreter = CONCAT('dblwr_force_crash ', @space_id, ' 0');
+--source include/expect_crash.inc
+--error 2013
+SET SESSION innodb_interpreter = CONCAT('make_page_dirty ', @space_id, ' 0');
+
+perl;
+use IO::Handle;
+my $fname= "$ENV{'MYSQLD_DATADIR'}/$ENV{'FILE_NAME'}";
+my $page_size = $ENV{'PAGE_SIZE'};
+my $nbytes = $ENV{'PAGE_NO'} * $ENV{'PAGE_SIZE'};
+open(FILE, "+<", $fname) or die;
+FILE->autoflush(1);
+binmode FILE;
+seek(FILE, $nbytes, SEEK_SET);
+print FILE chr(0) x 38;
+close FILE;
+EOF
+
+--source include/start_mysqld.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/mysqld.1.err;
+let SEARCH_PATTERN=\\[Note\\] .* Restoring page \\[page id: space=\\d+, page number=0\\] of datafile .* from the doublewrite buffer. Writing .*;
+--source include/search_pattern.inc
+
+CHECK TABLE t1;
+SELECT f1, f2 FROM t1;
+
+DROP TABLE t1;
+--echo # Test End

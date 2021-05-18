@@ -57,12 +57,12 @@ select * from performance_schema.pfs_example_employee_name;
 ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
 insert into performance_schema.pfs_example_employee_name
 values (1, "First", "Last");
-ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'pfs_example_employee_name'
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
 update performance_schema.pfs_example_employee_name
 set employee_number = 2 where employee_number = 1;
-ERROR 42000: UPDATE command denied to user 'root'@'localhost' for table 'pfs_example_employee_name'
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
 delete from performance_schema.pfs_example_employee_name;
-ERROR 42000: DELETE command denied to user 'root'@'localhost' for table 'pfs_example_employee_name'
+ERROR 42S02: Table 'performance_schema.pfs_example_employee_name' doesn't exist
 ##########################################
 # SERVER RESTART, AFTER PLUGIN UNINSTALL #
 ##########################################

@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,6 +48,7 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_bitmap.h"
+#include "my_checksum.h"  // ha_checksum
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_double2ulonglong.h"
@@ -57,6 +58,7 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
 #include "mysql/components/services/psi_table_bits.h"
+#include "nullable.h"          // Nullable
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/object_table.h"  // dd::Object_table
@@ -88,6 +90,8 @@ struct System_status_var;
 namespace dd {
 class Properties;
 }  // namespace dd
+struct AccessPath;
+struct JoinHypergraph;
 struct KEY_CACHE;
 struct LEX;
 struct MY_BITMAP;
@@ -784,6 +788,12 @@ constexpr const uint64_t HA_CREATE_USED_SECONDARY_ENGINE_ATTRIBUTE{1ULL << 33};
 */
 constexpr const uint64_t HA_CREATE_USED_READ_ONLY{1ULL << 34};
 
+/**
+  These flags convey that the options AUTOEXTEND_SIZE has been
+  specified in the CREATE TABLE statement
+*/
+constexpr const uint64_t HA_CREATE_USED_AUTOEXTEND_SIZE{1ULL << 35};
+
 /*
   End of bits used in used_fields
 */
@@ -853,12 +863,13 @@ class st_alter_tablespace {
   ulonglong undo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong redo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong initial_size = 128 * 1024 * 1024;    // Default 128 MByte
-  ulonglong autoextend_size = 0;                 // No autoextension as default
+  Mysql::Nullable<ulonglong> autoextend_size;    // No autoextension as default
   ulonglong max_size = 0;         // Max size == initial size => no extension
   ulonglong file_block_size = 0;  // 0=default or must be a valid Page Size
   uint nodegroup_id = UNDEF_NODEGROUP;
   bool wait_until_completed = true;
   const char *ts_comment = nullptr;
+  const char *encryption = nullptr;
 
   bool is_tablespace_command() {
     return ts_cmd_type == CREATE_TABLESPACE ||
@@ -1440,6 +1451,7 @@ typedef bool (*upgrade_space_version_t)(dd::Tablespace *tablespace);
   and cleanup after upgrade.
 
   @param    thd      Thread context
+  @param failed_upgrade True if the upgrade failed.
 
   @return Operation status.
   @retval == 0  Success.
@@ -1595,6 +1607,7 @@ typedef bool (*sdi_get_t)(const dd::Tablespace &tablespace,
   Insert/Update SDI for a given SDI key.
   @param[in]  hton        handlerton object
   @param[in]  tablespace  tablespace object
+  @param[in]  table       table object
   @param[in]  sdi_key     SDI key to uniquely identify SDI obj
   @param[in]  sdi         SDI to write into the tablespace
   @param[in]  sdi_len     length of SDI BLOB returned
@@ -1609,6 +1622,7 @@ typedef bool (*sdi_set_t)(handlerton *hton, const dd::Tablespace &tablespace,
 /**
   Delete SDI for a given SDI key.
   @param[in]  tablespace  tablespace object
+  @param[in]  table       table object
   @param[in]  sdi_key     SDI key to uniquely identify SDI obj
   @retval     false       success
   @retval     true        failure, my_error() should be called
@@ -2170,6 +2184,57 @@ using compare_secondary_engine_cost_t = bool (*)(THD *thd, const JOIN &join,
                                                  bool *cheaper,
                                                  double *secondary_engine_cost);
 
+/**
+  Evaluates the cost of executing the given access path in this secondary
+  storage engine, and potentially modifies the cost estimates that are in the
+  access path. This function is only called from the hypergraph join optimizer.
+
+  The function is called on every access path that the join optimizer might
+  compare to an alternative access path. This includes both paths that represent
+  complete execution plans and paths that represent partial plans. It is not
+  guaranteed to be called on every child path. For example, if GROUP BY is done
+  by sorting first and then aggregating the sorted results, the function will
+  only be called on the aggregation path, and not on the sort path, because only
+  the aggregation path will be compared to other paths.
+
+  The secondary engine is allowed to modify the estimates in the access path to
+  better match the costs of the access path in the secondary engine. It can
+  change any of the following AccessPath members:
+
+  - init_cost
+  - cost
+  - cost_before_filter
+  - num_output_rows
+  - num_output_rows_before_filter
+  - secondary_engine_data
+
+  Any other members should be left unchanged. The AccessPath must be in an
+  internally consistent state when the function returns, and satisfy invariants
+  expected by the hypergraph join optimizer, such as:
+
+  - init_cost <= cost_before_filter <= cost
+  - num_output_rows <= num_output_rows_before_filter
+
+  The secondary engine can also reject an access path altogether, by returning
+  true, in which case the join optimizer will not use that path in the final
+  plan. Since the secondary engine can reject any partial or complete plan, it
+  is possible that the join optimizer does not find any valid plan that is
+  accepted. In this case, the join optimizer will raise an error.
+
+  If the secondary encounters an error when evaluating the cost of the path, it
+  can signal an error by calling my_error() and return true, in which case the
+  join optimizer will not suggest any plan for the query.
+
+  @param thd The thread context.
+  @param hypergraph The hypergraph that represents the search space.
+  @param[in,out] access_path The AccessPath to evaluate.
+
+  @retval false on success.
+  @retval true if the plan is to be rejected, or if an error was raised.
+*/
+using secondary_engine_modify_access_path_cost_t = bool (*)(
+    THD *thd, const JoinHypergraph &hypergraph, AccessPath *access_path);
+
 // FIXME: Temporary workaround to enable storage engine plugins to use the
 // before_commit hook. Remove after WL#11320 has been completed.
 typedef void (*se_before_commit_t)(void *arg);
@@ -2375,7 +2440,7 @@ struct handlerton {
   is_reserved_db_name_t is_reserved_db_name;
 
   /** Global handler flags. */
-  uint32 flags;
+  uint32 flags{0};
 
   /*
     Those handlerton functions below are properly initialized at handler
@@ -2493,6 +2558,23 @@ struct handlerton {
     @see compare_secondary_engine_cost_t for function signature.
   */
   compare_secondary_engine_cost_t compare_secondary_engine_cost;
+
+  /// Bitmap which contains the supported access path types for a
+  /// secondary storage engine when used with the hypergraph join
+  /// optimizer. If it is empty, it means that the secondary engine
+  /// does not support the hypergraph join optimizer.
+  ///
+  /// It is currently only used to limit which join types the join
+  /// optimizer can choose from. Bits that represent access path types
+  /// that are not joins, are currently ignored.
+  uint64_t secondary_engine_supported_access_paths;
+
+  /// Pointer to a function that evaluates the cost of executing an access path
+  /// in a secondary storage engine.
+  ///
+  /// @see secondary_engine_modify_access_path_cost_t for function signature.
+  secondary_engine_modify_access_path_cost_t
+      secondary_engine_modify_access_path_cost;
 
   se_before_commit_t se_before_commit;
   se_after_commit_t se_after_commit;
@@ -2699,7 +2781,9 @@ struct HA_CREATE_INFO {
   ulong table_options{0};
   ulong avg_row_length{0};
   uint64_t used_fields{0};
-  ulong key_block_size{0};
+  // Can only be 1,2,4,8 or 16, but use uint32_t since that how it is
+  // represented in InnoDB
+  std::uint32_t key_block_size{0};
   uint stats_sample_pages{0}; /* number of pages to sample during
                            stats estimation, if used, otherwise 0. */
   enum_stats_auto_recalc stats_auto_recalc{HA_STATS_AUTO_RECALC_DEFAULT};
@@ -2736,6 +2820,10 @@ struct HA_CREATE_INFO {
   LEX_CSTRING engine_attribute = NULL_CSTR;
   LEX_CSTRING secondary_engine_attribute = NULL_CSTR;
 
+  ulonglong m_implicit_tablespace_autoextend_size{0};
+
+  bool m_implicit_tablespace_autoextend_size_change{true};
+
   /**
     Fill HA_CREATE_INFO to be used by ALTER as well as upgrade code.
     This function separates code from mysql_prepare_alter_table() to be
@@ -2749,7 +2837,7 @@ struct HA_CREATE_INFO {
   */
 
   void init_create_options_from_share(const TABLE_SHARE *share,
-                                      uint used_fields);
+                                      uint64_t used_fields);
 };
 
 /**
@@ -2992,6 +3080,9 @@ class Alter_inplace_info {
 
   // Suspend check constraint.
   static const HA_ALTER_FLAGS SUSPEND_CHECK_CONSTRAINT = 1ULL << 48;
+
+  // Alter column visibility.
+  static const HA_ALTER_FLAGS ALTER_COLUMN_VISIBILITY = 1ULL << 49;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
@@ -3362,7 +3453,7 @@ class Cost_estimate {
 
   /// Multiply io, cpu and import costs by parameter
   void multiply(double m) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
 
     io_cost *= m;
     cpu_cost *= m;
@@ -3371,7 +3462,7 @@ class Cost_estimate {
   }
 
   Cost_estimate &operator+=(const Cost_estimate &other) {
-    DBUG_ASSERT(!is_max_cost() && !other.is_max_cost());
+    assert(!is_max_cost() && !other.is_max_cost());
 
     io_cost += other.io_cost;
     cpu_cost += other.cpu_cost;
@@ -3391,7 +3482,7 @@ class Cost_estimate {
   Cost_estimate operator-(const Cost_estimate &other) {
     Cost_estimate result;
 
-    DBUG_ASSERT(!other.is_max_cost());
+    assert(!other.is_max_cost());
 
     result.io_cost = io_cost - other.io_cost;
     result.cpu_cost = cpu_cost - other.cpu_cost;
@@ -3410,25 +3501,25 @@ class Cost_estimate {
 
   /// Add to IO cost
   void add_io(double add_io_cost) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
     io_cost += add_io_cost;
   }
 
   /// Add to CPU cost
   void add_cpu(double add_cpu_cost) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
     cpu_cost += add_cpu_cost;
   }
 
   /// Add to import cost
   void add_import(double add_import_cost) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
     import_cost += add_import_cost;
   }
 
   /// Add to memory cost
   void add_mem(double add_mem_cost) {
-    DBUG_ASSERT(!is_max_cost());
+    assert(!is_max_cost());
     mem_cost += add_mem_cost;
   }
 };
@@ -4036,9 +4127,9 @@ class handler {
   typedef ulonglong Table_flags;
 
  protected:
-  TABLE_SHARE *table_share;       /* The table definition */
-  TABLE *table;                   /* The current open table */
-  Table_flags cached_table_flags; /* Set on init() and open() */
+  TABLE_SHARE *table_share;          /* The table definition */
+  TABLE *table;                      /* The current open table */
+  Table_flags cached_table_flags{0}; /* Set on init() and open() */
 
   ha_rows estimation_rows_to_insert;
 
@@ -4290,11 +4381,11 @@ class handler {
   }
 
   virtual ~handler(void) {
-    DBUG_ASSERT(m_psi == nullptr);
-    DBUG_ASSERT(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
-    DBUG_ASSERT(m_psi_locker == nullptr);
-    DBUG_ASSERT(m_lock_type == F_UNLCK);
-    DBUG_ASSERT(inited == NONE);
+    assert(m_psi == nullptr);
+    assert(m_psi_batch_mode == PSI_BATCH_MODE_NONE);
+    assert(m_psi_locker == nullptr);
+    assert(m_lock_type == F_UNLCK);
+    assert(inited == NONE);
   }
 
   /**
@@ -4946,7 +5037,7 @@ class handler {
     @retval  >0          Error code
   */
   virtual int exec_bulk_update(uint *dup_key_found MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -4961,7 +5052,7 @@ class handler {
     @retval >0            Error code
   */
   virtual int end_bulk_delete() {
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -5067,7 +5158,7 @@ class handler {
   */
   virtual int rnd_pos_by_record(uchar *record) {
     int error;
-    DBUG_ASSERT(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
+    assert(table_flags() & HA_PRIMARY_KEY_REQUIRED_FOR_POSITION);
 
     error = ha_rnd_init(false);
     if (error != 0) return error;
@@ -5137,7 +5228,7 @@ class handler {
   virtual int info(uint flag) = 0;
   virtual uint32 calculate_key_hash_value(
       Field **field_array MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(0);
+    assert(0);
     return 0;
   }
   /**
@@ -5198,7 +5289,7 @@ class handler {
     @see HA_READ_BEFORE_WRITE_REMOVAL
   */
   virtual bool start_read_removal(void) {
-    DBUG_ASSERT(0);
+    assert(0);
     return false;
   }
 
@@ -5208,7 +5299,7 @@ class handler {
     @see HA_READ_BEFORE_WRITE_REMOVAL
   */
   virtual ha_rows end_read_removal(void) {
-    DBUG_ASSERT(0);
+    assert(0);
     return (ha_rows)0;
   }
 
@@ -5498,7 +5589,7 @@ class handler {
   */
   virtual const Item *cond_push(const Item *cond,
                                 bool other_tbls_ok MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(pushed_cond == nullptr);
+    assert(pushed_cond == nullptr);
     return cond;
   }
 
@@ -5965,7 +6056,7 @@ class handler {
  protected:
   /* Service methods for use by storage engines. */
   void ha_statistic_increment(ulonglong System_status_var::*offset) const;
-  THD *ha_thd(void) const;
+  THD *ha_thd() const;
 
   /**
     Acquire the instrumented table information from a table share.
@@ -6142,7 +6233,7 @@ class handler {
      upon the table.
   */
   virtual int repair(THD *, HA_CHECK_OPT *) {
-    DBUG_ASSERT(!(ha_table_flags() & HA_CAN_REPAIR));
+    assert(!(ha_table_flags() & HA_CAN_REPAIR));
     return HA_ADMIN_NOT_IMPLEMENTED;
   }
   virtual void start_bulk_insert(ha_rows) {}
@@ -6210,7 +6301,7 @@ class handler {
    */
   virtual int load_table(const TABLE &table MY_ATTRIBUTE((unused))) {
     /* purecov: begin inspected */
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
     /* purecov: end */
   }
@@ -6231,7 +6322,7 @@ class handler {
                            const char *table_name MY_ATTRIBUTE((unused)),
                            bool error_if_not_loaded MY_ATTRIBUTE((unused))) {
     /* purecov: begin inspected */
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
     /* purecov: end */
   }
@@ -6271,7 +6362,7 @@ class handler {
   virtual int bulk_update_row(const uchar *old_data MY_ATTRIBUTE((unused)),
                               uchar *new_data MY_ATTRIBUTE((unused)),
                               uint *dup_key_found MY_ATTRIBUTE((unused))) {
-    DBUG_ASSERT(false);
+    assert(false);
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -6612,7 +6703,7 @@ class DsMrr_impl {
       internally created temporary tables).
     */
     if (h2) reset();
-    DBUG_ASSERT(h2 == nullptr);
+    assert(h2 == nullptr);
   }
 
  private:
@@ -6650,7 +6741,7 @@ class DsMrr_impl {
   */
 
   void init(TABLE *table_arg) {
-    DBUG_ASSERT(table_arg != nullptr);
+    assert(table_arg != nullptr);
     table = table_arg;
   }
 
@@ -6719,7 +6810,7 @@ handlerton *ha_checktype(THD *thd, enum legacy_db_type database_type,
 inline handlerton *get_default_handlerton(THD *thd, handlerton *hton) {
   if (!hton) {
     hton = ha_checktype(thd, DB_TYPE_UNKNOWN, false, false);
-    DBUG_ASSERT(hton);
+    assert(hton);
   }
   return hton;
 }

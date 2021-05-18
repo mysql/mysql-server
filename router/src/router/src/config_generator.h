@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -199,6 +199,22 @@ class ConfigGenerator {
 
     bool disable_rest{false};
     std::string https_port_str;
+
+    std::string client_ssl_cert;
+    std::string client_ssl_cipher;
+    std::string client_ssl_curves;
+    std::string client_ssl_mode;
+    std::string client_ssl_key;
+    std::string client_ssl_dh_params;
+
+    std::string server_ssl_cipher;
+    std::string server_ssl_curves;
+    std::string server_ssl_mode;
+    std::string server_ssl_ca;
+    std::string server_ssl_capath;
+    std::string server_ssl_crl;
+    std::string server_ssl_crlpath;
+    std::string server_ssl_verify;
   };
 
   void set_file_owner(
@@ -261,7 +277,17 @@ class ConfigGenerator {
    */
   void init_gr_data(const URI &u, const std::string &bootstrap_socket);
 
-  Options fill_options(const std::map<std::string, std::string> &user_options);
+  struct ExistingConfigOptions {
+    bool valid{false};
+    uint32_t router_id{0};
+    std::string username;
+    uint16_t rw_x_port{0};
+    uint16_t ro_x_port{0};
+  };
+
+  Options fill_options(const std::map<std::string, std::string> &user_options,
+                       const std::map<std::string, std::string> &default_paths,
+                       const ExistingConfigOptions &existing_config_options);
 
   void create_start_script(const std::string &directory,
                            bool interactive_master_key,
@@ -448,8 +474,7 @@ class ConfigGenerator {
   std::string make_account_list(const std::string username,
                                 const std::set<std::string> &hostnames);
 
-  std::pair<uint32_t, std::string>
-  get_router_id_and_username_from_config_if_it_exists(
+  ExistingConfigOptions get_options_from_config_if_it_exists(
       const std::string &config_file_path, const std::string &cluster_name,
       bool forcing_overwrite);
 
@@ -528,7 +553,7 @@ class ConfigGenerator {
    * @throws std::runtime_error Data directory contains some certificate files
    * but Router certificate and/or key is missing.
    */
-  void prepare_web_service_certificate_files(
+  void prepare_ssl_certificate_files(
       const std::map<std::string, std::string> &user_options,
       const std::map<std::string, std::string> &default_paths,
       AutoCleaner *auto_cleaner) const;

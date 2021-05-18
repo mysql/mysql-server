@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -414,9 +414,6 @@ extern bool srv_undo_log_truncate;
 /** Enable or disable Encrypt of UNDO tablespace. */
 extern bool srv_undo_log_encrypt;
 
-/** Default size of UNDO tablespace while it is created new. */
-extern const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
-
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
 extern const size_t CONCURRENT_UNDO_TRUNCATE_LIMIT;
@@ -710,7 +707,8 @@ extern bool srv_master_thread_disabled_debug;
 #endif /* UNIV_DEBUG */
 
 extern ulong srv_fatal_semaphore_wait_threshold;
-#define SRV_SEMAPHORE_WAIT_EXTENSION 7200
+extern std::atomic<int> srv_fatal_semaphore_wait_extend;
+
 extern ulint srv_dml_needed_delay;
 
 #ifdef UNIV_HOTBACKUP
@@ -1026,14 +1024,14 @@ bool set_undo_tablespace_encryption(space_id_t space_id, mtr_t *mtr,
 /** Enable UNDO tablespaces encryption.
 @param[in] is_boot	true if it is called during server start up. In this
                         case, default master key will be used which will be
-                        rotated later with actual master key from kyering.
+                        rotated later with actual master key from keyring.
 @return false for success, true otherwise. */
 bool srv_enable_undo_encryption(bool is_boot);
 
 /** Enable REDO log encryption.
 @param[in] is_boot	true if it is called during server start up. In this
                         case, default master key will be used which will be
-                        rotated later with actual master key from kyering.
+                        rotated later with actual master key from keyring.
 @return false for success, true otherwise. */
 bool srv_enable_redo_encryption(bool is_boot);
 
@@ -1165,7 +1163,7 @@ struct export_var_t {
   ulint innodb_system_rows_deleted;    /*!< srv_n_system_rows_deleted*/
   ulint innodb_sampled_pages_read;
   ulint innodb_sampled_pages_skipped;
-  ulint innodb_num_open_files;            /*!< fil_n_file_opened */
+  ulint innodb_num_open_files;            /*!< fil_n_files_open */
   ulint innodb_truncated_status_writes;   /*!< srv_truncated_status_writes */
   ulint innodb_undo_tablespaces_total;    /*!< total number of undo tablespaces
                                           innoDB is tracking. */

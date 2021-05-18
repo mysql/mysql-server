@@ -1,0 +1,283 @@
+# ==== Purpose ====
+#
+# This test evaluates that replication works with expected errors and warnings
+# while replicating from a gtid disabled source to a gtid enabled replica
+
+# ==== Implementation ====
+#
+# TC1. Test with assign_gtids_to_anonymous_transactions = OFF.
+#
+#      1) Start replica with GTID_MODE = ON and check for errors.
+#      2) Set gtid_mode = Off and check that replication works fine
+#
+# TC2. Test with assign_gtids_to_anonymous_transactions = LOCAL
+#
+#      1) Execute change master with gtid_mode = Off and check for error.
+#      2) Set the GTID_MODE = ON and execute CHANGE MASTER, verify that we have the
+#         warning about the limitation os the option ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+#         emitted on the client side.
+#      3) When server starts with gtid_mode=OFF and any replication channel has
+#         ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS != OFF, the server shall generate a warning
+#         message in the error log, but not change the gtid_mode or the option.
+#      4) Start replica with GTID_MODE = ON and verify the gtid_generated for
+#         the anonymous_gtid_events. Verify that the UUID in gtid generated
+#         is same as that of replica server's UUID.
+#      5) Try setting gtid_mode = Off along with assign_gtids_to_anonymous_transactions = LOCAL
+#         and check for errors.
+#      6) Try setting auto_pos = 1 and check for errors.
+#      7) Test that Both receiver and applier needs to be stopped to set the
+#         assign_gtids_to_anonymous_transactions
+#      8) Test assign_gtids_to_anonymous_transactions with sql_slave_skip_counter and verify that
+#         it works and the correct warning is emitted.
+#      9) Try starting slave with SQL_BEFORE_GTIDS/SQL_AFTER_GTIDS and check for error
+#      10) Execute the function WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS and check for error
+#
+# TC3. Test with assign_gtids_to_anonymous_transactions = <UUID>
+#
+#      1) Verify that there is an error in the error log for wrong
+#         UUID string passed through ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+#      2) Verify that the UUID in gtid generated is same as that of
+#         specified via assign_gtids_to_anonymous_transactions.
+#
+# TC4. Test with assign_gtids_to_anonymous_transactions = ON & @@global.server_uuid
+#
+#      1) Test with the value ON and expect an error
+#      2) Test with the value @@global.server_uuid and the values in P_S table
+#
+# ==== References ====
+# WL#12819:GTIDs: Replicate from GTID disabled source to GTID enabled replica directly
+#
+
+--let $rpl_gtid_utils= 1
+--let $rpl_skip_start_slave = 1
+--source include/master-slave.inc
+--source include/have_binlog_format_row.inc
+CALL mtr.add_suppression("Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS implies limitations on the replication topology");
+CALL mtr.add_suppression("Slave I/O for channel '': The replication receiver thread cannot start");
+CALL mtr.add_suppression("If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF");
+
+--echo  TC1. Test with assign_gtids_to_anonymous_transactions = OFF.
+
+# 1) Start replica with GTID_MODE = ON and check for errors.
+--source include/rpl_connection_slave.inc
+
+--let $rpl_set_enforce_gtid_consistency= 1
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF;
+START SLAVE IO_THREAD;
+
+# Replica will complain about having different gtid value on source.
+--let $slave_io_errno= convert_error(ER_SLAVE_FATAL_ERROR)
+--let $show_slave_io_error = 1
+--source include/wait_for_slave_io_error.inc
+RESET SLAVE;
+
+# 2) Set gtid_mode = Off and check that replication works fine
+--let $rpl_gtid_mode= OFF
+--let $rpl_server_numbers= 2
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+CREATE TABLE t(s INT);
+INSERT INTO t VALUES(10);
+
+#Used by CHM for assign_gtids_to_anonymous_transactions= LOCAL
+--source include/save_binlog_position.inc
+
+--source include/sync_slave_sql_with_master.inc
+# Verify that no GTID was generated when assign_gtids_to_anonymous_transactions = OFF
+--let $gtid_step_count = 0
+--source include/gtid_step_assert.inc
+
+--source include/stop_slave.inc
+
+--echo
+--echo TC2. Test with assign_gtids_to_anonymous_transactions = LOCAL
+--echo
+# 1) Execute change master with GTID_MODE = OFF and check for error.
+
+--error ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+
+# 2) Set the GTID_MODE = ON and execute CHANGE MASTER, verify that we have the
+#    warning about the limitation os the option ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+#    emitted on the client side.
+
+# Set the gtid_mode to ON in order to set assign_gtids_to_anonymous_transactions = LOCAL
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+
+# We don't want to replicate the events which are already on replica.
+--replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS
+eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position;
+
+--let $assert_text= A warning will be generated stating the limitation of ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS option
+--let $warning_code= query_get_value(SHOW WARNINGS, Code, 1)
+--let $expected_code= convert_error(ER_USING_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_AS_LOCAL_OR_UUID)
+--let $assert_cond= $warning_code = $expected_code
+--source include/assert.inc
+
+# 3) When server starts with gtid_mode=OFF and any replication channel has
+#    ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS != OFF, the server shall throw an error
+
+# Set the gtid_mode = OFF and restart.
+--let $rpl_server_number=2
+--let $rpl_start_with_gtids= 0
+--source include/rpl_restart_server.inc
+
+--let $assert_text = When assign_gtids_to_anonymous_transactions is set to LOCAL|UUID attempt to restart the slave with gtid-mode= off to get ER_SLAVE_RENAME_TXN_IS_LOCAL_OR_UUID_AND_GTID_MODE_OFF
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_select = If you intend to use GTID_MODE = ON everywhere, change to ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = OFF
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--error ER_CANT_USE_ANONYMOUS_TO_GTID_WITH_GTID_MODE_NOT_ON
+START SLAVE;
+
+# Set the gtid_mode=ON
+--let $rpl_gtid_mode= ON
+--let $rpl_server_numbers= 2
+--let $rpl_skip_sync= 1
+--source include/rpl_set_gtid_mode.inc
+--source include/start_slave.inc
+
+--source include/stop_slave.inc
+--error ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION
+CHANGE REPLICATION SOURCE TO  SOURCE_AUTO_POSITION = 1;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t VALUES(10);
+INSERT INTO t VALUES(10);
+--source include/save_binlog_position.inc
+
+--source include/sync_slave_sql_with_master.inc
+# 4) Start replica with GTID_MODE = ON and verify the gtid_generated for
+#    the anonymous_gtid_events. Verify that the UUID in gtid generated
+#    is same as that of replica server's UUID.
+
+--let $server_local_uuid = `SELECT @@GLOBAL.SERVER_UUID`
+--let $gtid_step_count= 2
+--let $gtid_step_uuid = $server_local_uuid
+--source include/gtid_step_assert.inc
+--source include/stop_slave.inc
+
+# 5) Try setting gtid_mode <> ON along with assign_gtids_to_anonymous_transactions = LOCAL
+#    and check for errors.
+--error ER_CANT_SET_GTID_MODE
+SET GLOBAL GTID_MODE=ON_PERMISSIVE;
+
+# 6) Try setting auto_pos = 1 and check for errors.
+
+--error ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL, SOURCE_AUTO_POSITION = 1;
+
+# 7) Test that Both receiver and applier needs to be stopped to set the assign_gtids_to_anonymous_transactions
+
+--source include/start_slave_io.inc
+--error ER_SLAVE_CHANNEL_MUST_STOP
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+
+--source include/start_slave_sql.inc
+--error ER_SLAVE_CHANNEL_MUST_STOP
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL;
+
+# 8) Test assign_gtids_to_anonymous_transactions with sql_slave_skip_counter and verify that
+#    it works and the correct warning is emitted.
+
+--source include/stop_slave.inc
+# This will generate a warning in the result file.
+SET GLOBAL sql_slave_skip_counter = 1;
+
+--let $assert_text= A warning will be generated stating "The value of sql_slave_skip_counter will only take effect for channels running with"
+--let $warning_code= query_get_value(SHOW WARNINGS, Code, 1)
+--let $expected_code= convert_error(ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON)
+--let $assert_cond= $warning_code = $expected_code
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+INSERT INTO t VALUES(12);
+--source include/save_binlog_position.inc
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+
+# Check that no gtid was generated since the last call to gtid_step_assert.inc
+--let $gtid_step_count= 0
+--let $gtid_step_uuid = $server_local_uuid
+--source include/gtid_step_assert.inc
+
+# 9) Try starting slave with SQL_BEFORE_GTIDS/SQL_AFTER_GTIDS and check for error
+#
+--source include/stop_slave.inc
+
+--error ER_CANT_SET_SQL_AFTER_OR_BEFORE_GTIDS_WITH_ANONYMOUS_TO_GTID
+START SLAVE UNTIL SQL_BEFORE_GTIDS='332ceb83-f759-11ea-9e3a-5076afc0021b:1-5';
+
+# 10) Execute the function WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS and check for error
+
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--replace_result $server_uuid server_uuid
+
+--error ER_CANT_SET_ANONYMOUS_TO_GTID_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$server_uuid:1-2')
+
+--echo  TC3. Test with assign_gtids_to_anonymous_transactions = <UUID>
+
+#  1) Verify that there is an error in the error log for wrong
+#     UUID string passed through ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS
+
+--replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS
+--error ER_WRONG_VALUE
+eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position;
+
+--replace_result $binlog_file BINLOG_FILE $binlog_position BINLOG_POS
+eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", SOURCE_LOG_FILE = "$binlog_file", SOURCE_LOG_POS = $binlog_position;
+--source include/start_slave.inc
+
+--source include/rpl_connection_master.inc
+DROP TABLE t;
+--source include/sync_slave_sql_with_master.inc
+
+#  2) Verify that the UUID in gtid generated is same as that of
+#     specified via assign_gtids_to_anonymous_transactions
+
+--let $gtid_step_count= 1
+--let $gtid_step_uuid = aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
+--source include/gtid_step_assert.inc
+
+--echo TC4. Test with assign_gtids_to_anonymous_transactions = ON & @@global.server_uuid
+
+#  1) Test with the value ON and expect an error in the parse phase
+
+--error ER_PARSE_ERROR
+CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = ON;
+
+#  2) Test with the value @@global.server_uuid and the values in P_S table
+
+--source include/stop_slave.inc
+--let $server_uuid= `SELECT @@GLOBAL.SERVER_UUID`
+--replace_result $server_uuid server_uuid
+
+--eval CHANGE REPLICATION SOURCE TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = "$server_uuid"
+--source include/start_slave.inc
+
+ --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_TYPE = 'UUID'`
+ --let $assert_text = Check entry for default channel "" in performance_schema.replication_applier_configuration
+ --let $assert_cond = $count = 1
+ --source include/assert.inc
+--echo # Cleanup
+
+--source include/rpl_end.inc

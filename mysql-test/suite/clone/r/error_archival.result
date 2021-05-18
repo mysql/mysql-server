@@ -1,3 +1,4 @@
+set sort_buffer_size=1048576;
 call mtr.add_suppression("\\[Warning\\] .*MY-\\d+.* Log writer is waiting for redo-archiver to catch up .*");
 call mtr.add_suppression("\\[ERROR\\] .*MY-\\d+.* Log writer waited too long for redo-archiver to advance .*");
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
@@ -334,3 +335,4 @@ DROP TABLE t2;
 DROP PROCEDURE execute_dml;
 UNINSTALL PLUGIN clone;
 SET DEBUG_SYNC = 'RESET';
+set sort_buffer_size=DEFAULT;

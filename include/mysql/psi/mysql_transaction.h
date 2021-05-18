@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,11 @@
 #include "mysql/psi/psi_transaction.h"
 
 #include "my_inttypes.h"
-#include "pfs_transaction_provider.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_TRANSACTION_CALL() as direct call. */
+#include "pfs_transaction_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_TRANSACTION_CALL
 #define PSI_TRANSACTION_CALL(M) psi_transaction_service->M

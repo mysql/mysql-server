@@ -14,7 +14,7 @@ include/rpl_sync.inc
 SET SESSION sql_log_bin=0;
 call mtr.add_suppression("You need to use --log-bin to make");
 SET SESSION sql_log_bin=1;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 include/start_slave.inc
 [connection server1]
 include/sync_slave_sql_with_master.inc

@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 ##### TEST FOR NEW CHANNEL #####
 # case 1: ALGORITHM = uncompressed, LEVEL not specified
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL= 0 FOR CHANNEL 'C1';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='uncompressed', SOURCE_ZSTD_COMPRESSION_LEVEL= 0 FOR CHANNEL 'C1';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -17,7 +17,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed	3
 # case 2: ALGORITHM = uncompressed, LEVEL = 2
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C2';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='uncompressed', SOURCE_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C2';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -28,7 +28,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed	2
 # case 3: ALGORITHM not specified, LEVEL = 2
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C3';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -39,7 +39,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed	2
 # case 4: ALGORITHM = ZSTD, LEVEL = not specified
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd' FOR CHANNEL 'C4';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zstd' FOR CHANNEL 'C4';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -52,7 +52,7 @@ COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zstd	3
 # case 5: ALGORITHM = ZSTD, LEVEL = 9
 # report error as part of change master
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd', MASTER_ZSTD_COMPRESSION_LEVEL= 9 FOR CHANNEL 'C5';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zstd', SOURCE_ZSTD_COMPRESSION_LEVEL= 9 FOR CHANNEL 'C5';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -63,7 +63,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zstd	9
 # case 6: ALGORITHM = ZSTD, LEVEL = 24
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd', MASTER_ZSTD_COMPRESSION_LEVEL= 24 FOR CHANNEL 'C6';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zstd', SOURCE_ZSTD_COMPRESSION_LEVEL= 24 FOR CHANNEL 'C6';
 ERROR HY000: Invalid MASTER_ZSTD_COMPRESSION_LEVEL 24 for channel 'c6'.
 SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C6';
 MASTER_COMPRESSION_ALGORITHM	MASTER_ZSTD_COMPRESSION_LEVEL
@@ -72,7 +72,7 @@ COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zstd	3
 # case 7: ALGORITHM = invalid value, LEVEL = 2
 # report error as part of change master
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz', MASTER_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C7';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='xyz', SOURCE_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C7';
 ERROR HY000: Invalid MASTER_COMPRESSION_ALGORITHMS 'xyz' for channel 'c7'.
 SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C7';
 MASTER_COMPRESSION_ALGORITHM	MASTER_ZSTD_COMPRESSION_LEVEL
@@ -81,7 +81,7 @@ COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed	3
 # case 8: ALGORITHM = invalid value, LEVEL = 29
 # report error as part of change master
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz', MASTER_ZSTD_COMPRESSION_LEVEL= 29 FOR CHANNEL 'C8';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='xyz', SOURCE_ZSTD_COMPRESSION_LEVEL= 29 FOR CHANNEL 'C8';
 ERROR HY000: Invalid MASTER_COMPRESSION_ALGORITHMS 'xyz' for channel 'c8'.
 SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C8';
 MASTER_COMPRESSION_ALGORITHM	MASTER_ZSTD_COMPRESSION_LEVEL
@@ -90,7 +90,7 @@ COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed	3
 # case 9: ALGORITHM = invalid value, LEVEL not specified
 # report error as part of change master
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz' FOR CHANNEL 'C9';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='xyz' FOR CHANNEL 'C9';
 ERROR HY000: Invalid MASTER_COMPRESSION_ALGORITHMS 'xyz' for channel 'c9'.
 SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C9';
 MASTER_COMPRESSION_ALGORITHM	MASTER_ZSTD_COMPRESSION_LEVEL
@@ -99,7 +99,7 @@ COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed	3
 # case 10: ALGORITHM = invalid value 
 # report error as part of change master
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS= 'zlib,zstd,abc' FOR CHANNEL 'C10';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS= 'zlib,zstd,abc' FOR CHANNEL 'C10';
 ERROR HY000: Invalid MASTER_COMPRESSION_ALGORITHMS 'abc' for channel 'c10'.
 SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C10';
 MASTER_COMPRESSION_ALGORITHM	MASTER_ZSTD_COMPRESSION_LEVEL
@@ -108,7 +108,7 @@ COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed	3
 # case 11: ALGORITHM specified to more than 3 values
 # report error as part of change master
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS= 'zlib,zstd,abc,123' FOR CHANNEL 'C11';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS= 'zlib,zstd,abc,123' FOR CHANNEL 'C11';
 ERROR HY000: Specified compression algorithm list 'zlib,zstd,abc,123' exceeds total count of 3 for channel 'c11'.
 SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C11';
 MASTER_COMPRESSION_ALGORITHM	MASTER_ZSTD_COMPRESSION_LEVEL
@@ -116,7 +116,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed	3
 # case 12: ALGORITHM specified to upper case, LEVEL not specified
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root',MASTER_COMPRESSION_ALGORITHMS= 'ZLIB,ZSTD' FOR CHANNEL 'C12';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root',SOURCE_COMPRESSION_ALGORITHMS= 'ZLIB,ZSTD' FOR CHANNEL 'C12';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -128,7 +128,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 ZLIB,ZSTD	3
 # case 13: ALGORITHM = 'zlib,uncompressed', LEVEL not specified
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed' FOR CHANNEL 'C13';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zlib,uncompressed' FOR CHANNEL 'C13';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -140,7 +140,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zlib,uncompressed	3
 # case 14: ALGORITHM = 'zlib,uncompressed', LEVEL = 4
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL=4 FOR CHANNEL 'C14';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zlib,uncompressed', SOURCE_ZSTD_COMPRESSION_LEVEL=4 FOR CHANNEL 'C14';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -152,7 +152,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zlib,uncompressed	4
 # case 15: ALGORITHM = 'zlib,uncompressed,zstd', LEVEL = 0
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed,zstd', MASTER_ZSTD_COMPRESSION_LEVEL=0 FOR CHANNEL 'C15';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zlib,uncompressed,zstd', SOURCE_ZSTD_COMPRESSION_LEVEL=0 FOR CHANNEL 'C15';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -164,7 +164,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zlib,uncompressed,zstd	3
 # case 16: ALGORITHM = 'uncompressed,zstd', LEVEL = 14
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='uncompressed,zstd', MASTER_ZSTD_COMPRESSION_LEVEL=14 FOR CHANNEL 'C16';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='uncompressed,zstd', SOURCE_ZSTD_COMPRESSION_LEVEL=14 FOR CHANNEL 'C16';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -176,7 +176,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed,zstd	14
 # case 17: ALGORITHM = 'zlib,uncompressed,zlib', LEVEL = 14
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed,zlib', MASTER_ZSTD_COMPRESSION_LEVEL=14 FOR CHANNEL 'C17';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zlib,uncompressed,zlib', SOURCE_ZSTD_COMPRESSION_LEVEL=14 FOR CHANNEL 'C17';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -187,7 +187,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zlib,uncompressed,zlib	14
 # case 18: ALGORITHM = 'uncompressed,uncompressed,uncompressed', LEVEL = 14
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='uncompressed,uncompressed,uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL=14 FOR CHANNEL 'C17';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='uncompressed,uncompressed,uncompressed', SOURCE_ZSTD_COMPRESSION_LEVEL=14 FOR CHANNEL 'C17';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -199,7 +199,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 uncompressed,uncompressed,uncompressed	14
 # case 19: ALGORITHM = 'zstd,zlib,uncompressed', LEVEL = 2
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd,zlib,uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL=2 FOR CHANNEL 'C17';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zstd,zlib,uncompressed', SOURCE_ZSTD_COMPRESSION_LEVEL=2 FOR CHANNEL 'C17';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -212,7 +212,7 @@ COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zstd,zlib,uncompressed	2
 ##### TEST FOR EXISTING CHANNEL #####
 # create a new channel
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd', MASTER_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zstd', SOURCE_ZSTD_COMPRESSION_LEVEL= 2 FOR CHANNEL 'C21';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -223,7 +223,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zstd	2
 # case 1: ALGORITHM not specified, LEVEL = 7
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_ZSTD_COMPRESSION_LEVEL = 7 FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_ZSTD_COMPRESSION_LEVEL = 7 FOR CHANNEL 'C21';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -235,7 +235,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zstd	7
 # case 2: ALGORITHM not specified, LEVEL 37
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_ZSTD_COMPRESSION_LEVEL = 37 FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_ZSTD_COMPRESSION_LEVEL = 37 FOR CHANNEL 'C21';
 ERROR HY000: Invalid MASTER_ZSTD_COMPRESSION_LEVEL 37 for channel 'c21'.
 # level should be same as previous which is 7
 SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
@@ -245,7 +245,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zstd	7
 # case 3: ALGORITHM not specified, LEVEL is not specified
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root' FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root' FOR CHANNEL 'C21';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -257,7 +257,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zstd	7
 # case 4: ALGORITHM changed from zstd to zlib, LEVEL = 6
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib', MASTER_ZSTD_COMPRESSION_LEVEL = 6 FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zlib', SOURCE_ZSTD_COMPRESSION_LEVEL = 6 FOR CHANNEL 'C21';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -269,7 +269,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zlib	6
 # case 5: ALGORITHM changed from zlib to zstd/uncompressed, LEVEL = 27
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib,uncompressed', MASTER_ZSTD_COMPRESSION_LEVEL = 27 FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zlib,uncompressed', SOURCE_ZSTD_COMPRESSION_LEVEL = 27 FOR CHANNEL 'C21';
 ERROR HY000: Invalid MASTER_ZSTD_COMPRESSION_LEVEL 27 for channel 'c21'.
 # level should be 6 and algorithm should be zlib
 SELECT MASTER_COMPRESSION_ALGORITHM, MASTER_ZSTD_COMPRESSION_LEVEL FROM mysql.slave_master_info WHERE CHANNEL_NAME = 'C21';
@@ -279,7 +279,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zlib,uncompressed	6
 # case 6: ALGORITHM changed from zstd to zlib, LEVEL not specified
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zlib' FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zlib' FOR CHANNEL 'C21';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -291,16 +291,16 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zlib	6
 # case 7: ALGORITHM = invalid values, LEVEL = 6
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz', MASTER_ZSTD_COMPRESSION_LEVEL = 6 FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='xyz', SOURCE_ZSTD_COMPRESSION_LEVEL = 6 FOR CHANNEL 'C21';
 ERROR HY000: Invalid MASTER_COMPRESSION_ALGORITHMS 'xyz' for channel 'c21'.
 # case 8: ALGORITHM = invalid values, LEVEL = 26
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz', MASTER_ZSTD_COMPRESSION_LEVEL = 26 FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='xyz', SOURCE_ZSTD_COMPRESSION_LEVEL = 26 FOR CHANNEL 'C21';
 ERROR HY000: Invalid MASTER_COMPRESSION_ALGORITHMS 'xyz' for channel 'c21'.
 # case 9: ALGORITHM = invalid values, LEVEL is not specified
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='xyz' FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='xyz' FOR CHANNEL 'C21';
 ERROR HY000: Invalid MASTER_COMPRESSION_ALGORITHMS 'xyz' for channel 'c21'.
 # case 10: ALGORITHM changed from zlib to 'zstd,zlib,uncompressed', LEVEL is not specified
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd,zlib,uncompressed' FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zstd,zlib,uncompressed' FOR CHANNEL 'C21';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -312,7 +312,7 @@ SELECT COMPRESSION_ALGORITHM, ZSTD_COMPRESSION_LEVEL FROM performance_schema.rep
 COMPRESSION_ALGORITHM	ZSTD_COMPRESSION_LEVEL
 zstd,zlib,uncompressed	6
 # case 11: ALGORITHM changed from 'zstd,zlib,uncompressed' to 'zstd', LEVEL = 3
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_COMPRESSION_ALGORITHMS='zstd', MASTER_ZSTD_COMPRESSION_LEVEL = 3 FOR CHANNEL 'C21';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root', SOURCE_COMPRESSION_ALGORITHMS='zstd', SOURCE_ZSTD_COMPRESSION_LEVEL = 3 FOR CHANNEL 'C21';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

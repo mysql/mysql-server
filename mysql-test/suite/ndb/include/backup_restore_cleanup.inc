@@ -10,6 +10,5 @@ if (!$NDB_BACKUP_DIR)
   --die Need NDB_BACKUP_DIR variable
 }
 --let RM_BACKUPS=$NDB_BACKUP_DIR/BACKUP
-let NDB_RESTORE=;
 --enable_query_log
 --force-rmdir $RM_BACKUPS

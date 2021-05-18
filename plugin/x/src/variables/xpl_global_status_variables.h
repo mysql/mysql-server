@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,7 @@
 #ifndef PLUGIN_X_SRC_VARIABLES_XPL_GLOBAL_STATUS_VARIABLES_H_
 #define PLUGIN_X_SRC_VARIABLES_XPL_GLOBAL_STATUS_VARIABLES_H_
 
-#include "plugin/x/ngs/include/ngs/common_status_variables.h"
+#include "plugin/x/src/ngs/common_status_variables.h"
 
 namespace xpl {
 

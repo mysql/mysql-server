@@ -32,4 +32,4 @@
 
 #
 ## Cleanup
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

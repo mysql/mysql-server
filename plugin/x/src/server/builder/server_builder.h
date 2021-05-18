@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -31,12 +31,12 @@
 #include <vector>
 
 #include "mysql/plugin.h"
-#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
-#include "plugin/x/ngs/include/ngs/scheduler.h"
 #include "plugin/x/src/interface/server_task.h"
 #include "plugin/x/src/interface/socket_events.h"
 #include "plugin/x/src/interface/timeout_callback.h"
 #include "plugin/x/src/io/xpl_listener_factory.h"
+#include "plugin/x/src/ngs/protocol/protocol_config.h"
+#include "plugin/x/src/ngs/scheduler.h"
 
 namespace xpl {
 

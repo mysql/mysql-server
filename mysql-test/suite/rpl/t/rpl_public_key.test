@@ -35,7 +35,7 @@ GRANT REPLICATION SLAVE ON *.* TO u27122947;
 --source include/stop_slave.inc
 --replace_column 2 ###
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
+eval CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
 --source include/start_slave.inc
 
 --echo ==== Make sure that replication works ====
@@ -50,7 +50,7 @@ SELECT * FROM t1;
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 --replace_column 2 ###
-CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='';
 
 --echo ==== Remove cached password from master ====
 --source include/rpl_connection_master.inc
@@ -71,14 +71,14 @@ START SLAVE;
 --source include/stop_slave.inc
 --replace_column 2 ###
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
-eval CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
+eval CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='$MYSQL_TEST_DIR/std_data/rsa_public_key.pem';
 --source include/start_slave.inc
 
 --echo ==== Try setting master_public_key_path to '' ====
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 --replace_column 2 ###
-CHANGE MASTER TO master_user='u27122947', master_password='pwd', master_public_key_path='';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u27122947', SOURCE_PASSWORD='pwd', SOURCE_PUBLIC_KEY_PATH='';
 
 --echo ==== IO thread should start without issues because password is still cached ====
 --source include/start_slave.inc
@@ -90,7 +90,7 @@ SELECT * FROM t1;
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '';
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '';
 --let $rpl_only_running_threads= 1
 --source include/rpl_reset.inc
 

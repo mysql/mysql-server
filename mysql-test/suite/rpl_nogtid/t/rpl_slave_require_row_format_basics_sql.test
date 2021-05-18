@@ -43,6 +43,7 @@
 
 -- source include/have_binlog_format_statement.inc
 -- source include/master-slave.inc
+-- source include/not_hypergraph.inc  # Gets confused by the extra logging.
 
 --echo #
 --echo # 0. Add suppressions for the test.
@@ -60,7 +61,7 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
 
   --source include/rpl_connection_slave.inc
 
-  CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+  CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
   --source include/start_slave_io.inc
   --source include/rpl_connection_master.inc
@@ -70,7 +71,7 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
 
   --source include/stop_slave.inc
 
-  --eval CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='$relay_log_file';
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, RELAY_LOG_FILE='$relay_log_file';
 
   START SLAVE;
 
@@ -91,7 +92,7 @@ call mtr.add_suppression("Slave SQL for channel '': The application of relay eve
 
   --echo # No issues when REQUIRE_ROW_FORMAT = 0
 
-  --eval CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='$relay_log_file';
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0, RELAY_LOG_FILE='$relay_log_file';
 
   --source include/start_slave.inc
 

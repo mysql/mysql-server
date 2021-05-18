@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,8 @@
 #include <cstdint>
 
 // Using
-#include "m_string.h"          // NullS
+#include "m_string.h"  // NullS
+#include "my_dbug.h"
 #include "mysql/status_var.h"  // enum_mysql_show_type
 #include "sql/current_thd.h"   // current_thd
 #include "storage/ndb/plugin/ndb_global_schema_lock_guard.h"  // Ndb_global_schema_lock_guard
@@ -265,7 +266,7 @@ void Ndb_binlog_thread::synchronize_detected_object(THD *thd) {
     }
     default: {
       // Unexpected type, should never happen
-      DBUG_ASSERT(false);
+      assert(false);
     }
   }
 }

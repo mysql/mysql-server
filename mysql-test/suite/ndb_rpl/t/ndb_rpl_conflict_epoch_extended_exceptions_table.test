@@ -17,7 +17,7 @@ echo SLAVE_SERVER_ID: $SLAVE_SERVER_ID;
 
 --connection master
 --replace_result $SLAVE_MYPORT SLAVE_PORT
---eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1",SOURCE_PORT=$SLAVE_MYPORT,SOURCE_USER="root"
 START SLAVE;
 let $MASTER_SERVER_ID= `select @@server_id`;
 echo MASTER_SERVER_ID: $MASTER_SERVER_ID;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -132,24 +132,40 @@ class Destinations {
   size_type size() const { return destinations_.size(); }
 
   /**
-   * get PRIMARY marker.
+   * Check if we already used the primaries and don't want to fallback.
    *
-   * @retval true destinations are for a PRIMARY set
-   * @retval false destinations not for a PRIMARY set
+   * @retval true primaries already used
+   * @retval false primaries are not yet used
    */
-  bool primary() const { return primary_; }
+  bool primary_already_used() const { return primary_already_used_; }
 
   /**
-   * set primary marker.
+   * Mark that the primary destinations are already used.
    *
-   * @param p true if destinations refer to a PRIMARY.
+   * @param p true if PRIMARY destinations are already used.
    */
-  void primary(bool p) { primary_ = p; }
+  void primary_already_used(const bool p) { primary_already_used_ = p; }
+
+  /**
+   * Check if destinations are primary destinations.
+   *
+   * @retval true destinations are primary destinations.
+   * @retval false destinations are secondary destinations.
+   */
+  bool is_primary_destination() const { return is_primary_destination_; }
+
+  /**
+   * Mark that the destinations are primary destinations.
+   *
+   * @param p true if desitnations are PRIMARY destinations.
+   */
+  void set_is_primary_destination(const bool p) { is_primary_destination_ = p; }
 
  private:
   container_type destinations_;
 
-  bool primary_{false};
+  bool primary_already_used_{false};
+  bool is_primary_destination_{false};
 };
 
 #endif

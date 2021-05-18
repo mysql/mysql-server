@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -38,10 +38,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "sql/lock.h"    /* acquire_shared_global_read_lock */
 #include "sql/mysqld.h"
 #include "sql/rpl_log_encryption.h"
+#include "sql/server_component/mysql_server_keyring_lockable_imp.h" /* Keyring */
 #include "sql/sql_backup_lock.h" /* acquire_shared_backup_lock */
 #include "sql/sql_class.h"       /* THD */
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
+#include "sql/sql_plugin.h"
 #include "sql/sql_plugin_ref.h"
 #include "sql/sql_table.h" /* write_to_binlog */
 
@@ -108,7 +110,7 @@ bool Rotate_innodb_master_key::execute() {
   if (acquire_shared_global_read_lock(m_thd,
                                       m_thd->variables.lock_wait_timeout)) {
     // MDL subsystem has to set an error in Diagnostics Area
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
@@ -121,13 +123,13 @@ bool Rotate_innodb_master_key::execute() {
                                     true) ||
       acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
     // MDL subsystem has to set an error in Diagnostics Area
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
   if (hton->rotate_encryption_master_key()) {
     /* SE should have raised error */
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
@@ -179,13 +181,13 @@ bool Innodb_redo_log::execute() {
   if (acquire_exclusive_backup_lock(m_thd, m_thd->variables.lock_wait_timeout,
                                     true) ||
       acquire_shared_backup_lock(m_thd, m_thd->variables.lock_wait_timeout)) {
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
   if (hton->redo_log_set_state(m_thd, m_enable)) {
     /* SE should have raised error */
-    DBUG_ASSERT(m_thd->get_stmt_da()->is_error());
+    assert(m_thd->get_stmt_da()->is_error());
     return true;
   }
 
@@ -220,6 +222,26 @@ bool Rotate_binlog_master_key::execute() {
 
   if (rpl_encryption.rotate_master_key()) return true;
 
+  my_ok(m_thd);
+  return false;
+}
+
+bool Reload_keyring::execute() {
+  DBUG_TRACE;
+
+  /* Check privileges */
+  Security_context *sctx = m_thd->security_context();
+  if (sctx->has_global_grant(STRING_WITH_LEN("ENCRYPTION_KEY_ADMIN")).first ==
+      false) {
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "ENCRYPTION_KEY_ADMIN");
+    return true;
+  }
+
+  if (srv_keyring_load->load(opt_plugin_dir, mysql_real_data_home) == true) {
+    /* We encountered an error. Figure out what it is. */
+    my_error(ER_RELOAD_KEYRING_FAILURE, MYF(0));
+    return true;
+  }
   my_ok(m_thd);
   return false;
 }

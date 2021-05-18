@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 /** @class UniqueID
@@ -74,9 +75,7 @@ class TcpPortPool {
   TcpPortPool &operator=(const TcpPortPool &) = delete;
   TcpPortPool(TcpPortPool &&other) = default;
 
-  uint16_t get_next_available(
-      const std::chrono::milliseconds socket_probe_timeout =
-          std::chrono::milliseconds(200));
+  uint16_t get_next_available();
 
  private:
   std::vector<UniqueId> unique_ids_;

@@ -69,7 +69,7 @@ SET @@sql_log_bin = 0;
 --eval CREATE USER $applier_user
 --eval GRANT REPLICATION_APPLIER,SESSION_VARIABLES_ADMIN ON *.* TO $applier_user
 SET @@sql_log_bin = 1;
---eval CHANGE MASTER TO PRIVILEGE_CHECKS_USER = $applier_user FOR CHANNEL "group_replication_applier"
+--eval CHANGE REPLICATION SOURCE TO PRIVILEGE_CHECKS_USER = $applier_user FOR CHANNEL "group_replication_applier"
 
 --let $count = `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE Privilege_Checks_User = "$applier_user"`
 --let $assert_text = Privilege_checks_user column in performance_schema.replication_applier_configuration is set to $applier_user

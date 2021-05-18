@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -580,7 +580,10 @@ std::string Gcs_ip_allowlist::to_string() const {
 }
 /* purecov: end */
 
-bool Gcs_ip_allowlist::is_valid(const std::string &the_list) const {
+bool Gcs_ip_allowlist::is_valid(const std::string &the_list) {
+  // lock the list
+  Atomic_lock_guard guard{m_atomic_guard};
+
   // copy the string
   std::string allowlist = the_list;
 
@@ -632,6 +635,9 @@ bool Gcs_ip_allowlist::is_valid(const std::string &the_list) const {
 }
 
 bool Gcs_ip_allowlist::configure(const std::string &the_list) {
+  // lock the list
+  Atomic_lock_guard guard{m_atomic_guard};
+
   // copy the list
   std::string allowlist = the_list;
   m_original_list.assign(allowlist);
@@ -946,7 +952,10 @@ end:
   return block;
 }
 
-bool Gcs_ip_allowlist::shall_block(int fd, site_def const *xcom_config) const {
+bool Gcs_ip_allowlist::shall_block(int fd, site_def const *xcom_config) {
+  // lock the list
+  Atomic_lock_guard guard{m_atomic_guard};
+
   bool ret = true;
   if (fd > 0) {
     struct sockaddr_storage sa;
@@ -971,7 +980,10 @@ bool Gcs_ip_allowlist::shall_block(int fd, site_def const *xcom_config) const {
 }
 
 bool Gcs_ip_allowlist::shall_block(const std::string &ip_addr,
-                                   site_def const *xcom_config) const {
+                                   site_def const *xcom_config) {
+  // lock the list
+  Atomic_lock_guard guard{m_atomic_guard};
+
   bool ret = true;
   if (!ip_addr.empty()) {
     struct sockaddr_storage sa;

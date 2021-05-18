@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2018, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -78,9 +78,6 @@ UT_MUTEX_TYPE(TTASFutexMutex, GenericPolicy, FutexMutex)
 UT_MUTEX_TYPE(TTASFutexMutex, BlockMutexPolicy, BlockFutexMutex)
 #endif /* HAVE_IB_LINUX_FUTEX */
 
-UT_MUTEX_TYPE(TTASMutex, GenericPolicy, SpinMutex)
-UT_MUTEX_TYPE(TTASMutex, BlockMutexPolicy, BlockSpinMutex)
-
 UT_MUTEX_TYPE(OSTrackMutex, GenericPolicy, SysMutex)
 UT_MUTEX_TYPE(OSTrackMutex, BlockMutexPolicy, BlockSysMutex)
 
@@ -112,8 +109,12 @@ extern ulong srv_n_spin_wait_rounds;
 
 #define mutex_create(I, M) mutex_init((M), (I), __FILE__, __LINE__)
 
-#define mutex_enter(M) \
-  (M)->enter(srv_n_spin_wait_rounds, srv_spin_wait_delay, __FILE__, __LINE__)
+template <typename Mutex>
+void mutex_enter_inline(Mutex *m, ut::Location loc) {
+  m->enter(srv_n_spin_wait_rounds, srv_spin_wait_delay, loc.filename, loc.line);
+}
+
+#define mutex_enter(M) mutex_enter_inline(M, UT_LOCATION_HERE)
 
 #define mutex_enter_nospin(M) (M)->enter(0, 0, __FILE__, __LINE__)
 

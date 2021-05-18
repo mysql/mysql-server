@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -353,6 +353,7 @@ struct mtr_t {
     switch (m_impl.m_state) {
       case MTR_STATE_ACTIVE:
         ut_ad(m_impl.m_memo.size() == 0);
+        ut_d(remove_from_debug_list());
         break;
       case MTR_STATE_INIT:
       case MTR_STATE_COMMITTED:
@@ -368,6 +369,15 @@ struct mtr_t {
     }
 #endif /* !UNIV_HOTBACKUP */
   }
+
+#ifdef UNIV_DEBUG
+  /** Removed the MTR from the s_my_thread_active_mtrs list. */
+  void remove_from_debug_list() const;
+
+  /** Assure that there are no slots that are latching any resources. Only
+  buffer fixing a page is allowed. */
+  void check_is_not_latching() const;
+#endif /* UNIV_DEBUG */
 
   /** Start a mini-transaction.
   @param sync		true if it is a synchronous mini-transaction
@@ -578,7 +588,7 @@ struct mtr_t {
 
   /** Computes the number of bytes that would be written to the redo
   log if mtr was committed right now (excluding headers of log blocks).
-  @return  number of bytes of the colllected log records increased
+  @return  number of bytes of the collected log records increased
            by 1 if MLOG_MULTI_REC_END would already be required */
   size_t get_expected_log_size() const {
     return (m_impl.m_log.size() + (m_impl.m_n_log_recs > 1 ? 1 : 0));
@@ -616,6 +626,17 @@ struct mtr_t {
   @param type	object type: MTR_MEMO_S_LOCK, ... */
   inline void memo_push(void *object, mtr_memo_type_t type);
 
+#ifdef UNIV_DEBUG
+  /** Iterate all MTRs created in this thread to assure they are not latching
+  any resources. Violating this could lead to deadlocks under
+  log_free_check(). */
+  static void check_my_thread_mtrs_are_not_latching() {
+    for (auto &it : s_my_thread_active_mtrs) {
+      it->check_is_not_latching();
+    }
+  }
+#endif
+
   /** Check if this mini-transaction is dirtying a clean page.
   @param block	block being x-fixed
   @return true if the mtr is dirtying a clean page. */
@@ -643,6 +664,12 @@ struct mtr_t {
 
   /** true if it is synchronous mini-transaction */
   bool m_sync;
+
+#ifdef UNIV_DEBUG
+  /** List of all non-committed MTR instances created in this thread. Used for
+  debug purposes in the log_free_check(). */
+  static thread_local ut::unordered_set<const mtr_t *> s_my_thread_active_mtrs;
+#endif
 
   class Command;
 

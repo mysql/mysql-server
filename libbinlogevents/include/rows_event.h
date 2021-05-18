@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -563,6 +563,8 @@ class Table_map_event : public Binary_log_event {
                                      columns, optimized to minimize
                                      space when many columns have the
                                      same charset. */
+    COLUMN_VISIBILITY             /* Flag to indicate column visibility
+                                     attribute. */
   };
 
   /**
@@ -604,6 +606,7 @@ class Table_map_event : public Binary_log_event {
       whole column value is used.
     */
     std::vector<uint_pair> m_primary_key;
+    std::vector<bool> m_column_visibility;
 
     /*
       It parses m_optional_metadata and populates into above variables.

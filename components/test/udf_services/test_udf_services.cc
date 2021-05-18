@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -167,6 +167,13 @@ static int test_udf_extension_init() {
           test_args_collation_with_value_deinit)) {
     goto end;
   }
+
+  if (mysql_service_udf_registration->udf_register(
+          "test_args_without_init_deinit_methods", STRING_RESULT,
+          (Udf_func_any)test_args_without_init_deinit_methods, nullptr,
+          nullptr)) {
+    goto end;
+  }
   ret = false;  // Successfully initialized the plugin
 end:
   return ret ? 1 : 0;
@@ -196,7 +203,9 @@ static int test_udf_extension_deinit() {
       mysql_service_udf_registration->udf_unregister(
           "test_result_collation_with_value", &was_present) ||
       mysql_service_udf_registration->udf_unregister(
-          "test_args_collation_with_value", &was_present)) {
+          "test_args_collation_with_value", &was_present) ||
+      mysql_service_udf_registration->udf_unregister(
+          "test_args_without_init_deinit_methods", &was_present)) {
     goto end;
   }
   ret = false;

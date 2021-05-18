@@ -1,5 +1,3 @@
---source include/not_hypergraph.inc  # Logs extra text to stderr for now.
-
 --echo #
 --echo # WL#9323:  Logging services: Improved error logging in 8.0
 --echo #

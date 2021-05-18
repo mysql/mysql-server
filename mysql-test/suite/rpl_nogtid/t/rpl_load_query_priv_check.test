@@ -98,7 +98,7 @@ SET @@GLOBAL.DEBUG = "+d,skip_the_priv_check_in_begin_load";
 # Begin_load_query event this time, and just verify for Execute_load_query event
 
 --replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
-eval CHANGE MASTER TO  MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, MASTER_LOG_POS= $master_log_pos_1;
+eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $master_log_pos_1;
 
 START SLAVE;
 SET DEBUG_SYNC= "now WAIT_FOR skipped_the_priv_check_in_begin_load";
@@ -110,7 +110,7 @@ STOP SLAVE;
 --eval GRANT FILE, INSERT  ON *.* TO $grant_to
 
 --replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
-eval CHANGE MASTER TO  MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, MASTER_LOG_POS= $master_log_pos_1;
+eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $master_log_pos_1;
 START SLAVE;
 --source include/sync_slave_sql.inc
 DROP TABLE t1;
@@ -167,7 +167,7 @@ SET @@GLOBAL.DEBUG = "+d,skip_the_priv_check_in_begin_load";
 # Start reading the LOAD DATA INFILE statement but skip the privilege check for
 # Begin_load_query event this time, and just verify for Execute_load_query event
 --replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
-eval CHANGE MASTER TO  MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, MASTER_LOG_POS= $master_log_pos_1;
+eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $master_log_pos_1;
 
 START SLAVE;
 SET DEBUG_SYNC = "now WAIT_FOR skipped_the_priv_check_in_begin_load";
@@ -178,7 +178,7 @@ SET @@GLOBAL.DEBUG = "-d,skip_the_priv_check_in_begin_load";
 STOP SLAVE;
 --eval GRANT FILE  ON *.* TO $grant_to
 --replace_result $MASTER_MYPORT MASTER_PORT $master_log_pos_1 MASTER_LOG_POS
-eval CHANGE MASTER TO  MASTER_USER='root', MASTER_PORT=$MASTER_MYPORT, MASTER_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, MASTER_LOG_POS= $master_log_pos_1;
+eval CHANGE REPLICATION SOURCE TO  SOURCE_USER='root', SOURCE_PORT=$MASTER_MYPORT, SOURCE_HOST='127.0.0.1', PRIVILEGE_CHECKS_USER = $applier_user, SOURCE_LOG_POS= $master_log_pos_1;
 
 START SLAVE;
 --source include/sync_slave_sql.inc

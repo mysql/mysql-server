@@ -67,3 +67,7 @@ select * from t1 where match(content) against('+Maria' IN BOOLEAN MODE);
 select * from t1 where match(content) against('+Marib' IN BOOLEAN MODE);
 
 drop table t1;
+
+# Clean up
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

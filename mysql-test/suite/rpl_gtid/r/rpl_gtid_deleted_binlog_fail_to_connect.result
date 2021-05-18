@@ -28,7 +28,7 @@ INSERT INTO t1 VALUES (2);
 #    MASTER TO MASTER_AUTO_POSITION=1.
 #
 [connection slave]
-CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 1;
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -44,7 +44,7 @@ include/assert_grep.inc [Found warning containing lost GTIDs in the slave error 
 # 6) Verify that replication succeeds if it tries to connect using CHANGE
 #    MASTER TO MASTER_LOG_POS.
 #
-CHANGE MASTER TO MASTER_LOG_FILE = 'MASTER_FILE', MASTER_LOG_POS = MASTER_POS, MASTER_AUTO_POSITION = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_LOG_FILE = 'MASTER_FILE', SOURCE_LOG_POS = MASTER_POS, SOURCE_AUTO_POSITION = 0;
 include/start_slave.inc
 include/assert.inc [t1 should contain only one row with the value 2]
 include/stop_slave.inc

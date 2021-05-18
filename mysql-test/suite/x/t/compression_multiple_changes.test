@@ -16,7 +16,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/multi_capset.tmp
+--write_file $MYSQL_TMP_DIR/multi_capset.xpl
 -->import assert_select.macro
 -->import assert_messages.macro
 -->import connection.macro
@@ -277,9 +277,8 @@ EOF
 
 exec $MYSQLXTEST
   -ux_root --password=''
-  --file=$MYSQL_TMP_DIR/multi_capset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/multi_capset.xpl 2>&1;
 
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/multi_capset.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

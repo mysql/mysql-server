@@ -4,7 +4,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_insert_expr.tmp
+--write_file $MYSQL_TMP_DIR/crud_insert_expr.xpl
 ## Test data
 -->quiet
 -->sql
@@ -166,8 +166,7 @@ drop schema if exists xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_expr.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_expr.xpl 2>&1
 
 ## Cleanup
---remove_file $MYSQL_TMP_DIR/crud_insert_expr.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

@@ -9,12 +9,12 @@ start slave;
 Got one of the listed errors
 start slave;
 ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
-change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-change master to master_host='127.0.0.1',master_port=MASTER_PORT, master_user='root';
+CHANGE REPLICATION SOURCE to SOURCE_HOST='127.0.0.1',SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

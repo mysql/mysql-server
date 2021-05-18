@@ -1,0 +1,30 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+SELECT @@global.caching_sha2_password_digest_rounds;
+@@global.caching_sha2_password_digest_rounds
+200000
+CREATE USER wl_14281_7000@localhost IDENTIFIED WITH caching_sha2_password BY 'WL_14281_PASSWORD';
+SELECT SUBSTRING(authentication_string, 4,3) AS length FROM mysql.user WHERE user='wl_14281_7000';
+length
+0C8
+SELECT user FROM information_schema.USER_ATTRIBUTES;
+USER
+wl_14281_7000
+include/sync_slave_sql_with_master.inc
+[connection slave]
+SELECT @@global.caching_sha2_password_digest_rounds;
+@@global.caching_sha2_password_digest_rounds
+10000
+SELECT SUBSTRING(authentication_string, 4,3) AS length FROM mysql.user WHERE user='wl_14281_7000';
+length
+0C8
+SELECT user FROM information_schema.USER_ATTRIBUTES;
+USER
+wl_14281_7000
+[connection master]
+DROP USER wl_14281_7000@localhost;
+include/rpl_end.inc

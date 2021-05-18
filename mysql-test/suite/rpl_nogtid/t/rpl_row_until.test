@@ -7,7 +7,7 @@
 ##############################################################################
 # The test is dependent on binlog positions. The test is divided into two
 # sections. The first section checks START SLAVE UNTIL MASTER_LOG_FILE =
-# 'log_name', MASTER_LOG_POS = log_pos followed by a couple of failure
+# 'log_name', SOURCE_LOG_POS = log_pos followed by a couple of failure
 # scenarios. The second section checks START SLAVE UNTIL RELAY_LOG_FILE =
 # 'log_name', RELAY_LOG_POS = log_pos.
 ##############################################################################
@@ -43,14 +43,14 @@ let $master_pos_drop_t2= query_get_value(SHOW MASTER STATUS, Position, 1);
 RESET SLAVE;
 --disable_query_log
 --replace_column 2 ####
-eval CHANGE MASTER TO MASTER_USER='root', MASTER_CONNECT_RETRY=1, MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT;
+eval CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_CONNECT_RETRY=1, SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT;
 --enable_query_log
 
 # Try to replicate all queries until drop of t1
 
 connection slave;
 --replace_result $master_pos_drop_t1 master_pos_drop_t1
-eval START SLAVE UNTIL MASTER_LOG_FILE='$master_log_file', MASTER_LOG_POS=$master_pos_drop_t1;
+eval START SLAVE UNTIL SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS=$master_pos_drop_t1;
 --source include/wait_for_slave_sql_to_stop.inc
 
 # Here table should be still not deleted
@@ -60,8 +60,8 @@ SELECT * FROM t1;
 --source include/check_slave_param.inc
 
 # This should fail right after start
---replace_result 291 MASTER_LOG_POS
-START SLAVE UNTIL MASTER_LOG_FILE='master-no-such-bin.000001', MASTER_LOG_POS=291;
+--replace_result 291 SOURCE_LOG_POS
+START SLAVE UNTIL SOURCE_LOG_FILE='master-no-such-bin.000001', SOURCE_LOG_POS=291;
 --source include/wait_for_slave_sql_to_stop.inc
 # again this table should be still not deleted
 SELECT * FROM t1;
@@ -78,9 +78,9 @@ connection master;
 --source include/stop_slave.inc
 
 # This should stop immediately as we are already there
-echo START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE='$master_log_file', MASTER_LOG_POS=master_pos_create_t2;
+echo START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS=master_pos_create_t2;
 --disable_query_log
-eval START SLAVE SQL_THREAD UNTIL MASTER_LOG_FILE='$master_log_file', MASTER_LOG_POS=$master_pos_create_t2;
+eval START SLAVE SQL_THREAD UNTIL SOURCE_LOG_FILE='$master_log_file', SOURCE_LOG_POS=$master_pos_create_t2;
 --enable_query_log
 let $slave_param= Until_Log_Pos;
 let $slave_param_value= $master_pos_create_t2;
@@ -92,22 +92,22 @@ let $slave_param_value= $master_pos_create_t2;
 --source include/check_slave_param.inc
 
 #testing various error conditions
---replace_result 561 MASTER_LOG_POS
+--replace_result 561 SOURCE_LOG_POS
 --error 1277
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin', MASTER_LOG_POS=561;
---replace_result 561 MASTER_LOG_POS 12 RELAY_LOG_POS
+START SLAVE UNTIL SOURCE_LOG_FILE='master-bin', SOURCE_LOG_POS=561;
+--replace_result 561 SOURCE_LOG_POS 12 RELAY_LOG_POS
 --error 1277
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=561, RELAY_LOG_POS=12;
+START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=561, RELAY_LOG_POS=12;
 --error 1277
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001';
+START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001';
 --error 1277
 START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000009';
---replace_result 561 MASTER_LOG_POS
+--replace_result 561 SOURCE_LOG_POS
 --error 1277
-START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', MASTER_LOG_POS=561;
+START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', SOURCE_LOG_POS=561;
 
---replace_result 740 MASTER_LOG_POS
-START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=740;
+--replace_result 740 SOURCE_LOG_POS
+START SLAVE UNTIL SOURCE_LOG_FILE='master-bin.000001', SOURCE_LOG_POS=740;
 
 --source include/stop_slave.inc
 RESET SLAVE;

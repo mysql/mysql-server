@@ -1,0 +1,246 @@
+################################################################################
+#
+# WL#14166 - xproto: notify on connection close
+#
+# Verify that MySQL Server send notice trough X Protocol connections
+# when it forces the closure at server shutdown.
+
+--source include/xplugin_preamble.inc
+--source include/xplugin_create_user.inc
+
+## Test case description:
+--echo ## I. Validate that X Plugin sends shutdown notice on IDLE connections
+--echo #
+--echo # 1. Connect multiple clients, make the IDLE, and trigger restart, validate the notice
+--echo # 2. Assert status variables after server restart (they should be set at 0)
+--echo # 3. Assert MYSQLXTEST message counters that it saw the warning notice
+--echo #
+--echo ## II. Validate that X Plugin sends shutdown notice on connections that process a query
+--echo #
+--echo # 1. A connection is waiting for lock
+--echo # 2. A connection is sleeping "SELECT SLEEP(A);"
+--echo #
+--echo ## III. Validate that X Plugin not sends shutdown notice on not authotized connections
+--echo #
+--echo
+
+## Test starts here
+--let $xtest1_file= $MYSQL_TMP_DIR/restart_server_and_check_notices_on_idle_connections.xpl
+--let $xtest2_file= $MYSQL_TMP_DIR/restart_server_and_check_notices_on_working.xpl
+--let $xtest3_file= $MYSQL_TMP_DIR/restart_server_and_check_notices_on_not_auth_connections.xpl
+
+--write_file $xtest1_file
+import kill_and_restart.macro;
+import assert_notices.macro;
+import assert_status_variable.macro;
+
+env %MYSQLADMIN% MYSQLADMIN;
+env %MASTER_MYPORT% MASTER_MYPORT;
+
+echo;
+echo #;
+echo # I.1;
+callmacro Expect_restart_mysqld_instance	1;
+
+repeat 10	%SESSION_ID%;
+newsession session_%SESSION_ID%	x_root;
+endrepeat;
+
+
+echo;
+echo #;
+echo # Shutting down MySQL Server;
+system %MYSQLADMIN% -P %MASTER_MYPORT% --protocol tcp -u x_root -h localhost shutdown;
+
+varlet %ER_SERVER_SHUTDOWN% 1053;
+
+repeat 10	%SESSION_ID%;
+echo session_%SESSION_ID%;
+setsession session_%SESSION_ID%;
+callmacro Assert_notice_warning	ERROR	%ER_SERVER_SHUTDOWN%;
+recvuntildisc show-received keep-session;
+reconnect;
+-->endrepeat
+
+setsession;
+callmacro Assert_notice_warning	ERROR	%ER_SERVER_SHUTDOWN%;
+recvuntildisc show-received keep-session;
+echo # Reconnecting default session;
+reconnect;
+
+
+echo;
+echo #;
+echo # I.2;
+# Server has restarted thus status variables on server side should be set to "0"
+callmacro Assert_status_variable	Mysqlx_notice_warning_sent	0;
+callmacro Assert_global_status_variable	Mysqlx_notice_warning_sent	0;
+
+echo;
+echo #;
+echo # I.3;
+# It can be only checked on mysqlxtest side
+callmacro Assert_client_message_count Mysqlx.Notice.Warning	==	1;
+
+EOF
+
+--write_file $xtest2_file
+import kill_and_restart.macro;
+import assert_notices.macro;
+import assert_status_variable.macro;
+
+env %MYSQLADMIN% MYSQLADMIN;
+env %MASTER_MYPORT% MASTER_MYPORT;
+
+echo;
+echo #;
+echo # II. Prepare;
+CREATE TABLE test.some_table(some_column int);
+
+-->sql
+DELIMITER //
+CREATE PROCEDURE test.loop_in_sp()
+BEGIN
+  REPEAT
+    SET @A=1;
+  UNTIL FALSE END REPEAT;
+END
+//
+DELIMITER ;
+-->endsql
+
+newsession session_WRITE_LOCK	x_root;
+LOCK TABLE test.some_table WRITE;
+
+newsession session_READ_LOCK	x_root;
+stmtsql SELECT * FROM test.some_table;
+
+newsession session_SLEEP	x_root;
+stmtsql SELECT SLEEP(10000);
+
+newsession session_SP	x_root;
+stmtsql CALL test.loop_in_sp();
+
+setsession;
+quiet;
+wait_for 2	SELECT count(*) FROM information_schema.processlist WHERE (state like "Waiting%" or  state like "User sleep%") and user = "x_root";
+noquiet;
+
+echo;
+echo #;
+echo # Shutting down MySQL Server;
+setsession;
+callmacro Expect_restart_mysqld_instance	1;
+system %MYSQLADMIN% -P %MASTER_MYPORT% --protocol tcp -u x_root -h localhost shutdown;
+
+
+echo;
+echo #;
+echo # II.1;
+varlet %ER_SERVER_SHUTDOWN% 1053;
+
+setsession session_WRITE_LOCK;
+callmacro Assert_notice_warning	ERROR	%ER_SERVER_SHUTDOWN%;
+recvuntildisc show-received keep-session;
+reconnect;
+
+
+echo;
+echo #;
+echo # II.1;
+
+setsession session_READ_LOCK;
+expecterror ER_QUERY_INTERRUPTED,ER_SUCCESS;
+recvresult be-quiet;
+recvuntildisc show-received keep-session;
+reconnect;
+
+
+echo;
+echo #;
+echo # II.2;
+
+setsession session_SLEEP;
+recvresult;
+callmacro Assert_notice_warning	ERROR	%ER_SERVER_SHUTDOWN%;
+recvuntildisc show-received keep-session;
+reconnect;
+
+
+echo;
+echo #;
+echo # II.3;
+
+setsession session_SP;
+recvtype Mysqlx.Error code %ER_SERVER_SHUTDOWN%;
+callmacro Assert_notice_warning	ERROR	%ER_SERVER_SHUTDOWN%;
+recvuntildisc show-received keep-session;
+reconnect;
+
+EOF
+
+
+--write_file $xtest3_file
+import kill_and_restart.macro;
+import assert_notices.macro;
+
+env %MYSQLADMIN% MYSQLADMIN;
+env %MASTER_MYPORT% MASTER_MYPORT;
+
+echo;
+echo #;
+echo # III;
+
+echo;
+echo #;
+echo # Creating sessions;
+
+repeat 10	%SESSION_ID%;
+newsession session_%SESSION_ID%	-;
+# reciving ServerHello notice
+recvtype Mysqlx.Notice.Frame type 5;
+endrepeat;
+
+
+echo;
+echo #
+echo # Shutting down MySQL Server;
+setsession;
+callmacro Expect_restart_mysqld_instance	1;
+system %MYSQLADMIN% -P %MASTER_MYPORT% --protocol tcp -u x_root -h localhost shutdown;
+
+
+echo;
+echo #;
+echo # Closing connection and reconect;
+
+repeat 10	%SESSION_ID%;
+setsession session_%SESSION_ID%;
+echo # `recvunitldisc` command must report disconnection without any other messages;
+recvuntildisc show-received keep-session;
+reconnect;
+endrepeat;
+
+setsession;
+varlet %ER_SERVER_SHUTDOWN% 1053;
+callmacro Assert_notice_warning	ERROR	%ER_SERVER_SHUTDOWN%;
+recvuntildisc show-received keep-session;
+echo # Reconnecting default session;
+reconnect;
+
+EOF
+
+
+
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest1_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest2_file 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$xtest3_file 2>&1
+
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+## Cleanup
+DROP TABLE test.some_table;
+DROP PROCEDURE test.loop_in_sp;
+--source ../include/xplugin_cleanup.inc

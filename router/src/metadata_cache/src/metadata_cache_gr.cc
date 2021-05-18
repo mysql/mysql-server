@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -597,6 +597,10 @@ bool GRMetadataCache::fetch_metadata_from_connected_instance(
       }
 
       on_instances_changed(/*md_servers_reachable=*/true);
+    } else if (trigger_acceptor_update_on_next_refresh_) {
+      // Instances information has not changed, but we failed to start listening
+      // on incoming sockets, therefore we must retry on next metadata refresh.
+      on_handle_sockets_acceptors();
     }
   } catch (const std::runtime_error &exc) {
     // fetching the meatadata failed

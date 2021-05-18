@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -34,8 +34,9 @@ namespace locksys {
 
 /* Global_exclusive_latch_guard */
 
-Global_exclusive_latch_guard::Global_exclusive_latch_guard() {
-  lock_sys->latches.global_latch.x_lock();
+Global_exclusive_latch_guard::Global_exclusive_latch_guard(
+    ut::Location location) {
+  lock_sys->latches.global_latch.x_lock(location);
 }
 
 Global_exclusive_latch_guard::~Global_exclusive_latch_guard() {
@@ -44,8 +45,9 @@ Global_exclusive_latch_guard::~Global_exclusive_latch_guard() {
 
 /* Global_exclusive_try_latch */
 
-Global_exclusive_try_latch::Global_exclusive_try_latch() {
-  m_owns_exclusive_global_latch = lock_sys->latches.global_latch.try_x_lock();
+Global_exclusive_try_latch::Global_exclusive_try_latch(ut::Location location) {
+  m_owns_exclusive_global_latch =
+      lock_sys->latches.global_latch.try_x_lock(location);
 }
 
 Global_exclusive_try_latch::~Global_exclusive_try_latch() {
@@ -57,19 +59,22 @@ Global_exclusive_try_latch::~Global_exclusive_try_latch() {
 
 /* Shard_naked_latch_guard */
 
-Shard_naked_latch_guard::Shard_naked_latch_guard(Lock_mutex &shard_mutex)
+Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
+                                                 Lock_mutex &shard_mutex)
     : m_shard_mutex{shard_mutex} {
   ut_ad(owns_shared_global_latch());
-  mutex_enter(&m_shard_mutex);
+  mutex_enter_inline(&m_shard_mutex, location);
 }
 
-Shard_naked_latch_guard::Shard_naked_latch_guard(const dict_table_t &table)
-    : Shard_naked_latch_guard{lock_sys->latches.table_shards.get_mutex(table)} {
-}
-
-Shard_naked_latch_guard::Shard_naked_latch_guard(const page_id_t &page_id)
+Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
+                                                 const dict_table_t &table)
     : Shard_naked_latch_guard{
-          lock_sys->latches.page_shards.get_mutex(page_id)} {}
+          location, lock_sys->latches.table_shards.get_mutex(table)} {}
+
+Shard_naked_latch_guard::Shard_naked_latch_guard(ut::Location location,
+                                                 const page_id_t &page_id)
+    : Shard_naked_latch_guard{
+          location, lock_sys->latches.page_shards.get_mutex(page_id)} {}
 
 Shard_naked_latch_guard::~Shard_naked_latch_guard() {
   mutex_exit(&m_shard_mutex);
@@ -77,8 +82,8 @@ Shard_naked_latch_guard::~Shard_naked_latch_guard() {
 
 /* Global_shared_latch_guard */
 
-Global_shared_latch_guard::Global_shared_latch_guard() {
-  lock_sys->latches.global_latch.s_lock();
+Global_shared_latch_guard::Global_shared_latch_guard(ut::Location location) {
+  lock_sys->latches.global_latch.s_lock(location);
 }
 
 Global_shared_latch_guard::~Global_shared_latch_guard() {

@@ -1,0 +1,200 @@
+--echo ## Scenario 1 - A ###################################################
+
+CREATE USER 'user'@'localhost';
+CREATE USER 'user'@'127.0.0.1';
+
+--exec $MYSQL --host=::1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhost' AS 'Expected', CURRENT_USER();"
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'localhost';
+DROP USER 'user'@'127.0.0.1';
+
+--echo ## Scenario 1 - B ###################################################
+
+CREATE USER 'user'@'127.0.0.1';
+CREATE USER 'user'@'localhost';
+
+--exec $MYSQL --host=::1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhost' AS 'Expected', CURRENT_USER();"
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'127.0.0.1';
+DROP USER 'user'@'localhost';
+
+--echo ## Scenario 2 - A ###################################################
+
+CREATE USER 'user'@'localhost';
+CREATE USER 'user'@'127.0.0.1/255.255.255.255';
+
+--exec $MYSQL --host=::1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhost' AS 'Expected', CURRENT_USER();"
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1/255.255.255.255' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'localhost';
+DROP USER 'user'@'127.0.0.1/255.255.255.255';
+
+--echo ## Scenario 2 - B ###################################################
+
+CREATE USER 'user'@'127.0.0.1/255.255.255.255';
+CREATE USER 'user'@'localhost';
+
+--exec $MYSQL --host=::1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhost' AS 'Expected', CURRENT_USER();"
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1/255.255.255.255' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'127.0.0.1/255.255.255.255';
+DROP USER 'user'@'localhost';
+
+--echo #####################################################################
+--echo ## Scenario 3 - A ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'127.0.0.1';
+CREATE USER 'user'@'127.0.0.1/255.255.255.255';
+
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'127.0.0.1';
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1/255.255.255.255' AS 'Expected', CURRENT_USER();"
+DROP USER 'user'@'127.0.0.1/255.255.255.255';
+
+--echo #####################################################################
+--echo ## Scenario 3 - B ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'127.0.0.1/255.255.255.255';
+CREATE USER 'user'@'127.0.0.1';
+
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'127.0.0.1/255.255.255.255';
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1' AS 'Expected', CURRENT_USER();"
+DROP USER 'user'@'127.0.0.1';
+
+--echo #####################################################################
+--echo ## Scenario 4 - A ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'127.0.0.1';
+CREATE USER 'user'@'127.0.0.1/32';
+
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'127.0.0.1';
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1/32' AS 'Expected', CURRENT_USER();"
+DROP USER 'user'@'127.0.0.1/32';
+
+--echo #####################################################################
+--echo ## Scenario 4 - B ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'127.0.0.1/32';
+CREATE USER 'user'@'127.0.0.1';
+
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'127.0.0.1/32';
+DROP USER 'user'@'127.0.0.1';
+
+--echo #####################################################################
+--echo ## Scenario 5 - A ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'127.0.0.0/255.255.255.0';
+CREATE USER ''@'127.0.0.1';
+
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT '@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'127.0.0.0/255.255.255.0';
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT '@127.0.0.1' AS 'Expected', CURRENT_USER();"
+DROP USER ''@'127.0.0.1';
+
+--echo #####################################################################
+--echo ## Scenario 5 - B ###################################################
+--echo #####################################################################
+
+CREATE USER ''@'127.0.0.1';
+CREATE USER 'user'@'127.0.0.0/255.255.255.0';
+
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT '@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER ''@'127.0.0.1';
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.0/255.255.255.0' AS 'Expected', CURRENT_USER();"
+DROP USER 'user'@'127.0.0.0/255.255.255.0';
+
+--echo #####################################################################
+--echo ## Scenario 6 - A ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'127.0.0.1';
+CREATE USER ''@'127.0.0.1';
+
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'127.0.0.1';
+DROP USER ''@'127.0.0.1';
+
+--echo #####################################################################
+--echo ## Scenario 6 - B ###################################################
+--echo #####################################################################
+
+CREATE USER ''@'127.0.0.1';
+CREATE USER 'user'@'127.0.0.1';
+
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@127.0.0.1' AS 'Expected', CURRENT_USER();"
+
+DROP USER ''@'127.0.0.1';
+DROP USER 'user'@'127.0.0.1';
+
+--echo #####################################################################
+--echo ## Scenario 7 - A ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'localhos%';
+CREATE USER 'user'@'localhos_';
+
+--exec $MYSQL --host=localhost --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhos%' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'localhos%';
+
+--exec $MYSQL --host=localhost --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhos_' AS 'Expected', CURRENT_USER();"
+DROP USER 'user'@'localhos_';
+
+--echo #####################################################################
+--echo ## Scenario 7 - B ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'localhos_';
+CREATE USER 'user'@'localhos%';
+
+--exec $MYSQL --host=localhost --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhos_' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'localhos_';
+
+--exec $MYSQL --host=localhost --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhos%' AS 'Expected', CURRENT_USER();"
+DROP USER 'user'@'localhos%';
+
+--echo #####################################################################
+--echo ## Scenario 8 - A ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'localhost';
+CREATE USER 'user'@'::1';
+
+--exec $MYSQL --host=localhost --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhost' AS 'Expected', CURRENT_USER();"
+--exec $MYSQL --host=::1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhost' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'localhost';
+--exec $MYSQL --host=::1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@::1' AS 'Expected', CURRENT_USER();"
+DROP USER 'user'@'::1';
+
+--echo #####################################################################
+--echo ## Scenario 8 - B ###################################################
+--echo #####################################################################
+
+CREATE USER 'user'@'::1';
+CREATE USER 'user'@'localhost';
+
+--exec $MYSQL --host=127.0.0.1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhost' AS 'Expected', CURRENT_USER();"
+--exec $MYSQL --host=::1 --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@::1' AS 'Expected', CURRENT_USER();"
+
+DROP USER 'user'@'::1';
+--exec $MYSQL --host=localhost --user=user --ssl-mode=DISABLED --protocol=TCP -e "SELECT 'user@localhost' AS 'Expected', CURRENT_USER();"
+DROP USER 'user'@'localhost';

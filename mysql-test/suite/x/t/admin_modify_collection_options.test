@@ -7,7 +7,7 @@
 
 create schema xtest;
 
---let $xtest_file= $MYSQL_TMP_DIR/admin_modify_collection_options.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_modify_collection_options.xpl
 --write_file $xtest_file
 -->import validation_schema.macro
 -->import assert_status_variable.macro
@@ -480,6 +480,4 @@ EOF
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
-drop schema if exists xtest;
+--source ../include/xplugin_cleanup.inc

@@ -21,6 +21,7 @@ select * from t2;
 select distinct t2.i,@vv1:=if(sv1.i,1,0),@vv2:=if(sv2.i,1,0),@vv3:=if(sv3.i,1,0), @vv1+@vv2+@vv3 from t2 left join t1 as sv1 on sv1.i=t2.i and sv1.v=1 left join t1 as sv2 on sv2.i=t2.i and sv2.v=2 left join t1 as sv3 on sv3.i=t2.i and sv3.v=3;
 analyze table t1;
 explain select * from t1 where i=@vv1;
+--skip_if_hypergraph  # SELECT DISTINCT not suppored, so @vv1 is wrong.
 select @vv1,i,v from t1 where i=@vv1;
 explain select * from t1 where @vv1:=@vv1+1 and i=@vv1;
 explain select @vv1:=i from t1 where i=@vv1;
@@ -69,11 +70,17 @@ select @a:=10, @b:=2, @a>@b, @a:="10", @b:="2", @a>@b, @a:=10, @b:=2, @a>@b, @a:
 #
 create table t1 (i int not null);
 insert t1 values (1),(2),(2),(3),(3),(3);
-select @a:=0; select @a, @a:=@a+count(*), count(*), @a from t1 group by i;
-select @a:=0; select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
+select @a:=0;
+--skip_if_hypergraph  # Depends on the query plan.
+select @a, @a:=@a+count(*), count(*), @a from t1 group by i;
+select @a:=0;
+--skip_if_hypergraph  # Depends on the query plan.
+select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
 
 set @a=0;
+--skip_if_hypergraph  # Depends on the query plan.
 select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
+--skip_if_hypergraph  # Depends on the query plan.
 select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
 drop table t1;
 
@@ -209,6 +216,7 @@ create table t1(f1 int, f2 int);
 insert into t1 values (1,2),(2,3),(3,1);
 --source include/turn_off_only_full_group_by.inc
 select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
+--skip_if_hypergraph  # ORDER BY + GROUP by is not supported together, so @var is not set.
 select @var;
 create table t2 as select @var:=f2 from t1 group by f1 order by f2 desc limit 1;
 select * from t2;

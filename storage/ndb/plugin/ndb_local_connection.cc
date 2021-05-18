@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,8 +209,6 @@ bool Ndb_local_connection::create_util_table(const std::string &table_def_sql) {
 bool Ndb_local_connection::run_acl_statement(const std::string &acl_sql) {
   DBUG_TRACE;
   uint ignore_mysql_errors[2] = {ER_NO_SUCH_TABLE, ER_NONEXISTING_TABLE_GRANT};
-
-  ndb_log_verbose(30, "run_acl_statement: %s", acl_sql.c_str());
   MYSQL_LEX_STRING sql_text = {const_cast<char *>(acl_sql.c_str()),
                                acl_sql.length()};
   m_thd->set_query_id(next_query_id());

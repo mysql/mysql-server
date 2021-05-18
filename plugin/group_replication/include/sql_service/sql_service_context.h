@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -239,6 +239,11 @@ class Sql_service_context : public Sql_service_context_base {
     Session was shutdown while command was running
   */
   void shutdown(int flag) override;
+
+  /**
+     Check if the connection is still alive.
+  */
+  bool connection_alive() override { return true; }
 
  private:
   /* executed command result store */

@@ -15,7 +15,7 @@ CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 server2
 SET @debug_save_rec_int= @@GLOBAL.group_replication_recovery_reconnect_interval;
 SET @debug_save_ret_count= @@GLOBAL.group_replication_recovery_retry_count;
-CHANGE MASTER TO MASTER_PASSWORD='bad_password' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='bad_password' FOR CHANNEL 'group_replication_recovery';
 SET GLOBAL group_replication_recovery_reconnect_interval= 10 # seconds;
 SET GLOBAL group_replication_recovery_retry_count= 2;
 #
@@ -55,7 +55,7 @@ server1
 include/start_and_bootstrap_group_replication.inc
 server2
 include/stop_group_replication.inc
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 include/start_group_replication.inc
 INSERT INTO t1 VALUES (1);
 include/rpl_sync.inc

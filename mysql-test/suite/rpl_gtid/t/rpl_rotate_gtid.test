@@ -36,7 +36,7 @@ source include/have_debug_sync.inc;
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
 # Disabling auto positioning
-CHANGE MASTER TO MASTER_AUTO_POSITION=0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0;
 # Make sync includes to rely on position instead of GTIDs
 --let $use_gtids= 0
 --source include/start_slave_io.inc

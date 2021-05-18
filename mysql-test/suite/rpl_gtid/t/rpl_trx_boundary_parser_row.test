@@ -51,7 +51,7 @@ RESET MASTER;
 #
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 --source include/start_slave.inc
 
 --echo # Using InnoDB storage engine without auto positioning
@@ -63,7 +63,7 @@ CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
 #
 --source include/rpl_connection_slave.inc
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 1;
 --source include/start_slave.inc
 
 --source include/rpl_end.inc

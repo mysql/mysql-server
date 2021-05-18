@@ -1,0 +1,11 @@
+# This testcase tries to put the InnoDB under stress of truncating and deleting
+# tablespaces, with a buffer pool eviction process run in parallel in some
+# cases.
+
+--source include/have_debug.inc
+
+set global DEBUG="+d,buf_lru_free_page_delay_block_mutex_reacquisition,buf_page_free_stale_delay_lru_mutex_acquisition";
+
+--source tablespace_truncate_stress.test
+
+set global DEBUG="-d,buf_lru_free_page_delay_block_mutex_reacquisition,buf_page_free_stale_delay_lru_mutex_acquisition";

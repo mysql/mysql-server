@@ -13,7 +13,7 @@ stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
-change master to master_user='replssl',master_password='';
+CHANGE REPLICATION SOURCE to SOURCE_USER='replssl',SOURCE_PASSWORD='';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -22,7 +22,7 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=1045]
 include/stop_slave_sql.inc
-change master to master_ssl=1 , master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem', master_tls_version='TLSv1.2';
+CHANGE REPLICATION SOURCE to SOURCE_SSL=1 , SOURCE_SSL_CA ='MYSQL_TEST_DIR/std_data/cacert.pem', SOURCE_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem', SOURCE_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem', SOURCE_TLS_VERSION='TLSv1.2';
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -43,7 +43,7 @@ stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
-change master to master_user='root',master_password='', master_ssl=0;
+CHANGE REPLICATION SOURCE to SOURCE_USER='root',SOURCE_PASSWORD='', SOURCE_SSL=0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -67,13 +67,13 @@ stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
 include/wait_for_slave_to_stop.inc
-change master to
-master_host="localhost",
-master_ssl=1 ,
-master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem',
-master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem',
-master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem',
-master_ssl_verify_server_cert=1;
+CHANGE REPLICATION SOURCE to
+SOURCE_HOST="localhost",
+SOURCE_SSL=1 ,
+SOURCE_SSL_CA ='MYSQL_TEST_DIR/std_data/cacert.pem',
+SOURCE_SSL_CERT='MYSQL_TEST_DIR/std_data/client-cert.pem',
+SOURCE_SSL_KEY='MYSQL_TEST_DIR/std_data/client-key.pem',
+SOURCE_SSL_VERIFY_SERVER_CERT=1;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -100,19 +100,19 @@ RESET SLAVE;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on RESET SLAVE.]
-CHANGE MASTER TO MASTER_PORT= MASTER_MYPORT;
+CHANGE REPLICATION SOURCE TO SOURCE_PORT= MASTER_MYPORT;
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on CHANGE MASTER.]
 include/start_slave.inc
 include/assert.inc [Master_SSL_Verify_Server_Cert should NOT change on START SLAVE.]
 DROP TABLE IF EXISTS t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO
-master_host="127.0.0.1",
-master_ssl_ca ='',
-master_ssl_cert='',
-master_ssl_key='',
-master_ssl_verify_server_cert=0,
-master_ssl=0,
-master_tls_version='';
+CHANGE REPLICATION SOURCE TO
+SOURCE_HOST="127.0.0.1",
+SOURCE_SSL_CA ='',
+SOURCE_SSL_CERT='',
+SOURCE_SSL_KEY='',
+SOURCE_SSL_VERIFY_SERVER_CERT=0,
+SOURCE_SSL=0,
+SOURCE_TLS_VERSION='';
 include/rpl_end.inc

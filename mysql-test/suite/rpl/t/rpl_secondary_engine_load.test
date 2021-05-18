@@ -121,9 +121,18 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 # Create a table like t1.
 CREATE TABLE t2 LIKE t1;
 
-# Insert data from t1 to t2.
+ANALYZE TABLE t1;
+EXPLAIN INSERT INTO t2 SELECT * FROM t1;
+EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
+EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
 --disable_warnings
-INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t2 VALUES(NULL, 'Poodle', '{"key":"value"}', 'Pug', x'1234');
+INSERT INTO t2 VALUES(NULL, 'Labrador', '[{"key":"value"},{"key":"value2"}]',
+                      'Boxer', x'abcd');
+INSERT INTO t2 VALUES(NULL, 'Beagle', '[1,2,3]', 'Pitbull', x'abcd1234');
+INSERT INTO t2 VALUES(NULL, 'Collie', '["ab","bc","cd"]', 'Huskey',
+                      x'1ab2c3d4');
+INSERT INTO t2 VALUES(NULL, 'Shiba', '{"1":"one"}', 'Mastiff', x'ffff');
 --enable_warnings
 
 # Offload the table to MOCK engine.

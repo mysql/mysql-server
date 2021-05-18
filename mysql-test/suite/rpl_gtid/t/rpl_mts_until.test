@@ -36,7 +36,7 @@ SET GLOBAL relay_log_purge = FALSE;
 SET GLOBAL slave_parallel_type = "LOGICAL_CLOCK";
 SET GLOBAL slave_parallel_workers = 4;
 
---let $until_type= MASTER_POS
+--let $until_type= SOURCE_POS
 --source extra/rpl_tests/rpl_mts_until.inc
 
 --let $until_type= RELAY_POS
@@ -55,7 +55,7 @@ SET GLOBAL slave_parallel_workers = 4;
 SET GLOBAL innodb_lock_wait_timeout = 1000;
 SET GLOBAL relay_log_purge = FALSE;
 
---let $until_type= MASTER_POS
+--let $until_type= SOURCE_POS
 --source extra/rpl_tests/rpl_mts_until.inc
 
 --let $until_type= RELAY_POS

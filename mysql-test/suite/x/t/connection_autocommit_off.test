@@ -35,5 +35,4 @@ SET GLOBAL autocommit = 0;
 
 ## Cleanup
 SET GLOBAL autocommit = DEFAULT;
---remove_file $MYSQL_TMP_DIR/connection_autocommit_off.xpl
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

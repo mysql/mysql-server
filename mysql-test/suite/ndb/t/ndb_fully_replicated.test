@@ -69,7 +69,7 @@ drop table counters_at_startup;
 # alters...
 #
 alter table t1 algorithm=inplace, reorganize partition;
---error ER_ALTER_OPERATION_NOT_SUPPORTED
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 alter table t1 algorithm=inplace, add partition partitions 1;
 --error ER_CANT_CREATE_TABLE
 alter table t1 algorithm=copy, add partition partitions 1;

@@ -1,6 +1,7 @@
 ## This is test file for verification binding on multiple addresses
 ##
 --source include/not_windows.inc
+--source include/check_ipv6.inc
 --source ../include/have_performance_schema_threads.inc
 --source include/xplugin_preamble.inc
 

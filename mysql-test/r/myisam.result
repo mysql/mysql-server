@@ -484,8 +484,8 @@ INSERT t1 VALUES ("can   can");
 INSERT t1 VALUES ("can");
 SELECT * FROM t1;
 a
-can 	can
 can
+can 	can
 can   can
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text

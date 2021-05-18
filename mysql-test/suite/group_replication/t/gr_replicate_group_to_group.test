@@ -85,7 +85,7 @@ SET @@GLOBAL.group_replication_group_seeds= "";
 --echo #     to M1 (GR1).
 --connection server1
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_3, MASTER_AUTO_POSITION=1
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_3, SOURCE_AUTO_POSITION=1
 --source include/start_slave.inc
 
 --echo
@@ -94,7 +94,7 @@ SET @@GLOBAL.group_replication_group_seeds= "";
 --echo #     to M3 (GR2).
 --connection server3
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
---eval CHANGE MASTER TO MASTER_HOST="127.0.0.1", MASTER_USER="root", MASTER_PASSWORD="", MASTER_PORT=$SERVER_MYPORT_1, MASTER_AUTO_POSITION=1
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1", SOURCE_USER="root", SOURCE_PASSWORD="", SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_AUTO_POSITION=1
 --source include/start_slave.inc
 
 --echo
@@ -231,10 +231,10 @@ DROP TABLE t2;
 --echo # 13. Stop asynchronous replication between M3->M1 and M1->M3.
 --connection server1
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 --connection server3
 --source include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION=0 FOR CHANNEL "";
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION=0 FOR CHANNEL "";
 
 --echo
 --echo ############################################################

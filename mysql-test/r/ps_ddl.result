@@ -1647,12 +1647,12 @@ create view v_27690_1 as select A.a, A.b from t_27690_1 A, t_27690_1 B;
 execute stmt;
 a	b	a	b
 1	1	1	1
-2	2	1	1
 1	1	1	1
+1	1	2	2
+1	1	2	2
 2	2	1	1
-1	1	2	2
+2	2	1	1
 2	2	2	2
-1	1	2	2
 2	2	2	2
 call p_verify_reprepare_count(1);
 SUCCESS
@@ -1660,12 +1660,12 @@ SUCCESS
 execute stmt;
 a	b	a	b
 1	1	1	1
-2	2	1	1
 1	1	1	1
+1	1	2	2
+1	1	2	2
 2	2	1	1
-1	1	2	2
+2	2	1	1
 2	2	2	2
-1	1	2	2
 2	2	2	2
 call p_verify_reprepare_count(0);
 SUCCESS

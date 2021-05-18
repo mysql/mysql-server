@@ -55,7 +55,7 @@ GRANT ALL on *.* TO test_user1;
 CREATE USER test_user2 IDENTIFIED BY 'azundris2';
 
 # 1.1.1.3
-CHANGE MASTER TO MASTER_PASSWORD='azundris3';
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='azundris3';
 
 # 1.1.1.4
 CREATE USER 'test_user4'@'localhost';

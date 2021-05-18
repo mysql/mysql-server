@@ -1,0 +1,31 @@
+--source include/have_innodb_16k.inc
+--source include/have_no_punch_hole.inc
+
+--let $MYSQLD_DATADIR= `SELECT @@datadir`
+
+--copy_file $MYSQLTEST_VARDIR/std_data/import_compression_8_0_23.zip $MYSQL_TMP_DIR/import_compression_8_0_23.zip
+--file_exists $MYSQL_TMP_DIR/import_compression_8_0_23.zip
+--exec unzip -qo $MYSQL_TMP_DIR/import_compression_8_0_23.zip -d $MYSQL_TMP_DIR
+
+--error ER_INNODB_COMPRESSION_FAILURE
+CREATE TABLE t1(a int PRIMARY KEY) COMPRESSION='zlib';
+
+CREATE TABLE t1(a int PRIMARY KEY);
+
+ALTER TABLE t1 DISCARD TABLESPACE;
+
+--echo # copy unzipped .ibd and .cfg
+--copy_files_wildcard $MYSQL_TMP_DIR/import_compression_8_0_23/ $MYSQLD_DATADIR/test/ *
+
+--error ER_TABLE_SCHEMA_MISMATCH
+ALTER TABLE t1 IMPORT TABLESPACE;
+
+--echo # Manually remove tablespace files, since import failed and drop won't delete them.
+--remove_file $MYSQLD_DATADIR/test/t1.cfg
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
+
+# Cleanup
+--force-rmdir $MYSQL_TMP_DIR/import_compression_8_0_23
+--remove_file $MYSQL_TMP_DIR/import_compression_8_0_23.zip
+
+DROP TABLE t1;

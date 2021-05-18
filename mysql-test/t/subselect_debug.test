@@ -41,6 +41,7 @@ ANALYZE TABLE t;
 --echo # Execute the query with a simulated error in
 --echo # subselect_hash_sj_engine::setup().
 SET DEBUG='+d,hash_semijoin_fail_in_setup';
+--skip_if_hypergraph   # Uses hash semijoin instead, so doesn't get the error.
 --error ER_UNKNOWN_ERROR
 --eval $query
 SET DEBUG='-d,hash_semijoin_fail_in_setup';
@@ -62,6 +63,7 @@ SET optimizer_switch = 'firstmatch=off,materialization=off';
 --echo # Execute the query with a simulated error in
 --echo # create_duplicate_weedout_tmp_table().
 SET DEBUG='+d,create_duplicate_weedout_tmp_table_error';
+--skip_if_hypergraph   # Uses hash semijoin instead (does not support weedout), so doesn't get the error.
 --error ER_UNKNOWN_ERROR
 --eval $query
 SET DEBUG='-d,create_duplicate_weedout_tmp_table_error';

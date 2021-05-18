@@ -765,7 +765,7 @@ engine ndb;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
-UNDO_BUFFER_SIZE = 128M
+UNDO_BUFFER_SIZE = 2G
 ENGINE=NDB;
 SHOW WARNINGS;
 SET SESSION information_schema_stats_expiry=default;

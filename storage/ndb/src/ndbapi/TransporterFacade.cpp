@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -207,7 +207,7 @@ setSignalLog(){
   } else if(tmp !=0){
     if (strcmp(tmp, "-") == 0)
         signalLogger.setOutputStream(stdout);
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     else if (strcmp(tmp, "+") == 0)
         signalLogger.setOutputStream(DBUG_FILE);
 #endif
@@ -244,7 +244,9 @@ TRACE_GSN(Uint32 gsn)
  */
 bool
 TransporterFacade::deliver_signal(SignalHeader * const header,
-                                  Uint8 prio, Uint32 * const theData,
+                                  Uint8 prio,
+                                  TransporterError &error_code,
+                                  Uint32 * const theData,
                                   LinearSectionPtr ptr[3])
 {
   Uint32 tRecBlockNo = header->theReceiversBlockNumber;
@@ -1690,9 +1692,9 @@ TransporterFacade::TransporterFacade(GlobalDictCache *cache) :
 
 /* Return true if node with "nodeId" is a MGM node */
 static bool is_mgmd(Uint32 nodeId,
-                    const ndb_mgm_configuration * conf)
+                    const ndb_mgm_configuration *conf)
 {
-  ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, nodeId))
     abort();
   Uint32 type;
@@ -1702,14 +1704,13 @@ static bool is_mgmd(Uint32 nodeId,
   return (type == NODE_TYPE_MGM);
 }
 
-
 bool
 TransporterFacade::do_connect_mgm(NodeId nodeId,
                                   const ndb_mgm_configuration* conf)
 {
   // Allow other MGM nodes to connect
   DBUG_ENTER("TransporterFacade::do_connect_mgm");
-  ndb_mgm_configuration_iterator iter(*conf, CFG_SECTION_CONNECTION);
+  ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_CONNECTION);
   for(iter.first(); iter.valid(); iter.next())
   {
     Uint32 nodeId1, nodeId2;
@@ -1735,7 +1736,7 @@ TransporterFacade::do_connect_mgm(NodeId nodeId,
 
 void
 TransporterFacade::set_up_node_active_in_send_buffers(Uint32 nodeId,
-                                   const ndb_mgm_configuration &conf)
+                                   const ndb_mgm_configuration *conf)
 {
   DBUG_ENTER("TransporterFacade::set_up_node_active_in_send_buffers");
   ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_CONNECTION);
@@ -1771,11 +1772,11 @@ TransporterFacade::configure(NodeId nodeId,
   assert(theClusterMgr);
 
   /* Set up active communication with all configured nodes */
-  set_up_node_active_in_send_buffers(nodeId, *conf);
+  set_up_node_active_in_send_buffers(nodeId, conf);
 
   // Configure transporters
   if (!IPCConfig::configureTransporters(nodeId,
-                                        * conf,
+                                        conf,
                                         * theTransporterRegistry,
                                         true))
     DBUG_RETURN(false);
@@ -1783,7 +1784,7 @@ TransporterFacade::configure(NodeId nodeId,
   // Configure cluster manager
   theClusterMgr->configure(nodeId, conf);
 
-  ndb_mgm_configuration_iterator iter(* conf, CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(conf, CFG_SECTION_NODE);
   if(iter.find(CFG_NODE_ID, nodeId))
     DBUG_RETURN(false);
 
@@ -3170,7 +3171,13 @@ TransporterFacade::propose_poll_owner()
     if (NdbMutex_Trylock(new_owner->m_mutex) == 0)
     {
       assert(new_owner->m_poll.m_poll_queue == true);
-      assert(new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING);
+      /**
+       * It can happen that new_owner is in state PQ_WOKEN if it is currently
+       * closing down its client and another thread comes in between as poll
+       * owner before the closing thread has the chance to become poll owner.
+       */
+      assert(new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING ||
+             new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WOKEN);
       unlock_poll_mutex();
 
       /**
@@ -3267,7 +3274,22 @@ TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
       switch(clnt->m_poll.m_waiting) {
       case trp_client::PollQueue::PQ_WOKEN:
         dbg("%p - PQ_WOKEN", clnt);
-        // We have already been taken out of poll queue
+        /**
+         *  We have already been taken out of poll queue
+         * in the normal case, but when we sent CLOSE_COMREQ the
+         * state PQ_WOKEN signals that the receiver has executed
+         * perform_close_clnt. So in this case we might still be left
+         * in the poll queue.
+         */
+        if (clnt->m_poll.m_poll_queue)
+        {
+          lock_poll_mutex();
+          if (clnt->m_poll.m_poll_queue)
+          {
+            remove_from_poll_queue(clnt);
+          }
+          unlock_poll_mutex();
+        }
         assert(clnt->m_poll.m_poll_queue == false);
         assert(clnt->m_poll.m_poll_owner == false);
         clnt->m_poll.m_waiting = trp_client::PollQueue::PQ_IDLE;

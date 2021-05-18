@@ -68,6 +68,7 @@ SHOW STATUS LIKE 'Handler_%';
 
 FLUSH STATUS;
 eval $query5;
+--skip_if_hypergraph   # Does not optimize COUNT(*) specially yet.
 SHOW STATUS LIKE 'Handler_%';
 
 # This WL should affect a table with no primary key only to the extent that
@@ -225,7 +226,9 @@ SELECT COUNT(*) c FROM t_innodb HAVING c > 1;
 SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
 
 # Tests FORMAT=tree printing of COUNT(*).
+--skip_if_hypergraph  # Does not optimize COUNT(*) specially yet.
 EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_innodb HAVING c > 7;
+--replace_result 0.00..0.00 0.00
 EXPLAIN FORMAT=tree SELECT COUNT(*) c FROM t_myisam HAVING c > 7;
 
 # Should be empty.

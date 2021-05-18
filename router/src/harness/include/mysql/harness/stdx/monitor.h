@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, Oracle and/or its affiliates.
+  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -84,7 +84,7 @@ class WaitableMonitor : public Monitor<T> {
   }
 
   template <class Pred>
-  auto wait(Pred pred) {
+  auto wait(Pred pred) const {
     std::unique_lock<std::mutex> lk{this->mtx_};
 
     return cv_.wait(lk, [this, pred]() { return pred(this->t_); });

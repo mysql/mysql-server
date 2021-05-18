@@ -27,7 +27,7 @@ DROP PROCEDURE p1;
 CREATE USER test_user1 IDENTIFIED BY 'azundris1';
 GRANT ALL on *.* TO test_user1;
 CREATE USER test_user2 IDENTIFIED BY 'azundris2';
-CHANGE MASTER TO MASTER_PASSWORD='azundris3';
+CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='azundris3';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

@@ -18,7 +18,7 @@ SELECT @start_global_value;
 SET @@global.default_storage_engine = myisam;
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/mysqlx-in.tmp
+--write_file $MYSQL_TMP_DIR/mysqlx-in.xpl
 -->sql
 #-- "Creating database for testcase"
 DROP DATABASE IF EXISTS xplugintest;
@@ -416,14 +416,12 @@ SELECT * FROM xplugintest.table2;
 SELECT * FROM xplugintest.table1;
 -->endsql
 
-
 EOF
 
---exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.tmp  2>&1
+--exec $MYSQLXTEST -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-in.xpl  2>&1
 
 ## Cleanup
 DROP DATABASE IF EXISTS xplugintest;
 SET @@global.default_storage_engine = @start_global_value;
 SELECT @@global.default_storage_engine;
---remove_file $MYSQL_TMP_DIR/mysqlx-in.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

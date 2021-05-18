@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -140,6 +140,7 @@ SET(CLIENT_API_FUNCTIONS
   mysql_use_result
   mysql_warning_count
   mysql_real_connect_dns_srv
+  mysql_bind_param
   CACHE INTERNAL "Functions exported by client API"
 )
 
@@ -184,6 +185,7 @@ SET(CLIENT_SOURCES
   ../sql-common/compression.cc
   ../sql-common/get_password.cc
   ../sql-common/net_serv.cc
+  ../sql-common/bind_params.cc
   ../sql/auth/password.cc
   ../sql/auth/sha2_password_common.cc
 )

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1143,7 +1143,7 @@ NdbTransaction::executeNoBlobs(NdbTransaction::ExecType aTypeOfExec,
       for (unsigned i = 0; i < theNdb->theNoOfCompletedTransactions; i++)
         anyway += theNdb->theCompletedTransactionsArray[i] == this;
       if (anyway) {
-        theNdb->printState("execute %lx", (long)this);
+        theNdb->printState("execute %p", this);
         abort();
       }
 #endif
@@ -1211,13 +1211,13 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
                                      NdbOperation::AbortOption abortOption)
 {
   DBUG_ENTER("NdbTransaction::executeAsynchPrepare");
-  DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: 0x%lx, anyObject: Ox%lx",
-		       aTypeOfExec, (long) aCallback, (long) anyObject));
+  DBUG_PRINT("enter", ("aTypeOfExec: %d, aCallback: %p, anyObject: %p",
+		       aTypeOfExec, aCallback, anyObject));
 
   /**
    * Reset error.code on execute
    */
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   if (theError.code != 0)
     DBUG_PRINT("enter", ("Resetting error %d on execute", theError.code));
 #endif
@@ -1779,7 +1779,7 @@ NdbTransaction::release(){
   theInUseState = false;
 #ifdef VM_TRACE
   if (theListState != NotInList && theListState != InPreparedList) {
-    theNdb->printState("release %lx", (long)this);
+    theNdb->printState("release %p", this);
     abort();
   }
 #endif

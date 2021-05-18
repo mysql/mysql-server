@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -71,36 +71,6 @@ const perm_mode kStrictDirectoryPerm = S_IRWXU;
 #else
 const perm_mode kStrictDirectoryPerm = 0;
 #endif
-
-void MockOfstream::open(const char *filename,
-                        ios_base::openmode mode /*= ios_base::out*/) {
-  // deal properly with A, B, C, B scenario
-  // (without this, last B would create a 4th file which would not be tracked by
-  // map)
-  if (filenames_.count(filename)) {
-    erase_file(filenames_.at(filename));
-    filenames_.erase(filename);
-  }
-
-  std::string fake_filename = gen_fake_filename(filenames_.size());
-  filenames_.emplace(filename, fake_filename);
-
-  std::ofstream::open(fake_filename, mode);
-}
-
-/*static*/ std::map<std::string, std::string> MockOfstream::filenames_;
-
-/*static*/ void MockOfstream::erase_file(const std::string &filename) {
-  remove(filename.c_str());
-}
-
-/*static*/ std::string MockOfstream::gen_fake_filename(unsigned long i) {
-#ifndef _WIN32
-  return std::string("/tmp/mysqlrouter_mockfile") + std::to_string(i);
-#else
-  return std::string("C:\\temp\\mysqlrouter_mockfile") + std::to_string(i);
-#endif
-}
 
 bool my_check_access(const std::string &path) {
 #ifndef _WIN32
@@ -222,75 +192,16 @@ std::string ms_to_seconds_string(const std::chrono::milliseconds &msec) {
   return os.str();
 }
 
-std::pair<std::string, uint16_t> split_addr_port(std::string data) {
-  trim(data);
-
-  if (data.empty()) {
-    return std::make_pair("", 0);
-  }
-
-  size_t pos;
-  uint16_t port = 0;
-  std::string addr;
-  if (data.at(0) == '[') {
-    // IPv6 with port
-    pos = data.find(']');
-    if (pos == std::string::npos) {
-      throw std::runtime_error(
-          "invalid IPv6 address: missing closing square bracket");
-    }
-    addr.assign(data, 1, pos - 1);
-    const auto addr_res = net::ip::make_address_v6(addr.c_str());
-    if (!addr_res) {
-      throw std::system_error(addr_res.error(),
-                              "invalid IPv6 address: illegal character(s)");
-    }
-    pos = data.find(":", pos);
-    if (pos != std::string::npos) {
-      try {
-        port = get_tcp_port(data.substr(pos + 1));
-      } catch (const std::runtime_error &exc) {
-        throw std::runtime_error("invalid TCP port: " +
-                                 std::string(exc.what()));
-      }
-    }
-  } else if (std::count(data.begin(), data.end(), ':') > 1) {
-    // IPv6 without port
-    pos = data.find(']');
-    if (pos != std::string::npos) {
-      throw std::runtime_error(
-          "invalid IPv6 address: missing opening square bracket");
-    }
-    const auto addr_res = net::ip::make_address_v6(data.c_str());
-    if (!addr_res) {
-      throw std::system_error(addr_res.error(),
-                              "invalid IPv6 address: illegal character(s)");
-    }
-    addr.assign(data);
-  } else {
-    // IPv4 or address
-    pos = data.find(":");
-    addr = data.substr(0, pos);
-    if (pos != std::string::npos) {
-      try {
-        port = get_tcp_port(data.substr(pos + 1));
-      } catch (const std::runtime_error &exc) {
-        throw std::runtime_error("invalid TCP port: " +
-                                 std::string(exc.what()));
-      }
-    }
-  }
-
-  return std::make_pair(addr, port);
-}
-
 uint16_t get_tcp_port(const std::string &data) {
   int port;
 
   // We refuse data which is bigger than 5 characters
-  if (data.find_first_not_of(kValidPortChars) != std::string::npos ||
-      data.size() > 5) {
-    throw std::runtime_error("invalid characters or too long");
+  if (data.size() > 5) {
+    throw std::runtime_error("too long");
+  }
+
+  if (data.find_first_not_of(kValidPortChars) != std::string::npos) {
+    throw std::runtime_error("invalid characters");
   }
 
   try {
@@ -304,7 +215,7 @@ uint16_t get_tcp_port(const std::string &data) {
   }
 
   if (port > UINT16_MAX) {
-    throw std::runtime_error("impossible port number");
+    throw std::runtime_error("out of range. Max " + std::to_string(UINT16_MAX));
   }
   return static_cast<uint16_t>(port);
 }
@@ -357,7 +268,7 @@ std::string get_last_error(int myerrnum) {
                 (LPTSTR)&lpMsgBuf, 0, NULL);
   std::string msgerr = "SystemError: ";
   msgerr += lpMsgBuf;
-  msgerr += "with error code %d.";
+  msgerr += " with error code %d.";
   std::string result = string_format(msgerr.c_str(), dwCode);
   LocalFree(lpMsgBuf);
   return result;
@@ -382,7 +293,7 @@ std::string get_last_error(int myerrnum) {
 #endif
 
   std::string s = sys_err;
-  s += "with errno %d.";
+  s += " with errno %d.";
   std::string result = string_format(s.c_str(), errnum);
   return result;
 #endif

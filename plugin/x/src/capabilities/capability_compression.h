@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,10 +29,10 @@
 #include <memory>
 #include <string>
 
-#include "plugin/x/ngs/include/ngs/compression_types.h"
 #include "plugin/x/src/capabilities/handler.h"
 #include "plugin/x/src/capabilities/set_variable_adaptor.h"
 #include "plugin/x/src/helper/optional_value.h"
+#include "plugin/x/src/ngs/compression_types.h"
 #include "plugin/x/src/variables/system_variables.h"
 
 namespace xpl {

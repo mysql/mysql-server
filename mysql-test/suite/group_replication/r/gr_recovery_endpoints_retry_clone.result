@@ -73,7 +73,7 @@ call mtr.add_suppression("Relay log information for channel '' was found after a
 set session sql_log_bin=1;
 include/clean_monitoring_process.inc
 UNINSTALL PLUGIN clone;
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0 FOR CHANNEL '';
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0 FOR CHANNEL '';
 [connection server2]
 UNINSTALL PLUGIN clone;
 [connection server1]

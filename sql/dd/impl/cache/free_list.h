@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,11 @@
 #ifndef DD_CACHE__FREE_LIST_INCLUDED
 #define DD_CACHE__FREE_LIST_INCLUDED
 
+#include <assert.h>
 #include <vector>  // vector
 
-#include "my_dbug.h"
 #include "sql/malloc_allocator.h"  // Malloc_allocator.
+#include "sql/psi_memory_key.h"    // key_memory_DD_cache_infrastructure
 
 namespace dd {
 namespace cache {
@@ -54,7 +55,8 @@ class Free_list {
   List_type m_list;  // The actual list.
 
  public:
-  Free_list() : m_list(Malloc_allocator<E *>(PSI_INSTRUMENT_ME)) {}
+  Free_list()
+      : m_list(Malloc_allocator<E *>(key_memory_DD_cache_infrastructure)) {}
 
   // Return the actual free list length.
   size_t length() const { return m_list.size(); }
@@ -66,7 +68,7 @@ class Free_list {
   */
 
   void add_last(E *element) {
-    DBUG_ASSERT(element != nullptr && element->usage() == 0);
+    assert(element != nullptr && element->usage() == 0);
     m_list.push_back(element);
   }
 
@@ -77,8 +79,8 @@ class Free_list {
   */
 
   void remove(E *element) {
-    DBUG_ASSERT(element != nullptr && element->usage() == 0);
-    DBUG_ASSERT(!m_list.empty());
+    assert(element != nullptr && element->usage() == 0);
+    assert(!m_list.empty());
 
     for (typename List_type::iterator it = m_list.begin(); it != m_list.end();
          ++it)
@@ -87,7 +89,7 @@ class Free_list {
         return;
       }
 
-    DBUG_ASSERT(false); /* purecov: deadcode */
+    assert(false); /* purecov: deadcode */
   }
 
   /**
@@ -97,7 +99,7 @@ class Free_list {
   */
 
   E *get_lru() const {
-    DBUG_ASSERT(!m_list.empty());
+    assert(!m_list.empty());
     if (!m_list.empty()) return m_list.front();
     return nullptr;
   }
@@ -107,7 +109,7 @@ class Free_list {
   */
   /* purecov: begin inspected */
   void dump() const {
-#ifndef DBUG_OFF
+#ifndef NDEBUG
     if (m_list.empty()) {
       fprintf(stderr, "    lru-> NULL\n");
       return;

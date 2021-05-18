@@ -27,7 +27,7 @@ Starting GR on server 2
 RUN SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-dddd-aaaa-aaaa-aaaaaaaaaaaa'
 
 0 rows affected
-RUN CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery'
+RUN CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery'
 
 0 rows affected
 RUN START GROUP_REPLICATION
@@ -41,7 +41,7 @@ Starting GR on server 3
 RUN SET GLOBAL GROUP_REPLICATION_GROUP_NAME = 'aaaaaaaa-dddd-aaaa-aaaa-aaaaaaaaaaaa'
 
 0 rows affected
-RUN CHANGE MASTER TO MASTER_USER='root' FOR CHANNEL 'group_replication_recovery'
+RUN CHANGE REPLICATION SOURCE TO SOURCE_USER='root' FOR CHANNEL 'group_replication_recovery'
 
 0 rows affected
 RUN START GROUP_REPLICATION

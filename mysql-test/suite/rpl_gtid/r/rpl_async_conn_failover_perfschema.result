@@ -11,12 +11,18 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3101, 'net1');
 asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3101, 'net1')
 The UDF asynchronous_connection_failover_add_source() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3102, 'net2');
 asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3102, 'net2')
 The UDF asynchronous_connection_failover_add_source() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 SELECT asynchronous_connection_failover_add_source('ch1', '192.168.0.1', 3101, 'net2', 40);
 asynchronous_connection_failover_add_source('ch1', '192.168.0.1', 3101, 'net2', 40)
 The UDF asynchronous_connection_failover_add_source() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 SELECT asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3102);
 asynchronous_connection_failover_add_source('ch2', '127.0.0.1', 3102)
 The UDF asynchronous_connection_failover_add_source() executed successfully.
@@ -26,6 +32,8 @@ The UDF asynchronous_connection_failover_add_source() executed successfully.
 SELECT asynchronous_connection_failover_add_source('ch2', '192.168.0.1', 3101, 'net1', 40);
 asynchronous_connection_failover_add_source('ch2', '192.168.0.1', 3101, 'net1', 40)
 The UDF asynchronous_connection_failover_add_source() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 #
 # 2. Checks for
 #    performance_schema.replication_asynchronous_connection_failover
@@ -37,7 +45,7 @@ include/assert.inc ['The performance_schema.replication_asynchronous_connection_
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with channel_name="ch1" and host="127.0.0.1"']
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has one row with channel_name="ch1" and host="127.0.0.1" and port=3101']
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has no rows with channel_name="ch1" and host="127.0.0.1" and port=3101 and network_namespace="net0"']
-include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has one row with channel_name="ch1" and host="192.168.0.1" and port=3101 and network_namespace="net2" and weight=40']
+include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has one row with channel_name="ch1" and host="192.168.0.1" and port=3101 and network_namespace=""']
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with channel_name="ch1" and port=3101']
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with host="192.168.0.1" and port=3101']
 include/assert.inc ['The performance_schema.replication_asynchronous_connection_failover table has two rows with host="192.168.0.1"']
@@ -50,12 +58,18 @@ include/assert.inc ['The performance_schema.replication_asynchronous_connection_
 SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3101, 'net1');
 asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3101, 'net1')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3102, 'net2');
 asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3102, 'net2')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 SELECT asynchronous_connection_failover_delete_source('ch1', '192.168.0.1', 3101, 'net2');
 asynchronous_connection_failover_delete_source('ch1', '192.168.0.1', 3101, 'net2')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 SELECT asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3102);
 asynchronous_connection_failover_delete_source('ch2', '127.0.0.1', 3102)
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
@@ -65,4 +79,6 @@ The UDF asynchronous_connection_failover_delete_source() executed successfully.
 SELECT asynchronous_connection_failover_delete_source('ch2', '192.168.0.1', 3101, 'net1');
 asynchronous_connection_failover_delete_source('ch2', '192.168.0.1', 3101, 'net1')
 The UDF asynchronous_connection_failover_delete_source() executed successfully.
+Warnings:
+Warning	4030	The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter.
 include/rpl_end.inc

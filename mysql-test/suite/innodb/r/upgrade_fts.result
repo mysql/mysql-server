@@ -176,11 +176,21 @@ SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLES
 WHERE name LIKE '%test%'
   ORDER BY name;
 lower(name)
+test/fts_0000000000000424_being_deleted
+test/fts_0000000000000424_being_deleted_cache
+test/fts_0000000000000424_config
+test/fts_0000000000000424_deleted
+test/fts_0000000000000424_deleted_cache
 test/t1
 SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
 WHERE name LIKE '%test%'
   ORDER BY name;
 lower(name)
+test/fts_0000000000000424_being_deleted
+test/fts_0000000000000424_being_deleted_cache
+test/fts_0000000000000424_config
+test/fts_0000000000000424_deleted
+test/fts_0000000000000424_deleted_cache
 test/t1
 # Check DDL & DML opearations are working
 SELECT * FROM t1;
@@ -235,6 +245,55 @@ t1	DB_TRX_ID	3	SE
 t1	DB_ROLL_PTR	4	SE
 t1	FTS_DOC_ID	5	SE
 SET DEBUG='-d,skip_dd_table_access_check';
+DELETE FROM t1 WHERE val LIKE 'Upgrade mysql database to 8.0 version';
+SELECT * FROM t1;
+id	val
+2	Upgraded successfully to 8.0 version
+DROP TABLE t1;
+# Cleanup
+# Shutdown server
+# Remove copied files
+# Restart the server
+# restart
+#
+# Bug #31749490 OLD FTS FILES AFTER UPGRADE: ASSERTION FAILURE:
+# PARS0PARS.CC:736:SYM_NODE->TABLE != NULLPTR
+#
+# Stop the running server
+#
+# Copy and unzip the datadir
+#
+# Restart the server with the unzipped datadir
+# restart: --datadir=DATADIR --innodb_page_size=16k
+# Check the contents of INFORMATION_SCHEMA
+SHOW TABLES;
+Tables_in_test
+t1
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLES
+WHERE name LIKE '%test%'
+  ORDER BY name;
+lower(name)
+test/fts_0000000000000424_being_deleted
+test/fts_0000000000000424_being_deleted_cache
+test/fts_0000000000000424_config
+test/fts_0000000000000424_deleted
+test/fts_0000000000000424_deleted_cache
+test/t1
+SELECT lower(name) FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
+WHERE name LIKE '%test%'
+  ORDER BY name;
+lower(name)
+test/fts_0000000000000424_being_deleted
+test/fts_0000000000000424_being_deleted_cache
+test/fts_0000000000000424_config
+test/fts_0000000000000424_deleted
+test/fts_0000000000000424_deleted_cache
+test/t1
+INSERT INTO t1 (val) VALUES ('Upgraded successfully to 8.0 version');
+SELECT * FROM t1;
+id	val
+1	Upgrade mysql database to 8.0 version
+2	Upgraded successfully to 8.0 version
 DELETE FROM t1 WHERE val LIKE 'Upgrade mysql database to 8.0 version';
 SELECT * FROM t1;
 id	val

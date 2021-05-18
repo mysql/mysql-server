@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -832,9 +832,8 @@ void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all);
 int mysql_tmpfile(const char *prefix);
 
 /**
-  Check the killed state of a connection
+  Check the killed state of a connection.
 
-  @details
   In MySQL support for the KILL statement is cooperative. The KILL
   statement only sets a "killed" flag. This function returns the value
   of that flag.  A thread should check it often, especially inside

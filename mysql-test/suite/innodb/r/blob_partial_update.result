@@ -357,7 +357,10 @@ EXPLAIN
       "table_name": "tab",
       "access_type": "ALL",
       "rows_examined_per_scan": 1,
-      "filtered": "100.00"
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
     }
   }
 }
@@ -367,9 +370,9 @@ Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Check JSON functions works on views
 JSON_STORAGE_SIZE(j1)
-30052
+30056
 JSON_STORAGE_FREE(j1)
-0
+4
 # Show Setview
 json_extract(j1, '$[0]')
 "Setview"
@@ -382,22 +385,25 @@ EXPLAIN
       "table_name": "tab",
       "access_type": "ALL",
       "rows_examined_per_scan": 1,
-      "filtered": "100.00"
+      "filtered": "100.00",
+      "partial_update_columns": [
+        "j1"
+      ]
     }
   }
 }
 Warnings:
 Note	1003	update (`test`.`tab`) set `test`.`tab`.`j1` = json_replace(`test`.`tab`.`j1`,'$[0]','Repview')
-# Show Reviewp
+# Show Repview
 json_extract(j1, '$[0]')
 "Repview"
 Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 # Check JSON functions works on views
 JSON_STORAGE_SIZE(j1)
-30052
+30056
 JSON_STORAGE_FREE(j1)
-0
+4
 # Modify Compression to ZLIB
 Table	Create Table
 tab	CREATE TABLE `tab` (
@@ -411,9 +417,9 @@ json_extract(j1, '$[0]')
 "Reppro"
 # Check JSON functions on views
 JSON_STORAGE_SIZE(j1)
-30052
+30056
 JSON_STORAGE_FREE(j1)
-1
+5
 # Modify Compression to 'LZ4'
 Table	Create Table
 tab	CREATE TABLE `tab` (

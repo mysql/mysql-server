@@ -61,7 +61,7 @@ source include/assert.inc;
 --echo # Verify that, when desired delay is set, the value is shown corectly.
 --echo
 
-eval change master to master_delay= 2;
+eval CHANGE REPLICATION SOURCE to SOURCE_DELAY= 2;
 source include/start_slave.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
@@ -86,7 +86,7 @@ source include/assert.inc;
 --echo # Verify that, when desired delay is reset, the value is shown corectly.
 --echo
 
-eval change master to master_delay= 0;
+eval CHANGE REPLICATION SOURCE to SOURCE_DELAY= 0;
 source include/start_slave.inc;
 
 let $sss_value= query_get_value(SHOW SLAVE STATUS, SQL_Delay, 1);
@@ -118,8 +118,26 @@ source include/assert.inc;
 --echo
 
 let $ps_value= query_get_value(select Require_Table_Primary_Key_Check from performance_schema.replication_applier_configuration, Require_Table_Primary_Key_Check, 1);
-let $assert_text= Value for Require_Row_Format is initialized to STREAM;
+let $assert_text= Value for Require_Table_Primary_Key_Check  is initialized to STREAM;
 let $assert_cond= "STREAM" = "$ps_value";
+source include/assert.inc;
+
+--echo
+--echo # Verify that `assign_gtids_to_anonymous_transactions_type` is initialized to `OFF`.
+--echo
+
+let $ps_value= query_get_value(select Assign_gtids_to_anonymous_transactions_type from performance_schema.replication_applier_configuration, Assign_gtids_to_anonymous_transactions_type, 1);
+let $assert_text= Value for Assign_gtids_to_anonymous_transactions_type is initialized to OFF;
+let $assert_cond= "OFF" = "$ps_value";
+source include/assert.inc;
+
+--echo
+--echo # Verify that `assign_gtids_to_anonymous_transactions_value` is initialized to NULL.
+--echo
+
+let $ps_value= query_get_value(select Assign_gtids_to_anonymous_transactions_value from performance_schema.replication_applier_configuration, Assign_gtids_to_anonymous_transactions_value, 1);
+let $assert_text= Value for Assign_gtids_to_anonymous_transactions_value is initialized to NULL;
+let $assert_cond= "NULL" = "$ps_value";
 source include/assert.inc;
 
 source include/rpl_end.inc;

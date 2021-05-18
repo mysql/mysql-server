@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ namespace {
 
 using DC = dd::cache::Dictionary_client;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 const char *ge_type(const dd::Table &) { return "TABLE"; }
 
 const char *ge_type(const dd::Index &) { return "INDEX"; }
@@ -65,13 +65,14 @@ const char *ge_type(const dd::Index &) { return "INDEX"; }
 const char *ge_type(const dd::Partition &) { return "PARTITION"; }
 
 const char *ge_type(const dd::Partition_index &) { return "PARTITION_INDEX"; }
-#endif /* DBUG_OFF */
+#endif /* NDEBUG */
 
 /**
    Traverses Table object with sub objects. Returns when the first
    valid (not INVALID_OBJECT_ID) tablespace id is found.
  */
-dd::Object_id fetch_first_tablespace_id(const dd::Table &t) {
+template <typename DDT>
+dd::Object_id fetch_first_tablespace_id(const DDT &t) {
   DBUG_PRINT("ddsdi", ("fetch_first_tablespace_id(%s)", t.name().c_str()));
   dd::Object_id tspid = dd::INVALID_OBJECT_ID;
   visit_tablespace_id_owners(t, [&](auto &ge) {
@@ -92,9 +93,9 @@ dd::Object_id fetch_first_tablespace_id(const dd::Table &t) {
    Tablespace object corresponding to the first valid (not
    INVALID_OBJECT_ID) tablespace id is found.
  */
-ReturnValueOrError<const dd::Tablespace *> fetch_first_tablespace(
-    THD *thd, const dd::Table &t) {
-  dd::Object_id tsid = fetch_first_tablespace_id(t);
+
+ReturnValueOrError<const dd::Tablespace *> fetch_tablespace(
+    THD *thd, dd::Object_id tsid) {
   if (tsid == dd::INVALID_OBJECT_ID) {
     return {nullptr, false};
   }
@@ -133,7 +134,7 @@ namespace sdi_tablespace {
 bool store_tbl_sdi(THD *thd, handlerton *hton, const dd::Sdi_type &sdi,
                    const dd::Table &table,
                    const dd::Schema &schema MY_ATTRIBUTE((unused))) {
-  auto res = fetch_first_tablespace(thd, table);
+  auto res = fetch_tablespace(thd, fetch_first_tablespace_id(table));
   if (res.error) {
     return true;
   }
@@ -167,17 +168,16 @@ bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
 bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
                   const Schema &schema MY_ATTRIBUTE((unused))) {
   DBUG_PRINT("ddsdi",
-             ("store_tbl_sdi(Schema" ENTITY_FMT ", Table" ENTITY_FMT ")",
+             ("drop_tbl_sdi(Schema" ENTITY_FMT ", Table" ENTITY_FMT ")",
               ENTITY_VAL(schema), ENTITY_VAL(table)));
 
-  auto res = fetch_first_tablespace(thd, table);
+  auto res = fetch_tablespace(thd, fetch_first_tablespace_id(table));
   if (res.error) {
     return true;
   }
   if (res.value == nullptr) {
     return false;
   }
-
   sdi_key_t key = {SDI_TYPE_TABLE, table.id()};
 
   if (table.subpartition_type() == Table::ST_NONE ||
@@ -205,6 +205,54 @@ bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
     return checked_return(!error_suppressed);
   }
   return false;
+}
+
+template <typename DDT>
+bool drop_all_sdi_impl(THD *thd, const handlerton &hton, const DDT &t) {
+  return visit_tablespace_id_owners(t, [&](auto &tsp_id_owner) {
+    dd::Object_id tid = tsp_id_owner.tablespace_id();
+    DBUG_PRINT("ddsdi", ("Checking %s '%s'", ge_type(tsp_id_owner),
+                         tsp_id_owner.name().c_str()));
+    if (tid == dd::INVALID_OBJECT_ID) {
+      return false;
+    }
+
+    DBUG_PRINT("ddsdi", ("Proceeding with id:%llu, source:%s", tid,
+                         ge_type(tsp_id_owner)));
+    auto res = fetch_tablespace(thd, tid);
+    if (res.error) {
+      return true;
+    }
+    if (res.value == nullptr) {
+      return false;
+    }
+    if (res.value->se_private_data().exists("discarded")) {
+      my_error(ER_TABLESPACE_DISCARDED, MYF(0), t.name().c_str());
+      return true;
+    }
+    sdi_vector_t sdi_keys;
+    if (hton.sdi_get_keys(*res.value, sdi_keys)) {
+      return checked_return(true);
+    }
+
+    for (const auto &k : sdi_keys.m_vec) {
+      if (k.type == SDI_TYPE_TABLESPACE && k.id == res.value->id()) {
+        continue;
+      }
+      if (hton.sdi_delete(*res.value, nullptr, &k)) {
+        return checked_return(true);
+      }
+    }
+    return false;
+  });  // visitor lambda
+}
+
+bool drop_all_sdi(THD *thd, const handlerton &hton, const Table &t) {
+  return drop_all_sdi_impl(thd, hton, t);
+}
+
+bool drop_all_sdi(THD *thd, const handlerton &hton, const Partition &p) {
+  return drop_all_sdi_impl(thd, hton, p);
 }
 }  // namespace sdi_tablespace
 }  // namespace dd

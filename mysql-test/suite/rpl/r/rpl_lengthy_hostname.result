@@ -4,10 +4,10 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 [connection slave]
-CHANGE MASTER TO MASTER_HOST="host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890", MASTER_PORT=MASTER_PORT;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="host_1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890abcdefghij1234567890", SOURCE_PORT=MASTER_PORT;
 include/assert.inc [Hostname in mysql.slave_master_info matches the one set through CHANGE MASTER TO]
 include/assert.inc [Hostname in performance_schema.replication_connection_configuration matches the one set through CHANGE MASTER TO]
 include/assert.inc [Hostname in SHOW SLAVE STATUS matches the one set through CHANGE MASTER TO]
-CHANGE MASTER TO MASTER_HOST="127.0.0.1";
+CHANGE REPLICATION SOURCE TO SOURCE_HOST="127.0.0.1";
 include/start_slave.inc
 include/rpl_end.inc

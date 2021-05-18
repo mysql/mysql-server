@@ -10,12 +10,12 @@ create table txt (a varchar(512)) engine=ndb;
 
 insert into part_data values (1,1), (2,2), (3,3), (4,4), (5,5), (6,6), (7,7), (8,8);
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 10039"
+--exec $NDB_MGM -e "all error 10039"
 --source suite/ndb/t/ndb_backup_nowait_start.inc
 
 update part_data set val = 0;
 
---exec $NDB_MGM --no-defaults --verbose=0 --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 0"
+--exec $NDB_MGM -e "all error 0"
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
 delete from part_data;

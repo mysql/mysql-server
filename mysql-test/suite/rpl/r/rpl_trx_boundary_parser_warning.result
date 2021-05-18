@@ -10,7 +10,7 @@ call mtr.add_suppression("GTID_LOG_EVENT .* is not expected in an event stream")
 call mtr.add_suppression("QUERY.* is not expected in an event stream");
 CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format since*");
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_AUTO_POSITION= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION= 0;
 [connection master]
 SET @var= 10;
 CREATE EVENT ev1 ON SCHEDULE EVERY @var HOUR DO INSERT INTO t1 VALUES (0);

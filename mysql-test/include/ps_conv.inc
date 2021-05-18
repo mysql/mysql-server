@@ -1173,6 +1173,7 @@ where c1= 20 and c13= CAST('1991-01-01 01:01:01' AS DATE) and c14= '1991-01-01 0
 execute stmt1 ;
 prepare stmt1 from "select 'true' as found from t9 
 where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= ?" ;
+--skip_if_hypergraph  # Different warnings.
 execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 
 
@@ -1195,6 +1196,7 @@ where c1= 20 and c13= CAST('1991-01-01 00:00:00' as datetime) and
 execute stmt1 ;
 prepare stmt1 from "select 'true' as found from t9 
 where c1= 20 and c13= CAST(? AS DATE) and c14= ? and c15= ? and c16= ? and c17= ?" ;
+--skip_if_hypergraph  # Different warnings.
 execute stmt1 using @arg00, @arg00, @arg00, @arg00, @arg00 ;
 
 

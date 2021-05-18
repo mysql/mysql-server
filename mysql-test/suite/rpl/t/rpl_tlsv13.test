@@ -34,7 +34,7 @@ ALTER INSTANCE RELOAD TLS;
 
 --source include/rpl_connection_slave.inc
 --replace_result $MASTER_MYPORT MASTER_PORT
---eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='replssl', MASTER_PASSWORD='password', MASTER_SSL=1 FOR CHANNEL 'my_channel'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=$MASTER_MYPORT, SOURCE_USER='replssl', SOURCE_PASSWORD='password', SOURCE_SSL=1 FOR CHANNEL 'my_channel'
 --let $rpl_channel_name= 'my_channel'
 --source include/start_slave.inc
 
@@ -54,7 +54,7 @@ SET GLOBAL tls_ciphersuites='TLS_AES_128_CCM_8_SHA256';
 ALTER INSTANCE RELOAD TLS;
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256' FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_8_SHA256' FOR CHANNEL 'my_channel';
 --source include/start_slave.inc
 
 --let $assert_text = TLS_CIPHERSUITES has the value TLS_AES_128_CCM_8_SHA256
@@ -76,7 +76,7 @@ RESET SLAVE FOR CHANNEL 'my_channel';
 --echo ########################################################################
 --echo # 4. Check replication with TLSv1.3 and different ciphersuite on master
 --echo #    and slave will fail.
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='TLS_AES_128_CCM_SHA256', MASTER_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='TLS_AES_128_CCM_SHA256', SOURCE_RETRY_COUNT=1 FOR CHANNEL 'my_channel';
 START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
 
 #CR_SSL_CONNECTION_ERROR
@@ -91,7 +91,7 @@ SET @@GLOBAL.tls_ciphersuites= @tls_ciphersuites_saved;
 ALTER INSTANCE RELOAD TLS;
 
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES='' FOR CHANNEL 'my_channel';
 --let $assert_text = TLS_CIPHERSUITES has the value ""
 --let $assert_cond = "[SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = \'my_channel\']" = ""
 --source include/assert.inc
@@ -105,7 +105,7 @@ START SLAVE IO_THREAD FOR CHANNEL 'my_channel';
 --echo # 6. Clean-up.
 # Clean error state.
 --source include/rpl_connection_slave.inc
-CHANGE MASTER TO MASTER_TLS_CIPHERSUITES=NULL FOR CHANNEL 'my_channel';
+CHANGE REPLICATION SOURCE TO SOURCE_TLS_CIPHERSUITES=NULL FOR CHANNEL 'my_channel';
 
 --let $tls_ciphersuites= query_get_value(SELECT TLS_CIPHERSUITES FROM performance_schema.replication_connection_configuration where CHANNEL_NAME = 'my_channel', TLS_CIPHERSUITES, 1)
 --let $assert_text = TLS_CIPHERSUITES has the default NULL value

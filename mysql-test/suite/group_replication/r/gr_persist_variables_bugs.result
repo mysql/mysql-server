@@ -28,3 +28,5 @@ SET GLOBAL group_replication_start_on_boot= OFF;
 SET GLOBAL group_replication_bootstrap_group= OFF;
 RESET PERSIST;
 include/group_replication_end.inc
+Warnings:
+Warning	3615	Variable group_replication_ip_allowlist does not exist in persisted config file

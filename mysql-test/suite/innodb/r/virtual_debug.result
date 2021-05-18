@@ -493,9 +493,35 @@ SET DEBUG_SYNC='now SIGNAL continue_scan';
 a
 1
 1
-set session debug = '-d, row_merge_drop_indexes_force_table_count';
+set session debug = '-d, force_virtual_col_build_fail';
 INSERT INTO t1 VALUES(1);
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+DROP TABLE t1;
+#
+# Bug 31279528 - CRASH IN MYSQL SERVER, ASSERTION FAILURE: DICT0DICT.CC
+#
+CREATE TABLE t1 (c1 INT);
+CREATE INDEX idx ON t1 ( ( c1 = 127 ) , ( c1 + c1 ) , c1 , ( c1 + - -1 ) , (c1 > 26 ) ) ;
+SHOW WARNINGS;
+Level	Code	Message
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT NULL,
+  KEY `idx` (((`c1` = 127)),((`c1` + `c1`)),`c1`,((`c1` + -(-(1)))),((`c1` > 26)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION debug= '+d,skip_dd_table_access_check';
+SELECT ID INTO @tid FROM mysql.tables WHERE NAME='t1';
+SELECT NAME, ORDINAL_POSITION, TYPE, HIDDEN, GENERATION_EXPRESSION_UTF8 FROM mysql.columns WHERE TABLE_ID=@tid ORDER BY ORDINAL_POSITION;
+NAME	ORDINAL_POSITION	TYPE	HIDDEN	GENERATION_EXPRESSION_UTF8
+c1	1	MYSQL_TYPE_LONG	Visible	NULL
+098d432fa868a5bc6c9a67e14025a0d3	2	MYSQL_TYPE_LONG	SQL	(`c1` = 127)
+1e5e5b695019aad3e147c00991a2df1a	3	MYSQL_TYPE_NEWDECIMAL	SQL	(`c1` + -(-(1)))
+2782f905f5ba1955a9c7f086be07eefe	4	MYSQL_TYPE_LONG	SQL	(`c1` > 26)
+645826a2684a0937f93b08935f31319f	5	MYSQL_TYPE_LONGLONG	SQL	(`c1` + `c1`)
+DB_ROW_ID	6	MYSQL_TYPE_INT24	SE	NULL
+DB_TRX_ID	7	MYSQL_TYPE_INT24	SE	NULL
+DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	SE	NULL
 DROP TABLE t1;

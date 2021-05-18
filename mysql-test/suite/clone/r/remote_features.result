@@ -265,6 +265,8 @@ col1	col2	col3	SUBSTRING(col4, 1000, 32)
 9	90	Clone Test Row - 9	umn Data Large Column Data Large
 # restart:
 # In connection default - Cloning database
+SET GLOBAL wait_timeout = 1;
+SET GLOBAL CLONE_DONOR_TIMEOUT_AFTER_NETWORK_FAILURE = 0;
 SET DEBUG_SYNC = 'clone_file_copy SIGNAL start_dml1 WAIT_FOR resume_clone1';
 SET DEBUG_SYNC = 'clone_page_copy SIGNAL start_dml2 WAIT_FOR resume_clone2';
 SET GLOBAL clone_autotune_concurrency = OFF;
@@ -273,6 +275,7 @@ SET GLOBAL clone_valid_donor_list = 'HOST:PORT';
 CLONE INSTANCE FROM USER@HOST:PORT IDENTIFIED BY '' DATA DIRECTORY = 'CLONE_DATADIR';
 # In connection con1 - Running Update Random [0 - 200 Key Range]
 SET DEBUG_SYNC = 'now WAIT_FOR start_dml1';
+SET GLOBAL wait_timeout = default;
 START TRANSACTION;
 CALL execute_dml(1, 0, 200, 500, 100, 1);
 COMMIT;

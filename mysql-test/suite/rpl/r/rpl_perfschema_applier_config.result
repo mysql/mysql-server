@@ -20,7 +20,7 @@ include/assert.inc [Value returned by SSS and PS table for Desired_Delay should 
 
 # Verify that, when desired delay is set, the value is shown corectly.
 
-change master to master_delay= 2;
+CHANGE REPLICATION SOURCE to SOURCE_DELAY= 2;
 include/start_slave.inc
 include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
 
@@ -31,7 +31,7 @@ include/assert.inc [Value returned by SSS and PS table for Desired_Delay should 
 
 # Verify that, when desired delay is reset, the value is shown corectly.
 
-change master to master_delay= 0;
+CHANGE REPLICATION SOURCE to SOURCE_DELAY= 0;
 include/start_slave.inc
 include/assert.inc [Value returned by SSS and PS table for Desired_Delay should be same.]
 
@@ -45,5 +45,13 @@ include/assert.inc [Value for Require_Row_Format is initialized to NO]
 
 # Verify that `require_table_primary_key_check` is initialized to `STREAM`.
 
-include/assert.inc [Value for Require_Row_Format is initialized to STREAM]
+include/assert.inc [Value for Require_Table_Primary_Key_Check  is initialized to STREAM]
+
+# Verify that `assign_gtids_to_anonymous_transactions_type` is initialized to `OFF`.
+
+include/assert.inc [Value for Assign_gtids_to_anonymous_transactions_type is initialized to OFF]
+
+# Verify that `assign_gtids_to_anonymous_transactions_value` is initialized to NULL.
+
+include/assert.inc [Value for Assign_gtids_to_anonymous_transactions_value is initialized to NULL]
 include/rpl_end.inc

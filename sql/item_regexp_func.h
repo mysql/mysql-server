@@ -1,7 +1,7 @@
 #ifndef SQL_ITEM_REGEXP_FUNC_H_
 #define SQL_ITEM_REGEXP_FUNC_H_
 
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,11 +58,12 @@
   it be done more rarely? On session close?
 */
 
+#include <assert.h>
 #include <unicode/uregex.h>
 
 #include <string>
 
-#include "my_dbug.h"      // DBUG_ASSERT
+// assert
 #include "my_inttypes.h"  // MY_INT32_NUM_DECIMAL_DIGITS
 #include "sql/item_cmpfunc.h"
 #include "sql/item_strfunc.h"
@@ -109,10 +110,10 @@ class Item_func_regexp : public Item_func {
       /*
         Note: Item::null_value() can't be trusted alone here; there are cases
         (for the DATE data type in particular) where we can have it set
-        without Item::maybe_null being set! This really should be cleaned up,
+        without Item::m_nullable being set! This really should be cleaned up,
         but until that happens, we need to have a more conservative check.
       */
-      if (args[the_index]->maybe_null && args[the_index]->null_value)
+      if (args[the_index]->is_nullable() && args[the_index]->null_value)
         return Mysql::Nullable<int>();
       else
         return value;
@@ -131,7 +132,7 @@ class Item_func_regexp : public Item_func {
         without Item::maybe_null being set! This really should be cleaned up,
         but until that happens, we need to have a more conservative check.
       */
-      if (args[the_index]->maybe_null && args[the_index]->null_value)
+      if (args[the_index]->is_nullable() && args[the_index]->null_value)
         return Mysql::Nullable<int>();
       else
         return value;
@@ -157,7 +158,7 @@ class Item_func_regexp : public Item_func {
 
  protected:
   String *convert_int_to_str(String *str) {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     longlong nr = val_int();
     if (null_value) return nullptr;
     str->set_int(nr, unsigned_flag, collation.collation);
@@ -165,7 +166,7 @@ class Item_func_regexp : public Item_func {
   }
 
   my_decimal *convert_int_to_decimal(my_decimal *value) {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     longlong nr = val_int();
     if (null_value) return nullptr; /* purecov: inspected */
     int2my_decimal(E_DEC_FATAL_ERROR, nr, unsigned_flag, value);
@@ -173,12 +174,12 @@ class Item_func_regexp : public Item_func {
   }
 
   double convert_int_to_real() {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     return val_int();
   }
 
   double convert_str_to_real() {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     int err_not_used;
     const char *end_not_used;
     String *res = val_str(&str_value);
@@ -188,7 +189,7 @@ class Item_func_regexp : public Item_func {
   }
 
   longlong convert_str_to_int() {
-    DBUG_ASSERT(fixed == 1);
+    assert(fixed == 1);
     int err;
     String *res = val_str(&str_value);
     if (res == nullptr) return 0;

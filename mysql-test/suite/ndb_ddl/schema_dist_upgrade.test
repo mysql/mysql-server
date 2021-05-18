@@ -105,8 +105,11 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
-# 5) Check DDL on the other MySQL Servers. The ndb binlog thread should have a
-# "hickup", then restart and becoming ready for schema distribution again.
+# 5) Check DDL on the other MySQL Servers. The injector thread should handle
+# this gracefully by disabling schema distribution functionality when the
+# ndb_schema table is dropped. Then it will create or set it up again to
+# enable schema distribution functionality without restarting the
+# injector thread.
 
 let $i = $NUM_MYSQLDS;
 while($i > 1)
@@ -115,14 +118,14 @@ while($i > 1)
 
   echo Checking mysqld$i;
 
-  # Wait until not readonly after binlog thread restart
+  # Wait until not readonly after ndb_schema table upgrade
   --source include/ndb_not_readonly.inc
 
   # Verify that this was detected as a normal restart
-  --let $assert_text= Detect normal system restart in MySQL Server $i
-  --let $assert_select= Detected a normal system restart
+  --let $assert_text= Detect schema dist setup in MySQL Server $i
+  --let $assert_select= Schema distribution setup completed
   --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.$i.1.err
-  --let $assert_only_after= NDB Binlog: Detected server start
+  --let $assert_only_after= NDB: The 'mysql.ndb_schema' table has been dropped
   --let $assert_count= 1
   --source include/assert_grep.inc
 

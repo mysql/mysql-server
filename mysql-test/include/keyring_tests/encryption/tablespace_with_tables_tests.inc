@@ -1,0 +1,198 @@
+--echo #
+--echo # WL#12261 Control (enforce and disable) table encryption
+--echo #
+
+--echo # Pre-define user u1, which is used in different tests below.
+CREATE USER u1@localhost;
+GRANT ALL ON db1.* TO u1@localhost;
+GRANT CREATE TABLESPACE, PROCESS, SYSTEM_VARIABLES_ADMIN ON *.* TO u1@localhost;
+SET GLOBAL debug= '+d,skip_table_encryption_admin_check_for_set';
+
+connect (con1, localhost, u1);
+
+--echo # The test cases run ALTER TABLESPACE to check its encryption mode.
+--echo # The importance of this test is to check the way ALTER TABLESPACE
+--echo # updates the ENCRYPTION clause of tables in it.
+--echo # We run this command in various configuration as,
+--echo #
+--echo # - Setting table_encryption_privilege_check to true/false.
+--echo # - Setting per database default encryption to true/false.
+--echo # - With and without user holding TABLE_ENCRYPTION_ADMIN privilege.
+--echo # - Check for warnings generated.
+--echo #
+
+--let table1_encryption_clause=yes
+--let table2_encryption_clause=yes
+--let caseno=0
+
+--echo `````````````````````````````````````````````````````````
+--echo # Unencrypted TABLESPACE to Unencrypted TABLESPACE (Nop)
+--let database_encryption='n'
+--let tablespace_encryption='n'
+--let tablespace_encryption_to='n'
+
+--let privilege_check=false
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+
+--let privilege_check=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # Encrypted TABLESPACE to Encrypted TABLESPACE (Nop)
+--let database_encryption='y'
+--let tablespace_encryption='y'
+--let tablespace_encryption_to='y'
+
+--let privilege_check=false
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+
+--let privilege_check=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=false
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # Unencrypted TABLESPACE to encrypted TABLESPACE
+--echo # with database encryption default 'n'
+--let database_encryption='n'
+--let tablespace_encryption='n'
+--let tablespace_encryption_to='y'
+
+--let privilege_check=false
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Reject creating encrypted table in database with default encryption='n'
+--let privilege_check=true
+--let alter_tablespace_error=ER_TABLESPACE_CANNOT_BE_ENCRYPTED
+--source ./tablespace_with_tables.inc
+
+--let has_grant=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=false
+
+--echo # With some tables without ENCRYPTION clause;
+--let table2_encryption_clause=no
+
+--let privilege_check=false
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Reject creating encrypted table in database with default encryption='n'
+--let privilege_check=true
+--let alter_tablespace_error=ER_TABLESPACE_CANNOT_BE_ENCRYPTED
+--source ./tablespace_with_tables.inc
+--let has_grant=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=false
+
+--let table2_encryption_clause=yes
+
+--echo # With all tables without ENCRYPTION clause;
+--let table1_encryption_clause=no
+--let table2_encryption_clause=no
+
+--let privilege_check=false
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create encrypted tablespace with default_table_encryption='n'
+--let privilege_check=true
+--let alter_tablespace_error=ER_TABLESPACE_CANNOT_BE_ENCRYPTED
+--source ./tablespace_with_tables.inc
+--let has_grant=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=false
+
+--let table1_encryption_clause=yes
+--let table2_encryption_clause=yes
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # Unencrypted TABLESPACE to encrypted TABLESPACE
+--echo # with database encryption 'y'
+--let database_encryption='y'
+--let tablespace_encryption='n'
+--let tablespace_encryption_to='y'
+
+--let privilege_check=false
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+
+--let privilege_check=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=false
+
+--echo # Case $caseno.1 With some tables without ENCRYPTION clause;
+--echo # CREATE table using unencrypted tablespace without
+--echo # ENCRYPTION clause would inherit ENCRYPTION from database.
+--echo # This makes CREATE TABLE fail because the ENCRYPTION clause
+--echo # and the tablespace encryption type mismatches. The test
+--echo # encryption.create_table does test this.
+
+--echo # Case $caseno.2 With all tables without ENCRYPTION clause;
+--echo # Behavior would be same as described in Case $caseno.1
+
+--echo `````````````````````````````````````````````````````````
+--echo # Encrypted TABLESPACE to unencrypted TABLESPACE
+--echo # with database encryption 'n'
+--let database_encryption='n'
+--let tablespace_encryption='y'
+--let tablespace_encryption_to='n'
+
+--let privilege_check=false
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+
+--let privilege_check=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=false
+
+
+--echo `````````````````````````````````````````````````````````
+--echo # Encrypted TABLESPACE to unencrypted TABLESPACE
+--echo # with database encryption 'y'
+--let database_encryption='y'
+--let tablespace_encryption='y'
+--let tablespace_encryption_to='n'
+
+--let privilege_check=false
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+
+--let privilege_check=true
+--echo `````````````````````````````````````````````````````````
+--echo # Request to create unencrypted tablespace with default_table_encryption='y'
+--let alter_tablespace_error=ER_TABLESPACE_CANNOT_BE_DECRYPTED
+--source ./tablespace_with_tables.inc
+--let has_grant=true
+--let alter_tablespace_error=0
+--source ./tablespace_with_tables.inc
+--let has_grant=false
+
+--echo # Clean up.
+connection default;
+DROP USER u1@localhost;
+SET GLOBAL debug= '-d,skip_table_encryption_admin_check_for_set';

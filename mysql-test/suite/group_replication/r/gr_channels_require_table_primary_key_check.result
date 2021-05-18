@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 # 1. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the applier channel
 #    Start a member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "group_replication_applier";
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = OFF FOR CHANNEL "group_replication_applier";
 include/start_and_bootstrap_group_replication.inc
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to OFF for "group_replication_applier"]
 
@@ -17,7 +17,7 @@ STOP REPLICA SQL_THREAD FOR CHANNEL "group_replication_applier";
 # 3. Set `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option for the recovery channel
 #    Start the member and check the `REQUIRE_TABLE_PRIMARY_KEY_CHECK` option is set
 [connection server2]
-CHANGE MASTER TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON FOR CHANNEL "group_replication_recovery";
+CHANGE REPLICATION SOURCE TO REQUIRE_TABLE_PRIMARY_KEY_CHECK = ON FOR CHANNEL "group_replication_recovery";
 include/start_group_replication.inc
 include/assert.inc [require_table_primary_key_check in performance_schema.replication_applier_configuration is set to ON for "group_replication_recovery"]
 

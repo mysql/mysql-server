@@ -1,5 +1,6 @@
 --source include/have_64bit.inc
 --source include/no_valgrind_without_big.inc
+--source include/not_hypergraph.inc   # Does not support WITH RECURSIVE yet.
 
 set session internal_tmp_mem_storage_engine='memory';
 
@@ -22,6 +23,7 @@ with qn as (select * from t1 limit 3) select * from qn;
 
 --echo # First all writes are done then two readers read
 
+--sorted_result
 with qn as (select * from t1 limit 3) select * from qn, qn qn1;
 
 --echo # Second, with one reader and one writer (reader is the query block

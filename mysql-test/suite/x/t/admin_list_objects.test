@@ -9,7 +9,7 @@ CREATE TABLE xtest.mytable2 (a INT, doc JSON);
 CREATE VIEW xtest.myview AS SELECT 1;
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_mysqlx.tmp
+--let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_mysqlx.xpl
 --write_file $xtest_file
 -->quiet
 ## Test data
@@ -123,6 +123,4 @@ EOF
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $xtest_file
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

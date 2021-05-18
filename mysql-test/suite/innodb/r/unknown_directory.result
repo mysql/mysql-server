@@ -132,18 +132,18 @@ SUBPARTITION BY HASH (`c2`)
  (SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
   SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
-test/t2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
-test/tp1#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p1.ibd
-test/tp1#p#p2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
-test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
-test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s2.ibd
-test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
-test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
-ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
+test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
+test/tp1#p#p1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p1.ibd
+test/tp1#p#p2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
+test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
+test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s2.ibd
+test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
+test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
@@ -191,18 +191,18 @@ t1	CREATE TABLE `t1` (
   `c1` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1.ibd
-test/t2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2.ibd
-test/tp1#p#p1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p1.ibd
-test/tp1#p#p2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
-test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
-test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s2.ibd
-test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
-test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
-ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t1.ibd
+test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t2.ibd
+test/tp1#p#p1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p1.ibd
+test/tp1#p#p2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
+test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
+test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s2.ibd
+test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
+test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
@@ -262,18 +262,18 @@ SUBPARTITION BY HASH (`c2`)
  (SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
   SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
-test/t2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
-test/tp1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tp1#p#p1.ibd
-test/tp1#p#p2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
-test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
-test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s2.ibd
-test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
-test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
-ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
+test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
+test/tp1#p#p1	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tp1#p#p1.ibd
+test/tp1#p#p2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
+test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
+test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s2.ibd
+test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
+test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
@@ -304,18 +304,18 @@ t2	CREATE TABLE `t2` (
   `c2` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
-test/t2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2.ibd
-test/tp1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tp1#p#p1.ibd
-test/tp1#p#p2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
-test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
-test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s2.ibd
-test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
-test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
-ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
+test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t2.ibd
+test/tp1#p#p1	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tp1#p#p1.ibd
+test/tp1#p#p2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
+test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
+test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s2.ibd
+test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
+test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s4.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
@@ -355,18 +355,18 @@ SUBPARTITION BY HASH (`c2`)
  (SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/remote_dir' ENGINE = InnoDB,
   SUBPARTITION s4 ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
-test/t2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
-test/tp1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tp1#p#p1.ibd
-test/tp1#p#p2	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
-test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
-test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s2.ibd
-test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
-test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s4.ibd
-ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t1.ibd
+test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/t2.ibd
+test/tp1#p#p1	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tp1#p#p1.ibd
+test/tp1#p#p2	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tp1#p#p2.ibd
+test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p1#sp#s1.ibd
+test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s2.ibd
+test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQL_TMP_DIR/remote_dir/test/tsp1#p#p2#sp#s3.ibd
+test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s4.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd
@@ -472,18 +472,18 @@ SUBPARTITION BY HASH (`c2`)
  (SUBPARTITION s3 ENGINE = InnoDB,
   SUBPARTITION s4 ENGINE = InnoDB)) */
 === information_schema.innodb_tablespaces and innodb_datafiles ===
-Space_Name	Space_Type	Page_Size	Zip_Size	Formats_Permitted	Path
-mtr/global_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
-mtr/test_suppressions	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
-test/t1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t1.ibd
-test/t2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/t2.ibd
-test/tp1#p#p1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tp1#p#p1.ibd
-test/tp1#p#p2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tp1#p#p2.ibd
-test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s1.ibd
-test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s2.ibd
-test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s3.ibd
-test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s4.ibd
-ts1	General	DEFAULT	0	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
+Space_Name	Space_Type	Page_Size	Zip_Size	BlockSize!=0	FileSize!=0	Formats_Permitted	Path
+mtr/global_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/global_suppressions.ibd
+mtr/test_suppressions	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/mtr/test_suppressions.ibd
+test/t1	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t1.ibd
+test/t2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/t2.ibd
+test/tp1#p#p1	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tp1#p#p1.ibd
+test/tp1#p#p2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tp1#p#p2.ibd
+test/tsp1#p#p1#sp#s1	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s1.ibd
+test/tsp1#p#p1#sp#s2	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p1#sp#s2.ibd
+test/tsp1#p#p2#sp#s3	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s3.ibd
+test/tsp1#p#p2#sp#s4	Single	DEFAULT	0	1	1	Dynamic	MYSQLD_DATADIR/test/tsp1#p#p2#sp#s4.ibd
+ts1	General	DEFAULT	0	1	1	Any	MYSQL_TMP_DIR/remote_dir/ts1.ibd
 === information_schema.files ===
 Space_Name	File_Type	Engine	Status	Tablespace_Name	Path
 mtr/global_suppressions	TABLESPACE	InnoDB	NORMAL	mtr/global_suppressions	MYSQLD_DATADIR/mtr/global_suppressions.ibd

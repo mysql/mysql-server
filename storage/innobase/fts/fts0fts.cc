@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -101,8 +101,9 @@ static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
 #endif
 
-/** Time to sleep after DEADLOCK error before retrying operation. */
-static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
+/** Time to sleep after DEADLOCK error before retrying operation in
+milliseconds. */
+static constexpr uint32_t FTS_DEADLOCK_RETRY_WAIT_MS = 100;
 
 /** variable to record innodb_fts_internal_tbl_name for information
 schema table INNODB_FTS_INSERTED etc. */
@@ -1824,7 +1825,7 @@ static dict_table_t *fts_create_one_common_table(trx_t *trx,
                            DATA_NOT_NULL, FTS_CONFIG_TABLE_VALUE_COL_LEN, true);
   }
 
-  error = row_create_table_for_mysql(new_table, nullptr, trx);
+  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx);
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -2019,7 +2020,7 @@ static dict_table_t *fts_create_one_index_table(trx_t *trx,
                          (DATA_MTYPE_MAX << 16) | DATA_UNSIGNED | DATA_NOT_NULL,
                          FTS_INDEX_ILIST_LEN, true);
 
-  error = row_create_table_for_mysql(new_table, nullptr, trx);
+  error = row_create_table_for_mysql(new_table, nullptr, nullptr, trx);
 
   if (error == DB_SUCCESS) {
     dict_index_t *index = dict_mem_index_create(
@@ -2890,7 +2891,8 @@ func_exit:
     fts_sql_rollback(trx);
 
     if (error == DB_DEADLOCK) {
-      os_thread_sleep(FTS_DEADLOCK_RETRY_WAIT);
+      std::this_thread::sleep_for(
+          std::chrono::milliseconds(FTS_DEADLOCK_RETRY_WAIT_MS));
       goto retry;
     }
   }
@@ -3691,10 +3693,14 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
 
         rw_lock_x_unlock(&table->fts->cache->lock);
 
-        DBUG_EXECUTE_IF("fts_instrument_sync_cache_wait",
-                        srv_fatal_semaphore_wait_threshold = 25;
-                        fts_max_cache_size = 100;
-                        fts_sync(cache->sync, true, true, false););
+        DBUG_EXECUTE_IF("fts_instrument_sync_cache_wait", {
+          ut_a(srv_fatal_semaphore_wait_extend.load() == 0);
+          // we size smaller than permissible min value for this sys var
+          const auto old_fts_max_cache_size = fts_max_cache_size;
+          fts_max_cache_size = 100;
+          fts_sync(cache->sync, true, true, false);
+          fts_max_cache_size = old_fts_max_cache_size;
+        });
 
         DBUG_EXECUTE_IF("fts_instrument_sync",
                         fts_optimize_request_sync_table(table);
@@ -4068,9 +4074,8 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   ibool print_error = FALSE;
   dict_table_t *table = index_cache->index->table;
   const float cutoff = 0.98f;
-  ulint lock_threshold = static_cast<ulint>(
-      (srv_fatal_semaphore_wait_threshold % SRV_SEMAPHORE_WAIT_EXTENSION) *
-      cutoff);
+  ulint lock_threshold = srv_fatal_semaphore_wait_threshold * cutoff;
+
   bool timeout_extended = false;
 
   FTS_INIT_INDEX_TABLE(&fts_table, nullptr, FTS_INDEX_TABLE,
@@ -4107,19 +4112,17 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
       /*FIXME: we need to handle the error properly. */
       if (error == DB_SUCCESS) {
         DBUG_EXECUTE_IF("fts_instrument_sync_write",
-                        os_thread_sleep(10000000););
+                        std::this_thread::sleep_for(std::chrono::seconds(10)););
         if (!unlock_cache) {
           ulint cache_lock_time = ut_time_monotonic() - sync_start_time;
           if (cache_lock_time > lock_threshold) {
             if (!timeout_extended) {
-              os_atomic_increment_ulint(&srv_fatal_semaphore_wait_threshold,
-                                        SRV_SEMAPHORE_WAIT_EXTENSION);
+              srv_fatal_semaphore_wait_extend.fetch_add(1);
               timeout_extended = true;
-              lock_threshold += SRV_SEMAPHORE_WAIT_EXTENSION;
+              lock_threshold += 7200;
             } else {
               unlock_cache = true;
-              os_atomic_decrement_ulint(&srv_fatal_semaphore_wait_threshold,
-                                        SRV_SEMAPHORE_WAIT_EXTENSION);
+              srv_fatal_semaphore_wait_extend.fetch_sub(1);
               timeout_extended = false;
             }
           }
@@ -4133,12 +4136,13 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
                                &fts_table, &word->text, fts_node);
 
         DBUG_EXECUTE_IF("fts_instrument_sync_write",
-                        os_thread_sleep(10000000););
+                        std::this_thread::sleep_for(std::chrono::seconds(10)););
 
         DEBUG_SYNC_C("fts_write_node");
         DBUG_EXECUTE_IF("fts_write_node_crash", DBUG_SUICIDE(););
 
-        DBUG_EXECUTE_IF("fts_instrument_sync_sleep", os_thread_sleep(1000000););
+        DBUG_EXECUTE_IF("fts_instrument_sync_sleep",
+                        std::this_thread::sleep_for(std::chrono::seconds(1)););
 
         if (unlock_cache) {
           rw_lock_x_lock(&table->fts->cache->lock);
@@ -4159,6 +4163,10 @@ static MY_ATTRIBUTE((nonnull, warn_unused_result)) dberr_t
   if (fts_enable_diag_print) {
     printf("Avg number of nodes: %lf\n",
            (double)n_nodes / (double)(n_words > 1 ? n_words : 1));
+  }
+
+  if (timeout_extended) {
+    srv_fatal_semaphore_wait_extend.fetch_sub(1);
   }
 
   return (error);
@@ -5292,7 +5300,7 @@ ibool fts_wait_for_background_thread_to_start(
   ulint count = 0;
   ibool done = FALSE;
 
-  ut_a(max_wait == 0 || max_wait >= FTS_MAX_BACKGROUND_THREAD_WAIT);
+  ut_a(max_wait == 0 || max_wait >= FTS_MAX_BACKGROUND_THREAD_WAIT_US);
 
   for (;;) {
     fts_t *fts = table->fts;
@@ -5306,13 +5314,14 @@ ibool fts_wait_for_background_thread_to_start(
     mutex_exit(&fts->bg_threads_mutex);
 
     if (!done) {
-      os_thread_sleep(FTS_MAX_BACKGROUND_THREAD_WAIT);
+      std::this_thread::sleep_for(
+          std::chrono::microseconds(FTS_MAX_BACKGROUND_THREAD_WAIT_US));
 
       if (max_wait > 0) {
-        max_wait -= FTS_MAX_BACKGROUND_THREAD_WAIT;
+        max_wait -= FTS_MAX_BACKGROUND_THREAD_WAIT_US;
 
         /* We ignore the residual value. */
-        if (max_wait < FTS_MAX_BACKGROUND_THREAD_WAIT) {
+        if (max_wait < FTS_MAX_BACKGROUND_THREAD_WAIT_US) {
           break;
         }
       }
@@ -5810,21 +5819,38 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
 
     /* Skip the underscore. */
     ++ptr;
-    ut_a(end > ptr);
+    ut_a(end >= ptr);
     len = end - ptr;
+
+    /* It's not enough to be a FTS auxiliary table name */
+    if (len == 0) {
+      return (false);
+    }
 
     /* First search the common table suffix array. */
     for (i = 0; fts_common_tables[i] != nullptr; ++i) {
-      if (strncmp(ptr, fts_common_tables[i], len) == 0 ||
-          strncmp(ptr, fts_common_tables_5_7[i], len) == 0) {
+      if ((len == strlen(fts_common_tables[i])) &&
+          (strncmp(ptr, fts_common_tables[i], len) == 0)) {
+        table->type = FTS_COMMON_TABLE;
+        return (true);
+      }
+
+      if ((len == strlen(fts_common_tables_5_7[i])) &&
+          (strncmp(ptr, fts_common_tables_5_7[i], len) == 0)) {
         table->type = FTS_COMMON_TABLE;
         return (true);
       }
     }
 
     /* Could be obsolete common tables. */
-    if (native_strncasecmp(ptr, "ADDED", len) == 0 ||
-        native_strncasecmp(ptr, "STOPWORDS", len) == 0) {
+    if ((len == strlen("ADDED")) &&
+        (native_strncasecmp(ptr, "ADDED", len) == 0)) {
+      table->type = FTS_OBSOLETED_TABLE;
+      return (true);
+    }
+
+    if ((len == strlen("STOPWORDS")) &&
+        (native_strncasecmp(ptr, "STOPWORDS", len) == 0)) {
       table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }
@@ -5834,7 +5860,7 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
       return (false);
     }
 
-    /* Skip the table id. */
+    /* Skip the index id. */
     ptr = static_cast<const char *>(memchr(ptr, '_', len));
 
     if (ptr == nullptr) {
@@ -5843,20 +5869,31 @@ bool fts_is_aux_table_name(fts_aux_table_t *table, const char *name,
 
     /* Skip the underscore. */
     ++ptr;
-    ut_a(end > ptr);
+    ut_a(end >= ptr);
     len = end - ptr;
+
+    /* It's not enough to be a FTS auxiliary table name */
+    if (len == 0) {
+      return (false);
+    }
 
     /* Search the FT index specific array. */
     for (i = 0; i < FTS_NUM_AUX_INDEX; ++i) {
-      if (strncmp(ptr, fts_get_suffix(i), len) == 0 ||
-          strncmp(ptr, fts_get_suffix_5_7(i), len) == 0) {
+      if ((len == strlen(fts_get_suffix(i))) &&
+          (strncmp(ptr, fts_get_suffix(i), len) == 0)) {
+        table->type = FTS_INDEX_TABLE;
+        return (true);
+      }
+      if ((len == strlen(fts_get_suffix_5_7(i))) &&
+          (strncmp(ptr, fts_get_suffix_5_7(i), len) == 0)) {
         table->type = FTS_INDEX_TABLE;
         return (true);
       }
     }
 
     /* Other FT index specific table(s). */
-    if (native_strncasecmp(ptr, "DOC_ID", len) == 0) {
+    if ((len == strlen("DOC_ID")) &&
+        (native_strncasecmp(ptr, "DOC_ID", len) == 0)) {
       table->type = FTS_OBSOLETED_TABLE;
       return (true);
     }

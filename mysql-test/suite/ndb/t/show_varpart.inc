@@ -23,7 +23,7 @@ if (`select LENGTH('$show_varpart_table') = 0`)
 }
 
 # Dump the output of ndb_desc to file
---exec $NDB_DESC --no-defaults -d $show_varpart_db $show_varpart_table > $dump_file
+--exec $NDB_DESC -d $show_varpart_db $show_varpart_table > $dump_file
 
 # Load the file into a temporary table
 CREATE TEMPORARY TABLE test.desc (a varchar(512));

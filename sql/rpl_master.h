@@ -1,7 +1,7 @@
 #ifndef RPL_MASTER_H_INCLUDED
 #define RPL_MASTER_H_INCLUDED
 
-/* Copyright (c) 2010, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

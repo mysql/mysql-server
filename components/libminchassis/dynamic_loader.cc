@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -1136,7 +1136,7 @@ bool mysql_dynamic_loader_imp::unload_do_lock_provided_services(
    */
   minimal_chassis::rwlock_scoped_lock lock =
       mysql_registry_imp::lock_registry_for_write();
-  return mysql_dynamic_loader_imp ::
+  return mysql_dynamic_loader_imp::
       unload_do_check_provided_services_reference_count(
           components_to_unload, dependency_graph, scheme_services);
 }
@@ -1157,7 +1157,7 @@ bool mysql_dynamic_loader_imp::unload_do_lock_provided_services(
   @retval false success
   @retval true failure
 */
-bool mysql_dynamic_loader_imp ::
+bool mysql_dynamic_loader_imp::
     unload_do_check_provided_services_reference_count(
         const std::vector<mysql_component *> &components_to_unload,
         const std::map<const void *, std::vector<mysql_component *>>

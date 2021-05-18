@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -40,16 +40,23 @@
 #define MYSQL_FILE_H
 
 /* For strlen() */
+#include <assert.h>
 #include <string.h>
 
-#include "my_dbug.h"
+/* HAVE_PSI_*_INTERFACE */
+#include "my_psi_config.h"  // IWYU pragma: keep
+
 /* For MY_STAT */
 #include "my_dir.h"
 /* For my_chsize */
 #include "my_sys.h"
 #include "mysql/psi/psi_file.h"
 #include "mysql/service_mysql_alloc.h"
-#include "pfs_file_provider.h"
+
+#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+/* PSI_FILE_CALL() as direct call. */
+#include "pfs_file_provider.h"  // IWYU pragma: keep
+#endif
 
 #ifndef PSI_FILE_CALL
 #define PSI_FILE_CALL(M) psi_file_service->M
@@ -208,7 +215,7 @@
   With the instrumentation, mysql_fclose(NULL, ...) will safely return 0,
   which is an extension compared to my_fclose and is therefore compliant.
   mysql_fclose is on purpose *not* implementing
-  @code DBUG_ASSERT(file != NULL) @endcode,
+  @code assert(file != NULL) @endcode,
   since doing so could introduce regressions.
 */
 #ifdef HAVE_PSI_FILE_INTERFACE

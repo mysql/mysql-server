@@ -1,7 +1,7 @@
 #ifndef SQL_TMP_TABLE_INCLUDED
 #define SQL_TMP_TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -63,8 +63,8 @@ TABLE *create_tmp_table_from_fields(THD *thd, List<Create_field> &field_list,
                                     const char *alias = nullptr);
 bool create_ondisk_from_heap(THD *thd, TABLE *table, int error,
                              bool ignore_last_dup, bool *is_duplicate);
-void close_tmp_table(THD *thd, TABLE *entry);
-void free_tmp_table(TABLE *entry);
+void close_tmp_table(TABLE *table);
+void free_tmp_table(TABLE *table);
 TABLE *create_duplicate_weedout_tmp_table(THD *thd, uint uniq_tuple_length_arg,
                                           SJ_TMP_TABLE *sjtbl);
 bool setup_tmp_table_handler(THD *thd, TABLE *table, ulonglong select_options,

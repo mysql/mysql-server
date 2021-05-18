@@ -27,5 +27,7 @@ if ($value == No such row)
 SET @save_sql_log_bin= @@sql_log_bin;
 SET @@sql_log_bin = 0;
 CALL mtr.add_suppression(".*Got an error reading communication packets.*");
+# Suppress additional errors on MacOS
+CALL mtr.add_suppression(".*The client was disconnected by the server.*");
 SET @@sql_log_bin = @save_sql_log_bin;
 --source include/end_include_file.inc

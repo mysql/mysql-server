@@ -53,3 +53,9 @@ ExtraSendBufferMemory=1M
 ExtraSendBufferMemory=2M
 
 # mysqld.2.bug14555359 will have 0 for ExtraSendBufferMemory
+
+# Config with 2 mgmds on default port
+[cluster_config.bug32175157]
+ndbd = localhost, localhost
+ndb_mgmd = localhost, localhost
+mysqld =

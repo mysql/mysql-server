@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,8 @@
 #include "storage/perfschema/pfs_lock.h"
 
 struct PFS_global_param;
-struct PFS_memory_stat_delta;
+struct PFS_memory_stat_alloc_delta;
+struct PFS_memory_stat_free_delta;
 struct PFS_memory_shared_stat;
 struct PFS_thread;
 
@@ -86,7 +87,10 @@ struct PFS_ALIGNED PFS_host : PFS_connection_slice {
   /** Reset all memory statistics. */
   void rebase_memory_stats();
 
-  void carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index);
+  void carry_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
+                                     uint index);
+  void carry_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
+                                    uint index);
 
   void set_instr_class_memory_stats(PFS_memory_shared_stat *array) {
     m_has_memory_stats = false;

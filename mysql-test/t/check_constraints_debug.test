@@ -202,3 +202,21 @@ DISCONNECT con2;
 SET DEBUG_SYNC='RESET';
 DROP TABLE t1, t2;
 --disable_connect_log
+
+
+--echo #
+--echo # Bug#32018406 - CREATE TABLE MAY ASSERT IN DEBUG MODE
+--echo #
+--let trace_file= $MYSQL_TMP_DIR/bug32018406.trace
+--let debug_options= '+d,info:O,$trace_file'
+--replace_result $debug_options '+d,info:O,trace_file'
+--eval SET SESSION DEBUG= $debug_options
+
+# Without fix, following statements crash in debug mode.
+CREATE TABLE t1 (c1 INT, c2 INT CHECK (c2 < 100));
+ALTER TABLE t1 DROP COLUMN c2;
+DROP TABLE t1;
+
+#Cleanup
+SET SESSION debug= '-d,info:-O';
+--remove_file $trace_file

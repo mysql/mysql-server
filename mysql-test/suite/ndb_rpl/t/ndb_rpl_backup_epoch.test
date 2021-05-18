@@ -89,7 +89,8 @@ select sleep(2);
 select sleep(2);
 
 --echo Run backup snapshotstart
---source suite/ndb/t/ndb_backup_nowait_snapshotstart_start.inc
+let $start_backup_extra = SNAPSHOTSTART;
+--source suite/ndb/t/ndb_backup_nowait_start.inc
 --source suite/ndb/t/ndb_backup_nowait_wait.inc
 
 --let $second_backup_id = $the_backup_id
@@ -225,7 +226,6 @@ reset master;
 #start slave;
 
 --remove_file $outfile
---remove_file $NDB_TOOLS_OUTPUT
 
 --connection master
 --source suite/ndb/include/backup_restore_cleanup.inc

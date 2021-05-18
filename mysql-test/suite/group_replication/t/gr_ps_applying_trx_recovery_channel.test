@@ -33,7 +33,7 @@ SET @slave_preserver_commit_order_saved= @@GLOBAL.SLAVE_PRESERVE_COMMIT_ORDER;
 SET GLOBAL slave_parallel_type= 'LOGICAL_CLOCK';
 SET GLOBAL slave_parallel_workers= 4;
 SET GLOBAL slave_preserve_commit_order= ON;
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --source include/start_group_replication.inc
 
 # check that both view change transactions have been executed

@@ -12,8 +12,8 @@ GRANT REPLICATION SLAVE ON *.* TO rpluser_with_length_32_123456789@127.0.0.1;
 [on slave]
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-CHANGE MASTER TO master_user='rpluser_with_length_32_123456789',
-master_password='rpl', get_master_public_key = 1, master_ssl = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpluser_with_length_32_123456789',
+SOURCE_PASSWORD='rpl', GET_SOURCE_PUBLIC_KEY = 1, SOURCE_SSL = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -47,7 +47,7 @@ CREATE USER rpluser_plain@127.0.0.1 IDENTIFIED BY 'rpl';
 GRANT REPLICATION SLAVE ON *.* TO rpluser_plain@127.0.0.1;
 [on slave]
 include/stop_slave.inc
-CHANGE MASTER TO master_user='rpluser_plain', master_password='rpl', master_ssl = 0, get_master_public_key = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='rpluser_plain', SOURCE_PASSWORD='rpl', SOURCE_SSL = 0, GET_SOURCE_PUBLIC_KEY = 1;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -61,7 +61,7 @@ include/stop_slave.inc
 include/stop_slave_sql.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -78,7 +78,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 # Set the user created with authentication plugin caching_sha2_password
 # as replication slave user and get RSA public key from master
-CHANGE MASTER TO master_user='u1_caching_sha2_password', master_password='pwd', master_ssl=0, get_master_public_key = 1;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u1_caching_sha2_password', SOURCE_PASSWORD='pwd', SOURCE_SSL=0, GET_SOURCE_PUBLIC_KEY = 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -123,7 +123,7 @@ ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error
 include/stop_slave.inc
 # Set the user created with authentication plugin caching_sha2_password
 # as replication slave user and get RSA public key from master
-CHANGE MASTER TO master_user='u1_caching_sha2_password', master_password='pwd', master_ssl = 0, master_public_key_path='MYSQL_TEST_DIR/std_data/rsa_public_key.pem', get_master_public_key = 0;;
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u1_caching_sha2_password', SOURCE_PASSWORD='pwd', SOURCE_SSL = 0, SOURCE_PUBLIC_KEY_PATH='MYSQL_TEST_DIR/std_data/rsa_public_key.pem', GET_SOURCE_PUBLIC_KEY = 0;;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -167,7 +167,7 @@ ERROR 2061 (HY000): Authentication plugin 'caching_sha2_password' reported error
 [on slave]
 include/stop_slave.inc
 ==== Cleanup (Note that slave IO thread is not running) ====
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', MASTER_SSL = 0;
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

@@ -132,6 +132,7 @@ SET @view='v2';
 EXECUTE check_view_status USING @view;
 SET @view='v3';
 EXECUTE check_view_status USING @view;
+--skip_if_hypergraph   # Different warnings.
 EXECUTE check_view_columns USING @view;
 --echo #
 --echo #
@@ -312,12 +313,14 @@ EXECUTE check_view_status USING @view;
 --echo # CASE 20 - Alter view v2 to non-updatable. Verify view v2 and vw status.
 --echo # EXPECTATION: v2 and vw should be set as non-updatable.
 --echo #
+--sorted_result
 SELECT table_schema, table_name, is_updatable FROM information_schema.views
   WHERE table_name='v2';
 
 ALTER VIEW v2 AS SELECT * FROM t2 GROUP BY(f2);
 CREATE VIEW vw AS SELECT * FROM v2;
 
+--sorted_result
 SELECT table_schema, table_name, is_updatable FROM information_schema.views
   WHERE table_name='v2' OR table_name='vw';
 
@@ -327,6 +330,7 @@ SELECT table_schema, table_name, is_updatable FROM information_schema.views
 --echo #
 ALTER VIEW v2 AS SELECT * FROM t2;
 
+--sorted_result
 SELECT table_schema, table_name, is_updatable FROM information_schema.views
   WHERE table_name='v2' OR table_name='vw';
 DROP VIEW vw;

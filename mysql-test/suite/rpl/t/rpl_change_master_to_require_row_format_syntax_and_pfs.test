@@ -79,7 +79,7 @@ PROCEDURE
     --die !!!ERROR IN TEST: you must set $expected_event_format
   }
   --source include/stop_slave.inc
-  --eval CHANGE MASTER TO REQUIRE_ROW_FORMAT = $expected_event_format
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = $expected_event_format
   --source include/start_slave.inc
   --source $MYSQLTEST_VARDIR/tmp/check_pfs.inc
 #END OF
@@ -116,7 +116,7 @@ PROCEDURE
   }
 
   --error $expected_error
-  --eval CHANGE MASTER TO REQUIRE_ROW_FORMAT = $expected_event_format
+  --eval CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = $expected_event_format
 
   if ($stop_slave_thread != '')
   {
@@ -130,19 +130,19 @@ PROCEDURE
 #    an error is thrown.
 #
 --error ER_REQUIRE_ROW_FORMAT_INVALID_VALUE
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 2;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 2;
 
 #
 # 2. Set `REQUIRE_ROW_FORMAT` to 0 in the `CHANGE MASTER TO ...` and verify that
 #    succceeds.
 #
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 0;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 0;
 
 #
 # 3. Set `REQUIRE_ROW_FORMAT` to 1 in the `CHANGE MASTER TO ...` and verify that
 #    succceeds.
 #
-CHANGE MASTER TO REQUIRE_ROW_FORMAT = 1;
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1;
 
 #
 # 4. Set `REQUIRE_ROW_FORMAT` to a valid in the the full call to `CHANGE MASTER

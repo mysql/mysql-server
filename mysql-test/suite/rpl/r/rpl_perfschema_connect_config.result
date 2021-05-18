@@ -34,14 +34,14 @@ create user replssl@localhost require ssl;
 grant replication slave on *.* to replssl@localhost;
 include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
-change master to
-master_user= 'replssl',
-master_password= '',
-master_retry_count= 1,
-master_ssl= 1,
-master_ssl_ca= 'MYSQL_TEST_DIR/std_data/cacert.pem',
-master_ssl_cert= 'MYSQL_TEST_DIR/std_data/client-cert.pem',
-master_ssl_key= 'MYSQL_TEST_DIR/std_data/client-key.pem';
+CHANGE REPLICATION SOURCE to
+SOURCE_USER= 'replssl',
+SOURCE_PASSWORD= '',
+SOURCE_RETRY_COUNT= 1,
+SOURCE_SSL= 1,
+SOURCE_SSL_CA= 'MYSQL_TEST_DIR/std_data/cacert.pem',
+SOURCE_SSL_CERT= 'MYSQL_TEST_DIR/std_data/client-cert.pem',
+SOURCE_SSL_KEY= 'MYSQL_TEST_DIR/std_data/client-key.pem';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -56,8 +56,8 @@ include/assert.inc [Value returned by SSS and PS table for SSL_Certificate shoul
 include/assert.inc [Value returned by SSS and PS table for SSL_Cipher should be same.]
 include/assert.inc [Value returned by SSS and PS table for SSL_Key should be same.]
 include/assert.inc [Value returned by SSS and PS table for SSL_Verify_Server_Certificate should be same.]
-change master to master_ssl=0;
-change master to master_ssl_crl= 'MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', master_ssl_crlpath= 'MYSQL_TEST_DIR/std_data/crldir';
+CHANGE REPLICATION SOURCE to SOURCE_SSL=0;
+CHANGE REPLICATION SOURCE to SOURCE_SSL_CRL= 'MYSQL_TEST_DIR/std_data/crl-client-revoked.crl', SOURCE_SSL_CRLPATH= 'MYSQL_TEST_DIR/std_data/crldir';
 include/assert.inc [Value returned by SSS and PS table for SSL_Crl_File should be same.]
 include/assert.inc [Value returned by SSS and PS table for SSL_Crl_Path should be same.]
 include/assert.inc [Value returned by SSS and PS table for TLS version should be same.]
@@ -70,9 +70,9 @@ include/rpl_restart_server.inc [server_number=2 gtids=on]
 # 1) Test for Auto_position= 0.
 
 include/assert.inc [Value returned by SSS and PS table for Auto_Position should be same.]
-change master to
-master_user = 'root',
-master_auto_position= 1;
+CHANGE REPLICATION SOURCE to
+SOURCE_USER = 'root',
+SOURCE_AUTO_POSITION= 1;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

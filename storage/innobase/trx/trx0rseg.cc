@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2020, Oracle and/or its affiliates.
+Copyright (c) 1996, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -258,7 +258,7 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
   auto len = flst_get_len(rseg_header + TRX_RSEG_HISTORY);
 
   if (len > 0) {
-    trx_sys->rseg_history_len += len;
+    trx_sys->rseg_history_len.fetch_add(len);
 
     /* Extract GTID from history and send to GTID persister. */
     trx_rseg_persist_gtid(rseg, gtid_trx_no);
@@ -337,7 +337,7 @@ They require an upgrade of undo tablespaces and that cannot happen with
 active undo logs.
 @param[in]	purge_queue	queue of rsegs to purge */
 void trx_rsegs_init(purge_pq_t *purge_queue) {
-  trx_sys->rseg_history_len = 0;
+  trx_sys->rseg_history_len.store(0);
 
   ulint slot;
   mtr_t mtr;
@@ -685,6 +685,11 @@ bool trx_rseg_add_rollback_segments(space_id_t space_id, ulong target_rsegs,
     *n_total_created += n_created;
   }
 
+  /* Save the size of the undo tablespace now that all rsegs have been created.
+  No need to do this for the system temporary tablespace. */
+  if (type == UNDO) {
+    fil_space_set_undo_size(space_id, true);
+  }
   return (success);
 }
 

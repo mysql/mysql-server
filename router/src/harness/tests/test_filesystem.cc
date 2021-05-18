@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -41,6 +41,9 @@
 ////////////////////////////////////////
 // Test system include files
 #include "test/helpers.h"
+
+#define EXPECT_NO_ERROR(x) \
+  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
 
 using std::back_inserter;
 using std::cout;
@@ -308,7 +311,7 @@ TEST(TestFilesystem, delete_dir_recursive) {
   std::ofstream().open("testdir/f2");
   std::ofstream().open("testdir/a/f");
   std::ofstream().open("testdir/a/b/f");
-  EXPECT_EQ(0, mysql_harness::delete_dir_recursive("testdir"));
+  EXPECT_NO_ERROR(mysql_harness::delete_dir_recursive("testdir"));
 }
 
 /*

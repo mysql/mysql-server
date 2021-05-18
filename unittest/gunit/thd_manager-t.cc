@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -265,7 +265,7 @@ TEST_F(ThreadManagerTest, ThreadID) {
   thd_manager->release_thread_id(UINT_MAX32);
 }
 
-#if !defined(DBUG_OFF)
+#if !defined(NDEBUG)
 TEST_F(ThreadManagerTest, ThreadIDDeathTest) {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
   my_thread_id thread_id = thd_manager->get_new_thread_id();

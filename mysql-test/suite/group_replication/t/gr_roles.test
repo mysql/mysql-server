@@ -130,7 +130,7 @@ SET GLOBAL group_replication_recovery_retry_count= 1;
 --echo # Set the reconnect interval to one. To prevent timeout on recovery.
 SET GLOBAL group_replication_recovery_reconnect_interval= 1;
 
-CHANGE MASTER TO MASTER_USER='alpha', MASTER_PASSWORD='alpha' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='alpha', SOURCE_PASSWORD='alpha' FOR CHANNEL 'group_replication_recovery';
 
 # START GR on server2 will fail
 --let $group_replication_start_member_state= ERROR

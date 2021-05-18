@@ -27,7 +27,7 @@ connection slave;
 source include/stop_slave.inc;
 --echo # R1: Set the ssl connection OFF
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---eval CHANGE MASTER TO master_user = 'root', master_password = '', master_ssl = 0;
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 0;
 source include/start_slave.inc;
 --source include/check_slave_no_error.inc
 
@@ -36,7 +36,7 @@ connection slave;
 source include/stop_slave.inc;
 --echo # R2: Set the ssl connection ON  and weak cipher CAMELLIA256-SHA
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---eval CHANGE MASTER TO master_user = 'root', master_password = '', master_ssl = 1, master_ssl_cipher = 'CAMELLIA256-SHA', master_retry_count = 1;
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;
 START SLAVE;
 --let $slave_io_errno= 2026
 --source include/wait_for_slave_io_error.inc
@@ -47,7 +47,7 @@ select SERVICE_STATE, LAST_ERROR_NUMBER from performance_schema.replication_conn
 connection slave;
 --source include/stop_slave.inc
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
---eval CHANGE MASTER TO master_user = 'root', master_password = '', master_ssl = 1, master_ssl_cipher = 'AES128-SHA';
+--eval CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_SSL_CIPHER = 'AES128-SHA';
 source include/start_slave.inc;
 --source include/check_slave_no_error.inc
 
@@ -56,7 +56,7 @@ source include/start_slave.inc;
 --echo ==== Cleanup (Note that slave IO thread is not running) ====
 # cleanup: slave io thread has stopped so we reset replication
 --replace_column 2 ####
-CHANGE MASTER TO MASTER_USER = 'root', MASTER_PASSWORD = '', master_ssl=0;
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL=0;
 
 # clear Slave_IO_Errno
 --let $rpl_only_running_threads= 1

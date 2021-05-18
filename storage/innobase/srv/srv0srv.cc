@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2021, Oracle and/or its affiliates.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -112,6 +112,7 @@ bool srv_downgrade_partition_files = false;
 
 /* The following is the maximum allowed duration of a lock wait. */
 ulong srv_fatal_semaphore_wait_threshold = 600;
+std::atomic<int> srv_fatal_semaphore_wait_extend{0};
 
 /* How much data manipulation language (DML) statements need to be delayed,
 in microseconds, in order to reduce the lagging of the purge thread. */
@@ -171,10 +172,6 @@ bool srv_undo_log_encrypt = FALSE;
 
 /** Maximum size of undo tablespace. */
 unsigned long long srv_max_undo_tablespace_size;
-
-/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
-const page_no_t SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
-    ((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
 
 /** Maximum number of recently truncated undo tablespace IDs for
 the same undo number. */
@@ -598,7 +595,7 @@ FILE *srv_misc_tmpfile;
 
 #ifndef UNIV_HOTBACKUP
 static ulint srv_main_thread_process_no = 0;
-static os_thread_id_t srv_main_thread_id = 0;
+static std::thread::id srv_main_thread_id{};
 
 /* The following counts are used by the srv_master_thread. */
 
@@ -691,8 +688,8 @@ priority of the background thread so that it will be scheduled and it
 can release the resource.  This solution is called priority inheritance
 in real-time programming.  A drawback of this solution is that the overhead
 of acquiring a mutex increases slightly, maybe 0.2 microseconds on a 100
-MHz Pentium, because the thread has to call os_thread_get_curr_id.  This may
-be compared to 0.5 microsecond overhead for a mutex lock-unlock pair. Note
+MHz Pentium, because the thread has to call std::this_thread::get_id().  This
+may be compared to 0.5 microsecond overhead for a mutex lock-unlock pair. Note
 that the thread cannot store the information in the resource , say mutex,
 itself, because competing threads could wipe out the information if it is
 stored before acquiring the mutex, and if it stored afterwards, the
@@ -1198,7 +1195,7 @@ void srv_free(void) {
     for (size_t i = 0; i < srv_threads.m_page_cleaner_workers_n; ++i) {
       srv_threads.m_page_cleaner_workers[i] = {};
     }
-    ut_free(srv_threads.m_page_cleaner_workers);
+    UT_DELETE_ARRAY(srv_threads.m_page_cleaner_workers);
     srv_threads.m_page_cleaner_workers = nullptr;
   }
 
@@ -1206,7 +1203,7 @@ void srv_free(void) {
     for (size_t i = 0; i < srv_threads.m_purge_workers_n; ++i) {
       srv_threads.m_purge_workers[i] = {};
     }
-    ut_free(srv_threads.m_purge_workers);
+    UT_DELETE_ARRAY(srv_threads.m_purge_workers);
     srv_threads.m_purge_workers = nullptr;
   }
 
@@ -1353,7 +1350,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
 
   ret = true;
   if (nowait) {
-    locksys::Global_exclusive_try_latch guard{};
+    locksys::Global_exclusive_try_latch guard{UT_LOCATION_HERE};
     if (guard.owns_lock()) {
       srv_printf_locks_and_transactions(file, trx_start_pos);
     } else {
@@ -1361,7 +1358,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
       ret = false;
     }
   } else {
-    locksys::Global_exclusive_latch_guard guard{};
+    locksys::Global_exclusive_latch_guard guard{UT_LOCATION_HERE};
     srv_printf_locks_and_transactions(file, trx_start_pos);
   }
 
@@ -1420,7 +1417,7 @@ bool srv_printf_innodb_monitor(FILE *file, bool nowait, ulint *trx_start_pos,
           "Total large memory allocated " ULINTPF
           "\n"
           "Dictionary memory allocated " ULINTPF "\n",
-          os_total_large_mem_allocated, dict_sys->size);
+          os_total_large_mem_allocated.load(), dict_sys->size);
 
   buf_print_io(file);
 
@@ -1645,7 +1642,7 @@ void srv_export_innodb_status(void) {
 
   export_vars.innodb_sampled_pages_skipped = srv_stats.n_sampled_pages_skipped;
 
-  export_vars.innodb_num_open_files = fil_n_file_opened;
+  export_vars.innodb_num_open_files = fil_n_files_open;
 
   export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
 
@@ -1788,8 +1785,8 @@ void srv_error_monitor_thread() {
   lsn_t new_lsn;
   int64_t sig_count;
   /* longest waiting thread for a semaphore */
-  os_thread_id_t waiter = os_thread_get_curr_id();
-  os_thread_id_t old_waiter = waiter;
+  auto waiter = std::this_thread::get_id();
+  auto old_waiter = waiter;
   /* the semaphore that is being waited for */
   const void *sema = nullptr;
   const void *old_sema = nullptr;
@@ -1812,7 +1809,7 @@ loop:
   old_lsn = new_lsn;
 
   if (ut_difftime(ut_time_monotonic(), srv_last_monitor_time) > 60) {
-    /* We referesh InnoDB Monitor values so that averages are
+    /* We refresh InnoDB Monitor values so that averages are
     printed from at most 60 last seconds */
 
     srv_refresh_innodb_monitor_stats();
@@ -1829,7 +1826,7 @@ loop:
   sync_arr_wake_threads_if_sema_free();
 
   if (sync_array_print_long_waits(&waiter, &sema) && sema == old_sema &&
-      os_thread_eq(waiter, old_waiter)) {
+      waiter == old_waiter) {
     fatal_cnt++;
     if (fatal_cnt > 10) {
       ib::fatal(ER_IB_MSG_1047, ulonglong{srv_fatal_semaphore_wait_threshold});
@@ -2009,7 +2006,7 @@ static void srv_master_do_disabled_loop(void) {
         SRV_SHUTDOWN_PRE_DD_AND_SYSTEM_TRANSACTIONS) {
       break;
     }
-    os_thread_sleep(100000);
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
   srv_main_thread_op_info = "";
@@ -2307,7 +2304,7 @@ static void srv_master_do_active_tasks(void) {
 
   srv_update_cpu_usage();
 
-  if (trx_sys->rseg_history_len > 0) {
+  if (trx_sys->rseg_history_len.load() > 0) {
     srv_wake_purge_thread_if_not_active();
   }
 
@@ -2647,7 +2644,7 @@ bool srv_enable_undo_encryption(bool is_boot) {
  checking the state of the server again */
 static void srv_master_sleep(void) {
   srv_main_thread_op_info = "sleeping";
-  os_thread_sleep(1000000);
+  std::this_thread::sleep_for(std::chrono::seconds(1));
   srv_main_thread_op_info = "";
 }
 
@@ -2775,6 +2772,9 @@ static void srv_master_main_loop(srv_slot_t *slot) {
 
     /* Allow any blocking clone to progress. */
     clone_mark_free();
+
+    /* Purge any deleted tablespace pages. */
+    fil_purge();
   }
 }
 
@@ -2817,7 +2817,7 @@ void srv_master_thread() {
   ut_ad(!srv_read_only_mode);
 
   srv_main_thread_process_no = os_proc_get_number();
-  srv_main_thread_id = os_thread_get_curr_id();
+  srv_main_thread_id = std::this_thread::get_id();
 
   slot = srv_reserve_slot(SRV_MASTER);
   ut_a(slot == srv_sys->sys_threads);
@@ -2895,7 +2895,7 @@ static bool srv_task_execute(void) {
   if (thr != nullptr) {
     que_run_threads(thr);
 
-    os_atomic_inc_ulint(&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
+    purge_sys->n_completed.fetch_add(1);
   }
 
   return (thr != nullptr);
@@ -2964,16 +2964,16 @@ void srv_worker_thread() {
 }
 
 /** Do the actual purge operation.
- @return length of history list before the last purge batch. */
-static ulint srv_do_purge(
-    ulint *n_total_purged) /*!< in/out: total pages purged */
-{
+@param[in,out]  n_total_purged  Total pages purged in this call
+@return length of history list before the last purge batch. */
+static ulint srv_do_purge(ulint *n_total_purged) {
   ulint n_pages_purged;
 
   static ulint count = 0;
   static ulint n_use_threads = 0;
-  static ulint rseg_history_len = 0;
+  static uint64_t rseg_history_len = 0;
   ulint old_activity_count = srv_get_activity_count();
+  bool need_explicit_truncate = false;
 
   const auto n_threads = srv_threads.m_purge_workers_n;
 
@@ -2991,7 +2991,7 @@ static ulint srv_do_purge(
   }
 
   do {
-    if (trx_sys->rseg_history_len > rseg_history_len ||
+    if (trx_sys->rseg_history_len.load() > rseg_history_len ||
         (srv_max_purge_lag > 0 && rseg_history_len > srv_max_purge_lag)) {
       /* History length is now longer than what it was
       when we took the last snapshot. Use more threads. */
@@ -3016,24 +3016,31 @@ static ulint srv_do_purge(
     ut_a(n_use_threads <= n_threads);
 
     /* Take a snapshot of the history list before purge. */
-    if ((rseg_history_len = trx_sys->rseg_history_len) == 0) {
+    if ((rseg_history_len = trx_sys->rseg_history_len.load()) == 0) {
       break;
     }
 
-    ulint undo_trunc_freq = purge_sys->undo_trunc.get_rseg_truncate_frequency();
+    bool do_truncate = need_explicit_truncate ||
+                       srv_shutdown_state.load() == SRV_SHUTDOWN_PURGE ||
+                       (++count % srv_purge_rseg_truncate_frequency) == 0;
 
-    ulint rseg_truncate_frequency = ut_min(
-        static_cast<ulint>(srv_purge_rseg_truncate_frequency), undo_trunc_freq);
-
-    n_pages_purged = trx_purge(n_use_threads, srv_purge_batch_size,
-                               (++count % rseg_truncate_frequency) == 0);
+    n_pages_purged =
+        trx_purge(n_use_threads, srv_purge_batch_size, do_truncate);
 
     *n_total_purged += n_pages_purged;
 
-  } while (!srv_purge_should_exit(n_pages_purged) && n_pages_purged > 0 &&
-           purge_sys->state == PURGE_STATE_RUN);
+    need_explicit_truncate = (n_pages_purged == 0);
+    if (need_explicit_truncate) {
+      undo::spaces->s_lock();
+      need_explicit_truncate =
+          (undo::spaces->find_first_inactive_explicit(nullptr) != nullptr);
+      undo::spaces->s_unlock();
+    }
+  } while (purge_sys->state == PURGE_STATE_RUN &&
+           (n_pages_purged > 0 || need_explicit_truncate) &&
+           !srv_purge_should_exit(n_pages_purged));
 
-  return (rseg_history_len);
+  return rseg_history_len;
 }
 
 /** Suspend the purge coordinator thread. */
@@ -3068,7 +3075,7 @@ static void srv_purge_coordinator_suspend(
     if (stop) {
       os_event_wait_low(slot->event, sig_count);
       ret = 0;
-    } else if (rseg_history_len <= trx_sys->rseg_history_len) {
+    } else if (rseg_history_len <= trx_sys->rseg_history_len.load()) {
       ret =
           os_event_wait_time_low(slot->event, SRV_PURGE_MAX_TIMEOUT, sig_count);
     } else {
@@ -3224,7 +3231,7 @@ void srv_purge_coordinator_thread() {
   /* This trx_purge is called to remove any undo records (added by
   background threads) after completion of the above loop. When
   srv_fast_shutdown != 0, a large batch size can cause significant
-  delay in shutdown ,so reducing the batch size to magic number 20
+  delay in shutdown, so reducing the batch size to magic number 20
   (which was default in 5.5), which we hope will be sufficient to
   remove all the undo records */
   const uint temp_batch_size = 20;

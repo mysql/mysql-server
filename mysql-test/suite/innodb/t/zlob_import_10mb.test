@@ -1,0 +1,43 @@
+--source include/have_innodb_max_16k.inc
+
+set global innodb_compression_level = 0;
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+
+CREATE DATABASE d1;
+CREATE TABLE d1.t1 (f1 longblob) row_format=compressed;
+
+INSERT INTO d1.t1 VALUES (repeat('x', 11000000));
+
+FLUSH TABLES d1.t1 FOR EXPORT;
+
+perl;
+require 'include/innodb-util.inc';
+ib_backup_tablespaces("d1", "t1");
+EOF
+
+UNLOCK TABLES;
+drop table d1.t1;
+
+CREATE TABLE d1.t1 (f1 longblob) row_format=compressed;
+ALTER TABLE d1.t1 DISCARD TABLESPACE;
+
+# Restore files
+perl;
+require 'include/innodb-util.inc';
+ib_restore_tablespaces("d1", "t1");
+EOF
+
+ALTER TABLE d1.t1 IMPORT TABLESPACE;
+
+drop table d1.t1;
+DROP DATABASE d1;
+
+perl;
+require 'include/innodb-util.inc';
+ib_unlink_tablespace("d1", "t1");
+EOF
+set global innodb_compression_level = default;
+
+# cleanup
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.cfg
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.ibd

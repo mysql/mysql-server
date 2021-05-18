@@ -22,7 +22,7 @@ SET @group_replication_recovery_use_ssl= @@GLOBAL.group_replication_recovery_use
 SET GLOBAL group_replication_recovery_use_ssl= FALSE;
 SET @group_replication_recovery_retry_count= @@GLOBAL.group_replication_recovery_retry_count;
 SET GLOBAL group_replication_recovery_retry_count= 1;
-CHANGE MASTER TO MASTER_USER='u1_caching_sha2_password', MASTER_PASSWORD='pwd' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='u1_caching_sha2_password', SOURCE_PASSWORD='pwd' FOR CHANNEL 'group_replication_recovery';
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

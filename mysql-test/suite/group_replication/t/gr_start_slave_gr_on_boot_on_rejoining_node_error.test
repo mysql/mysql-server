@@ -52,7 +52,7 @@ SET @@GLOBAL.DEBUG= @debug_save;
 --echo
 --echo # 2. Start slave for channel 'ch3_1' between server1(slave) and server3(master)
 --replace_result $SERVER_MYPORT_3 SERVER_3_PORT
---eval CHANGE MASTER TO MASTER_HOST='localhost', MASTER_USER='root', MASTER_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='localhost', SOURCE_USER='root', SOURCE_PORT=$SERVER_MYPORT_3 for channel 'ch3_1'
 
 --let $rpl_channel_name='ch3_1'
 --source include/start_slave.inc
@@ -230,6 +230,9 @@ DROP TABLE test.t1;
 RESET SLAVE ALL FOR CHANNEL 'ch3_1';
 
 DROP TABLE test.t1;
+
+--let $skip_assert_read_only= 1
+--source include/stop_group_replication.inc
 
 SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("The applier thread execution was aborted. Unable to process more transactions, this member will now leave the group.");

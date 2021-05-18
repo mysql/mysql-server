@@ -1,3 +1,0 @@
-# Disable support for typed arrays and Node.js Buffer.  Duktape will still
-# support plain buffers and Duktape.Buffer.
-DUK_USE_BUFFEROBJECT_SUPPORT: false

@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -26,6 +26,12 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include <mysql/components/service.h>
 #include <mysql/components/services/psi_mdl_bits.h>
 
+/*
+  Version 1.
+  Introduced in MySQL 8.0.3
+  Deprecated in MySQL 8.0.24
+  Status: Deprecated.
+*/
 BEGIN_SERVICE_DEFINITION(psi_mdl_v1)
 create_metadata_lock_v1_t create_metadata_lock;
 set_metadata_lock_status_v1_t set_metadata_lock_status;
@@ -33,5 +39,20 @@ destroy_metadata_lock_v1_t destroy_metadata_lock;
 start_metadata_wait_v1_t start_metadata_wait;
 end_metadata_wait_v1_t end_metadata_wait;
 END_SERVICE_DEFINITION(psi_mdl_v1)
+
+/*
+  Version 2.
+  Introduced in MySQL 8.0.24
+  Status: Active.
+*/
+BEGIN_SERVICE_DEFINITION(psi_mdl_v2)
+create_metadata_lock_v1_t create_metadata_lock;
+set_metadata_lock_status_v1_t set_metadata_lock_status;
+/* Added in version 2. */
+set_metadata_lock_duration_v2_t set_metadata_lock_duration;
+destroy_metadata_lock_v1_t destroy_metadata_lock;
+start_metadata_wait_v1_t start_metadata_wait;
+end_metadata_wait_v1_t end_metadata_wait;
+END_SERVICE_DEFINITION(psi_mdl_v2)
 
 #endif /* COMPONENTS_SERVICES_PSI_MDL_SERVICE_H */

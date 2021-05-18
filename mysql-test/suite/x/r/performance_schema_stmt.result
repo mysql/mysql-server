@@ -208,6 +208,9 @@ connecting...
 active session is now 'x_root'
 
 command ok
+Server disconnected
+closing session unpriv
+switched to session default
 
 0 rows affected
 Query
@@ -260,4 +263,3 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
-DROP SCHEMA IF EXISTS xtest;

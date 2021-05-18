@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -185,7 +185,8 @@ static int sql_start_result_metadata(void *ctx, uint num_cols, uint,
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
+  DBUG_PRINT("info",
+             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
   pctx->num_cols = num_cols;
   pctx->resultcs = resultcs;
@@ -493,6 +494,7 @@ const struct st_command_service_cbs sql_cbs = {
     sql_handle_ok,
     sql_handle_error,
     sql_shutdown,
+    nullptr,
 };
 
 static void get_data_str(void *ctx) {
@@ -539,6 +541,7 @@ static void exec_test_cmd(MYSQL_SESSION session, const char *query,
   char buffer[STRING_BUFFER_SIZE];
   struct st_plugin_ctx *pctx = (struct st_plugin_ctx *)ctx;
   pctx->reset();
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = query;
   cmd.com_query.length = strlen(cmd.com_query.query);
   WRITE_VAL("%s\n", query);
@@ -925,6 +928,7 @@ static void test_sql(void *p) {
   snprintf(buffer_query, sizeof(buffer_query), "KILL QUERY %i /*session_2_id*/",
            session_2_id);
   WRITE_VAL("%s\n", buffer_query);
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = buffer_query;
   cmd.com_query.length = strlen(buffer_query);
 
@@ -945,6 +949,7 @@ static void test_sql(void *p) {
   snprintf(buffer_query, sizeof(buffer_query),
            "KILL CONNECTION %i  /*session_2_id*/", session_2_id);
   WRITE_VAL("%s\n", buffer_query);
+  memset(&cmd, 0, sizeof(cmd));
   cmd.com_query.query = buffer_query;
   cmd.com_query.length = strlen(buffer_query);
 

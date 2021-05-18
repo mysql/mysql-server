@@ -18,7 +18,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/resultset.tmp
+--write_file $MYSQL_TMP_DIR/resultset.xpl
 -->import assert_status_variable.macro
 
 -->echo
@@ -92,7 +92,7 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=deflate_stream
   -v%BLOCK_COMPRESSION%=SINGLE
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -104,7 +104,7 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=lz4_message
   -v%BLOCK_COMPRESSION%=SINGLE
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -116,7 +116,7 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=deflate_stream
   -v%BLOCK_COMPRESSION%=MULTIPLE
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -128,7 +128,7 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=lz4_message
   -v%BLOCK_COMPRESSION%=MULTIPLE
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -140,7 +140,7 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=deflate_stream
   -v%BLOCK_COMPRESSION%=GROUP
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 
 --echo
@@ -152,7 +152,7 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=lz4_message
   -v%BLOCK_COMPRESSION%=GROUP
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 --echo
 --echo ## G. Execute the test using zstd/single
@@ -163,7 +163,7 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=zstd_stream
   -v%BLOCK_COMPRESSION%=SINGLE
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 --echo
 --echo ## H. Execute the test using zstd/multiple
@@ -174,7 +174,7 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=zstd_stream
   -v%BLOCK_COMPRESSION%=MULTIPLE
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 --echo
 --echo ## I. Execute the test using zstd/group
@@ -185,9 +185,8 @@ exec $MYSQLXTEST
   --compression-mode=required
   --compression-algorithm=zstd_stream
   -v%BLOCK_COMPRESSION%=GROUP
-  --file=$MYSQL_TMP_DIR/resultset.tmp 2>&1;
+  --file=$MYSQL_TMP_DIR/resultset.xpl 2>&1;
 
 ## Cleanup
 
---remove_file $MYSQL_TMP_DIR/resultset.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

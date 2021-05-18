@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2020, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 
 SET(WITH_NODEJS_INCLUDE_PATH "" CACHE PATH "location of node.js header files")
 
-SET(NODE_VERSION 12.18.3)
+SET(NODE_VERSION 12.20.1)
 
 IF(NDB_NODEJS_EXTRAS_PATH)
   SET(NODE_LIBRARIES ${NDB_NODEJS_EXTRAS_PATH}/windows-libs/${NODE_VERSION})
@@ -134,7 +134,6 @@ FOREACH(warning
     "unused-parameter"
     "undef"
     "undefined-reinterpret-cast"
-    "cast-qual"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)
@@ -173,15 +172,15 @@ INSTALL(
 
 INSTALL(
   DIRECTORY jones-ndb
-  DESTINATION ${nodejs_install}/node_modules
+  DESTINATION ${nodejs_install}
   COMPONENT nodejs)
 
 INSTALL(
   TARGETS ndb_adapter
-  DESTINATION ${nodejs_install}/node_modules/jones-ndb/build/Static
+  DESTINATION ${nodejs_install}/jones-ndb/build/Static
   COMPONENT nodejs)
 
 INSTALL(
-  FILES ReadMe jones_deployments.js run-jones-test-suite.js
+  FILES ReadMe jones_deployments.js run-jones-test-suite.js create-test-user.sql
   DESTINATION ${nodejs_install}
   COMPONENT nodejs)

@@ -129,3 +129,23 @@ source include/show_binlog_events.inc;
 # cleanup
 drop table t1, t2;
 set @@session.binlog_format= @sav_binlog_format;
+
+--echo # Bug#31640267: Assertion `trans_safe || updated_rows == 0 || thd->get_transaction()
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int int DEFAULT NULL,
+  PRIMARY KEY (pk)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (2,9), (6,NULL), (0,7);
+
+PREPARE s FROM
+'UPDATE t1 AS a NATURAL JOIN t1 AS b SET a.col_int = 9, b.col_int = 9';
+EXECUTE s;
+SELECT ROW_COUNT();
+EXECUTE s;
+SELECT ROW_COUNT();
+DEALLOCATE PREPARE s;
+
+DROP TABLE t1;

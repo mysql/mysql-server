@@ -1,6 +1,6 @@
 # -*- cperl -*-
 
-# Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -36,8 +36,9 @@ BEGIN { use_ok ("My::SafeProcess");}
 my $perl_path= $^X;
 
 my $bindir= $ENV{MYSQL_BIN_PATH} || ".";
+my $client_bindir = $ENV{MYSQL_CLIENT_BIN_PATH};
 
-My::SafeProcess::find_bin($bindir, ".");
+My::SafeProcess::find_bin($bindir, $client_bindir);
 
 {
   # Test exit codes

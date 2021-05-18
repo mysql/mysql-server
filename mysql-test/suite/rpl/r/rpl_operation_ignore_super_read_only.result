@@ -25,8 +25,8 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 ####################################################################
 # Test Case3: CHANGE MASTER command
 ####################################################################
-CHANGE MASTER TO MASTER_CONNECT_RETRY=20;
-CHANGE MASTER TO MASTER_HOST='dummy' FOR CHANNEL 'aaa';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
 ####################################################################
 # Test Case4: RESET SLAVE FOR CHANNEL/RESET SLAVE ALL/RESET SLAVE
 # commands
@@ -71,7 +71,7 @@ SET AUTOCOMMIT= SAVED_AUTOCOMMIT;
 SET GLOBAL super_read_only= SAVED_SUPER_READ_ONLY;
 SET GLOBAL read_only= SAVED_READ_ONLY;
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -101,8 +101,8 @@ CHANGE REPLICATION FILTER REPLICATE_DO_DB=();
 ####################################################################
 # Test Case3: CHANGE MASTER command
 ####################################################################
-CHANGE MASTER TO MASTER_CONNECT_RETRY=20;
-CHANGE MASTER TO MASTER_HOST='dummy' FOR CHANNEL 'aaa';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=20;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='dummy' FOR CHANNEL 'aaa';
 ####################################################################
 # Test Case4: RESET SLAVE FOR CHANNEL/RESET SLAVE ALL/RESET SLAVE
 # commands
@@ -147,7 +147,7 @@ SET AUTOCOMMIT= SAVED_AUTOCOMMIT;
 SET GLOBAL super_read_only= SAVED_SUPER_READ_ONLY;
 SET GLOBAL read_only= SAVED_READ_ONLY;
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root';
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_PORT=MASTER_PORT, SOURCE_USER='root';
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.

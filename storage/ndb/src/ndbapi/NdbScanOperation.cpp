@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1376,7 +1376,14 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
   }
 
   theNdbCon->theScanningOp = this;
-  bool tupScan = (scan_flags & SF_TupScan);
+  // The number of acc-scans are limited therefore use tup-scans instead.
+  bool tupScan = (scan_flags & SF_TupScan) || true;
+#if defined(VM_TRACE)
+  if (theNdb->theImpl->forceAccTableScans)
+  {
+    tupScan = false;
+  }
+#endif
 
 #if 0 // XXX temp for testing
   { char* p = getenv("NDB_USE_TUPSCAN");
@@ -2063,9 +2070,9 @@ NdbScanOperation::doSend(int ProcessorId)
 void NdbScanOperation::close(bool forceSend, bool releaseOp)
 {
   DBUG_ENTER("NdbScanOperation::close");
-  DBUG_PRINT("enter", ("this: 0x%lx  tcon: 0x%lx  con: 0x%lx  force: %d  release: %d",
-                       (long) this,
-                       (long) m_transConnection, (long) theNdbCon,
+  DBUG_PRINT("enter", ("this: %p  tcon: %p  con: %p  force: %d  release: %d",
+                       this,
+                       m_transConnection, theNdbCon,
                        forceSend, releaseOp));
 
   if (theNdbCon != NULL)
@@ -3669,6 +3676,7 @@ int compare_ndbrecord(const NdbReceiver *r1,
                       const NdbReceiver *r2,
                       const NdbRecord *key_record,
                       const NdbRecord *result_record,
+                      const unsigned char *result_mask,
                       bool descending,
                       bool read_range_no)
 {
@@ -3697,8 +3705,12 @@ int compare_ndbrecord(const NdbReceiver *r1,
     int col_idx = result_record->m_attrId_indexes[key_col->attrId];
     assert(col_idx >= 0);
     assert((Uint32)col_idx < result_record->noOfColumns);
-    const NdbRecord::Attr *result_col = &result_record->columns[col_idx];
 
+    /* Might be comparing only a subset of index key columns */
+    if (result_mask != NULL && !(result_mask[col_idx>>3] & 1<<(col_idx&7)))
+      return 0;  // Column not present -> done
+
+    const NdbRecord::Attr *result_col = &result_record->columns[col_idx];
     bool a_is_null= result_col->is_null(a_row);
     bool b_is_null= result_col->is_null(b_row);
     if (a_is_null)
@@ -3821,6 +3833,7 @@ NdbIndexScanOperation::ordered_insert_receiver(Uint32 start,
                                m_api_receivers[idx],
                                m_key_record,
                                m_attribute_record,
+                               NULL,  // Compare all index attrs
                                m_descending,
                                m_read_range_no);
     if (res <= 0)

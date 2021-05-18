@@ -1,7 +1,7 @@
 #ifndef CONNECTION_HANDLER_INCLUDED
 #define CONNECTION_HANDLER_INCLUDED
 
-/* Copyright (c) 2007, 2017, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -88,7 +88,7 @@ const char *lock_descriptions[TL_WRITE_ONLY + 1] = {
     /* TL_WRITE                   */ "High priority write lock",
     /* TL_WRITE_ONLY              */ "Highest priority write lock"};
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 
 void print_where(const THD *thd, const Item *cond, const char *info,
                  enum_query_type query_type) {
@@ -108,7 +108,7 @@ void print_where(const THD *thd, const Item *cond, const char *info,
 void TEST_join(JOIN *join) {
   uint i, ref;
   DBUG_TRACE;
-  DBUG_ASSERT(!join->join_tab);
+  assert(!join->join_tab);
   /*
     Assemble results of all the calls to full_name() first,
     in order not to garble the tabular output below.
@@ -154,9 +154,9 @@ void TEST_join(JOIN *join) {
   DBUG_UNLOCK_FILE;
 }
 
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
-void print_keyuse_array(Opt_trace_context *trace,
+void print_keyuse_array(THD *thd, Opt_trace_context *trace,
                         const Key_use_array *keyuse_array) {
   if (unlikely(!trace->is_started())) return;
   Opt_trace_object wrapper(trace);
@@ -176,16 +176,15 @@ void print_keyuse_array(Opt_trace_context *trace,
                   (keyuse.keypart == FT_KEYPART)
                       ? "<fulltext>"
                       : get_field_name_or_expression(
-                            keyuse.table_ref->table->in_use,
-                            keyuse.table_ref->table->key_info[keyuse.key]
-                                .key_part[keyuse.keypart]
-                                .field))
+                            thd, keyuse.table_ref->table->key_info[keyuse.key]
+                                     .key_part[keyuse.keypart]
+                                     .field))
         .add("equals", keyuse.val)
         .add("null_rejecting", keyuse.null_rejecting);
   }
 }
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 /* purecov: begin inspected */
 
 /**
@@ -272,7 +271,7 @@ void print_plan(JOIN *join, uint idx, double record_count, double read_time,
   DBUG_UNLOCK_FILE;
 }
 
-#endif /* !DBUG_OFF */
+#endif /* !NDEBUG */
 
 struct TABLE_LOCK_INFO {
   my_thread_id thread_id;
@@ -302,7 +301,7 @@ class DL_commpare {
   }
 };
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
 #ifdef EXTRA_DEBUG_DUMP_TABLE_LISTS
 
 /*
@@ -349,12 +348,12 @@ class Dbug_table_list_dumper {
  public:
   void dump_one_struct(TABLE_LIST *tbl);
 
-  int dump_graph(SELECT_LEX *select_lex, TABLE_LIST *first_leaf);
+  int dump_graph(Query_block *query_block, TABLE_LIST *first_leaf);
 };
 
-void dump_TABLE_LIST_graph(SELECT_LEX *select_lex, TABLE_LIST *tl) {
+void dump_TABLE_LIST_graph(Query_block *query_block, TABLE_LIST *tl) {
   Dbug_table_list_dumper dumper;
-  dumper.dump_graph(select_lex, tl);
+  dumper.dump_graph(query_block, tl);
 }
 
 /*
@@ -407,7 +406,7 @@ void Dbug_table_list_dumper::dump_one_struct(TABLE_LIST *tbl) {
   }
 }
 
-int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
+int Dbug_table_list_dumper::dump_graph(Query_block *query_block,
                                        TABLE_LIST *first_leaf) {
   DBUG_TRACE;
   char filename[500];
@@ -442,7 +441,7 @@ int Dbug_table_list_dumper::dump_graph(SELECT_LEX *select_lex,
   }
 
   mem_root_deque<TABLE_LIST *> *plist;
-  tbl_lists.push_back(&select_lex->top_join_list);
+  tbl_lists.push_back(&query_block->top_join_list);
   while (tbl_lists.pop_first(&plist)) {
     fprintf(out, "\"%p\" [\n", plist);
     fprintf(out, "  bgcolor = \"\"");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,7 @@ class THD;
 struct handlerton;
 
 namespace dd {
+class Partition;
 class Tablespace;
 namespace cache {
 class Dictionary_client;
@@ -76,6 +77,21 @@ bool store_tsp_sdi(handlerton *hton, const Sdi_type &sdi,
 bool drop_tbl_sdi(THD *thd, const handlerton &hton, const Table &table,
                   const Schema &schema MY_ATTRIBUTE((unused)));
 
+/**
+  Deletes all SDIs with SDI_TYPE_TABLE from the table tablespace. In case of
+  a partitioned table, SDIs are deleted from all partition tablespaces. SDIs
+  with SDI_TYPE_TABLESPACE are only deleted if their tablespace id does not
+  match the current tablespace id of the tablespace being deleted from.
+*/
+bool drop_all_sdi(THD *, const handlerton &, const Table &);
+
+/**
+  Deletes all SDIs with SDI_TYPE_TABLE from the partition tablespace, or
+  sub-partition tablespaces in case of a sub-partitioned table. SDIs
+  with SDI_TYPE_TABLESPACE are only deleted if their tablespace id does not
+  match the current tablespace id of the tablespace being deleted from.
+*/
+bool drop_all_sdi(THD *, const handlerton &, const Partition &);
 /** @} End of group sdi_tablespace */
 }  // namespace sdi_tablespace
 }  // namespace dd

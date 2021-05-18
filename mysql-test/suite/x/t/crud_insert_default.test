@@ -3,14 +3,13 @@
 ## Preamble
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
-## Test starts here
 
-DROP SCHEMA IF EXISTS xtest;
+## Test starts here
 CREATE SCHEMA xtest;
 CREATE TABLE xtest.table (id INT DEFAULT 0, name VARCHAR(40) DEFAULT 'Bob', value FLOAT DEFAULT 3.14 );
 CREATE TABLE xtest.fault (value INT NOT NULL);
 
---write_file $MYSQL_TMP_DIR/crud_insert_default.tmp
+--write_file $MYSQL_TMP_DIR/crud_insert_default.xpl
 ## Test data
 Mysqlx.Crud.Insert {
   collection { name: "table" schema: "xtest"}
@@ -107,12 +106,10 @@ Mysqlx.Crud.Insert {
 -->recverror 5151
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_default.tmp 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_insert_default.xpl 2>&1
 
 SELECT * FROM xtest.table;
 SELECT * FROM xtest.fault;
 
 ## Cleanup
-DROP SCHEMA IF EXISTS xtest;
---remove_file $MYSQL_TMP_DIR/crud_insert_default.tmp
---source include/xplugin_drop_user.inc
+--source ../include/xplugin_cleanup.inc

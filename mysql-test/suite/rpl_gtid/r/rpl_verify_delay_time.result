@@ -5,7 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 [connection slave]
 include/stop_slave.inc
-CHANGE MASTER TO MASTER_DELAY= 10;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 10;
 include/start_slave.inc
 [connection master]
 CREATE TABLE t1 (a varchar(50));
@@ -19,6 +19,6 @@ include/assert.inc [Assert that the delay is not relative to the insert event ti
 DROP TABLE t1;
 include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
-CHANGE MASTER TO MASTER_DELAY= 0;
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
 include/start_slave_sql.inc
 include/rpl_end.inc

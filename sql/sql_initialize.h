@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,5 +44,21 @@ class Compiled_in_command_iterator : public bootstrap::Command_iterator {
 extern bool opt_initialize_insecure;
 bool initialize_create_data_directory(const char *data_home);
 extern bool mysql_initialize_directory_freshly_created;
+
+/* Declarations below are for unit testing. */
+extern bool generate_password(char *password, int size);
+
+#define ALLOWED_PWD_UPCHARS "QWERTYUIOPASDFGHJKLZXCVBNM"
+#define ALLOWED_PWD_LOWCHARS "qwertyuiopasdfghjklzxcvbnm"
+#define ALLOWED_PWD_NUMCHARS "1234567890"
+#define ALLOWED_PWD_SYMCHARS ",.-+*;:_!#%&/()=?><"
+
+static constexpr const char g_allowed_pwd_chars[] =
+    ALLOWED_PWD_LOWCHARS ALLOWED_PWD_SYMCHARS ALLOWED_PWD_UPCHARS
+        ALLOWED_PWD_NUMCHARS;
+static constexpr const char g_upper_case_chars[] = ALLOWED_PWD_UPCHARS;
+static constexpr const char g_lower_case_chars[] = ALLOWED_PWD_LOWCHARS;
+static constexpr const char g_numeric_chars[] = ALLOWED_PWD_NUMCHARS;
+static constexpr const char g_special_chars[] = ALLOWED_PWD_SYMCHARS;
 
 #endif /* SQL_INITIALIZE_H */

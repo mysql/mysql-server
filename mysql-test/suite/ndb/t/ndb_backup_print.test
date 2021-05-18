@@ -3,7 +3,7 @@
 
 echo Start first backup;
 --replace_regex /[0-9]+/X/
---exec $NDB_MGM --no-defaults --verbose=0 -e "start backup"
+--exec $NDB_MGM -e "start backup"
 
 create table t1
  (pk int key
@@ -59,7 +59,7 @@ insert into t1 values
 
 echo Start second backup;
 --replace_regex /[0-9]+/X/
---exec $NDB_MGM --no-defaults --verbose=0 -e "start backup"
+--exec $NDB_MGM -e "start backup"
 
 drop table t1;
 --source suite/ndb/include/backup_restore_cleanup.inc

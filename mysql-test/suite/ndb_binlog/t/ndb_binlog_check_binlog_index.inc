@@ -40,21 +40,19 @@ if ($have_next_pos)
 
   --eval load data local infile '$MYSQLTEST_VARDIR/tmp/ndb_binlog_mysqlbinlog.sql' into table raw_binlog_rows columns terminated by '\n';
 
+
   create table binlog_stmt_parts_unassoc(
     txt varchar(1000) character set latin1,
-    line_count int,
+    line_count int NOT NULL AUTO_INCREMENT PRIMARY KEY,
     stmt_boundary int,
     tx_boundary int
   );
 
-  set @line_count=0;
-  set @stmt_boundary=0;
-
+  # Auto incrementing line_count values preserve the order of the raw binlog rows.
   # Use replace() here to get rid of any unwanted Windows
   # CRs
-  insert into binlog_stmt_parts_unassoc
+  insert into binlog_stmt_parts_unassoc (txt,stmt_boundary,tx_boundary)
     select replace(txt, '\r', ''),
-           @line_count:= @line_count + 1,  # So we can preserve order later
            (txt like '%INSERT%' or         # Identify statement boundaries
             txt like '%UPDATE%' or
             txt like '%DELETE%' or
@@ -80,19 +78,13 @@ if ($have_next_pos)
     key(txt)
   );
 
-  set @stmt_count = 0;
-  set @tx_count = 0;
-
   insert into binlog_stmt_parts_assoc
-    select txt,
-           line_count,
-           @stmt_count:= @stmt_count + stmt_boundary,   # All rows from same stmt will
-                                                        # have same stmt_num
-           @tx_count:= @tx_count + tx_boundary          # Same transaction
-
-      from binlog_stmt_parts_unassoc order by line_count;
-
-  #select * from binlog_stmt_parts_assoc;
+  (  select txt,
+            line_count,
+            SUM(stmt_boundary) OVER(ORDER BY line_count) AS stmt_count, # All rows from same stmt will
+                                                                        # have same stmt_num
+            SUM(tx_boundary) OVER(ORDER BY line_count) AS tx_count      # Same transaction
+        from binlog_stmt_parts_unassoc order by line_count);
 
   create table apply_status_stmt_nums (stmt_num int primary key);
 
@@ -135,11 +127,11 @@ if ($have_next_pos)
 
   #select * from relevant_info order by line_count;
 
-  create table epoch_info (num int, epoch bigint, start_pos bigint, next_pos bigint);
+  create table epoch_info (num int NOT NULL AUTO_INCREMENT PRIMARY KEY, epoch bigint, start_pos bigint, next_pos bigint);
   set @epoch_num=0;
 
-  insert into epoch_info
-    select @epoch_num:=@epoch_num + 1,
+  insert into epoch_info (epoch , start_pos , next_pos)
+    select
     (right(ri1.txt, length(ri1.txt) - length('###   @2='))) + 0, # epoch number
      (right(ri2.txt, length(ri2.txt) - length('BEGIN # at '))) + 0, # start pos
       (right(ri3.txt, length(ri3.txt) - length('COMMIT # at '))) + 0  # end pos

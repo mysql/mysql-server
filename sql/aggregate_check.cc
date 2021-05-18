@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,13 +29,14 @@
 
 #include "sql/aggregate_check.h"
 
+#include <assert.h>
 #include <cstdio>
 #include <initializer_list>
 #include <utility>
 
 #include "mem_root_deque.h"
 #include "my_base.h"
-#include "my_dbug.h"
+
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
@@ -64,8 +65,8 @@
   used_tables()
 
   - When we are looking for items to validate, we must enter scalar/row
-  subqueries; if we find an item of our SELECT_LEX inside such subquery, for
-  example an Item_field with depended_from equal to our SELECT_LEX, we
+  subqueries; if we find an item of our Query_block inside such subquery, for
+  example an Item_field with depended_from equal to our Query_block, we
   must use used_tables_for_level(). Example: when validating t1.a in
   select (select t1.a from t1 as t2 limit 1) from t1 group by t1.pk;
   we need t1.a's map in the grouped query; used_tables() would return
@@ -112,7 +113,7 @@ bool Distinct_check::check_query(THD *thd) {
        ++number_in_list, order = order->next) {
     if (order->in_field_list)  // is in SELECT list
       continue;
-    DBUG_ASSERT((*order->item)->fixed);
+    assert((*order->item)->fixed);
     uint counter;
     enum_resolution_type resolution;
     /*
@@ -188,7 +189,7 @@ bool Group_check::check_query(THD *thd) {
   }
 
   // Aggregate without GROUP BY has no ORDER BY at this stage
-  DBUG_ASSERT(!(select->is_implicitly_grouped() && select->is_ordered()));
+  assert(!(select->is_implicitly_grouped() && select->is_ordered()));
   // Validate ORDER BY list
   if (order) {
     number_in_list = 1;
@@ -264,7 +265,7 @@ err:
    list.
 */
 bool Group_check::check_expression(THD *thd, Item *expr, bool in_select_list) {
-  DBUG_ASSERT(!is_child());
+  assert(!is_child());
   if (!in_select_list) {
     uint counter;
     enum_resolution_type resolution;
@@ -588,7 +589,7 @@ Item *Group_check::select_expression(uint idx) {
       --idx;
     }
   }
-  DBUG_ASSERT(false);
+  assert(false);
   return nullptr;
 }
 
@@ -610,29 +611,32 @@ Item *Group_check::select_expression(uint idx) {
 */
 void Group_check::add_to_source_of_mat_table(Item_field *item_field,
                                              TABLE_LIST *tl) {
-  SELECT_LEX_UNIT *const mat_unit = tl->derived_unit();
+  Query_expression *const mat_query_expression = tl->derived_query_expression();
   // Query expression underlying 'tl':
-  SELECT_LEX *const mat_select = mat_unit->first_select();
-  if (mat_unit->is_union() || mat_select->olap != UNSPECIFIED_OLAP_TYPE)
+  Query_block *const mat_query_block =
+      mat_query_expression->first_query_block();
+  if (mat_query_expression->is_union() ||
+      mat_query_block->olap != UNSPECIFIED_OLAP_TYPE)
     return;  // If UNION or ROLLUP, no FD
   // Grab Group_check for this subquery.
   Group_check *mat_gc = nullptr;
   uint j;
   for (j = 0; j < mat_tables.size(); j++) {
     mat_gc = mat_tables.at(j);
-    if (mat_gc->select == mat_select) break;
+    if (mat_gc->select == mat_query_block) break;
   }
   if (j == mat_tables.size())  // not found, create it
   {
-    mat_gc = new (m_root) Group_check(mat_select, m_root, tl);
+    mat_gc = new (m_root) Group_check(mat_query_block, m_root, tl);
     mat_tables.push_back(mat_gc);
   }
-  // Find underlying expression of item_field, in SELECT list of mat_select
+  // Find underlying expression of item_field, in SELECT list of mat_query_block
   Item *const expr_under =
       mat_gc->select_expression(item_field->field->field_index());
 
   // non-nullability of tl's column in tl, is equal to that of expr_under.
-  if (expr_under && !expr_under->maybe_null) mat_gc->non_null_in_source = true;
+  if (expr_under && !expr_under->is_nullable())
+    mat_gc->non_null_in_source = true;
 
   mat_gc->add_to_fd(expr_under, mat_gc->local_column(expr_under));
 
@@ -641,12 +645,12 @@ void Group_check::add_to_source_of_mat_table(Item_field *item_field,
        mat_gc->non_null_in_source))                     // (3)
   {
     /*
-      (1): In mat_gc, all GROUP BY expressions of mat_select are dependent on
-      source columns. Thus, all SELECT list expressions are, too (otherwise,
-      the validation of mat_select has or will fail). So, in our Group_check,
-      intersect(En, tl.*) -> tl.* .
-      This FD needs to propagate in our Group_check all the way up to the
-      result of the WHERE clause. It does, if:
+      (1): In mat_gc, all GROUP BY expressions of mat_query_block are dependent
+      on source columns. Thus, all SELECT list expressions are, too (otherwise,
+      the validation of mat_query_block has or will fail). So, in our
+      Group_check, intersect(En, tl.*) -> tl.* . This FD needs to propagate in
+      our Group_check all the way up to the result of the WHERE clause. It does,
+      if:
       - either there is no weak side above this table (2) (so NFFD is not
       needed).
       - or intersect(En, tl.*) contains a non-nullable column (3) (then
@@ -681,7 +685,7 @@ bool Group_check::is_in_fd(Item *item) {
     return group_in_fd == ~0ULL;
   }
 
-  DBUG_ASSERT(local_column(item));
+  assert(local_column(item));
   Used_tables ut(select);
   (void)item->walk(&Item::used_tables_for_level, enum_walk::POSTFIX,
                    pointer_cast<uchar *>(&ut));
@@ -740,16 +744,16 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       we have this->fd={v1.a}, and we search if v1.b is FD on v1.a. We'll look
       if t1.a*2 is FD on t1.a.
     */
-    DBUG_ASSERT(static_cast<const Item_ref *>(item)->ref_type() ==
-                Item_ref::VIEW_REF);
+    assert(static_cast<const Item_ref *>(item)->ref_type() ==
+           Item_ref::VIEW_REF);
     /*
-      Refuse RAND_TABLE_BIT because:
+      Refuse non-deterministic expressions because:
       - FDs in a view are those of the underlying query expression.
       - For FDs in a query expression, expressions in the SELECT list must be
       deterministic.
       Same is true for materialized tables further down.
     */
-    if (item->used_tables() & RAND_TABLE_BIT) return false;
+    if (item->is_non_deterministic()) return false;
 
     Item *const real_it = item->real_item();
     Used_tables ut(select);
@@ -760,7 +764,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       derived_table_ref field to Item_view_ref objects and use it here.
     */
     TABLE_LIST *const tl = item->cached_table;
-    DBUG_ASSERT(tl->is_view_or_derived());
+    assert(tl->is_view_or_derived());
     /*
       We might find expression-based FDs in the result of the view's query
       expression; but if this view is on the weak side of an outer join,
@@ -795,9 +799,9 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
     TABLE_LIST *const tl = item_field->field->table->pos_in_table_list;
     if (item_field->field->is_gcol())  // Generated column
     {
-      DBUG_ASSERT(!tl->uses_materialization());
+      assert(!tl->uses_materialization());
       Item *const expr = item_field->field->gcol_info->expr_item;
-      DBUG_ASSERT(expr->fixed);
+      assert(expr->fixed);
       Used_tables ut(select);
       item_field->used_tables_for_level(pointer_cast<uchar *>(&ut));
       const bool weak_side_upwards = tl->is_inner_table_of_outer_join();
@@ -809,10 +813,11 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
       }
     } else if (tl->uses_materialization() &&  // Materialized derived table
                !tl->is_table_function()) {
-      SELECT_LEX *const mat_select = tl->derived_unit()->first_select();
+      Query_block *const mat_query_block =
+          tl->derived_query_expression()->first_query_block();
       uint j;
       for (j = 0; j < mat_tables.size(); j++) {
-        if (mat_tables.at(j)->select == mat_select) break;
+        if (mat_tables.at(j)->select == mat_query_block) break;
       }
       if (j < mat_tables.size())  // if false, we know nothing about this table
       {
@@ -836,7 +841,7 @@ bool Group_check::is_in_fd_of_underlying(Item_ident *item) {
           - or intersect(En, tl.*) contains a non-nullable column (3) (then
           the FD is NFFD).
         */
-        if (!(expr_under->used_tables() & RAND_TABLE_BIT) &&  // (1)
+        if (!expr_under->is_non_deterministic() &&            // (1)
             (!(mat_gc->table->map() & select->outer_join) ||  // (2)
              mat_gc->non_null_in_source) &&                   // (3)
             !expr_under->walk(&Item::aggregate_check_group,   // (4)
@@ -1018,7 +1023,7 @@ void Group_check::analyze_scalar_eq(Item *cond, Item *left_item,
 
   if ((left_is_column && (strong_tables & left_tables) &&
        is_in_fd(left_item)) ||
-      left_item->const_item() || (OUTER_REF_TABLE_BIT & left_tables)) {
+      left_item->const_item() || left_item->is_outer_reference()) {
     // strong_or_literal_or_outer_ref= right_item
 
     if (!weak_tables) {
@@ -1028,11 +1033,11 @@ void Group_check::analyze_scalar_eq(Item *cond, Item *left_item,
         This may be constant=right_item and thus not be an NFFD, but WHERE is
         exterior to join nests so propagation is not needed.
       */
-      DBUG_ASSERT(!weak_side_upwards);  // cannot be inner join
+      assert(!weak_side_upwards);  // cannot be inner join
       add_to_fd(right_item, true);
     } else {
       // Outer join. So condition must be deterministic.
-      if (cond->used_tables() & RAND_TABLE_BIT) return;
+      if (cond->is_non_deterministic()) return;
 
       /*
         FD will have DJS as source columns, where DJS is the set of strong
@@ -1127,7 +1132,7 @@ void Group_check::find_fd_in_joined_table(
         outer join nest or to WHERE. So this assertion should hold.
         Thus, used_tables are weak tables.
       */
-      DBUG_ASSERT(table->outer_join);
+      assert(table->outer_join);
       /*
         We might find equality-based FDs in the result of this outer join; but
         if this outer join is itself on the weak side of a parent outer join,

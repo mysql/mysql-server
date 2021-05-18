@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,10 @@
 #else
 #include "PosixAsyncFile.hpp"
 #endif
+
+#include "../dblqh/Dblqh.hpp"
+#include "../lgman.hpp"
+#include "../tsman.hpp"
 
 #include <signaldata/FsOpenReq.hpp>
 #include <signaldata/FsCloseReq.hpp>
@@ -1251,9 +1255,9 @@ Ndbfs::createAsyncFile()
     // Print info about all open files
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      ndbout_c("%2d (0x%lx): %s",
+      ndbout_c("%2d (%p): %s",
                i,
-               (long) file,
+               file,
                file->isOpen() ?"OPEN" : "CLOSED");
     }
     ndbout_c("m_maxFiles: %u, theFiles.size() = %u",
@@ -1806,10 +1810,10 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     
     for (unsigned i = 0; i < theOpenFiles.size(); i++){
       AsyncFile* file = theOpenFiles.getFile(i);
-      infoEvent("%2d (0x%lx): %s thr: %lx", i,
-                (long)file,
+      infoEvent("%2d (%p): %s thr: %p", i,
+                file,
                 file->theFileName.c_str(),
-                (long)file->getThread());
+                file->getThread());
     }
     return;
   }
@@ -1818,7 +1822,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      infoEvent("%2d (0x%lx): %s", i, (long)file, file->isOpen()?"OPEN":"CLOSED");
+      infoEvent("%2d (%p): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
     return;
   }
@@ -1828,7 +1832,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
 
     for (unsigned i = 0; i < theIdleFiles.size(); i++){
       AsyncFile* file = theIdleFiles[i];
-      infoEvent("%2d (0x%lx): %s", i, (long)file, file->isOpen()?"OPEN":"CLOSED");
+      infoEvent("%2d (%p): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
 
     return;
@@ -1888,7 +1892,7 @@ Ndbfs::execDUMP_STATE_ORD(Signal* signal)
     ndbout << "All files: " << endl;
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      ndbout_c("%2d (0x%lx): %s", i, (long) file, file->isOpen()?"OPEN":"CLOSED");
+      ndbout_c("%2d (%p): %s", i, file, file->isOpen()?"OPEN":"CLOSED");
     }
 #endif
   }
@@ -1917,6 +1921,31 @@ Ndbfs::get_filename(Uint32 fd) const
   return "";
 }
 
+void Ndbfs::callFSWRITEREQ(BlockReference ref, FsReadWriteReq* req) const
+{
+  Uint32 block = refToMain(ref);
+  Uint32 instance = refToInstance(ref);
+
+  SimulatedBlock* main_block = globalData.getBlock(block);
+  ndbrequire(main_block != nullptr);
+  ndbrequire(instance < NDBMT_MAX_BLOCK_INSTANCES);
+  SimulatedBlock* rec_block = main_block->getInstance(instance);
+  ndbrequire(rec_block != nullptr);
+  switch (block)
+  {
+  case DBLQH:
+    static_cast<Dblqh*>(rec_block)->execFSWRITEREQ(req);
+    break;
+  case TSMAN:
+    static_cast<Tsman*>(rec_block)->execFSWRITEREQ(req);
+    break;
+  case LGMAN:
+    static_cast<Lgman*>(rec_block)->execFSWRITEREQ(req);
+    break;
+  default:
+    ndbabort();
+  }
+}
 
 BLOCK_FUNCTIONS(Ndbfs)
 

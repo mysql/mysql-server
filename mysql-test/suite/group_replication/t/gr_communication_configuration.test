@@ -91,6 +91,18 @@ SET @group_seeds= @@GLOBAL.group_replication_group_seeds;
 # Clear XCom configuration on all servers.
 --source include/gr_clear_configuration.inc
 
+--replace_result $_group_replication_ip_allowlist GROUP_LOCAL_IP_ALLOWLIST
+--eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $_group_replication_ip_allowlist GROUP_LOCAL_IP_ALLOWLIST
+--eval SET PERSIST group_replication_ip_allowlist= "$_group_replication_ip_allowlist"
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
 --echo #######################################################
 --echo #  1. Try setting bootstrap_group variable with invalid
 --echo #     values. It must fail.
@@ -189,7 +201,7 @@ SET GLOBAL group_replication_group_seeds= "";
 # Need to execute change master again as the clear configuration above resets
 # the recovery channel created in the beginning.
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --source include/start_group_replication.inc
@@ -261,7 +273,7 @@ SET GLOBAL group_replication_local_address= @local_address;
 # Need to execute change master again as the clear configuration above resets
 # the recovery channel created in the beginning.
 --disable_warnings
-CHANGE MASTER TO MASTER_USER='root', MASTER_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO SOURCE_USER='root', SOURCE_PASSWORD='' FOR CHANNEL 'group_replication_recovery';
 --enable_warnings
 
 --source include/start_group_replication.inc
