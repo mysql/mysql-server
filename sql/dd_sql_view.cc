@@ -585,7 +585,10 @@ static bool open_views_and_update_metadata(
         order->used_alias = false;  /// @see Item::print_for_order()
     }
     Sql_mode_parse_guard parse_guard(thd);
-    thd->lex->unit->print(thd, &view_query, QT_TO_ARGUMENT_CHARSET);
+    thd->lex->unit->print(
+        thd, &view_query,
+        static_cast<enum_query_type>(QT_TO_ARGUMENT_CHARSET |
+                                     QT_HIDE_ROLLUP_FUNCTIONS));
     if (lex_string_strmake(thd->mem_root, &view->select_stmt, view_query.ptr(),
                            view_query.length()))
       return true;
