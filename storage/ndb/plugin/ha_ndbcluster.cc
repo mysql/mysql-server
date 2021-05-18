@@ -17205,18 +17205,18 @@ static MYSQL_SYSVAR_ULONG(
     0     /* block */
 );
 
-ulong opt_ndb_eventbuffer_max_alloc;
-static MYSQL_SYSVAR_ULONG(eventbuffer_max_alloc,         /* name */
-                          opt_ndb_eventbuffer_max_alloc, /* var */
-                          PLUGIN_VAR_RQCMDARG,
-                          "Maximum memory that can be allocated for buffering "
-                          "events by the ndb api.",
-                          NULL,      /* check func. */
-                          NULL,      /* update func. */
-                          0,         /* default */
-                          0,         /* min */
-                          INT_MAX64, /* max */
-                          0          /* block */
+ulonglong opt_ndb_eventbuffer_max_alloc;
+static MYSQL_SYSVAR_ULONGLONG(eventbuffer_max_alloc,         /* name */
+                              opt_ndb_eventbuffer_max_alloc, /* var */
+                              PLUGIN_VAR_RQCMDARG,
+                              "Maximum amount of memory (in bytes) that can be "
+                              "allocated for buffering events by the NdbApi.",
+                              NULL,      /* check func. */
+                              NULL,      /* update func. */
+                              0,         /* default */
+                              0,         /* min */
+                              INT_MAX64, /* max */
+                              0          /* block */
 );
 
 uint opt_ndb_eventbuffer_free_percent;
