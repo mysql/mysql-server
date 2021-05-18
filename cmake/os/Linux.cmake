@@ -31,10 +31,6 @@ SET(LINUX 1)
 # Used by the test suite to ignore bugs on some platforms.
 SET(SYSTEM_TYPE "Linux")
 
-IF(EXISTS "/etc/SuSE-release")
-  SET(LINUX_SUSE 1)
-ENDIF()
-
 IF(EXISTS "/etc/alpine-release")
   SET(LINUX_ALPINE 1)
 ENDIF()
