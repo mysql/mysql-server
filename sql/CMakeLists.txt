@@ -100,6 +100,9 @@ ENDIF()
 IF(WIN32)
   ADD_COMPILE_DEFINITIONS(gen_keyword_list.cc COMPILE_DEFINITIONS
     U_STATIC_IMPLEMENTATION)
+
+  # Activate necessary dllexport/dllimport declarations.
+  ADD_DEFINITIONS(-DPROTOBUF_USE_DLLS)
 ENDIF()
 
 ADD_CUSTOM_COMMAND(
@@ -110,6 +113,7 @@ ADD_CUSTOM_COMMAND(
 
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_SUBDIRECTORY(server_component)
+ADD_SUBDIRECTORY(protobuf)
 
 SET(DD_SOURCES
   dd/collection.cc
@@ -982,6 +986,8 @@ SET (SLAVE_SOURCE
   rpl_async_conn_failover_add_source_udf.cc
   rpl_async_conn_failover_delete_managed_udf.cc
   rpl_async_conn_failover_delete_source_udf.cc
+  rpl_async_conn_failover_configuration_propagation.cc
+  rpl_async_conn_failover_reset_udf.cc
   rpl_channel_service_interface.cc
   rpl_channel_credentials.cc
   rpl_info.cc
@@ -1011,7 +1017,7 @@ SET (SLAVE_SOURCE
   )
 ADD_LIBRARY(slave STATIC ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-TARGET_LINK_LIBRARIES(slave binlog sql_main)
+TARGET_LINK_LIBRARIES(slave binlog sql_main ${PROTOBUF_LITE_LIBRARY} ${RPL_PROTOBUF_LITE_LIB})
 
 # All these libraries depend on each other.
 TARGET_LINK_LIBRARIES(sql_main rpl master slave binlog)
@@ -1029,7 +1035,7 @@ MYSQL_ADD_EXECUTABLE(mysqld
   ${MYSQLD_SOURCE} DESTINATION ${INSTALL_SBINDIR} COMPONENT Server
   )
 
-# We depend on protobuf because of the mysqlx plugin.
+# We depend on protobuf because of the mysqlx plugin and replication.
 IF(UNIX_INSTALL_RPATH_ORIGIN_PRIV_LIBDIR)
   ADD_INSTALL_RPATH_FOR_PROTOBUF(mysqld)
 ENDIF()

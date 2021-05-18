@@ -28,6 +28,7 @@
 #include "my_dbug.h"
 #include "sql/current_thd.h"
 #include "sql/json_dom.h"  // Json_wrapper
+#include "sql/log.h"
 #include "sql/rpl_sys_key_access.h"
 #include "sql/sql_base.h"
 #include "sql/sql_class.h"
@@ -102,6 +103,7 @@ bool Rpl_sys_table_access::open(enum thr_lock_type lock_type) {
   assert(nullptr == m_thd);
   m_lock_type = lock_type;
   m_current_thd = current_thd;
+  m_error = false;
 
   THD *thd = nullptr;
   thd = new THD;
@@ -175,6 +177,7 @@ bool Rpl_sys_table_access::close(bool error, bool ignore_global_read_lock) {
   if (error || m_error) {
     trans_rollback_stmt(m_thd);
     trans_rollback(m_thd);
+    m_error = true;
   } else {
     m_error = trans_commit_stmt(m_thd, ignore_global_read_lock) ||
               trans_commit(m_thd, ignore_global_read_lock);
@@ -257,6 +260,29 @@ std::string Rpl_sys_table_access::get_field_error_msg(
   return str_stream.str();
 }
 
+bool Rpl_sys_table_access::delete_all_rows() {
+  bool error = false;
+
+  TABLE *table = get_table();
+  Rpl_sys_key_access key_access;
+  int key_error =
+      key_access.init(table, Rpl_sys_key_access::enum_key_type::INDEX_NEXT);
+  if (!key_error) {
+    do {
+      error |= table->file->ha_delete_row(table->record[0]);
+      if (error) {
+        return true;
+      }
+    } while (!error && !key_access.next());
+  } else if (HA_ERR_END_OF_FILE == key_error) {
+    /* Table is already empty, nothing to delete. */
+  } else {
+    return true;
+  }
+
+  return key_access.deinit();
+}
+
 bool Rpl_sys_table_access::increment_version() {
   DBUG_TRACE;
   assert(m_lock_type >= TL_WRITE_ALLOW_WRITE);
@@ -294,9 +320,10 @@ bool Rpl_sys_table_access::increment_version() {
   return error;
 }
 
-bool Rpl_sys_table_access::update_version(longlong version) {
+bool Rpl_sys_table_access::update_version(ulonglong version) {
   DBUG_TRACE;
   assert(m_lock_type >= TL_WRITE_ALLOW_WRITE);
+  assert(version > 0);
 
   TABLE *table_version = m_table_list[m_table_version_index].table;
   Field **fields = table_version->field;
@@ -326,7 +353,7 @@ bool Rpl_sys_table_access::update_version(longlong version) {
   return error;
 }
 
-longlong Rpl_sys_table_access::get_version() {
+ulonglong Rpl_sys_table_access::get_version() {
   DBUG_TRACE;
   longlong version = 0;
 
@@ -346,4 +373,30 @@ longlong Rpl_sys_table_access::get_version() {
   key_access.deinit();
 
   return version;
+}
+
+bool Rpl_sys_table_access::delete_version() {
+  DBUG_TRACE;
+  assert(m_lock_type >= TL_WRITE_ALLOW_WRITE);
+
+  TABLE *table_version = m_table_list[m_table_version_index].table;
+  Field **fields = table_version->field;
+  fields[0]->set_notnull();
+  fields[0]->store(m_table_name.c_str(), m_table_name.length(),
+                   &my_charset_bin);
+
+  Rpl_sys_key_access key_access;
+  int error = key_access.init(table_version);
+
+  if (HA_ERR_KEY_NOT_FOUND == error) {
+    error = 0; /* purecov: inspected */
+  } else if (error) {
+    return true; /* purecov: inspected */
+  } else {
+    error |= table_version->file->ha_delete_row(table_version->record[0]);
+  }
+
+  error |= key_access.deinit();
+
+  return error;
 }

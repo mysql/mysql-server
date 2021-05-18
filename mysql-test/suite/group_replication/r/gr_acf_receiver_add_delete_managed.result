@@ -1,0 +1,132 @@
+include/group_replication.inc [rpl_server_count=5]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+SET SESSION sql_log_bin = 1;
+[connection server2]
+[connection server3]
+[connection server4]
+[connection server5]
+#
+# 1. Deploy a 3 members receiver group in single primary mode.
+#
+[connection server1]
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "LOCAL_ADDRESS_SERVER1, LOCAL_ADDRESS_SERVER2";
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "LOCAL_ADDRESS_SERVER1, LOCAL_ADDRESS_SERVER2";
+include/start_group_replication.inc
+#
+# 2. Deploy a 2 members sender group in single primary mode.
+#    The third member of the group i.e. server5 will be added later
+#    to verify changes are getting synced to receiver group members.
+#
+[connection server3]
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "LOCAL_ADDRESS_SERVER3, LOCAL_ADDRESS_SERVER4, LOCAL_ADDRESS_SERVER5";
+include/start_and_bootstrap_group_replication.inc
+[connection server4]
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "LOCAL_ADDRESS_SERVER3, LOCAL_ADDRESS_SERVER4, LOCAL_ADDRESS_SERVER5";
+include/start_group_replication.inc
+
+# 3. Create a replication channel to replicate from server3 to
+#    server1.
+
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+# 4. Add replication connection details of managed channel ch1
+#    to replication_asynchronous_connection_failover_managed table
+#    through asynchronous_connection_failover_add_managed() UDF.
+
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', "GROUP_B",'127.0.0.1', SERVER_MYPORT_4, '', 80, 60);
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', "GROUP_B",'127.0.0.1', SERVER_MYPORT_4, '', 80, 60)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+
+# 5. Start replica for channel ch1.
+
+include/start_slave.inc [FOR CHANNEL 'ch1']
+
+# 6. Verify replication_asynchronous_connection_failover on
+#    server1 has two rows and member action configuration version
+#    value for replication_asynchronous_connection_failover
+#    and for replication_asynchronous_connection_failover_managed.
+
+
+# 7. Verify replication_asynchronous_connection_failover on
+#    server2 has two rows and member action configuration version
+#    value for replication_asynchronous_connection_failover
+#    and for replication_asynchronous_connection_failover_managed.
+
+[connection server2]
+#
+# 8. Add another member i.e. server5 to sender group.
+#
+[connection server5]
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "LOCAL_ADDRESS_SERVER3, LOCAL_ADDRESS_SERVER4, LOCAL_ADDRESS_SERVER5";
+include/start_group_replication.inc
+include/assert.inc [There are three members in the group.]
+
+# 9. Verify replication_asynchronous_connection_failover on
+#    server1 has three rows and member action configuration version
+#    value for replication_asynchronous_connection_failover
+#    and for replication_asynchronous_connection_failover_managed.
+
+[connection server1]
+
+# 10. Verify replication_asynchronous_connection_failover on
+#     server2 has three rows and member action configuration version
+#     value for replication_asynchronous_connection_failover
+#     and for replication_asynchronous_connection_failover_managed.
+
+[connection server2]
+
+# 11. Delete replication connection details for managed channel ch1
+#     from replication_asynchronous_connection_failover_managed
+#     and replication_asynchronous_connection_failover table
+#     through asynchronous_connection_failover_delete_managed() UDF.
+
+[connection server1]
+SELECT asynchronous_connection_failover_delete_managed('ch1', 'GROUP_B');
+asynchronous_connection_failover_delete_managed('ch1', 'GROUP_B')
+The UDF asynchronous_connection_failover_delete_managed() executed successfully.
+
+# 12. Verify replication_asynchronous_connection_failover on
+#     server1 is empty and member action configuration version
+#     value for replication_asynchronous_connection_failover
+#     and for replication_asynchronous_connection_failover_managed.
+
+
+# 13. Verify replication_asynchronous_connection_failover on
+#     server2 is empty and member action configuration version
+#     value for replication_asynchronous_connection_failover
+#     and for replication_asynchronous_connection_failover_managed.
+
+[connection server2]
+#
+# 14. Clean up.
+#
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl_reset_slave.inc
+[connection server5]
+include/stop_group_replication.inc
+[connection server4]
+include/stop_group_replication.inc
+[connection server3]
+include/stop_group_replication.inc
+[connection server2]
+include/stop_group_replication.inc
+include/rpl_reset_slave.inc
+[connection server1]
+include/stop_group_replication.inc
+include/group_replication_end.inc

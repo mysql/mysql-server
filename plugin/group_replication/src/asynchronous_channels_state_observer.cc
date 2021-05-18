@@ -38,10 +38,20 @@ int Asynchronous_channels_state_observer::thread_start(
   if (is_plugin_auto_starting_on_non_bootstrap_member() &&
       strcmp(param->channel_name, "group_replication_recovery") != 0 &&
       strcmp(param->channel_name, "group_replication_applier") != 0) {
-    if (initiate_wait_on_start_process()) {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_CLONE,
-                   "slave IO", param->channel_name);
-      return 1;
+    const enum_wait_on_start_process_result abort =
+        initiate_wait_on_start_process();
+    switch (abort) {
+      case WAIT_ON_START_PROCESS_SUCCESS:
+        break;
+      case WAIT_ON_START_PROCESS_ABORT_ON_CLONE:
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_CLONE,
+                     "slave IO", param->channel_name);
+        return 1;
+      case WAIT_ON_START_PROCESS_ABORT_SECONDARY_MEMBER:
+        LogPluginErr(ERROR_LEVEL,
+                     ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_SECONDARY_MEMBER,
+                     "slave IO", param->channel_name);
+        return 1;
     }
 
     if (group_member_mgr && local_member_info->get_recovery_status() ==
@@ -81,7 +91,9 @@ int Asynchronous_channels_state_observer::thread_start(
   }
 
   if (plugin_is_group_replication_running() &&
-      group_action_coordinator->is_group_action_running()) {
+      group_action_coordinator->is_group_action_running() &&
+      !param->source_connection_auto_failover &&
+      !primary_election_handler->is_an_election_running()) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_CHANNEL_THREAD_WHEN_GROUP_ACTION_RUNNING,
                  "IO THREAD");
@@ -104,10 +116,20 @@ int Asynchronous_channels_state_observer::applier_start(
   if (is_plugin_auto_starting_on_non_bootstrap_member() &&
       strcmp(param->channel_name, "group_replication_recovery") != 0 &&
       strcmp(param->channel_name, "group_replication_applier") != 0) {
-    if (initiate_wait_on_start_process()) {
-      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_CLONE,
-                   "slave applier", param->channel_name);
-      return 1;
+    const enum_wait_on_start_process_result abort =
+        initiate_wait_on_start_process();
+    switch (abort) {
+      case WAIT_ON_START_PROCESS_SUCCESS:
+        break;
+      case WAIT_ON_START_PROCESS_ABORT_ON_CLONE:
+        LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_CLONE,
+                     "slave applier", param->channel_name);
+        return 1;
+      case WAIT_ON_START_PROCESS_ABORT_SECONDARY_MEMBER:
+        LogPluginErr(ERROR_LEVEL,
+                     ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_SECONDARY_MEMBER,
+                     "slave applier", param->channel_name);
+        return 1;
     }
 
     if (group_member_mgr && local_member_info->get_recovery_status() ==
@@ -147,7 +169,9 @@ int Asynchronous_channels_state_observer::applier_start(
   }
 
   if (plugin_is_group_replication_running() &&
-      group_action_coordinator->is_group_action_running()) {
+      group_action_coordinator->is_group_action_running() &&
+      !param->source_connection_auto_failover &&
+      !primary_election_handler->is_an_election_running()) {
     LogPluginErr(ERROR_LEVEL,
                  ER_GRP_RPL_CHANNEL_THREAD_WHEN_GROUP_ACTION_RUNNING,
                  "SQL THREAD");

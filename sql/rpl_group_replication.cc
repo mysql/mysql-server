@@ -26,7 +26,9 @@
 #include <sys/types.h>
 #include <atomic>
 
+#include <mysql/components/my_service.h>
 #include <mysql/components/services/component_sys_var_service.h>
+#include <mysql/components/services/group_replication_status_service.h>
 #include "m_string.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -626,4 +628,26 @@ end:
   srv_registry->release(component_sys_variable_register_service_handler);
   delete[] var_value;
   return error;
+}
+
+bool is_group_replication_member_secondary() {
+  bool is_a_secondary = false;
+
+  my_h_service gr_status_service_handler = nullptr;
+  SERVICE_TYPE(group_replication_status_service_v1) *gr_status_service =
+      nullptr;
+  srv_registry->acquire("group_replication_status_service_v1",
+                        &gr_status_service_handler);
+  if (nullptr != gr_status_service_handler) {
+    gr_status_service =
+        reinterpret_cast<SERVICE_TYPE(group_replication_status_service_v1) *>(
+            gr_status_service_handler);
+    if (gr_status_service
+            ->is_group_in_single_primary_mode_and_im_a_secondary()) {
+      is_a_secondary = true;
+    }
+  }
+
+  srv_registry->release(gr_status_service_handler);
+  return is_a_secondary;
 }

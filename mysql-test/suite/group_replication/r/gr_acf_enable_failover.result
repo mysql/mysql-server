@@ -28,6 +28,10 @@ include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server1]
 #    to the group.
 [connection server4]
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP SLAVE FOR CHANNEL 'ch1' first
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+include/start_slave.inc [FOR CHANNEL 'ch1']
 SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_2, '', 90, 70);
 asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_NAME', '127.0.0.1', SERVER_MYPORT_2, '', 90, 70)
 The UDF asynchronous_connection_failover_add_managed() executed successfully.

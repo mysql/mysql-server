@@ -1,41 +1,29 @@
 ################################################################################
-# Validate that the replication asynchronous connection failover feature can be
-# enabled or disabled on running channel (replica doesn't need to be stopped),
-# and so Monitor IO thread MUST not update sender details or stop channel, for
-# the channel which is no longer managed i.e. SOURCE_CONNECTION_AUTO_FAILOVER=0.
+# Validate that the replication asynchronous connection failover feature cannot
+# be disabled on running channels.
 #
 # Test:
 # 0. The test requires 4 servers:
 #      server1: group primary
 #      server2: group secondary
-#      server3: group secondary
-#      server4: replica server
-# 1. Deploy a 3 members group in single primary mode.
+#      server3: replica server
+# 1. Deploy a 2 members group in single primary mode.
 # 2. Configure replica to manage the asynchronous connection
 #    to group.
-# 3. Disable the SOURCE_CONNECTION_AUTO_FAILOVER option but
-#    leave the channel running.
-# 4. Make server2 the group primary, despite primary_weight
-#    is bigger, since SOURCE_CONNECTION_AUTO_FAILOVER is
-#    disabled on channel 'ch1', ch1 will remain connected to
-#    server1.
-# 5. Shutdown server1, since SOURCE_CONNECTION_AUTO_FAILOVER
-#    is disabled on channel ch1, ch1 will stop (instead of reconnect).
-# 6. Verify that replication_asynchronous_connection_failover
-#    did not change after SOURCE_CONNECTION_AUTO_FAILOVER was
-#    disabled.
-# 7. Clean up.
+# 3. Try disable the SOURCE_CONNECTION_AUTO_FAILOVER option
+#    without stopping the channel.
+# 4. Clean up.
 ################################################################################
 --source include/big_test.inc
 --source include/have_group_replication_plugin.inc
 --let $rpl_skip_group_replication_start= 1
---let $rpl_server_count= 4
+--let $rpl_server_count= 3
 --source include/group_replication.inc
 
 
 --echo
 --echo ############################################################
---echo # 1. Deploy a 3 members group in single primary mode.
+--echo # 1. Deploy a 2 members group in single primary mode.
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 --let $server1_uuid= `SELECT @@server_uuid`
@@ -45,16 +33,12 @@
 --source include/rpl_connection.inc
 --source include/start_group_replication.inc
 
---let $rpl_connection_name= server3
---source include/rpl_connection.inc
---source include/start_group_replication.inc
-
 
 --echo
 --echo ############################################################
 --echo # 2. Configure replica to manage the asynchronous connection
 --echo #    to group.
---let $rpl_connection_name= server4
+--let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 
 --replace_result $SERVER_MYPORT_1 SERVER_MYPORT_1 $group_replication_group_name GROUP_NAME
@@ -72,7 +56,7 @@
 --echo
 --echo ############################################################
 --echo # 2. Create and start the managed channel.
---let $rpl_connection_name= server4
+--let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --replace_result $SERVER_MYPORT_1 SERVER_1_PORT
 --eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_1, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
@@ -85,99 +69,31 @@
 --let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\' AND source_uuid=\'$server1_uuid\', SERVICE_STATE, 1]" = "ON"
 --source include/assert.inc
 
---let $wait_condition= SELECT COUNT(*)=3 FROM performance_schema.replication_asynchronous_connection_failover
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
 --source include/wait_condition.inc
 
 
 --echo
 --echo ############################################################
---echo # 3. Disable the SOURCE_CONNECTION_AUTO_FAILOVER option but
---echo #    leave the channel running.
---let $rpl_connection_name= server4
+--echo # 3. Try disable the SOURCE_CONNECTION_AUTO_FAILOVER option
+--echo #    without stopping the channel.
+--let $rpl_connection_name= server3
 --source include/rpl_connection.inc
+--error ER_SLAVE_CHANNEL_MUST_STOP
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0 FOR CHANNEL 'ch1';
 
---let $assert_text= Verify replica_monitor thread is not running
---let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_monitor\"]" = 0;
+--let $assert_text= Verify replica_monitor thread is running
+--let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_monitor\"]" = 1;
 --source include/assert.inc
 
 
 --echo
 --echo ############################################################
---echo # 4. Make server2 the group primary, despite primary_weight
---echo #    is bigger, since SOURCE_CONNECTION_AUTO_FAILOVER is
---echo #    disabled on channel 'ch1', ch1 will remain connected to
---echo #    server1.
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
---let $server2_uuid= `SELECT @@server_uuid`
---replace_result $server2_uuid SERVER2_UUID
---eval SELECT group_replication_set_as_primary("$server2_uuid")
---source include/gr_assert_primary_member.inc
-
---let $rpl_connection_name= server4
---source include/rpl_connection.inc
---let $assert_text= Verify channel ch1 IO_THREAD is ON and connected to server1
---let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_connection_status WHERE channel_name=\'ch1\' AND source_uuid=\'$server1_uuid\', SERVICE_STATE, 1]" = "ON"
---source include/assert.inc
-
-
---echo
---echo ############################################################
---echo # 5. Shutdown server1, since SOURCE_CONNECTION_AUTO_FAILOVER
---echo # is disabled on channel ch1, ch1 will stop (instead of reconnect).
---let $rpl_connection_name= server1
---source include/rpl_connection.inc
-# When a member leaves a group it does close all dump threads.
-# Though we need to shutdown instead of simply leave the group to avoid
-# the legacy IO thread reconnection. It is not possible to disable it.
-# MASTER_RETRY_COUNT minimum value is 1, 0 value means infinite.
---let $rpl_server_number= 1
---source include/rpl_stop_server.inc
-
---let $rpl_connection_name= server4
---source include/rpl_connection.inc
---echo Wait until ch1 IO_THREAD stops
---let $wait_condition= SELECT service_state="OFF" FROM performance_schema.replication_connection_status WHERE channel_name="ch1"
---source include/wait_condition.inc
-
---let $assert_text= Verify channel ch1 SQL_THREAD is ON
---let $assert_cond= "[SELECT SERVICE_STATE FROM performance_schema.replication_applier_status WHERE channel_name=\'ch1\', SERVICE_STATE, 1]" = "ON"
---source include/assert.inc
-
-
---echo
---echo ############################################################
---echo # 6. Verify that replication_asynchronous_connection_failover
---echo #    did not change after SOURCE_CONNECTION_AUTO_FAILOVER was
---echo #    disabled.
---let $rpl_connection_name= server4
---source include/rpl_connection.inc
-
---let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover for server1'
---let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE port=$SERVER_MYPORT_1, count, 1] = 1
---source include/assert.inc
-
---let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover for server2'
---let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE port=$SERVER_MYPORT_2, count, 1] = 1
---source include/assert.inc
-
---let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover for server3'
---let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover WHERE port=$SERVER_MYPORT_3, count, 1] = 1
---source include/assert.inc
-
-
---echo
---echo ############################################################
---echo # 7. Clean up.
---let $rpl_connection_name= server4
+--echo # 4. Clean up.
+--let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 --let $rpl_channel_name='ch1'
---let $slave_error_param= Last_IO_Errno
---let $slave_io_errno=2003
 --source include/stop_slave.inc
---let $slave_error_param=
---let $slave_io_errno=
 
 --let $rpl_reset_slave_all= 1
 --let $rpl_multi_source= 1
@@ -197,28 +113,12 @@ CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0 FOR CHANNEL 'ch1'
 --let $assert_cond= [SELECT  COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 0
 --source include/assert.inc
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("The source .* for channel 'ch1' has joined the group .*, and so added its entry into replication_asynchronous_connection_failover table.");
-call mtr.add_suppression("The source .* for channel 'ch1' has left the group .*, and so removed its entry from replication_asynchronous_connection_failover table.");
-call mtr.add_suppression("The group .* for the channel .* has been removed, and so removed its entry from replication_asynchronous_connection_failover_managed and all the group members from replication_asynchronous_connection_failover table.");
-call mtr.add_suppression("The group .* for the channel .* has been added, and so added its entry in replication_asynchronous_connection_failover_managed and source to replication_asynchronous_connection_failover table.");
-SET SESSION sql_log_bin = 1;
-
---let $rpl_connection_name= server3
---source include/rpl_connection.inc
---source include/stop_group_replication.inc
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --source include/stop_group_replication.inc
 
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
---enable_reconnect
---exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---source include/wait_until_connected_again.inc
---disable_reconnect
---let $rpl_server_number= 1
---source include/rpl_reconnect.inc
+--source include/stop_group_replication.inc
 
 --source include/group_replication_end.inc

@@ -1,0 +1,110 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy group A in single-primary mode on server1 and server2.
+[connection server1]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("This server is not able to reach a majority of members in the group. This server will skip the replication failover channels handling until this server is back to the group majority.");
+call mtr.add_suppression("This server is back to the group majority. Replication failover channels handling is resumed.");
+SET SESSION sql_log_bin = 1;
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+SET SESSION sql_log_bin= 0;
+CREATE TABLE pid_table(pid_no INT);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin= 1;
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_3_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_group_replication.inc
+
+############################################################
+# 2. Deploy group B in single-primary mode on server3.
+#    Configure server4 as part of group B but not join it to
+#    the group.
+[connection server3]
+include/start_and_bootstrap_group_replication.inc
+[connection server4]
+
+############################################################
+# 3. Configure a failover channel on server1 that replicates
+#    from server3.
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_3_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_B', '127.0.0.1', SERVER_MYPORT_3, '', 85, 65);;
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'GROUP_B', '127.0.0.1', SERVER_MYPORT_3, '', 85, 65)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/start_slave.inc [FOR CHANNEL 'ch1']
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server3]
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1 or greater']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group B']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+[connection server2]
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be equal or greater than the one on server1']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group B']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+
+############################################################
+# 4. Suspend server2, server1 will see it UNREACHABLE.
+[connection server2]
+[connection server1]
+include/gr_wait_for_member_state.inc
+
+############################################################
+# 5. Add server4 to group B.
+[connection server4]
+include/start_group_replication.inc
+
+############################################################
+# 6. Since group A does not have a ONLINE majority, server1
+#    will not detect the membership changes on group B.
+[connection server1]
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must remain the same']
+include/assert_grep.inc [Only one majority loss warning is logged]
+
+############################################################
+# 7. Resume server2.
+[connection server2]
+[connection server1]
+
+############################################################
+# 8. server1 will update group B membership.
+[connection server1]
+include/assert.inc [Verify channel ch1 IO_THREAD is ON and connected to server3]
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2 or greater']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be equal or greater than the one on server1 on step 6']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group B']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+
+############################################################
+# 9. server2 will also update group B membership.
+[connection server2]
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be equal or greater than the one on server1']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed for group B']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+
+############################################################
+# 10. Clean up.
+[connection server2]
+include/stop_group_replication.inc
+include/rpl_reset_slave.inc
+[connection server1]
+include/stop_group_replication.inc
+include/rpl_reset_slave.inc
+[connection server4]
+include/stop_group_replication.inc
+[connection server3]
+include/stop_group_replication.inc
+include/group_replication_end.inc

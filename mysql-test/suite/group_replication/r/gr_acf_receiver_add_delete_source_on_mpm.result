@@ -1,0 +1,35 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Add replication failover sources into a member in
+#    a multi-primary mode group.
+#    It will be allowed but the configuration will not be propagated.
+[connection server1]
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3306, '', 50);
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3306, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+[connection server2]
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover']
+############################################################
+# 2. Delete replication failover sources in a member in
+#    a multi-primary mode group.
+#    It will be allowed but the configuration will not be propagated.
+[connection server1]
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3306, '');
+asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3306, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+[connection server2]
+include/assert.inc ['There are no rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover']
+
+############################################################
+# 3. Clean up.
+include/group_replication_end.inc

@@ -1101,6 +1101,8 @@ void Binlog_relay_IO_delegate::init_param(Binlog_relay_IO_param *param,
   param->port = mi->port;
   param->master_log_name = const_cast<char *>(mi->get_master_log_name());
   param->master_log_pos = mi->get_master_log_pos();
+  param->source_connection_auto_failover =
+      mi->is_source_connection_auto_failover();
 }
 
 int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi) {

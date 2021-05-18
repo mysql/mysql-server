@@ -594,6 +594,8 @@ typedef struct Binlog_relay_IO_param {
   my_off_t master_log_pos;
 
   MYSQL *mysql; /* the connection to master */
+
+  bool source_connection_auto_failover;
 } Binlog_relay_IO_param;
 
 /**

@@ -1,0 +1,83 @@
+###############################################################################
+# Validate that UDFs
+#   asynchronous_connection_failover_add_source
+#   asynchronous_connection_failover_delete_source
+# can be used on groups in multi-primary mode,
+# but the configuration will not be propagated.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Add replication failover sources into a member in
+#      a multi-primary mode group.
+#      It will be allowed but the configuration will not be propagated.
+#   2. Delete replication failover sources in a member in
+#      a multi-primary mode group.
+#      It will be allowed but the configuration will not be propagated.
+#   3. Clean up
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--source include/group_replication.inc
+
+
+--echo ############################################################
+--echo # 1. Add replication failover sources into a member in
+--echo #    a multi-primary mode group.
+--echo #    It will be allowed but the configuration will not be propagated.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', 3306, '', 50);
+
+--let $assert_text= 'There is one row in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', count, 1] = 0
+--source include/assert.inc
+
+
+--echo ############################################################
+--echo # 2. Delete replication failover sources in a member in
+--echo #    a multi-primary mode group.
+--echo #    It will be allowed but the configuration will not be propagated.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', 3306, '');
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 2
+--source include/assert.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $assert_text= 'There are no rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no version of replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', count, 1] = 0
+--source include/assert.inc
+
+
+--echo
+--echo ############################################################
+--echo # 3. Clean up.
+--source include/group_replication_end.inc

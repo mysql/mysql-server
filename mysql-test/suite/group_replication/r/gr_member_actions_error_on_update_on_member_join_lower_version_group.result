@@ -7,6 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("This member joined a group on which all members do not support member actions, as such it did reset its member configuration to the default one.");
 call mtr.add_suppression("Unable to reset to member actions default configuration on member join. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'.");
+call mtr.add_suppression("This member joined a group on which all members do not support replication failover channels integration on Group Replication, as such it did reset its replication failover channels configuration to the default one.");
+call mtr.add_suppression("Unable to reset to replication failover channels default configuration on member join. Please check the tables .*");
 SET SESSION sql_log_bin = 1;
 
 ############################################################
@@ -49,8 +51,9 @@ include/assert.inc [The version of replication_group_member_actions must be 2]
 # 3. Rejoin the group without the failure injection on the joiner.
 [connection server2]
 include/start_group_replication.inc
-include/assert.inc [There must be one member action]
+include/assert.inc [There must be two member actions]
 include/assert.inc [mysql_disable_super_read_only_if_primary action default value]
+include/assert.inc [mysql_start_failover_channels_if_primary action default value]
 include/assert.inc [There must be one GR configuration version]
 include/assert.inc [The version of replication_group_member_actions must be 1]
 include/assert_grep.inc [This member joined a group on which all members do not support member actions, as such it did reset its member configuration to the default one.]

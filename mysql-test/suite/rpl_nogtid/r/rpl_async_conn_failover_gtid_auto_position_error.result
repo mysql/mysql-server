@@ -21,7 +21,6 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #
 # 3. Enable gtid_mode.
 #
-include/stop_slave.inc
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = WARN;
 SET GLOBAL ENFORCE_GTID_CONSISTENCY = ON;
 SET GLOBAL GTID_MODE = OFF_PERMISSIVE;

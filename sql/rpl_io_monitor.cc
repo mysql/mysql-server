@@ -21,6 +21,8 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "sql/rpl_io_monitor.h"
+#include <mysql/components/my_service.h>
+#include <mysql/components/services/group_replication_status_service.h>
 #include "mysql/components/services/log_builtins.h"
 
 #include "sql/json_dom.h"
@@ -28,7 +30,9 @@
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/rpl_async_conn_failover.h"  // reset_pos
-#include "sql/rpl_msr.h"                  /* Multisource replication */
+#include "sql/rpl_async_conn_failover_configuration_propagation.h"
+#include "sql/rpl_group_replication.h"
+#include "sql/rpl_msr.h" /* Multisource replication */
 #include "sql/rpl_replica.h"
 #include "sql/rpl_sys_key_access.h"
 #include "sql/rpl_sys_table_access.h"
@@ -249,7 +253,8 @@ void Source_IO_monitor::source_monitor_handler() {
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
 
-  while (!is_monitor_killed(thd, nullptr)) {
+  while (!is_monitor_killed(thd, nullptr) &&
+         !is_group_replication_member_secondary()) {
     sync_senders_details(thd);
 
     THD_STAGE_INFO(thd, stage_rpl_failover_wait_before_next_fetch);
@@ -293,6 +298,7 @@ std::tuple<bool, std::string> Source_IO_monitor::delete_rows(
     std::tuple<std::string, std::string, uint> conn_detail) {
   bool err_val{false};
   std::string err_msg{};
+
   Rpl_sys_table_access::for_each_in_tuple(
       conn_detail, [&](const auto &n, const auto &x) {
         if (table_op.store_field(table->field[n], x)) {
@@ -312,6 +318,7 @@ std::tuple<bool, std::string> Source_IO_monitor::write_rows(
     RPL_FAILOVER_SOURCE_TUPLE conn_detail) {
   bool err_val{false};
   std::string err_msg{};
+
   Rpl_sys_table_access::for_each_in_tuple(
       conn_detail, [&](const auto &n, const auto &x) {
         if (table_op.store_field(table->field[n], x)) {
@@ -738,11 +745,45 @@ int Source_IO_monitor::save_group_members(
     }
   }
 
-  if (table_op.close(err_val)) {
+  /* Increment member action configuration version. */
+  if (table_op.increment_version()) {
+    LogErr(ERROR_LEVEL, ER_RPL_INCREMENTING_MEMBER_ACTION_VERSION, db.c_str(),
+           table_name.c_str());
+    return 1;
+  }
+
+  /*
+    Send replication_asynchronous_connection_failover data to group replication
+    group members.
+  */
+  if (rpl_acf_configuration_handler->send_failover_data(table_op)) {
     return 1;
   }
 
   return 0;
+}
+
+bool Source_IO_monitor::has_primary_lost_contact_with_majority() {
+  bool primary_lost_contact_with_majority = false;
+  my_h_service gr_status_service_handler = nullptr;
+
+  srv_registry->acquire("group_replication_status_service_v1",
+                        &gr_status_service_handler);
+  if (nullptr != gr_status_service_handler) {
+    SERVICE_TYPE(group_replication_status_service_v1) *gr_status_service =
+        reinterpret_cast<SERVICE_TYPE(group_replication_status_service_v1) *>(
+            gr_status_service_handler);
+
+    if (gr_status_service
+            ->is_group_in_single_primary_mode_and_im_the_primary() &&
+        !gr_status_service->is_member_online_with_group_majority()) {
+      primary_lost_contact_with_majority = true;
+    }
+
+    srv_registry->release(gr_status_service_handler);
+  }
+
+  return primary_lost_contact_with_majority;
 }
 
 std::tuple<int, bool, bool, std::tuple<std::string, std::string, uint>>
@@ -888,8 +929,24 @@ Source_IO_monitor::get_online_members(
 }
 
 int Source_IO_monitor::sync_senders_details(THD *thd) {
-  std::vector<std::string> channels;
+  bool primary_lost_contact_with_majority =
+      has_primary_lost_contact_with_majority();
 
+  if (primary_lost_contact_with_majority) {
+    /* Log the warning only once per majority loss. */
+    if (!m_primary_lost_contact_with_majority_warning_logged) {
+      m_primary_lost_contact_with_majority_warning_logged = true;
+      LogErr(WARNING_LEVEL, ER_GRP_RPL_FAILOVER_PRIMARY_WITHOUT_MAJORITY);
+    }
+    return 0;
+  } else {
+    if (m_primary_lost_contact_with_majority_warning_logged) {
+      m_primary_lost_contact_with_majority_warning_logged = false;
+      LogErr(WARNING_LEVEL, ER_GRP_RPL_FAILOVER_PRIMARY_BACK_TO_MAJORITY);
+    }
+  }
+
+  std::vector<std::string> channels;
   channel_map.rdlock();
   for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
        it++) {

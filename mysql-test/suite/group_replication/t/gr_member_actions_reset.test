@@ -62,12 +62,16 @@ SELECT group_replication_reset_member_actions();
 
 SELECT group_replication_reset_member_actions();
 
---let $assert_text= There must be one member action
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 1
+--let $assert_text= There must be two member actions
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2
 --source include/assert.inc
 
 --let $assert_text= mysql_disable_super_read_only_if_primary action default value
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=1 AND error_handling=\'IGNORE\'] = 1
+--source include/assert.inc
+
+--let $assert_text= mysql_start_failover_channels_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=10 AND error_handling=\'CRITICAL\'] = 1
 --source include/assert.inc
 
 --let $assert_text= There must be one GR configuration version

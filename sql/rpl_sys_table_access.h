@@ -211,13 +211,21 @@ class Rpl_sys_table_access {
   }
 
   /**
+    Delete all rows on `m_schema_name.m_table_name`.
+
+    @retval true  if there is error
+    @retval false if there is no error
+  */
+  bool delete_all_rows();
+
+  /**
     Return the version stored on `m_schema_version_name.m_table_version_name`
     for the `m_schema_name.m_table_name` table.
 
     @retval 0  if there is error
     @retval >0 if there is no error
   */
-  longlong get_version();
+  ulonglong get_version();
 
   /**
     Increment the version stored on `m_schema_version_name.m_table_version_name`
@@ -237,7 +245,30 @@ class Rpl_sys_table_access {
     @retval true  if there is error
     @retval false if there is no error
   */
-  bool update_version(longlong version);
+  bool update_version(ulonglong version);
+
+  /**
+    Delete the version stored on `m_schema_version_name.m_table_version_name`
+    for the `m_schema_name.m_table_name` table.
+
+    @retval true  if there is error
+    @retval false if there is no error
+  */
+  bool delete_version();
+
+  /**
+    Get database name of table accessed.
+
+    @return database name.
+  */
+  std::string get_db_name() { return m_schema_name; }
+
+  /**
+    Get table name of table accessed.
+
+    @return table name.
+  */
+  std::string get_table_name() { return m_table_name; }
 
  private:
   /* THD created for TableAccess object purpose. */

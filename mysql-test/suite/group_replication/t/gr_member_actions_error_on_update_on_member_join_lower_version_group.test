@@ -27,6 +27,8 @@
 SET SESSION sql_log_bin = 0;
 call mtr.add_suppression("This member joined a group on which all members do not support member actions, as such it did reset its member configuration to the default one.");
 call mtr.add_suppression("Unable to reset to member actions default configuration on member join. Please check the tables 'mysql.replication_group_member_actions' and 'mysql.replication_group_configuration_version'.");
+call mtr.add_suppression("This member joined a group on which all members do not support replication failover channels integration on Group Replication, as such it did reset its replication failover channels configuration to the default one.");
+call mtr.add_suppression("Unable to reset to replication failover channels default configuration on member join. Please check the tables .*");
 SET SESSION sql_log_bin = 1;
 
 
@@ -102,12 +104,16 @@ SET @@GLOBAL.DEBUG='-d,force_error_on_configuration_table_close';
 --source include/rpl_connection.inc
 --source include/start_group_replication.inc
 
---let $assert_text= There must be one member action
---let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 1
+--let $assert_text= There must be two member actions
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions] = 2
 --source include/assert.inc
 
 --let $assert_text= mysql_disable_super_read_only_if_primary action default value
 --let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_disable_super_read_only_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=1 AND error_handling=\'IGNORE\'] = 1
+--source include/assert.inc
+
+--let $assert_text= mysql_start_failover_channels_if_primary action default value
+--let $assert_cond= [SELECT COUNT(*) FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND enabled=1 AND type=\'INTERNAL\' AND event=\'AFTER_PRIMARY_ELECTION\' AND priority=10 AND error_handling=\'CRITICAL\'] = 1
 --source include/assert.inc
 
 --let $assert_text= There must be one GR configuration version

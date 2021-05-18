@@ -1,0 +1,37 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Deploy a group in single-primary mode on server1
+#    configure a failover channel 'ch1'.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+############################################################
+# 2. Leave the group and only then reset the failover
+#    channel 'ch1'.
+[connection server1]
+include/stop_group_replication.inc
+include/rpl_reset_slave.inc
+
+############################################################
+# 3. Deploy again a group in single-primary mode on server1.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+
+############################################################
+# 4. Join server2 to the group.
+#    server2 successful join will validate that past ch1
+#    failover status is properly clean on server.
+[connection server2]
+include/start_group_replication.inc
+############################################################
+# 5. Clean up.
+include/group_replication_end.inc

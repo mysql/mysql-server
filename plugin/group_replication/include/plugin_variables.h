@@ -63,7 +63,7 @@ struct plugin_local_variables {
   bool server_shutdown_status;
   bool wait_on_engine_initialization;
   int write_set_extraction_algorithm;
-  bool abort_wait_on_start_process;
+  enum_wait_on_start_process_result wait_on_start_process;
   bool recovery_timeout_issue_on_stop;
 
   // (60min / 5min) * 24 * 7, i.e. a week.
@@ -102,7 +102,7 @@ struct plugin_local_variables {
     server_shutdown_status = false;
     wait_on_engine_initialization = false;
     write_set_extraction_algorithm = HASH_ALGORITHM_OFF;
-    abort_wait_on_start_process = false;
+    wait_on_start_process = WAIT_ON_START_PROCESS_SUCCESS;
     recovery_timeout_issue_on_stop = false;
     // the default is 5 minutes (300 secs).
     rejoin_timeout = 300ULL;

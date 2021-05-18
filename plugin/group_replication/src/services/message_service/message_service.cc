@@ -154,6 +154,7 @@ void Message_service_handler::dispatcher() {
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
+  thd->set_skip_readonly_check();
   global_thd_manager_add_thd(thd);
 
   mysql_mutex_lock(&m_message_service_run_lock);

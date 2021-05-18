@@ -808,6 +808,7 @@ MySQL clients support the protocol:
 #ifdef _WIN32
 #include "sql/restart_monitor_win.h"
 #endif
+#include "sql/rpl_async_conn_failover_configuration_propagation.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_gtid_persist.h"  // Gtid_table_persistor
@@ -1487,6 +1488,7 @@ Le_creator le_creator;
 
 Rpl_global_filter rpl_global_filter;
 Rpl_filter *binlog_filter;
+Rpl_acf_configuration_handler *rpl_acf_configuration_handler = nullptr;
 Source_IO_monitor *rpl_source_io_monitor = nullptr;
 Udf_load_service udf_load_service;
 
@@ -2503,6 +2505,8 @@ static void clean_up(bool print_message) {
   udf_load_service.deinit();
   delete rpl_source_io_monitor;
   rpl_source_io_monitor = nullptr;
+  delete rpl_acf_configuration_handler;
+  rpl_acf_configuration_handler = nullptr;
 
   if (use_slave_mask) bitmap_free(&slave_error_mask);
   my_tz_free();
@@ -6464,6 +6468,10 @@ static int init_server_components() {
 #endif
     locked_in_memory = false;
 
+  rpl_acf_configuration_handler = new Rpl_acf_configuration_handler();
+  if (rpl_acf_configuration_handler->init()) {
+    unireg_abort(MYSQLD_ABORT_EXIT);
+  }
   rpl_source_io_monitor = new Source_IO_monitor();
   udf_load_service.init();
 

@@ -29,7 +29,8 @@
 class Rpl_async_conn_failover_add_source : public Udf_service_impl {
  private:
   Udf_charset_service m_charset_service;
-  static const std::string m_udf_name;
+  static constexpr const char *m_udf_name =
+      "asynchronous_connection_failover_add_source";
   bool m_initialized{false};
 
  public:

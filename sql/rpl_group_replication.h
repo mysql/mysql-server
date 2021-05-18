@@ -75,6 +75,17 @@ std::string get_group_replication_group_name();
 */
 bool get_group_replication_view_change_uuid(std::string &uuid);
 
+/**
+  Checks if this member is part of a group in single-primary mode and if
+  this member is a secondary.
+
+  @return status
+    @retval true  this member is part of a group in single-primary mode
+                  and is a secondary
+    @retval false otherwise
+*/
+bool is_group_replication_member_secondary();
+
 // Callback definition for socket donation
 typedef void (*gr_incoming_connection_cb)(THD *thd, int fd, SSL *ssl_ctx);
 void set_gr_incoming_connection(gr_incoming_connection_cb x);

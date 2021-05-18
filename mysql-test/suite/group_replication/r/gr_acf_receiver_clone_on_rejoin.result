@@ -1,0 +1,206 @@
+include/group_replication.inc [rpl_server_count=4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server2]
+[connection server3]
+
+# 1. Install clone plugin on server1.
+
+[connection server1]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+# 2. Create replication channel ch1
+#    with SOURCE_CONNECTION_AUTO_FAILOVER enabled.
+#    And verify managed channel and non-managed source addition
+#    is successful in failover tables.
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 90);
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 90)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.2', 3306, '', 80, 70);
+asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.2', 3306, '', 80, 70)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1']
+
+# 3. Bootstrap server1 and add some data
+#    Verify channel 'ch1' is running.
+
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "LOCAL_ADDRESS_SERVER1, LOCAL_ADDRESS_SERVER2, LOCAL_ADDRESS_SERVER3";
+include/start_and_bootstrap_group_replication.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+include/assert.inc ['CHANNEL ch1 is running']
+
+# 4. Install the clone plugin and start GR on server3
+
+[connection server3]
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+# 5. Create replication channel ch1
+#    with SOURCE_CONNECTION_AUTO_FAILOVER enabled.
+#    And verify managed channel and non-managed source synced
+#    is successful to failover tables.
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "LOCAL_ADDRESS_SERVER1, LOCAL_ADDRESS_SERVER2, LOCAL_ADDRESS_SERVER3";
+include/start_group_replication.inc
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled for ch1']
+
+# 6. Restart server 2 with a monitoring process (mysqld_safe)
+
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+SET PERSIST local_infile= ON;
+include/spawn_monitoring_process.inc
+
+# 7. Setup server2 so group replication starts on boot
+#    Install the Clone plugin
+
+INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
+
+# 8. On a empty server2 start group replication
+#    Wait for it to restart and come back
+#    Check clone was completed
+
+SET GLOBAL group_replication_clone_threshold= 1;
+SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "LOCAL_ADDRESS_SERVER1, LOCAL_ADDRESS_SERVER2, LOCAL_ADDRESS_SERVER3";
+START GROUP_REPLICATION;
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+include/assert.inc [Clone must be completed]
+
+# 9. Verify data has been properly cloned in server2.
+
+include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1]
+include/assert.inc ['There are 2 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled for ch1']
+
+# 10. Get server2 expelled.
+
+[connection server2]
+SET GLOBAL super_read_only = 0;
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+include/gr_expel_member_from_group.inc
+SET SESSION sql_log_bin = 0;
+CREATE TABLE pid_table(pid_no INT PRIMARY KEY);
+LOAD DATA LOCAL INFILE 'pid_file' INTO TABLE pid_table;
+DROP TABLE pid_table;
+SET SESSION sql_log_bin = 1;
+SET GLOBAL super_read_only = 1;
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+include/assert.inc [Auto-rejoin should be running]
+
+# 11. Add more data and new source to failover table
+#     on server 1 before server2 rejoins.
+
+[connection server1]
+SELECT asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3307, '', 50);
+asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3307, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+include/assert.inc ['There are 3 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2']
+include/rpl_sync.inc
+
+# 12. Unblock the rejoin, another clone should happen
+
+[connection server2]
+SET GLOBAL group_replication_clone_threshold= 1;
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+include/rpl_reconnect.inc
+include/gr_wait_for_member_state.inc
+include/assert.inc [Clone must be completed]
+
+# 13. Verify if the data and failover tables
+#     has been properly cloned in server2.
+
+include/diff_tables.inc [server1:test.t1, server2:test.t1, server3:test.t1]
+include/assert.inc ['There are 3 rows in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 3']
+include/assert.inc ['There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+include/assert.inc ['SOURCE_CONNECTION_AUTO_FAILOVER must be enabled for ch1']
+
+# 14. Stop the replication channel 'ch1' on server1, and change
+#     primary to server2. The asynchronous replication channel (ch1)
+#     connection will be started without any error.
+
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+[connection server2]
+SELECT group_replication_set_as_primary("SERVER2_UUID");
+group_replication_set_as_primary("SERVER2_UUID")
+Primary server switched to: SERVER2_UUID
+include/gr_wait_primary_member_uuid.inc
+include/wait_for_slave_to_start.inc [FOR CHANNEL 'ch1']
+include/assert.inc [Verify replica_monitor thread is running]
+
+# 15. Cleanup
+
+DROP TABLE t1;
+RESET PERSIST IF EXISTS group_replication_enforce_update_everywhere_checks;
+RESET PERSIST IF EXISTS group_replication_single_primary_mode;
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS local_infile;
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl_reset_slave.inc
+[connection server1]
+include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+include/rpl_reset_slave.inc
+set session sql_log_bin=0;
+call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1', thence it will try to connect to another source.");
+set session sql_log_bin=1;
+[connection server3]
+include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+include/rpl_reset_slave.inc
+[connection server2]
+include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+set session sql_log_bin=0;
+call mtr.add_suppression("Recovery from master pos .* and file .* for channel 'ch1'. Previous relay log pos and relay log file had been set to .* respectively.");
+call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1', thence it will try to connect to another source.");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt 1 of 1");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("Relay log information for channel 'ch1' was found after a clone operation. Relay log recovery will be executed to adjust positions .*");
+call mtr.add_suppression("Error during .* Could not locate rotate event from the master.");
+call mtr.add_suppression("Server was not able to find a rotate event from master server to initialize relay log recovery for channel .*");
+set session sql_log_bin=1;
+include/clean_monitoring_process.inc
+include/group_replication_end.inc

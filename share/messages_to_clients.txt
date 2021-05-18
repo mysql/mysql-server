@@ -9571,6 +9571,12 @@ ER_DA_ERROR_LOG_COMPONENT_FLUSH_FAILED
 ER_WARN_SQL_AFTER_MTS_GAPS_GAP_NOT_CALCULATED
   eng "The until clause SQL_AFTER_MTS_GAPS is being used for channel '%.192s' when GTID_MODE = ON and SOURCE_AUTO_POSITION=1 meaning the server did not compute internally what gaps may exist in the relay log transaction execution. To close any execution gaps use either the SQL_BEFORE_GTIDS or SQL_AFTER_GTIDS until clause."
 
+ER_OPERATION_NOT_ALLOWED_ON_GR_SECONDARY
+   eng "This operation cannot be performed on a Group Replication secondary member, it must be done on the group primary."
+
+ER_GRP_RPL_FAILOVER_CHANNEL_STATUS_PROPAGATION
+  eng "Unable to propagate the SOURCE_CONNECTION_AUTO_FAILOVER value for channel '%s' to group replication members. Please retry the operation."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

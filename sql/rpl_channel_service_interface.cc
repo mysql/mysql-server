@@ -54,6 +54,7 @@
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
 #include "sql/raii/sentry.h"
+#include "sql/rpl_async_conn_failover_configuration_propagation.h"
 #include "sql/rpl_channel_credentials.h"
 #include "sql/rpl_gtid.h"
 #include "sql/rpl_info_factory.h"
@@ -413,7 +414,9 @@ err:
 }
 
 int channel_start(const char *channel, Channel_connection_info *connection_info,
-                  int threads_to_start, int wait_for_connection) {
+                  int threads_to_start, int wait_for_connection,
+                  bool use_server_mta_configuration,
+                  bool channel_map_already_locked) {
   DBUG_TRACE;
   int error = 0;
   int thread_mask = 0;
@@ -430,7 +433,11 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
   if (error) return error;
 
-  channel_map.wrlock();
+  if (channel_map_already_locked) {
+    channel_map.assert_some_wrlock();
+  } else {
+    channel_map.wrlock();
+  }
 
   Master_info *mi = channel_map.get_mi(channel);
 
@@ -492,7 +499,8 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
     thd = create_surrogate_thread();
   }
 
-  error = start_slave(thd, &lex_connection, &lex_mi, thread_mask, mi, false);
+  error = start_slave(thd, &lex_connection, &lex_mi, thread_mask, mi,
+                      use_server_mta_configuration);
 
   if (wait_for_connection && (thread_mask & SLAVE_IO) && !error) {
     mysql_mutex_lock(&mi->run_lock);
@@ -516,7 +524,9 @@ int channel_start(const char *channel, Channel_connection_info *connection_info,
   }
 
 err:
-  channel_map.unlock();
+  if (!channel_map_already_locked) {
+    channel_map.unlock();
+  }
 
   if (thd_created) {
     delete_surrogate_thread(thd);
@@ -1226,6 +1236,47 @@ bool is_any_slave_channel_running(int thread_mask) {
   return false;
 }
 
+bool is_any_slave_channel_running_with_failover_enabled(int thread_mask) {
+  DBUG_TRACE;
+  Master_info *mi = nullptr;
+  bool is_running;
+
+  channel_map.rdlock();
+
+  for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+       it++) {
+    mi = it->second;
+
+    if (mi && Master_info::is_configured(mi) &&
+        mi->is_source_connection_auto_failover()) {
+      if ((thread_mask & SLAVE_IO) != 0) {
+        mysql_mutex_lock(&mi->run_lock);
+        is_running = mi->slave_running;
+        mysql_mutex_unlock(&mi->run_lock);
+        if (is_running) {
+          channel_map.unlock();
+          return true;
+        }
+      }
+
+      if ((thread_mask & SLAVE_SQL) != 0) {
+        mysql_mutex_lock(&mi->rli->run_lock);
+        is_running = mi->rli->slave_running;
+        mysql_mutex_unlock(&mi->rli->run_lock);
+        if (is_running) {
+          channel_map.unlock();
+          return true;
+        }
+      }
+    }
+  }
+
+  assert(!Source_IO_monitor::get_instance()->is_monitoring_process_running());
+
+  channel_map.unlock();
+  return false;
+}
+
 enum_slave_channel_status
 has_any_slave_channel_open_temp_table_or_is_its_applier_running() {
   DBUG_TRACE;
@@ -1281,4 +1332,110 @@ int channel_delete_credentials(const char *channel_name) {
   DBUG_TRACE;
   return Rpl_channel_credentials::get_instance().delete_credentials(
       channel_name);
+}
+
+bool start_failover_channels() {
+  DBUG_TRACE;
+  bool error = false;
+  channel_map.wrlock();
+
+  for (mi_map::iterator it = channel_map.begin();
+       !error && it != channel_map.end(); it++) {
+    Master_info *mi = it->second;
+    if (Master_info::is_configured(mi) &&
+        mi->is_source_connection_auto_failover()) {
+      Channel_connection_info info;
+      initialize_channel_connection_info(&info);
+
+      int thread_mask = 0;
+      thread_mask |= CHANNEL_APPLIER_THREAD;
+      thread_mask |= CHANNEL_RECEIVER_THREAD;
+
+      DBUG_EXECUTE_IF("force_error_on_start_failover_channels", {
+        channel_map.unlock();
+        return 1;
+      });
+      error = channel_start(mi->get_channel(), &info, thread_mask, false,
+                            true /* use_server_mta_configuration*/,
+                            true /* channel_map_already_locked */);
+    }
+  }
+
+  channel_map.unlock();
+  return error;
+}
+
+bool channel_change_source_connection_auto_failover(const char *channel,
+                                                    bool status) {
+  bool error = false;
+  channel_map.assert_some_wrlock();
+
+  Master_info *mi = channel_map.get_mi(channel);
+  if (!Master_info::is_configured(mi)) {
+    LogErr(ERROR_LEVEL, ER_GRP_RPL_FAILOVER_CONF_CHANNEL_DOES_NOT_EXIST,
+           channel);
+    return true;
+  }
+
+  mi->channel_wrlock();
+  lock_slave_threads(mi);
+
+  if (status && !mi->is_source_connection_auto_failover()) {
+    mi->set_source_connection_auto_failover();
+    error |= flush_master_info(mi, true, true, false);
+  }
+
+  if (!status && mi->is_source_connection_auto_failover()) {
+    mi->unset_source_connection_auto_failover();
+    error |= flush_master_info(mi, true, true, false);
+  }
+
+  unlock_slave_threads(mi);
+  mi->channel_unlock();
+
+  return error;
+}
+
+bool unset_source_connection_auto_failover_on_all_channels() {
+  bool error = false;
+  channel_map.wrlock();
+
+  for (mi_map::iterator it = channel_map.begin();
+       !error && it != channel_map.end(); it++) {
+    Master_info *mi = it->second;
+    if (Master_info::is_configured(mi) &&
+        mi->is_source_connection_auto_failover()) {
+      error |= channel_change_source_connection_auto_failover(mi->get_channel(),
+                                                              false);
+    }
+  }
+
+  channel_map.unlock();
+  return error;
+}
+
+void reload_failover_channels_status() {
+  DBUG_TRACE;
+  rpl_acf_configuration_handler->reload_failover_channels_status();
+}
+
+bool get_replication_failover_channels_configuration(
+    std::string &serialized_configuration) {
+  DBUG_TRACE;
+  return rpl_acf_configuration_handler->get_configuration(
+      serialized_configuration);
+}
+
+bool set_replication_failover_channels_configuration(
+    const std::vector<std::string>
+        &exchanged_replication_failover_channels_serialized_configuration) {
+  DBUG_TRACE;
+  return rpl_acf_configuration_handler->set_configuration(
+      exchanged_replication_failover_channels_serialized_configuration);
+}
+
+bool force_my_replication_failover_channels_configuration_on_all_members() {
+  DBUG_TRACE;
+  return rpl_acf_configuration_handler
+      ->force_my_replication_failover_channels_configuration_on_all_members();
 }

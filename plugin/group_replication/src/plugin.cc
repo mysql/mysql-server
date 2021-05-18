@@ -43,6 +43,7 @@
 #include "plugin/group_replication/include/plugin_variables.h"
 #include "plugin/group_replication/include/plugin_variables/recovery_endpoints.h"
 #include "plugin/group_replication/include/services/message_service/message_service.h"
+#include "plugin/group_replication/include/services/status_service/status_service.h"
 #include "plugin/group_replication/include/sql_service/sql_service_interface.h"
 #include "plugin/group_replication/include/udf/udf_registration.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
@@ -366,7 +367,7 @@ void set_wait_on_start_process(bool cond) {
 /**
   Blocks the calling thread
 */
-bool initiate_wait_on_start_process() {
+enum_wait_on_start_process_result initiate_wait_on_start_process() {
   // block the thread
   lv.online_wait_mutex->start_waitlock();
 
@@ -377,15 +378,16 @@ bool initiate_wait_on_start_process() {
     assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 #endif
-  return lv.abort_wait_on_start_process;
+  return lv.wait_on_start_process;
 }
 
 /**
   Release all the blocked threads
 */
-void terminate_wait_on_start_process(bool abort) {
+void terminate_wait_on_start_process(enum_wait_on_start_process_result abort) {
   lv.plugin_is_auto_starting_on_boot = false;
-  lv.abort_wait_on_start_process = abort;
+  lv.wait_on_start_process = abort;
+
   // unblocked waiting threads
   lv.online_wait_mutex->end_wait_lock();
 }
@@ -1300,11 +1302,15 @@ int initialize_plugin_modules(gr_modules::mask modules_to_init) {
     Asynchronous Replication Channels.
   */
   if (modules_to_init[gr_modules::ASYNC_REPL_CHANNELS]) {
+    lv.wait_on_start_process = WAIT_ON_START_PROCESS_SUCCESS;
+
     if (check_async_channel_running_on_secondary()) {
       LogPluginErr(ERROR_LEVEL,
                    ER_GRP_RPL_FAILED_TO_START_ON_SECONDARY_WITH_ASYNC_CHANNELS);
       return 1;
     }
+
+    reload_failover_channels_status();
   }
 
   /*
@@ -1925,6 +1931,13 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
 
   if (sql_service_interface_init()) return 1;
 
+  if (gr::status_service::register_gr_status_service()) {
+    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_ERROR_MSG,
+                 "Failed to initialize Group Replication status (role and "
+                 "mode) service.");
+    return 1;
+  }
+
   // Initialize the recovery SSL option map
   initialize_ssl_option_map();
 
@@ -1981,6 +1994,8 @@ int plugin_group_replication_deinit(void *p) {
     `group_member_mgr`.
   */
   finalize_perfschema_module();
+
+  gr::status_service::unregister_gr_status_service();
 
   if (plugin_group_replication_stop())
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_STOP_ON_PLUGIN_UNINSTALL);

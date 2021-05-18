@@ -196,6 +196,8 @@ int Primary_election_primary_process::primary_election_process_handler() {
       Group changed from multi to single-primary mode, the elected primary
       member actions configuration will override all other members
       configuration.
+      Replication failover channels configuration will also override all
+      other members configuration.
     */
     if (SAFE_OLD_PRIMARY == election_mode) {
       if (member_actions_handler
@@ -205,6 +207,17 @@ int Primary_election_primary_process::primary_election_process_handler() {
             "Unable to read the member actions configuration during group "
             "change from multi to single-primary mode. Please check the tables "
             "'mysql.replication_group_member_actions' and "
+            "'mysql.replication_group_configuration_version'.");
+        goto end;
+      }
+      if (force_my_replication_failover_channels_configuration_on_all_members()) {
+        error = 7;
+        err_msg.assign(
+            "Unable to read or send the replication failover channels "
+            "configuration during group change from multi to single-primary "
+            "mode. Please check the tables "
+            "'mysql.replication_asynchronous_connection_failover', "
+            "'mysql.replication_asynchronous_connection_failover_managed' and "
             "'mysql.replication_group_configuration_version'.");
         goto end;
       }

@@ -131,6 +131,17 @@ enum enum_tls_source_values {
 };
 
 /**
+  @enum enum_wait_on_start_process_result
+  @brief Reasons why asynchronous channels start wait for Group
+  Replication status can be aborted.
+*/
+enum enum_wait_on_start_process_result {
+  WAIT_ON_START_PROCESS_SUCCESS = 0,
+  WAIT_ON_START_PROCESS_ABORT_ON_CLONE,
+  WAIT_ON_START_PROCESS_ABORT_SECONDARY_MEMBER
+};
+
+/**
   The plugin modules.
 
   @note Whenever you want to create a new plugin module, be sure to add it to
@@ -243,8 +254,9 @@ bool plugin_is_group_replication_running();
 bool plugin_is_group_replication_cloning();
 bool is_plugin_auto_starting_on_non_bootstrap_member();
 bool is_plugin_configured_and_starting();
-bool initiate_wait_on_start_process();
-void terminate_wait_on_start_process(bool abort = false);
+enum_wait_on_start_process_result initiate_wait_on_start_process();
+void terminate_wait_on_start_process(
+    enum_wait_on_start_process_result abort = WAIT_ON_START_PROCESS_SUCCESS);
 void set_wait_on_start_process(bool cond);
 bool plugin_get_connection_status(
     const GROUP_REPLICATION_CONNECTION_STATUS_CALLBACKS &callbacks);

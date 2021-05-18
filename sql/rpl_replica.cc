@@ -123,6 +123,7 @@
 #include "sql/query_options.h"
 #include "sql/rpl_applier_reader.h"
 #include "sql/rpl_async_conn_failover.h"
+#include "sql/rpl_async_conn_failover_configuration_propagation.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_group_replication.h"
 #include "sql/rpl_gtid.h"
@@ -5406,6 +5407,7 @@ extern "C" void *handle_slave_io(void *arg) {
     mysql_mutex_unlock(&mi->run_lock);
     mysql_cond_broadcast(&mi->start_cond);
 
+  connect_init:
     DBUG_PRINT("master_info",
                ("log_file_name: '%s'  position: %s", mi->get_master_log_name(),
                 llstr(mi->get_master_log_pos(), llbuff)));
@@ -5420,7 +5422,6 @@ extern "C" void *handle_slave_io(void *arg) {
       goto err;
     }
 
-  connect_init:
     retry_count = 0;
     if (!(mi->mysql = mysql = mysql_init(nullptr))) {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
@@ -5768,11 +5769,13 @@ extern "C" void *handle_slave_io(void *arg) {
     // error = 0;
   err:
     /*
-      If source_connection_auto_failover (async connection failover) is enabled
-      and Replica IO thread is not killed but failed due to network error, a
+      If source_connection_auto_failover (async connection failover) is
+      enabled, this server is not a Group Replication SECONDARY and
+      Replica IO thread is not killed but failed due to network error, a
       connection to another source is attempted.
     */
     if (mi->is_source_connection_auto_failover() &&
+        !is_group_replication_member_secondary() &&
         (!io_slave_killed(thd, mi) ||
          (!io_slave_killed(thd, mi) && mi->is_network_error()))) {
       DBUG_EXECUTE_IF("async_conn_failover_crash", DBUG_SUICIDE(););
@@ -9047,7 +9050,17 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
     was stopped (as we don't wan't to touch the other thread), so set the
     bit to 0 for the other thread
   */
-  if (thd->lex->slave_thd_opt) thread_mask &= thd->lex->slave_thd_opt;
+  if (thd->lex->slave_thd_opt) {
+    thread_mask &= thd->lex->slave_thd_opt;
+
+    /*
+      If we are stopping IO thread, we also need to consider
+      IO Monitor thread.
+    */
+    if ((thread_mask & SLAVE_IO) && mi->is_source_connection_auto_failover()) {
+      thread_mask |= SLAVE_MONITOR;
+    }
+  }
 
   if (thread_mask) {
     slave_errno =
@@ -9268,6 +9281,10 @@ int reset_slave(THD *thd, Master_info *mi, bool reset_all) {
   if (reset_all) {
     bool is_default =
         !strcmp(mi->get_channel(), channel_map.get_default_channel());
+
+    rpl_acf_configuration_handler->delete_channel_status(
+        mi->get_channel(),
+        Rpl_acf_status_configuration::SOURCE_CONNECTION_AUTO_FAILOVER);
 
     channel_map.delete_mi(mi->get_channel());
 
@@ -9894,6 +9911,12 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
       goto err;
     }
+    if (lex_mi->m_source_connection_auto_failover !=
+        LEX_MASTER_INFO::LEX_MI_UNCHANGED) {
+      error = ER_SLAVE_CHANNEL_MUST_STOP;
+      my_error(ER_SLAVE_CHANNEL_MUST_STOP, MYF(0), mi->get_channel());
+      goto err;
+    }
     /*
       Prior to WL#6120, we imposed the condition that STOP SLAVE is required
       before CHANGE MASTER. Since the slave threads die on STOP SLAVE, it was
@@ -10103,6 +10126,18 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
     goto err;
   }
 
+  /*
+    Changing source_connection_auto_failover option is not allowed on group
+    secondary member.
+  */
+  if (lex_mi->m_source_connection_auto_failover !=
+          LEX_MASTER_INFO::LEX_MI_UNCHANGED &&
+      is_group_replication_member_secondary()) {
+    error = ER_OPERATION_NOT_ALLOWED_ON_GR_SECONDARY;
+    my_error(error, MYF(0));
+    goto err;
+  }
+
   THD_STAGE_INFO(thd, stage_changing_source);
 
   int thread_mask_stopped_threads;
@@ -10213,6 +10248,21 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
       auto gtid_mode = global_gtid_mode.get();
       if (gtid_mode == Gtid_mode::ON && mi->is_auto_position()) {
         mi->set_source_connection_auto_failover();
+
+        /*
+          Send replication channel SOURCE_CONNECTION_AUTO_FAILOVER attribute of
+          CHANGE REPLICATION SOURCE command status to group replication group
+          members.
+        */
+        if (rpl_acf_configuration_handler->send_channel_status_and_version_data(
+                mi->get_channel(),
+                Rpl_acf_status_configuration::SOURCE_CONNECTION_AUTO_FAILOVER,
+                1)) {
+          error = ER_GRP_RPL_FAILOVER_CHANNEL_STATUS_PROPAGATION;
+          my_error(error, MYF(0), mi->get_channel());
+          goto err;
+        }
+
         /*
           If IO thread is running and the monitoring thread is not, start
           the monitoring thread.
@@ -10249,6 +10299,19 @@ int change_master(THD *thd, Master_info *mi, LEX_MASTER_INFO *lex_mi,
         }
       }
       mi->unset_source_connection_auto_failover();
+      /*
+        Send replication channel SOURCE_CONNECTION_AUTO_FAILOVER attribute of
+        CHANGE REPLICATION SOURCE command status to group replication group
+        members.
+      */
+      if (rpl_acf_configuration_handler->send_channel_status_and_version_data(
+              mi->get_channel(),
+              Rpl_acf_status_configuration::SOURCE_CONNECTION_AUTO_FAILOVER,
+              0)) {
+        error = ER_GRP_RPL_FAILOVER_CHANNEL_STATUS_PROPAGATION;
+        my_error(error, MYF(0), mi->get_channel());
+        goto err;
+      }
     }
   }
 

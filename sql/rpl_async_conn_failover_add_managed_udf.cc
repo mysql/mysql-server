@@ -28,10 +28,8 @@
 #include "sql/derror.h" /* ER_THD */
 #include "sql/rpl_async_conn_failover_add_managed_udf.h"
 #include "sql/rpl_async_conn_failover_table_operations.h"
+#include "sql/rpl_group_replication.h"
 #include "sql/rpl_io_monitor.h"
-
-const std::string Rpl_async_conn_failover_add_managed::m_udf_name =
-    "asynchronous_connection_failover_add_managed";
 
 bool Rpl_async_conn_failover_add_managed::init() {
   DBUG_TRACE;
@@ -84,7 +82,7 @@ char *Rpl_async_conn_failover_add_managed::add_managed(
 
   if (err_val) {
     *error = 1;
-    my_error(ER_UDF_ERROR, MYF(0), m_udf_name.c_str(), err_msg.c_str());
+    my_error(ER_UDF_ERROR, MYF(0), m_udf_name, err_msg.c_str());
   } else {
     err_msg.assign(
         "The UDF asynchronous_connection_failover_add_managed() "
@@ -199,6 +197,13 @@ bool Rpl_async_conn_failover_add_managed::add_managed_init(UDF_INIT *init_id,
     my_stpcpy(message,
               "Can't execute the given operation because you have"
               " active locked tables.");
+    return true;
+  }
+
+  if (is_group_replication_member_secondary()) {
+    my_stpcpy(message,
+              "Can't execute the given operation on a Group Replication "
+              "secondary member.");
     return true;
   }
 

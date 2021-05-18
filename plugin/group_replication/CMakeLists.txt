@@ -106,6 +106,7 @@ SET(GROUP_REPLICATION_SOURCES
   src/replication_threads_api.cc
   src/services/message_service/message_service.cc
   src/services/notification/notification.cc
+  src/services/status_service/status_service.cc
   src/services/registry.cc
   src/sql_service/sql_command_test.cc
   src/sql_service/sql_resultset.cc

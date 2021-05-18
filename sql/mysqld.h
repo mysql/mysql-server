@@ -67,6 +67,7 @@
 #include "sql/sql_const.h"  // UUID_LENGTH
 
 class Rpl_global_filter;
+class Rpl_acf_configuration_handler;
 class Source_IO_monitor;
 class THD;
 class Time_zone;
@@ -173,6 +174,7 @@ extern bool opt_local_infile, opt_myisam_use_mmap;
 extern bool opt_replica_compressed_protocol;
 extern ulong replica_exec_mode_options;
 extern Rpl_global_filter rpl_global_filter;
+extern Rpl_acf_configuration_handler *rpl_acf_configuration_handler;
 extern Source_IO_monitor *rpl_source_io_monitor;
 extern int32_t opt_regexp_time_limit;
 extern int32_t opt_regexp_stack_limit;

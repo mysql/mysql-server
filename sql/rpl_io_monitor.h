@@ -248,6 +248,8 @@ class Source_IO_monitor {
   /* Monitor IO thread state */
   thread_state m_monitor_thd_state;
 
+  bool m_primary_lost_contact_with_majority_warning_logged{false};
+
   /* Sql queries result column number */
   enum enum_res_col {
     COL_GROUP_NAME = 0,
@@ -402,6 +404,15 @@ class Source_IO_monitor {
       Rpl_sys_table_access &table_op, TABLE *table,
       std::vector<std::string> field_name,
       RPL_FAILOVER_SOURCE_TUPLE conn_detail);
+
+  /**
+    Checks if primary member has lost contact with majority
+
+    @return status
+      @retval true  primary member has lost contact with majority
+      @retval false otherwise
+  */
+  bool has_primary_lost_contact_with_majority();
 
   /**
     Gets the Json key for primary weight for the Configuration column of

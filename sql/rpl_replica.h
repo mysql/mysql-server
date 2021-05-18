@@ -607,7 +607,8 @@ bool is_network_error(uint errorno);
 /* masks for start/stop operations on io and sql slave threads */
 #define SLAVE_IO 1
 #define SLAVE_SQL 2
-#define SLAVE_MONITOR 4
+// We also have SLAVE_FORCE_ALL 4
+#define SLAVE_MONITOR 8
 
 int init_replica_thread(THD *thd, SLAVE_THD_TYPE thd_type);
 

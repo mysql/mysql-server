@@ -29,8 +29,9 @@ include/stop_group_replication.inc
 SELECT group_replication_reset_member_actions();
 group_replication_reset_member_actions()
 OK
-include/assert.inc [There must be one member action]
+include/assert.inc [There must be two member actions]
 include/assert.inc [mysql_disable_super_read_only_if_primary action default value]
+include/assert.inc [mysql_start_failover_channels_if_primary action default value]
 include/assert.inc [There must be one GR configuration version]
 include/assert.inc [The version of replication_group_member_actions must be 1]
 include/assert_grep.inc [Member actions configuration was reset.]

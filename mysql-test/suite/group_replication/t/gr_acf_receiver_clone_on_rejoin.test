@@ -1,0 +1,488 @@
+###############################################################################
+# This test verifies that cloning works with replication channel failover when
+# the member auto rejoins the group after an issue.
+#
+# 0. This test requires 4 servers server1, server2, server3 and server4
+#    (source).
+# 1. Install clone plugin on server1.
+# 2. Create replication channel ch1
+#    with SOURCE_CONNECTION_AUTO_FAILOVER enabled.
+#    And verify managed channel and non-managed source addition
+#    is successful in failover tables.
+# 3. Bootstrap server1 and add some data
+#    Verify channel 'ch1' is running.
+# 4. Install the clone plugin and start GR on server3
+# 5. Create replication channel ch1
+#    with SOURCE_CONNECTION_AUTO_FAILOVER enabled.
+#    And verify managed channel and non-managed source synced
+#    is successful to failover tables.
+# 6. Restart server 2 with a monitoring process (mysqld_safe)
+# 7. Setup server2 so group replication starts on boot
+#    Install the Clone plugin
+# 8. On a empty server2 start group replication
+#    Wait for it to restart and come back
+#    Check clone was completed
+# 9. Verify data has been properly cloned in server2.
+# 10. Get server2 expelled.
+# 11. Add more data and new source to failover table
+#     on server 1 before server2 rejoins.
+# 12. Unblock the rejoin, another clone should happen
+# 13. Verify if the data and failover tables
+#     has been properly cloned in server2.
+# 14. Stop the replication channel 'ch1' on server1, and change
+#     primary to server2. The asynchronous replication channel (ch1)
+#     connection will be started without any error.
+# 15. Cleanup
+#
+
+--source include/big_test.inc
+--source include/have_debug_sync.inc
+--source include/linux.inc
+--source include/have_mysqld_monitoring_process.inc
+--source include/have_clone_plugin.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_server_count= 4
+
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+# Get address and UUID of all servers
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
+
+
+--echo
+--echo # 1. Install clone plugin on server1.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+
+--echo
+--echo # 2. Create replication channel ch1
+--echo #    with SOURCE_CONNECTION_AUTO_FAILOVER enabled.
+--echo #    And verify managed channel and non-managed source addition
+--echo #    is successful in failover tables.
+--echo
+--replace_result $SERVER_MYPORT_4 SERVER_MYPORT_4
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=$SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+--replace_result $SERVER_MYPORT_4 SERVER_MYPORT_4
+--eval SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', $SERVER_MYPORT_4, '', 90)
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.2', 3306, '', 80, 70);
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo # 3. Bootstrap server1 and add some data
+--echo #    Verify channel 'ch1' is running.
+--echo
+
+--replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1 $local_address_server2 LOCAL_ADDRESS_SERVER2 $local_address_server3 LOCAL_ADDRESS_SERVER3
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_server1, $local_address_server2, $local_address_server3"
+
+--source include/start_and_bootstrap_group_replication.inc
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+
+
+--let $assert_text= 'CHANNEL ch1 is running'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME="ch1" AND SERVICE_STATE="ON", count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo # 4. Install the clone plugin and start GR on server3
+--echo
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+
+--echo
+--echo # 5. Create replication channel ch1
+--echo #    with SOURCE_CONNECTION_AUTO_FAILOVER enabled.
+--echo #    And verify managed channel and non-managed source synced
+--echo #    is successful to failover tables.
+--echo
+--replace_result $SERVER_MYPORT_4 SERVER_MYPORT_4
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=$SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1'
+
+--replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1 $local_address_server2 LOCAL_ADDRESS_SERVER2 $local_address_server3 LOCAL_ADDRESS_SERVER3
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_server1, $local_address_server2, $local_address_server3"
+--source include/start_group_replication.inc
+
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled for ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo # 6. Restart server 2 with a monitoring process (mysqld_safe)
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+
+--let $_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
+--let $_group_replication_group_seeds= `SELECT @@GLOBAL.group_replication_group_seeds`
+--let $_group_replication_comm_stack= `SELECT @@GLOBAL.group_replication_communication_stack`
+
+# after the restart with mysqld_safe we need this option for expel operations
+SET PERSIST local_infile= ON;
+
+--let $plugin_list= $GROUP_REPLICATION
+--source include/spawn_monitoring_process.inc
+
+
+--echo
+--echo # 7. Setup server2 so group replication starts on boot
+--echo #    Install the Clone plugin
+--echo
+--disable_query_log
+--eval SET PERSIST group_replication_group_name= "$group_replication_group_name"
+--eval SET PERSIST group_replication_local_address= "$_group_replication_local_address"
+--eval SET PERSIST group_replication_group_seeds= "$_group_replication_group_seeds"
+--eval SET PERSIST group_replication_communication_stack= "$_group_replication_comm_stack"
+
+SET PERSIST group_replication_enforce_update_everywhere_checks=FALSE;
+SET PERSIST group_replication_single_primary_mode=TRUE;
+SET PERSIST group_replication_start_on_boot= ON;
+--enable_query_log
+
+--replace_result $CLONE_PLUGIN CLONE_PLUGIN
+--eval INSTALL PLUGIN clone SONAME '$CLONE_PLUGIN'
+
+
+--echo
+--echo # 8. On a empty server2 start group replication
+--echo #    Wait for it to restart and come back
+--echo #    Check clone was completed
+--echo
+--let $_group_replication_threshold_save= `SELECT @@GLOBAL.group_replication_clone_threshold`
+SET GLOBAL group_replication_clone_threshold= 1;
+
+
+--replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1 $local_address_server2 LOCAL_ADDRESS_SERVER2 $local_address_server3 LOCAL_ADDRESS_SERVER3
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_server1, $local_address_server2, $local_address_server3"
+START GROUP_REPLICATION;
+
+--source include/wait_until_disconnected.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $group_replication_member_state=ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--let $assert_text= Clone must be completed
+--let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
+--source include/assert.inc
+
+
+--echo
+--echo # 9. Verify data has been properly cloned in server2.
+--echo
+--let $diff_tables=server1:test.t1, server2:test.t1, server3:test.t1
+--source include/diff_tables.inc
+
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled for ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo # 10. Get server2 expelled.
+--echo
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+SET GLOBAL super_read_only = 0;
+SET @debug_saved = @@GLOBAL.DEBUG;
+SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
+
+# Force expel on member 2
+--let $member_id = `SELECT @@GLOBAL.server_uuid`
+--let $rpl_server_count= 3
+--source include/gr_expel_member_from_group.inc
+SET GLOBAL super_read_only = 1;
+--let $rpl_server_count= 4
+
+SET DEBUG_SYNC = "now WAIT_FOR signal.autorejoin_waiting";
+
+# Verify that it is currently running
+--let $assert_text = Auto-rejoin should be running
+--let $assert_count_var = `SELECT COUNT(*) FROM performance_schema.events_stages_current WHERE EVENT_NAME LIKE '%auto-rejoin%'`
+--let $assert_cond = $assert_count_var = 1
+--source include/assert.inc
+
+
+--echo
+--echo # 11. Add more data and new source to failover table
+--echo #     on server 1 before server2 rejoins.
+--echo
+--let $rpl_connection_name = server1
+--source include/rpl_connection.inc
+
+SELECT asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3307, '', 50);
+
+INSERT INTO t1 VALUES (3);
+INSERT INTO t1 VALUES (4);
+
+--let $assert_text= 'There are 3 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 3
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 3
+--source include/assert.inc
+
+
+--source include/rpl_sync.inc
+
+
+--echo
+--echo # 12. Unblock the rejoin, another clone should happen
+--echo
+--let $rpl_connection_name = server2
+--source include/rpl_connection.inc
+
+SET GLOBAL group_replication_clone_threshold= 1;
+
+SET DEBUG_SYNC = "now SIGNAL signal.autorejoin_continue";
+
+--source include/wait_until_disconnected.inc
+
+--let $rpl_server_number= 2
+--source include/rpl_reconnect.inc
+
+--let $group_replication_member_state=ONLINE
+--source include/gr_wait_for_member_state.inc
+
+--let $assert_text= Clone must be completed
+--let $assert_cond= [SELECT state="Completed" FROM performance_schema.clone_status] = 1;
+--source include/assert.inc
+
+
+--echo
+--echo # 13. Verify if the data and failover tables
+--echo #     has been properly cloned in server2.
+--echo
+--let $diff_tables=server1:test.t1, server2:test.t1, server3:test.t1
+--source include/diff_tables.inc
+
+--let $assert_text= 'There are 3 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 3
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 3'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 3
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled for ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+
+--echo
+--echo # 14. Stop the replication channel 'ch1' on server1, and change
+--echo #     primary to server2. The asynchronous replication channel (ch1)
+--echo #     connection will be started without any error.
+--echo
+--let $server2_uuid= `SELECT @@server_uuid`
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name='ch1'
+--source include/stop_slave.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--replace_result $server2_uuid SERVER2_UUID
+--eval SELECT group_replication_set_as_primary("$server2_uuid")
+
+--let $group_replication_expected_uuid= $server2_uuid
+--source include/gr_wait_primary_member_uuid.inc
+
+--let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
+--source include/wait_condition.inc
+
+--let $rpl_channel_name='ch1'
+--source include/wait_for_slave_to_start.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_configuration where CHANNEL_NAME='ch1' and HOST='127.0.0.1' and PORT=$SERVER_MYPORT_4
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_connection_status where CHANNEL_NAME='ch1' and SERVICE_STATE='ON'
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_applier_status where CHANNEL_NAME='ch1' and SERVICE_STATE='ON'
+--source include/wait_condition.inc
+
+--let $assert_text= Verify replica_monitor thread is running
+--let $assert_cond= "[select count(*) FROM performance_schema.threads where NAME=\"thread/sql/replica_monitor\"]" = 1;
+--source include/assert.inc
+
+
+--echo
+--echo # 15. Cleanup
+--echo
+DROP TABLE t1;
+
+RESET PERSIST IF EXISTS group_replication_enforce_update_everywhere_checks;
+RESET PERSIST IF EXISTS group_replication_single_primary_mode;
+RESET PERSIST IF EXISTS group_replication_group_name;
+RESET PERSIST IF EXISTS group_replication_local_address;
+RESET PERSIST IF EXISTS group_replication_group_seeds;
+RESET PERSIST IF EXISTS group_replication_communication_stack;
+RESET PERSIST IF EXISTS group_replication_start_on_boot;
+RESET PERSIST IF EXISTS local_infile;
+
+--let $rpl_channel_name='ch1'
+--source include/stop_slave.inc
+
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+
+--let $rpl_channel_name='ch1'
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+set session sql_log_bin=0;
+call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1', thence it will try to connect to another source.");
+set session sql_log_bin=1;
+
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+
+--let $rpl_channel_name='ch1'
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--disable_query_log
+--eval SET GLOBAL group_replication_clone_threshold= $_group_replication_threshold_save
+--enable_query_log
+--source include/stop_group_replication.inc
+UNINSTALL PLUGIN clone;
+
+set session sql_log_bin=0;
+call mtr.add_suppression("Recovery from master pos .* and file .* for channel 'ch1'. Previous relay log pos and relay log file had been set to .* respectively.");
+call mtr.add_suppression("The Monitor IO thread failed to connect to the source .* for channel 'ch1', thence it will try to connect to another source.");
+call mtr.add_suppression("This member will start distributed recovery using clone. It is due to the number of missing transactions being higher than the configured threshold of*");
+call mtr.add_suppression("Member was expelled from the group due to network failures, changing member status to ERROR.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Started auto-rejoin procedure attempt*");
+call mtr.add_suppression("Auto-rejoin procedure attempt 1 of 1");
+call mtr.add_suppression("Clone removing all user data for provisioning: Started");
+call mtr.add_suppression("Clone removing all user data for provisioning: Finished");
+call mtr.add_suppression("Relay log information for channel 'ch1' was found after a clone operation. Relay log recovery will be executed to adjust positions .*");
+call mtr.add_suppression("Error during .* Could not locate rotate event from the master.");
+call mtr.add_suppression("Server was not able to find a rotate event from master server to initialize relay log recovery for channel .*");
+set session sql_log_bin=1;
+
+--source include/clean_monitoring_process.inc
+--source include/group_replication_end.inc

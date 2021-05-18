@@ -136,7 +136,7 @@ static PSI_table_handle *open_table(PSI_pos **pos MY_ATTRIBUTE((unused))) {
   }
 
   key_access.deinit();
-  table_op.close(true);
+  table_op.close(false);
 
   auto *dummy = reinterpret_cast<PSI_table_handle *>(&dummy_table_handle);
   reset_position(dummy);

@@ -1,0 +1,49 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+############################################################
+# 1. Try to reset asynchronous reconnection configuration on
+#    a server running GR.
+#    It will not be allowed.
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+SELECT asynchronous_connection_failover_reset();
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Can't execute the given operation while Group Replication is running.
+
+############################################################
+# 2. Try to reset asynchronous reconnection configuration on
+#    a server not running GR.
+#    It will be allowed.
+[connection server2]
+include/start_group_replication.inc
+[connection server3]
+SELECT asynchronous_connection_failover_add_managed('ch1_3', 'GroupReplication', 'FAILOVER_GROUP_NAME', '127.0.0.1', SERVER_MYPORT_2, '', 80, 60);
+asynchronous_connection_failover_add_managed('ch1_3', 'GroupReplication', 'FAILOVER_GROUP_NAME', '127.0.0.1', SERVER_MYPORT_2, '', 80, 60)
+The UDF asynchronous_connection_failover_add_managed() executed successfully.
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['The version of replication_asynchronous_connection_failover_managed must be 1']
+include/assert.inc ['There is one row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 1']
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2 FOR CHANNEL 'ch1_3';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_slave.inc [FOR CHANNEL 'ch1_3']
+include/assert.inc ['The version of replication_asynchronous_connection_failover must be 2 or greater']
+include/stop_slave.inc [FOR CHANNEL 'ch1_3']
+SELECT asynchronous_connection_failover_reset();
+asynchronous_connection_failover_reset()
+The UDF asynchronous_connection_failover_reset() executed successfully.
+include/assert.inc ['There is no row in performance_schema.replication_asynchronous_connection_failover_managed']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover_managed']
+include/assert.inc ['There is no row in performance_schema.replication_asynchronous_connection_failover']
+include/assert.inc ['There is no version of replication_asynchronous_connection_failover']
+
+############################################################
+# 3. Clean up.
+[connection server3]
+include/rpl_reset_slave.inc
+include/group_replication_end.inc

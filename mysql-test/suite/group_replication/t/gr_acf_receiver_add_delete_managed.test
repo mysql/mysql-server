@@ -1,0 +1,361 @@
+################################################################################
+#
+# Validate that receiver group members do receive changes to
+# replication_asynchronous_connection_failover_managed
+# and replication_asynchronous_connection_failover table using
+# asynchronous_connection_failover_add_managed() and
+# asynchronous_connection_failover_delete_managed() UDFs.
+#
+# Test:
+# 0. The test requires 5 servers:
+#      server1: group1 primary (async channel to server3)
+#      server2: group1 secondary
+#      server3: group2 primary
+#      server4: group2 secondary
+#      server5: group2 secondary
+# 1. Deploy a 2 members receiver group in single primary mode.
+# 2. Deploy a 2 members sender group in single primary mode.
+#    The third member of the group i.e. server5 will be added later
+#    to verify changes are getting synced to receiver group members.
+# 3. Create a replication channel to replicate from server3 to
+#    server1.
+# 4. Add replication connection details of managed channel ch1
+#    to replication_asynchronous_connection_failover_managed table
+#    through asynchronous_connection_failover_add_managed() UDF.
+# 5. Start replica for channel ch1.
+# 6. Verify replication_asynchronous_connection_failover on
+#    server1 has two rows and member action configuration version
+#    value for replication_asynchronous_connection_failover
+#    and for replication_asynchronous_connection_failover_managed.
+# 7. Verify replication_asynchronous_connection_failover on
+#    server2 has two rows and member action configuration version
+#    value for replication_asynchronous_connection_failover
+#    and for replication_asynchronous_connection_failover_managed.
+# 8. Add another member i.e. server5 to sender group.
+# 9. Verify replication_asynchronous_connection_failover on
+#    server1 has three rows and member action configuration version
+#    value for replication_asynchronous_connection_failover
+#    and for replication_asynchronous_connection_failover_managed.
+# 10. Verify replication_asynchronous_connection_failover on
+#     server2 has three rows and member action configuration version
+#     value for replication_asynchronous_connection_failover
+#     and for replication_asynchronous_connection_failover_managed.
+# 11. Delete replication connection details for managed channel ch1
+#     from replication_asynchronous_connection_failover_managed
+#     and replication_asynchronous_connection_failover table
+#     through asynchronous_connection_failover_delete_managed() UDF.
+# 12. Verify replication_asynchronous_connection_failover on
+#     server1 is empty and member action configuration version
+#     value for replication_asynchronous_connection_failover
+#     and for replication_asynchronous_connection_failover_managed.
+# 13. Verify replication_asynchronous_connection_failover on
+#     server2 is empty and member action configuration version
+#     value for replication_asynchronous_connection_failover
+#     and for replication_asynchronous_connection_failover_managed.
+# 14. Clean up.
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_server_count= 5
+--source include/group_replication.inc
+
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The master's UUID has changed, although this should not happen unless you have changed it manually. The old UUID was.*");
+SET SESSION sql_log_bin = 1;
+
+# Get address and UUID of all servers
+--let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $local_address_server2= `SELECT @@GLOBAL.group_replication_local_address`
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $local_address_server3= `SELECT @@GLOBAL.group_replication_local_address`
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--let $local_address_server4= `SELECT @@GLOBAL.group_replication_local_address`
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+--let $local_address_server5= `SELECT @@GLOBAL.group_replication_local_address`
+
+--let $group_a= `SELECT UUID()`
+--let $group_b= `SELECT UUID()`
+
+
+--echo #
+--echo # 1. Deploy a 3 members receiver group in single primary mode.
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $group_replication_group_name = $group_a
+--replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1 $local_address_server2 LOCAL_ADDRESS_SERVER2
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_server1, $local_address_server2"
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+# The failover channel must be created on all group members.
+--replace_result $SERVER_MYPORT_4 SERVER_4_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1'
+
+--let $group_replication_group_name = $group_a
+--replace_result $local_address_server1 LOCAL_ADDRESS_SERVER1 $local_address_server2 LOCAL_ADDRESS_SERVER2
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_server1, $local_address_server2"
+--source include/start_group_replication.inc
+
+
+--echo #
+--echo # 2. Deploy a 2 members sender group in single primary mode.
+--echo #    The third member of the group i.e. server5 will be added later
+--echo #    to verify changes are getting synced to receiver group members.
+--echo #
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--let $group_replication_group_name = $group_b
+--replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3 $local_address_server4 LOCAL_ADDRESS_SERVER4 $local_address_server5 LOCAL_ADDRESS_SERVER5
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_server3, $local_address_server4, $local_address_server5"
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--let $group_replication_group_name = $group_b
+--replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3 $local_address_server4 LOCAL_ADDRESS_SERVER4 $local_address_server5 LOCAL_ADDRESS_SERVER5
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_server3, $local_address_server4, $local_address_server5"
+--source include/start_group_replication.inc
+
+
+--echo
+--echo # 3. Create a replication channel to replicate from server3 to
+--echo #    server1.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--replace_result $SERVER_MYPORT_4 SERVER_4_PORT
+--eval CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=$SERVER_MYPORT_4, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1'
+
+
+--echo
+--echo # 4. Add replication connection details of managed channel ch1
+--echo #    to replication_asynchronous_connection_failover_managed table
+--echo #    through asynchronous_connection_failover_add_managed() UDF.
+--echo
+--replace_result $SERVER_MYPORT_4 SERVER_MYPORT_4 $group_b GROUP_B
+--eval SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', "$group_b",'127.0.0.1', $SERVER_MYPORT_4, '', 80, 60)
+
+
+--echo
+--echo # 5. Start replica for channel ch1.
+--echo
+--let $rpl_channel_name='ch1'
+--source include/start_slave.inc
+--let $rpl_channel_name=
+
+
+--echo
+--echo # 6. Verify replication_asynchronous_connection_failover on
+--echo #    server1 has two rows and member action configuration version
+--echo #    value for replication_asynchronous_connection_failover
+--echo #    and for replication_asynchronous_connection_failover_managed.
+--echo
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_asynchronous_connection_failover_managed
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover' and version>=2
+--source include/wait_condition.inc
+--let $failover_version_step6= query_get_value(SELECT VERSION FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover', VERSION, 1)
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover_managed' and version=1
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 7. Verify replication_asynchronous_connection_failover on
+--echo #    server2 has two rows and member action configuration version
+--echo #    value for replication_asynchronous_connection_failover
+--echo #    and for replication_asynchronous_connection_failover_managed.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $wait_condition= SELECT COUNT(*)=2 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_asynchronous_connection_failover_managed
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover' and version>=$failover_version_step6
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover_managed' and version=1
+--source include/wait_condition.inc
+
+
+--echo #
+--echo # 8. Add another member i.e. server5 to sender group.
+--echo #
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+--replace_result $local_address_server3 LOCAL_ADDRESS_SERVER3 $local_address_server4 LOCAL_ADDRESS_SERVER4 $local_address_server5 LOCAL_ADDRESS_SERVER5
+--eval SET GLOBAL GROUP_REPLICATION_GROUP_SEEDS= "$local_address_server3, $local_address_server4, $local_address_server5"
+--source include/start_group_replication.inc
+
+--let $assert_text= There are three members in the group.
+--let $assert_cond= "[SELECT COUNT(*) from performance_schema.replication_group_members WHERE MEMBER_STATE=\"ONLINE\"]" = 3
+--source include/assert.inc
+
+
+--echo
+--echo # 9. Verify replication_asynchronous_connection_failover on
+--echo #    server1 has three rows and member action configuration version
+--echo #    value for replication_asynchronous_connection_failover
+--echo #    and for replication_asynchronous_connection_failover_managed.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_asynchronous_connection_failover_managed
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover' and version>=3
+--source include/wait_condition.inc
+--let $failover_version_step9= query_get_value(SELECT VERSION FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover', VERSION, 1)
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover_managed' and version=1
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 10. Verify replication_asynchronous_connection_failover on
+--echo #     server2 has three rows and member action configuration version
+--echo #     value for replication_asynchronous_connection_failover
+--echo #     and for replication_asynchronous_connection_failover_managed.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition=SELECT COUNT(*)=3 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_asynchronous_connection_failover_managed
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover' and version>=$failover_version_step9
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover_managed' and version=1
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 11. Delete replication connection details for managed channel ch1
+--echo #     from replication_asynchronous_connection_failover_managed
+--echo #     and replication_asynchronous_connection_failover table
+--echo #     through asynchronous_connection_failover_delete_managed() UDF.
+--echo
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--replace_result $group_b GROUP_B
+--eval SELECT asynchronous_connection_failover_delete_managed('ch1', '$group_b')
+
+
+--echo
+--echo # 12. Verify replication_asynchronous_connection_failover on
+--echo #     server1 is empty and member action configuration version
+--echo #     value for replication_asynchronous_connection_failover
+--echo #     and for replication_asynchronous_connection_failover_managed.
+--echo
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.replication_asynchronous_connection_failover_managed
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover' and version>=4
+--source include/wait_condition.inc
+--let $failover_version_step12= query_get_value(SELECT VERSION FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover', VERSION, 1)
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover_managed' and version=2
+--source include/wait_condition.inc
+
+
+--echo
+--echo # 13. Verify replication_asynchronous_connection_failover on
+--echo #     server2 is empty and member action configuration version
+--echo #     value for replication_asynchronous_connection_failover
+--echo #     and for replication_asynchronous_connection_failover_managed.
+--echo
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.replication_asynchronous_connection_failover
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=0 FROM performance_schema.replication_asynchronous_connection_failover_managed
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover' and version>=$failover_version_step12
+--source include/wait_condition.inc
+
+--let $wait_condition= SELECT COUNT(*)=1 FROM performance_schema.replication_group_configuration_version where name='replication_asynchronous_connection_failover_managed' and version=2
+--source include/wait_condition.inc
+
+
+--echo #
+--echo # 14. Clean up.
+--echo #
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+--let $rpl_channel_name='ch1'
+--source include/stop_slave.inc
+
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--let $rpl_connection_name= server5
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server4
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server3
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_channel_name='ch1'
+--let $rpl_reset_slave_all= 1
+--let $rpl_multi_source= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_reset_slave_all=
+--let $rpl_multi_source=
+
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_skip_sync = 1
+--source include/group_replication_end.inc

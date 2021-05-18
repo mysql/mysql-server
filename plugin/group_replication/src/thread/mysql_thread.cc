@@ -135,6 +135,8 @@ void Mysql_thread::dispatcher() {
   thd->set_new_thread_id();
   thd->thread_stack = (char *)&thd;
   thd->store_globals();
+  // Needed to start replication threads
+  thd->security_context()->skip_grants();
   global_thd_manager_add_thd(thd);
   m_thd = thd;
 

@@ -1,0 +1,49 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+############################################################
+# 1. Configure server2 to be a asynchronous replica of server1,
+#    configuring a failover channel to server1.
+[connection server1]
+[connection server2]
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_1, '', 50);;
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_1, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=SERVER_1_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+############################################################
+# 2. Bootstrap a group on server2.
+#    Since `mysql_start_failover_channels_if_primary` member
+#    action is enabled, once server2 becomes the primary it
+#    will start 'ch1'. Though we are injecting a failure on
+#    channel start, thence the member will change to ERROR
+#    state.
+[connection server2]
+SET SESSION sql_log_bin = 0;
+call mtr.add_suppression("The member action \"mysql_start_failover_channels_if_primary\" for event \"AFTER_PRIMARY_ELECTION\" with priority \"10\" failed. Please check previous messages in the error log for hints about what could have caused this failure.");
+call mtr.add_suppression("The server was automatically set into read only mode after an error was detected.");
+call mtr.add_suppression("Skipping leave operation: concurrent attempt to leave the group is on-going.");
+SET SESSION sql_log_bin = 1;
+include/assert.inc [The action mysql_start_failover_channels_if_primary must be enabled]
+SET @@GLOBAL.DEBUG='+d,force_error_on_start_failover_channels';
+SET GLOBAL group_replication_group_name= "GROUP_REPLICATION_GROUP_NAME";
+START GROUP_REPLICATION;
+include/gr_wait_for_member_state.inc
+SET @@GLOBAL.DEBUG='-d,force_error_on_start_failover_channels';
+include/assert.inc [The super_read_only mode must be 1]
+include/assert.inc [The read_only mode must be 1]
+include/assert.inc [Verify channel ch1 IO_THREAD is OFF]
+include/assert.inc [Verify channel ch1 SQL_THREAD is OFF]
+include/assert.inc [Verify replica_monitor thread is not running]
+include/assert_grep.inc [The member action "mysql_start_failover_channels_if_primary" for event "AFTER_PRIMARY_ELECTION" with priority "10" failed.]
+############################################################
+# 3. Clean up.
+[connection server2]
+include/stop_group_replication.inc
+include/rpl_reset_slave.inc
+include/group_replication_end.inc

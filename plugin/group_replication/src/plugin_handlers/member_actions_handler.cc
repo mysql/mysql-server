@@ -385,5 +385,11 @@ int Member_actions_handler::run_internal_action(
     }
   }
 
+  if (action.name() == "mysql_start_failover_channels_if_primary") {
+    if (im_the_primary) {
+      return start_failover_channels();
+    }
+  }
+
   return error;
 }

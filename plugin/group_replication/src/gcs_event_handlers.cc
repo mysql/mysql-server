@@ -1113,6 +1113,8 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
   int error = 0;
   uint local_uuid_found = 0;
   std::vector<std::string> exchanged_members_actions_serialized_configuration;
+  std::vector<std::string>
+      exchanged_replication_failover_channels_serialized_configuration;
 
   /*
   For now, we are only carrying Group Member Info on Exchangeable data
@@ -1193,13 +1195,15 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
       Group wide configuration.
     */
     if (is_joining && local_member_info->in_primary_mode()) {
+      Group_member_info_manager_message message;
+
+      /* member actions */
       const unsigned char *member_actions_serialized_configuration = nullptr;
       size_t member_actions_serialized_configuration_length = 0;
-      Group_member_info_manager_message message;
-      bool error_get_member_actions =
-          message.get_member_actions_serialized_configuration(
-              data, length, &member_actions_serialized_configuration,
-              &member_actions_serialized_configuration_length);
+      bool error_get_member_actions = message.get_pit_data(
+          Group_member_info_manager_message::PIT_MEMBER_ACTIONS, data, length,
+          &member_actions_serialized_configuration,
+          &member_actions_serialized_configuration_length);
 
       /*
         Members from versions lower than 8.0.25 do not support member
@@ -1211,6 +1215,23 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
             std::string(pointer_cast<const char *>(
                             member_actions_serialized_configuration),
                         member_actions_serialized_configuration_length));
+      }
+
+      /* replication failover configuration */
+      const unsigned char
+          *replication_failover_channels_serialized_configuration = nullptr;
+      size_t replication_failover_channels_serialized_configuration_length = 0;
+      bool error_get_replication_failover_channels = message.get_pit_data(
+          Group_member_info_manager_message::PIT_RPL_FAILOVER_CONFIGURATION,
+          data, length, &replication_failover_channels_serialized_configuration,
+          &replication_failover_channels_serialized_configuration_length);
+
+      if (!error_get_replication_failover_channels) {
+        exchanged_replication_failover_channels_serialized_configuration
+            .push_back(std::string(
+                pointer_cast<const char *>(
+                    replication_failover_channels_serialized_configuration),
+                replication_failover_channels_serialized_configuration_length));
       }
     }
   }
@@ -1225,9 +1246,18 @@ int Plugin_gcs_events_handler::process_local_exchanged_data(
       members will add their configuration on the state exchange.
     */
     if (exchanged_data.size() > 1) {
+      /*
+         We already know that this member will be a SECONDARY,
+         thence we can stop existing channels trying to start.
+      */
+      terminate_wait_on_start_process(
+          WAIT_ON_START_PROCESS_ABORT_SECONDARY_MEMBER);
+
       my_thread_init();
       error = member_actions_handler->replace_all_actions(
           exchanged_members_actions_serialized_configuration);
+      error |= set_replication_failover_channels_configuration(
+          exchanged_replication_failover_channels_serialized_configuration);
       my_thread_end();
     }
   }
@@ -1332,14 +1362,21 @@ sending:
 
   if (!joining && local_member_info->in_primary_mode()) {
     std::string member_actions_serialized_configuration;
+    std::string replication_failover_channels_serialized_configuration;
 
     my_thread_init();
     bool error_reading_member_actions = member_actions_handler->get_all_actions(
         member_actions_serialized_configuration);
+    bool error_reading_failover_channels_configuration =
+        get_replication_failover_channels_configuration(
+            replication_failover_channels_serialized_configuration);
     my_thread_end();
 
     if (error_reading_member_actions) {
       LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_MEMBER_ACTION_GET_EXCHANGEABLE_DATA);
+    }
+    if (error_reading_failover_channels_configuration) {
+      LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILOVER_CONF_GET_EXCHANGEABLE_DATA);
     }
 
     /*
@@ -1350,6 +1387,9 @@ sending:
     */
     group_info_message->add_member_actions_serialized_configuration(
         &data, member_actions_serialized_configuration);
+    group_info_message
+        ->add_replication_failover_channels_serialized_configuration(
+            &data, replication_failover_channels_serialized_configuration);
   }
 
   delete group_info_message;

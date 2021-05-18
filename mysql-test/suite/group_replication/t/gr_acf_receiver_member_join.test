@@ -1,0 +1,190 @@
+###############################################################################
+# Validate that, on single-primary mode:
+#  * the replication failover channels configuration of the member that
+#    bootstraps a group, becomes the group configuration.
+#  * a member that joins the group, overrides its configuration with the
+#    one of the group.
+#
+# Test:
+#   0. This test requires two servers
+#   1. Add a single server and managed sources to failover
+#      channel 'ch1' to server1.
+#   2. Bootstrap the group on server1, all failover configuration
+#      will be preserved.
+#   3. Join server2 to the group, it will replace its failover
+#      configuration.
+#   4. Clean up
+###############################################################################
+--source include/have_group_replication_plugin.inc
+--let $rpl_skip_group_replication_start= 1
+--let $rpl_group_replication_single_primary_mode=1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Add a single server and managed sources to failover
+--echo #    channel 'ch1' to server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+SELECT asynchronous_connection_failover_add_source('ch1', '10.0.0.1', 3306, '', 50);
+SELECT asynchronous_connection_failover_add_managed('ch1', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.2', 3306, '', 90, 70);
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER=1 must be persisted on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_master_info WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover%';
+
+
+--echo
+--echo ############################################################
+--echo # 2. Bootstrap the group on server1, all failover configuration
+--echo #    will be preserved.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+
+# Do not automatically start failover channels.
+SELECT group_replication_disable_member_action("mysql_start_failover_channels_if_primary", "AFTER_PRIMARY_ELECTION");
+
+--source include/start_and_bootstrap_group_replication.inc
+
+--let $assert_text= The action mysql_start_failover_channels_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER=1 must be persisted on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_master_info WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover%';
+
+
+--echo
+--echo ############################################################
+--echo # 3. Join server2 to the group, it will replace its failover
+--echo #    configuration.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=0, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+SELECT asynchronous_connection_failover_add_source('ch9', '10.0.0.19', 3306, '', 50);
+SELECT asynchronous_connection_failover_add_source('ch9', '10.0.0.20', 3306, '', 50);
+SELECT asynchronous_connection_failover_add_managed('ch9', 'GroupReplication', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', '10.0.0.29', 3306, '', 90, 70);
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER=0 must be persisted on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_master_info WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=0, count, 1] = 1
+--source include/assert.inc
+
+--source include/start_group_replication.inc
+
+--let $assert_text= The action mysql_start_failover_channels_if_primary must be disabled
+--let $assert_cond= [SELECT enabled FROM performance_schema.replication_group_member_actions WHERE name=\'mysql_start_failover_channels_if_primary\' AND event=\'AFTER_PRIMARY_ELECTION\', enabled, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There are 2 rows in performance_schema.replication_asynchronous_connection_failover'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover, count, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover must be 2'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover\', version, 1] = 2
+--source include/assert.inc
+
+--let $assert_text= 'There is 1 row in performance_schema.replication_asynchronous_connection_failover_managed'
+--let $assert_cond= [SELECT COUNT(*) count FROM performance_schema.replication_asynchronous_connection_failover_managed, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'The version of replication_asynchronous_connection_failover_managed must be 1'
+--let $assert_cond= [SELECT version FROM performance_schema.replication_group_configuration_version WHERE name=\'replication_asynchronous_connection_failover_managed\', version, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled for ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover;
+
+SELECT * FROM performance_schema.replication_asynchronous_connection_failover_managed;
+
+SELECT * FROM performance_schema.replication_group_configuration_version WHERE name LIKE 'replication_asynchronous_connection_failover%';
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER must be enabled on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM performance_schema.replication_connection_configuration WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'SOURCE_CONNECTION_AUTO_FAILOVER=1 must be persisted on ch1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM mysql.slave_master_info WHERE CHANNEL_NAME="ch1" AND SOURCE_CONNECTION_AUTO_FAILOVER=1, count, 1] = 1
+--source include/assert.inc
+
+--echo
+--echo ############################################################
+--echo # 4. Clean up.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--let $rpl_channel_name='ch1'
+--let $rpl_multi_source= 1
+--let $rpl_reset_slave_all= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_multi_source=
+
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--let $rpl_channel_name='ch1'
+--let $rpl_multi_source= 1
+--let $rpl_reset_slave_all= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_multi_source=
+
+--source include/group_replication_end.inc

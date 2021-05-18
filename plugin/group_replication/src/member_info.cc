@@ -1446,11 +1446,9 @@ void Group_member_info_manager_message::
                  member_actions_serialized_configuration.end());
 }
 
-bool Group_member_info_manager_message::
-    get_member_actions_serialized_configuration(
-        const unsigned char *buffer, size_t length,
-        const unsigned char **member_actions_serialized_configuration,
-        size_t *member_actions_serialized_configuration_length) {
+bool Group_member_info_manager_message::get_pit_data(
+    const enum_payload_item_type pit, const unsigned char *buffer,
+    size_t length, const unsigned char **pit_data, size_t *pit_length) {
   DBUG_TRACE;
   const unsigned char *slider = buffer;
   const unsigned char *end = buffer + length;
@@ -1473,20 +1471,32 @@ bool Group_member_info_manager_message::
     decode_payload_item_type_and_length(&slider, &payload_item_type,
                                         &payload_item_length);
 
-    switch (payload_item_type) {
-      case PIT_MEMBER_ACTIONS:
-        if (slider + payload_item_length <= end) {
-          *member_actions_serialized_configuration = slider;
-          *member_actions_serialized_configuration_length = payload_item_length;
-          return false;
-        }
-        slider += payload_item_length;
-        break;
-      default:
-        slider += payload_item_length;
-        break;
+    if (pit == payload_item_type) {
+      if (slider + payload_item_length <= end) {
+        *pit_data = slider;
+        *pit_length = payload_item_length;
+        return false;
+      }
+      slider += payload_item_length;
+    } else {
+      slider += payload_item_length;
     }
   }
 
   return true;
+}
+
+void Group_member_info_manager_message::
+    add_replication_failover_channels_serialized_configuration(
+        std::vector<unsigned char> *buffer,
+        const std::string
+            &replication_failover_channels_serialized_configuration) const {
+  DBUG_TRACE;
+
+  encode_payload_item_type_and_length(
+      buffer, PIT_RPL_FAILOVER_CONFIGURATION,
+      replication_failover_channels_serialized_configuration.size());
+  buffer->insert(buffer->end(),
+                 replication_failover_channels_serialized_configuration.begin(),
+                 replication_failover_channels_serialized_configuration.end());
 }

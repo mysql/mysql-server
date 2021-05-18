@@ -836,7 +836,7 @@ void Remote_clone_handler::gr_clone_debug_point() {
 
       if (m_being_terminated) goto thd_end;
 
-      terminate_wait_on_start_process(true);
+      terminate_wait_on_start_process(WAIT_ON_START_PROCESS_ABORT_ON_CLONE);
 
       error = run_clone_query(sql_command_interface, hostname, port, username,
                               password, use_ssl);

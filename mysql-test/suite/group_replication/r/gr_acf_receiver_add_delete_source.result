@@ -1,0 +1,94 @@
+include/group_replication.inc [rpl_server_count=5]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection server1]
+
+# 1. Deploy a 3 members group in single primary mode.
+
+[connection server1]
+include/start_and_bootstrap_group_replication.inc
+[connection server2]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_group_replication.inc
+[connection server3]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+include/start_group_replication.inc
+
+# 2. Create a replication channel to replicate from server4 to
+#    server1.
+
+[connection server1]
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='127.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_PORT=SERVER_4_PORT, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1, SOURCE_CONNECTION_AUTO_FAILOVER=1 FOR CHANNEL 'ch1';
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+
+# 3. Add replication connection details of server4 and server5
+#    to replication_asynchronous_connection_failover table
+#    through asynchronous_connection_failover_add_source() UDF.
+
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 50);
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '', 50)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+SELECT asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_5, '', 40);
+asynchronous_connection_failover_add_source('ch1', '127.0.0.1', SERVER_MYPORT_5, '', 40)
+The UDF asynchronous_connection_failover_add_source() executed successfully.
+
+# 4. Start replica for channel ch1.
+
+include/start_slave.inc [FOR CHANNEL 'ch1']
+
+# 5. Verify replication_asynchronous_connection_failover on
+#    server1 has two rows (of server4 and server5) and member action
+#    configuration version value is 2 in
+#    replication_group_configuration_version.
+
+
+# 6. Verify replication_asynchronous_connection_failover on
+#    server2 and server3 has two rows (of server4 and server5) and
+#    member action configuration version value is 2 in
+#    replication_group_configuration_version.
+
+[connection server2]
+[connection server3]
+
+# 7. Delete replication connection details of server4 and server5
+#    from replication_asynchronous_connection_failover table
+#    through asynchronous_connection_failover_delete_source() UDF.
+
+[connection server1]
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '');
+asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_4, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+SELECT asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_5, '');
+asynchronous_connection_failover_delete_source('ch1', '127.0.0.1', SERVER_MYPORT_5, '')
+The UDF asynchronous_connection_failover_delete_source() executed successfully.
+
+# 8. Verify replication_asynchronous_connection_failover on
+#    server1 is empty and member action configuration version value
+#    is 4 in replication_group_configuration_version.
+
+
+# 9. Verify replication_asynchronous_connection_failover on
+#    server2 is empty and member action configuration version value
+#    is 4 in replication_group_configuration_version.
+
+[connection server2]
+
+# 10. Clean up.
+
+[connection server1]
+include/stop_slave.inc [FOR CHANNEL 'ch1']
+include/rpl_reset_slave.inc
+[connection server2]
+include/rpl_reset_slave.inc
+[connection server3]
+include/rpl_reset_slave.inc
+include/group_replication_end.inc

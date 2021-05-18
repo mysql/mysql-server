@@ -69,6 +69,9 @@ while ($_rpl_server <= $_rpl_server_max)
       }
     }
 
+    # Clear replication asynchronous failover configuration tables
+    --source include/rpl_clear_asynchronous_failover_configuration.inc
+
     # Clear GR member actions configuration
     --disable_result_log ONCE
     SELECT group_replication_reset_member_actions();

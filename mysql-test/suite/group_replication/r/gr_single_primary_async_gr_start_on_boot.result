@@ -82,8 +82,8 @@ include/assert.inc [Verify channel ch3_2 IO_THREAD is OFF]
 include/assert.inc [Verify channel ch3_2 SQL_THREAD is OFF]
 
 # 17. Verify occurrence of error message
-Occurrences of 'Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 3
-Occurrences of 'Can't start slave SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 3
+Occurrences of 'Can't start slave IO THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
+Occurrences of 'Can't start slave SQL THREAD of channel 'ch3_2' when group replication is running with single-primary mode on a secondary member.' in the input file: 2
 
 # 18. Cleanup
 [connection server1]

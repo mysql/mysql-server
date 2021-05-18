@@ -1,0 +1,72 @@
+###############################################################################
+# Validate that failover channels status is properly maintained, even when a
+# channel is reset when GR is not running.
+#
+# Test:
+#   0. This test requires two servers:
+#        server1, server2: group
+#   1. Deploy a group in single-primary mode on server1
+#      configure a failover channel 'ch1'.
+#   2. Leave the group and only then reset the failover
+#      channel 'ch1'.
+#   3. Deploy again a group in single-primary mode on server1.
+#   4. Join server2 to the group.
+#      server2 successful join will validate that past ch1
+#      failover status is properly clean on server.
+#   5. Clean up.
+###############################################################################
+--source include/big_test.inc
+--source include/have_group_replication_plugin.inc
+--let $rpl_group_replication_single_primary_mode=1
+--let $rpl_skip_group_replication_start= 1
+--source include/group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 1. Deploy a group in single-primary mode on server1
+--echo #    configure a failover channel 'ch1'.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+CHANGE REPLICATION SOURCE TO SOURCE_HOST='10.0.0.1', SOURCE_USER='root', SOURCE_AUTO_POSITION=1, SOURCE_CONNECTION_AUTO_FAILOVER=1, SOURCE_PORT=3306, SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=1 FOR CHANNEL 'ch1';
+
+
+--echo
+--echo ############################################################
+--echo # 2. Leave the group and only then reset the failover
+--echo #    channel 'ch1'.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/stop_group_replication.inc
+
+--let $rpl_channel_name='ch1'
+--let $rpl_multi_source= 1
+--let $rpl_reset_slave_all= 1
+--source include/rpl_reset_slave.inc
+--let $rpl_channel_name=
+--let $rpl_multi_source=
+
+
+--echo
+--echo ############################################################
+--echo # 3. Deploy again a group in single-primary mode on server1.
+--let $rpl_connection_name= server1
+--source include/rpl_connection.inc
+--source include/start_and_bootstrap_group_replication.inc
+
+
+--echo
+--echo ############################################################
+--echo # 4. Join server2 to the group.
+--echo #    server2 successful join will validate that past ch1
+--echo #    failover status is properly clean on server.
+--let $rpl_connection_name= server2
+--source include/rpl_connection.inc
+--source include/start_group_replication.inc
+
+
+--echo ############################################################
+--echo # 5. Clean up.
+--source include/group_replication_end.inc

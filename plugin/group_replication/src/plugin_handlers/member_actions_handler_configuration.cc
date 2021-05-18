@@ -423,5 +423,14 @@ bool Member_actions_handler_configuration::
   action1->set_priority(1);
   action1->set_error_handling("IGNORE");
 
+  protobuf_replication_group_member_actions::Action *action2 =
+      action_list.add_action();
+  action2->set_name("mysql_start_failover_channels_if_primary");
+  action2->set_event("AFTER_PRIMARY_ELECTION");
+  action2->set_enabled(1);
+  action2->set_type("INTERNAL");
+  action2->set_priority(10);
+  action2->set_error_handling("CRITICAL");
+
   return replace_all_actions(action_list);
 }

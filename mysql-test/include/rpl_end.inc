@@ -132,25 +132,6 @@ if ($rpl_assert_transaction_length)
   }
 }
 
-# Assert that replication asynchronous connection failover tables are properly
-# clean on the tests that do use them.
---let $_rpl_server= $rpl_server_count
-while ($_rpl_server)
-{
-  --let $rpl_connection_name= server_$_rpl_server
-  --source include/rpl_connection.inc
-
-  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover on server$_rpl_server'
-  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover, count, 1] = 0
-  --source include/assert.inc
-
-  --let $assert_text= 'There are 0 rows in mysql.replication_asynchronous_connection_failover_managed on server$_rpl_server'
-  --let $assert_cond= [SELECT COUNT(*) count FROM mysql.replication_asynchronous_connection_failover_managed, count, 1] = 0
-  --source include/assert.inc
-
-  --dec $_rpl_server
-}
-
 if ($rpl_group_replication)
 {
   --let $_rpl_server= $rpl_server_count
@@ -216,6 +197,21 @@ if (!$rpl_group_replication)
   }
   --let $rpl_privilege_checks_user=
   --let $rpl_change_topology_user_created=
+}
+
+# Clear replication asynchronous failover configuration tables
+if (!$rpl_group_replication)
+{
+  --let $_rpl_server= $rpl_server_count
+  while ($_rpl_server)
+  {
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
+
+    --source include/rpl_clear_asynchronous_failover_configuration.inc
+
+    --dec $_rpl_server
+  }
 }
 
 # Restore the server state by deleting all channels
