@@ -284,6 +284,13 @@ class CostingReceiver {
    */
   std::unordered_map<NodeMap, AccessPathSet> m_access_paths;
 
+  /**
+    How many subgraph pairs we've seen so far. Used to give up
+    if we end up allocating too many resources (prompting us to
+    create a simpler join graph and try again).
+   */
+  int m_num_seen_subgraph_pairs = 0;
+
   /// The graph we are running over.
   const JoinHypergraph &m_graph;
 
@@ -1485,6 +1492,12 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
                                         int edge_idx) {
   if (m_thd->is_error()) return true;
 
+  if (++m_num_seen_subgraph_pairs > 100000) {
+    // Bail out; we're going to be needing graph simplification
+    // (a separate worklog).
+    return true;
+  }
+
   assert(left != 0);
   assert(right != 0);
   assert((left & right) == 0);
@@ -1601,12 +1614,6 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
             right, left, right_path, left_path, edge,
             /*rewrite_semi_to_inner=*/can_rewrite_semi_to_inner, new_fd_set,
             new_obsolete_orderings);
-      }
-
-      if (m_access_paths.size() > 100000) {
-        // Bail out; we're going to be needing graph simplification
-        // (a separate worklog).
-        return true;
       }
     }
   }
