@@ -27,6 +27,7 @@
 
 #include "sql/join_optimizer/bit_utils.h"
 #include "sql/join_optimizer/node_map.h"
+#include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
@@ -125,12 +126,12 @@ struct RelationalExpression {
   bool join_conditions_reject_all_rows{false};
   table_map conditions_used_tables{0};
   // If the join conditions were also added as predicates due to cycles
-  // in the graph (see comment in AddCycleEdges()), contains a bitmap of
+  // in the graph (see comment in AddCycleEdges()), contains a range of
   // which indexes they got in the predicate list. This is so that we know that
   // they are redundant and don't have to apply them if we actually apply this
   // join (as opposed to getting the edge implicitly by means of joining the
   // tables along some other way in the cycle).
-  uint64_t join_predicate_bitmap{0};
+  int join_predicate_first{0}, join_predicate_last{0};
 
   // Conflict rules that must be checked before making a subgraph
   // out of this join; this is in addition to the regular connectivity

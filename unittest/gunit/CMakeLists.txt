@@ -157,6 +157,7 @@ SET(TESTS
   mysys_my_write
   mysys_pathfuncs
   opt_recperkey
+  overflow_bitset
   partitioned_rwlock
   pattern_matcher
   prealloced_array
@@ -311,6 +312,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
   ${CMAKE_SOURCE_DIR}/sql/join_optimizer/hypergraph.cc
+  ${CMAKE_SOURCE_DIR}/sql/join_optimizer/overflow_bitset.cc
   ${CMAKE_SOURCE_DIR}/sql/locks/shared_spin_lock.cc
   )
 

@@ -40,8 +40,7 @@
 
     - Hints (except STRAIGHT_JOIN).
     - TRADITIONAL and JSON formats for EXPLAIN (use FORMAT=tree).
-    - Too large queries (more than 64 ON/WHERE predicates, or too
-      many possible subgraphs).
+    - Too large queries (too many possible subgraphs).
 
   For unsupported queries, we will return an error; every valid SQL
   query should either give such an error a correct result set.

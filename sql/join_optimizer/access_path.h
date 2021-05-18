@@ -33,6 +33,7 @@
 #include "sql/join_optimizer/interesting_orders_defs.h"
 #include "sql/join_optimizer/materialize_path_parameters.h"
 #include "sql/join_optimizer/node_map.h"
+#include "sql/join_optimizer/overflow_bitset.h"
 #include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
@@ -269,66 +270,65 @@ struct AccessPath {
   /// init_cost is always the same (filters have zero initialization cost).
   double num_output_rows_before_filter{-1.0}, cost_before_filter{-1.0};
 
-  union {
-    /// Bitmap of WHERE predicates that we are including on this access path,
-    /// referring to the “predicates” array internal to the join optimizer.
-    /// Since bit masks are much cheaper to deal with than creating Item
-    /// objects, and we don't invent new conditions during join optimization
-    /// (all of them are known when we begin optimization), we stick to
-    /// manipulating bit masks during optimization, saying which filters will be
-    /// applied at this node (a 1-bit means the filter will be applied here; if
-    /// there are multiple ones, they are ANDed together).
-    ///
-    /// This is used during join optimization only; before iterators are
-    /// created, we will add FILTER access paths to represent these instead,
-    /// removing the dependency on the array. Said FILTER paths are by
-    /// convention created with materialize_subqueries = false, since the by far
-    /// most common case is that there are no subqueries in the predicate. In
-    /// other words, if you wish to represent a filter with
-    /// materialize_subqueries = true, you will nede to make an explicit FILTER
-    /// node.
-    ///
-    /// TODO(sgunders): Add some technique for “overflow bitset” to allow
-    /// having more than 64 predicates. (For now, we refuse queries that have
-    /// more.)
-    uint64_t filter_predicates{0};
+  /// Bitmap of WHERE predicates that we are including on this access path,
+  /// referring to the “predicates” array internal to the join optimizer.
+  /// Since bit masks are much cheaper to deal with than creating Item
+  /// objects, and we don't invent new conditions during join optimization
+  /// (all of them are known when we begin optimization), we stick to
+  /// manipulating bit masks during optimization, saying which filters will be
+  /// applied at this node (a 1-bit means the filter will be applied here; if
+  /// there are multiple ones, they are ANDed together).
+  ///
+  /// This is used during join optimization only; before iterators are
+  /// created, we will add FILTER access paths to represent these instead,
+  /// removing the dependency on the array. Said FILTER paths are by
+  /// convention created with materialize_subqueries = false, since the by far
+  /// most common case is that there are no subqueries in the predicate. In
+  /// other words, if you wish to represent a filter with
+  /// materialize_subqueries = true, you will nede to make an explicit FILTER
+  /// node.
+  OverflowBitset filter_predicates{0};
 
-    /// Bitmap of sargable join predicates that have already been applied
-    /// in this access path by means of an index lookup (ref access),
-    /// again referring to “predicates”, and thus should not be counted again
-    /// for selectivity. Note that the filter may need to be applied
-    /// nevertheless (especially in case of type conversions); see
-    /// subsumed_sargable_join_predicates.
-    ///
-    /// Since these refer to the same array as filter_predicates, they will
-    /// never overlap with filter_predicates, and so we can reuse the same
-    /// memory using an union, even though the meaning is entirely separate.
-    /// If N = num_where_predictes in the hypergraph, then bits 0..(N-1)
-    /// belong to filter_predicates, and the rest to
-    /// applied_sargable_join_predicates.
-    uint64_t applied_sargable_join_predicates;
-  };
+  /// Bitmap of sargable join predicates that have already been applied
+  /// in this access path by means of an index lookup (ref access),
+  /// again referring to “predicates”, and thus should not be counted again
+  /// for selectivity. Note that the filter may need to be applied
+  /// nevertheless (especially in case of type conversions); see
+  /// subsumed_sargable_join_predicates.
+  ///
+  /// Since these refer to the same array as filter_predicates, they will
+  /// never overlap with filter_predicates, and so we can reuse the same
+  /// memory using an alias (a union would not be allowed, since OverflowBitset
+  /// is a class with non-trivial default constructor), even though the meaning
+  /// is entirely separate. If N = num_where_predictes in the hypergraph, then
+  /// bits 0..(N-1) belong to filter_predicates, and the rest to
+  /// applied_sargable_join_predicates.
+  OverflowBitset &applied_sargable_join_predicates() {
+    return filter_predicates;
+  }
+  const OverflowBitset &applied_sargable_join_predicates() const {
+    return filter_predicates;
+  }
 
-  union {
-    /// Bitmap of WHERE predicates that we touch tables we have joined in,
-    /// but that we could not apply yet (for instance because they reference
-    /// other tables, or because because we could not push them down into
-    /// the nullable side of outer joins). Used during planning only
-    /// (see filter_predicates).
-    ///
-    /// TODO(sgunders): Add some technique for “overflow bitset” to allow
-    /// having more than 64 predicates. (For now, we refuse queries that have
-    /// more.)
-    uint64_t delayed_predicates{0};
+  /// Bitmap of WHERE predicates that touch tables we have joined in,
+  /// but that we could not apply yet (for instance because they reference
+  /// other tables, or because because we could not push them down into
+  /// the nullable side of outer joins). Used during planning only
+  /// (see filter_predicates).
+  OverflowBitset delayed_predicates{0};
 
-    /// Similar to applied_sargable_join_predicates, bitmap of sargable
-    /// join predicates that have been applied and will subsume the join
-    /// predicate entirely, ie., not only should the selectivity not be
-    /// double-counted, but the predicate itself is redundant and need not
-    /// be applied as a filter. (It is an error to have a bit set here but not
-    /// in applied_sargable_join_predicates.)
-    uint64_t subsumed_sargable_join_predicates;
-  };
+  /// Similar to applied_sargable_join_predicates, bitmap of sargable
+  /// join predicates that have been applied and will subsume the join
+  /// predicate entirely, ie., not only should the selectivity not be
+  /// double-counted, but the predicate itself is redundant and need not
+  /// be applied as a filter. (It is an error to have a bit set here but not
+  /// in applied_sargable_join_predicates.)
+  OverflowBitset &subsumed_sargable_join_predicates() {
+    return delayed_predicates;
+  }
+  const OverflowBitset &subsumed_sargable_join_predicates() const {
+    return delayed_predicates;
+  }
 
   /// If nonzero, a bitmap of other tables whose joined-in rows must already be
   /// loaded when rows from this access path are evaluated; that is, this

@@ -120,7 +120,7 @@ struct JoinHypergraph {
 
   // A bitmap over predicates that are, or contain, at least one
   // materializable subquery.
-  uint64_t materializable_predicates = 0;
+  OverflowBitset materializable_predicates{0};
 
   // For each sargable join condition, maps into its index in “predicates”.
   // We need the predicate index when applying the join to figure out whether

@@ -127,8 +127,13 @@ class CountBitsDescending {
   }
 };
 
-using BitsSetIn = BitIteratorAdaptor<CountBitsAscending>;
-using BitsSetInDescending = BitIteratorAdaptor<CountBitsDescending>;
+inline BitIteratorAdaptor<CountBitsAscending> BitsSetIn(uint64_t state) {
+  return BitIteratorAdaptor<CountBitsAscending>{state};
+}
+inline BitIteratorAdaptor<CountBitsDescending> BitsSetInDescending(
+    uint64_t state) {
+  return BitIteratorAdaptor<CountBitsDescending>{state};
+}
 
 // An iterator (for range-based for loops) that returns all non-zero subsets of
 // a given set. This includes the set itself.
