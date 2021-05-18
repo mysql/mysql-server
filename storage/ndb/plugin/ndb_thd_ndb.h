@@ -26,7 +26,6 @@
 #define NDB_THD_NDB_H
 
 #include "map_helpers.h"
-#include "my_base.h"  // ha_rows
 #include "storage/ndb/plugin/ndb_share.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
@@ -55,11 +54,11 @@ class Thd_ndb {
    public:
     struct Stats {
      private:
-      static constexpr ha_rows INVALID_TABLE_ROWS = ~0;
+      static constexpr uint64_t INVALID_TABLE_ROWS = ~0;
 
      public:
       int uncommitted_rows{0};
-      ha_rows table_rows{INVALID_TABLE_ROWS};
+      uint64_t table_rows{INVALID_TABLE_ROWS};
 
       // Check if stats are invalid, i.e has never been updated with number of
       // rows in the table (from NDB or other (potentially cached) source)
