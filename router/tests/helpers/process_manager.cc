@@ -402,9 +402,10 @@ std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
     uint16_t x_port, const std::string &module_prefix /* = "" */,
     const std::string &bind_address /*= "0.0.0.0"*/) {
   std::vector<std::string> server_params{
-      "--filename",     json_file,             //
-      "--port",         std::to_string(port),  //
-      "--bind-address", bind_address,
+      "--filename",       json_file,             //
+      "--port",           std::to_string(port),  //
+      "--bind-address",   bind_address,
+      "--logging-folder", get_test_temp_dir_name(),
   };
 
   server_params.emplace_back("--module-prefix");
@@ -428,13 +429,19 @@ std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
 }
 
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
-    const std::vector<std::string> &server_params, int expected_exit_code,
+    const std::vector<std::string> &server_params, unsigned port,
+    int expected_exit_code,
     std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
-  return spawner(mysqlserver_mock_exec_.str())
-      .expected_exit_code(expected_exit_code)
-      .wait_for_notify_ready(wait_for_notify_ready)
-      .catch_stderr(true)
-      .spawn(server_params);
+  auto &result = spawner(mysqlserver_mock_exec_.str())
+                     .expected_exit_code(expected_exit_code)
+                     .wait_for_notify_ready(wait_for_notify_ready)
+                     .catch_stderr(true)
+                     .spawn(server_params);
+
+  result.set_logging_path(get_test_temp_dir_name(),
+                          "mock_server_" + std::to_string(port) + ".log");
+
+  return result;
 }
 
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
@@ -453,7 +460,7 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     server_params.emplace_back("--verbose");
   }
 
-  return launch_mysql_server_mock(server_params, expected_exit_code,
+  return launch_mysql_server_mock(server_params, port, expected_exit_code,
                                   wait_for_notify_ready);
 }
 

@@ -372,11 +372,12 @@ bool is_port_available(const uint16_t port) {
 static bool wait_for_port(const bool available, const uint16_t port,
                           std::chrono::milliseconds timeout = 2s) {
   const std::chrono::milliseconds step = 50ms;
+  using clock_type = std::chrono::steady_clock;
+  const auto end = clock_type::now() + timeout;
   do {
     if (available == is_port_available(port)) return true;
     std::this_thread::sleep_for(step);
-    timeout -= step;
-  } while (timeout > 0ms);
+  } while (clock_type::now() < end);
   return false;
 }
 
