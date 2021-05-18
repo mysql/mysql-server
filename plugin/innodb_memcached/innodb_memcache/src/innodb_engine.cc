@@ -1876,12 +1876,26 @@ search_done:
     snprintf(table_name, sizeof(table_name), "%s/%s", dbname, name);
 #endif
 
-    assert(!conn_data->result_in_use);
+    if (conn_data->row_buf_used + strlen(table_name) >= REC_BUF_SLOT_SIZE) {
+      conn_data->row_buf_slot++;
+
+      /* Limit the record buffer size to 16 MB */
+      if (conn_data->row_buf_slot >= 1024) {
+        err_ret = ENGINE_KEY_ENOENT;
+        goto func_exit;
+      }
+
+      if (conn_data->row_buf[conn_data->row_buf_slot] == nullptr) {
+        conn_data->row_buf[conn_data->row_buf_slot] = malloc(REC_BUF_SLOT_SIZE);
+      }
+
+      conn_data->row_buf_used = 0;
+    }
+
     conn_data->result_in_use = true;
     result = (mci_item_t *)(conn_data->result);
 
     memset(result, 0, sizeof(*result));
-    assert(conn_data->row_buf_used + strlen(table_name) < REC_BUF_SLOT_SIZE);
     memcpy((char *)(conn_data->row_buf[conn_data->row_buf_slot]) +
                conn_data->row_buf_used,
            table_name, strlen(table_name));
