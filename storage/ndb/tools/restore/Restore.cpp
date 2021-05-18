@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,6 @@
 #include "kernel/signaldata/FsOpenReq.hpp"
 #include "portlib/ndb_file.h"
 #include "portlib/NdbMem.h"
-#include "util/ndb_opts.h"
 
 //#define DUMMY_PASSWORD
 
@@ -57,7 +56,7 @@ extern bool ga_skip_unknown_objects;
 extern bool ga_skip_broken_objects;
 extern bool opt_include_stored_grants;
 
-extern ndb_password_state g_backup_password_state;
+extern char* g_backup_password;
 
 #define LOG_MSGLEN 1024
 
@@ -1688,19 +1687,17 @@ BackupFile::openFile(){
 
 #if !defined(DUMMY_PASSWORD)
   r = m_xfile.open(m_file,
-                   reinterpret_cast<const byte*>(
-                       g_backup_password_state.get_password()),
-                   g_backup_password_state.get_password_length());
+                   reinterpret_cast<const byte*>(g_backup_password),
+                   g_backup_password ? strlen(g_backup_password) : 0);
 #else
   r = m_xfile.open(m_file, reinterpret_cast<const byte*>("DUMMY"), 5);
 #endif
   bool fail = (r == -1);
-  if (g_backup_password_state.get_password() != nullptr)
+  if (g_backup_password != nullptr)
   {
     if (!m_xfile.is_encrypted())
     {
-      restoreLogger.log_error("Decryption requested but file not "
-                              "encrypted.");
+      restoreLogger.log_error("Decryption requested but file not encrypted.");
       fail = true;
     }
     else if (r == -1)
@@ -1713,9 +1710,8 @@ BackupFile::openFile(){
     if (m_xfile.is_encrypted())
     {
 #if !defined(DUMMY_PASSWORD)
-        restoreLogger.log_error("File is encrypted but no decryption "
-                                "requested.");
-        fail = true;
+      restoreLogger.log_error("File is encrypted but no decryption requested.");
+      fail = true;
 #endif
     }
     else if (r == -1)
@@ -2003,8 +1999,7 @@ BackupFile::readHeader(){
     }
     else
     {
-      restoreLogger.log_error("readDataFileHeader: Error reading header. "
-                              "Wrong password?");
+      restoreLogger.log_error("readDataFileHeader: Error reading header. Wrong password?");
     }
     return false;
   }
@@ -2037,8 +2032,7 @@ BackupFile::readHeader(){
       }
       else
       {
-        restoreLogger.log_error("readDataFileHeader: Error reading header. "
-                                "Wrong password?");
+        restoreLogger.log_error("readDataFileHeader: Error reading header. Wrong password?");
       }
       return false;
     }
@@ -2166,8 +2160,7 @@ bool RestoreDataIterator::readFragmentHeader(int & ret, Uint32 *fragmentId)
       }
       else
       {
-        restoreLogger.log_error("readFragmentHeader: Error reading header. "
-                                "Wrong password?");
+        restoreLogger.log_error("readFragmentHeader: Error reading header. Wrong password?");
       }
       ret = -2;
       return false;

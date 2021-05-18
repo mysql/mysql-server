@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -2252,9 +2252,9 @@ bool valid_period(long long period) {
 
    @return month
  */
-uint64_t convert_period_to_month(uint64_t period) {
-  uint64_t a;
-  unsigned b;
+ulong convert_period_to_month(ulong period) {
+  ulong a;
+  ulong b;
   if (period == 0) return 0L;
   if ((a = period / 100) < YY_PART_YEAR)
     a += 2000;
@@ -2269,8 +2269,8 @@ uint64_t convert_period_to_month(uint64_t period) {
 
    @return period
  */
-uint64_t convert_month_to_period(uint64_t month) {
-  uint64_t year;
+ulong convert_month_to_period(ulong month) {
+  ulong year;
   if (month == 0L) return 0L;
   if ((year = month / 12) < 100) {
     year += (year < YY_PART_YEAR) ? 2000 : 1900;

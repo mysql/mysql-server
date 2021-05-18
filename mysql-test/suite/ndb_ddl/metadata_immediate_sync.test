@@ -106,8 +106,8 @@ DROP TABLE t2;
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r --exclude-tables=ndb_ddl_test.t1,ndb_ddl_test.t2,ndb_ddl_test.t3,ndb_ddl_test.t4,ndb_ddl_test.t5 $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 
 # Drop tables from NDB only to cause mismatch
---exec $NDB_DROP_TABLE -d ndb_ddl_test4 t1 >> $NDB_TOOLS_OUTPUT
---exec $NDB_DROP_TABLE -d ndb_ddl_test5 t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test4 t1 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_DROP_TABLE --no-defaults -d ndb_ddl_test5 t1 >> $NDB_TOOLS_OUTPUT
 
 # Wait until the changes have been synced
 --let $max_wait = 60
@@ -327,13 +327,6 @@ INSERT INTO child VALUES (1,1),(2,2);
 
 DROP TABLE t1,child,parent;
 
-# Suppress expected errors
---disable_query_log
-call mtr.add_suppression("Metadata check has failed");
-call mtr.add_suppression("The NDB Dictionary table definition is not identical to the DD table definition");
-call mtr.add_suppression("Diff in 'index_count'");
---enable_query_log
-
 --echo Restore with --disable-indexes
 --exec $NDB_RESTORE -b $the_backup_id -n 1 -m -r --disable-indexes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
 --exec $NDB_RESTORE -b $the_backup_id -n 2 -r $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
@@ -366,43 +359,5 @@ SELECT COUNT(*) FROM performance_schema.ndb_sync_excluded_objects;
 
 # Clean-up
 DROP TABLE t1,child,parent;
-
-#
-# Case 4: Mock tables created with foreign_key_checks set to 0.
-# Mock tables are created when foreign_key_checks is set to 0
-# and a child table has a foreign key referencing a parent table
-# that "does not exist". These tables should not be automatically
-# synced.
-#
-
-SET @old_foreign_key_checks = @@foreign_key_checks;
-SET foreign_key_checks=0;
-
-# Create child table referencing non-existent parent table
-CREATE TABLE child (
-  c1 INT PRIMARY KEY,
-  c2 INT,
-  INDEX xc2(c2),
-  FOREIGN KEY(c2)
-    REFERENCES parent(c1)
-    ON DELETE CASCADE
-) ENGINE NDB;
-
-INSERT INTO child VALUES (1,1),(2,2);
-
-# Wait until all changes have been synced
---let $max_wait = 30
---source wait_immediate_metadata_sync.inc
-
-# Sync of mock tables fails every time so we check if any such
-# sync was attempted by looking at the ndb_sync_excluded_objects
-# table. The table should contain zero rows which indicates that
-# no mock tables were picked up for sync.
-SELECT CASE COUNT(*) WHEN 0 THEN 'YES' ELSE 'NO' END AS mock_tables_sync_skipped
-  FROM performance_schema.ndb_sync_excluded_objects;
-
-# Clean-up
-DROP TABLE child;
-SET foreign_key_checks = @old_foreign_key_checks;
 --source suite/ndb/include/backup_restore_cleanup.inc
 --remove_file $NDB_TOOLS_OUTPUT

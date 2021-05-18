@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 #ifndef PFS_ENGINE_TABLE_H
 #define PFS_ENGINE_TABLE_H
 
-#include <assert.h>
 #include <mysql/components/services/pfs_plugin_table_service.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -32,7 +31,7 @@
 
 #include "my_base.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -60,6 +59,36 @@ struct time_normalizer;
   @addtogroup performance_schema_engine
   @{
 */
+
+/**
+  Store and retrieve table state information during a query.
+*/
+class PFS_table_context {
+ public:
+  PFS_table_context(ulonglong current_version, bool restore, THR_PFS_key key);
+  PFS_table_context(ulonglong current_version, ulong map_size, bool restore,
+                    THR_PFS_key key);
+  ~PFS_table_context(void);
+
+  bool initialize(void);
+  bool is_initialized(void) { return m_initialized; }
+  ulonglong current_version(void) { return m_current_version; }
+  ulonglong last_version(void) { return m_last_version; }
+  bool versions_match(void) { return m_last_version == m_current_version; }
+  void set_item(ulong n);
+  bool is_item_set(ulong n);
+  THR_PFS_key m_thr_key;
+
+ private:
+  ulonglong m_current_version;
+  ulonglong m_last_version;
+  ulong *m_map;
+  ulong m_map_size;
+  ulong m_word_size;
+  bool m_restore;
+  bool m_initialized;
+  ulong m_last_item;
+};
 
 /**
   An abstract PERFORMANCE_SCHEMA table.
@@ -92,7 +121,7 @@ class PFS_engine_table {
 
   virtual int index_init(uint idx MY_ATTRIBUTE((unused)),
                          bool sorted MY_ATTRIBUTE((unused))) {
-    assert(false);
+    DBUG_ASSERT(false);
     return HA_ERR_UNSUPPORTED;
   }
 
@@ -302,40 +331,27 @@ class PFS_engine_index : public PFS_engine_index_abstract {
       : m_key_ptr_1(key_1),
         m_key_ptr_2(nullptr),
         m_key_ptr_3(nullptr),
-        m_key_ptr_4(nullptr),
-        m_key_ptr_5(nullptr) {}
+        m_key_ptr_4(nullptr) {}
 
   PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(key_2),
         m_key_ptr_3(nullptr),
-        m_key_ptr_4(nullptr),
-        m_key_ptr_5(nullptr) {}
+        m_key_ptr_4(nullptr) {}
 
   PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2,
                    PFS_engine_key *key_3)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(key_2),
         m_key_ptr_3(key_3),
-        m_key_ptr_4(nullptr),
-        m_key_ptr_5(nullptr) {}
+        m_key_ptr_4(nullptr) {}
 
   PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2,
                    PFS_engine_key *key_3, PFS_engine_key *key_4)
       : m_key_ptr_1(key_1),
         m_key_ptr_2(key_2),
         m_key_ptr_3(key_3),
-        m_key_ptr_4(key_4),
-        m_key_ptr_5(nullptr) {}
-
-  PFS_engine_index(PFS_engine_key *key_1, PFS_engine_key *key_2,
-                   PFS_engine_key *key_3, PFS_engine_key *key_4,
-                   PFS_engine_key *key_5)
-      : m_key_ptr_1(key_1),
-        m_key_ptr_2(key_2),
-        m_key_ptr_3(key_3),
-        m_key_ptr_4(key_4),
-        m_key_ptr_5(key_5) {}
+        m_key_ptr_4(key_4) {}
 
   ~PFS_engine_index() override {}
 
@@ -346,7 +362,6 @@ class PFS_engine_index : public PFS_engine_index_abstract {
   PFS_engine_key *m_key_ptr_2;
   PFS_engine_key *m_key_ptr_3;
   PFS_engine_key *m_key_ptr_4;
-  PFS_engine_key *m_key_ptr_5;
 };
 
 /**
@@ -680,5 +695,7 @@ struct PFS_triple_index {
 };
 
 /** @} */
+
+extern thread_local PFS_table_context *THR_PFS_contexts[THR_PFS_NUM_KEYS];
 
 #endif

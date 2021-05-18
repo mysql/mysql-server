@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 #ifndef TABLE_CACHE_INCLUDED
 #define TABLE_CACHE_INCLUDED
 
-#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <memory>
@@ -33,7 +32,7 @@
 
 #include "lex_string.h"
 #include "my_base.h"
-
+#include "my_dbug.h"
 #include "my_psi_config.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
@@ -157,7 +156,7 @@ class Table_cache {
 
   void free_all_unused_tables();
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   void print_tables();
 #endif
 };
@@ -191,7 +190,6 @@ class Table_cache_manager {
 
   void lock_all_and_tdc();
   void unlock_all_and_tdc();
-  void assert_owner(THD *thd);
   void assert_owner_all();
   void assert_owner_all_and_tdc();
 
@@ -200,7 +198,7 @@ class Table_cache_manager {
 
   void free_all_unused_tables();
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   void print_tables();
 #endif
 
@@ -346,7 +344,7 @@ bool Table_cache::add_used_table(THD *thd, TABLE *table) {
 
   assert_owner();
 
-  assert(table->in_use == thd);
+  DBUG_ASSERT(table->in_use == thd);
 
   /*
     Try to get Table_cache_element representing this table in the cache
@@ -365,7 +363,7 @@ bool Table_cache::add_used_table(THD *thd, TABLE *table) {
     */
     std::string key(table->s->table_cache_key.str,
                     table->s->table_cache_key.length);
-    assert(m_cache.count(key) == 0);
+    DBUG_ASSERT(m_cache.count(key) == 0);
 
     el = new Table_cache_element(table->s);
     m_cache.emplace(key, std::unique_ptr<Table_cache_element>(el));
@@ -457,7 +455,7 @@ TABLE *Table_cache::get_table(THD *thd, const char *key, size_t key_length,
   *share = el->share;
 
   if ((table = el->free_tables.front())) {
-    assert(!table->in_use);
+    DBUG_ASSERT(!table->in_use);
 
     /*
       Unlink table from list of unused TABLE objects for this
@@ -476,9 +474,9 @@ TABLE *Table_cache::get_table(THD *thd, const char *key, size_t key_length,
 
     table->in_use = thd;
     /* The ex-unused table must be fully functional. */
-    assert(table->db_stat && table->file);
+    DBUG_ASSERT(table->db_stat && table->file);
     /* The children must be detached from the table. */
-    assert(!table->file->ha_extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
+    DBUG_ASSERT(!table->file->ha_extra(HA_EXTRA_IS_ATTACHED_CHILDREN));
   }
 
   return table;
@@ -498,11 +496,11 @@ void Table_cache::release_table(THD *thd, TABLE *table) {
 
   assert_owner();
 
-  assert(table->in_use);
-  assert(table->file);
+  DBUG_ASSERT(table->in_use);
+  DBUG_ASSERT(table->file);
 
   /* We shouldn't put the table to 'unused' list if the share is old. */
-  assert(!table->s->has_old_version());
+  DBUG_ASSERT(!table->s->has_old_version());
 
   table->in_use = nullptr;
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -58,22 +58,21 @@
 #include "connection_container.h"
 #include "context.h"
 #include "destination.h"
-#include "destination_ssl_context.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/net_ts/internet.h"
 #include "mysql/harness/net_ts/io_context.h"
 #include "mysql/harness/net_ts/local.h"
 #include "mysql/harness/plugin.h"
-#include "mysql/harness/stdx/monitor.h"
 #include "mysql_router_thread.h"
+#include "mysqlrouter/mysql_protocol.h"
 #include "mysqlrouter/routing.h"
 #include "mysqlrouter/routing_export.h"
 #include "mysqlrouter/uri.h"
 #include "plugin_config.h"
 #include "protocol/base_protocol.h"
 #include "router_config.h"
-#include "ssl_mode.h"
 #include "tcp_address.h"
+#include "utils.h"
 
 namespace mysql_harness {
 class PluginFuncEnv;
@@ -91,9 +90,7 @@ class SocketContainer {
   using protocol_type = Protocol;
   using socket_type = typename protocol_type::socket;
 
-  // as a ref will get returned, the socket_type' object needs a stable address.
-  // - std::list<socket_type> provide that.
-  // - std::vector<std::unique_ptr<socket_type>> should work too.
+  // as a ref is returned, we a list to store the sockets
   using container_type = std::list<socket_type>;
 
  public:
@@ -106,20 +103,6 @@ class SocketContainer {
     std::lock_guard<std::mutex> lk(mtx_);
 
     sockets_.push_back(std::move(sock));
-
-    return sockets_.back();
-  }
-
-  /**
-   * move ownership of socket_type to the container.
-   *
-   * @return a ref to the stored socket.
-   */
-  template <class... Args>
-  socket_type &emplace_back(Args &&... args) {
-    std::lock_guard<std::mutex> lk(mtx_);
-
-    sockets_.emplace_back(std::forward<Args>(args)...);
 
     return sockets_.back();
   }
@@ -194,9 +177,7 @@ class SocketContainer {
 using mysqlrouter::URI;
 using std::string;
 
-struct Nothing {};
-
-/** @class MySQLRouter
+/** @class MySQLRoutering
  *  @brief Manage Connections from clients to MySQL servers
  *
  *  The class MySQLRouter is used to start a service listening on a particular
@@ -245,11 +226,8 @@ class MySQLRouting {
    * @param max_connect_errors Maximum connect or handshake errors per host
    * @param connect_timeout Timeout waiting for handshake response
    * @param net_buffer_length send/receive buffer size
+   * @param sock_ops object handling the operations on network sockets
    * @param thread_stack_size memory in kilobytes allocated for thread's stack
-   * @param client_ssl_mode SSL mode of the client side
-   * @param client_ssl_ctx SSL context of the client side
-   * @param server_ssl_mode SSL mode of the serer side
-   * @param dest_ssl_ctx SSL contexts of the destinations
    */
   MySQLRouting(
       net::io_context &io_ctx, routing::RoutingStrategy routing_strategy,
@@ -265,11 +243,9 @@ class MySQLRouting {
       std::chrono::milliseconds connect_timeout =
           routing::kDefaultClientConnectTimeout,
       unsigned int net_buffer_length = routing::kDefaultNetBufferLength,
-      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
-      SslMode client_ssl_mode = SslMode::kDisabled,
-      TlsServerContext *client_ssl_ctx = nullptr,
-      SslMode server_ssl_mode = SslMode::kDisabled,
-      DestinationTlsContext *dest_ssl_ctx = nullptr);
+      mysql_harness::SocketOperationsBase *sock_ops =
+          mysql_harness::SocketOperations::instance(),
+      size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes);
 
   /** @brief Starts the service and accept incoming connections
    *
@@ -367,32 +343,7 @@ class MySQLRouting {
 
   void disconnect_all();
 
-  /**
-   * Stop accepting new connections on a listening socket.
-   */
-  void stop_socket_acceptors();
-
-  /**
-   * Check if we are accepting connections on a routing socket.
-   *
-   * @retval true if we are accepting connections, false otherwise
-   */
-  bool is_accepting_connections() const;
-
  private:
-  /**
-   * Start accepting new connections on a listening socket
-   *
-   * @returns std::error_code on errors.
-   */
-  stdx::expected<void, std::error_code> start_accepting_connections(
-      const mysql_harness::PluginFuncEnv *env);
-
-  /**
-   * Get listening socket detail information used for the logging purposes.
-   */
-  std::string get_port_str() const;
-
   /** @brief Sets up the TCP service
    *
    * Sets up the TCP service binding to IP addresses and TCP port.
@@ -417,25 +368,22 @@ class MySQLRouting {
    */
   static void set_unix_socket_permissions(const char *socket_file);
 
-  stdx::expected<void, std::error_code> start_acceptor(
-      mysql_harness::PluginFuncEnv *env);
-
  public:
   MySQLRoutingContext &get_context() { return context_; }
 
  private:
-  /** Monitor for notifying socket acceptor */
-  WaitableMonitor<Nothing> acceptor_waitable_{Nothing{}};
+  void start_acceptor(mysql_harness::PluginFuncEnv *env);
 
   /** @brief wrapper for data used by all connections */
   MySQLRoutingContext context_;
+
+  /** @brief object handling the operations on network sockets */
+  mysql_harness::SocketOperationsBase *sock_ops_;
 
   net::io_context &io_ctx_;
 
   /** @brief Destination object to use when getting next connection */
   std::unique_ptr<RouteDestination> destination_;
-
-  bool is_destination_standalone{false};
 
   /** @brief Routing strategy to use when getting next destination */
   routing::RoutingStrategy routing_strategy_;
@@ -456,9 +404,6 @@ class MySQLRouting {
   net::ip::tcp::endpoint service_tcp_endpoint_;
   SocketContainer<net::ip::tcp> tcp_connector_container_;
 
-  // container for sockets while the Connector runs.
-  SocketContainer<net::ip::tcp> server_sock_container_;
-
 #if !defined(_WIN32)
   /** @brief Socket descriptor of the named socket service */
   local::stream_protocol::acceptor service_named_socket_;
@@ -471,9 +416,6 @@ class MySQLRouting {
 
   /** @brief container for connections */
   ConnectionContainer connection_container_;
-
-  /** Information if the routing plugging is still running. */
-  std::atomic<bool> routing_stopped_{false};
 
 #ifdef FRIEND_TEST
   FRIEND_TEST(RoutingTests, bug_24841281);

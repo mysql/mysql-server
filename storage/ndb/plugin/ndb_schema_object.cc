@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 #include <string>
 #include <unordered_map>
 
-#include "my_dbug.h"
 #include "storage/ndb/plugin/ndb_bitmap.h"
 #include "storage/ndb/plugin/ndb_require.h"
 
@@ -66,10 +65,10 @@ class Ndb_schema_objects {
      there is only one entry in the hash.
    */
   NDB_SCHEMA_OBJECT *find(uint32 nodeid, uint32 schema_op_id) const {
-    assert(nodeid);
+    DBUG_ASSERT(nodeid);
 
     // Make sure that own nodeid has been set
-    assert(m_own_nodeid);
+    DBUG_ASSERT(m_own_nodeid);
 
     if (nodeid != m_own_nodeid) {
       // Looking for a schema operation started in another node,  the
@@ -86,10 +85,10 @@ class Ndb_schema_objects {
 } active_schema_clients;
 
 void NDB_SCHEMA_OBJECT::init(uint32 nodeid) {
-  assert(nodeid);
+  DBUG_ASSERT(nodeid);
   std::lock_guard<std::mutex> lock_hash(active_schema_clients.m_lock);
   // Make sure that no active schema clients exist when function is called
-  assert(active_schema_clients.m_hash.size() == 0);
+  DBUG_ASSERT(active_schema_clients.m_hash.size() == 0);
   active_schema_clients.m_own_nodeid = nodeid;
 }
 
@@ -100,7 +99,7 @@ static uint32 next_schema_op_id() {
   if (id == 0) {
     id = schema_op_id_sequence++;
   }
-  assert(id != 0);
+  DBUG_ASSERT(id != 0);
   return id;
 }
 
@@ -131,11 +130,11 @@ NDB_SCHEMA_OBJECT::NDB_SCHEMA_OBJECT(const char *key, const char *db,
       m_started(std::chrono::steady_clock::now()) {}
 
 NDB_SCHEMA_OBJECT::~NDB_SCHEMA_OBJECT() {
-  assert(state.m_use_count == 0);
+  DBUG_ASSERT(state.m_use_count == 0);
   // Check that all participants have completed
-  assert(state.m_participants.size() == count_completed_participants());
+  DBUG_ASSERT(state.m_participants.size() == count_completed_participants());
   // Coordinator should have completed
-  assert(state.m_coordinator_completed);
+  DBUG_ASSERT(state.m_coordinator_completed);
 }
 
 NDB_SCHEMA_OBJECT *NDB_SCHEMA_OBJECT::get(const char *db,
@@ -377,7 +376,7 @@ bool NDB_SCHEMA_OBJECT::check_for_failed_subscribers(
     const char *message) const {
   std::unique_lock<std::mutex> lock_state(state.m_lock);
   // Can be called only after the coordinator has registered participants
-  assert(state.m_participants.size() > 0);
+  DBUG_ASSERT(state.m_participants.size() > 0);
 
   // Fail participants not in list of nodes
   fail_participants_not_in_list(new_subscribers, result, message);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -120,9 +120,6 @@ bool Zstd_comp::close() {
     // end the stream
     ret = ZSTD_endStream(m_ctx, &m_obuf);
     if (ZSTD_isError(ret)) goto err;
-
-    if (ret > 0 && expand_buffer(ret)) goto err;
-
     m_buffer_cursor = static_cast<unsigned char *>(m_obuf.dst) + m_obuf.pos;
   } while (ret > 0);
 
@@ -142,9 +139,13 @@ std::tuple<std::size_t, bool> Zstd_comp::compress(const unsigned char *buffer,
     std::size_t min_capacity{ZSTD_CStreamOutSize()};
 
     // always have at least one block available
-    if ((err = expand_buffer(min_capacity))) break;
+    if ((err = reserve(min_capacity))) break;
 
-      // compress now
+    // adjust the obuf
+    m_obuf.dst = m_buffer;
+    m_obuf.size = capacity();
+
+    // compress now
 #if ZSTD_VERSION_NUMBER >= 10400
     ret = ZSTD_compressStream2(m_ctx, &m_obuf, &ibuf, ZSTD_e_continue);
 #else
@@ -158,14 +159,6 @@ std::tuple<std::size_t, bool> Zstd_comp::compress(const unsigned char *buffer,
   }
 
   return std::make_tuple(ibuf.size - ibuf.pos, err);
-}
-
-bool Zstd_comp::expand_buffer(size_t const &extra_bytes) {
-  if (reserve(extra_bytes)) return true;
-  // adjust the obuf
-  m_obuf.dst = m_buffer;
-  m_obuf.size = capacity();
-  return false;
 }
 
 /*

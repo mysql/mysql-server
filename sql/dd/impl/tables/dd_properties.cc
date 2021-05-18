@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,12 @@
 
 #include "sql/dd/impl/tables/dd_properties.h"
 
-#include <assert.h>
 #include <string>
 
 #include "m_ctype.h"
 #include "my_base.h"
 #include "my_bitmap.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
@@ -126,14 +125,14 @@ bool DD_properties::init_cached_properties(THD *thd) {
   trx.otx.add_table<DD_properties>();
 
   if (trx.otx.open_tables()) {
-    assert(false);
+    DBUG_ASSERT(false);
     return true;
   }
 
   Raw_table *raw_t = trx.otx.get_table(name());
-  assert(raw_t);
+  DBUG_ASSERT(raw_t);
   TABLE *t = raw_t->get_table();
-  assert(t);
+  DBUG_ASSERT(t);
   t->use_all_columns();
 
   /*
@@ -142,7 +141,7 @@ bool DD_properties::init_cached_properties(THD *thd) {
     the property cache based on its contents.
   */
   if (t->file->ha_rnd_init(true) || t->file->ha_rnd_next(t->record[0])) {
-    assert(false);
+    DBUG_ASSERT(false);
     t->file->ha_rnd_end();
     return true;
   }
@@ -157,7 +156,7 @@ bool DD_properties::init_cached_properties(THD *thd) {
 
 // Flush all properties from the cache to disk.
 bool DD_properties::flush_cached_properties(THD *thd) {
-  assert(!m_properties.empty());
+  DBUG_ASSERT(!m_properties.empty());
 
   Update_dictionary_tables_ctx ctx(thd);
   ctx.otx.add_table<DD_properties>();
@@ -165,9 +164,9 @@ bool DD_properties::flush_cached_properties(THD *thd) {
   if (ctx.otx.open_tables()) return true;
 
   Raw_table *raw_t = ctx.otx.get_table(name());
-  assert(raw_t);
+  DBUG_ASSERT(raw_t);
   TABLE *t = raw_t->get_table();
-  assert(t);
+  DBUG_ASSERT(t);
   t->use_all_columns();
   bitmap_set_all(t->write_set);
   bitmap_set_all(t->read_set);
@@ -185,7 +184,7 @@ bool DD_properties::flush_cached_properties(THD *thd) {
     until after its populate SQL statement has been executed.
   */
   if ((rc = t->file->ha_rnd_next(t->record[0]))) {
-    assert(false);
+    DBUG_ASSERT(false);
     t->file->ha_rnd_end();
     return true;
   }
@@ -242,8 +241,8 @@ bool DD_properties::unchecked_set(THD *thd, const String_type &key,
 // Read the integer property for the given key.
 bool DD_properties::get(THD *thd, const String_type &key, uint *value,
                         bool *exists) {
-  assert(m_property_desc.find(key) != m_property_desc.end() &&
-         m_property_desc[key] == Property_type::UNSIGNED_INT_32);
+  DBUG_ASSERT(m_property_desc.find(key) != m_property_desc.end() &&
+              m_property_desc[key] == Property_type::UNSIGNED_INT_32);
   String_type val_str;
   return unchecked_get(thd, key, &val_str, exists) ||
          dd::Properties::from_str(val_str, value);
@@ -251,32 +250,32 @@ bool DD_properties::get(THD *thd, const String_type &key, uint *value,
 
 // Set the integer property for the given key.
 bool DD_properties::set(THD *thd, const String_type &key, uint value) {
-  assert(m_property_desc.find(key) != m_property_desc.end() &&
-         m_property_desc[key] == Property_type::UNSIGNED_INT_32);
+  DBUG_ASSERT(m_property_desc.find(key) != m_property_desc.end() &&
+              m_property_desc[key] == Property_type::UNSIGNED_INT_32);
   return unchecked_set(thd, key, dd::Properties::to_str(value));
 }
 
 // Read the character string property for the given key.
 bool DD_properties::get(THD *thd, const String_type &key, String_type *value,
                         bool *exists) {
-  assert(m_property_desc.find(key) != m_property_desc.end() &&
-         m_property_desc[key] == Property_type::CHARACTER_STRING);
+  DBUG_ASSERT(m_property_desc.find(key) != m_property_desc.end() &&
+              m_property_desc[key] == Property_type::CHARACTER_STRING);
   return unchecked_get(thd, key, value, exists);
 }
 
 // Set the character string property for the given key.
 bool DD_properties::set(THD *thd, const String_type &key,
                         const String_type &value) {
-  assert(m_property_desc.find(key) != m_property_desc.end() &&
-         m_property_desc[key] == Property_type::CHARACTER_STRING);
+  DBUG_ASSERT(m_property_desc.find(key) != m_property_desc.end() &&
+              m_property_desc[key] == Property_type::CHARACTER_STRING);
   return unchecked_set(thd, key, value);
 }
 
 // Read the properties object for the given key.
 bool DD_properties::get(THD *thd, const String_type &key,
                         std::unique_ptr<Properties> *properties, bool *exists) {
-  assert(m_property_desc.find(key) != m_property_desc.end() &&
-         m_property_desc[key] == Property_type::PROPERTIES);
+  DBUG_ASSERT(m_property_desc.find(key) != m_property_desc.end() &&
+              m_property_desc[key] == Property_type::PROPERTIES);
 
   String_type property_string;
   if (unchecked_get(thd, key, &property_string, exists)) return true;
@@ -288,8 +287,8 @@ bool DD_properties::get(THD *thd, const String_type &key,
 // Set the property object for the given key.
 bool DD_properties::set(THD *thd, const String_type &key,
                         const dd::Properties &properties) {
-  assert(m_property_desc.find(key) != m_property_desc.end() &&
-         m_property_desc[key] == Property_type::PROPERTIES);
+  DBUG_ASSERT(m_property_desc.find(key) != m_property_desc.end() &&
+              m_property_desc[key] == Property_type::PROPERTIES);
   return unchecked_set(thd, key, properties.raw_string());
 }
 

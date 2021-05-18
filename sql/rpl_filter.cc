@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -191,7 +191,7 @@ int Rpl_filter::copy_global_replication_filters() {
   bool need_unlock = false;
 
   /* Assert that it is not self copy. */
-  assert(this != &rpl_global_filter);
+  DBUG_ASSERT(this != &rpl_global_filter);
 
   /* Check if the source is empty. */
   if (rpl_global_filter.is_empty()) return 0;
@@ -275,7 +275,7 @@ int Rpl_filter::copy_global_replication_filters() {
                                         rpl_global_filter.wild_do_table_inited);
     if (res != 0) goto err;
 
-    assert(!wild_do_table.empty());
+    DBUG_ASSERT(!wild_do_table.empty());
 
     wild_do_table_inited = true;
     table_rules_on = true;
@@ -292,7 +292,7 @@ int Rpl_filter::copy_global_replication_filters() {
                     res = 1;);
     if (res != 0) goto err;
 
-    assert(!wild_ignore_table.empty());
+    DBUG_ASSERT(!wild_ignore_table.empty());
 
     wild_ignore_table_inited = true;
     table_rules_on = true;
@@ -1341,7 +1341,7 @@ void Sql_cmd_change_repl_filter::set_filter_value(
       break;
     default:
       /* purecov: begin deadcode */
-      assert(0);
+      DBUG_ASSERT(0);
       break;
       /* purecov: end */
   }

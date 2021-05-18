@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ bool Raw_record_set::open() {
 
   // Row not found.
   if (rc == HA_ERR_KEY_NOT_FOUND || rc == HA_ERR_END_OF_FILE) {
-    assert(!m_current_record);
+    DBUG_ASSERT(!m_current_record);
     return false;
   }
 
@@ -143,7 +143,7 @@ Raw_record_set::~Raw_record_set() {
     if (rc) {
       /* purecov: begin inspected */
       m_table->file->print_error(rc, MYF(ME_ERRORLOG));
-      assert(false);
+      DBUG_ASSERT(false);
       /* purecov: end */
     }
   }

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -70,18 +70,14 @@ Plugin_table table_replication_asynchronous_connection_failover::m_table_def(
     "replica shall try to switch the connection over to when there are "
     "failures. Weight can be set to a number between 1 and 100, where 100 is "
     "the highest weight and 1 the lowest.',\n"
-    " MANAGED_NAME CHAR(64) CHARACTER SET utf8 COLLATE utf8_general_ci "
-    "NOT NULL DEFAULT '' COMMENT 'The name of the group which this server "
-    "belongs to.',\n"
-    "  PRIMARY KEY(CHANNEL_NAME, HOST, PORT, NETWORK_NAMESPACE, MANAGED_NAME), "
-    "  KEY(Channel_name, Managed_name) \n",
+    "  PRIMARY KEY(CHANNEL_NAME, HOST, PORT, NETWORK_NAMESPACE) \n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
     /* Tablespace */
     nullptr);
 
 PFS_engine_table_share
-    table_replication_asynchronous_connection_failover::m_share{
+    table_replication_asynchronous_connection_failover::m_share = {
         &pfs_readonly_acl,
         /** Open table function. */
         table_replication_asynchronous_connection_failover::create,
@@ -96,26 +92,19 @@ PFS_engine_table_share
         PFS_engine_table_proxy(),
         {0},
         false /* m_in_purgatory */
-    };
+};
 
 bool PFS_index_rpl_async_conn_failover::match(
-    RPL_FAILOVER_SOURCE_TUPLE source_conn_detail) {
+    SENDER_CONN_TUPLE source_conn_detail) {
   DBUG_TRACE;
   st_row_rpl_async_conn_failover row;
   std::string channel_name;
   std::string host;
   uint port;
-  std::string network_namespace{};
-  std::string managed_name;
+  std::string network_namespace;
 
-  std::tie(channel_name, host, port, std::ignore, std::ignore, std::ignore) =
+  std::tie(std::ignore, channel_name, host, port, network_namespace) =
       source_conn_detail;
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_mi(channel_name.c_str());
-  if (nullptr != mi) {
-    network_namespace.assign(mi->network_namespace_str());
-  }
-  channel_map.unlock();
 
   row.channel_name_length = channel_name.length();
   memcpy(row.channel_name, channel_name.c_str(), row.channel_name_length);
@@ -139,12 +128,6 @@ bool PFS_index_rpl_async_conn_failover::match(
          row.network_namespace_length);
   if (!m_key_4.match_not_null(row.network_namespace,
                               row.network_namespace_length)) {
-    return false;
-  }
-
-  row.managed_name_length = managed_name.length();
-  memcpy(row.managed_name, managed_name.c_str(), row.managed_name_length);
-  if (!m_key_5.match_not_null(row.managed_name, row.managed_name_length)) {
     return false;
   }
 
@@ -179,8 +162,8 @@ ha_rows table_replication_asynchronous_connection_failover::get_row_count() {
 
 int table_replication_asynchronous_connection_failover::rnd_init(bool) {
   DBUG_TRACE;
-  Rpl_async_conn_failover_table_operations table_op(TL_READ);
-  std::tie(read_error, source_conn_detail) = table_op.read_source_random_rows();
+  Rpl_async_conn_failover_table_operations table_op;
+  std::tie(read_error, source_conn_detail) = table_op.read_random_rows();
   return 0;
 }
 
@@ -204,15 +187,14 @@ int table_replication_asynchronous_connection_failover::rnd_next(void) {
 int table_replication_asynchronous_connection_failover::rnd_pos(
     const void *pos) {
   DBUG_TRACE;
-  RPL_FAILOVER_SOURCE_TUPLE source_conn_tuple;
+  SENDER_CONN_TUPLE source_conn_tuple;
   bool error{false};
   int res{HA_ERR_RECORD_DELETED};
 
   set_position(pos);
   auto upos = std::to_string(m_pos.m_index);
-  Rpl_async_conn_failover_table_operations table_op(TL_READ);
-  std::tie(error, source_conn_tuple) =
-      table_op.read_source_random_rows_pos(upos);
+  Rpl_async_conn_failover_table_operations table_op;
+  std::tie(error, source_conn_tuple) = table_op.read_random_rows_pos(upos);
 
   table_replication_asynchronous_connection_failover::num_rows = 1;
   if (error) return res;
@@ -225,13 +207,13 @@ int table_replication_asynchronous_connection_failover::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
   DBUG_TRACE;
   PFS_index_rpl_async_conn_failover *result = nullptr;
-  assert(idx == 0);
+  DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_rpl_async_conn_failover);
   m_opened_index = result;
   m_index = result;
 
-  Rpl_async_conn_failover_table_operations table_op(TL_READ);
-  std::tie(read_error, source_conn_detail) = table_op.read_source_all_rows();
+  Rpl_async_conn_failover_table_operations table_op;
+  std::tie(read_error, source_conn_detail) = table_op.read_all_rows();
 
   return 0;
 }
@@ -256,23 +238,15 @@ int table_replication_asynchronous_connection_failover::index_next(void) {
 }
 
 int table_replication_asynchronous_connection_failover::make_row(
-    RPL_FAILOVER_SOURCE_TUPLE source_tuple) {
+    SENDER_CONN_TUPLE source_tuple) {
   DBUG_TRACE;
   std::string channel{};
   std::string host{};
-  std::string network_namespace{};
   uint port;
+  std::string network_namespace{};
   uint weight;
-  std::string managed_name{};
 
-  std::tie(channel, host, port, std::ignore, weight, managed_name) =
-      source_tuple;
-  channel_map.rdlock();
-  Master_info *mi = channel_map.get_mi(channel.c_str());
-  if (nullptr != mi) {
-    network_namespace.assign(mi->network_namespace_str());
-  }
-  channel_map.unlock();
+  std::tie(weight, channel, host, port, network_namespace) = source_tuple;
 
   m_row.channel_name_length = channel.length();
   memcpy(m_row.channel_name, channel.c_str(), channel.length());
@@ -288,9 +262,6 @@ int table_replication_asynchronous_connection_failover::make_row(
 
   m_row.weight = weight;
 
-  m_row.managed_name_length = managed_name.length();
-  memcpy(m_row.managed_name, managed_name.c_str(), managed_name.length());
-
   return 0;
 }
 
@@ -298,7 +269,7 @@ int table_replication_asynchronous_connection_failover::read_row_values(
     TABLE *table, unsigned char *buf, Field **fields, bool read_all) {
   DBUG_TRACE;
   /* Set the null bits */
-  assert(table->s->null_bytes == 1);
+  DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (Field *f = nullptr; (f = *fields); fields++) {
@@ -320,11 +291,8 @@ int table_replication_asynchronous_connection_failover::read_row_values(
         case 4: /** weight */
           set_field_ulong(f, m_row.weight);
           break;
-        case 5: /** managed_name */
-          set_field_char_utf8(f, m_row.managed_name, m_row.managed_name_length);
-          break;
         default:
-          assert(false);
+          DBUG_ASSERT(false);
       }
     }
   }

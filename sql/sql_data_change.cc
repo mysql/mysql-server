@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,8 @@ static bool allocate_column_bitmap(TABLE *table, MY_BITMAP **bitmap) {
   MY_BITMAP *the_struct;
   my_bitmap_map *the_bits;
 
-  if (multi_alloc_root(current_thd->mem_root, &the_struct, sizeof(MY_BITMAP),
+  DBUG_ASSERT(current_thd == table->in_use);
+  if (multi_alloc_root(table->in_use->mem_root, &the_struct, sizeof(MY_BITMAP),
                        &the_bits, bitmap_buffer_size(number_bits),
                        NULL) == nullptr)
     return true;
@@ -131,14 +132,14 @@ bool COPY_INFO::get_function_default_columns(TABLE *table) {
 bool COPY_INFO::set_function_defaults(TABLE *table) {
   DBUG_TRACE;
 
-  assert(m_function_default_columns != nullptr);
+  DBUG_ASSERT(m_function_default_columns != nullptr);
 
   /* Quick reject test for checking the case when no defaults are invoked. */
   if (bitmap_is_clear_all(m_function_default_columns)) return false;
 
   for (uint i = 0; i < table->s->fields; ++i)
     if (bitmap_is_set(m_function_default_columns, i)) {
-      assert(bitmap_is_set(table->write_set, i));
+      DBUG_ASSERT(bitmap_is_set(table->write_set, i));
       switch (m_optype) {
         case INSERT_OPERATION:
           table->field[i]->evaluate_insert_default_function();
@@ -148,7 +149,7 @@ bool COPY_INFO::set_function_defaults(TABLE *table) {
           break;
       }
       // If there was an error while executing the default expression
-      if (current_thd->is_error()) return true;
+      if (table->in_use->is_error()) return true;
     }
 
   /**

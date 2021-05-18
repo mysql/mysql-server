@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -194,8 +194,8 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss_lo
         const char act[] =
             "now SIGNAL pessimistic_row_purge_clust_pause WAIT_FOR "
             "pessimistic_row_purge_clust_continue";
-        assert(opt_debug_sync_timeout > 0);
-        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       }
     });
 
@@ -247,8 +247,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_clust_if_poss(
       return (true);
     }
 
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
+    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
   }
 
   return (false);
@@ -599,8 +598,7 @@ retry:
   if (!success && n_tries < BTR_CUR_RETRY_DELETE_N_TIMES) {
     n_tries++;
 
-    std::this_thread::sleep_for(
-        std::chrono::milliseconds(BTR_CUR_RETRY_SLEEP_TIME_MS));
+    os_thread_sleep(BTR_CUR_RETRY_SLEEP_TIME);
 
     goto retry;
   }
@@ -876,7 +874,7 @@ try_again:
       if (srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
         return (false);
       }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      os_thread_sleep(1000000);
     }
   }
 
@@ -979,7 +977,7 @@ try_again:
       if (srv_shutdown_state.load() >= SRV_SHUTDOWN_PURGE) {
         return (false);
       }
-      std::this_thread::sleep_for(std::chrono::seconds(1));
+      os_thread_sleep(1000000);
       goto try_again;
     }
 
@@ -989,7 +987,7 @@ try_again:
 #endif /* INNODB_DD_VC_SUPPORT */
 
   /* Disable purging for temp-tables as they are short-lived
-  and no point in re-organizing such short lived tables */
+  and no point in re-organzing such short lived tables */
   if (node->table->is_temporary()) {
     goto close_exit;
   }
@@ -1161,7 +1159,7 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
   DBUG_EXECUTE_IF(
       "do_not_meta_lock_in_background",
       while (srv_shutdown_state.load() < SRV_SHUTDOWN_PURGE) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        os_thread_sleep(500000);
       } return;);
 
   while (row_purge_parse_undo_rec(node, undo_rec, &updated_extern, thd, thr)) {
@@ -1174,7 +1172,7 @@ static void row_purge(purge_node_t *node,       /*!< in: row purge node */
     }
 
     /* Retry the purge in a second. */
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    os_thread_sleep(1000000);
   }
 }
 

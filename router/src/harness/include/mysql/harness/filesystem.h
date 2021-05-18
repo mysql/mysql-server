@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
-#include <system_error>
 #include <vector>
 
 #ifndef _WIN32
@@ -41,8 +40,6 @@
 #ifdef _WIN32
 #include <aclapi.h>
 #endif
-
-#include "mysql/harness/stdx/expected.h"
 
 namespace mysql_harness {
 
@@ -479,11 +476,10 @@ class HARNESS_EXPORT Directory : public Path {
  *
  * @param dir path of the directory to be removed; this directory must be empty
  *
- * @return void on success, error_code on failure
+ * @return 0 on success, -1 on error and sets errno
  */
 HARNESS_EXPORT
-stdx::expected<void, std::error_code> delete_dir(
-    const std::string &dir) noexcept;
+int delete_dir(const std::string &dir) noexcept;
 
 /** @brief Removes a file.
  *
@@ -491,11 +487,10 @@ stdx::expected<void, std::error_code> delete_dir(
  *
  * @param path of the file to be removed
  *
- * @return void on success, error_code on failure
+ * @return 0 on success, -1 on error
  */
 HARNESS_EXPORT
-stdx::expected<void, std::error_code> delete_file(
-    const std::string &path) noexcept;
+int delete_file(const std::string &path) noexcept;
 
 /** @brief Removes directory and all its contents.
  *
@@ -503,11 +498,10 @@ stdx::expected<void, std::error_code> delete_file(
  *
  * @param dir path of the directory to be removed
  *
- * @return void on success, error_code on failure
+ * @return 0 on success, -1 on error
  */
 HARNESS_EXPORT
-stdx::expected<void, std::error_code> delete_dir_recursive(
-    const std::string &dir) noexcept;
+int delete_dir_recursive(const std::string &dir) noexcept;
 
 /** @brief Creates a temporary directory with partially-random name and returns
  * its path.

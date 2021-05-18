@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,8 +22,7 @@
 
 #include "sql/dd/cache/multi_map_base.h"
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "sql/dd/impl/cache/cache_element.h"        // Cache_element
 #include "sql/dd/types/abstract_table.h"            // Abstract_table
 #include "sql/dd/types/charset.h"                   // Charset
@@ -43,7 +42,7 @@ namespace cache {
 template <typename T>
 void Multi_map_base<T>::remove_single_element(Cache_element<T> *element) {
   // Remove the element from all maps.
-  assert(element->object());
+  DBUG_ASSERT(element->object());
   if (element->object()) m_map<const T *>()->remove(element->object());
   if (element->id_key())
     m_map<typename T::Id_key>()->remove(*element->id_key());
@@ -57,7 +56,7 @@ void Multi_map_base<T>::remove_single_element(Cache_element<T> *element) {
 template <typename T>
 void Multi_map_base<T>::add_single_element(Cache_element<T> *element) {
   // Add the element to all maps.
-  assert(element->object());
+  DBUG_ASSERT(element->object());
   if (element->object()) m_map<const T *>()->put(element->object(), element);
   if (element->id_key())
     m_map<typename T::Id_key>()->put(*element->id_key(), element);

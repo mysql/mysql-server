@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,7 @@
 #include "lex_string.h"
 #include "my_dbug.h"
 #include "my_sys.h"
-#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/psi/psi_base.h"
 #include "sql/psi_memory_key.h"
 #include "sql/thr_malloc.h"
 #include "thr_malloc.h"

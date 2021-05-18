@@ -183,17 +183,9 @@ execute s using @a;
 show status like 'com_stmt_reprepare';
 eval $show_trace;
 
-set @s='abc';
-set @d='2000-01-01';
-set @t='23:59:59.999999';
-set @dt='2000-01-01 23:59:59.999999';
-set @y='2000';
-set @j='{"pi":3.14159}';
-
 # CAST(? AS T): ? gets type of T
 prepare s from 'select cast(? as unsigned)';
 eval $show_trace;
-execute s using @y;
 # Assumed type is unsigned int;
 # because type is inherited (a specificity of CAST),
 # another type doesn't cause any repreparation, and type
@@ -205,34 +197,16 @@ eval $show_trace;
 
 prepare s from 'select cast(? as char(10))';
 eval $show_trace;
-execute s using @s;
-prepare s from 'select cast(? as binary(3))';
+prepare s from 'select cast(? as binary(10))';
 eval $show_trace;
-execute s using @s;
 prepare s from 'select cast(? as date)';
 eval $show_trace;
-execute s using @d;
-prepare s from 'select cast(? as time(6))';
+prepare s from 'select cast(? as time)';
 eval $show_trace;
-execute s using @t;
-prepare s from 'select cast(? as datetime(6))';
-eval $show_trace;
-execute s using @dt;
-prepare s from 'select cast(? as year)';
-eval $show_trace;
-execute s using @y;
-prepare s from 'select cast(? as float)';
-eval $show_trace;
-execute s using @y;
-prepare s from 'select cast(? as double)';
-eval $show_trace;
-execute s using @y;
 prepare s from 'select cast(? as decimal(10))';
 eval $show_trace;
-execute s using @y;
 prepare s from 'select cast(? as json)';
 eval $show_trace;
-execute s using @j;
 
 # CONVERT == CAST
 prepare s from 'select convert(?, decimal(10))';
@@ -3412,12 +3386,3 @@ DEALLOCATE PREPARE s;
 --error ER_WRONG_ARGUMENTS
 PREPARE s FROM 'DO ST_ENVELOPE(CEILING(?))';
 
---echo # Bug#32145078: "Illegal mix of collations" against a string
-
-CREATE TABLE t1 (
-  col1 VARCHAR(100) NOT NULL COLLATE latin1_swedish_ci,
-  col2 VARCHAR(200) NOT NULL COLLATE utf8mb4_general_ci
-);
-PREPARE stmt1 FROM 'SELECT * FROM t1 WHERE col1 LIKE ? OR col2 LIKE ?';
-DEALLOCATE PREPARE stmt1;
-DROP TABLE t1;

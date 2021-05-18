@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,7 @@
 #include <list>
 #include <stdexcept>
 
-#include "plugin/x/src/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/error_code.h"
 #include "plugin/x/src/query_string_builder.h"
 
 namespace xpl {
@@ -40,7 +40,7 @@ class Assign_list {
   typedef std::string Value_type;
   typedef std::list<Value_type> Container_type;
 
-  explicit Assign_list(const Value_type &value) { (*this)(value); }
+  Assign_list(const Value_type &value) { (*this)(value); }
 
   Assign_list &operator()(const Value_type &value) {
     m_values.push_back(value);
@@ -141,7 +141,7 @@ TEST_P(Query_string_builder_param_testsuite,
   ASSERT_STREQ(expected_query, query.get().c_str());
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     InstantiationPositiveTest, Query_string_builder_param_testsuite,
     ::testing::Values(
         Query_and_expected("SELECT ? FROM", "SELECT 'Test' FROM", "Test"),
@@ -203,7 +203,7 @@ TEST_P(Query_string_builder_multiple_tags_param_testsuite,
   ASSERT_STREQ(expected_query.c_str(), query.get().c_str());
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     InstantiationPositiveTests,
     Query_string_builder_multiple_tags_param_testsuite,
     ::testing::Values(
@@ -222,7 +222,7 @@ INSTANTIATE_TEST_SUITE_P(
         Query_and_expected_values("SELECT ? FROM ?", "SELECT '?' FROM 'First'",
                                   Assign_list("?")("First"))));
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     InstantiationPositiveTestsQueryOrValuesWithEscapedChars,
     Query_string_builder_multiple_tags_param_testsuite,
     ::testing::Values(
@@ -239,7 +239,7 @@ INSTANTIATE_TEST_SUITE_P(
                                   "SELECT \"?\'?'?\",'','First' FROM t",
                                   Assign_list("")("First"))));
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     InstantiationPositiveTestsQueryWithComment,
     Query_string_builder_multiple_tags_param_testsuite,
     ::testing::Values(
@@ -281,7 +281,7 @@ TEST_P(Query_string_builder_multiple_too_many_tags_param_testsuite,
   ASSERT_THROW(query.format() % values.back(), ngs::Error_code);
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     InstantiationNegativeTest,
     Query_string_builder_multiple_too_many_tags_param_testsuite,
     ::testing::Values(

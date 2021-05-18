@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -6764,7 +6764,7 @@ ER_MALFORMED_GTID_SPECIFICATION
   eng "Malformed GTID specification '%.200s'."
 
 ER_GNO_EXHAUSTED
-  eng "Impossible to generate GTID: the integer component reached the maximum value. Restart the server with a new server_uuid."
+  eng "Impossible to generate Global Transaction Identifier: the integer component reached the maximal value. Restart the server with a new server_uuid."
 
 ER_BAD_SLAVE_AUTO_POSITION
   eng "Parameters MASTER_LOG_FILE, MASTER_LOG_POS, RELAY_LOG_FILE and RELAY_LOG_POS cannot be set when MASTER_AUTO_POSITION is active."
@@ -7020,7 +7020,7 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS
   eng "Fulltext index creation requires a lock"
 
-OBSOLETE_ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
+ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
   eng "sql_slave_skip_counter can not be set when the server is running with @@GLOBAL.GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction"
 
 ER_DUP_UNKNOWN_IN_INDEX 23000
@@ -7727,7 +7727,7 @@ ER_INVALID_ENCRYPTION_OPTION
   eng "Invalid encryption option."
 
 ER_CANNOT_FIND_KEY_IN_KEYRING
-  eng "Can't find master key from keyring, please check in the server log if a keyring is loaded and initialized successfully."
+  eng "Can't find master key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
 
 ER_CAPACITY_EXCEEDED_IN_PARSER
   eng "Parser bailed out for this query."
@@ -7736,7 +7736,7 @@ ER_UNSUPPORTED_ALTER_ENCRYPTION_INPLACE
   eng "Cannot alter encryption attribute by inplace algorithm."
 
 ER_KEYRING_UDF_KEYRING_SERVICE_ERROR
-  eng "Function '%s' failed because underlying keyring service returned an error. Please check if a keyring is installed and that provided arguments are valid for the keyring you are using."
+  eng "Function '%s' failed because underlying keyring service returned an error. Please check if a keyring plugin is installed and that provided arguments are valid for the keyring you are using."
 
 ER_USER_COLUMN_OLD_LENGTH
   eng "It seems that your db schema is old. The %s column is 77 characters long and should be 93 characters long. Please perform the MySQL upgrade procedure."
@@ -7851,21 +7851,6 @@ OBSOLETE_ER_AUDIT_LOG_HOST_NAME_INVALID_CHARACTER
 
 OBSOLETE_WARN_DEPRECATED_MAXDB_SQL_MODE_FOR_TIMESTAMP
   eng "With the MAXDB SQL mode enabled, TIMESTAMP is identical with DATETIME. The MAXDB SQL mode is deprecated and will be removed in a future release. Please disable the MAXDB SQL mode and use DATETIME instead."
-
-OBSOLETE_ER_XA_REPLICATION_FILTERS
-  eng "The use of replication filters with XA transactions is not supported, and can lead to an undefined state in the replication slave."
-
-OBSOLETE_ER_CANT_OPEN_ERROR_LOG
-  eng "Could not open file '%s' for error logging%s%s"
-
-OBSOLETE_ER_GROUPING_ON_TIMESTAMP_IN_DST
-  eng "Grouping on temporal is non-deterministic for timezones having DST. Please consider switching to UTC for this query."
-
-OBSOLETE_ER_CANT_START_SERVER_NAMED_PIPE
-  eng "Can't start server : Named Pipe \"%s\" already in use."
-
-ER_WRITE_SET_EXCEEDS_LIMIT
-  eng "The size of writeset data for the current transaction exceeds a limit imposed by an external component. If using Group Replication check 'group_replication_transaction_size_limit'."
 
 #
 #  End of 5.7 error messages (server-to-client).
@@ -8761,10 +8746,10 @@ ER_GR_HOLD_MEMBER_STATUS_ERROR
   eng "Held statement was aborted due to member being in error state, while backlog is being applied during Group Replication primary election."
 
 ER_RPL_ENCRYPTION_FAILED_TO_FETCH_KEY
-  eng "Failed to fetch key from keyring, please check if keyring is loaded."
+  eng "Failed to fetch key from keyring, please check if keyring plugin is loaded."
 
 ER_RPL_ENCRYPTION_KEY_NOT_FOUND
-  eng "Can't find key from keyring, please check in the server log if a keyring is loaded and initialized successfully."
+  eng "Can't find key from keyring, please check in the server log if a keyring plugin is loaded and initialized successfully."
 
 ER_RPL_ENCRYPTION_KEYRING_INVALID_KEY
   eng "Fetched an invalid key from keyring."
@@ -8779,19 +8764,19 @@ ER_RPL_ENCRYPTION_KEY_EXISTS_UNEXPECTED
   eng "Key %s exists unexpected."
 
 ER_RPL_ENCRYPTION_FAILED_TO_GENERATE_KEY
-  eng "Failed to generate key, please check if keyring is loaded."
+  eng "Failed to generate key, please check if keyring plugin is loaded."
 
 ER_RPL_ENCRYPTION_FAILED_TO_STORE_KEY
-  eng "Failed to store key, please check if keyring is loaded."
+  eng "Failed to store key, please check if keyring plugin is loaded."
 
 ER_RPL_ENCRYPTION_FAILED_TO_REMOVE_KEY
-  eng "Failed to remove key, please check if keyring is loaded."
+  eng "Failed to remove key, please check if keyring plugin is loaded."
 
 ER_RPL_ENCRYPTION_UNABLE_TO_CHANGE_OPTION
   eng "Failed to change binlog_encryption value. %-.80s."
 
 ER_RPL_ENCRYPTION_MASTER_KEY_RECOVERY_FAILED
-  eng "Unable to recover binlog encryption master key, please check if keyring is loaded."
+  eng "Unable to recover binlog encryption master key, please check if keyring plugin is loaded."
 
 ER_SLOW_LOG_MODE_IGNORED_WHEN_NOT_LOGGING_TO_FILE
   eng "slow query log file format changed as requested, but setting will have no effect when not actually logging to a file."
@@ -8830,7 +8815,7 @@ ER_BINLOG_MASTER_KEY_RECOVERY_OUT_OF_COMBINATION
   eng "Unable to recover binary log master key, the combination of new_master_key_seqno=%u, master_key_seqno=%u and old_master_key_seqno=%u are wrong."
 
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_OPERATE_KEY
-  eng "Failed to operate binary log master key on keyring, please check if keyring is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files."
+  eng "Failed to operate binary log master key on keyring, please check if keyring plugin is loaded. The statement had no effect: the old binary log master key is still in use, the keyring, binary and relay log files are unchanged, and the server could not start using a new binary log master key for encrypting new binary and relay log files."
 
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_ROTATE_LOGS
   eng "Failed to rotate one or more binary or relay log files. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key."
@@ -8839,10 +8824,10 @@ ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_REENCRYPT_LOG
   eng "%s. A new binary log master key was generated and will be used to encrypt new binary and relay log files. There may still exist binary or relay log files using the previous binary log master key."
 
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_UNUSED_KEYS
-  eng "Failed to remove unused binary log encryption keys from the keyring, please check if keyring is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+  eng "Failed to remove unused binary log encryption keys from the keyring, please check if keyring plugin is loaded. The unused binary log encryption keys may still exist in the keyring, and they will be removed upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
 
 ER_BINLOG_MASTER_KEY_ROTATION_FAIL_TO_CLEANUP_AUX_KEY
-  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
+  eng "Failed to remove auxiliary binary log encryption key from keyring, please check if keyring plugin is loaded. The cleanup of the binary log master key rotation process did not finish as expected and the cleanup will take place upon server restart or next 'ALTER INSTANCE ROTATE BINLOG MASTER KEY' execution."
 
 ER_NON_BOOLEAN_EXPR_FOR_CHECK_CONSTRAINT
   eng "An expression of non-boolean type specified to a check constraint '%-.192s'."
@@ -9441,7 +9426,7 @@ ER_DA_ERROR_LOG_MULTIPLE_FILTERS
 ER_DA_CANT_OPEN_ERROR_LOG
   eng "Could not open file '%s' for error logging%s%s"
 
-ER_USER_REFERENCED_AS_DEFINER  
+ER_USER_REFERENCED_AS_DEFINER
   eng "User %.256s is referenced as a definer account in %s."
 
 ER_CANNOT_USER_REFERENCED_AS_DEFINER
@@ -9459,87 +9444,6 @@ WARN_UNSUPPORTED_ACL_TABLES_READ
 
 ER_BINLOG_UNSAFE_ACL_TABLE_READ_IN_DML_DDL
   eng "The statement is unsafe because it updates a table depending on ACL table read operation. As storage engine row locks are skipped for ACL table, it may not have same effect on master and slave."
-
-ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT
-  eng "STOP REPLICA command execution is incomplete: Replica Monitor thread got the stop signal, thread is busy, Monitor thread will stop once the current task is complete."
-
-ER_STARTING_REPLICA_MONITOR_IO_THREAD
-  eng "The Replica Monitor thread failed to start."
-
-ER_CANT_USE_ANONYMOUS_TO_GTID_WITH_GTID_MODE_NOT_ON
- eng "Replication cannot start%.192s with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> as this server uses @@GLOBAL.GTID_MODE <> ON."
-
-ER_CANT_COMBINE_ANONYMOUS_TO_GTID_AND_AUTOPOSITION
-  eng "The options ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> and MASTER_AUTO_POSITION = 1 cannot be used together."
-
-ER_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_REQUIRES_GTID_MODE_ON
-  eng "CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID> cannot be executed because @@GLOBAL.GTID_MODE <> ON."
-
-ER_SQL_SLAVE_SKIP_COUNTER_USED_WITH_GTID_MODE_ON
-  eng "The value of sql_slave_skip_counter will only take effect for channels running with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS <> OFF."
-
-ER_USING_ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS_AS_LOCAL_OR_UUID
-  eng "Using ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS creates limitations on the replication topology - you cannot fail over between downstream and upstream servers. Only use this option if it is not possible to enable GTIDs on the source, for instance, because of lack of permissions. If possible, use the procedure for enabling GTID transactions online instead, as described in the documentation."
-
-ER_CANT_SET_ANONYMOUS_TO_GTID_AND_WAIT_UNTIL_SQL_THD_AFTER_GTIDS
-  eng "WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS cannot be used on a channel configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>"
-
-ER_CANT_SET_SQL_AFTER_OR_BEFORE_GTIDS_WITH_ANONYMOUS_TO_GTID
-  eng "The SQL_AFTER_GTIDS or SQL_BEFORE_GTIDS clauses for START REPLICA cannot be used when the replication channel is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = LOCAL|<UUID>."
-
-ER_ANONYMOUS_TO_GTID_UUID_SAME_AS_GROUP_NAME
-  eng "Replication '%.192s' is configured with ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> where the UUID value is equal to the group_replication_group_name"
-
-ER_CANT_USE_SAME_UUID_AS_GROUP_NAME
-  eng "CHANGE MASTER TO ASSIGN_GTIDS_TO_ANONYMOUS_TRANSACTIONS = <UUID> cannot be executed because the UUID value is equal to the group_replication_group_name."
-
-ER_GRP_RPL_RECOVERY_CHANNEL_STILL_RUNNING
-  eng "The group_replication_recovery channel is still running, most likely it is waiting for a database/table lock, which is preventing the channel from stopping. Please check database/table locks, including the ones created by backup tools."
-
-ER_INNODB_INVALID_AUTOEXTEND_SIZE_VALUE
-  eng "AUTOEXTEND_SIZE should be a multiple of %uM"
-
-ER_INNODB_INCOMPATIBLE_WITH_TABLESPACE
-  eng "InnoDB: \"%s\" not allowed with general tablespaces"
-
-ER_INNODB_AUTOEXTEND_SIZE_OUT_OF_RANGE
-  eng "AUTOEXTEND_SIZE value should be between %uM and %uM"
-
-ER_CANNOT_USE_AUTOEXTEND_SIZE_CLAUSE
-  eng "AUTOEXTEND_SIZE clause is not valid for %s tablespace."
-
-ER_ROLE_GRANTED_TO_ITSELF
-  eng "User account %s is directly or indirectly granted to the role %s. The GRANT would create a loop"
-
-ER_TABLE_MUST_HAVE_A_VISIBLE_COLUMN
-  eng "A table must have at least one visible column."
-
-ER_INNODB_COMPRESSION_FAILURE
-  eng "Compression failed with the following error : %s"
-
-ER_WARN_ASYNC_CONN_FAILOVER_NETWORK_NAMESPACE
-  eng "The parameter network_namespace is reserved for future use. Please use the CHANGE REPLICATION SOURCE command to set channel network_namespace parameter."
-
-ER_CLIENT_INTERACTION_TIMEOUT
-    eng "The client was disconnected by the server because of inactivity. See wait_timeout and interactive_timeout for configuring this behavior."
-
-ER_INVALID_CAST_TO_GEOMETRY 22S01
-  eng "Invalid cast from %s to %s."
-
-ER_INVALID_CAST_POLYGON_RING_DIRECTION 22S04
-  eng "Invalid cast from %s to %s. A polygon ring is in the wrong direction."
-
-ER_GIS_DIFFERENT_SRIDS_AGGREGATION 22S05
-  eng "Arguments to function %s contains geometries with different SRIDs: %u and %u. All geometries must have the same SRID."
-
-ER_RELOAD_KEYRING_FAILURE
-  eng "Keyring reload failed. Please check error log for more details."
-
-ER_SDI_GET_KEYS_INVALID_TABLESPACE
-  eng "Tablespace '%.192s' is invalid for SDI operations."
-
-ER_CHANGE_RPL_SRC_WRONG_COMPRESSION_ALGORITHM_SIZE
-  eng "Value too long setting SOURCE_COMPRESSION_ALGORITHMS option to a %d chars long string for channel '%.192s'."
 
 #
 #  End of 8.0 error messages (server-to-client).

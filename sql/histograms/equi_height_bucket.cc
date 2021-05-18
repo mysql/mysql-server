@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,7 +27,6 @@
 
 #include "sql/histograms/equi_height_bucket.h"  // equi_height::Bucket
 
-#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -38,7 +37,7 @@
 #include "field_types.h"  // enum_field_types
 #include "m_ctype.h"
 #include "my_base.h"  // ha_rows
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_time.h"
 #include "mysql_time.h"
@@ -57,10 +56,10 @@ Bucket<T>::Bucket(T lower, T upper, double freq, ha_rows num_distinct)
       m_upper_inclusive(upper),
       m_cumulative_frequency(freq),
       m_num_distinct(num_distinct) {
-  assert(m_cumulative_frequency >= 0.0);
-  assert(m_cumulative_frequency <= 1.0);
-  assert(m_num_distinct >= 1);
-  assert(!histograms::Histogram_comparator()(upper, lower));
+  DBUG_ASSERT(m_cumulative_frequency >= 0.0);
+  DBUG_ASSERT(m_cumulative_frequency <= 1.0);
+  DBUG_ASSERT(m_num_distinct >= 1);
+  DBUG_ASSERT(!histograms::Histogram_comparator()(upper, lower));
 }
 
 template <typename T>
@@ -144,7 +143,7 @@ template <>
 bool Bucket<MYSQL_TIME>::add_values_json_bucket(const MYSQL_TIME &lower_value,
                                                 const MYSQL_TIME &upper_value,
                                                 Json_array *json_array) {
-  assert(lower_value.time_type == upper_value.time_type);
+  DBUG_ASSERT(lower_value.time_type == upper_value.time_type);
 
   enum_field_types field_type;
   switch (lower_value.time_type) {
@@ -159,7 +158,7 @@ bool Bucket<MYSQL_TIME>::add_values_json_bucket(const MYSQL_TIME &lower_value,
       break;
     default:
       /* purecov: begin deadcode */
-      assert(false);
+      DBUG_ASSERT(false);
       return true;
       /* purecov: end */
   }
@@ -291,7 +290,8 @@ static std::uint64_t uchar_array_to_64bit_unsigned(const uchar *ptr,
 */
 template <>
 double Bucket<String>::get_distance_from_lower(const String &value) const {
-  assert(value.charset()->number == get_lower_inclusive().charset()->number);
+  DBUG_ASSERT(value.charset()->number ==
+              get_lower_inclusive().charset()->number);
 
   if (Histogram_comparator()(value, get_lower_inclusive()))
     return 0.0;
@@ -344,8 +344,8 @@ double Bucket<String>::get_distance_from_lower(const String &value) const {
   std::uint64_t value_converted = uchar_array_to_64bit_unsigned(
       value_buf.get() + start_index, value_len - start_index);
 
-  assert(lower_converted <= value_converted);
-  assert(value_converted <= upper_converted);
+  DBUG_ASSERT(lower_converted <= value_converted);
+  DBUG_ASSERT(value_converted <= upper_converted);
 
   return (value_converted - lower_converted) /
          static_cast<double>(upper_converted - lower_converted);

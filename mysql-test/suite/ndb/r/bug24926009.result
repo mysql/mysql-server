@@ -1,0 +1,7 @@
+Bug#25557263
+
+Another variant of the 'WAITING MAX 119 SEC FOR DISTRIBUTING' timeout
+was sometimes provoked with this testcase. This time caused by
+a race condition between the schema changing client and the
+'coordinator' on the same mysqld.
+DROP DATABASE IF EXISTS tmp_db;

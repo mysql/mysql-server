@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@ SET(MYSYS_SOURCES
   base64.cc
   charset.cc
   charset-def.cc
+  checksum.cc
   dbug.cc
   errors.cc
   lf_alloc-pin.cc
@@ -114,7 +115,6 @@ SET(MYSYS_SOURCES
   tree.cc
   typelib.cc
   unhex.cc
-  keyring_operations_helper.cc
   # From deleted mysys_ssl library
   crypt_genhash_impl.cc
   my_default.cc

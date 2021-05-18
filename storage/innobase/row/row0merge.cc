@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+Copyright (c) 2005, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -708,7 +708,7 @@ add_next:
         /* Sleep when memory used exceeds limit*/
         while (psort_info[bucket].memory_used > FTS_PENDING_DOC_MEMORY_LIMIT &&
                trial_count++ < max_trial_count) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+          os_thread_sleep(1000);
         }
 
         n_row_added = 1;
@@ -1302,7 +1302,7 @@ static void row_merge_write_rec_low(
 #ifdef UNIV_DEBUG
   const byte *const end = b + size;
 #endif /* UNIV_DEBUG */
-  assert(e == rec_offs_extra_size(offsets) + 1);
+  DBUG_ASSERT(e == rec_offs_extra_size(offsets) + 1);
   DBUG_PRINT("ib_merge_sort",
              ("%p,fd=%d,%lu: %s", reinterpret_cast<const void *>(b), fd,
               ulong(foffs), rec_printer(mrec, 0, offsets).str().c_str()));
@@ -1315,7 +1315,7 @@ static void row_merge_write_rec_low(
   }
 
   memcpy(b, mrec - rec_offs_extra_size(offsets), rec_offs_size(offsets));
-  assert(b + rec_offs_size(offsets) == end);
+  DBUG_ASSERT(b + rec_offs_size(offsets) == end);
 }
 
 /** Write a merge record.
@@ -1847,11 +1847,11 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
           complete before we execute
           btr_pcur_restore_position(). */
           trx_purge_run();
-          std::this_thread::sleep_for(std::chrono::seconds(1));
+          os_thread_sleep(1000000);
         }
 
         /* Give the waiters a chance to proceed. */
-        std::this_thread::yield();
+        os_thread_yield();
       scan_next:
         mtr_start(&mtr);
         /* Restore position on the record, or its
@@ -2472,7 +2472,7 @@ all_done:
       for (ulint j = 0; j < fts_sort_pll_degree; j++) {
         if (psort_info[j].child_status != FTS_CHILD_EXITING) {
           all_exit = false;
-          std::this_thread::sleep_for(std::chrono::milliseconds(1));
+          os_thread_sleep(1000);
           break;
         }
       }
@@ -3731,13 +3731,8 @@ dberr_t row_merge_build_indexes(
       dup->col_map = col_map;
       dup->n_dup = 0;
 
-      error =
-          row_fts_psort_info_init(trx, dup, old_table, new_table,
-                                  opt_doc_id_size, &psort_info, &merge_info);
-
-      if (error != DB_SUCCESS) {
-        goto func_exit;
-      }
+      row_fts_psort_info_init(trx, dup, old_table, new_table, opt_doc_id_size,
+                              &psort_info, &merge_info);
 
       /* We need to ensure that we free the resources
       allocated */
@@ -3810,7 +3805,7 @@ dberr_t row_merge_build_indexes(
           for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
             if (merge_info[j].child_status != FTS_CHILD_EXITING) {
               all_exit = false;
-              std::this_thread::sleep_for(std::chrono::milliseconds(1));
+              os_thread_sleep(1000);
               break;
             }
           }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@ namespace calloc_unittest {
   Set num_iterations to a reasonable value (e.g. 200000), build release
   and run with 'calloc-t --disable-tap-output' to see the time taken.
 */
-#if !defined(NDEBUG)
+#if !defined(DBUG_OFF)
 // There is no point in benchmarking anything in debug mode.
 static int num_iterations = 2;
 #else

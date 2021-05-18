@@ -18,7 +18,6 @@ CREATE TABLE product_order (no INT NOT NULL AUTO_INCREMENT,
 		REFERENCES customer(id)
 	) ENGINE=INNODB;
 
---sorted_result
 query_vertical SELECT * FROM INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS
 WHERE table_name = 'product_order';
 

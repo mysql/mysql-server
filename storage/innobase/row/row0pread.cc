@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -93,11 +93,7 @@ Parallel_reader::Scan_ctx::~Scan_ctx() {}
 Parallel_reader::~Parallel_reader() {
   mutex_destroy(&m_mutex);
   os_event_destroy(m_event);
-
-  if (!m_single_threaded_mode) {
-    release_unused_threads(m_n_threads);
-  }
-
+  release_unused_threads(m_max_threads);
   for (auto thread_ctx : m_thread_ctxs) {
     if (thread_ctx != nullptr) {
       UT_DELETE(thread_ctx);
@@ -189,10 +185,7 @@ dberr_t Parallel_reader::Ctx::split() {
 }
 
 Parallel_reader::Parallel_reader(size_t max_threads, bool sync)
-    : m_max_threads(max_threads),
-      m_n_threads{max_threads},
-      m_ctxs(),
-      m_sync(sync) {
+    : m_max_threads(max_threads), m_ctxs(), m_sync(sync) {
   m_n_completed = 0;
 
   mutex_create(LATCH_ID_PARALLEL_READ, &m_mutex);
@@ -278,7 +271,7 @@ void PCursor::yield() {
   m_mtr->commit();
 
   /* Yield so that another thread can proceed. */
-  std::this_thread::yield();
+  os_thread_yield();
 
   m_mtr->start();
 
@@ -570,17 +563,13 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
     const rec_t *rec = page_cur_get_rec(cur);
     offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-    if (end_tuple != nullptr) {
-      ut_ad(rec != nullptr);
+    bool skip{false};
 
-      /* Key value of a record can change only if the record is deleted or if
-      its updated. And an update is essentially a delete + insert. So in both
-      the cases we just delete mark the record and the original key value is
-      preserved on the page.
+    if (page_is_leaf(cur->block->frame)) {
+      skip = !m_scan_ctx->check_visibility(rec, offsets, heap, mtr);
+    }
 
-      Since the range creation is based on the key values and the key value do
-      not ever change the latest (non-MVCC) version of the record should always
-      tell us correctly whether we're within the range or outside of it. */
+    if (rec != nullptr && end_tuple != nullptr) {
       auto ret = end_tuple->compare(rec, index, offsets);
 
       /* Note: The range creation doesn't use MVCC. Therefore it's possible
@@ -588,12 +577,6 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
       if (ret <= 0) {
         break;
       }
-    }
-
-    bool skip{};
-
-    if (page_is_leaf(cur->block->frame)) {
-      skip = !m_scan_ctx->check_visibility(rec, offsets, heap, mtr);
     }
 
     if (!skip) {
@@ -954,7 +937,7 @@ dberr_t Parallel_reader::Scan_ctx::create_ranges(const Scan_range &scan_range,
       }
 
       /* Since we are already at the requested level use the current page
-       cursor. */
+       * cursor. */
       memcpy(&level_page_cursor, &page_cursor, sizeof(level_page_cursor));
     }
 
@@ -1085,33 +1068,28 @@ dberr_t Parallel_reader::Scan_ctx::create_contexts(const Ranges &ranges) {
 }
 
 void Parallel_reader::parallel_read() {
+  ut_a(m_max_threads > 0);
+
   if (m_ctxs.empty()) {
     return;
   }
 
-  if (m_n_threads == 0) {
+  if (m_single_threaded_mode) {
     auto ptr = UT_NEW_NOKEY(Thread_ctx{0});
-
     if (ptr == nullptr) {
       set_error_state(DB_OUT_OF_MEMORY);
       return;
     }
-
     m_thread_ctxs.push_back(ptr);
-
-    /* Set event to indicate to ::worker() that no threads will be spawned. */
-    os_event_set(m_event);
-
     worker(m_thread_ctxs[0]);
-
     return;
   }
 
-  m_thread_ctxs.reserve(m_n_threads);
+  m_thread_ctxs.reserve(m_max_threads);
 
   dberr_t err{DB_SUCCESS};
 
-  for (size_t i = 0; i < m_n_threads; ++i) {
+  for (size_t i = 0; i < m_max_threads; ++i) {
     try {
       auto ptr = UT_NEW_NOKEY(Thread_ctx{i});
       if (ptr == nullptr) {
@@ -1148,29 +1126,13 @@ void Parallel_reader::parallel_read() {
   join();
 }
 
-dberr_t Parallel_reader::run(size_t n_threads) {
+dberr_t Parallel_reader::run() {
   if (!m_scan_ctxs.empty()) {
-    if (n_threads == 0) {
-      n_threads = std::min(m_max_threads, m_ctxs.size());
-
-      /* No need to spawn any threads if only one thread is required. */
-      if (n_threads == 1 || m_single_threaded_mode) {
-        n_threads = 0;
-      }
-    }
-
-    m_n_threads = n_threads;
-
-    if (!m_single_threaded_mode) {
-      release_unused_threads(m_max_threads - m_n_threads);
-    }
-
     parallel_read();
   }
 
-  /* Don't wait for the threads to finish if the read is not synchronous or if
-  there's no parallel read. */
-  if (!m_sync || m_n_threads == 0) {
+  /* Don't wait for the threads to finish if the read is not synchronous. */
+  if (!m_sync) {
     return DB_SUCCESS;
   }
 

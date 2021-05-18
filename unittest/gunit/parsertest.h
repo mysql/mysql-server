@@ -1,6 +1,6 @@
 #ifndef PARSERTEST_INCLUDED
 #define PARSERTEST_INCLUDED
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,10 +37,10 @@ using my_testing::Server_initializer;
 
 /*
   Parses a query and returns a parse tree. In our parser this is
-  called a Query_block.
+  called a SELECT_LEX.
 */
-static Query_block *parse(const Server_initializer *initializer,
-                          const char *query, int expected_error_code) {
+static SELECT_LEX *parse(const Server_initializer *initializer,
+                         const char *query, int expected_error_code) {
   Parser_state state;
 
   size_t length = strlen(query);
@@ -70,7 +70,7 @@ static Query_block *parse(const Server_initializer *initializer,
   mysql_reset_thd_for_next_command(initializer->thd());
   parse_sql(initializer->thd(), &state, nullptr);
 
-  return initializer->thd()->lex->current_query_block();
+  return initializer->thd()->lex->current_select();
 }
 
 /*
@@ -87,11 +87,11 @@ class ParserTest : public ::testing::Test {
 
   void assert_eq(int x, int y) const { ASSERT_EQ(x, y); }
 
-  Query_block *parse(const char *query, int expected_error_code) const {
+  SELECT_LEX *parse(const char *query, int expected_error_code) const {
     return ::parse(&initializer, query, expected_error_code);
   }
 
-  Query_block *parse(const char *query) const { return parse(query, 0); }
+  SELECT_LEX *parse(const char *query) const { return parse(query, 0); }
 };
 
 #endif  // PARSERTEST_INCLUDED

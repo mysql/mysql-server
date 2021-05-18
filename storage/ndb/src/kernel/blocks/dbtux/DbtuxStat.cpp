@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,32 +33,35 @@
 // there is no filtering feature (yet) like "DebugStat"
 
 void
-Dbtux::execREAD_PSEUDO_REQ(Uint32 scanPtrI, Uint32 attrId, Uint32* out, Uint32 out_words)
+Dbtux::execREAD_PSEUDO_REQ(Signal* signal)
 {
   jamEntry();
   ScanOpPtr scanPtr;
-  scanPtr.i = scanPtrI;
+  scanPtr.i = signal->theData[0];
   ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
   StatOpPtr statPtr;
   statPtr.i = scanPtr.p->m_statOpPtrI;
+
+  Uint32 attrId = signal->theData[1];
+  Uint32* out = &signal->theData[0];
 
   switch (attrId) {
   case AttributeHeader::RECORDS_IN_RANGE:
     jam();
     ndbrequire(statPtr.i == RNIL);
-    statRecordsInRange(scanPtr, out, out_words);
+    statRecordsInRange(scanPtr, out);
     break;
   case AttributeHeader::INDEX_STAT_KEY:
     jam();
     ndbrequire(statPtr.i != RNIL);
     c_statOpPool.getPtr(statPtr);
-    statScanReadKey(statPtr, out, out_words);
+    statScanReadKey(statPtr, out);
     break;
   case AttributeHeader::INDEX_STAT_VALUE:
     jam();
     ndbrequire(statPtr.i != RNIL);
     c_statOpPool.getPtr(statPtr);
-    statScanReadValue(statPtr, out, out_words);
+    statScanReadValue(statPtr, out);
     break;
   default:
     ndbabort();
@@ -78,7 +81,7 @@ Dbtux::execREAD_PSEUDO_REQ(Uint32 scanPtrI, Uint32 attrId, Uint32* out, Uint32 o
  * 3) after range.  1-3) are estimates and need not add up to 0).
  */
 void
-Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out, Uint32 out_words)
+Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out)
 {
   ScanOp& scan = *scanPtr.p;
   Frag& frag = *c_fragPool.getPtr(scan.m_fragPtrI);
@@ -107,7 +110,6 @@ Dbtux::statRecordsInRange(ScanOpPtr scanPtr, Uint32* out, Uint32 out_words)
     ndbrequire(pos2.m_loc != NullTupLoc);
   }
   // wl4124_todo change all to Uint64 if ever needed (unlikely)
-  ndbassert(4 <= out_words);
   out[0] = (Uint32)frag.m_entryCount;
   out[2] = getEntriesBeforeOrAfter(frag, pos1, 0);
   out[3] = getEntriesBeforeOrAfter(frag, pos2, 1);
@@ -423,7 +425,7 @@ Dbtux::statScanAddRow(StatOpPtr statPtr, TreeEnt ent)
 }
 
 void
-Dbtux::statScanReadKey(StatOpPtr statPtr, Uint32* out, Uint32 out_words)
+Dbtux::statScanReadKey(StatOpPtr statPtr, Uint32* out)
 {
   StatOp& stat = *statPtr.p;
   int ret;
@@ -433,12 +435,11 @@ Dbtux::statScanReadKey(StatOpPtr statPtr, Uint32* out, Uint32 out_words)
   ndbrequire(ret == 0);
   D("statScanReadKey" << V(keyData));
   keyData.convert(NdbPack::Endian::Little);
-  ndbrequire(keyData.get_full_len() <= out_words * 4);
   memcpy(out, keyData.get_full_buf(), keyData.get_full_len());
 }
 
 void
-Dbtux::statScanReadValue(StatOpPtr statPtr, Uint32* out, Uint32 out_words)
+Dbtux::statScanReadValue(StatOpPtr statPtr, Uint32* out)
 {
   StatOp& stat = *statPtr.p;
   int ret;
@@ -467,7 +468,6 @@ Dbtux::statScanReadValue(StatOpPtr statPtr, Uint32* out, Uint32 out_words)
 
   D("statScanReadValue" << V(valueData));
   valueData.convert(NdbPack::Endian::Little);
-  ndbrequire(valueData.get_full_len() <= out_words * 4);
   memcpy(out, valueData.get_full_buf(), valueData.get_full_len());
 }
 

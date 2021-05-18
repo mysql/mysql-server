@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -133,14 +133,7 @@ class Lock_free_shared_block_pool {
     auto slot_idx = thd_id & MODULO_MASK;
     if (m_slot.load(slot_idx) == thd_id) {
       auto &block = m_shared_block[slot_idx].block;
-      if (!block.is_empty()) {
-        if (block.type() == Source::RAM) {
-          MemoryMonitor::RAM::decrease(block.size());
-        } else if (block.type() == Source::MMAP_FILE) {
-          MemoryMonitor::MMAP::decrease(block.size());
-        }
-        block.destroy();
-      }
+      if (!block.is_empty()) block.destroy();
       m_slot.store(slot_idx, FREE_SLOT);
       return true;
     }

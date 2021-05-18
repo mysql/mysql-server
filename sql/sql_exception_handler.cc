@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,7 @@ void handle_gis_exception(const char *funcname) {
     int er_variant;
     switch (e.srs_type()) {
       default:
-        assert(false);  // C++11 woes. /* purecov: inspected */
+        DBUG_ASSERT(false);  // C++11 woes. /* purecov: inspected */
       case gis::not_implemented_exception::kCartesian:
         er_variant = ER_NOT_IMPLEMENTED_FOR_CARTESIAN_SRS;
         break;
@@ -112,9 +112,9 @@ void handle_gis_exception(const char *funcname) {
         break;
     }
     my_error(er_variant, MYF(0), funcname, e.typenames());
-  } catch (const gis::invalid_geometry_exception &) {
+  } catch (const gis::invalid_geometry_exception &e) {
     my_error(ER_GIS_INVALID_DATA, MYF(0), funcname);
-  } catch (const gis::too_large_polygon_exception &) {
+  } catch (const gis::too_large_polygon_exception &e) {
     my_error(ER_POLYGON_TOO_LARGE, MYF(0), funcname);
   } catch (const boost::geometry::centroid_exception &) {
     my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), funcname);

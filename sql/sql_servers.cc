@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,7 +60,6 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_rwlock_bits.h"
 #include "mysql/components/services/psi_memory_bits.h"
@@ -68,6 +67,7 @@
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_rwlock.h"
+#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"
@@ -154,7 +154,7 @@ static PSI_rwlock_info all_servers_cache_rwlocks[] = {
 
 static PSI_memory_info all_servers_cache_memory[] = {
     {&key_memory_servers, "servers_cache", PSI_FLAG_ONLY_GLOBAL_STAT, 0,
-     "Cache infrastructure and mem root for servers cache."}};
+     PSI_DOCUMENT_ME}};
 
 static void init_servers_cache_psi_keys(void) {
   const char *category = "sql";
@@ -396,7 +396,7 @@ static bool close_cached_connection_tables(THD *thd,
   TABLE_LIST tmp, *tables = nullptr;
   bool result = false;
   DBUG_TRACE;
-  assert(thd);
+  DBUG_ASSERT(thd);
 
   mysql_mutex_lock(&LOCK_open);
 
@@ -767,7 +767,7 @@ bool Sql_cmd_alter_server::execute(THD *thd) {
 
   int error;
   {
-    Disable_binlog_guard binlog_guard(thd);
+    Disable_binlog_guard binlog_guard(table->in_use);
     table->use_all_columns();
 
     /* set the field that's the PK to the value we're looking for */
@@ -830,7 +830,7 @@ bool Sql_cmd_drop_server::execute(THD *thd) {
   int error;
   mysql_rwlock_wrlock(&THR_LOCK_servers);
   {
-    Disable_binlog_guard binlog_guard(thd);
+    Disable_binlog_guard binlog_guard(table->in_use);
     table->use_all_columns();
 
     /* set the field that's the PK to the value we're looking for */

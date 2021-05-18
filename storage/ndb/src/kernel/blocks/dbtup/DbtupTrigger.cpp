@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -40,7 +40,6 @@
 #include <signaldata/AlterIndxImpl.hpp>
 #include <signaldata/ScanFrag.hpp>
 #include "../dblqh/Dblqh.hpp"
-#include "../dbtux/Dbtux.hpp"
 
 #define JAM_FILE_ID 423
 
@@ -255,7 +254,6 @@ void
 Dbtup::execDROP_TRIG_IMPL_REQ(Signal* signal)
 {
   jamEntry();
-  ndbassert(!m_is_query_block);
   const DropTrigImplReq* req = (const DropTrigImplReq*)signal->getDataPtr();
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
@@ -1495,7 +1493,7 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
   ptrCheckGuard(regFragPtr, cnoOfFragrec, fragrecord);
   Fragrecord::FragState fragstatus = regFragPtr.p->fragStatus;
 
-  if (refToMain(ref) == getBACKUP())
+  if (refToMain(ref) == BACKUP)
   {
     jam();
     if (isNdbMtLqh())
@@ -1514,7 +1512,7 @@ void Dbtup::executeTrigger(KeyReqStruct *req_struct,
     */
     signal->theData[0] = trigPtr->triggerId;
     signal->theData[1] = regFragPtr.p->fragmentId;
-    EXECUTE_DIRECT(getBACKUP(), GSN_BACKUP_TRIG_REQ, signal, 2);
+    EXECUTE_DIRECT(BACKUP, GSN_BACKUP_TRIG_REQ, signal, 2);
     jamEntry();
     if (signal->theData[0] == 0) {
       jam();
@@ -1967,7 +1965,7 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   if ((regOperPtr->op_struct.bit_field.m_triggers == 
          TupKeyReq::OP_NO_TRIGGERS) &&
       (refToMain(trigPtr->m_receiverRef) == SUMA ||
-       refToMain(trigPtr->m_receiverRef) == getBACKUP()))
+       refToMain(trigPtr->m_receiverRef) == BACKUP))
   {
     /* Operations that have no logical effect need not be backed up
      * or sent as an event. Eg. OPTIMIZE TABLE is performed as a
@@ -2243,10 +2241,10 @@ Dbtup::addTuxEntries(Signal* signal,
       failPtrI = triggerPtr.i;
       goto fail;
     }
-    c_tux->execTUX_MAINT_REQ(signal);
+    EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
+        signal, TuxMaintReq::SignalLength);
     jamEntryDebug();
-    if (unlikely(req->errorCode != 0))
-    {
+    if (req->errorCode != 0) {
       jam();
       terrorCode = req->errorCode;
       failPtrI = triggerPtr.i;
@@ -2259,11 +2257,12 @@ fail:
   req->opInfo = TuxMaintReq::OpRemove;
   triggerList.first(triggerPtr);
   while (triggerPtr.i != failPtrI) {
-    jamDebug();
+    jam();
     req->indexId = triggerPtr.p->indexId;
     req->errorCode = RNIL;
-    c_tux->execTUX_MAINT_REQ(signal);
-    jamEntryDebug();
+    EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
+        signal, TuxMaintReq::SignalLength);
+    jamEntry();
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);
   }
@@ -2365,13 +2364,13 @@ Dbtup::removeTuxEntries(Signal* signal,
   const TupTriggerData_list& triggerList = regTabPtr->tuxCustomTriggers;
   TriggerPtr triggerPtr;
   triggerList.first(triggerPtr);
-  while (triggerPtr.i != RNIL)
-  {
-    jamDebug();
+  while (triggerPtr.i != RNIL) {
+    jam();
     req->indexId = triggerPtr.p->indexId;
-    req->errorCode = RNIL;
-    c_tux->execTUX_MAINT_REQ(signal); 
-    jamEntryDebug();
+    req->errorCode = RNIL,
+    EXECUTE_DIRECT(DBTUX, GSN_TUX_MAINT_REQ,
+        signal, TuxMaintReq::SignalLength);
+    jamEntry();
     // must succeed
     ndbrequire(req->errorCode == 0);
     triggerList.next(triggerPtr);

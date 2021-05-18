@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 
 #include "my_config.h"
 
-#include <assert.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,7 +37,7 @@
 #include "m_ctype.h"
 #include "m_string.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_default.h"  // check_file_permissions
 #include "my_getopt.h"
 #include "my_io.h"
@@ -46,7 +45,6 @@
 #include "my_macros.h"
 #include "my_sys.h"
 #include "my_thread.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_file_bits.h"
@@ -56,6 +54,7 @@
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/status_var.h"
 #include "mysql_version.h"
 #include "mysqld_error.h"
@@ -243,12 +242,12 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
 
   if (!datadir) {
     // mysql_real_data_home must be initialized at this point
-    assert(mysql_real_data_home[0]);
+    DBUG_ASSERT(mysql_real_data_home[0]);
     /*
       mysql_home_ptr should also be initialized at this point.
       See calculate_mysql_home_from_my_progname() for details
     */
-    assert(mysql_home_ptr && mysql_home_ptr[0]);
+    DBUG_ASSERT(mysql_home_ptr && mysql_home_ptr[0]);
     convert_dirname(local_datadir_buffer, mysql_real_data_home, NullS);
     (void)my_load_path(local_datadir_buffer, local_datadir_buffer,
                        mysql_home_ptr);
@@ -277,7 +276,7 @@ int Persisted_variables_cache::init(int *argc, char ***argv) {
   Return a singleton object
 */
 Persisted_variables_cache *Persisted_variables_cache::get_instance() {
-  assert(m_instance != nullptr);
+  DBUG_ASSERT(m_instance != nullptr);
   return m_instance;
 }
 
@@ -709,7 +708,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
         Grant_temporary_dynamic_privileges(thd, priv_list),
         Grant_temporary_static_privileges(thd, static_priv_list),
         Drop_temporary_dynamic_privileges(priv_list));
-    ctx = default_factory.create();
+    ctx = default_factory.create(thd->mem_root);
     /* attach this auth id to current security_context */
     thd->set_security_context(ctx.get());
     thd->real_id = my_thread_self();
@@ -829,11 +828,11 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
     if (it != m_persist_variables.end()) {
       /* persisted variable is found */
       sysvar->set_source(enum_variable_source::PERSISTED);
-#ifndef NDEBUG
+#ifndef DBUG_OFF
       bool source_truncated =
 #endif
           sysvar->set_source_name(m_persist_filename.c_str());
-      assert(!source_truncated);
+      DBUG_ASSERT(!source_truncated);
       sysvar->set_timestamp(it->timestamp);
       if (sysvar->set_user(it->user.c_str()))
         LogErr(WARNING_LEVEL, ER_PERSIST_OPTION_USER_TRUNCATED,

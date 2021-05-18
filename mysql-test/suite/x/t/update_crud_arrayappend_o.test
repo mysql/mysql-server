@@ -30,7 +30,7 @@ CREATE SCHEMA mysqlxcoll;
 --echo ================================================================================
 --echo TEST START
 --echo ================================================================================
---write_file $MYSQL_TMP_DIR/mysqlx-update_collection_remove.xpl
+--write_file $MYSQL_TMP_DIR/mysqlx-update_collection_remove.tmp
 
 -->stmtadmin create_collection	{"schema":"mysqlxcoll","name":"maincoll"}
 -->recvresult
@@ -931,9 +931,9 @@ SET SQL_SAFE_UPDATES = 1;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -u updateitemremove --password='updateitemremove' --file=$MYSQL_TMP_DIR/mysqlx-update_collection_remove.xpl 2>&1
+--exec $MYSQLXTEST -u updateitemremove --password='updateitemremove' --file=$MYSQL_TMP_DIR/mysqlx-update_collection_remove.tmp 2>&1
 
 ## Cleanup
 DROP SCHEMA if EXISTS mysqlxcoll;
---source ../include/xplugin_cleanup.inc
+--remove_file $MYSQL_TMP_DIR/mysqlx-update_collection_remove.tmp
 

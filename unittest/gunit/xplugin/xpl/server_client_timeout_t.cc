@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,7 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/src/ngs/server_client_timeout.h"
-#include "unittest/gunit/xplugin/xpl/mock/client.h"
+#include "plugin/x/ngs/include/ngs/server_client_timeout.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl {
@@ -71,9 +70,9 @@ class Server_client_timeout_test_suite : public Test {
   std::shared_ptr<iface::Client> expectClientValid(
       const xpl::chrono::Time_point &tp,
       const iface::Client::Client::State state) {
-    std::shared_ptr<StrictMock<mock::Client>> result;
+    std::shared_ptr<StrictMock<Mock_client>> result;
 
-    result.reset(new StrictMock<mock::Client>());
+    result.reset(new StrictMock<Mock_client>());
 
     EXPECT_CALL(*result.get(), get_accept_time()).WillOnce(Return(tp));
     EXPECT_CALL(*result.get(), get_state()).WillOnce(Return(state));
@@ -86,9 +85,9 @@ class Server_client_timeout_test_suite : public Test {
   std::shared_ptr<iface::Client> expectClientNotValid(
       const xpl::chrono::Time_point &tp,
       const iface::Client::Client::State state) {
-    std::shared_ptr<StrictMock<mock::Client>> result;
+    std::shared_ptr<StrictMock<Mock_client>> result;
 
-    result.reset(new StrictMock<mock::Client>());
+    result.reset(new StrictMock<Mock_client>());
 
     EXPECT_CALL(*result.get(), get_accept_time()).WillOnce(Return(tp));
     EXPECT_CALL(*result.get(), get_state()).WillOnce(Return(state));
@@ -159,7 +158,7 @@ TEST_P(NoExpiredClient_stateOk,
   ASSERT_FALSE(xpl::chrono::is_valid(sut->get_oldest_client_accept_time()));
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     InstantiationOfClientsThatExpiredAndAreInNotValidState, ExpiredClient,
     Values(ClientParams(DELTA_TO_RELEASE_1, iface::Client::State::k_accepted),
            ClientParams(DELTA_TO_RELEASE_2, iface::Client::State::k_accepted),
@@ -171,7 +170,7 @@ INSTANTIATE_TEST_SUITE_P(
            ClientParams(DELTA_TO_RELEASE_3,
                         iface::Client::State::k_authenticating_first)));
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     InstantiationOfClientsThatExpiredAndAreInNotValidState,
     NoExpiredClient_stateNotOk,
     Values(
@@ -185,7 +184,7 @@ INSTANTIATE_TEST_SUITE_P(
         ClientParams(DELTA_NOT_TO_RELEASE_3,
                      iface::Client::State::k_authenticating_first)));
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     InstantiationOfClientsThatNoExpiredAndAreInValidState,
     NoExpiredClient_stateOk,
     Values(
@@ -202,7 +201,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_F(
     Server_client_timeout_test_suite,
-    returnDateOfOldestProcessedClient_whenMultipleValidNonAuthClientProcessed) {
+    returnDateOfOldestProcessedClient_whenMultipleValidNonAuthClientWereProcessed) {
   expectClientValid(TP_NOT_TO_RELEASE_1, iface::Client::State::k_accepted);
   expectClientValid(TP_NOT_TO_RELEASE_2, iface::Client::State::k_accepted);
   expectClientValid(TP_NOT_TO_RELEASE_3, iface::Client::State::k_accepted);
@@ -226,11 +225,11 @@ TEST_P(Server_client_timeout_test_suite_param,
   ASSERT_EQ(TP_NOT_TO_RELEASE_3, sut->get_oldest_client_accept_time());
 }
 
-INSTANTIATE_TEST_SUITE_P(InstantiationOfTargetedStates,
-                         Server_client_timeout_test_suite_param,
-                         Values(iface::Client::State::k_invalid,
-                                iface::Client::State::k_accepted,
-                                iface::Client::State::k_authenticating_first));
+INSTANTIATE_TEST_CASE_P(InstantiationOfTargetedStates,
+                        Server_client_timeout_test_suite_param,
+                        Values(iface::Client::State::k_invalid,
+                               iface::Client::State::k_accepted,
+                               iface::Client::State::k_authenticating_first));
 
 TEST_F(Server_client_timeout_test_suite,
        returnInvalidDate_whenAllClientAreAuthenticated) {

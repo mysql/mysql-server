@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -35,19 +35,21 @@
 # in build-gen
 #   cmake <path to source> -DFPROFILE_GENERATE=1
 #   make
+#   rm -rf ../profile-data
 #   run whatever test suite is an appropriate training set
 # in build-use
 #   cmake <path to source> -DFPROFILE_USE=1
 #   make
 #
-# HowTo for gcc9 and above:
+# HowTo for gcc9:
 # Assuming we have two build directories
 #   <some path>/build
-#   <some path>/build-profile-data
+#   <some path>/profile-data
 #
 # in build
 #   cmake <path to source> -DFPROFILE_GENERATE=1
 #   make
+#   rm -rf ../profile-data
 #   run whatever test suite is an appropriate training set
 # now rename the build directory to something else, or simply 'rm -rf' it.
 # 'mkdir build' note: same name
@@ -64,6 +66,7 @@
 # in build-gen
 #   cmake <path to source> -DFPROFILE_GENERATE=1
 #   make
+#   rm -rf ../profile-data
 #   run whatever test suite is an appropriate training set
 # in profile-data
 #   llvm-profdata merge -output=default.profdata .
@@ -81,16 +84,7 @@ IF(NOT MY_COMPILER_IS_GNU_OR_CLANG)
   RETURN()
 ENDIF()
 
-IF(MY_COMPILER_IS_GNU)
-  IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
-    SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}/../profile-data")
-  ELSE()
-    SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}-profile-data")
-  ENDIF()
-ELSE()
-  SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}/../profile-data")
-ENDIF()
-
+SET(FPROFILE_DIR_DEFAULT "${CMAKE_BINARY_DIR}/../profile-data")
 IF(NOT DEFINED FPROFILE_DIR)
   SET(FPROFILE_DIR "${FPROFILE_DIR_DEFAULT}")
 ENDIF()
@@ -99,35 +93,16 @@ OPTION(FPROFILE_GENERATE "Add -fprofile-generate" OFF)
 IF(FPROFILE_GENERATE)
   STRING_APPEND(CMAKE_C_FLAGS " -fprofile-generate=${FPROFILE_DIR}")
   STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-generate=${FPROFILE_DIR}")
-
-  IF(MY_COMPILER_IS_GNU)
-    STRING_APPEND(CMAKE_C_FLAGS " -fprofile-update=prefer-atomic")
-    STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-update=prefer-atomic")
-  ENDIF()
 ENDIF()
 
 OPTION(FPROFILE_USE "Add -fprofile-use" OFF)
 IF(FPROFILE_USE)
   STRING_APPEND(CMAKE_C_FLAGS " -fprofile-use=${FPROFILE_DIR}")
   STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-use=${FPROFILE_DIR}")
-  # Collection of profile data is not thread safe,
-  # use -fprofile-correction for GCC
+  # Collection of profile data is not thread safe, use -fprofile-correction for GCC
   IF(MY_COMPILER_IS_GNU)
     STRING_APPEND(CMAKE_C_FLAGS " -fprofile-correction")
     STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-correction")
-
-    # With -fprofile-use all portions of programs not executed during
-    # train run are optimized agressively for size rather than speed.
-    # gcc10 has -fprofile-partial-training, which will ignore profile
-    # feedback for functions not executed during the train run, leading them
-    # to be optimized as if they were compiled without profile feedback.
-    # This leads to better performance when train run is not representative
-    # but also leads to significantly bigger code.
-    IF(NOT ${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 10)
-      STRING_APPEND(CMAKE_C_FLAGS " -fprofile-partial-training")
-      STRING_APPEND(CMAKE_CXX_FLAGS " -fprofile-partial-training")
-    ENDIF()
-
   ENDIF()
 ENDIF()
 

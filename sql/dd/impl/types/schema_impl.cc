@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
 
 #include "sql/dd/impl/types/schema_impl.h"
 
-#include <assert.h>
 #include <memory>
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
@@ -32,7 +31,7 @@
 
 #include "m_string.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "my_time.h"
 #include "mysql_com.h"
@@ -237,9 +236,9 @@ Procedure *Schema_impl::create_procedure(THD *thd) const {
 
 Table *Schema_impl::create_table(THD *thd) const {
 // Creating tables requires an IX meta data lock on the schema name.
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   char name_buf[NAME_LEN + 1];
-  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::SCHEMA,
       dd::Object_table_definition_impl::fs_name_case(name(), name_buf), "",
       MDL_INTENTION_EXCLUSIVE));
@@ -264,9 +263,9 @@ Table *Schema_impl::create_table(THD *thd) const {
 
 View *Schema_impl::create_view(THD *thd) const {
 // Creating views requires an IX meta data lock on the schema name.
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   char name_buf[NAME_LEN + 1];
-  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::SCHEMA,
       dd::Object_table_definition_impl::fs_name_case(name(), name_buf), "",
       MDL_INTENTION_EXCLUSIVE));
@@ -289,9 +288,9 @@ View *Schema_impl::create_view(THD *thd) const {
 
 View *Schema_impl::create_system_view(THD *thd MY_ATTRIBUTE((unused))) const {
 // Creating system views requires an IX meta data lock on the schema name.
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   char name_buf[NAME_LEN + 1];
-  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::SCHEMA,
       dd::Object_table_definition_impl::fs_name_case(name(), name_buf), "",
       MDL_INTENTION_EXCLUSIVE));

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,8 +26,6 @@
 #ifndef MYSQL_ABI_CHECK
 #include <stddef.h> /* size_t */
 #endif
-
-#include <mysql/components/services/bits/psi_bits.h>
 
 /**
   @file
@@ -233,7 +231,6 @@ typedef void (*register_statement_v1_t)(const char *category,
   @param state data storage for the locker
   @param key the statement instrumentation key
   @param charset client character set
-  @param sp_share Parent stored procedure share, if any.
   @return a statement locker, or NULL
 */
 typedef struct PSI_statement_locker *(*get_thread_statement_locker_v1_t)(
@@ -421,18 +418,12 @@ typedef void (*end_statement_v1_t)(struct PSI_statement_locker *locker,
 
 /**
   Get a prepare statement.
-  @param identity Prepared statement identity, typically a memory address.
-  @param stmt_id Prepared statement identifier.
-  @param locker A statement locker for the running thread.
-  @param stmt_name Prepared statement name.
-  @param stmt_name_length Prepared statement name length.
-  @param sql_text Query text.
-  @param sql_text_length Query text length.
+  @param locker a statement locker for the running thread.
 */
 typedef PSI_prepared_stmt *(*create_prepared_stmt_v1_t)(
     void *identity, unsigned int stmt_id, PSI_statement_locker *locker,
-    const char *stmt_name, size_t stmt_name_length, const char *sql_text,
-    size_t sql_text_length);
+    const char *stmt_name, size_t stmt_name_length, const char *name,
+    size_t length);
 
 /**
   destroy a prepare statement.

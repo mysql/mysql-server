@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
 
 #include <string>
 
-#include "mutex_lock.h"
 #include "plugin/group_replication/include/member_info.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/ps_information.h"
@@ -174,10 +173,9 @@ bool get_group_member_stats(
     const char act[] =
         "now signal signal.reached_get_group_member_stats "
         "wait_for signal.resume_get_group_member_stats";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
   // Check if the group replication has started and a valid certifier exists
-  MUTEX_LOCK(lock, get_plugin_running_lock());
   Pipeline_member_stats *pipeline_stats = nullptr;
   if (!get_plugin_is_stopping() && applier_module != nullptr &&
       (pipeline_stats =

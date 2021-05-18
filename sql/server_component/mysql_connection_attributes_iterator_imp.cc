@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,6 +23,21 @@
 #include "mysql_connection_attributes_iterator_imp.h"
 #include <sql/sql_class.h>
 
+/**
+  Initialize an iterator.
+
+  Also position at the first attribute.
+
+  @param      opaque_thd      The session to operate on. Can be NULL to use the
+                              current THD.
+  @param[out] iterator        Iterator pointer.
+
+  @return
+    @retval false Succeeded.
+    @retval true  Failed.
+
+  @sa mysql_connection_attributes_iterator::init
+*/
 DEFINE_BOOL_METHOD(mysql_connection_attributes_iterator_imp::init,
                    (MYSQL_THD opaque_thd,
                     my_h_connection_attributes_iterator *iterator)) {
@@ -42,6 +57,17 @@ DEFINE_BOOL_METHOD(mysql_connection_attributes_iterator_imp::init,
   }
 }
 
+/**
+  Deinitialize an iterator.
+
+  @param iterator Iterator pointer.
+
+  @return
+    @retval false Succeeded.
+    @retval true  Failed.
+
+  @sa mysql_connection_attributes_iterator::deinit
+*/
 DEFINE_BOOL_METHOD(mysql_connection_attributes_iterator_imp::deinit,
                    (my_h_connection_attributes_iterator iterator)) {
   if (iterator != nullptr) {
@@ -91,6 +117,27 @@ std::tuple<const char *, size_t, bool> parse_length_encoded_string(
   return std::make_tuple(result, length, true);
 }
 
+/**
+  Fetch the current name/value pair from the iterator and move it forward.
+  Note: the attribute's name and value pointers are valid until the THD object
+  is alive.
+
+  @param      opaque_thd      The session to operate on. Can be NULL to use the
+                              current THD.
+  @param      iterator        Iterator pointer.
+  @param[out] name            The attribute name.
+  @param[out] name_length     The attribute name's length.
+  @param[out] value           The attribute value.
+  @param[out] value_length    The attribute value's length.
+  @param[out] client_charset  The character set, used for encoding the
+                              connection attributes pair
+
+  @return
+    @retval false Succeeded.
+    @retval true  Failed.
+
+  @sa mysql_connection_attributes_iterator::get
+*/
 DEFINE_BOOL_METHOD(mysql_connection_attributes_iterator_imp::get,
                    (MYSQL_THD opaque_thd,
                     my_h_connection_attributes_iterator *iterator,

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -303,23 +303,6 @@ protected:
   void * alloc_ptr;
   // Call this function if a seize request fails.
   const ErrorHandler* const seizeErrHand;
-public:
-  T* getArrayPtr()
-  {
-    return theArray;
-  }
-  void setArrayPtr(T* newArray)
-  {
-    theArray = newArray;
-  }
-  Uint32 getSize()
-  {
-    return size;
-  }
-  void setNewSize(Uint32 newSize)
-  {
-    size = newSize;
-  }
 };
 
 template <class T>
@@ -365,11 +348,7 @@ template <class T>
 inline
 bool
 ArrayPool<T>::setSize(Uint32 noOfElements, 
-		      bool align,
-                      bool exit_on_error,
-                      bool guard,
-                      Uint32 paramId)
-{
+		      bool align, bool exit_on_error, bool guard, Uint32 paramId){
   if(size == 0)
   {
     if(noOfElements == 0)

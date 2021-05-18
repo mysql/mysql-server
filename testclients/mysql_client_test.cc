@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2025,7 +2025,7 @@ static void test_select() {
   returns all rows in the table)
 */
 
-static void test_ps_conj_query_block() {
+static void test_ps_conj_select() {
   MYSQL_STMT *stmt;
   int rc;
   MYSQL_BIND my_bind[2];
@@ -2033,7 +2033,7 @@ static void test_ps_conj_query_block() {
   char str_data[32];
   ulong str_length;
   char query[MAX_TEST_QUERY_LENGTH];
-  myheader("test_ps_conj_query_block");
+  myheader("test_ps_conj_select");
 
   rc = mysql_query(mysql, "drop table if exists t1");
   myquery(rc);
@@ -8875,8 +8875,7 @@ static void test_selecttmp() {
 }
 
 static void test_create_drop() {
-  MYSQL_STMT *stmt_create, *stmt_drop, *stmt_query_block,
-      *stmt_create_query_block;
+  MYSQL_STMT *stmt_create, *stmt_drop, *stmt_select, *stmt_create_select;
   const char *query;
   int rc, i;
   myheader("test_table_manipulation");
@@ -8902,37 +8901,37 @@ static void test_create_drop() {
   check_stmt(stmt_drop);
 
   query = "select a in (select a from t2) from t1";
-  stmt_query_block = mysql_simple_prepare(mysql, query);
-  check_stmt(stmt_query_block);
+  stmt_select = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt_select);
 
   rc = mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
 
   query = "create table t1 select a from t2";
-  stmt_create_query_block = mysql_simple_prepare(mysql, query);
-  check_stmt(stmt_create_query_block);
+  stmt_create_select = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt_create_select);
 
   for (i = 0; i < 3; i++) {
     rc = mysql_stmt_execute(stmt_create);
     check_execute(stmt_create, rc);
     if (!opt_silent) fprintf(stdout, "created %i\n", i);
 
-    rc = mysql_stmt_execute(stmt_query_block);
-    check_execute(stmt_query_block, rc);
-    rc = my_process_stmt_result(stmt_query_block);
+    rc = mysql_stmt_execute(stmt_select);
+    check_execute(stmt_select, rc);
+    rc = my_process_stmt_result(stmt_select);
     DIE_UNLESS(rc == 0);
 
     rc = mysql_stmt_execute(stmt_drop);
     check_execute(stmt_drop, rc);
     if (!opt_silent) fprintf(stdout, "dropped %i\n", i);
 
-    rc = mysql_stmt_execute(stmt_create_query_block);
+    rc = mysql_stmt_execute(stmt_create_select);
     check_execute(stmt_create, rc);
     if (!opt_silent) fprintf(stdout, "created select %i\n", i);
 
-    rc = mysql_stmt_execute(stmt_query_block);
-    check_execute(stmt_query_block, rc);
-    rc = my_process_stmt_result(stmt_query_block);
+    rc = mysql_stmt_execute(stmt_select);
+    check_execute(stmt_select, rc);
+    rc = my_process_stmt_result(stmt_select);
     DIE_UNLESS(rc == 3);
 
     rc = mysql_stmt_execute(stmt_drop);
@@ -8942,8 +8941,8 @@ static void test_create_drop() {
 
   mysql_stmt_close(stmt_create);
   mysql_stmt_close(stmt_drop);
-  mysql_stmt_close(stmt_query_block);
-  mysql_stmt_close(stmt_create_query_block);
+  mysql_stmt_close(stmt_select);
+  mysql_stmt_close(stmt_create_select);
 
   rc = mysql_query(mysql, "DROP TABLE t2");
   myquery(rc);
@@ -9109,7 +9108,7 @@ static void test_multi() {
 }
 
 static void test_insert_select() {
-  MYSQL_STMT *stmt_insert, *stmt_query_block;
+  MYSQL_STMT *stmt_insert, *stmt_select;
   const char *query;
   int rc;
   uint i;
@@ -9132,22 +9131,22 @@ static void test_insert_select() {
   check_stmt(stmt_insert);
 
   query = "select * from t1";
-  stmt_query_block = mysql_simple_prepare(mysql, query);
-  check_stmt(stmt_query_block);
+  stmt_select = mysql_simple_prepare(mysql, query);
+  check_stmt(stmt_select);
 
   for (i = 0; i < 3; i++) {
     rc = mysql_stmt_execute(stmt_insert);
     check_execute(stmt_insert, rc);
     if (!opt_silent) fprintf(stdout, "insert %u\n", i);
 
-    rc = mysql_stmt_execute(stmt_query_block);
-    check_execute(stmt_query_block, rc);
-    rc = my_process_stmt_result(stmt_query_block);
+    rc = mysql_stmt_execute(stmt_select);
+    check_execute(stmt_select, rc);
+    rc = my_process_stmt_result(stmt_select);
     DIE_UNLESS(rc == (int)(i + 1));
   }
 
   mysql_stmt_close(stmt_insert);
-  mysql_stmt_close(stmt_query_block);
+  mysql_stmt_close(stmt_select);
   rc = mysql_query(mysql, "drop table t1, t2");
   myquery(rc);
 }
@@ -12577,7 +12576,7 @@ static void test_bug9520() {
   DIE_UNLESS(rc == MYSQL_NO_DATA);
 
   if (!opt_silent) printf("Fetched %d rows\n", row_count);
-  assert(row_count == 3);
+  DBUG_ASSERT(row_count == 3);
 
   mysql_stmt_close(stmt);
 
@@ -13298,7 +13297,7 @@ static void test_client_character_set() {
   DIE_UNLESS(rc == 0);
 
   mysql_get_character_set_info(mysql, &cs);
-  DIE_UNLESS(!strcmp(cs.csname, "utf8mb3"));
+  DIE_UNLESS(!strcmp(cs.csname, "utf8"));
   DIE_UNLESS(!strcmp(cs.name, "utf8_general_ci"));
   /* Restore the default character set */
   rc = mysql_set_character_set(mysql, csdefault);
@@ -15182,7 +15181,7 @@ static void test_bug23383() {
   DIE_UNLESS(row_count == 0);
 
   rc = mysql_stmt_close(stmt);
-  DIE_UNLESS(!rc);
+  check_execute(stmt, rc);
 
   rc = mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
@@ -15988,9 +15987,9 @@ static void test_bug30472() {
       2) new character set is different from the original one.
   */
 
-  DIE_UNLESS(strcmp(character_set_name_2, "utf8mb3") == 0);
-  DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
-  DIE_UNLESS(strcmp(character_set_client_2, "utf8mb3") == 0);
+  DIE_UNLESS(strcmp(character_set_name_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_client_2, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_results_2, "utf8") == 0);
   DIE_UNLESS(strcmp(collation_connnection_2, "utf8_general_ci") == 0);
 
   DIE_UNLESS(strcmp(character_set_name_1, character_set_name_2) != 0);
@@ -16036,9 +16035,9 @@ static void test_bug30472() {
 
   /* Check that we have UTF8 on the server and on the client. */
 
-  DIE_UNLESS(strcmp(character_set_name_4, "utf8mb3") == 0);
-  DIE_UNLESS(strcmp(character_set_client_4, "utf8mb3") == 0);
-  DIE_UNLESS(strcmp(character_set_results_4, "utf8mb3") == 0);
+  DIE_UNLESS(strcmp(character_set_name_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_client_4, "utf8") == 0);
+  DIE_UNLESS(strcmp(character_set_results_4, "utf8") == 0);
   DIE_UNLESS(strcmp(collation_connnection_4, "utf8_general_ci") == 0);
 
   /* That's it. Cleanup. */
@@ -17767,7 +17766,7 @@ static void test_bug49972() {
 
     rc = mysql_stmt_fetch(stmt);
     rc = mysql_stmt_fetch(stmt);
-    assert(rc == MYSQL_NO_DATA);
+    DBUG_ASSERT(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);
@@ -17795,7 +17794,7 @@ static void test_bug49972() {
 
     rc = mysql_stmt_fetch(stmt);
     rc = mysql_stmt_fetch(stmt);
-    assert(rc == MYSQL_NO_DATA);
+    DBUG_ASSERT(rc == MYSQL_NO_DATA);
 
     mysql_stmt_next_result(stmt);
     mysql_stmt_fetch(stmt);
@@ -18292,10 +18291,6 @@ static void test_wl6587() {
   }
 
   /* initialize the server user */
-
-  rc = mysql_query(mysql, "DROP USER IF EXISTS wl6587_cli@localhost");
-  myquery(rc);
-
   rc = mysql_query(mysql,
                    "CREATE USER wl6587_cli@localhost IDENTIFIED BY 'wl6587'");
   myquery(rc);
@@ -21568,338 +21563,6 @@ static void test_bug31104389() {
   mysql_close(mysql_local);
 }
 
-#define wl12542_test_numeric_type(type_enum, type, val, string_cvt,           \
-                                  is_null_arg)                                \
-  {                                                                           \
-    printf("\ntest numeric %d ", type_enum);                                  \
-    type data = val;                                                          \
-    memset(&p1, 0, sizeof(p1));                                               \
-    p1.buffer_type = type_enum;                                               \
-    p1.buffer = (char *)&data;                                                \
-    p1.buffer_length = sizeof(data);                                          \
-    p1.length = nullptr;                                                      \
-    p1.is_null = &is_null_arg;                                                \
-    DIE_IF(mysql_bind_param(mysql, 1, &p1, &name));                           \
-    myquery(                                                                  \
-        mysql_query(mysql, "select mysql_query_attribute_string('param1')")); \
-    res = mysql_store_result(mysql);                                          \
-    mytest(res);                                                              \
-    row = mysql_fetch_row(res);                                               \
-    mytest(row);                                                              \
-    printf("return '%s'\n", row[0] ? row[0] : "<NULL>");                      \
-    if (is_null_arg)                                                          \
-      DIE_UNLESS(row[0] == nullptr);                                          \
-    else                                                                      \
-      DIE_UNLESS(string_cvt(row[0]) == data);                                 \
-    mysql_free_result(res);                                                   \
-  }
-
-static void wl12542_test_date_type(MYSQL *mysql, enum enum_field_types type,
-                                   enum enum_mysql_timestamp_type date_type,
-                                   const char *expected, bool is_null) {
-  MYSQL_RES *res;
-  MYSQL_ROW row;
-  MYSQL_BIND p1;
-  const char *name = "param1";
-  printf("\ntest timedata %d / %d ", (int)type, (int)date_type);
-  MYSQL_TIME mst = {type == MYSQL_TYPE_TIME ? 0U : 1972U,
-                    type == MYSQL_TYPE_TIME ? 0U : 2U,
-                    type == MYSQL_TYPE_TIME ? 0U : 6U,
-                    11U,
-                    12U,
-                    13U,
-                    14U,
-                    false,
-                    date_type,
-                    3 * 60 * 60 /* 3 hours */};
-  memset(&p1, 0, sizeof(p1));
-  p1.buffer_type = type;
-  p1.buffer = (char *)&mst;
-  p1.buffer_length = sizeof(mst);
-  p1.length = nullptr;
-  p1.is_null = &is_null;
-  DIE_IF(mysql_bind_param(mysql, 1, &p1, &name));
-  myquery(mysql_query(mysql, "select mysql_query_attribute_string('param1')"));
-  res = mysql_store_result(mysql);
-  mytest(res);
-  row = mysql_fetch_row(res);
-  mytest(row);
-  printf("return '%s'\n", row[0] ? row[0] : "<NULL>");
-  if (is_null)
-    DIE_UNLESS(row[0] == nullptr);
-  else
-    DIE_UNLESS(!strcmp(row[0], expected));
-  mysql_free_result(res);
-}
-
-static void test_wl12542() {
-  myheader("test_wl12542");
-
-  /* init phase */
-  myquery(mysql_query(mysql,
-                      "INSTALL COMPONENT 'file://component_query_attributes'"));
-
-  MYSQL_BIND p1;
-  const char *name = "param1";
-  MYSQL_ROW row;
-  MYSQL_RES *res;
-
-  printf("\nbind a string query parameter param1=param1_data ");
-  {
-    char str_data[2048];
-    ulong str_length;
-    memset(&p1, 0, sizeof(p1));
-    p1.buffer_type = MYSQL_TYPE_STRING;
-    p1.buffer = (char *)&str_data[0];
-    p1.buffer_length = sizeof(str_data) - 1;
-    p1.length = &str_length;
-    p1.is_null = nullptr;
-    str_length = strlen("param_data1");
-    memcpy(str_data, "param_data1", ((size_t)str_length) + 1);
-    DIE_IF(mysql_bind_param(mysql, 1, &p1, &name));
-
-    /* execute a fetch parameter query and check the returned value */
-    myquery(
-        mysql_query(mysql, "select mysql_query_attribute_string('param1')"));
-    res = mysql_store_result(mysql);
-    mytest(res);
-    row = mysql_fetch_row(res);
-    mytest(row);
-    printf("return '%s'\n", row[0]);
-    DIE_UNLESS(!strcmp(row[0], str_data));
-    mysql_free_result(res);
-  }
-
-  printf(
-      "\nExecute a fetch parameter query without bind and check that it "
-      "returns null\n");
-  {
-    myquery(
-        mysql_query(mysql, "select mysql_query_attribute_string('param1')"));
-    res = mysql_store_result(mysql);
-    mytest(res);
-    row = mysql_fetch_row(res);
-    mytest(row);
-    DIE_UNLESS(row[0] == 0);
-    mysql_free_result(res);
-  }
-
-  for (int is_null_flag = 0; is_null_flag < 2; is_null_flag++) {
-    bool is_null_arg = is_null_flag != 0;
-    printf("\nTest data types with is_null=%d\n", is_null_flag);
-    wl12542_test_numeric_type(MYSQL_TYPE_TINY, unsigned char, 12, atoi,
-                              is_null_arg);
-    wl12542_test_numeric_type(MYSQL_TYPE_SHORT, short int, 13, atoi,
-                              is_null_arg);
-    wl12542_test_numeric_type(MYSQL_TYPE_LONG, int, 14, atoi, is_null_arg);
-    wl12542_test_numeric_type(MYSQL_TYPE_LONGLONG, long long int, 15, atoll,
-                              is_null_arg);
-    wl12542_test_numeric_type(MYSQL_TYPE_FLOAT, float, 16.0, atof, is_null_arg);
-    wl12542_test_numeric_type(MYSQL_TYPE_DOUBLE, double, 17.0, atof,
-                              is_null_arg);
-
-    wl12542_test_date_type(mysql, MYSQL_TYPE_TIME, MYSQL_TIMESTAMP_TIME,
-                           "11:12:13.000014", is_null_arg);
-    wl12542_test_date_type(mysql, MYSQL_TYPE_DATETIME, MYSQL_TIMESTAMP_DATETIME,
-                           "1972-02-06 11:12:13.000014", is_null_arg);
-    wl12542_test_date_type(mysql, MYSQL_TYPE_DATE, MYSQL_TIMESTAMP_DATE,
-                           "1972-02-06", is_null_arg);
-    wl12542_test_date_type(mysql, MYSQL_TYPE_TIMESTAMP,
-                           MYSQL_TIMESTAMP_DATETIME,
-                           "1972-02-06 11:12:13.000014", is_null_arg);
-    wl12542_test_date_type(mysql, MYSQL_TYPE_TIMESTAMP,
-                           MYSQL_TIMESTAMP_DATETIME_TZ,
-                           "1972-02-06 11:12:13.000014+3:00", is_null_arg);
-  }
-
-  printf("\nbind an anonymous string query parameter with param1_data ");
-  {
-    const char *empty_name = nullptr;
-    char str_data[2048];
-    ulong str_length;
-    memset(&p1, 0, sizeof(p1));
-    p1.buffer_type = MYSQL_TYPE_STRING;
-    p1.buffer = (char *)&str_data[0];
-    p1.buffer_length = sizeof(str_data) - 1;
-    p1.length = &str_length;
-    p1.is_null = nullptr;
-    str_length = strlen("param_data1");
-    memcpy(str_data, "param_data1", ((size_t)str_length) + 1);
-    DIE_IF(mysql_bind_param(mysql, 1, &p1, &empty_name));
-
-    /*
-      execute a fetch parameter query and check the returned value
-      to be null
-    */
-    myquery(
-        mysql_query(mysql, "select mysql_query_attribute_string('param1')"));
-    res = mysql_store_result(mysql);
-    mytest(res);
-    row = mysql_fetch_row(res);
-    mytest(row);
-    printf("return '%s'\n", row[0] ? row[0] : "<NULL>");
-    DIE_UNLESS(row[0] == 0);
-    mysql_free_result(res);
-  }
-
-  printf("\nbind 2 parameters param1=param1_data and param2=12 ");
-  {
-    MYSQL_BIND p2[2];
-    const char *name2[] = {"param1", "param2"};
-    char str_data[2048];
-    ulong str_length;
-    int int_data = 12;
-    memset(&p2, 0, sizeof(p2));
-
-    p2[0].buffer_type = MYSQL_TYPE_STRING;
-    p2[0].buffer = (char *)&str_data[0];
-    p2[0].buffer_length = sizeof(str_data) - 1;
-    p2[0].length = &str_length;
-    str_length = strlen("param_data1");
-    memcpy(str_data, "param_data1", ((size_t)str_length) + 1);
-
-    p2[1].buffer_type = MYSQL_TYPE_LONG;
-    p2[1].buffer = (char *)&int_data;
-    p2[1].buffer_length = sizeof(int_data);
-
-    DIE_IF(mysql_bind_param(mysql, 2, p2, name2));
-
-    /*
-      execute a fetch parameter query and check the returned value
-      to be null
-    */
-    myquery(mysql_query(mysql,
-                        "select mysql_query_attribute_string('param1'), "
-                        "mysql_query_attribute_string('param2')"));
-    res = mysql_store_result(mysql);
-    mytest(res);
-    row = mysql_fetch_row(res);
-    mytest(row);
-    printf("return row[0]='%s', row[1]='%s'\n", row[0] ? row[0] : "<NULL>",
-           row[1] ? row[1] : "<NULL>");
-    DIE_UNLESS(!strcmp(row[0], str_data));
-    DIE_UNLESS(atoi(row[1] ? row[1] : "0") == int_data);
-    mysql_free_result(res);
-  }
-
-  printf("\nbind 2 parameters: 1 anonymous with param1_data and param2=12 ");
-  {
-    MYSQL_BIND p2[2];
-    const char *name2[] = {nullptr, "param2"};
-    char str_data[2048];
-    ulong str_length;
-    int int_data = 12;
-    memset(&p2, 0, sizeof(p2));
-
-    p2[0].buffer_type = MYSQL_TYPE_STRING;
-    p2[0].buffer = (char *)&str_data[0];
-    p2[0].buffer_length = sizeof(str_data) - 1;
-    p2[0].length = &str_length;
-    str_length = strlen("param_data1");
-    memcpy(str_data, "param_data1", ((size_t)str_length) + 1);
-
-    p2[1].buffer_type = MYSQL_TYPE_LONG;
-    p2[1].buffer = (char *)&int_data;
-    p2[1].buffer_length = sizeof(int_data);
-
-    DIE_IF(mysql_bind_param(mysql, 2, p2, name2));
-
-    /*
-      execute a fetch parameter query and check the returned value
-      to be null
-    */
-    myquery(mysql_query(mysql,
-                        "select mysql_query_attribute_string('param1'), "
-                        "mysql_query_attribute_string('param2')"));
-    res = mysql_store_result(mysql);
-    mytest(res);
-    row = mysql_fetch_row(res);
-    mytest(row);
-    printf("return row[0]='%s', row[1]='%s'\n", row[0] ? row[0] : "<NULL>",
-           row[1] ? row[1] : "<NULL>");
-    DIE_UNLESS(row[0] == nullptr);
-    DIE_UNLESS(atoi(row[1] ? row[1] : "0") == int_data);
-    mysql_free_result(res);
-  }
-
-  /* test if mysql_bind_param() affects prepared statements */
-  printf(
-      "\nbind an int query parameter param1=12 on a prepared "
-      "statement ");
-  {
-    MYSQL_STMT *stmt;
-    MYSQL_BIND r1;
-    char str_data[2048];
-    ulong str_length = 0;
-    int rc, int_value;
-    bool is_null = false;
-
-    stmt = mysql_simple_prepare(
-        mysql, "select mysql_query_attribute_string('param1')");
-
-    memset(&p1, 0, sizeof(p1));
-    p1.buffer_type = MYSQL_TYPE_LONG;
-    p1.buffer = (char *)&int_value;
-    p1.buffer_length = sizeof(int_value);
-    DIE_IF(mysql_bind_param(mysql, 1, &p1, &name));
-
-    /* execute a fetch parameter query and check the returned value */
-    rc = mysql_stmt_execute(stmt);
-    check_execute(stmt, rc);
-
-    memset(&r1, 0, sizeof(r1));
-    r1.buffer = str_data;
-    r1.buffer_length = sizeof(str_data);
-    r1.buffer_type = MYSQL_TYPE_STRING;
-    r1.is_null = &is_null;
-    r1.length = &str_length;
-    rc = mysql_stmt_bind_result(stmt, &r1);
-    check_execute(stmt, rc);
-
-    rc = mysql_stmt_fetch(stmt);
-    check_execute(stmt, rc);
-    if (is_null)
-      printf("return '<null>'\n");
-    else
-      printf("return '%.*s'\n", (int)str_length, str_data);
-
-    DIE_UNLESS(is_null);
-    DIE_UNLESS(mysql_stmt_fetch(stmt) == MYSQL_NO_DATA);
-    mysql_stmt_close(stmt);
-  }
-
-  // test if bool inflicts a mysql_bind_param() error
-  printf("\nBind a boolean parameter (unsupported) ");
-  {
-    memset(&p1, 0, sizeof(p1));
-    bool bool_data = false;
-
-    p1.buffer_type = MYSQL_TYPE_BOOL;
-    p1.buffer = (char *)&bool_data;
-    p1.buffer_length = sizeof(bool_data);
-
-    DIE_IF(!mysql_bind_param(mysql, 1, &p1, &name));
-
-    /*
-      execute a fetch parameter query and check the returned value
-      to be null
-    */
-    myquery(
-        mysql_query(mysql, "select mysql_query_attribute_string('param1')"));
-    res = mysql_store_result(mysql);
-    mytest(res);
-    row = mysql_fetch_row(res);
-    mytest(row);
-    printf("return row[0]='%s'\n", row[0] ? row[0] : "<NULL>");
-    DIE_UNLESS(!row[0]);
-    mysql_free_result(res);
-  }
-
-  /* cleanup phase */
-  myquery(mysql_query(
-      mysql, "UNINSTALL COMPONENT 'file://component_query_attributes'"));
-}
-
 static void test_bug31691060_1() {
   myheader("test_bug31691060_1");
 
@@ -22060,7 +21723,7 @@ static struct my_tests_st my_tests[] = {
     {"test_select_prepare", test_select_prepare},
     {"test_select", test_select},
     {"test_select_version", test_select_version},
-    {"test_ps_conj_query_block", test_ps_conj_query_block},
+    {"test_ps_conj_select", test_ps_conj_select},
     {"test_select_show_table", test_select_show_table},
     {"test_func_fields", test_func_fields},
     {"test_long_data", test_long_data},
@@ -22332,7 +21995,6 @@ static struct my_tests_st my_tests[] = {
     {"test_bug31082201", test_bug31082201},
     {"test_bug31104389", test_bug31104389},
     {"test_wl13905", test_wl13905},
-    {"test_wl12542", test_wl12542},
     {"test_bug31691060_1", test_bug31691060_1},
     {"test_bug31691060_2", test_bug31691060_2},
     {nullptr, nullptr}};

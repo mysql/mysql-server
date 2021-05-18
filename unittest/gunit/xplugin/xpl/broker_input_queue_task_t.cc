@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,6 @@
 
 #include "plugin/x/src/mq/broker_task.h"
 #include "plugin/x/src/mq/notice_input_queue.h"
-#include "unittest/gunit/xplugin/xpl/mock/client.h"
-#include "unittest/gunit/xplugin/xpl/mock/notice_output_queue.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl {
@@ -63,9 +61,9 @@ class Broker_input_queue_testsuite : public Test {
 
   void assert_do_loop() { sut_task->loop(); }
 
-  std::shared_ptr<mock::Client> mock_client{new mock::Client()};
-  mock::Session mock_session;
-  StrictMock<mock::Notice_output_queue> mock_notice_out_queue;
+  std::shared_ptr<Mock_client> mock_client{new Mock_client()};
+  Mock_session mock_session;
+  StrictMock<Mock_notice_output_queue> mock_notice_out_queue;
 
   ngs::Client_list m_client_list;
   Task_context m_sut_context{Task_context::On_connection(), nullptr,
@@ -74,8 +72,6 @@ class Broker_input_queue_testsuite : public Test {
   std::unique_ptr<iface::Server_task> sut_task{
       m_sut_queue.create_broker_task()};
 };
-
-MATCHER_P(EqNoticeType, expected, "") { return expected == arg->m_notice_type; }
 
 TEST_F(Broker_input_queue_testsuite, does_nothing) {}
 
@@ -91,7 +87,7 @@ TEST_F(Broker_input_queue_testsuite, queues_all_until_looped2) {
   m_sut_queue.emplace(kId1, "payload");
   m_sut_queue.emplace(kId2, "payload");
 
-  EXPECT_CALL(mock_notice_out_queue, emplace(_)).Times(2);
+  EXPECT_CALL(mock_notice_out_queue, emplace(_, _)).Times(2);
 
   sut_task->loop();
 }
@@ -101,7 +97,7 @@ TEST_F(Broker_input_queue_testsuite, queues_all_until_looped4) {
   m_sut_queue.emplace(kId2, "payload");
   m_sut_queue.emplace(kId2, "payload");
 
-  EXPECT_CALL(mock_notice_out_queue, emplace(_)).Times(3);
+  EXPECT_CALL(mock_notice_out_queue, emplace(_, _)).Times(3);
 
   sut_task->loop();
 }
@@ -114,31 +110,26 @@ TEST_F(Broker_input_queue_testsuite, publish_sequence_is_same_as_queue) {
   m_sut_queue.emplace(kId2, "payload");
 
   InSequence s;
-  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId1)))
-      .RetiresOnSaturation();
-  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId2)))
-      .RetiresOnSaturation();
-  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId2)))
-      .RetiresOnSaturation();
-  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId1)))
-      .RetiresOnSaturation();
-  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId2)))
-      .RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(kId1, _)).RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(kId2, _)).RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(kId2, _)).RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(kId1, _)).RetiresOnSaturation();
+  EXPECT_CALL(mock_notice_out_queue, emplace(kId2, _)).RetiresOnSaturation();
 
   sut_task->loop();
 }
 
 TEST_F(Broker_input_queue_testsuite, queues_one_by_one) {
   m_sut_queue.emplace(kId1, "payload");
-  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId1)));
+  EXPECT_CALL(mock_notice_out_queue, emplace(kId1, _));
   assert_do_loop();
 
   m_sut_queue.emplace(kId2, "payload");
-  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId2)));
+  EXPECT_CALL(mock_notice_out_queue, emplace(kId2, _));
   assert_do_loop();
 
   m_sut_queue.emplace(kId1, "payload");
-  EXPECT_CALL(mock_notice_out_queue, emplace(EqNoticeType(kId1)));
+  EXPECT_CALL(mock_notice_out_queue, emplace(kId1, _));
   assert_do_loop();
 }
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -398,13 +398,9 @@ void PasswdFrontend::prepare_command_options() {
       "Work-factor hint for KDF if account is updated.",
       CmdOptionValueReq::required, "num", [this](const std::string &value) {
         try {
-          size_t end_pos;
-          long num = std::stol(value, &end_pos);
+          long num = std::stol(value);
           if (num < 0) {
             throw UsageError("--work-factor is negative (must be positive)");
-          }
-          if (end_pos != value.size()) {
-            throw UsageError("--work-factor is not a positive integer");
           }
           config_.cost = num;
         } catch (const std::out_of_range &) {

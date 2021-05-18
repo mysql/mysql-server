@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -56,9 +56,7 @@ extern EventLogger *g_eventLogger;
 static bool g_dbg_lcp = false;
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_PAGE_ENTRY 1
 //#define DEBUG_PGMAN_IO 1
-//#define DEBUG_PGMAN_WRITE 1
 //#define DEBUG_GET_PAGE 1
 //#define DEBUG_PGMAN_PAGE 1
 //#define DEBUG_PGMAN_EXTRA 1
@@ -68,18 +66,6 @@ static bool g_dbg_lcp = false;
 //#define DEBUG_PGMAN_LCP 1
 //#define DEBUG_PGMAN_LCP_STAT 1
 //#define DEBUG_PGMAN_PREP_PAGE 1
-#endif
-
-#ifdef DEBUG_PAGE_ENTRY
-#define DEB_PAGE_ENTRY(arglist) do { g_eventLogger->info arglist ; } while (0)
-#else
-#define DEB_PAGE_ENTRY(arglist) do { } while (0)
-#endif
-
-#ifdef DEBUG_PGMAN_WRITE
-#define DEB_PGMAN_WRITE(arglist) do { g_eventLogger->info arglist ; } while (0)
-#else
-#define DEB_PGMAN_WRITE(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_PGMAN
@@ -246,7 +232,6 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
     m_time_track_reads[i] = 0;
     m_time_track_writes[i] = 0;
     m_time_track_log_waits[i] = 0;
-    m_time_track_get_page[i] = 0;
   }
   m_pages_made_dirty = Uint64(0);
   m_tot_pages_made_dirty = Uint64(0);
@@ -310,11 +295,6 @@ Pgman::Pgman(Block_context& ctx, Uint32 instanceNumber) :
   m_lcp_ongoing = false;
   m_num_ldm_completed_lcp = 0;
   m_max_pageout_rate = Uint64(0);
-  m_sync_extent_next_page_entry = RNIL;
-  m_sync_extent_pages_ongoing = false;
-  m_sync_extent_continueb_ongoing = false;
-  memset(&m_sync_page_cache_req, 0, sizeof(m_sync_page_cache_req));
-  memset(&m_sync_extent_pages_req, 0, sizeof(m_sync_extent_pages_req));
 }
 
 Pgman::~Pgman()
@@ -769,14 +749,6 @@ Pgman::seize_page_entry(Ptr<Page_entry>& ptr,
                            tableId,
                            fragmentId);
     m_page_hashlist.add(ptr);
-    DEB_PAGE_ENTRY(("(%u) seize_page_entry: tab(%u,%u), page(%u,%u),"
-                    " ptr.i: %u",
-                    instance(),
-                    tableId,
-                    fragmentId,
-                    file_no,
-                    page_no,
-                    ptr.i));
 #ifdef VM_TRACE
     ptr.p->m_this = this;
 #endif
@@ -949,14 +921,6 @@ Pgman::release_page_entry(Ptr<Page_entry>& ptr, EmulatedJamBuffer *jamBuf)
   ndbrequire(ptr.p->m_real_page_i == RNIL);
   ndbrequire(ptr.p->m_dirty_state == Pgman::IN_NO_DIRTY_LIST);
 
-  DEB_PAGE_ENTRY(("(%u) release_page_entry: tab(%u,%u), page(%u,%u),"
-                  " ptr.i: %u",
-                  instance(),
-                  ptr.p->m_table_id,
-                  ptr.p->m_fragment_id,
-                  ptr.p->m_file_no,
-                  ptr.p->m_page_no,
-                  ptr.i));
   if (! (state & Page_entry::LOCKED))
   {
     thrjam(jamBuf);
@@ -1591,8 +1555,7 @@ Pgman::process_cleanup(Signal* signal)
       if (c_tup != 0)
         c_tup->disk_page_unmap_callback(0, 
                                         ptr.p->m_real_page_i, 
-                                        ptr.p->m_dirty_count,
-                                        ptr.i);
+                                        ptr.p->m_dirty_count);
       DEB_PGMAN_PAGE(("(%u)pageout():cleanup, page(%u,%u):%u:%x",
                       instance(),
                       ptr.p->m_file_no,
@@ -1724,7 +1687,7 @@ Pgman::execSYNC_PAGE_CACHE_CONF(Signal *signal)
      */ 
     NDB_TICKS now = getHighResTimer();
     Uint64 lcp_time = NdbTick_Elapsed(m_lcp_start_time,now).milliSec();
-    lcp_end_point(Uint32(lcp_time), true, true);
+    lcp_end_point(Uint32(lcp_time));
     if (isNdbMtLqh())
     {
       jam();
@@ -1938,26 +1901,11 @@ Pgman::start_lcp_loop(Signal *signal)
   if (m_lcp_loop_ongoing)
   {
     jam();
-#ifdef DEBUG_PGMAN_LCP
-    if (m_sync_extent_next_page_entry != RNIL)
-    {
-      DEB_PGMAN_LCP(("(%u) m_lcp_loop_ongoing true and extent pages left",
-                     instance()));
-    }
-#endif
     return;
   }
   if (!m_lcp_ongoing)
   {
     jam();
-#ifdef DEBUG_PGMAN_LCP
-    if (m_sync_extent_next_page_entry != RNIL)
-    {
-      DEB_PGMAN_LCP(("(%u) m_lcp_loop_ongoing false and m_lcp_ongoing"
-                     " false and extent pages left",
-                     instance()));
-    }
-#endif
     m_lcp_loop_ongoing = false;
     return;
   }
@@ -2035,14 +1983,6 @@ Pgman::check_restart_lcp(Signal *signal, bool check_prepare_lcp)
      * do anything more here. We don't want to complete the
      * LCPs with outstanding CONTINUEB signals.
      */
-#ifdef DEBUG_PGMAN_LCP
-    if (m_sync_extent_pages_ongoing)
-    {
-      DEB_PGMAN_LCP(("(%u)check_restart_lcp, m_lcp_loop_ongoing true"
-                     " and outstanding extent pages",
-                     instance()));
-    }
-#endif
     return;
   }
   if (m_sync_extent_pages_ongoing)
@@ -2085,9 +2025,6 @@ Pgman::check_restart_lcp(Signal *signal, bool check_prepare_lcp)
        * process_lcp_locked_fswriteconf). No need to use CONTINUEB to
        * wait for it, it will arrive in a FSWRITECONF signal.
        */
-      DEB_PGMAN_LCP(("(%u)Sync extent completed, but still %u LCP pages out",
-                     instance(),
-                     m_lcp_outstanding));
       jam();
     }
     return;
@@ -2312,8 +2249,7 @@ Pgman::handle_prepare_lcp(Signal *signal, FragmentRecordPtr fragPtr)
         {
           c_tup->disk_page_unmap_callback(0,
                                           ptr.p->m_real_page_i, 
-                                          ptr.p->m_dirty_count,
-                                          ptr.i);
+                                          ptr.p->m_dirty_count);
         }
         TableRecordPtr tabPtr;
         m_tableRecordPool.getPtr(tabPtr,fragPtr.p->m_table_id);
@@ -2502,8 +2438,7 @@ Pgman::handle_lcp(Signal *signal, Uint32 tableId, Uint32 fragmentId)
         {
           c_tup->disk_page_unmap_callback(0,
                                           ptr.p->m_real_page_i, 
-                                          ptr.p->m_dirty_count,
-                                          ptr.i);
+                                          ptr.p->m_dirty_count);
         }
         pageout(signal, ptr);
         break_flag = true;
@@ -2793,12 +2728,10 @@ Pgman::lcp_start_point(Signal *signal,
   }
 }
 
-bool
-Pgman::lcp_end_point(Uint32 lcp_time_in_ms, bool first, bool internal)
+void
+Pgman::lcp_end_point(Uint32 lcp_time_in_ms)
 {
-  ndbrequire(m_lcp_ongoing == true || !first);
-  ndbrequire(m_lcp_table_id == RNIL);
-  m_lcp_ongoing = false;
+  ndbrequire(m_lcp_ongoing == true);
   if (m_prep_lcp_outstanding > 0)
   {
     FragmentRecordPtr tmpFragPtr;
@@ -2831,20 +2764,9 @@ Pgman::lcp_end_point(Uint32 lcp_time_in_ms, bool first, bool internal)
                           instance(),
                           m_prev_lcp_table_id);
     }
-    /**
-     * We have started performing PREP_LCP writes on a fragment
-     * that was either dropped or it was recently created and
-     * performed an early checkpoint. In this case we have to
-     * wait until all PREP_LCP writes have finished before
-     * we complete the LCP.
-     *
-     * It should be a very rare event, thus we make a printout to node log
-     * here every time it happens.
-     */
-    ndbrequire(internal == false);
-    m_prev_lcp_table_id = RNIL;
-    return false;
   }
+  ndbrequire(m_prep_lcp_outstanding == 0);
+  m_lcp_ongoing = false;
   m_prev_lcp_table_id = RNIL;
   Uint32 last_lcp_pageouts = m_current_lcp_pageouts;
   m_current_lcp_pageouts = Uint64(0);
@@ -2879,7 +2801,6 @@ Pgman::lcp_end_point(Uint32 lcp_time_in_ms, bool first, bool internal)
     m_raise_redo_alert_state = 0;
   }
   m_redo_alert_state_last_lcp = m_redo_alert_state;
-  return true;
 }
 
 void
@@ -3213,10 +3134,9 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
                         1, SyncExtentPagesReq::SignalLength);
     return;
   }
-  DEB_PGMAN_LCP(("(%u)SYNC_EXTENT_PAGES_REQ, order: %u, from instance: %u",
+  DEB_PGMAN_LCP(("(%u)SYNC_EXTENT_PAGES_REQ, order: %u",
                  instance(),
-                 req->lcpOrder,
-                 refToInstance(req->senderRef)));
+                 req->lcpOrder));
   m_sync_extent_order = req->lcpOrder;
   m_sync_extent_pages_ongoing = true;
   m_sync_extent_pages_req = *req;
@@ -3266,7 +3186,6 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
   {
     jam();
     m_sync_extent_next_page_entry = ptr.i;
-    ndbrequire(m_lcp_ongoing);
     start_lcp_loop(signal);
     return;
   }
@@ -3276,9 +3195,7 @@ Pgman::execSYNC_EXTENT_PAGES_REQ(Signal *signal)
 void
 Pgman::finish_sync_extent_pages(Signal *signal)
 {
-  DEB_PGMAN_LCP(("(%u)SYNC_EXTENT_PAGES_CONF to %u",
-                 instance(),
-                 refToInstance(m_sync_extent_pages_req.senderRef)));
+  DEB_PGMAN_LCP(("(%u)SYNC_EXTENT_PAGES_CONF", instance()));
   SyncExtentPagesConf *conf = (SyncExtentPagesConf*)signal->getDataPtr();
   m_sync_extent_pages_ongoing = false;
   m_sync_extent_next_page_entry = RNIL;
@@ -3286,13 +3203,9 @@ Pgman::finish_sync_extent_pages(Signal *signal)
       m_sync_extent_order == SyncExtentPagesReq::FIRST_AND_END_LCP ||
       m_sync_extent_order == SyncExtentPagesReq::RESTART_SYNC)
   {
-    jam();
     m_num_ldm_completed_lcp++;
-    DEB_PGMAN_LCP(("(%u) %u LDMs out of %u completed sync extent",
-                   instance(),
-                   m_num_ldm_completed_lcp,
-                   getNumLDMInstances()));
-    if (m_num_ldm_completed_lcp == getNumLDMInstances() ||
+    jam();
+    if (m_num_ldm_completed_lcp == globalData.ndbMtLqhThreads ||
         m_sync_extent_order == SyncExtentPagesReq::RESTART_SYNC)
     {
       jam();
@@ -3303,7 +3216,7 @@ Pgman::finish_sync_extent_pages(Signal *signal)
        */
       NDB_TICKS now = getHighResTimer();
       Uint64 lcp_time = NdbTick_Elapsed(m_lcp_start_time,now).milliSec();
-      lcp_end_point(Uint32(lcp_time), true, true);
+      lcp_end_point(Uint32(lcp_time));
       m_num_ldm_completed_lcp = 0;
     }
   }
@@ -3326,8 +3239,6 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
   if ((max_count = get_num_lcp_pages_to_write(false)) == 0)
   {
     jam();
-    DEB_PGMAN_LCP(("(%u) No room to start more page writes",
-                   instance()));
     m_sync_extent_next_page_entry = ptr.i;
     return;
   }
@@ -3395,9 +3306,6 @@ Pgman::process_lcp_locked(Signal* signal, Ptr<Page_entry> ptr)
         finish_sync_extent_pages(signal);
         return;
       }
-      DEB_PGMAN_LCP(("(%u) %u LCP pages outstanding and extents are done",
-                     instance(),
-                     m_lcp_outstanding));
       jam();
       m_sync_extent_next_page_entry = RNIL;
       return;
@@ -3458,10 +3366,6 @@ Pgman::process_lcp_locked_fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
         finish_sync_extent_pages(signal);
         return;
       }
-      DEB_PGMAN_LCP(("(%u) Written all extent pages, but %u"
-                     " pages still outstanding",
-                     instance(),
-                     m_lcp_outstanding));
       jam();
       return;
     }
@@ -3509,6 +3413,12 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
 
   Page_state state = ptr.p->m_state;
 
+  DEB_PGMAN_IO(("(%u)pagein completed: page(%u,%u):%x",
+               instance(),
+               ptr.p->m_file_no,
+               ptr.p->m_page_no,
+               (unsigned int)state));
+
   ndbrequire(ptr.p->m_state & Page_entry::PAGEIN);
 
   state &= ~ Page_entry::PAGEIN;
@@ -3528,26 +3438,12 @@ Pgman::fsreadconf(Signal* signal, Ptr<Page_entry> ptr)
     File_formats::Datafile::Data_page* page =
       (File_formats::Datafile::Data_page*)pagePtr.p;
     
-    Uint64 lsn = page->m_page_header.m_page_lsn_hi;
-    lsn <<= 32;
+    Uint64 lsn = 0;
+    lsn += page->m_page_header.m_page_lsn_hi; lsn <<= 32;
     lsn += page->m_page_header.m_page_lsn_lo;
     ptr.p->m_lsn = lsn;
-    Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page;
-    (void)fix_page;
-    DEB_PGMAN_IO(("(%u)pagein completed: page(%u,%u):%x, "
-                  "on_page(%u,%u), tab(%u,%u) lsn(%u,%u)",
-                  instance(),
-                  ptr.p->m_file_no,
-                  ptr.p->m_page_no,
-                  (unsigned int)state,
-                  fix_page->m_page_no,
-                  fix_page->m_file_no,
-                  fix_page->m_table_id,
-                  fix_page->m_fragment_id,
-                  page->m_page_header.m_page_lsn_hi,
-                  page->m_page_header.m_page_lsn_lo));
-
   }
+  
   ndbrequire(m_stats.m_current_io_waits > 0);
   m_stats.m_current_io_waits--;
   m_stats.m_pages_read++;
@@ -3582,17 +3478,7 @@ Pgman::pageout(Signal* signal, Ptr<Page_entry> ptr, bool check_sync_lsn)
     (File_formats::Datafile::Data_page*)pagePtr.p;
   page->m_page_header.m_page_lsn_hi = (Uint32)(ptr.p->m_lsn >> 32);
   page->m_page_header.m_page_lsn_lo = (Uint32)(ptr.p->m_lsn & 0xFFFFFFFF);
-  Tup_fixsize_page *fix_page = (Tup_fixsize_page*)page;
-  (void)fix_page;
-  DEB_PGMAN_WRITE(("(%u)pageout(),page(%u,%u),tab(%u,%u),lsn(%u,%u),state:%x",
-                   instance(),
-                   ptr.p->m_file_no,
-                   ptr.p->m_page_no,
-                   fix_page->m_table_id,
-                   fix_page->m_fragment_id,
-                   page->m_page_header.m_page_lsn_hi,
-                   page->m_page_header.m_page_lsn_lo,
-                   (unsigned int)state));
+
   int ret = 1;
   if (check_sync_lsn)
   {
@@ -3718,8 +3604,7 @@ Pgman::fswriteconf(Signal* signal, Ptr<Page_entry> ptr)
     ndbrequire(!m_extra_pgman);
     c_tup->disk_page_unmap_callback(1, 
                                     ptr.p->m_real_page_i, 
-                                    ptr.p->m_dirty_count,
-                                    ptr.i);
+                                    ptr.p->m_dirty_count);
   }
 
   if (!m_extra_pgman)
@@ -4506,13 +4391,6 @@ Pgman::get_page(EmulatedJamBuffer* jamBuf,
  * this function. If this is added it must be protected in a proper
  * manner to avoid concurrency issues.
  */
-void
-Pgman::set_lsn(Ptr<Page_entry> ptr,
-               Uint64 lsn)
-{
-  ptr.p->m_lsn = lsn;
-}
-
 void
 Pgman::update_lsn(Signal *signal,
                   EmulatedJamBuffer* jamBuf,
@@ -5726,28 +5604,6 @@ Page_cache_client::get_page(Signal* signal, Request& req, Uint32 flags)
     m_pgman->m_global_page_pool.getPtr(m_ptr, (Uint32)i);
   }
   return i;
-}
-
-void
-Page_cache_client::set_lsn(Local_key key, Uint64 lsn)
-{
-  if (m_pgman_proxy != 0) {
-    thrjam(m_jamBuf);
-    m_pgman_proxy->set_lsn(*this, key, lsn);
-    return;
-  }
-  thrjam(m_jamBuf);
-
-  Ptr<Pgman::Page_entry> entry_ptr;
-  Uint32 file_no = key.m_file_no;
-  Uint32 page_no = key.m_page_no;
-
-  D("set_lsn" << V(file_no) << V(page_no) << V(lsn));
-
-  bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
-  require(found);
-
-  m_pgman->set_lsn(entry_ptr, lsn);
 }
 
 void

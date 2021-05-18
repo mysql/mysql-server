@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,12 +28,9 @@ SET(PROTOBUF_LITE_LIB_NAME mysqlxmessages_lite)
 SET(PROTOBUF_FULL_GENERATE_DIR ${MYSQLX_GENERATE_DIR}/protobuf)
 SET(PROTOBUF_LITE_GENERATE_DIR ${MYSQLX_GENERATE_DIR}/protobuf_lite)
 FILE(MAKE_DIRECTORY ${PROTOBUF_FULL_GENERATE_DIR} ${PROTOBUF_LITE_GENERATE_DIR})
-SET(MYSQLX_PROTOBUF_PROTO_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 INCLUDE(source_files.cmake)
-FOREACH(FILE ${MYSQLX_PROTOBUF_PROTO_SRC})
-  LIST(APPEND MYSQLX_PROTOBUF_PROTO_FILES "${CMAKE_CURRENT_SOURCE_DIR}/${FILE}")
-ENDFOREACH()
+
 
 SET(GENERATED_LITE_PROTO_FILES)
 # Generate protobuf-lite versions of proto files.

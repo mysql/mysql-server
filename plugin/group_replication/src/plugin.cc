@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 #include <sstream>
 
 #include <mysql/components/services/log_builtins.h>
-#include <mysql/service_rpl_transaction_write_set.h>
 #include "mutex_lock.h"
 #include "my_dbug.h"
 #include "my_inttypes.h"
@@ -44,7 +43,7 @@
 #include "plugin/group_replication/include/udf/udf_registration.h"
 #include "plugin/group_replication/include/udf/udf_utils.h"
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 #include "plugin/group_replication/include/services/notification/impl/gms_listener_test.h"
 #endif
 
@@ -135,8 +134,6 @@ SERVICE_TYPE_NO_CONST(mysql_runtime_error) *mysql_runtime_error_service =
 /*
   Internal auxiliary functions signatures.
 */
-static bool check_group_name_against_rpl_channel_settings(const char *str);
-
 static int check_group_name_string(const char *str, bool is_var_update = false);
 
 static int check_recovery_ssl_string(const char *str, const char *var_name,
@@ -236,7 +233,7 @@ int plugin_group_replication_set_retrieved_certification_info(void *info) {
 }
 
 rpl_sidno get_group_sidno() {
-  assert(lv.group_sidno > 0);
+  DBUG_ASSERT(lv.group_sidno > 0);
   return lv.group_sidno;
 }
 
@@ -328,11 +325,11 @@ bool initiate_wait_on_start_process() {
   // block the thread
   lv.online_wait_mutex->start_waitlock();
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   DBUG_EXECUTE_IF("group_replication_wait_thread_for_server_online", {
     const char act[] =
         "now wait_for signal.continue_applier_thread NO_CLEAR_EVENT";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 #endif
   return lv.abort_wait_on_start_process;
@@ -439,7 +436,7 @@ int plugin_group_replication_start(char **error_message) {
   DBUG_EXECUTE_IF("group_replication_wait_on_start", {
     const char act[] =
         "now signal signal.start_waiting wait_for signal.start_continue";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   if (plugin_is_group_replication_running()) {
@@ -540,7 +537,7 @@ int plugin_group_replication_start(char **error_message) {
 
   check_deprecated_variables();
 
-  assert(transactions_latch->empty());
+  DBUG_ASSERT(transactions_latch->empty());
 
   // Reset previous ERROR state causes.
   lv.error_state_due_to_error_during_autorejoin = false;
@@ -590,24 +587,9 @@ int initialize_plugin_and_join(
   // Avoid unnecessary operations
   bool enabled_super_read_only = false;
   bool read_only_mode = false, super_read_only_mode = false;
-  bool write_set_limits_set = false;
 
   Sql_service_command_interface *sql_command_interface =
       new Sql_service_command_interface();
-
-  /**
-    We redo the check for the group name here when starting on boot as only
-    now the information about channels and the
-    assign_gtids_to_anonymous_transactions is available.
-  */
-  if (lv.plugin_is_auto_starting_on_boot &&
-      check_group_name_against_rpl_channel_settings(ov.group_name_var)) {
-    LogPluginErr(ERROR_LEVEL,
-                 ER_GRP_RPL_GRP_NAME_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID,
-                 ov.group_name_var);
-    error = GROUP_REPLICATION_CONFIGURATION_ERROR;
-    goto err;
-  }
 
   // GCS interface.
   if ((error = gcs_module->initialize())) goto err; /* purecov: inspected */
@@ -660,10 +642,6 @@ int initialize_plugin_and_join(
   enabled_super_read_only = true;
   if (delayed_init_thd) delayed_init_thd->signal_read_mode_ready();
 
-  require_full_write_set(true);
-  set_write_set_memory_size_limit(get_transaction_size_limit());
-  write_set_limits_set = true;
-
   // Setup GCS.
   if ((error = configure_group_communication())) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_INIT_COMMUNICATION_ENGINE);
@@ -676,7 +654,7 @@ int initialize_plugin_and_join(
     const char act[] =
         "now signal signal.group_join_waiting "
         "wait_for signal.continue_group_join";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   if ((error = start_group_communication())) {
@@ -722,7 +700,7 @@ err:
       const char act[] =
           "now signal signal.wait_leave_process "
           "wait_for signal.continue_leave_process";
-      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     });
 
     auto modules_to_terminate = gr_modules::all_modules;
@@ -730,19 +708,13 @@ err:
     modules_to_terminate.reset(gr_modules::BINLOG_DUMP_THREAD_KILL);
     leave_group_and_terminate_plugin_modules(modules_to_terminate, nullptr);
 
-    if (write_set_limits_set) {
-      // Remove server constraints on write set collection
-      update_write_set_memory_size_limit(0);
-      require_full_write_set(false);
-    }
-
     if (!lv.server_shutdown_status && server_engine_initialized() &&
         enabled_super_read_only) {
       set_read_mode_state(sql_command_interface, read_only_mode,
                           super_read_only_mode);
     }
 
-    assert(transactions_latch->empty());
+    DBUG_ASSERT(transactions_latch->empty());
     // Inform the transaction observer that we won't apply any further backlog
     // (because we are erroring out).
     if (primary_election_handler) {
@@ -836,7 +808,7 @@ int configure_group_member_manager() {
         ov.advertise_recovery_endpoints_var);
   }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   DBUG_EXECUTE_IF("group_replication_skip_encode_default_table_encryption", {
     local_member_info->skip_encode_default_table_encryption = true;
   });
@@ -1040,14 +1012,6 @@ int plugin_group_replication_stop(char **error_message) {
   DBUG_TRACE;
 
   MUTEX_LOCK(lock, &lv.plugin_running_mutex);
-  DBUG_EXECUTE_IF("gr_plugin_gr_stop_after_holding_plugin_running_mutex", {
-    const char act[] =
-        "now signal "
-        "signal.reached_plugin_gr_stop_after_holding_plugin_running_mutex "
-        "wait_for "
-        "signal.resume_plugin_gr_stop_after_holding_plugin_running_mutex";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
-  });
 
   lv.plugin_is_stopping = true;
 
@@ -1085,7 +1049,7 @@ int plugin_group_replication_stop(char **error_message) {
     const char act[] =
         "now signal signal.stopping_before_leave_the_group "
         "wait_for signal.resume_stop_before_leave_the_group";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   // wait for all transactions waiting for certification
@@ -1098,7 +1062,6 @@ int plugin_group_replication_stop(char **error_message) {
 
   unregister_gr_message_service_send();
 
-  lv.recovery_timeout_issue_on_stop = false;
   int error = leave_group_and_terminate_plugin_modules(gr_modules::all_modules,
                                                        error_message);
   /* Delete of credentials is safe now from recovery thread. */
@@ -1125,10 +1088,6 @@ int plugin_group_replication_stop(char **error_message) {
     lv.plugin_is_waiting_to_set_server_read_mode = false;
   }
 
-  // Remove server constraints on write set collection
-  update_write_set_memory_size_limit(0);
-  require_full_write_set(false);
-
   // plugin is stopping, resume hold connections
   if (primary_election_handler) {
     primary_election_handler->notify_election_end();
@@ -1143,9 +1102,6 @@ int plugin_group_replication_stop(char **error_message) {
   */
   transaction_consistency_manager->unregister_transaction_observer();
   transaction_consistency_manager->clear();
-
-  if (!error && lv.recovery_timeout_issue_on_stop)
-    error = GROUP_REPLICATION_STOP_WITH_RECOVERY_TIMEOUT;
 
   return error;
 }
@@ -1326,16 +1282,18 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
   */
   if (modules_to_terminate[gr_modules::RECOVERY_MODULE]) {
     if (terminate_recovery_module()) {
-      lv.recovery_timeout_issue_on_stop = true;
+      // Do not throw an error since recovery is not vital, but warn either way
+      /* purecov: begin inspected */
       LogPluginErr(
           WARNING_LEVEL,
           ER_GRP_RPL_RECOVERY_MODULE_TERMINATION_TIMED_OUT_ON_SHUTDOWN);
+      /* purecov: end */
     }
   }
 
   DBUG_EXECUTE_IF("group_replication_after_recovery_module_terminated", {
     const char act[] = "now wait_for signal.termination_continue";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 
   /*
@@ -1454,9 +1412,9 @@ int terminate_plugin_modules(gr_modules::mask modules_to_terminate,
     blocked_transaction_handler = nullptr;
   }
 
-#if !defined(NDEBUG)
+#if !defined(DBUG_OFF)
   if (modules_to_terminate[gr_modules::CERTIFICATION_LATCH])
-    assert(transactions_latch->empty());
+    DBUG_ASSERT(transactions_latch->empty());
 #endif
 
   /*
@@ -1515,7 +1473,6 @@ bool attempt_rejoin() {
   modules_mask.set(gr_modules::REMOTE_CLONE_HANDLER, true);
   modules_mask.set(gr_modules::MESSAGE_SERVICE_HANDLER, true);
   modules_mask.set(gr_modules::BINLOG_DUMP_THREAD_KILL, true);
-  modules_mask.set(gr_modules::RECOVERY_MODULE, true);
   /*
     The first step is to issue a GCS leave() operation. This is done because
     the join() operation will assume that the GCS layer is not initiated and
@@ -1773,9 +1730,6 @@ int plugin_group_replication_init(MYSQL_PLUGIN plugin_info) {
   */
   set_wait_on_start_process(ov.start_group_replication_at_boot_var);
 
-  // Set the atomic var to the value of the base plugin variable
-  ov.transaction_size_limit_var = ov.transaction_size_limit_base_var;
-
   if (ov.start_group_replication_at_boot_var &&
       plugin_group_replication_start()) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_FAILED_TO_START_ON_BOOT);
@@ -1962,14 +1916,6 @@ int configure_and_start_applier_module() {
   DBUG_TRACE;
 
   int error = 0;
-
-  Replication_thread_api applier_channel(applier_module_channel_name);
-  applier_channel.set_stop_wait_timeout(1);
-  if (applier_channel.is_applier_thread_running() &&
-      applier_channel.stop_threads(false, true)) {
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_APPLIER_CHANNEL_STILL_RUNNING);
-    return 1;
-  }
 
   // The applier did not stop properly or suffered a configuration error
   if (applier_module != nullptr) {
@@ -2281,7 +2227,8 @@ int initialize_recovery_module() {
   recovery_module = new Recovery_module(
       applier_module,
       channel_observation_manager_list->get_channel_observation_manager(
-          GROUP_CHANNEL_OBSERVATION_MANAGER_POS));
+          GROUP_CHANNEL_OBSERVATION_MANAGER_POS),
+      ov.components_stop_timeout_var);
 
   recovery_module->set_recovery_ssl_options(
       ov.recovery_use_ssl_var, ov.recovery_ssl_ca_var,
@@ -2304,13 +2251,7 @@ int initialize_recovery_module() {
   recovery_module->set_recovery_zstd_compression_level(
       ov.recovery_zstd_compression_level_var);
 
-  // on case of the threads is locked and not able to terminate, change timeout
-  // to fail faster
-  recovery_module->set_stop_wait_timeout(1);
-  int error = recovery_module->check_recovery_thread_status();
-  recovery_module->set_stop_wait_timeout(get_components_stop_timeout_var());
-
-  return error;
+  return 0;
 }
 
 int terminate_recovery_module() {
@@ -2442,8 +2383,8 @@ static int check_if_server_properly_configured() {
   }
 
   lv.gr_lower_case_table_names = startup_pre_reqs.lower_case_table_names;
-  assert(lv.gr_lower_case_table_names <= 2);
-#ifndef NDEBUG
+  DBUG_ASSERT(lv.gr_lower_case_table_names <= 2);
+#ifndef DBUG_OFF
   DBUG_EXECUTE_IF("group_replication_skip_encode_lower_case_table_names", {
     lv.gr_lower_case_table_names = SKIP_ENCODING_LOWER_CASE_TABLE_NAMES;
   });
@@ -2474,16 +2415,6 @@ static int plugin_running_mutex_trylock() {
   }
 
   return res;
-}
-static bool check_group_name_against_rpl_channel_settings(const char *str) {
-  DBUG_TRACE;
-  Replication_thread_api replication_api_lookup;
-  if (replication_api_lookup
-          .is_any_channel_using_uuid_for_assign_gtids_to_anonymous_transaction(
-              str)) {
-    return true;
-  }
-  return false;
 }
 
 static int check_group_name_string(const char *str, bool is_var_update) {
@@ -2522,18 +2453,7 @@ static int check_group_name_string(const char *str, bool is_var_update) {
                  MYF(0));
     return 1;
   }
-  if (check_group_name_against_rpl_channel_settings(str)) {
-    if (!is_var_update) {
-      LogPluginErr(ERROR_LEVEL,
-                   ER_GRP_RPL_GRP_NAME_IS_SAME_AS_ANONYMOUS_TO_GTID_UUID, str);
-    } else {
-      my_message(ER_WRONG_VALUE_FOR_VAR,
-                 "The group_replication_group_name is already used for "
-                 "ASSIGN_GTIDS_TO_ANOYMOUS_TRANSACTIONS in a server channel",
-                 MYF(0));
-    }
-    return 1;
-  }
+
   return 0;
 }
 
@@ -2877,7 +2797,7 @@ static void update_recovery_ssl_option(MYSQL_THD, SYS_VAR *var, void *var_ptr,
         recovery_module->set_recovery_tls_ciphersuites(new_option_val);
       break;
     default:
-      assert(0); /* purecov: inspected */
+      DBUG_ASSERT(0); /* purecov: inspected */
   }
 
   mysql_mutex_unlock(&lv.plugin_running_mutex);
@@ -3050,6 +2970,16 @@ static int check_ip_allowlist_preconditions(MYSQL_THD thd, SYS_VAR *var,
 
   if (plugin_running_mutex_trylock()) return 1;
 
+  if (plugin_is_group_replication_running()) {
+    mysql_mutex_unlock(&lv.plugin_running_mutex);
+    std::string msg;
+    msg.append("The ");
+    msg.append(var->name);
+    msg.append(" cannot be set while Group Replication is running");
+    my_message(ER_GROUP_REPLICATION_RUNNING, msg.c_str(), MYF(0));
+    return 1;
+  }
+
   (*(const char **)save) = nullptr;
 
   if ((str = value->val_str(value, buff, &length)))
@@ -3060,32 +2990,20 @@ static int check_ip_allowlist_preconditions(MYSQL_THD thd, SYS_VAR *var,
     return 1;                                     /* purecov: inspected */
   }
 
-  std::stringstream ss;
-  ss << "The " << var->name << " is invalid. Make sure that when ";
-  ss << "specifying \"AUTOMATIC\" the list contains no other values.";
-
   // remove trailing whitespaces
   std::string v(str);
   v.erase(std::remove(v.begin(), v.end(), ' '), v.end());
   std::transform(v.begin(), v.end(), v.begin(), ::tolower);
   if (v.find("automatic") != std::string::npos && v.size() != 9) {
     mysql_mutex_unlock(&lv.plugin_running_mutex);
-    my_message(ER_GROUP_REPLICATION_CONFIGURATION, ss.str().c_str(), MYF(0));
+    std::string msg;
+    msg.append("The ");
+    msg.append(var->name);
+    msg.append(
+        " is invalid. Make sure that when specifying \"AUTOMATIC\" the list "
+        "contains no other values.");
+    my_message(ER_GROUP_REPLICATION_CONFIGURATION, msg.c_str(), MYF(0));
     return 1;
-  }
-
-  if (plugin_is_group_replication_running()) {
-    Gcs_interface_parameters gcs_module_parameters;
-    gcs_module_parameters.add_parameter("group_name",
-                                        std::string(ov.group_name_var));
-    gcs_module_parameters.add_parameter("ip_allowlist", v.c_str());
-    gcs_module_parameters.add_parameter("reconfigure_ip_allowlist", "true");
-
-    if (gcs_module->reconfigure(gcs_module_parameters)) {
-      mysql_mutex_unlock(&lv.plugin_running_mutex);
-      my_message(ER_GROUP_REPLICATION_CONFIGURATION, ss.str().c_str(), MYF(0));
-      return 1;
-    }
   }
 
   *(const char **)save = str;
@@ -3188,10 +3106,10 @@ static int check_force_members(MYSQL_THD thd, SYS_VAR *, void *save,
   lv.force_members_running = true;
   mysql_mutex_unlock(&lv.force_members_running_mutex);
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   DBUG_EXECUTE_IF("group_replication_wait_on_check_force_members", {
     const char act[] = "now wait_for waiting";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   });
 #endif
 
@@ -3773,22 +3691,6 @@ static void update_clone_threshold(MYSQL_THD, SYS_VAR *, void *var_ptr,
   DBUG_VOID_RETURN;
 }
 
-static void update_transaction_size_limit(MYSQL_THD, SYS_VAR *, void *var_ptr,
-                                          const void *save) {
-  DBUG_TRACE;
-
-  ulong in_val = *static_cast<const ulong *>(save);
-  *static_cast<ulong *>(var_ptr) = in_val;
-  ov.transaction_size_limit_var = in_val;
-
-  if (plugin_running_mutex_trylock()) return;
-
-  if (plugin_is_group_replication_running()) {
-    update_write_set_memory_size_limit(ov.transaction_size_limit_var);
-  }
-  mysql_mutex_unlock(&lv.plugin_running_mutex);
-}
-
 // Base plugin variables
 
 static MYSQL_SYSVAR_STR(group_name,        /* name */
@@ -4317,12 +4219,12 @@ static MYSQL_SYSVAR_LONG(
 
 static MYSQL_SYSVAR_ULONG(
     transaction_size_limit,                                /* name */
-    ov.transaction_size_limit_base_var,                    /* var */
+    ov.transaction_size_limit_var,                         /* var */
     PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_PERSIST_AS_READ_ONLY, /* optional var */
     "Specifies the limit of transaction size that can be transferred over "
     "network.",
     nullptr,                        /* check func. */
-    update_transaction_size_limit,  /* update func. */
+    nullptr,                        /* update func. */
     DEFAULT_TRANSACTION_SIZE_LIMIT, /* default */
     MIN_TRANSACTION_SIZE_LIMIT,     /* min */
     MAX_TRANSACTION_SIZE_LIMIT,     /* max */

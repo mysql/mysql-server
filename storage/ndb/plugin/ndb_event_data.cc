@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -137,7 +137,7 @@ TABLE *Ndb_event_data::open_shadow_table(THD *thd, const char *db,
                                          const dd::Table *table_def,
                                          THD *owner_thd) {
   DBUG_TRACE;
-  assert(table_def);
+  DBUG_ASSERT(table_def);
 
   // Allocate memory for shadow table from MEM_ROOT
   TABLE_SHARE *shadow_table_share =
@@ -189,7 +189,7 @@ Ndb_event_data *Ndb_event_data::create_event_data(
     THD *thd, NDB_SHARE *share, const char *db, const char *table_name,
     const char *key, THD *owner_thd, const dd::Table *table_def) {
   DBUG_TRACE;
-  assert(table_def);
+  DBUG_ASSERT(table_def);
 
   const size_t num_columns = ndb_dd_table_get_num_columns(table_def);
 
@@ -213,7 +213,7 @@ Ndb_event_data *Ndb_event_data::create_event_data(
 
   // Check that number of columns from table_def match the
   // number in shadow_table
-  assert(num_columns == shadow_table->s->fields);
+  DBUG_ASSERT(num_columns == shadow_table->s->fields);
 
   event_data->shadow_table = shadow_table;
 

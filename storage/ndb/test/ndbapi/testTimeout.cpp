@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -363,9 +363,8 @@ int runBuddyTransNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
   int loops = ctx->getNumLoops();
   int records = ctx->getNumRecords();
   int stepNo = step->getStepNo();
-  int timeout = ctx->getProperty("TransactionInactiveTimeout",TIMEOUT);
-  int maxSleep = (int)(timeout * 0.3);
-  ndbout << "TransactionInactiveTimeout=" << timeout
+  int maxSleep = (int)(TIMEOUT * 0.3);
+  ndbout << "TransactionInactiveTimeout="<< TIMEOUT
 	 << ", maxSleep="<<maxSleep<<endl;
 
   HugoOperations hugoOps(*ctx->getTab());
@@ -610,7 +609,6 @@ TESTCASE("BuddyTransNoTimeout5",
 	 "The total sleep time is longer than TransactionInactiveTimeout" \
 	 "Commit the first transaction, it should not have timed out." \
 	 "Five simultaneous threads"){
-  TC_PROPERTY("TransactionInactiveTimeout", 2 * TIMEOUT);
   INITIALIZER(runLoadTable);
   INITIALIZER(setTransactionTimeout);
   STEPS(runBuddyTransNoTimeout, 5);

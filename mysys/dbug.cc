@@ -118,7 +118,7 @@
 #include <signal.h>
 #endif
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 
 /*
  *            Manifest constants which may be "tuned" if desired.

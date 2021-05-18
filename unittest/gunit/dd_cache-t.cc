@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -127,9 +127,9 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
     // Mark this as a dd system thread to skip MDL checks/asserts in the dd
     // cache.
     thd()->system_thread = SYSTEM_THREAD_DD_INITIALIZE;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     dd::cache::Storage_adapter::s_use_fake_storage = true;
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
     dd::cache::Dictionary_client::Auto_releaser releaser(thd()->dd_client());
     mysql = new dd::Schema_impl();
     mysql->set_name("mysql");
@@ -160,9 +160,9 @@ class CacheStorageTest : public ::testing::Test, public Test_MDL_context_owner {
     delete mysql;
     m_mdl_context.release_transactional_locks();
     m_mdl_context.destroy();
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     dd::cache::Storage_adapter::s_use_fake_storage = false;
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
     m_init.TearDown();
   }
 
@@ -356,7 +356,7 @@ TYPED_TEST(CacheTest, Element_map_aux_key) {
   // The aux key behavior is not uniform, and this test is therefore omitted.
 }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 template <typename Intrfc_type, typename Impl_type>
 void test_basic_store_and_get(CacheStorageTest *tst, THD *thd) {
   dd::cache::Dictionary_client *dc = thd->dd_client();
@@ -1612,5 +1612,5 @@ TEST_F(CacheStorageTest, CloneInternalPointersTest) {
   EXPECT_EQ(clone_indices[1], &clone_parts[1]->indexes().front()->index());
 }
 
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
 }  // namespace dd_cache_unittest

@@ -1,4 +1,4 @@
-// Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
 
 #include "sql/gis/srs/srs.h"
 
-#include <assert.h>
 #include <stddef.h>
 
 #include <cmath>
@@ -37,7 +36,7 @@
 
 #include "m_ctype.h"   // my_strcasecmp
 #include "m_string.h"  // my_fcvt_compact
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"  // ER_*
@@ -240,7 +239,7 @@ static const char *axis_direction_to_name(gis::srs::Axis_direction direction) {
       return "OTHER";
     default:
       /* purecov: begin deadcode */
-      assert(false);
+      DBUG_ASSERT(false);
       return "UNKNOWN";
       /* purecov: end */
   }
@@ -253,7 +252,7 @@ bool Geographic_srs::init(gis::srid_t srid,
                           gis::srs::wkt_parser::Geographic_cs *g) {
   // Semi-major axis is required by the parser.
   m_semi_major_axis = g->datum.spheroid.semi_major_axis;
-  assert(std::isfinite(m_semi_major_axis));
+  DBUG_ASSERT(std::isfinite(m_semi_major_axis));
   if (m_semi_major_axis <= 0.0) {
     my_error(ER_SRS_INVALID_SEMI_MAJOR_AXIS, MYF(0));
     return true;
@@ -261,7 +260,7 @@ bool Geographic_srs::init(gis::srid_t srid,
 
   // Inverse flattening is required by the parser.
   m_inverse_flattening = g->datum.spheroid.inverse_flattening;
-  assert(std::isfinite(m_inverse_flattening));
+  DBUG_ASSERT(std::isfinite(m_inverse_flattening));
   if (m_inverse_flattening != 0.0 && m_inverse_flattening <= 1.0) {
     my_error(ER_SRS_INVALID_INVERSE_FLATTENING, MYF(0));
     return true;
@@ -277,18 +276,18 @@ bool Geographic_srs::init(gis::srid_t srid,
     m_towgs84[6] = g->datum.towgs84.ppm;
 
     // If not all parameters are used, the parser sets the remaining ones to 0.
-    assert(std::isfinite(m_towgs84[0]));
-    assert(std::isfinite(m_towgs84[1]));
-    assert(std::isfinite(m_towgs84[2]));
-    assert(std::isfinite(m_towgs84[3]));
-    assert(std::isfinite(m_towgs84[4]));
-    assert(std::isfinite(m_towgs84[5]));
-    assert(std::isfinite(m_towgs84[6]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[0]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[1]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[2]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[3]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[4]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[5]));
+    DBUG_ASSERT(std::isfinite(m_towgs84[6]));
   }
 
   // Angular unit is required by the parser.
   m_angular_unit = g->angular_unit.conversion_factor;
-  assert(std::isfinite(m_angular_unit));
+  DBUG_ASSERT(std::isfinite(m_angular_unit));
   if (m_angular_unit <= 0) {
     my_error(ER_SRS_INVALID_ANGULAR_UNIT, MYF(0));
     return true;
@@ -296,7 +295,7 @@ bool Geographic_srs::init(gis::srid_t srid,
 
   // Prime meridian is required by the parser.
   m_prime_meridian = g->prime_meridian.longitude;
-  assert(std::isfinite(m_prime_meridian));
+  DBUG_ASSERT(std::isfinite(m_prime_meridian));
   if (m_prime_meridian * m_angular_unit <= -M_PI ||
       m_prime_meridian * m_angular_unit > M_PI) {
     my_error(ER_SRS_INVALID_PRIME_MERIDIAN, MYF(0));
@@ -304,7 +303,7 @@ bool Geographic_srs::init(gis::srid_t srid,
   }
 
   // The parser requires that both axes are specified.
-  assert(g->axes.valid);
+  DBUG_ASSERT(g->axes.valid);
   m_axes[0] = g->axes.x.direction;
   m_axes[1] = g->axes.y.direction;
   if (!(((m_axes[0] == Axis_direction::NORTH ||
@@ -454,7 +453,7 @@ std::string Geographic_srs::proj4_parameters() const {
       proj4 << double_str;
     }
   } else {
-    assert(m_is_wgs84);
+    DBUG_ASSERT(m_is_wgs84);
     proj4 << "0,0,0,0,0,0,0";
   }
 
@@ -472,15 +471,15 @@ bool Projected_srs::init(gis::srid_t srid,
   m_linear_unit = p->linear_unit.conversion_factor;
 
   // Linear unit is required by the parser.
-  assert(!std::isnan(m_linear_unit));
+  DBUG_ASSERT(!std::isnan(m_linear_unit));
 
   if (p->axes.valid) {
     m_axes[0] = p->axes.x.direction;
     m_axes[1] = p->axes.y.direction;
 
     // The parser requires either both or none to be specified.
-    assert(m_axes[0] != Axis_direction::UNSPECIFIED);
-    assert(m_axes[1] != Axis_direction::UNSPECIFIED);
+    DBUG_ASSERT(m_axes[0] != Axis_direction::UNSPECIFIED);
+    DBUG_ASSERT(m_axes[1] != Axis_direction::UNSPECIFIED);
   }
 
   return res;

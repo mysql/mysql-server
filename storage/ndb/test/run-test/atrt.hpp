@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -83,12 +83,6 @@ enum RestartMode : long {
   Both,
 };
 
-namespace coverage {
-enum Coverage : long { None, Testcase, Testsuite };
-};
-
-enum CoverageTools : long { Lcov, Fastcov };
-
 struct atrt_host {
   unsigned m_index;
   BaseString m_user;
@@ -162,9 +156,9 @@ struct atrt_config {
 };
 
 struct atrt_coverage_config {
-  int m_prefix_strip;
-  coverage::Coverage m_analysis;
-  CoverageTools m_tool;
+  int m_coverage_prefix_strip;
+  BaseString m_lcov_files_dir;
+  bool m_coverage;
 };
 
 struct atrt_testcase {

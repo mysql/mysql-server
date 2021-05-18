@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -98,9 +98,10 @@ static int g_mycnf = 0;
 static int g_configinfo = 0;
 static int g_xml = 0;
 static int g_config_from_node = 0;
-static const char* g_cluster_config_suffix = nullptr;
 
 const char *load_default_groups[]= { "mysql_cluster",0 };
+
+typedef ndb_mgm_configuration_iterator Iter;
 
 static struct my_option my_long_options[] =
 {
@@ -138,11 +139,6 @@ static struct my_option my_long_options[] =
   { "mycnf", NDB_OPT_NOSHORT, "Read config from my.cnf",
     (uchar**) &g_mycnf, (uchar**) &g_mycnf,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  { "cluster-config-suffix", NDB_OPT_NOSHORT,
-    "Override defaults-group-suffix when reading cluster configuration in "
-    "my.cnf.",
-    &g_cluster_config_suffix, &g_cluster_config_suffix,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   { "configinfo", NDB_OPT_NOSHORT, "Print configinfo",
     (uchar**) &g_configinfo, (uchar**) &g_configinfo,
     0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -181,7 +177,7 @@ struct Match
   int m_key;
   BaseString m_value;
   Match() {}
-  virtual int eval(const ndb_mgm_configuration_iterator&);
+  virtual int eval(const Iter&);
   virtual ~Match() = default;
   Match(const Match&) = default;
 };
@@ -189,7 +185,7 @@ struct Match
 struct HostMatch : public Match
 {
   HostMatch() {}
-  int eval(const ndb_mgm_configuration_iterator&) override;
+  int eval(const Iter&) override;
 };
 
 struct Apply
@@ -197,7 +193,7 @@ struct Apply
   Apply() {}
   Apply(const char *s):m_name(s) {}
   BaseString m_name;
-  virtual int apply(const ndb_mgm_configuration_iterator&) = 0;
+  virtual int apply(const Iter&) = 0;
   virtual ~Apply() {}
 };
 
@@ -206,28 +202,32 @@ struct ParamApply : public Apply
 {
   ParamApply(int val,const char *s) :Apply(s), m_key(val) {}
   int m_key;
-  int apply(const ndb_mgm_configuration_iterator&) override;
+  int apply(const Iter&) override;
 };
 
 struct NodeTypeApply : public Apply
 {
   NodeTypeApply(const char *s) :Apply(s) {}
-  int apply(const ndb_mgm_configuration_iterator&) override;
+  int apply(const Iter&) override;
 };
 
 struct ConnectionTypeApply : public Apply
 {
   ConnectionTypeApply(const char *s) :Apply(s) {}
-  int apply(const ndb_mgm_configuration_iterator&) override;
+  int apply(const Iter&) override;
 };
 
 static int parse_query(Vector<Apply*>&, int &argc, char**& argv);
 static int parse_where(Vector<Match*>&, int &argc, char**& argv);
-static int eval(const ndb_mgm_configuration_iterator&, const Vector<Match*>&);
-static int apply(const ndb_mgm_configuration_iterator&, const Vector<Apply*>&);
-static int print_diff(const ndb_mgm_configuration_iterator&);
+static int eval(const Iter&, const Vector<Match*>&);
+static int apply(const Iter&, const Vector<Apply*>&);
+static int print_diff(const Iter&);
 static ndb_mgm_configuration* fetch_configuration(int from_node);
 static ndb_mgm_configuration* load_configuration();
+
+typedef std::unique_ptr<ndb_mgm_configuration,
+  decltype(&ndb_mgm_destroy_configuration)> ndb_mgm_config_unique_ptr;
+
 
 static ndb_mgm_config_unique_ptr get_config()
 {
@@ -236,7 +236,7 @@ static ndb_mgm_config_unique_ptr get_config()
     conf = load_configuration();
   else
     conf = fetch_configuration(g_config_from_node);
-  return ndb_mgm_config_unique_ptr(conf);
+  return ndb_mgm_config_unique_ptr({conf, ndb_mgm_destroy_configuration});
 }
 
 int
@@ -295,7 +295,8 @@ main(int argc, char** argv){
     g_section = CFG_SECTION_SYSTEM;
 
   ndb_mgm_config_unique_ptr conf = get_config();
-  if (!conf)
+
+  if (conf == 0)
   {
     exit(255);
   }
@@ -340,7 +341,7 @@ main(int argc, char** argv){
     printf("%s", g_row_delimiter);
   }
 
-  ndb_mgm_configuration_iterator iter(conf.get(), g_section);
+  Iter iter(* conf, g_section);
   bool prev= false;
   iter.first();
   for(iter.first(); iter.valid(); iter.next())
@@ -372,7 +373,7 @@ main(int argc, char** argv){
 
 static
 int
-print_diff(const ndb_mgm_configuration_iterator& iter)
+print_diff(const Iter& iter)
 {
   //works better with this --diff_default --fields=" " --rows="\n"
   Uint32 val32;
@@ -637,7 +638,7 @@ template class Vector<Match*>;
 
 static 
 int
-eval(const ndb_mgm_configuration_iterator& iter, const Vector<Match*>& where)
+eval(const Iter& iter, const Vector<Match*>& where)
 {
   for(unsigned i = 0; i<where.size(); i++)
   {
@@ -650,7 +651,7 @@ eval(const ndb_mgm_configuration_iterator& iter, const Vector<Match*>& where)
 
 static 
 int 
-apply(const ndb_mgm_configuration_iterator& iter, const Vector<Apply*>& list)
+apply(const Iter& iter, const Vector<Apply*>& list)
 {
   for(unsigned i = 0; i<list.size(); i++)
   {
@@ -662,7 +663,7 @@ apply(const ndb_mgm_configuration_iterator& iter, const Vector<Apply*>& list)
 }
 
 int
-Match::eval(const ndb_mgm_configuration_iterator& iter)
+Match::eval(const Iter& iter)
 {
   Uint32 val32;
   Uint64 val64;
@@ -690,7 +691,7 @@ Match::eval(const ndb_mgm_configuration_iterator& iter)
 }
 
 int
-HostMatch::eval(const ndb_mgm_configuration_iterator& iter)
+HostMatch::eval(const Iter& iter)
 {
   const char* valc;
   
@@ -743,7 +744,7 @@ HostMatch::eval(const ndb_mgm_configuration_iterator& iter)
 }
 
 int
-ParamApply::apply(const ndb_mgm_configuration_iterator& iter)
+ParamApply::apply(const Iter& iter)
 {
   Uint32 val32;
   Uint64 val64;
@@ -764,7 +765,7 @@ ParamApply::apply(const ndb_mgm_configuration_iterator& iter)
 }
 
 int
-NodeTypeApply::apply(const ndb_mgm_configuration_iterator& iter)
+NodeTypeApply::apply(const Iter& iter)
 {
   Uint32 val32;
   if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
@@ -775,7 +776,7 @@ NodeTypeApply::apply(const ndb_mgm_configuration_iterator& iter)
 }
 
 int
-ConnectionTypeApply::apply(const ndb_mgm_configuration_iterator& iter)
+ConnectionTypeApply::apply(const Iter& iter)
 {
   Uint32 val32;
   if (iter.get(CFG_TYPE_OF_SECTION, &val32) == 0)
@@ -889,8 +890,8 @@ load_configuration()
     Config* conf = parser.parseConfig(g_config_file);
     if (conf)
     {
-      ndb_mgm_configuration* mgm_config = conf->m_configuration;
-      conf->m_configuration = nullptr;
+      ndb_mgm_configuration* mgm_config = conf->m_configValues;
+      conf->m_configValues = nullptr;
       //mgm_config is moved out of config. It has to be freed by caller.
       delete conf;
 
@@ -902,11 +903,11 @@ load_configuration()
   if (g_verbose)
     fprintf(stderr, "Using my.cnf\n");
   
-  Config* conf = parser.parse_mycnf(g_cluster_config_suffix);
+  Config* conf = parser.parse_mycnf();
   if (conf)
   {
-    ndb_mgm_configuration* mgm_config = conf->m_configuration;
-    conf->m_configuration = nullptr;
+    ndb_mgm_configuration* mgm_config = conf->m_configValues;
+    conf->m_configValues = nullptr;
     //mgm_config is moved out of config. It has to be freed by caller.
     delete conf;
 

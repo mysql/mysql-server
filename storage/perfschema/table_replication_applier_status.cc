@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,11 +29,10 @@
 
 #include "storage/perfschema/table_replication_applier_status.h"
 
-#include <assert.h>
 #include <time.h>
 
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
 #include "sql/rpl_info.h"
@@ -155,7 +154,7 @@ int table_replication_applier_status::rnd_pos(const void *pos) {
 int table_replication_applier_status::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_rpl_applier_status *result = nullptr;
-  assert(idx == 0);
+  DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_status);
   m_opened_index = result;
   m_index = result;
@@ -190,8 +189,8 @@ int table_replication_applier_status::index_next(void) {
 int table_replication_applier_status::make_row(Master_info *mi) {
   char *slave_sql_running_state = nullptr;
 
-  assert(mi != nullptr);
-  assert(mi->rli != nullptr);
+  DBUG_ASSERT(mi != nullptr);
+  DBUG_ASSERT(mi->rli != nullptr);
 
   m_row.channel_name_length =
       mi->get_channel() ? (uint)strlen(mi->get_channel()) : 0;
@@ -235,7 +234,7 @@ int table_replication_applier_status::read_row_values(TABLE *table,
                                                       bool read_all) {
   Field *f;
 
-  assert(table->s->null_bytes == 1);
+  DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -258,7 +257,7 @@ int table_replication_applier_status::read_row_values(TABLE *table,
           set_field_ulonglong(f, m_row.count_transactions_retries);
           break;
         default:
-          assert(false);
+          DBUG_ASSERT(false);
       }
     }
   }

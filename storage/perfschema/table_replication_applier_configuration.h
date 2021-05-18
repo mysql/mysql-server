@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,9 +64,6 @@ struct st_row_applier_config {
   enum_rpl_yes_no requires_row_format;
   Relay_log_info::enum_require_table_primary_key
       require_table_primary_key_check;
-  Assign_gtids_to_anonymous_transactions_info::enum_type
-      assign_gtids_to_anonymous_transactions_type;
-  std::string assign_gtids_to_anonymous_transactions_value{""};
 };
 
 class PFS_index_rpl_applier_config : public PFS_engine_index {

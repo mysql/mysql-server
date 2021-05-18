@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -288,24 +288,10 @@ Path Path::real_path() const {
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-stdx::expected<void, std::error_code> delete_dir(
-    const std::string &dir) noexcept {
-  if (::rmdir(dir.c_str()) != 0) {
-    return stdx::make_unexpected(
-        std::error_code(errno, std::generic_category()));
-  }
+int delete_dir(const std::string &dir) noexcept { return ::rmdir(dir.c_str()); }
 
-  return {};
-}
-
-stdx::expected<void, std::error_code> delete_file(
-    const std::string &path) noexcept {
-  if (::unlink(path.c_str()) != 0) {
-    return stdx::make_unexpected(
-        std::error_code(errno, std::generic_category()));
-  }
-
-  return {};
+int delete_file(const std::string &path) noexcept {
+  return ::unlink(path.c_str());
 }
 
 std::string get_tmp_dir(const std::string &name) {

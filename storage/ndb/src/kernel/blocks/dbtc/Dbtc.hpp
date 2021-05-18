@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -167,11 +167,7 @@
 #define ZUNLOCKED_OP_HAS_BAD_STATE 295 
 #define ZBAD_DIST_KEY 298
 #define ZTRANS_TOO_BIG 261
-#define ZLQH_NO_SUCH_FRAGMENT_ID 1235
-#define ZLQHKEY_PROTOCOL_ERROR 1237
 #endif
-
-class Dbdih;
 
 class Dbtc
 #ifndef DBTC_STATE_EXTRACT
@@ -309,8 +305,7 @@ public:
     ITAS_ALL_RECEIVED  = 3,     // All TransIdAI info received
     ITAS_WAIT_KEY_FAIL = 4     // Failed collecting key
   };
-
-  class Dbdih* c_dih;
+  
   /**--------------------------------------------------------------------------
    * LOCAL SYMBOLS PER 'SYMBOL-VALUED' VARIABLE
    *
@@ -860,11 +855,6 @@ public:
     Uint16 tcNodedata[4];
     /* Instance key to send to LQH.  Receiver maps it to actual instance. */
     Uint16 lqhInstanceKey;
-    /**
-     * Block number to send request to
-     * DBLQH/V_QUERY
-     */
-    Uint16 recBlockNo;
 
     // Trigger data
     UintR numFiredTriggers;      // As reported by lqhKeyConf
@@ -1052,7 +1042,6 @@ public:
      */
     Uint32 num_commit_ack_markers;
     Uint32 m_write_count;
-    Uint32 m_exec_write_count;
     ReturnSignal returnsignal;
     AbortState abortState;
 
@@ -1393,12 +1382,6 @@ public:
     apiConPtr.p->m_apiConTimer = RNIL;
   }
 
-  void
-  check_blockref(BlockReference ref)
-  {
-    Uint32 nodeId = refToNode(ref);
-    ndbrequire(nodeId > 0 && nodeId < MAX_NODES);
-  }
   // ********************** CACHE RECORD **************************************
   //---------------------------------------------------------------------------
   // This record is used between reception of TCKEYREQ and sending of LQHKEYREQ
@@ -1459,6 +1442,8 @@ public:
     
       /* Use of Long signals */
       Uint8  isLongTcKeyReq;   /* Incoming TcKeyReq used long signal */
+      Uint8  useLongLqhKeyReq; /* Outgoing LqhKeyReq should be long */
+    
       Uint32 scanInfo;
     
       Uint32 scanTakeOverInd;
@@ -1812,7 +1797,7 @@ public:
     union { Uint32 m_queued_count; Uint32 scanReceivedOperations; };
     ScanFragRec_dllist::Head m_queued_scan_frags;   // In TC !sent to API
     ScanFragRec_dllist::Head m_delivered_scan_frags;// Delivered to API
-
+    
     // Id of the next fragment to be scanned. Used by scan fragment 
     // processes when they are ready for the next fragment
     Uint32 scanNextFragId;
@@ -2013,7 +1998,6 @@ private:
 
   void execCREATE_FK_IMPL_REQ(Signal* signal);
   void execDROP_FK_IMPL_REQ(Signal* signal);
-  void execUPD_QUERY_DIST_ORD(Signal*);
 
   // Index table lookup
   void execTCKEYCONF(Signal* signal);
@@ -2182,7 +2166,6 @@ private:
                        ScanFragLocationPtr & fragLocationPtr,
                        ApiConnectRecordPtr const apiConnectptr);
   void sendScanTabConf(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
-  void send_close_scan(Signal*, ScanFragRecPtr, const ApiConnectRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req, ApiConnectRecordPtr apiConnectptr);
   void close_scan_req_send_conf(Signal*, ScanRecordPtr, ApiConnectRecordPtr apiConnectptr);
   
@@ -2230,6 +2213,12 @@ private:
   Ptr<ApiConnectRecord> sendApiCommitAndCopy(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void sendApiCommitSignal(Signal* signal, Ptr<ApiConnectRecord>);
   void sendApiLateCommitSignal(Signal* signal, Ptr<ApiConnectRecord> apiCopy);
+  bool sendAttrInfoTrain(Signal* signal,
+                         UintR TBRef,
+                         Uint32 connectPtr,
+                         Uint32 offset,
+                         Uint32 attrInfoIVal,
+                         ApiConnectRecord* regApiPtr);
   void sendContinueTimeOutControl(Signal* signal, Uint32 TapiConPtr);
   void sendlqhkeyreq(Signal* signal, 
                      BlockReference TBRef,
@@ -2401,6 +2390,12 @@ private:
   void diFcountReqLab(Signal* signal, ScanRecordPtr, ApiConnectRecordPtr);
   void signalErrorRefuseLab(Signal* signal, ApiConnectRecordPtr apiConnectptr);
   void abort080Lab(Signal* signal);
+  void sendKeyInfoTrain(Signal* signal,
+                        BlockReference TBRef,
+                        Uint32 connectPtr,
+                        Uint32 offset,
+                        Uint32 keyInfoIVal,
+                        ApiConnectRecord* const regApiPtr);
   void abortScanLab(Signal* signal, ScanRecordPtr, Uint32 errCode, 
 		    bool not_started, ApiConnectRecordPtr apiConnectptr);
   void sendAbortedAfterTimeout(Signal* signal, int Tcheck, ApiConnectRecordPtr apiConnectptr);
@@ -2932,14 +2927,11 @@ private:
   Uint32 m_take_over_operations;
 #endif
 
-
 #ifndef DBTC_STATE_EXTRACT
   void dump_trans(ApiConnectRecordPtr transPtr);
   bool hasOp(ApiConnectRecordPtr transPtr, Uint32 op);
 
 public:
-  DistributionHandler m_distribution_handle;
-
 static Uint64 getTransactionMemoryNeed(
     const Uint32 dbtc_instance_count,
     const ndb_mgm_configuration_iterator * mgm_cfg,

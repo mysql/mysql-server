@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,10 +25,10 @@
 #ifndef PLUGIN_X_SRC_XPL_DISPATCHER_H_
 #define PLUGIN_X_SRC_XPL_DISPATCHER_H_
 
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/src/admin_cmd_handler.h"
 #include "plugin/x/src/crud_cmd_handler.h"
 #include "plugin/x/src/expect/expect_stack.h"
-#include "plugin/x/src/ngs/protocol/message.h"
 #include "plugin/x/src/prepare_command_handler.h"
 #include "plugin/x/src/stmt_command_handler.h"
 

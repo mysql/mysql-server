@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 
 #include "my_config.h"
 
-#include <assert.h>
 #include <mysql/plugin_audit.h>
 #include <mysql/psi/mysql_thread.h>
 #include <stddef.h>
@@ -34,7 +33,7 @@
 
 #include <mysql/components/my_service.h>
 #include <mysql/components/services/log_builtins.h>
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
@@ -253,10 +252,10 @@ static bool reload(MYSQL_THD thd) {
   try {
     errcode = rewriter->refresh(thd);
     if (errcode == 0) return false;
-  } catch (const std::bad_alloc &) {
+  } catch (const std::bad_alloc &ba) {
     errcode = ER_REWRITER_OOM;
   }
-  assert(errcode != 0);
+  DBUG_ASSERT(errcode != 0);
   LogPluginErr(ERROR_LEVEL, errcode);
   return true;
 }
@@ -319,7 +318,7 @@ static void log_nonrewritten_query(MYSQL_THD thd, const uchar *digest_buf,
 static int rewrite_query_notify(
     MYSQL_THD thd, mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
     const void *event) {
-  assert(event_class == MYSQL_AUDIT_PARSE_CLASS);
+  DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
 
   const struct mysql_event_parse *event_parse =
       static_cast<const struct mysql_event_parse *>(event);
@@ -339,7 +338,7 @@ static int rewrite_query_notify(
   Rewrite_result rewrite_result;
   try {
     rewrite_result = rewriter->rewrite_query(thd, digest);
-  } catch (std::bad_alloc &) {
+  } catch (std::bad_alloc &ba) {
     LogPluginErr(ERROR_LEVEL, ER_REWRITER_OOM);
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ using std::string;
 using std::vector;
 
 SortFileIndirectIterator::SortFileIndirectIterator(
-    THD *thd, Mem_root_array<TABLE *> tables, IO_CACHE *tempfile,
+    THD *thd, Prealloced_array<TABLE *, 4> tables, IO_CACHE *tempfile,
     bool ignore_not_found_rows, bool has_null_flags, ha_rows *examined_rows)
     : RowIterator(thd),
       m_io_cache(tempfile),
@@ -185,7 +185,7 @@ int SortFileIndirectIterator::Read() {
 
 template <bool Packed_addon_fields>
 SortFileIterator<Packed_addon_fields>::SortFileIterator(
-    THD *thd, Mem_root_array<TABLE *> tables, IO_CACHE *tempfile,
+    THD *thd, Prealloced_array<TABLE *, 4> tables, IO_CACHE *tempfile,
     Filesort_info *sort, ha_rows *examined_rows)
     : RowIterator(thd),
       m_rec_buf(sort->addon_fields->get_addon_buf()),
@@ -225,8 +225,8 @@ int SortFileIterator<Packed_addon_fields>::Read() {
     // First read length of the record.
     if (my_b_read(m_io_cache, destination, len_sz)) return -1;
     uint res_length = Addon_fields::read_addon_length(destination);
-    assert(res_length > len_sz);
-    assert(m_sort->using_addon_fields());
+    DBUG_ASSERT(res_length > len_sz);
+    DBUG_ASSERT(m_sort->using_addon_fields());
 
     // Then read the rest of the record.
     if (my_b_read(m_io_cache, destination + len_sz, res_length - len_sz))
@@ -256,7 +256,7 @@ void SortFileIterator<Packed_addon_fields>::SetNullRowFlag(bool is_null_row) {
 
 template <bool Packed_addon_fields>
 SortBufferIterator<Packed_addon_fields>::SortBufferIterator(
-    THD *thd, Mem_root_array<TABLE *> tables, Filesort_info *sort,
+    THD *thd, Prealloced_array<TABLE *, 4> tables, Filesort_info *sort,
     Sort_result *sort_result, ha_rows *examined_rows)
     : RowIterator(thd),
       m_sort(sort),
@@ -321,7 +321,7 @@ void SortBufferIterator<Packed_addon_fields>::SetNullRowFlag(bool is_null_row) {
 }
 
 SortBufferIndirectIterator::SortBufferIndirectIterator(
-    THD *thd, Mem_root_array<TABLE *> tables, Sort_result *sort_result,
+    THD *thd, Prealloced_array<TABLE *, 4> tables, Sort_result *sort_result,
     bool ignore_not_found_rows, bool has_null_flags, ha_rows *examined_rows)
     : RowIterator(thd),
       m_sort_result(sort_result),
@@ -332,7 +332,7 @@ SortBufferIndirectIterator::SortBufferIndirectIterator(
 
 SortBufferIndirectIterator::~SortBufferIndirectIterator() {
   m_sort_result->sorted_result.reset();
-  assert(!m_sort_result->sorted_result_in_fsbuf);
+  DBUG_ASSERT(!m_sort_result->sorted_result_in_fsbuf);
   m_sort_result->sorted_result_in_fsbuf = false;
 
   for (TABLE *table : m_tables) {
@@ -469,7 +469,7 @@ bool SortingIterator::Init() {
 
   // Prepare the result iterator for actually reading the data. Read()
   // will proxy to it.
-  Mem_root_array<TABLE *> tables(thd()->mem_root, m_filesort->tables);
+  const Prealloced_array<TABLE *, 4> &tables = m_filesort->tables;
   if (m_sort_result.io_cache && my_b_inited(m_sort_result.io_cache)) {
     // Test if ref-records was used
     if (m_fs_info.using_addon_fields()) {
@@ -477,47 +477,46 @@ bool SortingIterator::Init() {
       if (m_fs_info.addon_fields->using_packed_addons())
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_file_packed_addons)
-                SortFileIterator<true>(thd(), std::move(tables),
-                                       m_sort_result.io_cache, &m_fs_info,
-                                       m_examined_rows));
+                SortFileIterator<true>(thd(), tables, m_sort_result.io_cache,
+                                       &m_fs_info, m_examined_rows));
       else
         m_result_iterator.reset(
-            new (&m_result_iterator_holder.sort_file) SortFileIterator<false>(
-                thd(), std::move(tables), m_sort_result.io_cache, &m_fs_info,
-                m_examined_rows));
+            new (&m_result_iterator_holder.sort_file)
+                SortFileIterator<false>(thd(), tables, m_sort_result.io_cache,
+                                        &m_fs_info, m_examined_rows));
     } else {
       m_result_iterator.reset(
           new (&m_result_iterator_holder.sort_file_indirect)
-              SortFileIndirectIterator(
-                  thd(), std::move(tables), m_sort_result.io_cache,
-                  /*ignore_not_found_rows=*/false,
-                  /*has_null_flags=*/true, m_examined_rows));
+              SortFileIndirectIterator(thd(), tables, m_sort_result.io_cache,
+                                       /*ignore_not_found_rows=*/false,
+                                       /*has_null_flags=*/true,
+                                       m_examined_rows));
     }
     m_sort_result.io_cache =
         nullptr;  // The result iterator has taken ownership.
   } else {
-    assert(m_sort_result.has_result_in_memory());
+    DBUG_ASSERT(m_sort_result.has_result_in_memory());
     if (m_fs_info.using_addon_fields()) {
       DBUG_PRINT("info", ("using SortBufferIterator"));
-      assert(m_sort_result.sorted_result_in_fsbuf);
+      DBUG_ASSERT(m_sort_result.sorted_result_in_fsbuf);
       if (m_fs_info.addon_fields->using_packed_addons())
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_buffer_packed_addons)
-                SortBufferIterator<true>(thd(), std::move(tables), &m_fs_info,
+                SortBufferIterator<true>(thd(), tables, &m_fs_info,
                                          &m_sort_result, m_examined_rows));
       else
         m_result_iterator.reset(
             new (&m_result_iterator_holder.sort_buffer)
-                SortBufferIterator<false>(thd(), std::move(tables), &m_fs_info,
+                SortBufferIterator<false>(thd(), tables, &m_fs_info,
                                           &m_sort_result, m_examined_rows));
     } else {
       DBUG_PRINT("info", ("using SortBufferIndirectIterator (sort)"));
       m_result_iterator.reset(
           new (&m_result_iterator_holder.sort_buffer_indirect)
-              SortBufferIndirectIterator(
-                  thd(), std::move(tables), &m_sort_result,
-                  /*ignore_not_found_rows=*/false,
-                  /*has_null_flags=*/true, m_examined_rows));
+              SortBufferIndirectIterator(thd(), tables, &m_sort_result,
+                                         /*ignore_not_found_rows=*/false,
+                                         /*has_null_flags=*/true,
+                                         m_examined_rows));
     }
   }
 
@@ -536,15 +535,15 @@ bool SortingIterator::Init() {
 */
 
 int SortingIterator::DoSort() {
-  assert(m_sort_result.io_cache == nullptr);
+  DBUG_ASSERT(m_sort_result.io_cache == nullptr);
   m_sort_result.io_cache =
       (IO_CACHE *)my_malloc(key_memory_TABLE_sort_io_cache, sizeof(IO_CACHE),
                             MYF(MY_WME | MY_ZEROFILL));
 
   ha_rows found_rows;
-  bool error = ::filesort(thd(), m_filesort, m_source_iterator.get(),
-                          m_tables_to_get_rowid_for, m_num_rows_estimate,
-                          &m_fs_info, &m_sort_result, &found_rows);
+  bool error = filesort(thd(), m_filesort, m_source_iterator.get(),
+                        m_tables_to_get_rowid_for, m_num_rows_estimate,
+                        &m_fs_info, &m_sort_result, &found_rows);
   for (TABLE *table : m_filesort->tables) {
     table->set_keyread(false);  // Restore if we used indexes
   }
@@ -553,7 +552,7 @@ int SortingIterator::DoSort() {
 
 template <bool Packed_addon_fields>
 inline void Filesort_info::unpack_addon_fields(
-    const Mem_root_array<TABLE *> &tables, uchar *buff) {
+    const Prealloced_array<TABLE *, 4> &tables, uchar *buff) {
   const uchar *nulls = buff + addon_fields->skip_bytes();
 
   // Unpack table NULL flags.

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,6 +114,42 @@ class MDL_checker {
   /**
     Private helper function for asserting MDL for tables.
 
+    @note For temporary tables, we have no locks.
+
+    @param   thd            Thread context.
+    @param   schema_name    Schema name to use in the MDL key.
+    @param   object_name    Object name to use in the MDL key.
+    @param   mdl_namespace  MDL key namespace to use.
+    @param   lock_type      Weakest lock type accepted.
+
+    @return true if we have the required lock, otherwise false.
+  */
+
+  static bool is_locked(THD *thd, const char *schema_name,
+                        const char *object_name,
+                        MDL_key::enum_mdl_namespace mdl_namespace,
+                        enum_mdl_type lock_type) {
+    // For the schema name part, the behavior is dependent on whether
+    // the schema name is supplied explicitly in the sql statement
+    // or not. If it is, the case sensitive name is locked. If only
+    // the table name is supplied in the SQL statement, then the
+    // current schema is used as the schema part of the key, and in
+    // that case, the lowercase name is locked. This applies only
+    // when l_c_t_n == 2. To verify, we therefor use both variants
+    // of the schema name.
+    char schema_name_buf[NAME_LEN + 1];
+    return thd->mdl_context.owns_equal_or_stronger_lock(
+               mdl_namespace, schema_name, object_name, lock_type) ||
+           thd->mdl_context.owns_equal_or_stronger_lock(
+               mdl_namespace,
+               dd::Object_table_definition_impl::fs_name_case(schema_name,
+                                                              schema_name_buf),
+               object_name, lock_type);
+  }
+
+  /**
+    Private helper function for asserting MDL for tables.
+
     @note We need to retrieve the schema name, since this is required
           for the MDL key.
 
@@ -144,32 +180,22 @@ class MDL_checker {
     // the system schema is not stored yet; however, this is prevented by
     // surrounding code calling this function only if
     // '!thd->is_dd_system_thread' i.e., this is not a bootstrapping thread.
-    assert(!thd->is_dd_system_thread());
-    assert(schema);
+    DBUG_ASSERT(!thd->is_dd_system_thread());
+    DBUG_ASSERT(schema);
 
-    // We must take l_c_t_n into account when reconstructing the MDL key
-    // from the schema and table name, and we need buffers for this purpose.
+    // We must take l_c_t_n into account when reconstructing the
+    // MDL key from the table name.
     char table_name_buf[NAME_LEN + 1];
-    char schema_name_buf[NAME_LEN + 1];
 
-    const char *table_name = table->name().c_str();
-    const char *schema_name = dd::Object_table_definition_impl::fs_name_case(
-        schema->name(), schema_name_buf);
+    if (!my_strcasecmp(system_charset_info, schema->name().c_str(),
+                       "information_schema"))
+      return is_locked(thd, schema->name().c_str(), table->name().c_str(),
+                       MDL_key::TABLE, lock_type);
 
-    // Information schema tables and views are always locked in upper
-    // case independently of lower_case_table_names. At this point, the
-    // table name should aldready be converted to upper case. This is
-    // asserted in the mdl system when checking the lock below. For non-
-    // I_S tables, the table name must be converted to the appropriate
-    // character case.
-    if (my_strcasecmp(system_charset_info, schema->name().c_str(),
-                      "information_schema")) {
-      table_name = dd::Object_table_definition_impl::fs_name_case(
-          table->name(), table_name_buf);
-    }
-
-    return thd->mdl_context.owns_equal_or_stronger_lock(
-        MDL_key::TABLE, schema_name, table_name, lock_type);
+    return is_locked(thd, schema->name().c_str(),
+                     dd::Object_table_definition_impl::fs_name_case(
+                         table->name(), table_name_buf),
+                     MDL_key::TABLE, lock_type);
   }
 
   /**
@@ -195,7 +221,7 @@ class MDL_checker {
     // If the schema acquisition fails, we cannot assure that we have a lock,
     // and therefore return false.
     if (thd->dd_client()->acquire(event->schema_id(), &schema)) return false;
-    assert(schema);
+    DBUG_ASSERT(schema);
 
     MDL_key mdl_key;
     char schema_name_buf[NAME_LEN + 1];
@@ -229,7 +255,7 @@ class MDL_checker {
     // and therefore return false.
     if (thd->dd_client()->acquire(routine->schema_id(), &schema)) return false;
 
-    assert(schema);
+    DBUG_ASSERT(schema);
 
     MDL_key mdl_key;
     char schema_name_buf[NAME_LEN + 1];
@@ -281,7 +307,7 @@ class MDL_checker {
     // Check that the SRID is within the legal range to make sure we
     // don't overflow id_str below. The ID is unsigned, so we only
     // need to check the upper bound.
-    assert(srs->id() <= UINT_MAX32);
+    DBUG_ASSERT(srs->id() <= UINT_MAX32);
 
     char id_str[11];  // uint32 => max 10 digits + \0
     longlong10_to_str(srs->id(), id_str, 10);
@@ -575,10 +601,10 @@ class SPI_lru_cache_templ {
   unsigned int m_insix = 0;
   SPI_index m_index;
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   mutable int m_hits;
   mutable int m_misses = 1;
-#endif /* NDEBUG */
+#endif /* DBUG_OFF */
 
  public:
   ~SPI_lru_cache_templ() {
@@ -627,7 +653,7 @@ template <typename T>
 bool fetch_schema_component_names_by_criteria(
     THD *thd, const dd::Schema *schema, std::vector<dd::String_type> *names,
     std::function<bool(dd::Raw_record *)> const &fetch_criteria) {
-  assert(names);
+  DBUG_ASSERT(names);
 
   // Create the key based on the schema id.
   std::unique_ptr<dd::Object_key> object_key(
@@ -638,16 +664,16 @@ bool fetch_schema_component_names_by_criteria(
 
   trx.otx.register_tables<T>();
   dd::Raw_table *table = trx.otx.get_table<T>();
-  assert(table);
+  DBUG_ASSERT(table);
 
   if (trx.otx.open_tables()) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
   std::unique_ptr<dd::Raw_record_set> rs;
   if (table->open_record_set(object_key.get(), rs)) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -659,7 +685,7 @@ bool fetch_schema_component_names_by_criteria(
       names->push_back(r->read_str(T::DD_table::FIELD_NAME));
 
     if (rs->next(r)) {
-      assert(thd->is_system_thread() || thd->killed || thd->is_error());
+      DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
       return true;
     }
   }
@@ -699,11 +725,11 @@ bool is_cached(const SPI_lru_cache_owner_ptr &cache, Object_id id,
 // Transfer an object from the current to the previous auto releaser.
 template <typename T>
 void Dictionary_client::Auto_releaser::transfer_release(const T *object) {
-  assert(object);
+  DBUG_ASSERT(object);
   // Remove the object, which must be present.
   Cache_element<T> *element = nullptr;
   m_release_registry.get(object, &element);
-  assert(element);
+  DBUG_ASSERT(element);
   m_release_registry.remove(element);
   m_prev->auto_release(element);
 }
@@ -712,7 +738,7 @@ void Dictionary_client::Auto_releaser::transfer_release(const T *object) {
 template <typename T>
 Dictionary_client::Auto_releaser *Dictionary_client::Auto_releaser::remove(
     Cache_element<T> *element) {
-  assert(element);
+  DBUG_ASSERT(element);
   // Scan the auto releaser linked list and remove the element.
   for (Auto_releaser *releaser = this; releaser != nullptr;
        releaser = releaser->m_prev) {
@@ -724,7 +750,7 @@ Dictionary_client::Auto_releaser *Dictionary_client::Auto_releaser::remove(
     }
   }
   // The element must be present in some auto releaser.
-  assert(false); /* purecov: deadcode */
+  DBUG_ASSERT(false); /* purecov: deadcode */
   return nullptr;
 }
 
@@ -740,16 +766,16 @@ Dictionary_client::Auto_releaser::Auto_releaser(Dictionary_client *client)
     Make sure that if we install a first auto_releaser, we do not have
     uncommitted object or we are not processing a transactional DDL.
   */
-  assert(m_client->m_current_releaser != &m_client->m_default_releaser ||
-         m_client->m_registry_uncommitted.size_all() == 0 ||
-         m_client->m_thd->m_transactional_ddl.inited());
+  DBUG_ASSERT(m_client->m_current_releaser != &m_client->m_default_releaser ||
+              m_client->m_registry_uncommitted.size_all() == 0 ||
+              m_client->m_thd->m_transactional_ddl.inited());
   m_client->m_current_releaser = this;
 }
 
 // Release all objects registered and restore previous releaser.
 Dictionary_client::Auto_releaser::~Auto_releaser() {
   // Make sure that we destroy auto_releaser object in LIFO order.
-  assert(m_client->m_current_releaser == this);
+  DBUG_ASSERT(m_client->m_current_releaser == this);
 
   // Release all objects registered.
   m_client->release<Abstract_table>(&m_release_registry);
@@ -773,10 +799,10 @@ Dictionary_client::Auto_releaser::~Auto_releaser() {
     // We should either have reported an error or have removed all
     // uncommitted objects (typically committed them to the shared cache)
     // we should be processing transactional DDL.
-    assert(m_client->m_thd->is_error() || m_client->m_thd->killed ||
-           m_client->m_thd->m_transactional_ddl.inited() ||
-           (m_client->m_registry_uncommitted.size_all() == 0 &&
-            m_client->m_registry_dropped.size_all() == 0));
+    DBUG_ASSERT(m_client->m_thd->is_error() || m_client->m_thd->killed ||
+                m_client->m_thd->m_transactional_ddl.inited() ||
+                (m_client->m_registry_uncommitted.size_all() == 0 &&
+                 m_client->m_registry_dropped.size_all() == 0));
 
     // Do not remove uncommitted object when processing transactional DDL.
     if (!m_client->m_thd->m_transactional_ddl.inited())
@@ -792,7 +818,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser() {
 // Debug dump to stderr.
 template <typename T>
 void Dictionary_client::Auto_releaser::dump() const {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   fprintf(stderr, "================================\n");
   fprintf(stderr, "Auto releaser\n");
   m_release_registry.dump<T>();
@@ -832,9 +858,9 @@ template <typename K, typename T>
 bool Dictionary_client::acquire(const K &key, const T **object,
                                 bool *local_committed,
                                 bool *local_uncommitted) {
-  assert(object);
-  assert(local_committed);
-  assert(local_uncommitted);
+  DBUG_ASSERT(object);
+  DBUG_ASSERT(local_committed);
+  DBUG_ASSERT(local_uncommitted);
   *object = nullptr;
 
   // Cache dictionary objects with UTC time
@@ -865,14 +891,14 @@ bool Dictionary_client::acquire(const K &key, const T **object,
     // return nothing.
     const typename T::Id_key id_key(element->object()->id());
     acquire_uncommitted(id_key, &uncommitted_object, &dropped);
-    assert(!dropped);
+    DBUG_ASSERT(!dropped);
     if (uncommitted_object || dropped) return false;
 
     // Object has not been renamed
     *local_committed = true;
     *object = element->object();
     // Check proper MDL lock.
-    assert(MDL_checker::is_read_locked(m_thd, *object));
+    DBUG_ASSERT(MDL_checker::is_read_locked(m_thd, *object));
     return false;
   }
 
@@ -881,7 +907,8 @@ bool Dictionary_client::acquire(const K &key, const T **object,
 
   // Get the object from the shared cache.
   if (Shared_dictionary_cache::instance()->get(m_thd, key, &element)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -897,18 +924,18 @@ bool Dictionary_client::acquire(const K &key, const T **object,
       // case of a modified (i.e., renamed) object. This would also
       // be handled in remove_uncommitted_objects() when the
       // shared cache is updated with the modified objects.
-      assert(MDL_checker::is_write_locked(m_thd, element->object()));
+      DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, element->object()));
       Shared_dictionary_cache::instance()->drop(element);
       return false;
     }
 
-    assert(element->object() && element->object()->id());
+    DBUG_ASSERT(element->object() && element->object()->id());
     // Sign up for auto release.
     m_registry_committed.put(element);
     m_current_releaser->auto_release(element);
     *object = element->object();
     // Check proper MDL lock.
-    assert(MDL_checker::is_read_locked(m_thd, *object));
+    DBUG_ASSERT(MDL_checker::is_read_locked(m_thd, *object));
   }
   return false;
 }
@@ -916,8 +943,8 @@ bool Dictionary_client::acquire(const K &key, const T **object,
 template <typename K, typename T>
 void Dictionary_client::acquire_uncommitted(const K &key, T **object,
                                             bool *dropped) {
-  assert(object);
-  assert(dropped);
+  DBUG_ASSERT(object);
+  DBUG_ASSERT(dropped);
   *object = nullptr;
   *dropped = false;
 
@@ -929,7 +956,7 @@ void Dictionary_client::acquire_uncommitted(const K &key, T **object,
   if (element) {
     *object = const_cast<T *>(element->object());  // TODO: Const cast
     // Check proper MDL lock.
-    assert(MDL_checker::is_read_locked(m_thd, *object));
+    DBUG_ASSERT(MDL_checker::is_read_locked(m_thd, *object));
     uncommitted_id = (*object)->id();
   }
 
@@ -937,12 +964,12 @@ void Dictionary_client::acquire_uncommitted(const K &key, T **object,
   if (element) {
     const T *dropped_object = element->object();
     // Check proper MDL lock.
-    assert(MDL_checker::is_read_locked(m_thd, dropped_object));
+    DBUG_ASSERT(MDL_checker::is_read_locked(m_thd, dropped_object));
     dropped_id = dropped_object->id();
   }
 
   // The object should never be present in both registries with the same id.
-  assert(uncommitted_id != dropped_id || dropped_id == INVALID_OBJECT_ID);
+  DBUG_ASSERT(uncommitted_id != dropped_id || dropped_id == INVALID_OBJECT_ID);
 
   *dropped =
       (dropped_id != INVALID_OBJECT_ID && uncommitted_id == INVALID_OBJECT_ID);
@@ -954,14 +981,14 @@ void Dictionary_client::acquire_uncommitted(const K &key, T **object,
 // Mark all objects of a certain type as not being used by this client.
 template <typename T>
 size_t Dictionary_client::release(Object_registry *registry) {
-  assert(registry);
+  DBUG_ASSERT(registry);
   size_t num_released = 0;
 
   // Iterate over all elements in the registry partition.
   typename Multi_map_base<T>::Const_iterator it;
   for (it = registry->begin<T>(); it != registry->end<T>(); ++num_released) {
-    assert(it->second);
-    assert(it->second->object());
+    DBUG_ASSERT(it->second);
+    DBUG_ASSERT(it->second->object());
 
     // Make sure we handle iterator invalidation: Increment
     // before erasing.
@@ -1001,7 +1028,7 @@ size_t Dictionary_client::release(Object_registry *registry) {
     // again trigger asserts in the shared cache and allow for improper object
     // usage.
 #ifdef EXTRA_DD_DEBUG
-    assert(MDL_checker::is_release_locked(m_thd, object_clone.get()));
+    DBUG_ASSERT(MDL_checker::is_release_locked(m_thd, object_clone.get()));
 #endif
   }
   return num_released;
@@ -1020,7 +1047,7 @@ size_t Dictionary_client::release(Object_registry *registry) {
 // Initialize an instance with a default auto releaser.
 Dictionary_client::Dictionary_client(THD *thd)
     : m_thd(thd), m_current_releaser(&m_default_releaser) {
-  assert(m_thd);
+  DBUG_ASSERT(m_thd);
   // We cannot fully initialize the m_default_releaser in the member
   // initialization list since 'this' isn't fully initialized at that point.
   // Thus, we do it here.
@@ -1031,7 +1058,7 @@ Dictionary_client::Dictionary_client(THD *thd)
 Dictionary_client::~Dictionary_client() {
   // Release the objects left in the object registry (should be empty).
   size_t num_released = release(&m_registry_committed);
-  assert(num_released == 0);
+  DBUG_ASSERT(num_released == 0);
   if (num_released > 0) {
     LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS);
   }
@@ -1040,7 +1067,7 @@ Dictionary_client::~Dictionary_client() {
   while (m_current_releaser && m_current_releaser != &m_default_releaser) {
     /* purecov: begin deadcode */
     LogErr(WARNING_LEVEL, ER_DD_OBJECT_RELEASER_REMAINS);
-    assert(false);
+    DBUG_ASSERT(false);
     delete m_current_releaser;
     /* purecov: end */
   }
@@ -1048,7 +1075,7 @@ Dictionary_client::~Dictionary_client() {
   // Finally, release the objects left in the default releaser
   // (should be empty).
   num_released = release(&m_default_releaser.m_release_registry);
-  assert(num_released == 0);
+  DBUG_ASSERT(num_released == 0);
   if (num_released > 0) {
     LogErr(WARNING_LEVEL, ER_DD_OBJECT_REMAINS_IN_RELEASER);
   }
@@ -1074,14 +1101,15 @@ bool Dictionary_client::acquire(Object_id id, const T **object) {
   if (!error) {
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return.
-    assert(object);
+    DBUG_ASSERT(object);
     *object = dynamic_cast<const T *>(cached_object);
 
     // Don't auto release the object here if it is returned.
     if (!local_committed && !local_uncommitted && *object)
       releaser.transfer_release(cached_object);
   } else
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
 
   return error;
 }
@@ -1105,7 +1133,7 @@ bool Dictionary_client::acquire_for_modification(Object_id id, T **object) {
   if (!error) {
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return.
-    assert(object);
+    DBUG_ASSERT(object);
     const T *casted = dynamic_cast<const T *>(cached_object);
 
     if (!casted)
@@ -1115,7 +1143,8 @@ bool Dictionary_client::acquire_for_modification(Object_id id, T **object) {
       auto_delete<T>(*object);
     }
   } else
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
 
   return error;
 }
@@ -1135,7 +1164,7 @@ bool Dictionary_client::acquire_uncached(Object_id id, T **object) {
 
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return.
-    assert(object);
+    DBUG_ASSERT(object);
     // TODO: Replace const_cast by directly using Storage_adapter
     *object = const_cast<T *>(dynamic_cast<const T *>(stored_object));
 
@@ -1145,7 +1174,8 @@ bool Dictionary_client::acquire_uncached(Object_id id, T **object) {
     else
       auto_delete<T>(*object);
   } else
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
 
   return error;
 }
@@ -1154,7 +1184,7 @@ bool Dictionary_client::acquire_uncached(Object_id id, T **object) {
 template <typename T>
 bool Dictionary_client::acquire_uncached_uncommitted(Object_id id, T **object) {
   const typename T::Id_key key(id);
-  assert(object);
+  DBUG_ASSERT(object);
 
   // First get the object from acquire_uncommitted. This should be safe
   // even without MDL, since the object is only available to this thread.
@@ -1195,7 +1225,7 @@ bool Dictionary_client::acquire_uncached_uncommitted(Object_id id, T **object) {
     else
       auto_delete<T>(*object);
   } else
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
 
   return error;
 }
@@ -1226,14 +1256,15 @@ bool Dictionary_client::acquire(const String_type &object_name,
   if (!error) {
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return.
-    assert(object);
+    DBUG_ASSERT(object);
     *object = dynamic_cast<const T *>(cached_object);
 
     // Don't auto release the object here if it is returned.
     if (!local_committed && !local_uncommitted && *object)
       releaser.transfer_release(cached_object);
   } else
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
 
   return error;
 }
@@ -1263,7 +1294,7 @@ bool Dictionary_client::acquire_for_modification(const String_type &object_name,
   if (!error) {
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return.
-    assert(object);
+    DBUG_ASSERT(object);
     const T *casted = dynamic_cast<const T *>(cached_object);
 
     if (!casted)
@@ -1273,7 +1304,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &object_name,
       auto_delete<T>(*object);
     }
   } else
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
 
   return error;
 }
@@ -1287,7 +1319,7 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   Schema_MDL_locker mdl_locker(m_thd);
   Auto_releaser releaser(this);
 
-  assert(object);
+  DBUG_ASSERT(object);
   *object = nullptr;
 
   // Get the schema object by name.
@@ -1297,7 +1329,8 @@ bool Dictionary_client::acquire(const String_type &schema_name,
 
   // If there was an error, or if we found no valid schema, return here.
   if (error) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1323,14 +1356,15 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   if (!error) {
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return.
-    assert(object);
+    DBUG_ASSERT(object);
     *object = dynamic_cast<const T *>(cached_object);
 
     // Don't auto release the object here if it is returned.
     if (!local_committed && !local_uncommitted && *object)
       releaser.transfer_release(cached_object);
   } else
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
 
   return error;
 }
@@ -1343,7 +1377,7 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
   Schema_MDL_locker mdl_locker(m_thd);
   Auto_releaser releaser(this);
 
-  assert(object);
+  DBUG_ASSERT(object);
   *object = nullptr;
 
   // Get the schema object by name.
@@ -1353,7 +1387,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
 
   // If there was an error, or if we found no valid schema, return here.
   if (error) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1377,7 +1412,7 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
   if (!error) {
     // Dynamic cast may legitimately return NULL if we e.g. asked
     // for a dd::Table and got a dd::View in return.
-    assert(object);
+    DBUG_ASSERT(object);
     const T *casted = dynamic_cast<const T *>(cached_object);
 
     if (!casted)
@@ -1387,7 +1422,8 @@ bool Dictionary_client::acquire_for_modification(const String_type &schema_name,
       auto_delete<T>(*object);
     }
   } else
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
 
   return error;
 }
@@ -1402,7 +1438,7 @@ bool Dictionary_client::acquire(const String_type &schema_name,
   Schema_MDL_locker mdl_locker(m_thd);
   Auto_releaser releaser(this);
 
-  assert(object);
+  DBUG_ASSERT(object);
   *object = nullptr;
 
   // Get the schema object by name.
@@ -1412,7 +1448,7 @@ bool Dictionary_client::acquire(const String_type &schema_name,
 
   // If there was an error, or if we found no valid schema, return here.
   if (error) {
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
   }
 
@@ -1439,7 +1475,7 @@ bool Dictionary_client::acquire(const String_type &schema_name,
     if (!local_committed && !local_uncommitted && *object)
       releaser.transfer_release(*object);
   } else
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
 
   return error;
 }
@@ -1452,7 +1488,7 @@ bool Dictionary_client::acquire_for_modification(
   Schema_MDL_locker mdl_locker(m_thd);
   Auto_releaser releaser(this);
 
-  assert(object);
+  DBUG_ASSERT(object);
   *object = nullptr;
 
   // Get the schema object by name.
@@ -1462,7 +1498,8 @@ bool Dictionary_client::acquire_for_modification(
 
   // If there was an error, or if we found no valid schema, return here.
   if (error) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1490,7 +1527,8 @@ bool Dictionary_client::acquire_for_modification(
       auto_delete(*object);
     }
   } else
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
 
   return error;
 }
@@ -1498,7 +1536,7 @@ bool Dictionary_client::acquire_for_modification(
 // Retrieve a table object by its se private id.
 bool Dictionary_client::acquire_uncached_table_by_se_private_id(
     const String_type &engine, Object_id se_private_id, Table **table) {
-  assert(table);
+  DBUG_ASSERT(table);
   *table = nullptr;
   bool no_table =
       is_cached(m_no_table_spids, se_private_id, SPI_missing_type::TABLES);
@@ -1516,7 +1554,8 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
   // Read the uncached dictionary object.
   if (Shared_dictionary_cache::instance()->get_uncached(
           m_thd, key, ISO_READ_COMMITTED, &stored_object)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1525,7 +1564,7 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
     m_no_table_spids->insert(se_private_id, SPI_missing_type::TABLES);
     return false;
   }
-  assert(no_table == false);
+  DBUG_ASSERT(no_table == false);
 
   // Dynamic cast may legitimately return NULL only if the stored object
   // was NULL, i.e., the object did not exist.
@@ -1547,7 +1586,7 @@ bool Dictionary_client::acquire_uncached_table_by_se_private_id(
 // Retrieve a table object by its partition se private id.
 bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
     const String_type &engine, Object_id se_partition_id, Table **table) {
-  assert(table);
+  DBUG_ASSERT(table);
   *table = nullptr;
   bool no_table = is_cached(m_no_table_spids, se_partition_id,
                             SPI_missing_type::PARTITIONS);
@@ -1559,7 +1598,8 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
   Object_id table_id;
   if (tables::Table_partitions::get_partition_table_id(
           m_thd, engine, se_partition_id, &table_id)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1569,7 +1609,8 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
   }
 
   if (acquire_uncached(table_id, table)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1577,7 +1618,7 @@ bool Dictionary_client::acquire_uncached_table_by_partition_se_private_id(
     m_no_table_spids->insert(se_partition_id, SPI_missing_type::PARTITIONS);
     return false;
   }
-  assert(no_table == false);
+  DBUG_ASSERT(no_table == false);
 
   return false;
 }
@@ -1597,7 +1638,7 @@ static bool get_index_statistics_entries(
   trx.otx.register_tables<dd::Table_stat>();
   trx.otx.register_tables<dd::Index_stat>();
   if (trx.otx.open_tables()) {
-    assert(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_error() || thd->killed);
     return true;
   }
 
@@ -1607,12 +1648,12 @@ static bool get_index_statistics_entries(
                                                               table_name));
 
   Raw_table *table = trx.otx.get_table<dd::Index_stat>();
-  assert(table);
+  DBUG_ASSERT(table);
 
   // Start the scan.
   std::unique_ptr<Raw_record_set> rs;
   if (table->open_record_set(object_key.get(), rs)) {
-    assert(thd->is_error() || thd->killed);
+    DBUG_ASSERT(thd->is_error() || thd->killed);
     return true;
   }
 
@@ -1624,7 +1665,7 @@ static bool get_index_statistics_entries(
     column_names.push_back(r->read_str(tables::Index_stats::FIELD_COLUMN_NAME));
 
     if (rs->next(r)) {
-      assert(thd->is_error() || thd->killed);
+      DBUG_ASSERT(thd->is_error() || thd->killed);
       return true;
     }
   }
@@ -1645,7 +1686,7 @@ bool Dictionary_client::remove_table_dynamic_statistics(
   std::vector<String_type> index_names, column_names;
   if (get_index_statistics_entries(m_thd, schema_name, table_name, index_names,
                                    column_names)) {
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
   }
 
@@ -1670,14 +1711,14 @@ bool Dictionary_client::remove_table_dynamic_statistics(
       */
       if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, false,
                                &idx_stat)) {
-        assert(m_thd->is_error() || m_thd->killed);
+        DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
         return true;
       }
 
       // Drop the entry.
       if (idx_stat &&
           Storage_adapter::drop(m_thd, const_cast<Index_stat *>(idx_stat))) {
-        assert(m_thd->is_error() || m_thd->killed);
+        DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
         return true;
       }
 
@@ -1704,14 +1745,14 @@ bool Dictionary_client::remove_table_dynamic_statistics(
   const Table_stat *tab_stat = nullptr;
   if (Storage_adapter::get(m_thd, *key, ISO_READ_UNCOMMITTED, false,
                            &tab_stat)) {
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
   }
 
   // Drop the entry.
   if (tab_stat &&
       Storage_adapter::drop(m_thd, const_cast<Table_stat *>(tab_stat))) {
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
   }
 
@@ -1729,7 +1770,7 @@ bool Dictionary_client::get_table_name_by_se_private_id(
   Schema *sch_obj = nullptr;
 
   // Store empty in OUT params.
-  assert(schema_name && table_name);
+  DBUG_ASSERT(schema_name && table_name);
   schema_name->clear();
   table_name->clear();
 
@@ -1737,7 +1778,8 @@ bool Dictionary_client::get_table_name_by_se_private_id(
   // lock since we do not know the table name.
   if (acquire_uncached_table_by_se_private_id(engine, se_private_id,
                                               &tab_obj)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1753,7 +1795,8 @@ bool Dictionary_client::get_table_name_by_se_private_id(
   // Acquire the schema uncached to get the schema name. Like above, we
   // cannot lock it in advance since we do not know its name.
   if (acquire_uncached(tab_obj->schema_id(), &sch_obj)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1775,13 +1818,14 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
   Schema *sch_obj = nullptr;
 
   // Store empty in OUT params.
-  assert(schema_name && table_name);
+  DBUG_ASSERT(schema_name && table_name);
   schema_name->clear();
   table_name->clear();
 
   if (acquire_uncached_table_by_partition_se_private_id(engine, se_partition_id,
                                                         &tab_obj)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1796,7 +1840,8 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
 
   // Acquire the schema to get the schema name.
   if (acquire_uncached(tab_obj->schema_id(), &sch_obj)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1813,14 +1858,14 @@ bool Dictionary_client::get_table_name_by_partition_se_private_id(
 bool Dictionary_client::get_table_name_by_trigger_name(
     const Schema &schema, const String_type &trigger_name,
     String_type *table_name) {
-  assert(table_name != nullptr);
+  DBUG_ASSERT(table_name != nullptr);
   *table_name = "";
 
   // Read record directly from the tables.
   Object_id table_id;
   if (tables::Triggers::get_trigger_table_id(m_thd, schema.id(), trigger_name,
                                              &table_id)) {
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
   }
 
@@ -1850,20 +1895,20 @@ bool Dictionary_client::get_table_name_by_trigger_name(
       delete stored_object;
     }
   } else
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
 
   return error;
 }
 
 bool Dictionary_client::check_foreign_key_exists(
     const Schema &schema, const String_type &foreign_key_name, bool *exists) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   char schema_name_buf[NAME_LEN + 1];
   char fk_name_buff[NAME_LEN + 1];
   my_stpcpy(fk_name_buff, foreign_key_name.c_str());
   my_casedn_str(system_charset_info, fk_name_buff);
 
-  assert(m_thd->mdl_context.owns_equal_or_stronger_lock(
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::FOREIGN_KEY,
       dd::Object_table_definition_impl::fs_name_case(schema.name(),
                                                      schema_name_buf),
@@ -1873,7 +1918,7 @@ bool Dictionary_client::check_foreign_key_exists(
   // Get info directly from the tables.
   if (tables::Foreign_keys::check_foreign_key_exists(
           m_thd, schema.id(), foreign_key_name, exists)) {
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
   }
 
@@ -1882,13 +1927,13 @@ bool Dictionary_client::check_foreign_key_exists(
 
 bool Dictionary_client::check_constraint_exists(
     const Schema &schema, const String_type &check_cons_name, bool *exists) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   char schema_name_buf[NAME_LEN + 1];
   char check_cons_name_buff[NAME_LEN + 1];
   my_stpcpy(check_cons_name_buff, check_cons_name.c_str());
   my_casedn_str(system_charset_info, check_cons_name_buff);
 
-  assert(m_thd->mdl_context.owns_equal_or_stronger_lock(
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::CHECK_CONSTRAINT,
       dd::Object_table_definition_impl::fs_name_case(schema.name(),
                                                      schema_name_buf),
@@ -1898,7 +1943,7 @@ bool Dictionary_client::check_constraint_exists(
   // Get info directly from the tables.
   if (tables::Check_constraints::check_constraint_exists(
           m_thd, schema.id(), check_cons_name, exists)) {
-    assert(m_thd->is_error() || m_thd->killed);
+    DBUG_ASSERT(m_thd->is_error() || m_thd->killed);
     return true;
   }
 
@@ -1912,16 +1957,16 @@ bool fetch_raw_record(THD *thd,
 
   trx.otx.register_tables<T>();
   Raw_table *table = trx.otx.get_table<T>();
-  assert(table);
+  DBUG_ASSERT(table);
 
   if (trx.otx.open_tables()) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
   std::unique_ptr<Raw_record_set> rs;
   if (table->open_record_set(nullptr, rs)) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -1929,7 +1974,7 @@ bool fetch_raw_record(THD *thd,
   String_type s;
   while (r) {
     if (processor(r) || rs->next(r)) {
-      assert(thd->is_system_thread() || thd->killed || thd->is_error());
+      DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
       return true;
     }
   }
@@ -1941,7 +1986,7 @@ bool fetch_raw_record(THD *thd,
 template <typename T>
 bool Dictionary_client::fetch_global_component_ids(
     std::vector<Object_id> *ids) const {
-  assert(ids);
+  DBUG_ASSERT(ids);
 
   auto processor = [&](Raw_record *r) -> bool {
     ids->push_back(r->read_int(0));
@@ -1950,7 +1995,8 @@ bool Dictionary_client::fetch_global_component_ids(
 
   if (fetch_raw_record<T>(m_thd, processor)) {
     ids->clear();
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -1961,7 +2007,7 @@ bool Dictionary_client::fetch_global_component_ids(
 template <typename T>
 bool Dictionary_client::fetch_global_component_names(
     std::vector<String_type> *names) const {
-  assert(names);
+  DBUG_ASSERT(names);
 
   auto processor = [&](Raw_record *r) -> bool {
     names->push_back(r->read_str(T::DD_table::FIELD_NAME));
@@ -1970,7 +2016,8 @@ bool Dictionary_client::fetch_global_component_names(
 
   if (fetch_raw_record<T>(m_thd, processor)) {
     names->clear();
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2032,21 +2079,22 @@ bool Dictionary_client::fetch_schema_component_names(
                                                      fetch_criteria);
 }
 
-// Iterate over all entities of Object_type looked up by the submitted key.
-// Execute the submitted lambda for each item. Continue as long as the lambda
-// returns false.
+// Fetch objects from DD tables that match the supplied key.
 template <typename Object_type>
-bool Dictionary_client::foreach (
-    const Object_key *object_key,
-    std::function<bool(std::unique_ptr<Object_type> &)> const &processor)
-    const {
+bool Dictionary_client::fetch(Const_ptr_vec<Object_type> *coll,
+                              const Object_key *object_key) {
+  // Since we clear the vector on failure, it should be empty
+  // when we start.
+  DBUG_ASSERT(coll->empty());
+
   Transaction_ro trx(m_thd, ISO_READ_COMMITTED);
   trx.otx.register_tables<typename Object_type::Cache_partition>();
   Raw_table *table = trx.otx.get_table<typename Object_type::Cache_partition>();
-  assert(table);
+  DBUG_ASSERT(table);
 
   if (trx.otx.open_tables()) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2056,12 +2104,14 @@ bool Dictionary_client::foreach (
   {
     std::unique_ptr<Raw_record_set> rs;
     if (table->open_record_set(object_key, rs)) {
-      assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                  m_thd->is_error());
       return true;
     }
 
     Raw_record *r = rs->current_record();
     while (r) {
+      Object_type *object = nullptr;
       Entity_object *new_object = nullptr;
       const Entity_object_table &dd_table = Object_type::DD_table::instance();
 
@@ -2073,65 +2123,44 @@ bool Dictionary_client::foreach (
         sub_trx.otx.register_tables<typename Object_type::Cache_partition>();
 
         if (sub_trx.otx.open_tables()) {
-          assert(m_thd->is_system_thread() || m_thd->killed ||
-                 m_thd->is_error());
+          DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                      m_thd->is_error());
           return true;
         }
 
         if (r && dd_table.restore_object_from_record(&sub_trx.otx, *r,
                                                      &new_object)) {
-          assert(m_thd->is_system_thread() || m_thd->killed ||
-                 m_thd->is_error());
+          DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                      m_thd->is_error());
+          coll->clear();
           return true;
         }
       }
 
       // Delete the new object if dynamic cast fails. Here, a failing dynamic
       // cast is a legitimate situation; if we e.g. scan for tables, some
-      // of the objects will be views. The downcasted object is wrapped by a
-      // unique_ptr, which must be released by the processor if the object
-      // will be used at a later stage.
+      // of the objects will be views.
       if (new_object) {
-        std::unique_ptr<Object_type> object(
-            dynamic_cast<Object_type *>(new_object));
-        if (object.get() == nullptr) {
+        object = dynamic_cast<Object_type *>(new_object);
+        if (object == nullptr) {
           delete new_object;
-        } else if (processor(object)) {
-          return true;
+        } else {
+          // Sign up the object for being auto deleted.
+          auto_delete<Object_type>(object);
+          coll->push_back(object);
         }
       }
 
       if (rs->next(r)) {
-        assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+        DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                    m_thd->is_error());
+        coll->clear();
         return true;
       }
     }
   }
 
   return false;
-}
-
-// Fetch objects from DD tables that match the supplied key.
-template <typename Object_type>
-bool Dictionary_client::fetch(Const_ptr_vec<Object_type> *coll,
-                              const Object_key *object_key) {
-  // Since we clear the vector on failure, it should be empty
-  // when we start.
-  assert(coll->empty());
-
-  auto process_item = [&](std::unique_ptr<Object_type> &object) {
-    // Release the object from the unique_ptr, sign up for auto delete
-    // and store it in the vector. The auto delete happens when the
-    // topmost auto releaser exits scope.
-    Object_type *ptr = object.release();
-    auto_delete<Object_type>(ptr);
-    coll->push_back(ptr);
-    return false;
-  };
-
-  bool error = foreach<Object_type>(object_key, process_item);
-  if (error) coll->clear();
-  return error;
 }
 
 // Fetch all components in the schema.
@@ -2142,8 +2171,9 @@ bool Dictionary_client::fetch_schema_components(const Schema *schema,
       T::DD_table::create_key_by_schema_id(schema->id()));
 
   if (fetch(coll, k.get())) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-    assert(coll->empty());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
+    DBUG_ASSERT(coll->empty());
     return true;
   }
 
@@ -2154,8 +2184,9 @@ bool Dictionary_client::fetch_schema_components(const Schema *schema,
 template <typename T>
 bool Dictionary_client::fetch_global_components(Const_ptr_vec<T> *coll) {
   if (fetch(coll, nullptr)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
-    assert(coll->empty());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
+    DBUG_ASSERT(coll->empty());
     return true;
   }
 
@@ -2172,10 +2203,11 @@ bool Dictionary_client::is_user_definer(const LEX_USER &user,
   // Register and open tables.
   trx.otx.register_tables<T>();
   Raw_table *entity_table = trx.otx.get_table<T>();
-  assert(entity_table);
+  DBUG_ASSERT(entity_table);
 
   if (trx.otx.open_tables()) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2188,7 +2220,8 @@ bool Dictionary_client::is_user_definer(const LEX_USER &user,
       T::DD_table::create_key_by_definer(definer));
   std::unique_ptr<Raw_record_set> rs;
   if (entity_table->open_record_set(object_key.get(), rs)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2211,11 +2244,12 @@ bool Dictionary_client::fetch_referencing_views_object_id(
   // Register View_table_usage/View_routine_usage.
   trx.otx.register_tables<T>();
   Raw_table *view_usage_table = trx.otx.get_table<T>();
-  assert(view_usage_table);
+  DBUG_ASSERT(view_usage_table);
 
   // Open registered tables.
   if (trx.otx.open_tables()) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2225,7 +2259,8 @@ bool Dictionary_client::fetch_referencing_views_object_id(
       String_type(tbl_or_sf_name)));
   std::unique_ptr<Raw_record_set> rs;
   if (view_usage_table->open_record_set(object_key.get(), rs)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2236,7 +2271,8 @@ bool Dictionary_client::fetch_referencing_views_object_id(
     view_ids->push_back(id);
 
     if (rs->next(vtr)) {
-      assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                  m_thd->is_error());
       return true;
     }
   }
@@ -2254,10 +2290,11 @@ bool Dictionary_client::fetch_fk_children_uncached(
 
   trx.otx.register_tables<Foreign_key>();
   Raw_table *foreign_keys_table = trx.otx.get_table<Foreign_key>();
-  assert(foreign_keys_table);
+  DBUG_ASSERT(foreign_keys_table);
 
   if (trx.otx.open_tables()) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2269,7 +2306,8 @@ bool Dictionary_client::fetch_fk_children_uncached(
 
   std::unique_ptr<Raw_record_set> rs;
   if (foreign_keys_table->open_record_set(object_key.get(), rs)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2283,12 +2321,14 @@ bool Dictionary_client::fetch_fk_children_uncached(
     dd::cache::Dictionary_client::Auto_releaser releaser(this);
     if (uncommitted) {
       if (acquire_uncached_uncommitted(id, &table)) {
-        assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+        DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                    m_thd->is_error());
         return true;
       }
     } else {
       if (acquire_uncached(id, &table)) {
-        assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+        DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                    m_thd->is_error());
         return true;
       }
     }
@@ -2299,14 +2339,14 @@ bool Dictionary_client::fetch_fk_children_uncached(
                         parent_engine.c_str()) == 0) {
         if (uncommitted) {
           if (acquire_uncached_uncommitted(table->schema_id(), &schema)) {
-            assert(m_thd->is_system_thread() || m_thd->killed ||
-                   m_thd->is_error());
+            DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                        m_thd->is_error());
             return true;
           }
         } else {
           if (acquire_uncached(table->schema_id(), &schema)) {
-            assert(m_thd->is_system_thread() || m_thd->killed ||
-                   m_thd->is_error());
+            DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                        m_thd->is_error());
             return true;
           }
         }
@@ -2321,7 +2361,8 @@ bool Dictionary_client::fetch_fk_children_uncached(
     // That can happen since we don't have a lock and is not an error.
 
     if (rs->next(r)) {
-      assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+      DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                  m_thd->is_error());
       return true;
     }
   }
@@ -2333,17 +2374,18 @@ bool Dictionary_client::fetch_fk_children_uncached(
 bool Dictionary_client::invalidate(const String_type &schema_name,
                                    const String_type &table_name) {
   // Verify metadata lock (should hold even for non-existing tables).
-  assert(m_thd->mdl_context.owns_equal_or_stronger_lock(
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::TABLE, schema_name.c_str(), table_name.c_str(), MDL_EXCLUSIVE));
 
   // There should also be an IX lock on the schema name at this point.
-  assert(m_thd->mdl_context.owns_equal_or_stronger_lock(
+  DBUG_ASSERT(m_thd->mdl_context.owns_equal_or_stronger_lock(
       MDL_key::SCHEMA, schema_name.c_str(), "", MDL_INTENTION_EXCLUSIVE));
 
   Auto_releaser releaser(this);
   const Table *table;
   if (acquire(schema_name, table_name, &table)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2359,7 +2401,7 @@ bool Dictionary_client::invalidate(const String_type &schema_name,
 template <typename T>
 void Dictionary_client::invalidate(const T *object) {
   // Check proper MDL lock.
-  assert(MDL_checker::is_write_locked(m_thd, object));
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
 
   // Invalidate the shared cache. This is safe since we have an
   // exclusive meta data lock on the name.
@@ -2389,7 +2431,7 @@ void Dictionary_client::invalidate(const T *object) {
             id_key);
 }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 
 /**
   Check whether protection against the backup- and global read
@@ -2433,12 +2475,13 @@ bool is_backup_lock_and_grl_acquired<Column_statistics>(THD *) {
 template <typename T>
 bool Dictionary_client::drop(const T *object) {
   // Check proper MDL lock.
-  assert(MDL_checker::is_write_locked(m_thd, object));
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
 
-  assert(is_backup_lock_and_grl_acquired<T>(m_thd));
+  DBUG_ASSERT(is_backup_lock_and_grl_acquired<T>(m_thd));
 
   if (Storage_adapter::drop(m_thd, object)) {
-    assert(m_thd->is_system_thread() || m_thd->killed || m_thd->is_error());
+    DBUG_ASSERT(m_thd->is_system_thread() || m_thd->killed ||
+                m_thd->is_error());
     return true;
   }
 
@@ -2464,15 +2507,15 @@ bool Dictionary_client::drop(const T *object) {
 // Store a new dictionary object.
 template <typename T>
 bool Dictionary_client::store(T *object) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   // Make sure the object is not being used by this client.
   Cache_element<typename T::Cache_partition> *element = nullptr;
   m_registry_committed.get(
       static_cast<const typename T::Cache_partition *>(object), &element);
-  assert(!element);
+  DBUG_ASSERT(!element);
 #endif
 
-  assert(is_backup_lock_and_grl_acquired<T>(m_thd));
+  DBUG_ASSERT(is_backup_lock_and_grl_acquired<T>(m_thd));
 
   // Store dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
@@ -2484,14 +2527,14 @@ bool Dictionary_client::store(T *object) {
   // Spatial reference systems are different since the ID is the SRID, which is
   // a user specified value. Therefore, spatial reference systems have valid IDs
   // at this point, while other objects do not.
-  assert(object->id() == INVALID_OBJECT_ID ||
-         dynamic_cast<Spatial_reference_system *>(object));
+  DBUG_ASSERT(object->id() == INVALID_OBJECT_ID ||
+              dynamic_cast<Spatial_reference_system *>(object));
 
   // Check proper MDL lock.
-  assert(MDL_checker::is_write_locked(m_thd, object));
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, object));
   if (Storage_adapter::store(m_thd, object)) return true;
 
-  assert(object->id() != INVALID_OBJECT_ID);
+  DBUG_ASSERT(object->id() != INVALID_OBJECT_ID);
   register_uncommitted_object(object->clone());
   return false;
 }
@@ -2514,25 +2557,25 @@ bool Dictionary_client::store(Index_stat *object) {
 // Update a persisted dictionary object, but keep the shared cache unchanged.
 template <typename T>
 bool Dictionary_client::update(T *new_object) {
-  assert(new_object);
+  DBUG_ASSERT(new_object);
 
   // Make sure the object has a valid object id.
-  assert(new_object->id() != INVALID_OBJECT_ID);
+  DBUG_ASSERT(new_object->id() != INVALID_OBJECT_ID);
 
   // Avoid updating DD object that modifies m_registry_uncommitted cache
   // during attachable read-write transaction.
-  assert(!m_thd->is_attachable_rw_transaction_active());
+  DBUG_ASSERT(!m_thd->is_attachable_rw_transaction_active());
 
   // The new_object instance should not be present in the committed registry.
   Cache_element<typename T::Cache_partition> *element = nullptr;
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   m_registry_committed.get(
       static_cast<const typename T::Cache_partition *>(new_object), &element);
-  assert(!element);
+  DBUG_ASSERT(!element);
 #endif
 
-  assert(is_backup_lock_and_grl_acquired<T>(m_thd));
+  DBUG_ASSERT(is_backup_lock_and_grl_acquired<T>(m_thd));
 
   // Store dictionary objects with UTC time
   Timestamp_timezone_guard ts(m_thd);
@@ -2556,11 +2599,11 @@ bool Dictionary_client::update(T *new_object) {
   }
 
   // Either way, we now should have the previously stored object.
-  assert(old_object);
+  DBUG_ASSERT(old_object);
 
   // Check proper MDL locks.
-  assert(MDL_checker::is_write_locked(m_thd, old_object));
-  assert(MDL_checker::is_write_locked(m_thd, new_object));
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, old_object));
+  DBUG_ASSERT(MDL_checker::is_write_locked(m_thd, new_object));
 
   /*
     We first store the new object. If store() fails, there is not a
@@ -2606,28 +2649,28 @@ void Dictionary_client::register_uncommitted_object(T *object) {
 
   // Avoid registering uncommitted object during attachable read-write
   // transaction processing.
-  assert(!m_thd->is_attachable_rw_transaction_active());
+  DBUG_ASSERT(!m_thd->is_attachable_rw_transaction_active());
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   // Make sure we do not sign up a shared object for auto delete.
   m_registry_committed.get(
       static_cast<const typename T::Cache_partition *>(object), &element);
-  assert(element == nullptr);
+  DBUG_ASSERT(element == nullptr);
 
   // We need a top level auto releaser to make sure the uncommitted objects
   // are removed. This is done in the auto releaser destructor. When
   // renove_uncommitted_objects() is called implicitly as part of commit/
   // rollback, this should not be necessary.
-  assert(m_current_releaser != &m_default_releaser);
+  DBUG_ASSERT(m_current_releaser != &m_default_releaser);
 
   // store() should have been called before if this is a
   // new object so that it has a proper ID already.
-  assert(object->id() != INVALID_OBJECT_ID);
+  DBUG_ASSERT(object->id() != INVALID_OBJECT_ID);
 
   // Make sure the same id is not present in the dropped registry.
   const typename T::Id_key id_key(object->id());
   m_registry_dropped.get(id_key, &element);
-  assert(element == nullptr);
+  DBUG_ASSERT(element == nullptr);
 #endif
 
   element = new Cache_element<typename T::Cache_partition>();
@@ -2639,21 +2682,21 @@ void Dictionary_client::register_uncommitted_object(T *object) {
 template <typename T>
 void Dictionary_client::register_dropped_object(T *object) {
   Cache_element<typename T::Cache_partition> *element = nullptr;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   // Make sure we do not sign up a shared object for auto delete.
   m_registry_committed.get(
       static_cast<const typename T::Cache_partition *>(object), &element);
-  assert(element == nullptr);
+  DBUG_ASSERT(element == nullptr);
 
   // We need a top level auto releaser to make sure the dropped objects
   // are removed. This is done in the auto releaser destructor. When
   // renove_uncommitted_objects() is called implicitly as part of commit/
   // rollback, this should not be necessary.
-  assert(m_current_releaser != &m_default_releaser);
+  DBUG_ASSERT(m_current_releaser != &m_default_releaser);
 
   // store() should have been called before if this is a
   // new object so that it has a proper ID already.
-  assert(object->id() != INVALID_OBJECT_ID);
+  DBUG_ASSERT(object->id() != INVALID_OBJECT_ID);
 #endif
 
   // Could be in the uncommitted registry, remove and delete.
@@ -2661,13 +2704,13 @@ void Dictionary_client::register_dropped_object(T *object) {
   typename T::Cache_partition *modified = nullptr;
   bool dropped = false;
   acquire_uncommitted(id_key, &modified, &dropped);
-  assert(!dropped);
+  DBUG_ASSERT(!dropped);
   if (modified != nullptr) {
     m_registry_uncommitted.get(
         static_cast<const typename T::Cache_partition *>(modified), &element);
-    assert(element != nullptr);
+    DBUG_ASSERT(element != nullptr);
     m_registry_uncommitted.remove(element);
-    assert(element->object() != object);
+    DBUG_ASSERT(element->object() != object);
     delete element->object();
     // The element is reused below, so we don't delete it.
   }
@@ -2702,13 +2745,13 @@ void Dictionary_client::register_dropped_object(T *object) {
 template <typename T>
 void Dictionary_client::remove_uncommitted_objects(
     bool commit_to_shared_cache) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   // Note: The ifdef'ed block below is only for consistency checks in
   // debug builds.
   for (auto it = m_registry_dropped.begin<typename T::Cache_partition>();
        it != m_registry_dropped.end<typename T::Cache_partition>(); it++) {
     const typename T::Cache_partition *dropped_object = it->second->object();
-    assert(dropped_object != nullptr);
+    DBUG_ASSERT(dropped_object != nullptr);
 
     // Checking proper MDL lock is skipped here because when dropping a
     // schema, the implementation of the MDL checking does not work properly.
@@ -2727,24 +2770,25 @@ void Dictionary_client::remove_uncommitted_objects(
       const typename T::Cache_partition *stored_object = nullptr;
       if (!Shared_dictionary_cache::instance()->get_uncached(
               m_thd, id_key, ISO_READ_UNCOMMITTED, &stored_object))
-        assert(stored_object == nullptr);
+        DBUG_ASSERT(stored_object == nullptr);
     }
 
     // Make sure that dropped object ids are not present in the shared cache.
-    assert(!(Shared_dictionary_cache::instance()
-                 ->available<typename T::Id_key, typename T::Cache_partition>(
-                     id_key)));
+    DBUG_ASSERT(
+        !(Shared_dictionary_cache::instance()
+              ->available<typename T::Id_key, typename T::Cache_partition>(
+                  id_key)));
 
     // Make sure that dropped object ids are not present in the uncommitted
     // registry.
     Cache_element<typename T::Cache_partition> *element = nullptr;
     m_registry_uncommitted.get(id_key, &element);
-    assert(element == nullptr);
+    DBUG_ASSERT(element == nullptr);
 
     // Make sure that dropped object ids are not present in the committed
     // registry.
     m_registry_committed.get(id_key, &element);
-    assert(element == nullptr);
+    DBUG_ASSERT(element == nullptr);
   }
 #endif
   if (commit_to_shared_cache) {
@@ -2754,7 +2798,7 @@ void Dictionary_client::remove_uncommitted_objects(
          it++) {
       typename T::Cache_partition *uncommitted_object =
           const_cast<typename T::Cache_partition *>(it->second->object());
-      assert(uncommitted_object != nullptr);
+      DBUG_ASSERT(uncommitted_object != nullptr);
 
       // Update the DD object in the core registry if applicable.
       // Currently only for the dd tablespace to allow it to be encrypted.
@@ -2763,12 +2807,12 @@ void Dictionary_client::remove_uncommitted_objects(
       // Invalidate the entry in the shared cache (if present).
       invalidate(uncommitted_object);
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
       // Make sure the uncommitted id is not present in the dropped registry.
       const typename T::Id_key key(uncommitted_object->id());
       Cache_element<typename T::Cache_partition> *element = nullptr;
       m_registry_committed.get(key, &element);
-      assert(element == nullptr);
+      DBUG_ASSERT(element == nullptr);
 #endif
     }
 
@@ -2789,7 +2833,7 @@ void Dictionary_client::remove_uncommitted_objects(
            it++) {
         typename T::Cache_partition *uncommitted_object =
             const_cast<typename T::Cache_partition *>(it->second->object());
-        assert(uncommitted_object != nullptr);
+        DBUG_ASSERT(uncommitted_object != nullptr);
 
         Cache_element<typename T::Cache_partition> *element = nullptr;
 
@@ -2839,7 +2883,7 @@ void Dictionary_client::commit_modified_objects() {
 /* purecov: begin inspected */
 template <typename T>
 void Dictionary_client::dump() const {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   fprintf(stderr, "================================\n");
   fprintf(stderr, "Dictionary client (committed)\n");
   m_registry_committed.dump<T>();

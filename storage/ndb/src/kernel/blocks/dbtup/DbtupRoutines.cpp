@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2762,12 +2762,15 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::RANGE_NO:
   {
-    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
-    ndbrequire(1 <= out_words);
-    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
-                               attrId,
-                               outBuffer + 1,
-                               out_words);
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = attrId;
+    
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    outBuffer[1] = signal->theData[0];
     sz = 1;
     break;
   }
@@ -2781,31 +2784,39 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::RECORDS_IN_RANGE:
   {
-    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
-    ndbrequire(4 <= out_words);
-    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
-                               attrId,
-                               outBuffer + 1,
-                               out_words);
+    const Uint32 DataSz = 4;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = attrId;
+    
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    outBuffer[1] = signal->theData[0];
+    outBuffer[2] = signal->theData[1];
+    outBuffer[3] = signal->theData[2];
+    outBuffer[4] = signal->theData[3];
     sz = 4;
     break;
   }
   case AttributeHeader::INDEX_STAT_KEY:
   case AttributeHeader::INDEX_STAT_VALUE:
   {
-    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
-    ndbrequire(1 + MAX_INDEX_STAT_KEY_SIZE <= out_words);
+    const Uint32 DataSz = MAX_INDEX_STAT_KEY_SIZE;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
 
-    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
-                               attrId,
-                               outBuffer + 1,
-                               out_words);
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = attrId;
 
-    Uint8* out = (Uint8*)&outBuffer[1];
-    Uint32 byte_sz = 2 + out[0] + (out[1] << 8);
-    ndbrequire((byte_sz + 3) / 4 <= out_words);
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+
+    const Uint8* src = (Uint8*)&signal->theData[0];
+    Uint32 byte_sz = 2 + src[0] + (src[1] << 8);
+    Uint8* dst = (Uint8*)&outBuffer[1];
+    memcpy(dst, src, byte_sz);
     while (byte_sz % 4 != 0)
-      out[byte_sz++] = 0;
+      dst[byte_sz++] = 0;
     sz = byte_sz / 4;
     break;
   }
@@ -2903,26 +2914,31 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::CORR_FACTOR32:
   {
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     thrjam(req_struct->jamBuffer);
-    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
-    ndbrequire(2 <= out_words);
-    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
-                               AttributeHeader::CORR_FACTOR64,
-                               outBuffer + 1,
-                               out_words);
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
     sz = 1;
+    outBuffer[1] = signal->theData[0];
     break;
   }
   case AttributeHeader::CORR_FACTOR64:
   {
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
     thrjam(req_struct->jamBuffer);
-    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
-    ndbrequire(2 <= out_words);
-    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
-                               AttributeHeader::CORR_FACTOR64,
-                               outBuffer + 1,
-                               out_words);
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = AttributeHeader::CORR_FACTOR64;
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
     sz = 2;
+    outBuffer[1] = signal->theData[0];
+    outBuffer[2] = signal->theData[1];
     break;
   }
   case AttributeHeader::FRAGMENT_EXTENT_SPACE:
@@ -2943,23 +2959,32 @@ Dbtup::read_pseudo(const Uint32 * inBuffer, Uint32 inPos,
   }
   case AttributeHeader::LOCK_REF:
   {
-    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
-    ndbrequire(3 <= out_words);
-    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
-                               attrId,
-                               outBuffer + 1,
-                               out_words);
+    const Uint32 DataSz = 3;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = attrId;
+    
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    outBuffer[1] = signal->theData[0];
+    outBuffer[2] = signal->theData[1];
+    outBuffer[3] = signal->theData[2];
     sz = 3;
     break;
   }
   case AttributeHeader::OP_ID:
   {
-    Uint32 out_words = req_struct->max_read / 4 - ((outBuffer + 1) - outBuf);
-    ndbrequire(2 <= out_words);
-    c_lqh->execREAD_PSEUDO_REQ(req_struct->operPtrP->userpointer,
-                               attrId,
-                               outBuffer + 1,
-                               out_words);
+    const Uint32 DataSz = 2;
+    SignalT<DataSz> signalT;
+    Signal * signal = new (&signalT) Signal(0);
+
+    signal->theData[0] = req_struct->operPtrP->userpointer;
+    signal->theData[1] = attrId;
+    
+    EXECUTE_DIRECT(DBLQH, GSN_READ_PSEUDO_REQ, signal, 2);
+    outBuffer[1] = signal->theData[0];
+    outBuffer[2] = signal->theData[1];
     sz = 2;
     break;
   }

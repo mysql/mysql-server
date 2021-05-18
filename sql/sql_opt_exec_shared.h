@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,8 @@
 #ifndef SQL_OPT_EXEC_SHARED_INCLUDED
 #define SQL_OPT_EXEC_SHARED_INCLUDED
 
-#include <assert.h>
 #include "my_base.h"
-
+#include "my_dbug.h"
 #include "sql/item.h"
 
 class JOIN;
@@ -142,7 +141,7 @@ struct TABLE_REF {
   bool impossible_null_ref() const {
     if (null_rejecting == 0) return false;
     for (uint i = 0; i < key_parts; i++) {
-      if ((null_rejecting & 1 << i) && items[i]->is_nullable() &&
+      if ((null_rejecting & 1 << i) && items[i]->maybe_null &&
           items[i]->is_null()) {
         return true;
       }
@@ -159,7 +158,7 @@ struct TABLE_REF {
   */
 
   bool has_guarded_conds() const {
-    assert(key_parts == 0 || cond_guards != nullptr);
+    DBUG_ASSERT(key_parts == 0 || cond_guards != nullptr);
 
     for (uint i = 0; i < key_parts; i++) {
       if (cond_guards[i]) return true;
@@ -260,11 +259,11 @@ class QEP_shared {
   JOIN *join() const { return m_join; }
   void set_join(JOIN *j) { m_join = j; }
   plan_idx idx() const {
-    assert(m_idx >= 0);  // Index must be valid
+    DBUG_ASSERT(m_idx >= 0);  // Index must be valid
     return m_idx;
   }
   void set_idx(plan_idx i) {
-    assert(m_idx == NO_PLAN_IDX);  // Index should not change in lifetime
+    DBUG_ASSERT(m_idx == NO_PLAN_IDX);  // Index should not change in lifetime
     m_idx = i;
   }
   TABLE *table() const { return m_table; }
@@ -475,7 +474,7 @@ class QEP_shared_owner {
   /// Instructs to share the QEP_shared with another owner
   void share_qs(QEP_shared_owner *other) { other->set_qs(m_qs); }
   void set_qs(QEP_shared *q) {
-    assert(!m_qs);
+    DBUG_ASSERT(!m_qs);
     m_qs = q;
   }
 
@@ -574,7 +573,7 @@ enum {
   /**
      The slice which is used during evaluation of expressions; Item_ref::ref
      points there. This is the only slice that is not allocated on the heap;
-     it always points to query_block->base_ref_items.
+     it always points to select_lex->base_ref_items.
 
      If we have a simple query (no temporary tables or GROUP BY needed),
      this slice always contains the base slice, i.e., the actual Items used
@@ -619,6 +618,51 @@ enum {
      table
   */
   REF_SLICE_TMP2,
+  /**
+     Stores the unfinished aggregated row when doing GROUP BY on an
+     ordered table.
+
+     For certain queries with GROUP BY (e.g., when using an index),
+     rows arrive already sorted in the right order for grouping.
+     In that case, we do not need nor use a temporary table, but can
+     just group values as we go. However, we do not necessarily know when
+     a group ends -- a group implicitly ends when we see that the
+     group index values have changed, and by that time, it's too late to
+     output them in the aggregated row (the Fields already point to the
+     new row, so the data is lost).
+
+     Thus, we need to store the values for the current group somewhere.
+     We use a set of Items, which together represent a one-row
+     pseudo-tmp-table holding the current group. These items are created
+     by setup_copy_fields().
+
+     When we have finished reading a row from the last pre-grouping table, we
+     process it either with end_send_group() or end_send():
+
+       * end_send_group(): Compare the new row with the current group.
+         If it belongs to the current group, we update the aggregation functions
+         and move on. If not, we output the aggregated row and overwrite the
+         contents of this slice with the new group.
+
+       * end_send(): Used when we know there's exactly one row for each group
+         (e.g., during a loose index scan). In this case, we can skip the
+         comparison and just output the group directly; however, we still need
+         the temporary table to avoid evaluating Items more than once (see the
+         next paragraph).
+
+     Both functions build the group by copying values of items from the previous
+     stages into a pseudo-table, e.g.
+
+       SELECT a, RAND() AS r FROM t GROUP BY a HAVING r=1;
+
+     copies "a" from "t" and stores it into the pseudo-table (this slice),
+     evaluates rand() and stores it, then finally evaluates "r=1" based on the
+     stored value (so that "r" in the SELECT list and "r" in "r=1" match).
+
+     Groups from this slice are always directly sent to the query's result,
+     and never buffered to any further temporary table.
+  */
+  REF_SLICE_ORDERED_GROUP_BY,
   /**
      The slice with pointers to columns of table(s), ie., the actual Items.
      Only used for queries involving temporary tables or the likes; for simple

@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -105,7 +105,7 @@ bool Aes_ctr_cipher<TYPE>::init_cipher(uint64_t offset) {
 
   uint64_t counter = offset / AES_BLOCK_SIZE;
 
-  assert(m_ctx == nullptr);
+  DBUG_ASSERT(m_ctx == nullptr);
   m_ctx = EVP_CIPHER_CTX_new();
   if (m_ctx == nullptr) return true;
 
@@ -144,7 +144,7 @@ bool Aes_ctr_cipher<TYPE>::encrypt(unsigned char *dest,
 
   if (TYPE == Cipher_type::DECRYPT) {
     /* It should never be called by a decrypt cipher */
-    assert(0);
+    DBUG_ASSERT(0);
     return true;
   }
 
@@ -164,7 +164,7 @@ bool Aes_ctr_cipher<TYPE>::decrypt(unsigned char *dest,
 
   if (TYPE == Cipher_type::ENCRYPT) {
     /* It should never be called by an encrypt cipher */
-    assert(0);
+    DBUG_ASSERT(0);
     return true;
   }
 

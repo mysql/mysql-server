@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -94,6 +94,8 @@ Configuration::Configuration()
   _backupPath = 0;
   _initialStart = false;
   m_config_retriever= 0;
+  m_clusterConfig= 0;
+  m_clusterConfigIter= 0;
   m_logLevel= 0;
 }
 
@@ -112,7 +114,6 @@ Configuration::~Configuration(){
   if(m_logLevel) {
     delete m_logLevel;
   }
-  ndb_mgm_destroy_iterator(m_clusterConfigIter);
 }
 
 void
@@ -166,6 +167,8 @@ Configuration::fetch_configuration(const char* _connect_string,
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Could not connect to ndb_mgmd", s);
   }
 
+  ConfigRetriever &cr= *m_config_retriever;
+
   if (allocated_nodeid)
   {
     // The angel has already allocated the nodeid, no need to
@@ -177,8 +180,7 @@ Configuration::fetch_configuration(const char* _connect_string,
 
     const int alloc_retries = 10;
     const int alloc_delay = 3;
-    globalData.ownId =
-        m_config_retriever->allocNodeId(alloc_retries, alloc_delay);
+    globalData.ownId = cr.allocNodeId(alloc_retries, alloc_delay);
     if(globalData.ownId == 0)
     {
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -188,9 +190,9 @@ Configuration::fetch_configuration(const char* _connect_string,
   }
   assert(globalData.ownId);
 
-  m_clusterConfig = m_config_retriever->getConfig(globalData.ownId);
-  if(!m_clusterConfig){
-    const char * s = m_config_retriever->getErrorString();
+  ndb_mgm_configuration * p = cr.getConfig(globalData.ownId);
+  if(p == 0){
+    const char * s = cr.getErrorString();
     if(s == 0)
       s = "No error given!";
     
@@ -201,23 +203,26 @@ Configuration::fetch_configuration(const char* _connect_string,
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Could not fetch configuration"
 	      "/invalid configuration", s);
   }
+  if(m_clusterConfig)
+    free(m_clusterConfig);
+  
+  m_clusterConfig = p;
 
-  const ConfigValues& cfg = m_clusterConfig.get()->m_config_values;
-  cfg.pack_v1(m_clusterConfigPacked_v1);
+  const ConfigValues * cfg = (ConfigValues*)m_clusterConfig;
+  cfg->pack_v1(m_clusterConfigPacked_v1);
   if (OUR_V2_VERSION)
   {
-    cfg.pack_v2(m_clusterConfigPacked_v2);
+    cfg->pack_v2(m_clusterConfigPacked_v2);
   }
 
   {
     Uint32 generation;
-    ndb_mgm_configuration_iterator sys_iter(m_clusterConfig.get(),
-                                            CFG_SECTION_SYSTEM);
-    char sockaddr_buf[512];
+    ndb_mgm_configuration_iterator sys_iter(*p, CFG_SECTION_SYSTEM);
+    char buf[512];
     char* sockaddr_string =
-        Ndb_combine_address_port(sockaddr_buf, sizeof(sockaddr_buf),
-                                 m_config_retriever->get_mgmd_host(),
-                                 m_config_retriever->get_mgmd_port());
+        Ndb_combine_address_port(buf, sizeof(buf),
+        m_config_retriever->get_mgmd_host(),
+        m_config_retriever->get_mgmd_port());
 
     if (sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation))
     {
@@ -231,12 +236,11 @@ Configuration::fetch_configuration(const char* _connect_string,
     }
   }
 
-  ndb_mgm_configuration_iterator iter(m_clusterConfig.get(), CFG_SECTION_NODE);
-  if (iter.find(CFG_NODE_ID, globalData.ownId)) {
-    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched",
-              "DB missing");
+  ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
+  if (iter.find(CFG_NODE_ID, globalData.ownId)){
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
   }
-
+  
   if(iter.get(CFG_DB_STOP_ON_ERROR, &_stopOnError)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "StopOnError missing");
@@ -293,6 +297,8 @@ Configuration::setupConfiguration(){
 
   DBUG_ENTER("Configuration::setupConfiguration");
 
+  ndb_mgm_configuration * p = m_clusterConfig;
+
   /**
    * Configure transporters
    */
@@ -304,7 +310,7 @@ Configuration::setupConfiguration(){
   }
 
   if (!IPCConfig::configureTransporters(globalData.ownId,
-                                        m_clusterConfig.get(),
+                                        * p,
                                         globalTransporterRegistry))
   {
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -313,9 +319,9 @@ Configuration::setupConfiguration(){
   }
 
   /**
-   * Setup cluster configuration for this node
+   * Setup cluster configuration data
    */
-  ndb_mgm_configuration_iterator iter(m_clusterConfig.get(), CFG_SECTION_NODE);
+  ndb_mgm_configuration_iterator iter(* p, CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, globalData.ownId)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", "DB missing");
   }
@@ -401,19 +407,13 @@ Configuration::setupConfiguration(){
    */  
   if (_fsPath)
     free(_fsPath);
-  _fsPath= get_and_validate_path(iter,
-                                 CFG_DB_FILESYSTEM_PATH,
-                                 "FileSystemPath");
+  _fsPath= get_and_validate_path(iter, CFG_DB_FILESYSTEM_PATH, "FileSystemPath");
   if (_backupPath)
     free(_backupPath);
-  _backupPath= get_and_validate_path(iter,
-                                     CFG_DB_BACKUP_DATADIR,
-                                     "BackupDataDir");
+  _backupPath= get_and_validate_path(iter, CFG_DB_BACKUP_DATADIR, "BackupDataDir");
 
   if(iter.get(CFG_DB_STOP_ON_ERROR_INSERT, &m_restartOnErrorInsert)){
-    ERROR_SET(fatal,
-              NDBD_EXIT_INVALID_CONFIG,
-              "Invalid configuration fetched", 
+    ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
 	      "RestartOnErrorInsert missing");
   }
   
@@ -453,23 +453,18 @@ Configuration::setupConfiguration(){
       m_thr_config.setLockIoThreadsToCPU(maintCPU);
   }
 
-  const char * thrconfigstring = nullptr;
-  Uint32 mtthreads = 0;
-  Uint32 auto_thread_config = 0;
-  Uint32 num_cpus = 0;
-  iter.get(CFG_DB_AUTO_THREAD_CONFIG, &auto_thread_config);
-  iter.get(CFG_DB_NUM_CPUS, &num_cpus);
-  g_eventLogger->info("AutomaticThreadConfig = %u, NumCPUs = %u", auto_thread_config, num_cpus);
-  iter.get(CFG_DB_MT_THREADS, &mtthreads);
-  iter.get(CFG_DB_MT_THREAD_CONFIG, &thrconfigstring);
-  if (auto_thread_config == 0 &&
-      thrconfigstring != nullptr && thrconfigstring[0] != 0)
+#ifdef NDB_USE_GET_ENV
+  const char * thrconfigstring = NdbEnv_GetEnv("NDB_MT_THREAD_CONFIG",
+                                               (char*)0, 0);
+#else
+  const char * thrconfigstring = NULL;
+#endif
+  if (thrconfigstring ||
+      iter.get(CFG_DB_MT_THREAD_CONFIG, &thrconfigstring) == 0)
   {
     int res = m_thr_config.do_parse(thrconfigstring,
                                     _realtimeScheduler,
-                                    _schedulerSpinTimer,
-                                    globalData.ndbRRGroups,
-                                    false);
+                                    _schedulerSpinTimer);
     if (res != 0)
     {
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
@@ -479,66 +474,46 @@ Configuration::setupConfiguration(){
   }
   else
   {
-    if (auto_thread_config != 0)
-    {
-      Uint32 num_cpus = 0;
-      iter.get(CFG_DB_NUM_CPUS, &num_cpus);
-      g_eventLogger->info("Use automatic thread configuration");
-      m_thr_config.do_parse(_realtimeScheduler,
-                            _schedulerSpinTimer,
-                            num_cpus,
-                            globalData.ndbRRGroups);
-    }
-    else
-    {
-      Uint32 classic = 0;
-      iter.get(CFG_NDBMT_CLASSIC, &classic);
+    Uint32 mtthreads = 0;
+    iter.get(CFG_DB_MT_THREADS, &mtthreads);
+
+    Uint32 classic = 0;
+    iter.get(CFG_NDBMT_CLASSIC, &classic);
 #ifdef NDB_USE_GET_ENV
-      const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
-      if (p != 0)
-      {
-        if (strstr(p, "NOPLEASE") != 0)
-          classic = 1;
-      }
+    const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
+    if (p != 0)
+    {
+      if (strstr(p, "NOPLEASE") != 0)
+        classic = 1;
+    }
 #endif
-      Uint32 lqhthreads = 0;
-      iter.get(CFG_NDBMT_LQH_THREADS, &lqhthreads);
-      int res = m_thr_config.do_parse(mtthreads,
-                                      lqhthreads,
-                                      classic,
-                                      _realtimeScheduler,
-                                      _schedulerSpinTimer,
-                                      globalData.ndbRRGroups,
-                                      false);
-      if (res != 0)
-      {
-        ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-          "Invalid configuration fetched, invalid thread configuration",
-          m_thr_config.getErrorMessage());
-      }
+    Uint32 lqhthreads = 0;
+    iter.get(CFG_NDBMT_LQH_THREADS, &lqhthreads);
+
+    int res = m_thr_config.do_parse(mtthreads,
+                                    lqhthreads,
+                                    classic,
+                                    _realtimeScheduler,
+                                    _schedulerSpinTimer);
+    if (res != 0)
+    {
+      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
+                "Invalid configuration fetched, invalid thread configuration",
+                m_thr_config.getErrorMessage());
     }
   }
   if (NdbIsMultiThreaded())
   {
     if (thrconfigstring)
     {
-      ndbout_c("ThreadConfig: input: %s LockExecuteThreadToCPU: %s =>"
-               " parsed: %s",
+      ndbout_c("ThreadConfig: input: %s LockExecuteThreadToCPU: %s => parsed: %s",
                thrconfigstring,
-               lockmask ? lockmask : "",
-               m_thr_config.getConfigString());
-    }
-    else if (mtthreads == 0)
-    {
-      ndbout_c("Automatic Thread Config: LockExecuteThreadToCPU: %s =>"
-               " parsed: %s",
                lockmask ? lockmask : "",
                m_thr_config.getConfigString());
     }
     else
     {
-      ndbout_c("ThreadConfig (old ndb_mgmd) LockExecuteThreadToCPU: %s =>"
-               " parsed: %s",
+      ndbout_c("ThreadConfig (old ndb_mgmd) LockExecuteThreadToCPU: %s => parsed: %s",
                lockmask ? lockmask : "",
                m_thr_config.getConfigString());
     }
@@ -546,9 +521,10 @@ Configuration::setupConfiguration(){
 
   ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);
 
-  ndb_mgm_destroy_iterator(m_clusterConfigIter);
-  m_clusterConfigIter = ndb_mgm_create_configuration_iterator(
-      m_clusterConfig.get(), CFG_SECTION_NODE);
+  if(m_clusterConfigIter)
+    ndb_mgm_destroy_iterator(m_clusterConfigIter);
+  m_clusterConfigIter = ndb_mgm_create_configuration_iterator
+    (p, CFG_SECTION_NODE);
 
   /**
    * This is parts of get_multithreaded_config
@@ -559,39 +535,11 @@ Configuration::setupConfiguration(){
     if (!globalData.isNdbMt)
       break;
 
-    globalData.ndbMtQueryThreads =
-      m_thr_config.getThreadCount(THRConfig::T_QUERY);
-    globalData.ndbMtRecoverThreads =
-      m_thr_config.getThreadCount(THRConfig::T_RECOVER);
     globalData.ndbMtTcThreads = m_thr_config.getThreadCount(THRConfig::T_TC);
-    globalData.ndbMtTcWorkers = globalData.ndbMtTcThreads;
-    if (globalData.ndbMtTcWorkers == 0)
-    {
-      globalData.ndbMtTcWorkers = 1;
-    }
     globalData.ndbMtSendThreads =
       m_thr_config.getThreadCount(THRConfig::T_SEND);
     globalData.ndbMtReceiveThreads =
       m_thr_config.getThreadCount(THRConfig::T_RECV);
-    /**
-     * ndbMtMainThreads is the total number of main and rep threads.
-     * There can be 0 or 1 main threads, 0 or 1 rep threads. If there
-     * is 0 main threads then the blocks handled by the main thread is
-     * handled by the receive thread and so is the rep thread blocks.
-     *
-     * When there is one main thread, then we will have both the main
-     * thread blocks and the rep thread blocks handled by this single
-     * main thread. With two main threads we will have one main thread
-     * that handles the main thread blocks and one thread handling the
-     * rep thread blocks.
-     *
-     * The nomenclature can be a bit confusing that we have a main thread
-     * that is separate from the main threads. So possibly one could have
-     * called this variable globalData.ndbMtMainRepThreads instead.
-     */
-    globalData.ndbMtMainThreads =
-      m_thr_config.getThreadCount(THRConfig::T_MAIN) +
-      m_thr_config.getThreadCount(THRConfig::T_REP);
 
     globalData.isNdbMtLqh = true;
     {
@@ -606,44 +554,27 @@ Configuration::setupConfiguration(){
 
     Uint32 threads = m_thr_config.getThreadCount(THRConfig::T_LDM);
     Uint32 workers = threads;
-    if (threads == 0)
-      workers = 1;
+    iter.get(CFG_NDBMT_LQH_WORKERS, &workers);
+
+#ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
+    // testing
+    {
+      const char* p;
+      p = NdbEnv_GetEnv("NDBMT_LQH_WORKERS", (char*)0, 0);
+      if (p != 0)
+        workers = atoi(p);
+    }
+#endif
+#endif
+
+
+    assert(workers != 0 && workers <= MAX_NDBMT_LQH_WORKERS);
+    assert(threads != 0 && threads <= MAX_NDBMT_LQH_THREADS);
+    assert(workers % threads == 0);
 
     globalData.ndbMtLqhWorkers = workers;
     globalData.ndbMtLqhThreads = threads;
-    if (threads == 0)
-    {
-      if (!((globalData.ndbMtTcThreads == 0 &&
-             globalData.ndbMtMainThreads == 0 &&
-             globalData.ndbMtReceiveThreads == 1 &&
-             globalData.ndbMtQueryThreads == 0) ||
-            (globalData.ndbMtTcThreads == 0 &&
-             globalData.ndbMtMainThreads == 1 &&
-             globalData.ndbMtReceiveThreads == 1 &&
-             globalData.ndbMtQueryThreads == 0)))
-      {
-        ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-                  "Invalid configuration fetched. ",
-                  "Setting number of ldm threads to 0 must be combined"
-                  " with 0 query, tc, rep thread and 0/1 main thread"
-                  " and 1 recv thread");
-      }
-    }
-    Uint32 query_threads_per_ldm = globalData.ndbMtQueryThreads / workers;
-    if (workers * query_threads_per_ldm != globalData.ndbMtQueryThreads)
-    {
-      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-                "Invalid configuration fetched. ",
-                "Number of query threads must be a multiple of the number"
-                " of LDM threads.");
-    }
-    globalData.QueryThreadsPerLdm = query_threads_per_ldm;
-    if (globalData.ndbMtRecoverThreads > MAX_NDBMT_QUERY_THREADS)
-    {
-      ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG,
-                "Invalid configuration fetched. ",
-                "Sum of recover threads and query threads can be max 127");
-    }
   } while (0);
 
   calcSizeAlt(cf);
@@ -762,10 +693,10 @@ Configuration::getOwnConfigIterator() const {
   return m_ownConfigIterator;
 }
 
-const ConfigValues*
+const class ConfigValues*
 Configuration::get_own_config_values()
 {
-  return &m_ownConfig->m_config_values;
+  return &m_ownConfig->m_config;
 }
 
 
@@ -777,7 +708,7 @@ Configuration::getClusterConfigIterator() const {
 Uint32 
 Configuration::get_config_generation() const {
   Uint32 generation = ~0;
-  ndb_mgm_configuration_iterator sys_iter(m_clusterConfig.get(),
+  ndb_mgm_configuration_iterator sys_iter(*m_clusterConfig,
                                           CFG_SECTION_SYSTEM);
   sys_iter.get(CFG_SYS_CONFIG_GENERATION, &generation);
   return generation;
@@ -853,9 +784,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig)
     { CFG_DB_RESERVED_TRANS_BUFFER_MEM, &reservedTransactionBufferBytes, true },
   };
 
-  ndb_mgm_configuration_iterator db(
-      reinterpret_cast<ndb_mgm_configuration *>(ownConfig), 0);
-
+  ndb_mgm_configuration_iterator db(*(ndb_mgm_configuration*)ownConfig, 0);
+  
   const int sz = sizeof(tmp)/sizeof(AttribStorage);
   for(int i = 0; i<sz; i++){
     if(ndb_mgm_get_int_parameter(&db, tmp[i].paramId, tmp[i].storage)){
@@ -904,20 +834,20 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig)
   }
   
   // tmp
-  ndb_mgm_configuration_iterator * iter = m_clusterConfigIter;
+  ndb_mgm_configuration_iterator * p = m_clusterConfigIter;
 
   Uint32 nodeNo = noOfNodes = 0;
   NodeBitmask nodes;
-  for(ndb_mgm_first(iter); ndb_mgm_valid(iter); ndb_mgm_next(iter), nodeNo++){
+  for(ndb_mgm_first(p); ndb_mgm_valid(p); ndb_mgm_next(p), nodeNo++){
     
     Uint32 nodeId;
     Uint32 nodeType;
     
-    if(ndb_mgm_get_int_parameter(iter, CFG_NODE_ID, &nodeId)){
+    if(ndb_mgm_get_int_parameter(p, CFG_NODE_ID, &nodeId)){
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "Node data (Id) missing");
     }
     
-    if(ndb_mgm_get_int_parameter(iter, CFG_TYPE_OF_SECTION, &nodeType)){
+    if(ndb_mgm_get_int_parameter(p, CFG_TYPE_OF_SECTION, &nodeType)){
       ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, msg, "Node data (Type) missing");
     }
     
@@ -1327,7 +1257,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig)
 
   require(cfg.commit(true));
   m_ownConfig = (ndb_mgm_configuration*)cfg.getConfigValues();
-  m_ownConfigIterator = ndb_mgm_create_configuration_iterator(m_ownConfig, 0);
+  m_ownConfigIterator = ndb_mgm_create_configuration_iterator
+    (m_ownConfig, 0);
 }
 
 void
@@ -1430,8 +1361,7 @@ Configuration::setLockCPU(NdbThread * pThread,
   }
   else if (!NdbIsMultiThreaded())
   {
-    BlockNumber list[1];
-    list[0] = numberToBlock(TRPMAN, 1);
+    BlockNumber list[] = { DBDIH };
     res = m_thr_config.do_bind(pThread, list, 1);
   }
 
@@ -1484,8 +1414,7 @@ Configuration::setThreadPrio(NdbThread * pThread,
   }
   else if (!NdbIsMultiThreaded())
   {
-    BlockNumber list[1];
-    list[0] = numberToBlock(TRPMAN, 1);
+    BlockNumber list[] = { DBDIH };
     res = m_thr_config.do_thread_prio(pThread, list, 1, thread_prio);
   }
 

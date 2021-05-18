@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -51,7 +51,6 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbEnv.cpp
   NdbThread.cpp
   NdbHost.cpp
-  NdbHW.cpp
   NdbTCP.cpp
   NdbMem.cpp
   NdbConfig.cpp
@@ -59,7 +58,6 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbDir.cpp
   ndb_daemon.cpp
   ndb_file_common.cpp
-  ndb_password.cpp
   ndb_stacktrace.cpp
   ${EXTRA_SRC}
   NdbNuma.cpp
@@ -69,8 +67,6 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
   NdbSpin.cpp
   LINK_LIBRARIES mysys ${LIBSOCKET}
   )
-
-NDB_ADD_TEST(NdbHW-t NdbHW.cpp LIBS ndbgeneral ndbportlib)
 
 NDB_ADD_TEST(NdbDir-t NdbDir.cpp LIBS ndbportlib)
 

@@ -6,7 +6,7 @@
 
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_docpath.xpl
+--let $xtest_file= $MYSQL_TMP_DIR/admin_list_objects_docpath.tmp
 --write_file $xtest_file
 -->quiet
 ## Test data
@@ -144,4 +144,6 @@ exec $MYSQLXTEST
   --file=$xtest_file 2>&1;
 
 ## Cleanup
---source ../include/xplugin_cleanup.inc
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

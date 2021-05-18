@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,11 @@
 #include "sql/gis/simplify.h"
 #include "sql/gis/simplify_functor.h"
 
-#include <assert.h>
 #include <memory>  // std::unique_ptr
 
 #include <boost/geometry.hpp>
 
-// assert
+#include "my_dbug.h"                                // DBUG_ASSERT
 #include "my_inttypes.h"                            // MYF
 #include "my_sys.h"                                 // my_error
 #include "mysqld_error.h"                           // Error codes
@@ -51,7 +50,7 @@ std::unique_ptr<Geometry> Simplify::operator()(const Geometry &g) const {
 
 std::unique_ptr<Geometry> Simplify::eval(const Geometry &g) const {
   // All parameter type combinations have been implemented.
-  assert(false);
+  DBUG_ASSERT(false);
   throw not_implemented_exception::for_non_projected(g);
 }
 
@@ -132,14 +131,14 @@ bool simplify(const dd::Spatial_reference_system *srs, const Geometry &g,
               double max_distance, const char *func_name,
               std::unique_ptr<Geometry> *result) noexcept {
   try {
-    assert(srs == nullptr ||
-           ((srs->is_cartesian() &&
-             g.coordinate_system() == Coordinate_system::kCartesian) ||
-            (srs->is_geographic() &&
-             g.coordinate_system() == Coordinate_system::kGeographic)));
+    DBUG_ASSERT(srs == nullptr ||
+                ((srs->is_cartesian() &&
+                  g.coordinate_system() == Coordinate_system::kCartesian) ||
+                 (srs->is_geographic() &&
+                  g.coordinate_system() == Coordinate_system::kGeographic)));
 
     if (srs != nullptr && !srs->is_cartesian()) {
-      assert(srs->is_geographic());
+      DBUG_ASSERT(srs->is_geographic());
       std::stringstream types;
       types << type_to_name(g.type()) << ", ...";
       my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name,

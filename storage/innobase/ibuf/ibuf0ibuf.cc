@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2021, Oracle and/or its affiliates.
+Copyright (c) 1997, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -578,6 +578,9 @@ byte *ibuf_parse_bitmap_init(byte *ptr, /*!< in: buffer */
                              buf_block_t *block, /*!< in: block or NULL */
                              mtr_t *mtr)         /*!< in: mtr or NULL */
 {
+  ut_ad(ptr != nullptr);
+  ut_ad(end_ptr != nullptr);
+
   if (block) {
     ibuf_bitmap_page_init(block, mtr);
   }
@@ -1313,22 +1316,20 @@ bool ibuf_rec_has_multi_value(const rec_t *rec) {
 
 /** Add accumulated operation counts to a permanent array. Both arrays must be
  of size IBUF_OP_COUNT. */
-static void ibuf_add_ops(
-    std::atomic<ulint> *arr, /*!< in/out: array to modify */
-    const ulint *ops)        /*!< in: operation counts */
+static void ibuf_add_ops(ulint *arr,       /*!< in/out: array to modify */
+                         const ulint *ops) /*!< in: operation counts */
 
 {
   ulint i;
 
   for (i = 0; i < IBUF_OP_COUNT; i++) {
-    arr[i].fetch_add(ops[i]);
+    os_atomic_increment_ulint(&arr[i], ops[i]);
   }
 }
 
 /** Print operation counts. The array must be of size IBUF_OP_COUNT. */
-static void ibuf_print_ops(
-    const std::atomic<ulint> *ops, /*!< in: operation counts */
-    FILE *file)                    /*!< in: file where to print */
+static void ibuf_print_ops(const ulint *ops, /*!< in: operation counts */
+                           FILE *file)       /*!< in: file where to print */
 {
   static const char *op_names[] = {"insert", "delete mark", "delete"};
   ulint i;
@@ -1336,7 +1337,7 @@ static void ibuf_print_ops(
   ut_a(UT_ARR_SIZE(op_names) == IBUF_OP_COUNT);
 
   for (i = 0; i < IBUF_OP_COUNT; i++) {
-    fprintf(file, "%s %lu%s", op_names[i], (ulong)ops[i].load(),
+    fprintf(file, "%s %lu%s", op_names[i], (ulong)ops[i],
             (i < (IBUF_OP_COUNT - 1)) ? ", " : "");
   }
 
@@ -3371,7 +3372,7 @@ ibool ibuf_insert(ibuf_op_t op, const dtuple_t *entry, dict_index_t *index,
   ibool no_counter;
   /* Read the settable global variable ibuf_use only once in
   this function, so that we will have a consistent view of it. */
-  assert(innodb_change_buffering <= IBUF_USE_ALL);
+  DBUG_ASSERT(innodb_change_buffering <= IBUF_USE_ALL);
   ibuf_use_t use = static_cast<ibuf_use_t>(innodb_change_buffering);
 
   DBUG_TRACE;
@@ -4066,7 +4067,8 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
   ulint dops[IBUF_OP_COUNT];
 
   ut_ad(block == nullptr || page_id == block->page.id);
-  ut_ad(block == nullptr || block->page.is_io_fix_read());
+  ut_ad(block == nullptr ||
+        buf_block_get_io_fix_unlocked(block) == BUF_IO_READ);
 
   if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE ||
       trx_sys_hdr_page(page_id) || fsp_is_system_temporary(page_id.space())) {
@@ -4352,7 +4354,7 @@ reset_bit:
   btr_pcur_close(&pcur);
   mem_heap_free(heap);
 
-  ibuf->n_merges.fetch_add(1);
+  os_atomic_increment_ulint(&ibuf->n_merges, 1);
   ibuf_add_ops(ibuf->n_merged_ops, mops);
   ibuf_add_ops(ibuf->n_discarded_ops, dops);
 

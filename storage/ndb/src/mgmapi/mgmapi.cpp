@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -268,7 +268,7 @@ ndb_mgm_create_handle()
   h->mgmd_version_minor= -1;
   h->mgmd_version_build= -1;
 
-  DBUG_PRINT("info", ("handle: %p", h));
+  DBUG_PRINT("info", ("handle: 0x%lx", (long) h));
   DBUG_RETURN(h);
 }
 
@@ -292,7 +292,7 @@ int
 ndb_mgm_set_connectstring(NdbMgmHandle handle, const char* connect_string)
 {
   DBUG_ENTER("ndb_mgm_set_connectstring");
-  DBUG_PRINT("info", ("handle: %p", handle));
+  DBUG_PRINT("info", ("handle: 0x%lx", (long) handle));
   handle->cfg.~LocalConfig();
   new (&(handle->cfg)) LocalConfig;
   if (!handle->cfg.init(connect_string, 0) ||
@@ -388,7 +388,7 @@ ndb_mgm_destroy_handle(NdbMgmHandle * handle)
   DBUG_ENTER("ndb_mgm_destroy_handle");
   if(!handle)
     DBUG_VOID_RETURN;
-  DBUG_PRINT("info", ("handle: %p", (* handle)));
+  DBUG_PRINT("info", ("handle: 0x%lx", (long) (* handle)));
   /**
    * important! only disconnect if connected
    * other code relies on this
@@ -886,7 +886,7 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
     }
     if (ndb_socket_valid(sockfd))
       break;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     {
       DBUG_PRINT("error",("Unable to connect with connect string: %s",
 			 cfg.makeConnectString(buf,sizeof(buf))));
@@ -3091,7 +3091,7 @@ extern "C"
 void
 ndb_mgm_destroy_configuration(struct ndb_mgm_configuration *cfg)
 {
-  delete cfg;
+    delete cfg;
 }
 
 extern "C"

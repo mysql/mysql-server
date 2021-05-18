@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -71,7 +71,7 @@ is very easy\&. Invoke it from the prompt of your command interpreter as follows
 .RS 4
 .\}
 .nf
-mysql \fIdb_name\fR
+shell> \fBmysql \fR\fB\fIdb_name\fR\fR
 .fi
 .if n \{\
 .RE
@@ -83,20 +83,7 @@ Or:
 .RS 4
 .\}
 .nf
-mysql \-\-user=\fIuser_name\fR \-\-password \fIdb_name\fR
-.fi
-.if n \{\
-.RE
-.\}
-.PP
-In this case, you\*(Aqll need to enter your password in response to the prompt that
-\fBmysql\fR
-displays:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
+shell> \fBmysql \-\-user=\fR\fB\fIuser_name\fR\fR\fB \-\-password \fR\fB\fIdb_name\fR\fR
 Enter password: \fIyour_password\fR
 .fi
 .if n \{\
@@ -119,7 +106,7 @@ You can execute SQL statements in a script file (batch file) like this:
 .RS 4
 .\}
 .nf
-mysql \fIdb_name\fR < \fIscript\&.sql\fR > \fIoutput\&.tab\fR
+shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fIscript\&.sql\fR\fR\fB > \fR\fB\fIoutput\&.tab\fR\fR
 .fi
 .if n \{\
 .RE
@@ -506,7 +493,7 @@ The
 \fBmysql\fR
 client always passes optimizer hints to the server, regardless of whether this option is given\&.
 .sp
-Comment stripping is deprecated\&. Expect this feature and the options to control it to be removed in a future MySQL release\&.
+Comment stripping is deprecated\&. This feature and the options to control it will be removed in a future MySQL release\&.
 .sp .5v
 .RE
 .RE
@@ -524,7 +511,7 @@ Comment stripping is deprecated\&. Expect this feature and the options to contro
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
-As of MySQL 8\&.0\&.18, this option is deprecated\&. Expect it be removed in a future version of MySQL\&. See
+As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
@@ -690,9 +677,9 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
-is not an absolute path name, it is interpreted relative to the current directory\&.
+is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -707,9 +694,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
-is not an absolute path name, it is interpreted relative to the current directory\&.
+is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
 .sp
 Exception: Even with
 \fB\-\-defaults\-file\fR, client programs read
@@ -735,8 +722,9 @@ normally reads the
 [client]
 and
 [mysql]
-groups\&. If this option is given as
-\fB\-\-defaults\-group\-suffix=_other\fR,
+groups\&. If the
+\fB\-\-defaults\-group\-suffix=_other\fR
+option is given,
 \fBmysql\fR
 also reads the
 [client_other]
@@ -1076,7 +1064,7 @@ option applies\&.
 .sp
 When
 \fB\-\-load\-data\-local\-dir\fR
-applies, the option value designates the directory in which local data files must be located\&. Comparison of the directory path name and the path name of files to be loaded is case\-sensitive regardless of the case sensitivity of the underlying file system\&. If the option value is the empty string, it names no directory, with the result that no files are permitted for local data loading\&.
+applies, the option value designates the directory in which local data files must be located\&. Comparison of the directory path name and the path name of files to be loaded is case\-sensitive regardless of the case\-sensitivity of the underlying file system\&. If the option value is the empty string, it names no directory, with the result that no files are permitted for local data loading\&.
 .sp
 For example, to explicitly disable local data loading except for files located in the
 /my/local/data
@@ -1241,21 +1229,6 @@ The buffer size for TCP/IP and socket communication\&. (Default value is 16KB\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-\fB\-\-network\-namespace=\fR\fB\fIname\fR\fR
-The network namespace to use for TCP/IP connections\&. If omitted, the connection uses the default (global) namespace\&. For information about network namespaces, see
-Section\ \&5.1.14, \(lqNetwork Namespace Support\(rq\&.
-.sp
-This option was added in MySQL 8\&.0\&.22\&. It is available only on platforms that implement network namespace support\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-no\-auto\-rehash\fR,
 \fB\-A\fR
 This has the same effect as
@@ -1291,13 +1264,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
+file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. To create
-\&.mylogin\&.cnf, use the
+is used\&. (\&.mylogin\&.cnf
+is created by the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.
+\fBmysql_config_editor\fR(1)\&.)
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -1684,8 +1657,7 @@ If
 is given and specifies a valid public key file, it takes precedence over
 \fB\-\-get\-server\-public\-key\fR\&.
 .sp
-For
-sha256_password, this option applies only if MySQL was built using OpenSSL\&.
+This option is available only if MySQL was built using OpenSSL\&.
 .sp
 For information about the
 sha256_password
@@ -1818,7 +1790,7 @@ system variable\&.
 \fB\-\-ssl*\fR
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server using encryption and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
 the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
@@ -2209,8 +2181,6 @@ charset   (\eC) Switch to another charset\&. Might be needed for processing
 warnings  (\eW) Show warnings after every statement\&.
 nowarning (\ew) Don\*(Aqt show warnings after every statement\&.
 resetconnection(\ex) Clean session context\&.
-query_attributes(\e) Sets string parameters (name1 value1 name2 value2 \&.\&.\&.)
-for the next query to pick up\&.
 For server side help, type \*(Aqhelp contents\*(Aq
 .fi
 .if n \{\
@@ -2350,7 +2320,7 @@ command line\&. Quoting can be done with either single quote (\*(Aq), double quo
 .sp
 \fBmysql\fR
 interprets instances of the delimiter string as a statement delimiter anywhere it occurs, except within quoted strings\&. Be careful about defining a delimiter that might occur within other words\&. For example, if you define the delimiter as
-X, it is not possible to use the word
+X, you will be unable to use the word
 INDEX
 in statements\&.
 \fBmysql\fR
@@ -2366,7 +2336,7 @@ is set to something other than the default of
 ;
 as a statement delimiter and processes statements accordingly\&. This behavior on the server side comes into play for multiple\-statement execution (see
 \m[blue]\fBC API Multiple Statement Execution Support\fR\m[]\&\s-2\u[3]\d\s+2), and for parsing the body of stored procedures and functions, triggers, and events (see
-Section\ \&25.1, \(lqDefining Stored Programs\(rq)\&.
+Section\ \&24.1, \(lqDefining Stored Programs\(rq)\&.
 .RE
 .sp
 .RS 4
@@ -2569,101 +2539,6 @@ mysql>\&.
 .sp -1
 .IP \(bu 2.3
 .\}
-query_attributes \fIname\fR \fIvalue\fR [\fIname\fR \fIvalue\fR \&.\&.\&.]
-.sp
-Define query attributes that apply to the next query sent to the server\&. For discussion of the purpose and use of query attributes, see
-Section\ \&9.6, \(lqQuery Attributes\(rq\&.
-.sp
-The
-query_attributes
-command follows these rules:
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-The format and quoting rules for attribute names and values are the same as for the
-delimiter
-command\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-The command permits up to 32 attribute name/value pairs\&. Names and values may be up to 1024 characters long\&. If a name is given without a value, an error occurs\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-If multiple
-query_attributes
-commands are issued prior to query execution, only the last command applies\&. After sending the query,
-\fBmysql\fR
-clears the attribute set\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-If multiple attributes are defined with the same name, attempts to retrieve the attribute value have an undefined result\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-An attribute defined with an empty name cannot be retrieved by name\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
-If a reconnect occurs while
-\fBmysql\fR
-executes the query,
-\fBmysql\fR
-restores the attributes after reconnecting so the query can be executed again with the same attributes\&.
-.sp
-.RE
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 quit,
 \eq
 .sp
@@ -2698,9 +2573,7 @@ option\&.)
 resetconnection,
 \ex
 .sp
-Reset the connection to clear the session state\&. This includes clearing any current query attributes defined using the
-query_attributes
-command\&.
+Reset the connection to clear the session state\&.
 .sp
 Resetting a connection has effects similar to
 mysql_change_user()
@@ -2920,7 +2793,7 @@ manual page:
 .RS 4
 .\}
 .nf
-man less
+shell> \fBman less\fR
 .fi
 .if n \{\
 .RE
@@ -3232,7 +3105,7 @@ environment variable to a prompt string\&. For example:
 .RS 4
 .\}
 .nf
-export MYSQL_PS1="(\eu@\eh) [\ed]> "
+shell> \fBexport MYSQL_PS1="(\eu@\eh) [\ed]> "\fR
 .fi
 .if n \{\
 .RE
@@ -3569,7 +3442,7 @@ like this:
 .RS 4
 .\}
 .nf
-mysql \-\-histignore="*UPDATE*:*DELETE*"
+shell> \fBmysql \-\-histignore="*UPDATE*:*DELETE*"\fR
 .fi
 .if n \{\
 .RE
@@ -3622,7 +3495,7 @@ as a symbolic link to
 .RS 4
 .\}
 .nf
-ln \-s /dev/null $HOME/\&.mysql_history
+shell> \fBln \-s /dev/null $HOME/\&.mysql_history\fR
 .fi
 .if n \{\
 .RE
@@ -3780,7 +3653,7 @@ command,
 uses it as a search string to access server\-side help from the contents of the MySQL Reference Manual\&. The proper operation of this command requires that the help tables in the
 mysql
 database be initialized with help topic information (see
-Section\ \&5.1.17, \(lqServer-Side Help Support\(rq)\&.
+Section\ \&5.1.16, \(lqServer-Side Help Support\(rq)\&.
 .PP
 If there is no match for the search string, the search fails:
 .sp
@@ -3914,7 +3787,7 @@ client typically is used interactively, like this:
 .RS 4
 .\}
 .nf
-mysql \fIdb_name\fR
+shell> \fBmysql \fR\fB\fIdb_name\fR\fR
 .fi
 .if n \{\
 .RE
@@ -3932,7 +3805,7 @@ as shown here:
 .RS 4
 .\}
 .nf
-mysql \fIdb_name\fR < \fItext_file\fR
+shell> \fBmysql \fR\fB\fIdb_name\fR\fR\fB < \fR\fB\fItext_file\fR\fR
 .fi
 .if n \{\
 .RE
@@ -3946,7 +3819,7 @@ statement as the first statement in the file, it is unnecessary to specify the d
 .RS 4
 .\}
 .nf
-mysql < text_file
+shell> \fBmysql < text_file\fR
 .fi
 .if n \{\
 .RE
@@ -4157,7 +4030,7 @@ bind
 at the end of
 \&.editrc\&.
 \fBmysql\fR
-shows the bindings when it starts\&.
+will show the bindings when it starts\&.
 Disabling Interactive History
 .PP
 The
@@ -4254,7 +4127,7 @@ the section called \(lqImpermissible Client Character Sets\(rq\&.
 .PP
 With those changes,
 \fBmysql\fR
-uses the Windows APIs to communicate with the console using UTF\-16LE, and communicate with the server using UTF\-8\&. (The menu item mentioned previously sets the font and character set as just described\&.)
+will use the Windows APIs to communicate with the console using UTF\-16LE, and communicate with the server using UTF\-8\&. (The menu item mentioned previously sets the font and character set as just described\&.)
 .PP
 To avoid those steps each time you run
 \fBmysql\fR, you can create a shortcut that invokes
@@ -4639,7 +4512,7 @@ command)\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

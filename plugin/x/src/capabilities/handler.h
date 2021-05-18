@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -27,34 +27,28 @@
 
 #include <memory>
 
+#include "plugin/x/ngs/include/ngs/error_code.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/interface/capability_handler.h"
-#include "plugin/x/src/ngs/error_code.h"
-#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
-#include "plugin/x/src/xpl_error.h"
 
 namespace xpl {
 
 class Capability_handler : public iface::Capability_handler {
  public:
-  bool is_supported() const override {
+  bool is_supported() const {
     return (is_gettable() || is_settable()) && is_supported_impl();
   }
 
-  void get(::Mysqlx::Datatypes::Any *any) override {
+  void get(::Mysqlx::Datatypes::Any *any) {
     if (is_gettable()) get_impl(any);
   }
 
-  ngs::Error_code set(const ::Mysqlx::Datatypes::Any &any) override {
+  ngs::Error_code set(const ::Mysqlx::Datatypes::Any &any) {
     if (is_settable()) return set_impl(any);
     return ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED,
                       "CapabilitiesSet not supported for the %s capability",
                       name().c_str());
   }
-
- protected:
-  virtual void get_impl(::Mysqlx::Datatypes::Any *any) = 0;
-  virtual ngs::Error_code set_impl(const ::Mysqlx::Datatypes::Any &any) = 0;
-  virtual bool is_supported_impl() const = 0;
 };
 
 }  // namespace xpl

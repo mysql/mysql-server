@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+ *  Copyright (c) 2011, 2016, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License, version 2.0,
@@ -36,6 +36,7 @@ import com.mysql.clusterj.Constants;
 import com.mysql.clusterj.Session;
 import com.mysql.clusterj.SessionFactory;
 
+@org.junit.Ignore("test requires specific connection pooling setup")
 public class ConnectionPoolTest extends AbstractClusterJTest {
 
     @Override
@@ -43,11 +44,18 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         return false;
     }
 
+    protected boolean runSpecificNodeIdTests() {
+        return false;
+    }
+
     @Override
     public void localSetUp() {
         loadProperties();
         // close the existing session factory because it uses one of the cluster connection (api) nodes
-        closeAllExistingSessionFactories();
+        if (sessionFactory != null) {
+            sessionFactory.close();
+            sessionFactory = null;
+        }
     }
 
     public void testNoPooling() {
@@ -69,41 +77,16 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 0);
         sessionFactory1 = ClusterJHelper.getSessionFactory(modifiedProperties);
         sessionFactory2 = ClusterJHelper.getSessionFactory(modifiedProperties);
-        SessionFactory sessionFactory3 = null;
-        String msg = "Creating SessionFactory with connection pool disabled but no free api nodes";
         try {
-            // No more free API node ids.
-            // Requesting another SessionFactory should throw an exception.
-            modifiedProperties.put(Constants.PROPERTY_CLUSTER_CONNECT_RETRIES, 0);
-            sessionFactory3 = ClusterJHelper.getSessionFactory(modifiedProperties);
+            SessionFactory sessionFactory3 = ClusterJHelper.getSessionFactory(modifiedProperties);
+            sessionFactory3.close();
         } catch (ClusterJFatalUserException ex) {
             // good catch
-            verifyException(msg, ex, ".*No free node id found.*");
         }
-        errorIfNotEqual(msg, null, sessionFactory3);
         sessionFactory1.close();
         sessionFactory2.close();
         errorIfNotEqual("With no connection pooling, SessionFactory1 should not be the same object as SessionFactory2",
                 false, sessionFactory1 == sessionFactory2);
-
-        // with connection.pool.size set to 0 and test node ids property
-        modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 0);
-        modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "51,52");
-        sessionFactory1 = null;
-        msg = "Creating SessionFactory with connection pool disabled but with multiple node ids";
-        try {
-            sessionFactory1 = ClusterJHelper.getSessionFactory(modifiedProperties);
-        } catch (ClusterJFatalUserException ex) {
-            verifyException(msg, ex, "The nodeids property specifies multiple node ids .*");
-        }
-        errorIfNotEqual(msg, null, sessionFactory1);
-
-        modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "51");
-        sessionFactory1 = ClusterJHelper.getSessionFactory(modifiedProperties);
-        Session session1 = sessionFactory1.getSession();
-        Employee e1 = session1.find(Employee.class, 0);
-        checkSessions("testNoPooling after getSession", sessionFactory1, new Integer[] {1});
-        sessionFactory1.close();
 
         failOnError();
     }
@@ -117,27 +100,36 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
     }
 
     public void testConnectionPoolSizeAndNodeIds() {
+        if (!runSpecificNodeIdTests()) {
+            return;
+        }
         Properties modifiedProperties = new Properties();
         modifiedProperties.putAll(props);
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 2);
-        modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "51;52");
+        modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "4;5");
         checkConnectionPoolSize2("testConnectionPoolSizeAndNodeIds", modifiedProperties);        
         failOnError();
     }
 
     public void testConnectionNodeIds() {
+        if (!runSpecificNodeIdTests()) {
+            return;
+        }
         Properties modifiedProperties = new Properties();
         modifiedProperties.putAll(props);
-        modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "51,52");
+        modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "4,5");
         checkConnectionPoolSize2("testConnectionNodeIds", modifiedProperties);        
         failOnError();
     }
 
     public void testConnectionSingleNodeIdAndConnectionPoolSize() {
+        if (!runSpecificNodeIdTests()) {
+            return;
+        }
         Properties modifiedProperties = new Properties();
         modifiedProperties.putAll(props);
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_SIZE, 2);
-        modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "51");
+        modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "4");
         checkConnectionPoolSize2("testConnectionSingleNodeIdAndConnectionPoolSize", modifiedProperties);
         failOnError();
     }
@@ -220,10 +212,10 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
         failOnError();
     }
 
+    @org.junit.Ignore("testNegativeConnectionPoolIllegalNodeids takes too long")
     public void testNegativeConnectionPoolIllegalNodeids() {
         Properties modifiedProperties = new Properties();
         modifiedProperties.putAll(props);
-        modifiedProperties.put(Constants.PROPERTY_CLUSTER_CONNECT_RETRIES, 0);
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "256");
         try {
             ClusterJHelper.getSessionFactory(modifiedProperties);
@@ -239,9 +231,11 @@ public class ConnectionPoolTest extends AbstractClusterJTest {
     }
 
     public void testNegativeConnectionPoolNoNodeId() {
+        if (!runSpecificNodeIdTests()) {
+            return;
+        }
         Properties modifiedProperties = new Properties();
         modifiedProperties.putAll(props);
-        modifiedProperties.put(Constants.PROPERTY_CLUSTER_CONNECT_RETRIES, 0);
         modifiedProperties.put(Constants.PROPERTY_CONNECTION_POOL_NODEIDS, "48");
         try {
             ClusterJHelper.getSessionFactory(modifiedProperties);

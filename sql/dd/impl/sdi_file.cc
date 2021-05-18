@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 
 #include "my_config.h"
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -43,7 +42,7 @@
 
 #include "lex_string.h"
 #include "m_ctype.h"
-
+#include "my_dbug.h"
 #include "my_dir.h"
 #include "my_inttypes.h"
 #include "my_io.h"
@@ -90,14 +89,14 @@ bool write_sdi_file(const dd::String_type &fname, const dd::Sdi_type &sdi) {
                        sdi.length(), MYF(MY_FNABP));
 
   if (bw == MY_FILE_ERROR) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     bool close_error =
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
         mysql_file_close(sdif, MYF(0));
-    assert(close_error == false);
+    DBUG_ASSERT(close_error == false);
     return checked_return(true);
   }
-  assert(bw == 0);
+  DBUG_ASSERT(bw == 0);
   return checked_return(mysql_file_close(sdif, MYF(MY_FAE)));
 }
 
@@ -258,7 +257,7 @@ String_type sdi_filename(Object_id id, const String_type &entity_name,
 
   while (i != end && count < dd::sdi_file::FILENAME_PREFIX_CHARS) {
     size_t charlen = my_mbcharlen(system_charset_info, static_cast<uchar>(*i));
-    assert(charlen > 0);
+    DBUG_ASSERT(charlen > 0);
     i += charlen;
     ++count;
   }
@@ -270,7 +269,7 @@ String_type sdi_filename(Object_id id, const String_type &entity_name,
   bool was_truncated = false;
   build_table_filename(path, sizeof(path) - 1, schema.c_str(),
                        fnamestr.str().c_str(), EXT.c_str(), 0, &was_truncated);
-  assert(!was_truncated);
+  DBUG_ASSERT(!was_truncated);
 
   return String_type(path);
 }
@@ -312,11 +311,11 @@ bool load(THD *, const dd::String_type &fname, dd::String_type *buf) {
   }
 
   auto closer = [](File *f) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     bool ret =
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
         mysql_file_close(*f, MYF(MY_FAE | MY_WME));
-    assert(ret == false);
+    DBUG_ASSERT(ret == false);
   };
   std::unique_ptr<File, decltype(closer)> guard(&sdi_fd, closer);
 

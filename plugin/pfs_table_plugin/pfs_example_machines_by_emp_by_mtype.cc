@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -186,7 +186,7 @@ int m_by_emp_by_mtype_read_column_value(PSI_table_handle *handle,
       table_svc->set_field_integer(field, h->current_row.count);
       break;
     default: /* We should never reach here */
-      assert(0);
+      DBUG_ASSERT(0);
       break;
   }
 

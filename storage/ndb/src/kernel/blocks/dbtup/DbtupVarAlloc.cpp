@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 #define DBTUP_C
 #define DBTUP_VAR_ALLOC_CPP
 #include "Dbtup.hpp"
-#include "../dblqh/Dblqh.hpp"
 
 #define JAM_FILE_ID 405
 
@@ -119,7 +118,6 @@ Uint32* Dbtup::alloc_var_rec(Uint32 * err,
   PagePtr pagePtr;
   c_page_pool.getPtr(pagePtr, key->m_page_no);
   free_fix_rec(fragPtr, tabPtr, key, (Fix_page*)pagePtr.p);
-  release_frag_mutex(fragPtr, *out_frag_page_id);
   return 0;
 }
 
@@ -295,6 +293,7 @@ Dbtup::realloc_var_part(Uint32 * err,
   {
     jam();
     new_var_ptr= pageP->get_ptr(oldref.m_page_idx);
+    if(!pageP->is_space_behind_entry(oldref.m_page_idx, add))
     {
       if(0) printf("extra reorg");
       jam();
@@ -348,12 +347,8 @@ Dbtup::realloc_var_part(Uint32 * err,
 }
 
 void
-Dbtup::move_var_part(Fragrecord* fragPtr,
-                     Tablerec* tabPtr,
-                     PagePtr pagePtr,
-                     Var_part_ref* refptr,
-                     Uint32 size,
-                     Tuple_header *org)
+Dbtup::move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
+                     Var_part_ref* refptr, Uint32 size)
 {
   jam();
 
@@ -416,23 +411,12 @@ Dbtup::move_var_part(Fragrecord* fragPtr,
    */
   memcpy(dst, src, 4*size);
 
-  /**
-   * At his point we need to upgrade to exclusive fragment access.
-   * The variable sized part might be used for reading in query
-   * thread at this point in time. To avoid having to use a mutex
-   * to protect reads of rows we ensure that all places where we
-   * reorganize pages and rows are done with exclusive fragment
-   * access.
-   *
-   * Since we change the reference to the variable part we also
-   * need to recalculate while being in exclusive mode.
-   */
-  c_lqh->upgrade_to_exclusive_frag_access();
   fragPtr->m_varElemCount++;
   /**
    * remove old var part of tuple (and decrement m_varElemCount).
    */
   free_var_part(fragPtr, pagePtr, oldref.m_page_idx);
+
   /**
    * update var part ref of fix part tuple to newref
    */
@@ -440,8 +424,6 @@ Dbtup::move_var_part(Fragrecord* fragPtr,
   newref.m_page_no = new_pagePtr.i;
   newref.m_page_idx = idx;
   refptr->assign(&newref);
-  setChecksum(org, tabPtr);
-  c_lqh->downgrade_from_exclusive_frag_access();
 }
 
 /* ------------------------------------------------------------------------ */
@@ -655,6 +637,5 @@ Dbtup::alloc_var_rowid(Uint32 * err,
   PagePtr pagePtr;
   c_page_pool.getPtr(pagePtr, key->m_page_no);
   free_fix_rec(fragPtr, tabPtr, key, (Fix_page*)pagePtr.p);
-  release_frag_mutex(fragPtr, *out_frag_page_id);
   return 0;
 }

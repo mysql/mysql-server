@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+Copyright (c) 2006, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -132,7 +132,7 @@ const char *innobase_basename(const char *path_name);
 
 /** Returns true if the thread is executing a SELECT statement.
  @return true if thd is executing SELECT */
-ibool thd_is_query_block(const THD *thd); /*!< in: thread handle */
+ibool thd_is_select(const THD *thd); /*!< in: thread handle */
 
 /** Makes all characters in a NUL-terminated UTF-8 string lower case. */
 void innobase_casedn_str(char *a); /*!< in/out: string to put in lower case */
@@ -198,20 +198,6 @@ void thd_set_lock_wait_time(THD *thd,     /*!< in/out: thread handle */
                         the global innodb_tmpdir.
 @retval NULL if innodb_tmpdir="" */
 const char *thd_innodb_tmpdir(THD *thd);
-
-#ifdef UNIV_DEBUG
-/** Obtain the value of the latest output from InnoDB Interpreter/Tester
-module (ib::Tester).
-@param[in]	thd	thread handle
-@return pointer to the output string. */
-char **thd_innodb_interpreter_output(THD *thd);
-
-/** Obtain the latest command executed by InnoDB Interpreter/Tester
-module (ib::Tester).
-@param[in]	thd	thread handle
-@return pointer to the output string. */
-char **thd_innodb_interpreter(THD *thd);
-#endif /* UNIV_DEBUG */
 
 /** Get the current setting of the table_cache_size global parameter. We do
  a dirty read because for one there is no synchronization object and

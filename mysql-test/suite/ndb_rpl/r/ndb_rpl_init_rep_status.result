@@ -15,10 +15,11 @@ Initial state
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos
 Ndb_slave_max_replicated_epoch: 0
-set @slave_server_id:= @@server_id;
-select @slave_server_id;
-@slave_server_id
+select @slave_server_id:= @@server_id;
+@slave_server_id:= @@server_id
 2
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Default, no data, max replicated epoch will be 0.
 reset slave;
 Warnings:
@@ -63,7 +64,7 @@ set @other_remote_server_id=@slave_server_id+2;
 insert into mysql.ndb_apply_status values (@slave_server_id, 111, 'Fictional log', 222, 333);
 insert into mysql.ndb_apply_status values (@other_local_server_id, 222, 'Fictional log', 222, 333);
 insert into mysql.ndb_apply_status values (@other_remote_server_id, 444, 'Fictional log', 222, 333);
-CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS=(3);;
+CHANGE MASTER TO IGNORE_SERVER_IDS=(3);;
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -77,7 +78,7 @@ Ndb_slave_max_replicated_epoch: 222
 stop slave;
 Warnings:
 Warning	1287	'STOP SLAVE' is deprecated and will be removed in a future release. Please use STOP REPLICA instead
-CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= ();
+CHANGE MASTER TO IGNORE_SERVER_IDS= ();
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead

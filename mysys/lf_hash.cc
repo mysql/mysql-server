@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@
      for non-unique hash, count only _distinct_ values
      (but how to do it in lf_hash_delete ?)
 */
-#include <assert.h>
 #include <stddef.h>
 #include <string.h>
 #include <sys/types.h>
@@ -45,7 +44,7 @@
 #include "my_atomic.h"
 #include "my_bit.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/service_mysql_alloc.h"
@@ -287,8 +286,8 @@ static LF_SLIST *linsert(std::atomic<LF_SLIST *> *head, CHARSET_INFO *cs,
       break;
     } else {
       node->link = cursor.curr;
-      assert(node->link != node);         /* no circular references */
-      assert(cursor.prev != &node->link); /* no circular references */
+      DBUG_ASSERT(node->link != node);         /* no circular references */
+      DBUG_ASSERT(cursor.prev != &node->link); /* no circular references */
       if (atomic_compare_exchange_strong(cursor.prev, &cursor.curr, node)) {
         res = 1; /* inserted ok */
         break;
@@ -453,7 +452,7 @@ void lf_hash_init2(LF_HASH *hash, uint element_size, uint flags,
   hash->get_key = get_key;
   hash->hash_function = hash_function ? hash_function : cset_hash_sort_adapter;
   hash->initialize = init;
-  assert(get_key ? !key_offset && !key_length : key_length);
+  DBUG_ASSERT(get_key ? !key_offset && !key_length : key_length);
 }
 
 void lf_hash_destroy(LF_HASH *hash) {

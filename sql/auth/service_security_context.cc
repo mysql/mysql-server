@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,8 @@
 
 #include "lex_string.h"
 #include "my_inttypes.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_security_context.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"

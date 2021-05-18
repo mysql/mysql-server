@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,9 +52,7 @@ Uint64 Dbacc::getTransactionMemoryNeed(
   else
   {
     require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_ACC_SCAN, &acc_scan_recs));
-    require(!ndb_mgm_get_int_parameter(mgm_cfg,
-                                       CFG_ACC_OP_RECS,
-                                       &acc_op_recs));
+    require(!ndb_mgm_get_int_parameter(mgm_cfg, CFG_ACC_OP_RECS, &acc_op_recs));
   }
   Uint64 scan_byte_count = 0;
   scan_byte_count += ScanRec_pool::getMemoryNeed(acc_scan_recs);
@@ -73,15 +71,7 @@ void Dbacc::initData()
 
   Pool_context pc;
   pc.m_block = this;
-  if (!m_is_query_block)
-  {
-    directoryPool.init(RT_DBACC_DIRECTORY, pc);
-    directoryPoolPtr = &directoryPool;
-  }
-  else
-  {
-    directoryPoolPtr = 0;
-  }
+  directoryPool.init(RT_DBACC_DIRECTORY, pc);
 
   fragmentrec = 0;
   tabrec = 0;
@@ -117,11 +107,6 @@ void Dbacc::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
   ndbassert(pages.getCount() - cfreepages.getCount() + cnoOfAllocatedPages ==
             cpageCount);
 
-  if (m_is_query_block)
-  {
-    cfragmentsize = 0;
-    ctablesize = 0;
-  }
   fragmentrec = (Fragmentrec*)allocRecord("Fragmentrec",
 					  sizeof(Fragmentrec), 
 					  cfragmentsize);
@@ -141,10 +126,6 @@ void Dbacc::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
   Uint32 reserveScanRecs = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
             CFG_ACC_RESERVED_SCAN_RECORDS, &reserveScanRecs));
-  if (m_is_query_block)
-  {
-    reserveScanRecs = 1;
-  }
   scanRec_pool.init(
     ScanRec::TYPE_ID,
     pc,
@@ -155,14 +136,10 @@ void Dbacc::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
     refresh_watch_dog();
   }
 
-  Uint32 reserveOpRecs = 1;
+  Uint32 reserveOpRecs = 0;
   ndbrequire(!ndb_mgm_get_int_parameter(mgm_cfg,
             CFG_LDM_RESERVED_OPERATIONS, &reserveOpRecs));
   reserveOpRecs += 200;
-  if (m_is_query_block)
-  {
-    reserveOpRecs = 200;
-  }
   oprec_pool.init(
     Operationrec::TYPE_ID,
     pc,
@@ -172,70 +149,42 @@ void Dbacc::initRecords(const ndb_mgm_configuration_iterator *mgm_cfg)
   {
     refresh_watch_dog();
   }
-  if (!m_is_query_block)
-  {
-    ndbrequire(oprec_pool.seize(operationRecPtr));
-    operationRecPtr.p->userptr = RNIL;
-    operationRecPtr.p->userblockref = 0;
-    c_copy_frag_oprec = operationRecPtr.i;
-  }
+  ndbrequire(oprec_pool.seize(operationRecPtr));
+  operationRecPtr.p->userptr = RNIL;
+  operationRecPtr.p->userblockref = 0;
+  c_copy_frag_oprec = operationRecPtr.i;
 }//Dbacc::initRecords()
 
-Dbacc::Dbacc(Block_context& ctx,
-             Uint32 instanceNumber,
-             Uint32 blockNo):
-  SimulatedBlock(blockNo, ctx, instanceNumber),
+Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
+  SimulatedBlock(DBACC, ctx, instanceNumber),
   c_tup(0),
   c_page8_pool(c_page_pool)
 {
   BLOCK_CONSTRUCTOR(Dbacc);
 
   // Transit signals
-  if (blockNo == DBACC)
-  {
-    addRecSignal(GSN_DUMP_STATE_ORD, &Dbacc::execDUMP_STATE_ORD);
-    addRecSignal(GSN_DEBUG_SIG, &Dbacc::execDEBUG_SIG);
-    addRecSignal(GSN_CONTINUEB, &Dbacc::execCONTINUEB);
-    addRecSignal(GSN_ACC_CHECK_SCAN, &Dbacc::execACC_CHECK_SCAN);
-    addRecSignal(GSN_EXPANDCHECK2, &Dbacc::execEXPANDCHECK2);
-    addRecSignal(GSN_SHRINKCHECK2, &Dbacc::execSHRINKCHECK2);
+  addRecSignal(GSN_DUMP_STATE_ORD, &Dbacc::execDUMP_STATE_ORD);
+  addRecSignal(GSN_DEBUG_SIG, &Dbacc::execDEBUG_SIG);
+  addRecSignal(GSN_CONTINUEB, &Dbacc::execCONTINUEB);
+  addRecSignal(GSN_ACC_CHECK_SCAN, &Dbacc::execACC_CHECK_SCAN);
+  addRecSignal(GSN_EXPANDCHECK2, &Dbacc::execEXPANDCHECK2);
+  addRecSignal(GSN_SHRINKCHECK2, &Dbacc::execSHRINKCHECK2);
 
-    // Received signals
-    addRecSignal(GSN_STTOR, &Dbacc::execSTTOR);
-    addRecSignal(GSN_ACCSEIZEREQ, &Dbacc::execACCSEIZEREQ);
-    addRecSignal(GSN_ACCFRAGREQ, &Dbacc::execACCFRAGREQ);
-    addRecSignal(GSN_NEXT_SCANREQ, &Dbacc::execNEXT_SCANREQ);
-    addRecSignal(GSN_ACC_SCANREQ, &Dbacc::execACC_SCANREQ);
-    addRecSignal(GSN_ACC_TO_REQ, &Dbacc::execACC_TO_REQ);
-    addRecSignal(GSN_ACC_LOCKREQ, &Dbacc::execACC_LOCKREQ);
-    addRecSignal(GSN_NDB_STTOR, &Dbacc::execNDB_STTOR);
-    addRecSignal(GSN_DROP_TAB_REQ, &Dbacc::execDROP_TAB_REQ);
-    addRecSignal(GSN_READ_CONFIG_REQ, &Dbacc::execREAD_CONFIG_REQ, true);
-    addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
+  // Received signals
+  addRecSignal(GSN_STTOR, &Dbacc::execSTTOR);
+  addRecSignal(GSN_ACCSEIZEREQ, &Dbacc::execACCSEIZEREQ);
+  addRecSignal(GSN_ACCFRAGREQ, &Dbacc::execACCFRAGREQ);
+  addRecSignal(GSN_NEXT_SCANREQ, &Dbacc::execNEXT_SCANREQ);
+  addRecSignal(GSN_ACC_SCANREQ, &Dbacc::execACC_SCANREQ);
+  addRecSignal(GSN_ACC_TO_REQ, &Dbacc::execACC_TO_REQ);
+  addRecSignal(GSN_ACC_LOCKREQ, &Dbacc::execACC_LOCKREQ);
+  addRecSignal(GSN_NDB_STTOR, &Dbacc::execNDB_STTOR);
+  addRecSignal(GSN_DROP_TAB_REQ, &Dbacc::execDROP_TAB_REQ);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Dbacc::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
 
-    addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
-    m_is_query_block = false;
-    m_is_in_query_thread = false;
-    m_lqh_block = DBLQH;
-    m_ldm_instance_used = this;
-  }
-  else
-  {
-    m_lqh_block = DBQLQH;
-    m_is_query_block = true;
-    m_is_in_query_thread = true;
-    m_ldm_instance_used = nullptr;
-    ndbrequire(blockNo == DBQACC);
-    addRecSignal(GSN_STTOR, &Dbacc::execSTTOR);
-    addRecSignal(GSN_EXPANDCHECK2, &Dbacc::execEXPANDCHECK2);
-    addRecSignal(GSN_SHRINKCHECK2, &Dbacc::execSHRINKCHECK2);
-    addRecSignal(GSN_ACCSEIZEREQ, &Dbacc::execACCSEIZEREQ);
-    addRecSignal(GSN_READ_CONFIG_REQ, &Dbacc::execREAD_CONFIG_REQ, true);
-    addRecSignal(GSN_NEXT_SCANREQ, &Dbacc::execNEXT_SCANREQ);
-    addRecSignal(GSN_CONTINUEB, &Dbacc::execCONTINUEB);
-    addRecSignal(GSN_DUMP_STATE_ORD, &Dbacc::execDUMP_STATE_ORD);
-    addRecSignal(GSN_ACC_CHECK_SCAN, &Dbacc::execACC_CHECK_SCAN);
-  }
+  addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
+
   initData();
 
   c_transient_pools[DBACC_SCAN_RECORD_TRANSIENT_POOL_INDEX] =

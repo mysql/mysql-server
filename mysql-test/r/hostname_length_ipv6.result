@@ -4,7 +4,7 @@ call mtr.add_suppression("2001:db8::6:6");
 
 # Enforce a clean state
 flush status;
-TRUNCATE TABLE performance_schema.host_cache;
+flush hosts;
 flush user_resources;
 flush privileges;
 select @@global.debug;

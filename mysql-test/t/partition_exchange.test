@@ -1,5 +1,3 @@
---source include/not_hypergraph.inc   # Uses SELECT DISTINCT in a way that is hard to skip.
-
 --echo #
 --echo # Bug#11894100: EXCHANGE PARTITION CAN'T BE EXECUTED IF
 --echo #               ROW_FORMAT WAS SET EXPLICITLY

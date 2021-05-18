@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,13 +22,12 @@
 
 #include "sql/dd/impl/cache/storage_adapter.h"
 
-#include <assert.h>
 #include <memory>
 #include <string>
 
 #include "mutex_lock.h"  // Mutex_lock
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
@@ -105,7 +104,7 @@ Object_id Storage_adapter::core_get_id(const typename T::Name_key &key) {
   MUTEX_LOCK(lock, &m_lock);
   m_core_registry.get(key, &element);
   if (element) {
-    assert(element->object());
+    DBUG_ASSERT(element->object());
     return element->object()->id();
   }
   return INVALID_OBJECT_ID;
@@ -114,7 +113,7 @@ Object_id Storage_adapter::core_get_id(const typename T::Name_key &key) {
 // Get a dictionary object from core storage.
 template <typename K, typename T>
 void Storage_adapter::core_get(const K &key, const T **object) {
-  assert(object);
+  DBUG_ASSERT(object);
   *object = nullptr;
   Cache_element<typename T::Cache_partition> *element = nullptr;
   MUTEX_LOCK(lock, &m_lock);
@@ -136,7 +135,7 @@ void Storage_adapter::core_update(const dd::Tablespace *new_tsp) {
   typename dd::Tablespace::Id_key key(new_tsp->id());
   MUTEX_LOCK(lock, &m_lock);
   m_core_registry.get(key, &element);
-  assert(element != nullptr);
+  DBUG_ASSERT(element != nullptr);
   m_core_registry.remove(element);
   std::unique_ptr<const dd::Tablespace> old{element->object()};
 
@@ -149,7 +148,7 @@ void Storage_adapter::core_update(const dd::Tablespace *new_tsp) {
 template <typename K, typename T>
 bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
                           bool bypass_core_registry, const T **object) {
-  assert(object);
+  DBUG_ASSERT(object);
   *object = nullptr;
 
   if (!bypass_core_registry) {
@@ -168,7 +167,7 @@ bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
   trx.otx.register_tables<T>();
 
   if (trx.otx.open_tables()) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -179,7 +178,7 @@ bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
   // Find record by the object-id.
   std::unique_ptr<Raw_record> r;
   if (t->find_record(key, r)) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -187,7 +186,7 @@ bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
   Entity_object *new_object = nullptr;
   if (r.get() &&
       table.restore_object_from_record(&trx.otx, *r.get(), &new_object)) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -200,7 +199,7 @@ bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
       /* purecov: begin inspected */
       my_error(ER_INVALID_DD_OBJECT, MYF(0), new_object->name().c_str());
       delete new_object;
-      assert(false);
+      DBUG_ASSERT(false);
       return true;
       /* purecov: end */
     }
@@ -213,9 +212,9 @@ bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
 template <typename T>
 void Storage_adapter::core_drop(THD *thd MY_ATTRIBUTE((unused)),
                                 const T *object) {
-  assert(s_use_fake_storage || thd->is_dd_system_thread());
-  assert(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
-         bootstrap::Stage::CREATED_TABLES);
+  DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
+  DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
+              bootstrap::Stage::CREATED_TABLES);
   Cache_element<typename T::Cache_partition> *element = nullptr;
   MUTEX_LOCK(lock, &m_lock);
 
@@ -249,7 +248,7 @@ bool Storage_adapter::drop(THD *thd, const T *object) {
   }
 
   if (object->impl()->validate()) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -263,7 +262,7 @@ bool Storage_adapter::drop(THD *thd, const T *object) {
   ctx.otx.register_tables<T>();
 
   if (ctx.otx.open_tables() || object->impl()->drop(&ctx.otx)) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -273,9 +272,9 @@ bool Storage_adapter::drop(THD *thd, const T *object) {
 // Store a dictionary object to core storage.
 template <typename T>
 void Storage_adapter::core_store(THD *thd, T *object) {
-  assert(s_use_fake_storage || thd->is_dd_system_thread());
-  assert(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
-         bootstrap::Stage::CREATED_TABLES);
+  DBUG_ASSERT(s_use_fake_storage || thd->is_dd_system_thread());
+  DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
+              bootstrap::Stage::CREATED_TABLES);
   Cache_element<typename T::Cache_partition> *element =
       new Cache_element<typename T::Cache_partition>();
 
@@ -318,7 +317,7 @@ bool Storage_adapter::store(THD *thd, T *object) {
   }
 
   if (object->impl()->validate()) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }
 
@@ -331,7 +330,7 @@ bool Storage_adapter::store(THD *thd, T *object) {
   Open_dictionary_tables_error_handler error_handler;
   thd->push_internal_handler(&error_handler);
   if (ctx.otx.open_tables() || object->impl()->store(&ctx.otx)) {
-    assert(thd->is_system_thread() || thd->killed || thd->is_error());
+    DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     thd->pop_internal_handler();
     return true;
   }
@@ -351,9 +350,9 @@ bool Storage_adapter::store(THD *thd, T *object) {
 template <typename T>
 bool Storage_adapter::core_sync(THD *thd, const typename T::Name_key &key,
                                 const T *object) {
-  assert(thd->is_dd_system_thread());
-  assert(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
-         bootstrap::Stage::CREATED_TABLES);
+  DBUG_ASSERT(thd->is_dd_system_thread());
+  DBUG_ASSERT(bootstrap::DD_bootstrap_ctx::instance().get_stage() <=
+              bootstrap::Stage::CREATED_TABLES);
 
   // Copy the name, needed for error output. The object has to be
   // dropped before get().
@@ -418,7 +417,7 @@ void Storage_adapter::erase_all() {
 
 // Dump the contents of the core storage.
 void Storage_adapter::dump() {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   MUTEX_LOCK(lock, &m_lock);
   fprintf(stderr, "================================\n");
   fprintf(stderr, "Storage adapter\n");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -22,11 +22,10 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /** @file storage/temptable/src/block.cc */
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_memory.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
@@ -81,12 +80,12 @@ void Block_PSI_track_logical_allocation(size_t size) {
 #ifdef TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL
   PSI_thread *owner_thread;
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   PSI_memory_key key =
-#endif /* NDEBUG */
+#endif /* DBUG_OFF */
       PSI_MEMORY_CALL(memory_alloc)(mem_key_logical, size, &owner_thread);
 
-  assert(key == mem_key_logical || key == PSI_NOT_INSTRUMENTED);
+  DBUG_ASSERT(key == mem_key_logical || key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY_COUNT_LOGICAL */
 }
 
@@ -103,11 +102,11 @@ void Block_PSI_track_physical_ram_allocation(size_t size) {
 #ifdef TEMPTABLE_PFS_MEMORY
   const PSI_memory_key psi_key = mem_key_physical_ram;
   PSI_thread *owner_thread;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   PSI_memory_key got_key =
-#endif /* NDEBUG */
+#endif /* DBUG_OFF */
       PSI_MEMORY_CALL(memory_alloc)(psi_key, size, &owner_thread);
-  assert(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
+  DBUG_ASSERT(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY */
 }
 
@@ -123,11 +122,11 @@ void Block_PSI_track_physical_disk_allocation(size_t size) {
 #ifdef TEMPTABLE_PFS_MEMORY
   const PSI_memory_key psi_key = mem_key_physical_disk;
   PSI_thread *owner_thread;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   PSI_memory_key got_key =
-#endif /* NDEBUG */
+#endif /* DBUG_OFF */
       PSI_MEMORY_CALL(memory_alloc)(psi_key, size, &owner_thread);
-  assert(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
+  DBUG_ASSERT(got_key == psi_key || got_key == PSI_NOT_INSTRUMENTED);
 #endif /* TEMPTABLE_PFS_MEMORY */
 }
 

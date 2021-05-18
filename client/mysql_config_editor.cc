@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -133,7 +133,7 @@ struct my_command_data {
 
 /* mysql_config_editor utility options. */
 static struct my_option my_program_long_options[] = {
-#ifdef NDEBUG
+#ifdef DBUG_OFF
     {"debug", '#', "This is a non-debug version. Catch this and exit.", 0, 0, 0,
      GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #else
@@ -515,24 +515,24 @@ static int set_command(void) {
   if (opt_user) /* --user */
   {
     dynstr_append(&path_buf, "\nuser = ");
-    dynstr_append_quoted(&path_buf, "\"", 1, opt_user, NullS);
+    dynstr_append(&path_buf, opt_user);
   }
 
   if (opt_password) /* --password */
   {
     dynstr_append(&path_buf, "\npassword = ");
-    dynstr_append_quoted(&path_buf, "\"", 1, opt_password, NullS);
+    dynstr_append(&path_buf, opt_password);
   }
 
   if (opt_host) /* --host */
   {
     dynstr_append(&path_buf, "\nhost = ");
-    dynstr_append_quoted(&path_buf, "\"", 1, opt_host, NullS);
+    dynstr_append(&path_buf, opt_host);
   }
 
   if (opt_socket) {
     dynstr_append(&path_buf, "\nsocket = ");
-    dynstr_append_quoted(&path_buf, "\"", 1, opt_socket, NullS);
+    dynstr_append(&path_buf, opt_socket);
   }
 
   if (opt_port) {

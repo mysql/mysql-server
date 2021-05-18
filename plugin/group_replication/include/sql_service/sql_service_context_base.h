@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -245,12 +245,6 @@ class Sql_service_context_base {
   */
   virtual void shutdown(int flag) = 0;
 
-  /**
-   Check if the connection is still alive.
-   It should always return true unless the protocol closed the connection.
-  */
-  virtual bool connection_alive() = 0;
-
  private:
   static int sql_start_result_metadata(void *ctx, uint num_cols, uint flags,
                                        const CHARSET_INFO *resultcs) {
@@ -343,10 +337,6 @@ class Sql_service_context_base {
 
   static void sql_shutdown(void *ctx, int flag) {
     return ((Sql_service_context_base *)ctx)->shutdown(flag);
-  }
-
-  static bool sql_connection_alive(void *ctx) {
-    return ((Sql_service_context_base *)ctx)->connection_alive();
   }
 };
 

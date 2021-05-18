@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -96,10 +96,6 @@ static HandlerPtr create_logging_sink(
       mysql_harness::logging::kConfigOptionLogFilename;
   constexpr const char *kDestination =
       mysql_harness::logging::kConfigOptionLogDestination;
-#ifdef _WIN32
-  // application defined event logger source name
-  constexpr const char *kConfigEventSourceName = "event_source_name";
-#endif
 
   HandlerPtr result;
 
@@ -218,9 +214,7 @@ static HandlerPtr create_logging_sink(
         new FileHandler(log_file, true, log_level, log_timestamp_precision));
   } else if (sink_name == kSystemLogPluginName) {
 #ifdef _WIN32
-    std::string ev_src_name = config.get_default(kConfigEventSourceName);
-    if (ev_src_name.empty()) ev_src_name = std::string(kDefaultEventSourceName);
-    result.reset(new EventlogHandler(true, log_level, true, ev_src_name));
+    result.reset(new EventlogHandler(true, log_level));
 #else
     result.reset(new SyslogHandler(true, log_level));
 #endif
@@ -387,6 +381,7 @@ static void switch_to_loggers_in_config(
 }
 
 static void init(mysql_harness::PluginFuncEnv *env) {
+  using mysql_harness::logging::get_default_log_level;
   LoggerHandlersList logger_handlers;
 
   auto &config = DIM::instance().get_Config();

@@ -1,0 +1,12 @@
+SELECT * FROM ndbmemcache.test_char_key;
+mkey	val
+1	frederick
+a	fred
+a b c d	freddy
+aa	frederica
+SELECT * FROM ndbmemcache.test_char_val;
+mkey	val
+a	al
+b	alphonse
+c	allen
+d	alien invasion

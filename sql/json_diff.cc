@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 #include "lex_string.h"
 #include "my_alloc.h"
 #include "my_byteorder.h"
-#include "my_dbug.h"  // assert
+#include "my_dbug.h"  // DBUG_ASSERT
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/current_thd.h"  // current_thd
@@ -130,13 +130,14 @@ size_t Json_diff::binary_length() const {
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
 
   // path
-  if (m_path.to_string(&buf)) assert(0); /* purecov: deadcode */
+  if (m_path.to_string(&buf)) DBUG_ASSERT(0); /* purecov: deadcode */
   ret += length_of_length_and_string(buf.length());
 
   if (operation() != enum_json_diff_operation::REMOVE) {
     // value
     buf.length(0);
-    if (value().to_binary(current_thd, &buf)) assert(0); /* purecov: deadcode */
+    if (value().to_binary(current_thd, &buf))
+      DBUG_ASSERT(0); /* purecov: deadcode */
     ret += length_of_length_and_string(buf.length());
   }
 
@@ -164,7 +165,7 @@ bool Json_diff::write_binary(String *to) const {
 
   // Serialize JSON path
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   bool return_early = false;
   DBUG_EXECUTE_IF("binlog_corrupt_json_diff_truncate_before_path_length", {
     DBUG_SET("-d,binlog_corrupt_json_diff_truncate_before_path_length");
@@ -184,10 +185,10 @@ bool Json_diff::write_binary(String *to) const {
     DBUG_SET("-d,binlog_corrupt_json_diff_bad_path_char");
     DBUG_SET("+d,binlog_corrupt_write_length_and_string_bad_char");
   });
-#endif  // ifndef NDEBUG
+#endif  // ifndef DBUG_OFF
   if (m_path.to_string(&buf) || write_length_and_string(to, buf))
     return true; /* purecov: inspected */  // OOM, error is reported
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   if (return_early) return false;
 #endif
   DBUG_PRINT("info", ("wrote JSON path '%s' of length %lu", buf.ptr(),
@@ -196,7 +197,7 @@ bool Json_diff::write_binary(String *to) const {
   if (m_operation != enum_json_diff_operation::REMOVE) {
     // Serialize JSON value
     buf.length(0);
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     DBUG_EXECUTE_IF("binlog_corrupt_json_diff_truncate_before_doc_length", {
       DBUG_SET("-d,binlog_corrupt_json_diff_truncate_before_doc_length");
       return false;
@@ -214,7 +215,7 @@ bool Json_diff::write_binary(String *to) const {
       DBUG_SET("-d,binlog_corrupt_json_diff_bad_doc_char");
       DBUG_SET("+d,binlog_corrupt_write_length_and_string_bad_char");
     });
-#endif  // ifndef NDEBUG
+#endif  // ifndef DBUG_OFF
     if (value().to_binary(current_thd, &buf) ||
         write_length_and_string(to, buf))
       return true; /* purecov: inspected */  // OOM, error is reported
@@ -235,7 +236,7 @@ const Json_diff_vector Json_diff_vector::EMPTY_JSON_DIFF_VECTOR{
 
 void Json_diff_vector::add_diff(const Json_seekable_path &path,
                                 enum_json_diff_operation operation,
-                                std::unique_ptr<Json_dom> dom) {
+                                Json_dom_ptr dom) {
   m_vector.emplace_back(path, operation, std::move(dom));
   m_binary_length += at(size() - 1).binary_length();
 }
@@ -332,7 +333,7 @@ bool Json_diff_vector::read_binary(const char **from, const TABLE *table,
           pointer_cast<const char *>(p), value_length);
       if (value.type() == json_binary::Value::ERROR) goto corrupted;
       Json_wrapper wrapper(value);
-      std::unique_ptr<Json_dom> dom = wrapper.clone_dom(current_thd);
+      Json_dom_ptr dom = wrapper.clone_dom(current_thd);
       if (dom == nullptr)
         return true; /* purecov: inspected */  // OOM, error is reported
       wrapper.dbug_print();
@@ -373,7 +374,7 @@ static Json_dom *seek_exact_path(Json_dom *dom,
   for (auto it = first_leg; it != last_leg; ++it) {
     const Json_path_leg *leg = *it;
     const auto leg_type = leg->get_type();
-    assert(leg_type == jpl_member || leg_type == jpl_array_cell);
+    DBUG_ASSERT(leg_type == jpl_member || leg_type == jpl_array_cell);
     switch (dom->json_type()) {
       case enum_json_type::J_ARRAY: {
         const auto array = down_cast<Json_array *>(dom);
@@ -424,7 +425,7 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
 
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
 
-  const THD *thd = current_thd;
+  const THD *thd = field->table->in_use;
 
   for (const Json_diff &diff : *diffs) {
     Json_wrapper val = diff.value();
@@ -456,8 +457,9 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
           DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff", {
             const char act[] =
                 "now SIGNAL signal.rpl_row_jsondiff_binarydiff_created";
-            assert(opt_debug_sync_timeout > 0);
-            assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+            DBUG_ASSERT(opt_debug_sync_timeout > 0);
+            DBUG_ASSERT(
+                !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
           };);
           continue;
         }
@@ -481,15 +483,15 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
 
     switch (diff.operation()) {
       case enum_json_diff_operation::REPLACE: {
-        assert(path.leg_count() > 0);
+        DBUG_ASSERT(path.leg_count() > 0);
         Json_dom *old = seek_exact_path(dom, path.begin(), path.end());
         if (old == nullptr) return enum_json_diff_status::REJECTED;
-        assert(old->parent() != nullptr);
+        DBUG_ASSERT(old->parent() != nullptr);
         old->parent()->replace_dom_in_container(old, val.clone_dom(thd));
         continue;
       }
       case enum_json_diff_operation::INSERT: {
-        assert(path.leg_count() > 0);
+        DBUG_ASSERT(path.leg_count() > 0);
         Json_dom *parent = seek_exact_path(dom, path.begin(), path.end() - 1);
         if (parent == nullptr) return enum_json_diff_status::REJECTED;
         const Json_path_leg *last_leg = path.last_leg();
@@ -513,7 +515,7 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
         return enum_json_diff_status::REJECTED;
       }
       case enum_json_diff_operation::REMOVE: {
-        assert(path.leg_count() > 0);
+        DBUG_ASSERT(path.leg_count() > 0);
         Json_dom *parent = seek_exact_path(dom, path.begin(), path.end() - 1);
         if (parent == nullptr) return enum_json_diff_status::REJECTED;
         const Json_path_leg *last_leg = path.last_leg();
@@ -536,7 +538,7 @@ enum_json_diff_status apply_json_diffs(Field_json *field,
       }
     }
 
-    assert(false); /* purecov: deadcode */
+    DBUG_ASSERT(false); /* purecov: deadcode */
   }
 
   if (field->store_json(&doc) != TYPE_OK)

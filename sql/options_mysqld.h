@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -119,9 +119,6 @@ enum options_mysqld {
   OPT_ADMIN_SSL_KEY,
   OPT_ADMIN_SSL_CRL,
   OPT_ADMIN_SSL_CRLPATH,
-  OPT_MASTER_INFO_REPOSITORY,
-  OPT_RELAY_LOG_INFO_REPOSITORY,
-  OPT_KEYRING_MIGRATION_TO_COMPONENT
 };
 
 #endif  // OPTIONS_MYSQLD_INCLUDED

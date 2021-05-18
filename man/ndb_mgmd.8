@@ -2,12 +2,12 @@
 .\"     Title: \fBndb_mgmd\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_MGMD\FR" "8" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBNDB_MGMD\FR" "8" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -45,7 +45,7 @@ Options Common to NDB Cluster Programs(1)\&.
 .nr an-no-space-flag 1
 .nr an-break-flag 1
 .br
-.B Table\ \&23.26.\ \&Command\-line options used with the program ndb_mgmd
+.B Table\ \&22.255.\ \&Command\-line options for the ndb_mgmd program
 .TS
 allbox tab(:);
 lB lB lB.
@@ -57,24 +57,23 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l
-lB l l.
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l
+l l l.
 T{
 .PP
 \fB \fR\fB--bind-address=host\fR\fB \fR
@@ -82,17 +81,7 @@ T}:T{
 Local bind address
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
-T}
-T{
-.PP
-\fB \fR\fB--cluster-config-suffix=name\fR\fB \fR
-T}:T{
-Override defaults group suffix when reading cluster_config sections in
-              my.cnf file; used in testing
-T}:T{
-.PP
-ADDED: NDB 8.0.24
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -101,7 +90,7 @@ T}:T{
 Enable management server configuration cache; true by default
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -113,7 +102,7 @@ Specify cluster configuration file; also specify --reload or --initial
               to override configuration cache if present
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -124,7 +113,7 @@ T}:T{
 Specify cluster management server configuration cache directory
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -135,7 +124,7 @@ T}:T{
 Run ndb_mgmd in daemon mode (default)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -145,7 +134,7 @@ Causes management server to reload configuration data from configuration
               file, bypassing configuration cache
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -155,7 +144,7 @@ Used to install management server process as Windows service; does not
               apply on other platforms
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -165,7 +154,7 @@ Run ndb_mgmd in interactive mode (not officially supported in
               production; for testing purposes only)
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -174,7 +163,7 @@ T}:T{
 Name to use when writing cluster log messages applying to this node
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -183,7 +172,7 @@ T}:T{
 Read cluster configuration data from my.cnf file
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -192,7 +181,7 @@ T}:T{
 Do not provide any node ID checks
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -201,7 +190,7 @@ T}:T{
 Do not run ndb_mgmd as a daemon
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -211,7 +200,7 @@ Do not wait for management nodes specified when starting this management
               server; requires --ndb-nodeid option
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -222,7 +211,7 @@ T}:T{
 Print full configuration and exit
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -232,7 +221,7 @@ Causes management server to compare configuration file with
               configuration cache
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -243,7 +232,7 @@ Used to remove management server process that was previously installed
               to be removed; does not apply on other platforms
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 T{
 .PP
@@ -254,7 +243,7 @@ T}:T{
 Write additional information to log
 T}:T{
 .PP
-(Supported in all NDB releases based on MySQL 8.0)
+(Supported in all MySQL 8.0 based releases)
 T}
 .TE
 .sp 1
@@ -301,47 +290,6 @@ Causes the management server to bind to a specific network interface (host name 
 .sp -1
 .IP \(bu 2.3
 .\}
-\fBcluster\-config\-suffix\fR
-.TS
-allbox tab(:);
-lB l
-lB l
-lB l
-lB l.
-T{
-Command-Line Format
-T}:T{
---cluster-config-suffix=name
-T}
-T{
-Introduced
-T}:T{
-8.0.24-ndb-8.0.24
-T}
-T{
-Type
-T}:T{
-String
-T}
-T{
-Default Value
-T}:T{
-[none]
-T}
-.TE
-.sp 1
-Override defaults group suffix when reading cluster configuration sections in
-my\&.cnf; used in testing\&.
-.RE
-.sp
-.RS 4
-.ie n \{\
-\h'-04'\(bu\h'+03'\c
-.\}
-.el \{\
-.sp -1
-.IP \(bu 2.3
-.\}
 \fB\-\-config\-cache\fR
 .TS
 allbox tab(:);
@@ -372,7 +320,7 @@ TRUE, or
 ON), can be used to disable the management server\*(Aqs configuration cache, so that it reads its configuration from
 config\&.ini
 every time it starts (see
-Section\ \&23.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
+Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. You can do this by starting the
 \fBndb_mgmd\fR
 process with any one of the following options:
 .sp
@@ -529,7 +477,7 @@ option, or because the management server could not find any configuration cache\
 \fBndb_mgmd\fR
 was started with
 \fB\-\-config\-cache=OFF\fR\&. See
-Section\ \&23.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
+Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq, for more information\&.
 .RE
 .sp
 .RS 4
@@ -644,7 +592,7 @@ T}
 .TE
 .sp 1
 Configuration data is cached internally, rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&23.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
+Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using the
 \fB\-\-initial\fR
 option overrides this behavior, by forcing the management server to delete any existing cache files, and then to re\-read the configuration data from the cluster configuration file and to build a new cache\&.
 .sp
@@ -663,7 +611,7 @@ is invoked with
 but cannot find a global configuration file, the management server cannot start\&.
 .sp
 When a management server starts, it checks for another management server in the same NDB Cluster and tries to use the other management server\*(Aqs configuration data\&. This behavior has implications when performing a rolling restart of an NDB Cluster with multiple management nodes\&. See
-Section\ \&23.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
+Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for more information\&.
 .sp
 When used together with the
 \fB\-\-config\-file\fR
@@ -943,7 +891,6 @@ T}
 T{
 Default Value
 T}:T{
-[none]
 T}
 T{
 Minimum Value
@@ -1036,7 +983,7 @@ shell> \fBndbd \-c 198\&.51\&.100\&.150,198\&.51\&.100\&.151\fR
 The same is true with regard to the connection string used with any
 \fBmysqld\fR
 processes that you wish to start as NDB Cluster SQL nodes connected to this cluster\&. See
-Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
+Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for more information\&.
 .sp
 When used with
 \fBndb_mgmd\fR, this option affects the behavior of the management node with regard to other management nodes only\&. Do not confuse it with the
@@ -1138,7 +1085,7 @@ T}
 .TE
 .sp 1
 NDB Cluster configuration data is stored internally rather than being read from the cluster global configuration file each time the management server is started (see
-Section\ \&23.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
+Section\ \&22.3.3, \(lqNDB Cluster Configuration Files\(rq)\&. Using this option forces the management server to check its internal data store against the cluster configuration file and to reload the configuration if it finds that the configuration file does not match the cache\&. Existing configuration cache files are preserved, but not used\&.
 .sp
 This differs in two ways from the
 \fB\-\-initial\fR
@@ -1157,7 +1104,7 @@ When
 is used, the management server must be able to communicate with data nodes and any other management servers in the cluster before it attempts to read the global configuration file; otherwise, the management server fails to start\&. This can happen due to changes in the networking environment, such as new IP addresses for nodes or an altered firewall configuration\&. In such cases, you must use
 \fB\-\-initial\fR
 instead to force the exsiting cached configuration to be discarded and reloaded from the file\&. See
-Section\ \&23.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
+Section\ \&22.5.5, \(lqPerforming a Rolling Restart of an NDB Cluster\(rq, for additional information\&.
 .RE
 .sp
 .RS 4
@@ -1238,7 +1185,7 @@ Remove a management server process that has been installed as a Windows service,
 It is not strictly necessary to specify a connection string when starting the management server\&. However, if you are using more than one management server, a connection string should be provided and each node in the cluster should specify its node ID explicitly\&.
 .PP
 See
-Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
+Section\ \&22.3.3.3, \(lqNDB Cluster Connection Strings\(rq, for information about using connection strings\&.
 \fBndb_mgmd\fR(8), describes other options for
 \fBndb_mgmd\fR\&.
 .PP
@@ -1262,7 +1209,7 @@ is the unique node identifier\&.
 .\}
 config\&.ini
 is the configuration file for the cluster as a whole\&. This file is created by the user and read by the management server\&.
-Section\ \&23.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
+Section\ \&22.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up this file\&.
 .RE
 .sp
 .RS 4
@@ -1275,7 +1222,7 @@ Section\ \&23.3, \(lqConfiguration of NDB Cluster\(rq, discusses how to set up t
 .\}
 ndb_\fInode_id\fR_cluster\&.log
 is the cluster events log file\&. Examples of such events include checkpoint startup and completion, node startup events, node failures, and levels of memory usage\&. A complete listing of cluster events with descriptions may be found in
-Section\ \&23.5, \(lqManagement of NDB Cluster\(rq\&.
+Section\ \&22.5, \(lqManagement of NDB Cluster\(rq\&.
 .sp
 By default, when the size of the cluster log reaches one million bytes, the file is renamed to
 ndb_\fInode_id\fR_cluster\&.log\&.\fIseq_id\fR, where
@@ -1316,7 +1263,7 @@ is the process ID file used when running the management server as a daemon\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

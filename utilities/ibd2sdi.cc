@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -193,11 +193,11 @@ static struct my_option ibd2sdi_options[] = {
      GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"version", 'v', "Display version information and exit.", nullptr, nullptr,
      nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     {"debug", '#', "Output debug log. See " REFMAN "dbug-package.html",
      &opts.dbug_setting, &opts.dbug_setting, nullptr, GET_STR, OPT_ARG, 0, 0, 0,
      nullptr, 0, nullptr},
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
     {"dump-file", 'd',
      "Dump the tablespace SDI into the file passed by user."
      " Without the filename, it will default to stdout",
@@ -230,11 +230,6 @@ static struct my_option ibd2sdi_options[] = {
 
     {nullptr, 0, nullptr, nullptr, nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0,
      0, nullptr, 0, nullptr}};
-
-/** A dummy implementation.  Actual implementation available in fil0fil.cc */
-std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
-  return out;
-}
 
 /** Report a failed assertion.
 @param[in]	expr	the failed assertion if not NULL
@@ -297,11 +292,11 @@ static FILE *create_tmp_file(char *temp_file_buf, const char *dir,
 
 /** Print the ibd2sdi tool usage. */
 static void usage() {
-#ifdef NDEBUG
+#ifdef DBUG_OFF
   print_version();
 #else
   print_version_debug();
-#endif /* NDEBUG */
+#endif /* DBUG_OFF */
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2015"));
   printf(
       "Usage: %s [-v] [-c <strict-check>] [-d <dump file name>] [-n]"
@@ -317,16 +312,16 @@ extern "C" bool ibd2sdi_get_one_option(
     int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     char *argument MY_ATTRIBUTE((unused))) {
   switch (optid) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     case '#':
       opts.dbug_setting =
           argument ? argument
                    : IF_WIN("d:O,ibd2sdi.trace", "d:o,/tmp/ibd2sdi.trace");
       DBUG_PUSH(opts.dbug_setting);
       break;
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
     case 'v':
-#ifdef NDEBUG
+#ifdef DBUG_OFF
       print_version();
 #else
       print_version_debug();
@@ -409,7 +404,7 @@ fatal::~fatal() {
   ut_error;
 }
 
-/* TODO: Improve Object creation & destruction on NDEBUG */
+/* TODO: Improve Object creation & destruction on DBUG_OFF */
 class dbug : public logger {
  public:
   ~dbug() override { DBUG_PRINT("ibd2sdi", ("%s", m_oss.str().c_str())); }

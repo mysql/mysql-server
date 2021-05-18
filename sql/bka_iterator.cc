@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
 
 #include "sql/bka_iterator.h"
 
-#include <assert.h>
 #include <math.h>
 #include <string.h>
 #include <sys/types.h>
@@ -35,24 +34,23 @@
 
 #include "my_alloc.h"
 #include "my_base.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"
 #include "sql/handler.h"
 #include "sql/hash_join_buffer.h"
+#include "sql/hash_join_iterator.h"
 #include "sql/item.h"
+#include "sql/key.h"
 #include "sql/psi_memory_key.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_executor.h"
 #include "sql/sql_opt_exec_shared.h"
 #include "sql/table.h"
 
-class JOIN;
-
 using hash_join_buffer::BufferRow;
-using hash_join_buffer::LoadBufferRowIntoTableBuffers;
-using pack_rows::TableCollection;
+using hash_join_buffer::TableCollection;
 using std::string;
 using std::vector;
 
@@ -88,8 +86,8 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
           mrr_bytes_needed_for_single_inner_row),
       m_mrr_iterator(mrr_iterator),
       m_join_type(join_type) {
-  assert(m_outer_input != nullptr);
-  assert(m_inner_input != nullptr);
+  DBUG_ASSERT(m_outer_input != nullptr);
+  DBUG_ASSERT(m_inner_input != nullptr);
 
   m_mrr_bytes_needed_per_row =
       lrint(mrr_bytes_needed_for_single_inner_row *
@@ -99,7 +97,7 @@ BKAIterator::BKAIterator(THD *thd, JOIN *join,
 bool BKAIterator::Init() {
   if (!m_outer_input_tables.has_blob_column()) {
     size_t upper_row_size =
-        pack_rows::ComputeRowSizeUpperBound(m_outer_input_tables);
+        hash_join_buffer::ComputeRowSizeUpperBound(m_outer_input_tables);
     if (m_outer_row_buffer.reserve(upper_row_size)) {
       my_error(ER_OUTOFMEMORY, MYF(0), upper_row_size);
       return true;
@@ -130,7 +128,7 @@ int BKAIterator::ReadOuterRows() {
       // rows into them, and in case we are reading from a join, Read() may
       // not update all of the tables.
       m_has_row_from_previous_batch = false;
-      LoadBufferRowIntoTableBuffers(
+      hash_join_buffer::LoadIntoTableBuffers(
           m_outer_input_tables,
           hash_join_buffer::Key(
               pointer_cast<const uchar *>(m_outer_row_buffer.ptr()),
@@ -189,7 +187,7 @@ int BKAIterator::ReadOuterRows() {
 
   // If we had no rows at all, we're done.
   if (m_rows.empty()) {
-    assert(!m_has_row_from_previous_batch);
+    DBUG_ASSERT(!m_has_row_from_previous_batch);
     m_state = State::END_OF_ROWS;
     return -1;
   }
@@ -200,8 +198,8 @@ int BKAIterator::ReadOuterRows() {
   if (m_bytes_used + mrr_buffer_size >= m_max_memory_available) {
     // Even if it will take us over budget, DS-MRR needs space for at least
     // one row to work.
-    assert(m_rows.size() ==
-           1);  // Otherwise, we would have stopped reading rows earlier.
+    DBUG_ASSERT(m_rows.size() ==
+                1);  // Otherwise, we would have stopped reading rows earlier.
     if (m_bytes_used + m_mrr_bytes_needed_for_single_inner_row >=
         m_max_memory_available) {
       mrr_buffer_size = m_mrr_bytes_needed_for_single_inner_row;
@@ -214,7 +212,7 @@ int BKAIterator::ReadOuterRows() {
     mrr_buffer_size = std::min(mrr_buffer_size * 2 + 16384,
                                m_max_memory_available - m_bytes_used);
   }
-  assert(mrr_buffer_size >= m_mrr_bytes_needed_for_single_inner_row);
+  DBUG_ASSERT(mrr_buffer_size >= m_mrr_bytes_needed_for_single_inner_row);
 
   // Ask the MRR iterator to do the actual read.
   m_mrr_iterator->set_rows(m_rows.begin(), m_rows.end());
@@ -242,7 +240,7 @@ void BKAIterator::BatchFinished() {
     m_state = State::END_OF_ROWS;
   } else {
     BeginNewBatch();
-    assert(m_state == State::NEED_OUTER_ROWS);
+    DBUG_ASSERT(m_state == State::NEED_OUTER_ROWS);
   }
 }
 
@@ -254,7 +252,8 @@ int BKAIterator::MakeNullComplementedRow() {
     } else {
       // Return a NULL-complemented row. (Our table already has the NULL flag
       // set.)
-      LoadIntoTableBuffers(m_outer_input_tables, m_current_pos->data());
+      hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
+                                             m_current_pos->data());
       ++m_current_pos;
       return 0;
     }
@@ -353,13 +352,13 @@ bool MultiRangeRowIterator::Init() {
     seq_funcs.skip_record = MultiRangeRowIterator::MrrSkipRecordCallbackThunk;
   }
   if (m_match_flag_buffer != nullptr) {
-    assert(NeedMatchFlags(m_join_type));
+    DBUG_ASSERT(NeedMatchFlags(m_join_type));
 
     // Reset all the match flags.
     memset(m_match_flag_buffer, 0,
            BytesNeededForMatchFlags(std::distance(m_begin, m_end)));
   } else {
-    assert(!NeedMatchFlags(m_join_type));
+    DBUG_ASSERT(!NeedMatchFlags(m_join_type));
   }
 
   /**
@@ -401,7 +400,8 @@ uint MultiRangeRowIterator::MrrNextCallback(KEY_MULTI_RANGE *range) {
       return 1;
     }
 
-    LoadBufferRowIntoTableBuffers(m_outer_input_tables, *m_current_pos);
+    hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables,
+                                           *m_current_pos);
 
     construct_lookup_ref(thd(), table(), m_ref);
     if (!m_ref->impossible_null_ref()) {
@@ -437,7 +437,7 @@ bool MultiRangeRowIterator::MrrSkipIndexTuple(char *range_info) {
   // range_info tells us which outer row we are talking about; it corresponds to
   // range->ptr in MrrNextCallback(), and points to the serialized outer row in
   // BKAIterator's m_row array.
-  LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
+  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
 
   // Skip this tuple if the index condition is false.
   return !m_cache_idx_cond->val_int();
@@ -464,7 +464,7 @@ int MultiRangeRowIterator::Read() {
     // See bug #30594210.
   } while (m_join_type == JoinType::SEMI && RowHasBeenRead(rec_ptr));
 
-  LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
+  hash_join_buffer::LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
 
   m_last_row_returned = rec_ptr;
 

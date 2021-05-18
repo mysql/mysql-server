@@ -1,7 +1,7 @@
 #ifndef SQL_BASIC_ROW_ITERATORS_H_
 #define SQL_BASIC_ROW_ITERATORS_H_
 
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,12 +38,14 @@
 #include "my_alloc.h"
 #include "my_base.h"
 #include "my_inttypes.h"
+#include "prealloced_array.h"
 #include "sql/mem_root_array.h"
 #include "sql/row_iterator.h"
 #include "sql/sql_list.h"
 
 class Filesort_info;
 class Item;
+class QEP_TAB;
 class QUICK_SELECT_I;
 class Sort_result;
 class THD;
@@ -59,11 +61,13 @@ struct TABLE;
  */
 class TableScanIterator final : public TableRowIterator {
  public:
-  // “expected_rows” is used for scaling the record buffer.
-  // If zero or less, no record buffer will be set up.
+  // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
+  // buffers.
+  //
+  // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  TableScanIterator(THD *thd, TABLE *table, double expected_rows,
+  TableScanIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
                     ha_rows *examined_rows);
   ~TableScanIterator() override;
 
@@ -72,7 +76,7 @@ class TableScanIterator final : public TableRowIterator {
 
  private:
   uchar *const m_record;
-  const double m_expected_rows;
+  QEP_TAB *const m_qep_tab;
   ha_rows *const m_examined_rows;
 };
 
@@ -86,14 +90,14 @@ class IndexScanIterator final : public TableRowIterator {
   // but do not actually care about the order. In particular, partitioned
   // tables can use this to deliver more efficient scans.
   //
-  // “expected_rows” is used for scaling the record buffer.
-  // If zero or less, no record buffer will be set up.
+  // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
+  // buffers.
   //
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   IndexScanIterator(THD *thd, TABLE *table, int idx, bool use_order,
-                    double expected_rows, ha_rows *examined_rows);
+                    QEP_TAB *qep_tab, ha_rows *examined_rows);
   ~IndexScanIterator() override;
 
   bool Init() override;
@@ -103,7 +107,7 @@ class IndexScanIterator final : public TableRowIterator {
   uchar *const m_record;
   const int m_idx;
   const bool m_use_order;
-  const double m_expected_rows;
+  QEP_TAB *const m_qep_tab;
   ha_rows *const m_examined_rows;
   bool m_first = true;
 };
@@ -122,14 +126,14 @@ class IndexRangeScanIterator final : public TableRowIterator {
  public:
   // Does _not_ take ownership of "quick" (but maybe it should).
   //
-  // “expected_rows” is used for scaling the record buffer.
-  // If zero or less, no record buffer will be set up.
+  // Accepts nullptr for qep_tab; qep_tab is used only for setting up record
+  // buffers.
   //
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   IndexRangeScanIterator(THD *thd, TABLE *table, QUICK_SELECT_I *quick,
-                         double expected_rows, ha_rows *examined_rows);
+                         QEP_TAB *qep_tab, ha_rows *examined_rows);
 
   bool Init() override;
   int Read() override;
@@ -137,7 +141,7 @@ class IndexRangeScanIterator final : public TableRowIterator {
  private:
   // NOTE: No destructor; quick_range will call ha_index_or_rnd_end() for us.
   QUICK_SELECT_I *const m_quick;
-  const double m_expected_rows;
+  QEP_TAB *const m_qep_tab;
   ha_rows *const m_examined_rows;
 
   // After m_quick has returned EOF, some of its members are destroyed, making
@@ -170,7 +174,7 @@ class SortBufferIterator final : public RowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
   // The table is used solely for NULL row flags.
-  SortBufferIterator(THD *thd, Mem_root_array<TABLE *> tables,
+  SortBufferIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
                      Filesort_info *sort, Sort_result *sort_result,
                      ha_rows *examined_rows);
   ~SortBufferIterator() override;
@@ -186,7 +190,7 @@ class SortBufferIterator final : public RowIterator {
   Sort_result *const m_sort_result;
   unsigned m_unpack_counter;
   ha_rows *const m_examined_rows;
-  Mem_root_array<TABLE *> m_tables;
+  Prealloced_array<TABLE *, 4> m_tables;
 };
 
 /**
@@ -208,7 +212,7 @@ class SortBufferIndirectIterator final : public RowIterator {
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  SortBufferIndirectIterator(THD *thd, Mem_root_array<TABLE *> tables,
+  SortBufferIndirectIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
                              Sort_result *sort_result,
                              bool ignore_not_found_rows, bool has_null_flags,
                              ha_rows *examined_rows);
@@ -220,7 +224,7 @@ class SortBufferIndirectIterator final : public RowIterator {
 
  private:
   Sort_result *const m_sort_result;
-  Mem_root_array<TABLE *> m_tables;
+  Prealloced_array<TABLE *, 4> m_tables;
   uint m_sum_ref_length;
   ha_rows *const m_examined_rows;
   uchar *m_cache_pos = nullptr, *m_cache_end = nullptr;
@@ -241,8 +245,9 @@ class SortFileIterator final : public RowIterator {
  public:
   // Takes ownership of tempfile.
   // The table is used solely for NULL row flags.
-  SortFileIterator(THD *thd, Mem_root_array<TABLE *> tables, IO_CACHE *tempfile,
-                   Filesort_info *sort, ha_rows *examined_rows);
+  SortFileIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
+                   IO_CACHE *tempfile, Filesort_info *sort,
+                   ha_rows *examined_rows);
   ~SortFileIterator() override;
 
   bool Init() override { return false; }
@@ -253,7 +258,7 @@ class SortFileIterator final : public RowIterator {
  private:
   uchar *const m_rec_buf;
   const uint m_buf_length;
-  Mem_root_array<TABLE *> m_tables;
+  Prealloced_array<TABLE *, 4> m_tables;
   IO_CACHE *const m_io_cache;
   Filesort_info *const m_sort;
   ha_rows *const m_examined_rows;
@@ -275,7 +280,7 @@ class SortFileIndirectIterator final : public RowIterator {
   // The pushed condition can be nullptr.
   //
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  SortFileIndirectIterator(THD *thd, Mem_root_array<TABLE *> tables,
+  SortFileIndirectIterator(THD *thd, Prealloced_array<TABLE *, 4> tables,
                            IO_CACHE *tempfile, bool ignore_not_found_rows,
                            bool has_null_flags, ha_rows *examined_rows);
   ~SortFileIndirectIterator() override;
@@ -288,7 +293,7 @@ class SortFileIndirectIterator final : public RowIterator {
  private:
   IO_CACHE *m_io_cache = nullptr;
   ha_rows *const m_examined_rows;
-  Mem_root_array<TABLE *> m_tables;
+  Prealloced_array<TABLE *, 4> m_tables;
   uchar *m_ref_pos = nullptr;
   bool m_ignore_not_found_rows;
   bool m_has_null_flags;
@@ -323,7 +328,7 @@ class FakeSingleRowIterator final : public RowIterator {
   }
 
   void SetNullRowFlag(bool is_null_row MY_ATTRIBUTE((unused))) override {
-    assert(!is_null_row);
+    DBUG_ASSERT(!is_null_row);
   }
 
   void UnlockRow() override {}
@@ -352,7 +357,7 @@ class UnqualifiedCountIterator final : public RowIterator {
 
   int Read() override;
 
-  void SetNullRowFlag(bool) override { assert(false); }
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
 
   void UnlockRow() override {}
 
@@ -383,7 +388,7 @@ class ZeroRowsIterator final : public RowIterator {
   int Read() override { return -1; }
 
   void SetNullRowFlag(bool is_null_row) override {
-    assert(m_child_iterator != nullptr);
+    DBUG_ASSERT(m_child_iterator != nullptr);
     m_child_iterator->SetNullRowFlag(is_null_row);
   }
 
@@ -393,7 +398,7 @@ class ZeroRowsIterator final : public RowIterator {
   unique_ptr_destroy_only<RowIterator> m_child_iterator;
 };
 
-class Query_block;
+class SELECT_LEX;
 
 /**
   Like ZeroRowsIterator, but produces a single output row, since there are
@@ -416,7 +421,7 @@ class ZeroRowsAggregatedIterator final : public RowIterator {
 
   int Read() override;
 
-  void SetNullRowFlag(bool) override { assert(false); }
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
 
   void UnlockRow() override {}
 
@@ -453,7 +458,7 @@ class ZeroRowsAggregatedIterator final : public RowIterator {
 class FollowTailIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  FollowTailIterator(THD *thd, TABLE *table, double expected_rows,
+  FollowTailIterator(THD *thd, TABLE *table, QEP_TAB *qep_tab,
                      ha_rows *examined_rows);
   ~FollowTailIterator() override;
 
@@ -481,9 +486,8 @@ class FollowTailIterator final : public TableRowIterator {
   bool RepositionCursorAfterSpillToDisk();
 
  private:
-  bool m_inited = false;
   uchar *const m_record;
-  const double m_expected_rows;
+  QEP_TAB *const m_qep_tab;
   ha_rows *const m_examined_rows;
   ha_rows m_read_rows;
   ha_rows m_end_of_current_iteration;
@@ -500,7 +504,7 @@ class FollowTailIterator final : public TableRowIterator {
 
   The iterator is passed the field list of its parent JOIN object, which may
   contain Item_values_column objects that are created during
-  Query_block::prepare_values(). This is required so that Read() can replace the
+  SELECT_LEX::prepare_values(). This is required so that Read() can replace the
   currently selected row by simply changing the references of Item_values_column
   objects to the next row.
 
@@ -520,7 +524,7 @@ class TableValueConstructorIterator final : public RowIterator {
   bool Init() override;
   int Read() override;
 
-  void SetNullRowFlag(bool) override { assert(false); }
+  void SetNullRowFlag(bool) override { DBUG_ASSERT(false); }
 
   void UnlockRow() override {}
 

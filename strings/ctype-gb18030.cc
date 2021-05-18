@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,13 +28,12 @@
 
 // This file is for Chinese character sets GB18030-2005.
 
-#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 
 #include "m_ctype.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "template_utils.h"
 
@@ -19165,7 +19164,7 @@ static const uint16 gb18030_4_weight_py_p2[] = {
 static inline uint gb18030_chs_to_code(const uchar *src, size_t srclen) {
   uint r = 0;
 
-  assert(srclen == 1 || srclen == 2 || srclen == 4);
+  DBUG_ASSERT(srclen == 1 || srclen == 2 || srclen == 4);
 
   switch (srclen) {
     case 1:
@@ -19178,7 +19177,7 @@ static inline uint gb18030_chs_to_code(const uchar *src, size_t srclen) {
       r = (src[0] << 24) + (src[1] << 16) + (src[2] << 8) + src[3];
       break;
     default:
-      assert(0);
+      DBUG_ASSERT(0);
   }
 
   return r;
@@ -19199,7 +19198,7 @@ static size_t code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code) {
   uchar r[4];
   for (i = 0; code != 0; i++, code >>= 8) r[i] = (uchar)(code & 0xFF);
 
-  assert(i == 1 || i == 2 || i == 4);
+  DBUG_ASSERT(i == 1 || i == 2 || i == 4);
   for (; i > 0 && dst < dst_end; --i, ++len) *dst++ = r[i - 1];
 
   return len;
@@ -19216,7 +19215,7 @@ static size_t code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code) {
                       0 otherwise
 */
 static uint diff_to_gb18030_4(uchar *dst, uint dstlen, uint diff) {
-  assert(dstlen >= 4);
+  DBUG_ASSERT(dstlen >= 4);
 
   if (diff > MAX_GB18030_DIFF || dstlen < 4) return 0;
 
@@ -19239,16 +19238,16 @@ static uint diff_to_gb18030_4(uchar *dst, uint dstlen, uint diff) {
 static uint gb18030_4_code_to_diff(uint code) {
   uint diff = 0;
 
-  assert(is_mb_odd((code >> 24) & 0xFF));
+  DBUG_ASSERT(is_mb_odd((code >> 24) & 0xFF));
   diff += ((code >> 24) & 0xFF) - MIN_MB_ODD_BYTE;
   diff *= 10;
-  assert(is_mb_even_4((code >> 16) & 0xFF));
+  DBUG_ASSERT(is_mb_even_4((code >> 16) & 0xFF));
   diff += ((code >> 16) & 0xFF) - MIN_MB_EVEN_BYTE_4;
   diff *= 126;
-  assert(is_mb_odd((code >> 8) & 0xFF));
+  DBUG_ASSERT(is_mb_odd((code >> 8) & 0xFF));
   diff += ((code >> 8) & 0xFF) - MIN_MB_ODD_BYTE;
   diff *= 10;
-  assert(is_mb_even_4(code & 0xFF));
+  DBUG_ASSERT(is_mb_even_4(code & 0xFF));
   diff += (code & 0xFF) - MIN_MB_EVEN_BYTE_4;
 
   return diff;
@@ -19279,7 +19278,7 @@ static inline uint gb18030_4_chs_to_diff(const uchar *src) {
 extern "C" {
 static uint my_ismbchar_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                 const char *p, const char *e) {
-  assert(e > p);
+  DBUG_ASSERT(e > p);
 
   if (e - p <= 1 || !is_mb_odd(p[0])) return 0;
 
@@ -19396,12 +19395,12 @@ static int my_wc_mb_gb18030_chs(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
       if (s + 4 > e) return MY_CS_TOOSMALL4;
 
       err = diff_to_gb18030_4(s, 4, idx);
-      assert(err != 0);
+      DBUG_ASSERT(err != 0);
 
       return err != 0 ? len : MY_CS_ILUNI;
   }
 
-  assert(0);
+  DBUG_ASSERT(0);
   return MY_CS_ILUNI;
 }
 
@@ -19486,7 +19485,7 @@ static int my_mb_wc_gb18030(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
       /* (GB+8431A439, GB+90308130) and (GB+E3329A35, GB+FE39FE39) */
       cp = 0x003F;
     else
-      assert(0);
+      DBUG_ASSERT(0);
 
     *pwc = cp;
     return 4;
@@ -19544,7 +19543,7 @@ static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
   const MY_UNICASE_CHARACTER *p = nullptr;
   uint diff, code;
 
-  assert(cs != nullptr);
+  DBUG_ASSERT(cs != nullptr);
 
   switch (srclen) {
     case 1:
@@ -19571,7 +19570,7 @@ static const MY_UNICASE_CHARACTER *get_case_info(const CHARSET_INFO *cs,
       return p ? &p[code & 0xFF] : nullptr;
   }
 
-  assert(0);
+  DBUG_ASSERT(0);
   return nullptr;
 }
 
@@ -19595,10 +19594,10 @@ static uint case_info_code_to_gb18030(uint code) {
              code <= (MAX_3_BYTE_FROM_UNI & 0xFFFF))
       code += (MIN_3_BYTE_FROM_UNI & 0xFF0000);
     else
-      assert(0);
+      DBUG_ASSERT(0);
 
     r = diff_to_gb18030_4(gbchs, 4, code);
-    assert(r == 4);
+    DBUG_ASSERT(r == 4);
 
     return r == 4 ? gb18030_chs_to_code(gbchs, 4) : 0;
   }
@@ -19619,7 +19618,7 @@ static uint get_casefolded_code(const CHARSET_INFO *cs, const uchar *src,
                                 size_t srclen, size_t is_upper) {
   const MY_UNICASE_CHARACTER *ch = get_case_info(cs, src, srclen);
 
-  assert(srclen == 1 || srclen == 2 || srclen == 4);
+  DBUG_ASSERT(srclen == 1 || srclen == 2 || srclen == 4);
 
   return ch ? case_info_code_to_gb18030(is_upper ? ch->toupper : ch->tolower)
             : 0;
@@ -19649,7 +19648,7 @@ static size_t my_casefold_gb18030(const CHARSET_INFO *cs, char *src,
   while (src < srcend) {
     uint mblen = my_ismbchar_gb18030(cs, src, srcend);
 
-    assert(dst < dst_end);
+    DBUG_ASSERT(dst < dst_end);
     if (mblen) {
       uint code = get_casefolded_code(cs, (uchar *)src, mblen, is_upper);
 
@@ -19657,12 +19656,12 @@ static size_t my_casefold_gb18030(const CHARSET_INFO *cs, char *src,
         size_t mblen_dst =
             code_to_gb18030_chs((uchar *)dst, dst_end - dst, code);
 
-        assert(dst + mblen_dst <= dst_end);
+        DBUG_ASSERT(dst + mblen_dst <= dst_end);
         src += mblen;
         dst += mblen_dst;
       } else {
-        assert(mblen == 2 || mblen == 4);
-        assert(dst + mblen <= dst_end);
+        DBUG_ASSERT(mblen == 2 || mblen == 4);
+        DBUG_ASSERT(dst + mblen <= dst_end);
 
         if (mblen == 4) {
           *dst++ = *src++;
@@ -19692,9 +19691,9 @@ static size_t my_casefold_gb18030(const CHARSET_INFO *cs, char *src,
 extern "C" {
 static size_t my_casedn_gb18030(const CHARSET_INFO *cs, char *src,
                                 size_t srclen, char *dst, size_t dstlen) {
-  assert(cs != nullptr);
-  assert(src != dst || cs->casedn_multiply == 1);
-  assert(dstlen >= srclen * cs->casedn_multiply);
+  DBUG_ASSERT(cs != nullptr);
+  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
+  DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply);
   return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_lower, false);
 }
 
@@ -19710,9 +19709,9 @@ static size_t my_casedn_gb18030(const CHARSET_INFO *cs, char *src,
 */
 static size_t my_caseup_gb18030(const CHARSET_INFO *cs, char *src,
                                 size_t srclen, char *dst, size_t dstlen) {
-  assert(cs != nullptr);
-  assert(src != dst || cs->caseup_multiply == 1);
-  assert(dstlen >= srclen * cs->caseup_multiply);
+  DBUG_ASSERT(cs != nullptr);
+  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
+  DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
   return my_casefold_gb18030(cs, src, srclen, dst, dstlen, cs->to_upper, true);
 }
 
@@ -19734,9 +19733,9 @@ static size_t my_casedn_gb18030_uca(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
 
-  assert(cs != nullptr);
-  assert(src != dst || cs->casedn_multiply == 1);
-  assert(dstlen >= srclen * cs->casedn_multiply);
+  DBUG_ASSERT(cs != nullptr);
+  DBUG_ASSERT(src != dst || cs->casedn_multiply == 1);
+  DBUG_ASSERT(dstlen >= srclen * cs->casedn_multiply);
 
   uni_plane = cs->caseinfo;
 
@@ -19777,9 +19776,9 @@ static size_t my_caseup_gb18030_uca(const CHARSET_INFO *cs, char *src,
   int srcres, dstres;
   char *srcend = src + srclen, *dstend = dst + dstlen, *dst0 = dst;
 
-  assert(cs != nullptr);
-  assert(src != dst || cs->caseup_multiply == 1);
-  assert(dstlen >= srclen * cs->caseup_multiply);
+  DBUG_ASSERT(cs != nullptr);
+  DBUG_ASSERT(src != dst || cs->caseup_multiply == 1);
+  DBUG_ASSERT(dstlen >= srclen * cs->caseup_multiply);
 
   uni_plane = cs->caseinfo;
 
@@ -19871,7 +19870,7 @@ static uint get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src,
                                   size_t mblen) {
   uint weight, caseup_code, code = gb18030_chs_to_code(src, mblen);
 
-  assert(mblen == 2 || mblen == 4);
+  DBUG_ASSERT(mblen == 2 || mblen == 4);
 
   /* Make sure the max 4-byte gb18030 code has the max weight */
   if (code == 0xFE39FE39) return 0xFFFFFFFF;
@@ -19900,10 +19899,10 @@ static uint get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src,
 */
 static uint get_weight_for_gb18030_chs(const CHARSET_INFO *cs, const char *s,
                                        size_t s_len) {
-  assert(s_len == 1 || s_len == 2 || s_len == 4);
+  DBUG_ASSERT(s_len == 1 || s_len == 2 || s_len == 4);
 
   if (s_len == 1) {
-    assert(is_mb_1(*s));
+    DBUG_ASSERT(is_mb_1(*s));
     return cs->sort_order[(uchar)*s];
   }
 
@@ -19933,7 +19932,7 @@ static size_t get_code_and_length(const CHARSET_INFO *cs, const char *s,
 
   if ((len = my_ismbchar_gb18030(cs, s, e)) == 0) return 0;
 
-  assert(len == 2 || len == 4);
+  DBUG_ASSERT(len == 2 || len == 4);
   *code = gb18030_chs_to_code((const uchar *)s, len);
   return len;
 }
@@ -19961,7 +19960,7 @@ static int my_strnncoll_gb18030_internal(const CHARSET_INFO *cs,
   const uchar *se = s + s_length;
   const uchar *te = t + t_length;
 
-  assert(cs != nullptr);
+  DBUG_ASSERT(cs != nullptr);
 
   while (s < se && t < te) {
     uint mblen_s = my_ismbchar_gb18030(cs, pointer_cast<const char *>(s),
@@ -20077,7 +20076,7 @@ static size_t my_strnxfrm_gb18030(const CHARSET_INFO *cs, uchar *dst,
   const uchar *se = src + srclen;
   const uchar *sort_order;
 
-  assert(cs != nullptr);
+  DBUG_ASSERT(cs != nullptr);
   sort_order = cs->sort_order;
 
   for (; dst < de && src < se && nweights; nweights--) {
@@ -20129,11 +20128,11 @@ static uint unicode_to_gb18030_code(const CHARSET_INFO *cs, int unicode) {
   uint dst_len;
   int res;
 
-  assert(cs != nullptr);
+  DBUG_ASSERT(cs != nullptr);
 
   res = cs->cset->wc_mb(cs, unicode, dst, dst + 4);
 
-  assert(res == 1 || res == 2 || res == 4);
+  DBUG_ASSERT(res == 1 || res == 2 || res == 4);
 
   dst_len = (uint)res;
   return gb18030_chs_to_code(dst, dst_len);
@@ -20292,7 +20291,7 @@ static int my_wildcmp_gb18030(const CHARSET_INFO *cs, const char *str,
     to '%'. And for '_' and '%', their values are same in GB18030 and Unicode,
     we don't need to do conversion.
    */
-  assert((w_one == -1 || w_one == '_') && (w_many == -1 || w_many == '%'));
+  DBUG_ASSERT((w_one == -1 || w_one == '_') && (w_many == -1 || w_many == '%'));
   uint escape_gb = unicode_to_gb18030_code(cs, escape);
 
   return my_wildcmp_gb18030_impl(cs, str, str_end, wildstr, wildend, escape_gb,

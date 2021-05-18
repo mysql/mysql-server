@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -4464,49 +4464,14 @@ static Uint32 get_part_id(const NdbDictionary::Table *table,
     return (hash_value % no_frags);
 }
 
-static void
-callback_logentry(int result, NdbTransaction* trans, void* aObject)
-{
-  restore_callback_t *cb = (restore_callback_t *)aObject;
-  (cb->restore)->cback_logentry(result, cb);
-}
-
 bool
-BackupRestore::logEntry(const LogEntry &le)
+BackupRestore::logEntry(const LogEntry & tup)
 {
   if (!m_restore)
     return true;
 
-  if (le.m_table->isSYSTAB_0())
-  {
-    /* We don't restore from SYSTAB_0 log entries */
-    return true;
-  }
-
-  restore_callback_t * cb = m_free_callback;
-
-  if (cb == 0)
-    abort();
-
-  cb->retries = 0;
-  cb->le = &le;
-  logEntry_a(cb);
-
-  // Poll existing logentry transaction
-  while (m_transactions > 0)
-  {
-    m_ndb->sendPollNdb(3000);
-  }
-
-  return (!get_fatal_error());
-}
-
-void
-BackupRestore::logEntry_a(restore_callback_t *cb)
-{
   bool use_mapping_idx = false;
 
-  const LogEntry &tup = *(cb->le);
   if (unlikely((tup.m_table->m_pk_extended) &&
                (tup.m_type != LogEntry::LE_INSERT) &&
                (!tup.m_table->m_staging)))
@@ -4524,8 +4489,7 @@ BackupRestore::logEntry_a(restore_callback_t *cb)
         restoreLogger.log_error("Build of PK mapping index failed "
                                 "on table %s.",
                                 tup.m_table->getTableName());
-        set_fatal_error(true);
-        return;
+        return false;
       }
       assert(tup.m_table->m_pk_index != NULL);
 
@@ -4536,6 +4500,14 @@ BackupRestore::logEntry_a(restore_callback_t *cb)
     use_mapping_idx = true;
   }
 
+  if (tup.m_table->isSYSTAB_0())
+  {
+    /* We don't restore from SYSTAB_0 log entries */
+    return true;
+  }
+
+  Uint32 retries = 0;
+  NdbError errobj;
 retry:
   Uint32 mapping_idx_key_count = 0;
 #ifdef ERROR_INSERT
@@ -4543,29 +4515,35 @@ retry:
   {
     restoreLogger.log_error("Error insert NDB_RESTORE_ERROR_INSERT_FAIL_REPLAY_LOG");
     m_error_insert = 0;
-    cb->retries = MAX_RETRIES;
+    retries = MAX_RETRIES;
   }
 #endif
 
-  if (cb->retries == MAX_RETRIES)
+  if (retries == MAX_RETRIES)
   {
-    restoreLogger.log_error("execute failed");
-    set_fatal_error(true);
-    return;
+    restoreLogger.log_error("execute failed: %u", errobj.code);
+    return false;
   }
+  else if (retries > 0)
+  {
+    NdbSleep_MilliSleep(100 + retries * 300);
+  }
+  
+  retries++;
 
-  cb->connection = m_ndb->startTransaction();
-  NdbTransaction * trans = cb->connection;
+  NdbTransaction * trans = m_ndb->startTransaction();
   if (trans == NULL) 
   {
-    if (errorHandler(cb)) // temp error, retry
+    errobj = m_ndb->getNdbError();
+    if (errobj.status == NdbError::TemporaryError)
+    {
       goto retry;
-    set_fatal_error(true);
-    restoreLogger.log_error("Cannot start transaction: %u: %s",
-              m_ndb->getNdbError().code, m_ndb->getNdbError().message);
-    return;
-  }
-
+    }
+    restoreLogger.log_error("Cannot start transaction: %u: %s", errobj.code, errobj.message);
+    return false;
+  } // if
+  
+  TransGuard g(trans);
   const NdbDictionary::Table * table = get_table(*tup.m_table);
   NdbOperation * op = NULL;
 
@@ -4582,14 +4560,10 @@ retry:
   }
   if (op == NULL) 
   {
-    if (errorHandler(cb)) // temp error, retry
-      goto retry;
-    set_fatal_error(true);
-    restoreLogger.log_error("Cannot get operation: %u: %s",
-              trans->getNdbError().code, trans->getNdbError().message);
-    return;
-  }
-
+    restoreLogger.log_error("Cannot get operation: %u: %s", trans->getNdbError().code, trans->getNdbError().message);
+    return false;
+  } // if
+  
   int check = 0;
   switch(tup.m_type)
   {
@@ -4603,21 +4577,15 @@ retry:
     check = op->deleteTuple();
     break;
   default:
-    restoreLogger.log_error("Log entry has wrong operation type %u"
-	  " Exiting...", tup.m_type);
-    m_ndb->closeTransaction(trans);
-    set_fatal_error(true);
-    return;
+    restoreLogger.log_error("Log entry has wrong operation type."
+	  " Exiting...");
+    return false;
   }
 
   if (check != 0) 
   {
-    restoreLogger.log_error("Error defining op: %u: %s",
-              trans->getNdbError().code, trans->getNdbError().message);
-    if (errorHandler(cb)) // temp error, retry
-      goto retry;
-    set_fatal_error(true);
-    return;
+    restoreLogger.log_error("Error defining op: %u: %s",trans->getNdbError().code, trans->getNdbError().message);
+    return false;
   } // if
 
   op->set_disable_fk();
@@ -4635,6 +4603,7 @@ retry:
   }
 
   Bitmask<4096> keys;
+  Uint32 n_bytes= 0;
   for (Uint32 pass= 0; pass < 2; pass++)  // Keys then Values
   {
     for (Uint32 i= 0; i < tup.size(); i++)
@@ -4704,9 +4673,7 @@ retry:
                                     "Perhaps the --ignore-extended-pk-updates "
                                     "switch is missing?",
                                     tup.m_table->m_dictTable->getName());
-            m_ndb->closeTransaction(trans);
-            set_fatal_error(true);
-            return;
+            return false;
           }
         }
      }
@@ -4720,7 +4687,7 @@ retry:
       }
 
       const Uint32 length = (size / 8) * arraySize;
-      cb->n_bytes+= length;
+      n_bytes+= length;
 
       if (attr->Desc->convertFunc &&
           dataPtr != NULL) // NULL will not be converted
@@ -4735,9 +4702,7 @@ retry:
           restoreLogger.log_error("Error: Convert data failed when restoring tuples! "
                                   "Log part, table %s, entry type %u.",
                                   tabname, tup.m_type);
-          m_ndb->closeTransaction(trans);
-          set_fatal_error(true);
-          return;
+          return false;
         }
         if (truncated)
         {
@@ -4770,11 +4735,9 @@ retry:
       if (check != 0)
       {
         restoreLogger.log_error("Error defining log op: %u %s.",
-              trans->getNdbError().code, trans->getNdbError().message);
-        if (errorHandler(cb)) // temp error, retry
-          goto retry;
-        set_fatal_error(true);
-        return;
+                                trans->getNdbError().code,
+                                trans->getNdbError().message);
+        return false;
       } // if
     }
   }
@@ -4783,45 +4746,30 @@ retry:
   {
     op->setAnyValue(NDB_ANYVALUE_FOR_NOLOGGING);
   }
+  const int ret = trans->execute(NdbTransaction::Commit);
 
-  trans->executeAsynchPrepare(NdbTransaction::Commit,
-                                 &callback_logentry, cb);
-  m_transactions++;
-  return;
-}
-
-void BackupRestore::cback_logentry(int result, restore_callback_t *cb)
-{
-  m_transactions--;
-  const NdbError errobj = cb->connection->getNdbError();
-  m_ndb->closeTransaction(cb->connection);
-  cb->connection = NULL;
-
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   /* Test retry path */
   if ((m_logCount % 100000) == 3)
   {
-    if (cb->retries++ < 3)
+    if (retries < 3)
     {
       restoreLogger.log_info("Testing log retry path");
-      logEntry_a(cb);
-      return;
+      goto retry;
     }
   }
 #endif
 
-  if (result < 0)
+  if (ret != 0)
   {
-    // Ignore errors and continue if
-    // - insert fails with ConstraintViolation or
-    // - update/delete fails with NoDataFound
+    // Both insert update and delete can fail during log running
+    // and it's ok
     bool ok= false;
+    errobj= trans->getNdbError();
     if (errobj.status == NdbError::TemporaryError)
-    {
-      logEntry_a(cb);
-      return;
-    }
-    switch(cb->le->m_type)
+      goto retry;
+
+    switch(tup.m_type)
     {
     case LogEntry::LE_INSERT:
       if(errobj.status == NdbError::PermanentError &&
@@ -4837,12 +4785,14 @@ void BackupRestore::cback_logentry(int result, restore_callback_t *cb)
     }
     if (!ok)
     {
-      set_fatal_error(true);
-      return;
+      restoreLogger.log_error("execute failed: %u: %s", errobj.code, errobj.message);
+      return false;
     }
   }
-  m_logBytes+= cb->n_bytes;
+  
+  m_logBytes+= n_bytes;
   m_logCount++;
+  return true;
 }
 
 void

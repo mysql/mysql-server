@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -286,11 +286,12 @@ void Routine::create_mdl_key(enum_routine_type type,
 #ifndef DEBUG_OFF
   // Make sure schema name is lowercased when lower_case_table_names == 2.
   if (lower_case_table_names == 2)
-    assert(is_string_in_lowercase(schema_name,
-                                  tables::Schemata::name_collation()));
+    DBUG_ASSERT(is_string_in_lowercase(schema_name,
+                                       tables::Schemata::name_collation()));
   DBUG_EXECUTE_IF("simulate_lctn_two_case_for_schema_case_compare", {
-    assert((lower_case_table_names == 2) ||
-           is_string_in_lowercase(schema_name, &my_charset_utf8_tolower_ci));
+    DBUG_ASSERT(
+        (lower_case_table_names == 2) ||
+        is_string_in_lowercase(schema_name, &my_charset_utf8_tolower_ci));
   });
 #endif
 

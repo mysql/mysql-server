@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -131,9 +131,6 @@ public:
 
   static void setFirstMatchFlag(Uint32 & requestInfo, Uint32 val);
   static Uint32 getFirstMatchFlag(const Uint32 requestInfo);
-
-  static void setQueryThreadFlag(Uint32 & requestInfo, Uint32 val);
-  static Uint32 getQueryThreadFlag(const Uint32 requestInfo);
 };
 
 /*
@@ -206,7 +203,6 @@ class ScanFragConf {
 public:
   STATIC_CONST( SignalLength = 6 );
   STATIC_CONST( SignalLength_ext = 7 );
-  STATIC_CONST( SignalLength_query = 8);
   
 public:
   Uint32 senderData;
@@ -222,12 +218,6 @@ public:
    * that more result rows will be returned in later NEXTREQ's.
    */
   Uint32 activeMask;
-  /**
-   * When query thread is used, DBTC and DBSPJ needs to know
-   * the senders reference to be able to send the following
-   * signals.
-   */
-  Uint32 senderRef;
 };
 
 class ScanFragRef {
@@ -244,7 +234,6 @@ class ScanFragRef {
   friend class Suma;
 public:
   STATIC_CONST( SignalLength = 4 );
-  STATIC_CONST( SignalLength_query = 5 );
 public:
   enum ErrorCode {
     ZNO_FREE_TC_CONREC_ERROR = 484,
@@ -265,7 +254,6 @@ public:
   Uint32 transId1;
   Uint32 transId2;
   Uint32 errorCode;
-  Uint32 senderRef;
 };
 
 /**
@@ -331,7 +319,6 @@ public:
  * i = Not interpreted flag  - 1  Bit 19
  * m = Multi fragment scan   - 1  Bit 20
  * f = First match flag      - 1  Bit 21
- * q = Query thread flag     - 1  Bit 22
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
@@ -366,7 +353,6 @@ public:
 #define SF_NOT_INTERPRETED_SHIFT (19)
 #define SF_MULTI_FRAG_SHIFT  (20)
 #define SF_FIRST_MATCH_SHIFT (21)
-#define SF_QUERY_THREAD_SHIFT  (22)
 
 inline 
 Uint32
@@ -590,20 +576,6 @@ ScanFragReq::setFirstMatchFlag(Uint32 & requestInfo, UintR val){
   ASSERT_BOOL(val, "ScanFragReq::setFirstMatchFlag");
   requestInfo= (requestInfo & ~(1 << SF_FIRST_MATCH_SHIFT)) |
                (val << SF_FIRST_MATCH_SHIFT);
-}
-
-inline
-Uint32
-ScanFragReq::getQueryThreadFlag(const Uint32 requestInfo){
-  return (requestInfo >> SF_QUERY_THREAD_SHIFT) & 1;
-}
-
-inline
-void
-ScanFragReq::setQueryThreadFlag(Uint32 & requestInfo, UintR val){
-  ASSERT_BOOL(val, "ScanFragReq::setQueryThreadFlag");
-  requestInfo= (requestInfo & ~(1 << SF_QUERY_THREAD_SHIFT)) |
-               (val << SF_QUERY_THREAD_SHIFT);
 }
 
 inline

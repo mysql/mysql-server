@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -174,7 +174,7 @@ class Ndb_DDL_transaction_ctx {
   Ndb_DDL_transaction_ctx(class THD *thd) : m_thd(thd) {}
 
   void get_original_sdi_for_rename(dd::sdi_t &orig_sdi) const {
-    assert(!m_original_sdi_for_rename.empty());
+    DBUG_ASSERT(!m_original_sdi_for_rename.empty());
     orig_sdi.assign(m_original_sdi_for_rename.c_str(),
                     m_original_sdi_for_rename.length());
   }
@@ -191,10 +191,8 @@ class Ndb_DDL_transaction_ctx {
   /* Helper methods to log the DDL. */
   /* @brief Log a create table statement in DDL Context.
 
-     @param db_name       Name of the table's database.
-     @param table_name    Name of the table. */
-  void log_create_table(const std::string &db_name,
-                        const std::string &table_name);
+     @param path_name       Path name of the table. */
+  void log_create_table(const std::string &path_name);
   /* @brief Log a rename table statement in DDL Context.
 
      @param old_db_name       Old name of the table's database.
@@ -212,10 +210,8 @@ class Ndb_DDL_transaction_ctx {
                         const std::string &orig_sdi);
   /* @brief Log a drop table(with temp name) statement in DDL Context.
 
-     @param db_name       Name of the table's database.
-     @param table_name    Name of the table. */
-  void log_drop_temp_table(const std::string &db_name,
-                           const std::string &table_name);
+     @param path_name       Path name of the table. */
+  void log_drop_temp_table(const std::string &path_name);
 
   /* @brief Mark the last DDL stmt as distributed */
   void mark_last_stmt_as_distributed() {

@@ -57,4 +57,5 @@ SET GLOBAL mysqlx_deflate_max_client_compression_level=DEFAULT;
 SET GLOBAL mysqlx_deflate_default_compression_level=DEFAULT;
 SET GLOBAL mysqlx_compression_algorithms=DEFAULT;
 
---source ../include/xplugin_cleanup.inc
+--remove_file $MYSQL_TMP_DIR/compression_level_adjustment.xpl
+--source include/xplugin_drop_user.inc

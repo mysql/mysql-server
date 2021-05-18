@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,15 +28,9 @@
   Instrumentation helpers for idle waits.
 */
 
-/* HAVE_PSI_*_INTERFACE */
-#include "my_psi_config.h"  // IWYU pragma: keep
-
 #include "mysql/psi/psi_idle.h"
 
-#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
-/* PSI_IDLE_CALL() as direct call. */
-#include "pfs_idle_provider.h"  // IWYU pragma: keep
-#endif
+#include "pfs_idle_provider.h"
 
 #ifndef PSI_IDLE_CALL
 #define PSI_IDLE_CALL(M) psi_idle_service->M

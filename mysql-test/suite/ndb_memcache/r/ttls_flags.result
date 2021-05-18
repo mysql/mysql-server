@@ -1,0 +1,8 @@
+TTL Test OK 
+Flags Test OK 
+USE ndbmemcache;
+SELECT * FROM demo_table_tabs order by mkey;
+mkey	val1	val2	val3	flags	expire_time
+1	Groen	NULL	NULL	0	NULL
+12	Con	Brio	NULL	100	NULL
+13	Sul ponticello	NULL	NULL	200	NULL

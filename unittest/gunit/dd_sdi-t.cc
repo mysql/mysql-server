@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -81,7 +81,8 @@ bool equal_prefix_chars_driver(const dd::String_type &a,
 
 static void mock_properties(dd::Properties &p, uint64 size) {
   for (uint64 i = 0; i < size; ++i) {
-    dd::String_type key = (down_cast<dd::Properties_impl &>(p)).valid_key_at(i);
+    dd::String_type key =
+        (dynamic_cast<dd::Properties_impl &>(p)).valid_key_at(i);
     p.set(key, i);
   }
 }
@@ -111,7 +112,7 @@ static void mock_dd_obj(dd::Column *c) {
     mock_dd_obj(c->add_element());
   }
   if (c->ordinal_position() == 0) {
-    down_cast<dd::Column_impl *>(c)->set_ordinal_position(1);
+    dynamic_cast<dd::Column_impl *>(c)->set_ordinal_position(1);
   }
 }
 
@@ -152,7 +153,7 @@ static void mock_dd_obj(dd::Index *i, dd::Column *c = nullptr) {
   mock_dd_obj(i->add_element(c));
 
   if (i->ordinal_position() == 0) {
-    down_cast<dd::Index_impl *>(i)->set_ordinal_position(1);
+    dynamic_cast<dd::Index_impl *>(i)->set_ordinal_position(1);
   }
 }
 
@@ -393,7 +394,7 @@ TEST(SdiTest, Tablespace_API) {
   api_test(ts);
 }
 
-#ifdef NDEBUG
+#ifdef DBUG_OFF
 TEST(SdiTest, Serialization_perf) {
   std::unique_ptr<dd::Table> t(dd::create_object<dd::Table>());
   FANOUT = 20;
@@ -404,7 +405,7 @@ TEST(SdiTest, Serialization_perf) {
     EXPECT_GT(sdi.size(), 100000u);
   }
 }
-#endif /* NDEBUG */
+#endif /* DBUG_OFF */
 
 TEST(SdiTest, CharPromotion) {
   signed char x = 127;

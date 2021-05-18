@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -45,7 +45,6 @@ MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
 SET(DISABLE_PSI_DEFINITIONS
   "DISABLE_PSI_COND"
   "DISABLE_PSI_FILE"
-  "DISABLE_PSI_MEMORY"
   "DISABLE_PSI_METADATA"
   "DISABLE_PSI_MUTEX"
   "DISABLE_PSI_RWLOCK"
@@ -81,9 +80,6 @@ ADD_LIBRARY(gunit_small STATIC
 SET_TARGET_PROPERTIES(gunit_small
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
-IF(MY_COMPILER_IS_SUNPRO)
-  TARGET_COMPILE_OPTIONS(gunit_small PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO4>)
-ENDIF()
 
 # Several "small" unit tests got 'missing symbol client_errors'
 # When building with Sun Studio
@@ -152,7 +148,6 @@ SET(TESTS
   mysys_base64
   mysys_lf
   mysys_my_b_vprintf
-  mysys_my_checksum
   mysys_my_getopt
   mysys_my_getpw
   mysys_my_loadpath
@@ -209,7 +204,6 @@ SET(SERVER_TESTS
   dd_cache
   dd_column_statistics
   dd_info_schema_native_func
-  dd_pfs
   dd_properties
   dd_schema
   dd_sdi
@@ -222,12 +216,9 @@ SET(SERVER_TESTS
   gis_algos
   gis_area
   gis_distance
-  gis_frechet_distance
   gis_geometries
-  gis_hausdorff_distance
   gis_is_simple
   gis_isvalid
-  gis_line_interpolate_point
   gis_relops
   gis_rtree_support
   gis_srs
@@ -236,7 +227,6 @@ SET(SERVER_TESTS
   handler
   hash_join
   histograms
-  hypergraph_optimizer
   initialize_password
   insert_delayed
   into_syntax
@@ -317,7 +307,6 @@ SET(SQL_GUNIT_LIB_SOURCE
   ${CMAKE_SOURCE_DIR}/sql-common/sql_string.cc
   ${CMAKE_SOURCE_DIR}/sql/thr_malloc.cc
   ${CMAKE_SOURCE_DIR}/sql/join_optimizer/hypergraph.cc
-  ${CMAKE_SOURCE_DIR}/sql/locks/shared_spin_lock.cc
   )
 
 ADD_LIBRARY(sqlgunitlib STATIC ${SQL_GUNIT_LIB_SOURCE})
@@ -339,6 +328,7 @@ LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 
 MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
   ENABLE_EXPORTS
+  EXCLUDE_ON_SOLARIS
   ADD_TEST merge_large_tests)
 
 TARGET_LINK_LIBRARIES(merge_large_tests-t
@@ -389,26 +379,12 @@ MYSQL_ADD_EXECUTABLE(rpl_channel_credentials-t rpl_channel_credentials-t.cc
   LINK_LIBRARIES rpl_channel_credentials_lib gunit_small
 )
 
-ADD_LIBRARY(rpl_commit_order_queue_lib STATIC
-  ${CMAKE_SOURCE_DIR}/sql/changestreams/apply/commit_order_queue.cc
-)
-
-MYSQL_ADD_EXECUTABLE(rpl_commit_order_queue-t rpl_commit_order_queue-t.cc
-  ENABLE_EXPORTS
-  ADD_TEST rpl_commit_order_queue
-  LINK_LIBRARIES rpl_commit_order_queue_lib gunit_small sqlgunitlib
-)
-
 ADD_SUBDIRECTORY(ddl_rewriter)
 ADD_SUBDIRECTORY(innodb)
 ADD_SUBDIRECTORY(keyring)
 ADD_SUBDIRECTORY(components/mysql_server)
-ADD_SUBDIRECTORY(components/keyring_common)
 ADD_SUBDIRECTORY(xplugin)
 ADD_SUBDIRECTORY(group_replication)
 ADD_SUBDIRECTORY(libmysqlgcs)
 ADD_SUBDIRECTORY(temptable)
 ADD_SUBDIRECTORY(binlogevents)
-ADD_SUBDIRECTORY(memory)
-ADD_SUBDIRECTORY(containers)
-ADD_SUBDIRECTORY(locks)

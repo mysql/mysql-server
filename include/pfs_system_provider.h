@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,11 +28,10 @@
   Performance schema instrumentation (declarations).
 */
 
-/* HAVE_PSI_*_INTERFACE */
-#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_psi_config.h"
 
 #ifdef HAVE_PSI_SYSTEM_INTERFACE
-#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+#ifdef MYSQL_SERVER
 #ifndef MYSQL_DYNAMIC_PLUGIN
 
 #include <sys/types.h>
@@ -47,7 +46,7 @@
 void pfs_unload_plugin_v1(const char *plugin_name);
 
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* MYSQL_SERVER || PFS_DIRECT_CALL */
+#endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_SYSTEM_INTERFACE */
 
 #endif

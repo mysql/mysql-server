@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -33,8 +33,13 @@
 #include <thread>
 
 #ifndef _WIN32
+#include <netdb.h>
+#include <netinet/in.h>
 #include <sys/file.h>
+#include <sys/select.h>
+#include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #include <unistd.h>
 #else
 #define USE_STD_REGEX
@@ -48,16 +53,12 @@
 #include <fcntl.h>
 
 #include "dim.h"
-#include "mysql/harness/net_ts/buffer.h"
-#include "mysql/harness/net_ts/io_context.h"
-#include "mysql/harness/net_ts/local.h"
-#include "mysql/harness/stdx/expected.h"
-#include "mysql/harness/stdx/string_view.h"
 #include "mysql_session.h"
 #include "mysqlrouter/rest_client.h"
 #include "mysqlrouter/utils.h"
 #include "process_launcher.h"
 #include "random_generator.h"
+#include "socket_operations.h"
 
 #ifdef USE_STD_REGEX
 #include <regex>
@@ -67,14 +68,9 @@
 
 #include <gtest/gtest.h>  // FAIL
 
-#define EXPECT_NO_ERROR(x) \
-  EXPECT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
-
-#define ASSERT_NO_ERROR(x) \
-  ASSERT_THAT((x), ::testing::Truly([](auto const &v) { return bool(v); }))
-
 using mysql_harness::Path;
 using mysql_harness::ProcessLauncher;
+using mysql_harness::socket_t;
 Path ProcessManager::origin_dir_;
 Path ProcessManager::data_dir_;
 Path ProcessManager::plugin_dir_;
@@ -85,138 +81,124 @@ using namespace std::chrono_literals;
 
 #ifdef _WIN32
 
-template <class Clock>
-stdx::expected<ProcessManager::notify_socket_t, std::error_code> accept_until(
-    ProcessManager::wait_socket_t &sock,
-    typename Clock::time_point const &end_time) {
-  using clock_type = Clock;
-  do {
-    auto accept_res = sock.accept();
-    if (!accept_res) {
-      const auto ec = accept_res.error();
-      const std::error_code ec_pipe_listening{ERROR_PIPE_LISTENING,  // 536
-                                              std::system_category()};
-
-      if (ec != ec_pipe_listening) {
-        return accept_res.get_unexpected();
-      }
-
-      // nothing is connected yet, sleep a bit an retry.
-
-      std::this_thread::sleep_for(100ms);
-    } else {
-      return accept_res;
-    }
-  } while (clock_type::now() < end_time);
-
-  return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+notify_socket_t ProcessManager::create_notify_socket(const std::string &name) {
+  return CreateNamedPipe(TEXT(name.c_str()), PIPE_ACCESS_DUPLEX,
+                         PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_NOWAIT,
+                         PIPE_UNLIMITED_INSTANCES, 1024 * 16, 1024 * 16,
+                         NMPWAIT_USE_DEFAULT_WAIT, NULL);
 }
 
-stdx::expected<void, std::error_code> ProcessManager::wait_for_notified(
-    wait_socket_t &sock, const std::string &expected_notification,
-    std::chrono::milliseconds timeout) {
-  using clock_type = std::chrono::system_clock;
-  const auto start_time = clock_type::now();
-  const auto end_time = start_time + timeout;
+void ProcessManager::close_notify_socket(notify_socket_t socket) {
+  if (socket != INVALID_HANDLE_VALUE) CloseHandle(socket);
+}
 
-  sock.native_non_blocking(true);
-
-  auto accept_res = accept_until<clock_type>(sock, end_time);
-  if (!accept_res) {
-    return accept_res.get_unexpected();
-  }
-
-  auto accepted = std::move(accept_res.value());
-
-  // make the read non-blocking.
-  const auto non_block_res = accepted.native_non_blocking(true);
-  if (!non_block_res) {
-    return non_block_res.get_unexpected();
-  }
-
+bool ProcessManager::wait_for_notified(notify_socket_t sock,
+                                       const std::string &expected_notification,
+                                       std::chrono::milliseconds timeout) {
+  DWORD len{0};
   const size_t BUFF_SIZE = 512;
   std::array<char, BUFF_SIZE> buff;
 
-  do {
-    const auto read_res =
-        net::read(accepted, net::buffer(buff), net::transfer_at_least(1));
-    if (!read_res) {
-      if (read_res.error() !=
-          std::error_code{ERROR_NO_DATA, std::system_category()}) {
-        return read_res.get_unexpected();
-      }
+  if (!ConnectNamedPipe(sock, NULL)) {
+    if ((GetLastError() != ERROR_PIPE_LISTENING) &&
+        (GetLastError() != ERROR_NO_DATA)) {
+      return false;
+    }
+  }
 
-      // there was no data. Wait a bit and try again.
-      std::this_thread::sleep_for(10ms);
-    } else {
-      const auto bytes_read = read_res.value();
+  std::shared_ptr<void> notify_socket_close_guard(
+      nullptr, [&](void *) { DisconnectNamedPipe(sock); });
 
-      if (bytes_read >= expected_notification.size()) {
-        if (stdx::string_view(expected_notification) ==
-            stdx::string_view(buff.data(), expected_notification.size())) {
-          return {};
-        }
-      } else {
-        // too short
-        std::cerr << __LINE__ << ": too short" << std::endl;
+  const auto start_time = std::chrono::system_clock::now();
+  while (true) {
+    DWORD numRead = 1;
+    if (!ReadFile(sock, &buff.front(), BUFF_SIZE, &len, NULL)) {
+      if ((GetLastError() != ERROR_PIPE_LISTENING) &&
+          (GetLastError() != ERROR_NO_DATA)) {
+        return false;
       }
     }
+    if ((len > 0) && (strncmp(expected_notification.c_str(), buff.data(),
+                              static_cast<size_t>(len)) == 0)) {
+      return true;
+    } else {
+      const auto current_time = std::chrono::system_clock::now();
+      if (std::chrono::duration_cast<std::chrono::milliseconds>(
+              current_time - start_time) >= timeout) {
+        return false;
+      }
+    }
+  }
 
-    // either not matched, or no data yet.
-  } while (clock_type::now() < end_time);
-
-  return stdx::make_unexpected(make_error_code(std::errc::timed_out));
+  return false;
 }
 
 #else
-stdx::expected<void, std::error_code> ProcessManager::wait_for_notified(
-    wait_socket_t &sock, const std::string &expected_notification,
-    std::chrono::milliseconds timeout) {
+notify_socket_t ProcessManager::create_notify_socket(
+    const std::string &name, int type /*= SOCK_DGRAM */) {
+  struct sockaddr_un sock_unix;
+
+  auto *sock_ops = mysql_harness::SocketOperations::instance();
+
+  const auto socket_res = sock_ops->socket(AF_UNIX, type, 0);
+  if (!socket_res) {
+    throw std::system_error(socket_res.error(), "socket() failed");
+  }
+
+  sock_unix.sun_family = AF_UNIX;
+  std::strncpy(sock_unix.sun_path, name.c_str(), name.size() + 1);
+
+  const auto bind_res =
+      sock_ops->bind(socket_res.value(), (struct sockaddr *)&sock_unix,
+                     static_cast<socklen_t>(sizeof(sock_unix)));
+  if (!bind_res && !name.empty()) {
+    throw std::system_error(bind_res.error(), "bind() failed");
+  }
+
+  return socket_res.value();
+}
+
+void ProcessManager::close_notify_socket(notify_socket_t socket) {
+  auto *sock_ops = mysql_harness::SocketOperations::instance();
+  if (socket != mysql_harness::kInvalidSocket) {
+    sock_ops->close(socket);
+  }
+}
+
+bool ProcessManager::wait_for_notified(notify_socket_t sock,
+                                       const std::string &expected_notification,
+                                       std::chrono::milliseconds timeout) {
   const size_t BUFF_SIZE = 512;
   std::array<char, BUFF_SIZE> buff;
-
+  auto *sock_ops = mysql_harness::SocketOperations::instance();
   if (getenv("WITH_VALGRIND")) {
     timeout *= 10;
   }
 
   while (true) {
-    std::array<pollfd, 1> fds = {{{sock.native_handle(), POLLIN, 0}}};
-    const auto poll_res =
-        net::impl::poll::poll(fds.data(), fds.size(), timeout);
-    if (!poll_res) {
-      return poll_res.get_unexpected();
-    }
+    const auto has_data_result = sock_ops->has_data(sock, timeout);
+    if (!has_data_result) break;
+    if (!has_data_result.value()) break;
 
-    const auto read_res =
-        net::read(sock, net::buffer(buff), net::transfer_at_least(1));
-    if (!read_res) {
-      return read_res.get_unexpected();
-    } else {
-      const auto bytes_read = read_res.value();
-
-      if (bytes_read >= expected_notification.size()) {
-        if (stdx::string_view(expected_notification) ==
-            stdx::string_view(buff.data(), expected_notification.size())) {
-          return {};
-        }
-      } else {
-        // too short
-        std::cerr << __LINE__ << ": too short" << std::endl;
-      }
+    const auto read_res = sock_ops->read(sock, buff.data(), buff.size());
+    if (read_res && (strncmp(expected_notification.c_str(), buff.data(),
+                             read_res.value()) == 0)) {
+      return true;
     }
   }
+
+  return false;
 }
 
 #endif
 
-stdx::expected<void, std::error_code> ProcessManager::wait_for_notified_ready(
-    wait_socket_t &sock, std::chrono::milliseconds timeout) {
+bool ProcessManager::wait_for_notified_ready(
+    notify_socket_t sock, std::chrono::milliseconds timeout) {
   return wait_for_notified(sock, "READY=1", timeout);
 }
 
-stdx::expected<void, std::error_code>
-ProcessManager::wait_for_notified_stopping(wait_socket_t &sock,
-                                           std::chrono::milliseconds timeout) {
+bool ProcessManager::wait_for_notified_stopping(
+    notify_socket_t sock, std::chrono::milliseconds timeout) {
   return wait_for_notified(
       sock, "STOPPING=1\nSTATUS=Router shutdown in progress\n", timeout);
 }
@@ -227,7 +209,6 @@ static std::string generate_notify_socket_path(const std::string &tmp_dir) {
           12, mysql_harness::RandomGenerator::AlphabetLowercase);
 
 #ifdef _WIN32
-  (void)tmp_dir;
   return std::string("\\\\.\\pipe\\") + unique_id;
 #else
   Path result(tmp_dir);
@@ -257,17 +238,18 @@ ProcessWrapper &ProcessManager::launch_command(
 
   std::vector<std::pair<std::string, std::string>> env_vars;
 
-  net::io_context io_ctx;
-
-  ProcessManager::wait_socket_t notify_socket{io_ctx};
+#ifdef _WIN32
+  HANDLE notify_socket{INVALID_HANDLE_VALUE};
+#else
+  socket_t notify_socket{mysql_harness::kInvalidSocket};
+#endif
+  std::shared_ptr<void> notify_socket_close_guard(
+      nullptr, [&](void *) { close_notify_socket(notify_socket); });
 
   if (wait_notified_ready >= 0ms) {
     const std::string socket_node =
         generate_notify_socket_path(get_test_temp_dir_name());
-
-    EXPECT_NO_ERROR(notify_socket.open());
-    EXPECT_NO_ERROR(notify_socket.bind({socket_node}));
-
+    notify_socket = create_notify_socket(socket_node);
     env_vars.emplace_back("NOTIFY_SOCKET", socket_node);
   }
 
@@ -295,13 +277,6 @@ static std::vector<std::string> build_exec_args(
     args.emplace_back(valgrind_exe ? valgrind_exe : "valgrind");
     args.emplace_back("--error-exitcode=77");
     args.emplace_back("--quiet");
-#if 0
-    args.emplace_back("--leak-check=full");
-    args.emplace_back("--show-leak-kinds=all");
-    // when debugging mem-leaks reported by ASAN, it can help to use valgrind
-    // instead and enable these options.
-    args.emplace_back("--errors-for-leak-kinds=all");
-#endif
   }
 
   args.emplace_back(mysqlrouter_exec);
@@ -330,43 +305,6 @@ ProcessWrapper &ProcessManager::launch_router(
   return router;
 }
 
-std::vector<std::string> ProcessManager::mysql_server_mock_cmdline_args(
-    const std::string &json_file, uint16_t port, uint16_t http_port,
-    uint16_t x_port, const std::string &module_prefix /* = "" */,
-    const std::string &bind_address /*= "0.0.0.0"*/) {
-  std::vector<std::string> server_params{
-      "--filename",     json_file,             //
-      "--port",         std::to_string(port),  //
-      "--bind-address", bind_address,
-  };
-
-  server_params.emplace_back("--module-prefix");
-  if (module_prefix.empty()) {
-    server_params.emplace_back(get_data_dir().str());
-  } else {
-    server_params.emplace_back(module_prefix);
-  }
-
-  if (http_port > 0) {
-    server_params.emplace_back("--http-port");
-    server_params.emplace_back(std::to_string(http_port));
-  }
-
-  if (x_port > 0) {
-    server_params.emplace_back("--xport");
-    server_params.emplace_back(std::to_string(x_port));
-  }
-
-  return server_params;
-}
-
-ProcessWrapper &ProcessManager::launch_mysql_server_mock(
-    const std::vector<std::string> &server_params, int expected_exit_code,
-    std::chrono::milliseconds wait_for_notify_ready /*= 5s*/) {
-  return launch_command(mysqlserver_mock_exec_.str(), server_params,
-                        expected_exit_code, true, wait_for_notify_ready);
-}
-
 ProcessWrapper &ProcessManager::launch_mysql_server_mock(
     const std::string &json_file, unsigned port, int expected_exit_code,
     bool debug_mode, uint16_t http_port, uint16_t x_port,
@@ -376,15 +314,23 @@ ProcessWrapper &ProcessManager::launch_mysql_server_mock(
   if (mysqlserver_mock_exec_.str().empty())
     throw std::logic_error("path to mysql-server-mock must not be empty");
 
-  auto server_params = mysql_server_mock_cmdline_args(
-      json_file, port, http_port, x_port, module_prefix, bind_address);
+  std::vector<std::string> server_params(
+      {"--filename=" + json_file, "--port=" + std::to_string(port),
+       "--bind-address=" + bind_address,
+       "--http-port=" + std::to_string(http_port),
+       "--module-prefix=" +
+           (!module_prefix.empty() ? module_prefix : get_data_dir().str())});
 
   if (debug_mode) {
     server_params.emplace_back("--verbose");
   }
 
-  return launch_mysql_server_mock(server_params, expected_exit_code,
-                                  wait_for_notify_ready);
+  if (x_port > 0) {
+    server_params.emplace_back("--xport=" + std::to_string(x_port));
+  }
+
+  return launch_command(mysqlserver_mock_exec_.str(), server_params,
+                        expected_exit_code, true, wait_for_notify_ready);
 }
 
 std::map<std::string, std::string> ProcessManager::get_DEFAULT_defaults()
@@ -488,7 +434,7 @@ void ProcessManager::ensure_clean_exit() {
   for (auto &proc : processes_) {
     try {
       check_exit_code(std::get<0>(proc), std::get<1>(proc));
-    } catch (const std::exception &) {
+    } catch (const std::exception &e) {
       FAIL() << "PID: " << std::get<0>(proc).get_pid()
              << " didn't exit as expected";
     }

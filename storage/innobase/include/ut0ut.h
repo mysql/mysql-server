@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -89,11 +89,11 @@ typedef time_t ib_time_t;
 typedef int64_t ib_time_monotonic_t;
 
 /** Number of milliseconds read from the monotonic clock (returned by
- ut_time_monotonic_ms()). */
+ * ut_time_monotonic_ms()). */
 typedef int64_t ib_time_monotonic_ms_t;
 
 /** Number of microseconds read from the monotonic clock (returned by
- ut_time_monotonic_us()). */
+ * ut_time_monotonic_us()). */
 typedef int64_t ib_time_monotonic_us_t;
 
 #ifndef UNIV_HOTBACKUP
@@ -115,14 +115,6 @@ to memory). */
 the YieldProcessor macro defined in WinNT.h. It is a CPU architecture-
 independent way by using YieldProcessor. */
 #define UT_RELAX_CPU() YieldProcessor()
-#elif defined(__aarch64__)
-/* A "yield" instruction in aarch64 is essentially a nop, and does not cause
-enough delay to help backoff. "isb" is a barrier that, especially inside a
-loop, creates a small delay without consuming ALU resources.
-Experiments shown that adding the isb instruction improves stability and reduces
-result jitter. Adding more delay to the UT_RELAX_CPU than a single isb reduces
-performance. */
-#define UT_RELAX_CPU() __asm__ __volatile__("isb" ::: "memory")
 #else
 #define UT_RELAX_CPU() __asm__ __volatile__("" ::: "memory")
 #endif
@@ -148,21 +140,12 @@ performance. */
       if (limit <= 0 || (diff > 0 && ((uint64_t)diff) > ((uint64_t)limit))) { \
         break;                                                                \
       }                                                                       \
-      std::this_thread::sleep_for(std::chrono::milliseconds(2));              \
+      os_thread_sleep(2000 /* 2 ms */);                                       \
     }                                                                         \
   } while (0)
 #else                  /* !UNIV_HOTBACKUP */
 #define UT_RELAX_CPU() /* No op */
 #endif                 /* !UNIV_HOTBACKUP */
-
-namespace ut {
-struct Location {
-  const char *filename;
-  size_t line;
-};
-}  // namespace ut
-
-#define UT_LOCATION_HERE (ut::Location{__FILE__, __LINE__})
 
 #define ut_max std::max
 #define ut_min std::min
@@ -860,19 +843,19 @@ may be influenced by a change in system time, it might not be steady.
 So we use std::chrono::steady_clock for ellapsed time. */
 class Timer {
  public:
+  using MS = std::chrono::milliseconds;
   using SC = std::chrono::steady_clock;
 
  public:
   /** Constructor. Starts/resets the timer to the current time. */
-  Timer() noexcept { reset(); }
+  Timer() { reset(); }
 
   /** Reset the timer to the current time. */
   void reset() { m_start = SC::now(); }
 
   /** @return the time elapsed in milliseconds. */
-  template <typename T = std::chrono::milliseconds>
-  int64_t elapsed() const noexcept {
-    return std::chrono::duration_cast<T>(SC::now() - m_start).count();
+  int64_t elapsed() const {
+    return (std::chrono::duration_cast<MS>(SC::now() - m_start).count());
   }
 
   /** Print time elapsed since last reset (in milliseconds) to the stream.
@@ -881,8 +864,8 @@ class Timer {
   @return stream instance that was passed in. */
   template <typename T, typename Traits>
   friend std::basic_ostream<T, Traits> &operator<<(
-      std::basic_ostream<T, Traits> &out, const Timer &timer) noexcept {
-    return out << timer.elapsed();
+      std::basic_ostream<T, Traits> &out, const Timer &timer) {
+    return (out << timer.elapsed());
   }
 
  private:

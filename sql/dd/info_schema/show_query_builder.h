@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,7 @@ class PT_derived_table;
 class PT_order_list;
 class PT_select_item_list;
 class PT_table_reference;
-class Query_block;
+class SELECT_LEX;
 class String;
 class THD;
 struct YYLTYPE;
@@ -42,7 +42,7 @@ namespace dd {
 namespace info_schema {
 
 /**
-  This class provide framework to build a Query_block using ParseTree
+  This class provide framework to build a SELECT_LEX using ParseTree
   nodes.
 
   Note that this class is designed to help build queries that are
@@ -54,7 +54,7 @@ namespace info_schema {
   This class is used by implementation of SHOW command in
   sql/dd/show.cc. The class enables code re-usability.
 
-  One can build Query_block that represents following,
+  One can build SELECT_LEX that represents following,
 
   ...
     SELECT star_select_item, select_item1, select_item2, ...
@@ -212,7 +212,7 @@ class Select_lex_builder {
   /**
     This function build ParseTree node that represents this
     Select_lex_builder as sub-query. This enables us to build a
-    Query_block containing a sub-query in its FROM clause. This
+    SELECT_LEX containing a sub-query in its FROM clause. This
     sub-query is represented by ParseTree node PT_derived_table.
     @code
     SELECT ... FROM <PT_dervied_table>, ...
@@ -225,14 +225,14 @@ class Select_lex_builder {
   PT_derived_table *prepare_derived_table(const LEX_CSTRING &table_alias);
 
   /**
-    Prepare a Query_block using all the information information
+    Prepare a SELECT_LEX using all the information information
     added to this Select_lex_builder.
 
-    @return pointer to Query_block* on success.
+    @return pointer to SELECT_LEX* on success.
             nullptr on failure.
   */
 
-  Query_block *prepare_query_block();
+  SELECT_LEX *prepare_select_lex();
 
  private:
   /**

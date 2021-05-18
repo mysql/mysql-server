@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -78,9 +78,6 @@ public:
     _BackupMax   = 100999,
 
     _TCMin       = 101000,
-    TCSetSchedNumLqhKeyReqCount = 101000,
-    TCSetSchedNumScanFragReqCount = 101001,
-    TCSetLoadRefreshCount = 101002,
     _TCMax       = 101999,
 
     _LQHMin = 102000,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -26,14 +26,12 @@
 
 #include <memory>  // unique_ptr
 
-#include <gmock/gmock.h>
-
-#include "mysql/harness/net_ts/io_context.h"
+#include "routing_mocks.h"
 #include "test/helpers.h"  // init_test_logger
 
 class FirstAvailableTest : public ::testing::Test {
  protected:
-  net::io_context io_ctx_;
+  MockSocketOperations sock_ops_;
 };
 
 bool operator==(const std::unique_ptr<Destination> &a, const Destination &b) {
@@ -65,7 +63,7 @@ MATCHER(IsGoodEq, "") {
 }
 
 TEST_F(FirstAvailableTest, RepeatedFetch) {
-  DestFirstAvailable dest(io_ctx_, Protocol::Type::kClassicProtocol);
+  DestFirstAvailable dest(Protocol::Type::kClassicProtocol, &sock_ops_);
   dest.add("41", 41);
   dest.add("42", 42);
   dest.add("43", 43);
@@ -90,7 +88,7 @@ TEST_F(FirstAvailableTest, RepeatedFetch) {
 }
 
 TEST_F(FirstAvailableTest, FailOne) {
-  DestFirstAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
+  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -134,7 +132,7 @@ TEST_F(FirstAvailableTest, FailOne) {
 }
 
 TEST_F(FirstAvailableTest, FailTwo) {
-  DestFirstAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
+  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -185,7 +183,7 @@ TEST_F(FirstAvailableTest, FailTwo) {
 }
 
 TEST_F(FirstAvailableTest, FailAll) {
-  DestFirstAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
+  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -231,7 +229,7 @@ TEST_F(FirstAvailableTest, FailAll) {
 
 // should just return an empty set and not crash/fail.
 TEST_F(FirstAvailableTest, Empty) {
-  DestFirstAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
+  DestFirstAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
 
   {
     auto actual = balancer.destinations();

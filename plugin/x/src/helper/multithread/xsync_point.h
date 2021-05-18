@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -56,7 +56,7 @@
 
 namespace xpl {
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 /**
   Enable "sync-point"
 
@@ -133,7 +133,7 @@ void dbug_sync_point_check(const char *const sync_point_name);
   do {                        \
   } while (0)
 
-#endif  // NDEBUG
+#endif  // DBUG_OFF
 
 }  // namespace xpl
 

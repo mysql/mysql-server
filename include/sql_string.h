@@ -1,7 +1,7 @@
 #ifndef SQL_STRING_INCLUDED
 #define SQL_STRING_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@
   See in particular the comment on String before you use anything from here.
 */
 
-#include <assert.h>
 #include <stdint.h>
 #include <string.h>
 #include <sys/types.h>
@@ -42,10 +41,10 @@
 #include "memory_debugging.h"
 #include "my_alloc.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
+#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_memory.h"
 #include "mysql/service_mysql_alloc.h"  // my_free
 
@@ -80,9 +79,9 @@ class Simple_cstring {
   */
   void set(const char *str_arg, size_t length_arg) {
     // NULL is allowed only with length==0
-    assert(str_arg || length_arg == 0);
+    DBUG_ASSERT(str_arg || length_arg == 0);
     // For non-NULL, make sure length_arg is in sync with '\0' terminator.
-    assert(!str_arg || str_arg[length_arg] == '\0');
+    DBUG_ASSERT(!str_arg || str_arg[length_arg] == '\0');
     m_str = str_arg;
     m_length = length_arg;
   }
@@ -247,8 +246,8 @@ class String {
   const char *ptr() const { return m_ptr; }
   char *ptr() { return m_ptr; }
   char *c_ptr() {
-    assert(!m_is_alloced || !m_ptr || !m_alloced_length ||
-           (m_alloced_length >= (m_length + 1)));
+    DBUG_ASSERT(!m_is_alloced || !m_ptr || !m_alloced_length ||
+                (m_alloced_length >= (m_length + 1)));
 
     /*
       Should be safe, but in case valgrind complains on this line, it means
@@ -276,7 +275,7 @@ class String {
   }
 
   void set(String &str, size_t offset, size_t arg_length) {
-    assert(&str != this);
+    DBUG_ASSERT(&str != this);
     mem_free();
     m_ptr = str.ptr() + offset;
     m_length = arg_length;
@@ -417,7 +416,7 @@ class String {
         It is forbidden to do assignments like
         some_string = substring_of_that_string
        */
-      assert(!s.uses_buffer_owned_by(this));
+      DBUG_ASSERT(!s.uses_buffer_owned_by(this));
       mem_free();
       m_ptr = s.m_ptr;
       m_length = s.m_length;
@@ -433,7 +432,7 @@ class String {
         It is forbidden to do assignments like
         some_string = substring_of_that_string
        */
-      assert(!s.uses_buffer_owned_by(this));
+      DBUG_ASSERT(!s.uses_buffer_owned_by(this));
       mem_free();
       m_ptr = s.m_ptr;
       m_length = s.m_length;
@@ -454,9 +453,9 @@ class String {
     @param s - a String object to steal buffer from.
   */
   void takeover(String &s) {
-    assert(this != &s);
+    DBUG_ASSERT(this != &s);
     // Make sure buffers of the two Strings do not overlap
-    assert(!s.uses_buffer_owned_by(this));
+    DBUG_ASSERT(!s.uses_buffer_owned_by(this));
     mem_free();
     m_ptr = s.m_ptr;
     m_length = s.m_length;
@@ -552,10 +551,7 @@ class String {
   size_t charpos(size_t i, size_t offset = 0) const;
 
   bool reserve(size_t space_needed) {
-    if (m_alloced_length < m_length + space_needed) {
-      return mem_realloc(m_length + space_needed);
-    }
-    return false;
+    return mem_realloc(m_length + space_needed);
   }
   bool reserve(size_t space_needed, size_t grow_by);
 

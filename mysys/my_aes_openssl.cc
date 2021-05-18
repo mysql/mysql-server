@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
   @file mysys/my_aes_openssl.cc
 */
 
-#include <assert.h>
 #include <openssl/aes.h>
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -33,6 +32,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "m_string.h"
 #include "my_aes.h"
 #include "my_aes_impl.h"
+#include "my_dbug.h"
 
 /*
   xplugin needs BIO_new_bio_pair, but the server does not.
@@ -219,6 +219,6 @@ bool my_aes_needs_iv(my_aes_opmode opmode) {
   int iv_length;
 
   iv_length = EVP_CIPHER_iv_length(cipher);
-  assert(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
+  DBUG_ASSERT(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
   return iv_length != 0 ? true : false;
 }

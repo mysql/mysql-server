@@ -30,6 +30,7 @@
 #--let $rpl_debug= 1
 --let $rpl_topology= 1->2,4->3
 --let $rpl_skip_start_slave= 1
+--let $rpl_shallow_reset_slave= 1
 --source include/rpl_init.inc
 
 # Make connections to mysqlds
@@ -53,13 +54,13 @@
 # Now add IGNORE_SERVER_IDS
 --disable_query_log
 connection master;
-CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (1,3);
+CHANGE MASTER TO IGNORE_SERVER_IDS= (1,3);
 connection master1;
-CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (1,3);
+CHANGE MASTER TO IGNORE_SERVER_IDS= (1,3);
 connection slave;
-CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (2,4);
+CHANGE MASTER TO IGNORE_SERVER_IDS= (2,4);
 connection slave1;
-CHANGE REPLICATION SOURCE TO IGNORE_SERVER_IDS= (2,4);
+CHANGE MASTER TO IGNORE_SERVER_IDS= (2,4);
 
 # Now start replication
 --source include/rpl_start_slaves.inc

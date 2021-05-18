@@ -1,0 +1,25 @@
+SELECT * FROM tt013 order by mkey;
+mkey	sval
+0	0
+1	1
+2	2
+SELECT * FROM tt014 order by mkey;
+mkey	sval
+0	0
+1	1
+2	2
+SELECT * FROM tt015 order by mkey;
+mkey	sval
+0	0
+1	1
+2	2
+SELECT * FROM tt016 order by mkey;
+mkey	sval
+0	0
+1	1
+2	2
+SELECT * FROM tt017 order by mkey;
+mkey	sval
+0	0
+1	1
+2	2

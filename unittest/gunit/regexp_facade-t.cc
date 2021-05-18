@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -122,23 +122,6 @@ TEST_F(RegexpFacadeTest, SetPattern) {
   MockRegexpFacade regex(thd(), "a");
   regex.SetPattern(nullptr, 0);
   regex.SetPattern(nullptr, 0);
-}
-
-TEST_F(RegexpFacadeTest, Replace) {
-  StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
-  Item *subject1 = make_fixed_literal(thd(), " aaa");
-  Item *subject2 = make_fixed_literal(thd(), "");
-  Item *replacement = make_fixed_literal(thd(), "aamz");
-  const char *pattern = " +";
-  MockRegexpFacade regex(thd(), pattern);
-
-  regex.Replace(subject1, replacement, 1, 0, &buf);
-  // These arguments to Replace() will set U_STRING_NOT_TERMINATED_WARNING.
-  EXPECT_TRUE(regex.EngineHasWarning());
-
-  regex.Replace(subject2, replacement, 1, 0, &buf);
-  // The previous warning should have been cleared.
-  EXPECT_FALSE(regex.EngineHasWarning());
 }
 
 }  // namespace regexp_facade_unittest

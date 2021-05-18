@@ -6,7 +6,7 @@
 ## Test starts here
 
 
---let $xtest_file= $MYSQL_TMP_DIR/mysqlxtest_invalid_flow.xpl
+--let $xtest_file= $MYSQL_TMP_DIR/mysqlxtest_invalid_flow.tmp
 --write_file $xtest_file
 
 -->echo Invalid receive after statement
@@ -19,4 +19,5 @@ EOF
 exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file --fatal-errors=0 2>&1;
 
 ## Cleanup
---source ../include/xplugin_cleanup.inc
+--remove_files_wildcard $MYSQL_TMP_DIR *.tmp
+--source include/xplugin_drop_user.inc

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -315,10 +315,6 @@ Option_descriptor get_option_descriptor(const XSession::Mysqlx_option option) {
       return Option_descriptor{new Compression_optional_int_store<
           &Compression_config::m_use_level_server>()};
 
-    case Mysqlx_option::Buffer_recevie_size:
-      return Option_descriptor{
-          new Con_int_store<&Con_conf::m_buffer_receive_size>()};
-
     default:
       return {};
   }
@@ -588,8 +584,6 @@ XError Session_impl::connect(const char *host, const uint16_t port,
                                          m_context->m_internet_protocol);
   if (result) return result;
 
-  get_protocol().reset_buffering();
-
   const auto connection_type = connection.state().get_connection_type();
   details::Notice_server_hello_ignore notice_ignore(m_protocol.get());
 
@@ -609,8 +603,6 @@ XError Session_impl::connect(const char *socket_file, const char *user,
       details::value_or_default_string(socket_file, MYSQLX_UNIX_ADDR));
 
   if (result) return result;
-
-  get_protocol().reset_buffering();
 
   const auto connection_type = connection.state().get_connection_type();
 

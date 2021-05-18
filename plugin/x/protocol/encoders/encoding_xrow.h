@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,7 @@
 #ifndef PLUGIN_X_PROTOCOL_ENCODERS_ENCODING_XROW_H_
 #define PLUGIN_X_PROTOCOL_ENCODERS_ENCODING_XROW_H_
 
-#include "my_compiler.h"
-MY_COMPILER_DIAGNOSTIC_PUSH()
-// Suppress warning C4251 'type' : class 'type1' needs to have dll-interface
-// to be used by clients of class 'type2'
-MY_COMPILER_MSVC_DIAGNOSTIC_IGNORE(4251)
 #include <google/protobuf/wire_format_lite.h>
-MY_COMPILER_DIAGNOSTIC_POP()
 #include <cassert>
 #include <cstdint>
 #include <cstring>
@@ -94,7 +88,7 @@ class XRow_encoder_base {
   }
 
   void field_bit(const char *const value, size_t length) {
-    assert(length <= 8);
+    DBUG_ASSERT(length <= 8);
     ++m_fields;
 
     uint64_t binary_value = 0;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,11 +25,10 @@
 
 #include "sql/sql_lex_hints.h"
 
-#include <assert.h>
 #include <climits>
 
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "mysqld_error.h"
 #include "sql/derror.h"
 #include "sql/lex_token.h"
@@ -228,7 +227,7 @@ void Hint_scanner::add_hint_token_digest() {
           case NO_DERIVED_CONDITION_PUSHDOWN_HINT:
             break;
           default:
-            assert(false);
+            DBUG_ASSERT(false);
         }
         add_digest(prev_token);
       }

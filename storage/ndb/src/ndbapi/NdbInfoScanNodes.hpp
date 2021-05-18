@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,8 @@ public:
   int execute() override;
   int nextResult() override;
 
-  NdbInfoScanNodes(class Ndb_cluster_connection*,
+  NdbInfoScanNodes(const NdbInfo&,
+                   class Ndb_cluster_connection*,
                    const NdbInfo::Table*,
                    Uint32 max_rows, Uint32 max_bytes,
                    Uint32 max_nodes);
@@ -57,6 +58,7 @@ private:
   int receive(void);
   bool find_next_node();
 
+  const NdbInfo& m_info;
   enum State { Undefined, Initial, Prepared,
                MoreData, End, Error } m_state;
   class Ndb_cluster_connection* m_connection;

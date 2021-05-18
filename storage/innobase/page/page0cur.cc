@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2271,7 +2271,8 @@ byte *page_cur_parse_delete_rec(
 
     page_cur_position(rec, block, &cursor);
 #ifdef UNIV_HOTBACKUP
-    ib::trace_1() << "page_cur_parse_delete_rec: offset " << offset;
+    ib::trace_1() << "page_cur_parse_delete_rec { page: " << page << ", "
+                  << "offset: " << offset << ", rec: " << rec << "\n";
 #endif /* UNIV_HOTBACKUP */
     ut_ad(!buf_block_get_page_zip(block) || page_is_comp(page));
 

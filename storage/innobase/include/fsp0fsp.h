@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -58,9 +58,6 @@ extern mysql_mutex_t resume_encryption_cond_m;
 
 /** @defgroup Tablespace Header Constants (moved from fsp0fsp.c)
 @{ */
-#ifdef UNIV_DEBUG
-extern std::vector<space_id_t> flag_mismatch_spaces;
-#endif
 
 /** Offset of the space header within a file page */
 #define FSP_HEADER_OFFSET FIL_PAGE_DATA
@@ -183,9 +180,6 @@ header slots are reserved */
     to the free list from above         \
     FSP_FREE_LIMIT at a time */
 /** @} */
-
-/* Maximum allowed value of AUTOEXTEND_SIZE attribue */
-const uint64_t FSP_MAX_AUTOEXTEND_SIZE(4 * 1024 * 1024 * 1024ULL);
 
 /** @defgroup File Segment Inode Constants (moved from fsp0fsp.c)
 @{ */
@@ -953,11 +947,14 @@ dberr_t fsp_has_sdi(space_id_t space_id);
 /** Encrypt/Unencrypt a tablespace.
 @param[in]	thd		current thread
 @param[in]	space_id	Tablespace id
-@param[in]	to_encrypt	true if to encrypt, false if to decrypt
+@param[in]	from_page	page id from where operation to be done
+@param[in]	to_encrypt	true if to encrypt, false if to unencrypt
+@param[in]	in_recovery	true if its called after recovery
 @param[in,out]	dd_space_in	dd tablespace object
 @return 0 for success, otherwise error code */
 dberr_t fsp_alter_encrypt_tablespace(THD *thd, space_id_t space_id,
-                                     bool to_encrypt, void *dd_space_in);
+                                     page_no_t from_page, bool to_encrypt,
+                                     bool in_recovery, void *dd_space_in);
 
 /** Initiate roll-forward of alter encrypt in background thread */
 void fsp_init_resume_alter_encrypt_tablespace();

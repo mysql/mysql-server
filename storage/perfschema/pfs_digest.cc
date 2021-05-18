@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,11 +31,10 @@
 
 #include "storage/perfschema/pfs_digest.h"
 
-#include <assert.h>
 #include <string.h>
 
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "sql/sql_get_diagnostics.h"
 #include "sql/sql_lex.h"
@@ -158,9 +157,9 @@ static const uchar *digest_hash_get_key(const uchar *entry, size_t *length) {
   const void *result;
   typed_entry =
       reinterpret_cast<const PFS_statements_digest_stat *const *>(entry);
-  assert(typed_entry != nullptr);
+  DBUG_ASSERT(typed_entry != nullptr);
   digest = *typed_entry;
-  assert(digest != nullptr);
+  DBUG_ASSERT(digest != nullptr);
   *length = sizeof(PFS_digest_key);
   result = &digest->m_digest_key;
   return reinterpret_cast<const uchar *>(result);
@@ -199,7 +198,7 @@ static LF_PINS *get_digest_hash_pins(PFS_thread *thread) {
 PFS_statements_digest_stat *find_or_create_digest(
     PFS_thread *thread, const sql_digest_storage *digest_storage,
     const char *schema_name, uint schema_name_length) {
-  assert(digest_storage != nullptr);
+  DBUG_ASSERT(digest_storage != nullptr);
 
   if (statements_digest_stat_array == nullptr) {
     return nullptr;
@@ -276,7 +275,7 @@ search:
     }
 
     /* Add a new record in digest stat array. */
-    assert(safe_index < digest_max);
+    DBUG_ASSERT(safe_index < digest_max);
     pfs = &statements_digest_stat_array[safe_index];
 
     if (pfs->m_lock.is_free()) {

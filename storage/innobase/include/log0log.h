@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2021, Oracle and/or its affiliates.
+Copyright (c) 1995, 2020, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -751,8 +751,9 @@ void log_buffer_get_last_block(log_t &log, lsn_t &last_lsn, byte *last_block,
 
 /** Advances log.buf_ready_for_write_lsn using links in the recent written
 buffer. It's used by the log writer thread only.
-@param[in,out]	log	redo log */
-void log_advance_ready_for_write_lsn(log_t &log);
+@param[in]	log	redo log
+@return true if and only if the lsn has been advanced */
+bool log_advance_ready_for_write_lsn(log_t &log);
 
 /** Validates that all slots in log recent written buffer for lsn values
 in range between begin and end, are empty. Used during tests, crashes the
@@ -886,13 +887,6 @@ bool log_rotate_encryption();
 
 /** Rotate default master key for redo log encryption. */
 void redo_rotate_default_master_key();
-
-/** Computes lsn up to which sync flush should be done or returns 0
-if there is no need to execute sync flush now.
-@param[in,out]  log  redo log
-@return lsn for which we want to have oldest_lsn >= lsn in each BP,
-        or 0 if there is no need for sync flush */
-lsn_t log_sync_flush_lsn(log_t &log);
 
 /** Requests a sharp checkpoint write for provided or greater lsn.
 @param[in,out]	log	redo log

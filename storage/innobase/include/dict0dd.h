@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+Copyright (c) 2015, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -73,9 +73,6 @@ because that is the way the server functions are defined. */
 static constexpr char handler_name[] = "InnoDB";
 
 static const char innobase_hton_name[] = "InnoDB";
-
-/** String constant for AUTOEXTEND_SIZE option string */
-static constexpr char autoextend_size_str[] = "autoextend_size";
 
 /** Maximum hardcoded data dictionary tables. */
 #define DICT_MAX_DD_TABLES 1024
@@ -842,23 +839,21 @@ bool dd_process_dd_indexes_rec_simple(mem_heap_t *heap, const rec_t *rec,
                                       dict_table_t *dd_indexes);
 
 /** Process one mysql.tablespaces record and get info
-@param[in]  heap            temp memory heap
-@param[in]  rec             mysql.tablespaces record
-@param[out] space_id        space id
-@param[out] name            space name
-@param[out] flags           space flags
-@param[out] server_version  server version
-@param[out] space_version   space version
-@param[out] is_encrypted    true if tablespace is encrypted
-@param[out] autoextend_size autoextend_size attribute value
-@param[out] state           space state
-@param[in]  dd_spaces       dict_table_t obj of mysql.tablespaces
-@return true if data is retrieved */
+@param[in]      heap            temp memory heap
+@param[in,out]  rec	            mysql.tablespaces record
+@param[in,out]	space_id        space id
+@param[in,out]  name            space name
+@param[in,out]  flags           space flags
+@param[in,out]  server_version  server version
+@param[in,out]  space_version   space version
+@param[in,out]  is_encrypted    true if tablespace is encrypted
+@param[in,out]  state           space state
+@param[in]      dd_spaces       dict_table_t obj of mysql.tablespaces
+@return true if data is retrived */
 bool dd_process_dd_tablespaces_rec(mem_heap_t *heap, const rec_t *rec,
                                    space_id_t *space_id, char **name,
                                    uint32_t *flags, uint32 *server_version,
                                    uint32 *space_version, bool *is_encrypted,
-                                   uint64_t *autoextend_size,
                                    dd::String_type *state,
                                    dict_table_t *dd_spaces);
 
@@ -1096,16 +1091,6 @@ bool dd_create_implicit_tablespace(dd::cache::Dictionary_client *dd_client,
                                    const char *space_name, const char *filename,
                                    bool discarded, dd::Object_id &dd_space_id);
 
-/** Get the autoextend_size attribute for a tablespace.
-@param[in]      dd_client       Data dictionary client
-@param[in]      dd_space_id     Tablespace ID
-@param[out]     autoextend_size Value of autoextend_size attribute
-@retval false   On success
-@retval true    On failure */
-bool dd_get_tablespace_size_option(dd::cache::Dictionary_client *dd_client,
-                                   const dd::Object_id dd_space_id,
-                                   uint64_t *autoextend_size);
-
 /** Drop a tablespace
 @param[in,out]	dd_client	data dictionary client
 @param[in,out]	thd		THD object
@@ -1287,17 +1272,6 @@ dd_space_states dd_tablespace_get_state_enum(
 /** Get the discarded state from se_private_data of tablespace
 @param[in]	dd_space	dd::Tablespace object */
 bool dd_tablespace_is_discarded(const dd::Tablespace *dd_space);
-
-/** Set the autoextend_size attribute for an implicit tablespace
-@param[in,out]  dd_client       Data dictionary client
-@param[in,out]  thd             THD object
-@param[in]      dd_space_id     DD tablespace id
-@param[in]      create_info     HA_CREATE_INFO object
-@return false   On success
-@return true    On failure */
-bool dd_implicit_alter_tablespace(dd::cache::Dictionary_client *dd_client,
-                                  THD *thd, dd::Object_id dd_space_id,
-                                  HA_CREATE_INFO *create_info);
 
 /** Get the MDL for the named tablespace.  The mdl_ticket pointer can
 be provided if it is needed by the caller.  If foreground is set to false,

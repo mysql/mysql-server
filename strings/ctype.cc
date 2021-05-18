@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -35,7 +34,7 @@
 
 #include "m_ctype.h"
 #include "my_byteorder.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -419,7 +418,7 @@ static int tailoring_append_abbreviation(MY_XML_PARSER *st, const char *fmt,
   my_wc_t wc;
 
   for (; (clen = scan_one_character(attr, attrend, &wc)) > 0; attr += clen) {
-    assert(attr < attrend);
+    DBUG_ASSERT(attr < attrend);
     if (tailoring_append(st, fmt, clen, attr) != MY_XML_OK) return MY_XML_ERROR;
   }
   return MY_XML_OK;
@@ -974,8 +973,8 @@ size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
     }
   }
 
-  assert(false);  // Should never get to here
-  return 0;       // Make compiler happy
+  DBUG_ASSERT(false);  // Should never get to here
+  return 0;            // Make compiler happy
 }
 
 /**
@@ -995,7 +994,7 @@ uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e) {
     len = my_mbcharlen_2(cs, (uchar)*s, (uchar) * (s + 1));
     /* It could be either a valid multi-byte GB18030 code, or invalid
     gb18030 code if return value is 0 */
-    assert(len == 0 || len == 2 || len == 4);
+    DBUG_ASSERT(len == 0 || len == 2 || len == 4);
   }
 
   return len;

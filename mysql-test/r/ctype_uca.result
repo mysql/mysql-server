@@ -6022,7 +6022,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `name` varchar(10) COLLATE utf8_swedish_ci DEFAULT NULL,
   `level` smallint unsigned DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COLLATE=utf8_swedish_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_swedish_ci
 insert into t1 values ('string',1);
 select concat(name,space(level)), concat(name, repeat(' ',level)) from t1;
 concat(name,space(level))	concat(name, repeat(' ',level))
@@ -6034,10 +6034,10 @@ SET character_set_server= @safe_character_set_server;
 SET collation_server= @safe_collation_server;
 SET character_set_client= @safe_character_set_client;
 Warnings:
-Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 SET character_set_results= @safe_character_set_results;
 Warnings:
-Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
 create table t1 (a varchar(1)) character set utf8 collate utf8_estonian_ci;
 Warnings:
 Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
@@ -7559,51 +7559,4 @@ XYZ|
 XYZ|
 SELECT CONCAT(f1, '|') FROM t1 WHERE f1 = 'XYZ ';
 CONCAT(f1, '|')
-DROP TABLE t1;
-#
-# Bug #28691605 ASSERTION `NUM_CODEPOINTS >= SCANNER.GET_CHAR_INDEX()' FAILED.
-#
-CREATE TABLE t1(c1 float);
-INSERT INTO t1 VALUES
-(-9999999999999),
-(-99999999999999),
-(-999999999999999),
-(-9999999999999999);
-SELECT GROUP_CONCAT(c1) FROM t1 GROUP BY c1 COLLATE utf8_icelandic_ci;
-GROUP_CONCAT(c1)
--1e13
--1e14
--1e15
--1e16
-DROP TABLE t1;
-CREATE TABLE t1double(c1 double);
-INSERT INTO t1double values(0.00000000000002123456789123456789);
-SELECT c1 FROM t1double;
-c1
-0.000000000000021234567891234568
-SELECT CONCAT(c1) FROM t1double;
-CONCAT(c1)
-2.1234567891234568e-14
-SELECT CAST(CONCAT(c1) AS DOUBLE) FROM t1double;
-CAST(CONCAT(c1) AS DOUBLE)
-0.000000000000021234567891234568
-SELECT GROUP_CONCAT(c1) FROM t1double GROUP BY c1 COLLATE utf8_icelandic_ci;
-GROUP_CONCAT(c1)
-2.1234567891234568e-14
-DROP TABLE t1double;
-#
-# Bug #32385934 ASSERTION `NUM_CODEPOINTS >= SCANNER.GET_CHAR_INDEX()'
-#               FAILED|CTYPE-UCA.CC
-#
-CREATE TABLE t1 (
-col_real_key double DEFAULT NULL,
-col_bigint_key bigint DEFAULT NULL
-);
-INSERT INTO t1 VALUES (-20162.341,8262411111801246601);
-SELECT alias1.col_real_key / alias1.col_bigint_key AS field1,
-alias1.col_bigint_key AS field2
-FROM t1 AS alias1
-ORDER BY LEAST(field2, field1 COLLATE utf8mb4_croatian_ci);
-field1	field2
--0.000000000000002440249066183843	8262411111801246601
 DROP TABLE t1;

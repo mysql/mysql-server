@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -112,7 +112,7 @@ class table_events_waits_summary_by_instance : public table_all_instr {
   int index_init(uint idx, bool sorted) override;
 
  protected:
-  int make_instr_row(pfs_lock *object_lock, PFS_instr_class *klass,
+  int make_instr_row(PFS_instr *pfs, PFS_instr_class *klass,
                      const void *object_instance_begin,
                      PFS_single_stat *pfs_stat);
   int make_mutex_row(PFS_mutex *pfs) override;

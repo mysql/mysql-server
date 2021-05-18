@@ -1,4 +1,4 @@
-# Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -22,19 +22,25 @@
 
 DISABLE_MISSING_PROFILE_WARNING()
 
-INCLUDE(source_files.cmake)
+SET(protoc_plugin_SRC
+  message_field_chain.cc
+  messages_used_by_server.cc
+  xprotocol_plugin.cc
+)
 
 INCLUDE_DIRECTORIES(
   ${MYSQLX_GENERATE_DIR}
 )
 
-ADD_COMPILE_FLAGS(${PROTOC_PLUGIN_SRC}
+ADD_COMPILE_FLAGS(${protoc_plugin_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
 
+MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
+
 MYSQL_ADD_EXECUTABLE(
   xprotocol_plugin
-  ${PROTOC_PLUGIN_SRC}
+  ${protoc_plugin_SRC}
   SKIP_INSTALL
 )
 

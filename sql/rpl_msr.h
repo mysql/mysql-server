@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -38,8 +38,6 @@
 #include "sql/rpl_channel_service_interface.h"  // enum_channel_type
 #include "sql/rpl_filter.h"
 #include "sql/rpl_gtid.h"
-#include "sql/rpl_io_monitor.h"
-#include "sql/rpl_mi.h"
 
 class Master_info;
 
@@ -156,10 +154,10 @@ class Multisource_info {
       This class should be a singleton.
       The assert below is to prevent it to be instantiated more than once.
     */
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     static int instance_count = 0;
     instance_count++;
-    assert(instance_count == 1);
+    DBUG_ASSERT(instance_count == 1);
 #endif
     current_mi_count = 0;
     default_channel_mi = nullptr;
@@ -257,43 +255,6 @@ class Multisource_info {
       else
         return map_it->second.size();
     }
-  }
-
-  /**
-    Get the number of running channels which have asynchronous replication
-    failover feature, i.e. CHANGE MASTER TO option
-    SOURCE_CONNECTION_AUTO_FAILOVER, enabled.
-
-    @return The number of channels.
-  */
-  size_t get_number_of_connection_auto_failover_channels_running() {
-    DBUG_TRACE;
-    m_channel_map_lock->assert_some_lock();
-    size_t count = 0;
-
-    replication_channel_map::iterator map_it =
-        rep_channel_map.find(SLAVE_REPLICATION_CHANNEL);
-
-    for (mi_map::iterator it = map_it->second.begin();
-         it != map_it->second.end(); it++) {
-      Master_info *mi = it->second;
-      if (Master_info::is_configured(mi) &&
-          mi->is_source_connection_auto_failover()) {
-        mysql_mutex_lock(&mi->err_lock);
-        if (mi->slave_running || mi->is_error()) {
-          count++;
-        }
-        mysql_mutex_unlock(&mi->err_lock);
-      }
-    }
-
-#ifndef NDEBUG
-    if (Source_IO_monitor::get_instance().is_monitoring_process_running()) {
-      assert(count > 0);
-    }
-#endif
-
-    return count;
   }
 
   /**
@@ -400,25 +361,9 @@ class Multisource_info {
   inline void rdlock() { m_channel_map_lock->rdlock(); }
 
   /**
-    Try to acquire a read lock, return 0 if the read lock is held,
-    otherwise an error will be returned.
-
-    @return 0 in case of success, or 1 otherwise.
-  */
-  inline int tryrdlock() { return m_channel_map_lock->tryrdlock(); }
-
-  /**
     Acquire the write lock.
   */
   inline void wrlock() { m_channel_map_lock->wrlock(); }
-
-  /**
-    Try to acquire a write lock, return 0 if the write lock is held,
-    otherwise an error will be returned.
-
-    @return 0 in case of success, or 1 otherwise.
-  */
-  inline int trywrlock() { return m_channel_map_lock->trywrlock(); }
 
   /**
     Release the lock (whether it is a write or read lock).

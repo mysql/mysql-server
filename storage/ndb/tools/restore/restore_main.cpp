@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,6 @@
 #include <ndb_limits.h>
 #include <ndb_opts.h>
 #include <ndb_version.h>
-#include "my_getopt.h"
 #include "util/ndb_openssl_evp.h" // ndb_openssl_evp::library_init()
 
 #include "../src/ndbapi/NdbDictionaryImpl.hpp"
@@ -82,13 +81,10 @@ static unsigned opt_nodegroup_map_len= 0;
 static NODE_GROUP_MAP opt_nodegroup_map[MAX_NODE_GROUP_MAPS];
 #define OPT_NDB_NODEGROUP_MAP 'z'
 
-static bool opt_decrypt = false;
+static int opt_decrypt = 0;
 
 // g_backup_password global, directly accessed in Restore.cpp.
-ndb_password_state g_backup_password_state("backup", nullptr);
-static ndb_password_option opt_backup_password(g_backup_password_state);
-static ndb_password_from_stdin_option opt_backup_password_from_stdin(
-                                           g_backup_password_state);
+char* g_backup_password = nullptr;
 
 const char *opt_ndb_database= NULL;
 const char *opt_ndb_table= NULL;
@@ -282,19 +278,15 @@ static struct my_option my_long_options[] =
   { "nodeid", 'n', "Backup files from node with id",
     (uchar**) &ga_nodeId, (uchar**) &ga_nodeId, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
-  { "backup-password", NDB_OPT_NOSHORT, "Encryption password for backup file",
-    nullptr, nullptr, 0,
-    GET_PASSWORD, OPT_ARG, 0, 0, 0, nullptr, 0, &opt_backup_password},
-  { "backup-password-from-stdin", NDB_OPT_NOSHORT,
-    "Read encryption password for backup file from stdin",
-    &opt_backup_password_from_stdin.opt_value, nullptr, 0,
-    GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, &opt_backup_password_from_stdin},
   { "backupid", 'b', "Backup id",
     (uchar**) &ga_backupId, (uchar**) &ga_backupId, 0,
     GET_INT, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "decrypt", NDB_OPT_NOSHORT, "Decrypt file",
     (uchar**) &opt_decrypt, (uchar**) &opt_decrypt, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "backup-password", NDB_OPT_NOSHORT, "Encryption password for backup file",
+    (uchar**) &g_backup_password, (uchar**) &g_backup_password, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { "restore_data", 'r', 
     "Restore table data/logs into NDB Cluster using NDBAPI", 
     (uchar**) &_restore_data, (uchar**) &_restore_data,  0,
@@ -325,8 +317,8 @@ static struct my_option my_long_options[] =
     (uchar**) &_no_restore_disk, (uchar**) &_no_restore_disk,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
   { "restore_epoch", 'e', 
-    "Restore epoch info into the status table. Convenient for starting MySQL "
-    "Cluster replication. The row in "
+    "Restore epoch info into the status table. Convenient on a MySQL Cluster "
+    "replication slave, for starting replication. The row in "
     NDB_REP_DB "." NDB_APPLY_TABLE " with id 0 will be updated/inserted.", 
     (uchar**) &ga_restore_epoch, (uchar**) &ga_restore_epoch,  0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
@@ -722,9 +714,10 @@ static void short_usage_sub(void)
 }
 
 static bool
-get_one_option(int optid, const struct my_option *opt, char *argument)
+get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
+	       char *argument)
 {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_restore.trace";
 #endif
   ndb_std_get_one_option(optid, opt, argument);
@@ -776,8 +769,6 @@ get_one_option(int optid, const struct my_option *opt, char *argument)
     break;
   case OPT_REMAP_COLUMN:
     return (parse_remap_column(argument) ? 0 : 1);
-  case NDB_OPT_NOSHORT:
-    break;
   }
   return 0;
 }
@@ -870,37 +861,30 @@ readArguments(Ndb_opts & opts, char*** pargv)
   {
     exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
   }
-  const bool have_password_option =
-                 g_backup_password_state.have_password_option();
-  if (!opt_decrypt)
+  if (opt_decrypt == 0)
   {
-    if (have_password_option)
+    if (g_backup_password != nullptr)
     {
-      err << "Password (--backup-password) for decryption given, require "
-             "also --decrypt."
-          << endl;
+      err <<
+        "Password (--backup-password) for decryption given, require also --decrypt."
+        << endl;
       exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
     }
   }
-  else
+  else if (opt_decrypt == 1)
   {
-    if (!have_password_option)
+    if (g_backup_password == nullptr)
     {
       err << "Decrypting backup (--decrypt) requires password (--backup-password)." << endl;
       exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
     }
   }
-
-  bool failed = ndb_option::post_process_options();
-  if (failed)
+  else
   {
-    BaseString err_msg = g_backup_password_state.get_error_message();
-    if (!err_msg.empty())
-    {
-      err << "Error: " << err_msg.c_str() << endl;
-    }
-    exitHandler(NdbToolsProgramExitCode::WRONG_ARGS);
+    // Should be impossible for boolean option.
+    abort();
   }
+
   if (ga_nodeId == 0)
   {
     err << "Backup file node ID not specified, please provide --nodeid" << endl;
@@ -2063,7 +2047,10 @@ static void exitHandler(int code)
 {
   ndb_openssl_evp::library_end();
   free_include_excludes_vector();
-  exit(code);
+  if (opt_core)
+    abort();
+  else
+    exit(code);
 }
 
 static void init_restore()

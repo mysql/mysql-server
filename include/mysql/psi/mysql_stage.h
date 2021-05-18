@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,19 +28,10 @@
   Instrumentation helpers for stages.
 */
 
-#include "my_compiler.h"
-
-/* HAVE_PSI_*_INTERFACE */
-#include "my_psi_config.h"  // IWYU pragma: keep
-
 #include "mysql/psi/psi_stage.h"
 
 #include "my_inttypes.h"
-
-#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
-/* PSI_STAGE_CALL() as direct call. */
-#include "pfs_stage_provider.h"  // IWYU pragma: keep
-#endif
+#include "pfs_stage_provider.h"
 
 #ifndef PSI_STAGE_CALL
 #define PSI_STAGE_CALL(M) psi_stage_service->M
@@ -56,7 +47,13 @@
   @def mysql_stage_register(P1, P2, P3)
   Stage registration.
 */
+#ifdef HAVE_PSI_STAGE_INTERFACE
 #define mysql_stage_register(P1, P2, P3) inline_mysql_stage_register(P1, P2, P3)
+#else
+#define mysql_stage_register(P1, P2, P3) \
+  do {                                   \
+  } while (0)
+#endif
 
 /**
   @def MYSQL_SET_STAGE
@@ -68,7 +65,11 @@
   @param L the source file line
   @return the current stage progress
 */
+#ifdef HAVE_PSI_STAGE_INTERFACE
 #define MYSQL_SET_STAGE(K, F, L) inline_mysql_set_stage(K, F, L)
+#else
+#define MYSQL_SET_STAGE(K, F, L) NULL
+#endif
 
 /**
   @def mysql_set_stage
@@ -76,39 +77,43 @@
   @param K the stage key
   @return the current stage progress
 */
+#ifdef HAVE_PSI_STAGE_INTERFACE
 #define mysql_set_stage(K) inline_mysql_set_stage(K, __FILE__, __LINE__)
+#else
+#define mysql_set_stage(K) NULL
+#endif
 
 /**
   @def mysql_end_stage
   End the last stage
 */
+#ifdef HAVE_PSI_STAGE_INTERFACE
 #define mysql_end_stage inline_mysql_end_stage
-
-static inline void inline_mysql_stage_register(
-    const char *category MY_ATTRIBUTE((unused)),
-    PSI_stage_info **info MY_ATTRIBUTE((unused)),
-    int count MY_ATTRIBUTE((unused))) {
-#ifdef HAVE_PSI_STAGE_INTERFACE
-  PSI_STAGE_CALL(register_stage)(category, info, count);
-#endif
-}
-
-static inline PSI_stage_progress *inline_mysql_set_stage(
-    PSI_stage_key key MY_ATTRIBUTE((unused)),
-    const char *src_file MY_ATTRIBUTE((unused)),
-    int src_line MY_ATTRIBUTE((unused))) {
-#ifdef HAVE_PSI_STAGE_INTERFACE
-  return PSI_STAGE_CALL(start_stage)(key, src_file, src_line);
 #else
-  return nullptr;
+#define mysql_end_stage() \
+  do {                    \
+  } while (0)
 #endif
-}
 
-static inline void inline_mysql_end_stage() {
 #ifdef HAVE_PSI_STAGE_INTERFACE
-  PSI_STAGE_CALL(end_stage)();
-#endif
+static inline void inline_mysql_stage_register(const char *category,
+                                               PSI_stage_info **info,
+                                               int count) {
+  PSI_STAGE_CALL(register_stage)(category, info, count);
 }
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+static inline PSI_stage_progress *inline_mysql_set_stage(PSI_stage_key key,
+                                                         const char *src_file,
+                                                         int src_line) {
+  return PSI_STAGE_CALL(start_stage)(key, src_file, src_line);
+}
+#endif
+
+#ifdef HAVE_PSI_STAGE_INTERFACE
+static inline void inline_mysql_end_stage() { PSI_STAGE_CALL(end_stage)(); }
+#endif
 
 #ifdef HAVE_PSI_STAGE_INTERFACE
 #define mysql_stage_set_work_completed(P1, P2) \

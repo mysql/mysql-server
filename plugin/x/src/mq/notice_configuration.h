@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,14 @@
 #ifndef PLUGIN_X_SRC_MQ_NOTICE_CONFIGURATION_H_
 #define PLUGIN_X_SRC_MQ_NOTICE_CONFIGURATION_H_
 
-#include <assert.h>
-#include <array>
+#include <algorithm>
 #include <map>
 #include <string>
 
+#include "my_dbug.h"  // NOLINT(build/include_subdir)
+
+#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
 #include "plugin/x/src/interface/notice_configuration.h"
-#include "plugin/x/src/ngs/notice_descriptor.h"
 
 namespace xpl {
 
@@ -74,17 +75,13 @@ class Notice_configuration : public iface::Notice_configuration {
 
   void set_notice(const Notice_type notice_type,
                   const bool should_be_enabled) override {
-    assert(notice_type != Notice_type::k_last_element);
+    DBUG_ASSERT(notice_type != Notice_type::k_last_element);
     m_notices[static_cast<int32_t>(notice_type)] = should_be_enabled;
 
-    for (size_t i = 0; i < m_notices.size(); ++i) {
-      const auto iterate_over_notice_type = static_cast<Notice_type>(i);
-      if (is_notice_enabled(iterate_over_notice_type) &&
-          ngs::Notice_descriptor::is_dispatchable(iterate_over_notice_type)) {
-        m_is_dispatchable_enabled = true;
-        break;
-      }
-    }
+    m_is_dispatchable_enabled = std::any_of(
+        ::ngs::Notice_descriptor::dispatchables.begin(),
+        ::ngs::Notice_descriptor::dispatchables.end(),
+        [this](const Notice_type type) { return is_notice_enabled(type); });
   }
 
   bool is_any_dispatchable_notice_enabled() const override {
@@ -102,14 +99,12 @@ class Notice_configuration : public iface::Notice_configuration {
         {"group_replication/status/role_change",
          Notice_type::k_group_replication_member_role_changed},
         {"group_replication/status/state_change",
-         Notice_type::k_group_replication_member_state_changed},
-    };
+         Notice_type::k_group_replication_member_state_changed}};
 
     return notice_name_to_type;
   }
 
-  std::array<bool, static_cast<int>(Notice_type::k_last_element)> m_notices{
-      {false}};
+  bool m_notices[static_cast<int32_t>(Notice_type::k_last_element)]{false};
   bool m_is_dispatchable_enabled{false};
 };
 

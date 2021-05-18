@@ -9,7 +9,7 @@ create database xtest_1 default charset 'utf8mb4';
 
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_create_collection_mysqlx.xpl
+--let $xtest_file= $MYSQL_TMP_DIR/admin_create_collection_mysqlx.tmp
 --write_file $xtest_file
 -->import admin_stmt.macro
 -->quiet
@@ -145,6 +145,8 @@ EOF
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file 2>&1
 
 ## Cleanup
---source ../include/xplugin_cleanup.inc
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc
+drop schema if exists xtest;
 drop database if exists xtest_1;
 

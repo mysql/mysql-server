@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
 #include "my_compiler.h"
 #include "my_dbug.h"
 #include "my_macros.h"
-#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/psi/psi_base.h"
 #include "sql/sql_test.h"  // lock_descriptions[]
 #include "thr_lock.h"
 #include "thr_mutex.h"
@@ -98,7 +98,7 @@ void Table_cache::check_unused() {
     while ((entry = it++)) {
       /* We must not have TABLEs in the free list that have their file closed.
        */
-      assert(entry->db_stat && entry->file);
+      DBUG_ASSERT(entry->db_stat && entry->file);
 
       if (entry->in_use)
         DBUG_PRINT("error", ("Used table is in share's list of unused tables"));
@@ -129,7 +129,7 @@ void Table_cache::free_all_unused_tables() {
   }
 }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 /**
   Print debug information for the contents of the table cache.
 */
@@ -242,16 +242,6 @@ void Table_cache_manager::unlock_all_and_tdc() {
 }
 
 /**
-  Assert that caller owns lock on the table cache.
-
-  @param thd Thread handle
-*/
-void Table_cache_manager::assert_owner(THD *thd) {
-  Table_cache *tc = get_cache(thd);
-  tc->assert_owner();
-}
-
-/**
   Assert that caller owns locks on all instances of table cache.
 */
 
@@ -305,23 +295,17 @@ void Table_cache_manager::free_table(THD *thd MY_ATTRIBUTE((unused)),
       Table_cache_element::TABLE_list::Iterator it(cache_el[i]->free_tables);
       TABLE *table;
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
       if (remove_type == TDC_RT_REMOVE_ALL)
-        assert(cache_el[i]->used_tables.is_empty());
+        DBUG_ASSERT(cache_el[i]->used_tables.is_empty());
       else if (remove_type == TDC_RT_REMOVE_NOT_OWN ||
                remove_type == TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE) {
         Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
         while ((table = it2++)) {
-          if (table->in_use != thd) assert(0);
+          if (table->in_use != thd) DBUG_ASSERT(0);
         }
       }
 #endif
-      if (remove_type == TDC_RT_MARK_FOR_REOPEN) {
-        Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
-        while ((table = it2++)) {
-          table->invalidate_stats();
-        }
-      }
 
       while ((table = it++)) {
         m_table_cache[i].remove_table(table);
@@ -340,7 +324,7 @@ void Table_cache_manager::free_all_unused_tables() {
     m_table_cache[i].free_all_unused_tables();
 }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 /**
   Print debug information for the contents of all table cache instances.
 */

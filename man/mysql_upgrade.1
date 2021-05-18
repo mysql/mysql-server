@@ -2,12 +2,12 @@
 .\"     Title: \fBmysql_upgrade\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQL_UPGRADE\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBMYSQL_UPGRADE\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -51,7 +51,7 @@ As of MySQL 8\&.0\&.16, the MySQL server performs the upgrade tasks previously h
 (for details, see
 Section\ \&2.11.3, \(lqWhat the MySQL Upgrade Process Upgrades\(rq)\&. Consequently,
 \fBmysql_upgrade\fR
-is unneeded and is deprecated as of that version; expect it to be removed in a future version of MySQL\&. Because
+is unneeded and is deprecated as of that version, and will be removed in a future MySQL version\&. Because
 \fBmysql_upgrade\fR
 no longer performs upgrade tasks, it exits with status 0 unconditionally\&.
 .sp .5v
@@ -165,7 +165,7 @@ schema and check and repair tables in other schemas:
 .RS 4
 .\}
 .nf
-mysql_upgrade [\fIoptions\fR]
+shell> \fBmysql_upgrade [\fR\fB\fIoptions\fR\fR\fB]\fR
 .fi
 .if n \{\
 .RE
@@ -191,9 +191,9 @@ with connection parameters appropriate for connecting to each of the desired ser
 .RS 4
 .\}
 .nf
-mysql_upgrade \-\-protocol=tcp \-P 3306 [\fIother_options\fR]
-mysql_upgrade \-\-protocol=tcp \-P 3307 [\fIother_options\fR]
-mysql_upgrade \-\-protocol=tcp \-P 3308 [\fIother_options\fR]
+shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3306 [\fR\fB\fIother_options\fR\fR\fB]\fR
+shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3307 [\fR\fB\fIother_options\fR\fR\fB]\fR
+shell> \fBmysql_upgrade \-\-protocol=tcp \-P 3308 [\fR\fB\fIother_options\fR\fR\fB]\fR
 .fi
 .if n \{\
 .RE
@@ -210,7 +210,7 @@ root
 user\&. If the
 root
 password is expired when you run
-\fBmysql_upgrade\fR, it displays a message that your password is expired and that
+\fBmysql_upgrade\fR, you will see a message that your password is expired and that
 \fBmysql_upgrade\fR
 failed as a result\&. To correct this, reset the
 root
@@ -337,7 +337,7 @@ option\&.
 .PP
 The
 mysql_upgrade_info
-file is deprecated; expect it to be removed in a future version of MySQL\&.
+file is deprecated and will be removed in a future MySQL version\&.
 .sp .5v
 .RE
 .PP
@@ -352,8 +352,8 @@ if the credentials use a hash format compatible with that plugin\&. Rows with a 
 .PP
 \fBmysql_upgrade\fR
 does not upgrade the contents of the time zone tables or help tables\&. For upgrade instructions, see
-Section\ \&5.1.15, \(lqMySQL Server Time Zone Support\(rq, and
-Section\ \&5.1.17, \(lqServer-Side Help Support\(rq\&.
+Section\ \&5.1.14, \(lqMySQL Server Time Zone Support\(rq, and
+Section\ \&5.1.16, \(lqServer-Side Help Support\(rq\&.
 .PP
 Unless invoked with the
 \fB\-\-skip\-sys\-schema\fR
@@ -441,7 +441,7 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 Compress all information sent between the client and the server if possible\&. See
 Section\ \&4.2.8, \(lqConnection Compression Control\(rq\&.
 .sp
-As of MySQL 8\&.0\&.18, this option is deprecated\&. Expect it to be removed in a future version of MySQL\&. See
+As of MySQL 8\&.0\&.18, this option is deprecated\&. It will be removed in a future MySQL version\&. See
 the section called \(lqConfiguring Legacy Connection Compression\(rq\&.
 .RE
 .sp
@@ -544,9 +544,9 @@ Section\ \&10.15, \(lqCharacter Set Configuration\(rq\&.
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-extra\-file=\fR\fB\fIfile_name\fR\fR
-Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
+Read this option file after the global option file but (on Unix) before the user option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
-is not an absolute path name, it is interpreted relative to the current directory\&.
+is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -561,9 +561,9 @@ Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(r
 .IP \(bu 2.3
 .\}
 \fB\-\-defaults\-file=\fR\fB\fIfile_name\fR\fR
-Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&. If
+Use only the given option file\&. If the file does not exist or is otherwise inaccessible, an error occurs\&.
 \fIfile_name\fR
-is not an absolute path name, it is interpreted relative to the current directory\&.
+is interpreted relative to the current directory if given as a relative path name rather than a full path name\&.
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -585,8 +585,9 @@ normally reads the
 [client]
 and
 [mysql_upgrade]
-groups\&. If this option is given as
-\fB\-\-defaults\-group\-suffix=_other\fR,
+groups\&. If the
+\fB\-\-defaults\-group\-suffix=_other\fR
+option is given,
 \fBmysql_upgrade\fR
 also reads the
 [client_other]
@@ -712,13 +713,13 @@ can be used to prevent them from being read\&.
 .sp
 The exception is that the
 \&.mylogin\&.cnf
-file is read in all cases, if it exists\&. This permits passwords to be specified in a safer way than on the command line even when
+file, if it exists, is read in all cases\&. This permits passwords to be specified in a safer way than on the command line even when
 \fB\-\-no\-defaults\fR
-is used\&. To create
-\&.mylogin\&.cnf, use the
+is used\&. (\&.mylogin\&.cnf
+is created by the
 \fBmysql_config_editor\fR
 utility\&. See
-\fBmysql_config_editor\fR(1)\&.
+\fBmysql_config_editor\fR(1)\&.)
 .sp
 For additional information about this and other option\-file options, see
 Section\ \&4.2.2.3, \(lqCommand-Line Options that Affect Option-File Handling\(rq\&.
@@ -924,7 +925,7 @@ system variable\&.
 \fB\-\-ssl*\fR
 Options that begin with
 \fB\-\-ssl\fR
-specify whether to connect to the server using encryption and indicate where to find SSL keys and certificates\&. See
+specify whether to connect to the server using SSL and indicate where to find SSL keys and certificates\&. See
 the section called \(lqCommand Options for Encrypted Connections\(rq\&.
 .RE
 .sp
@@ -1142,7 +1143,7 @@ This option was added in MySQL 8\&.0\&.18\&.
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

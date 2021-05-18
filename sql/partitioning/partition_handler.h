@@ -2,7 +2,7 @@
 #define PARTITION_HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <assert.h>
 #include <string.h>
 #include <sys/types.h>
 #include <memory>
@@ -35,7 +34,7 @@
 #include "my_base.h"  // ha_rows.
 #include "my_bitmap.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql/psi/mysql_mutex.h"
@@ -142,12 +141,12 @@ class Partition_share : public Handler_share {
 
   /** lock mutex protecting auto increment value next_auto_inc_val. */
   inline void lock_auto_inc() {
-    assert(auto_inc_mutex);
+    DBUG_ASSERT(auto_inc_mutex);
     mysql_mutex_lock(auto_inc_mutex);
   }
   /** unlock mutex protecting auto increment value next_auto_inc_val. */
   inline void unlock_auto_inc() {
-    assert(auto_inc_mutex);
+    DBUG_ASSERT(auto_inc_mutex);
     mysql_mutex_unlock(auto_inc_mutex);
   }
   /**
@@ -416,7 +415,7 @@ class Partition_helper {
       @retval true  failure.
   */
   bool init_partitioning(MEM_ROOT *mem_root MY_ATTRIBUTE((unused))) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     m_key_not_found_partitions.bitmap = nullptr;
 #endif
     return false;
@@ -430,9 +429,12 @@ class Partition_helper {
 
   /**
     Insert a row to the partitioned table.
-      @returns Operation status.
-      @returns    0 Success
-      @returns != 0 Error code
+
+    @param buf The row in MySQL Row Format.
+
+    @return Operation status.
+      @retval    0 Success
+      @retval != 0 Error code
   */
   int ph_write_row(uchar *buf);
   /**
@@ -450,9 +452,12 @@ class Partition_helper {
     new_data is always record[0]
     old_data is always record[1]
 
+    @param old_data  The old record in MySQL Row Format.
+    @param new_data  The new record in MySQL Row Format.
+
     @return Operation status.
-      @returns    0 Success
-      @returns != 0 Error code
+      @retval    0 Success
+      @retval != 0 Error code
   */
   int ph_update_row(const uchar *old_data, uchar *new_data);
   /**
@@ -619,8 +624,8 @@ class Partition_helper {
     Set m_part_share, Allocate internal bitmaps etc. used by open tables.
 
     @return Operation status.
-      @returns false success.
-      @returns true  failure.
+      @retval false success.
+      @retval true  failure.
   */
   bool open_partitioning(Partition_share *part_share);
   /**
@@ -894,7 +899,7 @@ class Partition_helper {
   */
   virtual ha_checksum checksum_in_part(
       uint part_id MY_ATTRIBUTE((unused))) const {
-    assert(0);
+    DBUG_ASSERT(0);
     return 0;
   }
   /**
@@ -935,9 +940,17 @@ class Partition_helper {
     If we need to scan only one partition, set m_ordered_scan_ongoing=false
     as we will not need to do merge ordering.
 
+    @param buf            Buffer to later return record in (this function
+                          needs it to calculate partitioning function values)
+
+    @param idx_read_flag  True <=> m_start_key has range start endpoint which
+                          probably can be used to determine the set of
+                          partitions to scan.
+                          False <=> there is no start endpoint.
+
     @return Operation status.
-      @returns   0  Success
-      @returns !=0  Error code
+      @retval   0  Success
+      @retval !=0  Error code
   */
   int partition_scan_set_up(uchar *buf, bool idx_read_flag);
   /**
@@ -951,10 +964,13 @@ class Partition_helper {
     scan is performed on only one partition and thus it isn't necessary to
     perform any sort.
 
+    @param[out] buf        Read row in MySQL Row Format.
+    @param[in]  is_next_same  Called from index_next_same.
+
     @return Operation status.
-      @returns HA_ERR_END_OF_FILE  End of scan
-      @returns 0                   Success
-      @returns other               Error code
+      @retval HA_ERR_END_OF_FILE  End of scan
+      @retval 0                   Success
+      @retval other               Error code
   */
   int handle_unordered_next(uchar *buf, bool is_next_same);
   /**
@@ -974,12 +990,13 @@ class Partition_helper {
   /**
     Common routine to start index scan with ordered results.
 
+    @param[out] buf  Read row in MySQL Row Format
 
-      @returns Operation status
-      @returns HA_ERR_END_OF_FILE    End of scan
-      @returns HA_ERR_KEY_NOT_FOUND  End of scan
-      @returns 0                     Success
-      @returns other                 Error code
+    @return Operation status
+      @retval HA_ERR_END_OF_FILE    End of scan
+      @retval HA_ERR_KEY_NOT_FOUND  End of scan
+      @retval 0                     Success
+      @retval other                 Error code
   */
   int handle_ordered_index_scan(uchar *buf);
   /**
@@ -989,10 +1006,10 @@ class Partition_helper {
     ha_index_read_map was done, those partitions must be included in the
     following index_next/prev call.
 
-      @returns Operation status
-      @returns HA_ERR_END_OF_FILE    End of scan
-      @returns 0                     Success
-      @returns other                 Error code
+    @return Operation status
+      @retval HA_ERR_END_OF_FILE    End of scan
+      @retval 0                     Success
+      @retval other                 Error code
   */
   int handle_ordered_index_scan_key_not_found();
   /**

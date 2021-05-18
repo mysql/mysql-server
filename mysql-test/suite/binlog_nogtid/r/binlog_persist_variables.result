@@ -19,8 +19,7 @@ VARIABLE_NAME LIKE '%rpl%' OR
 VARIABLE_NAME LIKE '%semi_sync%' OR
 VARIABLE_NAME LIKE '%slave%') AND
 (VARIABLE_NAME NOT IN ('innodb_api_enable_binlog',
-'innodb_master_thread_disabled_debug',
-'skip_slave_start'))
+'innodb_master_thread_disabled_debug'))
 ORDER BY VARIABLE_NAME;
 
 include/assert.inc ['Expect 85 variables in the table.']
@@ -78,9 +77,6 @@ ERROR HY000: Variable 'log_slave_updates' is a read only variable
 SET PERSIST log_slow_slave_statements = @@GLOBAL.log_slow_slave_statements;
 SET PERSIST log_statements_unsafe_for_binlog = @@GLOBAL.log_statements_unsafe_for_binlog;
 SET PERSIST master_info_repository = @@GLOBAL.master_info_repository;
-Warnings:
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
-Warning	1287	'@@master_info_repository' is deprecated and will be removed in a future release.
 SET PERSIST master_verify_checksum = @@GLOBAL.master_verify_checksum;
 SET PERSIST max_binlog_cache_size = @@GLOBAL.max_binlog_cache_size;
 SET PERSIST max_binlog_size = @@GLOBAL.max_binlog_size;
@@ -95,9 +91,6 @@ ERROR HY000: Variable 'relay_log_index' is a read only variable
 SET PERSIST relay_log_info_file = @@GLOBAL.relay_log_info_file;
 ERROR HY000: Variable 'relay_log_info_file' is a read only variable
 SET PERSIST relay_log_info_repository = @@GLOBAL.relay_log_info_repository;
-Warnings:
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
-Warning	1287	'@@relay_log_info_repository' is deprecated and will be removed in a future release.
 SET PERSIST relay_log_purge = @@GLOBAL.relay_log_purge;
 SET PERSIST relay_log_recovery = @@GLOBAL.relay_log_recovery;
 ERROR HY000: Variable 'relay_log_recovery' is a read only variable

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,14 +28,13 @@
 #include <memory>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/compression_types.h"
+#include "plugin/x/ngs/include/ngs/protocol/message.h"
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/helper/optional_value.h"
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/interface/vio.h"
-#include "plugin/x/src/ngs/compression_types.h"
-#include "plugin/x/src/ngs/protocol/message.h"
-#include "plugin/x/src/ngs/protocol_fwd.h"
 
 class THD;
 
@@ -44,7 +43,6 @@ namespace iface {
 
 class Protocol_encoder;
 class Server;
-class Waiting_for_io;
 
 class Client {
  public:
@@ -92,7 +90,6 @@ class Client {
   virtual chrono::Time_point get_accept_time() const = 0;
   virtual State get_state() const = 0;
   virtual bool supports_expired_passwords() const = 0;
-  virtual void set_supports_expired_passwords(bool flag) = 0;
 
   virtual bool is_interactive() const = 0;
   virtual void set_is_interactive(const bool is_interactive) = 0;
@@ -116,8 +113,6 @@ class Client {
       const Mysqlx::Connection::CapabilitiesGet &msg) = 0;
   virtual void set_capabilities(
       const Mysqlx::Connection::CapabilitiesSet &msg) = 0;
-
-  virtual iface::Waiting_for_io *get_idle_processing() = 0;
 };
 
 }  // namespace iface

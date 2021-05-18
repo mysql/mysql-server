@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,9 @@
 #ifndef OPT_TRACE_CONTEXT_INCLUDED
 #define OPT_TRACE_CONTEXT_INCLUDED
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
-#include "mysql/components/services/bits/psi_bits.h"
+#include "mysql/psi/psi_base.h"
 #include "prealloced_array.h"
 
 /**
@@ -73,7 +72,7 @@ typedef Prealloced_array<Opt_trace_stmt *, 16> Opt_trace_stmt_array;
         - opens an object for key "transformation"
     #1  Item_in_subselect::select_in_like_transformer - does no tracing
     #2  Item_allany_subselect::select_transformer - does no tracing
-    #3  Query_block::prepare - opens an object for key "join_preparation"
+    #3  SELECT_LEX::prepare - opens an object for key "join_preparation"
 @endverbatim
   So the object opened in #3 would have to be passed in argument to #2 and #1
   in order to finally reach #0 where object "transformation" would be added to
@@ -264,7 +263,7 @@ class Opt_trace_context {
   */
   void restore_I_S() {
     --I_S_disabled;
-    assert(I_S_disabled >= 0);
+    DBUG_ASSERT(I_S_disabled >= 0);
     if (unlikely(pimpl != nullptr)) pimpl->restore_I_S();
   }
 

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -271,24 +271,19 @@ Directory::Directory(const Path &path) : Path(path) {}
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-stdx::expected<void, std::error_code> delete_dir_recursive(
-    const std::string &dir) noexcept {
+int delete_dir_recursive(const std::string &dir) noexcept {
   mysql_harness::Directory d(dir);
   try {
     for (auto const &f : d) {
       if (f.is_directory()) {
-        const auto res = delete_dir_recursive(f.str());
-        if (!res) return res.get_unexpected();
+        if (delete_dir_recursive(f.str()) < 0) return -1;
       } else {
-        const auto res = delete_file(f.str());
-        if (!res) return res.get_unexpected();
+        if (delete_file(f.str()) < 0) return -1;
       }
     }
   } catch (...) {
-    return stdx::make_unexpected(
-        std::error_code(errno, std::system_category()));
+    return -1;
   }
-
   return delete_dir(dir);
 }
 

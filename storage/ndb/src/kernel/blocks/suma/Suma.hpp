@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -142,11 +142,11 @@ public:
   // m_dummy is used to pass value.
   union FragmentDescriptor { 
     struct  {
-      Uint32 m_fragmentNo;
-      Uint16 m_lqhInstanceKey;
-      Uint16 m_nodeId;
+      Uint16 m_fragmentNo;
+      Uint8 m_lqhInstanceKey;
+      Uint8 m_nodeId;
     } m_fragDesc;
-    Uint32 m_dummy[2];
+    Uint32 m_dummy;
   };
   
   /**

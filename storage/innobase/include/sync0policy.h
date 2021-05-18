@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -51,7 +51,10 @@ class MutexDebug {
   struct Context : public latch_t {
     /** Constructor */
     Context()
-        : m_mutex(), m_filename(), m_line(), m_thread_id(std::thread::id{}) {
+        : m_mutex(),
+          m_filename(),
+          m_line(),
+          m_thread_id(os_thread_id_t(ULINT_UNDEFINED)) {
       /* No op */
     }
 
@@ -68,7 +71,7 @@ class MutexDebug {
                 ulint line) UNIV_NOTHROW {
       m_mutex = mutex;
 
-      m_thread_id = std::this_thread::get_id();
+      m_thread_id = os_thread_get_curr_id();
 
       m_filename = filename;
 
@@ -79,7 +82,7 @@ class MutexDebug {
     void release() UNIV_NOTHROW {
       m_mutex = nullptr;
 
-      m_thread_id = std::thread::id{};
+      m_thread_id = os_thread_id_t(ULINT_UNDEFINED);
 
       m_filename = nullptr;
 
@@ -93,7 +96,7 @@ class MutexDebug {
 
       msg << m_mutex->policy().to_string();
 
-      if (m_thread_id != std::thread::id{}) {
+      if (m_thread_id != os_thread_id_t(ULINT_UNDEFINED)) {
         msg << " addr: " << m_mutex << " acquired: " << locked_from().c_str();
 
       } else {
@@ -119,11 +122,11 @@ class MutexDebug {
     /** Filename from where enter was called */
     const char *m_filename;
 
-    /** Line number in filename */
+    /** Line mumber in filename */
     ulint m_line;
 
     /** Thread ID of the thread that own(ed) the mutex */
-    std::thread::id m_thread_id;
+    os_thread_id_t m_thread_id;
   };
 
   /** Constructor. */
@@ -135,11 +138,11 @@ class MutexDebug {
 
   /** Mutex is being destroyed. */
   void destroy() UNIV_NOTHROW {
-    ut_ad(m_context.m_thread_id == std::thread::id{});
+    ut_ad(m_context.m_thread_id == os_thread_id_t(ULINT_UNDEFINED));
 
     m_magic_n = 0;
 
-    m_context.m_thread_id = std::thread::id{};
+    m_context.m_thread_id = 0;
   }
 
   /** Called when the mutex is "created". Note: Not from the constructor
@@ -166,20 +169,20 @@ class MutexDebug {
 
   /** @return true if thread owns the mutex */
   bool is_owned() const UNIV_NOTHROW {
-    return m_context.m_thread_id == std::this_thread::get_id();
+    return (os_thread_eq(m_context.m_thread_id, os_thread_get_curr_id()));
   }
 
   /** @return the name of the file from the mutex was acquired */
   const char *get_enter_filename() const UNIV_NOTHROW {
-    return m_context.m_filename;
+    return (m_context.m_filename);
   }
 
   /** @return the name of the file from the mutex was acquired */
-  ulint get_enter_line() const UNIV_NOTHROW { return m_context.m_line; }
+  ulint get_enter_line() const UNIV_NOTHROW { return (m_context.m_line); }
 
   /** @return id of the thread that was trying to acquire the mutex */
-  std::thread::id get_thread_id() const UNIV_NOTHROW {
-    return m_context.m_thread_id;
+  os_thread_id_t get_thread_id() const UNIV_NOTHROW {
+    return (m_context.m_thread_id);
   }
 
   /** Magic number to check for memory corruption. */

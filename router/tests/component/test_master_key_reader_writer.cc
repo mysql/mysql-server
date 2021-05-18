@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2018, 2019, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -35,7 +35,6 @@
 #include "dim.h"
 #include "gmock/gmock.h"
 #include "keyring/keyring_manager.h"
-#include "mock_server_testutils.h"
 #include "mysqlrouter/keyring_info.h"
 #include "random_generator.h"
 #include "router_component_test.h"
@@ -553,8 +552,8 @@ TEST_F(MasterKeyReaderWriterTest,
  *
  */
 TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
-  const auto server_port = port_pool_.get_next_available();
-  const auto router_port = port_pool_.get_next_available();
+  auto server_port = port_pool_.get_next_available();
+  auto router_port = port_pool_.get_next_available();
   std::string metadata_cache_section = get_metadata_cache_section(server_port);
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
@@ -563,17 +562,22 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
 
   // launch server
   /*auto &server =*/launch_mysql_server_mock(
-      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port);
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port,
+      false);
 
   auto default_section_map = get_default_section_map();
   // launch the router with metadata-cache configuration
   TempDirectory conf_dir("conf");
-  launch_router({
+  auto &router = launch_router({
       "-c",
       create_config_file(conf_dir.name(),
                          metadata_cache_section + routing_section,
                          &default_section_map),
   });
+
+  // in windows waiting for the router's keyring reader takes about 2seconds,
+  // and we need to do 3 rounds
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   auto matcher = [&](const std::string &line) -> bool {
     return line.find("Connected with metadata server running on") != line.npos;
@@ -592,8 +596,8 @@ TEST_F(MasterKeyReaderWriterTest, ConnectToMetadataServerPass) {
  */
 TEST_F(MasterKeyReaderWriterTest,
        NoMasterKeyInLogsWhenConnectToMetadataServerPass) {
-  const auto server_port = port_pool_.get_next_available();
-  const auto router_port = port_pool_.get_next_available();
+  unsigned server_port = port_pool_.get_next_available();
+  unsigned router_port = port_pool_.get_next_available();
   std::string metadata_cache_section = get_metadata_cache_section(server_port);
   std::string routing_section =
       get_metadata_cache_routing_section("PRIMARY", "round-robin", router_port);
@@ -602,7 +606,8 @@ TEST_F(MasterKeyReaderWriterTest,
 
   // launch server
   auto &server = launch_mysql_server_mock(
-      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port);
+      get_data_dir().join("metadata_dynamic_nodes.js").str(), server_port,
+      false);
   ASSERT_NO_FATAL_FAILURE(check_port_ready(server, server_port, 10000ms));
 
   auto default_section_map = get_default_section_map();
@@ -612,6 +617,10 @@ TEST_F(MasterKeyReaderWriterTest,
       {"-c", create_config_file(conf_dir.name(),
                                 metadata_cache_section + routing_section,
                                 &default_section_map)});
+
+  // in windows waiting for the router's keyring reader takes about 2seconds,
+  // and we need to do 3 rounds
+  ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port, 10000ms));
 
   auto matcher = [&, this](const std::string &line) -> bool {
     return line.find(master_key_) != line.npos;

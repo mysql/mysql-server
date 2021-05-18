@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,7 @@
 namespace xpl {
 
 void Capability_connection_attributes::get_impl(::Mysqlx::Datatypes::Any *any) {
-  assert(false && "This method should not be used with CapGet");
+  DBUG_ASSERT(false && "This method should not be used with CapGet");
 }
 
 ngs::Error_code Capability_connection_attributes::set_impl(
@@ -95,7 +95,7 @@ std::vector<unsigned char> Capability_connection_attributes::create_buffer() {
     const auto &key = attribute.first;
     const auto &value = attribute.second;
 
-    assert(!key.empty());
+    DBUG_ASSERT(!key.empty());
     ptr = write_length_encoded_string(ptr, key);
     ptr = write_length_encoded_string(ptr, value);
   }

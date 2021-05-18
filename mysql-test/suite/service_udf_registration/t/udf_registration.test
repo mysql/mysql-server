@@ -61,17 +61,15 @@ connection default;
 --echo # reaping the result from SELECT
 reap;
 
---echo # should pass: because this udf is in use when the above Uninstall
---echo # component is executed and the component deinit function failed as
---echo # this udf is in use.
+--echo # should fail: the release of the UDF removed it
+--error ER_SP_DOES_NOT_EXIST
 SELECT dynamic_udf();
 
---echo # Should fail: this one is unregistered, because this udf is not in use
---echo # when the above Uninstall component is executed.
+--echo # Should fail: this one is unregistered
 --error ER_SP_DOES_NOT_EXIST
 SELECT dynamic_agg(a);
 
---echo # dynamic_udf should present and dynamic_agg should not.
+--echo # should be empty
 SELECT * FROM performance_schema.user_defined_functions
   WHERE UDF_NAME IN('dynamic_udf', 'dynamic_agg')
   ORDER BY UDF_NAME;

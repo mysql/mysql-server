@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,9 +34,9 @@
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/mysql_lex_string.h"
+#include "mysql/psi/psi_base.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_internal.h"
 #include "sql/auth/sql_auth_cache.h"
@@ -198,7 +198,7 @@ bool modify_default_roles_in_table(THD *thd, TABLE *table,
 
 bool populate_roles_caches(THD *thd, TABLE_LIST *tablelst) {
   DBUG_TRACE;
-  assert(assert_acl_cache_write_lock(thd));
+  DBUG_ASSERT(assert_acl_cache_write_lock(thd));
   unique_ptr_destroy_only<RowIterator> iterator;
   TABLE *roles_edges_table = tablelst[0].table;
   TABLE *default_role_table = tablelst[1].table;

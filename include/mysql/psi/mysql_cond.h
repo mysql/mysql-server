@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,17 +28,14 @@
   Instrumentation helpers for conditions.
 */
 
-/* HAVE_PSI_*_INTERFACE */
-#include "my_psi_config.h"  // IWYU pragma: keep
-
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/psi_cond.h"
 #include "thr_cond.h"
-
-#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
-/* PSI_COND_CALL() as direct call. */
-#include "pfs_cond_provider.h"  // IWYU pragma: keep
+#ifdef MYSQL_SERVER
+#ifndef MYSQL_DYNAMIC_PLUGIN
+#include "pfs_cond_provider.h"
+#endif
 #endif
 
 #ifndef PSI_COND_CALL
@@ -167,28 +164,26 @@ static inline int inline_mysql_cond_wait(
 
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
-    if (that->m_psi->m_enabled) {
-      /* Instrumentation start */
-      PSI_cond_locker *locker;
-      PSI_cond_locker_state state;
-      locker = PSI_COND_CALL(start_cond_wait)(
-          &state, that->m_psi, mutex->m_psi, PSI_COND_WAIT, src_file, src_line);
+    /* Instrumentation start */
+    PSI_cond_locker *locker;
+    PSI_cond_locker_state state;
+    locker = PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
+                                            PSI_COND_WAIT, src_file, src_line);
 
-      /* Instrumented code */
-      result = my_cond_wait(&that->m_cond, &mutex->m_mutex
+    /* Instrumented code */
+    result = my_cond_wait(&that->m_cond, &mutex->m_mutex
 #ifdef SAFE_MUTEX
-                            ,
-                            src_file, src_line
+                          ,
+                          src_file, src_line
 #endif
-      );
+    );
 
-      /* Instrumentation end */
-      if (locker != nullptr) {
-        PSI_COND_CALL(end_cond_wait)(locker, result);
-      }
-
-      return result;
+    /* Instrumentation end */
+    if (locker != nullptr) {
+      PSI_COND_CALL(end_cond_wait)(locker, result);
     }
+
+    return result;
   }
 #endif
 
@@ -211,29 +206,27 @@ static inline int inline_mysql_cond_timedwait(
 
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
-    if (that->m_psi->m_enabled) {
-      /* Instrumentation start */
-      PSI_cond_locker *locker;
-      PSI_cond_locker_state state;
-      locker = PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
-                                              PSI_COND_TIMEDWAIT, src_file,
-                                              src_line);
+    /* Instrumentation start */
+    PSI_cond_locker *locker;
+    PSI_cond_locker_state state;
+    locker =
+        PSI_COND_CALL(start_cond_wait)(&state, that->m_psi, mutex->m_psi,
+                                       PSI_COND_TIMEDWAIT, src_file, src_line);
 
-      /* Instrumented code */
-      result = my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime
+    /* Instrumented code */
+    result = my_cond_timedwait(&that->m_cond, &mutex->m_mutex, abstime
 #ifdef SAFE_MUTEX
-                                 ,
-                                 src_file, src_line
+                               ,
+                               src_file, src_line
 #endif
-      );
+    );
 
-      /* Instrumentation end */
-      if (locker != nullptr) {
-        PSI_COND_CALL(end_cond_wait)(locker, result);
-      }
-
-      return result;
+    /* Instrumentation end */
+    if (locker != nullptr) {
+      PSI_COND_CALL(end_cond_wait)(locker, result);
     }
+
+    return result;
   }
 #endif
 
@@ -254,9 +247,7 @@ static inline int inline_mysql_cond_signal(
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
-    if (that->m_psi->m_enabled) {
-      PSI_COND_CALL(signal_cond)(that->m_psi);
-    }
+    PSI_COND_CALL(signal_cond)(that->m_psi);
   }
 #endif
   result = native_cond_signal(&that->m_cond);
@@ -269,9 +260,7 @@ static inline int inline_mysql_cond_broadcast(
   int result;
 #ifdef HAVE_PSI_COND_INTERFACE
   if (that->m_psi != nullptr) {
-    if (that->m_psi->m_enabled) {
-      PSI_COND_CALL(broadcast_cond)(that->m_psi);
-    }
+    PSI_COND_CALL(broadcast_cond)(that->m_psi);
   }
 #endif
   result = native_cond_broadcast(&that->m_cond);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,7 @@
 
 #include "storage/perfschema/table_uvar_by_thread.h"
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/item_func.h"
 #include "sql/mysqld_thd_manager.h"
@@ -100,7 +99,7 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd) {
     /* Copy VARIABLE_NAME */
     const char *name = sql_uvar->entry_name.ptr();
     size_t name_length = sql_uvar->entry_name.length();
-    assert(name_length <= sizeof(pfs_uvar.m_name));
+    DBUG_ASSERT(name_length <= sizeof(pfs_uvar.m_name));
     pfs_uvar.m_name.make_row(name, name_length);
 
     /* Copy VARIABLE_VALUE */
@@ -235,7 +234,7 @@ int table_uvar_by_thread::rnd_pos(const void *pos) {
 
 int table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_uvar_by_thread *result = nullptr;
-  assert(idx == 0);
+  DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_uvar_by_thread);
   m_opened_index = result;
   m_index = result;
@@ -322,11 +321,11 @@ int table_uvar_by_thread::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  assert(table->s->null_bytes == 1);
+  DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
-  assert(m_row.m_variable_name != nullptr);
-  assert(m_row.m_variable_value != nullptr);
+  DBUG_ASSERT(m_row.m_variable_name != nullptr);
+  DBUG_ASSERT(m_row.m_variable_value != nullptr);
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {
@@ -347,7 +346,7 @@ int table_uvar_by_thread::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          assert(false);
+          DBUG_ASSERT(false);
       }
     }
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 #ifndef AUTH_COMMON_INCLUDED
 #define AUTH_COMMON_INCLUDED
 
-#include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
@@ -36,7 +35,7 @@
 
 #include "lex_string.h"
 #include "my_command.h"
-
+#include "my_dbug.h"
 #include "my_hostname.h"  // HOSTNAME_LENGTH
 #include "my_inttypes.h"
 #include "mysql_com.h"  // USERNAME_LENGTH
@@ -430,7 +429,7 @@ class User_table_current_schema : public User_table_schema {
   uint user_idx() override { return MYSQL_USER_FIELD_USER; }
   // not available
   uint password_idx() override {
-    assert(0);
+    DBUG_ASSERT(0);
     return MYSQL_USER_FIELD_COUNT;
   }
   uint select_priv_idx() override { return MYSQL_USER_FIELD_SELECT_PRIV; }
@@ -874,7 +873,7 @@ bool check_global_access(THD *thd, ulong want_access);
 /* sql_user_table */
 void commit_and_close_mysql_tables(THD *thd);
 bool is_acl_table_name(const char *name);
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 bool is_acl_table(const TABLE *table);
 #endif
 
@@ -972,7 +971,7 @@ class Security_context_factory {
         m_static_privileges(std::move(static_priv)),
         m_drop_policy(std::move(drop_policy)) {}
 
-  Sctx_ptr<Security_context> create();
+  Sctx_ptr<Security_context> create(MEM_ROOT *mem_root);
 
  private:
   bool apply_pre_constructed_policies(Security_context *sctx);

@@ -1,7 +1,7 @@
 #ifndef ERRMSG_INCLUDED
 #define ERRMSG_INCLUDED
 
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -136,7 +136,7 @@ extern const char *client_errors[]; /* Error messages */
 static inline const char *ER_CLIENT(int client_errno) {
   if (client_errno >= CR_ERROR_FIRST && client_errno <= CR_ERROR_LAST)
     return client_errors[client_errno - CR_ERROR_FIRST];
-  return client_errors[CR_UNKNOWN_ERROR - CR_ERROR_FIRST];
+  return client_errors[CR_UNKNOWN_ERROR];
 }
 
 #endif /* ERRMSG_INCLUDED */

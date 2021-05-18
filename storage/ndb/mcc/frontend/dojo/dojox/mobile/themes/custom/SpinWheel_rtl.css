@@ -1,0 +1,5 @@
+
+.mblSpinWheelSlotRtl,
+.mblSpinWheelRtl .mblSpinWheelSlot {
+  float: right;
+}

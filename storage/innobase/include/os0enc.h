@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -30,17 +30,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 #ifndef os0enc_h
 #define os0enc_h
 
-#include <mysql/components/my_service.h>
 #include "univ.i"
-
-namespace innobase {
-namespace encryption {
-
-bool init_keyring_services(SERVICE_TYPE(registry) * reg_srv);
-
-void deinit_keyring_services(SERVICE_TYPE(registry) * reg_srv);
-}  // namespace encryption
-}  // namespace innobase
 
 // Forward declaration.
 class IORequest;
@@ -315,12 +305,6 @@ class Encryption {
   @return encryption type **/
   Type get_type() const;
 
-  /** Check if the encryption algorithm is NONE.
-  @return true if no algorithm is set, false otherwise. */
-  bool is_none() const noexcept MY_ATTRIBUTE((warn_unused_result)) {
-    return m_type == NONE;
-  }
-
   /** Set encryption type
   @param[in]  type  encryption type **/
   void set_type(Type type);
@@ -354,17 +338,6 @@ class Encryption {
   static uint32_t get_master_key_id();
 
  private:
-  /** Encrypt the page data contents. Page type can't be
-  FIL_PAGE_ENCRYPTED, FIL_PAGE_COMPRESSED_AND_ENCRYPTED,
-  FIL_PAGE_ENCRYPTED_RTREE.
-  @param[in]  src       page data which need to encrypt
-  @param[in]  src_len   size of the source in bytes
-  @param[in,out]  dst       destination area
-  @param[in,out]  dst_len   size of the destination in bytes
-  @return true if operation successful, false otherwise. */
-  bool encrypt_low(byte *src, ulint src_len, byte *dst, ulint *dst_len) noexcept
-      MY_ATTRIBUTE((warn_unused_result));
-
   /** Encrypt type */
   Type m_type;
 

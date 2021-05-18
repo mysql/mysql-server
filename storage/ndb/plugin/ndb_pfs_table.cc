@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,7 @@
 // Implements
 #include "storage/ndb/plugin/ndb_pfs_table.h"
 
-#include <assert.h>
-// assert
+#include "my_dbug.h"  // DBUG_ASSERT
 
 static int ndb_pfs_rnd_init(PSI_table_handle *handle, bool) {
   Ndb_pfs_table *table = reinterpret_cast<Ndb_pfs_table *>(handle);
@@ -108,6 +107,6 @@ int Ndb_pfs_table::rnd_next() {
   if (rows_pending_read()) {
     return 0;
   }
-  assert(all_rows_read());
+  DBUG_ASSERT(all_rows_read());
   return PFS_HA_ERR_END_OF_FILE;
 }

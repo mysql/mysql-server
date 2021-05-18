@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,7 +118,7 @@
 */
 /* clang-format on */
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 
 static void report_errors(SSL *ssl) {
   unsigned long l;
@@ -239,7 +239,7 @@ static bool ssl_should_retry(Vio *vio, int ret, enum enum_vio_io_event *event,
       /* first save the top ERR error */
       err_error = ERR_get_error();
       /* now report all remaining errors on and/or clear the error stack */
-#ifndef NDEBUG /* Debug build */
+#ifndef DBUG_OFF /* Debug build */
       /* Note: the OpenSSL error queue gets cleared in report_errors(). */
       report_errors(ssl);
 #else /* Release build */
@@ -270,7 +270,7 @@ size_t vio_ssl_read(Vio *vio, uchar *buf, size_t size) {
       SSL_read() returns an error from the error queue, when SSL_read() failed
       because it would block.
     */
-    assert(ERR_peek_error() == 0);
+    DBUG_ASSERT(ERR_peek_error() == 0);
 
     ret = SSL_read(ssl, buf, (int)size);
 
@@ -312,7 +312,7 @@ size_t vio_ssl_write(Vio *vio, const uchar *buf, size_t size) {
       SSL_write() returns an error from the error queue, when SSL_write() failed
       because it would block.
     */
-    assert(ERR_peek_error() == 0);
+    DBUG_ASSERT(ERR_peek_error() == 0);
 
     ret = SSL_write(ssl, buf, (int)size);
 
@@ -425,7 +425,7 @@ static size_t ssl_handshake_loop(Vio *vio, SSL *ssl, ssl_handshake_func_t func,
       SSL-handshake-function returns an error from the error queue, when the
       function failed because it would block.
     */
-    assert(ERR_peek_error() == 0);
+    DBUG_ASSERT(ERR_peek_error() == 0);
 
     int handshake_ret;
     handshake_ret = func(ssl);
@@ -493,7 +493,7 @@ long pfs_ssl_bio_callback_ex(BIO *b, int oper, const char * /* argp */,
   switch (oper) {
     case BIO_CB_READ:
       vio = reinterpret_cast<Vio *>(BIO_get_callback_arg(b));
-      assert(vio->m_psi_read_locker == nullptr);
+      DBUG_ASSERT(vio->m_psi_read_locker == nullptr);
       if (vio->mysql_socket.m_psi != nullptr) {
         vio->m_psi_read_locker = PSI_SOCKET_CALL(start_socket_wait)(
             &vio->m_psi_read_state, vio->mysql_socket.m_psi, PSI_SOCKET_RECV,
@@ -509,7 +509,7 @@ long pfs_ssl_bio_callback_ex(BIO *b, int oper, const char * /* argp */,
       break;
     case BIO_CB_WRITE:
       vio = reinterpret_cast<Vio *>(BIO_get_callback_arg(b));
-      assert(vio->m_psi_write_locker == nullptr);
+      DBUG_ASSERT(vio->m_psi_write_locker == nullptr);
       if (vio->mysql_socket.m_psi != nullptr) {
         vio->m_psi_write_locker = PSI_SOCKET_CALL(start_socket_wait)(
             &vio->m_psi_write_state, vio->mysql_socket.m_psi, PSI_SOCKET_SEND,
@@ -533,7 +533,7 @@ long pfs_ssl_bio_callback_ex(BIO *b, int oper, const char * /* argp */,
     case BIO_CB_GETS:
     case BIO_CB_GETS | BIO_CB_RETURN:
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 
   return ret;
@@ -567,15 +567,15 @@ long pfs_ssl_bio_callback(BIO *b, int oper, const char *argp, int argi,
 #ifdef HAVE_PSI_SOCKET_INTERFACE
 static void pfs_ssl_setup_instrumentation(Vio *vio, const SSL *ssl) {
   BIO *rbio = SSL_get_rbio(ssl);
-  assert(rbio != nullptr);
-  assert(BIO_method_type(rbio) == BIO_TYPE_SOCKET);
+  DBUG_ASSERT(rbio != nullptr);
+  DBUG_ASSERT(BIO_method_type(rbio) == BIO_TYPE_SOCKET);
 
   BIO *wbio = SSL_get_wbio(ssl);
-  assert(wbio != nullptr);
-  assert(BIO_method_type(wbio) == BIO_TYPE_SOCKET);
+  DBUG_ASSERT(wbio != nullptr);
+  DBUG_ASSERT(BIO_method_type(wbio) == BIO_TYPE_SOCKET);
 
   char *cb_arg = reinterpret_cast<char *>(vio);
-  assert(cb_arg != nullptr);
+  DBUG_ASSERT(cb_arg != nullptr);
 
   BIO_set_callback_arg(rbio, cb_arg);
 
@@ -604,7 +604,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   my_socket sd = mysql_socket_getfd(vio->mysql_socket);
 
   /* Declared here to make compiler happy */
-#if !defined(NDEBUG)
+#if !defined(DBUG_OFF)
   int j, n;
 #endif
 
@@ -632,7 +632,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     sk_SSL_COMP_zero(SSL_COMP_get_compression_methods());
 #endif
 
-#if !defined(NDEBUG)
+#if !defined(DBUG_OFF)
     {
       STACK_OF(SSL_COMP) *ssl_comp_methods = nullptr;
       ssl_comp_methods = SSL_COMP_get_compression_methods();
@@ -685,7 +685,7 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
     *sslptr = nullptr;
   }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   {
     /* Print some info about the peer */
     X509 *cert;

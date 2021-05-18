@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,11 +99,7 @@ class Column : virtual public Entity_object {
     HT_HIDDEN_SE = 2,
     /// The column is visible to the server, but hidden from the user.
     /// This is used for i.e. implementing functional indexes.
-    HT_HIDDEN_SQL = 3,
-    /// User table column marked as INVISIBLE by using the column visibility
-    /// attribute. Column is hidden from the user unless it is explicitly
-    /// referenced in the statement. Column is visible to the server.
-    HT_HIDDEN_USER = 4
+    HT_HIDDEN_SQL = 3
   };
 
   ~Column() override {}

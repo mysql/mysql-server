@@ -52,10 +52,6 @@ regexp_stack_limit
 regexp_stack_limit
 regexp_time_limit
 regexp_time_limit
-replication_optimize_for_static_plugin_config
-replication_optimize_for_static_plugin_config
-replication_sender_observe_commit_only
-replication_sender_observe_commit_only
 resultset_metadata
 select_into_buffer_size
 select_into_buffer_size
@@ -63,12 +59,8 @@ select_into_disk_sync
 select_into_disk_sync
 select_into_disk_sync_delay
 select_into_disk_sync_delay
-skip_slave_start
-skip_slave_start
 sql_require_primary_key
 sql_require_primary_key
-temptable_max_mmap
-temptable_max_mmap
 temptable_use_mmap
 temptable_use_mmap
 tls_ciphersuites

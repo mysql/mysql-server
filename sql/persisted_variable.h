@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,9 @@
 #include "my_alloc.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "sql_string.h"
 
 class Json_dom;

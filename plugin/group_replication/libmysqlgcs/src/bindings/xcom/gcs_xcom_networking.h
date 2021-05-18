@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -256,25 +256,6 @@ class Gcs_ip_allowlist {
   static const std::string DEFAULT_ALLOWLIST;
 
  private:
-  class Atomic_lock_guard {
-   private:
-    /**
-     * @brief When true, it is locked. When false it is not.
-     */
-    std::atomic_flag &m_guard;
-
-   public:
-    Atomic_lock_guard(std::atomic_flag &guard) : m_guard(guard) {
-      // keep trying until it is unlocked, then lock
-      while (m_guard.test_and_set()) {
-        std::this_thread::yield();
-      }
-    }
-
-    ~Atomic_lock_guard() { m_guard.clear(); }
-  };
-
- private:
   /*
    The IP allowlist. It is a list of tuples Hexadecimal IP number
    and subnet mask also in Hexadecimal. E.g.: 192.168.1.2/24 or 127.0.0.1/32.
@@ -292,9 +273,7 @@ class Gcs_ip_allowlist {
   std::string m_original_list;
 
  public:
-  Gcs_ip_allowlist() : m_ip_allowlist(), m_original_list() {
-    m_atomic_guard.clear();
-  }
+  Gcs_ip_allowlist() : m_ip_allowlist(), m_original_list() {}
   virtual ~Gcs_ip_allowlist();
 
   /**
@@ -317,7 +296,7 @@ class Gcs_ip_allowlist {
 
    @return true if the configuration failed, false otherwise.
    */
-  bool is_valid(const std::string &the_list);
+  bool is_valid(const std::string &the_list) const;
 
   /**
    This member function SHALL return true if the given IP is to be blocked,
@@ -329,7 +308,7 @@ class Gcs_ip_allowlist {
    @return true if the ip should be blocked, false otherwise.
    */
   bool shall_block(const std::string &ip_addr,
-                   site_def const *xcom_config = nullptr);
+                   site_def const *xcom_config = nullptr) const;
 
   /**
    This member function SHALL return true if the IP of the given file
@@ -340,15 +319,13 @@ class Gcs_ip_allowlist {
 
    @return true if the ip should be blocked, false otherwise.
    */
-  bool shall_block(int fd, site_def const *xcom_config = nullptr);
+  bool shall_block(int fd, site_def const *xcom_config = nullptr) const;
 
   /**
    This member function gets the textual representation of the list as
    provided to the configure member function.
    */
-  const std::string get_configured_ip_allowlist() {
-    // lock the list
-    Atomic_lock_guard guard{m_atomic_guard};
+  const std::string &get_configured_ip_allowlist() const {
     return m_original_list;
   }
 
@@ -375,11 +352,6 @@ class Gcs_ip_allowlist {
    It deletes all entries and clears the internal set.
    */
   void clear();
-
-  /**
-   * @brief An atomic lock to guard the ip allowlist.
-   */
-  std::atomic_flag m_atomic_guard;
 
  private:
   Gcs_ip_allowlist(Gcs_ip_allowlist const &);

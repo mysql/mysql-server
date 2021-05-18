@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -72,11 +72,10 @@ SET(TESTS
   test_vt100.cc
   test_string_utils.cc
   test_process_launcher.cc
-  test_tcp_address.cc
 )
 
 FOREACH(TEST ${TESTS})
-  ADD_HARNESS_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
+  ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/src/
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/tests/include/
@@ -90,12 +89,15 @@ SET(TESTS
 )
 
 FOREACH(TEST ${TESTS})
-  ADD_HARNESS_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
+  ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
     LIB_DEPENDS test-helpers;${SSL_LIBRARIES})
 ENDFOREACH()
 
 SET(TESTS
+  test_stdx_bit.cc
+  test_stdx_expected.cc
+  test_stdx_string_view.cc
   test_net_ts_buffer.cc
   test_net_ts_executor.cc
   test_net_ts_impl_file.cc
@@ -108,31 +110,27 @@ SET(TESTS
   test_net_ts_io_context_socket.cc
   test_net_ts_socket.cc
   test_net_ts_timer.cc
-  test_net_ts_win32_named_pipe.cc
 )
 
 FOREACH(TEST ${TESTS})
-  ADD_GOOGLETEST_FILE(${TEST} MODULE ${TEST_MODULE}
+  ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     LIB_DEPENDS harness_net_ts)
 ENDFOREACH()
 
-ADD_GOOGLETEST_FILE(test_net_ts_local.cc
+ADD_TEST_FILE(test_net_ts_local.cc
   MODULE ${TEST_MODULE}
   LIB_DEPENDS harness_net_ts
-  # TmpDir
   LIB_DEPENDS test-helpers
+  INCLUDE_DIRS ${MySQLRouter_SOURCE_DIR}/src/harness/shared/include/
   )
 
 SET(TESTS
-  test_stdx_bit.cc
-  test_stdx_expected.cc
-  test_stdx_string_view.cc
   test_stdx_monitor.cc
   test_stdx_io_file_handle.cc
 )
 
 FOREACH(TEST ${TESTS})
-  ADD_GOOGLETEST_FILE(${TEST} MODULE ${TEST_MODULE}
+  ADD_TEST_FILE(${TEST} MODULE ${TEST_MODULE}
     LIB_DEPENDS harness_stdx)
 ENDFOREACH()
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -29,34 +29,28 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include <vector>
 
 #include "plugin/x/client/mysqlxclient/xquery_result.h"
 
 namespace xcl {
 namespace test {
-namespace mock {
 
-class XQuery_result : public xcl::XQuery_result {
+class Mock_query_result : public XQuery_result {
  public:
-  XQuery_result();
-  virtual ~XQuery_result() override;
-
-  MOCK_METHOD(const Metadata &, get_metadata, (XError * out_error), (override));
-  MOCK_METHOD(void, set_metadata, (const Metadata &), (override));
-  MOCK_METHOD(const Warnings &, get_warnings, (), (override));
-  MOCK_METHOD(bool, get_next_row, (const XRow **out_row, XError *out_error),
-              (override));
-  MOCK_METHOD(const XRow *, get_next_row, (XError *), (override));
-  MOCK_METHOD(XQuery_result::Row *, get_next_row_raw_raw, (XError *));
-  MOCK_METHOD(bool, next_resultset, (XError *), (override));
-  MOCK_METHOD(bool, try_get_last_insert_id, (uint64_t *), (const, override));
-  MOCK_METHOD(bool, try_get_affected_rows, (uint64_t *), (const, override));
-  MOCK_METHOD(bool, try_get_info_message, (std::string *), (const, override));
-  MOCK_METHOD(bool, try_get_generated_document_ids,
-              (std::vector<std::string> *), (const, override));
-  MOCK_METHOD(bool, has_resultset, (XError *), (override));
-  MOCK_METHOD(bool, is_out_parameter_resultset, (), (const, override));
+  MOCK_METHOD1(get_metadata, const Metadata &(XError *out_error));
+  MOCK_METHOD1(set_metadata, void(const Metadata &));
+  MOCK_METHOD0(get_warnings, const Warnings &());
+  MOCK_METHOD2(get_next_row, bool(const XRow **out_row, XError *out_error));
+  MOCK_METHOD1(get_next_row, const XRow *(XError *));
+  MOCK_METHOD1(get_next_row_raw_raw, XQuery_result::Row *(XError *));
+  MOCK_METHOD1(next_resultset, bool(XError *));
+  MOCK_CONST_METHOD1(try_get_last_insert_id, bool(uint64_t *));
+  MOCK_CONST_METHOD1(try_get_affected_rows, bool(uint64_t *));
+  MOCK_CONST_METHOD1(try_get_info_message, bool(std::string *));
+  MOCK_CONST_METHOD1(try_get_generated_document_ids,
+                     bool(std::vector<std::string> *));
+  MOCK_METHOD1(has_resultset, bool(XError *));
+  MOCK_CONST_METHOD0(is_out_parameter_resultset, bool());
 
  private:
   std::unique_ptr<XQuery_result::Row> get_next_row_raw(
@@ -65,7 +59,6 @@ class XQuery_result : public xcl::XQuery_result {
   }
 };
 
-}  // namespace mock
 }  // namespace test
 }  // namespace xcl
 

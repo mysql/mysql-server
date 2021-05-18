@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -377,15 +377,14 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
     const bool sameInstance = refToInstance(recBlockref) == instance();
     const Uint32 blockNumber= refToMain(recBlockref);
     if (sameInstance &&
-        (blockNumber == getBACKUP() ||
-         blockNumber == getDBLQH() ||
+        (blockNumber == BACKUP ||
+         blockNumber == DBLQH ||
          blockNumber == SUMA))
     {
       static_assert(MAX_TUPLE_SIZE_IN_WORDS + MAX_ATTRIBUTES_IN_TABLE <=
                       NDB_ARRAY_SIZE(signal->theData) - TransIdAI::HeaderLength,
                     "");
-      ndbrequire(TransIdAI::HeaderLength + ToutBufIndex <=
-                 NDB_ARRAY_SIZE(signal->theData));
+      ndbrequire(TransIdAI::HeaderLength + ToutBufIndex <= NDB_ARRAY_SIZE(signal->theData));
       EXECUTE_DIRECT(blockNumber, GSN_TRANSID_AI, signal,
                      TransIdAI::HeaderLength + ToutBufIndex);
       jamEntryDebug();
@@ -395,7 +394,6 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       /**
        * Data is 'short', send short signal
        */
-      jam();
       sendSignal(recBlockref, GSN_TRANSID_AI, signal,
                  TransIdAI::HeaderLength+ToutBufIndex, JBB);
     }
@@ -405,11 +403,9 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
       LinearSectionPtr ptr[3];
       ptr[0].p= &signal->theData[TransIdAI::HeaderLength];
       ptr[0].sz= ToutBufIndex;
-      if (ERROR_INSERTED(4038) &&
-          refToMain(recBlockref) != BACKUP)
+      if (ERROR_INSERTED(4038))
       {
         /* Copy data to Seg-section for delayed send */
-        jam();
         Uint32 sectionIVal = RNIL;
         ndbrequire(appendToSection(sectionIVal, ptr[0].p, ptr[0].sz));
         SectionHandle sh(this, sectionIVal);

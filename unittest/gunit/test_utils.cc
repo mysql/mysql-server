@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
 
 #include "unittest/gunit/test_utils.h"
 
-#include <assert.h>
 #include <gtest/gtest.h>
 #include <atomic>
 #include <new>
@@ -32,7 +31,7 @@
 #include "gtest/gtest-message.h"
 #include "m_ctype.h"
 #include "m_string.h"
-// assert
+#include "my_dbug.h"  // DBUG_ASSERT
 #include "my_inttypes.h"
 #include "mysql_com.h"
 #include "sql/binlog.h"
@@ -180,7 +179,7 @@ bool Mock_error_handler::handle_condition(THD *, uint sql_errno, const char *,
 
 void DD_initializer::SetUp() {
   /*
-    With WL#6599, Query_block::add_table_to_list() will invoke
+    With WL#6599, SELECT_LEX::add_table_to_list() will invoke
     dd::Dictionary::is_system_view_name() method. E.g., the unit
     test InsertDelayed would invoke above API. This requires us
     to have a instance of dictionary_impl. We do not really need
@@ -188,11 +187,11 @@ void DD_initializer::SetUp() {
     be future test cases that need the same.
   */
   dd::Dictionary_impl::s_instance = new (std::nothrow) dd::Dictionary_impl();
-  assert(dd::Dictionary_impl::s_instance != nullptr);
+  DBUG_ASSERT(dd::Dictionary_impl::s_instance != nullptr);
 }
 
 void DD_initializer::TearDown() {
-  assert(dd::Dictionary_impl::s_instance != nullptr);
+  DBUG_ASSERT(dd::Dictionary_impl::s_instance != nullptr);
   delete dd::Dictionary_impl::s_instance;
 }
 

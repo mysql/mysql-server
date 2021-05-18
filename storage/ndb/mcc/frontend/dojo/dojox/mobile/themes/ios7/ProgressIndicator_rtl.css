@@ -1,0 +1,14 @@
+
+.mblHeading .mblProgressIndicatorRtl {
+  float: right;
+}
+.mblProgContainerRtl {
+  left: 0;
+}
+.mblProgressIndicatorCenterRtl {
+  left: 50%;
+  display: inline-block;
+}
+.mblProgressIndicatorCenterRtl .mblProgContainerRtl {
+  left: -50%;
+}

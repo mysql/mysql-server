@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,17 +24,17 @@
 
 #include "sql/conn_handler/connection_handler_manager.h"
 
-#include <assert.h>
 #include <new>
 
+#include "my_dbug.h"
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_cond_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_thd_wait.h"
 #include "mysqld_error.h"                              // ER_*
 #include "sql/conn_handler/channel_info.h"             // Channel_info
@@ -156,7 +156,7 @@ bool Connection_handler_manager::init() {
       connection_handler = new (std::nothrow) One_thread_connection_handler();
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 
   if (connection_handler == nullptr) {
@@ -227,7 +227,8 @@ void Connection_handler_manager::reset_max_used_connections() {
 void Connection_handler_manager::load_connection_handler(
     Connection_handler *conn_handler) {
   // We don't support loading more than one dynamic connection handler
-  assert(Connection_handler_manager::thread_handling != SCHEDULER_TYPES_COUNT);
+  DBUG_ASSERT(Connection_handler_manager::thread_handling !=
+              SCHEDULER_TYPES_COUNT);
   m_saved_connection_handler = m_connection_handler;
   m_saved_thread_handling = Connection_handler_manager::thread_handling;
   m_connection_handler = conn_handler;
@@ -236,7 +237,7 @@ void Connection_handler_manager::load_connection_handler(
 }
 
 bool Connection_handler_manager::unload_connection_handler() {
-  assert(m_saved_connection_handler != nullptr);
+  DBUG_ASSERT(m_saved_connection_handler != nullptr);
   if (m_saved_connection_handler == nullptr) return true;
   delete m_connection_handler;
   m_connection_handler = m_saved_connection_handler;
@@ -282,7 +283,7 @@ void increment_aborted_connects() {
 
 int my_connection_handler_set(Connection_handler_functions *chf,
                               THD_event_functions *tef) {
-  assert(chf != nullptr && tef != nullptr);
+  DBUG_ASSERT(chf != nullptr && tef != nullptr);
   if (chf == nullptr || tef == nullptr) return 1;
 
   Plugin_connection_handler *conn_handler =

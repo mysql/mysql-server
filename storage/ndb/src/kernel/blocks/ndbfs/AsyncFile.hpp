@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -68,7 +68,7 @@ class AsyncFile
   friend class AsyncIoThread;
 
 public:
-  AsyncFile(Ndbfs& fs);
+  AsyncFile(SimulatedBlock& fs);
   virtual ~AsyncFile();
 
   int init();
@@ -171,7 +171,7 @@ protected:
   Uint32 theWriteBufferSize;
 
 public:
-  Ndbfs& m_fs;
+  SimulatedBlock& m_fs;
 };
 
 inline

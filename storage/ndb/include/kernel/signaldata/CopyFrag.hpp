@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
 #define COPY_FRAG_HPP
 
 #include "SignalData.hpp"
-#include <ndb_limits.h>
 
 #define JAM_FILE_ID 45
 
@@ -66,7 +65,7 @@ private:
   Uint32 distributionKey;
   Uint32 gci;
   Uint32 nodeCount;
-  Uint32 nodeList[MAX_REPLICAS + 2];
+  Uint32 nodeList[1];
   //Uint32 maxPage; is stored in nodeList[nodeCount]
   //Uint32 requestInfo is stored after maxPage
 };

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
 
 #include "sql/dd/impl/types/column_type_element_impl.h"
 
-#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -33,7 +32,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                // ER_*
@@ -73,7 +72,7 @@ bool Column_type_element_impl::validate() const {
   }
 
   const CHARSET_INFO *cs = dd_get_mysql_charset(m_column->collation_id());
-  assert(cs);
+  DBUG_ASSERT(cs);
   const char *cstr = m_name.c_str();
 
   if (cs->cset->numchars(cs, cstr, cstr + m_name.size()) >

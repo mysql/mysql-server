@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,7 @@
 #include "sql/sql_cmd_dml.h"   // Sql_cmd_dml
 
 class Item;
-class Query_expression;
+class SELECT_LEX_UNIT;
 class Select_lex_visitor;
 class THD;
 class Unique;
@@ -46,40 +46,54 @@ class SQL_I_List;
 
 class Query_result_delete final : public Query_result_interceptor {
   /// Pointers to temporary files used for delayed deletion of rows
-  Unique **tempfiles{nullptr};
+  Unique **tempfiles;
   /// Pointers to table objects matching tempfiles
-  TABLE **tables{nullptr};
+  TABLE **tables;
   /// Number of tables being deleted from
-  uint delete_table_count{0};
+  uint delete_table_count;
   /// Number of rows produced by the join
-  ha_rows found_rows{0};
+  ha_rows found_rows;
   /// Number of rows deleted
-  ha_rows deleted_rows{0};
+  ha_rows deleted_rows;
   /// Handler error status for the operation.
-  int delete_error{0};
+  int error;
   /// Map of all tables to delete rows from
-  table_map delete_table_map{0};
+  table_map delete_table_map;
   /// Map of tables to delete from immediately
-  table_map delete_immediate{0};
+  table_map delete_immediate;
   // Map of transactional tables to be deleted from
-  table_map transactional_table_map{0};
+  table_map transactional_table_map;
   /// Map of non-transactional tables to be deleted from
-  table_map non_transactional_table_map{0};
+  table_map non_transactional_table_map;
   /// True if the full delete operation is complete
-  bool delete_completed{false};
+  bool delete_completed;
   /// True if some actual delete operation against non-transactional table done
-  bool non_transactional_deleted{false};
+  bool non_transactional_deleted;
   /*
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.
   */
-  bool error_handled{false};
+  bool error_handled;
 
  public:
-  Query_result_delete() : Query_result_interceptor() {}
+  Query_result_delete()
+      : Query_result_interceptor(),
+        tempfiles(nullptr),
+        tables(nullptr),
+        delete_table_count(0),
+        found_rows(0),
+        deleted_rows(0),
+        error(0),
+        delete_table_map(0),
+        delete_immediate(0),
+        transactional_table_map(0),
+        non_transactional_table_map(0),
+        delete_completed(false),
+        non_transactional_deleted(false),
+        error_handled(false) {}
   bool need_explain_interceptor() const override { return true; }
   bool prepare(THD *thd, const mem_root_deque<Item *> &list,
-               Query_expression *u) override;
+               SELECT_LEX_UNIT *u) override;
   bool send_data(THD *thd, const mem_root_deque<Item *> &items) override;
   void send_error(THD *thd, uint errcode, const char *err) override;
   bool optimize() override;

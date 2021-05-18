@@ -475,7 +475,6 @@ WHERE col_varchar_key >= 'l' OR
       (((pk BETWEEN 141 AND 141) OR col_varchar_key <> 'l') 
          AND ((pk BETWEEN 141 AND 141) OR (col_int_key > 141)));
 
---sorted_result
 SELECT col_int_key
 FROM t1
 WHERE col_varchar_key >= 'l' OR 

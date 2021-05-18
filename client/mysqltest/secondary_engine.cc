@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -24,7 +24,6 @@
 #include "client/mysqltest/error_names.h"
 #include "client/mysqltest/utils.h"
 
-#include <assert.h>
 #include <cstring>
 #include <fstream>
 #include <iostream>
@@ -32,6 +31,8 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+
+#include "my_dbug.h"
 
 static int offload_count_after = 0;
 static int offload_count_before = 0;
@@ -79,7 +80,7 @@ void Secondary_engine::report_offload_count(const char *filename) {
     offload_count_after = offload_count_before;
 
   int count_val = offload_count_after - offload_count_before;
-  assert(count_val >= 0);
+  DBUG_ASSERT(count_val >= 0);
 
   std::ofstream report_file(filename, std::ios::out);
 

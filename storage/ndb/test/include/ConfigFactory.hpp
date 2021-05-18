@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -112,23 +112,12 @@ struct ConfigFactory
       const char* key, Uint32 value)
   {
     Properties* p;
-    // Get a copy of the section to modify
     if (!config.getCopy(section, section_no, &p))
       return false;
-
-    // Add new key,value pair to section copy
-    if (!p->put(key, value)) {
-      delete p;
+    if (!p->put(key, value))
       return false;
-    }
-
-    // Replace old section with modified
-    if (!config.put(section, section_no, p, true)) {
-      delete p;
+    if (!config.put(section, section_no, p, true))
       return false;
-    }
-    delete p;
-
     return true;
   }
 

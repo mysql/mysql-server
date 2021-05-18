@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -264,7 +264,7 @@ TEST_F(ISNativeFuncTest, AllNullArguments) {
   EXPECT_EQ(nullptr, item->val_str(&str));
 
   // INTERNAL_GET_DD_COLUMN_EXTRA()
-  CREATE_ITEM(Item_func_internal_get_dd_column_extra, prepare_null_list(8));
+  CREATE_ITEM(Item_func_internal_get_dd_column_extra, prepare_null_list(6));
   item->val_str(&str);
   EXPECT_EQ(1, item->null_value);
 

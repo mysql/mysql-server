@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -297,8 +297,8 @@ typedef enum enum_set_arg_result {
   @param len    length of token in bytes
   @param flags  combination of log_filter_xlate_flags
 
-  @returns <0    token not found
-  @returns >=0   index into log_filter_xlate_keys[]
+  @retval <0    token not found
+  @retval >=0   index into log_filter_xlate_keys[]
 */
 static int log_filter_xlate_by_name(const char *token, size_t len, uint flags) {
   uint c;
@@ -325,8 +325,8 @@ static int log_filter_xlate_by_name(const char *token, size_t len, uint flags) {
   @param opcode opcode to look up
   @param flags  combination of log_filter_xlate_flags
 
-  @returns -1    opcode not found
-  @returns >=0   index into log_filter_xlate_keys[]
+  @retval -1    opcode not found
+  @retval >=0   index into log_filter_xlate_keys[]
 */
 static int log_filter_xlate_by_opcode(uint opcode, uint flags) {
   uint c;
@@ -451,7 +451,7 @@ static log_filter_result log_filter_rule_dump(log_filter_rule *rule,
   int verb;
   const log_filter_xlate_key *token;
 
-  assert(out_buf != nullptr);
+  DBUG_ASSERT(out_buf != nullptr);
 
   out_buf[0] = '\0';
 
@@ -778,7 +778,7 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
   bool is_symbol = false;
 
   // sanity check
-  assert(!(li->alloc & LOG_ITEM_FREE_VALUE));
+  DBUG_ASSERT(!(li->alloc & LOG_ITEM_FREE_VALUE));
   if (li->alloc & LOG_ITEM_FREE_VALUE) {
     log_bs->free(const_cast<char *>(li->data.data_string.str));
     li->data.data_string.str = nullptr;
@@ -868,7 +868,7 @@ static set_arg_result log_filter_set_arg(const char **token, const size_t *len,
     if ((val = log_bs->strndup(*token + 1, val_len)) == nullptr)
       return SET_ARG_OOM; /* purecov: inspected */
 
-    assert(val_len > 0);
+    DBUG_ASSERT(val_len > 0);
     val[--val_len] = '\0';  // cut trailing quotation mark
 
     li->data.data_string.str = val;
@@ -1455,7 +1455,7 @@ static int check_var_filter_rules(MYSQL_THD thd,
 
   if (proposed_rules == nullptr) return true;
 
-  assert(proposed_rules[value_len] == '\0');
+  DBUG_ASSERT(proposed_rules[value_len] == '\0');
 
   log_filter_temp_rules = log_bf->filter_ruleset_new(&rule_tag_dragnet, 0);
 
@@ -1534,12 +1534,12 @@ static void update_var_filter_rules(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   that engine; they could also create their own filtering engine and use it
   instead of the provided one.
 
-  @param           ll                   The log line to filter
-  @param           instance             Instance (unused in dragnet as it's
+  @param           ll                   the log line to filter
+  @param           instance             instance (unused in dragnet as it's
                                         not currently multi-open; we just
                                         always use log_filter_dragnet_rules)
 
-  @returns          int                 Number of matched rules
+  @retval          int                  number of matched rules
 */
 DEFINE_METHOD(int, log_service_imp::run,
               (void *instance MY_ATTRIBUTE((unused)), log_line *ll)) {
@@ -1549,7 +1549,7 @@ DEFINE_METHOD(int, log_service_imp::run,
 /**
   Open a new instance.
 
-  @param   ll        Optional arguments
+  @param   ll        optional arguments
   @param   instance  If state is needed, the service may allocate and
                      initialize it and return a pointer to it here.
                      (This of course is particularly pertinent to
@@ -1561,8 +1561,8 @@ DEFINE_METHOD(int, log_service_imp::run,
                      the server/logging framework. It must be released
                      on close.
 
-  @returns  LOG_SERVICE_SUCCESS        Success, returned hande is valid
-  @returns  otherwise                  A new instance could not be created
+  @retval  LOG_SERVICE_SUCCESS        success, returned hande is valid
+  @retval  otherwise                  a new instance could not be created
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,
               (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
@@ -1583,8 +1583,8 @@ DEFINE_METHOD(log_service_error, log_service_imp::open,
                      it should be released, and the pointer
                      set to nullptr.
 
-  @returns  LOG_SERVICE_SUCCESS        Success
-  @returns  otherwise                  An error occurred
+  @retval  LOG_SERVICE_SUCCESS        success
+  @retval  otherwise                  an error occurred
 */
 DEFINE_METHOD(log_service_error, log_service_imp::close, (void **instance)) {
   if (instance == nullptr) return LOG_SERVICE_INVALID_ARGUMENT;
@@ -1607,7 +1607,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::close, (void **instance)) {
   @param   instance  State-pointer that was returned on open.
                      Value may be changed in flush.
 
-  @returns  LOG_SERVICE_NOTHING_DONE       no work was done
+  @retval  LOG_SERVICE_NOTHING_DONE       no work was done
 */
 DEFINE_METHOD(log_service_error, log_service_imp::flush,
               (void **instance MY_ATTRIBUTE((unused)))) {
@@ -1617,8 +1617,8 @@ DEFINE_METHOD(log_service_error, log_service_imp::flush,
 /**
   Get characteristics of a log-service.
 
-  @returns  <0        an error occurred
-  @returns  >=0       characteristics (a set of log_service_chistics flags)
+  @retval  <0        an error occurred
+  @retval  >=0       characteristics (a set of log_service_chistics flags)
 */
 DEFINE_METHOD(int, log_service_imp::characteristics, (void)) {
   return LOG_SERVICE_FILTER | LOG_SERVICE_SINGLETON;
@@ -1736,7 +1736,7 @@ mysql_service_status_t log_filter_init() {
   }
 
 success:
-  assert(var_value[var_len] == '\0');
+  DBUG_ASSERT(var_value[var_len] == '\0');
   delete[] var_value;
   return false;
 }

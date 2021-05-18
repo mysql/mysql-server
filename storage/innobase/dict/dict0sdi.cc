@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -185,41 +185,40 @@ bool dict_sdi_drop(dd::Tablespace *tablespace) {
 @retval		false		success
 @retval		true		failure */
 bool dict_sdi_get_keys(const dd::Tablespace &tablespace, sdi_vector_t &vector) {
-  uint32 space_id;
+#if 0 /* TODO: Enable in WL#9761 */
+	uint32	space_id;
 
-  if (dd_tablespace_is_discarded(&tablespace)) {
-    /* sdi_get_keys shouldn't be called on discarded tablespaces.*/
-    ut_ad(false);
-    my_error(ER_SDI_GET_KEYS_INVALID_TABLESPACE, MYF(0),
-             tablespace.name().c_str());
-    return true;
-  }
+	if (dd_tablespace_is_discarded(&tablespace)) {
+		/* sdi_get_keys shouldn't be called on discarded tablespaces.*/
+		ut_ad(0);
+	}
 
-  if (dict_sdi_exists(tablespace, &space_id) != DB_SUCCESS) {
-    my_error(ER_SDI_GET_KEYS_INVALID_TABLESPACE, MYF(0),
-             tablespace.name().c_str());
-    return true;
-  }
+	if (dict_sdi_exists(tablespace, &space_id)
+	    != DB_SUCCESS) {
+		return(true);
+	}
 
-  if (fsp_is_undo_tablespace(space_id) || fsp_is_system_temporary(space_id)) {
-    /* There shouldn't be access for SDI on these tabelspaces as
-    SDI doesn't exist. */
-    ut_ad(false);
+#ifdef UNIV_DEBUG
+	if (fsp_is_undo_tablespace(space_id)
+	    || fsp_is_system_temporary(space_id)) {
+		/* There shouldn't be access for SDI on these tabelspaces as
+		SDI doesn't exist. */
+		ut_ad(0);
+	}
+#endif /* UNIV_DEBUG */
 
-    my_error(ER_SDI_GET_KEYS_INVALID_TABLESPACE, MYF(0),
-             tablespace.name().c_str());
-    return true;
-  }
+	ib_sdi_vector	ib_vector;
+	ib_vector.sdi_vector = &vector;
 
-  ib_sdi_vector ib_vector;
-  ib_vector.sdi_vector = &vector;
+	trx_t*	trx = check_trx_exists(current_thd);
+	trx_start_if_not_started(trx, true);
 
-  trx_t *trx = check_trx_exists(current_thd);
-  trx_start_if_not_started(trx, true);
+	dberr_t	err = ib_sdi_get_keys(space_id, &ib_vector, trx);
 
-  dberr_t err = ib_sdi_get_keys(space_id, &ib_vector, trx);
-
-  return (err != DB_SUCCESS);
+	return(err != DB_SUCCESS);
+#endif /* TODO: Enable in WL#9761 */
+  ut_ad(0);
+  return (false);
 }
 
 /** Retrieve SDI from tablespace.

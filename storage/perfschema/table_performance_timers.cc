@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_performance_timers.h"
 
-#include <assert.h>
 #include <stddef.h>
 
+#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -128,7 +128,7 @@ int table_performance_timers::rnd_next(void) {
 
 int table_performance_timers::rnd_pos(const void *pos) {
   set_position(pos);
-  assert(m_pos.m_index < COUNT_TIMER_NAME);
+  DBUG_ASSERT(m_pos.m_index < COUNT_TIMER_NAME);
   m_row = &m_data[m_pos.m_index];
   return 0;
 }
@@ -137,10 +137,10 @@ int table_performance_timers::read_row_values(TABLE *table, unsigned char *buf,
                                               Field **fields, bool read_all) {
   Field *f;
 
-  assert(m_row);
+  DBUG_ASSERT(m_row);
 
   /* Set the null bits */
-  assert(table->s->null_bytes == 1);
+  DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -171,7 +171,7 @@ int table_performance_timers::read_row_values(TABLE *table, unsigned char *buf,
           }
           break;
         default:
-          assert(false);
+          DBUG_ASSERT(false);
       }
     }
   }

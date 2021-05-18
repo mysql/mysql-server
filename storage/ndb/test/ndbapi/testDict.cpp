@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -233,9 +233,7 @@ int runCreateTheTable(NDBT_Context* ctx, NDBT_Step* step){
   const NdbDictionary::Table* pTab = ctx->getTab();
 
   // Try to create table in db
-  if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0)
-  {
-    ndbout << "Failed to create table " << pTab->getName() << endl;
+  if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
     return NDBT_FAILED;
   }
 
@@ -1148,9 +1146,6 @@ int
 runBackup(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   Uint32 backupId = 0;
   backup.clearOldBackups();
   if (backup.start(backupId) == -1)

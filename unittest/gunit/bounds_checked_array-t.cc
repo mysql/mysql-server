@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -66,7 +66,7 @@ TEST_F(BoundsCheckedArray, Empty) {
   EXPECT_EQ(pi, int_array.array());
 }
 
-#if !defined(NDEBUG)
+#if !defined(DBUG_OFF)
 
 // Google Test recommends DeathTest suffix for classes used in death tests.
 typedef BoundsCheckedArray BoundsCheckedArrayDeathTest;
@@ -109,7 +109,7 @@ TEST_F(BoundsCheckedArrayDeathTest, BoundsCheckResizeAssign) {
                             ".*Assertion .*n < m_size.*");
 }
 
-#endif  // !defined(NDEBUG)
+#endif  // !defined(DBUG_OFF)
 
 TEST_F(BoundsCheckedArray, Indexing) {
   int_array = Int_array(c_array, c_array_size);

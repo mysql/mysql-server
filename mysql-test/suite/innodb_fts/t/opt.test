@@ -1,4 +1,3 @@
---source include/not_hypergraph.inc   # Does not support FTS.
 
 #  
 # Tests for optimizations for InnoDB fulltext search (WL#6043)

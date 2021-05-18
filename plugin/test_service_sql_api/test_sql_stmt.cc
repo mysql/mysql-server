@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -313,8 +313,7 @@ static int handle_start_column_metadata(void *pctx, uint num_cols, uint,
   WRITE_STR("handle_start_column_metadata\n");
   DBUG_TRACE;
   DBUG_PRINT("info", ("resultcs->number: %d", resultcs->number));
-  DBUG_PRINT("info",
-             ("resultcs->csname: %s", replace_utf8_utf8mb3(resultcs->csname)));
+  DBUG_PRINT("info", ("resultcs->csname: %s", resultcs->csname));
   DBUG_PRINT("info", ("resultcs->name: %s", resultcs->name));
 
   ctx->tables.push_back(Table(num_cols, resultcs));
@@ -609,7 +608,6 @@ const struct st_command_service_cbs protocol_callbacks = {
     handle_ok,
     handle_error,
     handle_shutdown,
-    nullptr,
 };
 
 /****************************************************************************************/
@@ -720,7 +718,6 @@ static char *fieldflags2str(uint f) {
 }
 
 static void set_query_in_com_data(union COM_DATA *cmd, const char *query) {
-  memset(cmd, 0, sizeof(union COM_DATA));
   cmd->com_query.query = query;
   cmd->com_query.length = strlen(query);
 }
@@ -797,7 +794,6 @@ static void setup_test(MYSQL_SESSION session, void *p) {
   COM_DATA cmd;
 
   WRITE_STR("CHANGE DATABASE\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_init_db.db_name = "test";
   cmd.com_init_db.length = strlen("test");
   run_cmd(session, COM_INIT_DB, &cmd, &ctx, false, p);
@@ -882,7 +878,6 @@ static void test_1(MYSQL_SESSION session, void *p) {
   COM_DATA cmd;
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "SELECT * from t1 where a > ? and b < ?";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
@@ -890,7 +885,6 @@ static void test_1(MYSQL_SESSION session, void *p) {
   WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR\n");
 
   PS_PARAM params[2];
-  memset(params, 0, sizeof(params));
   params[0].type = MYSQL_TYPE_STRING;
   params[0].unsigned_type = false;
   params[0].null_bit = false;
@@ -903,7 +897,6 @@ static void test_1(MYSQL_SESSION session, void *p) {
   params[1].value = (const unsigned char *)"20";
   params[1].length = 2;
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = true;
   cmd.com_stmt_execute.has_new_types = false;
@@ -918,7 +911,6 @@ static void test_1(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("FETCH ONE ROW FROM THE CURSOR\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
   cmd.com_stmt_fetch.num_rows = 1;
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
@@ -928,18 +920,14 @@ static void test_1(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE THE STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE NON-EXISTING STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = 100001;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
-  cmd.com_stmt_fetch.num_rows = 1;
   WRITE_STR("TRY TO FETCH ONE ROW FROM A DEALLOCATED(CLOSED) PS\n");
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
 }
@@ -952,13 +940,11 @@ static void test_2(MYSQL_SESSION session, void *p) {
   COM_DATA cmd;
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "SELECT * from t1 where a > ? and b < ?";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
 
   PS_PARAM params[2];
-  memset(params, 0, sizeof(params));
   params[0].type = MYSQL_TYPE_STRING;
   params[0].unsigned_type = false;
   params[0].null_bit = false;
@@ -971,7 +957,6 @@ static void test_2(MYSQL_SESSION session, void *p) {
   params[1].value = (const unsigned char *)"7";
   params[1].length = 1;
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.parameters = params;
   cmd.com_stmt_execute.parameter_count = 2;
@@ -982,29 +967,23 @@ static void test_2(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("FETCH ONE ROW\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
-  cmd.com_stmt_fetch.num_rows = 1;
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
 
   WRITE_STR("RESET THE STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_reset.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_RESET, &cmd, &ctx, false, p);
 
   WRITE_STR("RESET NON-EXISTING STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_reset.stmt_id = 199999;
   run_cmd(session, COM_STMT_RESET, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO FETCH ONE ROW FROM THE PS WITH REMOVED CURSOR\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.num_rows = 1;
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE THE STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 }
@@ -1017,13 +996,11 @@ static void test_3(MYSQL_SESSION session, void *p) {
   COM_DATA cmd;
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "SELECT * from t1 where a > ? and b > ?";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
 
   PS_PARAM params[2];
-  memset(params, 0, sizeof(params));
   params[0].type = MYSQL_TYPE_STRING;
   params[0].unsigned_type = false;
   params[0].null_bit = false;
@@ -1036,7 +1013,6 @@ static void test_3(MYSQL_SESSION session, void *p) {
   params[1].value = (const unsigned char *)"3";
   params[1].length = 1;
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.parameter_count = 2;
   cmd.com_stmt_execute.parameters = params;
@@ -1047,18 +1023,15 @@ static void test_3(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO FETCH ONE ROW FROM A PS WITHOUT CURSOR\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_fetch.num_rows = 1;
   cmd.com_stmt_fetch.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_FETCH, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO RESET THE CURSOR FROM A PS WITHOUT CURSOR\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_reset.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_RESET, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO CLOSE THE CURSOR FROM A PS WITHOUT CURSOR\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 }
@@ -1088,7 +1061,6 @@ static void test_4(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query =
       "INSERT INTO t2(c1, c2, c3, c4, c5, c6, c7, c8, c9) "
       "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)";
@@ -1097,8 +1069,6 @@ static void test_4(MYSQL_SESSION session, void *p) {
 
   WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR\n");
   PS_PARAM multi_param[9];
-  memset(multi_param, 0, sizeof(multi_param));
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.has_new_types = true;
@@ -1216,7 +1186,6 @@ static void test_4(MYSQL_SESSION session, void *p) {
   set_query_in_com_data(&cmd, "SELECT * FROM t2");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 }
@@ -1235,13 +1204,11 @@ static void test_5(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query =
       "INSERT INTO test_long_data(col1, col2) VALUES(?, ?)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_send_long_data.stmt_id = ctx.stmt_id;
   cmd.com_stmt_send_long_data.param_number = 1;
   cmd.com_stmt_send_long_data.length = 8;
@@ -1260,7 +1227,6 @@ static void test_5(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_SEND_LONG_DATA, &cmd, &ctx, false, p);
 
   PS_PARAM param[3];
-  memset(param, 0, sizeof(param));
   param[0].null_bit = false;
   param[0].length = sizeof(int32);
   param[0].type = MYSQL_TYPE_LONG;
@@ -1281,7 +1247,6 @@ static void test_5(MYSQL_SESSION session, void *p) {
   param[2].type = MYSQL_TYPE_STRING;
   param[2].unsigned_type = false;
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.has_new_types = true;
@@ -1294,7 +1259,6 @@ static void test_5(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   // Send long data to non existing prepared statement
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_send_long_data.stmt_id = 199999;
   cmd.com_stmt_send_long_data.param_number = 1;
   cmd.com_stmt_send_long_data.length = 8;
@@ -1317,7 +1281,6 @@ static void test_5(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("TRY TO CLOSE THE CURSOR FROM A PS WITHOUT CURSOR\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 }
@@ -1383,7 +1346,6 @@ static void test_6(MYSQL_SESSION session, void *p) {
                         "END");
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "CALL p1(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
@@ -1482,7 +1444,6 @@ static void test_6(MYSQL_SESSION session, void *p) {
   ps_params[9].unsigned_type = false;
   ps_params[9].null_bit = false;
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.parameters = ps_params;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
@@ -1491,7 +1452,6 @@ static void test_6(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE PS\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 }
@@ -1504,7 +1464,6 @@ static void test_7(MYSQL_SESSION session, void *p) {
   COM_DATA cmd;
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "SELECT CONCAT(9< ?)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
@@ -1512,14 +1471,12 @@ static void test_7(MYSQL_SESSION session, void *p) {
   WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS AND CURSOR\n");
 
   PS_PARAM params[1];
-  memset(params, 0, sizeof(params));
   params[0].type = MYSQL_TYPE_JSON;
   params[0].unsigned_type = false;
   params[0].null_bit = false;
   params[0].value = (const unsigned char *)"{}";
   params[0].length = 2;
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = true;
   cmd.com_stmt_execute.has_new_types = false;
@@ -1530,7 +1487,6 @@ static void test_7(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_STMT_EXECUTE, &cmd, &ctx, false, p);
 
   WRITE_STR("CLOSE PS\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
 }
@@ -1548,7 +1504,6 @@ static void test_8(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   ctx.tables.clear();
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "CALL proc_set_out_params(?, ?, ?, ?)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
@@ -1556,7 +1511,6 @@ static void test_8(MYSQL_SESSION session, void *p) {
   WRITE_STR("EXECUTE PREPARED STATEMENT WITH PARAMETERS\n");
 
   PS_PARAM params[4];
-  memset(params, 0, sizeof(params));
   std::string values[4]{"@my_v1", "@my_v2", "@my_v3", "@my_v4"};
   params[0].type = MYSQL_TYPE_STRING;
   params[0].unsigned_type = false;
@@ -1580,7 +1534,6 @@ static void test_8(MYSQL_SESSION session, void *p) {
   params[3].length = values[3].length();
 
   ctx.tables.clear();
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.has_new_types = false;
@@ -1613,7 +1566,6 @@ static void test_8(MYSQL_SESSION session, void *p) {
   }
 
   WRITE_STR("CLOSE PS\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   ctx.tables.clear();
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
@@ -1632,7 +1584,6 @@ static void test_9(MYSQL_SESSION session, void *p) {
   run_cmd(session, COM_QUERY, &cmd, &ctx, false, p);
 
   ctx.tables.clear();
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query =
       "CALL proc_set_out_params(@my_v1, @my_v2, @my_v3, @my_v4)";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
@@ -1641,7 +1592,6 @@ static void test_9(MYSQL_SESSION session, void *p) {
   WRITE_STR("EXECUTE PREPARED STATEMENT WITHOUT PARAMETERS\n");
 
   ctx.tables.clear();
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.open_cursor = false;
   cmd.com_stmt_execute.has_new_types = false;
@@ -1674,7 +1624,6 @@ static void test_9(MYSQL_SESSION session, void *p) {
   }
 
   WRITE_STR("CLOSE PS\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_close.stmt_id = ctx.stmt_id;
   ctx.tables.clear();
   run_cmd(session, COM_STMT_CLOSE, &cmd, &ctx, false, p);
@@ -1741,20 +1690,17 @@ static void test_11(MYSQL_SESSION session, void *p) {
   COM_DATA cmd;
 
   WRITE_STR("CREATE PREPARED STATEMENT\n");
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_prepare.query = "SELECT * from t1 where a = ?";
   cmd.com_stmt_prepare.length = strlen(cmd.com_stmt_prepare.query);
   run_cmd(session, COM_STMT_PREPARE, &cmd, &ctx, false, p);
 
   PS_PARAM params[1];
-  memset(params, 0, sizeof(params));
   params[0].type = MYSQL_TYPE_INVALID;
   params[0].unsigned_type = false;
   params[0].null_bit = false;
   params[0].value = (const unsigned char *)"invalid";
   params[0].length = 1;
 
-  memset(&cmd, 0, sizeof(cmd));
   cmd.com_stmt_execute.stmt_id = ctx.stmt_id;
   cmd.com_stmt_execute.parameter_count = 1;
   cmd.com_stmt_execute.parameters = params;

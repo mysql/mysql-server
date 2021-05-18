@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -30,11 +30,11 @@
 #include "my_dbug.h"
 #include "my_loglevel.h"
 #include "my_sys.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/psi/mysql_sp.h"
 #include "mysql/psi/mysql_statement.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysql_time.h"
 #include "mysqld.h"
@@ -381,7 +381,8 @@ bool Event_queue_element::fill_event_info(THD *thd, const dd::Event &event_obj,
     If neither STARTS and ENDS is set, then both fields are empty.
     Hence, if execute_at is empty there is an error.
   */
-  assert(!(m_starts_null && m_ends_null && !m_expression && m_execute_at_null));
+  DBUG_ASSERT(
+      !(m_starts_null && m_ends_null && !m_expression && m_execute_at_null));
 
   if (!m_expression && !m_execute_at_null)
     m_execute_at = event_obj.execute_at();
@@ -477,7 +478,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
   DBUG_TRACE;
   DBUG_PRINT("enter", ("start: %lu  now: %lu", (long)start, (long)time_now));
 
-  assert(start <= time_now);
+  DBUG_ASSERT(start <= time_now);
 
   longlong months = 0, seconds = 0;
 
@@ -523,7 +524,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
       return true;
       break;
     case INTERVAL_LAST:
-      assert(0);
+      DBUG_ASSERT(0);
   }
   DBUG_PRINT("info",
              ("seconds: %ld  months: %ld", (long)seconds, (long)months));
@@ -564,7 +565,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
         then next_time was set, but perhaps to the value that is less
         then time_now.  See below for elaboration.
       */
-      assert(negative || next_time > 0);
+      DBUG_ASSERT(negative || next_time > 0);
 
       /*
         If local_now < local_start, i.e. STARTS time is in the future
@@ -653,7 +654,7 @@ static bool get_next_time(const Time_zone *time_zone, my_time_t *next,
     }
   }
 
-  assert(time_now < next_time);
+  DBUG_ASSERT(time_now < next_time);
 
   *next = next_time;
 
@@ -1103,7 +1104,7 @@ bool Event_job_data::execute(THD *thd, bool drop) {
   {
     sp_head *sphead = thd->lex->sphead;
 
-    assert(sphead);
+    DBUG_ASSERT(sphead);
 
     if (thd->enable_slow_log) sphead->m_flags |= sp_head::LOG_SLOW_STATEMENTS;
     sphead->m_flags |= sp_head::LOG_GENERAL_LOG;
@@ -1202,7 +1203,7 @@ bool construct_drop_event_sql(THD *thd, String *sp_sql, LEX_CSTRING schema_name,
                               LEX_CSTRING event_name) {
   LEX_STRING buffer;
   const uint STATIC_SQL_LENGTH = 14;
-  bool ret = false;
+  int ret = 0;
 
   DBUG_TRACE;
 

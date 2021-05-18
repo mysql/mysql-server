@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,8 @@
 
 #include "storage/perfschema/pfs_host.h"
 
-#include <assert.h>
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "sql/mysqld.h"  // global_status_var
 #include "storage/perfschema/pfs.h"
@@ -70,9 +69,9 @@ static const uchar *host_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_host *host;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_host *const *>(entry);
-  assert(typed_entry != nullptr);
+  DBUG_ASSERT(typed_entry != nullptr);
   host = *typed_entry;
-  assert(host != nullptr);
+  DBUG_ASSERT(host != nullptr);
   *length = host->m_key.m_key_length;
   result = host->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -111,7 +110,7 @@ static LF_PINS *get_host_hash_pins(PFS_thread *thread) {
 
 static void set_host_key(PFS_host_key *key, const char *host,
                          uint host_length) {
-  assert(host_length <= HOSTNAME_LENGTH);
+  DBUG_ASSERT(host_length <= HOSTNAME_LENGTH);
 
   char *ptr = &key->m_hash_key[0];
   if (host_length > 0) {
@@ -291,35 +290,19 @@ void PFS_host::rebase_memory_stats() {
   }
 }
 
-void PFS_host::carry_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,
-                                             uint index) {
+void PFS_host::carry_memory_stat_delta(PFS_memory_stat_delta *delta,
+                                       uint index) {
   PFS_memory_shared_stat *event_name_array;
   PFS_memory_shared_stat *stat;
-  PFS_memory_stat_alloc_delta delta_buffer;
-  PFS_memory_stat_alloc_delta *remaining_delta;
+  PFS_memory_stat_delta delta_buffer;
+  PFS_memory_stat_delta *remaining_delta;
 
   event_name_array = write_instr_class_memory_stats();
   stat = &event_name_array[index];
-  remaining_delta = stat->apply_alloc_delta(delta, &delta_buffer);
+  remaining_delta = stat->apply_delta(delta, &delta_buffer);
 
   if (remaining_delta != nullptr) {
-    carry_global_memory_stat_alloc_delta(remaining_delta, index);
-  }
-}
-
-void PFS_host::carry_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
-                                            uint index) {
-  PFS_memory_shared_stat *event_name_array;
-  PFS_memory_shared_stat *stat;
-  PFS_memory_stat_free_delta delta_buffer;
-  PFS_memory_stat_free_delta *remaining_delta;
-
-  event_name_array = write_instr_class_memory_stats();
-  stat = &event_name_array[index];
-  remaining_delta = stat->apply_free_delta(delta, &delta_buffer);
-
-  if (remaining_delta != nullptr) {
-    carry_global_memory_stat_free_delta(remaining_delta, index);
+    carry_global_memory_stat_delta(remaining_delta, index);
   }
 }
 
@@ -337,7 +320,7 @@ static void purge_host(PFS_thread *thread, PFS_host *host) {
   entry = reinterpret_cast<PFS_host **>(lf_hash_search(
       &host_hash, pins, host->m_key.m_hash_key, host->m_key.m_key_length));
   if (entry && (entry != MY_LF_ERRPTR)) {
-    assert(*entry == host);
+    DBUG_ASSERT(*entry == host);
     if (host->get_refcount() == 0) {
       lf_hash_delete(&host_hash, pins, host->m_key.m_hash_key,
                      host->m_key.m_key_length);

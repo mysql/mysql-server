@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,11 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #define ROUTING_PROTOCOL_INCLUDED
 
 #include "base_protocol.h"
+#include "classic_protocol.h"
+#include "x_protocol.h"
 
-#include <stdexcept>
-#include <string>
+#include <cassert>
+#include <memory>
 
 class Protocol final {
  public:
@@ -46,6 +48,33 @@ class Protocol final {
       result = Type::kXProtocol;
     } else {
       throw std::invalid_argument("Invalid protocol name: '" + name + "'");
+    }
+
+    return result;
+  }
+
+  /** @brief Factory method creating protocol object for handling the routing
+   * code that is protocol-specific
+   *
+   * @param type type of the protocol for which the handler should be created
+   * @param sock_ops socket operations
+   *
+   * @returns pointer to the created object
+   */
+  static BaseProtocol *create(Type type,
+                              mysql_harness::SocketOperationsBase *sock_ops) {
+    BaseProtocol *result{nullptr};
+
+    switch (type) {
+      case Type::kClassicProtocol:
+        result = new ClassicProtocol(sock_ops);
+        break;
+      case Type::kXProtocol:
+        result = new XProtocol(sock_ops);
+        break;
+      default:
+        throw std::invalid_argument("Invalid protocol: " +
+                                    std::to_string(static_cast<int>(type)));
     }
 
     return result;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,9 +34,7 @@
 
 #include "my_inttypes.h"
 #include "my_sharedlib.h"
-
-/* HAVE_PSI_*_INTERFACE */
-#include "my_psi_config.h"  // IWYU pragma: keep
+#include "psi_base.h"
 
 #ifdef HAVE_PSI_DATA_LOCK_INTERFACE
 

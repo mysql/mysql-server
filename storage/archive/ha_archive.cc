@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -458,7 +458,7 @@ Archive_share *ha_archive::get_share(const char *table_name, int *rc) {
 err:
   unlock_shared_ha_data();
 
-  assert(tmp_share || *rc);
+  DBUG_ASSERT(tmp_share || *rc);
 
   return tmp_share;
 }
@@ -954,7 +954,7 @@ int ha_archive::get_row(azio_stream *file_to_read, uchar *buf) {
 bool ha_archive::fix_rec_buff(unsigned int length) {
   DBUG_TRACE;
   DBUG_PRINT("ha_archive", ("Fixing %u for %u", length, record_buffer->length));
-  assert(record_buffer->buffer);
+  DBUG_ASSERT(record_buffer->buffer);
 
   if (length > record_buffer->length) {
     uchar *newptr;
@@ -966,7 +966,7 @@ bool ha_archive::fix_rec_buff(unsigned int length) {
     record_buffer->length = length;
   }
 
-  assert(length <= record_buffer->length);
+  DBUG_ASSERT(length <= record_buffer->length);
 
   return false;
 }
@@ -995,7 +995,7 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record) {
   if (fix_rec_buff(row_len)) {
     return HA_ERR_OUT_OF_MEM;
   }
-  assert(row_len <= record_buffer->length);
+  DBUG_ASSERT(row_len <= record_buffer->length);
 
   read = azread(file_to_read, record_buffer->buffer, row_len, &error);
 
@@ -1350,7 +1350,7 @@ int ha_archive::info(uint flag) {
   mysql_mutex_lock(&share->mutex);
   if (share->dirty) {
     DBUG_PRINT("ha_archive", ("archive flushing out rows for scan"));
-    assert(share->archive_write_open);
+    DBUG_ASSERT(share->archive_write_open);
     azflush(&(share->archive_write), Z_SYNC_FLUSH);
     share->dirty = false;
   }

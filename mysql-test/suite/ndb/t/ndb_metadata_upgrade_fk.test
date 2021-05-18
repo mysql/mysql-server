@@ -211,4 +211,5 @@ DROP TABLE child;
 DROP TABLE parent;
 DROP TABLE self_ref;
 
+let NDB_RESTORE=;
 --remove_file $NDB_TOOLS_OUTPUT

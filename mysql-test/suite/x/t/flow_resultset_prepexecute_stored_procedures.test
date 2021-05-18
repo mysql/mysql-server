@@ -12,4 +12,6 @@ exec $MYSQLXTEST
   --file=$MYSQL_TMP_DIR/prep_stmt_cursor.xpl 2>&1;
 
 ## Cleanup
---source ../include/xplugin_cleanup.inc
+DROP SCHEMA IF EXISTS xtest;
+--remove_files_wildcard $MYSQL_TMP_DIR *.xpl
+--source include/xplugin_drop_user.inc

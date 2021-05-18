@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +23,12 @@
 #ifndef MEM_ROOT_ARRAY_INCLUDED
 #define MEM_ROOT_ARRAY_INCLUDED
 
-#include <assert.h>
 #include <algorithm>
 #include <type_traits>
 #include <utility>
 
 #include "my_alloc.h"
-
-#include "sql/thr_malloc.h"
+#include "my_dbug.h"
 
 /**
    A typesafe replacement for DYNAMIC_ARRAY.
@@ -71,7 +69,7 @@ class Mem_root_array_YY {
   typedef Element_type value_type;
 
   void init(MEM_ROOT *root) {
-    assert(root != nullptr);
+    DBUG_ASSERT(root != nullptr);
 
     m_root = root;
     m_array = nullptr;
@@ -88,12 +86,12 @@ class Mem_root_array_YY {
   }
 
   Element_type &at(size_t n) {
-    assert(n < size());
+    DBUG_ASSERT(n < size());
     return m_array[n];
   }
 
   const Element_type &at(size_t n) const {
-    assert(n < size());
+    DBUG_ASSERT(n < size());
     return m_array[n];
   }
 
@@ -131,7 +129,7 @@ class Mem_root_array_YY {
     @param pos Index of first element to erase.
   */
   void chop(const size_t pos) {
-    assert(pos < m_size);
+    DBUG_ASSERT(pos < m_size);
     if (!has_trivial_destructor) {
       for (size_t ix = pos; ix < m_size; ++ix) {
         Element_type *p = &m_array[ix];
@@ -241,7 +239,7 @@ class Mem_root_array_YY {
     container size by one. This destroys the removed element.
    */
   void pop_back() {
-    assert(!empty());
+    DBUG_ASSERT(!empty());
     if (!has_trivial_destructor) back().~Element_type();
     m_size -= 1;
   }
@@ -334,7 +332,7 @@ class Mem_root_array_YY {
     @return an iterator to the first element after the removed range
   */
   iterator erase(size_t ix) {
-    assert(ix < size());
+    DBUG_ASSERT(ix < size());
     return erase(std::next(this->cbegin(), ix));
   }
 
@@ -387,7 +385,7 @@ class Mem_root_array_YY {
     We use std::copy to move objects, hence Element_type must be assignable.
   */
   iterator erase(iterator position) {
-    assert(position != end());
+    DBUG_ASSERT(position != end());
     if (position + 1 != end()) std::copy(position + 1, end(), position);
     this->pop_back();
     return position;
@@ -474,9 +472,6 @@ class Mem_root_array : public Mem_root_array_YY<Element_type> {
 
   Mem_root_array(MEM_ROOT *root, const Mem_root_array &x)
       : Mem_root_array(root, x.cbegin(), x.cend()) {}
-
-  Mem_root_array(std::initializer_list<Element_type> elements)
-      : Mem_root_array(*THR_MALLOC, begin(elements), end(elements)) {}
 
   ~Mem_root_array() { super::clear(); }
 

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -146,7 +146,7 @@ MYSQL_THD mysql_parser_open_session() {
 
   thd->security_context()->set_host_ptr(STRING_WITH_LEN(my_localhost));
   thd->lex = new LEX;
-  thd->lex->set_current_query_block(nullptr);
+  thd->lex->set_current_select(nullptr);
 
   thd->variables.character_set_client = old_thd->variables.character_set_client;
 
@@ -281,9 +281,6 @@ int mysql_parser_parse(MYSQL_THD thd, const MYSQL_LEX_STRING query,
 
 int mysql_parser_get_statement_type(MYSQL_THD thd) {
   LEX *lex = thd->lex;
-  if(lex->is_explain()) {
-    return STATEMENT_TYPE_OTHER;
-  }
   switch (lex->sql_command) {
     case SQLCOM_SELECT:
       return STATEMENT_TYPE_SELECT;

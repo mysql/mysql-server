@@ -2,12 +2,12 @@
 .\"     Title: \fBibd2sdi\fR
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 09/04/2020
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBIBD2SDI\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "\FBIBD2SDI\FR" "1" "09/04/2020" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -75,7 +75,7 @@ utility like this:
 .RS 4
 .\}
 .nf
-ibd2sdi [\fIoptions\fR] \fIfile_name1\fR [\fIfile_name2 file_name3 \&.\&.\&.\fR]
+shell> \fBibd2sdi [\fR\fB\fIoptions\fR\fR\fB] \fR\fB\fIfile_name1\fR\fR\fB [\fR\fB\fIfile_name2 file_name3 \&.\&.\&.\fR\fR\fB]\fR
 .fi
 .if n \{\
 .RE
@@ -90,7 +90,7 @@ system tablespace, but it cannot be run on more than one tablespace at a time\&.
 .RS 4
 .\}
 .nf
-ibd2sdi ibdata1 ibdata2
+shell> \fBibd2sdi ibdata1 ibdata2\fR
 .fi
 .if n \{\
 .RE
@@ -117,12 +117,13 @@ supports the following options:
 .\}
 \fB\-\-help\fR,
 \fB\-h\fR
-Display a help message and exit\&. For example:
+Displays command\-line help\&.
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
+shell> \fBibd2sdi \-\-help\fR
 Usage: \&./ibd2sdi [\-v] [\-c <strict\-check>] [\-d <dump file name>] [\-n] filename1 [filenames]
 See http://dev\&.mysql\&.com/doc/refman/8\&.0/en/ibd2sdi\&.html for usage hints\&.
   \-h, \-\-help          Display this help and exit\&.
@@ -171,12 +172,13 @@ pretty                            TRUE
 .\}
 \fB\-\-version\fR,
 \fB\-v\fR
-Display version information and exit\&. For example:
+Displays MySQL version information\&.
 .sp
 .if n \{\
 .RS 4
 .\}
 .nf
+shell> \fBibd2sdi \-\-version\fR
 ibd2sdi  Ver 8\&.0\&.3\-dmr for Linux on x86_64 (Source distribution)
 .fi
 .if n \{\
@@ -201,7 +203,7 @@ Section\ \&5.9.4, \(lqThe DBUG Package\(rq\&.
 .RS 4
 .\}
 .nf
-ibd2sdi \-\-debug=d:t /tmp/ibd2sdi\&.trace
+shell> \fBibd2sdi \-\-debug=d:t /tmp/ibd2sdi\&.trace\fR
 .fi
 .if n \{\
 .RE
@@ -230,7 +232,7 @@ stdout\&.
 .RS 4
 .\}
 .nf
-ibd2sdi \-\-dump\-file=\fIfile_name\fR \&.\&./data/test/t1\&.ibd
+shell> \fBibd2sdi \-\-dump\-file=\fR\fB\fIfile_name\fR\fR\fB \&.\&./data/test/t1\&.ibd\fR
 .fi
 .if n \{\
 .RE
@@ -410,7 +412,7 @@ checksum algorithm is specified:
 .RS 4
 .\}
 .nf
-ibd2sdi \-\-strict\-check=innodb \&.\&./data/test/t1\&.ibd
+shell> \fBibd2sdi \-\-strict\-check=innodb \&.\&./data/test/t1\&.ibd\fR
 .fi
 .if n \{\
 .RE
@@ -424,7 +426,7 @@ checksum algorithm is specified:
 .RS 4
 .\}
 .nf
-ibd2sdi \-c crc32 \&.\&./data/test/t1\&.ibd
+shell> \fBibd2sdi \-c crc32 \&.\&./data/test/t1\&.ibd\fR
 .fi
 .if n \{\
 .RE
@@ -456,7 +458,7 @@ Skips checksum validation for pages that are read\&.
 .RS 4
 .\}
 .nf
-ibd2sdi \-\-no\-check \&.\&./data/test/t1\&.ibd
+shell> \fBibd2sdi \-\-no\-check \&.\&./data/test/t1\&.ibd\fR
 .fi
 .if n \{\
 .RE
@@ -481,7 +483,7 @@ to disable\&.
 .RS 4
 .\}
 .nf
-ibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd
+shell> \fBibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd\fR
 .fi
 .if n \{\
 .RE
@@ -490,7 +492,7 @@ ibd2sdi \-\-skip\-pretty \&.\&./data/test/t1\&.ibd
 .SH "COPYRIGHT"
 .br
 .PP
-Copyright \(co 1997, 2021, Oracle and/or its affiliates.
+Copyright \(co 1997, 2020, Oracle and/or its affiliates.
 .PP
 This documentation is free software; you can redistribute it and/or modify it only under the terms of the GNU General Public License as published by the Free Software Foundation; version 2 of the License.
 .PP

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,10 +27,10 @@
 
 #include "storage/perfschema/table_session_variables.h"
 
-#include <assert.h>
 #include <stddef.h>
 #include <new>
 
+#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
@@ -101,21 +101,32 @@ table_session_variables::table_session_variables()
     : PFS_engine_table(&m_share, &m_pos),
       m_sysvar_cache(false),
       m_pos(0),
-      m_next_pos(0) {}
+      m_next_pos(0),
+      m_context(nullptr) {}
 
 void table_session_variables::reset_position(void) {
   m_pos.m_index = 0;
   m_next_pos.m_index = 0;
 }
 
-int table_session_variables::rnd_init(bool /* scan */) {
+int table_session_variables::rnd_init(bool scan) {
   /* Build a cache of system variables for this thread. */
   m_sysvar_cache.materialize_all(current_thd);
 
+  /* Record the version of the system variable hash, store in TLS. */
+  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
+  m_context = (table_session_variables_context *)current_thd->alloc(
+      sizeof(table_session_variables_context));
+  new (m_context) table_session_variables_context(hash_version, !scan);
   return 0;
 }
 
 int table_session_variables::rnd_next(void) {
+  if (m_context && !m_context->versions_match()) {
+    system_variable_warning();
+    return HA_ERR_END_OF_FILE;
+  }
+
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next()) {
     if (m_sysvar_cache.is_materialized()) {
@@ -132,8 +143,13 @@ int table_session_variables::rnd_next(void) {
 }
 
 int table_session_variables::rnd_pos(const void *pos) {
+  if (!m_context->versions_match()) {
+    system_variable_warning();
+    return HA_ERR_RECORD_DELETED;
+  }
+
   set_position(pos);
-  assert(m_pos.m_index < m_sysvar_cache.size());
+  DBUG_ASSERT(m_pos.m_index < m_sysvar_cache.size());
 
   if (m_sysvar_cache.is_materialized()) {
     const System_variable *system_var = m_sysvar_cache.get(m_pos.m_index);
@@ -150,8 +166,14 @@ int table_session_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
   */
   m_sysvar_cache.materialize_all(current_thd);
 
+  /* Record the version of the system variable hash, store in TLS. */
+  ulonglong hash_version = m_sysvar_cache.get_sysvar_hash_version();
+  m_context = (table_session_variables_context *)current_thd->alloc(
+      sizeof(table_session_variables_context));
+  new (m_context) table_session_variables_context(hash_version, false);
+
   PFS_index_session_variables *result = nullptr;
-  assert(idx == 0);
+  DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_session_variables);
   m_opened_index = result;
   m_index = result;
@@ -160,6 +182,11 @@ int table_session_variables::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
 }
 
 int table_session_variables::index_next(void) {
+  if (m_context && !m_context->versions_match()) {
+    system_variable_warning();
+    return HA_ERR_END_OF_FILE;
+  }
+
   for (m_pos.set_at(&m_next_pos); m_pos.m_index < m_sysvar_cache.size();
        m_pos.next()) {
     if (m_sysvar_cache.is_materialized()) {
@@ -196,7 +223,7 @@ int table_session_variables::read_row_values(TABLE *table, unsigned char *buf,
   Field *f;
 
   /* Set the null bits */
-  assert(table->s->null_bytes == 1);
+  DBUG_ASSERT(table->s->null_bytes == 1);
   buf[0] = 0;
 
   for (; (f = *fields); fields++) {
@@ -210,7 +237,7 @@ int table_session_variables::read_row_values(TABLE *table, unsigned char *buf,
           m_row.m_variable_value.set_field(f);
           break;
         default:
-          assert(false);
+          DBUG_ASSERT(false);
       }
     }
   }

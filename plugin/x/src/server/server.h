@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,9 @@
 #include <string>
 #include <vector>
 
+#include "plugin/x/ngs/include/ngs/protocol/protocol_config.h"
+#include "plugin/x/ngs/include/ngs/socket_events.h"
+#include "plugin/x/ngs/include/ngs/thread.h"
 #include "plugin/x/src/helper/chrono.h"
 #include "plugin/x/src/helper/multithread/mutex.h"
 #include "plugin/x/src/helper/multithread/sync_variable.h"
@@ -49,9 +52,6 @@
 #include "plugin/x/src/interface/sha256_password_cache.h"
 #include "plugin/x/src/interface/ssl_context.h"
 #include "plugin/x/src/interface/timeout_callback.h"
-#include "plugin/x/src/ngs/protocol/protocol_config.h"
-#include "plugin/x/src/ngs/socket_events.h"
-#include "plugin/x/src/ngs/thread.h"
 #include "plugin/x/src/server/authentication_container.h"
 #include "plugin/x/src/server/server_factory.h"
 
@@ -92,9 +92,8 @@ class Server : public xpl::iface::Server {
   void start_tasks() override;
   void start_failed() override;
   void stop() override;
-  void gracefull_shutdown() override;
 
-  void graceful_close_all_clients();
+  void close_all_clients();
 
   bool is_terminating();
   bool is_running() override;
@@ -149,7 +148,6 @@ class Server : public xpl::iface::Server {
   std::shared_ptr<Scheduler_dynamic> m_worker_scheduler;
   std::shared_ptr<Protocol_global_config> m_config;
   std::unique_ptr<xpl::iface::Document_id_generator> m_id_generator;
-  std::atomic<bool> m_gracefull_shutdown{false};
 
   std::unique_ptr<xpl::iface::Ssl_context> m_ssl_context;
   xpl::Sync_variable<State> m_state;

@@ -77,7 +77,7 @@ if ($commands != '')
   if ($failure != '')
   {
     connection slave;
-    STOP REPLICA SQL_THREAD;
+    STOP SLAVE SQL_THREAD;
     source include/wait_for_slave_sql_to_stop.inc;
     --eval SET GLOBAL debug="$failure";
     --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
@@ -122,14 +122,14 @@ if ($commands != '')
   {
     connection slave;
     --error 0, 2013
-    START REPLICA SQL_THREAD;
+    START SLAVE SQL_THREAD;
     --source include/wait_until_disconnected.inc
     --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
     --let $rpl_server_number= 2
     --source include/rpl_reconnect.inc
     connection slave;
     --let $slave_before= `SELECT master_log_pos FROM mysql.slave_relay_log_info`
-    START REPLICA;
+    START SLAVE;
     source include/wait_for_slave_to_start.inc;
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags) {
     if (written != Count) {
       set_my_errno(errno);
 
-      assert(written != MY_FILE_ERROR);
+      DBUG_ASSERT(written != MY_FILE_ERROR);
       seekptr += written;
       Buffer += written;
       writtenbytes += written;

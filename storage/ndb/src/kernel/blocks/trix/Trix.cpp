@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -3041,8 +3041,7 @@ Trix::statScanEnd(Signal* signal, StatOp& stat)
 
 #ifdef trix_index_stat_rep_to_tux_instance
   Uint32 instanceKey = getInstanceKey(req->indexId, req->fragId);
-  Uint32 instanceNo = getInstanceFromKey(instanceKey);
-  BlockReference tuxRef = numberToRef(DBTUX, instanceNo, getOwnNodeId());
+  BlockReference tuxRef = numberToRef(DBTUX, instanceKey, getOwnNodeId());
 #else
   BlockReference tuxRef = DBTUX_REF;
 #endif

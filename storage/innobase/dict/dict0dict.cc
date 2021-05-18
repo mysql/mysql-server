@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -653,6 +653,7 @@ static ulint dict_table_get_v_col_pos_for_mysql(const dict_table_t *table,
   ulint i;
 
   ut_ad(table);
+  ut_ad(col_nr < static_cast<ulint>(table->n_t_def));
   ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
 
   for (i = 0; i < table->n_v_def; i++) {
@@ -664,8 +665,6 @@ static ulint dict_table_get_v_col_pos_for_mysql(const dict_table_t *table,
   if (i == table->n_v_def) {
     return (ULINT_UNDEFINED);
   }
-
-  ut_ad(col_nr < static_cast<ulint>(table->n_t_def));
 
   return (i);
 }
@@ -1536,7 +1535,7 @@ dberr_t dict_table_rename_in_cache(
       return (DB_OUT_OF_MEMORY);
     }
 
-    err = fil_delete_tablespace(table->space, BUF_REMOVE_NONE);
+    err = fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
 
     ut_a(err == DB_SUCCESS || err == DB_TABLESPACE_NOT_FOUND ||
          err == DB_IO_ERROR);
@@ -2558,8 +2557,8 @@ static void dict_index_remove_from_cache_low(
     row_log_free(index->online_log);
   }
 
-  /* We always create search info whether adaptive hash index is enabled or not.
-   */
+  /* We always create search info whether or not adaptive
+  hash index is enabled or not. */
   info = btr_search_get_info(index);
   ut_ad(info);
 
@@ -2580,7 +2579,7 @@ static void dict_index_remove_from_cache_low(
     }
 
     /* Sleep for 10ms before trying again. */
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    os_thread_sleep(10000);
     ++retries;
 
     if (retries % 500 == 0) {
@@ -2888,7 +2887,7 @@ void dict_table_wait_for_bg_threads_to_exit(
   while (fts->bg_threads > 0) {
     mutex_exit(&fts->bg_threads_mutex);
 
-    std::this_thread::sleep_for(std::chrono::microseconds(delay));
+    os_thread_sleep(delay);
 
     mutex_enter(&fts->bg_threads_mutex);
   }
@@ -4003,11 +4002,9 @@ dirty_dict_tables list if necessary.
 void dict_table_mark_dirty(dict_table_t *table) {
   ut_ad(!table->is_temporary());
 
-#ifndef UNIV_HOTBACKUP
   /* We should not adding dynamic metadata so late in shutdown phase and
   this data would only be retrieved during recovery. */
   ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_FLUSH_PHASE);
-#endif /* !UNIV_HOTBACKUP */
 
   mutex_enter(&dict_persist->mutex);
 
@@ -4786,7 +4783,7 @@ static void dict_index_zip_pad_update(
       /* Use atomics even though we have the mutex.
       This is to ensure that we are able to read
       info->pad atomically. */
-      info->pad.fetch_add(ZIP_PAD_INCR);
+      os_atomic_increment_ulint(&info->pad, ZIP_PAD_INCR);
 
       MONITOR_INC(MONITOR_PAD_INCREMENTS);
     }
@@ -4806,7 +4803,7 @@ static void dict_index_zip_pad_update(
       /* Use atomics even though we have the mutex.
       This is to ensure that we are able to read
       info->pad atomically. */
-      info->pad.fetch_sub(ZIP_PAD_INCR);
+      os_atomic_decrement_ulint(&info->pad, ZIP_PAD_INCR);
 
       info->n_rounds = 0;
 
@@ -4873,7 +4870,7 @@ ulint dict_index_zip_pad_optimal_page_size(
   /* We use atomics to read index->zip_pad.pad. Here we use zero
   as increment as are not changing the value of the 'pad'. */
 
-  pad = index->zip_pad.pad.load();
+  pad = os_atomic_increment_ulint(&index->zip_pad.pad, 0);
 
   ut_ad(pad < UNIV_PAGE_SIZE);
   sz = UNIV_PAGE_SIZE - pad;
@@ -5384,6 +5381,7 @@ std::string *DDTableBuffer::get(table_id_t id, uint64 *version) {
 
   return (metadata);
 }
+#endif /* !UNIV_HOTBACKUP */
 
 /** Write MLOG_TABLE_DYNAMIC_META for persistent dynamic metadata of table
 @param[in]	id		Table id
@@ -5415,7 +5413,6 @@ void Persister::write_log(table_id_t id,
 
   mlog_close(mtr, log_ptr);
 }
-#endif /* !UNIV_HOTBACKUP */
 
 /** Write the corrupted indexes of a table, we can pre-calculate the size
 by calling get_write_size()
@@ -5699,6 +5696,8 @@ size_t Persisters::write(PersistentTableMetadata &metadata, byte *buffer) {
   return (size);
 }
 
+/** Close SDI table.
+@param[in]	table		the in-meory SDI table object */
 void dict_sdi_close_table(dict_table_t *table) {
   ut_ad(dict_table_is_sdi(table->id));
   dict_table_close(table, true, false);
@@ -5884,6 +5883,32 @@ bool dict_table_is_system(table_id_t table_id) {
   return (false);
 }
 
+/** Acquire exclusive MDL on SDI tables. This is acquired to
+prevent concurrent DROP table/tablespace when there is purge
+happening on SDI table records. Purge will acquired shared
+MDL on SDI table.
+
+Exclusive MDL is transactional(released on trx commit). So
+for successful acquistion, there should be valid thd with
+trx associated.
+
+Acquistion order of SDI MDL and SDI table has to be in same
+order:
+
+1. dd_sdi_acquire_exclusive_mdl
+2. row_drop_table_from_cache()/innodb_drop_tablespace()
+   ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
+
+In purge:
+
+1. dd_sdi_acquire_shared_mdl
+2. dd_table_open_on_id()
+
+@param[in]	thd		server thread instance
+@param[in]	space_id	InnoDB tablespace id
+@param[in,out]	sdi_mdl		MDL ticket on SDI table
+@retval	DB_SUCESS		on success
+@retval	DB_LOCK_WAIT_TIMEOUT	on error */
 dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
                                      MDL_ticket **sdi_mdl) {
   /* Exclusive MDL always need trx context and is
@@ -5920,6 +5945,28 @@ dberr_t dd_sdi_acquire_exclusive_mdl(THD *thd, space_id_t space_id,
   return (DB_SUCCESS);
 }
 
+/** Acquire shared MDL on SDI tables. This is acquired by purge to
+prevent concurrent DROP table/tablespace.
+DROP table/tablespace will acquire exclusive MDL on SDI table
+
+Acquistion order of SDI MDL and SDI table has to be in same
+order:
+
+1. dd_sdi_acquire_exclusive_mdl
+2. row_drop_table_from_cache()/innodb_drop_tablespace()
+   ->dict_sdi_remove_from_cache()->dd_table_open_on_id()
+
+In purge:
+
+1. dd_sdi_acquire_shared_mdl
+2. dd_table_open_on_id()
+
+MDL should be released by caller
+@param[in]	thd		server thread instance
+@param[in]	space_id	InnoDB tablespace id
+@param[in,out]	sdi_mdl		MDL ticket on SDI table
+@retval	DB_SUCESS		on success
+@retval	DB_LOCK_WAIT_TIMEOUT	on error */
 dberr_t dd_sdi_acquire_shared_mdl(THD *thd, space_id_t space_id,
                                   MDL_ticket **sdi_mdl) {
   ut_ad(sdi_mdl != nullptr);
@@ -5957,19 +6004,15 @@ std::string dict_table_get_datadir(const dict_table_t *table) {
   return (path);
 }
 
-dberr_t dict_set_compression(dict_table_t *table, const char *algorithm,
-                             bool is_import_op) {
+dberr_t dict_set_compression(dict_table_t *table, const char *algorithm) {
   ut_ad(table != nullptr);
 
-  /* We don't support Page Compression for the system tablespace, the temporary
-  tablespace, or any general tablespace because COMPRESSION is set by TABLE
-  DDL, not TABLESPACE DDL (there is no other technical reason). And neither do
-  we support it for tables with compressed row_format.
-
-  Also, do not use it for missing tables, unless it's an import operation as in
-  the case of import we would still be importing the tablespace at this stage
-  and would need to set the compression option for further processing. */
-  if ((table->ibd_file_missing && !is_import_op) ||
+  /* We don't support Page Compression for the system tablespace,
+  the temporary tablespace, or any general tablespace because
+  COMPRESSION is set by TABLE DDL, not TABLESPACE DDL. There is
+  no other technical reason.  Also, do not use it for missing
+  tables or tables with compressed row_format. */
+  if (table->ibd_file_missing ||
       !DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_FILE_PER_TABLE) ||
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY) ||
       page_size_t(table->flags).is_compressed()) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,7 +31,6 @@
 #include <vector>
 
 #include "sql/join_optimizer/materialize_path_parameters.h"
-#include "sql/join_type.h"
 #include "sql/mem_root_array.h"
 #include "sql/sql_class.h"
 
@@ -52,78 +51,19 @@ struct ORDER;
 struct POSITION;
 struct TABLE;
 struct TABLE_REF;
+enum class JoinType;
 
-/**
-  Represents an expression tree in the relational algebra of joins.
-  Expressions are either tables, or joins of two expressions.
-  (Joins can have join conditions, but more general filters are
-  not represented in this structure.)
+struct JoinPredicate {
+  explicit JoinPredicate(THD *thd, JoinType type)
+      : type(type),
+        join_conditions(thd->mem_root),
+        equijoin_conditions(thd->mem_root) {}
 
-  These are used as an abstract precursor to the join hypergraph;
-  they represent the joins in the query block more or less directly,
-  without any reordering. (The parser should largely have output a
-  structure like this instead of TABLE_LIST, but we are not there yet.)
-  The only real manipulation we do on them is pushing down conditions
-  and identifying equijoin conditions from other join conditions.
- */
-struct RelationalExpression {
-  explicit RelationalExpression(THD *thd)
-      : join_conditions(thd->mem_root), equijoin_conditions(thd->mem_root) {}
+  JoinType type;
 
-  enum Type {
-    INNER_JOIN = static_cast<int>(JoinType::INNER),
-    LEFT_JOIN = static_cast<int>(JoinType::OUTER),
-    SEMIJOIN = static_cast<int>(JoinType::SEMI),
-    ANTIJOIN = static_cast<int>(JoinType::ANTI),
-    TABLE = 100,
-    CARTESIAN_PRODUCT = 101,
-  } type;
-  table_map tables_in_subtree;
-
-  // If type == TABLE.
-  const TABLE_LIST *table;
-
-  // If type != TABLE. Note that equijoin_conditions will be split off
-  // from join_conditions fairly late (at CreateHashJoinConditions()),
-  // so often, you will see equijoin conditions in join_condition..
-  RelationalExpression *left, *right;
+  // Does not include the ones that are in equijoin_conditions.
   Mem_root_array<Item *> join_conditions;
   Mem_root_array<Item_func_eq *> equijoin_conditions;
-
-  // TODO(sgunders): When we support LATERAL, add a bit to signal
-  // a dependent join.
-};
-
-/**
-  A specification that two specific relational expressions
-  (e.g., two tables, or a table and a join between two other tables)
-  should be joined together. The actual join conditions, if any,
-  live inside the “expr” object, as does the join type etc.
- */
-struct JoinPredicate {
-  const RelationalExpression *expr;
-  double selectivity;
-};
-
-/**
-  A filter of some sort that is not a join condition (those are stored
-  in JoinPredicate objects). AND conditions are typically split up into
-  multiple Predicates.
- */
-struct Predicate {
-  Item *condition;
-
-  // tables referred to by the condition, plus any tables whose values
-  // can null any of those tables. (Even when reordering outer joins,
-  // at least one of those tables will still be present on the
-  // left-hand side of the outer join, so this is sufficient.)
-  //
-  // This is a NodeMap (we just don't want to pull in the typedef here).
-  // As a special case, we allow setting RAND_TABLE_BIT, even though it
-  // is normally part of a table_map, not a NodeMap.
-  uint64_t total_eligibility_set;
-
-  double selectivity;
 };
 
 struct AppendPathParameters {
@@ -187,6 +127,7 @@ struct AccessPath {
     FILTER,
     SORT,
     AGGREGATE,
+    PRECOMPUTED_AGGREGATE,
     TEMPTABLE_AGGREGATE,
     LIMIT_OFFSET,
     STREAM,
@@ -217,57 +158,6 @@ struct AccessPath {
 
   /// Expected cost to read all of this access path once; -1.0 for unknown.
   double cost{-1.0};
-
-  /// Expected cost to initialize this access path; ie., cost to read
-  /// k out of N rows would be init_cost + (k/N) * (cost - init_cost).
-  /// Note that EXPLAIN prints out cost of reading the _first_ row
-  /// because it is easier for the user and also easier to measure in
-  /// EXPLAIN ANALYZE, but it is easier to do calculations with a pure
-  /// initialization cost, so that is what we use in this member.
-  /// -1.0 for unknown.
-  double init_cost{-1.0};
-
-  /// If no filter, identical to num_output_rows, cost, respectively.
-  /// init_cost is always the same (filters have zero initialization cost).
-  double num_output_rows_before_filter{-1.0}, cost_before_filter{-1.0};
-
-  /// Bitmap of WHERE predicates that we are including on this access path,
-  /// referring to the “predicates” array internal to the join optimizer.
-  /// Since bit masks are much cheaper to deal with than creating Item objects,
-  /// and we don't invent new conditions during join optimization (all of them
-  /// are known when we begin optimization), we stick to manipulating bit masks
-  /// during optimization, saying which filters will be applied at this node
-  /// (a 1-bit means the filter will be applied here; if there are multiple
-  /// ones, they are ANDed together).
-  ///
-  /// This is used during join optimization only; before iterators are
-  /// created, we will add FILTER access paths to represent these instead,
-  /// removing the dependency on the array.
-  ///
-  /// TODO(sgunders): Add some technique for “overflow bitset” to allow
-  /// having more than 64 predicates. (For now, we refuse queries that have
-  /// more.)
-  uint64_t filter_predicates{0};
-
-  /// Bitmap of WHERE predicates that we touch tables we have joined in,
-  /// but that we could not apply yet (for instance because they reference
-  /// other tables, or because because we could not push them down into
-  /// the nullable side of outer joins). Used during planning only
-  /// (see filter_predicates).
-  ///
-  /// TODO(sgunders): Add some technique for “overflow bitset” to allow
-  /// having more than 64 predicates. (For now, we refuse queries that have
-  /// more.)
-  uint64_t delayed_predicates{0};
-
-  /// Auxiliary data used by a secondary storage engine while processing the
-  /// access path during optimization and execution. The secondary storage
-  /// engine is free to store any useful information in this member, for example
-  /// extra statistics or cost estimates. The data pointed to is fully owned by
-  /// the secondary storage engine, and it is the responsibility of the
-  /// secondary engine to manage the memory and make sure it is properly
-  /// destroyed.
-  void *secondary_engine_data{nullptr};
 
   // Accessors for the union below.
   auto &table_scan() {
@@ -470,6 +360,14 @@ struct AccessPath {
     assert(type == AGGREGATE);
     return u.aggregate;
   }
+  auto &precomputed_aggregate() {
+    assert(type == PRECOMPUTED_AGGREGATE);
+    return u.precomputed_aggregate;
+  }
+  const auto &precomputed_aggregate() const {
+    assert(type == PRECOMPUTED_AGGREGATE);
+    return u.precomputed_aggregate;
+  }
   auto &temptable_aggregate() {
     assert(type == TEMPTABLE_AGGREGATE);
     return u.temptable_aggregate;
@@ -569,23 +467,27 @@ struct AccessPath {
   union {
     struct {
       TABLE *table;
+      QEP_TAB *qep_tab;  // Used only for buffering.
     } table_scan;
     struct {
       TABLE *table;
       int idx;
       bool use_order;
       bool reverse;
+      QEP_TAB *qep_tab;  // Used only for buffering.
     } index_scan;
     struct {
       TABLE *table;
       TABLE_REF *ref;
       bool use_order;
       bool reverse;
+      QEP_TAB *qep_tab;  // Used only for buffering.
     } ref;
     struct {
       TABLE *table;
       TABLE_REF *ref;
       bool use_order;
+      QEP_TAB *qep_tab;  // Used only for buffering.
     } ref_or_null;
     struct {
       TABLE *table;
@@ -617,10 +519,12 @@ struct AccessPath {
     } mrr;
     struct {
       TABLE *table;
+      QEP_TAB *qep_tab;  // Used only for buffering.
     } follow_tail;
     struct {
       TABLE *table;
       QUICK_SELECT_I *quick;
+      QEP_TAB *qep_tab;  // Used only for buffering.
     } index_range_scan;
     struct {
       TABLE *table;
@@ -692,8 +596,15 @@ struct AccessPath {
     } sort;
     struct {
       AccessPath *child;
+      Temp_table_param *temp_table_param;
+      int output_slice;
       bool rollup;
     } aggregate;
+    struct {
+      AccessPath *child;
+      Temp_table_param *temp_table_param;
+      int output_slice;
+    } precomputed_aggregate;
     struct {
       AccessPath *subquery_path;
       Temp_table_param *temp_table_param;
@@ -708,7 +619,7 @@ struct AccessPath {
       bool count_all_rows;
       bool reject_multiple_rows;
       // Only used when the LIMIT is on a UNION with SQL_CALC_FOUND_ROWS.
-      // See Query_expression::send_records.
+      // See SELECT_LEX_UNIT::send_records.
       ha_rows *send_records_override;
     } limit_offset;
     struct {
@@ -716,8 +627,8 @@ struct AccessPath {
       JOIN *join;
       Temp_table_param *temp_table_param;
       TABLE *table;
+      bool copy_fields_and_items_in_materialize;
       bool provide_rowid;
-      int ref_slice;
     } stream;
     struct {
       AccessPath *table_path;
@@ -769,30 +680,32 @@ static_assert(std::is_trivially_destructible<AccessPath>::value,
               "on the MEM_ROOT and not wrapped in unique_ptr_destroy_only"
               "(because multiple candidates during planning could point to "
               "the same access paths, and refcounting would be expensive)");
-static_assert(sizeof(AccessPath) <= 120,
-              "We are creating a lot of access paths in the join "
+static_assert(sizeof(AccessPath) <= 72,
+              "We will be creating a lot of access paths in the join "
               "optimizer, so be sure not to bloat it without noticing. "
-              "(80 bytes for the base, 40 bytes for the variant.)");
+              "(32 bytes for the base, 40 bytes for the variant.)");
 
 inline void CopyCosts(const AccessPath &from, AccessPath *to) {
   to->num_output_rows = from.num_output_rows;
   to->cost = from.cost;
-  to->init_cost = from.init_cost;
 }
 
 // Trivial factory functions for all of the types of access paths above.
 
 inline AccessPath *NewTableScanAccessPath(THD *thd, TABLE *table,
+                                          QEP_TAB *qep_tab,
                                           bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::TABLE_SCAN;
   path->count_examined_rows = count_examined_rows;
   path->table_scan().table = table;
+  path->table_scan().qep_tab = qep_tab;
   return path;
 }
 
 inline AccessPath *NewIndexScanAccessPath(THD *thd, TABLE *table, int idx,
                                           bool use_order, bool reverse,
+                                          QEP_TAB *qep_tab,
                                           bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::INDEX_SCAN;
@@ -801,11 +714,13 @@ inline AccessPath *NewIndexScanAccessPath(THD *thd, TABLE *table, int idx,
   path->index_scan().idx = idx;
   path->index_scan().use_order = use_order;
   path->index_scan().reverse = reverse;
+  path->index_scan().qep_tab = qep_tab;
   return path;
 }
 
 inline AccessPath *NewRefAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
                                     bool use_order, bool reverse,
+                                    QEP_TAB *qep_tab,
                                     bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::REF;
@@ -814,11 +729,13 @@ inline AccessPath *NewRefAccessPath(THD *thd, TABLE *table, TABLE_REF *ref,
   path->ref().ref = ref;
   path->ref().use_order = use_order;
   path->ref().reverse = reverse;
+  path->ref().qep_tab = qep_tab;
   return path;
 }
 
 inline AccessPath *NewRefOrNullAccessPath(THD *thd, TABLE *table,
                                           TABLE_REF *ref, bool use_order,
+                                          QEP_TAB *qep_tab,
                                           bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::REF_OR_NULL;
@@ -826,6 +743,7 @@ inline AccessPath *NewRefOrNullAccessPath(THD *thd, TABLE *table,
   path->ref_or_null().table = table;
   path->ref_or_null().ref = ref;
   path->ref_or_null().use_order = use_order;
+  path->ref_or_null().qep_tab = qep_tab;
   return path;
 }
 
@@ -875,7 +793,6 @@ inline AccessPath *NewConstTableAccessPath(THD *thd, TABLE *table,
   path->count_examined_rows = count_examined_rows;
   path->num_output_rows = 1.0;
   path->cost = 0.0;
-  path->init_cost = 0.0;
   path->const_table().table = table;
   path->const_table().ref = ref;
   return path;
@@ -898,22 +815,26 @@ inline AccessPath *NewMRRAccessPath(THD *thd, Item *cache_idx_cond,
 }
 
 inline AccessPath *NewFollowTailAccessPath(THD *thd, TABLE *table,
+                                           QEP_TAB *qep_tab,
                                            bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::FOLLOW_TAIL;
   path->count_examined_rows = count_examined_rows;
   path->follow_tail().table = table;
+  path->follow_tail().qep_tab = qep_tab;
   return path;
 }
 
 inline AccessPath *NewIndexRangeScanAccessPath(THD *thd, TABLE *table,
                                                QUICK_SELECT_I *quick,
+                                               QEP_TAB *qep_tab,
                                                bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::INDEX_RANGE_SCAN;
   path->count_examined_rows = count_examined_rows;
   path->index_range_scan().table = table;
   path->index_range_scan().quick = quick;
+  path->index_range_scan().qep_tab = qep_tab;
   return path;
 }
 
@@ -981,11 +902,25 @@ AccessPath *NewSortAccessPath(THD *thd, AccessPath *child, Filesort *filesort,
                               bool count_examined_rows);
 
 inline AccessPath *NewAggregateAccessPath(THD *thd, AccessPath *child,
-                                          bool rollup) {
+                                          Temp_table_param *temp_table_param,
+                                          int output_slice, bool rollup) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::AGGREGATE;
   path->aggregate().child = child;
+  path->aggregate().temp_table_param = temp_table_param;
+  path->aggregate().output_slice = output_slice;
   path->aggregate().rollup = rollup;
+  return path;
+}
+
+inline AccessPath *NewPrecomputedAggregateAccessPath(
+    THD *thd, AccessPath *child, Temp_table_param *temp_table_param,
+    int output_slice) {
+  AccessPath *path = new (thd->mem_root) AccessPath;
+  path->type = AccessPath::PRECOMPUTED_AGGREGATE;
+  path->precomputed_aggregate().child = child;
+  path->precomputed_aggregate().temp_table_param = temp_table_param;
+  path->precomputed_aggregate().output_slice = output_slice;
   return path;
 }
 
@@ -1018,26 +953,10 @@ inline AccessPath *NewLimitOffsetAccessPath(THD *thd, AccessPath *child,
 
   if (child->num_output_rows >= 0.0) {
     path->num_output_rows =
-        offset >= child->num_output_rows
-            ? 0.0
-            : (std::min<double>(child->num_output_rows, limit) - offset);
+        std::min<double>(child->num_output_rows, limit - offset);
   }
-
-  if (child->init_cost < 0.0) {
-    // We have nothing better, since we don't know how much is startup cost.
-    path->cost = child->cost;
-  } else if (child->num_output_rows < 1e-6) {
-    path->cost = path->init_cost = child->init_cost;
-  } else {
-    const double fraction_start_read =
-        std::min(1.0, double(offset) / child->num_output_rows);
-    const double fraction_full_read =
-        std::min(1.0, double(limit) / child->num_output_rows);
-    path->cost = child->init_cost +
-                 fraction_full_read * (child->cost - child->init_cost);
-    path->init_cost = child->init_cost +
-                      fraction_start_read * (child->cost - child->init_cost);
-  }
+  // We have nothing better, since we don't know how much is startup cost.
+  path->cost = child->cost;
 
   return path;
 }
@@ -1049,7 +968,6 @@ inline AccessPath *NewFakeSingleRowAccessPath(THD *thd,
   path->count_examined_rows = count_examined_rows;
   path->num_output_rows = 1.0;
   path->cost = 0.0;
-  path->init_cost = 0.0;
   return path;
 }
 
@@ -1059,9 +977,6 @@ inline AccessPath *NewZeroRowsAccessPath(THD *thd, AccessPath *child,
   path->type = AccessPath::ZERO_ROWS;
   path->zero_rows().child = child;
   path->zero_rows().cause = cause;
-  path->num_output_rows = 0.0;
-  path->cost = 0.0;
-  path->init_cost = 0.0;
   return path;
 }
 
@@ -1074,23 +989,20 @@ inline AccessPath *NewZeroRowsAggregatedAccessPath(THD *thd,
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::ZERO_ROWS_AGGREGATED;
   path->zero_rows_aggregated().cause = cause;
-  path->num_output_rows = 1.0;
-  path->cost = 0.0;
-  path->init_cost = 0.0;
   return path;
 }
 
-inline AccessPath *NewStreamingAccessPath(THD *thd, AccessPath *child,
-                                          JOIN *join,
-                                          Temp_table_param *temp_table_param,
-                                          TABLE *table, int ref_slice) {
+inline AccessPath *NewStreamingAccessPath(
+    THD *thd, AccessPath *child, JOIN *join, Temp_table_param *temp_table_param,
+    TABLE *table, bool copy_fields_and_items_in_materialize) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::STREAM;
   path->stream().child = child;
   path->stream().join = join;
   path->stream().temp_table_param = temp_table_param;
   path->stream().table = table;
-  path->stream().ref_slice = ref_slice;
+  path->stream().copy_fields_and_items_in_materialize =
+      copy_fields_and_items_in_materialize;
   // Will be set later if we get a weedout access path as parent.
   path->stream().provide_rowid = false;
   return path;
@@ -1116,7 +1028,7 @@ inline AccessPath *NewMaterializeAccessPath(
     THD *thd,
     Mem_root_array<MaterializePathParameters::QueryBlock> query_blocks,
     Mem_root_array<const AccessPath *> *invalidators, TABLE *table,
-    AccessPath *table_path, Common_table_expr *cte, Query_expression *unit,
+    AccessPath *table_path, Common_table_expr *cte, SELECT_LEX_UNIT *unit,
     int ref_slice, bool rematerialize, ha_rows limit_rows,
     bool reject_multiple_rows) {
   MaterializePathParameters *param =
@@ -1235,39 +1147,6 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
                               const POSITION *pos, bool is_after_filter,
                               AccessPath *path);
 
-/**
-  Returns a map of all tables read when `path` or any of its children are
-  exectued. Only iterators that are part of the same query block as `path`
-  are considered.
-
-  If a table is read that doesn't have a map, specifically the temporary
-  tables made as part of materialization within the same query block,
-  RAND_TABLE_BIT will be set as a convention and none of that access path's
-  children will be included in the map. In this case, the caller will need to
-  manually go in and find said access path, to ask it for its TABLE object.
- */
 table_map GetUsedTables(const AccessPath *path);
-
-/**
-  For each access path in the (sub)tree rooted at “path”, expand any use of
-  “filter_predicates” into newly-inserted FILTER access paths, using the given
-  predicate list. This is used after finding an optimal set of access paths,
-  to normalize the tree so that the remaining consumers do not need to worry
-  about filter_predicates and cost_before_filter.
-
-  “join” is the join that “path” is part of.
- */
-void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
-                             const Mem_root_array<Predicate> &predicates);
-
-/// Creates an empty bitmap of access path types. This is the base
-/// case for the function template with the same name below.
-inline constexpr uint64_t AccessPathTypeBitmap() { return 0; }
-
-/// Creates a bitmap representing a set of access path types.
-template <typename... Args>
-constexpr uint64_t AccessPathTypeBitmap(AccessPath::Type type1, Args... rest) {
-  return (uint64_t{1} << type1) | AccessPathTypeBitmap(rest...);
-}
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

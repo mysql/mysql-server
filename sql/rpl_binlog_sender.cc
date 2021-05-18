@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -64,7 +64,7 @@
 #include "typelib.h"
 #include "unsafe_string_append.h"
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 static uint binlog_dump_count = 0;
 #endif
 using binary_log::checksum_crc32;
@@ -74,121 +74,6 @@ const uint32 Binlog_sender::PACKET_MAX_SIZE = UINT_MAX32;
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD = 100;
 const float Binlog_sender::PACKET_GROW_FACTOR = 2.0;
 const float Binlog_sender::PACKET_SHRINK_FACTOR = 0.5;
-
-/**
-  @class Observe_transmission_guard
-
-  Sentry class to guard the transitions for `Delegate::m_observe_transmission`
-  flag within given contexts.
-
-*/
-class Observe_transmission_guard {
- public:
-  /**
-    Constructor for the class. It will change the value of the `flag` parameter
-    according with the `event_type` and `event_ptr` content. The `flag` will be
-    set to `true` as follows:
-
-    - The event is an `XID_EVENT`
-    - The event is an `XA_PREPARE_LOG_EVENT`.
-    - The event is a `QUERY_EVENT` with query equal to "XA COMMIT" or "XA ABORT"
-      or "COMMIT".
-    - The event is the first `QUERY_EVENT` after a `GTID_EVENT` and the query is
-      not "BEGIN" --the statement is a DDL, for instance.
-
-    @param flag            The flag variable to guard
-    @param event_type      The type of the event being processed
-    @param event_ptr       The raw content of the event being processed
-    @param event_len       The size of the raw content of the event being
-                           processed
-    @param checksum_alg    The checksum algorithm being used currently
-    @param prev_event_type The type of the event processed just before the
-                           current one
-  */
-  Observe_transmission_guard(bool &flag, binary_log::Log_event_type event_type,
-                             const char *event_ptr,
-                             binary_log::enum_binlog_checksum_alg checksum_alg,
-                             binary_log::Log_event_type prev_event_type)
-      : m_saved(flag), m_to_set(flag) {
-    if (opt_replication_sender_observe_commit_only) {
-      switch (event_type) {
-        case binary_log::TRANSACTION_PAYLOAD_EVENT:
-        case binary_log::XID_EVENT:
-        case binary_log::XA_PREPARE_LOG_EVENT: {
-          m_to_set = true;
-          break;
-        }
-        case binary_log::QUERY_EVENT: {
-          bool first_event_after_gtid =
-              prev_event_type == binary_log::ANONYMOUS_GTID_LOG_EVENT ||
-              prev_event_type == binary_log::GTID_LOG_EVENT;
-
-          Format_description_log_event fd_ev;
-          fd_ev.common_footer->checksum_alg = checksum_alg;
-          Query_log_event ev(event_ptr, &fd_ev, binary_log::QUERY_EVENT);
-          if (first_event_after_gtid)
-            m_to_set = (strcmp("BEGIN", ev.query) != 0);
-          else
-            m_to_set = (strncmp("XA COMMIT", ev.query, 9) == 0) ||
-                       (strncmp("XA ABORT", ev.query, 8) == 0) ||
-                       (strncmp("COMMIT", ev.query, 6) == 0);
-          break;
-        }
-        default: {
-          m_to_set = false;
-          break;
-        }
-      }
-    }
-  }
-
-  /**
-    Destructor for the sentry class. It will instantiate the guarded flag with
-    the value prior to the creation of this object.
-  */
-  ~Observe_transmission_guard() { m_to_set = m_saved; }
-
- private:
-  /** The value of the guarded flag upon this object creation */
-  bool m_saved;
-  /** The flag variable to guard */
-  bool &m_to_set;
-};
-
-/**
-  @class Sender_context_guard
-
-  Sentry class that guards the Binlog_sender context and, at destruction, will
-  prepare it for the next event to be processed.
-*/
-class Sender_context_guard {
- public:
-  /**
-    Class constructor that simply stores, internally, the reference for the
-    `Binlog_sender` to be guarded and the values to be set upon destruction.
-
-    @param target     The `Binlog_sender` object to be guarded.
-    @param event_type The currently processed event type, to be used for context
-                      of the next event processing round.
-  */
-  Sender_context_guard(Binlog_sender &target,
-                       binary_log::Log_event_type event_type)
-      : m_target(target), m_event_type(event_type) {}
-
-  /**
-    Class destructor that will set the proper context of the guarded
-    `Binlog_sender` object.
-  */
-  virtual ~Sender_context_guard() {
-    m_target.set_prev_event_type(m_event_type);
-  }
-
- private:
-  /** The object to be guarded */
-  Binlog_sender &m_target;
-  /** The currently being processed event type */
-  binary_log::Log_event_type m_event_type;
-};
 
 /**
   Simple function to help readability w.r.t. chrono operations.
@@ -249,8 +134,7 @@ Binlog_sender::Binlog_sender(THD *thd, const char *start_file,
       m_new_shrink_size(PACKET_MIN_SIZE),
       m_flag(flag),
       m_observe_transmission(false),
-      m_transmit_started(false),
-      m_prev_event_type(binary_log::UNKNOWN_EVENT) {}
+      m_transmit_started(false) {}
 
 void Binlog_sender::init() {
   DBUG_TRACE;
@@ -346,7 +230,7 @@ void Binlog_sender::init() {
   /* Binary event can be vary large. So set it to max allowed packet. */
   thd->variables.max_allowed_packet = MAX_MAX_ALLOWED_PACKET;
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   if (opt_sporadic_binlog_dump_fail && (binlog_dump_count++ % 2))
     set_unknown_error(
         "Master fails in COM_BINLOG_DUMP because of "
@@ -421,7 +305,7 @@ void Binlog_sender::run() {
           "now "
           "signal dump_thread_reached_wait_point "
           "wait_for continue_dump_thread no_clear_event";
-      assert(!debug_sync_set_action(m_thd, STRING_WITH_LEN(act)));
+      DBUG_ASSERT(!debug_sync_set_action(m_thd, STRING_WITH_LEN(act)));
     };);
     mysql_bin_log.lock_index();
     if (!mysql_bin_log.is_open()) {
@@ -440,7 +324,7 @@ void Binlog_sender::run() {
     if (unlikely(error)) {
       DBUG_EXECUTE_IF("waiting_for_disable_binlog", {
         const char act[] = "now signal consumed_binlog";
-        assert(!debug_sync_set_action(m_thd, STRING_WITH_LEN(act)));
+        DBUG_ASSERT(!debug_sync_set_action(m_thd, STRING_WITH_LEN(act)));
       };);
       if (is_index_file_reopened_on_binlog_disable)
         mysql_bin_log.close(LOG_CLOSE_INDEX, true /*need_lock_log=true*/,
@@ -521,7 +405,7 @@ int Binlog_sender::send_binlog(File_reader *reader, my_off_t start_pos) {
 
     DBUG_EXECUTE_IF("wait_after_binlog_EOF", {
       const char act[] = "now wait_for signal.rotate_finished no_clear_event";
-      assert(!debug_sync_set_action(m_thd, STRING_WITH_LEN(act)));
+      DBUG_ASSERT(!debug_sync_set_action(m_thd, STRING_WITH_LEN(act)));
     };);
   }
   return 1;
@@ -599,16 +483,10 @@ int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
         const char act[] =
             "now "
             "wait_for signal.continue";
-        assert(opt_debug_sync_timeout > 0);
-        assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+        DBUG_ASSERT(opt_debug_sync_timeout > 0);
+        DBUG_ASSERT(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
       }
     });
-
-    Sender_context_guard ctx_guard(*this, event_type);
-    Observe_transmission_guard obs_guard(
-        m_observe_transmission, event_type,
-        const_cast<const char *>(reinterpret_cast<char *>(event_ptr)),
-        m_event_checksum_alg, m_prev_event_type);
 
     log_pos = reader->position();
 
@@ -627,7 +505,7 @@ int Binlog_sender::send_events(File_reader *reader, my_off_t end_pos) {
       DBUG_EXECUTE_IF("inject_2sec_sleep_when_skipping_an_event",
                       { my_sleep(2000000); });
       auto now = now_in_nanosecs();
-      assert(now >= m_last_event_sent_ts);
+      DBUG_ASSERT(now >= m_last_event_sent_ts);
 
       // if enough time has elapsed so that we should send another heartbeat
       if ((now - m_last_event_sent_ts) >= m_heartbeat_period) {
@@ -785,7 +663,7 @@ int Binlog_sender::wait_new_events(my_off_t log_pos) {
 }
 
 inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   ulong hb_info_counter = 0;
 #endif
   struct timespec ts;
@@ -796,7 +674,7 @@ inline int Binlog_sender::wait_with_heartbeat(my_off_t log_pos) {
     ret = mysql_bin_log.wait_for_update(&ts);
     if (!is_timeout(ret)) break;
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     if (hb_info_counter < 3) {
       LogErr(INFORMATION_LEVEL, ER_RPL_BINLOG_MASTER_SENDS_HEARTBEAT);
       hb_info_counter++;
@@ -853,7 +731,7 @@ int Binlog_sender::check_start_file() {
       and Slave.
     */
     Sid_map *slave_sid_map = m_exclude_gtid->get_sid_map();
-    assert(slave_sid_map);
+    DBUG_ASSERT(slave_sid_map);
     global_sid_lock->wrlock();
     const rpl_sid &server_sid = gtid_state->get_server_sid();
     rpl_sidno subset_sidno = slave_sid_map->sid_to_sidno(server_sid);
@@ -863,7 +741,7 @@ int Binlog_sender::check_start_file() {
     // gtids = executed_gtids & owned_gtids
     if (gtid_executed_and_owned.add_gtid_set(
             gtid_state->get_executed_gtids()) != RETURN_STATUS_OK) {
-      assert(0);
+      DBUG_ASSERT(0);
     }
     gtid_state->get_owned_gtids()->get_gtids(gtid_executed_and_owned);
 
@@ -981,7 +859,8 @@ void Binlog_sender::init_checksum_alg() {
   if (it != m_thd->user_vars.end()) {
     m_slave_checksum_alg = static_cast<enum_binlog_checksum_alg>(
         find_type(it->second->ptr(), &binlog_checksum_typelib, 1) - 1);
-    assert(m_slave_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
+    DBUG_ASSERT(m_slave_checksum_alg <
+                binary_log::BINLOG_CHECKSUM_ALG_ENUM_END);
   }
 
   mysql_mutex_unlock(&m_thd->LOCK_thd_data);
@@ -1042,7 +921,7 @@ inline int Binlog_sender::reset_transmit_packet(ushort flags,
   DBUG_TRACE;
   DBUG_PRINT("info", ("event_len: %zu, m_packet->alloced_length: %zu",
                       event_len, m_packet.alloced_length()));
-  assert(m_packet.alloced_length() >= PACKET_MIN_SIZE);
+  DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
 
   m_packet.length(0);          // size of the content
   qs_append('\0', &m_packet);  // Set this as an OK packet
@@ -1094,12 +973,12 @@ int Binlog_sender::send_format_description_event(File_reader *reader,
       dynamic_cast<Format_description_log_event &>(*ev));
   delete ev;
 
-  assert(event_ptr[LOG_POS_OFFSET] > 0);
+  DBUG_ASSERT(event_ptr[LOG_POS_OFFSET] > 0);
   m_event_checksum_alg =
       Log_event_footer::get_checksum_alg((const char *)event_ptr, event_len);
 
-  assert(m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END ||
-         m_event_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
+  DBUG_ASSERT(m_event_checksum_alg < binary_log::BINLOG_CHECKSUM_ALG_ENUM_END ||
+              m_event_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF);
 
   /* Slave does not support checksum, but binary events include checksum */
   if (m_slave_checksum_alg == binary_log::BINLOG_CHECKSUM_ALG_UNDEF &&
@@ -1191,14 +1070,14 @@ inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
   DBUG_TRACE;
 
   if (reset_transmit_packet(0, 0)) return 1;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   size_t event_offset;
   event_offset = m_packet.length();
 #endif
 
   DBUG_EXECUTE_IF("dump_thread_before_read_event", {
     const char act[] = "now wait_for signal.continue no_clear_event";
-    assert(!debug_sync_set_action(m_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(m_thd, STRING_WITH_LEN(act)));
   };);
 
   if (reader->read_event_data(event_ptr, event_len)) {
@@ -1219,12 +1098,12 @@ inline int Binlog_sender::read_event(File_reader *reader, uchar **event_ptr,
     that it might call functions to replace the buffer by one with the size to
     fit the event.
   */
-  assert(reinterpret_cast<char *>(*event_ptr) ==
-         (m_packet.ptr() + event_offset));
+  DBUG_ASSERT(reinterpret_cast<char *>(*event_ptr) ==
+              (m_packet.ptr() + event_offset));
 
   DBUG_PRINT("info", ("Read event %s", Log_event::get_type_str(Log_event_type(
                                            (*event_ptr)[EVENT_TYPE_OFFSET]))));
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   if (check_event_count()) return 1;
 #endif
   return 0;
@@ -1326,7 +1205,7 @@ inline int Binlog_sender::after_send_hook(const char *log_file,
   return 0;
 }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 extern int max_binlog_dump_events;
 
 inline int Binlog_sender::check_event_count() {
@@ -1378,7 +1257,7 @@ inline bool Binlog_sender::shrink_packet() {
   size_t cur_buffer_size = m_packet.alloced_length();
   size_t buffer_used = m_packet.length();
 
-  assert(!(cur_buffer_size < PACKET_MIN_SIZE));
+  DBUG_ASSERT(!(cur_buffer_size < PACKET_MIN_SIZE));
 
   /*
      If the packet is already at the minimum size, just
@@ -1410,10 +1289,10 @@ inline bool Binlog_sender::shrink_packet() {
     } else
       m_half_buffer_size_req_counter = 0;
   }
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   if (res == false) {
-    assert(m_new_shrink_size <= cur_buffer_size);
-    assert(m_packet.alloced_length() >= PACKET_MIN_SIZE);
+    DBUG_ASSERT(m_new_shrink_size <= cur_buffer_size);
+    DBUG_ASSERT(m_packet.alloced_length() >= PACKET_MIN_SIZE);
   }
 #endif
   return res;
@@ -1422,7 +1301,7 @@ inline bool Binlog_sender::shrink_packet() {
 inline size_t Binlog_sender::calc_grow_buffer_size(size_t current_size,
                                                    size_t min_size) {
   /* Check that a sane minimum buffer size was requested.  */
-  assert(min_size > PACKET_MIN_SIZE);
+  DBUG_ASSERT(min_size > PACKET_MIN_SIZE);
   if (min_size > PACKET_MAX_SIZE) return 0;
 
   /*

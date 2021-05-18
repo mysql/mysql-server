@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -32,7 +32,6 @@
 
 #include "my_rapidjson_size_t.h"  // IWYU pragma: keep
 
-#include <assert.h>
 #include <rapidjson/encodings.h>
 #include <rapidjson/memorystream.h>  // rapidjson::MemoryStream
 #include <stddef.h>
@@ -42,7 +41,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/json_dom.h"
 #include "sql/psi_memory_key.h"  // key_memory_JSON
@@ -116,8 +115,8 @@ bool Json_path_leg::to_string(String *buf) const {
   }
 
   // Unknown leg type.
-  assert(false); /* purecov: inspected */
-  return true;   /* purecov: inspected */
+  DBUG_ASSERT(false); /* purecov: inspected */
+  return true;        /* purecov: inspected */
 }
 
 bool Json_path_leg::is_autowrap() const {
@@ -147,7 +146,7 @@ Json_path_leg::Array_range Json_path_leg::get_array_range(
     size_t array_length) const {
   if (m_leg_type == jpl_array_cell_wildcard) return {0, array_length};
 
-  assert(m_leg_type == jpl_array_range);
+  DBUG_ASSERT(m_leg_type == jpl_array_range);
 
   // Get the beginning of the range.
   size_t begin = first_array_index(array_length).position();
@@ -210,7 +209,7 @@ class Stream {
 
   /// Returns the number of bytes remaining in the stream.
   size_t remaining() const {
-    assert(m_position <= m_end);
+    DBUG_ASSERT(m_position <= m_end);
     return m_end - m_position;
   }
 
@@ -219,13 +218,13 @@ class Stream {
 
   /// Reads the next byte from the stream and moves the position forward.
   char read() {
-    assert(!exhausted());
+    DBUG_ASSERT(!exhausted());
     return *m_position++;
   }
 
   /// Reads the next byte from the stream without moving the position forward.
   char peek() const {
-    assert(!exhausted());
+    DBUG_ASSERT(!exhausted());
     return *m_position;
   }
 
@@ -237,7 +236,7 @@ class Stream {
 
   /// Moves the position n bytes forward.
   void skip(size_t n) {
-    assert(remaining() >= n);
+    DBUG_ASSERT(remaining() >= n);
     m_position += n;
   }
 
@@ -330,7 +329,7 @@ static bool parse_path_leg(Stream *stream, Json_path *path) {
 */
 static bool parse_ellipsis_leg(Stream *stream, Json_path *path) {
   // advance past the first *
-  assert(stream->peek() == WILDCARD);
+  DBUG_ASSERT(stream->peek() == WILDCARD);
   stream->skip(1);
 
   // must be followed by a second *
@@ -417,7 +416,7 @@ static bool parse_array_index(Stream *stream, uint32 *array_index,
 */
 static bool parse_array_leg(Stream *stream, Json_path *path) {
   // advance past the [
-  assert(stream->peek() == BEGIN_ARRAY);
+  DBUG_ASSERT(stream->peek() == BEGIN_ARRAY);
   stream->skip(1);
 
   stream->skip_whitespace();
@@ -564,7 +563,7 @@ static std::unique_ptr<Json_string> parse_name_with_rapidjson(const char *str,
 */
 static bool parse_member_leg(Stream *stream, Json_path *path) {
   // advance past the .
-  assert(stream->peek() == BEGIN_MEMBER);
+  DBUG_ASSERT(stream->peek() == BEGIN_MEMBER);
   stream->skip(1);
 
   stream->skip_whitespace();

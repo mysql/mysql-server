@@ -1,7 +1,7 @@
 #ifndef VARLEN_SORT_INCLUDED
 #define VARLEN_SORT_INCLUDED
 
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,7 @@
   function varlen_sort() that is an adapter around std::sort for this purpose.
 */
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "template_utils.h"
 
 #include <algorithm>
@@ -64,7 +63,7 @@ struct varlen_element {
 
   varlen_element &operator=(const varlen_element &other) = delete;
   varlen_element &operator=(varlen_element &&other) {
-    assert(elem_size == other.elem_size);
+    DBUG_ASSERT(elem_size == other.elem_size);
     memcpy(ptr, other.ptr, elem_size);
     return *this;
   }
@@ -76,7 +75,7 @@ struct varlen_element {
 
 // ValueSwappable.
 static inline void swap(const varlen_element &a, const varlen_element &b) {
-  assert(a.elem_size == b.elem_size);
+  DBUG_ASSERT(a.elem_size == b.elem_size);
   std::swap_ranges(a.ptr, a.ptr + a.elem_size, b.ptr);
 }
 
@@ -146,8 +145,8 @@ class varlen_iterator {
   }
 
   ptrdiff_t operator-(const varlen_iterator &other) const {
-    assert(elem_size == other.elem_size);
-    assert((ptr - other.ptr) % elem_size == 0);
+    DBUG_ASSERT(elem_size == other.elem_size);
+    DBUG_ASSERT((ptr - other.ptr) % elem_size == 0);
     return (ptr - other.ptr) / elem_size;
   }
 
@@ -156,22 +155,22 @@ class varlen_iterator {
   }
 
   bool operator<(varlen_iterator &other) const {
-    assert(elem_size == other.elem_size);
+    DBUG_ASSERT(elem_size == other.elem_size);
     return ptr < other.ptr;
   }
 
   bool operator>(varlen_iterator &other) const {
-    assert(elem_size == other.elem_size);
+    DBUG_ASSERT(elem_size == other.elem_size);
     return ptr > other.ptr;
   }
 
   bool operator>=(varlen_iterator &other) const {
-    assert(elem_size == other.elem_size);
+    DBUG_ASSERT(elem_size == other.elem_size);
     return ptr >= other.ptr;
   }
 
   bool operator<=(varlen_iterator &other) const {
-    assert(elem_size == other.elem_size);
+    DBUG_ASSERT(elem_size == other.elem_size);
     return ptr <= other.ptr;
   }
 

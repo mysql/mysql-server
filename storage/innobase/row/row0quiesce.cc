@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -363,7 +363,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   byte value[sizeof(ib_uint32_t)];
 
   /* Write the current meta-data version number. */
-  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V6;
+  uint32_t cfg_version = IB_EXPORT_CFG_VERSION_V5;
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_3",
                   cfg_version = IB_EXPORT_CFG_VERSION_V3;);
   DBUG_EXECUTE_IF("ib_export_use_cfg_version_99",
@@ -481,20 +481,6 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
                 strerror(errno), "while writing space_flags.");
 
     return (DB_IO_ERROR);
-  }
-
-  if (cfg_version >= IB_EXPORT_CFG_VERSION_V6) {
-    /* Write compression info */
-    uint8_t compression_type =
-        static_cast<uint8_t>(fil_get_compression(table->space));
-    mach_write_to_1(value, compression_type);
-
-    if (fwrite(&value, 1, sizeof(uint8_t), file) != sizeof(uint8_t)) {
-      ib_senderrf(thd, IB_LOG_LEVEL_WARN, ER_IO_WRITE_ERROR, errno,
-                  strerror(errno), "while writing space_flags.");
-
-      return DB_IO_ERROR;
-    }
   }
 
   return (DB_SUCCESS);
@@ -820,7 +806,8 @@ void row_quiesce_table_complete(dict_table_t *table, trx_t *trx) {
           << "Waiting for quiesce of " << table->name << " to complete";
     }
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    /* Sleep for a second. */
+    os_thread_sleep(1000000);
 
     ++count;
   }

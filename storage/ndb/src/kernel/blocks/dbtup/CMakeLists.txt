@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (C) 2008 MySQL AB, 2008, 2010 Sun Microsystems, Inc.
 #  Use is subject to license terms.
 #
 # This program is free software; you can redistribute it and/or modify

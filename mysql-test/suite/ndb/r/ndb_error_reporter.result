@@ -89,16 +89,6 @@ scp  -p  mysql@10.255.255.1:./ndb_2* ndb_error_report_x/
 scp  -p  mysql@10.255.255.1:./ndb_4* ndb_error_report_x/
 
 
- Copying data from node 6
-
-scp  -p  mysql@10.255.255.1:./ndb_6* ndb_error_report_x/
-
-
- Copying data from node 7
-
-scp  -p  mysql@10.255.255.1:./ndb_7* ndb_error_report_x/
-
-
  Copying data from node 1
 
 scp  -p  mysql@10.255.255.1:ndb_1* ndb_error_report_x/
@@ -124,16 +114,6 @@ scp  -p  -r  10.255.255.1:./ndb_2* ndb_error_report_x/
  Copying data from node 4 with filesystem
 
 scp  -p  -r  10.255.255.1:./ndb_4* ndb_error_report_x/
-
-
- Copying data from node 6 with filesystem
-
-scp  -p  -r  10.255.255.1:./ndb_6* ndb_error_report_x/
-
-
- Copying data from node 7 with filesystem
-
-scp  -p  -r  10.255.255.1:./ndb_7* ndb_error_report_x/
 
 
  Copying data from node 1 with filesystem
@@ -163,16 +143,6 @@ scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_2* ndb_error_report_x/
 scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_4* ndb_error_report_x/
 
 
- Copying data from node 6
-
-scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_6* ndb_error_report_x/
-
-
- Copying data from node 7
-
-scp  -p  -o ConnectTimeout=1  10.255.255.1:./ndb_7* ndb_error_report_x/
-
-
  Copying data from node 1
 
 scp  -p  -o ConnectTimeout=1  10.255.255.1:ndb_1* ndb_error_report_x/
@@ -197,13 +167,6 @@ Running ndb_error_reporter to skip one data node
 scp  -p  10.255.255.1:./ndb_4* ndb_error_report_x/
 
 
- Node 6 belongs to nodegroup 65536: skipping.
-
- Copying data from node 7
-
-scp  -p  10.255.255.1:./ndb_7* ndb_error_report_x/
-
-
  Copying data from node 1
 
 scp  -p  10.255.255.1:ndb_1* ndb_error_report_x/
@@ -224,10 +187,6 @@ Running ndb_error_reporter to skip both data nodes
  Node 2 belongs to nodegroup 65536: skipping.
 
  Node 4 belongs to nodegroup 0: skipping.
-
- Node 6 belongs to nodegroup 65536: skipping.
-
- Node 7 belongs to nodegroup 0: skipping.
 
  Copying data from node 1
 
@@ -252,13 +211,6 @@ scp  -p  -o ConnectTimeout=1  -r  mysql@10.255.255.1:./ndb_2* ndb_error_report_x
 
 
  Node 4 belongs to nodegroup 0: skipping.
-
- Copying data from node 6 with filesystem
-
-scp  -p  -o ConnectTimeout=1  -r  mysql@10.255.255.1:./ndb_6* ndb_error_report_x/
-
-
- Node 7 belongs to nodegroup 0: skipping.
 
  Copying data from node 1 with filesystem
 

@@ -1,7 +1,6 @@
 !include ../my.cnf
 
 [cluster_config.1]
-ThreadConfig=ldm={count=4}
 ndbd=,,,,,
 ndb_mgmd=
 

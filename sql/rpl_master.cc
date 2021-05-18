@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,12 +42,12 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_sys.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_mutex.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/service_mysql_alloc.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -920,7 +920,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length) {
   const uchar *packet_position = (uchar *)packet;
   size_t packet_bytes_todo = packet_length;
 
-  assert(!thd->status_var_aggregated);
+  DBUG_ASSERT(!thd->status_var_aggregated);
   thd->status_var.com_other++;
   thd->enable_slow_log = opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL)) return false;
@@ -971,7 +971,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length) {
       nullptr /*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&sid_map);
 
-  assert(!thd->status_var_aggregated);
+  DBUG_ASSERT(!thd->status_var_aggregated);
   thd->status_var.com_other++;
   thd->enable_slow_log = opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL)) return false;
@@ -1190,7 +1190,7 @@ end:
     which informs plugins.
   */
   if (unlock_global_read_lock) {
-    assert(thd->global_read_lock.is_acquired());
+    DBUG_ASSERT(thd->global_read_lock.is_acquired());
     thd->global_read_lock.unlock_global_read_lock(thd);
   }
 

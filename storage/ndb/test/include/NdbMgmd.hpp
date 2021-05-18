@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -370,13 +370,14 @@ public:
       return false;
     }
 
-    ndb_mgm_config_unique_ptr conf(ndb_mgm_get_configuration(m_handle,0));
+    struct ndb_mgm_configuration* conf =
+      ndb_mgm_get_configuration(m_handle,0);
     if (!conf) {
       error("get_config: ndb_mgm_get_configuration failed");
       return false;
     }
 
-    config.m_configuration= conf.release();
+    config.m_configValues= conf;
     return true;
   }
 
@@ -388,7 +389,7 @@ public:
     }
 
     if (ndb_mgm_set_configuration(m_handle,
-                                  config.get_configuration()) != 0)
+                                  config.values()) != 0)
     {
       error("set_config: ndb_mgm_set_configuration failed");
       return false;
@@ -489,7 +490,7 @@ public:
     }
 
     Uint64 default_value = 0;
-    ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
     {
       if (!iter.openSection(type_of_section, nodeid))
@@ -551,7 +552,7 @@ public:
     }
 
     Uint32 default_value = 0;
-    ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
     {
       if (!iter.openSection(type_of_section, nodeid))
@@ -612,7 +613,7 @@ public:
       return 0;
     }
 
-    ConfigValues::Iterator iter(conf.m_configuration->m_config_values);
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
     for (int nodeid = 1; nodeid < MAX_NODES; nodeid++)
     {
       if (!iter.openSection(type_of_section, nodeid))

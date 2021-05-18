@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -70,7 +70,7 @@ bool ndb_execute_and_retry(
     FunctionArgs... args) {
   int retries = 100;
   const NdbError *ndbError;
-  assert(ndb != nullptr);
+  DBUG_ASSERT(ndb != nullptr);
 
   do {
     /* Start transaction */

@@ -1,4 +1,4 @@
-// Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,10 @@
 #include "sql/gis/area.h"
 #include "sql/gis/area_functor.h"
 
-#include <assert.h>
 #include <boost/geometry.hpp>  // boost::geometry
 #include <cmath>               // isfinite
 
-// assert
+#include "my_dbug.h"                                // DBUG_ASSERT
 #include "my_inttypes.h"                            // MYF
 #include "my_sys.h"                                 // my_error
 #include "mysqld_error.h"                           // ER_DATA_OUT_OF_RANGE
@@ -70,7 +69,7 @@ double Area::eval(const Geographic_multipolygon &g) const {
 double Area::eval(const Geometry &) const {
   /* purecov: begin deadcode */
   // Not implemented
-  assert(false);
+  DBUG_ASSERT(false);
   throw std::exception();
   /* purecov: end */
 }
@@ -78,10 +77,10 @@ double Area::eval(const Geometry &) const {
 bool area(const dd::Spatial_reference_system *srs, const Geometry *g,
           const char *func_name, double *result, bool *result_null) noexcept {
   try {
-    assert(((srs == nullptr || srs->is_cartesian()) &&
-            g->coordinate_system() == Coordinate_system::kCartesian) ||
-           (srs != nullptr && srs->is_geographic() &&
-            g->coordinate_system() == Coordinate_system::kGeographic));
+    DBUG_ASSERT(((srs == nullptr || srs->is_cartesian()) &&
+                 g->coordinate_system() == Coordinate_system::kCartesian) ||
+                (srs != nullptr && srs->is_geographic() &&
+                 g->coordinate_system() == Coordinate_system::kGeographic));
     // Calling area on empty geometry results in NULL.
     if (g->is_empty()) {
       *result_null = true;

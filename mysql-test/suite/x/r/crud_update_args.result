@@ -1,3 +1,6 @@
+DROP SCHEMA IF EXISTS xtest;
+Warnings:
+Note	1008	Can't drop database 'xtest'; database doesn't exist
 CREATE SCHEMA xtest;
 CREATE TABLE xtest.xtable (value FLOAT);
 
@@ -88,3 +91,4 @@ Mysqlx.Ok {
   msg: "bye!"
 }
 ok
+DROP SCHEMA IF EXISTS xtest;

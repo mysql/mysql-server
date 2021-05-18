@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,13 +28,12 @@
 
 #include "storage/perfschema/table_helper.h"
 
-#include <assert.h>
 #include <algorithm>
 
 #include "my_config.h"
 
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_macros.h"
 #include "my_thread.h"
 #include "sql/field.h"
@@ -55,184 +54,184 @@
 
 /* TINYINT TYPE */
 void set_field_tiny(Field *f, long value) {
-  assert(f->real_type() == MYSQL_TYPE_TINY);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
   Field_tiny *f2 = (Field_tiny *)f;
   f2->store(value, false);
 }
 
 void set_field_utiny(Field *f, ulong value) {
-  assert(f->real_type() == MYSQL_TYPE_TINY);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
   Field_tiny *f2 = (Field_tiny *)f;
   f2->store(value, true);
 }
 
 long get_field_tiny(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_TINY);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
   Field_tiny *f2 = (Field_tiny *)f;
   return f2->val_int();
 }
 
 ulong get_field_utiny(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_TINY);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TINY);
   Field_tiny *f2 = (Field_tiny *)f;
   return f2->val_int();
 }
 
 /* SMALLINT TYPE */
 void set_field_short(Field *f, long value) {
-  assert(f->real_type() == MYSQL_TYPE_SHORT);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
   Field_short *f2 = (Field_short *)f;
   f2->store(value, false);
 }
 
 void set_field_ushort(Field *f, ulong value) {
-  assert(f->real_type() == MYSQL_TYPE_SHORT);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
   Field_short *f2 = (Field_short *)f;
   f2->store(value, true);
 }
 
 long get_field_short(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_SHORT);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
   Field_short *f2 = (Field_short *)f;
   return f2->val_int();
 }
 
 ulong get_field_ushort(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_SHORT);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SHORT);
   Field_short *f2 = (Field_short *)f;
   return f2->val_int();
 }
 
 /* MEDIUMINT TYPE */
 void set_field_medium(Field *f, long value) {
-  assert(f->real_type() == MYSQL_TYPE_INT24);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
   Field_medium *f2 = (Field_medium *)f;
   f2->store(value, false);
 }
 
 void set_field_umedium(Field *f, ulong value) {
-  assert(f->real_type() == MYSQL_TYPE_INT24);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
   Field_medium *f2 = (Field_medium *)f;
   f2->store(value, true);
 }
 
 long get_field_medium(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_INT24);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
   Field_medium *f2 = (Field_medium *)f;
   return f2->val_int();
 }
 
 ulong get_field_umedium(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_INT24);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_INT24);
   Field_medium *f2 = (Field_medium *)f;
   return f2->val_int();
 }
 
 /* INTEGER (INT) TYPE */
 void set_field_long(Field *f, long value) {
-  assert(f->real_type() == MYSQL_TYPE_LONG);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
   Field_long *f2 = (Field_long *)f;
   f2->store(value, false);
 }
 
 void set_field_ulong(Field *f, ulong value) {
-  assert(f->real_type() == MYSQL_TYPE_LONG);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
   Field_long *f2 = (Field_long *)f;
   f2->store(value, true);
 }
 
 long get_field_long(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_LONG);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
   Field_long *f2 = (Field_long *)f;
   return f2->val_int();
 }
 
 ulong get_field_ulong(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_LONG);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONG);
   Field_long *f2 = (Field_long *)f;
   return f2->val_int();
 }
 
 /* BIGINT TYPE */
 void set_field_longlong(Field *f, longlong value) {
-  assert(f->real_type() == MYSQL_TYPE_LONGLONG);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
   Field_longlong *f2 = (Field_longlong *)f;
   f2->store(value, false);
 }
 
 void set_field_ulonglong(Field *f, ulonglong value) {
-  assert(f->real_type() == MYSQL_TYPE_LONGLONG);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
   Field_longlong *f2 = (Field_longlong *)f;
   f2->store(value, true);
 }
 
 longlong get_field_longlong(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_LONGLONG);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
   Field_longlong *f2 = (Field_longlong *)f;
   return f2->val_int();
 }
 
 ulonglong get_field_ulonglong(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_LONGLONG);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_LONGLONG);
   Field_longlong *f2 = (Field_longlong *)f;
   return f2->val_int();
 }
 
 /* DECIMAL TYPE */
 void set_field_decimal(Field *f, double value) {
-  assert(f->real_type() == MYSQL_TYPE_NEWDECIMAL);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDECIMAL);
   Field_new_decimal *f2 = (Field_new_decimal *)f;
   f2->store(value);
 }
 
 double get_field_decimal(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_NEWDECIMAL);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDECIMAL);
   Field_new_decimal *f2 = (Field_new_decimal *)f;
   return f2->val_real();
 }
 
 /* FLOAT TYPE */
 void set_field_float(Field *f, double value) {
-  assert(f->real_type() == MYSQL_TYPE_FLOAT);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_FLOAT);
   Field_float *f2 = (Field_float *)f;
   f2->store(value);
 }
 
 double get_field_float(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_FLOAT);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_FLOAT);
   Field_float *f2 = (Field_float *)f;
   return f2->val_real();
 }
 
 /* DOUBLE TYPE */
 void set_field_double(Field *f, double value) {
-  assert(f->real_type() == MYSQL_TYPE_DOUBLE);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
   Field_double *f2 = (Field_double *)f;
   f2->store(value);
 }
 
 double get_field_double(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_DOUBLE);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DOUBLE);
   Field_double *f2 = (Field_double *)f;
   return f2->val_real();
 }
 
 /* CHAR TYPE */
 void set_field_char_utf8(Field *f, const char *str, uint len) {
-  assert(f->real_type() == MYSQL_TYPE_STRING);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
   Field_string *f2 = (Field_string *)f;
   f2->store(str, len, &my_charset_utf8mb4_bin);
 }
 
 String *get_field_char_utf8(Field *f, String *val) {
-  assert(f->real_type() == MYSQL_TYPE_STRING);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
   Field_string *f2 = (Field_string *)f;
   val = f2->val_str(nullptr, val);
   return val;
 }
 
 char *get_field_char_utf8(Field *f, char *val, uint *len) {
-  assert(f->real_type() == MYSQL_TYPE_STRING);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_STRING);
   String temp;
   Field_string *f2 = (Field_string *)f;
   f2->val_str(nullptr, &temp);
@@ -244,31 +243,31 @@ char *get_field_char_utf8(Field *f, char *val, uint *len) {
 /* VARCHAR TYPE */
 void set_field_varchar(Field *f, const CHARSET_INFO *cs, const char *str,
                        uint len) {
-  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, len, cs);
 }
 
 void set_field_varchar_utf8(Field *f, const char *str) {
-  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
 }
 
 void set_field_varchar_utf8(Field *f, const char *str, size_t len) {
-  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, len, &my_charset_utf8mb4_bin);
 }
 
 String *get_field_varchar_utf8(Field *f, String *val) {
-  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   val = f2->val_str(nullptr, val);
   return val;
 }
 char *get_field_varchar_utf8(Field *f, char *val, uint *len) {
-  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   String temp;
   Field_varstring *f2 = (Field_varstring *)f;
   f2->val_str(nullptr, &temp);
@@ -278,20 +277,20 @@ char *get_field_varchar_utf8(Field *f, char *val, uint *len) {
 }
 
 void set_field_varchar_utf8mb4(Field *f, const char *str) {
-  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, strlen(str), &my_charset_utf8mb4_bin);
 }
 
 void set_field_varchar_utf8mb4(Field *f, const char *str, uint len) {
-  assert(f->real_type() == MYSQL_TYPE_VARCHAR);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_VARCHAR);
   Field_varstring *f2 = (Field_varstring *)f;
   f2->store(str, len, &my_charset_utf8mb4_bin);
 }
 
 /* BLOB TYPE */
 void set_field_blob(Field *f, const char *val, size_t len) {
-  assert(f->real_type() == MYSQL_TYPE_BLOB);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
   Field_blob *f2 = (Field_blob *)f;
   f2->store(val, len, &my_charset_utf8mb4_bin);
 }
@@ -299,13 +298,13 @@ void set_field_blob(Field *f, const char *val, size_t len) {
 /* TEXT TYPE */
 void set_field_text(Field *f, const char *val, size_t len,
                     const CHARSET_INFO *cs) {
-  assert(f->real_type() == MYSQL_TYPE_BLOB);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
   Field_blob *f2 = (Field_blob *)f;
   f2->store(val, len, cs);
 }
 
 char *get_field_blob(Field *f, char *val, uint *len) {
-  assert(f->real_type() == MYSQL_TYPE_BLOB);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_BLOB);
   String temp;
   Field_blob *f2 = (Field_blob *)f;
   f2->val_str(nullptr, &temp);
@@ -316,39 +315,39 @@ char *get_field_blob(Field *f, char *val, uint *len) {
 
 /* ENUM TYPE */
 void set_field_enum(Field *f, ulonglong value) {
-  assert(f->real_type() == MYSQL_TYPE_ENUM);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
   Field_enum *f2 = (Field_enum *)f;
   f2->store_type(value);
 }
 
 ulonglong get_field_enum(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_ENUM);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_ENUM);
   Field_enum *f2 = (Field_enum *)f;
   return f2->val_int();
 }
 
 /* SET TYPE */
 void set_field_set(Field *f, ulonglong value) {
-  assert(f->real_type() == MYSQL_TYPE_SET);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SET);
   Field_set *f2 = (Field_set *)f;
   f2->store_type(value);
 }
 
 ulonglong get_field_set(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_SET);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_SET);
   Field_set *f2 = (Field_set *)f;
   return f2->val_int();
 }
 
 /* DATE TYPE */
 void set_field_date(Field *f, const char *value, uint len) {
-  assert(f->real_type() == MYSQL_TYPE_NEWDATE);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDATE);
   Field_newdate *f2 = (Field_newdate *)f;
   f2->store(value, len, system_charset_info);
 }
 
 char *get_field_date(Field *f, char *val, uint *len) {
-  assert(f->real_type() == MYSQL_TYPE_NEWDATE);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_NEWDATE);
   String temp;
   Field_newdate *f2 = (Field_newdate *)f;
   f2->val_str(&temp, nullptr);
@@ -359,13 +358,13 @@ char *get_field_date(Field *f, char *val, uint *len) {
 
 /* TIME TYPE */
 void set_field_time(Field *f, const char *value, uint len) {
-  assert(f->real_type() == MYSQL_TYPE_TIME2);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIME2);
   Field_timef *f2 = (Field_timef *)f;
   f2->store(value, len, system_charset_info);
 }
 
 char *get_field_time(Field *f, char *val, uint *len) {
-  assert(f->real_type() == MYSQL_TYPE_TIME2);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIME2);
   String temp;
   Field_timef *f2 = (Field_timef *)f;
   f2->val_str(&temp, nullptr);
@@ -376,13 +375,13 @@ char *get_field_time(Field *f, char *val, uint *len) {
 
 /* DATETIME TYPE */
 void set_field_datetime(Field *f, const char *value, uint len) {
-  assert(f->real_type() == MYSQL_TYPE_DATETIME2);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DATETIME2);
   Field_datetimef *f2 = (Field_datetimef *)f;
   f2->store(value, len, system_charset_info);
 }
 
 char *get_field_datetime(Field *f, char *val, uint *len) {
-  assert(f->real_type() == MYSQL_TYPE_DATETIME2);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_DATETIME2);
   String temp;
   Field_datetimef *f2 = (Field_datetimef *)f;
   f2->val_str(&temp, nullptr);
@@ -393,13 +392,13 @@ char *get_field_datetime(Field *f, char *val, uint *len) {
 
 /* TIMESTAMP TYPE */
 void set_field_timestamp(Field *f, const char *value, uint len) {
-  assert(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
   Field_timestampf *f2 = (Field_timestampf *)f;
   f2->store(value, len, system_charset_info);
 }
 
 char *get_field_timestamp(Field *f, char *val, uint *len) {
-  assert(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
   String temp;
   Field_timestampf *f2 = (Field_timestampf *)f;
   f2->val_str(&temp, nullptr);
@@ -412,27 +411,27 @@ void set_field_timestamp(Field *f, ulonglong value) {
   struct timeval tm;
   tm.tv_sec = (long)(value / 1000000);
   tm.tv_usec = (long)(value % 1000000);
-  assert(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_TIMESTAMP2);
   Field_timestampf *f2 = (Field_timestampf *)f;
   f2->store_timestamp(&tm);
 }
 
 /* YEAR TYPE */
 void set_field_year(Field *f, ulong value) {
-  assert(f->real_type() == MYSQL_TYPE_YEAR);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_YEAR);
   Field_year *f2 = (Field_year *)f;
   f2->store(value, true);
 }
 
 ulong get_field_year(Field *f) {
-  assert(f->real_type() == MYSQL_TYPE_YEAR);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_YEAR);
   Field_year *f2 = (Field_year *)f;
   return f2->val_int();
 }
 
 /* JSON TYPE */
 void set_field_json(Field *f, const Json_wrapper *json) {
-  assert(f->real_type() == MYSQL_TYPE_JSON);
+  DBUG_ASSERT(f->real_type() == MYSQL_TYPE_JSON);
   Field_json *f2 = (Field_json *)f;
   f2->store_json(json);
 }
@@ -440,7 +439,7 @@ void set_field_json(Field *f, const Json_wrapper *json) {
 void format_sqltext(const char *source_sqltext, size_t source_length,
                     const CHARSET_INFO *source_cs, bool truncated,
                     String &sqltext) {
-  assert(source_cs != nullptr);
+  DBUG_ASSERT(source_cs != nullptr);
 
   sqltext.set_charset(source_cs);
   sqltext.length(0);
@@ -574,7 +573,7 @@ void PFS_account_row::set_field(uint index, Field *f) {
       }
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       break;
   }
 }
@@ -646,7 +645,7 @@ void PFS_digest_row::set_field(uint index, Field *f) {
       }
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       break;
   }
 }
@@ -808,7 +807,7 @@ int PFS_column_row::make_row(const MDL_key *mdl) {
       break;
     case MDL_key::NAMESPACE_END:
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       m_object_type = NO_OBJECT_TYPE;
       m_schema_name_length = 0;
       m_object_name_length = 0;
@@ -852,7 +851,7 @@ void PFS_object_row::set_field(uint index, Field *f) {
       set_field_varchar_utf8(f, m_object_name, m_object_name_length);
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
@@ -880,7 +879,7 @@ void PFS_object_row::set_nullable_field(uint index, Field *f) {
       }
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
@@ -915,7 +914,7 @@ void PFS_column_row::set_nullable_field(uint index, Field *f) {
       }
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
@@ -973,7 +972,7 @@ void PFS_index_row::set_field(uint index, Field *f) {
       }
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
@@ -1044,7 +1043,7 @@ void PFS_statement_stat_row::set_field(uint index, Field *f) {
       set_field_ulonglong(f, m_no_good_index_used);
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       break;
   }
 }
@@ -1073,7 +1072,7 @@ void PFS_transaction_stat_row::set_field(uint index, Field *f) {
       m_read_only_row.set_field(index - 10, f);
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       break;
   }
 }
@@ -1129,7 +1128,7 @@ void PFS_error_stat_row::set_field(uint index, Field *f,
       break;
     default:
       /* It should never be reached */
-      assert(false);
+      DBUG_ASSERT(false);
       break;
   }
 }
@@ -1143,7 +1142,7 @@ void PFS_connection_stat_row::set_field(uint index, Field *f) {
       set_field_ulonglong(f, m_total_connections);
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       break;
   }
 }
@@ -1191,7 +1190,7 @@ void set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type) {
       f->set_null();
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
@@ -1236,7 +1235,7 @@ void set_field_mdl_type(Field *f, opaque_mdl_type mdl_type) {
       break;
     case MDL_TYPE_END:
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
@@ -1257,7 +1256,7 @@ void set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration) {
       break;
     case MDL_DURATION_END:
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
@@ -1278,7 +1277,7 @@ void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status) {
       set_field_varchar_utf8(f, "POST_RELEASE_NOTIFY", 19);
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
@@ -1299,7 +1298,8 @@ void PFS_memory_stat_row::set_field(uint index, Field *f) {
       set_field_ulonglong(f, m_stat.m_free_size);
       break;
     case 4: /* LOW_COUNT_USED */
-      val = m_stat.m_low_count_used;
+      val = m_stat.m_alloc_count - m_stat.m_free_count -
+            m_stat.m_free_count_capacity;
       set_field_longlong(f, val);
       break;
     case 5: /* CURRENT_COUNT_USED */
@@ -1307,11 +1307,13 @@ void PFS_memory_stat_row::set_field(uint index, Field *f) {
       set_field_longlong(f, val);
       break;
     case 6: /* HIGH_COUNT_USED */
-      val = m_stat.m_high_count_used;
+      val = m_stat.m_alloc_count - m_stat.m_free_count +
+            m_stat.m_alloc_count_capacity;
       set_field_longlong(f, val);
       break;
     case 7: /* LOW_NUMBER_OF_BYTES_USED */
-      val = m_stat.m_low_size_used;
+      val = m_stat.m_alloc_size - m_stat.m_free_size -
+            m_stat.m_free_size_capacity;
       set_field_longlong(f, val);
       break;
     case 8: /* CURRENT_NUMBER_OF_BYTES_USED */
@@ -1319,11 +1321,12 @@ void PFS_memory_stat_row::set_field(uint index, Field *f) {
       set_field_longlong(f, val);
       break;
     case 9: /* HIGH_NUMBER_OF_BYTES_USED */
-      val = m_stat.m_high_size_used;
+      val = m_stat.m_alloc_size - m_stat.m_free_size +
+            m_stat.m_alloc_size_capacity;
       set_field_longlong(f, val);
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       break;
   }
 }
@@ -1343,7 +1346,7 @@ void set_field_isolation_level(Field *f, enum_isolation_level iso_level) {
       set_field_varchar_utf8(f, "SERIALIZABLE", 12);
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
@@ -1368,13 +1371,13 @@ void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state) {
       set_field_varchar_utf8(f, "COMMITTED", 9);
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 }
 
 int PFS_variable_name_row::make_row(const char *str, size_t length) {
-  assert(length <= sizeof(m_str));
-  assert(length <= NAME_CHAR_LEN);
+  DBUG_ASSERT(length <= sizeof(m_str));
+  DBUG_ASSERT(length <= NAME_CHAR_LEN);
 
   /* enforce max name length */
   m_length = std::min(length, size_t{NAME_CHAR_LEN});
@@ -1396,8 +1399,8 @@ int PFS_variable_value_row::make_row(const System_variable *var) {
 
 int PFS_variable_value_row::make_row(const CHARSET_INFO *cs, const char *str,
                                      size_t length) {
-  assert(cs != nullptr);
-  assert(length <= sizeof(m_str));
+  DBUG_ASSERT(cs != nullptr);
+  DBUG_ASSERT(length <= sizeof(m_str));
   if (length > 0) {
     memcpy(m_str, str, length);
   }
@@ -1466,7 +1469,7 @@ int PFS_user_variable_value_row::make_row(const char *val, size_t length) {
     case HA_READ_AFTER_KEY:                  \
       return (cmp > 0);                      \
     default:                                 \
-      assert(false);                         \
+      DBUG_ASSERT(false);                    \
       return false;                          \
   }
 
@@ -1524,7 +1527,7 @@ bool PFS_key_ulong::do_match(bool record_null, ulong record_value) {
     case HA_READ_AFTER_KEY:
       return (cmp > 0);
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       return false;
   }
 }
@@ -1558,7 +1561,7 @@ bool PFS_key_ulonglong::do_match(bool record_null, ulonglong record_value) {
     case HA_READ_AFTER_KEY:
       return (cmp > 0);
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       return false;
   }
 }
@@ -1608,7 +1611,7 @@ bool PFS_key_pstring::stateless_match(bool record_null,
     case HA_READ_AFTER_KEY:
       return (cmp > 0);
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       return false;
   }
 }
@@ -1771,7 +1774,7 @@ bool PFS_key_port::match(uint port) {
 }
 
 bool PFS_key_error_number::match_error_index(uint error_index) {
-  assert(error_index < PFS_MAX_GLOBAL_SERVER_ERRORS);
+  DBUG_ASSERT(error_index < PFS_MAX_GLOBAL_SERVER_ERRORS);
 
   server_error *temp_error;
   temp_error = &error_names_array[pfs_to_server_error_map[error_index]];
@@ -2130,7 +2133,7 @@ bool PFS_key_object_type::do_match(bool record_null,
     case HA_READ_AFTER_KEY:
       return (cmp > 0);
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       return false;
   }
 }
@@ -2198,7 +2201,7 @@ bool PFS_key_object_type_enum::do_match(bool record_null,
     case HA_READ_AFTER_KEY:
       return (cmp > 0);
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       return false;
   }
 }

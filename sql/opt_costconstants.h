@@ -2,7 +2,7 @@
 #define OPT_COSTCONSTANTS_INCLUDED
 
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,12 +24,11 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
-
+#include "my_dbug.h"
 #include "prealloced_array.h"
 
 class THD;
@@ -362,9 +361,9 @@ class Cost_model_se_info {
 
   void set_cost_constants(SE_cost_constants *cost_constants,
                           unsigned int storage_class) {
-    assert(cost_constants != nullptr);
-    assert(storage_class < MAX_STORAGE_CLASSES);
-    assert(m_se_cost_constants[storage_class] == nullptr);
+    DBUG_ASSERT(cost_constants != nullptr);
+    DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
+    DBUG_ASSERT(m_se_cost_constants[storage_class] == nullptr);
 
     m_se_cost_constants[storage_class] = cost_constants;
   }
@@ -379,8 +378,8 @@ class Cost_model_se_info {
 
   const SE_cost_constants *get_cost_constants(
       unsigned int storage_class) const {
-    assert(storage_class < MAX_STORAGE_CLASSES);
-    assert(m_se_cost_constants[storage_class] != nullptr);
+    DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
+    DBUG_ASSERT(m_se_cost_constants[storage_class] != nullptr);
 
     return m_se_cost_constants[storage_class];
   }
@@ -394,8 +393,8 @@ class Cost_model_se_info {
   */
 
   SE_cost_constants *get_cost_constants(unsigned int storage_class) {
-    assert(storage_class < MAX_STORAGE_CLASSES);
-    assert(m_se_cost_constants[storage_class] != nullptr);
+    DBUG_ASSERT(storage_class < MAX_STORAGE_CLASSES);
+    DBUG_ASSERT(m_se_cost_constants[storage_class] != nullptr);
 
     return m_se_cost_constants[storage_class];
   }
@@ -500,7 +499,7 @@ class Cost_model_constants {
   */
 
   unsigned int dec_ref_count() {
-    assert(m_ref_counter > 0);
+    DBUG_ASSERT(m_ref_counter > 0);
 
     m_ref_counter--;
     return m_ref_counter;

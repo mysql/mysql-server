@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2009, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,7 @@
 #ifndef SQL_CMD_INCLUDED
 #define SQL_CMD_INCLUDED
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "sql/select_lex_visitor.h"
 
@@ -101,7 +100,7 @@ class Sql_cmd {
   virtual bool prepare(THD *) {
     // Default behavior for a statement is to have no preparation code.
     /* purecov: begin inspected */
-    assert(!is_prepared());
+    DBUG_ASSERT(!is_prepared());
     set_prepared();
     return false;
     /* purecov: end */
@@ -123,7 +122,7 @@ class Sql_cmd {
 
   /// Set the owning prepared statement
   void set_owner(Prepared_statement *stmt) {
-    assert(!m_part_of_sp);
+    DBUG_ASSERT(!m_part_of_sp);
     m_owner = stmt;
   }
 
@@ -135,7 +134,7 @@ class Sql_cmd {
     multiple times, the first execute() call will also prepare it.
   */
   void set_as_part_of_sp() {
-    assert(!m_part_of_sp && m_owner == nullptr);
+    DBUG_ASSERT(!m_part_of_sp && m_owner == nullptr);
     m_part_of_sp = true;
   }
   /// @returns true if statement is part of a stored procedure
@@ -147,7 +146,7 @@ class Sql_cmd {
   /// @return true if implemented as single table plan, DML statement only
   virtual bool is_single_table_plan() const {
     /* purecov: begin inspected */
-    assert(is_dml());
+    DBUG_ASSERT(is_dml());
     return false;
     /* purecov: end */
   }
@@ -172,7 +171,7 @@ class Sql_cmd {
     secondary storage engine until it is reprepared.
   */
   void disable_secondary_storage_engine() {
-    assert(m_secondary_engine == nullptr);
+    DBUG_ASSERT(m_secondary_engine == nullptr);
     m_secondary_engine_enabled = false;
   }
 
@@ -189,7 +188,7 @@ class Sql_cmd {
     tables in a secondary engine.
   */
   void use_secondary_storage_engine(const handlerton *hton) {
-    assert(m_secondary_engine_enabled);
+    DBUG_ASSERT(m_secondary_engine_enabled);
     m_secondary_engine = hton;
   }
 
@@ -230,7 +229,7 @@ class Sql_cmd {
       simply destroyed instead.
       Do not rely on the destructor for any cleanup.
     */
-    assert(false);
+    DBUG_ASSERT(false);
   }
 
   /// Set this statement as prepared

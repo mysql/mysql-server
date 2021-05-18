@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -27,6 +27,7 @@ SET(TESTS
   test_cluster_metadata.cc
   test_config_files.cc
   test_config_generator.cc
+  test_datatypes.cc
   test_log_filter.cc
   test_metadata_check.cc
   test_mysql_session.cc
@@ -63,6 +64,7 @@ ADD_TEST_FILE(test_keyring_frontend.cc
 
 FOREACH(test_file
     issues/test_bug22084430.cc
+    issues/test_bug22572346.cc
     issues/test_bug24909259.cc
     )
   ADD_TEST_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}

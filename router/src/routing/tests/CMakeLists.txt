@@ -1,4 +1,4 @@
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -29,18 +29,17 @@ INCLUDE_DIRECTORIES(
   ../../../tests/helpers
 )
 
-ADD_DEFINITIONS(-DSSL_TEST_DATA_DIR="${CMAKE_SOURCE_DIR}/mysql-test/std_data/")
-
 # TODO(sgunders): Remove when all GMock tests use MOCK_METHOD().
 STRING(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
+MY_INCLUDE_SYSTEM_DIRECTORIES(PROTOBUF)
 INCLUDE_DIRECTORIES(SYSTEM
   ${MYSQLX_GENERATE_DIR}/protobuf_lite
 )
 
 ADD_LIBRARY(routing_tests STATIC ${ROUTING_SOURCE_FILES})
 TARGET_LINK_LIBRARIES(routing_tests routertest_helpers router_lib
-                      metadata_cache_static mysql_protocol
+                      metadata_cache_static mysql_protocol_static
                       mysqlxclient_lite mysqlxmessages_lite ${PROTOBUF_LITE_LIBRARY})
 
 TARGET_COMPILE_DEFINITIONS(routing_tests PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
@@ -70,7 +69,9 @@ ENDIF()
 SET(TEST_MODULE "routing")
 SET(test_files
   test_block_clients.cc
-  # test_connection.cc
+  test_classic_protocol.cc
+  test_config.cc
+  test_connection.cc
   test_connection_container.cc
   test_first_available.cc
   test_metadata_cache_group.cc
@@ -79,6 +80,7 @@ SET(test_files
   test_routing.cc
   test_setup_named_socket_service.cc
   test_setup_tcp_service.cc
+  test_x_protocol.cc
   )
 # This compiler fails to handle some of the mock functions involved.
 IF(MY_COMPILER_IS_SUNPRO)
@@ -108,6 +110,7 @@ FOREACH(test_file
     test_bug21873666.cc
     test_bug21962350.cc
     test_bug22062859.cc
+    test_bug22579989.cc
     )
   add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/issues/${test_file}
     MODULE issues
@@ -122,6 +125,10 @@ FOREACH(test_file
   )
 ENDFOREACH()
 
+ROUTERTEST_GET_TARGET(test_target "test_classic_protocol.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
+  PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)
+
 ROUTERTEST_GET_TARGET(test_target "test_metadata_cache_group.cc" ${TEST_MODULE})
 TARGET_COMPILE_DEFINITIONS(${test_target}
   PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
@@ -132,18 +139,6 @@ TARGET_COMPILE_DEFINITIONS(${test_target}
 TARGET_LINK_LIBRARIES(${test_target}
   harness_net_ts)
 
-ADD_ROUTER_TEST_FILE(
-  test_classic_protocol_splicer.cc
-  MODULE routing
-  LIB_DEPENDS
-    mysql_protocol
-    test-helpers
-    mysqlxclient_lite
-    mysqlxmessages_lite
-    ${PROTOBUF_LITE_LIBRARY}
-
-  EXTRA_SOURCES
-    ../src/channel.cc
-    ../src/classic_protocol_splicer.cc
-    ../src/basic_protocol_splicer.cc
-  )
+ROUTERTEST_GET_TARGET(test_target "test_x_protocol.cc" ${TEST_MODULE})
+TARGET_COMPILE_DEFINITIONS(${test_target}
+  PRIVATE -Dmysql_protocol_DEFINE_STATIC=1)

@@ -5,7 +5,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 ## Test starts here
---write_file $MYSQL_TMP_DIR/select_field_integer.xpl
+--write_file $MYSQL_TMP_DIR/select_field_integer.tmp
 
 -->sql
 create schema xtest;
@@ -176,7 +176,8 @@ drop schema if exists xtest;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/select_field_integer.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/select_field_integer.tmp 2>&1
 
 ## Cleanup
---source ../include/xplugin_cleanup.inc
+--remove_file $MYSQL_TMP_DIR/select_field_integer.tmp
+--source include/xplugin_drop_user.inc

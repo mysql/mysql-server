@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -32,6 +32,22 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 #include "c_string_less.h"
 #include "mysql_service_implementation.h"
 #include "rwlock_scoped_lock.h"
+
+/**
+  @page PAGE_COMPONENTS_REGISTRY The Service Registry Service
+  The Service Registry is a central part of Components subsystem. It maintains
+  a list of the Service Implementations and allow acquiring them by any actor
+  that has a reference to main Registry Service Implementation. For each Service
+  a reference counter is maintained to make sure no one can remove any Service
+  Implementation being actively used.
+  The Service Implementations can be acquired by the Service name or by the full
+  Service Implementation name.
+  For each Service a default Service Implementation is distinguished, the first
+  one to be added, but it is possible to change it at will at any point.
+
+  A convenient RAII-style wrapper on Service acquisition and automatic release
+  is provided, the my_service<T> class.
+*/
 
 typedef std::map<const char *, mysql_service_implementation *, c_string_less>
     my_service_registry;

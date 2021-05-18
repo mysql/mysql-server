@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -74,12 +74,7 @@ int runLoadTable2(NDBT_Context* ctx, NDBT_Step* step)
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
 {
-  int num_records = ctx->getProperty("Records", Uint32(0));
   int records = ctx->getNumRecords();
-  if (num_records != 0)
-  {
-    records = num_records;
-  }
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.loadTable(GETNDB(step), records) != 0){
     return NDBT_FAILED;
@@ -137,14 +132,9 @@ int runInsertUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runClearTable(NDBT_Context* ctx, NDBT_Step* step){
-  int num_records = ctx->getProperty("Records", Uint32(0));
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
-
-  if (num_records != 0)
-  {
-    records = num_records;
-  }
+  
   HugoTransactions hugoTrans(*ctx->getTab());
   if (hugoTrans.pkDelRecords(GETNDB(step),  records, batchSize) != 0){
     return NDBT_FAILED;
@@ -196,40 +186,6 @@ int runPkRead(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runTimer(NDBT_Context* ctx, NDBT_Step* step)
-{
-  sleep(120);
-  ctx->stopTest();
-  return NDBT_OK;
-}
-
-int runPkDirtyReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
-{
-  int num_records = ctx->getProperty("Records", Uint32(0));
-  int records = ctx->getNumRecords();
-  int batchSize = ctx->getProperty("BatchSize", 2);
-  int lm = ctx->getProperty("LockMode", NdbOperation::LM_CommittedRead);
-  int i = 0;
-  if (num_records != 0)
-  {
-    records = num_records;
-  }
-  HugoTransactions hugoTrans(*ctx->getTab());
-  while (ctx->isTestStopped() == false) {
-    g_info << i << ": ";
-    if (hugoTrans.pkReadRecords(GETNDB(step),
-                                records,
-                                batchSize,
-                                (NdbOperation::LockMode)lm) != 0){
-      g_info << endl;
-      return NDBT_FAILED;
-    }
-    i++;
-  }
-  g_info << endl;
-  return NDBT_OK;
-}
-
 int runPkReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
@@ -265,16 +221,10 @@ int runPkUpdate(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
-int runPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step)
-{
-  int num_records = ctx->getProperty("Records", Uint32(0));
+int runPkUpdateUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   int batchSize = ctx->getProperty("BatchSize", 1);
   int i = 0;
-  if (num_records != 0)
-  {
-    records = num_records;
-  }
   HugoTransactions hugoTrans(*ctx->getTab());
   while (ctx->isTestStopped()) {
     g_info << i << ": ";
@@ -1271,17 +1221,9 @@ compare(unsigned block,
       if (time1->events[j].source_nodeid != node)
         continue;
 
-      int difference =
-        time1->events[j].MemoryUsage.pages_used -
-        time0->events[i].MemoryUsage.pages_used;
-      if (difference > 0 || difference < 0)
-      {
-        diff = 1;
-        ndbout_c("i: %u, j: %u, before: %u, after: %u",
-          i, j,
-          time0->events[i].MemoryUsage.pages_used,
-          time1->events[j].MemoryUsage.pages_used);
-      }
+      diff +=
+        time0->events[i].MemoryUsage.pages_used -
+        time1->events[j].MemoryUsage.pages_used;
     }
   }
   return diff;
@@ -1291,8 +1233,9 @@ int
 runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
+  HugoTransactions hugoTrans(*ctx->getTab());
+  HugoOperations hugoOps(*ctx->getTab());
   Ndb* pNdb = GETNDB(step);
-  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
   
   const NdbDictionary::Table * tab = ctx->getTab();
   int i;
@@ -1337,14 +1280,6 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
             << " bits: " << hex << bits << endl;
       continue;
     }
-    NdbDictionary::Table copy = *tab;
-    BaseString name;
-    name.assfmt("%s_COPY", copy.getName());
-    copy.setName(name.c_str());
-    pDict->createTable(copy);
-    const NdbDictionary::Table * copyTab = pDict->getTable(copy.getName());
-    HugoTransactions hugoTrans(*copyTab);
-    HugoOperations hugoOps(*copyTab);
     
     g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
     restarter.insertErrorInAllNodes(f_tup_errors[i].error);
@@ -1370,8 +1305,7 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
     {
       return NDBT_FAILED;
     }      
-    pDict->dropTable(copy.getName());
-    sleep(2);
+
     struct ndb_mgm_events * after =
       ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
     if (after == 0)
@@ -1395,69 +1329,58 @@ runTupErrors(NDBT_Context* ctx, NDBT_Step* step){
   /**
    * update
    */
+  struct ndb_mgm_events * before =
+    ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+  hugoTrans.loadTable(pNdb, 5);
+  for(i = 0; f_tup_errors[i].op != -1; i++)
   {
-    NdbDictionary::Table copy = *tab;
-    BaseString name;
-    name.assfmt("%s_COPY", copy.getName());
-    copy.setName(name.c_str());
-    pDict->createTable(copy);
-    const NdbDictionary::Table * copyTab = pDict->getTable(copy.getName());
-    HugoTransactions hugoTrans(*copyTab);
-    HugoOperations hugoOps(*copyTab);
-    
-    struct ndb_mgm_events * before =
-      ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
-    hugoTrans.loadTable(pNdb, 5);
-    for(i = 0; f_tup_errors[i].op != -1; i++)
+    if (f_tup_errors[i].op != NdbOperation::UpdateRequest)
     {
-      if (f_tup_errors[i].op != NdbOperation::UpdateRequest)
-      {
-        continue;
-      }
-
-      if ((f_tup_errors[i].bits & bits) != f_tup_errors[i].bits)
-      {
-        g_err << "Skipping " << f_tup_errors[i].error
-              << " - req bits: " << hex << f_tup_errors[i].bits
-              << " bits: " << hex << bits << endl;
-        continue;
-      }
-
-      g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
-      restarter.insertErrorInAllNodes(f_tup_errors[i].error);
-      if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
-      {
-
-      }
-      else
-      {
-        hugoTrans.scanUpdateRecords(pNdb, 5);
-      }
-      restarter.insertErrorInAllNodes(0);
-      if (hugoTrans.scanUpdateRecords(pNdb, 5) != 0)
-      {
-        return NDBT_FAILED;
-      }
+      continue;
     }
-    if (hugoTrans.clearTable(pNdb) != 0)
+
+    if ((f_tup_errors[i].bits & bits) != f_tup_errors[i].bits)
+    {
+      g_err << "Skipping " << f_tup_errors[i].error
+            << " - req bits: " << hex << f_tup_errors[i].bits
+            << " bits: " << hex << bits << endl;
+      continue;
+    }
+
+    g_err << "Testing error insert: " << f_tup_errors[i].error << endl;
+    restarter.insertErrorInAllNodes(f_tup_errors[i].error);
+    if (f_tup_errors[i].bits & TupError::TE_MULTI_OP)
+    {
+
+    }
+    else
+    {
+      hugoTrans.scanUpdateRecords(pNdb, 5);
+    }
+    restarter.insertErrorInAllNodes(0);
+    if (hugoTrans.scanUpdateRecords(pNdb, 5) != 0)
     {
       return NDBT_FAILED;
     }
-    pDict->dropTable(copy.getName());
-    sleep(2);
-    struct ndb_mgm_events * after =
-      ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
-
-    int diff = compare(DBTUP, before, after);
-    free(before);
-    free(after);
-
-    if (diff != 0)
-    {
-      ndbout_c("2:memleak detected!!");
-      return NDBT_FAILED;;
-    }
   }
+  if (hugoTrans.clearTable(pNdb) != 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  struct ndb_mgm_events * after =
+    ndb_mgm_dump_events(restarter.handle, NDB_LE_MemoryUsage, 0, 0);
+
+  int diff = compare(DBTUP, before, after);
+  free(before);
+  free(after);
+
+  if (diff != 0)
+  {
+    ndbout_c("memleak detected!!");
+    return NDBT_FAILED;;
+  }
+
   return NDBT_OK;
 }
 
@@ -4629,20 +4552,6 @@ TESTCASE("CheckCompletedLCPStats",
          "nReplicas * #records inserted" )
 {
   STEP(runCheckLCPStats);
-}
-TESTCASE("ParallelReadUpdate",
-         "Test interaction of read and updates for Query Thread")
-{
-  TC_PROPERTY("Records", Uint32(10));
-  INITIALIZER(runLoadTable);
-  STEP(runPkUpdateUntilStopped);
-  STEP(runPkUpdateUntilStopped);
-  STEP(runPkDirtyReadUntilStopped);
-  STEP(runPkDirtyReadUntilStopped);
-  STEP(runPkDirtyReadUntilStopped);
-  STEP(runPkDirtyReadUntilStopped);
-  STEP(runTimer);
-  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testBasic)
 

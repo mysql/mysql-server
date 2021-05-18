@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,11 +23,10 @@
 #ifndef DD_CACHE__OBJECT_REGISTRY_INCLUDED
 #define DD_CACHE__OBJECT_REGISTRY_INCLUDED
 
-#include <assert.h>
 #include <memory>  // unique_ptr
 
 #include "local_multi_map.h"  // Local_multi_map
-
+#include "my_dbug.h"
 #include "sql/dd/types/abstract_table.h"            // Abstract_table
 #include "sql/dd/types/charset.h"                   // Charset
 #include "sql/dd/types/collation.h"                 // Collation
@@ -294,7 +293,7 @@ class Object_registry {
     // same time, removing an element from a non-existing map means there
     // is an error in our bookkeeping.
     const auto map = m_map<T>();
-    assert(map != nullptr);
+    DBUG_ASSERT(map != nullptr);
     if (map) m_map<T>()->remove(element);
   }
 
@@ -366,7 +365,7 @@ class Object_registry {
   /* purecov: begin inspected */
   template <typename T>
   void dump() const {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     const auto map = m_map<T>();
     if (map) map->dump();
 #endif

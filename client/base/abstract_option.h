@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,13 +25,12 @@
 #ifndef ABSTRACT_OPTION_INCLUDED
 #define ABSTRACT_OPTION_INCLUDED
 
-#include <assert.h>
 #include <functional>
 #include <string>
 #include <vector>
 
 #include "client/base/i_option_changed_listener.h"
-
+#include "my_dbug.h"
 #include "my_getopt.h"
 #include "mysql/service_mysql_alloc.h"
 
@@ -179,7 +178,7 @@ my_option Abstract_option<T_type>::get_my_option() {
 template <typename T_type>
 void Abstract_option<T_type>::set_option_changed_listener(
     I_option_changed_listener *listener) {
-  assert(this->m_option_changed_listener == nullptr);
+  DBUG_ASSERT(this->m_option_changed_listener == nullptr);
 
   this->m_option_changed_listener = listener;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,9 @@
 
 #include "sql/dd/impl/cache/shared_multi_map.h"
 
-#include <assert.h>
 #include <new>
 
+#include "my_dbug.h"
 #include "my_loglevel.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
@@ -73,13 +73,13 @@ template <typename T>
 void Shared_multi_map<T>::remove(Cache_element<T> *element, Autolocker *lock) {
   mysql_mutex_assert_owner(&m_lock);
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   Cache_element<T> *e = nullptr;
   m_map<const T *>()->get(element->object(), &e);
 
   // The element must be present, and its usage must be 1 (this thread).
-  assert(e == element);
-  assert(e->usage() == 1);
+  DBUG_ASSERT(e == element);
+  DBUG_ASSERT(e->usage() == 1);
 
   // Get all keys that were created within the element.
   const typename T::Id_key *id_key = element->id_key();
@@ -87,14 +87,16 @@ void Shared_multi_map<T>::remove(Cache_element<T> *element, Autolocker *lock) {
   const typename T::Aux_key *aux_key = element->aux_key();
 
   // None of the non-null keys may be missed.
-  assert((!id_key || !m_map<typename T::Id_key>()->is_missed(*id_key)) &&
-         (!name_key || !m_map<typename T::Name_key>()->is_missed(*name_key)) &&
-         (!aux_key || !m_map<typename T::Aux_key>()->is_missed(*aux_key)));
+  DBUG_ASSERT(
+      (!id_key || !m_map<typename T::Id_key>()->is_missed(*id_key)) &&
+      (!name_key || !m_map<typename T::Name_key>()->is_missed(*name_key)) &&
+      (!aux_key || !m_map<typename T::Aux_key>()->is_missed(*aux_key)));
 
   // All non-null keys must exist.
-  assert((!id_key || m_map<typename T::Id_key>()->is_present(*id_key)) &&
-         (!name_key || m_map<typename T::Name_key>()->is_present(*name_key)) &&
-         (!aux_key || m_map<typename T::Aux_key>()->is_present(*aux_key)));
+  DBUG_ASSERT(
+      (!id_key || m_map<typename T::Id_key>()->is_present(*id_key)) &&
+      (!name_key || m_map<typename T::Name_key>()->is_present(*name_key)) &&
+      (!aux_key || m_map<typename T::Aux_key>()->is_present(*aux_key)));
 #endif
 
   // Remove the keys and the element from the shared map and the registry.
@@ -116,7 +118,7 @@ void Shared_multi_map<T>::rectify_free_list(Autolocker *lock) {
   mysql_mutex_assert_owner(&m_lock);
   while (map_capacity_exceeded() && m_free_list.length() > 0) {
     Cache_element<T> *e = m_free_list.get_lru();
-    assert(e && e->object());
+    DBUG_ASSERT(e && e->object());
     m_free_list.remove(e);
     // Mark the object as being used to allow it to be removed.
     e->use();
@@ -130,7 +132,7 @@ void Shared_multi_map<T>::evict_all_unused(Autolocker *lock) {
   mysql_mutex_assert_owner(&m_lock);
   while (m_free_list.length()) {
     Cache_element<T> *e = m_free_list.get_lru();
-    assert(e && e->object());
+    DBUG_ASSERT(e && e->object());
     m_free_list.remove(e);
     // Mark the object as being used to allow it to be removed.
     e->use();
@@ -149,7 +151,7 @@ void Shared_multi_map<T>::shutdown() {
       /* purecov: begin deadcode */
       LogErr(WARNING_LEVEL, ER_DD_CACHE_NOT_EMPTY_AT_SHUTDOWN);
       dump();
-      assert(false);
+      DBUG_ASSERT(false);
       /* purecov: end */
     }
   }
@@ -165,7 +167,7 @@ typedef std::map<Object_id, const String_type> schema_map_t;
 
 template <typename T>
 MDL_request *lock_request(THD *, const schema_map_t &, const T *) {
-  assert(false);
+  DBUG_ASSERT(false);
   return nullptr;
 }
 
@@ -235,7 +237,7 @@ bool Shared_multi_map<T>::reset(THD *thd) {
   evict_all_unused(&lock);
   if (m_map<const T *>()->size() > 0) {
     dump();
-    assert(m_map<const T *>()->size() == 0);
+    DBUG_ASSERT(m_map<const T *>()->size() == 0);
     return true;
   }
 
@@ -276,23 +278,23 @@ template <typename T>
 template <typename K>
 void Shared_multi_map<T>::put(const K *key, const T *object,
                               Cache_element<T> **element) {
-  assert(element);
+  DBUG_ASSERT(element);
   Autolocker lock(this);
   if (!object) {
-    assert(key);
+    DBUG_ASSERT(key);
     // For a NULL object, we only need to signal that the miss is handled.
     if (m_map<K>()->is_missed(*key)) {
       m_map<K>()->set_miss_handled(*key);
       mysql_cond_broadcast(&m_miss_handled);
     }
-    assert(*element == nullptr);
+    DBUG_ASSERT(*element == nullptr);
     return;
   }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   // The new object instance may not be present in the map.
   m_map<const T *>()->get(object, element);
-  assert(*element == nullptr);
+  DBUG_ASSERT(*element == nullptr);
 #endif
 
   // Get a new element, either from the pool, or by allocating a new one.
@@ -313,7 +315,7 @@ void Shared_multi_map<T>::put(const K *key, const T *object,
   const typename T::Aux_key *aux_key = (*element)->aux_key();
 
   // There must be at least one key.
-  assert(id_key || name_key || aux_key);
+  DBUG_ASSERT(id_key || name_key || aux_key);
 
   // For the non-null keys being missed, set that the miss is handled.
   bool key_missed = false;
@@ -358,7 +360,7 @@ void Shared_multi_map<T>::put(const K *key, const T *object,
 
   // If all keys are already present, we discard the new element.
   if (all_keys_present) {
-    assert(key);
+    DBUG_ASSERT(key);
 
     // If all keys are present, we sign up the object for being deleted.
     lock.auto_delete(object);
@@ -372,15 +374,15 @@ void Shared_multi_map<T>::put(const K *key, const T *object,
 
     // Then we return the existing element.
     *element = use_if_present(*key);
-    assert(*element);
+    DBUG_ASSERT(*element);
 
     // In this case, no key may be missed, so there is no need to broadcast.
-    assert(!key_missed);
+    DBUG_ASSERT(!key_missed);
     return;
   }
 
   // Must have all_keys_present ^ no_keys_present
-  assert(false); /* purecov: inspected */
+  DBUG_ASSERT(false); /* purecov: inspected */
 }
 
 // Release one element.
@@ -388,12 +390,12 @@ template <typename T>
 void Shared_multi_map<T>::release(Cache_element<T> *element) {
   Autolocker lock(this);
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   // The object must be present, and its usage must be > 0.
   Cache_element<T> *e = nullptr;
   m_map<const T *>()->get(element->object(), &e);
-  assert(e == element);
-  assert(e->usage() > 0);
+  DBUG_ASSERT(e == element);
+  DBUG_ASSERT(e->usage() > 0);
 
   // Get all keys that were created within the element.
   const typename T::Id_key *id_key = element->id_key();
@@ -401,9 +403,10 @@ void Shared_multi_map<T>::release(Cache_element<T> *element) {
   const typename T::Aux_key *aux_key = element->aux_key();
 
   // All non-null keys must exist.
-  assert((!id_key || m_map<typename T::Id_key>()->is_present(*id_key)) &&
-         (!name_key || m_map<typename T::Name_key>()->is_present(*name_key)) &&
-         (!aux_key || m_map<typename T::Aux_key>()->is_present(*aux_key)));
+  DBUG_ASSERT(
+      (!id_key || m_map<typename T::Id_key>()->is_present(*id_key)) &&
+      (!name_key || m_map<typename T::Name_key>()->is_present(*name_key)) &&
+      (!aux_key || m_map<typename T::Aux_key>()->is_present(*aux_key)));
 #endif
 
   // Release the element.
@@ -441,13 +444,13 @@ template <typename T>
 void Shared_multi_map<T>::replace(Cache_element<T> *element, const T *object) {
   Autolocker lock(this);
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   // The object must be present, and its usage must be 1 (this thread).
   Cache_element<T> *e = nullptr;
   m_map<const T *>()->get(element->object(), &e);
-  assert(e == element);
-  assert(e->usage() == 1);
-  assert(object);
+  DBUG_ASSERT(e == element);
+  DBUG_ASSERT(e->usage() == 1);
+  DBUG_ASSERT(object);
 #endif
 
   // Remove the single element from the maps, but do not delete the instance.

@@ -1,5 +1,5 @@
 ﻿/*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -113,13 +113,12 @@ static void init_DIM() {
   );
 
   // MySQLSession
-  dim.set_MySQLSession(
-      []() {
-        return new mysqlrouter::MySQLSession(
-            std::make_unique<
-                mysqlrouter::MySQLSession::LoggingStrategyDebugLogger>());
-      },
-      std::default_delete<mysqlrouter::MySQLSession>());
+  dim.set_MySQLSession([]() { return new mysqlrouter::MySQLSession(); },
+                       std::default_delete<mysqlrouter::MySQLSession>());
+
+  // Ofstream
+  dim.set_Ofstream([]() { return new mysqlrouter::RealOfstream(); },
+                   std::default_delete<mysqlrouter::Ofstream>());
 }
 
 static void preconfig_log_init(bool use_os_logger_initially) noexcept {

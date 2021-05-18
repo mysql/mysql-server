@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,7 @@ public:
    */
   Config * parseConfig(FILE * file);
   Config * parseConfig(const char * filename);
-  Config * parse_mycnf(const char * cluster_config_suffix);
+  Config * parse_mycnf();
 
   /**
    * Parser context struct

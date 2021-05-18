@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,12 +23,11 @@
 #ifndef SQL_LOAD_INCLUDED
 #define SQL_LOAD_INCLUDED
 
-#include <assert.h>
 #include <sys/types.h>
 
 #include "lex_string.h"
 #include "m_ctype.h"
-
+#include "my_dbug.h"
 #include "my_sqlcommand.h"
 #include "sql/current_thd.h"
 #include "sql/sql_cmd.h"         /* Sql_cmd */
@@ -67,9 +66,9 @@ class Sql_cmd_load_table final : public Sql_cmd {
         m_opt_set_expr_strings(opt_set_expr_strings) {
     if (opt_fields_or_vars)
       m_opt_fields_or_vars = std::move(*opt_fields_or_vars);
-    assert((opt_set_fields == nullptr) ^ (opt_set_exprs != nullptr));
+    DBUG_ASSERT((opt_set_fields == nullptr) ^ (opt_set_exprs != nullptr));
     if (opt_set_fields) {
-      assert(opt_set_fields->size() == opt_set_exprs->size());
+      DBUG_ASSERT(opt_set_fields->size() == opt_set_exprs->size());
       m_opt_set_fields = std::move(*opt_set_fields);
       m_opt_set_exprs = std::move(*opt_set_exprs);
     }

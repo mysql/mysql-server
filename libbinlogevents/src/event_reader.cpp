@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -108,7 +108,7 @@ void Event_reader::alloc_and_strncpy(char **destination, size_t length,
     set_error("Out of memory");
     return;
   }
-  if (length > 0) strncpy(*destination, m_ptr, length);
+  strncpy(*destination, m_ptr, length);
   (*destination)[length] = '\0';
   m_ptr = m_ptr + length;
 }
@@ -205,7 +205,7 @@ void Event_reader::strncpyz(char *destination, size_t max_length,
     set_error("Cannot read from out of buffer bounds");
     return;
   }
-  if (max_length > 0) strncpy(destination, m_ptr, max_length);
+  strncpy(destination, m_ptr, max_length);
   destination[dest_length - 1] = 0;
   m_ptr = m_ptr + strlen(destination) + 1;
 }
@@ -219,7 +219,7 @@ void Event_reader::assign(std::vector<uint8_t> *vector, size_t length) {
   }
   try {
     vector->assign(m_ptr, m_ptr + length);
-  } catch (const std::bad_alloc &) {
+  } catch (const std::bad_alloc &e) {
     vector->clear();
     set_error("std::bad_alloc");
   }

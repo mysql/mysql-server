@@ -144,4 +144,6 @@ CREATE SCHEMA xtest DEFAULT CHARSET 'utf8mb4';
 --exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/array_index.xpl 2>&1
 
 ## Cleanup
---source ../include/xplugin_cleanup.inc
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $MYSQL_TMP_DIR/array_index.xpl
+--source include/xplugin_drop_user.inc

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -187,7 +187,7 @@ determineMaxFragCount(NDBT_Context* ctx, NDBT_Step* step)
   return fc;
 }
 
-static const Uint32 defaultManyTableCount = 35;
+static const Uint32 defaultManyTableCount = 70;
 
 int 
 createManyTables(NDBT_Context* ctx, NDBT_Step* step)
@@ -473,35 +473,27 @@ static bool check_arbitration_setup(Ndb_cluster_connection* connection) {
     return false;
   }
 
-  // Iterate through the result to check if arbitration has been set up
-  bool arbitration_setup = true;
-  do {
-    const int scan_next_result = scanOp->nextResult();
-    if (scan_next_result == -1) {
-      g_err << "Failure to process ndbinfo records" << endl;
-      ndbinfo.releaseScanOperation(scanOp);
-      ndbinfo.closeTable(table);
-      return false;
-    } else if (scan_next_result == 0) {
-      // All ndbinfo records processed
-      break;
-    } else {
-      // Check the arbitration status
-      const bool known_arbitrator =
-        (arbitrator_nodeid_colval->u_32_value() != 0);
-      const bool connected =
+  bool arbitration_still_complete = true;
+  int ret;
+  while (arbitration_still_complete && (ret = scanOp->nextResult()) == 1) {
+    bool known_arbitrator = (arbitrator_nodeid_colval->u_32_value() != 0);
+    bool connected =
         static_cast<bool>(arbitration_connection_status_colval->u_32_value());
-      arbitration_setup = known_arbitrator && connected;
-    }
-  } while (arbitration_setup);
 
-  if (!arbitration_setup) {
-    ndbout << "Waiting for arbitration to be set up" << endl;
+    arbitration_still_complete = known_arbitrator && connected;
   }
-
   ndbinfo.releaseScanOperation(scanOp);
   ndbinfo.closeTable(table);
-  return arbitration_setup;
+
+  if (ret == -1) {
+    g_err << "Failure to process ndbinfo records" << endl;
+    return false;
+  }
+  if (!arbitration_still_complete) {
+    ndbout << "Waiting for arbitration to be setup" << endl;
+  }
+
+  return arbitration_still_complete;
 }
 
 /**
@@ -1502,9 +1494,6 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    *   so when we enter here, this is already tested
    */
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
 
   ndbout << "Starting backup..." << flush;
   if (backup.start() != 0)
@@ -2248,8 +2237,8 @@ runSkipIfCannotKeepFS(NDBT_Context* ctx, NDBT_Step* step)
     if (isDowngrade &&
         versionsSpanBoundary(preVersion, postVersion, problemBoundary))
     {
-      ndbout_c("Cannot run with these versions as data nodes require "
-               "initial restart for downgrades(WL#12876)");
+      ndbout_c("Cannot run with these versions as they do not support "
+               "non initial downgrades (WL#12876)");
       return NDBT_SKIPPED;
     }
   }

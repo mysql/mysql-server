@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -177,7 +177,7 @@ void Recovery_state_transfer::initialize_group_info() {
 void Recovery_state_transfer::update_group_membership(bool update_donor) {
   DBUG_TRACE;
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   mysql_mutex_assert_owner(&donor_selection_lock);
 #endif
 
@@ -313,7 +313,7 @@ int Recovery_state_transfer::check_recovery_thread_status() {
   // if some of the threads are running
   if (donor_connection_interface.is_receiver_thread_running() ||
       donor_connection_interface.is_applier_thread_running()) {
-    return terminate_recovery_slave_threads() != STATE_TRANSFER_OK;
+    return terminate_recovery_slave_threads(); /* purecov: inspected */
   }
   return 0;
 }
@@ -388,7 +388,7 @@ int Recovery_state_transfer::establish_donor_connection() {
         const char act[] =
             "now signal signal.connection_attempt_3 wait_for "
             "signal.reset_recovery_retry_count_done";
-        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
       }
     };);
     // max number of retries reached, abort
@@ -507,23 +507,22 @@ int Recovery_state_transfer::initialize_donor_connection(std::string hostname,
   selected_donor_hostname.assign(hostname);
 
   error = donor_connection_interface.initialize_channel(
-      const_cast<char *>(hostname.c_str()), port, /*user*/ nullptr,
-      /*pass*/ nullptr, recovery_use_ssl, recovery_ssl_ca, recovery_ssl_capath,
-      recovery_ssl_cert, recovery_ssl_cipher, recovery_ssl_key,
-      recovery_ssl_crl, recovery_ssl_crlpath, recovery_ssl_verify_server_cert,
-      DEFAULT_THREAD_PRIORITY, /*retry_count*/ 1, /*preserve_logs*/ false,
-      recovery_public_key_path, recovery_get_public_key,
-      recovery_compression_algorithm, recovery_zstd_compression_level,
-      recovery_tls_version,
-      recovery_tls_ciphersuites_null ? nullptr : recovery_tls_ciphersuites,
-      /*ignore_ws_mem_limit*/ true, /*allow_drop_write_set*/ true);
+      const_cast<char *>(hostname.c_str()), port, nullptr, nullptr,
+      recovery_use_ssl, recovery_ssl_ca, recovery_ssl_capath, recovery_ssl_cert,
+      recovery_ssl_cipher, recovery_ssl_key, recovery_ssl_crl,
+      recovery_ssl_crlpath, recovery_ssl_verify_server_cert,
+      DEFAULT_THREAD_PRIORITY, 1, false, recovery_public_key_path,
+      recovery_get_public_key, recovery_compression_algorithm,
+      recovery_zstd_compression_level, recovery_tls_version,
+      recovery_tls_ciphersuites_null ? nullptr : recovery_tls_ciphersuites);
 
   if (!error) {
     LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_ESTABLISHING_CONN_GRP_REC_DONOR,
                  selected_donor->get_uuid().c_str(), hostname.c_str(), port);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_CREATE_GRP_RPL_REC_CHANNEL,
-                 selected_donor->get_uuid().c_str(), hostname.c_str(), port);
+                 selected_donor->get_uuid().c_str(), hostname.c_str(),
+                 port); /* purecov: inspected */
   }
 
   return error;
@@ -540,13 +539,13 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
       const char act[] =
           "now "
           "WAIT_FOR reached_stopping_io_thread";
-      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
     DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook", {
       const char act[] =
           "now "
           "WAIT_FOR reached_stopping_sql_thread";
-      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
     };);
 
     /*
@@ -582,11 +581,11 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
 
   DBUG_EXECUTE_IF("pause_after_io_thread_stop_hook", {
     const char act[] = "now SIGNAL continue_to_stop_io_thread";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
   DBUG_EXECUTE_IF("pause_after_sql_thread_stop_hook", {
     const char act[] = "now SIGNAL continue_to_stop_sql_thread";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    DBUG_ASSERT(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
   };);
 
   if (error) {
@@ -604,22 +603,21 @@ int Recovery_state_transfer::start_recovery_donor_threads() {
   return error;
 }
 
-State_transfer_status Recovery_state_transfer::terminate_recovery_slave_threads(
-    bool purge_logs) {
+int Recovery_state_transfer::terminate_recovery_slave_threads(bool purge_logs) {
   DBUG_TRACE;
 
   LogPluginErr(INFORMATION_LEVEL, ER_GRP_RPL_DONOR_CONN_TERMINATION);
 
-  State_transfer_status error = STATE_TRANSFER_OK;
+  int error = 0;
 
   // If the threads never started, the method just returns
-  if (donor_connection_interface.stop_threads(true, true)) {
-    error = STATE_TRANSFER_STOP;
-    LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_STOPPING_GRP_REC);
+  if ((error = donor_connection_interface.stop_threads(true, true))) {
+    LogPluginErr(ERROR_LEVEL,
+                 ER_GRP_RPL_STOPPING_GRP_REC); /* purecov: inspected */
   } else {
     if (purge_logs) {
       // If there is no repository in place nothing happens
-      if (purge_recovery_slave_threads_repos()) error = STATE_TRANSFER_PURGE;
+      error = purge_recovery_slave_threads_repos();
     }
   }
 
@@ -637,26 +635,19 @@ int Recovery_state_transfer::purge_recovery_slave_threads_repos() {
     /* purecov: end */
   }
   error = donor_connection_interface.initialize_channel(
-      /*host*/ const_cast<char *>("<NULL>"), /*port*/ 0, /*user*/ nullptr,
-      /*pass*/ nullptr, /*use_ssl*/ false, /*ssl_ca*/ nullptr,
-      /*ssl_capath*/ nullptr, /*ssl_cert*/ nullptr, /*ssl_cipher*/ nullptr,
-      /*ssl_key*/ nullptr, /*ssl_crl*/ nullptr, /*ssl_crlpath*/ nullptr,
-      /*ssl_verify*/ false,
-      /*priority*/ DEFAULT_THREAD_PRIORITY,
-      /*retry_count*/ 1,
-      /*preserve_logs*/ false, /*public_key_path*/ nullptr,
-      /*get_public_key*/ false, /*compression_alg*/ nullptr,
-      /*compression_level*/ 0, /*tls_version*/ nullptr, /*tls_cipher*/ nullptr,
-      /*ignore_ws_mem_limit*/ true, /*allow_drop_write_set*/ true);
+      const_cast<char *>("<NULL>"), 0, nullptr, nullptr, false, nullptr,
+      nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, false,
+      DEFAULT_THREAD_PRIORITY, 1, false, nullptr, false, nullptr, 0, nullptr,
+      nullptr);
 
   return error;
 }
 
-State_transfer_status Recovery_state_transfer::state_transfer(
+int Recovery_state_transfer::state_transfer(
     Plugin_stage_monitor_handler &stage_handler) {
   DBUG_TRACE;
 
-  State_transfer_status error = STATE_TRANSFER_OK;
+  int error = 0;
 
   while (!donor_transfer_finished && !recovery_aborted) {
     /*
@@ -689,12 +680,12 @@ State_transfer_status Recovery_state_transfer::state_transfer(
           recovery_channel_observer);
 
       // Stop the threads before reconfiguring the connection
-      if (donor_connection_interface.stop_threads(true, true)) {
+      if ((error = donor_connection_interface.stop_threads(true, true))) {
         /* purecov: begin inspected */
         LogPluginErr(ERROR_LEVEL,
                      ER_GRP_RPL_UNABLE_TO_KILL_CONN_REC_DONOR_FAILOVER);
         // if we can't stop, abort recovery
-        return STATE_TRANSFER_STOP;
+        return error;
         /* purecov: end */
       }
     }
@@ -703,8 +694,7 @@ State_transfer_status Recovery_state_transfer::state_transfer(
                             __FILE__, __LINE__, 0, 0);
     if (!recovery_aborted) {
       // if the connection to the donor failed, abort recovery
-      if (establish_donor_connection()) {
-        error = STATE_TRANSFER_NO_CONNECTION;
+      if ((error = establish_donor_connection())) {
         break;
       }
     }
@@ -736,14 +726,9 @@ State_transfer_status Recovery_state_transfer::state_transfer(
       recovery_channel_observer);
 
   // do not purge logs if an error occur, keep the diagnose on SLAVE STATUS
-  bool purge_relay_logs = (error == STATE_TRANSFER_OK);
+  bool purge_relay_logs = !error;
   DBUG_EXECUTE_IF("gr_recovery_skip_purge_logs", { purge_relay_logs = false; });
-  State_transfer_status stop_error =
-      terminate_recovery_slave_threads(purge_relay_logs);
-
-  // If a connection error exists, we preserve it
-  if (error == STATE_TRANSFER_OK && stop_error != STATE_TRANSFER_OK)
-    error = stop_error;
+  terminate_recovery_slave_threads(purge_relay_logs);
 
   connected_to_donor = false;
 

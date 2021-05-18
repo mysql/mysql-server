@@ -1,0 +1,42 @@
+# Test reading & writing multiple tab-separated values.
+# This test exposes a bug where parts of a previous longer value can be
+# appended to the (shorter) value of a subsequent request.
+--source include/have_ndb.inc
+--source suite/ndb_memcache/include/have_memcache.inc
+
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+if($r == 0) {
+  print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
+}
+else {
+  $mc->set("t:10", "anglophilia\tbacktrack\t10");
+  $mc->set("t:11", "catarrh\tdogmatic\t11");
+  $mc->set("t:12", "earthworm\tfish\t12");
+  $mc->set("t:13", "gordian\thellene\t13");
+  $mc->set("t:14", "igneous\tjubilee\t14");
+  $mc->set("t:15", "kelpie\tlimp\t15");
+  $mc->set("t:16", "mop\tnoose\t16");
+  $mc->set("t:17", "oil\tpig\t17");
+  $mc->set("t:18", "quagmire\trelic\t18");
+  $mc->set("t:19", "scum\ttic\t19");
+  $mc->set("t:20", "um\tvan\t20");
+  $mc->set("t:21", "westphalian\txeroma\t21");
+  $mc->set("t:22", "yip\tzoo\t22");  
+}
+
+EOF
+
+--sorted_result
+SELECT mkey, val1, val2, val3 FROM ndbmemcache.demo_table_tabs;
+DELETE FROM ndbmemcache.demo_table_tabs;

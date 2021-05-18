@@ -10,7 +10,7 @@
 --source include/xplugin_create_user.inc
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/features.xpl
+--write_file $MYSQL_TMP_DIR/features.tmp
 
 ##
 ## Verify_expect_open
@@ -58,7 +58,8 @@ Mysqlx.Expect.Close {
 -->callmacro Verify_expect_open	all features in single request	%ALL_COND%
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/features.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/features.tmp 2>&1
 
 ## Cleanup
---source ../include/xplugin_cleanup.inc
+--remove_file $MYSQL_TMP_DIR/features.tmp
+--source include/xplugin_drop_user.inc

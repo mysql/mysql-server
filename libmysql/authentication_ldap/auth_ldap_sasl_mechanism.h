@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -36,7 +36,6 @@
 
 const char SASL_GSSAPI[] = "GSSAPI";
 const char SASL_SCRAM_SHA1[] = "SCRAM-SHA-1";
-const char SASL_SCRAM_SHA256[] = "SCRAM-SHA-256";
 const int SASL_ERROR_INVALID_METHOD = -2;
 
 class Sasl_mechanism {

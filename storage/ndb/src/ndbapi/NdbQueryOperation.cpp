@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -922,7 +922,7 @@ NdbResultStream::NdbResultStream(NdbQueryOperationImpl& operation,
           // First is 'above' parent -> Is parent or an ancestor of 'this' stream
           m_skipFirstInnerOpNo = m_parent->getInternalOpNo();
         } else {
-          assert(!isScanResult() ||
+          DBUG_ASSERT(!isScanResult() ||
                       firstInEmbeddingNestDef->getParentOperation() ==
                       queryOperationDef.getParentOperation());
           m_skipFirstInnerOpNo = firstInEmbeddingNestDef->getInternalOpNo();
@@ -1349,7 +1349,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
              * allowed to be returned as well.
              */
             hasMatchingChild.set(childId);
-            assert(hasMatchingChild.get(thisOpId));
+            DBUG_ASSERT(hasMatchingChild.get(thisOpId));
 
             if (unlikely(traceSignals)) {
               const char *reason =
@@ -1370,7 +1370,7 @@ NdbResultStream::prepareResultSet(const SpjTreeNodeMask expectingResults,
              * Handle this by 'un-matching' the firstInner of the join-nest.
              */
             const Uint32 skipFirstInnerOpNo = childStream.m_skipFirstInnerOpNo;
-            assert(skipFirstInnerOpNo != ~0U);
+            DBUG_ASSERT(skipFirstInnerOpNo != ~0U);
             hasMatchingChild.clear(skipFirstInnerOpNo);     // Un-match join-nest
 
             if (likely(skipFirstInnerOpNo == thisOpId)) {
@@ -1685,7 +1685,7 @@ void NdbWorker::prepareNextReceiveSet()
 }
 
 /**
- * Let the application thread take ownership of an available
+ * Let the application thread takes ownership of an available
  * ResultSet, prepare it for reading first row.
  * Need mutex lock as 'm_availResultSets' is accesed both from
  * receiver and application thread.
@@ -2053,7 +2053,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
         return QRY_PARAMETER_HAS_WRONG_TYPE;
       
       len = static_cast<Uint32>(sizeof(m_value.uint16));
-      assert(len == maxSize);
+      DBUG_ASSERT(len == maxSize);
       dst.appendBytes(&m_value.uint16, len);
       break;
 
@@ -2063,7 +2063,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
         return QRY_PARAMETER_HAS_WRONG_TYPE;
 
       len = static_cast<Uint32>(sizeof(m_value.uint32));
-      assert(len == maxSize);
+      DBUG_ASSERT(len == maxSize);
       dst.appendBytes(&m_value.uint32, len);
       break;
 
@@ -2073,7 +2073,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
         return QRY_PARAMETER_HAS_WRONG_TYPE;
 
       len = static_cast<Uint32>(sizeof(m_value.uint64));
-      assert(len == maxSize);
+      DBUG_ASSERT(len == maxSize);
       dst.appendBytes(&m_value.uint64, len);
       break;
 
@@ -2082,7 +2082,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
         return QRY_PARAMETER_HAS_WRONG_TYPE;
 
       len = static_cast<Uint32>(sizeof(m_value.dbl));
-      assert(len == maxSize);
+      DBUG_ASSERT(len == maxSize);
       dst.appendBytes(&m_value.dbl, len);
       break;
 
@@ -2111,7 +2111,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       {
         len  = 1+*((Uint8*)(m_value.raw));
 
-        assert(column.getType() == NdbDictionary::Column::Varchar ||
+        DBUG_ASSERT(column.getType() == NdbDictionary::Column::Varchar ||
                     column.getType() == NdbDictionary::Column::Varbinary);
         if (unlikely(len > 1+static_cast<Uint32>(column.getLength())))
           return QRY_CHAR_PARAMETER_TRUNCATED;
@@ -2122,7 +2122,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       {
         len  = 2+uint2korr((Uint8*)m_value.raw);
 
-        assert(column.getType() == NdbDictionary::Column::Longvarchar ||
+        DBUG_ASSERT(column.getType() == NdbDictionary::Column::Longvarchar ||
                     column.getType() == NdbDictionary::Column::Longvarbinary);
         if (unlikely(len > 2+static_cast<Uint32>(column.getLength())))
           return QRY_CHAR_PARAMETER_TRUNCATED;
@@ -2130,7 +2130,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       }
       else
       {
-        assert(0);
+        DBUG_ASSERT(0);
       }
       break;
 
@@ -2139,7 +2139,7 @@ NdbQueryParamValue::serializeValue(const class NdbColumnImpl& column,
       if (unlikely(column.m_arrayType != NDB_ARRAYTYPE_SHORT_VAR))
         return QRY_PARAMETER_HAS_WRONG_TYPE;
 
-      assert(column.getType() == NdbDictionary::Column::Varchar ||
+      DBUG_ASSERT(column.getType() == NdbDictionary::Column::Varchar ||
                   column.getType() == NdbDictionary::Column::Varbinary);
 
       {
@@ -3267,8 +3267,7 @@ NdbQueryImpl::prepareSend()
                       getRoot().getOrdering(),
                       m_workerCount, 
                       keyRec,
-                      getRoot().m_ndbRecord,
-                      getRoot().m_read_mask);
+                      getRoot().m_ndbRecord);
 
   if (getQueryDef().isScanQuery())
   {
@@ -3479,15 +3478,7 @@ NdbQueryImpl::doSend(int nodeId, bool lastFlag)
   {
     Uint32 scan_flags = 0;  // TODO: Specify with ScanOptions::SO_SCANFLAGS
 
-    // The number of acc-scans are limited therefore use tup-scans instead.
-    bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan) || true;
-#if defined(VM_TRACE)
-    if (ndb.theImpl->forceAccTableScans)
-    {
-      tupScan = false;
-    }
-#endif
-
+    bool tupScan = (scan_flags & NdbScanOperation::SF_TupScan);
     bool rangeScan = false;
 
     /* Handle IndexScan specifics */
@@ -3953,7 +3944,6 @@ NdbQueryImpl::OrderedFragSet::OrderedFragSet():
   m_ordering(NdbQueryOptions::ScanOrdering_void),
   m_keyRecord(NULL),
   m_resultRecord(NULL),
-  m_resultMask(NULL),
   m_activeWorkers(NULL),
   m_fetchMoreWorkers(NULL)
 {
@@ -3976,8 +3966,7 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
                                       NdbQueryOptions::ScanOrdering ordering, 
                                       int capacity,                
                                       const NdbRecord* keyRecord,
-                                      const NdbRecord* resultRecord,
-                                      const unsigned char* resultMask)
+                                      const NdbRecord* resultRecord)
 {
   assert(m_activeWorkers==NULL);
   assert(m_capacity==0);
@@ -3998,7 +3987,6 @@ NdbQueryImpl::OrderedFragSet::prepare(NdbBulkAllocator& allocator,
   m_ordering = ordering;
   m_keyRecord = keyRecord;
   m_resultRecord = resultRecord;
-  m_resultMask = resultMask;
 } // OrderedFragSet::prepare()
 
 
@@ -4245,7 +4233,6 @@ NdbQueryImpl::OrderedFragSet::compare(const NdbWorker& worker1,
                            &worker2.getResultStream(0).getReceiver(),
                            m_keyRecord,
                            m_resultRecord,
-                           m_resultMask,
                            m_ordering 
                            == NdbQueryOptions::ScanOrdering_descending,
                            false);
@@ -5145,7 +5132,7 @@ NdbQueryOperationImpl::prepareAttrInfo(Uint32Buffer& attrInfo,
     {
       requestInfo |= QN_ScanFragParameters::SFP_SORTED_ORDER;
       // Only supported for root yet.
-      assert(this == &getRoot());
+      DBUG_ASSERT(this == &getRoot());
     }
 
     param->requestInfo = requestInfo;
@@ -5667,7 +5654,7 @@ NdbQueryOperationImpl::execSCAN_TABCONF(Uint32 tcPtrI,
            << " tcPtrI " << tcPtrI
            << endl;
   }
-  assert(moreMask!=0 || activeMask==0);
+  DBUG_ASSERT(moreMask!=0 || activeMask==0);
 
   // Prepare for SCAN_NEXTREQ, tcPtrI==RNIL, moreMask==0 -> EOF
   worker->setConfReceived(tcPtrI);

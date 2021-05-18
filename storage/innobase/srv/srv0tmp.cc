@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -122,6 +122,7 @@ dberr_t Tablespace::create() {
   if (!ret) {
     return (DB_ERROR);
   }
+  buf_LRU_flush_or_remove_pages(m_space_id, BUF_REMOVE_FLUSH_WRITE, nullptr);
   return (DB_SUCCESS);
 }
 
@@ -136,21 +137,19 @@ bool Tablespace::close() const {
 
 bool Tablespace::truncate() {
   if (!m_inited) {
-    return false;
+    return (false);
   }
 
-  if (!fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE)) {
-    return false;
+  bool success = fil_truncate_tablespace(m_space_id, FIL_IBT_FILE_INITIAL_SIZE);
+  if (!success) {
+    return (success);
   }
-
   mtr_t mtr;
-
   mtr_start(&mtr);
   mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
   fsp_header_init(m_space_id, FIL_IBT_FILE_INITIAL_SIZE, &mtr, false);
   mtr_commit(&mtr);
-
-  return true;
+  return (true);
 }
 
 uint32_t Tablespace::file_id() const {

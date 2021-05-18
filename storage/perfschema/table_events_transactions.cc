@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,10 @@
 
 #include "storage/perfschema/table_events_transactions.h"
 
-#include <assert.h>
 #include <stddef.h>
 
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -320,8 +319,8 @@ static const ulong XID_BUFFER_SIZE = XIDDATASIZE * 2 + 2 + 1;
 */
 static size_t xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset,
                          size_t length) {
-  assert(buf_len >= XID_BUFFER_SIZE);
-  assert(offset + length <= XIDDATASIZE);
+  DBUG_ASSERT(buf_len >= XID_BUFFER_SIZE);
+  DBUG_ASSERT(offset + length <= XIDDATASIZE);
   *buf++ = '0';
   *buf++ = 'x';
   return bin_to_hex_str(buf, buf_len - 2, (char *)(xid->data + offset),
@@ -340,7 +339,7 @@ static size_t xid_to_hex(char *buf, size_t buf_len, PSI_xid *xid, size_t offset,
 */
 static void xid_store(Field *field, PSI_xid *xid, size_t offset,
                       size_t length) {
-  assert(!xid->is_null());
+  DBUG_ASSERT(!xid->is_null());
   if (xid_printable(xid, offset, length)) {
     field->store(xid->data + offset, length, &my_charset_bin);
   } else {
@@ -371,7 +370,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
-  assert(table->s->null_bytes == 3);
+  DBUG_ASSERT(table->s->null_bytes == 3);
   buf[0] = 0;
   buf[1] = 0;
   buf[2] = 0;
@@ -500,7 +499,7 @@ int table_events_transactions_common::read_row_values(TABLE *table,
           }
           break;
         default:
-          assert(false);
+          DBUG_ASSERT(false);
       }
     }
   }
@@ -561,7 +560,7 @@ int table_events_transactions_current::rnd_pos(const void *pos) {
 int table_events_transactions_current::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_events_transactions *result;
-  assert(idx == 0);
+  DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_events_transactions);
   m_opened_index = result;
   m_index = result;
@@ -656,10 +655,10 @@ int table_events_transactions_history::rnd_pos(const void *pos) {
   PFS_thread *pfs_thread;
   PFS_events_transactions *transaction;
 
-  assert(events_transactions_history_per_thread != 0);
+  DBUG_ASSERT(events_transactions_history_per_thread != 0);
   set_position(pos);
 
-  assert(m_pos.m_index_2 < events_transactions_history_per_thread);
+  DBUG_ASSERT(m_pos.m_index_2 < events_transactions_history_per_thread);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != nullptr) {
@@ -680,7 +679,7 @@ int table_events_transactions_history::rnd_pos(const void *pos) {
 int table_events_transactions_history::index_init(
     uint idx MY_ATTRIBUTE((unused)), bool) {
   PFS_index_events_transactions *result;
-  assert(idx == 0);
+  DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_events_transactions);
   m_opened_index = result;
   m_index = result;

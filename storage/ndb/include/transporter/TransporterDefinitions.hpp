@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -318,12 +318,6 @@ enum TransporterError {
    */
   , TE_COMPRESSED_UNSUPPORTED = 0x24 | TE_DO_DISCONNECT
 
-  /**
-   *
-   * Error found in signal, not following NDB protocol
-   * Recommended behavior: setPerformState(PerformDisonnect)
-   */
-  , TE_INVALID_SIGNAL = 0x25 | TE_DO_DISCONNECT
 };
 
 #endif // Define of TransporterDefinitions_H

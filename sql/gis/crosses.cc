@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -80,7 +80,7 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
 
       // g1 and g2 must have at least one interior point in common.
       bool shared_interior = false;
-      assert(g1_mpy->empty());  // Should have returned already.
+      DBUG_ASSERT(g1_mpy->empty());  // Should have returned already.
       if (g1->coordinate_system() == Coordinate_system::kCartesian) {
         if (g1_mpy->empty() && !g1_mls->empty() && g2_mpy->empty() &&
             !g2_mls->empty()) {
@@ -156,7 +156,7 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
                          mask);
         }
       } else {
-        assert(g1->coordinate_system() == Coordinate_system::kGeographic);
+        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
         if (g1_mpy->empty() && !g1_mls->empty() && g2_mpy->empty() &&
             !g2_mls->empty()) {
           // Both g1 and g2 are of dimenision 1, so the common interior has to
@@ -262,7 +262,7 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
         return geometry_collection_apply_crosses<Cartesian_geometrycollection>(
             f, g1, &gc);
       } else {
-        assert(g1->coordinate_system() == Coordinate_system::kGeographic);
+        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
         Geographic_geometrycollection gc;
         gc.push_back(*g2);
         return geometry_collection_apply_crosses<Geographic_geometrycollection>(
@@ -277,7 +277,7 @@ static bool geometry_collection_apply_crosses(const Crosses &f,
         return geometry_collection_apply_crosses<Cartesian_geometrycollection>(
             f, &gc, g2);
       } else {
-        assert(g1->coordinate_system() == Coordinate_system::kGeographic);
+        DBUG_ASSERT(g1->coordinate_system() == Coordinate_system::kGeographic);
         Geographic_geometrycollection gc;
         gc.push_back(*g1);
         return geometry_collection_apply_crosses<Geographic_geometrycollection>(
@@ -303,7 +303,7 @@ bool Crosses::operator()(const Geometry *g1, const Geometry *g2) const {
 
 bool Crosses::eval(const Geometry *g1, const Geometry *g2) const {
   // All parameter type combinations have been implemented.
-  assert(false);
+  DBUG_ASSERT(false);
   throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
@@ -871,19 +871,19 @@ bool crosses(const dd::Spatial_reference_system *srs, const Geometry *g1,
              const Geometry *g2, const char *func_name, bool *crosses,
              bool *null) noexcept {
   try {
-    assert(g1->coordinate_system() == g2->coordinate_system());
-    assert(srs == nullptr ||
-           ((srs->is_cartesian() &&
-             g1->coordinate_system() == Coordinate_system::kCartesian) ||
-            (srs->is_geographic() &&
-             g1->coordinate_system() == Coordinate_system::kGeographic)));
+    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
+    DBUG_ASSERT(srs == nullptr ||
+                ((srs->is_cartesian() &&
+                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
+                 (srs->is_geographic() &&
+                  g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
 
     Crosses crosses_func(srs ? srs->semi_major_axis() : 0.0,
                          srs ? srs->semi_minor_axis() : 0.0);
     *crosses = crosses_func(g1, g2);
-  } catch (const null_value_exception &) {
+  } catch (const null_value_exception &e) {
     *null = true;
     return false;
   } catch (...) {

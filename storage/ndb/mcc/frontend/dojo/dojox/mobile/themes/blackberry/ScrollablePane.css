@@ -1,0 +1,12 @@
+
+.mblScrollablePane {
+  position: relative;
+  overflow: hidden;
+}
+.mblScrollableViewContainer {
+  position: absolute;
+  top: 0px;
+}
+.mblScrollablePaneMask {
+  position: relative;
+}

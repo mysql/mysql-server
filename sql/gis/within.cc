@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ bool Within::operator()(const Geometry *g1, const Geometry *g2) const {
 }
 
 bool Within::operator()(const Box *b1, const Box *b2) const {
-  assert(b1->coordinate_system() == b2->coordinate_system());
+  DBUG_ASSERT(b1->coordinate_system() == b2->coordinate_system());
   switch (b1->coordinate_system()) {
     case Coordinate_system::kCartesian:
       return eval(down_cast<const Cartesian_box *>(b1),
@@ -72,13 +72,13 @@ bool Within::operator()(const Box *b1, const Box *b2) const {
                   down_cast<const Geographic_box *>(b2));
   }
 
-  assert(false);
+  DBUG_ASSERT(false);
   return false;
 }
 
 bool Within::eval(const Geometry *g1, const Geometry *g2) const {
   // All parameter type combinations have been implemented.
-  assert(false);
+  DBUG_ASSERT(false);
   throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
@@ -150,7 +150,8 @@ bool Within::eval(const Cartesian_linestring *g1,
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
 
   Difference difference(m_semi_major, m_semi_minor);
@@ -213,7 +214,8 @@ bool Within::eval(const Cartesian_polygon *g1,
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
   return eval(g1, down_cast<Cartesian_multipolygon *>(g2_mpy.get()));
 }
@@ -252,7 +254,8 @@ bool Within::eval(const Cartesian_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   if (!g1_mpy->empty()) return false;
@@ -276,7 +279,8 @@ bool Within::eval(const Cartesian_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   if (eval(down_cast<Cartesian_multipoint *>(g1_mpt.get()), g2)) {
@@ -311,13 +315,15 @@ bool Within::eval(const Cartesian_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
 
   // Check that no part of g1 is in the exterior of g2.
@@ -370,7 +376,8 @@ bool Within::eval(const Cartesian_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
   return g1_mls->empty() && g1_mpy->empty() &&
          eval(down_cast<Cartesian_multipoint *>(g1_mpt.get()), g2);
@@ -383,7 +390,8 @@ bool Within::eval(const Cartesian_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   if (!g1_mpy->empty()) return false;
@@ -407,7 +415,8 @@ bool Within::eval(const Cartesian_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   if (eval(down_cast<Cartesian_multipoint *>(g1_mpt.get()), g2)) {
@@ -581,7 +590,8 @@ bool Within::eval(const Cartesian_multilinestring *g1,
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
 
   Difference difference(m_semi_major, m_semi_minor);
@@ -645,7 +655,8 @@ bool Within::eval(const Cartesian_multipolygon *g1,
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
   return eval(g1, down_cast<Cartesian_multipolygon *>(g2_mpy.get()));
 }
@@ -741,7 +752,8 @@ bool Within::eval(const Geographic_linestring *g1,
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
 
   Difference difference(m_semi_major, m_semi_minor);
@@ -805,7 +817,8 @@ bool Within::eval(const Geographic_polygon *g1,
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
   return eval(g1, down_cast<Geographic_multipolygon *>(g2_mpy.get()));
 }
@@ -844,7 +857,8 @@ bool Within::eval(const Geographic_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   if (!g1_mpy->empty()) return false;
@@ -869,7 +883,8 @@ bool Within::eval(const Geographic_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   if (eval(down_cast<Geographic_multipoint *>(g1_mpt.get()), g2)) {
@@ -906,13 +921,15 @@ bool Within::eval(const Geographic_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
 
   // Check that no part of g1 is in the exterior of g2.
@@ -967,7 +984,8 @@ bool Within::eval(const Geographic_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
   return g1_mls->empty() && g1_mpy->empty() &&
          eval(down_cast<Geographic_multipoint *>(g1_mpt.get()), g2);
@@ -980,7 +998,8 @@ bool Within::eval(const Geographic_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   if (!g1_mpy->empty()) return false;
@@ -1005,7 +1024,8 @@ bool Within::eval(const Geographic_geometrycollection *g1,
   std::unique_ptr<Multipoint> g1_mpt;
   std::unique_ptr<Multilinestring> g1_mls;
   std::unique_ptr<Multipolygon> g1_mpy;
-  split_gc(g1, &g1_mpt, &g1_mls, &g1_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g1), &g1_mpt, &g1_mls,
+           &g1_mpy);
   gc_union(m_semi_major, m_semi_minor, &g1_mpt, &g1_mls, &g1_mpy);
 
   if (eval(down_cast<Geographic_multipoint *>(g1_mpt.get()), g2)) {
@@ -1183,7 +1203,8 @@ bool Within::eval(const Geographic_multilinestring *g1,
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
 
   Difference difference(m_semi_major, m_semi_minor);
@@ -1248,7 +1269,8 @@ bool Within::eval(const Geographic_multipolygon *g1,
   std::unique_ptr<Multipoint> g2_mpt;
   std::unique_ptr<Multilinestring> g2_mls;
   std::unique_ptr<Multipolygon> g2_mpy;
-  split_gc(g2, &g2_mpt, &g2_mls, &g2_mpy);
+  split_gc(down_cast<const Geometrycollection *>(g2), &g2_mpt, &g2_mls,
+           &g2_mpy);
   gc_union(m_semi_major, m_semi_minor, &g2_mpt, &g2_mls, &g2_mpy);
   return eval(g1, down_cast<Geographic_multipolygon *>(g2_mpy.get()));
 }
@@ -1389,12 +1411,12 @@ bool within(const dd::Spatial_reference_system *srs, const Geometry *g1,
             const Geometry *g2, const char *func_name, bool *within,
             bool *null) noexcept {
   try {
-    assert(g1->coordinate_system() == g2->coordinate_system());
-    assert(srs == nullptr ||
-           ((srs->is_cartesian() &&
-             g1->coordinate_system() == Coordinate_system::kCartesian) ||
-            (srs->is_geographic() &&
-             g1->coordinate_system() == Coordinate_system::kGeographic)));
+    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
+    DBUG_ASSERT(srs == nullptr ||
+                ((srs->is_cartesian() &&
+                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
+                 (srs->is_geographic() &&
+                  g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
 
@@ -1413,12 +1435,12 @@ bool mbr_within(const dd::Spatial_reference_system *srs, const Geometry *g1,
                 const Geometry *g2, const char *func_name, bool *within,
                 bool *null) noexcept {
   try {
-    assert(g1->coordinate_system() == g2->coordinate_system());
-    assert(srs == nullptr ||
-           ((srs->is_cartesian() &&
-             g1->coordinate_system() == Coordinate_system::kCartesian) ||
-            (srs->is_geographic() &&
-             g1->coordinate_system() == Coordinate_system::kGeographic)));
+    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
+    DBUG_ASSERT(srs == nullptr ||
+                ((srs->is_cartesian() &&
+                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
+                 (srs->is_geographic() &&
+                  g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
 

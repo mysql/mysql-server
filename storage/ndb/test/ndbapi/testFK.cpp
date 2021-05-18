@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -922,7 +922,6 @@ runRSSsnapshotCheck(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
   g_info << "check all resource usage" << endl;
-  sleep(2);
   int dump1[] = { DumpStateOrd::SchemaResourceCheckLeak };
   restarter.dumpStateAllNodes(dump1, 1);
   return NDBT_OK;
@@ -980,6 +979,7 @@ runTransSnapshot(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbRestarter restarter;
   Ndb *pNdb = GETNDB(step);
+
   g_info << "save all resource usage" << endl;
   int dump1[] = { DumpStateOrd::TcResourceSnapshot };
   restarter.dumpStateAllNodes(dump1, 1);
@@ -1275,6 +1275,7 @@ runMixedCascade(NDBT_Context* ctx, NDBT_Step* step)
   ndbout_c("count_ok: %d count_failed: %d",
            count_ok, count_failed);
   delete [] pRow;
+
   return NDBT_OK;
 }
 
@@ -1355,8 +1356,8 @@ runTransError(NDBT_Context* ctx, NDBT_Step* step)
     }
 #endif
     printf("testing errcode: %d\n", terrorCodes[i]);
-    runTransSnapshot(ctx, step);
     runLongSignalMemorySnapshotStart(ctx, step);
+    runTransSnapshot(ctx, step);
     runRSSsnapshot(ctx, step);
 
     res.insertErrorInAllNodes(terrorCodes[i]);
@@ -1368,13 +1369,9 @@ runTransError(NDBT_Context* ctx, NDBT_Step* step)
       runMixedCascade(ctx, step);
       break;
     }
-    /**
-     * If we are not using Read Backup we can arrive here while the
-     * commit is in progress, give the commit a chance to complete
-     * before checking the memory allocation snapshots.
-     */
-    runRSSsnapshotCheck(ctx, step);
+
     runTransSnapshotCheck(ctx, step);
+    runRSSsnapshotCheck(ctx, step);
     runLongSignalMemorySnapshotCheck(ctx, step);
   }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+Copyright (c) 2012, 2020, Oracle and/or its affiliates.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -111,9 +111,18 @@ struct LatchDebug {
   by this module. */
   typedef OSMutex Mutex;
 
+  /** Comparator for the ThreadMap. */
+  struct os_thread_id_less {
+    /** @return true if lhs < rhs */
+    bool operator()(const os_thread_id_t &lhs,
+                    const os_thread_id_t &rhs) const UNIV_NOTHROW {
+      return ((uint64_t)lhs < (uint64_t)rhs);
+    }
+  };
+
   /** For tracking a thread's latches. */
-  typedef std::map<std::thread::id, Latches *, std::less<std::thread::id>,
-                   ut_allocator<std::pair<const std::thread::id, Latches *>>>
+  typedef std::map<os_thread_id_t, Latches *, os_thread_id_less,
+                   ut_allocator<std::pair<const os_thread_id_t, Latches *>>>
       ThreadMap;
 
   /** Constructor */
@@ -209,7 +218,7 @@ struct LatchDebug {
   OS thread.  Makes the checks against other latch levels stored
   in the array for this thread.
 
-  @param[in]	latch	latch that the thread wants to acquire.
+  @param[in]	latch	latch that the thread wants to acqire.
   @param[in]	level	latch level to check against */
   void lock_granted(const latch_t *latch, latch_level_t level) UNIV_NOTHROW {
     /* Ignore diagnostic latches, starting with '.' */
@@ -532,9 +541,8 @@ void LatchDebug::crash(const Latches *latches, const Latched *latched,
 #else
   ib::error(ER_IB_MSG_1163)
 #endif /* UNIV_NO_ERR_MSGS */
-      << "Thread " << to_string(std::this_thread::get_id())
-      << " already owns a latch " << sync_latch_get_name(latch->m_id)
-      << " at level"
+      << "Thread " << os_thread_get_curr_id() << " already owns a latch "
+      << sync_latch_get_name(latch->m_id) << " at level"
       << " " << latched->m_level << " (" << latch_level_name
       << " ), which is at a lower/same level than the"
       << " requested latch: " << level << " (" << in_level_name << "). "
@@ -589,7 +597,7 @@ bool LatchDebug::basic_check(const Latches *latches,
 Latches *LatchDebug::thread_latches(bool add) UNIV_NOTHROW {
   m_mutex.enter();
 
-  auto thread_id = std::this_thread::get_id();
+  os_thread_id_t thread_id = os_thread_get_curr_id();
   ThreadMap::iterator lb = m_threads.lower_bound(thread_id);
 
   if (lb != m_threads.end() && !(m_threads.key_comp()(thread_id, lb->first))) {
@@ -954,7 +962,11 @@ void LatchDebug::unlock(const latch_t *latch) UNIV_NOTHROW {
       if (latches->empty()) {
         m_mutex.enter();
 
-        m_threads.erase(std::this_thread::get_id());
+        os_thread_id_t thread_id;
+
+        thread_id = os_thread_get_curr_id();
+
+        m_threads.erase(thread_id);
 
         m_mutex.exit();
 
@@ -1338,6 +1350,8 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(RTR_PATH_MUTEX, SYNC_ANY_LATCH, rtr_path_mutex_key);
 
   LATCH_ADD_MUTEX(RW_LOCK_LIST, SYNC_NO_ORDER_CHECK, rw_lock_list_mutex_key);
+
+  LATCH_ADD_MUTEX(RW_LOCK_MUTEX, SYNC_NO_ORDER_CHECK, rw_lock_mutex_key);
 
   LATCH_ADD_MUTEX(SRV_INNODB_MONITOR, SYNC_NO_ORDER_CHECK,
                   srv_innodb_monitor_mutex_key);

@@ -18,6 +18,5 @@ if ($create_user_disable_binlog)
 {
   SET SESSION sql_log_bin = 1;
 }
---let xplugin_create_user=1
 
 --enable_query_log

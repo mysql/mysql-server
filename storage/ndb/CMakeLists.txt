@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -100,7 +100,6 @@ SET(NDBCLUSTER_SOURCES
   plugin/ndb_sync_excluded_objects_table.cc
   plugin/ndb_dd_sync.cc
   plugin/ndb_upgrade_util.cc
-  plugin/ndb_mysql_services.cc
 )
 
 # Include directories used when building ha_ndbcluster
@@ -372,6 +371,8 @@ ENDIF()
 IF (HAVE_JAVA AND HAVE_JDK)
   ADD_SUBDIRECTORY(clusterj)
 ENDIF()
+ADD_SUBDIRECTORY(memcache)
+ADD_SUBDIRECTORY(mcc)
 
 SET(WITH_NDB_NODEJS_DEFAULT ON)
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,11 +27,10 @@
 
 #include "storage/perfschema/table_events_waits.h"
 
-#include <assert.h>
 #include "lex_string.h"
 #include "m_string.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -784,7 +783,7 @@ int table_events_waits_common::read_row_values(TABLE *table, unsigned char *buf,
                 "COUNT_OPERATION_TYPE needs to be the last element.");
 
   /* Set the null bits */
-  assert(table->s->null_bytes == 2);
+  DBUG_ASSERT(table->s->null_bytes == 2);
   buf[0] = 0;
   buf[1] = 0;
 
@@ -917,7 +916,7 @@ int table_events_waits_common::read_row_values(TABLE *table, unsigned char *buf,
           f->set_null();
           break;
         default:
-          assert(false);
+          DBUG_ASSERT(false);
       }
     }
   }
@@ -1010,7 +1009,7 @@ int table_events_waits_current::rnd_pos(const void *pos) {
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != nullptr) {
-    assert(m_pos.m_index_2 < WAIT_STACK_LOGICAL_SIZE);
+    DBUG_ASSERT(m_pos.m_index_2 < WAIT_STACK_LOGICAL_SIZE);
     wait = get_wait(pfs_thread, m_pos.m_index_2);
     if (wait != nullptr) {
       return make_row(pfs_thread, wait);
@@ -1023,7 +1022,7 @@ int table_events_waits_current::rnd_pos(const void *pos) {
 int table_events_waits_current::index_init(uint idx MY_ATTRIBUTE((unused)),
                                            bool) {
   PFS_index_events_waits *result;
-  assert(idx == 0);
+  DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_events_waits);
   m_opened_index = result;
   m_index = result;
@@ -1149,12 +1148,12 @@ int table_events_waits_history::rnd_pos(const void *pos) {
   PFS_thread *pfs_thread;
   PFS_events_waits *wait;
 
-  assert(events_waits_history_per_thread != 0);
+  DBUG_ASSERT(events_waits_history_per_thread != 0);
   set_position(pos);
 
   pfs_thread = global_thread_container.get(m_pos.m_index_1);
   if (pfs_thread != nullptr) {
-    assert(m_pos.m_index_2 < events_waits_history_per_thread);
+    DBUG_ASSERT(m_pos.m_index_2 < events_waits_history_per_thread);
 
     wait = get_wait(pfs_thread, m_pos.m_index_2);
     if (wait != nullptr) {
@@ -1168,7 +1167,7 @@ int table_events_waits_history::rnd_pos(const void *pos) {
 int table_events_waits_history::index_init(uint idx MY_ATTRIBUTE((unused)),
                                            bool) {
   PFS_index_events_waits *result;
-  assert(idx == 0);
+  DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_events_waits);
   m_opened_index = result;
   m_index = result;

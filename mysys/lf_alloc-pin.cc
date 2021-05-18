@@ -1,5 +1,5 @@
 /* QQ: TODO multi-pinbox */
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,7 +26,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <atomic>
@@ -121,7 +120,7 @@ static_assert(sizeof(std::atomic<void *>) == sizeof(void *),
 #include "lf.h"
 #include "my_atomic.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "my_thread.h"
@@ -138,7 +137,7 @@ static void lf_pinbox_real_free(LF_PINS *pins);
 */
 void lf_pinbox_init(LF_PINBOX *pinbox, uint free_ptr_offset,
                     lf_pinbox_free_func *free_func, void *free_func_arg) {
-  assert(free_ptr_offset % sizeof(void *) == 0);
+  DBUG_ASSERT(free_ptr_offset % sizeof(void *) == 0);
   static_assert(sizeof(LF_PINS) == 64, "");
   lf_dynarray_init(&pinbox->pinarray, sizeof(LF_PINS));
   pinbox->pinstack_top_ver = 0;
@@ -220,15 +219,15 @@ void lf_pinbox_put_pins(LF_PINS *pins) {
   uint32 top_ver, nr;
   nr = pins->link;
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   {
     /* This thread should not hold any pin. */
     int i;
     for (i = 0; i < LF_PINBOX_PINS; i++) {
-      assert(pins->pin[i] == nullptr);
+      DBUG_ASSERT(pins->pin[i] == nullptr);
     }
   }
-#endif /* NDEBUG */
+#endif /* DBUG_OFF */
 
   /*
     XXX this will deadlock if other threads will wait for
@@ -401,7 +400,7 @@ void lf_alloc_init2(LF_ALLOCATOR *allocator, uint size, uint free_ptr_offset,
   allocator->element_size = size;
   allocator->constructor = ctor;
   allocator->destructor = dtor;
-  assert(size >= sizeof(void *) + free_ptr_offset);
+  DBUG_ASSERT(size >= sizeof(void *) + free_ptr_offset);
 }
 
 /*

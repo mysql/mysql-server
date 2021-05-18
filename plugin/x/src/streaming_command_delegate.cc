@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,13 +35,12 @@
 #include "decimal.h"  // NOLINT(build/include_subdir)
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
+#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_const.h"
+#include "plugin/x/ngs/include/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
-#include "plugin/x/src/interface/client.h"
 #include "plugin/x/src/interface/notice_output_queue.h"
 #include "plugin/x/src/interface/protocol_encoder.h"
-#include "plugin/x/src/ngs/protocol/column_info_builder.h"
-#include "plugin/x/src/ngs/protocol/protocol_const.h"
-#include "plugin/x/src/ngs/protocol/protocol_protobuf.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/xpl_log.h"
 
@@ -293,15 +292,15 @@ int Streaming_command_delegate::field_metadata(struct st_send_field *field,
 
     case MYSQL_TYPE_BOOL:
     case MYSQL_TYPE_INVALID:
-      assert(false);
+      DBUG_ASSERT(false);
       break;
 
     default:
-      assert(false);  // Shouldn't happen
+      DBUG_ASSERT(false);  // Shouldn't happen
   }
 
-  assert(column_info.get()->m_type !=
-         (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
+  DBUG_ASSERT(column_info.get()->m_type !=
+              (Mysqlx::Resultset::ColumnMetaData::FieldType)0);
 
   if (!m_compact_metadata) {
     column_info.set_non_compact_data("def", field->col_name, field->table_name,
@@ -346,10 +345,9 @@ int Streaming_command_delegate::end_row() {
   if (m_streaming_metadata) return false;
 
   if (m_proto->send_row()) {
-    auto idle_processing = m_session->client().get_idle_processing();
-    if (idle_processing) {
-      if (idle_processing->has_to_report_idle_waiting())
-        idle_processing->on_idle_or_before_read();
+    if (m_notice_queue) {
+      const bool dont_force_flush_on_last_item = false;
+      m_notice_queue->encode_queued_items(dont_force_flush_on_last_item);
     }
     return false;
   }
@@ -570,7 +568,7 @@ bool Streaming_command_delegate::defer_on_warning(
       return true;
     }
   } else {
-    notices::send_warnings(&m_session->data_context(), m_proto);
+    notices::send_warnings(m_session->data_context(), *m_proto);
   }
   return false;
 }
@@ -600,21 +598,6 @@ void Streaming_command_delegate::handle_out_param_in_handle_ok(
   const bool more_results = server_status & SERVER_MORE_RESULTS_EXISTS;
   m_handle_ok_received =
       (m_sent_result && more_results && !out_params) ? true : false;
-}
-
-bool Streaming_command_delegate::connection_alive() {
-  log_debug("%u: connection_alive",
-            static_cast<unsigned>(m_session->client().client_id_num()));
-  auto connection = m_proto->get_flusher()->get_connection();
-
-  auto idle_processing = m_session->client().get_idle_processing();
-
-  if (!vio_is_connected(connection->get_vio())) return false;
-
-  if (idle_processing->has_to_report_idle_waiting())
-    return idle_processing->on_idle_or_before_read();
-
-  return true;
 }
 
 }  // namespace xpl

@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 #ifndef DD__COLLECTION_IMPL_INCLUDED
 #define DD__COLLECTION_IMPL_INCLUDED
 
-#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <algorithm>
@@ -31,6 +30,7 @@
 #include <type_traits>
 #include <vector>
 
+#include "my_dbug.h"
 #include "my_inttypes.h"
 
 namespace dd {
@@ -222,7 +222,7 @@ class Collection {
   const abstract_type *at(size_t n) const;
 
   T at(size_t n) {
-    assert(n < size());
+    DBUG_ASSERT(n < size());
     return m_items[n];
   }
 

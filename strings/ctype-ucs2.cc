@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -28,7 +28,6 @@
 
 // UCS-2 support.
 
-#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdarg.h>
@@ -41,7 +40,7 @@
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "template_utils.h"
@@ -72,14 +71,14 @@ extern "C" {
 static size_t my_caseup_str_mb2_or_mb4(const CHARSET_INFO *cs
                                            MY_ATTRIBUTE((unused)),
                                        char *s MY_ATTRIBUTE((unused))) {
-  assert(0);
+  DBUG_ASSERT(0);
   return 0;
 }
 
 static size_t my_casedn_str_mb2_or_mb4(const CHARSET_INFO *cs
                                            MY_ATTRIBUTE((unused)),
                                        char *s MY_ATTRIBUTE((unused))) {
-  assert(0);
+  DBUG_ASSERT(0);
   return 0;
 }
 
@@ -87,7 +86,7 @@ static int my_strcasecmp_mb2_or_mb4(const CHARSET_INFO *cs
                                         MY_ATTRIBUTE((unused)),
                                     const char *s MY_ATTRIBUTE((unused)),
                                     const char *t MY_ATTRIBUTE((unused))) {
-  assert(0);
+  DBUG_ASSERT(0);
   return 0;
 }
 
@@ -637,7 +636,7 @@ static longlong my_strtoll10_mb2(const CHARSET_INFO *cs, const char *nptr,
       Odd length indicates a bug in the caller.
       Assert in debug, round in production.
     */
-    assert((*endptr - s) % 2 == 0);
+    DBUG_ASSERT((*endptr - s) % 2 == 0);
     end = s + ((*endptr - s) / 2) * 2;
 
     for (;;) /* Skip leading spaces and tabs */
@@ -806,12 +805,12 @@ static void my_fill_mb2(const CHARSET_INFO *cs, char *s, size_t slen,
   char buf[10];
   int buflen;
 
-  assert((slen % 2) == 0);
+  DBUG_ASSERT((slen % 2) == 0);
 
   buflen = cs->cset->wc_mb(cs, (my_wc_t)fill, (uchar *)buf,
                            (uchar *)buf + sizeof(buf));
 
-  assert(buflen > 0);
+  DBUG_ASSERT(buflen > 0);
 
   while (slen >= (size_t)buflen) {
     /* Enough space for the characer */
@@ -888,7 +887,7 @@ static size_t my_vsnprintf_mb2(char *dst, size_t n, const char *fmt,
     *dst++ = '%'; /* % used as % or unknown code */
   }
 
-  assert(dst <= end);
+  DBUG_ASSERT(dst <= end);
   *dst = '\0'; /* End of errmessage */
   return (size_t)(dst - start);
 }
@@ -1020,7 +1019,7 @@ static size_t my_caseup_utf16(const CHARSET_INFO *cs, char *src, size_t srclen,
   int res;
   char *srcend = src + srclen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  assert(src == dst && srclen == dstlen);
+  DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((src < srcend) &&
          (res = cs->cset->mb_wc(cs, &wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -1063,7 +1062,7 @@ static size_t my_casedn_utf16(const CHARSET_INFO *cs, char *src, size_t srclen,
   int res;
   char *srcend = src + srclen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  assert(src == dst && srclen == dstlen);
+  DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((src < srcend) &&
          (res = cs->cset->mb_wc(cs, &wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -1138,8 +1137,8 @@ static int my_strnncollsp_utf16(const CHARSET_INFO *cs, const uchar *s,
   const uchar *se = s + slen, *te = t + tlen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
 
-  assert((slen % 2) == 0);
-  assert((tlen % 2) == 0);
+  DBUG_ASSERT((slen % 2) == 0);
+  DBUG_ASSERT((tlen % 2) == 0);
 
   while (s < se && t < te) {
     int s_res = cs->cset->mb_wc(cs, &s_wc, s, se);
@@ -1194,7 +1193,7 @@ static uint my_ismbchar_utf16(const CHARSET_INFO *cs, const char *b,
 
 static uint my_mbcharlen_utf16(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                uint c) {
-  assert(0);
+  DBUG_ASSERT(0);
   return MY_UTF16_HIGH_HEAD(c) ? 4 : 2;
 }
 
@@ -1286,8 +1285,8 @@ static int my_strnncollsp_utf16_bin(const CHARSET_INFO *cs, const uchar *s,
   my_wc_t s_wc = 0, t_wc = 0;
   const uchar *se = s + slen, *te = t + tlen;
 
-  assert((slen % 2) == 0);
-  assert((tlen % 2) == 0);
+  DBUG_ASSERT((slen % 2) == 0);
+  DBUG_ASSERT((tlen % 2) == 0);
 
   while (s < se && t < te) {
     int s_res = cs->cset->mb_wc(cs, &s_wc, s, se);
@@ -1686,7 +1685,7 @@ static size_t my_caseup_utf32(const CHARSET_INFO *cs, char *src, size_t srclen,
   int res;
   char *srcend = src + srclen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  assert(src == dst && srclen == dstlen);
+  DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((src < srcend) &&
          (res = my_utf32_uni(cs, &wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -1746,7 +1745,7 @@ static size_t my_casedn_utf32(const CHARSET_INFO *cs, char *src, size_t srclen,
   int res;
   char *srcend = src + srclen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  assert(src == dst && srclen == dstlen);
+  DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((res = my_utf32_uni(cs, &wc, (uchar *)src, (uchar *)srcend)) > 0) {
     my_tolower_utf32(uni_plane, &wc);
@@ -1819,8 +1818,8 @@ static int my_strnncollsp_utf32(const CHARSET_INFO *cs, const uchar *s,
   const uchar *se = s + slen, *te = t + tlen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
 
-  assert((slen % 4) == 0);
-  assert((tlen % 4) == 0);
+  DBUG_ASSERT((slen % 4) == 0);
+  DBUG_ASSERT((tlen % 4) == 0);
 
   while (s < se && t < te) {
     int s_res = my_utf32_uni(cs, &s_wc, s, se);
@@ -1858,7 +1857,7 @@ static int my_strnncollsp_utf32(const CHARSET_INFO *cs, const uchar *s,
 
     for (; s < se; s += s_res) {
       if ((s_res = my_utf32_uni(cs, &s_wc, s, se)) < 0) {
-        assert(0);
+        DBUG_ASSERT(0);
         return 0;
       }
       if (s_wc != ' ') return (s_wc < ' ') ? -swap : swap;
@@ -1887,7 +1886,7 @@ static uint my_mbcharlen_utf32(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
 static size_t my_vsnprintf_utf32(char *dst, size_t n, const char *fmt,
                                  va_list ap) {
   char *start = dst, *end = dst + n;
-  assert((n % 4) == 0);
+  DBUG_ASSERT((n % 4) == 0);
   for (; *fmt; fmt++) {
     if (fmt[0] != '%') {
       if (dst >= end) /* End of buffer */
@@ -1951,7 +1950,7 @@ static size_t my_vsnprintf_utf32(char *dst, size_t n, const char *fmt,
     *dst++ = '%'; /* % used as % or unknown code */
   }
 
-  assert(dst < end);
+  DBUG_ASSERT(dst < end);
   *dst++ = '\0';
   *dst++ = '\0';
   *dst++ = '\0';
@@ -2125,7 +2124,7 @@ static size_t my_well_formed_len_utf32(
   /* Ensure string length is divisible by 4 */
   const char *b0 = b;
   size_t length = e - b;
-  assert((length % 4) == 0);
+  DBUG_ASSERT((length % 4) == 0);
   *error = 0;
   nchars *= 4;
   if (length > nchars) {
@@ -2147,14 +2146,14 @@ static void my_fill_utf32(const CHARSET_INFO *cs, char *s, size_t slen,
   char buf[10];
   char *e = s + slen;
 
-  assert((slen % 4) == 0);
+  DBUG_ASSERT((slen % 4) == 0);
   {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     uint buflen =
 #endif
         cs->cset->wc_mb(cs, (my_wc_t)fill, (uchar *)buf,
                         (uchar *)buf + sizeof(buf));
-    assert(buflen == 4);
+    DBUG_ASSERT(buflen == 4);
   }
   while (s < e) {
     memcpy(s, buf, 4);
@@ -2165,7 +2164,7 @@ static void my_fill_utf32(const CHARSET_INFO *cs, char *s, size_t slen,
 static size_t my_lengthsp_utf32(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
                                 const char *ptr, size_t length) {
   const char *end = ptr + length;
-  assert((length % 4) == 0);
+  DBUG_ASSERT((length % 4) == 0);
   while (end > ptr + 3 && end[-1] == ' ' && !end[-2] && !end[-3] && !end[-4])
     end -= 4;
   return (size_t)(end - ptr);
@@ -2226,8 +2225,8 @@ static int my_strnncollsp_utf32_bin(
   const uchar *se, *te;
   size_t minlen;
 
-  assert((slen % 4) == 0);
-  assert((tlen % 4) == 0);
+  DBUG_ASSERT((slen % 4) == 0);
+  DBUG_ASSERT((tlen % 4) == 0);
 
   se = s + slen;
   te = t + tlen;
@@ -2515,7 +2514,7 @@ static size_t my_caseup_ucs2(const CHARSET_INFO *cs, char *src, size_t srclen,
   int res;
   char *srcend = src + srclen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  assert(src == dst && srclen == dstlen);
+  DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((src < srcend) &&
          (res = my_ucs2_uni(cs, &wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -2560,7 +2559,7 @@ static size_t my_casedn_ucs2(const CHARSET_INFO *cs, char *src, size_t srclen,
   int res;
   char *srcend = src + srclen;
   const MY_UNICASE_INFO *uni_plane = cs->caseinfo;
-  assert(src == dst && srclen == dstlen);
+  DBUG_ASSERT(src == dst && srclen == dstlen);
 
   while ((src < srcend) &&
          (res = my_ucs2_uni(cs, &wc, (uchar *)src, (uchar *)srcend)) > 0) {
@@ -2573,7 +2572,7 @@ static size_t my_casedn_ucs2(const CHARSET_INFO *cs, char *src, size_t srclen,
 
 static void my_fill_ucs2(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), char *s,
                          size_t l, int fill) {
-  assert(fill <= 0xFFFF);
+  DBUG_ASSERT(fill <= 0xFFFF);
   for (; l >= 2; s[0] = (fill >> 8), s[1] = (fill & 0xFF), s += 2, l -= 2)
     ;
 }

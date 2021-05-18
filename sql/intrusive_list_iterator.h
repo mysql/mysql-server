@@ -1,6 +1,6 @@
 #ifndef SQL_INTRUSIVE_LIST_ITERATOR_H_
 #define SQL_INTRUSIVE_LIST_ITERATOR_H_
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -28,7 +28,7 @@
   Iterator utilities for working with intrusive pointers.
 */
 
-#include <assert.h>
+#include "my_dbug.h"
 
 /**
   An iterator that follows a 'next' pointer with an accessor function.
@@ -68,7 +68,7 @@ class NextFunctionIterator {
   NextFunctionIterator() : m_current(nullptr) {}
 
   NextFunctionIterator &operator++() {
-    assert(m_current != nullptr);
+    DBUG_ASSERT(m_current != nullptr);
     m_current = GetNextPointer(m_current);
     return *this;
   }

@@ -1,7 +1,6 @@
 ################################################################################
 # InnoDB transparent tablespace data encryption for general shared tablespace.
 # This test case will test
-#    - Test 0 : Crash just after inserting DDL Log
 #    - Test 1
 #        - 1.1 : Crash just before flushing page 0 at the end of (un)encryption
 #        - 1.2 : Crash just after flushing page 0 at the end of (un)encryption
@@ -23,13 +22,9 @@
 --let $explicit_default_wait_counter=10000
 
 --disable_query_log
-call mtr.add_suppression("ibd can't be decrypted, please confirm the keyring is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring fail, please check the keyring is loaded.");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Failed to decrypt encryption information, found unexpected version of it!");
-call mtr.add_suppression("\\[Warning\\] \\[MY-013675\\] \\[InnoDB\\] Encryption key missing: space_id=");
-call mtr.add_suppression("\\[Warning\\] \\[MY-013674\\] \\[InnoDB\\] Decrypting a page in doublewrite file failed: space_id=");
-call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption information in datafile: .* can't be decrypted, please confirm that keyring is loaded.");
+call mtr.add_suppression("ibd can't be decrypted, please confirm the keyfile is match and keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Encryption can't find master key, please check the keyring plugin is loaded.");
+call mtr.add_suppression("\\[ERROR\\] \\[[^]]*\\] \\[[^]]*\\] Check keyring plugin fail, please check the keyring plugin is loaded.");
 --enable_query_log
 
 --echo #########################################################################
@@ -65,123 +60,13 @@ SELECT * FROM t1 LIMIT 10;
 --error ER_CANNOT_FIND_KEY_IN_KEYRING
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 
---let $rc=1
---echo #-------------------------- TEST 0 -------------------------------------#
+--echo #-------------------------- TEST 1 -------------------------------------#
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN
---echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---source include/restart_mysqld_no_echo.inc
---inc $rc
-
---echo ########################################################################
---echo # ALTER TABLESPACE 1 :    Unencrypted => Encrypted                     #
---echo #                         crash just before flushing page 0 at the end #
---echo ########################################################################
---echo # Set process to crash just before flushing page 0 at the end
-SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_ddl_entry';
-
---echo # Encrypt the tablespace. It will cause crash.
---source include/expect_crash.inc
---error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
-ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
-
---echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN after crash
---echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---source include/start_mysqld_no_echo.inc
---inc $rc
-
---echo # Wait for Encryption processing to finish in background thread
-let $wait_condition = SELECT ENCRYPTION = 'Y'
-        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-        WHERE NAME='encrypt_ts';
---source include/wait_condition.inc
-
-# Make sure ts file is updated with new records in table
-set global innodb_buf_flush_list_now = 1;
-
---echo # After restart/recovery, check that Encryption was roll-forward
-SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-SELECT * FROM t1 LIMIT 10;
-
---echo #########################################################################
---echo # RESTART $rc : WITHOUT KEYRING PLUGIN
---echo #########################################################################
-let $restart_parameters = restart:;
---source include/restart_mysqld_no_echo.inc
---inc $rc
-
-# We shouldn't be able to read t1 records as it is encrypted now and keyring
-# plugin is not loaded.
---error ER_CANNOT_FIND_KEY_IN_KEYRING
-SELECT * FROM t1 LIMIT 10;
-
---echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN
+--echo # RESTART 1 : WITH KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
-
-SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-SELECT * FROM t1 LIMIT 10;
-
---echo ########################################################################
---echo # ALTER TABLESPACE 2 :    Encrypted => Unencrypted                     #
---echo #                         crash just before flushing page 0 at the end #
---echo ########################################################################
---echo # Set process to crash just before flushing page 0 at the end
-SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_ddl_entry';
-
---echo # Unencrypt the tablespace. It will cause crash.
---source include/expect_crash.inc
---error 0,CR_SERVER_LOST,ER_INTERNAL_ERROR
-ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
-
---echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN after crash
---echo #########################################################################
-#let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --debug=+d,DDL_Log_remove_inject_startup_error_2;
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---source include/start_mysqld_no_echo.inc
---inc $rc
-
---echo # Wait for Unencryption processing to finish in background thread
-let $wait_condition = SELECT ENCRYPTION = 'N'
-        FROM INFORMATION_SCHEMA.INNODB_TABLESPACES
-        WHERE NAME='encrypt_ts';
---source include/wait_condition.inc
-
-# Make sure ts file is updated with new records in table
-set global innodb_buf_flush_list_now = 1;
-
---echo # After restart/recovery, check that Unencryption was roll-forward
-SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-SELECT * FROM t1 LIMIT 10;
-
---echo #########################################################################
---echo # RESTART $rc : WITHOUT KEYRING PLUGIN
---echo #########################################################################
-let $restart_parameters = restart:;
---source include/restart_mysqld_no_echo.inc
---inc $rc
-
-SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
-# We should be able to read t1 records even without keyring plugin as it should
-# be unencrypted now.
-SELECT * FROM t1 LIMIT 10;
-
-#  --echo #-------------------------- TEST 1 -------------------------------------#
-
---echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN
---echo #########################################################################
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
---source include/restart_mysqld_no_echo.inc
---inc $rc
 
 --echo ########################################################################
 --echo # ALTER TABLESPACE 1 :    Unencrypted => Encrypted                     #
@@ -196,12 +81,11 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_flushing_page_0';
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN after crash
+--echo # RESTART 2 : WITH KEYRING PLUGIN after crash
+--echo # and INJECT error TOO_MANY_CONCURRENT_TXNS in startup location #1
 --echo #########################################################################
-#let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --debug=+d,DDL_Log_remove_inject_startup_error_1;
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --debug=+d,DDL_Log_remove_inject_startup_error_1;
 --source include/start_mysqld_no_echo.inc
---inc $rc
 
 --echo # Wait for Encryption processing to finish in background thread
 let $wait_condition = SELECT ENCRYPTION = 'Y'
@@ -217,11 +101,10 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc : WITHOUT KEYRING PLUGIN
+--echo # RESTART 3 : WITHOUT KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 # We shouldn't be able to read t1 records as it is encrypted now and keyring
 # plugin is not loaded.
@@ -229,11 +112,10 @@ let $restart_parameters = restart:;
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN
+--echo # RESTART 4 : WITH KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 SELECT * FROM t1 LIMIT 10;
@@ -251,12 +133,11 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_flushing_page_0';
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN after crash
+--echo # RESTART 5 : WITH KEYRING PLUGIN after crash
+--echo # and INJECT error TOO_MANY_CONCURRENT_TXNS in startup location #2
 --echo #########################################################################
-#let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --debug=+d,DDL_Log_remove_inject_startup_error_2;
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --debug=+d,DDL_Log_remove_inject_startup_error_2;
 --source include/start_mysqld_no_echo.inc
---inc $rc
 
 --echo # Wait for Unencryption processing to finish in background thread
 let $wait_condition = SELECT ENCRYPTION = 'N'
@@ -272,11 +153,10 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc : WITHOUT KEYRING PLUGIN
+--echo # RESTART 6 : WITHOUT KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 # We should be able to read t1 records even without keyring plugin as it should
@@ -284,11 +164,10 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN
+--echo # RESTART 7 : WITH KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 --echo ########################################################################
 --echo # ALTER TABLESPACE 3 :    Unencrypted => Encrypted                     #
@@ -303,10 +182,9 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_flushing_page_0';
 ALTER TABLESPACE encrypt_ts ENCRYPTION='Y';
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN after crash
+--echo # RESTART 8 : WITH KEYRING PLUGIN after crash
 --echo #########################################################################
 --source include/start_mysqld_no_echo.inc
---inc $rc
 
 --echo # Wait for Encryption processing to finish in background thread
 let $wait_condition = SELECT ENCRYPTION = 'Y'
@@ -322,11 +200,10 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc : WITHOUT KEYRING PLUGIN
+--echo # RESTART 9 : WITHOUT KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 # We shouldn't be able to read t1 records as it is encrypted now and keyring
 # plugin is not loaded.
@@ -334,11 +211,10 @@ let $restart_parameters = restart:;
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN
+--echo # RESTART 10 : WITH KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 SELECT * FROM t1 LIMIT 10;
@@ -356,10 +232,9 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_after_flushing_page_0';
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN after crash
+--echo # RESTART 11 : WITH KEYRING PLUGIN after crash
 --echo #########################################################################
 --source include/start_mysqld_no_echo.inc
---inc $rc
 
 --echo # Wait for Unencryption processing to finish in background thread
 let $wait_condition = SELECT ENCRYPTION = 'N'
@@ -375,11 +250,10 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc : WITHOUT KEYRING PLUGIN
+--echo # RESTART 12 : WITHOUT KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 # We should be able to read t1 records even without keyring plugin as it should
@@ -389,13 +263,11 @@ SELECT * FROM t1 LIMIT 10;
 --echo #-------------------------- TEST 2 -------------------------------------#
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN
+--echo # RESTART 13 : WITH KEYRING PLUGIN
 --echo # and INJECT error TOO_MANY_CONCURRENT_TXNS in startup location #3
 --echo #########################################################################
-#let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --debug=+d,DDL_Log_remove_inject_startup_error_3;
-let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
+let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --debug=+d,DDL_Log_remove_inject_startup_error_3;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 SELECT * FROM t1 LIMIT 10;
@@ -414,10 +286,9 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_updating_flags';
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN after crash
+--echo # RESTART 14 : WITH KEYRING PLUGIN after crash
 --echo #########################################################################
 --source include/start_mysqld_no_echo.inc
---inc $rc
 
 --echo # Wait for Unencryption processing to finish in background thread
 let $wait_condition = SELECT ENCRYPTION = 'N'
@@ -433,11 +304,10 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc : WITHOUT KEYRING PLUGIN
+--echo # RESTART 15 : WITHOUT KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 # We should be able to read t1 records even without keyring plugin as it should
@@ -445,11 +315,10 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN
+--echo # RESTART 16 : WITH KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 SELECT * FROM t1 LIMIT 10;
@@ -468,10 +337,9 @@ SET SESSION debug= '+d,alter_encrypt_tablespace_crash_before_resetting_progress'
 ALTER TABLESPACE encrypt_ts ENCRYPTION='N';
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN after crash
+--echo # RESTART 17 : WITH KEYRING PLUGIN after crash
 --echo #########################################################################
 --source include/start_mysqld_no_echo.inc
---inc $rc
 
 --echo # Wait for Unencryption processing to finish in background thread
 let $wait_condition = SELECT ENCRYPTION = 'N'
@@ -487,11 +355,10 @@ SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='e
 SELECT * FROM t1 LIMIT 10;
 
 --echo #########################################################################
---echo # RESTART $rc: WITHOUT KEYRING PLUGIN
+--echo # RESTART 18: WITHOUT KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 SELECT NAME, ENCRYPTION FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME='encrypt_ts';
 # We should be able to read t1 records even without keyring plugin as it should
@@ -501,11 +368,10 @@ SELECT * FROM t1 LIMIT 10;
 --echo #-------------------------- TEST 3 -------------------------------------#
 
 --echo #########################################################################
---echo # RESTART $rc : WITH KEYRING PLUGIN
+--echo # RESTART 19 : WITH KEYRING PLUGIN
 --echo #########################################################################
 let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_doublewrite=0;
 --source include/restart_mysqld_no_echo.inc
---inc $rc
 
 DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
@@ -546,12 +412,11 @@ SET SESSION debug= '+d,flush_each_dirtied_page';
 ALTER TABLESPACE encrypt_ts encryption='Y';
 
 --echo #########################################################################
---echo # RESTART $rc: WITH KEYRING PLUGIN after crash
+--echo # RESTART 20: WITH KEYRING PLUGIN after crash
 --echo #########################################################################
 # Without fix, following restart would crash reporting page corruption
 let $restart_parameters = restart: --early-plugin-load=keyring_file=$KEYRING_PLUGIN --loose-keyring_file_data=$MYSQL_TMP_DIR/mysecret_keyring $KEYRING_PLUGIN_OPT --innodb_doublewrite=0 --debug=d,dont_update_key_found_during_REDO_scan;
 --source include/start_mysqld_no_echo.inc
---inc $rc
 
 --echo ###########
 --echo # Cleanup #
@@ -560,7 +425,7 @@ DROP TABLE t1;
 DROP TABLESPACE encrypt_ts;
 
 --echo #########################################################################
---echo # RESTART $rc : final
+--echo # RESTART 21 : final
 --echo #########################################################################
 let $restart_parameters = restart:;
 --source include/restart_mysqld_no_echo.inc

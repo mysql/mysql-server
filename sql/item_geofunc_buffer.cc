@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -179,7 +179,7 @@ bool Item_func_buffer_strategy::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1)) return true;
   if (param_type_is_default(thd, 1, 2, MYSQL_TYPE_DOUBLE)) return true;
   set_data_type_string(16, &my_charset_bin);
-  set_nullable(true);
+  maybe_null = true;
   return false;
 }
 
@@ -187,7 +187,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
   String str;
   String *strat_name = args[0]->val_str_ascii(&str);
   if ((null_value = args[0]->null_value)) {
-    assert(is_nullable());
+    DBUG_ASSERT(maybe_null);
     return nullptr;
   }
 
@@ -229,7 +229,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
 
       double val = args[1]->val_real();
       if ((null_value = args[1]->null_value)) {
-        assert(is_nullable());
+        DBUG_ASSERT(maybe_null);
         return nullptr;
       }
       if (val <= 0) {
@@ -333,7 +333,7 @@ String *Item_func_buffer_strategy::val_str(String * /* str_arg */) {
         break;                                                               \
       }                                                                      \
       default:                                                               \
-        assert(false);                                                       \
+        DBUG_ASSERT(false);                                                  \
         break;                                                               \
     }                                                                        \
   } while (0)
@@ -349,7 +349,7 @@ namespace bgst = boost::geometry::strategy::buffer;
 
 String *Item_func_buffer::val_str(String *str_value_arg) {
   DBUG_TRACE;
-  assert(fixed == 1);
+  DBUG_ASSERT(fixed == 1);
   String strat_bufs[side_strategy + 1];
 
   String *obj = args[0]->val_str(&tmp_value);
@@ -402,7 +402,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
     }
 
     if (!srs->is_cartesian()) {
-      assert(srs->is_geographic());
+      DBUG_ASSERT(srs->is_geographic());
       std::string parameters(geom->get_class_info()->m_name.str);
       parameters.append(", ...");
       my_error(ER_NOT_IMPLEMENTED_FOR_GEOGRAPHIC_SRS, MYF(0), func_name(),
@@ -573,7 +573,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
                          bgst_join_miter, bgst_end_flat, bgst_point_square);
           break;
         default:
-          assert(false);
+          DBUG_ASSERT(false);
           break;
       }
 
@@ -643,7 +643,7 @@ String *Item_func_buffer::val_str(String *str_value_arg) {
                            bgst_join_miter, bgst_end_flat, bgst_point_square);
             break;
           default:
-            assert(false);
+            DBUG_ASSERT(false);
             break;
         }
 

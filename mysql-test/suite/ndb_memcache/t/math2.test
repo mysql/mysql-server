@@ -1,0 +1,37 @@
+--source include/have_ndb.inc
+--source suite/ndb_memcache/include/have_memcache.inc
+
+
+# Set a math value, then test INCR and DECR
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+if($r == 0) {
+  print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
+}
+else {
+  $mc->set("math_test_2a", 1500);
+  $mc->set("math_test_2b", 1500);
+  $mc->set("math_test_2c", 0);
+  
+  $mc->incr("math_test_2a", 1);
+  $mc->decr("math_test_2b", 1);
+  $mc->decr("math_test_2c", 1);    # should not wrap
+    
+}
+
+EOF
+
+SELECT mkey, math_value 
+FROM ndbmemcache.demo_table where mkey like 'math_test_2%'
+ORDER BY mkey;
+

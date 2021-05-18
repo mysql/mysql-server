@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -245,16 +245,7 @@ static bool dd_upgrade_match_single_col(const Field *field,
 
   DBUG_EXECUTE_IF("dd_upgrade_strict_mode", ut_ad(col->mtype == col_type););
 
-  /* The columns of datatype MYSQL_TYPE_GEOMETRY were represented in InnoDB
-  as DATA_BLOB until 5.7 where they were changed to DATA_GEOMETRY type.
-  However, the following check fails while upgrading a 5.7 database with
-  GEOMETRY columns originally created with 5.6.
-  It is safe to ignore this datatype mismatch here so that upgrade can proceed
-  without affecting anything else. The correct datatype will be reflected in the
-  metadata once it is upgraded. */
-  if (col_type == DATA_GEOMETRY && col->mtype == DATA_BLOB) {
-    ib::warn(ER_IB_WRN_OLD_GEOMETRY_TYPE, field->field_name);
-  } else if (col->mtype != col_type) {
+  if (col->mtype != col_type) {
     ib::error(ER_IB_MSG_239)
         << "Column datatype mismatch for col: " << field->field_name;
     failure = true;
@@ -774,7 +765,7 @@ static bool dd_upgrade_partitions(THD *thd, const char *norm_name,
     }
 
     /* We don't support upgrade from 5.7 with discarded Tablespaces.
-     Upgrade should stop in a dd_upgrade_tablespace function. */
+     * Upgrade should stop in a dd_upgrade_tablespace function. */
     ut_ad(!dict_table_is_discarded(part_table));
 
     if (!dd_upgrade_ensure_has_dd_space_id(thd, part_table)) {
@@ -920,7 +911,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
   }
 
   /* We don't support upgrade from 5.7 with discarded Tablespaces.
-   Upgrade should stop in a dd_upgrade_tablespace function. */
+   * Upgrade should stop in a dd_upgrade_tablespace function. */
   ut_ad(!dict_table_is_discarded(ib_table));
 
   /* If all FTS index are dropped but Innodb still retains the
@@ -1024,7 +1015,7 @@ bool dd_upgrade_table(THD *thd, const char *db_name, const char *table_name,
     ib_table->autoinc = auto_inc == 0 ? 0 : auto_inc + 1;
   }
 
-  if (dict_table_has_fts_index(ib_table) || added_fts_col) {
+  if (dict_table_has_fts_index(ib_table)) {
     dberr_t err = fts_upgrade_aux_tables(ib_table);
 
     if (err != DB_SUCCESS) {
@@ -1429,7 +1420,7 @@ static void dd_upgrade_drop_57_backup_spaces() {
       continue;
     }
 
-    auto err = fil_delete_tablespace(space_id, BUF_REMOVE_NONE);
+    auto err = fil_delete_tablespace(space_id, BUF_REMOVE_FLUSH_NO_WRITE);
 
     if (err != DB_SUCCESS) {
       ib::warn(ER_IB_MSG_57_STAT_SPACE_DELETE_FAIL, space_name);

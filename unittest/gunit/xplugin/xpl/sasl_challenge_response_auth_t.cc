@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -25,9 +25,6 @@
 
 #include "plugin/x/src/auth_challenge_response.h"
 #include "plugin/x/src/sql_user_require.h"
-#include "unittest/gunit/xplugin/xpl/mock/account_verification.h"
-#include "unittest/gunit/xplugin/xpl/mock/account_verification_handler.h"
-#include "unittest/gunit/xplugin/xpl/mock/authentication.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
 
 namespace xpl {
@@ -85,11 +82,11 @@ class Sasl_challenge_response_auth_test
       throw std::logic_error("Invalid test case auth method");
   }
 
-  ::testing::StrictMock<mock::Account_verification_handler> *mock_handler{
-      new ::testing::StrictMock<mock::Account_verification_handler>()};
+  ::testing::StrictMock<Mock_account_verification_handler> *mock_handler{
+      new ::testing::StrictMock<Mock_account_verification_handler>(nullptr)};
   std::unique_ptr<iface::Authentication> auth;
-  ::testing::StrictMock<mock::Account_verification> mock_account_verification;
-  ::testing::StrictMock<mock::Authentication> mock_authentication;
+  ::testing::StrictMock<Mock_account_verification> mock_account_verification;
+  ::testing::StrictMock<Mock_authentication_interface> mock_authentication;
 
   using Response = iface::Authentication::Response;
 };
@@ -171,7 +168,7 @@ TEST_P(Sasl_challenge_response_auth_test, handle_continue_failed) {
                   auth->handle_continue(AUTH_DATA));
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     Instantiation_auth_mechanism, Sasl_challenge_response_auth_test,
     ::testing::Values(
         Auth_selector{

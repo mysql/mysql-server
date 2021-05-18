@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,8 +26,7 @@ TempTable Index declarations. */
 #ifndef TEMPTABLE_INDEX_H
 #define TEMPTABLE_INDEX_H
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "sql/key.h"
 #include "storage/temptable/include/temptable/allocator.h"
 #include "storage/temptable/include/temptable/containers.h"
@@ -243,7 +242,7 @@ inline size_t Index::number_of_indexed_columns() const {
 }
 
 inline const Indexed_column &Index::indexed_column(size_t i) const {
-  assert(i < m_number_of_indexed_columns);
+  DBUG_ASSERT(i < m_number_of_indexed_columns);
   return m_indexed_columns[i];
 }
 

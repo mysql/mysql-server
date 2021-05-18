@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,11 +22,10 @@
 
 #include "sql/dd/properties.h"
 
-#include <assert.h>
 #include <limits>
 
 #include "m_string.h"  // my_strtoll10
-
+#include "my_dbug.h"
 #include "my_sys.h"              // strmake_root
 #include "sql/dd/types/table.h"  // enum_row_format
 #include "sql/field.h"           // geometry_type
@@ -36,7 +35,7 @@ namespace dd {
 
 template <typename T>
 bool Properties::from_str(const String_type &number, T *value) {
-  assert(value != nullptr);
+  DBUG_ASSERT(value != nullptr);
 
   // The target type must be an integer.
   if (!(std::numeric_limits<T>::is_integer)) return true;
@@ -67,7 +66,7 @@ bool Properties::from_str(const String_type &number, T *value) {
 }
 
 bool Properties::from_str(const String_type &bool_str, bool *value) {
-  assert(value != nullptr);
+  DBUG_ASSERT(value != nullptr);
 
   if (bool_str == "true") {
     *value = true;
@@ -101,8 +100,8 @@ String_type Properties::to_str(T value) {
 template <typename Lex_type>
 bool Properties::get(const String_type &key, Lex_type *value,
                      MEM_ROOT *mem_root) const {
-  assert(value != nullptr);
-  assert(mem_root != nullptr);
+  DBUG_ASSERT(value != nullptr);
+  DBUG_ASSERT(mem_root != nullptr);
 
   String_type str;
   if (get(key, &str)) return true;
@@ -119,7 +118,7 @@ bool Properties::get(const String_type &key, Value_type *value) const {
   if (get(key, &str)) return true;
 
   if (from_str(str, value)) {
-    assert(false); /* purecov: inspected */
+    DBUG_ASSERT(false); /* purecov: inspected */
     return true;
   }
   return false;

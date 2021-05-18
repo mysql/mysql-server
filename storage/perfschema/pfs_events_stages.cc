@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,12 +27,11 @@
 
 #include "storage/perfschema/pfs_events_stages.h"
 
-#include <assert.h>
 #include <atomic>
 
 #include "m_string.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "storage/perfschema/pfs_account.h"
@@ -103,7 +102,7 @@ void insert_events_stages_history(PFS_thread *thread,
     return;
   }
 
-  assert(thread->m_stages_history != nullptr);
+  DBUG_ASSERT(thread->m_stages_history != nullptr);
 
   uint index = thread->m_stages_history_index;
 
@@ -134,7 +133,7 @@ void insert_events_stages_history_long(PFS_events_stages *stage) {
     return;
   }
 
-  assert(events_stages_history_long_array != nullptr);
+  DBUG_ASSERT(events_stages_history_long_array != nullptr);
 
   uint index = events_stages_history_long_index.m_u32++;
 

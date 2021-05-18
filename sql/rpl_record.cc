@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -57,7 +57,7 @@ using std::min;
 template <typename T, typename UT>
 void Bit_stream_base<T, UT>::dbug_print(
     const char *str MY_ATTRIBUTE((unused))) const {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   StringBuffer<STRING_BUFFER_USUAL_SIZE> s;
   s.reserve(static_cast<size_t>(m_current_bit + 1));
   for (uint i = 0; i < m_current_bit; i++)
@@ -272,7 +272,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
   // binlog, we must clear any bits for these columns in the bitmap. We will
   // use TABLE::pack_row_tmp_set for this purpose, so first we ensure that it
   // isn't in use somewhere else.
-  assert(bitmap_is_clear_all(&table->pack_row_tmp_set));
+  DBUG_ASSERT(bitmap_is_clear_all(&table->pack_row_tmp_set));
 
   // Copy all the bits from the "columns_in_image", and clear all the bits for
   // hidden generated columns.
@@ -351,7 +351,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
         null_bits.set(false);
 
         // Store the field when it is not NULL.
-#ifndef NDEBUG
+#ifndef DBUG_OFF
         const uchar *old_pack_ptr = pack_ptr;
 #endif
         pack_field(&pack_ptr, field, rec_offset, row_image_type, value_options,
@@ -363,7 +363,7 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
         DBUG_DUMP("rbr", old_pack_ptr, pack_ptr - old_pack_ptr);
       }
     }
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     else {
       DBUG_PRINT("info", ("field %s: skipped", field->field_name));
     }
@@ -376,14 +376,14 @@ size_t pack_row(TABLE *table, MY_BITMAP const *columns_in_image,
     }
   }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   DBUG_PRINT("info", ("partial_bits.tell()=%u, null_bits.tell()=%u",
                       partial_bits.tell(), null_bits.tell()));
   if (has_any_json_diff)
-    assert(partial_bits.tell() == json_column_count);
+    DBUG_ASSERT(partial_bits.tell() == json_column_count);
   else
-    assert(partial_bits.tell() == 0);
-  assert(null_bits.tell() == image_column_count);
+    DBUG_ASSERT(partial_bits.tell() == 0);
+  DBUG_ASSERT(null_bits.tell() == image_column_count);
   null_bits.dbug_print("null_bits");
   partial_bits.dbug_print("partial_bits");
   DBUG_DUMP("rbr", row_data, pack_ptr - row_data);
@@ -571,18 +571,18 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
                 enum_row_image_type row_image_type,
                 bool event_has_value_options, bool only_seek) {
   DBUG_TRACE;
-  assert(rli != nullptr);
-  assert(table != nullptr);
-  assert(row_data != nullptr);
-  assert(column_image != nullptr);
+  DBUG_ASSERT(rli != nullptr);
+  DBUG_ASSERT(table != nullptr);
+  DBUG_ASSERT(row_data != nullptr);
+  DBUG_ASSERT(column_image != nullptr);
   // This is guaranteed by the way column_image is initialized in the
   // Rows_log_event constructor.
-  assert(column_image->n_bits == master_column_count);
-  assert(row_image_end_p != nullptr);
-  assert(event_end >= row_data);
+  DBUG_ASSERT(column_image->n_bits == master_column_count);
+  DBUG_ASSERT(row_image_end_p != nullptr);
+  DBUG_ASSERT(event_end >= row_data);
   if (event_has_value_options)
-    assert(row_image_type == enum_row_image_type::UPDATE_BI ||
-           row_image_type == enum_row_image_type::UPDATE_AI);
+    DBUG_ASSERT(row_image_type == enum_row_image_type::UPDATE_BI ||
+                row_image_type == enum_row_image_type::UPDATE_AI);
 
   // Get table_def object and table used for type conversion
   Replicated_columns_view fields{table, Replicated_columns_view::INBOUND,
@@ -590,7 +590,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
   table_def *tabledef = nullptr;
   TABLE *conv_table = nullptr;
   rli->get_table_data(table, &tabledef, &conv_table);
-  assert(tabledef != nullptr);
+  DBUG_ASSERT(tabledef != nullptr);
 
   uint image_column_count = bitmap_bits_set(column_image);
 
@@ -648,7 +648,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           of the statement, when close_thread_tables calls
           cleanup_partial_update.
         */
-#ifndef NDEBUG
+#ifndef DBUG_OFF
         int marked_columns = 0;
 #endif
         for (auto it = fields.begin();
@@ -656,7 +656,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
              ++it) {
           if (tabledef->type(it.filtered_pos()) == MYSQL_TYPE_JSON &&
               bitmap_is_set(column_image, it.filtered_pos())) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
             marked_columns++;
 #endif
             if (table->mark_column_for_partial_update(*it))
@@ -664,13 +664,14 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
               return true; /* purecov: inspected */
           }
         }
-#ifndef NDEBUG
+#ifndef DBUG_OFF
         DBUG_EXECUTE_IF("rpl_row_jsondiff_binarydiff", {
           if (marked_columns == 1) {
             const char act[] =
                 "now SIGNAL signal.rpl_row_jsondiff_binarydiff_marked_columns";
-            assert(opt_debug_sync_timeout > 0);
-            assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+            DBUG_ASSERT(opt_debug_sync_timeout > 0);
+            DBUG_ASSERT(
+                !debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
           }
         };);
 #endif
@@ -700,7 +701,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
     DBUG_PRINT("debug", ("Conversion %srequired for field '%s' (#%lu)",
                          conv_field ? "" : "not ", field_ptr->field_name,
                          static_cast<long unsigned int>(it.absolute_pos())));
-    assert(f != nullptr);
+    DBUG_ASSERT(f != nullptr);
 
     DBUG_PRINT("debug",
                ("field name: %s; field position: %p", f->field_name, pack_ptr));
@@ -718,7 +719,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
      */
     if (bitmap_is_set(column_image, col_i)) {
       /* Field...::unpack() cannot return 0 */
-      assert(pack_ptr != nullptr);
+      DBUG_ASSERT(pack_ptr != nullptr);
 
       if (null_bits.get()) {
         if (f->is_nullable()) {
@@ -755,7 +756,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           normal unpack operation.
         */
         uint const metadata = tabledef->field_metadata(col_i);
-#ifndef NDEBUG
+#ifndef DBUG_OFF
         uchar const *const old_pack_ptr = pack_ptr;
 #endif
         /// @todo calc_field_size may read out of bounds /Sven
@@ -783,9 +784,9 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
           a old decimal data type which is unsupported datatype in
           RBR mode.
          */
-        assert(tabledef->type(col_i) == MYSQL_TYPE_DECIMAL ||
-               tabledef->calc_field_size(col_i, old_pack_ptr) ==
-                   (uint32)(pack_ptr - old_pack_ptr));
+        DBUG_ASSERT(tabledef->type(col_i) == MYSQL_TYPE_DECIMAL ||
+                    tabledef->calc_field_size(col_i, old_pack_ptr) ==
+                        (uint32)(pack_ptr - old_pack_ptr));
       }
 
       /*
@@ -796,7 +797,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
       */
       if (conv_field) {
         Copy_field copy;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
         char source_buf[MAX_FIELD_WIDTH];
         char value_buf[MAX_FIELD_WIDTH];
         String source_type(source_buf, sizeof(source_buf), system_charset_info);
@@ -809,7 +810,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
 #endif
         copy.set(field_ptr, f, true);
         copy.invoke_do_copy();
-#ifndef NDEBUG
+#ifndef DBUG_OFF
         char target_buf[MAX_FIELD_WIDTH];
         String target_type(target_buf, sizeof(target_buf), system_charset_info);
         field_ptr->sql_type(target_type);
@@ -820,7 +821,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
 #endif
       }
     }
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     else {
       DBUG_PRINT("debug", ("Non-existent: skipped"));
     }
@@ -849,7 +850,7 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
   }
 
   // We have read all the null bits.
-  assert(null_bits.tell() == image_column_count);
+  DBUG_ASSERT(null_bits.tell() == image_column_count);
 
   DBUG_DUMP("info", row_data, pack_ptr - row_data);
 
@@ -925,7 +926,7 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols,
     Just to be sure that tmp_set is currently not in use as
     the write_set already.
   */
-  assert(table->write_set != &table->tmp_set);
+  DBUG_ASSERT(table->write_set != &table->tmp_set);
   /* set the temporary write_set */
   table->column_bitmaps_set_no_signal(table->read_set, &table->tmp_set);
   /**

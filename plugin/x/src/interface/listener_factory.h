@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -28,9 +28,9 @@
 #include <memory>
 #include <string>
 
+#include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/src/interface/listener.h"
 #include "plugin/x/src/interface/socket_events.h"
-#include "plugin/x/src/ngs/memory.h"
 
 namespace xpl {
 namespace iface {

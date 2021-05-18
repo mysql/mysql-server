@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,9 +27,9 @@
 
 #include "storage/perfschema/table_mems_global_by_event_name.h"
 
-#include <assert.h>
 #include <stddef.h>
 
+#include "my_dbug.h"
 #include "my_thread.h"
 #include "sql/field.h"
 #include "sql/plugin_table.h"
@@ -180,7 +180,7 @@ int table_mems_global_by_event_name::rnd_pos(const void *pos) {
 int table_mems_global_by_event_name::index_init(uint idx MY_ATTRIBUTE((unused)),
                                                 bool) {
   PFS_index_mems_global_by_event_name *result = nullptr;
-  assert(idx == 0);
+  DBUG_ASSERT(idx == 0);
   result = PFS_NEW(PFS_index_mems_global_by_event_name);
   m_opened_index = result;
   m_index = result;
@@ -254,7 +254,6 @@ int table_mems_global_by_event_name::make_row(PFS_memory_class *klass) {
                                           &visitor);
   }
 
-  visitor.m_stat.normalize(true);
   m_row.m_stat.set(&visitor.m_stat);
 
   return 0;
@@ -262,11 +261,7 @@ int table_mems_global_by_event_name::make_row(PFS_memory_class *klass) {
 
 int table_mems_global_by_event_name::make_row(PFS_builtin_memory_class *klass) {
   m_row.m_event_name.make_row(&klass->m_class);
-  PFS_memory_monitoring_stat stat;
-  stat.reset();
-  memory_monitoring_aggregate(&klass->m_stat, &stat);
-  stat.normalize(true);
-  m_row.m_stat.set(&stat);
+  m_row.m_stat.set(&klass->m_stat);
   return 0;
 }
 
@@ -277,7 +272,7 @@ int table_mems_global_by_event_name::read_row_values(TABLE *table,
   Field *f;
 
   /* Set the null bits */
-  assert(table->s->null_bytes == 0);
+  DBUG_ASSERT(table->s->null_bytes == 0);
 
   for (; (f = *fields); fields++) {
     if (read_all || bitmap_is_set(table->read_set, f->field_index())) {

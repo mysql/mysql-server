@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,7 @@
 #ifndef DD_CACHE__CACHE_ELEMENT_INCLUDED
 #define DD_CACHE__CACHE_ELEMENT_INCLUDED
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "sql/dd/impl/raw/object_keys.h"  // Primary_id_key
 #include "sql/dd/string_type.h"           // dd::String_type
 
@@ -132,7 +131,7 @@ class Cache_element {
 
   // Update the keys based on the object pointed to.
   void recreate_keys() {
-    assert(m_object);
+    DBUG_ASSERT(m_object);
     m_id_key.is_null = m_object->update_id_key(&m_id_key.key);
     m_name_key.is_null = m_object->update_name_key(&m_name_key.key);
     m_aux_key.is_null = m_object->update_aux_key(&m_aux_key.key);
@@ -159,7 +158,7 @@ class Cache_element {
 
   // Decrement the reference counter associated with the object.
   void release() {
-    assert(m_ref_counter > 0);
+    DBUG_ASSERT(m_ref_counter > 0);
     m_ref_counter--;
   }
 
@@ -198,7 +197,7 @@ class Cache_element {
   // Debug dump of the element to stderr.
   /* purecov: begin inspected */
   void dump(const String_type &prefix MY_ATTRIBUTE((unused)) = "      ") const {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     fprintf(stderr, "%sobj: %p, id: %llu, cnt: %u", prefix.c_str(), m_object,
             m_object ? m_object->id() : 0, m_ref_counter);
     fprintf(stderr, ", id_k: %s",

@@ -1,4 +1,4 @@
-/*  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/*  Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License, version 2.0,
@@ -132,6 +132,16 @@ Srv_session *srv_session_open_internal(srv_session_error_cb error_cb,
   return session;
 }
 
+/**
+  Opens server session
+
+  @param error_cb              Default completion callback
+  @param plugin_ctx            Plugin's context, opaque pointer that would
+                               be provided to callbacks. Might be NULL.
+  @return
+    handler of session   on success
+    NULL                 on failure
+*/
 Srv_session *srv_session_open(srv_session_error_cb error_cb, void *plugin_ctx) {
   DBUG_TRACE;
   return srv_session_open_internal(error_cb, plugin_ctx, false);
@@ -212,6 +222,16 @@ int srv_session_server_is_available() {
   return get_server_state() == SERVER_OPERATING;
 }
 
+/**
+  Attaches a session to current srv_session physical thread.
+
+  @param session  Session handle to attach
+  @param ret_previous_thd Previously attached THD
+
+  @returns
+    0  success
+    1  failure
+*/
 int srv_session_attach(MYSQL_SESSION session, MYSQL_THD *ret_previous_thd) {
   DBUG_TRACE;
 

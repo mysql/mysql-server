@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2013, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,11 +31,10 @@
 
 #include "storage/perfschema/pfs_program.h"
 
-#include <assert.h>
 #include <string.h>
 
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "sql/mysqld.h"  //system_charset_info
@@ -69,9 +68,9 @@ static const uchar *program_hash_get_key(const uchar *entry, size_t *length) {
   const PFS_program *program;
   const void *result;
   typed_entry = reinterpret_cast<const PFS_program *const *>(entry);
-  assert(typed_entry != nullptr);
+  DBUG_ASSERT(typed_entry != nullptr);
   program = *typed_entry;
-  assert(program != nullptr);
+  DBUG_ASSERT(program != nullptr);
   *length = program->m_key.m_key_length;
   result = program->m_key.m_hash_key;
   return reinterpret_cast<const uchar *>(result);
@@ -101,8 +100,8 @@ void cleanup_program_hash(void) {
 static void set_program_key(PFS_program_key *key, enum_object_type object_type,
                             const char *object_name, uint object_name_length,
                             const char *schema_name, uint schema_name_length) {
-  assert(object_name_length <= COL_OBJECT_NAME_SIZE);
-  assert(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
+  DBUG_ASSERT(object_name_length <= COL_OBJECT_NAME_SIZE);
+  DBUG_ASSERT(schema_name_length <= COL_OBJECT_SCHEMA_SIZE);
 
   /*
     To make sure generated key is case insensitive,

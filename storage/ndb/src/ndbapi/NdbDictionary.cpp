@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -371,7 +371,7 @@ NdbDictionary::Column::getSizeInBytesForRecord() const {
 * for backward compatible api consideration, but is broken.
 */
 int
-NdbDictionary::Column::setDefaultValue(const char*)
+NdbDictionary::Column::setDefaultValue(const char* defaultValue)
 {
   return -1;
 }
@@ -926,7 +926,7 @@ NdbDictionary::Table::setTemporary(bool val) {
 }
 
 int
-NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool) const {
+NdbDictionary::Table::createTableInDb(Ndb* pNdb, bool equalOk) const {  
   const NdbDictionary::Table * pTab = 
     pNdb->getDictionary()->getTable(getName());
   if(pTab != 0 && equal(* pTab))
@@ -1069,15 +1069,15 @@ NdbDictionary::Table::getDefaultRecord() const {
 }
 
 int
-NdbDictionary::Table::aggregate(NdbError&)
+NdbDictionary::Table::aggregate(NdbError& error)
 {
-  return m_impl.aggregate();
+  return m_impl.aggregate(error);
 }
 
 int
-NdbDictionary::Table::validate(NdbError&)
+NdbDictionary::Table::validate(NdbError& error)
 {
-  return m_impl.validate();
+  return m_impl.validate(error);
 }
 
 Uint32
@@ -1188,12 +1188,12 @@ NdbDictionary::Index::getName() const {
 
 int
 NdbDictionary::Index::setTable(const char * table){
-  return m_impl.setTableName(table);
+  return m_impl.setTable(table);
 }
 
 const char * 
 NdbDictionary::Index::getTable() const {
-  return m_impl.getTableName();
+  return m_impl.getTable();
 }
 
 unsigned
@@ -1335,7 +1335,7 @@ NdbDictionary::Index::getObjectId() const {
  * OptimizeTableHandle facade
  */
 NdbDictionary::OptimizeTableHandle::OptimizeTableHandle()
-  : m_impl(* new NdbOptimizeTableHandleImpl())
+  : m_impl(* new NdbOptimizeTableHandleImpl(* this))
 {}
 
 NdbDictionary::OptimizeTableHandle::OptimizeTableHandle(NdbOptimizeTableHandleImpl & impl)
@@ -1367,7 +1367,7 @@ NdbDictionary::OptimizeTableHandle::close()
  * OptimizeIndexHandle facade
  */
 NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle()
-  : m_impl(* new NdbOptimizeIndexHandleImpl())
+  : m_impl(* new NdbOptimizeIndexHandleImpl(* this))
 {}
 
 NdbDictionary::OptimizeIndexHandle::OptimizeIndexHandle(NdbOptimizeIndexHandleImpl & impl)
@@ -3112,7 +3112,7 @@ NdbDictionary::Dictionary::dropIndex(const char * indexName,
   int ret;
   DO_TRANS(
     ret,
-    m_impl.dropIndex(indexName, tableName, false)
+    m_impl.dropIndex(indexName, tableName)
   );
   return ret;
 }
@@ -3123,7 +3123,7 @@ NdbDictionary::Dictionary::dropIndexGlobal(const Index &ind)
   int ret;
   DO_TRANS(
     ret,
-    m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind), false)
+    m_impl.dropIndexGlobal(NdbIndexImpl::getImpl(ind))
   );
   return ret;
 }
@@ -3262,6 +3262,20 @@ NdbDictionary::Dictionary::removeCachedIndex(const char * indexName,
   }
 }
 
+const NdbDictionary::Table *
+NdbDictionary::Dictionary::getIndexTable(const char * indexName, 
+					 const char * tableName) const
+{
+  NdbIndexImpl * i = m_impl.getIndex(indexName, tableName);
+  NdbTableImpl * t = m_impl.getTable(tableName);
+  if(i && t) {
+    NdbTableImpl * it = m_impl.getIndexTable(i, t);
+    return it->m_facade;
+  }
+  return 0;
+}
+
+
 int
 NdbDictionary::Dictionary::createEvent(const Event & ev)
 {
@@ -3310,7 +3324,7 @@ NdbDictionary::Dictionary::listObjects(List& list, Object::Type type) const
 {
   // delegate to variant with FQ names param
   return listObjects(list, type, 
-                     true /* fully qualified */);
+                     m_impl.m_ndb.usingFullyQualifiedNames());
 }
 
 int
@@ -3334,7 +3348,7 @@ NdbDictionary::Dictionary::listIndexes(List& list,
                                       const char * tableName) const
 {
   // delegate to overloaded function with FQ names param
-  return listIndexes(list, tableName, true /* fully qualified */);
+  return listIndexes(list, tableName, m_impl.m_ndb.usingFullyQualifiedNames());
 }
 
 int
@@ -3354,7 +3368,7 @@ NdbDictionary::Dictionary::listIndexes(List& list,
 				       const NdbDictionary::Table &table) const
 {
   return m_impl.listIndexes(list, table.getTableId(),
-                            true /* fully qualified */);
+                            m_impl.m_ndb.usingFullyQualifiedNames());
 }
 
 int
@@ -4143,7 +4157,7 @@ NdbDictionary::Dictionary::invalidateDbGlobal(const char * name)
 {
   if (m_impl.m_globalHash && name != 0)
   {
-    const size_t len = strlen(name);
+    size_t len = strlen(name);
     m_impl.m_globalHash->lock();
     m_impl.m_globalHash->invalidateDb(name, len);
     m_impl.m_globalHash->unlock();

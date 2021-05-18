@@ -1,3 +1,0 @@
-$CLONE_PLUGIN_OPT
---relay-log=slave
---relay-log-index=slave

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -55,17 +55,15 @@
   This causes complexity with '#ifdef'-ery that can't be avoided.
 */
 
-/* HAVE_PSI_*_INTERFACE */
-#include "my_psi_config.h"  // IWYU pragma: keep
-
 #include "mysql/components/services/mysql_mutex_bits.h"
 #include "mysql/components/services/psi_mutex_bits.h"
 #include "mysql/psi/psi_mutex.h"
 #include "thr_mutex.h"
 
-#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
-/* PSI_MUTEX_CALL() as direct call. */
-#include "pfs_mutex_provider.h"  // IWYU pragma: keep
+#ifdef MYSQL_SERVER
+#ifndef MYSQL_DYNAMIC_PLUGIN
+#include "pfs_mutex_provider.h"
+#endif
 #endif
 
 #ifndef PSI_MUTEX_CALL
@@ -242,28 +240,26 @@ static inline int inline_mysql_mutex_lock(
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   if (that->m_psi != nullptr) {
-    if (that->m_psi->m_enabled) {
-      /* Instrumentation start */
-      PSI_mutex_locker *locker;
-      PSI_mutex_locker_state state;
-      locker = PSI_MUTEX_CALL(start_mutex_wait)(
-          &state, that->m_psi, PSI_MUTEX_LOCK, src_file, src_line);
+    /* Instrumentation start */
+    PSI_mutex_locker *locker;
+    PSI_mutex_locker_state state;
+    locker = PSI_MUTEX_CALL(start_mutex_wait)(
+        &state, that->m_psi, PSI_MUTEX_LOCK, src_file, src_line);
 
-      /* Instrumented code */
-      result = my_mutex_lock(&that->m_mutex
+    /* Instrumented code */
+    result = my_mutex_lock(&that->m_mutex
 #ifdef SAFE_MUTEX
-                             ,
-                             src_file, src_line
+                           ,
+                           src_file, src_line
 #endif
-      );
+    );
 
-      /* Instrumentation end */
-      if (locker != nullptr) {
-        PSI_MUTEX_CALL(end_mutex_wait)(locker, result);
-      }
-
-      return result;
+    /* Instrumentation end */
+    if (locker != nullptr) {
+      PSI_MUTEX_CALL(end_mutex_wait)(locker, result);
     }
+
+    return result;
   }
 #endif
 
@@ -285,28 +281,26 @@ static inline int inline_mysql_mutex_trylock(
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   if (that->m_psi != nullptr) {
-    if (that->m_psi->m_enabled) {
-      /* Instrumentation start */
-      PSI_mutex_locker *locker;
-      PSI_mutex_locker_state state;
-      locker = PSI_MUTEX_CALL(start_mutex_wait)(
-          &state, that->m_psi, PSI_MUTEX_TRYLOCK, src_file, src_line);
+    /* Instrumentation start */
+    PSI_mutex_locker *locker;
+    PSI_mutex_locker_state state;
+    locker = PSI_MUTEX_CALL(start_mutex_wait)(
+        &state, that->m_psi, PSI_MUTEX_TRYLOCK, src_file, src_line);
 
-      /* Instrumented code */
-      result = my_mutex_trylock(&that->m_mutex
+    /* Instrumented code */
+    result = my_mutex_trylock(&that->m_mutex
 #ifdef SAFE_MUTEX
-                                ,
-                                src_file, src_line
+                              ,
+                              src_file, src_line
 #endif
-      );
+    );
 
-      /* Instrumentation end */
-      if (locker != nullptr) {
-        PSI_MUTEX_CALL(end_mutex_wait)(locker, result);
-      }
-
-      return result;
+    /* Instrumentation end */
+    if (locker != nullptr) {
+      PSI_MUTEX_CALL(end_mutex_wait)(locker, result);
     }
+
+    return result;
   }
 #endif
 

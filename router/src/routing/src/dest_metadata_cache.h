@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -34,24 +34,25 @@
 #include "mysqlrouter/datatypes.h"
 #include "mysqlrouter/metadata_cache.h"
 #include "mysqlrouter/uri.h"
+#include "socket_operations.h"
 #include "tcp_address.h"
 
 class DestMetadataCacheGroup final
     : public RouteDestination,
-      public metadata_cache::ReplicasetStateListenerInterface,
-      public metadata_cache::AcceptorUpdateHandlerInterface {
+      public metadata_cache::ReplicasetStateListenerInterface {
  public:
   enum ServerRole { Primary, Secondary, PrimaryAndSecondary };
 
   /** @brief Constructor */
   DestMetadataCacheGroup(
-      net::io_context &io_ctx_, const std::string &metadata_cache,
-      const std::string &replicaset,
+      const std::string &metadata_cache, const std::string &replicaset,
       const routing::RoutingStrategy routing_strategy,
       const mysqlrouter::URIQuery &query, const Protocol::Type protocol,
       const routing::AccessMode access_mode = routing::AccessMode::kUndefined,
       metadata_cache::MetadataCacheAPIBase *cache_api =
-          metadata_cache::MetadataCacheAPI::instance());
+          metadata_cache::MetadataCacheAPI::instance(),
+      mysql_harness::SocketOperationsBase *sock_ops =
+          mysql_harness::SocketOperations::instance());
 
   /** @brief Copy constructor */
   DestMetadataCacheGroup(const DestMetadataCacheGroup &other) = delete;
@@ -104,14 +105,7 @@ class DestMetadataCacheGroup final
 
   Destinations primary_destinations();
 
-  /**
-   * advance the current position in the destination by n.
-   */
-  void advance(size_t n);
-
-  void handle_sockets_acceptors() override {
-    cache_api()->handle_sockets_acceptors_on_md_refresh();
-  }
+  void advance(size_t n) { start_pos_ += n; }
 
  private:
   /** @brief The Metadata Cache to use
@@ -166,8 +160,7 @@ class DestMetadataCacheGroup final
    * the `metadata_cache::lookup_replicaset()` function to get a list of current
    * managed servers. Bool in the returned pair indicates if (in case of the
    * round-robin-with-fallback routing strategy) the returned nodes are the
-   * primaries after the fallback (true), regular primaries (false) or
-   * secondaries (false).
+   * primaries after the fallback (true) or secondaries (false).
    *
    */
   std::pair<AvailableDestinations, bool> get_available(
@@ -196,14 +189,10 @@ class DestMetadataCacheGroup final
   void on_instances_change(const metadata_cache::LookupResult &instances,
                            const bool md_servers_reachable);
   void subscribe_for_metadata_cache_changes();
-  void subscribe_for_acceptor_handler();
 
-  void notify_instances_changed(const metadata_cache::LookupResult &instances,
-                                const bool md_servers_reachable,
-                                const unsigned /*view_id*/) noexcept override;
-
-  bool update_socket_acceptor_state(
-      const metadata_cache::LookupResult &instances) noexcept override;
+  void notify(const metadata_cache::LookupResult &instances,
+              const bool md_servers_reachable,
+              const unsigned /*view_id*/) noexcept override;
 
   // MUST take the RouteDestination Mutex
   size_t start_pos_{};

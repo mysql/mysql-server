@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2018, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -35,9 +35,8 @@
 
 namespace xcl {
 namespace test {
-namespace mock {
 
-class Message_handlers {
+class Mock_handlers {
  public:
   XProtocol::Server_message_handler get_mock_lambda_received_message_handler() {
     return
@@ -65,20 +64,21 @@ class Message_handlers {
   }
 
  public:
-  MOCK_METHOD(Handler_result, received_message_handler,
-              (XProtocol *, const XProtocol::Server_message_type_id,
-               const XProtocol::Message &));
+  MOCK_METHOD3(received_message_handler,
+               Handler_result(XProtocol *,
+                              const XProtocol::Server_message_type_id,
+                              const XProtocol::Message &));
 
-  MOCK_METHOD(Handler_result, send_message_handler,
-              (XProtocol *, const XProtocol::Client_message_type_id,
-               const XProtocol::Message &));
+  MOCK_METHOD3(send_message_handler,
+               Handler_result(XProtocol *,
+                              const XProtocol::Client_message_type_id,
+                              const XProtocol::Message &));
 
-  MOCK_METHOD(Handler_result, notice_handler,
-              (XProtocol *, const bool, const Mysqlx::Notice::Frame::Type,
-               const char *, const uint32_t));
+  MOCK_METHOD5(notice_handler, Handler_result(XProtocol *, const bool,
+                                              const Mysqlx::Notice::Frame::Type,
+                                              const char *, const uint32_t));
 };
 
-}  // namespace mock
 }  // namespace test
 }  // namespace xcl
 

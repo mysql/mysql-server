@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2019, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -241,7 +241,7 @@ inline void Column::write_is_null(bool is_null, unsigned char *mysql_row,
   if (is_nullable()) {
     unsigned char *b = mysql_row + m_null_byte_offset;
 
-    assert(buf_is_inside_another(b, 1, mysql_row, mysql_row_length));
+    DBUG_ASSERT(buf_is_inside_another(b, 1, mysql_row, mysql_row_length));
 
     if (is_null) {
       *b |= m_null_bitmask;
@@ -249,7 +249,7 @@ inline void Column::write_is_null(bool is_null, unsigned char *mysql_row,
       *b &= ~m_null_bitmask;
     }
   } else {
-    assert(!is_null);
+    DBUG_ASSERT(!is_null);
   }
 }
 
@@ -288,31 +288,31 @@ inline void Column::write_user_data_length(
     size_t mysql_row_length TEMPTABLE_UNUSED_NODBUG) const {
   unsigned char *p = mysql_row + m_offset;
 
-  assert((m_length_bytes_size == 0) ||
-         (buf_is_inside_another(p, m_length_bytes_size, mysql_row,
-                                mysql_row_length)));
+  DBUG_ASSERT((m_length_bytes_size == 0) ||
+              (buf_is_inside_another(p, m_length_bytes_size, mysql_row,
+                                     mysql_row_length)));
 
   switch (m_length_bytes_size) {
     case 0:
       /* Fixed size cell. */
       break;
     case 1:
-      assert(data_length <= 0xFF);
+      DBUG_ASSERT(data_length <= 0xFF);
       p[0] = data_length;
       break;
     case 2:
-      assert(data_length <= 0xFFFF);
+      DBUG_ASSERT(data_length <= 0xFFFF);
       p[0] = (data_length & 0x000000FF);
       p[1] = (data_length & 0x0000FF00) >> 8;
       break;
     case 3:
-      assert(data_length <= 0xFFFFFF);
+      DBUG_ASSERT(data_length <= 0xFFFFFF);
       p[0] = (data_length & 0x000000FF);
       p[1] = (data_length & 0x0000FF00) >> 8;
       p[2] = (data_length & 0x00FF0000) >> 16;
       break;
     case 4:
-      /* assert(data_length <= 0xFFFFFFFF). */
+      /* DBUG_ASSERT(data_length <= 0xFFFFFFFF). */
       p[0] = (data_length & 0x000000FF);
       p[1] = (data_length & 0x0000FF00) >> 8;
       p[2] = (data_length & 0x00FF0000) >> 16;
@@ -341,7 +341,7 @@ inline void Column::write_user_data(bool is_null, const unsigned char *data,
     if (is_null) {
       write_blob_user_data(nullptr, 0, mysql_row, mysql_row_length);
     } else {
-      assert(data);
+      DBUG_ASSERT(data);
       write_blob_user_data(data, data_length, mysql_row, mysql_row_length);
     }
   } else {
@@ -352,11 +352,12 @@ inline void Column::write_user_data(bool is_null, const unsigned char *data,
 inline void Column::read_std_user_data(
     unsigned char *data, uint32_t data_length, const unsigned char *mysql_row,
     size_t mysql_row_length TEMPTABLE_UNUSED_NODBUG) const {
-  assert(!is_blob());
+  DBUG_ASSERT(!is_blob());
 
   const unsigned char *p = mysql_row + m_user_data_offset;
 
-  assert(buf_is_inside_another(p, data_length, mysql_row, mysql_row_length));
+  DBUG_ASSERT(
+      buf_is_inside_another(p, data_length, mysql_row, mysql_row_length));
 
   memcpy(data, p, data_length);
 }
@@ -364,12 +365,13 @@ inline void Column::read_std_user_data(
 inline void Column::write_std_user_data(
     const unsigned char *data, uint32_t data_length, unsigned char *mysql_row,
     size_t mysql_row_length TEMPTABLE_UNUSED_NODBUG) const {
-  assert(!is_blob());
+  DBUG_ASSERT(!is_blob());
 
   if (data_length > 0) {
     unsigned char *p = mysql_row + m_user_data_offset;
 
-    assert(buf_is_inside_another(p, data_length, mysql_row, mysql_row_length));
+    DBUG_ASSERT(
+        buf_is_inside_another(p, data_length, mysql_row, mysql_row_length));
 
     memcpy(p, data, data_length);
   }
@@ -378,19 +380,19 @@ inline void Column::write_std_user_data(
 inline void Column::read_blob_user_data(
     unsigned char *data, uint32_t data_length, const unsigned char *mysql_row,
     size_t mysql_row_length TEMPTABLE_UNUSED_NODBUG) const {
-  assert(is_blob());
+  DBUG_ASSERT(is_blob());
 
   const unsigned char *p = mysql_row + m_user_data_offset;
 
   const unsigned char *ptr_to_data;
 
-  assert(buf_is_inside_another(p, sizeof(ptr_to_data), mysql_row,
-                               mysql_row_length));
+  DBUG_ASSERT(buf_is_inside_another(p, sizeof(ptr_to_data), mysql_row,
+                                    mysql_row_length));
 
   /* read the address */
   memcpy(&ptr_to_data, p, sizeof(ptr_to_data));
 
-  assert((ptr_to_data) || (data_length == 0));
+  DBUG_ASSERT((ptr_to_data) || (data_length == 0));
 
   memcpy(data, ptr_to_data, data_length);
 }
@@ -399,7 +401,7 @@ inline void Column::write_blob_user_data(
     const unsigned char *data, uint32_t data_length TEMPTABLE_UNUSED,
     unsigned char *mysql_row,
     size_t mysql_row_length TEMPTABLE_UNUSED_NODBUG) const {
-  assert(is_blob());
+  DBUG_ASSERT(is_blob());
 
   unsigned char *p = mysql_row + m_user_data_offset;
 
@@ -407,8 +409,8 @@ inline void Column::write_blob_user_data(
    * Note2: shallow copy - pointer to original data is stored. */
   const unsigned char *ptr_to_data = data;
 
-  assert(buf_is_inside_another(p, sizeof(ptr_to_data), mysql_row,
-                               mysql_row_length));
+  DBUG_ASSERT(buf_is_inside_another(p, sizeof(ptr_to_data), mysql_row,
+                                    mysql_row_length));
 
   memcpy(p, &ptr_to_data, sizeof(ptr_to_data));
 }
@@ -424,14 +426,14 @@ inline const unsigned char *Column::get_user_data_ptr(
 
 inline const unsigned char *Column::calculate_user_data_ptr(
     const unsigned char *mysql_row) const {
-  assert(!is_blob());
+  DBUG_ASSERT(!is_blob());
 
   return (mysql_row + m_user_data_offset);
 }
 
 inline const unsigned char *Column::read_blob_data_ptr(
     const unsigned char *mysql_row) const {
-  assert(is_blob());
+  DBUG_ASSERT(is_blob());
 
   const unsigned char *p = mysql_row + m_user_data_offset;
 

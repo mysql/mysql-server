@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -50,8 +50,8 @@ struct RopeHandle {
 
 class ConstRope : private RopeBase {
 public:
-  ConstRope(RopePool& pool, const RopeHandle& handle)  
-    : RopeBase(pool), src(handle)
+  ConstRope(RopePool& thePool, const RopeHandle& handle)  
+    : RopeBase(thePool), src(handle)
   {
     this->head = src.m_head;
     m_length = src.m_length;
@@ -88,8 +88,8 @@ private:
 
 class LocalRope : private RopeBase {
 public:
-  LocalRope(RopePool& pool, RopeHandle& handle)
-    : RopeBase(pool), src(handle)
+  LocalRope(RopePool& thePool, RopeHandle& handle)
+    : RopeBase(thePool), src(handle)
   {
     this->head = src.m_head;
     m_length = src.m_length;

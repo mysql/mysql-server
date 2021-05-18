@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+Copyright (c) 2007, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -86,9 +86,8 @@ void lock_rec_set_nth_bit(lock_t *lock, /*!< in: record lock */
 
   byte_index = i / 8;
   bit_index = i % 8;
-  byte *const the_byte = ((byte *)&lock[1]) + byte_index;
-  ut_ad(!(*the_byte & (1 << bit_index)));
-  *the_byte |= 1 << bit_index;
+
+  ((byte *)&lock[1])[byte_index] |= 1 << bit_index;
 
   lock->trx->lock.n_rec_locks.fetch_add(1, std::memory_order_relaxed);
 }

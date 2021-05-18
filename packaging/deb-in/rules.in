@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-# Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -28,13 +28,6 @@
 export DH_VERBOSE=1
 export CFLAGS=
 export CXXFLAGS=
-
-ifeq (,$(MYSQL_BUILD_MAKE_JFLAG))
-	JOBS=-j8
-else
-	JOBS=$(MYSQL_BUILD_MAKE_JFLAG)
-endif
-
 
 override_dh_auto_configure:
 	@echo "RULES.$@"
@@ -64,7 +57,7 @@ override_dh_auto_build:
 	@echo "RULES.$@"
 	@DEB_RULES_DEBUG_MAKE@
 	cd release && \
-	$(MAKE) $(JOBS) VERBOSE=1
+	$(MAKE) -j8 VERBOSE=1
 	touch $@
 
 override_dh_auto_test:

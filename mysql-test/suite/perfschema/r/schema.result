@@ -62,7 +62,6 @@ global_status
 global_variables
 host_cache
 hosts
-keyring_component_status
 keyring_keys
 log_status
 memory_summary_by_account_by_event_name
@@ -84,7 +83,6 @@ replication_applier_status
 replication_applier_status_by_coordinator
 replication_applier_status_by_worker
 replication_asynchronous_connection_failover
-replication_asynchronous_connection_failover_managed
 replication_connection_configuration
 replication_connection_status
 replication_group_member_stats

@@ -483,8 +483,8 @@ CREATE VIEW view_C AS SELECT * FROM C;
 SELECT /*+ NO_BNL(t1) */ t1.c13 FROM C AS t2 STRAIGHT_JOIN C AS t1 FORCE INDEX(c13);
 c13
 00:00:00
-00:00:00
 00:00:01
+00:00:00
 00:00:01
 SELECT DISTINCT t1.c13 FROM C AS t1, view_C AS t2;
 c13
@@ -625,13 +625,9 @@ Warning	1287	Setting user variables within expressions is deprecated and will be
 DO (SELECT (@c2:= c) - a FROM t);
 Warnings:
 Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
-Warning	1292	Truncated incorrect DOUBLE value: '2001-01-01 00:00:00'
 SELECT @c2 - @c1;
 @c2 - @c1
 0
-Warnings:
-Warning	1292	Truncated incorrect DOUBLE value: '2001-01-01 00:00:00'
-Warning	1292	Truncated incorrect DOUBLE value: '2001-01-01 00:00:00'
 DROP TABLE t;
 #
 # Bug#22133710 GCOLS: READ UNCOMMITTED: ASSERT !TABLE || (!TABLE->WRITE_SET || BITMAP_IS_SET(TA
@@ -1457,35 +1453,3 @@ SELECT * FROM t1 NATURAL JOIN t2;
 a
 1
 DROP TABLE t1, t2;
-#
-# Bug#31982292: ITEM_JSON_FUNC.CC:1406: BOOL SQL_SCALAR_TO_JSON(ITEM*,
-# CONST CHAR*, STRING*, STR
-#
-CREATE TABLE t(x VARCHAR(10),
-y INT GENERATED ALWAYS AS (x),
-z JSON GENERATED ALWAYS AS (JSON_ARRAY(x, y)));
-INSERT INTO t (x) VALUES ('abc');
-ERROR HY000: Incorrect integer value: 'abc' for column 'y' at row 1
-DROP TABLE t;
-CREATE TABLE t(x VARCHAR(10));
-INSERT INTO t VALUES ('');
-ALTER TABLE t
-ADD COLUMN g1 JSON GENERATED ALWAYS AS (x),
-ADD COLUMN g2 JSON GENERATED ALWAYS AS (JSON_ARRAY(x));
-SELECT * FROM t;
-ERROR 22032: Invalid JSON text: "The document is empty." at position 0 in value for column 't.g1'.
-DROP TABLE t;
-#
-# Bug#32234773: UPDATE_GENERATED_READ_FIELDS:
-#               ASSERTION `!TABLE->IN_USE->IS_ERROR()' FAILED
-#
-CREATE TABLE t (
-id INT PRIMARY KEY AUTO_INCREMENT,
-i INT,
-gc INT GENERATED ALWAYS AS (1) STORED,
-KEY (i)
-);
-INSERT INTO t(i) VALUES (5853267), (32766);
-SELECT * FROM t WHERE i > 123 AND i * FROM_UNIXTIME(1536999224);
-ERROR 22003: BIGINT value is out of range in '(`test`.`t`.`i` * from_unixtime(1536999224))'
-DROP TABLE t;

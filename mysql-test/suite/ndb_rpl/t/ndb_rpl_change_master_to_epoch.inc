@@ -97,7 +97,7 @@ let $the_file = query_get_value(select @the_file as file, file, 1);
 --connection slave
 
 reset slave;
---eval CHANGE REPLICATION SOURCE to SOURCE_LOG_FILE="$the_file", SOURCE_LOG_POS=$the_pos;
+--eval change master to master_log_file="$the_file", master_log_pos=$the_pos;
 
 --enable_result_log
 --enable_query_log

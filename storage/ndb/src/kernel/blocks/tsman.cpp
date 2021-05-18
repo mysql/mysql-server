@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -118,6 +118,8 @@ Tsman::Tsman(Block_context& ctx) :
 
   addRecSignal(GSN_DROP_FILE_IMPL_REQ, &Tsman::execDROP_FILE_IMPL_REQ);
   addRecSignal(GSN_DROP_FILEGROUP_IMPL_REQ, &Tsman::execDROP_FILEGROUP_IMPL_REQ);
+
+  addRecSignal(GSN_FSWRITEREQ, &Tsman::execFSWRITEREQ);
 
   addRecSignal(GSN_FSOPENREF, &Tsman::execFSOPENREF, true);
   addRecSignal(GSN_FSOPENCONF, &Tsman::execFSOPENCONF);
@@ -1074,7 +1076,7 @@ Tsman::open_file(Signal* signal,
 }
 
 void
-Tsman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross threads from Ndbfs */
+Tsman::execFSWRITEREQ(Signal* signal)
 {
   /**
    * This is currently run in other thread -> no jam
@@ -1099,6 +1101,7 @@ Tsman::execFSWRITEREQ(const FsReadWriteReq* req) const /* called direct cross th
   //jamEntry();
   Ptr<Datafile> ptr;
   Ptr<GlobalPage> page_ptr;
+  FsReadWriteReq* req= (FsReadWriteReq*)signal->getDataPtr();
   
   m_file_pool.getPtr(ptr, req->userPointer);
   m_shared_page_pool.getPtr(page_ptr, req->data.pageData[0]);
@@ -3378,7 +3381,7 @@ void Tsman::sendGET_TABINFOREF(Signal* signal,
  * we protect for any future changes.
  */
 void
-Tsman::client_lock(Uint32 instance) const
+Tsman::client_lock(Uint32 instance)
 {
   (void)instance;
   if (isNdbMtLqh())
@@ -3389,7 +3392,7 @@ Tsman::client_lock(Uint32 instance) const
 }
 
 void
-Tsman::client_unlock(Uint32 instance) const
+Tsman::client_unlock(Uint32 instance)
 {
   (void)instance;
   if (isNdbMtLqh())
@@ -3400,7 +3403,7 @@ Tsman::client_unlock(Uint32 instance) const
 }
 
 void
-Tsman::client_lock() const
+Tsman::client_lock()
 {
   if (isNdbMtLqh())
   {
@@ -3413,7 +3416,7 @@ Tsman::client_lock() const
 }
 
 void
-Tsman::client_unlock() const
+Tsman::client_unlock()
 {
   if (isNdbMtLqh())
   {

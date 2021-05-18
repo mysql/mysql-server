@@ -1,5 +1,4 @@
 # Test remote clone with different table types with debug sync
---source include/have_punch_hole.inc
 
 --let $HOST = 127.0.0.1
 --let $PORT =`select @@port`

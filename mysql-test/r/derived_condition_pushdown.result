@@ -348,7 +348,7 @@ EXPLAIN FORMAT=tree SELECT f1 FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as d
 WHERE f1 > 3;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Group aggregate: sum(t1.f2)
             -> Filter: (t1.f1 > 3)  (cost=*** rows=***)
                 -> Index range scan on t1 using f1_2  (cost=*** rows=***)
@@ -361,7 +361,7 @@ EXPLAIN FORMAT=tree SELECT f1 FROM (SELECT f1, f2, SUM(f3) FROM t1 GROUP BY f1,f
 WHERE f1+f2 > 30;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Group aggregate: sum(t1.f3)
             -> Filter: ((t1.f1 + t1.f2) > 30)  (cost=*** rows=***)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
@@ -376,8 +376,8 @@ FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1 WITH ROLLUP) as dt
 WHERE f1 IS NULL;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
-        -> Filter: (rollup_group_item(t1.f1,0) is null)
+    -> Materialize
+        -> Filter: (t1.f1 is null)
             -> Group aggregate with rollup: sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -393,8 +393,8 @@ FROM t1 GROUP BY f1 WITH ROLLUP) as dt WHERE j+sum > 50 OR
 j IS NULL;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
-        -> Filter: (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null))
+    -> Materialize
+        -> Filter: (((t1.f1 + sum(t1.f2)) > 50) or (t1.f1 is null))
             -> Group aggregate with rollup: sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -414,8 +414,8 @@ HAVING AVG(f2) > 1) AS dt WHERE j+sum > 50 OR
 j IS NULL;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
-        -> Filter: ((rollup_sum_switcher(avg(t1.f2)) > 1) and (((rollup_group_item(t1.f1,0) + rollup_sum_switcher(sum(t1.f2))) > 50) or (rollup_group_item(t1.f1,0) is null)))
+    -> Materialize
+        -> Filter: ((avg(t1.f2) > 1) and (((t1.f1 + sum(t1.f2)) > 50) or (t1.f1 is null)))
             -> Group aggregate with rollup: avg(t1.f2), sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -469,13 +469,14 @@ set sql_mode="";
 EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;
 EXPLAIN
--> Filter: (dt.f1 > 2)  (cost=*** rows=***)
+-> Filter: (dt.f1 > 2)
     -> Table scan on dt  (cost=*** rows=***)
-        -> Materialize  (cost=*** rows=***)
-            -> Window aggregate with buffering: sum(t1.f2) OVER () 
-                -> Table scan on <temporary>  (cost=*** rows=***)
-                    -> Temporary table with deduplication  (cost=*** rows=***)
-                        -> Index range scan on t1 using index_for_group_by(f1_2)  (cost=*** rows=***)
+        -> Materialize
+            -> Group (computed in earlier step, no aggregates)
+                -> Window aggregate with buffering: sum(t1.f2) OVER () 
+                    -> Table scan on <temporary>
+                        -> Temporary table with deduplication  (cost=*** rows=***)
+                            -> Index range scan on t1 using index_for_group_by(f1_2)  (cost=*** rows=***)
 
 SELECT * FROM (SELECT f1, SUM(f2) OVER() FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2;
@@ -487,10 +488,10 @@ FROM (SELECT f1, SUM(f2) OVER(PARTITION BY f1)
 FROM t1 GROUP BY f1) as dt WHERE f1 > 2;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1 ) 
             -> Sort: t1.f1
-                -> Table scan on <temporary>  (cost=*** rows=***)
+                -> Table scan on <temporary>
                     -> Temporary table with deduplication  (cost=*** rows=***)
                         -> Filter: (t1.f1 > 2)  (cost=*** rows=***)
                             -> Index range scan on t1 using f1_2  (cost=*** rows=***)
@@ -506,11 +507,11 @@ FROM (SELECT f1, f2, SUM(f3) OVER(PARTITION BY f2)
 FROM t1 GROUP BY f1) as dt WHERE f2 > 30;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Window aggregate with buffering: sum(t1.f3) OVER (PARTITION BY t1.f2 ) 
             -> Filter: (t1.f2 > 30)
                 -> Sort: t1.f2
-                    -> Table scan on <temporary>  (cost=*** rows=***)
+                    -> Table scan on <temporary>
                         -> Temporary table with deduplication  (cost=*** rows=***)
                             -> Table scan on t1  (cost=*** rows=***)
 
@@ -525,12 +526,12 @@ FROM (SELECT f1, f2, SUM(f3) OVER(PARTITION BY f1)
 FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
 EXPLAIN
--> Filter: ((dt.f2 > 30) and ((dt.f1 + dt.f2) > 40))  (cost=*** rows=***)
+-> Filter: ((dt.f2 > 30) and ((dt.f1 + dt.f2) > 40))
     -> Table scan on dt  (cost=*** rows=***)
-        -> Materialize  (cost=*** rows=***)
+        -> Materialize
             -> Window aggregate with buffering: sum(t1.f3) OVER (PARTITION BY t1.f1 ) 
                 -> Sort: t1.f1
-                    -> Table scan on <temporary>  (cost=*** rows=***)
+                    -> Table scan on <temporary>
                         -> Temporary table with deduplication  (cost=*** rows=***)
                             -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
 
@@ -546,11 +547,11 @@ FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Window aggregate with buffering: sum(t1.f3) OVER (PARTITION BY t1.f1,t1.f2 ) 
             -> Filter: ((t1.f2 > 30) and ((t1.f1 + t1.f2) > 40))
                 -> Sort: t1.f1, t1.f2
-                    -> Table scan on <temporary>  (cost=*** rows=***)
+                    -> Table scan on <temporary>
                         -> Temporary table with deduplication  (cost=*** rows=***)
                             -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
 
@@ -566,16 +567,16 @@ AVG(f3) OVER (PARTITION BY f1)
 FROM t1 GROUP BY f1) as dt
 WHERE f1 > 2 and f2 > 30 and (f1+f2) > 40;
 EXPLAIN
--> Filter: ((dt.f2 > 30) and ((dt.f1 + dt.f2) > 40))  (cost=*** rows=***)
+-> Filter: ((dt.f2 > 30) and ((dt.f1 + dt.f2) > 40))
     -> Table scan on dt  (cost=*** rows=***)
-        -> Materialize  (cost=*** rows=***)
+        -> Materialize
             -> Window aggregate with buffering: avg(t1.f3) OVER (PARTITION BY t1.f1 ) 
                 -> Sort: t1.f1
-                    -> Table scan on <temporary>  (cost=*** rows=***)
-                        -> Temporary table  (cost=*** rows=***)
+                    -> Table scan on <temporary>
+                        -> Temporary table
                             -> Window aggregate with buffering: sum(t1.f3) OVER (PARTITION BY t1.f1,t1.f2 ) 
                                 -> Sort: t1.f1, t1.f2
-                                    -> Table scan on <temporary>  (cost=*** rows=***)
+                                    -> Table scan on <temporary>
                                         -> Temporary table with deduplication  (cost=*** rows=***)
                                             -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
 
@@ -592,7 +593,7 @@ FROM t1 GROUP BY f1) as dt
 WHERE SUM > 40;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Window aggregate with buffering: avg(t1.f3) OVER (PARTITION BY sum(t1.f2) ) 
             -> Filter: (sum(t1.f2) > 40)
                 -> Sort: SUM
@@ -616,15 +617,15 @@ FROM t1) as dt
 WHERE f1 > 2 ;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Window aggregate with buffering: first_value(t1.f3) OVER (PARTITION BY t1.f1 ) 
             -> Sort: t1.f1
-                -> Table scan on <temporary>  (cost=*** rows=***)
-                    -> Temporary table  (cost=*** rows=***)
+                -> Table scan on <temporary>
+                    -> Temporary table
                         -> Window aggregate with buffering: avg(t1.f3) OVER (PARTITION BY t1.f2,t1.f1 ) 
                             -> Sort: t1.f2, t1.f1
-                                -> Table scan on <temporary>  (cost=*** rows=***)
-                                    -> Temporary table  (cost=*** rows=***)
+                                -> Table scan on <temporary>
+                                    -> Temporary table
                                         -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1,t1.f2 ) 
                                             -> Sort: t1.f1, t1.f2  (cost=*** rows=***)
                                                 -> Index range scan on t1 using f1, with index condition: (t1.f1 > 2)  (cost=*** rows=***)
@@ -646,13 +647,13 @@ AVG(f2) OVER (PARTITION BY f1)
 FROM t1) as dt
 WHERE f1 > 2 ;
 EXPLAIN
--> Filter: (dt.f1 > 2)  (cost=*** rows=***)
+-> Filter: (dt.f1 > 2)
     -> Table scan on dt  (cost=*** rows=***)
-        -> Materialize  (cost=*** rows=***)
+        -> Materialize
             -> Window aggregate with buffering: avg(t1.f2) OVER (PARTITION BY t1.f1 ) 
                 -> Sort: t1.f1
-                    -> Table scan on <temporary>  (cost=*** rows=***)
-                        -> Temporary table  (cost=*** rows=***)
+                    -> Table scan on <temporary>
+                        -> Temporary table
                             -> Window aggregate with buffering: sum(t1.f1) OVER (PARTITION BY t1.f2 ) 
                                 -> Sort: t1.f2  (cost=*** rows=***)
                                     -> Index scan on t1 using f1_2
@@ -722,7 +723,7 @@ EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Filter: (t1.f1 > (3 * rand()))
             -> Group aggregate: sum(t1.f2)
                 -> Filter: (t1.f1 < 10)  (cost=*** rows=***)
@@ -732,9 +733,9 @@ EXPLAIN FORMAT=tree SELECT * FROM
 (SELECT f1, SUM(f2) OVER(PARTITION BY f1) FROM t1) as dt
 WHERE f1 > 3*RAND() AND f1 < 10;
 EXPLAIN
--> Filter: (dt.f1 > (3 * rand()))  (cost=*** rows=***)
+-> Filter: (dt.f1 > (3 * rand()))
     -> Table scan on dt  (cost=*** rows=***)
-        -> Materialize  (cost=*** rows=***)
+        -> Materialize
             -> Window aggregate with buffering: sum(t1.f2) OVER (PARTITION BY t1.f1 ) 
                 -> Sort: t1.f1  (cost=*** rows=***)
                     -> Filter: (t1.f1 < 10)  (cost=*** rows=***)
@@ -753,9 +754,9 @@ EXPLAIN FORMAT=tree SELECT f1
 FROM (SELECT f1 FROM t1 UNION SELECT f2 FROM t1) as dt
 WHERE f1 > 2;
 EXPLAIN
--> Filter: (dt.f1 > 2)  (cost=*** rows=***)
+-> Filter: (dt.f1 > 2)
     -> Table scan on dt  (cost=*** rows=***)
-        -> Union materialize with deduplication  (cost=*** rows=***)
+        -> Union materialize with deduplication
             -> Index scan on t1 using f1  (cost=*** rows=***)
             -> Index scan on t1 using f1_2  (cost=*** rows=***)
 
@@ -804,7 +805,7 @@ EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE p() = 1;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Filter: (p() = 1)
             -> Group aggregate: sum(t1.f2)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
@@ -823,7 +824,7 @@ EXPLAIN FORMAT=tree SELECT * FROM (SELECT f1, SUM(f2) FROM t1 GROUP BY f1) as dt
 WHERE p() = 1;
 EXPLAIN
 -> Table scan on dt  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Group aggregate: sum(t1.f2)
             -> Filter: <cache>((p() = 1))  (cost=*** rows=***)
                 -> Index scan on t1 using f1_2  (cost=*** rows=***)
@@ -868,14 +869,14 @@ SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn2)) as dt WHERE f2 > 1;
 f2
-120
-120
 30
 30
 60
 60
 90
 90
+120
+120
 EXPLAIN FORMAT=tree SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn,qn2)) as dt WHERE f1 < 10 and f2 > 1;
@@ -898,10 +899,6 @@ SELECT * FROM ((WITH qn AS (SELECT 10*f1 as f1 FROM t1),
 qn2 AS (SELECT 3*f1 AS f2 FROM qn)
 SELECT * from qn,qn2)) as dt WHERE f1 < 10 and f2 > 1;
 f1	f2
-0	120
-0	120
-0	120
-0	120
 0	30
 0	30
 0	30
@@ -914,6 +911,10 @@ f1	f2
 0	90
 0	90
 0	90
+0	120
+0	120
+0	120
+0	120
 EXPLAIN FORMAT=tree SELECT * FROM t1 JOIN (SELECT f1, f2 FROM t1) as dt USING (f2)
 WHERE dt.f1 > 31 and t1.f2  > 40;
 EXPLAIN
@@ -978,22 +979,22 @@ SELECT * FROM t1 INNER JOIN (SELECT f1, f2 FROM t1) as dt ON dt.f1 > 3;
 f1	f2	f3	f1	f2
 0	0	0	4	44
 0	0	0	4	44
-0	0	0	4	44
-0	0	0	4	44
-1	11	111	4	44
-1	11	111	4	44
 1	11	111	4	44
 1	11	111	4	44
 2	22	222	4	44
 2	22	222	4	44
-2	22	222	4	44
-2	22	222	4	44
-3	33	333	4	44
-3	33	333	4	44
 3	33	333	4	44
 3	33	333	4	44
 4	44	444	4	44
 4	44	444	4	44
+0	0	0	4	44
+0	0	0	4	44
+1	11	111	4	44
+1	11	111	4	44
+2	22	222	4	44
+2	22	222	4	44
+3	33	333	4	44
+3	33	333	4	44
 4	44	444	4	44
 4	44	444	4	44
 NULL	1	2	4	44
@@ -1020,7 +1021,7 @@ FROM t1 GROUP BY f1) as dt1
 WHERE f1 > 10) dt2 WHERE sum > 10;
 EXPLAIN
 -> Table scan on dt1  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Filter: (sum(t1.f2) > 10)
             -> Group aggregate: sum(t1.f2)
                 -> Filter: (t1.f1 > 10)  (cost=*** rows=***)
@@ -1035,7 +1036,7 @@ FROM (SELECT f1, f2 FROM t1 WHERE f1 > 10) as dt1
 GROUP BY f1) dt2 WHERE sum > 10;
 EXPLAIN
 -> Table scan on dt2  (cost=*** rows=***)
-    -> Materialize  (cost=*** rows=***)
+    -> Materialize
         -> Filter: (sum(t1.f2) > 10)
             -> Group aggregate: sum(t1.f2)
                 -> Filter: (t1.f1 > 10)  (cost=*** rows=***)
@@ -1134,26 +1135,9 @@ SELECT NULL IN(SELECT (f1 between 0 and 1)
 FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
 );
 NULL IN(SELECT (f1 between 0 and 1)
+FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
 )
 0
-FROM (SELECT f1 FROM t WHERE  (@b:=NULL) - f2)as dt
-Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 DROP TABLE t;
-#
-# Bug#32127562:ERROR 3566 (HY000): ACCESS TO NATIVE FUNCTION IS
-#              REJECTED
-#
-set optimizer_switch="derived_merge=off";
-SELECT 1 FROM information_schema.tables WHERE 123 IN (CONCAT_WS(TABLE_ROWS, ''));
-1
-set optimizer_switch="derived_merge=on";
-# BUG#32150145: 8.0.22+ RELEASE BUILD QUERY FAILS SILENTLY,
-#                DEBUG ASSERTION `THD->IS_ERROR()'
-#
-CREATE TABLE t1(g INTEGER);
-SELECT w.g FROM t1 INNER JOIN (
-SELECT g, ROW_NUMBER() OVER (PARTITION BY g) AS r FROM t1
-) w ON w.g=t1.g AND w.r=1 WHERE w.g IS NULL;
-g
-DROP TABLE t1;

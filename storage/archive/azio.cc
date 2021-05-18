@@ -8,7 +8,8 @@
  * For conditions of distribution and use, see copyright notice in zlib.h
  *
  * This file was modified by Oracle on 2015-01-23.
- * Modifications Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Modifications copyright (c) 2015, 2019, Oracle and/or its affiliates. All
+ * rights reserved.
  */
 
 /* @(#) $Id$ */
@@ -69,21 +70,21 @@ int az_open(azio_stream *s, const char *path, int Flags, File fd) {
   memset(s, 0, sizeof(azio_stream));
   s->stream.next_in = s->inbuf;
   s->stream.next_out = s->outbuf;
-  assert(s->z_err == Z_OK);
+  DBUG_ASSERT(s->z_err == Z_OK);
   s->back = EOF;
   s->crc = crc32(0L, Z_NULL, 0);
   s->mode = 'r';
   /* this needs to be a define to version */
   s->version = (unsigned char)az_magic[1];
   s->minor_version = (unsigned char)az_magic[2]; /* minor version */
-  assert(s->dirty == AZ_STATE_CLEAN);
+  DBUG_ASSERT(s->dirty == AZ_STATE_CLEAN);
 
   /*
     We do our own version of append by nature.
     We must always have write access to take card of the header.
   */
-  assert(Flags | O_APPEND);
-  assert(Flags | O_WRONLY);
+  DBUG_ASSERT(Flags | O_APPEND);
+  DBUG_ASSERT(Flags | O_WRONLY);
 
   if (Flags & O_RDWR) s->mode = 'w';
 

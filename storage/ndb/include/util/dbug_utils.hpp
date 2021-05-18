@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+ Copyright (c) 2011, 2017, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -35,10 +35,10 @@
  * 
  * As the DBUG macros/functions don't check arguments, the caller (or JVM!)
  * crashes in case, for instance, of NULL args.  Also, macros returning a
- * value (like DBUG_EXPLAIN) ought to do so even if NDEBUG was defined.
+ * value (like DBUG_EXPLAIN) ought to do so even if DBUG_OFF was defined.
  */
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 
 #define MY_DBUG_PUSH(a1)                                                \
     do { if ((a1)) DBUG_PUSH(a1); } while (0)
@@ -51,7 +51,7 @@
 #define MY_DBUG_PRINT(keyword, arglist)                                 \
     do { if ((keyword)) DBUG_PRINT(keyword, arglist); } while (0)
 
-#else // NDEBUG
+#else // DBUG_OFF
 
 #define MY_DBUG_PUSH(a1)
 #define MY_DBUG_POP()
@@ -59,7 +59,7 @@
 #define MY_DBUG_EXPLAIN(buf,len) 1
 #define MY_DBUG_PRINT(keyword, arglist)
 
-#endif // NDEBUG
+#endif // DBUG_OFF
 
 /*
  * These DBUG functions provide suitable mapping targets for use from Java.

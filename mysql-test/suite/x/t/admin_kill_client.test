@@ -7,7 +7,7 @@ create user unpriv@localhost;
 set password for unpriv@localhost = 'x';
 
 ## Test starts here
---let $xtest_file= $MYSQL_TMP_DIR/admin_kill_mysqlx.xpl
+--let $xtest_file= $MYSQL_TMP_DIR/admin_kill_mysqlx.tmp
 --write_file $xtest_file
 -->quiet
 ## Test data
@@ -27,8 +27,6 @@ set password for unpriv@localhost = 'x';
 
 -->varlet %CLIENT_ID2% %ACTIVE_CLIENT_ID%
 
--->wait_for 2	SELECT COUNT(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' AND (command LIKE 'Sleep%' OR command LIKE 'Query%');
-
 -->stmtadmin list_clients
 -->recvresult
 
@@ -39,18 +37,15 @@ set password for unpriv@localhost = 'x';
 -->recvresult
 
 -->stmtadmin kill_client
--->expecterror ER_X_CMD_NUM_ARGUMENTS
+-->expecterror 5015
 -->recvresult
 
 
 -->stmtadmin kill_client	{"id": %CLIENT_ID2% }
 -->recvresult
 
--->setsession aux
--->recvuntildisc show-received
+-->sleep 1
 
--->setsession
--->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
 
 -->stmtadmin list_clients
 -->recvresult
@@ -61,8 +56,6 @@ set password for unpriv@localhost = 'x';
 
 -->varlet %CLIENT_ID3% %ACTIVE_CLIENT_ID%
 
--->wait_for 1	SELECT COUNT(*) FROM information_schema.processlist WHERE info LIKE 'PLUGIN%' AND (command LIKE 'Sleep%' OR command LIKE 'Query%');
-
 -->echo Should list unprivs session only
 -->stmtadmin list_clients
 -->recvresult
@@ -70,7 +63,7 @@ set password for unpriv@localhost = 'x';
 
 ## Try to kill a x_root session from unpriv
 -->stmtadmin kill_client	{"id": %CLIENT_ID1% }
--->expecterror ER_KILL_DENIED_ERROR
+-->expecterror 1095
 -->recvresult
 
 -->echo switched to session default
@@ -88,11 +81,8 @@ set password for unpriv@localhost = 'x';
 -->stmtadmin kill_client	{"id": %CLIENT_ID3% }
 -->recvresult
 
--->setsession unpriv
--->recvuntildisc show-received
+-->sleep 1;
 
--->setsession
--->wait_for 1	SELECT count(*) FROM information_schema.processlist WHERE user = 'x_root'
 
 ## Should list only x_root session
 -->stmtadmin list_clients
@@ -104,4 +94,5 @@ EOF
 
 ## Cleanup
 drop user unpriv@localhost;
---source ../include/xplugin_cleanup.inc
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,7 @@
 #ifndef PFS_MEMORY_PROVIDER_H
 #define PFS_MEMORY_PROVIDER_H
 
-/* HAVE_PSI_*_INTERFACE */
-#include "my_psi_config.h"  // IWYU pragma: keep
+#include "my_psi_config.h"
 
 /**
   @file include/pfs_memory_provider.h
@@ -32,7 +31,7 @@
 */
 
 #ifdef HAVE_PSI_MEMORY_INTERFACE
-#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
+#ifdef MYSQL_SERVER
 #ifndef MYSQL_DYNAMIC_PLUGIN
 #ifndef WITH_LOCK_ORDER
 
@@ -61,7 +60,7 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size, PSI_thread *owner);
 
 #endif /* WITH_LOCK_ORDER */
 #endif /* MYSQL_DYNAMIC_PLUGIN */
-#endif /* MYSQL_SERVER || PFS_DIRECT_CALL */
+#endif /* MYSQL_SERVER */
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 #endif

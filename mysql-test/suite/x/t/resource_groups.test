@@ -9,7 +9,7 @@
 
 --echo # All resource group related SQL fails with error before the fix for bug#30900411.
 
---let $xtest_file= $MYSQL_TMP_DIR/resource_groups.xpl
+--let $xtest_file= $MYSQL_TMP_DIR/resource_groups.tmp
 --write_file $xtest_file
 -->sql
 CREATE RESOURCE GROUP rg1 TYPE=USER VCPU=1-2;
@@ -21,6 +21,5 @@ DROP RESOURCE GROUP rg1;
 -->endsql
 EOF
 --exec $MYSQLXTEST -ux_root --password='' --file=$xtest_file
-
-## Cleanup
---source ../include/xplugin_cleanup.inc
+--remove_file $xtest_file
+--source include/xplugin_drop_user.inc

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2006, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -139,17 +139,6 @@ ADD_CUSTOM_COMMAND(
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
 )
 
-ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_stored_procedures.h
-  COMMAND comp_sql
-  firewall_stored_procedures
-  ${CMAKE_CURRENT_SOURCE_DIR}/firewall_stored_procedures.sql
-  sql_firewall_stored_procedures.h
-  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-  DEPENDS comp_sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/firewall_stored_procedures.sql
-)
-
 # Add target for the above to be built
 IF(NOT WITHOUT_SERVER)
   ADD_CUSTOM_TARGET(GenBootstrapPriv
@@ -159,7 +148,6 @@ IF(NOT WITHOUT_SERVER)
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_users.h
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_help_data.h
     ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables_data_fix.h
-    ${CMAKE_CURRENT_BINARY_DIR}/sql_firewall_stored_procedures.h
   )
 ENDIF()
 

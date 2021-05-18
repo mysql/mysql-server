@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -37,7 +37,6 @@
 // big brother
 #include <dbtup/Dbtup.hpp>
 #include <dblqh/Dblqh.hpp>
-#include <dbacc/Dbacc.hpp>
 
 // packed index keys and bounds
 #include <NdbPack.hpp>
@@ -73,29 +72,19 @@ class Configuration;
 struct mt_BuildIndxCtx;
 
 class Dbtux : public SimulatedBlock {
-  friend class Dbqtux;
   friend class DbtuxProxy;
   friend struct mt_BuildIndxCtx;
   friend Uint32 Dbtux_mt_buildIndexFragment_wrapper_C(void*);
-
-  Uint32 m_acc_block;
-  Uint32 m_lqh_block;
-  Uint32 m_tux_block;
-  bool m_is_query_block;
-  Uint32 m_my_scan_instance;
- public:
-  Dbtux(Block_context& ctx,
-        Uint32 instanceNumber = 0,
-        Uint32 blockNo = DBTUX);
+public:
+  Dbtux(Block_context& ctx, Uint32 instanceNumber = 0);
   ~Dbtux() override;
 
   void prepare_scan_ctx(Uint32 scanPtrI) override;
   // pointer to TUP and LQH instance in this thread
   Dbtup* c_tup;
   Dblqh* c_lqh;
-  Dbacc* c_acc;
   void execTUX_BOUND_INFO(Signal* signal);
-  void execREAD_PSEUDO_REQ(Uint32 scanPtrI, Uint32 attrId, Uint32* out, Uint32 out_words);
+  void execREAD_PSEUDO_REQ(Signal* signal);
 
 private:
   // sizes are in words (Uint32)
@@ -200,8 +189,7 @@ private:
     unsigned m_balance : 2;     // balance -1, 0, +1 plus 1 for Solaris CC
     unsigned pad1 : 4;
     Uint8 m_occup;              // current number of entries
-    Uint32 m_nodeScanPtrI;      // list of scans at this node
-    Uint32 m_nodeScanInstance;
+    Uint32 m_nodeScan;          // list of scans at this node
     TreeNode();
   };
   STATIC_CONST( NodeHeadSize = sizeof(TreeNode) >> 2 );
@@ -263,9 +251,7 @@ private:
   typedef Ptr<DescPage> DescPagePtr;
   typedef ArrayPool<DescPage> DescPage_pool;
 
-public:
   DescPage_pool c_descPagePool;
-private:
   Uint32 c_descPageList;
 
   struct DescHead {
@@ -399,12 +385,9 @@ private:
     Uint8 m_lockMode;
     Uint8 m_descending;
     ScanBound m_scanBound[2];
-    bool m_is_linked_scan;
     TreePos m_scanPos;          // position
-    TupLoc  m_scanLinkedPos;    // Location of next scan entry now
     TreeEnt m_scanEnt;          // latest entry found
-    Uint32 m_nodeScanPtrI;      // next scan at node (single-linked)
-    Uint32 m_nodeScanInstance;  // next scan instance at node
+    Uint32 m_nodeScan;          // next scan at node (single-linked)
     Uint32 m_statOpPtrI;        // RNIL unless this is a statistics scan
     union {
     Uint32 nextPool;
@@ -459,10 +442,8 @@ private:
   typedef Ptr<Index> IndexPtr;
   typedef ArrayPool<Index> Index_pool;
 
-public:
   Index_pool c_indexPool;
   RSS_AP_SNAPSHOT(c_indexPool);
-private:
 
   /*
    * Fragment of an index, as known to DIH/TC.  Represents the two
@@ -478,6 +459,7 @@ private:
     Uint16 m_fragId;
     TreeHead m_tree;
     TupLoc m_freeLoc;           // one free node for next op
+    ScanOp_list m_scanList;  // current scans on this fragment
     Uint32 m_tupIndexFragPtrI;
     Uint32 m_tupTableFragPtrI;
     Uint32 m_accTableFragPtrI;
@@ -492,10 +474,9 @@ private:
   typedef Ptr<Frag> FragPtr;
   typedef ArrayPool<Frag> Frag_pool;
 
-public:
   Frag_pool c_fragPool;
   RSS_AP_SNAPSHOT(c_fragPool);
-private:
+
   /*
    * Fragment metadata operation.
    */
@@ -541,14 +522,13 @@ private:
     unsigned getSide();
     unsigned getOccup();
     int getBalance();
-    void getNodeScan(Uint32 & scanPtrI, Uint32 &scanInstance);
-    bool isNodeScanList();
+    Uint32 getNodeScan();
     // setters
     void setLink(unsigned i, TupLoc loc);
     void setSide(unsigned i);
     void setOccup(unsigned n);
     void setBalance(int b);
-    void setNodeScan(Uint32 scanPtrI, Uint32 scanInstance);
+    void setNodeScan(Uint32 scanPtrI);
     // access other parts of the node
     Uint32* getPref();
     TreeEnt getEnt(unsigned pos);
@@ -673,13 +653,11 @@ private:
   void abortAddFragOp(Signal* signal);
   void dropIndex(Signal* signal, IndexPtr indexPtr, Uint32 senderRef, Uint32 senderData);
 
-public:
   /*
    * DbtuxMaint.cpp
    */
   void execTUX_MAINT_REQ(Signal* signal);
-
-private:
+  
   /*
    * DbtuxNode.cpp
    */
@@ -691,52 +669,22 @@ private:
   void freePreallocatedNode(Frag& frag);
   void setNodePref(struct TuxCtx &, NodeHandle& node);
   // node operations
-  void nodePushUp(TuxCtx&,
-                  NodeHandle& node,
-                  unsigned pos,
-                  const TreeEnt& ent,
-                  Uint32 scanList,
-                  Uint32 scanInstance);
+  void nodePushUp(TuxCtx&, NodeHandle& node, unsigned pos, const TreeEnt& ent, Uint32 scanList);
   void nodePushUpScans(NodeHandle& node, unsigned pos);
-  void nodePopDown(TuxCtx&,
-                   NodeHandle& node,
-                   unsigned pos,
-                   TreeEnt& en,
-                   Uint32* scanList,
-                   Uint32* scanInstance);
+  void nodePopDown(TuxCtx&, NodeHandle& node, unsigned pos, TreeEnt& en, Uint32* scanList);
   void nodePopDownScans(NodeHandle& node, unsigned pos);
-  void nodePushDown(TuxCtx&,
-                    NodeHandle& node,
-                    unsigned pos,
-                    TreeEnt& ent,
-                    Uint32& scanList,
-                    Uint32& scanInstance);
+  void nodePushDown(TuxCtx&, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32& scanList);
   void nodePushDownScans(NodeHandle& node, unsigned pos);
-  void nodePopUp(TuxCtx&, NodeHandle& node,
-                 unsigned pos,
-                 TreeEnt& ent,
-                 Uint32 scanList,
-                 Uint32 scanInstance);
+  void nodePopUp(TuxCtx&, NodeHandle& node, unsigned pos, TreeEnt& ent, Uint32 scanList);
   void nodePopUpScans(NodeHandle& node, unsigned pos);
-  void nodeSlide(TuxCtx&,
-                 NodeHandle& dstNode,
-                 NodeHandle& srcNode,
-                 unsigned cnt,
-                 unsigned i);
+  void nodeSlide(TuxCtx&, NodeHandle& dstNode, NodeHandle& srcNode, unsigned cnt, unsigned i);
   // scans linked to node
-  void addScanList(NodeHandle& node,
-                   unsigned pos,
-                   Uint32 scanList,
-                   Uint32 scanInstance);
-  void removeScanList(NodeHandle& node,
-                      unsigned pos,
-                      Uint32& scanList,
-                      Uint32& scanInstance);
+  void addScanList(NodeHandle& node, unsigned pos, Uint32 scanList);
+  void removeScanList(NodeHandle& node, unsigned pos, Uint32& scanList);
   void moveScanList(NodeHandle& node, unsigned pos);
-  void linkScan(NodeHandle& node, ScanOpPtr scanPtr, Uint32 scanInstance);
-  void unlinkScan(NodeHandle& node, ScanOpPtr scanPtr, Uint32 scanInstance);
-  bool islinkScan(NodeHandle& node, ScanOpPtr scanPtr, Uint32 scanInstance);
-  void relinkScan(ScanOp&, Frag&, bool need_lock = true, Uint32 line = 0);
+  void linkScan(NodeHandle& node, ScanOpPtr scanPtr);
+  void unlinkScan(NodeHandle& node, ScanOpPtr scanPtr);
+  bool islinkScan(NodeHandle& node, ScanOpPtr scanPtr);
 
   /*
    * DbtuxTree.cpp
@@ -825,10 +773,8 @@ private:
    * These methods are setting up variables that are precomputed to avoid having
    * to compute those every time we need them.
    */
-  void prepare_scan_bounds(const ScanOp *scanPtrP,
-                           const Index *indexPtrP,
-                           Dbtux *tux_block);
-  void prepare_move_scan_ctx(ScanOpPtr scanPtr, Dbtux *tux_block);
+  void prepare_scan_bounds(const ScanOp *scanPtrP, const Index *indexPtrP);
+  void prepare_move_scan_ctx(ScanOpPtr scanPtr);
 
   /*
    * DbtuxCmp.cpp
@@ -840,14 +786,14 @@ private:
    * DbtuxStat.cpp
    */
   // one-round-trip tree-dive records in range
-  void statRecordsInRange(ScanOpPtr scanPtr, Uint32* out, Uint32 out_words);
+  void statRecordsInRange(ScanOpPtr scanPtr, Uint32* out);
   Uint32 getEntriesBeforeOrAfter(Frag& frag, TreePos pos, unsigned idir);
   unsigned getPathToNode(NodeHandle node, Uint16* path);
   // stats scan
   int statScanInit(StatOpPtr, const Uint32* data, Uint32 len, Uint32* usedLen);
   int statScanAddRow(StatOpPtr, TreeEnt ent);
-  void statScanReadKey(StatOpPtr, Uint32* out, Uint32 out_words);
-  void statScanReadValue(StatOpPtr, Uint32* out, Uint32 out_words);
+  void statScanReadKey(StatOpPtr, Uint32* out);
+  void statScanReadValue(StatOpPtr, Uint32* out);
   void execINDEX_STAT_REP(Signal*); // from TRIX
   // stats monitor request
   void execINDEX_STAT_IMPL_REQ(Signal*);
@@ -991,7 +937,6 @@ public:
   void prepare_build_ctx(TuxCtx& ctx, FragPtr fragPtr);
   void prepare_tup_ptrs(TuxCtx& ctx);
   void prepare_all_tup_ptrs(TuxCtx& ctx);
-  void relinkScan(Uint32 line);
 private:
   Uint32 mt_buildIndexFragment(struct mt_BuildIndxCtx*);
 
@@ -1009,41 +954,11 @@ private:
   TransientFastSlotPool* c_transient_pools[c_transient_pool_count];
   Bitmask<1> c_transient_pools_shrinking;
 
-  Uint32 get_my_scan_instance();
-  Uint32 get_block_from_scan_instance(Uint32);
-  Uint32 get_instance_from_scan_instance(Uint32);
 public:
   static Uint64 getTransactionMemoryNeed(
     const Uint32 ldm_instance_count,
     const ndb_mgm_configuration_iterator *mgm_cfg,
     const bool use_reserved);
-  Uint32 getDBACC()
-  {
-    return m_acc_block;
-  }
-  Uint32 getDBLQH()
-  {
-    return m_lqh_block;
-  }
-  Uint32 getDBTUX()
-  {
-    return m_tux_block;
-  }
-  ScanOp* getScanOpPtrP(Uint32 scanPtrI)
-  {
-    ScanOpPtr scanPtr;
-    scanPtr.i = scanPtrI;
-    ndbrequire(c_scanOpPool.getValidPtr(scanPtr));
-    return scanPtr.p;
-  }
-  ScanOp* getScanOpPtrP(Uint32 scanPtrI, Uint32 scanInstance)
-  {
-    Dbtux *tux_block;
-    Uint32 blockNo = get_block_from_scan_instance(scanInstance);
-    Uint32 instanceNo = get_instance_from_scan_instance(scanInstance);
-    tux_block = (Dbtux*) globalData.getBlock(blockNo, instanceNo);
-    return tux_block->getScanOpPtrP(scanPtrI);
-  }
 };
 
 inline bool Dbtux::check_freeScanLock(ScanOp& scan)
@@ -1217,8 +1132,7 @@ Dbtux::TreeNode::TreeNode() :
   m_balance(0 + 1),
   pad1(0),
   m_occup(0),
-  m_nodeScanPtrI(RNIL),
-  m_nodeScanInstance(0)
+  m_nodeScan(RNIL)
 {
   m_link[0] = NullTupLoc;
   m_link[1] = NullTupLoc;
@@ -1297,10 +1211,8 @@ Dbtux::ScanOp::ScanOp() :
   m_accLockOps(),
   m_scanBound(),
   m_scanPos(),
-  m_scanLinkedPos(),
   m_scanEnt(),
-  m_nodeScanPtrI(RNIL),
-  m_nodeScanInstance(0),
+  m_nodeScan(RNIL),
   m_statOpPtrI(RNIL)
 {
 }
@@ -1338,6 +1250,7 @@ Dbtux::Frag::Frag(ScanOp_pool& scanOpPool) :
   m_fragId(ZNIL),
   m_tree(),
   m_freeLoc(),
+  m_scanList(scanOpPool),
   m_tupIndexFragPtrI(RNIL),
   m_tupTableFragPtrI(RNIL),
   m_accTableFragPtrI(RNIL),
@@ -1425,17 +1338,10 @@ Dbtux::NodeHandle::getBalance()
   return (int)m_node->m_balance - 1;
 }
 
-inline bool
-Dbtux::NodeHandle::isNodeScanList()
+inline Uint32
+Dbtux::NodeHandle::getNodeScan()
 {
-  return m_node->m_nodeScanPtrI != RNIL;
-}
-
-inline void
-Dbtux::NodeHandle::getNodeScan(Uint32 &scanPtrI, Uint32 &instance)
-{
-  scanPtrI = m_node->m_nodeScanPtrI;
-  instance = m_node->m_nodeScanInstance;
+  return m_node->m_nodeScan;
 }
 
 inline void
@@ -1448,31 +1354,6 @@ Dbtux::NodeHandle::setLink(unsigned i, TupLoc loc)
   else
   {
     ndbabort();
-  }
-}
-
-inline Uint32
-Dbtux::get_instance_from_scan_instance(Uint32 scanInstance)
-{
-  return (scanInstance >> 16);
-}
-
-inline Uint32
-Dbtux::get_block_from_scan_instance(Uint32 scanInstance)
-{
-  return (scanInstance & 0xFFFF);
-}
-
-inline Uint32
-Dbtux::get_my_scan_instance()
-{
-  if (m_is_query_block)
-  {
-    return DBQTUX + (instance() << 16);
-  }
-  else
-  {
-    return DBTUX + (instance() << 16);
   }
 }
 
@@ -1505,11 +1386,9 @@ Dbtux::NodeHandle::setBalance(int b)
 }
 
 inline void
-Dbtux::NodeHandle::setNodeScan(Uint32 scanPtrI,
-                               Uint32 instance)
+Dbtux::NodeHandle::setNodeScan(Uint32 scanPtrI)
 {
-  m_node->m_nodeScanPtrI = scanPtrI;
-  m_node->m_nodeScanInstance = instance;
+  m_node->m_nodeScan = scanPtrI;
 }
 
 inline Uint32*
@@ -1736,18 +1615,6 @@ Dbtux::prepare_all_tup_ptrs(TuxCtx& ctx)
                           &ctx.tupRealTablePtr,
                           ctx.attrDataOffset,
                           ctx.tuxFixHeaderSize);
-}
-
-inline
-void
-Dbtux::relinkScan(Uint32 line)
-{
-  if (c_ctx.scanPtr.p != nullptr)
-  {
-    ScanOp& scan = *c_ctx.scanPtr.p;
-    Frag& frag = *c_ctx.fragPtr.p;
-    relinkScan(scan, frag, true, line);
-  }
 }
 #undef JAM_FILE_ID
 

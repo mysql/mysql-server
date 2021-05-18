@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -24,9 +24,8 @@
 
 #include "sql/trigger_chain.h"
 
-#include <assert.h>
 #include "m_ctype.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"          // ER_*
@@ -66,7 +65,7 @@ bool Trigger_chain::add_trigger(MEM_ROOT *mem_root, Trigger *new_trigger,
 
     case TRG_ORDER_FOLLOWS:
     case TRG_ORDER_PRECEDES: {
-      assert(referenced_trigger_name.str);
+      DBUG_ASSERT(referenced_trigger_name.str);
 
       List_iterator<Trigger> it(m_triggers);
       List_iterator<Trigger> it2 = it;
@@ -104,7 +103,7 @@ bool Trigger_chain::add_trigger(MEM_ROOT *mem_root, Trigger *new_trigger,
     }
   }
 
-  assert(false);
+  DBUG_ASSERT(false);
   return true;
 }
 

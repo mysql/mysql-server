@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -51,9 +51,6 @@ clearOldBackups(NDBT_Context* ctx, NDBT_Step* step)
 {
   strcpy(tabname, ctx->getTab()->getName());
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   backup.clearOldBackups();
   return NDBT_OK;
 }
@@ -196,9 +193,6 @@ int start_scan_no_close(NDBT_Context *ctx,
 int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step)
 {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   unsigned backupId = 0;
   int i;
   Ndb* pNdb;
@@ -303,9 +297,6 @@ int outOfScanRecordsInLDM(NDBT_Context *ctx, NDBT_Step *step)
 
 int runAbort(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
 
   NdbRestarter restarter;
 
@@ -340,9 +331,6 @@ int runAbort(NDBT_Context* ctx, NDBT_Step* step){
 
 int runFail(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
 
   NdbRestarter restarter;
 
@@ -380,9 +368,6 @@ int outOfLDMRecords(NDBT_Context *ctx, NDBT_Step *step)
   int res;
   int row = 0;
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   NdbRestarter restarter;
   unsigned backupId = 0;
   HugoOperations hugoOps(*ctx->getTab());
@@ -451,9 +436,6 @@ int outOfLDMRecords(NDBT_Context *ctx, NDBT_Step *step)
 
 int runBackupOne(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   unsigned backupId = 0;
 
   if (ctx->getProperty("SnapshotStart") == 0)
@@ -482,9 +464,6 @@ int runBackupOne(NDBT_Context* ctx, NDBT_Step* step){
 
 int runBackupRandom(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   unsigned backupId = rand() % (MAX_BACKUPS);
 
   if (backup.start(backupId) == -1){
@@ -499,9 +478,6 @@ int runBackupRandom(NDBT_Context* ctx, NDBT_Step* step){
 int
 runBackupLoop(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   
   int loops = ctx->getNumLoops();
   while(!ctx->isTestStopped() && loops--)
@@ -570,9 +546,6 @@ int runDropTablesRestart(NDBT_Context* ctx, NDBT_Step* step){
 
 int runRestoreOne(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   unsigned backupId = ctx->getProperty("BackupId"); 
 
   ndbout << "Restoring backup " << backupId << endl;
@@ -646,9 +619,6 @@ int createNdbApplyStatusIfMissing(NDBT_Context* ctx, NDBT_Step* step)
 
 int runRestoreEpoch(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   unsigned backupId = ctx->getProperty("BackupId");
 
   ndbout << "Restoring epoch from backup " << backupId << endl;
@@ -788,9 +758,6 @@ int runBackupBank(NDBT_Context* ctx, NDBT_Step* step){
   int maxSleep = 30; // Max seconds between each backup
   Ndb* pNdb = GETNDB(step);
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   unsigned minBackupId = ~0;
   unsigned maxBackupId = 0;
   unsigned backupId = 0;
@@ -837,9 +804,6 @@ int runBackupBank(NDBT_Context* ctx, NDBT_Step* step){
 int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   unsigned minBackupId = ctx->getProperty("MinBackupId");
   unsigned maxBackupId = ctx->getProperty("MaxBackupId");
   unsigned backupId = minBackupId;
@@ -915,9 +879,6 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
 }
 int runBackupUndoWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   unsigned backupId = 0;
   int undoError = 10041;
   NdbRestarter restarter;
@@ -986,9 +947,6 @@ int runChangeUndoDataDuringBackup(NDBT_Context* ctx, NDBT_Step* step){
 
   // make sure backup have finish
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
 
   // start log event
   if(backup.startLogEvent() != 0) {
@@ -1073,9 +1031,6 @@ int
 runBug57650(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   NdbRestarter res;
 
   int node0 = res.getNode(NdbRestarter::NS_RANDOM);
@@ -1101,9 +1056,6 @@ int
 runBug14019036(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   NdbRestarter res;
   NdbMgmd mgmd;
 
@@ -1165,9 +1117,6 @@ int
 runBug16656639(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   NdbRestarter res;
 
   res.insertErrorInAllNodes(10032); 
@@ -1239,9 +1188,6 @@ int
 runBug17882305(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   NdbRestarter res;
   NdbDictionary::Table tab;
   NdbDictionary::Index idx;
@@ -1301,9 +1247,6 @@ int
 runBug19202654(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   NdbDictionary::Dictionary* const dict = GETNDB(step)->getDictionary();
 
   g_err << "Creating 35 ndb tables." << endl;
@@ -2054,9 +1997,6 @@ runGCPStallDuringBackupStart(NDBT_Context* ctx, NDBT_Step* step)
   const Uint32 stepNo = step->getStepNo();
   NdbRestarter restarter;
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
 
   g_err << stepNo << " : runGCPStallDuringBackupStart" << endl;
 
@@ -2145,9 +2085,6 @@ int
 runCheckPrintout(NDBT_Context* ctx, NDBT_Step* step)
 {
   NdbBackup backup;
-  backup.set_default_encryption_password(ctx->getProperty("BACKUP_PASSWORD",
-                                                          (char*)NULL),
-                                         -1);
   NdbRestarter res;
   NdbMgmd mgmd;
 

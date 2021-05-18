@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -87,11 +87,7 @@ enum enum_transaction_write_set_hashing_algorithm {
 };
 
 // Values for session_track_gtids sysvar
-enum enum_session_track_gtids {
-  SESSION_TRACK_GTIDS_OFF = 0,
-  SESSION_TRACK_GTIDS_OWN_GTID = 1,
-  SESSION_TRACK_GTIDS_ALL_GTIDS = 2
-};
+enum enum_session_track_gtids { OFF = 0, OWN_GTID = 1, ALL_GTIDS = 2 };
 
 /** Values for use_secondary_engine sysvar. */
 enum use_secondary_engine {

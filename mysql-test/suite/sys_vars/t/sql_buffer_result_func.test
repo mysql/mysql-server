@@ -19,8 +19,6 @@
 #                                                                          #
 ############################################################################
 
---source include/not_hypergraph.inc  # Does not support SQL_BUFFER_RESULT.
-
 --echo ** Setup **
 --echo
 #

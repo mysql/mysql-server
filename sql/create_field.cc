@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -121,18 +121,18 @@ Create_field::Create_field(Field *old_field, Field *orig_field)
   */
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
       old_field->field_ptr() != nullptr && orig_field != nullptr) {
+    bool default_now = false;
     if (real_type_with_now_as_default(sql_type)) {
       // The SQL type of the new field allows a function default:
-      const bool default_now =
-          orig_field->has_insert_default_datetime_value_expression();
+      default_now = orig_field->has_insert_default_datetime_value_expression();
       auto_flags = default_now ? Field::DEFAULT_NOW : Field::NONE;
       if (orig_field->has_update_default_datetime_value_expression())
         auto_flags |= Field::ON_UPDATE_NOW;
       if (orig_field->has_insert_default_general_value_expression())
         auto_flags |= Field::GENERATED_FROM_EXPRESSION;
     }
-
-    if (orig_field->has_insert_default_constant_expression()) {
+    if (!default_now)  // Give a constant default
+    {
       /* Get the value from default_values */
       ptrdiff_t diff = orig_field->table->default_values_offset();
       orig_field->move_field_offset(diff);  // Points now at default_values
@@ -196,7 +196,7 @@ bool Create_field::init(
 
   DBUG_TRACE;
 
-  assert(!(has_explicit_collation && fld_charset == nullptr));
+  DBUG_ASSERT(!(has_explicit_collation && fld_charset == nullptr));
 
   field = nullptr;
   field_name = fld_name;
@@ -266,7 +266,7 @@ bool Create_field::init(
   // Initialize data for a virtual field or default value expression
   if (gcol_info || m_default_val_expr) {
     if (gcol_info) {
-      assert(gcol_info->expr_item);
+      DBUG_ASSERT(gcol_info->expr_item);
       stored_in_db = gcol_info->get_field_stored();
 
       /*
@@ -472,7 +472,7 @@ bool Create_field::init(
           and 19 as length of 4.1 compatible representation.  Silently
           shrink it to MAX_DATETIME_COMPRESSED_WIDTH.
         */
-        assert(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
+        DBUG_ASSERT(MAX_DATETIME_COMPRESSED_WIDTH < UINT_MAX);
         if (m_max_display_width_in_codepoints !=
             UINT_MAX) /* avoid overflow; is safe because of min() */
           m_max_display_width_in_codepoints =
@@ -513,7 +513,7 @@ bool Create_field::init(
       break;
     }
     case MYSQL_TYPE_VAR_STRING:
-      assert(0); /* Impossible. */
+      DBUG_ASSERT(0); /* Impossible. */
       break;
     case MYSQL_TYPE_BIT: {
       if (!display_width_in_codepoints) {
@@ -529,7 +529,7 @@ bool Create_field::init(
     }
     case MYSQL_TYPE_DECIMAL:
     default:
-      assert(0); /* Was obsolete */
+      DBUG_ASSERT(0); /* Was obsolete */
   }
 
   if (!(flags & BLOB_FLAG) &&
@@ -557,9 +557,9 @@ bool Create_field::init(
     can't have AUTO_INCREMENT and DEFAULT/ON UPDATE CURRENT_TIMESTAMP at the
     same time.
   */
-  assert(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
-                          Field::GENERATED_FROM_EXPRESSION)) != 0 &&
-           (auto_flags & Field::NEXT_NUMBER) != 0));
+  DBUG_ASSERT(!((auto_flags & (Field::DEFAULT_NOW | Field::ON_UPDATE_NOW |
+                               Field::GENERATED_FROM_EXPRESSION)) != 0 &&
+                (auto_flags & Field::NEXT_NUMBER) != 0));
 
   return false; /* success */
 }
@@ -586,7 +586,7 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
   DBUG_PRINT("enter", ("sql_type: %d, length: %u", sql_type_arg, length_arg));
 
   /* Init members needed for correct execution of make_field(). */
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   const uint32 FIELDFLAG_MAX_DEC = 31;
 #endif
 
@@ -600,11 +600,11 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
       break;
 
     case MYSQL_TYPE_NEWDECIMAL:
-      assert(decimals_arg <= DECIMAL_MAX_SCALE);
+      DBUG_ASSERT(decimals_arg <= DECIMAL_MAX_SCALE);
     case MYSQL_TYPE_DECIMAL:
     case MYSQL_TYPE_FLOAT:
     case MYSQL_TYPE_DOUBLE:
-      assert(decimals_arg <= FIELDFLAG_MAX_DEC);
+      DBUG_ASSERT(decimals_arg <= FIELDFLAG_MAX_DEC);
       decimals = decimals_arg;
       break;
 
@@ -626,8 +626,8 @@ void Create_field::init_for_tmp_table(enum_field_types sql_type_arg,
 
 size_t Create_field::max_display_width_in_codepoints() const {
   if (sql_type == MYSQL_TYPE_ENUM || sql_type == MYSQL_TYPE_SET) {
-    assert(interval != nullptr);
-    assert(charset != nullptr);
+    DBUG_ASSERT(interval != nullptr);
+    DBUG_ASSERT(charset != nullptr);
 
     size_t max_display_width_in_codepoints = 0;
     for (size_t i = 0; i < interval->count; i++) {
@@ -679,7 +679,7 @@ size_t Create_field::max_display_width_in_bytes() const {
   // max_display_width_in_codepoints() will return 1073741823 (truncated from
   // 1073741823.75), and multiplying that by four again will give 4294967292
   // which is the wrong result.
-  assert(charset != nullptr);
+  DBUG_ASSERT(charset != nullptr);
   if (is_numeric_type(sql_type) || is_temporal_real_type(sql_type) ||
       sql_type == MYSQL_TYPE_YEAR || sql_type == MYSQL_TYPE_BIT) {
     // Numeric types, temporal types, YEAR or BIT are never multi-byte.
@@ -724,7 +724,7 @@ size_t Create_field::pack_length(bool dont_override) const {
                                                       : interval->count);
     }
     case MYSQL_TYPE_NEWDECIMAL: {
-      assert(decimals <= DECIMAL_MAX_SCALE);
+      DBUG_ASSERT(decimals <= DECIMAL_MAX_SCALE);
       uint precision = my_decimal_length_to_precision(
           max_display_width_in_bytes(), decimals, (flags & UNSIGNED_FLAG));
       precision = std::min(precision, static_cast<uint>(DECIMAL_MAX_PRECISION));
@@ -775,13 +775,4 @@ size_t Create_field::key_length() const {
 
 bool is_field_for_functional_index(const Create_field *create_field) {
   return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
-}
-
-bool is_hidden_by_system(const Create_field *create_field) {
-  return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SE ||
-         create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_SQL;
-}
-
-bool is_hidden_by_user(const Create_field *create_field) {
-  return create_field->hidden == dd::Column::enum_hidden_type::HT_HIDDEN_USER;
 }

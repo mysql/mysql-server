@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -30,6 +30,8 @@
 
 #include "my_dbug.h"  // NOLINT(build/include_subdir)
 
+#include "plugin/x/ngs/include/ngs/notice_descriptor.h"
+#include "plugin/x/ngs/include/ngs/protocol/column_info_builder.h"
 #include "plugin/x/protocol/encoders/encoding_xrow.h"
 #include "plugin/x/src/admin_cmd_arguments.h"
 #include "plugin/x/src/admin_cmd_index.h"
@@ -41,9 +43,6 @@
 #include "plugin/x/src/interface/server.h"
 #include "plugin/x/src/interface/session.h"
 #include "plugin/x/src/mysql_function_names.h"
-#include "plugin/x/src/ngs/client_list.h"
-#include "plugin/x/src/ngs/notice_descriptor.h"
-#include "plugin/x/src/ngs/protocol/column_info_builder.h"
 #include "plugin/x/src/query_string_builder.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_error.h"
@@ -380,16 +379,16 @@ ngs::Error_code Admin_command_handler::drop_collection_index(
 
 namespace {
 
-static const std::array<const char *const, 4> k_fixed_notice_names = {
-    "account_expired",
-    "generated_insert_id",
-    "rows_affected",
-    "produced_message",
-};
+static const char *const fixed_notice_names[] = {
+    "account_expired", "generated_insert_id", "rows_affected",
+    "produced_message"};
+static const char *const *fixed_notice_names_end =
+    &fixed_notice_names[0] +
+    sizeof(fixed_notice_names) / sizeof(fixed_notice_names[0]);
 
 inline bool is_fixed_notice_name(const std::string &notice) {
-  return std::find(k_fixed_notice_names.begin(), k_fixed_notice_names.end(),
-                   notice) != k_fixed_notice_names.end();
+  return std::find(fixed_notice_names, fixed_notice_names_end, notice) !=
+         fixed_notice_names_end;
 }
 
 inline void add_notice_row(iface::Protocol_encoder *proto,
@@ -511,7 +510,7 @@ ngs::Error_code Admin_command_handler::list_notices(Command_arguments *args) {
                    notice_config.is_notice_enabled(notice_type) ? 1 : 0);
   }
 
-  for (const auto notice : k_fixed_notice_names) {
+  for (const auto notice : fixed_notice_names) {
     add_notice_row(&proto, notice, 1);
   }
 

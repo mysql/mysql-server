@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -23,15 +23,11 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "plugin/x/src/client.h"
 #include "plugin/x/src/prepare_command_handler.h"
+#include "plugin/x/src/xpl_client.h"
 #include "plugin/x/src/xpl_error.h"
 #include "unittest/gunit/xplugin/xpl/assert_error_code.h"
-#include "unittest/gunit/xplugin/xpl/mock/notice_configuration.h"
-#include "unittest/gunit/xplugin/xpl/mock/notice_output_queue.h"
-#include "unittest/gunit/xplugin/xpl/mock/protocol_encoder.h"
 #include "unittest/gunit/xplugin/xpl/mock/session.h"
-#include "unittest/gunit/xplugin/xpl/mock/sql_session.h"
 
 namespace xpl {
 namespace test {
@@ -54,11 +50,11 @@ class Cursor_test_suite : public ::testing::Test {
   }
 
   ngs::Metadata_builder m_meta_builder;
-  StrictMock<mock::Protocol_encoder> m_mock_encoder;
-  StrictMock<mock::Session> m_mock_session;
-  StrictMock<mock::Notice_output_queue> m_mock_notice_output_queue;
-  StrictMock<mock::Notice_configuration> m_mock_notice_configuration;
-  StrictMock<mock::Sql_session> m_mock_data_context;
+  StrictMock<Mock_protocol_encoder> m_mock_encoder;
+  StrictMock<Mock_session> m_mock_session;
+  StrictMock<Mock_notice_output_queue> m_mock_notice_output_queue;
+  StrictMock<Mock_notice_configuration> m_mock_notice_configuration;
+  StrictMock<Mock_sql_data_context> m_mock_data_context;
   Prepare_command_handler m_handler{&m_mock_session};
 };
 

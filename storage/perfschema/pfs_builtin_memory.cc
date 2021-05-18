@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -27,8 +27,7 @@
 
 #include "storage/perfschema/pfs_builtin_memory.h"
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "storage/perfschema/pfs_global.h"
 
 PFS_builtin_memory_class builtin_memory_mutex;
@@ -134,7 +133,7 @@ static void init_builtin_memory_class(PFS_builtin_memory_class *klass,
   snprintf(klass->m_class.m_name, sizeof(klass->m_class.m_name), "%.*s",
            PFS_MAX_INFO_NAME_LENGTH - 1, name);
   klass->m_class.m_name_length = (uint)strlen(name);
-  assert(klass->m_class.m_name_length < sizeof(klass->m_class.m_name));
+  DBUG_ASSERT(klass->m_class.m_name_length < sizeof(klass->m_class.m_name));
 
   klass->m_stat.reset();
 }
@@ -465,12 +464,6 @@ static PFS_builtin_memory_class* all_builtin_memory[] = {
   &builtin_memory_prepared_stmt,
 
   &builtin_memory_scalable_buffer,
-
-  /*
-    MAINTAINER:
-    When changing builtin memory,
-    make sure to adjust pfs_show_status() as well.
-  */
 
   nullptr};
 

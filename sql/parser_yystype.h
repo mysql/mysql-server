@@ -1,4 +1,4 @@
-/* Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,12 @@
 #ifndef PARSER_YYSTYPE_INCLUDED
 #define PARSER_YYSTYPE_INCLUDED
 
-#include <assert.h>
 #include <sys/types.h>  // TODO: replace with cstdint
 
 #include "field_types.h"
 #include "lex_string.h"
 #include "my_base.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "my_time.h"      // interval_type
 #include "mysql_time.h"
@@ -132,7 +131,7 @@ class PT_window_list;
 class PT_with_clause;
 class PT_with_list;
 class Parse_tree_root;
-class Query_block;
+class SELECT_LEX;
 class String;
 class Table_ident;
 class sp_condition_value;
@@ -292,7 +291,7 @@ class Enum_parser {
   ///
   /// @note The wrapped value must be assigned.
   Enum get() const {
-    assert(is_set());
+    DBUG_ASSERT(is_set());
     return m_enum;
   }
 
@@ -388,7 +387,7 @@ union YYSTYPE {
   thr_lock_type lock_type;
   interval_type interval, interval_time_st;
   enum_mysql_timestamp_type date_time_type;
-  Query_block *query_block;
+  SELECT_LEX *select_lex;
   chooser_compare_func_creator boolfunc2creator;
   sp_condition_value *spcondvalue;
   struct {

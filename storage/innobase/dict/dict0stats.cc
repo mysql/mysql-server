@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2009, 2021, Oracle and/or its affiliates.
+Copyright (c) 2009, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -154,9 +154,9 @@ typedef std::map<const char *, dict_index_t *, ut_strcmp_functor,
     index_map_t;
 
 /** Checks whether an index should be ignored in stats manipulations:
- - stats fetch
- - stats recalc
- - stats save
+ * stats fetch
+ * stats recalc
+ * stats save
  @return true if exists and all tables are ok */
 UNIV_INLINE
 bool dict_stats_should_ignore_index(const dict_index_t *index) /*!< in: index */
@@ -737,35 +737,11 @@ static void dict_stats_update_transient(
   table->stat_initialized = TRUE;
 }
 
-/** Confirms long waiters for the index lock exist.
-Wait time estimation is based on the last call of this function when not exist.
-@param[in]      index           index
-@param[in,out]  wait_start_time last known time index lock wasn't awaited.
-Can be updated by this function if no waiter found now.
-@return true if long waiters exist */
-static bool dict_stats_index_long_waiters(
-    dict_index_t *index, ib_time_monotonic_t &wait_start_time) {
-  if (rw_lock_get_waiters(dict_index_get_lock(index))) {
-    const uint64_t diff =
-        std::max(ut_time_monotonic() - wait_start_time, (ib_time_monotonic_t)0);
-
-    return diff > srv_fatal_semaphore_wait_threshold / 2;
-  } else {
-    /* estimated long wait not started yet. updates wait_start_time. */
-    wait_start_time = ut_time_monotonic();
-
-    return false;
-  }
-}
-
 /* @{ Pseudo code about the relation between the following functions
 
-dict_stats_analyze_index()
-  let N = N_SAMPLE_PAGES(index)
-  try dict_stats_analyze_index_low(N)
-  if timed out, try again with smaller N
+let N = N_SAMPLE_PAGES(index)
 
-dict_stats_analyze_index_low(N)
+dict_stats_analyze_index()
   for each n_prefix
     search for good enough level:
       dict_stats_analyze_index_level() // only called if level has <= N pages
@@ -785,9 +761,8 @@ dict_stats_analyze_index_low(N)
  records on the level is saved in total_recs.
  Also, the index of the last record in each group of equal records is saved
  in n_diff_boundaries[0..n_uniq - 1], records indexing starts from the leftmost
- record on the level and continues cross pages boundaries, counting from 0.
-@return false if aborted */
-static bool dict_stats_analyze_index_level(
+ record on the level and continues cross pages boundaries, counting from 0. */
+static void dict_stats_analyze_index_level(
     dict_index_t *index,             /*!< in: index */
     ulint level,                     /*!< in: level */
     ib_uint64_t *n_diff,             /*!< out: array for number of
@@ -796,9 +771,7 @@ static bool dict_stats_analyze_index_level(
     ib_uint64_t *total_pages,        /*!< out: total number of pages */
     boundaries_t *n_diff_boundaries, /*!< out: boundaries of the groups
                                    of distinct keys */
-    ib_time_monotonic_t &wait_start_time,
-    /*!< in/out: last known time index lock wasn't awaited. */
-    mtr_t *mtr) /*!< in/out: mini-transaction */
+    mtr_t *mtr)                      /*!< in/out: mini-transaction */
 {
   ulint n_uniq;
   mem_heap_t *heap;
@@ -812,7 +785,6 @@ static bool dict_stats_analyze_index_level(
   ulint *rec_offsets;
   ulint *prev_rec_offsets;
   ulint i;
-  bool success = true;
 
   DEBUG_PRINTF("    %s(table=%s, index=%s, level=%lu)\n", __func__,
                index->table->name, index->name, level);
@@ -877,12 +849,6 @@ static bool dict_stats_analyze_index_level(
   prev_rec = nullptr;
   prev_rec_is_copied = false;
 
-  /* We can release index->lock not to block others, when level==0.
-  But the tree structure might be changed. */
-  if (level == 0) {
-    mtr_memo_release(mtr, dict_index_get_lock(index), MTR_MEMO_SX_LOCK);
-  }
-
   /* no records by default */
   *total_recs = 0;
 
@@ -909,13 +875,6 @@ static bool dict_stats_analyze_index_level(
     /* increment the pages counter at the end of each page */
     if (rec_is_last_on_page) {
       (*total_pages)++;
-
-      if (level != 0 && (*total_pages) % 100 == 0 &&
-          dict_stats_index_long_waiters(index, wait_start_time)) {
-        /* long waiters exist. abort. */
-        success = false;
-        goto end;
-      }
     }
 
     /* Skip delete-marked records on the leaf level. If we
@@ -1073,7 +1032,6 @@ static bool dict_stats_analyze_index_level(
   }
 #endif /* UNIV_STATS_DEBUG */
 
-end:
   /* Release the latch on the last page, because that is not done by
   btr_pcur_close(). This function works also for non-leaf pages. */
   btr_leaf_page_release(btr_pcur_get_block(&pcur), BTR_SEARCH_LEAF, mtr);
@@ -1081,8 +1039,6 @@ end:
   btr_pcur_close(&pcur);
   ut_free(prev_rec_buf);
   mem_heap_free(heap);
-
-  return success;
 }
 
 /** aux enum for controlling the behavior of dict_stats_scan_page() @{ */
@@ -1415,14 +1371,10 @@ last record from each group of distinct keys
 n_external_pages_sum in this structure will be set by this function. The
 members level, n_diff_on_level and n_leaf_pages_to_analyze must be set by the
 caller in advance - they are used by some calculations inside this function
-@param[in,out]	wait_start_time         last known time index lock wasn't
-awaited.
-@param[in,out]	mtr			Mini-transaction
-@return false if aborted */
-static bool dict_stats_analyze_index_for_n_prefix(
+@param[in,out]	mtr			Mini-transaction */
+static void dict_stats_analyze_index_for_n_prefix(
     dict_index_t *index, ulint n_prefix, const boundaries_t *boundaries,
-    n_diff_data_t *n_diff_data, ib_time_monotonic_t &wait_start_time,
-    mtr_t *mtr) {
+    n_diff_data_t *n_diff_data, mtr_t *mtr) {
   btr_pcur_t pcur;
   const page_t *page;
   ib_uint64_t rec_idx;
@@ -1552,12 +1504,6 @@ static bool dict_stats_analyze_index_for_n_prefix(
       break;
     }
 
-    if ((i + 1) % 100 == 0 &&
-        dict_stats_index_long_waiters(index, wait_start_time)) {
-      /* long waiters exist. abort. */
-      break;
-    }
-
     ut_a(rec_idx == dive_below_idx);
 
     ib_uint64_t n_diff_on_leaf_page;
@@ -1590,14 +1536,6 @@ static bool dict_stats_analyze_index_for_n_prefix(
   }
 
   btr_pcur_close(&pcur);
-
-  if (i < n_diff_data->n_leaf_pages_to_analyze) {
-    /* return how much progressed */
-    n_diff_data->n_leaf_pages_to_analyze = i;
-    return false;
-  }
-
-  return true;
 }
 
 /** Set dict_index_t::stat_n_diff_key_vals[] and stat_n_sample_sizes[].
@@ -1663,13 +1601,10 @@ void dict_stats_index_set_n_diff(const n_diff_data_t *n_diff_data,
 
 /** Calculates new statistics for a given index and saves them to the index
  members stat_n_diff_key_vals[], stat_n_sample_sizes[], stat_index_size and
- stat_n_leaf_pages, based on the specified n_sample_pages.
-@param[in,out] n_sample_pages   number of leaf pages to sample. and suggested
-next value to retry if aborted.
-@param[in,out] index            index to analyze.
-@return false if aborted */
-static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
-                                         dict_index_t *index) {
+ stat_n_leaf_pages. This function could be slow. */
+static void dict_stats_analyze_index(
+    dict_index_t *index) /*!< in/out: index to analyze */
+{
   ulint root_level;
   ulint level;
   bool level_is_analyzed;
@@ -1677,9 +1612,6 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
   ulint n_prefix;
   ib_uint64_t total_recs;
   ib_uint64_t total_pages;
-  const ib_uint64_t n_diff_required = n_sample_pages * 10;
-  ib_time_monotonic_t wait_start_time;
-  bool succeeded = true;
   mtr_t mtr;
   ulint size;
   DBUG_TRACE;
@@ -1689,7 +1621,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
 
   /* Disable update statistic for Rtree */
   if (dict_index_is_spatial(index)) {
-    return true;
+    return;
   }
 
   DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name());
@@ -1713,7 +1645,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
   switch (size) {
     case ULINT_UNDEFINED:
       dict_stats_assert_initialized_index(index);
-      return true;
+      return;
     case 0:
       /* The root node of the tree is a leaf */
       size = 1;
@@ -1724,7 +1656,6 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
   mtr_start(&mtr);
 
   mtr_sx_lock(dict_index_get_lock(index), &mtr);
-  wait_start_time = ut_time_monotonic();
 
   root_level = btr_height_get(index, &mtr);
 
@@ -1737,15 +1668,10 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
   will be sampled, so in total N_SAMPLE_PAGES(index) * n_uniq leaf
   pages will be sampled. If that number is bigger than the total
   number of leaf pages then do full scan of the leaf level instead
-  since it will be faster and will give better results.
+  since it will be faster and will give better results. */
 
-  Also, we don't want to hold the dict_index_get_lock(index) SX_LOCK,
-  (which is needed for scans on level>0) for too long, so we prefer a slower
-  full scan without the SX_LOCK to a faster scan under SX_LOCK over 1e6+ pages.
-  */
-
-  if (root_level == 0 || n_sample_pages * n_uniq >
-                             std::min<ulint>(index->stat_n_leaf_pages, 1e6)) {
+  if (root_level == 0 ||
+      N_SAMPLE_PAGES(index) * n_uniq > index->stat_n_leaf_pages) {
     if (root_level == 0) {
       DEBUG_PRINTF(
           "  %s(): just one page,"
@@ -1761,10 +1687,9 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
     /* do full scan of level 0; save results directly
     into the index */
 
-    (void)dict_stats_analyze_index_level(
+    dict_stats_analyze_index_level(
         index, 0 /* leaf level */, index->stat_n_diff_key_vals, &total_recs,
-        &total_pages, nullptr /* boundaries not needed */, wait_start_time,
-        &mtr);
+        &total_pages, nullptr /* boundaries not needed */, &mtr);
 
     for (ulint i = 0; i < n_uniq; i++) {
       index->stat_n_sample_sizes[i] = total_pages;
@@ -1773,7 +1698,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
     mtr_commit(&mtr);
 
     dict_stats_assert_initialized_index(index);
-    return true;
+    return;
   }
 
   /* For each level that is being scanned in the btree, this contains the
@@ -1811,14 +1736,13 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
     DEBUG_PRINTF(
         "  %s(): searching level with >=%llu"
         " distinct records, n_prefix=%lu\n",
-        __func__, n_diff_required, n_prefix);
+        __func__, N_DIFF_REQUIRED(index), n_prefix);
 
-    /* Commit the mtr to release the tree SX lock to allow
+    /* Commit the mtr to release the tree S lock to allow
     other threads to do some work too. */
     mtr_commit(&mtr);
     mtr_start(&mtr);
     mtr_sx_lock(dict_index_get_lock(index), &mtr);
-    wait_start_time = ut_time_monotonic();
     if (root_level != btr_height_get(index, &mtr)) {
       /* Just quit if the tree has changed beyond
       recognition here. The old stats from previous
@@ -1836,7 +1760,8 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
     distinct records because we do not want to scan the
     leaf level because it may contain too many records */
     if (level_is_analyzed &&
-        (n_diff_on_level[n_prefix - 1] >= n_diff_required || level == 1)) {
+        (n_diff_on_level[n_prefix - 1] >= N_DIFF_REQUIRED(index) ||
+         level == 1)) {
       goto found_level;
     }
 
@@ -1845,7 +1770,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
     if (level_is_analyzed && level > 1) {
       /* if this does not hold we should be on
       "found_level" instead of here */
-      ut_ad(n_diff_on_level[n_prefix - 1] < n_diff_required);
+      ut_ad(n_diff_on_level[n_prefix - 1] < N_DIFF_REQUIRED(index));
 
       level--;
       level_is_analyzed = false;
@@ -1869,7 +1794,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
       total_recs is left from the previous iteration when
       we scanned one level upper or we have not scanned any
       levels yet in which case total_recs is 1. */
-      if (total_recs > n_sample_pages) {
+      if (total_recs > N_SAMPLE_PAGES(index)) {
         /* if the above cond is true then we are
         not at the root level since on the root
         level total_recs == 1 (set before we
@@ -1885,23 +1810,13 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
         break;
       }
 
-      const ib_uint64_t prev_total_recs = total_recs;
-      if (!dict_stats_analyze_index_level(
-              index, level, n_diff_on_level, &total_recs, &total_pages,
-              n_diff_boundaries, wait_start_time, &mtr)) {
-        /* The other index->lock waiter is near to timeout.
-        We should reduce requested pages for safety. */
-        ut_ad(prev_total_recs <= n_sample_pages);
-        n_sample_pages = prev_total_recs / 2;
-
-        /* abort */
-        succeeded = false;
-        goto end;
-      }
+      dict_stats_analyze_index_level(index, level, n_diff_on_level, &total_recs,
+                                     &total_pages, n_diff_boundaries, &mtr);
 
       level_is_analyzed = true;
 
-      if (level == 1 || n_diff_on_level[n_prefix - 1] >= n_diff_required) {
+      if (level == 1 ||
+          n_diff_on_level[n_prefix - 1] >= N_DIFF_REQUIRED(index)) {
         /* we have reached the last level we could scan
         or we found a good level with many distinct
         records */
@@ -1930,7 +1845,7 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
     ut_ad(total_recs > 0);
     ut_ad(n_diff_on_level[n_prefix - 1] > 0);
 
-    ut_ad(n_sample_pages > 0);
+    ut_ad(N_SAMPLE_PAGES(index) > 0);
 
     n_diff_data_t *data = &n_diff_data[n_prefix - 1];
 
@@ -1941,26 +1856,15 @@ static bool dict_stats_analyze_index_low(ib_uint64_t &n_sample_pages,
     data->n_diff_on_level = n_diff_on_level[n_prefix - 1];
 
     data->n_leaf_pages_to_analyze =
-        std::min(n_sample_pages, n_diff_on_level[n_prefix - 1]);
+        std::min(N_SAMPLE_PAGES(index), n_diff_on_level[n_prefix - 1]);
 
     /* pick some records from this level and dive below them for
     the given n_prefix */
 
-    if (!dict_stats_analyze_index_for_n_prefix(index, n_prefix,
-                                               &n_diff_boundaries[n_prefix - 1],
-                                               data, wait_start_time, &mtr)) {
-      /* The other index->lock waiter is near to timeout.
-      We should reduce requested pages for safety. */
-      ut_ad(data->n_leaf_pages_to_analyze <= n_sample_pages);
-      n_sample_pages = data->n_leaf_pages_to_analyze / 2;
-
-      /* abort */
-      succeeded = false;
-      goto end;
-    }
+    dict_stats_analyze_index_for_n_prefix(
+        index, n_prefix, &n_diff_boundaries[n_prefix - 1], data, &mtr);
   }
 
-end:
   mtr_commit(&mtr);
 
   UT_DELETE_ARRAY(n_diff_boundaries);
@@ -1969,38 +1873,13 @@ end:
 
   /* n_prefix == 0 means that the above loop did not end up prematurely
   due to tree being changed and so n_diff_data[] is set up. */
-  if (succeeded && n_prefix == 0) {
+  if (n_prefix == 0) {
     dict_stats_index_set_n_diff(n_diff_data, index);
   }
 
   UT_DELETE_ARRAY(n_diff_data);
 
-  if (succeeded) {
-    dict_stats_assert_initialized_index(index);
-  }
-
-  return succeeded;
-}
-
-/** Calculates new statistics for a given index and saves them to the index
- members stat_n_diff_key_vals[], stat_n_sample_sizes[], stat_index_size and
- stat_n_leaf_pages. This function could be slow. */
-static void dict_stats_analyze_index(
-    dict_index_t *index) /*!< in/out: index to analyze */
-{
-  ib_uint64_t n_sample_pages = N_SAMPLE_PAGES(index);
-  while (n_sample_pages > 0 &&
-         !dict_stats_analyze_index_low(n_sample_pages, index)) {
-    /* aborted. retrying. */
-    ib::warn(ER_IB_MSG_STATS_SAMPLING_TOO_LARGE)
-        << "Detected too long lock waiting around " << index->table->name << "."
-        << index->name
-        << " stats_sample_pages. Retrying with the smaller value "
-        << n_sample_pages << ".";
-
-    /* Certain delay is needed for waiters to lock the index next. */
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
+  dict_stats_assert_initialized_index(index);
 }
 
 /** Calculates new estimates for table and index statistics. This function
@@ -2850,7 +2729,7 @@ storage */
       }
 
       /* wakes the last purge batch for exact recalculation */
-      if (trx_sys->rseg_history_len.load() > 0) {
+      if (trx_sys->rseg_history_len > 0) {
         srv_wake_purge_thread_if_not_active();
       }
 
@@ -3329,7 +3208,7 @@ dberr_t dict_stats_rename_table(
 
     if (ret != DB_SUCCESS) {
       rw_lock_x_unlock(dict_operation_lock);
-      std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      os_thread_sleep(200000 /* 0.2 sec */);
       rw_lock_x_lock(dict_operation_lock);
     }
   } while ((ret == DB_DEADLOCK || ret == DB_DUPLICATE_KEY ||
@@ -3376,7 +3255,7 @@ dberr_t dict_stats_rename_table(
 
     if (ret != DB_SUCCESS) {
       rw_lock_x_unlock(dict_operation_lock);
-      std::this_thread::sleep_for(std::chrono::milliseconds(200));
+      os_thread_sleep(200000 /* 0.2 sec */);
       rw_lock_x_lock(dict_operation_lock);
     }
   } while ((ret == DB_DEADLOCK || ret == DB_DUPLICATE_KEY ||

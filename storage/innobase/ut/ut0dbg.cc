@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -57,7 +57,7 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   ib::error(ER_IB_MSG_1273)
       << "Assertion failure: " << innobase_basename(file) << ":" << line
       << ((expr != nullptr) ? ":" : "") << ((expr != nullptr) ? expr : "")
-      << " thread " << to_string(std::this_thread::get_id());
+      << " thread " << os_thread_handle();
 
   flush_error_log_messages();
 
@@ -71,10 +71,9 @@ void ut_set_assert_callback(std::function<void()> &callback) {
   fprintf(stderr,
           "InnoDB: Assertion failure: %s:" ULINTPF
           "%s%s\n"
-          "InnoDB: thread %s",
+          "InnoDB: thread " UINT64PF,
           filename, line, expr != nullptr ? ":" : "",
-          expr != nullptr ? expr : "",
-          to_string(std::this_thread::get_id()).c_str());
+          expr != nullptr ? expr : "", os_thread_handle());
 #endif /* !UNIV_HOTBACKUP */
 
   fputs(

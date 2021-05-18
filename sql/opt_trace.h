@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,13 @@
 #ifndef OPT_TRACE_INCLUDED
 #define OPT_TRACE_INCLUDED
 
+#include "my_config.h"
+
 #include <limits.h>
 #include <string.h>
 #include <sys/types.h>
 
+#include "m_ctype.h"
 #include "my_compiler.h"
 #include "my_inttypes.h"
 #include "my_sqlcommand.h"          // enum_sql_command
@@ -38,7 +41,6 @@ class THD;
 class set_var_base;
 class sp_head;
 class sp_printable;
-struct CHARSET_INFO;
 struct TABLE_LIST;
 template <class T>
 class List;
@@ -637,6 +639,15 @@ class Opt_trace_struct {
     if (likely(!started)) return *this;
     return do_add(nullptr, value);
   }
+  /// Adds a 64-bit integer to trace, in hexadecimal format
+  Opt_trace_struct &add_hex(const char *key, uint64 value) {
+    if (likely(!started)) return *this;
+    return do_add_hex(key, value);
+  }
+  Opt_trace_struct &add_hex(uint64 value) {
+    if (likely(!started)) return *this;
+    return do_add_hex(nullptr, value);
+  }
   /// Adds a JSON null object (==Python's "None")
   Opt_trace_struct &add_null(const char *key) {
     if (likely(!started)) return *this;
@@ -651,8 +662,8 @@ class Opt_trace_struct {
     return do_add_utf8_table(tab);
   }
   /**
-     Helper to put the number of query_block in an object.
-     @param  select_number  number of query_block
+     Helper to put the number of select_lex in an object.
+     @param  select_number  number of select_lex
   */
   Opt_trace_struct &add_select_number(uint select_number) {
     return unlikely(select_number >= INT_MAX) ?
@@ -750,6 +761,7 @@ class Opt_trace_struct {
   Opt_trace_struct &do_add(const char *key, longlong value);
   Opt_trace_struct &do_add(const char *key, ulonglong value);
   Opt_trace_struct &do_add(const char *key, double value);
+  Opt_trace_struct &do_add_hex(const char *key, uint64 value);
   Opt_trace_struct &do_add_null(const char *key);
   Opt_trace_struct &do_add_utf8_table(const TABLE_LIST *tab);
   Opt_trace_struct &do_add(const char *key, const Cost_estimate &value);
@@ -783,7 +795,7 @@ class Opt_trace_struct {
   Opt_trace_stmt *stmt;  ///< Trace owning the structure
   /// Key if the structure is the value of a key/value pair, NULL otherwise
   const char *saved_key;
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   /**
      Fixed-length prefix of previous key in this structure, if this structure
      is an object. Serves to detect when adding two same consecutive keys to
@@ -957,17 +969,17 @@ class Opt_trace_start {
   bool error;  ///< whether trace start() had an error
 };
 
-class Query_block;
+class SELECT_LEX;
 
 /**
    Prints SELECT query to optimizer trace. It is not the original query (as in
    @c Opt_trace_context::set_query()) but a printout of the parse tree
    (Item-s).
    @param  thd         the THD
-   @param  query_block  query's parse tree
+   @param  select_lex  query's parse tree
    @param  trace_object  Opt_trace_object to which the query will be added
 */
-void opt_trace_print_expanded_query(const THD *thd, Query_block *query_block,
+void opt_trace_print_expanded_query(const THD *thd, SELECT_LEX *select_lex,
                                     Opt_trace_object *trace_object);
 
 /**
@@ -1066,7 +1078,7 @@ int fill_optimizer_trace_info(THD *thd, TABLE_LIST *tables, Item *);
    @param trace          optimizer trace
    @param object_level0  name of the outer Opt_trace_object C++ object
    @param object_level1  name of the inner Opt_trace_object C++ object
-   @param select_number  number of the being-transformed Query_block
+   @param select_number  number of the being-transformed SELECT_LEX
    @param from           description of the before-transformation state
    @param to             description of the after-transformation state
 */

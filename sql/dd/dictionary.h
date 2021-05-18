@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -439,25 +439,6 @@ const Object_table &get_dd_table();
   @param dst ticket for new name
 */
 void rename_tablespace_mdl_hook(THD *thd, MDL_ticket *src, MDL_ticket *dst);
-
-/**
-  Execute an ALTER TABLESPACE ... ENCRYPTION statement.
-
-  During recovery of a storage engine, an ALTER TABLESPACE ... ENCRYPTION
-  statement may be resumed. This is initiated from the SE, which will first
-  set the state as appropriate in the SE, then invoke this method to start
-  executing the statement. When the SE is involved during execution of the
-  statement, the internal state in the SE will indicate that this is a
-  statement that has been initiated and partially executed already.
-
-  @param    thd              Thread context.
-  @param    tablespace_name  Name of tablespace to encrypt/decrypt.
-  @param    encryption       True to turn on encryption, false to turn off.
-
-  @retval   false if no errors, otherwise true.
-*/
-bool alter_tablespace_encryption(THD *thd, const char *tablespace_name,
-                                 bool encryption);
 
 }  // namespace dd
 

@@ -1,5 +1,3 @@
---source include/not_hypergraph.inc  # Optimizer hints are not supported.
-
 --echo # WL#8017 Infrastructure for Optimizer Hints
 
 CREATE TABLE t1(f1 INT, f2 INT);

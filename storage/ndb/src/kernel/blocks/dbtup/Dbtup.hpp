@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,13 +39,11 @@
 #include <signaldata/TrigAttrInfo.hpp>
 #include <signaldata/BuildIndxImpl.hpp>
 #include <signaldata/AlterTab.hpp>
-#include <signaldata/TupCommit.hpp>
 #include <AttributeDescriptor.hpp>
 #include "AttributeOffset.hpp"
 #include "Undo_buffer.hpp"
 #include "tuppage.hpp"
 #include <DynArr256.hpp>
-#include "../dbacc/Dbacc.hpp"
 #include "../pgman.hpp"
 #include "../tsman.hpp"
 #include <EventLogger.hpp>
@@ -248,7 +246,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZDISK_RESTART_UNDO 16
 #define ZTUP_SHRINK_TRANSIENT_POOLS 17
 #define ZTUP_TRANSIENT_POOL_STAT 18
-#define ZTUP_REPORT_COMMIT_PERFORMED 19
 
 #define ZSCAN_PROCEDURE 0
 #define ZCOPY_PROCEDURE 2
@@ -260,8 +257,6 @@ inline const Uint32* ALIGN_WORD(const void* ptr)
 #define ZABORT_DEALLOC     0x2 // flag for TUP_ABORTREQ
 
 #endif
-
-class Dbtux;
 
 class Dbtup: public SimulatedBlock {
 friend class DbtupProxy;
@@ -282,28 +277,12 @@ private:
   typedef Tup_fixsize_page Fix_page;
   typedef Tup_varsize_page Var_page;
 
-  Uint32 m_acc_block;
-  Uint32 m_tup_block;
-  Uint32 m_lqh_block;
-  Uint32 m_tux_block;
-  Uint32 m_backup_block;
 public:
-  bool m_is_query_block;
-  bool m_is_in_query_thread;
-  /**
-   * m_ldm_instance_used is set when executing as a query thread.
-   * It points to the owning LDM thread to enable quick retrieval
-   * of operation records from the owning LDM thread.
-   */
-  Dbtup *m_ldm_instance_used;
-
   class Dblqh *c_lqh;
   class Backup *c_backup;
   Tsman* c_tsman;
   Lgman* c_lgman;
   Pgman* c_pgman;
-  Dbacc* c_acc;
-  Dbtux* c_tux;
 
   enum CallbackIndex {
     // lgman
@@ -557,7 +536,6 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   void releaseScanOp(ScanOpPtr& scanPtr);
 
   struct Tuple_header;
-  struct Fragrecord;
 
   Uint32 prepare_lcp_scan_page(ScanOp& scan,
                                Local_key& key,
@@ -569,8 +547,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   Uint32 handle_scan_change_page_rows(ScanOp& scan,
                                       Fix_page *fix_page,
                                       Tuple_header* tuple_header_ptr,
-                                      Uint32 & foundGCI,
-                                      Fragrecord *fragPtrP);
+                                      Uint32 & foundGCI);
   Uint32 setup_change_page_for_scan(ScanOp& scan,
                                     Fix_page *fix_page,
                                     Local_key& key,
@@ -726,10 +703,7 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   STATIC_CONST( PAGE_BIT_MASK =   0x3fffffff );
   STATIC_CONST( MAX_PAGES_IN_DYN_ARRAY = (RNIL & PAGE_BIT_MASK));
 
-#define NUM_TUP_FRAGMENT_MUTEXES 4
 struct Fragrecord {
-  NdbMutex tup_frag_mutex[NUM_TUP_FRAGMENT_MUTEXES];
-  NdbMutex tup_frag_page_map_mutex;
   // Number of allocated pages for fixed-sized data.
   Uint32 noOfPages;
   // Number of allocated pages for var-sized data.
@@ -769,6 +743,8 @@ struct Fragrecord {
   // +1 is as "full" pages are stored last
   Page_list::Head free_var_page_array[MAX_FREE_LIST+1];
   
+  ScanOp_list::Head m_scanList;
+
   enum
   {
     UC_LCP = 1,
@@ -826,81 +802,6 @@ struct Fragrecord {
 };
 typedef Ptr<Fragrecord> FragrecordPtr;
 
-  void acquire_frag_page_map_mutex(Fragrecord *fragPtrP)
-  {
-    if (qt_likely(globalData.ndbMtQueryThreads > 0))
-    {
-      ndbrequire(!m_is_in_query_thread);
-      NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
-    }
-  }
-  void release_frag_page_map_mutex(Fragrecord *fragPtrP)
-  {
-    if (qt_likely(globalData.ndbMtQueryThreads > 0))
-    {
-      NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
-    }
-  }
-  void acquire_frag_page_map_mutex_read()
-  {
-    acquire_frag_page_map_mutex_read(prepare_fragptr.p);
-  }
-  void release_frag_page_map_mutex_read()
-  {
-    release_frag_page_map_mutex_read(prepare_fragptr.p);
-  }
-  void acquire_frag_page_map_mutex_read(Fragrecord *fragPtrP)
-  {
-    if (unlikely(m_is_in_query_thread))
-    {
-      NdbMutex_Lock(&fragPtrP->tup_frag_page_map_mutex);
-    }
-  }
-  void release_frag_page_map_mutex_read(Fragrecord *fragPtrP)
-  {
-    if (unlikely(m_is_in_query_thread))
-    {
-      NdbMutex_Unlock(&fragPtrP->tup_frag_page_map_mutex);
-    }
-  }
-  void acquire_frag_mutex(Fragrecord *fragPtrP,
-                          Uint32 logicalPageId)
-  {
-    if (qt_likely(globalData.ndbMtQueryThreads > 0))
-    {
-      ndbrequire(!m_is_in_query_thread);
-      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
-      NdbMutex_Lock(&fragPtrP->tup_frag_mutex[hash]);
-    }
-  }
-  void release_frag_mutex(Fragrecord *fragPtrP,
-                          Uint32 logicalPageId)
-  {
-    if (qt_likely(globalData.ndbMtQueryThreads > 0))
-    {
-      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
-      NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);
-    }
-  }
-  void acquire_frag_mutex_read(Fragrecord *fragPtrP,
-                               Uint32 logicalPageId)
-  {
-    if (unlikely(m_is_in_query_thread))
-    {
-      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
-      NdbMutex_Lock(&fragPtrP->tup_frag_mutex[hash]);
-    }
-  }
-  void release_frag_mutex_read(Fragrecord *fragPtrP,
-                               Uint32 logicalPageId)
-  {
-    if (unlikely(m_is_in_query_thread))
-    {
-      Uint32 hash = logicalPageId & (NUM_TUP_FRAGMENT_MUTEXES - 1);
-      NdbMutex_Unlock(&fragPtrP->tup_frag_mutex[hash]);
-    }
-  }
-
 struct Operationrec {
   STATIC_CONST( TYPE_ID = RT_DBTUP_OPERATION);
   Uint32 m_magic;
@@ -909,8 +810,6 @@ struct Operationrec {
     m_magic(Magic::make(TYPE_ID)),
     prevActiveOp(RNIL),
     nextActiveOp(RNIL),
-    fragPageId(RNIL),
-    m_commit_state(CommitNotStarted),
     m_any_value(0),
     op_type(ZREAD),
     trans_state(Uint32(TRANS_DISCONNECTED))
@@ -924,16 +823,6 @@ struct Operationrec {
   {
   }
 
-  enum CommitState
-  {
-    CommitNotStarted = 0,
-    CommitStartedNotReceived = 1,
-    CommitStartedReceived = 2,
-    CommitPerformedNotReceived = 3,
-    CommitPerformedReceived = 4,
-    CommitDoneReceived = 5,
-    CommitDoneNotReceived = 6
-  };
   /*
    * Doubly linked list with anchor on tuple.
    * This is to handle multiple updates on the same tuple
@@ -941,10 +830,6 @@ struct Operationrec {
    */
   Uint32 prevActiveOp;
   Uint32 nextActiveOp;
-
-  Uint32 fragPageId;
-
-  CommitState m_commit_state;
 
   bool is_first_operation() const { return prevActiveOp == RNIL;}
   bool is_last_operation() const { return nextActiveOp == RNIL;}
@@ -1065,13 +950,6 @@ struct Operationrec {
     RF_MULTI_EXIST      = 4     /* Refresh op !first in trans, row exists */
   };
 };
-
-  Uint32 m_base_header_bits;
-
-  Uint32 get_operation_type(Operationrec *opPtrP)
-  {
-    return opPtrP->op_type;
-  }
   STATIC_CONST(DBTUP_OPERATION_RECORD_TRANSIENT_POOL_INDEX = 0);
   typedef Ptr<Operationrec> OperationrecPtr;
   typedef TransientPool<Operationrec> Operationrec_pool;
@@ -1201,7 +1079,7 @@ TupTriggerData_pool c_triggerPool;
       deferredUpdateTriggers(triggerPool),
       deferredDeleteTriggers(triggerPool),
       tuxCustomTriggers(triggerPool)
-  {}
+      {}
     
     Bitmask<MAXNROFATTRIBUTESINWORDS> notNullAttributeMask;
     Bitmask<MAXNROFATTRIBUTESINWORDS> blobAttributeMask;
@@ -1269,7 +1147,6 @@ TupTriggerData_pool c_triggerPool;
     Uint16 m_dyn_null_bits[2];
     Uint16 noOfKeyAttr;
     Uint16 noOfCharsets;
-    Uint16 m_no_of_real_disk_attributes;
     Uint16 m_no_of_disk_attributes;
     Uint16 m_no_of_attributes;
 
@@ -2043,9 +1920,7 @@ struct TupHeadInfo {
   Uint32          terrorCode;
 
 public:
-  Dbtup(Block_context&,
-        Uint32 instanceNumber = 0,
-        Uint32 blockNo = DBTUP);
+  Dbtup(Block_context&, Uint32 instanceNumber = 0);
   ~Dbtup() override;
 
   /*
@@ -2132,10 +2007,7 @@ public:
    * this point in ACC deconstruction, ACC still uses logical references
    * to fragment and tuple.
    */
-  int accReadPk(Uint32 fragPageId,
-                Uint32 pageIndex,
-                Uint32* dataOut,
-                bool xfrmFlag);
+  int accReadPk(Uint32 tableId, Uint32 fragId, Uint32 fragPageId, Uint32 pageIndex, Uint32* dataOut, bool xfrmFlag);
 
   inline Uint32 get_tuple_operation_ptr_i()
   {
@@ -2159,17 +2031,16 @@ public:
 			 Uint32 lkey1, Uint32 lkey2,
                          Uint32 tux_flags, Uint32 disk_flag);
 
-  void start_restore_table(Uint32 tableId);
-  void complete_restore_table(Uint32 tableId);
-  void complete_restore_fragment(Signal*,
-                                 Uint32 ref,
-                                 Uint32 data,
-                                 Uint32 restoredLcpId,
-                                 Uint32 restoredLocalLcpId,
-                                 Uint32 maxGciCompleted,
-                                 Uint32 maxGciWritten,
-                                 Uint32 tableId,
-                                 Uint32 fragmentId);
+  void start_restore_lcp(Uint32 tableId, Uint32 fragmentId);
+  void complete_restore_lcp(Signal*,
+                            Uint32 ref,
+                            Uint32 data,
+                            Uint32 restoredLcpId,
+                            Uint32 restoredLocalLcpId,
+                            Uint32 maxGciCompleted,
+                            Uint32 maxGciWritten,
+                            Uint32 tableId,
+                            Uint32 fragmentId);
   Uint32 get_max_lcp_record_size(Uint32 tableId);
   
   int nr_read_pk(Uint32 fragPtr, const Local_key*, Uint32* dataOut, bool&copy);
@@ -2239,12 +2110,6 @@ public:
 private:
   BLOCK_DEFINES(Dbtup);
 
-public:
-  void execTUP_ABORTREQ(Signal* signal);
-  void execTUP_WRITELOG_REQ(Signal* signal);
-  void execTUP_DEALLOCREQ(Signal* signal);
-  void do_tup_abortreq(Signal*, Uint32 flags);
-private:
   // Transit signals
   void execDEBUG_SIG(Signal* signal);
   void execCONTINUEB(Signal* signal);
@@ -2258,15 +2123,19 @@ private:
   void execSTART_RECREQ(Signal* signal);
   void execMEMCHECKREQ(Signal* signal);
   void execTUPSEIZEREQ(Signal* signal);
+  void execTUPRELEASEREQ(Signal* signal);
 
   void execCREATE_TAB_REQ(Signal*);
   void execTUP_ADD_ATTRREQ(Signal* signal);
   void execTUPFRAGREQ(Signal* signal);
   void execTUP_COMMITREQ(Signal* signal);
+  void execTUP_ABORTREQ(Signal* signal);
   void execNDB_STTOR(Signal* signal);
   void execREAD_CONFIG_REQ(Signal* signal);
   void execDROP_TAB_REQ(Signal* signal);
   void execALTER_TAB_REQ(Signal* signal);
+  void execTUP_DEALLOCREQ(Signal* signal);
+  void execTUP_WRITELOG_REQ(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
 
   void execDROP_FRAG_REQ(Signal*);
@@ -2302,53 +2171,6 @@ private:
 
   void execDBINFO_SCANREQ(Signal*);
   void execSUB_GCP_COMPLETE_REP(Signal*);
-
-#ifdef ERROR_INSERT
-  /* Functions to find bugs in TUP commit code */
-  /**
-   * These variables are first used uninitialised by design, this creates
-   * a bit of randomness in the testing.
-   */
-  Uint32 m_delayed_commit;
-  Uint32 m_continue_report_commit_counter;
-  bool check_delayed_commit(Signal*,
-                            TupCommitReq*,
-                            Uint32);
-#endif
-  void set_commit_started(Uint32 leaderOperPtrI);
-  void set_commit_performed(OperationrecPtr firstOperPtr,
-                            Fragrecord *fragPtrP);
-  void continue_report_commit_performed(Signal*, Uint32 firstOperPtrI);
-  void send_continue_report_commit_performed(Signal*, Uint32 nextOp);
-  void report_commit_performed(Signal*,
-                               OperationrecPtr &firstOperPtr,
-                               Uint32 max_commits,
-                               Fragrecord *fragPtrP);
-
-public:
-#define ZTUP_COMMITTED 0
-#define ZTUP_NOT_COMMITTED 1
-#define ZTUP_WAIT_COMMIT 2
-  Uint32 exec_prepare_tup_commit(Uint32 regOperPtrI);
-
-  Uint32 exec_tup_commit(Signal *signal);
-private:
-
-#define ZDISK_PAGE_READY_FOR_COMMIT 0
-#define ZDISK_PAGE_NOT_READY_FOR_COMMIT 1
-  Uint32 prepare_disk_page_for_commit(Signal *signal,
-                                      OperationrecPtr regOperPtr,
-                                      Tuple_header *tuple_ptr,
-                                      Ptr<GlobalPage> & diskPagePtr);
-
-  void execute_real_commit(Signal *signal,
-                           KeyReqStruct &req_struct,
-                           PagePtr tupPagePtr,
-                           Ptr<GlobalPage> diskPagePtr);
-
-  void get_execute_commit_operation(OperationrecPtr &executeOperPtr);
-
-  void finalize_commit(Operationrec *regOperPtrP, Fragrecord *fragPtrP);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -2527,9 +2349,7 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
 public:
-  bool execTUPKEYREQ(Signal* signal,
-                     void *_lqhOpPtrP,
-                     void *_lqhScanPtrP);
+  bool execTUPKEYREQ(Signal* signal);
   /**
    * Prepare for execTUPKEYREQ by prefetching row and preparing
    * some variables as part of row address calculation.
@@ -2542,7 +2362,6 @@ public:
   void prepare_op_pointer(Uint32 opPtrI,
                           Dbtup::Operationrec *opPtrP);
   void prepare_tab_pointers(Uint32 fragPtrI);
-  void prepare_tab_pointers_acc(Uint32 table_id, Uint32 frag_id);
   void get_all_tup_ptrs(Uint32 indexFragPtrI,
                         Uint32 tableFragPtrI,
                         Uint32** index_fragptr,
@@ -2609,8 +2428,7 @@ private:
                       Ptr<Fragrecord>,
                       Tablerec* regTabPtr,
                       KeyReqStruct* req_struct,
-                      Local_key ** accminupdateptr,
-                      bool is_refresh);
+                      Local_key ** accminupdateptr);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -3100,7 +2918,7 @@ private:
 
   /* Alter table methods. */
   void handleAlterTablePrepare(Signal *, const AlterTabReq *, const Tablerec *);
-  void handleAlterTableCommit(Signal *, const AlterTabReq *, TablerecPtr);
+  void handleAlterTableCommit(Signal *, const AlterTabReq *, Tablerec *);
   void handleAlterTableComplete(Signal *, const AlterTabReq *, Tablerec *);
   void handleAlterTableAbort(Signal *, const AlterTabReq *, const Tablerec *);
   void sendAlterTabRef(Signal *signal, Uint32 errorCode);
@@ -3109,7 +2927,7 @@ private:
   void handleCharsetPos(Uint32 csNumber, CHARSET_INFO** charsetArray,
                         Uint32 noOfCharsets,
                         Uint32 & charsetIndex, Uint32 & attrDes2);
-  Uint32 computeTableMetaData(TablerecPtr regTabPtr, Uint32 line);
+  Uint32 computeTableMetaData(Tablerec *regTabPtr);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -3172,10 +2990,7 @@ private:
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
-  bool prepareActiveOpList(OperationrecPtr, KeyReqStruct* req_struct);
-  void insertActiveOpList(OperationrecPtr,
-                          KeyReqStruct* req_struct,
-                          Tuple_header* tuple_header);
+  bool insertActiveOpList(OperationrecPtr, KeyReqStruct* req_struct);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
@@ -3368,6 +3183,7 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void tupkeyErrorLab(KeyReqStruct*);
+  void do_tup_abortreq(Signal*, Uint32 flags);
   void do_tup_abort_operation(Signal*, Tuple_header *,
                               Operationrec*,
                               Fragrecord*,
@@ -3449,7 +3265,7 @@ private:
     return ((bit_size + 31) >> 5);
   }
 
-  void prepare_initial_insert(KeyReqStruct*, Operationrec*, Tablerec*, bool);
+  void prepare_initial_insert(KeyReqStruct*, Operationrec*, Tablerec*);
   void fix_disk_insert_no_mem_insert(KeyReqStruct*, Operationrec*, Tablerec*);
   void setup_fixed_tuple_ref_opt(KeyReqStruct* req_struct);
   void setup_fixed_tuple_ref(KeyReqStruct* req_struct,
@@ -3469,12 +3285,8 @@ private:
                                Tablerec* regTabPtr);
 
   void setNullBits(Uint32*, Tablerec* regTabPtr);
-  bool checkNullAttributes(KeyReqStruct * const,
-                           Tablerec* const,
-                           bool is_refresh);
-  bool find_savepoint(OperationrecPtr& loopOpPtr,
-                      Uint32 savepointId,
-                      EmulatedJamBuffer * jamBuffer);
+  bool checkNullAttributes(KeyReqStruct * const, Tablerec* const);
+  bool find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId);
   bool setup_read(KeyReqStruct* req_struct,
 		  Operationrec* regOperPtr,
 		  Tablerec* regTabPtr,
@@ -3650,7 +3462,6 @@ private:
                       Uint32& allocPageRef);
   void returnCommonArea(Uint32 retPageRef, Uint32 retNo);
   bool returnCommonArea_for_reuse(Uint32 retPageRef, Uint32 retNo);
-  void update_pages_allocated(int ret_num);
   void initializePage();
 
   Uint32 nextHigherTwoLog(Uint32 input);
@@ -3772,7 +3583,7 @@ private:
                            PagePtr, Var_part_ref*, Uint32, Uint32);
   
   void move_var_part(Fragrecord* fragPtr, Tablerec* tabPtr, PagePtr pagePtr,
-                     Var_part_ref* refptr, Uint32 size, Tuple_header *org);
+                     Var_part_ref* refptr, Uint32 size);
  
   void free_var_part(Fragrecord* fragPtr, PagePtr pagePtr, Uint32 page_idx);
 
@@ -3817,7 +3628,6 @@ private:
   RSS_OP_COUNTER(cnoOfFreeFragoprec);
   RSS_OP_SNAPSHOT(cnoOfFreeFragoprec);
 
-public:
   Fragrecord *fragrecord;
   Uint32 cfirstfreefrag;
   Uint32 cnoOfFragrec;
@@ -3825,8 +3635,6 @@ public:
   RSS_OP_SNAPSHOT(cnoOfFreeFragrec);
   FragrecordPtr prepare_fragptr;
 
-  DynArr256Pool *c_page_map_pool_ptr;
-private:
   /*
    * DefaultValuesFragment is a normal struct Fragrecord.
    * It is TUP block-variable.
@@ -3852,14 +3660,12 @@ private:
 
   /* read ahead in pages during disk order scan */
   Uint32 m_max_page_read_ahead;
-
-public:
+  
   Tablerec *tablerec;
   Uint32 cnoOfTablerec;
+
   TableDescriptor *tableDescriptor;
   Uint32 cnoOfTabDescrRec;
-
-private:
   RSS_OP_COUNTER(cnoOfFreeTabDescrRec);
   RSS_OP_SNAPSHOT(cnoOfFreeTabDescrRec);
   TablerecPtr prepare_tabptr;
@@ -4110,10 +3916,7 @@ private:
 public:
   int disk_page_load_hook(Uint32 page_id);
   
-  void disk_page_unmap_callback(Uint32 when,
-                                Uint32 page,
-                                Uint32 dirty_count,
-                                Uint32 ptrI);
+  void disk_page_unmap_callback(Uint32 when, Uint32 page, Uint32 dirty_count);
   
   int disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf, 
                                 Uint32 tableId,
@@ -4219,8 +4022,7 @@ private:
                              Uint32,
                              Uint32 flag,
                              Uint32 lcpId,
-                             Uint32 localLcpId,
-                             Uint32 lsn);
+                             Uint32 localLcpId);
   void release_undo_record(Ptr<Apply_undo>&, bool);
 
   void disk_restart_undo_callback(Signal* signal, Uint32, Uint32);
@@ -4378,27 +4180,6 @@ public:
   Operationrec* get_operation_ptr(Uint32 i);
   void release_op_rec(Uint32 opPtrI,
                       Operationrec *opPtrP);
-  Uint32 getDBACC()
-  {
-    return m_acc_block;
-  }
-  Uint32 getDBTUP()
-  {
-    return m_tup_block;
-  }
-  Uint32 getDBLQH()
-  {
-    return m_lqh_block;
-  }
-  Uint32 getDBTUX()
-  {
-    return m_tux_block;
-  }
-  Uint32 getBACKUP()
-  {
-    return m_backup_block;
-  }
-  Operationrec* getOperationPtrP(Uint32 opPtrI);
 };
 
 inline void
@@ -4587,27 +4368,16 @@ Dbtup::get_len(Ptr<Page>* pagePtr, Var_part_ref ref)
 NdbOut&
 operator<<(NdbOut&, const Dbtup::Tablerec&);
 
-/**
- * This method can be called from other thread, so if jam is needed
- * it needs to carry along its own jam buffer.
- */
 inline
-bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr,
-                           Uint32 savepointId,
-                           EmulatedJamBuffer *jamBuf)
+bool Dbtup::find_savepoint(OperationrecPtr& loopOpPtr, Uint32 savepointId)
 {
-  while (true)
-  {
-    thrjamDebug(jamBuf);
-    if (savepointId > loopOpPtr.p->savepointId)
-    {
-      thrjamDebug(jamBuf);
+  while (true) {
+    if (savepointId > loopOpPtr.p->savepointId) {
+      jam();
       return true;
     }
     loopOpPtr.i = loopOpPtr.p->prevActiveOp;
-    if (loopOpPtr.i == RNIL)
-    {
-      thrjamDebug(jamBuf);
+    if (loopOpPtr.i == RNIL) {
       break;
     }
     ndbrequire(c_operation_pool.getValidPtr(loopOpPtr));
@@ -4759,41 +4529,7 @@ Dbtup::tuxGetNode(Uint32 attrDataOffset,
   NDB_PREFETCH_READ((void*)node);
 }
 
-inline
-Dbtup::Operationrec*
-Dbtup::getOperationPtrP(Uint32 opPtrI)
-{
-  OperationrecPtr opPtr;
-  opPtr.i = opPtrI;
-  ndbrequire(c_operation_pool.getValidPtr(opPtr));
-  return (Dbtup::Operationrec*)opPtr.p;
-}
 
-inline void
-Dbtup::prepare_tab_pointers(Uint32 frag_id)
-{
-  /**
-   * A real-time break occurred in scanning, we setup the
-   * fragment and table pointers in preparation for calls to
-   * execTUPKEYREQ.
-   */
-  jamDebug();
-  FragrecordPtr fragptr;
-  TablerecPtr tabptr;
-
-  fragptr.i = frag_id;
-  const Uint32 RnoOfFragrec= cnoOfFragrec;
-  const Uint32 RnoOfTablerec= cnoOfTablerec;
-  Fragrecord * Rfragrecord = fragrecord;
-  Tablerec * Rtablerec = tablerec;
-  ndbrequire(fragptr.i < RnoOfFragrec);
-  ptrAss(fragptr, Rfragrecord);
-  tabptr.i = fragptr.p->fragTableId;
-  ndbrequire(tabptr.i < RnoOfTablerec);
-  prepare_fragptr = fragptr;
-  ptrAss(tabptr, Rtablerec);
-  prepare_tabptr = tabptr;
-}
 #undef JAM_FILE_ID
 
 #endif

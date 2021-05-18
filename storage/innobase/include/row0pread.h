@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+Copyright (c) 2018, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -232,7 +232,8 @@ class Parallel_reader {
     /** Create BLOB heap. */
     void create_blob_heap() noexcept {
       ut_a(m_blob_heap == nullptr);
-      m_blob_heap = mem_heap_create(UNIV_PAGE_SIZE);
+      /* Keep the size small because it's currently not used. */
+      m_blob_heap = mem_heap_create(UNIV_PAGE_SIZE / 64);
     }
 
     /** Thread ID. */
@@ -281,7 +282,6 @@ class Parallel_reader {
   issue where extra threads cannot be spawned. */
   void fallback_to_single_threaded_mode() {
     m_single_threaded_mode = true;
-    release_unused_threads(m_n_threads);
     reset_error_state();
   }
 
@@ -321,14 +321,11 @@ class Parallel_reader {
   void set_finish_callback(Finish &&f) { m_finish_callback = std::move(f); }
 
   /** Start the threads to do the parallel read for the specified range.
-  @param[in]  n_threads number of threads that *needs* to be spawned
   @return DB_SUCCESS or error code. */
-  dberr_t run(size_t n_threads = 0) MY_ATTRIBUTE((warn_unused_result));
+  dberr_t run() MY_ATTRIBUTE((warn_unused_result));
 
   /** @return the configured max threads size. */
-  size_t max_threads() const MY_ATTRIBUTE((warn_unused_result)) {
-    return m_max_threads;
-  }
+  size_t max_threads() const MY_ATTRIBUTE((warn_unused_result));
 
   /** @return true if in error state. */
   bool is_error_set() const MY_ATTRIBUTE((warn_unused_result)) {
@@ -356,6 +353,7 @@ class Parallel_reader {
   void release_unused_threads(size_t unused_threads) {
     ut_a(m_max_threads >= unused_threads);
     release_threads(unused_threads);
+    m_max_threads -= unused_threads;
   }
 
   /** Add an execution context to the run queue.
@@ -395,10 +393,7 @@ class Parallel_reader {
   // clang-format on
 
   /** Maximum number of worker threads to use. */
-  const size_t m_max_threads;
-
-  /** Number of worker threads that will be spawned. */
-  size_t m_n_threads{0};
+  size_t m_max_threads{};
 
   /** Mutex protecting m_ctxs. */
   mutable ib_mutex_t m_mutex;
@@ -614,7 +609,7 @@ class Parallel_reader::Scan_ctx {
 
   /** @return the maximum number of threads configured. */
   size_t max_threads() const MY_ATTRIBUTE((warn_unused_result)) {
-    return m_reader->m_max_threads;
+    return (m_reader->m_max_threads);
   }
 
   /** Release unused threads back to the pool.

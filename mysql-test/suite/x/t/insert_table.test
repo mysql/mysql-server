@@ -7,7 +7,7 @@
 create schema xtest default charset='utf8mb4';
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/insert_table_empty.xpl
+--write_file $MYSQL_TMP_DIR/insert_table_empty.tmp
 ## Test data
 -->sql
 use xtest;
@@ -532,7 +532,9 @@ select count(*) from xtest.mytable;
 -->endsql
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_table_empty.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/insert_table_empty.tmp 2>&1
 
 ## Cleanup
---source ../include/xplugin_cleanup.inc
+drop schema if exists xtest;
+--remove_file $MYSQL_TMP_DIR/insert_table_empty.tmp
+--source include/xplugin_drop_user.inc

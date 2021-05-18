@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -197,8 +197,7 @@ class CmNodeInfoReq {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( OldSignalLength = 5 );
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 5 );
   
 private:
   /**
@@ -209,8 +208,6 @@ private:
   Uint32 version;
   Uint32 mysql_version;
   Uint32 lqh_workers;   // added in telco-6.4
-  Uint32 query_threads; // added in 8.0.23
-  Uint32 log_parts;     // added in 8.0.23
 };
 
 class CmNodeInfoRef {
@@ -238,8 +235,7 @@ class CmNodeInfoConf {
   friend class Qmgr;
   
 public:
-  STATIC_CONST( OldSignalLength = 5 );
-  STATIC_CONST( SignalLength = 7 );
+  STATIC_CONST( SignalLength = 5 );
   
 private:
   Uint32 nodeId;
@@ -247,8 +243,6 @@ private:
   Uint32 version;
   Uint32 mysql_version;
   Uint32 lqh_workers;   // added in telco-6.4
-  Uint32 query_threads; // added in 8.0.23
-  Uint32 log_parts;     // added in 8.0.23
 };
 
 

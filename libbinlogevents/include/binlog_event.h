@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -44,7 +44,6 @@
 
 #include "debug_vars.h"
 #include "event_reader.h"
-#include "my_checksum.h"
 #include "my_io.h"
 
 #if defined(_WIN32)
@@ -446,7 +445,8 @@ enum enum_binlog_checksum_alg {
 inline uint32_t checksum_crc32(uint32_t crc, const unsigned char *pos,
                                size_t length) {
   BAPI_ASSERT(length <= UINT_MAX);
-  return my_checksum(crc, pos, length);
+  return static_cast<uint32_t>(crc32(static_cast<unsigned int>(crc), pos,
+                                     static_cast<unsigned int>(length)));
 }
 
 /*

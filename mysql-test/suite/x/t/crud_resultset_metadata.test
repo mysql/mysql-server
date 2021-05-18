@@ -2,6 +2,7 @@
 --source include/xplugin_preamble.inc
 --source include/xplugin_create_user.inc
 
+DROP SCHEMA IF EXISTS xtest;
 CREATE SCHEMA xtest;
 CREATE TABLE xtest.xtable (x INT AUTO_INCREMENT PRIMARY KEY, y VARCHAR(1) NOT NULL, z INT UNSIGNED UNIQUE);
 INSERT INTO xtest.xtable VALUES (1,2,3);
@@ -10,7 +11,7 @@ CREATE TABLE xtest.ytable (a INT ZEROFILL, b TIMESTAMP, c FLOAT UNSIGNED, INDEX(
 INSERT INTO xtest.ytable VALUES (1,'2015-02-15',3);
 
 ## Test starts here
---write_file $MYSQL_TMP_DIR/crud_resultset_metadata.xpl
+--write_file $MYSQL_TMP_DIR/crud_resultset_metadata.tmp
 ## Test data
 -->quiet
 -->macro Select %TABLE%
@@ -28,8 +29,10 @@ Mysqlx.Crud.Find {
 -->callmacro Select ytable
 EOF
 
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_resultset_metadata.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/crud_resultset_metadata.tmp 2>&1
 
 
 ## Cleanup
---source ../include/xplugin_cleanup.inc
+DROP SCHEMA IF EXISTS xtest;
+--remove_file $MYSQL_TMP_DIR/crud_resultset_metadata.tmp
+--source include/xplugin_drop_user.inc

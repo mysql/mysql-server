@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License, version 2.0,
@@ -90,11 +90,15 @@ class Sharded_rw_lock {
     m_n_shards = 0;
   }
 
-  size_t s_lock(ut::Location location) {
+  size_t s_lock() {
     const size_t shard_no = ut_rnd_interval(0, m_n_shards - 1);
-    rw_lock_s_lock_inline(&m_shards[shard_no], 0, location.filename,
-                          location.line);
+    rw_lock_s_lock(&m_shards[shard_no]);
     return shard_no;
+  }
+
+  ibool s_lock_nowait(size_t &shard_no, const char *file, ulint line) {
+    shard_no = ut_rnd_interval(0, m_n_shards - 1);
+    return rw_lock_s_lock_nowait(&m_shards[shard_no], file, line);
   }
 
   void s_unlock(size_t shard_no) {
@@ -107,10 +111,9 @@ class Sharded_rw_lock {
   thus can fail.
   @return true iff succeeded to acquire the exclusive latch
   */
-  bool try_x_lock(ut::Location location) {
+  bool try_x_lock() {
     for (size_t shard_no = 0; shard_no < m_n_shards; ++shard_no) {
-      if (!rw_lock_x_lock_func_nowait_inline(
-              &m_shards[shard_no], location.filename, location.line)) {
+      if (!rw_lock_x_lock_nowait(&m_shards[shard_no])) {
         while (0 < shard_no--) {
           rw_lock_x_unlock(&m_shards[shard_no]);
         }
@@ -120,10 +123,8 @@ class Sharded_rw_lock {
     return (true);
   }
 
-  void x_lock(ut::Location location) {
-    for_each([location](rw_lock_t &lock) {
-      rw_lock_x_lock_inline(&lock, 0, location.filename, location.line);
-    });
+  void x_lock() {
+    for_each([](rw_lock_t &lock) { rw_lock_x_lock(&lock); });
   }
 
   void x_unlock() {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,9 +22,8 @@
 
 #include "sql/dd/info_schema/show_query_builder.h"  // Select_lex_builder
 
-#include <assert.h>
 #include "m_string.h"  // STRING_WITH_LEN
-
+#include "my_dbug.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/item_cmpfunc.h"  // Item_func_like
 #include "sql/item_func.h"
@@ -190,8 +189,8 @@ Item *Select_lex_builder::prepare_like_item(const LEX_CSTRING &field_name,
   if (wild_string == nullptr) return nullptr;
 
   /* ... field_name LIKE <value> ... */
-  Item_func_like *func_like =
-      new (m_thd->mem_root) Item_func_like(*m_pos, ident_field, wild_string);
+  Item_func_like *func_like = new (m_thd->mem_root)
+      Item_func_like(*m_pos, ident_field, wild_string, nullptr);
 
   return func_like;
 }
@@ -227,7 +226,7 @@ Item *Select_lex_builder::prepare_equal_item(const LEX_CSTRING &field_name,
 
 // Add a WHERE clause condition to Select_lex_builder.
 bool Select_lex_builder::add_condition(Item *a) {
-  assert(a != nullptr);
+  DBUG_ASSERT(a != nullptr);
 
   /* ... WHERE cond ... */
   if (m_where_clause == nullptr) {
@@ -294,10 +293,10 @@ PT_derived_table *Select_lex_builder::prepare_derived_table(
 }
 
 /**
-  Prepare a Query_block using all the information information
+  Prepare a SELECT_LEX using all the information information
   added to this Select_lex_builder.
 */
-Query_block *Select_lex_builder::prepare_query_block() {
+SELECT_LEX *Select_lex_builder::prepare_select_lex() {
   PT_query_specification *query_specification =
       new (m_thd->mem_root) PT_query_specification(
           options, m_select_item_list, m_table_reference_list, m_where_clause);
@@ -314,15 +313,15 @@ Query_block *Select_lex_builder::prepare_query_block() {
   if (query_expression == nullptr) return nullptr;
 
   LEX *lex = m_thd->lex;
-  Query_block *current_query_block = lex->current_query_block();
+  SELECT_LEX *current_select = lex->current_select();
 
   lex->sql_command = SQLCOM_SELECT;
-  Parse_context pc(m_thd, current_query_block);
+  Parse_context pc(m_thd, current_select);
   if (m_thd->is_error()) return nullptr;
 
   if (query_expression->contextualize(&pc)) return nullptr;
 
-  return current_query_block;
+  return current_select;
 }
 
 }  // namespace info_schema

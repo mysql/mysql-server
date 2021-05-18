@@ -1,4 +1,4 @@
-# Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -31,9 +31,10 @@ ADD_LIBRARY(http_common
   base64.cc
   http_common.cc
   http_time.cc
+  tls_error.cc
+  tls_context.cc
   )
 TARGET_LINK_LIBRARIES(http_common
-  harness_tls
   ${LIBEVENT_LIBRARIES}
   ${SSL_LIBRARIES}
   )
@@ -166,6 +167,7 @@ ADD_HARNESS_PLUGIN(http_server
   http_server_component.cc
   http_server_plugin.cc
   static_files.cc
+  tls_server_context.cc
   REQUIRES router_lib;http_common;http_auth_realm;
     ${LIBRT};
     harness_stdx
@@ -180,6 +182,7 @@ ADD_LIBRARY(http_client
   SHARED
   http_client.cc
   rest_client.cc
+  tls_client_context.cc
   )
 TARGET_LINK_LIBRARIES(http_client
   ${LIBEVENT_LIBRARIES}

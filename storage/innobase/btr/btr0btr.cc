@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -422,22 +422,10 @@ static MY_ATTRIBUTE((warn_unused_result)) buf_block_t *btr_page_alloc_low(
 
   /* Parameter TRUE below states that the caller has made the
   reservation for free extents, and thus we know that a page can
-  be allocated. However, for the cases where the file size is
-  either smaller than an extent or same as the initial size,
-  the fsp_reserve_free_extents returns reserved extents as 0.
-  This can be true even if the initial allocation is about
-  to be completely filled up. The function below is a point
-  of no return and expects that enough space is already allocated.
-  However, the callers of this function rely on the success/failure
-  return by fsp_reserve_free_extents, which does not really guarantee
-  that a whole extent has been reserved.
-  The function fseg_alloc_free_page_general should attempt to ensure
-  enough space is reserved before proceeding ahead. */
-  uint64_t reserved_ext = fil_space_get_n_reserved_extents(
-      page_get_space_id(page_align(seg_header)));
+  be allocated: */
 
   return (fseg_alloc_free_page_general(seg_header, hint_page_no, file_direction,
-                                       reserved_ext > 0, mtr, init_mtr));
+                                       TRUE, mtr, init_mtr));
 }
 
 /** Allocates a new file page to be used in an index tree. NOTE: we assume
@@ -1418,6 +1406,8 @@ byte *btr_parse_page_reorganize(
 {
   ulint level;
 
+  ut_ad(ptr != nullptr);
+  ut_ad(end_ptr != nullptr);
   ut_ad(index != nullptr);
 
   /* If dealing with a compressed page the record has the
@@ -1545,11 +1535,6 @@ rec_t *btr_root_raise_and_insert(
   level = btr_page_get_level(root, mtr);
 
   new_block = btr_page_alloc(index, 0, FSP_NO_DIR, level, mtr, mtr);
-
-  /* New page could not be allocated */
-  if (!new_block) {
-    return nullptr;
-  }
 
   new_page = buf_block_get_frame(new_block);
   new_page_zip = buf_block_get_page_zip(new_block);
@@ -2429,11 +2414,6 @@ func_start:
   new_block = btr_page_alloc(cursor->index, hint_page_no, direction,
                              btr_page_get_level(page, mtr), mtr, mtr);
 
-  /* New page could not be allocated */
-  if (!new_block) {
-    return nullptr;
-  }
-
   new_page = buf_block_get_frame(new_block);
   new_page_zip = buf_block_get_page_zip(new_block);
   btr_page_create(new_block, new_page_zip, cursor->index,
@@ -2968,7 +2948,7 @@ static buf_block_t *btr_lift_page_up(
   if (!dict_table_is_locking_disabled(index->table)) {
     /* Free predicate page locks on the block */
     if (dict_index_is_spatial(index)) {
-      locksys::Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
+      locksys::Shard_latch_guard guard{block->get_page_id()};
       lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
     }
     lock_update_copy_and_discard(father_block, block);
@@ -3236,7 +3216,7 @@ retry:
       }
 
       /* No GAP lock needs to be worrying about */
-      locksys::Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
+      locksys::Shard_latch_guard guard{block->get_page_id()};
       lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
       lock_rec_free_all_from_discard_page(block);
     } else {
@@ -3370,7 +3350,7 @@ retry:
         rtr_merge_and_update_mbr(&cursor2, &father_cursor, offsets2, offsets,
                                  merge_page, merge_block, block, index, mtr);
       }
-      locksys::Shard_latch_guard guard{UT_LOCATION_HERE, block->get_page_id()};
+      locksys::Shard_latch_guard guard{block->get_page_id()};
       lock_prdt_page_free_from_discard(block, lock_sys->prdt_page_hash);
       lock_rec_free_all_from_discard_page(block);
     } else {

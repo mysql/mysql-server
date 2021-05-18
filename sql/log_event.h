@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,9 +48,8 @@
 #include "libbinlogevents/include/rows_event.h"
 #include "libbinlogevents/include/statement_events.h"
 #include "libbinlogevents/include/uuid.h"
-#include "m_string.h"     // native_strncasecmp
-#include "my_bitmap.h"    // MY_BITMAP
-#include "my_checksum.h"  // ha_checksum
+#include "m_string.h"   // native_strncasecmp
+#include "my_bitmap.h"  // MY_BITMAP
 #include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_psi_config.h"
@@ -149,13 +148,13 @@ int ignored_error_code(int err_code);
    @param COND   Condition to check
    @param ERRNO  Error number to return in non-debug builds
 */
-#ifdef NDEBUG
+#ifdef DBUG_OFF
 #define ASSERT_OR_RETURN_ERROR(COND, ERRNO) \
   do {                                      \
     if (!(COND)) return ERRNO;              \
   } while (0)
 #else
-#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) assert(COND)
+#define ASSERT_OR_RETURN_ERROR(COND, ERRNO) DBUG_ASSERT(COND)
 #endif
 
 #define LOG_EVENT_OFFSET 4
@@ -1135,8 +1134,8 @@ class Log_event {
     be the applier.
   */
   virtual void set_mts_isolate_group() {
-    assert(ends_group() || get_type_code() == binary_log::QUERY_EVENT ||
-           get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
+    DBUG_ASSERT(ends_group() || get_type_code() == binary_log::QUERY_EVENT ||
+                get_type_code() == binary_log::EXECUTE_LOAD_QUERY_EVENT);
     common_header->flags |= LOG_EVENT_MTS_ISOLATE_F;
   }
 
@@ -2434,7 +2433,7 @@ class Table_map_log_event : public binary_log::Table_map_event,
 
 #ifndef MYSQL_SERVER
   table_def *create_table_def() {
-    assert(m_colcnt > 0);
+    DBUG_ASSERT(m_colcnt > 0);
     return new table_def(m_coltype, m_colcnt, m_field_metadata,
                          m_field_metadata_size, m_null_bits, m_flags);
   }
@@ -2566,7 +2565,6 @@ class Table_map_log_event : public binary_log::Table_map_event,
   bool init_enum_str_value_field();
   bool init_geometry_type_field();
   bool init_primary_key_field();
-  bool init_column_visibility_field();
 #endif
 
 #ifndef MYSQL_SERVER
@@ -2629,7 +2627,7 @@ class Rows_applier_psi_stage {
 
     /* Estimate if need be. */
     if (estimated == 0) {
-      assert(cursor > begin);
+      DBUG_ASSERT(cursor > begin);
       ulonglong avg_row_change_size = (cursor - begin) / m_n_rows_applied;
       estimated = (end - begin) / avg_row_change_size;
       mysql_stage_set_work_estimated(m_progress, estimated);
@@ -2927,17 +2925,7 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
   */
   int unpack_current_row(const Relay_log_info *const rli, MY_BITMAP const *cols,
                          bool is_after_image, bool only_seek = false);
-  /**
-    Updates the generated columns of the `TABLE` object referenced by
-    `m_table`, that have an active bit in the parameter bitset
-    `fields_to_update`.
 
-    @param fields_to_update A bitset where the bit at the index of
-                            generated columns to update must be set to `1`
-
-    @return 0 if the operation terminated successfully, 1 otherwise.
-   */
-  int update_generated_columns(MY_BITMAP const &fields_to_update);
   /*
     This member function is called when deciding the algorithm to be used to
     find the rows to be updated on the slave during row based replication.
@@ -3496,7 +3484,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
-    assert(message == nullptr && message_length == 0);
+    DBUG_ASSERT(message == nullptr && message_length == 0);
     return;
   }
 
@@ -3509,7 +3497,7 @@ class Incident_log_event : public binary_log::Incident_event, public Log_event {
     DBUG_PRINT("enter", ("incident: %d", incident_arg));
     common_header->set_is_valid(incident_arg > INCIDENT_NONE &&
                                 incident_arg < INCIDENT_COUNT);
-    assert(message == nullptr && message_length == 0);
+    DBUG_ASSERT(message == nullptr && message_length == 0);
     if (!(message = (char *)my_malloc(key_memory_Incident_log_event_message,
                                       msg.length + 1, MYF(MY_WME)))) {
       // The allocation failed. Mark this binlog event as invalid.

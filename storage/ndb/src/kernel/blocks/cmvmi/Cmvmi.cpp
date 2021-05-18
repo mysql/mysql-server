@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1526,8 +1526,6 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     }
     else if (check_block(TC, val))
     {
-      sendSignal(DBTC_REF, GSN_DUMP_STATE_ORD, signal,
-                 signal->length(), JBB);
     }
     else if (check_block(LQH, val))
     {
@@ -1813,32 +1811,19 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     Uint32 cnt_dec = 0;
     Uint32 cnt_inc = 0;
     Uint32 cnt_same = 0;
-    Uint32 count = 0;
-    for (Uint32 i = start;
-         i != stop;
-         i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
     {
-      /**
-       * Only check start of test with stop of test, avoid checks of what
-       * happened when test wasn't active.
-       */
-      if (count != 0 && ((count % 2) == 0))
-      {
-        Uint32 prev = (i - 1) % NDB_ARRAY_SIZE(f_free_segments);
-        if (f_free_segments[prev] == f_free_segments[i])
-          cnt_same++;
-        else if (f_free_segments[prev] > f_free_segments[i])
-          cnt_dec++;
-        else if (f_free_segments[prev] < f_free_segments[i])
-          cnt_inc++;
-      }
-      count++;
+      Uint32 prev = (i - 1) % NDB_ARRAY_SIZE(f_free_segments);
+      if (f_free_segments[prev] == f_free_segments[i])
+        cnt_same++;
+      else if (f_free_segments[prev] > f_free_segments[i])
+        cnt_dec++;
+      else if (f_free_segments[prev] < f_free_segments[i])
+        cnt_inc++;
     }
 
     printf("snapshots: ");
-    for (Uint32 i = start;
-         i != stop;
-         i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
+    for (Uint32 i = start; i != stop; i = (i + 1) % NDB_ARRAY_SIZE(f_free_segments))
     {
       printf("%u ", f_free_segments[i]);
     }

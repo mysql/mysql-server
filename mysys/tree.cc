@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -96,7 +96,7 @@ static void rb_delete_fixup(TREE *tree, TREE_ELEMENT ***parent);
 
 /* The actuall code for handling binary trees */
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 static int test_rb_tree(TREE_ELEMENT *element);
 #endif
 
@@ -652,7 +652,7 @@ static void rb_delete_fixup(TREE *tree, TREE_ELEMENT ***parent) {
   x->colour = BLACK;
 }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 
 /* Test that the proporties for a red-black tree holds */
 

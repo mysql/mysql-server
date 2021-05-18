@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,11 +42,11 @@
 #include "my_psi_config.h"
 #include "my_sqlcommand.h"
 #include "my_sys.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysql/components/services/psi_statement_bits.h"
 #include "mysql/psi/mysql_sp.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
 #include "sql/auth/auth_acls.h"
@@ -171,9 +171,9 @@ Stored_routine_creation_ctx::create_routine_creation_ctx(
   const CHARSET_INFO *db_cl =
       dd_get_mysql_charset(routine->schema_collation_id());
 
-  assert(client_cs != nullptr);
-  assert(connection_cl != nullptr);
-  assert(db_cl != nullptr);
+  DBUG_ASSERT(client_cs != nullptr);
+  DBUG_ASSERT(connection_cl != nullptr);
+  DBUG_ASSERT(db_cl != nullptr);
 
   // Create the context.
   return new (*THR_MALLOC)
@@ -269,7 +269,8 @@ static bool lock_routine_name(THD *thd, enum_sp_type type, const sp_name *name,
                               enum_mdl_type mdl_lock_type) {
   DBUG_TRACE;
 
-  assert(mdl_lock_type == MDL_SHARED_HIGH_PRIO || mdl_lock_type == MDL_SHARED);
+  DBUG_ASSERT(mdl_lock_type == MDL_SHARED_HIGH_PRIO ||
+              mdl_lock_type == MDL_SHARED);
 
   MDL_key mdl_key;
   if (type == enum_sp_type::FUNCTION)
@@ -511,7 +512,7 @@ enum_sp_return_code db_load_routine(
 
   thd->lex = &newlex;
   newlex.thd = thd;
-  newlex.set_current_query_block(nullptr);
+  newlex.set_current_select(nullptr);
 
   String defstr;
   defstr.set_charset(creation_ctx->get_client_cs());
@@ -709,8 +710,8 @@ bool sp_create_routine(THD *thd, sp_head *sp, const LEX_USER *definer) {
   DBUG_PRINT("enter", ("type: %d  name: %.*s", static_cast<int>(sp->m_type),
                        static_cast<int>(sp->m_name.length), sp->m_name.str));
 
-  assert(sp->m_type == enum_sp_type::PROCEDURE ||
-         sp->m_type == enum_sp_type::FUNCTION);
+  DBUG_ASSERT(sp->m_type == enum_sp_type::PROCEDURE ||
+              sp->m_type == enum_sp_type::FUNCTION);
 
   /* Grab an exclusive MDL lock. */
   MDL_key::enum_mdl_namespace mdl_type = (sp->m_type == enum_sp_type::FUNCTION)
@@ -845,7 +846,8 @@ enum_sp_return_code sp_drop_routine(THD *thd, enum_sp_type type,
              ("type: %d  name: %.*s", static_cast<int>(type),
               static_cast<int>(name->m_name.length), name->m_name.str));
 
-  assert(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE ||
+              type == enum_sp_type::FUNCTION);
 
   /* Grab an exclusive MDL lock. */
   MDL_key::enum_mdl_namespace mdl_type =
@@ -975,7 +977,8 @@ bool sp_update_routine(THD *thd, enum_sp_type type, sp_name *name,
              ("type: %d  name: %.*s", static_cast<int>(type),
               static_cast<int>(name->m_name.length), name->m_name.str));
 
-  assert(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE ||
+              type == enum_sp_type::FUNCTION);
 
   /* Grab an exclusive MDL lock. */
   MDL_key::enum_mdl_namespace mdl_type =
@@ -1270,7 +1273,7 @@ static bool show_create_routine_from_dd_routine(THD *thd, enum_sp_type type,
     Item_empty_string *stmt_fld = new Item_empty_string(
         col3_caption, std::max<size_t>(defstr.length(), 1024U));
 
-    stmt_fld->set_nullable(true);
+    stmt_fld->maybe_null = true;
 
     fields.push_back(stmt_fld);
   }
@@ -1346,7 +1349,8 @@ bool sp_show_create_routine(THD *thd, enum_sp_type type, sp_name *name) {
   DBUG_PRINT("enter",
              ("name: %.*s", (int)name->m_name.length, name->m_name.str));
 
-  assert(type == enum_sp_type::PROCEDURE || type == enum_sp_type::FUNCTION);
+  DBUG_ASSERT(type == enum_sp_type::PROCEDURE ||
+              type == enum_sp_type::FUNCTION);
 
   // Lock routine for read.
   if (lock_routine_name(thd, type, name, MDL_SHARED_HIGH_PRIO)) {
@@ -1461,7 +1465,7 @@ sp_head *sp_setup_routine(THD *thd, enum_sp_type type, sp_name *name,
                         (ulong)sp->m_first_free_instance,
                         sp->m_first_free_instance->m_recursion_level,
                         sp->m_first_free_instance->m_flags));
-    assert(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
+    DBUG_ASSERT(!(sp->m_first_free_instance->m_flags & sp_head::IS_INVOKED));
     if (sp->m_first_free_instance->m_recursion_level > depth) {
       recursion_level_error(thd, sp);
       return nullptr;
@@ -1665,7 +1669,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
                          Sp_name_normalize_type name_normalize_type,
                          bool own_routine, TABLE_LIST *belong_to_view) {
   // Length of routine name components needs to be checked earlier.
-  assert(db_length <= NAME_LEN && name_length <= NAME_LEN);
+  DBUG_ASSERT(db_length <= NAME_LEN && name_length <= NAME_LEN);
 
   uchar key[1 + NAME_LEN + 1 + NAME_LEN + 1];
   size_t key_length = 0;
@@ -1711,7 +1715,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
           cs = dd::Trigger::name_collation();
           break;
         default:
-          assert(false);
+          DBUG_ASSERT(false);
           break;
       }
 
@@ -1727,7 +1731,7 @@ bool sp_add_used_routine(Query_tables_list *prelocking_ctx, Query_arena *arena,
       break;
     }
     default:
-      assert(false);
+      DBUG_ASSERT(false);
       break;
   }
 
@@ -1835,7 +1839,7 @@ enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
                           ? enum_sp_type::FUNCTION
                           : enum_sp_type::PROCEDURE;
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   MDL_key mdl_key;
   if (rt->type() == Sroutine_hash_entry::FUNCTION)
     dd::Function::create_mdl_key(rt->db(), rt->name(), &mdl_key);
@@ -1848,8 +1852,9 @@ enum_sp_return_code sp_cache_routine(THD *thd, Sroutine_hash_entry *rt,
     in sroutines_list has an MDL lock unless it's a top-level call, or a
     trigger, but triggers can't occur here (see the preceding assert).
   */
-  assert(thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, MDL_SHARED) ||
-         rt == thd->lex->sroutines_list.first);
+  DBUG_ASSERT(
+      thd->mdl_context.owns_equal_or_stronger_lock(&mdl_key, MDL_SHARED) ||
+      rt == thd->lex->sroutines_list.first);
 #endif
 
   return sp_cache_routine(thd, type, &name, lookup_only, sp);
@@ -1884,7 +1889,8 @@ enum_sp_return_code sp_cache_routine(THD *thd, enum_sp_type type,
 
   DBUG_TRACE;
 
-  assert(type == enum_sp_type::FUNCTION || type == enum_sp_type::PROCEDURE);
+  DBUG_ASSERT(type == enum_sp_type::FUNCTION ||
+              type == enum_sp_type::PROCEDURE);
 
   *sp = sp_cache_lookup(spc, name);
 
@@ -2079,7 +2085,7 @@ sp_head *sp_load_for_information_schema(THD *thd, LEX_CSTRING db_name,
   LEX *old_lex = thd->lex, newlex;
   thd->lex = &newlex;
   newlex.thd = thd;
-  newlex.set_current_query_block(nullptr);
+  newlex.set_current_select(nullptr);
   sp = sp_compile(thd, &defstr, routine->sql_mode(), creation_ctx);
   *free_sp_head = true;
   thd->lex->sphead = nullptr;
@@ -2146,7 +2152,7 @@ sp_head *sp_start_parsing(THD *thd, enum_sp_type sp_type, sp_name *sp_name) {
 void sp_finish_parsing(THD *thd) {
   sp_head *sp = thd->lex->sphead;
 
-  assert(sp);
+  DBUG_ASSERT(sp);
 
   sp->set_body_end(thd);
 
@@ -2366,7 +2372,7 @@ uint sp_get_flags_for_command(LEX *lex) {
 */
 
 bool sp_check_name(LEX_STRING *ident) {
-  assert(ident != nullptr && ident->str != nullptr);
+  DBUG_ASSERT(ident != nullptr && ident->str != nullptr);
 
   if (!ident->str[0] || ident->str[ident->length - 1] == ' ') {
     my_error(ER_SP_WRONG_NAME, MYF(0), ident->str);

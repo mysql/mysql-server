@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -59,7 +59,6 @@ namespace {
 
   @param thd           - Thread ID
   @param schema_name   - The schema name.
-  @param partition_name - The partition name
 
   @returns true if we can update the statistics, otherwise false.
 */
@@ -155,12 +154,7 @@ bool store_statistics_record(THD *thd, T *object) {
     return true;
   }
 
-  /*
-    Ignore global read lock when committing attachable transaction,
-    so we can update statistics tables even if some other thread
-    owns GRL, similarly to how ANALYZE TABLE is allowed to do this.
-  */
-  return trans_commit_stmt(thd, true) || trans_commit(thd, true);
+  return trans_commit_stmt(thd) || trans_commit(thd);
 }
 
 template bool store_statistics_record(THD *thd, dd::Table_stat *);
@@ -427,14 +421,14 @@ ulonglong Table_statistics::get_stat(ha_statistics &stat,
       return (stat.check_time);
 
     default:
-      assert(!"Should not hit here");
+      DBUG_ASSERT(!"Should not hit here");
   }
 
   return 0;
 }
 
 // Read dynamic table statistics from SE by opening the user table
-// provided OR by reading cached statistics from Query_block.
+// provided OR by reading cached statistics from SELECT_LEX.
 ulonglong Table_statistics::read_stat(
     THD *thd, const String &schema_name_ptr, const String &table_name_ptr,
     const String &index_name_ptr, const char *partition_name,
@@ -534,7 +528,7 @@ ulonglong Table_statistics::read_stat_from_SE(
   ulonglong return_value = 0;
 
   DBUG_EXECUTE_IF("information_schema_fetch_table_stats",
-                  assert(strncmp(table_name_ptr.ptr(), "fts", 3)););
+                  DBUG_ASSERT(strncmp(table_name_ptr.ptr(), "fts", 3)););
 
   // No engines implement these statistics retrieval. We always return zero.
   if (stype == enum_table_stats_type::CHECK_TIME ||
@@ -575,7 +569,7 @@ ulonglong Table_statistics::read_stat_from_SE(
         dd::Properties::parse_properties(
             tbl_se_private_data ? tbl_se_private_data : ""));
 
-    assert(tbl_se_private_data_obj.get() && ts_se_private_data_obj.get());
+    DBUG_ASSERT(tbl_se_private_data_obj.get() && ts_se_private_data_obj.get());
 
     //
     // Read statistics from SE
@@ -701,14 +695,14 @@ ulonglong Table_statistics::read_stat_by_open_table(
     goto end;
   }
 
-  if (make_table_list(thd, lex->query_block, db_name_lex_cstr,
+  if (make_table_list(thd, lex->select_lex, db_name_lex_cstr,
                       table_name_lex_cstr)) {
     error = -1;
     goto end;
   }
 
   TABLE_LIST *table_list;
-  table_list = lex->query_block->table_list.first;
+  table_list = lex->select_lex->table_list.first;
   table_list->required_type = dd::enum_table_type::BASE_TABLE;
 
   /*
@@ -749,7 +743,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
   lex->sql_command = old_lex->sql_command;
 
   if (open_result) {
-    assert(thd->is_error() || thd->is_killed());
+    DBUG_ASSERT(thd->is_error() || thd->is_killed());
 
     if (thd->is_error()) {
       /*
@@ -786,7 +780,7 @@ ulonglong Table_statistics::read_stat_by_open_table(
         table_list->table->file->get_partition_handler();
     if (partition_name && part_handler) {
       partition_info *part_info = table_list->table->part_info;
-      assert(part_info);
+      DBUG_ASSERT(part_info);
 
       uint part_id;
       if (part_info->get_part_elem(partition_name, &part_id) &&
@@ -889,7 +883,7 @@ end:
   lex_end(thd->lex);
 
   // Free items, before restoring backup_arena below.
-  assert(i_s_arena.item_list() == nullptr);
+  DBUG_ASSERT(i_s_arena.item_list() == nullptr);
   thd->free_items();
 
   /*

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -125,7 +125,6 @@ BackupProxy::execUTIL_SEQUENCE_CONF(Signal* signal)
 void
 BackupProxy::execUTIL_SEQUENCE_REF(Signal* signal)
 {
-  jamEntry();
   ndbabort();
 }
 
@@ -274,7 +273,6 @@ BackupProxy::execDEFINE_BACKUP_REQ(Signal* signal)
   Ss_DEFINE_BACKUP_REQ& ss = ssFindSeize<Ss_DEFINE_BACKUP_REQ>(BackupSignalSsId, &found);
   if (found)
   {
-    jam();
     // release incomplete SignalSender from previous backup
     ssRelease<Ss_DEFINE_BACKUP_REQ>(BackupSignalSsId);
     ss = ssSeize<Ss_DEFINE_BACKUP_REQ>(BackupSignalSsId);
@@ -293,7 +291,6 @@ void
 BackupProxy::sendDEFINE_BACKUP_REQ(Signal* signal, Uint32 ssId,
                                     SectionHandle * handle)
 {
-  jam();
   Ss_DEFINE_BACKUP_REQ& ss = ssFind<Ss_DEFINE_BACKUP_REQ>(BackupSignalSsId);
 
   DefineBackupReq* req = (DefineBackupReq*)signal->getDataPtrSend();
@@ -306,7 +303,6 @@ BackupProxy::sendDEFINE_BACKUP_REQ(Signal* signal, Uint32 ssId,
 void
 BackupProxy::execDEFINE_BACKUP_CONF(Signal* signal)
 {
-  jam();
   Ss_DEFINE_BACKUP_REQ& ss = ssFind<Ss_DEFINE_BACKUP_REQ>(BackupSignalSsId);
   recvCONF(signal, ss);
 }
@@ -314,7 +310,6 @@ BackupProxy::execDEFINE_BACKUP_CONF(Signal* signal)
 void
 BackupProxy::execDEFINE_BACKUP_REF(Signal* signal)
 {
-  jam();
   DefineBackupRef* ref = (DefineBackupRef*)signal->getDataPtrSend();
   Ss_DEFINE_BACKUP_REQ& ss = ssFind<Ss_DEFINE_BACKUP_REQ>(BackupSignalSsId);
   recvREF(signal, ss, ref->errorCode);
@@ -323,21 +318,16 @@ BackupProxy::execDEFINE_BACKUP_REF(Signal* signal)
 void
 BackupProxy::sendDEFINE_BACKUP_CONF(Signal* signal, Uint32 ssId)
 {
-  jam();
   Ss_DEFINE_BACKUP_REQ& ss = ssFind<Ss_DEFINE_BACKUP_REQ>(BackupSignalSsId);
 
   if (!lastReply(ss))
-  {
-    jam();
     return;
-  }
 
   if (ss.m_error == 0) {
     jam();
     sendSignal(ss.masterRef, GSN_DEFINE_BACKUP_CONF,
                signal, DefineBackupConf::SignalLength, JBB);
   } else {
-    jam();
     DefineBackupRef* ref = (DefineBackupRef*)signal->getDataPtrSend();
     ref->errorCode = ss.m_error;
     ref->nodeId = getOwnNodeId();
@@ -359,7 +349,6 @@ BackupProxy::execSTART_BACKUP_REQ(Signal* signal)
   Ss_START_BACKUP_REQ& ss = ssFindSeize<Ss_START_BACKUP_REQ>(BackupSignalSsId, &found);
   if (found)
   {
-    jam();
     // release incomplete SignalSender from previous backup
     ssRelease<Ss_START_BACKUP_REQ>(BackupSignalSsId);
     ss = ssSeize<Ss_START_BACKUP_REQ>(BackupSignalSsId);
@@ -375,7 +364,6 @@ void
 BackupProxy::sendSTART_BACKUP_REQ(Signal* signal, Uint32 ssId,
                                     SectionHandle * handle)
 {
-  jam();
   Ss_START_BACKUP_REQ& ss = ssFind<Ss_START_BACKUP_REQ>(BackupSignalSsId);
 
   StartBackupReq* req = (StartBackupReq*)signal->getDataPtrSend();
@@ -388,7 +376,6 @@ BackupProxy::sendSTART_BACKUP_REQ(Signal* signal, Uint32 ssId,
 void
 BackupProxy::execSTART_BACKUP_CONF(Signal* signal)
 {
-  jam();
   Ss_START_BACKUP_REQ& ss = ssFind<Ss_START_BACKUP_REQ>(BackupSignalSsId);
   recvCONF(signal, ss);
 }
@@ -396,7 +383,6 @@ BackupProxy::execSTART_BACKUP_CONF(Signal* signal)
 void
 BackupProxy::execSTART_BACKUP_REF(Signal* signal)
 {
-  jam();
   StartBackupRef* ref = (StartBackupRef*)signal->getDataPtrSend();
   Ss_START_BACKUP_REQ& ss = ssFind<Ss_START_BACKUP_REQ>(BackupSignalSsId);
   recvREF(signal, ss, ref->errorCode);
@@ -405,21 +391,16 @@ BackupProxy::execSTART_BACKUP_REF(Signal* signal)
 void
 BackupProxy::sendSTART_BACKUP_CONF(Signal* signal, Uint32 ssId)
 {
-  jam();
   Ss_START_BACKUP_REQ& ss = ssFind<Ss_START_BACKUP_REQ>(BackupSignalSsId);
 
   if (!lastReply(ss))
-  {
-    jam();
     return;
-  }
 
   if (ss.m_error == 0) {
     jam();
     sendSignal(ss.masterRef, GSN_START_BACKUP_CONF,
                signal, StartBackupConf::SignalLength, JBB);
   } else {
-    jam();
     StartBackupRef* ref = (StartBackupRef*)signal->getDataPtrSend();
     ref->errorCode = ss.m_error;
     ref->nodeId = getOwnNodeId();
@@ -441,7 +422,6 @@ BackupProxy::execSTOP_BACKUP_REQ(Signal* signal)
   Ss_STOP_BACKUP_REQ& ss = ssFindSeize<Ss_STOP_BACKUP_REQ>(BackupSignalSsId, &found);
   if (found)
   {
-    jam();
     // release incomplete SignalSender from previous backup
     ssRelease<Ss_STOP_BACKUP_REQ>(BackupSignalSsId);
     ss = ssSeize<Ss_STOP_BACKUP_REQ>(BackupSignalSsId);
@@ -457,7 +437,6 @@ void
 BackupProxy::sendSTOP_BACKUP_REQ(Signal* signal, Uint32 ssId,
                                     SectionHandle * handle)
 {
-  jam();
   Ss_STOP_BACKUP_REQ& ss = ssFind<Ss_STOP_BACKUP_REQ>(BackupSignalSsId);
 
   StopBackupReq* req = (StopBackupReq*)signal->getDataPtrSend();
@@ -470,7 +449,6 @@ BackupProxy::sendSTOP_BACKUP_REQ(Signal* signal, Uint32 ssId,
 void
 BackupProxy::execSTOP_BACKUP_CONF(Signal* signal)
 {
-  jam();
   Ss_STOP_BACKUP_REQ& ss = ssFind<Ss_STOP_BACKUP_REQ>(BackupSignalSsId);
   recvCONF(signal, ss);
 }
@@ -478,7 +456,6 @@ BackupProxy::execSTOP_BACKUP_CONF(Signal* signal)
 void
 BackupProxy::execSTOP_BACKUP_REF(Signal* signal)
 {
-  jam();
   StopBackupRef* ref = (StopBackupRef*)signal->getDataPtrSend();
   Ss_STOP_BACKUP_REQ& ss = ssFind<Ss_STOP_BACKUP_REQ>(BackupSignalSsId);
   recvREF(signal, ss, ref->errorCode);
@@ -486,21 +463,16 @@ BackupProxy::execSTOP_BACKUP_REF(Signal* signal)
 void
 BackupProxy::sendSTOP_BACKUP_CONF(Signal* signal, Uint32 ssId)
 {
-  jam();
   Ss_STOP_BACKUP_REQ& ss = ssFind<Ss_STOP_BACKUP_REQ>(BackupSignalSsId);
 
   if (!lastReply(ss))
-  {
-    jam();
     return;
-  }
 
   if (ss.m_error == 0) {
     jam();
     sendSignal(ss.masterRef, GSN_STOP_BACKUP_CONF,
                signal, StopBackupConf::SignalLength, JBB);
   } else {
-    jam();
     StopBackupRef* ref = (StopBackupRef*)signal->getDataPtrSend();
     ref->errorCode = ss.m_error;
     ref->nodeId = getOwnNodeId();
@@ -522,7 +494,6 @@ BackupProxy::execABORT_BACKUP_ORD(Signal* signal)
   Ss_ABORT_BACKUP_ORD& ss = ssFindSeize<Ss_ABORT_BACKUP_ORD>(BackupSignalSsId, &found);
   if (found)
   {
-    jam();
     // release incomplete SignalSender from previous backup
     ssRelease<Ss_ABORT_BACKUP_ORD>(BackupSignalSsId);
     ss = ssSeize<Ss_ABORT_BACKUP_ORD>(BackupSignalSsId);
@@ -539,7 +510,6 @@ void
 BackupProxy::sendABORT_BACKUP_ORD(Signal* signal, Uint32 ssId,
                                     SectionHandle * handle)
 {
-  jam();
   Ss_ABORT_BACKUP_ORD& ss = ssFind<Ss_ABORT_BACKUP_ORD>(BackupSignalSsId);
 
   AbortBackupOrd* req = (AbortBackupOrd*)signal->getDataPtrSend();

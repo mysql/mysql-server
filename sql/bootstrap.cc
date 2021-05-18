@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -43,7 +43,6 @@
 #include "mysql/psi/mysql_thread.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "scope_guard.h"  // create_scope_guard
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bootstrap_impl.h"
 #include "sql/error_handler.h"  // Internal_error_handler
@@ -59,7 +58,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_initialize.h"
 #include "sql/sql_lex.h"
-#include "sql/sql_parse.h"  // dispatch_sql_command
+#include "sql/sql_parse.h"  // mysql_parse
 #include "sql/sql_profile.h"
 #include "sql/sys_vars_shared.h"  // intern_find_sys_var
 #include "sql/system_variables.h"
@@ -138,7 +137,7 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
       term solution to allow SRS data to be entered by INSERT statements
       instead of CREATE statements.
     */
-    assert(thd->system_thread == SYSTEM_THREAD_SERVER_INITIALIZE);
+    DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_SERVER_INITIALIZE);
 
     /*
       The server must avoid logging compiled statements into the binary log
@@ -167,7 +166,7 @@ static bool handle_bootstrap_impl(handle_bootstrap_args *args) {
       statement from an init file, we must make sure that the thread type is
       set to the appropriate value.
     */
-    assert(thd->system_thread == SYSTEM_THREAD_INIT_FILE);
+    DBUG_ASSERT(thd->system_thread == SYSTEM_THREAD_INIT_FILE);
 
     File_command_iterator file_iter(args->m_file_name, args->m_file,
                                     mysql_file_fgets_fn);
@@ -209,9 +208,8 @@ static int process_iterator(THD *thd, Command_iterator *it,
     */
     if (rc != READ_BOOTSTRAP_SUCCESS) {
       /*
-        dispatch_sql_command() may have set a successful error status for the
-        previous query.
-        We must clear the error status to report the bootstrap error.
+        mysql_parse() may have set a successful error status for the previous
+        query. We must clear the error status to report the bootstrap error.
       */
       thd->get_stmt_da()->reset_diagnostics_area();
 
@@ -251,7 +249,7 @@ static int process_iterator(THD *thd, Command_iterator *it,
 
     // Ignore ER_TOO_LONG_KEY for system tables.
     thd->push_internal_handler(&error_handler);
-    dispatch_sql_command(thd, &parser_state);
+    mysql_parse(thd, &parser_state);
     thd->pop_internal_handler();
 
     error = thd->is_error();
@@ -275,12 +273,12 @@ static int process_iterator(THD *thd, Command_iterator *it,
       Make sure bootstrap statements do not change binlog options.
       Currently enforced for compiled in statements.
     */
-    assert(
+    DBUG_ASSERT(
         !enforce_invariants ||
         (saved_option_bits == (thd->variables.option_bits & invariant_bits)));
 
-    assert(!enforce_invariants ||
-           (saved_sql_log_bin == thd->variables.sql_log_bin));
+    DBUG_ASSERT(!enforce_invariants ||
+                (saved_sql_log_bin == thd->variables.sql_log_bin));
   }
 
   it->end();
@@ -318,10 +316,6 @@ static void *handle_bootstrap(void *arg) {
     // if the server is started with --transaction-read-only=true.
     thd->variables.transaction_read_only = false;
     thd->tx_read_only = false;
-    ErrorHandlerFunctionPointer existing_hook = error_handler_hook;
-    auto grd =
-        create_scope_guard([&]() { error_handler_hook = existing_hook; });
-    if (opt_initialize) error_handler_hook = my_message_sql;
 
     bootstrap_functor handler = args->m_bootstrap_handler;
     if (handler) {
@@ -416,7 +410,7 @@ bool run_bootstrap_thread(const char *file_name, MYSQL_FILE *file,
   my_thread_attr_getstacksize(&thr_attr, &stacksize);
   if (stacksize < my_thread_stack_size) {
     if (0 != my_thread_attr_setstacksize(&thr_attr, my_thread_stack_size)) {
-      assert(false);
+      DBUG_ASSERT(false);
     }
   }
 

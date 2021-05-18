@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -213,7 +213,7 @@ static void handle_example_listener(int action) {
       if (error) goto err;
       break;
     default:
-      assert(0); /* purecov: inspected */
+      DBUG_ASSERT(0); /* purecov: inspected */
   }
 
 err:

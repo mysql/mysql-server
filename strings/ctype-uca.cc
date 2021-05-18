@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -36,7 +36,6 @@
    - No combining marks processing is done
 */
 
-#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -50,7 +49,7 @@
 #include "m_string.h"
 #include "my_byteorder.h"
 #include "my_compiler.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_loglevel.h"
 #include "my_macros.h"
@@ -791,7 +790,7 @@ struct uca_scanner_any : public my_uca_scanner {
                   const uchar *str, size_t length)
       : my_uca_scanner(cs_arg, str, length), mb_wc(mb_wc) {
     // UCA 9.0.0 uses a different table format from what this scanner expects.
-    assert(cs_arg->uca == nullptr || cs_arg->uca->version != UCA_V900);
+    DBUG_ASSERT(cs_arg->uca == nullptr || cs_arg->uca->version != UCA_V900);
   }
 
   uint get_char_index() const { return char_index; }
@@ -1182,7 +1181,7 @@ void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::my_put_jamo_weights(
   as below.
  */
 static uint16 change_zh_implicit(uint16 weight) {
-  assert(weight >= 0xFB00);
+  DBUG_ASSERT(weight >= 0xFB00);
   switch (weight) {
     case 0xFB00:
       return 0xF621;
@@ -1495,7 +1494,7 @@ ALWAYS_INLINE int uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::next_raw() {
     }
 
     sbeg += mblen;
-    assert(wc <= uca->maxchar);  // mb_wc() has already checked this.
+    DBUG_ASSERT(wc <= uca->maxchar);  // mb_wc() has already checked this.
 
     if (my_uca_have_contractions(uca)) {
       const uint16 *cweight;
@@ -1619,10 +1618,10 @@ ALWAYS_INLINE void uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE>::for_each_weight(
       const int s_res1 = ascii_wpage[sbeg_local[1]];
       const int s_res2 = ascii_wpage[sbeg_local[2]];
       const int s_res3 = ascii_wpage[sbeg_local[3]];
-      assert(s_res0 != 0);
-      assert(s_res1 != 0);
-      assert(s_res2 != 0);
-      assert(s_res3 != 0);
+      DBUG_ASSERT(s_res0 != 0);
+      DBUG_ASSERT(s_res1 != 0);
+      DBUG_ASSERT(s_res2 != 0);
+      DBUG_ASSERT(s_res3 != 0);
       func(s_res0, /*is_level_separator=*/false);
       func(s_res1, /*is_level_separator=*/false);
       func(s_res2, /*is_level_separator=*/false);
@@ -2078,7 +2077,7 @@ static size_t my_strnxfrm_uca(const CHARSET_INFO *cs, Mb_wc mb_wc, uchar *dst,
       how many weights we wrote per level, and add any remaining
       spaces we need to get us up to the requested total.
     */
-    assert(num_codepoints >= scanner.get_char_index());
+    DBUG_ASSERT(num_codepoints >= scanner.get_char_index());
     num_codepoints -= scanner.get_char_index();
 
     if (num_codepoints) {
@@ -2870,7 +2869,7 @@ static void my_coll_rule_shift_at_level(MY_COLL_RULE *r, int level) {
       /* Do nothing for '=': use the previous offsets for all levels */
       break;
     default:
-      assert(0);
+      DBUG_ASSERT(0);
   }
 }
 
@@ -3134,7 +3133,7 @@ static int my_coll_parser_scan_logical_position(MY_COLL_RULE_PARSER *p,
       Let's assert in debug version and print
       a nice error message in production version.
     */
-    assert(0);
+    DBUG_ASSERT(0);
     return my_coll_parser_too_long_error(p, "Logical position");
   }
   return my_coll_parser_scan(p);
@@ -3445,7 +3444,7 @@ static void change_weight_if_case_first(CHARSET_INFO *cs,
         cs->levels_for_compare == 3))
     return;
 
-  assert(cs->uca->version == UCA_V900);
+  DBUG_ASSERT(cs->uca->version == UCA_V900);
 
   // How many CEs this character has with non-ignorable primary weight.
   int tailored_pri_cnt = 0;
@@ -3724,7 +3723,7 @@ static bool my_uca_copy_page(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
   if (!(dst->weights[page] = (uint16 *)(loader->once_alloc)(dst_size)))
     return true;
 
-  assert(src->lengths[page] <= dst->lengths[page]);
+  DBUG_ASSERT(src->lengths[page] <= dst->lengths[page]);
   memset(dst->weights[page], 0, dst_size);
   if (cs->uca && cs->uca->version == UCA_V900) {
     const uint src_size = 256 * src->lengths[page] * sizeof(uint16);
@@ -3873,7 +3872,7 @@ static bool apply_shift_900(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
                             MY_COLL_RULE *r, uint16 *to, size_t to_stride,
                             size_t nweights) {
   // nweights should not less than 1 because of the extra CE.
-  assert(nweights);
+  DBUG_ASSERT(nweights);
   // Apply level difference.
   uint16 *const last_weight_ptr =
       to + (nweights - 1) * to_stride * MY_UCA_900_CE_SIZE;
@@ -3898,7 +3897,7 @@ static bool apply_shift(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
   if (rules->uca->version == UCA_V900)
     return apply_shift_900(loader, rules, r, to, to_stride, nweights);
 
-  assert(to_stride == 1);
+  DBUG_ASSERT(to_stride == 1);
 
   /* Apply level difference. */
   if (nweights) {
@@ -3933,7 +3932,7 @@ static bool apply_shift(MY_CHARSET_LOADER *loader, MY_COLL_RULES *rules,
     }
   } else {
     /* Shift to an ignorable character, e.g.: & \u0000 < \u0001 */
-    assert(to[0] == 0);
+    DBUG_ASSERT(to[0] == 0);
     to[0] = r->diff[level];
   }
   return false;
@@ -3944,7 +3943,7 @@ static MY_CONTRACTION *add_contraction_to_trie(
   MY_CONTRACTION new_node{0, {}, {}, {}, false, 0};
   if (r->with_context)  // previous-context contraction
   {
-    assert(my_wstrnlen(r->curr, MY_UCA_MAX_CONTRACTION) == 2);
+    DBUG_ASSERT(my_wstrnlen(r->curr, MY_UCA_MAX_CONTRACTION) == 2);
     std::vector<MY_CONTRACTION>::iterator node_it =
         find_contraction_part_in_trie(*cont_nodes, r->curr[1]);
     if (node_it == cont_nodes->end() || node_it->ch != r->curr[1]) {
@@ -4013,7 +4012,7 @@ static bool apply_one_rule(CHARSET_INFO *cs, MY_CHARSET_LOADER *loader,
                            to_num_ce, r, nreset, rules->uca->version);
   } else {
     my_wc_t pagec = (r->curr[0] >> 8);
-    assert(dst->weights[pagec]);
+    DBUG_ASSERT(dst->weights[pagec]);
     if (cs->uca && cs->uca->version == UCA_V900) {
       to = my_char_weight_addr_900(dst, r->curr[0]);
       to_stride = UCA900_DISTANCE_BETWEEN_LEVELS;
@@ -4081,7 +4080,7 @@ static void copy_ja_han_pages(const CHARSET_INFO *cs, MY_UCA_INFO *dst) {
     return;
   for (int page = MIN_JA_HAN_PAGE; page <= MAX_JA_HAN_PAGE; page++) {
     // In DUCET, weight is not assigned to code points in [U+4E00, U+9FFF].
-    assert(dst->weights[page] == nullptr);
+    DBUG_ASSERT(dst->weights[page] == nullptr);
     dst->weights[page] = ja_han_pages[page - MIN_JA_HAN_PAGE];
   }
 }
@@ -4164,7 +4163,7 @@ static void modify_all_zh_pages(Reorder_param *reorder_param, MY_UCA_INFO *dst,
       uint16 *wbeg = UCA900_WEIGHT_ADDR(dst->weights[page], 0, off);
       int num_of_ce = UCA900_NUM_OF_CE(dst->weights[page], off);
       for (int ce = 0; ce < num_of_ce; ce++) {
-        assert(reorder_param->wt_rec_num == 1);
+        DBUG_ASSERT(reorder_param->wt_rec_num == 1);
         if (*wbeg >= reorder_param->wt_rec[0].old_wt_bdy.begin &&
             *wbeg <= reorder_param->wt_rec[0].old_wt_bdy.end) {
           *wbeg = *wbeg + reorder_param->wt_rec[0].new_wt_bdy.begin -
@@ -4896,7 +4895,7 @@ static int my_strnncoll_uca_900(const CHARSET_INFO *cs, const uchar *s,
         return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 2>, 2>(
             cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
       default:
-        assert(false);
+        DBUG_ASSERT(false);
       case 3:
         return my_strnncoll_uca<uca_scanner_900<Mb_wc_utf8mb4, 3>, 3>(
             cs, Mb_wc_utf8mb4(), s, slen, t, tlen, t_is_prefix);
@@ -4915,7 +4914,7 @@ static int my_strnncoll_uca_900(const CHARSET_INFO *cs, const uchar *s,
       return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 2>, 2>(
           cs, mb_wc, s, slen, t, tlen, t_is_prefix);
     default:
-      assert(false);
+      DBUG_ASSERT(false);
     case 3:
       return my_strnncoll_uca<uca_scanner_900<decltype(mb_wc), 3>, 3>(
           cs, mb_wc, s, slen, t, tlen, t_is_prefix);
@@ -4990,7 +4989,7 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs, const uchar *s,
         return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 2>(cs, Mb_wc_utf8mb4(),
                                                            s, slen, n1);
       default:
-        assert(false);
+        DBUG_ASSERT(false);
       case 3:
         return my_hash_sort_uca_900_tmpl<Mb_wc_utf8mb4, 3>(cs, Mb_wc_utf8mb4(),
                                                            s, slen, n1);
@@ -5009,7 +5008,7 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs, const uchar *s,
       return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 2>(cs, mb_wc, s, slen,
                                                            n1);
     default:
-      assert(false);
+      DBUG_ASSERT(false);
     case 3:
       return my_hash_sort_uca_900_tmpl<decltype(mb_wc), 3>(cs, mb_wc, s, slen,
                                                            n1);
@@ -5042,7 +5041,7 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
   uchar *dst_end = dst + dstlen;
   uca_scanner_900<Mb_wc, LEVELS_FOR_COMPARE> scanner(mb_wc, cs, src, srclen);
 
-  assert((dstlen % 2) == 0);
+  DBUG_ASSERT((dstlen % 2) == 0);
   if ((dstlen % 2) == 1) {
     // Emergency workaround for optimized mode.
     --dst_end;
@@ -5052,8 +5051,8 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
     scanner.for_each_weight(
         [&dst, dst_end](
             int s_res, bool is_level_separator MY_ATTRIBUTE((unused))) -> bool {
-          assert(is_level_separator == (s_res == 0));
-          if (LEVELS_FOR_COMPARE == 1) assert(!is_level_separator);
+          DBUG_ASSERT(is_level_separator == (s_res == 0));
+          if (LEVELS_FOR_COMPARE == 1) DBUG_ASSERT(!is_level_separator);
 
           dst = store16be(dst, s_res);
           return (dst < dst_end);
@@ -5086,7 +5085,7 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs, uchar *dst,
         return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 2>(
             cs, Mb_wc_utf8mb4(), dst, dstlen, src, srclen, flags);
       default:
-        assert(false);
+        DBUG_ASSERT(false);
       case 3:
         return my_strnxfrm_uca_900_tmpl<Mb_wc_utf8mb4, 3>(
             cs, Mb_wc_utf8mb4(), dst, dstlen, src, srclen, flags);
@@ -5104,7 +5103,7 @@ static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs, uchar *dst,
         return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 2>(
             cs, mb_wc, dst, dstlen, src, srclen, flags);
       default:
-        assert(false);
+        DBUG_ASSERT(false);
       case 3:
         return my_strnxfrm_uca_900_tmpl<decltype(mb_wc), 3>(
             cs, mb_wc, dst, dstlen, src, srclen, flags);
@@ -11392,7 +11391,7 @@ static size_t my_strnxfrm_utf8mb4_0900_bin(
     const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), uchar *dst, size_t dstlen,
     uint nweights MY_ATTRIBUTE((unused)), const uchar *src, size_t srclen,
     uint flags) {
-  assert(src);
+  DBUG_ASSERT(src);
 
   size_t weight_len = std::min<size_t>(srclen, dstlen);
   memcpy(dst, src, weight_len);

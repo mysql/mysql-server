@@ -1,7 +1,7 @@
 #ifndef AGGREGATE_CHECK_INCLUDED
 #define AGGREGATE_CHECK_INCLUDED
 
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -502,11 +502,10 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 */
 
-#include <assert.h>
 #include <sys/types.h>
 
 #include "my_alloc.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_table_map.h"
 #include "sql/item.h"
@@ -516,7 +515,7 @@ VE2 are NULL then VE3 must be NULL, which makes the dependency NULL-friendly.
 
 class Opt_trace_context;
 class Opt_trace_object;
-class Query_block;
+class SELECT_LEX;
 class THD;
 struct TABLE_LIST;
 
@@ -528,7 +527,7 @@ class mem_root_deque;
 */
 class Distinct_check : public Item_tree_walker {
  public:
-  Distinct_check(Query_block *select_arg)
+  Distinct_check(SELECT_LEX *select_arg)
       : select(select_arg), failed_ident(nullptr) {}
   Distinct_check(const Distinct_check &) = delete;
   Distinct_check &operator=(const Distinct_check &) = delete;
@@ -537,7 +536,7 @@ class Distinct_check : public Item_tree_walker {
 
  private:
   /// Query block which we are validating
-  Query_block *const select;
+  SELECT_LEX *const select;
   /// Identifier which triggered an error
   Item_ident *failed_ident;
 
@@ -557,7 +556,7 @@ class Distinct_check : public Item_tree_walker {
 */
 class Group_check : public Item_tree_walker {
  public:
-  Group_check(Query_block *select_arg, MEM_ROOT *root)
+  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root)
       : select(select_arg),
         search_in_underlying(false),
         non_null_in_source(false),
@@ -581,7 +580,7 @@ class Group_check : public Item_tree_walker {
 
  private:
   /// Query block which we are validating
-  Query_block *const select;
+  SELECT_LEX *const select;
 
   /**
      "Underlying" == expressions which are underlying in an identifier.
@@ -647,7 +646,7 @@ class Group_check : public Item_tree_walker {
   bool is_child() const { return table != nullptr; }
 
   /// Private ctor, for a Group_check to build a child Group_check
-  Group_check(Query_block *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
+  Group_check(SELECT_LEX *select_arg, MEM_ROOT *root, TABLE_LIST *table_arg)
       : select(select_arg),
         search_in_underlying(false),
         non_null_in_source(false),
@@ -658,7 +657,7 @@ class Group_check : public Item_tree_walker {
         whole_tables_fd(0),
         recheck_nullable_keys(0),
         mat_tables(root) {
-    assert(table);
+    DBUG_ASSERT(table);
   }
   bool check_expression(THD *thd, Item *expr, bool in_select_list);
   /// Shortcut for common use of Item::local_column()

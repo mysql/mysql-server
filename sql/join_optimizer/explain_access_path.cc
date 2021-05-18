@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -93,22 +93,38 @@ static string JoinTypeToString(JoinType join_type) {
   }
 }
 
-static string HashJoinTypeToString(RelationalExpression::Type join_type) {
+static string HashJoinTypeToString(JoinType join_type) {
   switch (join_type) {
-    case RelationalExpression::INNER_JOIN:
+    case JoinType::INNER:
       return "Inner hash join";
-    case RelationalExpression::LEFT_JOIN:
+    case JoinType::OUTER:
       return "Left hash join";
-    case RelationalExpression::ANTIJOIN:
+    case JoinType::ANTI:
       return "Hash antijoin";
-    case RelationalExpression::SEMIJOIN:
+    case JoinType::SEMI:
       return "Hash semijoin";
-    case RelationalExpression::CARTESIAN_PRODUCT:
-      return "Hash cartesian product";
     default:
       assert(false);
       return "<error>";
   }
+}
+
+static bool MaterializeIsDoingDeduplication(TABLE *table) {
+  if (table->hash_field != nullptr) {
+    // Doing deduplication via hash field.
+    return true;
+  }
+
+  // We assume that if there's an unique index, it has to be used for
+  // deduplication.
+  if (table->key_info != nullptr) {
+    for (size_t i = 0; i < table->s->keys; ++i) {
+      if ((table->key_info[i].flags & HA_NOSAME) != 0) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 static void GetAccessPathsFromItem(Item *item_arg, const char *source_text,
@@ -119,20 +135,20 @@ static void GetAccessPathsFromItem(Item *item_arg, const char *source_text,
     }
 
     Item_subselect *subselect = down_cast<Item_subselect *>(item);
-    Query_block *query_block = subselect->unit->first_query_block();
+    SELECT_LEX *select_lex = subselect->unit->first_select();
     char description[256];
-    if (query_block->is_dependent()) {
+    if (select_lex->is_dependent()) {
       snprintf(description, sizeof(description),
                "Select #%d (subquery in %s; dependent)",
-               query_block->select_number, source_text);
-    } else if (!query_block->is_cacheable()) {
+               select_lex->select_number, source_text);
+    } else if (!select_lex->is_cacheable()) {
       snprintf(description, sizeof(description),
                "Select #%d (subquery in %s; uncacheable)",
-               query_block->select_number, source_text);
+               select_lex->select_number, source_text);
     } else {
       snprintf(description, sizeof(description),
                "Select #%d (subquery in %s; run only once)",
-               query_block->select_number, source_text);
+               select_lex->select_number, source_text);
     }
     AccessPath *path;
     if (subselect->unit->root_access_path() != nullptr) {
@@ -140,7 +156,7 @@ static void GetAccessPathsFromItem(Item *item_arg, const char *source_text,
     } else {
       path = subselect->unit->item->root_access_path();
     }
-    children->push_back({path, description, query_block->join});
+    children->push_back({path, description, select_lex->join});
     return false;
   });
 }
@@ -401,7 +417,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     }
     case AccessPath::PUSHED_JOIN_REF: {
       TABLE *table = path->pushed_join_ref().table;
-      assert(table->file->pushed_idx_cond == nullptr);
+      DBUG_ASSERT(table->file->pushed_idx_cond == nullptr);
       const KEY *key = &table->key_info[path->pushed_join_ref().ref->key];
       string str;
       if (path->pushed_join_ref().is_unique) {
@@ -419,7 +435,7 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
     }
     case AccessPath::FULL_TEXT_SEARCH: {
       TABLE *table = path->full_text_search().table;
-      assert(table->file->pushed_idx_cond == nullptr);
+      DBUG_ASSERT(table->file->pushed_idx_cond == nullptr);
       const KEY *key = &table->key_info[path->full_text_search().ref->key];
       description.push_back(string("Indexed full text search on ") +
                             table->alias + " using " + key->name + " (" +
@@ -538,13 +554,13 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
     case AccessPath::HASH_JOIN: {
       const JoinPredicate *predicate = path->hash_join().join_predicate;
-      string ret = HashJoinTypeToString(predicate->expr->type);
+      string ret = HashJoinTypeToString(predicate->type);
 
-      if (predicate->expr->equijoin_conditions.empty()) {
+      if (predicate->equijoin_conditions.empty()) {
         ret.append(" (no condition)");
       } else {
-        for (Item_func_eq *cond : predicate->expr->equijoin_conditions) {
-          if (cond != predicate->expr->equijoin_conditions[0]) {
+        for (Item_func_eq *cond : predicate->equijoin_conditions) {
+          if (cond != predicate->equijoin_conditions[0]) {
             ret.push_back(',');
           }
           HashJoinCondition hj_cond(cond, *THR_MALLOC);
@@ -557,8 +573,8 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
           }
         }
       }
-      for (Item *cond : predicate->expr->join_conditions) {
-        if (cond == predicate->expr->join_conditions[0]) {
+      for (Item *cond : predicate->join_conditions) {
+        if (cond == predicate->join_conditions[0]) {
           ret.append(", extra conditions: ");
         } else {
           ret += " and ";
@@ -613,6 +629,30 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       }
       description.push_back(move(ret));
       children.push_back({path->sort().child});
+      break;
+    }
+    case AccessPath::PRECOMPUTED_AGGREGATE: {
+      // If precomputed_group_by is set, there's always grouping; thus, our
+      // EXPLAIN output should always say “group”, unlike AggregateIterator.
+      // Do note that neither path->precomputed_aggregate.join->grouped nor
+      // path->precomputed_aggregate.join->group_optimized_away need to be set
+      // (in particular, this seems to be the case for skip index scan).
+      string ret;
+      if (*join->sum_funcs == nullptr) {
+        ret = "Group (computed in earlier step, no aggregates)";
+      } else {
+        ret = "Group aggregate (computed in earlier step): ";
+      }
+
+      for (Item_sum **item = join->sum_funcs; *item != nullptr; ++item) {
+        if (item != join->sum_funcs) {  // Not first element.
+          ret += ", ";
+        }
+        ret += ItemToString(*item);
+      }
+
+      description.push_back(move(ret));
+      children.push_back({path->precomputed_aggregate().child});
       break;
     }
     case AccessPath::AGGREGATE: {
@@ -803,30 +843,14 @@ ExplainData ExplainAccessPath(const AccessPath *path, JOIN *join) {
       break;
   }
   if (path->num_output_rows >= 0.0) {
-    double first_row_cost;
-    if (path->num_output_rows <= 1.0) {
-      first_row_cost = path->cost;
-    } else {
-      first_row_cost = path->init_cost +
-                       (path->cost - path->init_cost) / path->num_output_rows;
-    }
-
     // NOTE: We cannot use %f, since MSVC and GCC round 0.5 in different
     // directions, so tests would not be reproducible between platforms.
     // Format/round using my_gcvt() and llrint() instead.
-    char first_row_cost_as_string[FLOATING_POINT_BUFFER];
     char cost_as_string[FLOATING_POINT_BUFFER];
-    my_fcvt(first_row_cost, 2, first_row_cost_as_string, /*error=*/nullptr);
     my_fcvt(path->cost, 2, cost_as_string, /*error=*/nullptr);
-    char str[1024];
-    if (path->init_cost >= 0.0) {
-      snprintf(str, sizeof(str), "  (cost=%s..%s rows=%lld)",
-               first_row_cost_as_string, cost_as_string,
-               llrint(path->num_output_rows));
-    } else {
-      snprintf(str, sizeof(str), "  (cost=%s rows=%lld)", cost_as_string,
-               llrint(path->num_output_rows));
-    }
+    char str[512];
+    snprintf(str, sizeof(str), "  (cost=%s rows=%lld)", cost_as_string,
+             llrint(path->num_output_rows));
     description.back() += str;
   }
   if (current_thd->lex->is_explain_analyze && path->iterator != nullptr) {
@@ -878,7 +902,7 @@ string PrintQueryPlan(int level, AccessPath *path, JOIN *join,
   if (is_root_of_join) {
     // If we know that the join will return zero rows, we don't bother
     // optimizing any subqueries in the SELECT list, but end optimization
-    // early (see Query_block::optimize()). If so, don't attempt to print
+    // early (see SELECT_LEX::optimize()). If so, don't attempt to print
     // them either, as they have no query plan.
     if (path->type == AccessPath::ZERO_ROWS) {
       return ret;

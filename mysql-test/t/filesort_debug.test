@@ -16,7 +16,6 @@ INSERT INTO t1(f1, f2) VALUES
 (6,"6"),(7,"7"),(8,"8"),(9,"9"),(10,"10");
 
 set debug= '+d,bounded_queue_init_fail';
---skip_if_hypergraph   # Does not support priority queue, so also does not get the error.
 --replace_regex /Needed [0-9]* bytes/Needed NN bytes/
 --error 5
 SELECT * FROM t1 ORDER BY f1 ASC, f0 LIMIT 1;

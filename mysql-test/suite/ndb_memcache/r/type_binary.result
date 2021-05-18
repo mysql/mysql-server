@@ -1,0 +1,3 @@
+SELECT mkey, HEX(val) FROM ndbmemcache.test_bin_val;
+mkey	HEX(val)
+b1	0001020304

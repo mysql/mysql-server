@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,13 +26,12 @@
 */
 
 %{
-#include <assert.h>
 #include <climits>
 #include <cstdlib>
 
 #include "lex_string.h"
 #include "m_string.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"  // TODO: replace with cstdint
 #include "mysqld_error.h"
 #include "sql/derror.h"
@@ -680,7 +679,7 @@ set_var_num_item:
               case 'M': multiplier= 1024 * 1024; break;
               case 'G': multiplier= 1024 * 1024 * 1024; break;
               default:
-                assert(0); // should not happen
+                DBUG_ASSERT(0); // should not happen
                 YYABORT;        // for sure
               }
               if (1.0L * n * multiplier > LLONG_MAX)

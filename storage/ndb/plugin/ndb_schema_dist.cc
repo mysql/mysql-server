@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2011, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -45,6 +45,14 @@
 #include "storage/ndb/plugin/ndb_thd_ndb.h"
 #include "storage/ndb/plugin/ndb_upgrade_util.h"
 
+// Temporarily use a fixed string on the form "./mysql/ndb_schema" as key
+// for retrieving the NDB_SHARE for mysql.ndb_schema. This will subsequently
+// be removed when a NDB_SHARE can be acquired using db+table_name and the
+// key is formatted behind the curtains in NDB_SHARE without using
+// build_table_filename() etc.
+static constexpr const char *NDB_SCHEMA_TABLE_KEY =
+    IF_WIN(".\\mysql\\ndb_schema", "./mysql/ndb_schema");
+
 bool Ndb_schema_dist::is_ready(void *requestor) {
   DBUG_TRACE;
 
@@ -52,10 +60,8 @@ bool Ndb_schema_dist::is_ready(void *requestor) {
   ss << "is_ready_" << std::hex << requestor;
   const std::string reference = ss.str();
 
-  // Acquire reference on mysql.ndb_schema
-  NDB_SHARE *schema_share = NDB_SHARE::acquire_reference(
-      Ndb_schema_dist_table::DB_NAME.c_str(),
-      Ndb_schema_dist_table::TABLE_NAME.c_str(), reference.c_str());
+  NDB_SHARE *schema_share = NDB_SHARE::acquire_reference_by_key(
+      NDB_SCHEMA_TABLE_KEY, reference.c_str());
   if (schema_share == nullptr) return false;  // Not ready
 
   if (!schema_share->have_event_operation()) {
@@ -117,9 +123,8 @@ bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
   DBUG_TRACE;
 
   // Acquire reference on mysql.ndb_schema
-  m_share = NDB_SHARE::acquire_reference(
-      Ndb_schema_dist_table::DB_NAME.c_str(),
-      Ndb_schema_dist_table::TABLE_NAME.c_str(), m_share_reference.c_str());
+  m_share = NDB_SHARE::acquire_reference_by_key(NDB_SCHEMA_TABLE_KEY,
+                                                m_share_reference.c_str());
 
   if (m_share == nullptr || m_share->have_event_operation() == false ||
       DBUG_EVALUATE_IF("ndb_schema_dist_not_ready_early", true, false)) {
@@ -147,7 +152,7 @@ bool Ndb_schema_dist_client::prepare(const char *db, const char *tabname) {
         // If the tablename is not empty, it is a non database DDL. Block it.
         my_printf_error(
             ER_DISALLOWED_OPERATION,
-            "DDLs are disallowed on NDB SE as there is at least one node "
+            "DDLs are disallowed on NDB SE as there is atleast one node "
             "without MySQL DD support connected to the cluster.",
             MYF(0));
         return false;
@@ -306,7 +311,7 @@ uint32 Ndb_schema_dist_client::unique_id() const {
   if (id == 0) {
     id = ++schema_dist_id_sequence;
   }
-  assert(id != 0);
+  DBUG_ASSERT(id != 0);
   return id;
 }
 
@@ -317,7 +322,7 @@ uint32 Ndb_schema_dist_client::unique_id() const {
 */
 uint32 Ndb_schema_dist_client::unique_version() const {
   const uint32 ver = m_thd_ndb->connection->node_id();
-  assert(ver != 0);
+  DBUG_ASSERT(ver != 0);
   return ver;
 }
 
@@ -348,13 +353,13 @@ bool Ndb_schema_dist_client::log_schema_op(const char *query,
                                            uint32 version, SCHEMA_OP_TYPE type,
                                            bool log_query_on_participant) {
   DBUG_TRACE;
-  assert(db && table_name);
-  assert(id != 0 && version != 0);
-  assert(m_thd_ndb);
+  DBUG_ASSERT(db && table_name);
+  DBUG_ASSERT(id != 0 && version != 0);
+  DBUG_ASSERT(m_thd_ndb);
 
   // Never allow temporary names when communicating with participant
   if (ndb_name_is_temp(db) || ndb_name_is_temp(table_name)) {
-    assert(false);
+    DBUG_ASSERT(false);
     return false;
   }
 
@@ -365,7 +370,7 @@ bool Ndb_schema_dist_client::log_schema_op(const char *query,
   // Check that prepared keys match
   if (!m_prepared_keys.check_key(db, table_name)) {
     m_thd_ndb->push_warning("INTERNAL ERROR: prepared keys didn't match");
-    assert(false);  // Catch in debug
+    DBUG_ASSERT(false);  // Catch in debug
     return false;
   }
 
@@ -380,7 +385,7 @@ bool Ndb_schema_dist_client::log_schema_op(const char *query,
     std::string invalid_identifier;
     if (!check_identifier_limits(invalid_identifier)) {
       m_thd_ndb->push_warning("INTERNAL ERROR: identifier limits exceeded");
-      assert(false);  // Catch in debug
+      DBUG_ASSERT(false);  // Catch in debug
       return false;
     }
   }
@@ -461,10 +466,6 @@ bool Ndb_schema_dist_client::rename_table_prepare(
   // pass the "new key"(i.e db/table_name) for the table to be renamed,
   // that's since there isn't enough placeholders in the subsequent rename
   // table phase.
-  // NOTE2! The "new key" is sent in filesystem format where multibyte or
-  // characters who are deemed not suitable as filenames have been encoded. This
-  // differs from the db and tablename parameters in the schema dist
-  // protocol who are just passed as they are.
   return log_schema_op(new_key_for_table, strlen(new_key_for_table), db,
                        table_name, id, version, SOT_RENAME_TABLE_PREPARE);
 }
@@ -511,7 +512,7 @@ bool Ndb_schema_dist_client::drop_table(const char *db, const char *table_name,
        the participants get the DROP DATABASE it will remove
        any tables from the DD and then remove the database.
   */
-  assert(thd_sql_command(m_thd) != SQLCOM_DROP_DB);
+  DBUG_ASSERT(thd_sql_command(m_thd) != SQLCOM_DROP_DB);
 
   /*
     Rewrite the query, the original query may contain several tables but
@@ -599,7 +600,7 @@ bool Ndb_schema_dist_client::acl_notify(const char *database, const char *query,
                                         uint query_length,
                                         bool participant_refresh) {
   DBUG_TRACE;
-  assert(m_holding_acl_mutex);
+  DBUG_ASSERT(m_holding_acl_mutex);
   auto key = m_prepared_keys.keys()[0];
   std::string new_query("use ");
   if (database != nullptr && strcmp(database, "mysql")) {
@@ -616,7 +617,7 @@ bool Ndb_schema_dist_client::acl_notify(const char *database, const char *query,
 /* SNAPSHOT-style ACL change distribution */
 bool Ndb_schema_dist_client::acl_notify(std::string user_list) {
   DBUG_TRACE;
-  assert(m_holding_acl_mutex);
+  DBUG_ASSERT(m_holding_acl_mutex);
   auto key = m_prepared_keys.keys()[0];
 
   return log_schema_op(user_list.c_str(), user_list.length(), key.first.c_str(),
@@ -743,7 +744,7 @@ const char *Ndb_schema_dist_client::type_name(SCHEMA_OP_TYPE type) {
     default:
       break;
   }
-  assert(false);
+  DBUG_ASSERT(false);
   return "<unknown>";
 }
 
@@ -781,7 +782,7 @@ uint32 Ndb_schema_dist_client::calculate_anyvalue(bool force_nologging) const {
     anyValue = thd_unmasked_server_id(m_thd);
   }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   /*
     MySQLD will set the user-portion of AnyValue (if any) to all 1s
     This tests code filtering ServerIds on the value of server-id-bits.

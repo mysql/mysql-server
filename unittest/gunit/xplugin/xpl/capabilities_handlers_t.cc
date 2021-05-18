@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,30 +20,27 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
-
-#include "my_config.h"  // NOLINT(build/include_subdir)
 
 #include "plugin/x/src/account_verification_handler.h"
 #include "plugin/x/src/capabilities/handler_auth_mech.h"
 #include "plugin/x/src/capabilities/handler_client_interactive.h"
 #include "plugin/x/src/capabilities/handler_connection_attributes.h"
 #include "plugin/x/src/capabilities/handler_tls.h"
-#include "plugin/x/src/ngs/client_list.h"
 #include "plugin/x/src/sql_user_require.h"
 #include "unittest/gunit/xplugin/xpl/assert_error_code.h"
-#include "unittest/gunit/xplugin/xpl/mock/authentication_container.h"
-#include "unittest/gunit/xplugin/xpl/mock/client.h"
-#include "unittest/gunit/xplugin/xpl/mock/server.h"
-#include "unittest/gunit/xplugin/xpl/mock/ssl_context.h"
-#include "unittest/gunit/xplugin/xpl/mock/vio.h"
+#include "unittest/gunit/xplugin/xpl/mock/capabilities.h"
+#include "unittest/gunit/xplugin/xpl/mock/ngs_general.h"
+#include "unittest/gunit/xplugin/xpl/mock/session.h"
 #include "unittest/gunit/xplugin/xpl/mysqlx_pb_wrapper.h"
 
 namespace xpl {
+
 namespace test {
 
-using mock::Authentication_container;
 using ::testing::_;
 using ::testing::Return;
 using ::testing::ReturnRef;
@@ -51,10 +48,11 @@ using ::testing::SetArgPointee;
 using ::testing::StrictMock;
 using ::testing::Test;
 using ::testing::WithParamInterface;
+using xpl::test::Mock_authentication_container;
 
 class CapabilityHanderTlsTestSuite : public Test {
  public:
-  CapabilityHanderTlsTestSuite() : sut(&mock_client) {
+  CapabilityHanderTlsTestSuite() : sut(mock_client) {
     EXPECT_CALL(mock_client, connection())
         .WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(mock_server));
@@ -62,10 +60,10 @@ class CapabilityHanderTlsTestSuite : public Test {
         .WillRepeatedly(Return(&mock_ssl_context));
   }
 
-  StrictMock<mock::Vio> mock_connection;
-  StrictMock<mock::Client> mock_client;
-  StrictMock<mock::Ssl_context> mock_ssl_context;
-  StrictMock<mock::Server> mock_server;
+  StrictMock<Mock_vio> mock_connection;
+  StrictMock<Mock_client> mock_client;
+  StrictMock<Mock_ssl_context> mock_ssl_context;
+  StrictMock<Mock_server> mock_server;
 
   Capability_tls sut;
 };
@@ -176,7 +174,7 @@ TEST_P(SuccessSetCapabilityHanderTlsTestSuite,
   ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, sut.set(s.m_any).error);
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     SuccessInstantiation, SuccessSetCapabilityHanderTlsTestSuite,
     ::testing::Values(Set_params(true, false), Set_params(1, false),
                       Set_params(2, false), Set_params(3u, false),
@@ -197,36 +195,36 @@ TEST_P(FaildSetCapabilityHanderTlsTestSuite, get_failure_forValidParameters) {
   sut.commit();
 }
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     FaildInstantiationAlreadySet, FaildSetCapabilityHanderTlsTestSuite,
     ::testing::Values(Set_params(true, true), Set_params(1, true),
                       Set_params(2, true), Set_params(3u, true),
                       Set_params(1.0, true)));
 
-INSTANTIATE_TEST_SUITE_P(
+INSTANTIATE_TEST_CASE_P(
     FaildInstantiationCantDisable, FaildSetCapabilityHanderTlsTestSuite,
     ::testing::Values(Set_params(false, true), Set_params(0, true),
                       Set_params(0u, true), Set_params(0.0, true)));
 
-INSTANTIATE_TEST_SUITE_P(FaildInstantiationAlreadyDisabled,
-                         FaildSetCapabilityHanderTlsTestSuite,
-                         ::testing::Values(Set_params(0, false),
-                                           Set_params(false, false)));
+INSTANTIATE_TEST_CASE_P(FaildInstantiationAlreadyDisabled,
+                        FaildSetCapabilityHanderTlsTestSuite,
+                        ::testing::Values(Set_params(0, false),
+                                          Set_params(false, false)));
 
 class CapabilityHanderAuthMechTestSuite : public Test {
  public:
-  CapabilityHanderAuthMechTestSuite() : sut(&mock_client) {
-    mock_server = std::make_shared<StrictMock<mock::Server>>();
+  CapabilityHanderAuthMechTestSuite() : sut(mock_client) {
+    mock_server = std::make_shared<StrictMock<Mock_server>>();
 
     EXPECT_CALL(mock_client, connection())
         .WillRepeatedly(ReturnRef(mock_connection));
     EXPECT_CALL(mock_client, server()).WillRepeatedly(ReturnRef(*mock_server));
   }
 
-  std::shared_ptr<StrictMock<mock::Server>> mock_server;
+  std::shared_ptr<StrictMock<Mock_server>> mock_server;
 
-  StrictMock<mock::Vio> mock_connection;
-  StrictMock<mock::Client> mock_client;
+  StrictMock<Mock_vio> mock_connection;
+  StrictMock<Mock_client> mock_client;
 
   Capability_auth_mech sut;
 };
@@ -252,7 +250,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite, name) {
 TEST_F(CapabilityHanderAuthMechTestSuite, get_doesNothing_whenEmptySetReceive) {
   std::vector<std::string> names{};
   ::Mysqlx::Datatypes::Any any;
-  mock::Authentication_container mock_auth;
+  Mock_authentication_container mock_auth;
 
   EXPECT_CALL(*mock_server, get_authentications())
       .WillOnce(ReturnRef(mock_auth));
@@ -270,7 +268,7 @@ TEST_F(CapabilityHanderAuthMechTestSuite,
   std::vector<std::string> names{"first", "second"};
   ::Mysqlx::Datatypes::Any any;
 
-  StrictMock<mock::Authentication_container> mock_auth;
+  StrictMock<Mock_authentication_container> mock_auth;
 
   EXPECT_CALL(*mock_server, get_authentications())
       .WillOnce(ReturnRef(mock_auth));
@@ -298,11 +296,11 @@ class Capability_hander_client_interactive_test_suite : public Test {
 
   void SetUp() override {
     EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(false));
-    sut.reset(new Capability_client_interactive(&mock_client));
+    sut.reset(new Capability_client_interactive(mock_client));
   }
 
   std::unique_ptr<Capability_client_interactive> sut;
-  StrictMock<mock::Client> mock_client;
+  StrictMock<Mock_client> mock_client;
 };
 
 TEST_F(Capability_hander_client_interactive_test_suite,
@@ -318,7 +316,7 @@ TEST_F(Capability_hander_client_interactive_test_suite,
 TEST_F(Capability_hander_client_interactive_test_suite,
        get_when_client_is_interactive) {
   EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(true));
-  sut.reset(new Capability_client_interactive(&mock_client));
+  sut.reset(new Capability_client_interactive(mock_client));
 
   const bool expected_result = true;
   ::Mysqlx::Datatypes::Any any;
@@ -333,7 +331,7 @@ TEST_F(Capability_hander_client_interactive_test_suite,
 TEST_F(Capability_hander_client_interactive_test_suite,
        get_when_client_is_not_interactive) {
   EXPECT_CALL(mock_client, is_interactive()).WillOnce(Return(false));
-  sut.reset(new Capability_client_interactive(&mock_client));
+  sut.reset(new Capability_client_interactive(mock_client));
 
   const bool expected_result = false;
   ::Mysqlx::Datatypes::Any any;

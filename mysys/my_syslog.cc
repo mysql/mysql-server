@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -92,7 +92,7 @@ int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
       _level = EVENTLOG_ERROR_TYPE;
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 
   if (hEventLog) {
@@ -134,7 +134,7 @@ err:
       _level = LOG_ERR;
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
 
   syslog(_level, "%s", msg);

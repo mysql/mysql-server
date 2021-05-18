@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -52,7 +52,6 @@
 #include "my_psi_config.h"
 #include "my_sys.h"
 #include "my_thread.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/psi/mysql_cond.h"
 #include "mysql/psi/mysql_file.h"
 #include "mysql/psi/mysql_memory.h"
@@ -60,6 +59,7 @@
 #include "mysql/psi/mysql_rwlock.h"
 #include "mysql/psi/mysql_stage.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql/psi/psi_cond.h"
 #include "mysql/psi/psi_file.h"
 #include "mysql/psi/psi_memory.h"
@@ -255,14 +255,14 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 
   Invalid parameter handler we will use instead of the one "baked"
   into the CRT for Visual Studio.
-  The assert will catch things typically *not* caught by sanitizers,
+  The DBUG_ASSERT will catch things typically *not* caught by sanitizers,
   e.g. iterator out-of-range, but pointing to valid memory.
 */
 
 void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
                           const wchar_t *file, unsigned int line,
                           uintptr_t pReserved) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   fprintf(stderr,
           "my_parameter_handler errno %d "
           "expression: %ws  function: %ws  file: %ws, line: %d\n",
@@ -272,7 +272,7 @@ void my_parameter_handler(const wchar_t *expression, const wchar_t *function,
   //   DBUG_EXECUTE_IF("ib_export_io_write_failure_1", close(fileno(file)););
   // So ignore EBADF
   if (errno != EBADF) {
-    assert(false);
+    DBUG_ASSERT(false);
   }
 #endif
 }

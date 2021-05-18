@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -25,7 +25,6 @@
 #ifndef NDB_GLOBAL_H
 #define NDB_GLOBAL_H
 
-#include <assert.h>
 #include <errno.h>
 #include <math.h>
 #include <stddef.h>
@@ -174,7 +173,7 @@ static const char table_name_separator =  '/';
 extern "C" {
 #endif
 	
-
+#include <assert.h>
 
 #ifdef  __cplusplus
 }

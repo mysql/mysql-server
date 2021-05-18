@@ -102,9 +102,9 @@ connection slave;
 # CHANGE MASTER and see if error is cleared in SHOW SLAVE STATUS.
 --source include/stop_slave_io.inc
 --replace_column 2 ####
-CHANGE REPLICATION SOURCE to SOURCE_USER='test';
+change master to master_user='test';
 --replace_column 2 ####
-CHANGE REPLICATION SOURCE to SOURCE_USER='root';
+change master to master_user='root';
 --source include/check_slave_no_error.inc
 
 # Trigger error again to test RESET SLAVE

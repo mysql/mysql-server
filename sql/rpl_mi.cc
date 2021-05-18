@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2006, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -269,7 +269,8 @@ void Master_info::request_rotate(THD *thd) {
          transaction to end.
     */
     const char dbug_signal[] = "now SIGNAL signal.rpl_requested_for_a_flush";
-    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(dbug_signal)));
+    DBUG_ASSERT(
+        !debug_sync_set_action(current_thd, STRING_WITH_LEN(dbug_signal)));
   });
 
   while (this->rotate_requested.load() && !thd->killed)
@@ -292,7 +293,8 @@ void Master_info::clear_rotate_requests() {
            the deferred flushing of the relay log.
       */
       const char dbug_signal[] = "now SIGNAL signal.rpl_broadcasted_rotate_end";
-      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(dbug_signal)));
+      DBUG_ASSERT(
+          !debug_sync_set_action(current_thd, STRING_WITH_LEN(dbug_signal)));
     });
   }
 }
@@ -613,7 +615,7 @@ bool Master_info::read_info(Rpl_info_handler *from) {
                algorithm_name, channel);
         strcpy(compression_algorithm, COMPRESSION_ALGORITHM_UNCOMPRESSED);
       } else {
-        assert(strlen(algorithm_name) < sizeof(compression_algorithm));
+        DBUG_ASSERT(strlen(algorithm_name) < sizeof(compression_algorithm));
         strcpy(compression_algorithm, algorithm_name);
       }
     }
@@ -645,8 +647,9 @@ bool Master_info::read_info(Rpl_info_handler *from) {
       tls_ciphersuites.first = true;
       tls_ciphersuites.second.clear();
     } else {
-      assert(status ==
-             Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL);
+      DBUG_ASSERT(
+          status ==
+          Rpl_info_handler::enum_field_get_status::FIELD_VALUE_NOT_NULL);
       tls_ciphersuites.first = false;
       tls_ciphersuites.second.assign(buffer);
     }
@@ -706,7 +709,7 @@ bool Master_info::write_info(Rpl_info_handler *to) {
 void Master_info::set_password(const char *password_arg) {
   DBUG_TRACE;
 
-  assert(password_arg);
+  DBUG_ASSERT(password_arg);
 
   if (password_arg && start_user_configured)
     strmake(start_password, password_arg, sizeof(start_password) - 1);
@@ -747,11 +750,6 @@ void Master_info::channel_rdlock() {
 void Master_info::channel_wrlock() {
   channel_map.assert_some_lock();
   m_channel_lock->wrlock();
-}
-
-int Master_info::channel_trywrlock() {
-  channel_map.assert_some_lock();
-  return m_channel_lock->trywrlock();
 }
 
 void Master_info::wait_until_no_reference(THD *thd) {

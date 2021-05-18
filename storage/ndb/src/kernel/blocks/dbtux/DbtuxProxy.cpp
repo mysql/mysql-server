@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -164,6 +164,9 @@ DbtuxProxy::sendINDEX_STAT_IMPL_REQ(Signal* signal, Uint32 ssId,
   req->senderRef = reference();
   req->senderData = ssId;
 
+  const Uint32 instance = workerInstance(ss.m_worker);
+  NdbLogPartInfo lpinfo(instance);
+
   switch (req->requestType) {
   case IndexStatReq::RT_START_MON:
     /*
@@ -255,14 +258,9 @@ DbtuxProxy::execINDEX_STAT_REP(Signal* signal)
   const IndexStatRep* rep =
     (const IndexStatRep*)signal->getDataPtr();
 
-  Uint32 instanceKey = getInstanceKey(rep->indexId, rep->fragId);
-  Uint32 instanceNo = getInstanceNo(getOwnNodeId(), instanceKey);
-
-  sendSignal(numberToRef(DBTUX, instanceNo, getOwnNodeId()),
-                         GSN_INDEX_STAT_REP,
-                         signal,
-                         signal->getLength(),
-                         JBB);
+  Uint32 instance = getInstanceKey(rep->indexId, rep->fragId);
+  sendSignal(numberToRef(DBTUX, instance, getOwnNodeId()),
+             GSN_INDEX_STAT_REP, signal, signal->getLength(), JBB);
 }
 
 BLOCK_FUNCTIONS(DbtuxProxy)

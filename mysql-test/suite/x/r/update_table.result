@@ -223,3 +223,4 @@ Mysqlx.Ok {
 }
 ok
 drop schema ytest;
+drop schema xtest;

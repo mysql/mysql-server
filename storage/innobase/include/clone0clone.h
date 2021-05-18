@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -1051,40 +1051,20 @@ class Clone_Sys {
     /* Call function once before waiting. */
     err = func(false, wait);
 
-    /* Start with 1 ms sleep and increase upto target sleep time. */
-    Clone_Msec cur_sleep_time{1};
-
     while (!is_timeout && wait && err == 0) {
+      ++loop_count;
+
       /* Release input mutex */
       if (mutex != nullptr) {
         ut_ad(mutex_own(mutex));
         mutex_exit(mutex);
       }
 
-      /* Limit sleep time to what is passed by caller. */
-      if (cur_sleep_time > sleep_time) {
-        cur_sleep_time = sleep_time;
-      }
-
-      std::this_thread::sleep_for(cur_sleep_time);
-
-      if (cur_sleep_time < sleep_time) {
-        /* Double sleep time in each iteration till we reach target. */
-        cur_sleep_time *= 2;
-      } else {
-        /* Increment count once we have reached target sleep time. */
-        ++loop_count;
-      }
+      std::this_thread::sleep_for(sleep_time);
 
       /* Acquire input mutex back */
       if (mutex != nullptr) {
         mutex_enter(mutex);
-      }
-
-      /* We have not yet reached the target sleep time. */
-      if (loop_count == 0) {
-        err = func(false, wait);
-        continue;
       }
 
       auto alert = (alert_count > 0) ? (loop_count % alert_count == 0) : true;
@@ -1116,12 +1096,6 @@ class Clone_Sys {
   /** @return GTID persistor */
   Clone_persist_gtid &get_gtid_persistor() { return (m_gtid_persister); }
 
-  /** Remember that all innodb spaces are initialized after last startup. */
-  void set_space_initialized() { m_space_initialized.store(true); }
-
-  /** @return true if all innodb spaces are initialized. */
-  bool is_space_initialized() const { return m_space_initialized.load(); }
-
  private:
   /** Find free index to allocate new clone handle.
   @param[in]	hdl_type	clone handle type
@@ -1152,10 +1126,7 @@ class Clone_Sys {
   ib_mutex_t m_clone_sys_mutex;
 
   /** Clone unique ID generator */
-  uint64_t m_clone_id_generator;
-
-  /** If all innodb tablespaces are initialized. */
-  std::atomic<bool> m_space_initialized;
+  ib_uint64_t m_clone_id_generator;
 
   /** GTID persister */
   Clone_persist_gtid m_gtid_persister;

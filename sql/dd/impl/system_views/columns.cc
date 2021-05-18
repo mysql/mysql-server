@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,8 +110,7 @@ Columns::Columns() {
       FIELD_EXTRA, "EXTRA",
       "INTERNAL_GET_DD_COLUMN_EXTRA(ISNULL(col.generation_expression_utf8),"
       "  col.is_virtual, col.is_auto_increment, col.update_option, "
-      "  IF(LENGTH(col.default_option), TRUE, FALSE), col.options, "
-      "  col.hidden, tbl.type)");
+      "  IF(LENGTH(col.default_option), TRUE, FALSE), col.options)");
   m_target_def.add_field(
       FIELD_PRIVILEGES, "PRIVILEGES",
       "GET_DD_COLUMN_PRIVILEGES(sch.name, tbl.name, col.name)");
@@ -139,8 +138,7 @@ Columns::Columns() {
       "AND CAN_ACCESS_COLUMN(sch.name, tbl.name, "
       "col.name)");
   m_target_def.add_where(
-      "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden NOT IN ('Visible', "
-      "'User'))");
+      "AND IS_VISIBLE_DD_OBJECT(tbl.hidden, col.hidden <> 'Visible')");
 }
 
 }  // namespace system_views

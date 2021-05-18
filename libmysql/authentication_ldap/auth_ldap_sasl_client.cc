@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -134,8 +134,7 @@ int Sasl_client::read_method_name_from_server() {
       m_sasl_mechanism = NULL;
       log_info("Kerberos lib not installed, not creting kerberos objects.");
 #endif
-    } else if ((strcmp(m_mechanism, SASL_SCRAM_SHA1) == 0) ||
-               (strcmp(m_mechanism, SASL_SCRAM_SHA256) == 0)) {
+    } else if (strcmp(m_mechanism, SASL_SCRAM_SHA1) == 0) {
       m_sasl_mechanism = new Sasl_mechanism();
     } else {
       rc_server_read = SASL_ERROR_INVALID_METHOD;

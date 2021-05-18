@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,33 +23,19 @@
 #ifndef RPL_ASYNC_CONN_FAILOVER_TABLE_OPERATIONS_H
 #define RPL_ASYNC_CONN_FAILOVER_TABLE_OPERATIONS_H
 
-#include <functional>
-#include <tuple>
 #include "sql/field.h"
-#include "sql/udf_service_util.h"
+#include "sql/rpl_sys_table_access.h"
 
-class Rpl_sys_table_access;
-class Json_wrapper;
+/* Connection detail tuple */
+using SENDER_CONN_TUPLE =
+    std::tuple<uint, std::string, std::string, uint, std::string>;
 
-/* <channel, host, port, network_namespace, weight, managed_name> */
-using RPL_FAILOVER_SOURCE_TUPLE =
-    std::tuple<std::string, std::string, uint, std::string, uint, std::string>;
-
-/* <channel, managed_name, managed_type, configuration> */
-using RPL_FAILOVER_MANAGED_JSON_TUPLE =
-    std::tuple<std::string, std::string, std::string, Json_wrapper>;
-
-/* <channel, managed_name, managed_type, primary_weight, secondary_weight> */
-using RPL_FAILOVER_MANAGED_TUPLE =
-    std::tuple<std::string, std::string, std::string, uint, uint>;
-
-using RPL_FAILOVER_SOURCE_LIST = std::vector<RPL_FAILOVER_SOURCE_TUPLE>;
+/* Connection detail list */
+using SENDER_CONN_LIST = std::vector<SENDER_CONN_TUPLE>;
 
 /*
   Class provides read, write and delete function to
-  replication_asynchronous_connection_failover and
-  replication_asynchronous_connection_failover_managed
-  tables.
+  replication_asynchronous_connection_failover table.
 */
 class Rpl_async_conn_failover_table_operations {
  public:
@@ -57,22 +43,21 @@ class Rpl_async_conn_failover_table_operations {
     Construction.
 
     @param[in]  lock_type     How to lock the table
+    @param[in]  max_num_field Maximum number of fields
   */
   Rpl_async_conn_failover_table_operations(
-      enum thr_lock_type lock_type = TL_WRITE)
-      : m_lock_type(lock_type) {}
+      enum thr_lock_type lock_type = TL_WRITE, uint max_num_field = 5)
+      : m_lock_type(lock_type), m_num_field(max_num_field) {}
 
-  virtual ~Rpl_async_conn_failover_table_operations() {}
+  ~Rpl_async_conn_failover_table_operations() {}
 
   /**
-    Insert row for a unmanaged sender on
+    Insert row provided by
+    asynchronous_connection_failover_add_source() UDF to
     replication_asynchronous_connection_failover table.
 
-    @param[in] channel            channel
-    @param[in] host               sender host
-    @param[in] port               sender port
-    @param[in] network_namespace  sender network_namespace
-    @param[in] weight             sender weight
+    @param[in] source_conn_detail  std::tuple containing <channel, host, port,
+                                   network_namespace, weight>
 
     @returns std::tuple<bool, std::string> where each element has
              following meaning:
@@ -83,47 +68,16 @@ class Rpl_async_conn_failover_table_operations {
 
               second element of tuple is error message.
   */
-  std::tuple<bool, std::string> add_source(const std::string &channel,
-                                           const std::string &host, uint port,
-                                           const std::string &network_namespace,
-                                           uint weight);
+  std::tuple<bool, std::string> insert_row(
+      SENDER_CONN_TUPLE source_conn_detail);
 
   /**
-    Insert row on replication_asynchronous_connection_failover_managed
-    and replication_asynchronous_connection_failover tables.
-
-    @param[in] channel            channel
-    @param[in] host               sender host
-    @param[in] port               sender port
-    @param[in] network_namespace  sender network_namespace
-    @param[in] managed_type       managed type
-    @param[in] managed_name       managed name
-    @param[in] primary_weight     weight assigned to the primary
-    @param[in] secondary_weight   weight assigned to the secondary
-
-    @returns std::tuple<bool, std::string> where each element has
-             following meaning:
-
-              first element of tuple is function return value and determines:
-                false  Successful
-                true   Error
-
-              second element of tuple is error message.
-  */
-  std::tuple<bool, std::string> add_managed(
-      const std::string &channel, const std::string &host, uint port,
-      const std::string &network_namespace, const std::string &managed_type,
-      const std::string &managed_name, uint primary_weight,
-      uint secondary_weight);
-
-  /**
-    Delete row for a unmanaged sender on
+    Delete row provided by
+    asynchronous_connection_failover_delete_source() UDF in
     replication_asynchronous_connection_failover table.
 
-    @param[in] channel            channel
-    @param[in] host               sender host
-    @param[in] port               sender port
-    @param[in] network_namespace  sender network_namespace
+    @param[in] source_conn_detail  std::tuple containing <channel, host, port,
+                            network_namespace, weight>
 
     @returns std::tuple<bool, std::string> where each element has
              following meaning:
@@ -134,236 +88,116 @@ class Rpl_async_conn_failover_table_operations {
 
               second element of tuple is error message.
   */
-  std::tuple<bool, std::string> delete_source(
-      const std::string &channel, const std::string &host, uint port,
-      const std::string &network_namespace);
+  std::tuple<bool, std::string> delete_row(
+      SENDER_CONN_TUPLE source_conn_detail);
 
   /**
-    Delete row on replication_asynchronous_connection_failover_managed table
-    and all its sources on replication_asynchronous_connection_failover table.
-
-    @param[in] channel           The asynchronous replication channel name
-    @param[in] managed_name      The Managed name
-
-    @returns std::tuple<bool, std::string> where each element has
-             following meaning:
-
-              first element of tuple is function return value and determines:
-                false  Successful
-                true   Error
-
-              second element of tuple is error message.
-  */
-  std::tuple<bool, std::string> delete_managed(const std::string &channel,
-                                               const std::string &managed_name);
-
-  /**
-    Read all sources for a channel.
-    It uses index scan (ha_index_read_idx_map) to fetch rows for the channel
-    name.
+    Get source network configuration details (<hostname, port,
+    network_namespace>) from replication_asynchronous_connection_failover table
+    for the channel. It uses index scan (ha_index_read_idx_map) to fetch rows
+    for the channel name.
 
     @param[in]  channel_name      The channel name
 
-    @returns std::tuple<bool, List_of_Tuple> where each element has
+    @returns std::tuple<bool, SENDER_CONN_LIST> where each element has
              following meaning:
 
              first element of tuple is function return value and determines:
                false  Successful
                true   Error
 
-             second element of the tuple is list of return details based on
-             open table and template provided.
+             second element of the tuple is list of source network
+             configuration details (<hostname, port, network_namespace>).
   */
-  std::tuple<bool, std::vector<RPL_FAILOVER_SOURCE_TUPLE>>
-  read_source_rows_for_channel(std::string channel_name);
+  std::tuple<bool, SENDER_CONN_LIST> read_rows(std::string channel_name);
 
   /**
-    Real all sources for a channel and a managed name.
-    It uses index scan (ha_index_read_idx_map) to fetch rows for the channel
-    name and manged name.
+    Get all the rows from the replication_asynchronous_connection_failover
+    table. It uses index scan (ha_index_first) to fetch all the rows.
 
-    @param[in]  channel_name      The channel name
-    @param[in]  managed_name      The Managed name
-
-    @returns std::tuple<bool, List_of_Tuple> where each element has
+    @returns std::tuple<bool, SENDER_CONN_LIST> where each element has
              following meaning:
 
              first element of tuple is function return value and determines:
                false  Successful
                true   Error
 
-             second element of the tuple is list of return details based on
-             open table and template provided.
+             second element of the tuple is list of source network
+             configuration details (<hostname, port, network_namespace>).
   */
-  std::tuple<bool, std::vector<RPL_FAILOVER_SOURCE_TUPLE>>
-  read_source_rows_for_channel_and_managed_name(std::string channel_name,
-                                                std::string managed_name);
+  std::tuple<bool, SENDER_CONN_LIST> read_all_rows();
 
   /**
-    Read rows and fields from
-    replication_asynchronous_connection_failover_managed table and returns its
-    details in provided RPL_FAILOVER_MANAGED_TUPLE tuple. It uses index scan
-    (ha_index_read_idx_map) to fetch rows for the channel name.
+    Get all the rows from the replication_asynchronous_connection_failover
+    table using random scan (ha_rnd_next) to fetch all the rows.
 
-    @param[in]  channel_name  The channel name
-    @param[out] rows     return rows read from
-                         replication_asynchronous_connection_failover_managed
-
-    @return function return value which determines if read was:
-            false  Successful
-            true   Error
-  */
-  bool read_managed_rows_for_channel(
-      std::string channel_name, std::vector<RPL_FAILOVER_MANAGED_TUPLE> &rows);
-
-  /**
-    Read all sources.
-    It uses index scan (ha_index_first) to fetch all the rows.
-
-    @returns std::tuple<bool, List_of_Tuple> where each element has
+    @returns std::tuple<bool, SENDER_CONN_LIST> where each element has
              following meaning:
 
              first element of tuple is function return value and determines:
                false  Successful
                true   Error
 
-             second element of the tuple is list of return details based on
-             open table and template provided.
+             second element of the tuple is list of source network
+             configuration details (<hostname, port, network_namespace>).
   */
-  std::tuple<bool, std::vector<RPL_FAILOVER_SOURCE_TUPLE>>
-  read_source_all_rows();
+  std::tuple<bool, SENDER_CONN_LIST> read_random_rows();
 
   /**
-    Get all sources using random scan (ha_rnd_next) to fetch all the rows.
-
-    @returns std::tuple<bool, List_of_Tuple> where each element has
-             following meaning:
-
-             first element of tuple is function return value and determines:
-               false  Successful
-               true   Error
-
-             second element of the tuple is list of return details based on
-             open table and template provided.
-  */
-  std::tuple<bool, std::vector<RPL_FAILOVER_SOURCE_TUPLE>>
-  read_source_random_rows();
-
-  /**
-    Read rows and fields from
-    replication_asynchronous_connection_failover_managed table and returns its
-    details in provided RPL_FAILOVER_MANAGED_TUPLE tuple. It uses random scan
-    (ha_rnd_next) to fetch all the rows.
-
-    @param[out] rows   return rows read from
-                       replication_asynchronous_connection_failover_managed
-
-    @return function return value which determines if read was:
-            false  Successful
-            true   Error
-  */
-  bool read_managed_random_rows(std::vector<RPL_FAILOVER_MANAGED_TUPLE> &rows);
-
-  /**
-    Get the row at the position from the sources table using random scan
+    Get the row at the position from
+    replication_asynchronous_connection_failover table using random scan
     (ha_rnd_pos) to fetch the row.
 
-    @returns std::tuple<bool, Tuple> where each element has
+    @returns std::tuple<bool, SENDER_CONN_LIST> where each element has
              following meaning:
 
              first element of tuple is function return value and determines:
                false  Successful
                true   Error
 
-             second element of the tuple is list of return details based on
-             open table and template provided.
+             second element of the tuple contains source network configuration
+             details (<hostname, port, network_namespace>).
   */
-  std::tuple<bool, RPL_FAILOVER_SOURCE_TUPLE> read_source_random_rows_pos(
-      std::string pos);
+  std::tuple<bool, SENDER_CONN_TUPLE> read_random_rows_pos(std::string pos);
 
   /**
-    Get the row at the position from the managed table using random scan
-    (ha_rnd_pos) to fetch the row.
+    Stores provided string to table's field.
 
-    @returns std::tuple<bool, Tuple> where each element has
-             following meaning:
+    @param[in]  field        Field class object
+    @param[in]  fld          The std::string value to be saved.
+    @param[in]  cs           Charset info
 
-             first element of tuple is function return value and determines:
-               false  Successful
-               true   Error
-
-             second element of the tuple is list of return details based on
-             open table and template provided.
+    @retval true   Error
+    @retval false  Success
   */
-  std::tuple<bool, RPL_FAILOVER_MANAGED_JSON_TUPLE>
-  read_managed_random_rows_pos(std::string pos);
+  bool store_field(Field *field, std::string fld, CHARSET_INFO *cs);
+
+  /**
+    Stores provided string to table's field.
+
+    @param[in]  field        Field class object
+    @param[in]  fld          The long long value to be saved.
+    @param[in]  unsigned_val If value is unsigned.
+
+    @retval true   Error
+    @retval false  Success
+  */
+  bool store_field(Field *field, long long fld, bool unsigned_val);
+
+ private:
+  enum thr_lock_type m_lock_type;  // table lock type
+  uint m_num_field;                // number of fields in table
+  /* the table which needs to be opened for read/delete/insert operations */
+  const std::string m_table{"replication_asynchronous_connection_failover"};
+  const std::string m_db{"mysql"};  // the database table belongs to
 
   /**
     Get stored data in table.
 
-    @param[in]  table_op  Rpl_sys_table_access class object.
-    @param[out] rows      Fetch and store read rows in the tuple.
+    @returns SENDER_CONN_TUPLE where tuple is list of source network
+             configuration details (<hostname, port, network_namespace>).
   */
-  template <class TUP>
-  static void get_data(Rpl_sys_table_access &table_op, TUP &rows);
-
- private:
-  enum thr_lock_type m_lock_type;   // table lock type
-  const std::string m_db{"mysql"};  // the database table belongs to
-
-  const std::string m_table_failover{
-      "replication_asynchronous_connection_failover"};
-  const uint m_table_failover_num_field{6};
-
-  const std::string m_table_managed{
-      "replication_asynchronous_connection_failover_managed"};
-  const uint m_table_managed_num_field{4};
-
-  /* Configuration column primary key name */
-  const MYSQL_LEX_CSTRING Primary_weight_key = {
-      STRING_WITH_LEN("Primary_weight")};
-
-  /* Configuration column secondary key name */
-  const MYSQL_LEX_CSTRING Secondary_weight_key = {
-      STRING_WITH_LEN("Secondary_weight")};
-
-  /**
-    A wrapper template function to save/delete data to given table.
-
-    @param[in] db_name  The database whose table will be used to
-                         write/delete data.
-    @param[in] table_name  The table to which data will be written or deleted.
-    @param[in] num_field   The number of fields to be written or match while
-                           querying for delete operations.
-    @param[in] lock_type   How to lock the table
-    @param[in] field_index The list of field's position to be written or match
-                           while querying for delete operations.
-    @param[in] field_name  The list of field names of the table.
-    @param[in] field_value The field values to be written or match while
-                           querying for delete operations.
-    @param[in] func        The handler class function to write/delete data.
-    @param[in] table_index The table index/key position (by default i.e. on
-                           position 0, if primary key present is used).
-    @param[in] keypart_map Which part of key to use.
-
-    @returns std::tuple<bool, std::string> where each element has
-             following meaning:
-
-              first element of tuple is function return value and determines:
-                false  Successful
-                true   Error
-
-              second element of tuple is error message.
-  */
-  template <class T>
-  static std::tuple<bool, std::string> execute_handler_func(
-      const std::string &db_name, const std::string &table_name, uint num_field,
-      enum thr_lock_type lock_type, const std::vector<uint> &field_index,
-      const std::vector<std::string> &field_name, const T &field_value,
-      std::function<void(Rpl_sys_table_access &, bool &, std::string &, uint &,
-                         key_part_map &)>
-          func,
-      uint table_index, key_part_map keypart_map);
+  SENDER_CONN_TUPLE get_data(TABLE *table);
 };
 
 #endif /* RPL_ASYNC_CONN_FAILOVER_TABLE_OPERATIONS_H */

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,8 +29,6 @@
 
 #include <gmock/gmock.h>
 
-#include "mysql/harness/stdx/attribute.h"
-#include "mysql_session.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "process_manager.h"
 #include "process_wrapper.h"
@@ -44,8 +42,6 @@
  **/
 class RouterComponentTest : public ProcessManager, public ::testing::Test {
  public:
-  using MySQLSession = mysqlrouter::MySQLSession;
-
   /** @brief Initializes the test
    */
   void SetUp() override;
@@ -63,7 +59,6 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
    * @return bool value indicating if the pattern was found in the log file or
    * not
    */
-  STDX_NODISCARD
   bool wait_log_contains(const ProcessWrapper &process,
                          const std::string &pattern,
                          std::chrono::milliseconds timeout);
@@ -72,37 +67,6 @@ class RouterComponentTest : public ProcessManager, public ::testing::Test {
    * increased 10 times for the run with VALGRIND.
    */
   static void sleep_for(std::chrono::milliseconds duration);
-
-  std::unique_ptr<MySQLSession> make_new_connection_ok(
-      uint16_t router_port, uint16_t expected_node_port) {
-    std::unique_ptr<MySQLSession> session{std::make_unique<MySQLSession>()};
-    EXPECT_NO_THROW(session->connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""));
-
-    auto result{session->query_one("select @@port")};
-    EXPECT_EQ(std::strtoul((*result)[0], nullptr, 10), expected_node_port);
-
-    return session;
-  }
-
-  void verify_new_connection_fails(uint16_t router_port) {
-    MySQLSession session;
-    ASSERT_ANY_THROW(session.connect("127.0.0.1", router_port, "username",
-                                     "password", "", ""));
-  }
-
-  void verify_existing_connection_ok(
-      MySQLSession *session,
-      uint16_t expected_node = 0 /*0 means do not verify the port*/) {
-    auto result{session->query_one("select @@port")};
-    if (expected_node > 0) {
-      EXPECT_EQ(std::strtoul((*result)[0], nullptr, 10), expected_node);
-    }
-  }
-
-  void verify_existing_connection_dropped(MySQLSession *session) {
-    ASSERT_ANY_THROW(session->query_one("select @@port"));
-  }
 };
 
 /** @class CommonBootstrapTest
@@ -137,8 +101,7 @@ class RouterComponentBootstrapTest : public RouterComponentTest {
       const std::vector<std::string> &expected_output_regex = {},
       std::chrono::milliseconds wait_for_exit_timeout =
           std::chrono::seconds(10),
-      const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 0, 3},
-      const std::vector<std::string> &extra_router_options = {});
+      const mysqlrouter::MetadataSchemaVersion &metadata_version = {2, 0, 3});
 
   friend std::ostream &operator<<(
       std::ostream &os,

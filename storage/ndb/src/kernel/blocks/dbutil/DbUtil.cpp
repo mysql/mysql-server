@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -1325,7 +1325,7 @@ DbUtil::execGET_TABINFOREF(Signal* signal){
   case GetTabInfoRef::TableNotDefined:
     ndbout << "      Msg:  Table not defined" << endl;
     break;
-  case GetTabInfoRef::TableNameTooLong:
+  case GetTabInfoRef::TableNameToLong:
     ndbout << "      Msg:  Table node too long" << endl;
     break;
   default:
@@ -2213,7 +2213,6 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
 
 #if 0 //def EVENT_DEBUG
   // Debugging
-  printf("DbUtil::c_dataBufPool.used = %u\n", c_dataBufPool.getUsed());
   printf("DbUtil::execUTIL_EXECUTEL_REQ: Headers (%u): ", headerPtr.sz);
   Uint32 word;
   while(headerReader.getWord(&word))
@@ -2221,12 +2220,10 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
   printf("\n");
   printf("DbUtil::execUTIL_EXECUTEL_REQ: Data (%u): ", dataPtr.sz);
   headerReader.reset();
-#if 0
   while(dataReader.getWord(&word))
     printf("H'%.8x ", word);
-  dataReader.reset();
-#endif
   printf("\n");
+  dataReader.reset();
 #endif
   
 //  Uint32 totalDataLen = headerPtr.sz + dataPtr.sz;
@@ -2268,7 +2265,7 @@ DbUtil::execUTIL_EXECUTE_REQ(Signal* signal)
 
 #if 0 //def EVENT_DEBUG
     if (TcKeyReq::getOperationType(prepOpPtr.p->tckey.requestInfo) ==
-	UtilPrepareReq::Read) {
+	TcKeyReq::Read) {
       if(prepOpPtr.p->pkBitmask.get(header.getAttributeId()))
 	printf("PrimaryKey\n");
     }
@@ -2382,7 +2379,7 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
   
 #if 0 //def EVENT_DEBUG
   if (TcKeyReq::getOperationType(pop->tckey.requestInfo) ==
-      UtilPrepareReq::Read) {
+      TcKeyReq::Read) {
     printf("TcKeyReq::Read runOperation\n");
   }
 #endif
@@ -2417,9 +2414,9 @@ DbUtil::runOperation(Signal* signal, TransactionPtr & transPtr,
 #if 0 //def EVENT_DEBUG
   // Debugging
   printf("DbUtil::runOperation: KEYINFO\n");
-  op->keyInfo.print_header(stdout);
+  op->keyInfo.print(stdout);
   printf("DbUtil::runOperation: ATTRINFO\n");
-  op->attrInfo.print_header(stdout);
+  op->attrInfo.print(stdout);
 #endif
   
   Uint32 attrLen = pop->attrInfo.getSize() + op->attrInfo.getSize();
@@ -2519,8 +2516,7 @@ DbUtil::sendAttrInfo(Signal* signal,
       attrDst[i] = * ait.data;
     }
 #if 0 //def EVENT_DEBUG
-    printf("DbUtil::sendAttrInfo: sendSignal(DBTC_REF, GSN_ATTRINFO,"
-           " signal, %d , JBB)\n", AttrInfo::HeaderLength + i);
+    printf("DbUtil::sendAttrInfo: sendSignal(DBTC_REF, GSN_ATTRINFO, signal, %d , JBB)\n", AttrInfo::HeaderLength + i);
 #endif
     sendSignal(tcRef, GSN_ATTRINFO, signal,
 	       AttrInfo::HeaderLength + i, JBB);

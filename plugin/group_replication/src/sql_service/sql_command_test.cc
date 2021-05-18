@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,11 +20,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
 #include <stddef.h>
 
 #include <mysql/components/services/log_builtins.h>
-
+#include "my_dbug.h"
 #include "plugin/group_replication/include/plugin.h"
 #include "plugin/group_replication/include/sql_service/sql_command_test.h"
 
@@ -55,7 +54,7 @@ void check_sql_command_create(Sql_service_interface *srvi) {
   if (srv_err == 0) {
     srvi->execute_query("SHOW TABLES IN test;", &rset);
     std::string str = "t1";
-    assert(rset.getString(0) == str);
+    DBUG_ASSERT(rset.getString(0) == str);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
                  srv_err); /* purecov: inspected */
@@ -75,9 +74,9 @@ void check_sql_command_insert(Sql_service_interface *srvi) {
     insert_values.push_back("1");
     insert_values.push_back("2");
     insert_values.push_back("3");
-    assert(rset.get_rows() == 3);
+    DBUG_ASSERT(rset.get_rows() == 3);
     while (i < rset.get_rows()) {
-      assert(rset.getString(0) == insert_values[i]);
+      DBUG_ASSERT(rset.getString(0) == insert_values[i]);
       rset.next();
       i++;
     }
@@ -100,9 +99,9 @@ void check_sql_command_update(Sql_service_interface *srvi) {
     update_values.push_back("4");
     update_values.push_back("5");
     update_values.push_back("6");
-    assert(rset.get_rows() == 3);
+    DBUG_ASSERT(rset.get_rows() == 3);
     while (i < rset.get_rows()) {
-      assert(rset.getString(0) == update_values[i]);
+      DBUG_ASSERT(rset.getString(0) == update_values[i]);
       rset.next();
       i++;
     }
@@ -118,7 +117,7 @@ void check_sql_command_drop(Sql_service_interface *srvi) {
   if (srv_err == 0) {
     srvi->execute_query("SELECT TABLES IN test", &rset);
     std::string str = "t1";
-    assert(rset.get_rows() == 0);
+    DBUG_ASSERT(rset.get_rows() == 0);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
                  srv_err); /* purecov: inspected */
@@ -130,9 +129,9 @@ void check_sql_command_persist(Sql_service_interface *srvi) {
   srvi->set_session_user(GROUPREPL_USER);
   int srv_err = srvi->execute_query(
       "SELECT @@GLOBAL.group_replication_member_weight", &rset);
-  assert(rset.get_rows() == 1);
+  DBUG_ASSERT(rset.get_rows() == 1);
   longlong initial_member_weight = rset.getLong(0);
-  assert(initial_member_weight >= 0 && initial_member_weight <= 100);
+  DBUG_ASSERT(initial_member_weight >= 0 && initial_member_weight <= 100);
   longlong test_member_weight = initial_member_weight + 1;
   std::string query;
 
@@ -142,13 +141,13 @@ void check_sql_command_persist(Sql_service_interface *srvi) {
   if (srv_err == 0) {
     srvi->execute_query("SELECT @@GLOBAL.group_replication_member_weight",
                         &rset);
-    assert(rset.get_rows() == 1);
-    assert(rset.getLong(0) == initial_member_weight);
+    DBUG_ASSERT(rset.get_rows() == 1);
+    DBUG_ASSERT(rset.getLong(0) == initial_member_weight);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
                  srv_err); /* purecov: inspected */
   }
-  assert(!srv_err);
+  DBUG_ASSERT(!srv_err);
 
   query.assign("SET PERSIST group_replication_member_weight=" +
                std::to_string(test_member_weight) + ";");
@@ -156,26 +155,26 @@ void check_sql_command_persist(Sql_service_interface *srvi) {
   if (srv_err == 0) {
     srvi->execute_query("SELECT @@GLOBAL.group_replication_member_weight",
                         &rset);
-    assert(rset.get_rows() == 1);
-    assert(rset.getLong(0) == test_member_weight);
+    DBUG_ASSERT(rset.get_rows() == 1);
+    DBUG_ASSERT(rset.getLong(0) == test_member_weight);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
                  srv_err); /* purecov: inspected */
   }
-  assert(!srv_err);
+  DBUG_ASSERT(!srv_err);
 
   srv_err =
       srvi->execute_query("RESET PERSIST group_replication_member_weight;");
   if (srv_err == 0) {
     srvi->execute_query("SELECT @@GLOBAL.group_replication_member_weight",
                         &rset);
-    assert(rset.get_rows() == 1);
-    assert(rset.getLong(0) == test_member_weight);
+    DBUG_ASSERT(rset.get_rows() == 1);
+    DBUG_ASSERT(rset.getLong(0) == test_member_weight);
   } else {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
                  srv_err); /* purecov: inspected */
   }
-  assert(!srv_err);
+  DBUG_ASSERT(!srv_err);
 
   query.assign("SET GLOBAL group_replication_member_weight=" +
                std::to_string(initial_member_weight) + ";");
@@ -184,7 +183,7 @@ void check_sql_command_persist(Sql_service_interface *srvi) {
     LogPluginErr(ERROR_LEVEL, ER_GRP_RPL_QUERY_FAIL,
                  srv_err); /* purecov: inspected */
   }
-  assert(!srv_err);
+  DBUG_ASSERT(!srv_err);
 }
 
 int sql_command_check() {
@@ -200,7 +199,7 @@ int sql_command_check() {
   }
 
   error = srvi->open_session();
-  assert(!error);
+  DBUG_ASSERT(!error);
 
   /* Case 1 */
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2017, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,14 +20,13 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "mysql/service_command.h"
 
 int command_service_run_command(MYSQL_SESSION, enum enum_server_command,
                                 const union COM_DATA *, const CHARSET_INFO *,
                                 const struct st_command_service_cbs *,
                                 enum cs_text_or_binary, void *) {
-  assert(0);
+  DBUG_ASSERT(0);
   return 0;
 }

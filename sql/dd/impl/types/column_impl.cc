@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
 
 #include "sql/dd/impl/types/column_impl.h"
 
-#include <assert.h>
 #include <stddef.h>
 #include <memory>
 #include <set>
@@ -35,7 +34,7 @@
 #include <rapidjson/prettywriter.h>
 
 #include "m_string.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysqld_error.h"                         // ER_*
@@ -501,7 +500,8 @@ void Column_impl::debug_print(String_type &outb) const {
 ///////////////////////////////////////////////////////////////////////////
 
 Column_type_element *Column_impl::add_element() {
-  assert(type() == enum_column_types::ENUM || type() == enum_column_types::SET);
+  DBUG_ASSERT(type() == enum_column_types::ENUM ||
+              type() == enum_column_types::SET);
 
   Column_type_element_impl *e =
       new (std::nothrow) Column_type_element_impl(this);

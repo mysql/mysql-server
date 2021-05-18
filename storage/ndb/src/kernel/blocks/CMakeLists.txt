@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2008, 2019, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -38,14 +38,10 @@ ADD_LIBRARY(ndbblocks STATIC
   LocalProxy.cpp
   PgmanProxy.cpp
   RestoreProxy.cpp
-  backup/QBackup.cpp
-  backup/QBackupProxy.cpp
   backup/Backup.cpp
   backup/BackupInit.cpp
   backup/BackupProxy.cpp
   cmvmi/Cmvmi.cpp
-  dbacc/Dbqacc.cpp
-  dbacc/DbqaccProxy.cpp
   dbacc/DbaccInit.cpp
   dbacc/DbaccMain.cpp
   dbacc/DbaccProxy.cpp
@@ -59,16 +55,12 @@ ADD_LIBRARY(ndbblocks STATIC
   dblqh/DblqhInit.cpp
   dblqh/DblqhMain.cpp
   dblqh/DblqhProxy.cpp
-  dblqh/Dbqlqh.cpp
-  dblqh/DbqlqhProxy.cpp
   dbspj/DbspjInit.cpp
   dbspj/DbspjMain.cpp
   dbspj/DbspjProxy.cpp
   dbtc/DbtcInit.cpp
   dbtc/DbtcMain.cpp
   dbtc/DbtcProxy.cpp
-  dbtup/Dbqtup.cpp
-  dbtup/DbqtupProxy.cpp
   dbtup/DbtupAbort.cpp
   dbtup/DbtupBuffer.cpp
   dbtup/DbtupClient.cpp
@@ -91,8 +83,6 @@ ADD_LIBRARY(ndbblocks STATIC
   dbtup/DbtupVarAlloc.cpp
   dbtup/Undo_buffer.cpp
   dbtup/tuppage.cpp
-  dbtux/Dbqtux.cpp
-  dbtux/DbqtuxProxy.cpp
   dbtux/DbtuxBuild.cpp
   dbtux/DbtuxCmp.cpp
   dbtux/DbtuxDebug.cpp
@@ -119,8 +109,6 @@ ADD_LIBRARY(ndbblocks STATIC
   pgman.cpp
   qmgr/QmgrInit.cpp
   qmgr/QmgrMain.cpp
-  QRestore.cpp
-  QRestoreProxy.cpp
   restore.cpp
   suma/Suma.cpp
   suma/SumaInit.cpp

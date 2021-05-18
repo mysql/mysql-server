@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -26,20 +26,20 @@
 #include "sql/parse_location.h"  // POS
 
 class Item;
-class Query_block;
+class SELECT_LEX;
 class String;
 class THD;
 
-Query_block *build_show_global_status(const POS &pos, THD *thd,
+SELECT_LEX *build_show_global_status(const POS &pos, THD *thd,
+                                     const String *wild, Item *where_cond);
+
+SELECT_LEX *build_show_session_status(const POS &pos, THD *thd,
                                       const String *wild, Item *where_cond);
 
-Query_block *build_show_session_status(const POS &pos, THD *thd,
-                                       const String *wild, Item *where_cond);
+SELECT_LEX *build_show_global_variables(const POS &pos, THD *thd,
+                                        const String *wild, Item *where_cond);
 
-Query_block *build_show_global_variables(const POS &pos, THD *thd,
+SELECT_LEX *build_show_session_variables(const POS &pos, THD *thd,
                                          const String *wild, Item *where_cond);
-
-Query_block *build_show_session_variables(const POS &pos, THD *thd,
-                                          const String *wild, Item *where_cond);
 
 #endif /* SQL_SHOW_STATUS_H */

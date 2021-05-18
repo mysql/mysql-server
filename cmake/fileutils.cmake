@@ -1,4 +1,4 @@
-# Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2019, 2020, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -139,32 +139,3 @@ IF(LINUX)
   ENDFUNCTION()
 
 ENDIF()
-
-
-# Adds a convenience target TARGET_NAME to show soname and dependent libs
-# (and misc other info depending on platform) for FILE_NAME.
-FUNCTION(ADD_OBJDUMP_TARGET TARGET_NAME FILE_NAME)
-  CMAKE_PARSE_ARGUMENTS(ARG
-    ""
-    ""
-    "DEPENDENCIES"
-    ${ARGN}
-    )
-
-  IF(WIN32)
-    SET(OBJDUMP_COMMAND "${DUMPBIN_EXECUTABLE}" /dependents /headers)
-  ELSEIF(APPLE)
-    SET(OBJDUMP_COMMAND otool -L)
-  ELSEIF(SOLARIS)
-    SET(OBJDUMP_COMMAND elfdump -d)
-  ELSE()
-    SET(OBJDUMP_COMMAND objdump -p)
-  ENDIF()
-
-  ADD_CUSTOM_TARGET(${TARGET_NAME} COMMAND ${OBJDUMP_COMMAND} "${FILE_NAME}")
-
-  IF(ARG_DEPENDENCIES)
-    ADD_DEPENDENCIES(${TARGET_NAME} ${ARG_DEPENDENCIES})
-  ENDIF()
-
-ENDFUNCTION()

@@ -826,8 +826,7 @@ let $query =
                  FROM t1 GROUP BY f1) as dt
   WHERE median != 1;
 
---replace_regex /cost=\d+.\d+(\.\.\d+\.\d+)?/cost=***/  /rows=\d+/rows=***/
---skip_if_hypergraph  # Hypergraph optimizer prints more costs.
+--replace_regex /cost=\d+.\d+/cost=***/  /rows=\d+/rows=***/
 --eval EXPLAIN FORMAT=tree $query
 --eval $query
 

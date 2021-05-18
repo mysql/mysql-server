@@ -4,9 +4,9 @@
 ## Test runs covers below scenarios:                                 #
 ##  - listing client with single session and multiple sessions       #
 ##  - killing own session and x_root user session with privileged user #
-##  - killing own session and x_root user session with unprivileged user #
+##  - killing own session and x_root user session with unprivileged user
 ##  - killing session with value of different data types than UINT   #
-##  - killing x_root session with user has only process privilege    #
+##  - killing x_root session with user has only process privilege      #
 ##  - listing and killing session with password expired user         #
 ##  - killing valid sql_session id with xprotocol connection         #
 ##  - listing and killing default mysqlx_max_connections ie 100      #
@@ -22,7 +22,7 @@
 call mtr.add_suppression("Plugin mysqlx reported: 'Unhandled network error: Bad file descriptor'");
 create user sslcon@localhost identified by 'sslcon';
 grant all on *.* to sslcon@localhost;
---write_file $MYSQL_TMP_DIR/admin_xkill.xpl
+--write_file $MYSQL_TMP_DIR/admin_xkill.tmp
 -->import assert_status_variable.macro
 -->import kill_and_restart.macro
 
@@ -45,7 +45,7 @@ select sleep(1);
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
-callmacro Wait_for_status_variable	Mysqlx_sessions	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
 noquiet;
 
 -->echo create and activate new session
@@ -58,7 +58,7 @@ noquiet;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
-callmacro Wait_for_status_variable	Mysqlx_sessions	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
 noquiet;
 
 -->echo switch back to default session
@@ -71,7 +71,7 @@ noquiet;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
-callmacro Wait_for_status_variable	Mysqlx_sessions	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
 noquiet;
 
 callmacro kill_client	2;
@@ -85,7 +85,7 @@ callmacro Wait_for_status_variable	Mysqlx_sessions	1;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	3;
-callmacro Wait_for_status_variable	Mysqlx_sessions	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
 noquiet;
 
 -->echo create and activate new session abc
@@ -103,7 +103,7 @@ callmacro kill_client_expect_error	1	ER_KILL_DENIED_ERROR;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
-callmacro Wait_for_status_variable	Mysqlx_sessions	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
 noquiet;
 select user(),current_user();
 show grants;
@@ -126,7 +126,7 @@ callmacro Wait_for_status_variable	Mysqlx_sessions	2;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
-callmacro Wait_for_status_variable	Mysqlx_sessions	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
 noquiet;
 select user(),current_user();
 show grants;
@@ -148,7 +148,7 @@ callmacro Wait_for_status_variable	Mysqlx_sessions	1;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	4;
-callmacro Wait_for_status_variable	Mysqlx_sessions	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
 noquiet;
 select user(),current_user();
 show grants;
@@ -196,7 +196,7 @@ drop schema if exists xtest;
 EOF
 
 ## killing client with invalid scalar data types
---write_file $MYSQL_TMP_DIR/admin_xkill_invaliddtype.xpl
+--write_file $MYSQL_TMP_DIR/admin_xkill_invaliddtype.tmp
 -->import assert_status_variable.macro
 -->import kill_and_restart.macro
 
@@ -236,12 +236,12 @@ callmacro kill_client_expect_error	11	ER_NO_SUCH_THREAD;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	7;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
-callmacro Wait_for_status_variable	Mysqlx_sessions	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
 noquiet;
 
 EOF
 
---write_file $MYSQL_TMP_DIR/admin_xkill_pwd_expire.xpl
+--write_file $MYSQL_TMP_DIR/admin_xkill_pwd_expire.tmp
 -->import assert_status_variable.macro
 -->import kill_and_restart.macro
 
@@ -257,7 +257,7 @@ callmacro kill_client_expect_error	8	ER_MUST_CHANGE_PASSWORD;
 
 EOF
 
---write_file $MYSQL_TMP_DIR/admin_mixedcase.xpl
+--write_file $MYSQL_TMP_DIR/admin_mixedcase.tmp
 -->import assert_status_variable.macro
 -->import kill_and_restart.macro
 
@@ -273,26 +273,17 @@ EOF
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	1;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
-callmacro Wait_for_status_variable	Mysqlx_sessions	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
 noquiet;
 
 EOF
 
 ###below script is blind, it can be modified more efficiently by reducing no of lines
---write_file $MYSQL_TMP_DIR/admin_list_kill_100conns.xpl
+--write_file $MYSQL_TMP_DIR/admin_list_kill_100conns.tmp
 -->import assert_status_variable.macro
 -->import kill_and_restart.macro
--->import assert_notices.macro
 
--->macro receive_kill_notice	%SESSION_ID%
-setsession %SESSION_ID%;
-# error 3169 = ER_SESSION_WAS_KILLED;
-callmacro Assert_notice_warning	ERROR	3169;
-recvuntildisc show-received;
--->endmacro
-
-
--->echo checking list_clients and kill_client with default 50 connections, expect success for both list and kill
+-->echo checking list_clients and kill_client with default 100 connections, expect success for both list and kill
 set @@global.mysqlx_max_connections=60;
 create user xconnection1@localhost identified by  'xconnection1',
             xconnection2@localhost identified by  'xconnection2',
@@ -346,8 +337,8 @@ create user xconnection1@localhost identified by  'xconnection1',
             xconnection50@localhost identified by  'xconnection50';
 
 -->echo Test data
-stmtadmin list_clients;
-recvresult;
+-->stmtadmin list_clients
+-->recvresult
 
 -->echo expect Mysqlx_stmt_list_clients=1 and Mysqlx_stmt_kill_client=0
 show status like 'Mysqlx_stmt%client%';
@@ -418,111 +409,61 @@ show status like 'Mysqlx_stmt%client%';
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	2;
-callmacro Wait_for_global_status_variable	Mysqlx_sessions	51;
+callmacro Assert_status_variable	Mysqlx_sessions	51;
 noquiet;
 
 
 -->echo killing all newly connected clients except x_root,one by one
 callmacro kill_client	11;
-callmacro receive_kill_notice	xconnection1;
 callmacro kill_client	12;
-callmacro receive_kill_notice	xconnection2;
 callmacro kill_client	13;
-callmacro receive_kill_notice	xconnection3;
 callmacro kill_client	14;
-callmacro receive_kill_notice	xconnection4;
 callmacro kill_client	15;
-callmacro receive_kill_notice	xconnection5;
 callmacro kill_client	16;
-callmacro receive_kill_notice	xconnection6;
 callmacro kill_client	17;
-callmacro receive_kill_notice	xconnection7;
 callmacro kill_client	18;
-callmacro receive_kill_notice	xconnection8;
 callmacro kill_client	19;
-callmacro receive_kill_notice	xconnection9;
 callmacro kill_client	20;
-callmacro receive_kill_notice	xconnection10;
 callmacro kill_client	21;
-callmacro receive_kill_notice	xconnection11;
 callmacro kill_client	22;
-callmacro receive_kill_notice	xconnection12;
 callmacro kill_client	23;
-callmacro receive_kill_notice	xconnection13;
 callmacro kill_client	24;
-callmacro receive_kill_notice	xconnection14;
 callmacro kill_client	25;
-callmacro receive_kill_notice	xconnection15;
 callmacro kill_client	26;
-callmacro receive_kill_notice	xconnection16;
 callmacro kill_client	27;
-callmacro receive_kill_notice	xconnection17;
 callmacro kill_client	28;
-callmacro receive_kill_notice	xconnection18;
 callmacro kill_client	29;
-callmacro receive_kill_notice	xconnection19;
 callmacro kill_client	30;
-callmacro receive_kill_notice	xconnection20;
 callmacro kill_client	31;
-callmacro receive_kill_notice	xconnection21;
 callmacro kill_client	32;
-callmacro receive_kill_notice	xconnection22;
 callmacro kill_client	33;
-callmacro receive_kill_notice	xconnection23;
 callmacro kill_client	34;
-callmacro receive_kill_notice	xconnection24;
 callmacro kill_client	35;
-callmacro receive_kill_notice	xconnection25;
 callmacro kill_client	36;
-callmacro receive_kill_notice	xconnection26;
 callmacro kill_client	37;
-callmacro receive_kill_notice	xconnection27;
 callmacro kill_client	38;
-callmacro receive_kill_notice	xconnection28;
 callmacro kill_client	39;
-callmacro receive_kill_notice	xconnection29;
 callmacro kill_client	40;
-callmacro receive_kill_notice	xconnection30;
 callmacro kill_client	41;
-callmacro receive_kill_notice	xconnection31;
 callmacro kill_client	42;
-callmacro receive_kill_notice	xconnection32;
 callmacro kill_client	43;
-callmacro receive_kill_notice	xconnection33;
 callmacro kill_client	44;
-callmacro receive_kill_notice	xconnection34;
 callmacro kill_client	45;
-callmacro receive_kill_notice	xconnection35;
 callmacro kill_client	46;
-callmacro receive_kill_notice	xconnection36;
 callmacro kill_client	47;
-callmacro receive_kill_notice	xconnection37;
 callmacro kill_client	48;
-callmacro receive_kill_notice	xconnection38;
 callmacro kill_client	49;
-callmacro receive_kill_notice	xconnection39;
 callmacro kill_client	50;
-callmacro receive_kill_notice	xconnection40;
 callmacro kill_client	51;
-callmacro receive_kill_notice	xconnection41;
 callmacro kill_client	52;
-callmacro receive_kill_notice	xconnection42;
 callmacro kill_client	53;
-callmacro receive_kill_notice	xconnection43;
 callmacro kill_client	54;
-callmacro receive_kill_notice	xconnection44;
 callmacro kill_client	55;
-callmacro receive_kill_notice	xconnection45;
 callmacro kill_client	56;
-callmacro receive_kill_notice	xconnection46;
 callmacro kill_client	57;
-callmacro receive_kill_notice	xconnection47;
 callmacro kill_client	58;
-callmacro receive_kill_notice	xconnection48;
 callmacro kill_client	59;
-callmacro receive_kill_notice	xconnection49;
 callmacro kill_client	60;
-callmacro receive_kill_notice	xconnection50;
 
 
 callmacro Wait_for_status_variable	Mysqlx_sessions	1;
@@ -595,7 +536,7 @@ drop user xconnection1@localhost,
 
 EOF
 
---write_file $MYSQL_TMP_DIR/admin_list_kill_sqlnamespace.xpl
+--write_file $MYSQL_TMP_DIR/admin_list_kill_sqlnamespace.tmp
 -->echo execute list_clients,kill_client with sql namespace,expect error
 -->echo change result file once error messages are fixed
 Mysqlx.Sql.StmtExecute {
@@ -664,7 +605,7 @@ noquiet;
 
 EOF
 
---write_file $MYSQL_TMP_DIR/admin_xkill_ssl.xpl
+--write_file $MYSQL_TMP_DIR/admin_xkill_ssl.tmp
 -->import assert_status_variable.macro
 -->import kill_and_restart.macro
 
@@ -681,7 +622,7 @@ set @@global.mysqlx_max_connections=3;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
-callmacro Wait_for_status_variable	Mysqlx_sessions	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
 noquiet;
 
 
@@ -695,7 +636,7 @@ noquiet;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	1;
-callmacro Wait_for_status_variable	Mysqlx_sessions	2;
+callmacro Assert_status_variable	Mysqlx_sessions	2;
 noquiet;
 
 -->echo open 3rd xprotocol connection where 2 sessions already opened
@@ -705,7 +646,7 @@ noquiet;
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	0;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	0;
-callmacro Wait_for_status_variable	Mysqlx_sessions	3;
+callmacro Assert_status_variable	Mysqlx_sessions	3;
 noquiet;
 
 ## switch back to default session
@@ -729,12 +670,12 @@ drop user con1@localhost,
 quiet;
 callmacro Assert_status_variable	Mysqlx_stmt_kill_client	2;
 callmacro Assert_status_variable	Mysqlx_stmt_list_clients	3;
-callmacro Wait_for_status_variable	Mysqlx_sessions	1;
+callmacro Assert_status_variable	Mysqlx_sessions	1;
 noquiet;
 
 EOF
 
---write_file $MYSQL_TMP_DIR/admin_xkill_ssl_root.xpl
+--write_file $MYSQL_TMP_DIR/admin_xkill_ssl_root.tmp
 -->import assert_status_variable.macro
 -->import kill_and_restart.macro
 
@@ -775,7 +716,7 @@ drop user con1@localhost,
 
 EOF
 
---write_file $MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.xpl
+--write_file $MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.tmp
 -->import assert_status_variable.macro
 -->import kill_and_restart.macro
 
@@ -945,33 +886,33 @@ drop schema if exists xtest;
 EOF
 
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill.tmp 2>&1
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill_invaliddtype.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill_invaliddtype.tmp 2>&1
 
 ##try executing list_clients and kill_client with password expired user, expect error
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/ /Query/Execute/
---exec $MYSQLXTEST --connect-expired-password -uexpire --password='expire' --file=$MYSQL_TMP_DIR/admin_xkill_pwd_expire.xpl 2>&1
+--exec $MYSQLXTEST --connect-expired-password -uexpire --password='expire' --file=$MYSQL_TMP_DIR/admin_xkill_pwd_expire.tmp 2>&1
 
 ##execute list_clients and kill_client with mixed case,expect command should be recognized
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_mixedcase.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_mixedcase.tmp 2>&1
 
 ##open 100 xprotocol connections and list and kill them ony by one,expect success
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_list_kill_100conns.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_list_kill_100conns.tmp 2>&1
 
 ##execute list_clients,kill_client with invalid name space other than xplugin,exect unsuccess
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_list_kill_sqlnamespace.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_list_kill_sqlnamespace.tmp 2>&1
 
 ##verify list_clients and kill_client works with ssl privileged user
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -usslcon --password='sslcon' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/admin_xkill_ssl.xpl 2>&1
+--exec $MYSQLXTEST -usslcon --password='sslcon' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/admin_xkill_ssl.tmp 2>&1
 
 ##verify list_clients and kill_client works with x_root user having ssl
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/
---exec $MYSQLXTEST -ux_root --password='' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/admin_xkill_ssl_root.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/admin_xkill_ssl_root.tmp 2>&1
 ##expect sum of all stats of kill_client,list_clients with native mysql clients as these are global to mysql client and local to mysqlx session
 show status like 'Mysqlx_stmt%client%';
 #show status like 'Mysqlx_sessions%';
@@ -988,7 +929,7 @@ set @@global.mysqlx_max_connections=100;
 show status like 'Mysqlx_stmt%client%';
 select sleep(0.5);
 --replace_regex /([a-z0-9]+	localhost	)[0-9]+/\1$SESSION/ /You are not owner of thread [0-9]+/You are not owner of thread/
---exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.xpl 2>&1
+--exec $MYSQLXTEST -ux_root --password='' --file=$MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.tmp 2>&1
 ##expect sum of all stats of kill_client,list_clients with native mysql clients as these are global to mysql client and local to mysqlx session
 ##seems to be it is not working that way
 show status like 'Mysqlx_stmt%client%';
@@ -999,4 +940,13 @@ drop user abc@localhost,
   process@localhost,
   expire@localhost,
   sslcon@localhost;
---source ../include/xplugin_cleanup.inc
+--remove_file $MYSQL_TMP_DIR/admin_xkill.tmp
+--remove_file $MYSQL_TMP_DIR/admin_xkill_ssl.tmp
+--remove_file $MYSQL_TMP_DIR/admin_xkill_ssl_root.tmp
+--remove_file $MYSQL_TMP_DIR/admin_xkill_invaliddtype.tmp
+--remove_file $MYSQL_TMP_DIR/admin_xkill_pwd_expire.tmp
+--remove_file $MYSQL_TMP_DIR/admin_mixedcase.tmp
+--remove_file $MYSQL_TMP_DIR/admin_list_kill_100conns.tmp
+--remove_file $MYSQL_TMP_DIR/admin_list_kill_sqlnamespace.tmp
+--remove_file $MYSQL_TMP_DIR/admin_xkill_compatibility_56_OFF.tmp
+--source include/xplugin_drop_user.inc

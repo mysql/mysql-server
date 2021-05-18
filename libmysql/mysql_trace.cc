@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -54,8 +54,7 @@
 */
 
 #include "mysql_trace.h"
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "my_sys.h"
 #include "mysql.h"
@@ -101,7 +100,7 @@ void mysql_trace_start(MYSQL *m) {
     is loaded and thus trace_plugin pointer is not NULL. This
     is handled in MYSQL_TRACE_STAGE() macro (mysql_trace.h).
   */
-  assert(trace_plugin);
+  DBUG_ASSERT(trace_plugin);
 
   trace_info->plugin = trace_plugin;
   trace_info->stage = PROTOCOL_STAGE_CONNECTING;
@@ -147,7 +146,7 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
     function should not be called - this is handled inside MYSQL_TRACE()
     macro.
   */
-  assert(trace_info);
+  DBUG_ASSERT(trace_info);
 
   /* Call plugin's trace_event() method if defined */
 
@@ -181,7 +180,7 @@ void mysql_trace_trace(MYSQL *m, enum trace_event ev,
   }
 }
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 /*
   These functions are declared in plugin_trace.h.
 

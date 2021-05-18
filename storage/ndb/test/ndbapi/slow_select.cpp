@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+   Copyright (C) 2004, 2005 MySQL AB, 2009 Sun Microsystems, Inc.
     Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify

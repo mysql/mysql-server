@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -28,8 +28,9 @@
 #include <ostream>
 #include <system_error>
 
-#include <gmock/gmock.h>  // MATCHER
+#include <gmock/gmock.h>
 
+#include "routing_mocks.h"
 #include "test/helpers.h"  // init_test_logger
 
 //   A -> B -> C -> sorry, no more servers
@@ -37,7 +38,7 @@
 //
 class NextAvailableTest : public ::testing::Test {
  protected:
-  net::io_context io_ctx_;
+  MockSocketOperations sock_ops_;
 };
 
 bool operator==(const std::unique_ptr<Destination> &a, const Destination &b) {
@@ -63,7 +64,7 @@ MATCHER(IsGoodEq, "") {
 }
 
 TEST_F(NextAvailableTest, RepeatedFetch) {
-  DestNextAvailable dest(io_ctx_, Protocol::Type::kClassicProtocol);
+  DestNextAvailable dest(Protocol::Type::kClassicProtocol, &sock_ops_);
   dest.add("41", 41);
   dest.add("42", 42);
   dest.add("43", 43);
@@ -88,7 +89,7 @@ TEST_F(NextAvailableTest, RepeatedFetch) {
 }
 
 TEST_F(NextAvailableTest, FailOne) {
-  DestNextAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
+  DestNextAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -129,7 +130,7 @@ TEST_F(NextAvailableTest, FailOne) {
 }
 
 TEST_F(NextAvailableTest, FailTwo) {
-  DestNextAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
+  DestNextAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);
@@ -164,7 +165,7 @@ TEST_F(NextAvailableTest, FailTwo) {
 }
 
 TEST_F(NextAvailableTest, FailAll) {
-  DestNextAvailable balancer(io_ctx_, Protocol::Type::kClassicProtocol);
+  DestNextAvailable balancer(Protocol::Type::kClassicProtocol, &sock_ops_);
   balancer.add("41", 41);
   balancer.add("42", 42);
   balancer.add("43", 43);

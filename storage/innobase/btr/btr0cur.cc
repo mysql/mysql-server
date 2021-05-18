@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2021, Oracle and/or its affiliates.
+Copyright (c) 1994, 2020, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -792,7 +792,7 @@ void btr_cur_search_to_nth_level(
   }
   btr_cur_n_non_sea++;
   DBUG_EXECUTE_IF("non_ahi_search",
-                  assert(!strcmp(index->table->name.m_name, "test/t1")););
+                  DBUG_ASSERT(!strcmp(index->table->name.m_name, "test/t1")););
 
   /* If the hash search did not succeed, do binary search down the
   tree */
@@ -813,7 +813,7 @@ void btr_cur_search_to_nth_level(
       Free blocks and read IO bandwidth should be prior
       for them, when the history list is glowing huge. */
       if (lock_intention == BTR_INTENTION_DELETE &&
-          trx_sys->rseg_history_len.load() > BTR_CUR_FINE_HISTORY_LENGTH &&
+          trx_sys->rseg_history_len > BTR_CUR_FINE_HISTORY_LENGTH &&
           buf_get_n_pending_read_ios()) {
         mtr_x_lock(dict_index_get_lock(index), mtr);
       } else if (dict_index_is_spatial(index) &&
@@ -1898,7 +1898,7 @@ void btr_cur_open_at_index_side_func(bool from_left, dict_index_t *index,
       Free blocks and read IO bandwidth should be prior
       for them, when the history list is glowing huge. */
       if (lock_intention == BTR_INTENTION_DELETE &&
-          trx_sys->rseg_history_len.load() > BTR_CUR_FINE_HISTORY_LENGTH &&
+          trx_sys->rseg_history_len > BTR_CUR_FINE_HISTORY_LENGTH &&
           buf_get_n_pending_read_ios()) {
         mtr_x_lock(dict_index_get_lock(index), mtr);
       } else {
@@ -2282,7 +2282,7 @@ bool btr_cur_open_at_rnd_pos_func(
       Free blocks and read IO bandwidth should be prior
       for them, when the history list is glowing huge. */
       if (lock_intention == BTR_INTENTION_DELETE &&
-          trx_sys->rseg_history_len.load() > BTR_CUR_FINE_HISTORY_LENGTH &&
+          trx_sys->rseg_history_len > BTR_CUR_FINE_HISTORY_LENGTH &&
           buf_get_n_pending_read_ios()) {
         mtr_x_lock(dict_index_get_lock(index), mtr);
       } else {
@@ -3018,10 +3018,6 @@ dberr_t btr_cur_pessimistic_insert(
     *rec = btr_root_raise_and_insert(flags, cursor, offsets, heap, entry, mtr);
   } else {
     *rec = btr_page_split_and_insert(flags, cursor, offsets, heap, entry, mtr);
-  }
-
-  if (!*rec) {
-    return DB_OUT_OF_FILE_SPACE;
   }
 
   ut_ad(page_rec_get_next(btr_cur_get_rec(cursor)) == *rec ||
@@ -4701,7 +4697,7 @@ ibool btr_cur_pessimistic_delete(dberr_t *err, ibool has_reserved_extents,
     }
   }
 
-  if (!has_reserved_extents && !rollback) {
+  if (!has_reserved_extents) {
     /* First reserve enough free space for the file segments
     of the index tree, so that the node pointer updates will
     not fail because of lack of space */

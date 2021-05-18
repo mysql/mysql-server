@@ -1,7 +1,7 @@
 #ifndef PROTOCOL_INCLUDED
 #define PROTOCOL_INCLUDED
 
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,8 +23,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "mysql/com_data.h"
 #include "mysql/mysql_lex_string.h"  // LEX_STRING
 #include "mysql_com.h"               // mysql_enum_shutdown_level
@@ -53,7 +52,7 @@ class Protocol {
     @returns The new top of the Protocol stack.
   */
   Protocol *pop_protocol() {
-    assert(m_previous_protocol);
+    DBUG_ASSERT(m_previous_protocol);
     Protocol *protocol = m_previous_protocol;
     m_previous_protocol = nullptr;
     return protocol;
@@ -66,7 +65,7 @@ class Protocol {
     @param protocol   Protocol to become the top of Protocol stack.
   */
   void push_protocol(Protocol *protocol) {
-    assert(!protocol->m_previous_protocol);
+    DBUG_ASSERT(!protocol->m_previous_protocol);
     protocol->m_previous_protocol = this;
   }
 

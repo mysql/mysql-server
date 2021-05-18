@@ -1,4 +1,4 @@
-/* Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2014, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,18 +23,17 @@
 #ifndef DD__SDI_UTILS_INCLUDED
 #define DD__SDI_UTILS_INCLUDED
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "sql/current_thd.h"     // inline_current_thd
 #include "sql/dd/string_type.h"  // dd::String_type
 #include "sql/error_handler.h"   // Internal_error_handler
 #include "sql/mdl.h"             // MDL_request
 #include "sql/sql_class.h"       // THD
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 #define ENTITY_FMT "(%s, %llu)"
 #define ENTITY_VAL(obj) (obj).name().c_str(), (obj).id()
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
 
 /**
   @file
@@ -56,10 +55,11 @@ namespace sdi_utils {
   @return same as argument passed in
  */
 inline bool checked_return(bool ret) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   THD *cthd = current_thd;
-  assert(!ret || cthd->is_system_thread() || cthd->is_error() || cthd->killed);
-#endif /*!NDEBUG*/
+  DBUG_ASSERT(!ret || cthd->is_system_thread() || cthd->is_error() ||
+              cthd->killed);
+#endif /*!DBUG_OFF*/
   return ret;
 }
 
@@ -89,7 +89,7 @@ inline bool mdl_lock(THD *thd, MDL_key::enum_mdl_namespace ns,
 
 template <typename T>
 const T &ptr_as_cref(const T *p) {
-  assert(p != nullptr);
+  DBUG_ASSERT(p != nullptr);
   return *p;
 }
 

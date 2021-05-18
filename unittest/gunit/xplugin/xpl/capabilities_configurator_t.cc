@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License, version 2.0,
@@ -20,15 +20,14 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include "my_config.h"
+
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "my_config.h"  // NOLINT(build/include_subdir)
-
-#include "plugin/x/src/capabilities/configurator.h"
-#include "plugin/x/src/ngs/memory.h"
+#include "plugin/x/ngs/include/ngs/memory.h"
 #include "plugin/x/src/xpl_error.h"
-#include "unittest/gunit/xplugin/xpl/mock/capability_handler.h"
+#include "unittest/gunit/xplugin/xpl/mock/capabilities.h"
 
 const int NUMBER_OF_HANDLERS = 4;
 const char *NAMES[NUMBER_OF_HANDLERS] = {"first", "second", "third", "fourth"};
@@ -38,31 +37,28 @@ using ::Mysqlx::Connection::Capability;
 using ::Mysqlx::Datatypes::Any;
 
 namespace xpl {
+
 namespace test {
 
-using testing::_;
-using testing::Ref;
-using testing::Return;
-using testing::StrictMock;
-using testing::Test;
+using namespace ::testing;
 
-class CapabilitiesConfiguratorTestSuite : public testing::Test {
+class CapabilitiesConfiguratorTestSuite : public Test {
  public:
-  using Mock_ptr = std::shared_ptr<StrictMock<mock::Capability_handler>>;
+  typedef std::shared_ptr<StrictMock<Mock_capability_handler>> Mock_ptr;
 
   void SetUp() override {
     for (int i = 0; i < NUMBER_OF_HANDLERS; ++i) {
       mock_handlers.push_back(
-          std::make_shared<StrictMock<mock::Capability_handler>>());
+          std::make_shared<StrictMock<Mock_capability_handler>>());
     }
     std::for_each(std::begin(mock_handlers), std::end(mock_handlers),
                   expect_is_gettable<true>);
 
+    std::vector<Capability_handler_ptr> handlers(mock_handlers.begin(),
+                                                 mock_handlers.end());
+
     std::for_each(mock_handlers.begin(), mock_handlers.end(),
                   default_is_supported<false>);
-
-    std::vector<std::shared_ptr<iface::Capability_handler>> handlers(
-        mock_handlers.begin(), mock_handlers.end());
 
     sut.reset(new Capabilities_configurator(handlers));
   }
@@ -71,12 +67,12 @@ class CapabilitiesConfiguratorTestSuite : public testing::Test {
   static void expect_is_supported(Mock_ptr mock) {
     EXPECT_CALL(*mock, is_settable()).WillRepeatedly(Return(Result));
     EXPECT_CALL(*mock, is_gettable()).WillRepeatedly(Return(Result));
-    EXPECT_CALL(*mock, is_supported()).WillOnce(Return(Result));
+    EXPECT_CALL(*mock, is_supported_impl()).WillOnce(Return(Result));
   }
 
   template <bool Result>
   static void default_is_supported(Mock_ptr mock) {
-    EXPECT_CALL(*mock, is_supported()).WillRepeatedly(Return(Result));
+    EXPECT_CALL(*mock, is_supported_impl()).WillRepeatedly(Return(Result));
   }
 
   static void expect_get_capability(Mock_ptr mock) {
@@ -92,27 +88,27 @@ class CapabilitiesConfiguratorTestSuite : public testing::Test {
     EXPECT_CALL(*mock, is_gettable()).WillRepeatedly(Return(Result));
   }
 
-  void assert_get(std::vector<Mock_ptr> *supported_handlers) {
-    std::for_each(supported_handlers->begin(), supported_handlers->end(),
+  void assert_get(std::vector<Mock_ptr> &supported_handlers) {
+    std::for_each(supported_handlers.begin(), supported_handlers.end(),
                   expect_is_supported<true>);
-    std::for_each(supported_handlers->begin(), supported_handlers->end(),
+    std::for_each(supported_handlers.begin(), supported_handlers.end(),
                   expect_get_name(NAMES));
-    std::for_each(supported_handlers->begin(), supported_handlers->end(),
+    std::for_each(supported_handlers.begin(), supported_handlers.end(),
                   expect_get_capability);
 
     ngs::Memory_instrumented<Capabilities>::Unique_ptr cap(sut->get());
 
     ASSERT_TRUE(nullptr != cap.get());
-    ASSERT_EQ(static_cast<int>(supported_handlers->size()),
+    ASSERT_EQ(static_cast<int>(supported_handlers.size()),
               cap->capabilities_size());
 
-    for (std::size_t i = 0; i < supported_handlers->size(); i++) {
+    for (std::size_t i = 0; i < supported_handlers.size(); i++) {
       ASSERT_EQ(NAMES[i], cap->capabilities(static_cast<int>(i)).name());
     }
   }
 
-  Capability &add_capability(Capabilities *caps, const std::size_t mock_index) {
-    Capability *cap = caps->add_capabilities();
+  Capability &add_capability(Capabilities &caps, const std::size_t mock_index) {
+    Capability *cap = caps.add_capabilities();
 
     cap->set_name(NAMES[mock_index]);
     cap->mutable_value()->mutable_scalar()->set_v_signed_int(mock_index);
@@ -120,14 +116,14 @@ class CapabilitiesConfiguratorTestSuite : public testing::Test {
     return *cap;
   }
 
-  Capability &add_capability_and_expect_it(Capabilities *caps,
+  Capability &add_capability_and_expect_it(Capabilities &caps,
                                            const std::size_t mock_index,
                                            const ngs::Error_code &set_result) {
     Capability &cap = add_capability(caps, mock_index);
 
     EXPECT_CALL(*mock_handlers[mock_index], is_settable())
         .WillRepeatedly(Return(true));
-    EXPECT_CALL(*mock_handlers[mock_index], set(Ref(cap.value())))
+    EXPECT_CALL(*mock_handlers[mock_index], set_impl(Ref(cap.value())))
         .WillRepeatedly(Return(set_result));
 
     return cap;
@@ -135,7 +131,7 @@ class CapabilitiesConfiguratorTestSuite : public testing::Test {
 
   struct expect_get_name {
     template <std::size_t ELEMENTS>
-    explicit expect_get_name(const char *(&names)[ELEMENTS])
+    expect_get_name(const char *(&names)[ELEMENTS])
         : m_names(names), m_elements(ELEMENTS), m_current(0) {}
 
     void operator()(Mock_ptr mock) {
@@ -157,8 +153,7 @@ class CapabilitiesConfiguratorTestSuite : public testing::Test {
 
   struct default_get_name : expect_get_name {
     template <std::size_t ELEMENTS>
-    explicit default_get_name(const char *(&names)[ELEMENTS])
-        : expect_get_name(names) {}
+    default_get_name(const char *(&names)[ELEMENTS]) : expect_get_name(names) {}
 
     void operator()(Mock_ptr &mock) {
       EXPECT_CALL(*mock, name()).WillRepeatedly(Return(get_next_name()));
@@ -173,11 +168,11 @@ class CapabilitiesConfiguratorTestSuite : public testing::Test {
 TEST_F(CapabilitiesConfiguratorTestSuite, get_doesNothing_whenEmpty) {
   std::vector<Mock_ptr> empty;
 
-  assert_get(&empty);
+  assert_get(empty);
 }
 
 TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsAllCapabilities) {
-  assert_get(&mock_handlers);
+  assert_get(mock_handlers);
 }
 
 TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps) {
@@ -186,7 +181,7 @@ TEST_F(CapabilitiesConfiguratorTestSuite, get_returnsOnlySupportedCaps) {
   supported_handlers.push_back(mock_handlers[0]);
   supported_handlers.push_back(mock_handlers[NUMBER_OF_HANDLERS - 1]);
 
-  assert_get(&supported_handlers);
+  assert_get(supported_handlers);
 }
 
 TEST_F(CapabilitiesConfiguratorTestSuite,
@@ -213,8 +208,8 @@ TEST_F(CapabilitiesConfiguratorTestSuite,
   std::for_each(mock_handlers.begin(), mock_handlers.end(),
                 default_get_name(NAMES));
 
-  add_capability_and_expect_it(caps.get(), 0, {});
-  add_capability_and_expect_it(caps.get(), 0, {});
+  add_capability_and_expect_it(*caps, 0, {});
+  add_capability_and_expect_it(*caps, 0, {});
   supported_handlers.push_back(mock_handlers[0]);
 
   ASSERT_EQ(ER_X_DUPLICATED_CAPABILITIES, sut->prepare_set(*caps).error);
@@ -230,10 +225,10 @@ TEST_F(CapabilitiesConfiguratorTestSuite,
   std::for_each(mock_handlers.begin(), mock_handlers.end(),
                 default_get_name(NAMES));
 
-  add_capability_and_expect_it(caps.get(), 0, {});
+  add_capability_and_expect_it(*caps, 0, {});
   supported_handlers.push_back(mock_handlers[0]);
 
-  add_capability_and_expect_it(caps.get(), NUMBER_OF_HANDLERS - 1, {});
+  add_capability_and_expect_it(*caps, NUMBER_OF_HANDLERS - 1, {});
   supported_handlers.push_back(mock_handlers[NUMBER_OF_HANDLERS - 1]);
 
   ASSERT_FALSE(sut->prepare_set(*caps));
@@ -251,11 +246,11 @@ TEST_F(CapabilitiesConfiguratorTestSuite,
   std::for_each(mock_handlers.begin(), mock_handlers.end(),
                 default_get_name(NAMES));
 
-  add_capability_and_expect_it(caps.get(), 0, {});
+  add_capability_and_expect_it(*caps, 0, {});
   supported_handlers.push_back(mock_handlers[0]);
 
   add_capability_and_expect_it(
-      caps.get(), NUMBER_OF_HANDLERS - 1,
+      *caps, NUMBER_OF_HANDLERS - 1,
       ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED, "fail"));
   supported_handlers.push_back(mock_handlers[NUMBER_OF_HANDLERS - 1]);
 
@@ -273,10 +268,10 @@ TEST_F(CapabilitiesConfiguratorTestSuite,
                 default_get_name(NAMES));
 
   add_capability_and_expect_it(
-      caps.get(), 0, ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED, "fail"));
+      *caps, 0, ngs::Error(ER_X_CAPABILITIES_PREPARE_FAILED, "fail"));
   supported_handlers.push_back(mock_handlers[0]);
 
-  add_capability(caps.get(), NUMBER_OF_HANDLERS - 1);
+  add_capability(*caps, NUMBER_OF_HANDLERS - 1);
   supported_handlers.push_back(mock_handlers[NUMBER_OF_HANDLERS - 1]);
 
   ASSERT_EQ(ER_X_CAPABILITIES_PREPARE_FAILED, sut->prepare_set(*caps).error);

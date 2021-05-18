@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -25,6 +25,11 @@
 #ifndef METADATA_CACHE_METADATA_CACHE_INCLUDED
 #define METADATA_CACHE_METADATA_CACHE_INCLUDED
 
+#include "gr_notifications_listener.h"
+#include "metadata.h"
+#include "mysql_router_thread.h"
+#include "mysqlrouter/metadata_cache.h"
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -36,12 +41,7 @@
 #include <string>
 #include <thread>
 
-#include "gr_notifications_listener.h"
-#include "metadata.h"
 #include "mysql/harness/logging/logging.h"
-#include "mysql/harness/stdx/monitor.h"
-#include "mysql_router_thread.h"
-#include "mysqlrouter/metadata_cache.h"
 
 class ClusterMetadata;
 
@@ -122,33 +122,16 @@ class METADATA_API MetadataCache
   void mark_instance_reachability(const std::string &instance_id,
                                   metadata_cache::InstanceStatus status);
 
-  /** Wait until PRIMARY changes in a replicaset.
+  /** @brief Wait until there's a primary member in the replicaset
    *
-   * wait until a change of the PRIMARY is noticed
-   *
-   * leave early if
-   *
-   * - 'timeout' expires
-   * - process shutdown is requested
-   *
-   * function has to handle two scenarios:
-   *
-   * connection to PRIMARY fails because:
-   *
-   * 1. PRIMARY died and group relects a new member
-   * 2. network to PRIMARY lost, but GR sees no fault and PRIMARY does not
-   * change.
-   *
-   * Therefore, if the connection to PRIMARY fails, wait for change of the
-   * membership or timeout, whatever happens earlier.
+   * To be called when the primary member of a single-primary replicaset is down
+   * and we want to wait until one becomes elected.
    *
    * @param replicaset_name name of the replicaset
-   * @param server_uuid server-uuid of the PRIMARY that we failed to connect
    * @param timeout - amount of time to wait for a failover
    * @return true if a primary member exists
    */
   bool wait_primary_failover(const std::string &replicaset_name,
-                             const std::string &server_uuid,
                              const std::chrono::seconds &timeout);
 
   /** @brief refresh replicaset information */
@@ -165,53 +148,27 @@ class METADATA_API MetadataCache
    * @param listener Observer object that is notified when replicaset nodes
    * state is changed.
    */
-  void add_state_listener(
+  void add_listener(
       const std::string &replicaset_name,
       metadata_cache::ReplicasetStateListenerInterface *listener) override;
 
   /**
-   * @brief Unregister observer previously registered with add_state_listener()
+   * @brief Unregister observer previously registered with add_listener()
    *
    * @param replicaset_name name of the replicaset
    * @param listener Observer object that should be unregistered.
    */
-  void remove_state_listener(
+  void remove_listener(
       const std::string &replicaset_name,
       metadata_cache::ReplicasetStateListenerInterface *listener) override;
-
-  /**
-   * @brief Register observer that is notified when the state of listening
-   * socket acceptors should be updated on the next metadata refresh.
-   *
-   * @param replicaset_name name of the replicaset
-   * @param listener Observer object that is notified when replicaset nodes
-   * state is changed.
-   */
-  void add_acceptor_handler_listener(
-      const std::string &replicaset_name,
-      metadata_cache::AcceptorUpdateHandlerInterface *listener);
-
-  /**
-   * @brief Unregister observer previously registered with
-   * add_acceptor_handler_listener()
-   *
-   * @param replicaset_name name of the replicaset
-   * @param listener Observer object that should be unregistered.
-   */
-  void remove_acceptor_handler_listener(
-      const std::string &replicaset_name,
-      metadata_cache::AcceptorUpdateHandlerInterface *listener);
 
   metadata_cache::MetadataCacheAPIBase::RefreshStatus refresh_status() {
-    return stats_([](auto const &stats)
-                      -> metadata_cache::MetadataCacheAPIBase::RefreshStatus {
-      return {stats.refresh_failed,
-              stats.refresh_succeeded,
-              stats.last_refresh_succeeded,
-              stats.last_refresh_failed,
-              stats.last_metadata_server_host,
-              stats.last_metadata_server_port};
-    });
+    return {refresh_failed_,
+            refresh_succeeded_,
+            last_refresh_succeeded_,
+            last_refresh_failed_,
+            last_metadata_server_host_,
+            last_metadata_server_port_};
   }
 
   std::string cluster_type_specific_id() const {
@@ -233,13 +190,6 @@ class METADATA_API MetadataCache
   std::pair<bool, MetaData::auth_credentials_t::mapped_type>
   get_rest_user_auth_data(const std::string &user);
 
-  /**
-   * Toggle socket acceptors state update on next metadata refresh.
-   */
-  void handle_sockets_acceptors_on_md_refresh() {
-    trigger_acceptor_update_on_next_refresh_ = true;
-  }
-
  protected:
   /** @brief Refreshes the cache
    *
@@ -254,13 +204,6 @@ class METADATA_API MetadataCache
   // the subscribed observers
   void on_instances_changed(const bool md_servers_reachable,
                             unsigned view_id = 0);
-
-  /**
-   * Called when the listening sockets acceptors state should be updated but
-   * replicaset instances has not changed (in that case socket acceptors would
-   * be handled when calling on_instances_changed).
-   */
-  void on_handle_sockets_acceptors();
 
   // Called each time we were requested to refresh the metadata
   void on_refresh_requested();
@@ -301,14 +244,8 @@ class METADATA_API MetadataCache
   // id of the Router in the cluster metadata
   unsigned router_id_;
 
-  struct RestAuthData {
-    // Authentication data for the rest users
-    MetaData::auth_credentials_t rest_auth_data_;
-
-    std::chrono::system_clock::time_point last_credentials_update_;
-  };
-
-  Monitor<RestAuthData> rest_auth_{{}};
+  // Authentication data for the rest users
+  MetaData::auth_credentials_t rest_auth_data_;
 
   // Authentication data should be fetched only when metadata_cache is used as
   // an authentication backend
@@ -356,38 +293,23 @@ class METADATA_API MetadataCache
   // called on selected replicaset instances change event
   std::mutex replicaset_instances_change_callbacks_mtx_;
 
-  std::mutex acceptor_handler_callbacks_mtx_;
-
   std::map<std::string,
            std::set<metadata_cache::ReplicasetStateListenerInterface *>>
-      state_listeners_;
+      listeners_;
 
-  std::map<std::string,
-           std::set<metadata_cache::AcceptorUpdateHandlerInterface *>>
-      acceptor_update_listeners_;
+  std::chrono::system_clock::time_point last_refresh_failed_;
+  std::chrono::system_clock::time_point last_refresh_succeeded_;
+  uint64_t refresh_failed_{0};
+  uint64_t refresh_succeeded_{0};
+  std::chrono::system_clock::time_point last_credentials_update_;
 
-  struct Stats {
-    std::chrono::system_clock::time_point last_refresh_failed;
-    std::chrono::system_clock::time_point last_refresh_succeeded;
-    uint64_t refresh_failed{0};
-    uint64_t refresh_succeeded{0};
-
-    std::string last_metadata_server_host;
-    uint16_t last_metadata_server_port;
-  };
-
-  Monitor<Stats> stats_{{}};
+  std::string last_metadata_server_host_;
+  uint16_t last_metadata_server_port_;
 
   bool version_updated_{false};
   unsigned last_check_in_updated_{0};
 
   bool ready_announced_{false};
-
-  /**
-   * Flag indicating if socket acceptors state should be updated on next
-   * metadata refresh even if instance information has not changed.
-   */
-  std::atomic<bool> trigger_acceptor_update_on_next_refresh_{false};
 };
 
 bool operator==(const MetaData::ReplicaSetsByName &map_a,

@@ -2,6 +2,7 @@
 
 # set up circular replication
 --let $rpl_topology= 1->2->1
+--let $rpl_shallow_reset_slave= 1
 --source include/rpl_init.inc
 
 --let $rpl_connection_name= master

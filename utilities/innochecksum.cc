@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -184,11 +184,6 @@ fatal::~fatal() {
 }
 }  // namespace ib
 
-/** A dummy implementation.  Actual implementation available in fil0fil.cc */
-std::ostream &Fil_page_header::print(std::ostream &out) const noexcept {
-  return out;
-}
-
 /** Check that a page_size is correct for InnoDB. If correct, set the
 associated page_size_shift which is the power of 2 for this page size.
 @param[in]	page_size	page size to evaluate
@@ -347,7 +342,7 @@ static ulong read_file(byte *buf, bool partial_page_read,
 
   size_t physical_page_size = static_cast<size_t>(page_size.physical());
 
-  assert(physical_page_size >= UNIV_ZIP_SIZE_MIN);
+  DBUG_ASSERT(physical_page_size >= UNIV_ZIP_SIZE_MIN);
 
   if (partial_page_read) {
     buf += UNIV_ZIP_SIZE_MIN;
@@ -1220,11 +1215,11 @@ static struct my_option innochecksum_options[] = {
      nullptr, nullptr, GET_NO_ARG, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
     {"verbose", 'v', "Verbose (prints progress every 5 seconds).", &verbose,
      &verbose, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0, nullptr},
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     {"debug", '#', "Output debug log. See " REFMAN "dbug-package.html",
      &dbug_setting, &dbug_setting, nullptr, GET_STR, OPT_ARG, 0, 0, 0, nullptr,
      0, nullptr},
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
     {"count", 'c', "Print the count of pages in the file and exits.",
      &just_count, &just_count, nullptr, GET_BOOL, NO_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
@@ -1264,11 +1259,11 @@ static struct my_option innochecksum_options[] = {
      0, nullptr, 0, nullptr}};
 
 static void usage(void) {
-#ifdef NDEBUG
+#ifdef DBUG_OFF
   print_version();
 #else
   print_version_debug();
-#endif /* NDEBUG */
+#endif /* DBUG_OFF */
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("InnoDB offline file checksum utility.\n");
   printf(
@@ -1286,14 +1281,14 @@ extern "C" bool innochecksum_get_one_option(
     int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
     char *argument MY_ATTRIBUTE((unused))) {
   switch (optid) {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     case '#':
       dbug_setting = argument ? argument
                               : IF_WIN("d:O,innochecksum.trace",
                                        "d:o,/tmp/innochecksum.trace");
       DBUG_PUSH(dbug_setting);
       break;
-#endif /* !NDEBUG */
+#endif /* !DBUG_OFF */
     case 'e':
       use_end_page = true;
       break;
@@ -1303,11 +1298,11 @@ extern "C" bool innochecksum_get_one_option(
       do_one_page = true;
       break;
     case 'V':
-#ifdef NDEBUG
+#ifdef DBUG_OFF
       print_version();
 #else
       print_version_debug();
-#endif /* NDEBUG */
+#endif /* DBUG_OFF */
       exit(EXIT_SUCCESS);
       break;
     case 'C':

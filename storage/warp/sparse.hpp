@@ -388,8 +388,8 @@ public:
     assert(bitnum > 0);
     
     //bitmap_dbug("is_set: bit " + std::to_string(bitnum));
-    if(!fp) open(fname, LOCK_SH); 
-    //lock(LOCK_SH);
+    if(!fp) open(fname, LOCK_SH);
+    lock(LOCK_SH);
     
     int bit_offset;
   
@@ -441,10 +441,10 @@ public:
     if (fp) clearerr(fp);
     //set_bit_mtx.lock();
  
-    if(!fp) {
+    if(!fp || have_lock != LOCK_EX) {
       open(fname, LOCK_EX);
-    } else if(have_lock != LOCK_EX) {
-      lock(LOCK_EX);  
+    } else {
+      if(lock_type != LOCK_EX) lock(LOCK_EX);  
     }
     dirty = 1;
     // write-ahead-log (only write when not in recovery mode) 

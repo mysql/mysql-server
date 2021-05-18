@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,14 +23,13 @@
 #ifndef OPT_EXPLAIN_FORMAT_TRADITIONAL_INCLUDED
 #define OPT_EXPLAIN_FORMAT_TRADITIONAL_INCLUDED
 
-#include <assert.h>
-// assert
+#include "my_dbug.h"  // DBUG_ASSERT
 #include "sql/opt_explain_format.h"
 #include "sql/parse_tree_node_base.h"
 
 class Item;
 class Query_result;
-class Query_expression;
+class SELECT_LEX_UNIT;
 template <class T>
 class mem_root_deque;
 
@@ -47,7 +46,7 @@ class Explain_format_traditional : public Explain_format {
 
   bool is_hierarchical() const override { return false; }
   bool send_headers(Query_result *result) override;
-  bool begin_context(enum_parsing_context, Query_expression *,
+  bool begin_context(enum_parsing_context, SELECT_LEX_UNIT *,
                      const Explain_format_flags *) override {
     return false;
   }
@@ -65,24 +64,24 @@ class Explain_format_tree : public Explain_format {
 
   bool is_hierarchical() const override { return false; }
   bool send_headers(Query_result *) override {
-    assert(false);
+    DBUG_ASSERT(false);
     return true;
   }
-  bool begin_context(enum_parsing_context, Query_expression *,
+  bool begin_context(enum_parsing_context, SELECT_LEX_UNIT *,
                      const Explain_format_flags *) override {
-    assert(false);
+    DBUG_ASSERT(false);
     return true;
   }
   bool end_context(enum_parsing_context) override {
-    assert(false);
+    DBUG_ASSERT(false);
     return true;
   }
   bool flush_entry() override {
-    assert(false);
+    DBUG_ASSERT(false);
     return true;
   }
   qep_row *entry() override {
-    assert(false);
+    DBUG_ASSERT(false);
     return nullptr;
   }
   bool is_tree() const override { return true; }

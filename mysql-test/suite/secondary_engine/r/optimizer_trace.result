@@ -16,12 +16,12 @@ x
 2
 3
 SET optimizer_trace = 'enabled=off';
-SELECT JSON_PRETTY(JSON_REMOVE(TRACE->'$**.secondary_engine_not_used',
-'$[0].cost')) AS trace
+SELECT JSON_PRETTY(TRACE->'$**.secondary_engine_not_used')
 FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
-trace
+JSON_PRETTY(TRACE->'$**.secondary_engine_not_used')
 [
   {
+    "cost": 3.549,
     "reason": "The estimated query cost does not exceed secondary_engine_cost_threshold.",
     "threshold": 100000
   }

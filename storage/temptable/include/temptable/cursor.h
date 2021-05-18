@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2016, 2018, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -26,8 +26,7 @@ TempTable index cursor. */
 #ifndef TEMPTABLE_CURSOR_H
 #define TEMPTABLE_CURSOR_H
 
-#include <assert.h>
-
+#include "my_dbug.h"
 #include "storage/temptable/include/temptable/column.h"
 #include "storage/temptable/include/temptable/containers.h"
 #include "storage/temptable/include/temptable/indexed_cells.h"
@@ -151,50 +150,50 @@ inline bool Cursor::is_positioned() const { return m_is_positioned; }
 inline void Cursor::unposition() { m_is_positioned = false; }
 
 inline const Indexed_cells &Cursor::indexed_cells() const {
-  assert(m_is_positioned);
+  DBUG_ASSERT(m_is_positioned);
 
   if (m_type == Type::HASH) {
     return *m_hash_iterator;
   }
 
-  assert(m_type == Type::TREE);
+  DBUG_ASSERT(m_type == Type::TREE);
   return *m_tree_iterator;
 }
 
 inline Storage::Element *Cursor::row() const {
-  assert(m_is_positioned);
+  DBUG_ASSERT(m_is_positioned);
 
   if (m_type == Type::HASH) {
     return m_hash_iterator->row();
   }
 
-  assert(m_type == Type::TREE);
+  DBUG_ASSERT(m_type == Type::TREE);
   return m_tree_iterator->row();
 }
 
 inline void Cursor::export_row_to_mysql(const Columns &columns,
                                         unsigned char *mysql_row,
                                         size_t mysql_row_length) const {
-  assert(m_is_positioned);
+  DBUG_ASSERT(m_is_positioned);
 
   if (m_type == Type::HASH) {
     return m_hash_iterator->export_row_to_mysql(columns, mysql_row,
                                                 mysql_row_length);
   }
 
-  assert(m_type == Type::TREE);
+  DBUG_ASSERT(m_type == Type::TREE);
   return m_tree_iterator->export_row_to_mysql(columns, mysql_row,
                                               mysql_row_length);
 }
 
 inline const Hash_duplicates_container::const_iterator &Cursor::hash_iterator()
     const {
-  assert(m_type == Type::HASH);
+  DBUG_ASSERT(m_type == Type::HASH);
   return m_hash_iterator;
 }
 
 inline const Tree_container::const_iterator &Cursor::tree_iterator() const {
-  assert(m_type == Type::TREE);
+  DBUG_ASSERT(m_type == Type::TREE);
   return m_tree_iterator;
 }
 
@@ -207,7 +206,7 @@ inline Cursor &Cursor::operator=(const Cursor &rhs) {
     if (m_type == Type::HASH) {
       m_hash_iterator = rhs.m_hash_iterator;
     } else {
-      assert(m_type == Type::TREE);
+      DBUG_ASSERT(m_type == Type::TREE);
       m_tree_iterator = rhs.m_tree_iterator;
     }
   }
@@ -216,12 +215,12 @@ inline Cursor &Cursor::operator=(const Cursor &rhs) {
 }
 
 inline Cursor &Cursor::operator++() {
-  assert(m_is_positioned);
+  DBUG_ASSERT(m_is_positioned);
 
   if (m_type == Type::HASH) {
     ++m_hash_iterator;
   } else {
-    assert(m_type == Type::TREE);
+    DBUG_ASSERT(m_type == Type::TREE);
     ++m_tree_iterator;
   }
 
@@ -229,13 +228,13 @@ inline Cursor &Cursor::operator++() {
 }
 
 inline Cursor &Cursor::operator--() {
-  assert(m_is_positioned);
+  DBUG_ASSERT(m_is_positioned);
 
   if (m_type == Type::HASH) {
     /* We don't support decrement on a hash and it shouldn't be called. */
     abort();
   } else {
-    assert(m_type == Type::TREE);
+    DBUG_ASSERT(m_type == Type::TREE);
     --m_tree_iterator;
   }
 
@@ -243,13 +242,13 @@ inline Cursor &Cursor::operator--() {
 }
 
 inline bool Cursor::operator==(const Cursor &other) const {
-  assert(m_is_positioned);
+  DBUG_ASSERT(m_is_positioned);
 
   if (m_type == Type::HASH) {
     return m_hash_iterator == other.m_hash_iterator;
   }
 
-  assert(m_type == Type::TREE);
+  DBUG_ASSERT(m_type == Type::TREE);
   return m_tree_iterator == other.m_tree_iterator;
 }
 

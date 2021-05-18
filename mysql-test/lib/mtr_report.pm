@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2004, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2004, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -199,7 +199,6 @@ sub mtr_report_test ($) {
   my $result   = $tinfo->{'result'};
   my $retry    = $tinfo->{'retries'} ? "retry-" : "";
   my $warnings = $tinfo->{'warnings'};
-  my $skip_ignored   = $tinfo->{'skip_ignored'};
 
   if ($::opt_test_progress and $tinfo->{'name'} and !$retry) {
     $tests_completed = $tests_completed + 1;
@@ -220,23 +219,23 @@ sub mtr_report_test ($) {
   }
 
   if ($result eq 'MTR_RES_FAILED') {
-    my $fail = $skip_ignored ? "noskip-${retry}fail" : "${retry}fail";
+    my $fail   = "fail";
     my $timest = format_time();
 
     if ($warnings) {
       mtr_report($report,
-                 "[ $fail ]  Found warnings/errors in error log file!");
+                 "[ $retry$fail ]  Found warnings/errors in error log file!");
       mtr_report("        Test ended at $timest");
       mtr_report($warnings);
     } else {
       my $timeout = $tinfo->{'timeout'};
       if ($timeout) {
-        mtr_report($report, "[ $fail ]  timeout after $timeout seconds");
+        mtr_report($report, "[ $retry$fail ]  timeout after $timeout seconds");
         mtr_report("        Test ended at $timest");
         mtr_report("\n$tinfo->{'comment'}");
         return;
       } else {
-        mtr_report($report, "[ $fail ]\n        Test ended at $timest");
+        mtr_report($report, "[ $retry$fail ]\n        Test ended at $timest");
       }
 
       if ($logfile) {
@@ -278,19 +277,16 @@ sub mtr_report_test ($) {
       }
     }
   } elsif ($result eq 'MTR_RES_PASSED') {
-
-    my $pass = $skip_ignored ? "noskip-${retry}pass" : "${retry}pass";
-
     my $timer_str = $tinfo->{timer} || "";
     $tot_real_time += ($timer_str / 1000);
     # Please note, that disk_usage() will print a space to separate
     # its information from the preceding string, if the disk usage report
     # is enabled. Otherwise an empty string is returned.
     if ($::opt_quiet) {
-      mtr_buffered_report(sprintf("%-60s%-s", $report, "[ $pass ]"));
+      mtr_buffered_report(sprintf("%-60s%-s", $report, "[ ${retry}pass ]"));
     } else {
       mtr_report($report,
-                 "[ $pass ] ",
+                 "[ ${retry}pass ] ",
                  sprintf("%5s%s", $timer_str, disk_usage()));
     }
 
@@ -439,12 +435,6 @@ sub mtr_generate_xml_report($) {
       }
 
       $failure_comment = ": " . $1 if ($failure_log =~ /mysqltest: (.*)/);
-      #Replace invalid characters in xml attribute values
-      $failure_comment =~ s/&/&amp;/g;
-      $failure_comment =~ s/"/&quot;/g;
-      $failure_comment =~ s/'/&apos;/g;
-      $failure_comment =~ s/>/&lt;/g;
-      $failure_comment =~ s/</&gt;/g;
 
       # For large comments from mysql-test-run.pl, display a brief message in
       # the attribute 'message' and prepend details within the <failure> tag
@@ -499,12 +489,6 @@ sub mtr_generate_xml_report($) {
       my $not_run_status = $tinfo->{'disable'} ? "disabled" : "skipped";
 
       print $xml_report_file " " x 4;
-      # Replace invalid characters from test comments
-      $tinfo->{'comment'} =~ s/&/&amp;/g;
-      $tinfo->{'comment'} =~ s/"/&quot;/g;
-      $tinfo->{'comment'} =~ s/'/&apos;/g;
-      $tinfo->{'comment'} =~ s/>/&lt;/g;
-      $tinfo->{'comment'} =~ s/</&gt;/g;
       print $xml_report_file "<testcase name=\"$tname\"$combination " .
         "status=\"$not_run_status\" " . "time=\"$test_time\" " .
         "suitename=\"$tsuite\" " . "comment=\"$tinfo->{'comment'}\" />\n";

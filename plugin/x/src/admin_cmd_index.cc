@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+ * Copyright (c) 2017, 2020, Oracle and/or its affiliates. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License, version 2.0,
@@ -32,10 +32,10 @@
 #include "plugin/x/src/index_array_field.h"
 #include "plugin/x/src/index_field.h"
 #include "plugin/x/src/query_string_builder.h"
-#include "plugin/x/src/session.h"
 #include "plugin/x/src/sql_data_result.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
+#include "plugin/x/src/xpl_session.h"
 
 namespace xpl {
 

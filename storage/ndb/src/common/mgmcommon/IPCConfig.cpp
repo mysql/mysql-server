@@ -1,5 +1,5 @@
 /* 
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,7 +33,8 @@
 
 
 /* Return true if node with "nodeId" is a MGM node */
-static bool is_mgmd(Uint32 nodeId, const ndb_mgm_configuration * config)
+static bool is_mgmd(Uint32 nodeId,
+                    const struct ndb_mgm_configuration & config)
 {
   ndb_mgm_configuration_iterator iter(config, CFG_SECTION_NODE);
   if (iter.find(CFG_NODE_ID, nodeId))
@@ -48,7 +49,7 @@ static bool is_mgmd(Uint32 nodeId, const ndb_mgm_configuration * config)
 
 bool
 IPCConfig::configureTransporters(Uint32 nodeId,
-                                 const ndb_mgm_configuration* config,
+                                 const struct ndb_mgm_configuration & config,
                                  class TransporterRegistry & tr,
                                  bool transporter_to_self)
 {

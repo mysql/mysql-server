@@ -1,0 +1,69 @@
+//>>built
+define("dojox/mobile/SearchBox",["dojo/_base/declare","dojo/_base/lang","dojo/_base/window","dijit/form/_SearchMixin","dojox/mobile/TextBox","dojo/dom-class","dojo/keys","dojo/touch","dojo/on","./sniff"],function(_1,_2,_3,_4,_5,_6,_7,_8,on,_9){
+return _1("dojox.mobile.SearchBox",[_5,_4],{baseClass:"mblTextBox mblSearchBox",type:"search",placeHolder:"",incremental:true,_setIncrementalAttr:function(_a){
+this.incremental=_a;
+},_onInput:function(e){
+if(e.charOrCode==_7.ENTER){
+e.charOrCode=229;
+}else{
+if(!this.incremental){
+e.charOrCode=0;
+}
+}
+this.inherited(arguments);
+},postCreate:function(){
+this.inherited(arguments);
+this.textbox.removeAttribute("incremental");
+if(!this.textbox.hasAttribute("results")){
+this.textbox.setAttribute("results","0");
+}
+if(_9("ios")<5){
+_6.add(this.domNode,"iphone4");
+this.connect(this.textbox,"onfocus",function(){
+if(this.textbox.value!==""){
+this.defer(function(){
+if(this.textbox.value===""){
+this._onInput({charOrCode:_7.ENTER});
+}
+});
+}
+});
+}
+this.connect(this.textbox,"onsearch",function(){
+this._onInput({charOrCode:_7.ENTER});
+});
+var _b=this;
+var _c,_d;
+var _e;
+if(_9("ios")){
+this.on(_8.press,function(_f){
+var _10;
+_c=_f.touches?_f.touches[0].pageX:_f.pageX;
+_d=_f.touches?_f.touches[0].pageY:_f.pageY;
+_e=on(_3.doc,_8.release,function(evt){
+var _11,dx,dy;
+if(_b.get("value")!=""){
+dx=evt.pageX-_c;
+dy=evt.pageY-_d;
+if(Math.abs(dx)<=4&&Math.abs(dy)<=4){
+evt.preventDefault();
+_b.set("value","");
+_b._onInput({charOrCode:_7.ENTER});
+}
+}
+if(_e){
+_e.remove();
+_e=null;
+}
+});
+_10=_b.domNode.getBoundingClientRect();
+if(_10.right-(_f.touches?_f.touches[0].pageX:_f.pageX)>=30){
+if(_e){
+_e.remove();
+_e=null;
+}
+}
+});
+}
+}});
+});

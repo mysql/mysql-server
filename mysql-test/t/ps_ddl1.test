@@ -1,5 +1,3 @@
---source include/not_hypergraph.inc  # Depends on running traditional EXPLAIN.
-
 #
 # Testing the behavior of 'PREPARE', 'DDL', 'EXECUTE' scenarios
 #

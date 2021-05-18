@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2021, Oracle and/or its affiliates.
+Copyright (c) 1996, 2020, Oracle and/or its affiliates.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License, version 2.0, as published by the
@@ -39,16 +39,13 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0mtr.h"
 #include "que0types.h"
 #include "row0types.h"
-#include "sql/handler.h"
 #include "univ.i"
 
 /** Build a table definition without updating SYSTEM TABLES
-@param[in,out]	table		dict table object
-@param[in]	create_info	HA_CREATE_INFO object
-@param[in,out]	trx		transaction instance
+@param[in,out]	table	dict table object
+@param[in,out]	trx	transaction instance
 @return DB_SUCCESS or error code */
-dberr_t dict_build_table_def(dict_table_t *table,
-                             const HA_CREATE_INFO *create_info, trx_t *trx);
+dberr_t dict_build_table_def(dict_table_t *table, trx_t *trx);
 
 /** Builds a tablespace to store various objects.
 @param[in,out]	trx		DD transaction
@@ -57,13 +54,10 @@ dberr_t dict_build_table_def(dict_table_t *table,
 dberr_t dict_build_tablespace(trx_t *trx, Tablespace *tablespace);
 
 /** Builds a tablespace to contain a table, using file-per-table=1.
-@param[in,out]	table		Table to build in its own tablespace.
-@param[in]	create_info	HA_CREATE_INFO object
-@param[in,out]	trx		Transaction
+@param[in,out]	table	Table to build in its own tablespace.
+@param[in,out]	trx	Transaction
 @return DB_SUCCESS or error code */
-dberr_t dict_build_tablespace_for_table(dict_table_t *table,
-                                        const HA_CREATE_INFO *create_info,
-                                        trx_t *trx);
+dberr_t dict_build_tablespace_for_table(dict_table_t *table, trx_t *trx);
 
 /** Assign a new table ID and put it into the table cache and the transaction.
 @param[in,out]	table	Table that needs an ID

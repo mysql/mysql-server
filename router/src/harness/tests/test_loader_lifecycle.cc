@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -2052,7 +2052,7 @@ TEST_F(LifecycleTest, InitThrowsWeird) {
     std::exception_ptr e = loader_.run();
     if (e) std::rethrow_exception(e);
     FAIL() << "init() should throw non-standard exception object";
-  } catch (const std::runtime_error &) {
+  } catch (const std::runtime_error &e) {
     FAIL() << "init() should throw non-standard exception object";
   } catch (...) {
   }
@@ -2075,7 +2075,7 @@ TEST_F(LifecycleTest, StartThrowsWeird) {
     std::exception_ptr e = loader_.run();
     if (e) std::rethrow_exception(e);
     FAIL() << "start() should throw non-standard exception object";
-  } catch (const std::runtime_error &) {
+  } catch (const std::runtime_error &e) {
     FAIL() << "start() should throw non-standard exception object";
   } catch (...) {
   }
@@ -2100,7 +2100,7 @@ TEST_F(LifecycleTest, StopThrowsWeird) {
     std::exception_ptr e = loader_.run();
     if (e) std::rethrow_exception(e);
     FAIL() << "stop() should throw non-standard exception object";
-  } catch (const std::runtime_error &) {
+  } catch (const std::runtime_error &e) {
     FAIL() << "stop() should throw non-standard exception object";
   } catch (...) {
   }

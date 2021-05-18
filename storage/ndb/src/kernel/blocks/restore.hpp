@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,12 +42,8 @@ class Restore : public SimulatedBlock
 {
   friend class RestoreProxy;
 
-  Uint32 m_lqh_block;
-  bool m_is_query_block;
 public:
-  Restore(Block_context& ctx,
-          Uint32 instanceNumber = 0,
-          Uint32 blockNo = RESTORE);
+  Restore(Block_context& ctx, Uint32 instanceNumber = 0);
   ~Restore() override;
   BLOCK_DEFINES(Restore);
   
@@ -289,11 +285,6 @@ private:
   Uint32 m_table_buf[MAX_WORDS_META_FILE];
   Uint32
     m_lcp_ctl_file_data[2][BackupFormat::LCP_CTL_FILE_BUFFER_SIZE_IN_WORDS];
-public:
-  Uint32 getDBLQH()
-  {
-    return m_lqh_block;
-  }
 };
 
 NdbOut& operator << (NdbOut&, const Restore::Column&);

@@ -69,7 +69,10 @@ Mysqlx.Resultset.ColumnMetaData {
 
 aborting session sess
 switched to session default
-Verify [Global status variable "mysqlx_connections_closed" needs to have a value of 2]
+RUN select sleep(2)
+sleep(2)
+0
+0 rows affected
 RUN show global status like 'mysqlx_connections_%'
 Variable_name	Value
 Mysqlx_connections_accepted	3
@@ -87,7 +90,10 @@ send Mysqlx.Sql.StmtExecute {
 
 aborting session sess
 switched to session default
-Verify [Global status variable "mysqlx_connections_closed" needs to have a value of 3]
+RUN select sleep(2)
+sleep(2)
+0
+0 rows affected
 RUN show global status like 'mysqlx_connections_%'
 Variable_name	Value
 Mysqlx_connections_accepted	4
@@ -109,7 +115,6 @@ send Mysqlx.Sql.StmtExecute {
 
 aborting session sess
 switched to session default
-Verify [Global status variable "mysqlx_connections_closed" needs to have a value of 4]
 RUN show global status like 'mysqlx_connections_%'
 Variable_name	Value
 Mysqlx_connections_accepted	5

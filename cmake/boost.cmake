@@ -1,4 +1,4 @@
-# Copyright (c) 2014, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2014, 2020, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -41,7 +41,7 @@
 SET(BOOST_PACKAGE_NAME "boost_1_73_0")
 SET(BOOST_TARBALL "${BOOST_PACKAGE_NAME}.tar.gz")
 SET(BOOST_DOWNLOAD_URL
-  "https://boostorg.jfrog.io/artifactory/main/release/1.73.0/source/boost_1_73_0.7z"
+  "https://dl.bintray.com/boostorg/release/1.73.0/source/${BOOST_TARBALL}"
   )
 
 SET(OLD_PACKAGE_NAMES

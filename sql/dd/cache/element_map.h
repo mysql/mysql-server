@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,13 +23,12 @@
 #ifndef DD_CACHE__ELEMENT_MAP_INCLUDED
 #define DD_CACHE__ELEMENT_MAP_INCLUDED
 
-#include <assert.h>
 #include <cstddef>  // size_t
 #include <map>      // std::map
 #include <set>      // std::set
 
+#include "my_dbug.h"
 #include "sql/malloc_allocator.h"  // Malloc_allocator.
-#include "sql/psi_memory_key.h"    // key_memory_DD_cache_infrastructure
 
 namespace dd {
 namespace cache {
@@ -85,10 +84,9 @@ class Element_map {
 
  public:
   Element_map()
-      : m_map(std::less<K>(), Malloc_allocator<std::pair<const K, E *>>(
-                                  key_memory_DD_cache_infrastructure)),
-        m_missed(std::less<K>(),
-                 Malloc_allocator<K>(key_memory_DD_cache_infrastructure)) {
+      : m_map(std::less<K>(),
+              Malloc_allocator<std::pair<const K, E *>>(PSI_INSTRUMENT_ME)),
+        m_missed(std::less<K>(), Malloc_allocator<K>(PSI_INSTRUMENT_ME)) {
   } /* purecov: tested */
 
   /**
@@ -151,12 +149,12 @@ class Element_map {
   */
 
   void get(const K &key, E **element) const {
-    assert(element);
+    DBUG_ASSERT(element);
     typename Element_map_type::const_iterator it = m_map.find(key);
     if (it == m_map.end())
       *element = nullptr;
     else {
-      assert(it->second);
+      DBUG_ASSERT(it->second);
       *element = it->second;
     }
   }
@@ -171,8 +169,8 @@ class Element_map {
   */
 
   void put(const K &key, E *element) {
-    assert(element);
-    assert(m_map.find(key) == m_map.end());
+    DBUG_ASSERT(element);
+    DBUG_ASSERT(m_map.find(key) == m_map.end());
     m_map.insert(typename Element_map_type::value_type(key, element));
   }
 
@@ -187,7 +185,7 @@ class Element_map {
   */
 
   void remove(const K &key) {
-    assert(m_map.find(key) != m_map.end());
+    DBUG_ASSERT(m_map.find(key) != m_map.end());
     m_map.erase(key);
   }
 
@@ -211,7 +209,7 @@ class Element_map {
   */
 
   void set_missed(const K &key) {
-    assert(m_missed.find(key) == m_missed.end());
+    DBUG_ASSERT(m_missed.find(key) == m_missed.end());
     m_missed.insert(key);
   }
 
@@ -224,7 +222,7 @@ class Element_map {
   */
 
   void set_miss_handled(const K &key) {
-    assert(m_missed.find(key) != m_missed.end());
+    DBUG_ASSERT(m_missed.find(key) != m_missed.end());
     m_missed.erase(key);
   }
 
@@ -237,7 +235,7 @@ class Element_map {
 
   /* purecov: begin inspected */
   void dump() const {
-#ifndef NDEBUG
+#ifndef DBUG_OFF
     Const_iterator it;
     for (it = m_map.begin(); it != m_map.end(); it++) it->second->dump();
 #endif

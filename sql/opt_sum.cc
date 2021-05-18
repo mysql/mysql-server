@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -162,7 +162,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
         Open interval is not used if the search key involves the last keypart,
         and it would not work.
       */
-      assert(prefix_len < ref->key_length);
+      DBUG_ASSERT(prefix_len < ref->key_length);
       error = table->file->ha_index_read_map(
           table->record[0], ref->key_buff,
           make_prev_keypart_map(ref->key_parts), HA_READ_AFTER_KEY);
@@ -185,7 +185,7 @@ static int get_index_min_value(TABLE *table, TABLE_REF *ref,
           */
           (error == HA_ERR_KEY_NOT_FOUND ||
            key_cmp_if_same(table, ref->key_buff, ref->key, prefix_len))) {
-        assert(item_field->field->is_nullable());
+        DBUG_ASSERT(item_field->field->is_nullable());
         error = table->file->ha_index_read_map(
             table->record[0], ref->key_buff,
             make_prev_keypart_map(ref->key_parts), HA_READ_KEY_EXACT);
@@ -271,7 +271,7 @@ static int get_index_max_value(TABLE *table, TABLE_REF *ref, uint range_fl) {
     will be candidates for delayed execution.
 */
 
-bool optimize_aggregated_query(THD *thd, Query_block *select,
+bool optimize_aggregated_query(THD *thd, SELECT_LEX *select,
                                const mem_root_deque<Item *> &fields,
                                Item *conds, aggregate_evaluated *decision) {
   DBUG_TRACE;
@@ -378,7 +378,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
 
   for (Item *item : fields) {
     if (item->type() == Item::SUM_FUNC_ITEM && !item->m_is_window_function) {
-      if (item->is_outer_reference()) {
+      if (item->used_tables() & OUTER_REF_TABLE_BIT) {
         aggr_impossible = true;
         continue;
       }
@@ -395,7 +395,7 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
             to the number of rows in the tables if this number is exact and
             there are no outer joins.
           */
-          if (conds == nullptr && !item_count->get_arg(0)->is_nullable() &&
+          if (conds == nullptr && !item_count->get_arg(0)->maybe_null &&
               !inner_tables && tables_filled) {
             if (delay_ha_records_to_exec_phase) {
               aggr_delayed = true;
@@ -429,8 +429,8 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
                    (func_type == Item_func::FT_FUNC ||
                     func_type == Item_func::MATCH_FUNC) &&  // 2
                    (tables->table->file->ha_table_flags() &
-                    HA_CAN_FULLTEXT_EXT) &&                 // 3
-                   !item_count->get_arg(0)->is_nullable())  // 4
+                    HA_CAN_FULLTEXT_EXT) &&              // 3
+                   !item_count->get_arg(0)->maybe_null)  // 4
           {
             Item_func_match *fts_item =
                 func_type == Item_func::FT_FUNC
@@ -476,11 +476,13 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
               We must not have accessed this table instance yet, because
               it must be private to this query block, as we already ensured
               that OUTER_REF_TABLE_BIT is not set.
-              Or: if this field references an outer table in the form of an
-              in-memory table with one row, it will have been read and closed
-              again. In such a case, the OUTER_REF_TABLE_BIT is no longer set.
             */
-            assert(!table->file->inited);
+            DBUG_ASSERT(!table->file->inited);
+            /*
+              Because the table handle has not been opened yet, we cannot have
+              determined yet if the table contains 1 record.
+             */
+            DBUG_ASSERT(!table->const_table);
 
             /*
               Look for a partial key that can be used for optimization.
@@ -509,8 +511,8 @@ bool optimize_aggregated_query(THD *thd, Query_block *select,
               We may not need all columns of read_set, neither all columns of
               the index.
             */
-            assert(table->read_set == &table->def_read_set);
-            assert(bitmap_is_clear_all(&table->tmp_set));
+            DBUG_ASSERT(table->read_set == &table->def_read_set);
+            DBUG_ASSERT(bitmap_is_clear_all(&table->tmp_set));
             table->read_set = &table->tmp_set;
             table->mark_columns_used_by_index_no_reset(ref.key, table->read_set,
                                                        ref.key_parts);
@@ -1017,7 +1019,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
             ref->key_buff[ref->key_length] = 1;
             ref->key_length += part->store_length;
             ref->key_parts++;
-            assert(ref->key_parts == jdx + 1);
+            DBUG_ASSERT(ref->key_parts == jdx + 1);
             *range_fl &= ~NO_MIN_RANGE;
             *range_fl |= NEAR_MIN;  // Open interval
           }
@@ -1113,8 +1115,8 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
     case Item_func::MULT_EQUAL_FUNC:
     case Item_func::ISNULL_FUNC:
       break;
-    default:          // Keep compiler happy
-      assert(false);  // Impossible
+    default:               // Keep compiler happy
+      DBUG_ASSERT(false);  // Impossible
       break;
   }
   return false;

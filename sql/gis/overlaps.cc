@@ -1,4 +1,4 @@
-// Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+// Copyright (c) 2017, Oracle and/or its affiliates. All rights reserved.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -82,8 +82,8 @@ static bool geometry_collection_apply_overlaps(const Overlaps &f,
     else if (!g1_mpt->empty())
       g1_dim = 0;
     else {
-      assert(false); /* purecov: inspected */
-      g1_dim = -1;   /* purecov: inspected */
+      DBUG_ASSERT(false); /* purecov: inspected */
+      g1_dim = -1;        /* purecov: inspected */
     }
 
     int g2_dim;
@@ -94,8 +94,8 @@ static bool geometry_collection_apply_overlaps(const Overlaps &f,
     else if (!g2_mpt->empty())
       g2_dim = 0;
     else {
-      assert(false); /* purecov: inspected */
-      g2_dim = -1;   /* purecov: inspected */
+      DBUG_ASSERT(false); /* purecov: inspected */
+      g2_dim = -1;        /* purecov: inspected */
     }
 
     if (g1_dim != g2_dim) throw null_value_exception();
@@ -112,7 +112,7 @@ static bool geometry_collection_apply_overlaps(const Overlaps &f,
                f(g1_mpy.get(), g2_mpy.get());
         break;
       default:
-        assert(false);                /* purecov: inspected */
+        DBUG_ASSERT(false);           /* purecov: inspected */
         throw null_value_exception(); /* purecov: inspected */
         break;
     }
@@ -134,8 +134,8 @@ static bool geometry_collection_apply_overlaps(const Overlaps &f,
     else if (!g2_mpt->empty())
       g2_dim = 0;
     else {
-      assert(false); /* purecov: inspected */
-      g2_dim = -1;   /* purecov: inspected */
+      DBUG_ASSERT(false); /* purecov: inspected */
+      g2_dim = -1;        /* purecov: inspected */
     }
 
     switch (g1->type()) {
@@ -153,11 +153,11 @@ static bool geometry_collection_apply_overlaps(const Overlaps &f,
         return f(g1, g2_mpy.get());
       default:
         // All possible combinations should be covered above.
-        assert(false); /* purecov: inspected */
+        DBUG_ASSERT(false); /* purecov: inspected */
         return false;
     }
   } else {
-    assert(false); /* purecov: inspected */
+    DBUG_ASSERT(false); /* purecov: inspected */
     return f(g1, g2);
   }
 }
@@ -173,7 +173,7 @@ bool Overlaps::operator()(const Geometry *g1, const Geometry *g2) const {
 }
 
 bool Overlaps::operator()(const Box *b1, const Box *b2) const {
-  assert(b1->coordinate_system() == b2->coordinate_system());
+  DBUG_ASSERT(b1->coordinate_system() == b2->coordinate_system());
   switch (b1->coordinate_system()) {
     case Coordinate_system::kCartesian:
       return eval(down_cast<const Cartesian_box *>(b1),
@@ -183,13 +183,13 @@ bool Overlaps::operator()(const Box *b1, const Box *b2) const {
                   down_cast<const Geographic_box *>(b2));
   }
 
-  assert(false);
+  DBUG_ASSERT(false);
   return false;
 }
 
 bool Overlaps::eval(const Geometry *g1, const Geometry *g2) const {
   // All parameter type combinations have been implemented.
-  assert(false);
+  DBUG_ASSERT(false);
   throw not_implemented_exception::for_non_projected(*g1, *g2);
 }
 
@@ -811,12 +811,12 @@ bool overlaps(const dd::Spatial_reference_system *srs, const Geometry *g1,
               const Geometry *g2, const char *func_name, bool *overlaps,
               bool *null) noexcept {
   try {
-    assert(g1->coordinate_system() == g2->coordinate_system());
-    assert(srs == nullptr ||
-           ((srs->is_cartesian() &&
-             g1->coordinate_system() == Coordinate_system::kCartesian) ||
-            (srs->is_geographic() &&
-             g1->coordinate_system() == Coordinate_system::kGeographic)));
+    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
+    DBUG_ASSERT(srs == nullptr ||
+                ((srs->is_cartesian() &&
+                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
+                 (srs->is_geographic() &&
+                  g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
 
@@ -838,12 +838,12 @@ bool mbr_overlaps(const dd::Spatial_reference_system *srs, const Geometry *g1,
                   const Geometry *g2, const char *func_name, bool *overlaps,
                   bool *null) noexcept {
   try {
-    assert(g1->coordinate_system() == g2->coordinate_system());
-    assert(srs == nullptr ||
-           ((srs->is_cartesian() &&
-             g1->coordinate_system() == Coordinate_system::kCartesian) ||
-            (srs->is_geographic() &&
-             g1->coordinate_system() == Coordinate_system::kGeographic)));
+    DBUG_ASSERT(g1->coordinate_system() == g2->coordinate_system());
+    DBUG_ASSERT(srs == nullptr ||
+                ((srs->is_cartesian() &&
+                  g1->coordinate_system() == Coordinate_system::kCartesian) ||
+                 (srs->is_geographic() &&
+                  g1->coordinate_system() == Coordinate_system::kGeographic)));
 
     if ((*null = (g1->is_empty() || g2->is_empty()))) return false;
 

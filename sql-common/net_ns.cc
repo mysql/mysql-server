@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,7 +29,6 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <assert.h>
 #include <sched.h>
 
 #include <fcntl.h>
@@ -40,6 +39,7 @@
 #include <mutex>
 #include <unordered_map>
 
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysqld_error.h"
@@ -173,7 +173,7 @@ bool set_network_namespace(const std::string &network_namespace) {
 }
 
 bool restore_original_network_namespace() {
-  assert(original_ns_fd != -1);
+  DBUG_ASSERT(original_ns_fd != -1);
 
   if (setns(original_ns_fd, CLONE_NEWNET) != 0) {
 #ifdef MYSQL_SERVER

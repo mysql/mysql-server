@@ -343,7 +343,6 @@ DROP TABLE t1;
 #
 create table t1 (a int not null);
 insert into t1 values (-1), (-2);
---skip_if_hypergraph   # Different warnings.
 select min(a) from t1 group by inet_ntoa(a);
 drop table t1;
 
@@ -867,15 +866,6 @@ EXECUTE st;
 EXECUTE st;
 DEALLOCATE PREPARE st;
 DROP TABLE t1;
-
---echo #
---echo # Bug #32231620 JSON_WRAPPER::COMPARE CONST:
---echo #               ASSERTION `THIS_TYPE != ENUM_JSON_TYPE::J_ERROR' FAILED.
-
---error ER_WRONG_VALUE_FOR_TYPE
-do (is_ipv4_mapped(bin_to_uuid(@a:=34)))
-<=>
-   (json_objectagg('key2',42 ) and rtrim(""));
 
 --echo #
 --echo # End of tests

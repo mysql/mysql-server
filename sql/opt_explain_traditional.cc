@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2011, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,14 +22,13 @@
 
 #include "sql/opt_explain_traditional.h"
 
-#include <assert.h>
 #include <sys/types.h>
 
 #include <cstddef>  // size_t
 
 #include "m_ctype.h"
 #include "m_string.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "sql/current_thd.h"
 #include "sql/item.h"
@@ -178,7 +177,7 @@ static bool push(mem_root_deque<Item *> *items, const qep_row::column<float> &c,
 
 bool Explain_format_traditional::push_select_type(
     mem_root_deque<Item *> *items) {
-  assert(!column_buffer.col_select_type.is_empty());
+  DBUG_ASSERT(!column_buffer.col_select_type.is_empty());
   StringBuffer<32> buff;
   if (column_buffer.is_dependent) {
     if (buff.append(STRING_WITH_LEN("DEPENDENT "), system_charset_info))
@@ -192,7 +191,7 @@ bool Explain_format_traditional::push_select_type(
                       (sel_type == enum_explain_type::EXPLAIN_PRIMARY ||
                        sel_type == enum_explain_type::EXPLAIN_SIMPLE))
                          ? mod_type_name[column_buffer.mod_type]
-                         : Query_block::get_type_str(sel_type);
+                         : SELECT_LEX::get_type_str(sel_type);
 
   if (buff.append(type)) return true;
 
@@ -241,7 +240,7 @@ bool Explain_format_traditional::flush_entry() {
     List_iterator<qep_row::extra> it(column_buffer.col_extra);
     qep_row::extra *e;
     while ((e = it++)) {
-      assert(traditional_extra_tags[e->tag] != nullptr);
+      DBUG_ASSERT(traditional_extra_tags[e->tag] != nullptr);
       if (buff.append(traditional_extra_tags[e->tag])) return true;
       if (e->data) {
         bool brackets = false;

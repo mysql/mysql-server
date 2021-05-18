@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2019, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2019, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -285,12 +285,12 @@ void Transaction_compression::update(
   auto gtid_buf_len = spec.to_string(sid_map, gtid_buf, true);
   std::string gtid_string(gtid_buf, gtid_buf_len);
 
-#ifndef NDEBUG
+#ifndef DBUG_OFF
   auto key = std::make_pair<binlog::monitoring::log_type &,
                             binary_log::transaction::compression::type &>(
       log_type, comp_type);
 
-  assert(m_stats.find(key) != m_stats.end() && m_stats[key] != nullptr);
+  DBUG_ASSERT(m_stats.find(key) != m_stats.end() && m_stats[key] != nullptr);
 #endif
   m_stats[{log_type, comp_type}]->add(gtid_string, transaction_timestamp,
                                       comp_bytes, uncomp_bytes);

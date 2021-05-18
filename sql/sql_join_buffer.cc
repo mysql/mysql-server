@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -29,14 +29,13 @@
 
 #include "sql/sql_join_buffer.h"
 
-#include <assert.h>
 #include <limits.h>
 #include <sys/types.h>
 #include <unordered_map>
 
 #include "my_alloc.h"
 #include "my_bitmap.h"
-
+#include "my_dbug.h"
 #include "sql/field.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_const.h"
@@ -79,7 +78,7 @@
 
 static void filter_gcol_for_dynamic_range_scan(const QEP_TAB *tab) {
   TABLE *table = tab->table();
-  assert(tab->dynamic_range() && table->vfield);
+  DBUG_ASSERT(tab->dynamic_range() && table->vfield);
 
   for (uint key = 0; key < table->s->keys; ++key) {
     /*

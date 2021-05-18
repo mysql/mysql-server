@@ -1,4 +1,4 @@
-# Copyright (c) 2016, 2021, Oracle and/or its affiliates.
+# Copyright (c) 2016, 2020, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License, version 2.0,
@@ -157,9 +157,6 @@ IF(MSVC)
   ELSE()
     ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
       COMPILE_FLAGS "/wd4018")
-    # Also disable 'identifier' : unreferenced local variable warnings
-    # Compiler warning C4101
-    ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES} COMPILE_FLAGS "/wd4101")
   ENDIF()
 ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
   ADD_COMPILE_FLAGS(
@@ -169,12 +166,7 @@ ELSEIF(MY_COMPILER_IS_GNU_OR_CLANG)
     "-Wno-unused-function")
   ADD_COMPILE_FLAGS(${XCOM_SUNRPC_SOURCES} ${XCOM_RPCGEN_SOURCES}
     COMPILE_FLAGS
-    -Wno-incompatible-pointer-types
-    -Wno-unused-function
-    -Wno-unused-local-typedefs
-    -Wno-unused-parameter
-    -Wno-unused-variable
-    )
+    "-Wno-unused-variable -Wno-unused-function -Wno-unused-parameter -Wno-incompatible-pointer-types -Wno-unused-local-typedef")
   IF(SOLARIS)
     # rpcgen generates 'void bzero();'
     ADD_COMPILE_FLAGS(${XCOM_RPCGEN_SOURCES}

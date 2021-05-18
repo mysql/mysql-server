@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2005, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -49,7 +49,6 @@ extern EventLogger * g_eventLogger;
 #define JAM_FILE_ID 453
 
 #if (defined(VM_TRACE) || defined(ERROR_INSERT))
-//#define DEBUG_START_RES 1
 //#define DEBUG_RES 1
 //#define DEBUG_RES_OPEN 1
 //#define DEBUG_RES_PARTS 1
@@ -57,12 +56,6 @@ extern EventLogger * g_eventLogger;
 //#define DEBUG_RES_STAT_EXTRA 1
 //#define DEBUG_RES_DEL 1
 //#define DEBUG_HIGH_RES 1
-#endif
-
-#ifdef DEBUG_START_RES
-#define DEB_START_RES(arglist) do { g_eventLogger->info arglist ; } while (0)
-#else
-#define DEB_START_RES(arglist) do { } while (0)
 #endif
 
 #ifdef DEBUG_RES
@@ -116,10 +109,8 @@ extern EventLogger * g_eventLogger;
 
 #define PAGES LCP_RESTORE_BUFFER
 
-Restore::Restore(Block_context& ctx,
-                 Uint32 instanceNumber,
-                 Uint32 blockNo) :
-  SimulatedBlock(blockNo, ctx, instanceNumber),
+Restore::Restore(Block_context& ctx, Uint32 instanceNumber) :
+  SimulatedBlock(RESTORE, ctx, instanceNumber),
   m_file_list(m_file_pool),
   m_file_hash(m_file_pool),
   m_rows_restored(0),
@@ -129,54 +120,26 @@ Restore::Restore(Block_context& ctx,
   BLOCK_CONSTRUCTOR(Restore);
   
   // Add received signals
-  if (blockNo == RESTORE)
-  {
-    addRecSignal(GSN_STTOR, &Restore::execSTTOR);
-    addRecSignal(GSN_DUMP_STATE_ORD, &Restore::execDUMP_STATE_ORD);
-    addRecSignal(GSN_CONTINUEB, &Restore::execCONTINUEB);
-    addRecSignal(GSN_READ_CONFIG_REQ, &Restore::execREAD_CONFIG_REQ, true);
+  addRecSignal(GSN_STTOR, &Restore::execSTTOR);
+  addRecSignal(GSN_DUMP_STATE_ORD, &Restore::execDUMP_STATE_ORD);
+  addRecSignal(GSN_CONTINUEB, &Restore::execCONTINUEB);
+  addRecSignal(GSN_READ_CONFIG_REQ, &Restore::execREAD_CONFIG_REQ, true);  
   
-    addRecSignal(GSN_RESTORE_LCP_REQ, &Restore::execRESTORE_LCP_REQ);
+  addRecSignal(GSN_RESTORE_LCP_REQ, &Restore::execRESTORE_LCP_REQ);
 
-    addRecSignal(GSN_FSOPENREF, &Restore::execFSOPENREF, true);
-    addRecSignal(GSN_FSOPENCONF, &Restore::execFSOPENCONF);
-    addRecSignal(GSN_FSREADREF, &Restore::execFSREADREF, true);
-    addRecSignal(GSN_FSREADCONF, &Restore::execFSREADCONF);
-    addRecSignal(GSN_FSCLOSEREF, &Restore::execFSCLOSEREF, true);
-    addRecSignal(GSN_FSCLOSECONF, &Restore::execFSCLOSECONF);
-    addRecSignal(GSN_FSREMOVEREF, &Restore::execFSREMOVEREF, true);
-    addRecSignal(GSN_FSREMOVECONF, &Restore::execFSREMOVECONF);
-    addRecSignal(GSN_FSWRITECONF, &Restore::execFSWRITECONF);
+  addRecSignal(GSN_FSOPENREF, &Restore::execFSOPENREF, true);
+  addRecSignal(GSN_FSOPENCONF, &Restore::execFSOPENCONF);
+  addRecSignal(GSN_FSREADREF, &Restore::execFSREADREF, true);
+  addRecSignal(GSN_FSREADCONF, &Restore::execFSREADCONF);
+  addRecSignal(GSN_FSCLOSEREF, &Restore::execFSCLOSEREF, true);
+  addRecSignal(GSN_FSCLOSECONF, &Restore::execFSCLOSECONF);
+  addRecSignal(GSN_FSREMOVEREF, &Restore::execFSREMOVEREF, true);
+  addRecSignal(GSN_FSREMOVECONF, &Restore::execFSREMOVECONF);
+  addRecSignal(GSN_FSWRITECONF, &Restore::execFSWRITECONF);
 
-    addRecSignal(GSN_LQHKEYREF, &Restore::execLQHKEYREF);
-    addRecSignal(GSN_LQHKEYCONF, &Restore::execLQHKEYCONF);
-    m_is_query_block = false;
-    m_lqh_block = DBLQH;
-  }
-  else
-  {
-    ndbrequire(blockNo == QRESTORE);
-    m_is_query_block = true;
-    m_lqh_block = DBQLQH;
-    addRecSignal(GSN_STTOR, &Restore::execSTTOR);
-    addRecSignal(GSN_DUMP_STATE_ORD, &Restore::execDUMP_STATE_ORD);
-    addRecSignal(GSN_CONTINUEB, &Restore::execCONTINUEB);
-    addRecSignal(GSN_READ_CONFIG_REQ, &Restore::execREAD_CONFIG_REQ, true);
- 
-    addRecSignal(GSN_RESTORE_LCP_REQ, &Restore::execRESTORE_LCP_REQ);
-    addRecSignal(GSN_LQHKEYREF, &Restore::execLQHKEYREF);
-    addRecSignal(GSN_LQHKEYCONF, &Restore::execLQHKEYCONF);
+  addRecSignal(GSN_LQHKEYREF, &Restore::execLQHKEYREF);
+  addRecSignal(GSN_LQHKEYCONF, &Restore::execLQHKEYCONF);
 
-    addRecSignal(GSN_FSOPENREF, &Restore::execFSOPENREF, true);
-    addRecSignal(GSN_FSOPENCONF, &Restore::execFSOPENCONF);
-    addRecSignal(GSN_FSREADREF, &Restore::execFSREADREF, true);
-    addRecSignal(GSN_FSREADCONF, &Restore::execFSREADCONF);
-    addRecSignal(GSN_FSCLOSEREF, &Restore::execFSCLOSEREF, true);
-    addRecSignal(GSN_FSCLOSECONF, &Restore::execFSCLOSECONF);
-    addRecSignal(GSN_FSREMOVEREF, &Restore::execFSREMOVEREF, true);
-    addRecSignal(GSN_FSREMOVECONF, &Restore::execFSREMOVECONF);
-    addRecSignal(GSN_FSWRITECONF, &Restore::execFSWRITECONF);
-  }
   ndbrequire(sizeof(Column) == 8);
 }
   
@@ -191,22 +154,10 @@ Restore::execSTTOR(Signal* signal)
 {
   jamEntry();                            
 
-  if (m_is_query_block)
-  {
-    c_lqh = (Dblqh*)globalData.getBlock(DBQLQH, instance());
-    c_tup = (Dbtup*)globalData.getBlock(DBQTUP, instance());
-    c_backup = (Backup*)globalData.getBlock(QBACKUP, instance());
-    ndbrequire(c_lqh != 0 &&
-               c_tup != 0 &&
-               c_backup != 0);
-  }
-  else
-  {
-    c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
-    c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
-    c_backup = (Backup*)globalData.getBlock(BACKUP, instance());
-    ndbrequire(c_lqh != 0 && c_tup != 0 && c_backup != 0);
-  }
+  c_lqh = (Dblqh*)globalData.getBlock(DBLQH, instance());
+  c_tup = (Dbtup*)globalData.getBlock(DBTUP, instance());
+  c_backup = (Backup*)globalData.getBlock(BACKUP, instance());
+  ndbrequire(c_lqh != 0 && c_tup != 0 && c_backup != 0);
   sendSTTORRY(signal);
   return;
 }//Restore::execNDB_STTOR()
@@ -253,9 +204,8 @@ Restore::sendSTTORRY(Signal* signal){
   signal->theData[0] = 0;
   signal->theData[3] = 1;
   signal->theData[4] = 255; // No more start phases from missra
-  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF :
-                           m_is_query_block ? QRESTORE_REF : RESTORE_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 5, JBB);
+  BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : RESTORE_REF;
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
 }
 
 void
@@ -277,13 +227,6 @@ Restore::execCONTINUEB(Signal* signal){
     read_data_file(signal, file_ptr);
     return;
   }
-  case RestoreContinueB::CHECK_EXPAND_SHRINK:
-  {
-    FilePtr file_ptr;
-    m_file_pool.getPtr(file_ptr, signal->theData[1]);
-    restore_lcp_conf(signal, file_ptr);
-    return;
-  }
   default:
     ndbabort();
   }
@@ -298,16 +241,10 @@ Restore::execDUMP_STATE_ORD(Signal* signal){
     jam();
     Uint64 rate = m_rows_restored * 1000 /
       (m_millis_spent == 0? 1: m_millis_spent);
-    const char *thread_type = "LDM";
-    if (m_is_query_block)
-    {
-      thread_type = "Recover";
-    }
-
-    g_eventLogger->info("%s instance %u: Restored LCP : %u fragments,"
+    
+    g_eventLogger->info("LDM instance %u: Restored LCP : %u fragments,"
                         " %llu rows, " 
                         "%llu millis, %llu rows/s",
-                        thread_type,
                         instance(),
                         m_frags_restored, 
                         m_rows_restored,
@@ -935,6 +872,9 @@ Restore::lcp_create_ctl_done_close(Signal *signal, FilePtr file_ptr)
      * We set LCP id and local LCP id to indicate to LQH that no
      * restorable LCP was found.
      */
+    c_tup->start_restore_lcp(file_ptr.p->m_table_id,
+                             file_ptr.p->m_fragment_id);
+    jamEntry();
     ndbrequire(file_ptr.p->m_outstanding_operations == 0);
     DEB_RES(("(%u)restore_lcp_conf", instance()));
     file_ptr.p->m_restored_lcp_id = 0;
@@ -1814,28 +1754,11 @@ Restore::execRESTORE_LCP_REQ(Signal* signal)
   RestoreLcpReq* req= (RestoreLcpReq*)signal->getDataPtr();
   Uint32 senderRef= req->senderRef;
   Uint32 senderData= req->senderData;
-  if (m_is_query_block)
-  {
-    jam();
-    /**
-     * Redirect our reference to LQH for the restore of this fragment.
-     * This LQH will not manipulate the table object while we are
-     * restoring this fragment.
-     * Same reasoning around TUP
-     *
-     * Since we will also trigger ordered index updates during restore
-     * we will set up also DBTUX parts as is done in setting it up for
-     * scan access.
-     */
-    Uint32 instance = refToInstance(senderRef);
-    c_lqh->setup_query_thread_for_restore_access(instance, req->cnewestGci);
-  }
   do
   {
     FilePtr file_ptr;
     if (!m_file_list.seizeFirst(file_ptr))
     {
-      jam();
       err= RestoreLcpRef::NoFileRecord;
       break;
     }
@@ -1854,7 +1777,6 @@ Restore::execRESTORE_LCP_REQ(Signal* signal)
     return;
   } while(0);
 
-  c_lqh->reset_restore_thread_access();
   DEB_RES(("(%u)RESTORE_LCP_REF", instance()));
   RestoreLcpRef* ref= (RestoreLcpRef*)signal->getDataPtrSend();
   ref->senderData= senderData;
@@ -1892,15 +1814,15 @@ Restore::init_file(const RestoreLcpReq* req, FilePtr file_ptr)
   file_ptr.p->m_restored_local_lcp_id = 0;
   file_ptr.p->m_max_gci_completed = req->maxGciCompleted;
   file_ptr.p->m_create_gci = req->createGci;
-  DEB_START_RES(("(%u)RESTORE_LCP_REQ tab(%u,%u),"
-                 " GCI: %u, LCP id: %u, LCP no: %u, createGci: %u",
-                 instance(),
-                 req->tableId,
-                 req->fragmentId,
-                 req->restoreGcpId,
-                 req->lcpId,
-                 req->lcpNo,
-                 req->createGci));
+  DEB_RES(("(%u)RESTORE_LCP_REQ tab(%u,%u),"
+           " GCI: %u, LCP id: %u, LCP no: %u, createGci: %u",
+           instance(),
+           req->tableId,
+           req->fragmentId,
+           req->restoreGcpId,
+           req->lcpId,
+           req->lcpNo,
+           req->createGci));
 
   file_ptr.p->m_bytes_left = 0; // Bytes read from FS
   file_ptr.p->m_current_page_ptr_i = RNIL;
@@ -1944,7 +1866,6 @@ Restore::seize_file(FilePtr file_ptr)
   Uint32 page_count= (buf_size+GLOBAL_PAGE_SIZE-1)/GLOBAL_PAGE_SIZE;
   if(!pages.seize(page_count))
   {
-    jam();
     return RestoreLcpRef::OutOfDataBuffer;
   }
 
@@ -1960,7 +1881,6 @@ Restore::seize_file(FilePtr file_ptr)
     Ptr<GlobalPage> page_ptr;
     if(!m_global_page_pool.seize(page_ptr))
     {
-      jam();
       err= RestoreLcpRef::OutOfReadBufferPages;
       break;
     }
@@ -2278,7 +2198,6 @@ Restore::execFSOPENREF(Signal* signal)
   Uint32 errCode= ref->errorCode;
   Uint32 osError= ref->osErrorCode;
 
-  c_lqh->reset_restore_thread_access();
   RestoreLcpRef* rep= (RestoreLcpRef*)signal->getDataPtrSend();
   rep->senderData= file_ptr.p->m_sender_data;
   rep->errorCode = errCode;
@@ -2848,6 +2767,15 @@ Restore::parse_fragment_header(Signal* signal, FilePtr file_ptr,
   }
   
   file_ptr.p->m_fragment_id = ntohl(fh->FragmentNo);
+  if (file_ptr.p->m_current_file_index == 0)
+  {
+    jam();
+    /**
+     * Temporary reset DBTUP's #disk attributes on table
+     * Already done when coming for file not being the first.
+     */
+    c_tup->start_restore_lcp(file_ptr.p->m_table_id, file_ptr.p->m_fragment_id);
+  }
 }
 
 const char*
@@ -3409,7 +3337,7 @@ Restore::execute_operation(Signal *signal,
   if (short_lqhkeyreq)
   {
     file_ptr.p->m_outstanding_operations++;
-    EXECUTE_DIRECT(getDBLQH(), GSN_LQHKEYREQ, signal,
+    EXECUTE_DIRECT(DBLQH, GSN_LQHKEYREQ, signal,
                    LqhKeyReq::FixedSignalLength + pos);
   }
   else
@@ -3447,7 +3375,7 @@ Restore::execute_operation(Signal *signal,
       sections.m_cnt++;
     }
     file_ptr.p->m_outstanding_operations++;
-    EXECUTE_DIRECT_WITH_SECTIONS(getDBLQH(), GSN_LQHKEYREQ, signal,
+    EXECUTE_DIRECT_WITH_SECTIONS(DBLQH, GSN_LQHKEYREQ, signal,
                                  LqhKeyReq::FixedSignalLength+pos,
                                  &sections);
   }
@@ -3649,29 +3577,6 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
    */
 
   /**
-   * For Recover threads we have to ensure that any expand or shrink
-   * of the fragment in DBACC has completed its work before we move
-   * on. We don't support a recover thread working in parallel with
-   * the LDM thread once the restore is done.
-   */
-
-  if (m_is_query_block)
-  {
-    jam();
-    if (c_lqh->check_expand_shrink_ongoing(file_ptr.p->m_table_id,
-                                           file_ptr.p->m_fragment_id))
-    {
-      jam();
-      /* Expand is ongoing still, we need to wait until it is done */
-      signal->theData[0] = RestoreContinueB::CHECK_EXPAND_SHRINK;
-      signal->theData[1] = file_ptr.i;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-      return;
-    }
-    /* No expand/shrink ongoing, we can safely move on. */
-  }
-
-  /**
    * Temporary reset DBTUP's #disk attributes on table
    *
    * TUP will send RESTORE_LCP_CONF
@@ -3699,6 +3604,18 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
       progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);  
     }
   }
+
+  c_tup->complete_restore_lcp(signal, 
+                              file_ptr.p->m_sender_ref,
+                              file_ptr.p->m_sender_data,
+                              file_ptr.p->m_restored_lcp_id,
+                              file_ptr.p->m_restored_local_lcp_id,
+                              file_ptr.p->m_max_gci_completed,
+                              file_ptr.p->m_max_gci_written,
+                              file_ptr.p->m_table_id,
+                              file_ptr.p->m_fragment_id);
+  jamEntry();
+
   if (c_tup->get_restore_row_count(file_ptr.p->m_table_id,
                                    file_ptr.p->m_fragment_id) !=
       file_ptr.p->m_rows_restored)
@@ -3715,16 +3632,6 @@ Restore::restore_lcp_conf(Signal *signal, FilePtr file_ptr)
                                              file_ptr.p->m_fragment_id));
     progError(__LINE__, NDBD_EXIT_INVALID_LCP_FILE, buf);  
   }
-  c_tup->complete_restore_fragment(signal,
-                                   file_ptr.p->m_sender_ref,
-                                   file_ptr.p->m_sender_data,
-                                   file_ptr.p->m_restored_lcp_id,
-                                   file_ptr.p->m_restored_local_lcp_id,
-                                   file_ptr.p->m_max_gci_completed,
-                                   file_ptr.p->m_max_gci_written,
-                                   file_ptr.p->m_table_id,
-                                   file_ptr.p->m_fragment_id);
-  jamEntry();
   signal->theData[0] = NDB_LE_ReadLCPComplete;
   signal->theData[1] = file_ptr.p->m_table_id;
   signal->theData[2] = file_ptr.p->m_fragment_id;

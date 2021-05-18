@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2013, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -34,7 +34,6 @@
 #include "my_macros.h"
 #include "my_psi_config.h"
 #include "my_thread.h"
-#include "mysql/components/services/bits/psi_bits.h"
 #include "mysql/components/services/log_builtins.h"
 #include "mysql/components/services/mysql_cond_bits.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
@@ -45,6 +44,7 @@
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql/psi/mysql_socket.h"
 #include "mysql/psi/mysql_thread.h"
+#include "mysql/psi/psi_base.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"  // ER_*
 #include "pfs_thread_provider.h"
@@ -119,7 +119,7 @@ void Per_thread_connection_handler::init() {
   mysql_cond_init(key_COND_thread_cache, &COND_thread_cache);
   mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache);
   waiting_channel_info_list = new (std::nothrow) std::list<Channel_info *>;
-  assert(waiting_channel_info_list != nullptr);
+  DBUG_ASSERT(waiting_channel_info_list != nullptr);
 }
 
 void Per_thread_connection_handler::destroy() {
@@ -153,7 +153,7 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
       before picking another session in the thread cache.
     */
     DBUG_POP();
-    assert(!_db_is_pushed_());
+    DBUG_ASSERT(!_db_is_pushed_());
 
     // Block pthread
     blocked_pthread_count++;
@@ -172,7 +172,7 @@ Channel_info *Per_thread_connection_handler::block_until_new_connection() {
         waiting_channel_info_list->pop_front();
         DBUG_PRINT("info", ("waiting_channel_info_list->pop %p", new_conn));
       } else {
-        assert(0);  // We should not get here.
+        DBUG_ASSERT(0);  // We should not get here.
       }
     }
   }
@@ -409,9 +409,9 @@ bool Per_thread_connection_handler::add_connection(Channel_info *channel_info) {
   error =
       mysql_thread_create(key_thread_one_connection, &id, &connection_attrib,
                           handle_connection, (void *)channel_info);
-#ifndef NDEBUG
+#ifndef DBUG_OFF
 handle_error:
-#endif  // !NDEBUG
+#endif  // !DBUG_OFF
 
   if (error) {
     connection_errors_internal++;

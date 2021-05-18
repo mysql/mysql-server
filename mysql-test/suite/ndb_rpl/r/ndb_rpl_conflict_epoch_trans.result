@@ -1070,13 +1070,17 @@ Result on both should be :
 Result on both should be :
 84, 77, 80
 No divergence
-set @primary_ok:=
+select @primary_ok:=
 ((@epoch_trans XOR
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch);
-select @primary_ok;
-@primary_ok
+@primary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH_TRANS has stable results independent of
 epoch boundaries: 
 select * from test.t1 order by a;
@@ -1103,13 +1107,17 @@ Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 SECONDARY:
 
-set @secondary_ok:=
+select @secondary_ok:=
 ((@epoch_trans XOR
 @epoch_trans2_same_epoch) XOR
 @epoch_trans2_diff_epoch);
-select @secondary_ok;
-@secondary_ok
+@secondary_ok:=
+((@epoch_trans XOR
+@epoch_trans2_same_epoch) XOR
+@epoch_trans2_diff_epoch)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 EPOCH_TRANS has stable results independent of
 epoch boundaries: 
 select * from test.t1 order by a;
@@ -1222,26 +1230,34 @@ PRIMARY : 6
 SECONDARY : 6
 
 PRIMARY content 
-set @primary_ok:=
+select @primary_ok:=
 ((@epoch_trans_same_epoch XOR
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans);
-select @primary_ok;
-@primary_ok
+@primary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 Restart SECONDARY Slave
 START SLAVE;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 Sync PRIMARY -> SECONDARY
 SECONDARY content
-set @secondary_ok:=
+select @secondary_ok:=
 ((@epoch_trans_same_epoch XOR
 @epoch_trans_diff_epoch) XOR
 @epoch2_trans);
-select @secondary_ok;
-@secondary_ok
+@secondary_ok:=
+((@epoch_trans_same_epoch XOR
+@epoch_trans_diff_epoch) XOR
+@epoch2_trans)
 1
+Warnings:
+Warning	1287	Setting user variables within expressions is deprecated and will be removed in a future release. Consider alternatives: 'SET variable=expression, ...', or 'SELECT expression(s) INTO variables(s)'.
 STABILISE
 drop table mysql.ndb_replication;
 drop table test.t1;

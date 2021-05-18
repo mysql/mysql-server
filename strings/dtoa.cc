@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2007, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -50,7 +50,6 @@
 
 #include "my_config.h"
 
-#include <assert.h>
 #include <algorithm>
 #include <limits>
 
@@ -64,6 +63,7 @@
 #include <string.h>
 
 #include "m_string.h"
+#include "my_dbug.h"
 
 #ifndef EOVERFLOW
 #define EOVERFLOW 84
@@ -126,7 +126,8 @@ static size_t my_fcvt_internal(double x, int precision, bool shorten, char *to,
   int decpt, sign, len, i;
   char *res, *src, *end, *dst = to;
   char buf[DTOA_BUFF_SIZE];
-  assert(precision >= 0 && precision < DECIMAL_NOT_SPECIFIED && to != nullptr);
+  DBUG_ASSERT(precision >= 0 && precision < DECIMAL_NOT_SPECIFIED &&
+              to != nullptr);
 
   res = dtoa(x, 5, precision, &decpt, &sign, &end, buf, sizeof(buf));
 
@@ -305,7 +306,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
   char *res, *src, *end, *dst = to, *dend = dst + width;
   char buf[DTOA_BUFF_SIZE];
   bool have_space, force_e_format;
-  assert(width > 0 && to != nullptr);
+  DBUG_ASSERT(width > 0 && to != nullptr);
 
   /* We want to remove '-' from equations early */
   if (x < 0.) width--;
@@ -515,13 +516,19 @@ end:
 double my_strtod(const char *str, const char **end, int *error) {
   char buf[DTOA_BUFF_SIZE];
   double res;
-  assert(end != nullptr &&
-         ((str != nullptr && *end != nullptr) ||
-          (str == nullptr && *end == nullptr)) &&
-         error != nullptr);
+  DBUG_ASSERT(end != nullptr &&
+              ((str != nullptr && *end != nullptr) ||
+               (str == nullptr && *end == nullptr)) &&
+              error != nullptr);
 
   res = my_strtod_int(str, end, error, buf, sizeof(buf));
   return (*error == 0) ? res : (res < 0 ? -DBL_MAX : DBL_MAX);
+}
+
+double my_atof(const char *nptr) {
+  int error;
+  const char *end = nptr + 65535; /* Should be enough */
+  return (my_strtod(nptr, &end, &error));
 }
 
 /****************************************************************
@@ -699,7 +706,7 @@ typedef struct Stack_alloc {
 
 static Bigint *Balloc(int k, Stack_alloc *alloc) {
   Bigint *rv;
-  assert(k <= Kmax);
+  DBUG_ASSERT(k <= Kmax);
   if (k <= Kmax && alloc->freelist[k]) {
     rv = alloc->freelist[k];
     alloc->freelist[k] = rv->p.next;

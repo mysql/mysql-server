@@ -1,4 +1,4 @@
-/* Copyright (c) 2018, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -29,15 +29,12 @@
 */
 
 #include "my_compiler.h"
-
-/* HAVE_PSI_*_INTERFACE */
 #include "my_psi_config.h"  // IWYU pragma: keep
-
 #include "mysql/psi/psi_system.h"
-
-#if defined(MYSQL_SERVER) || defined(PFS_DIRECT_CALL)
-/* PSI_SYSTEM_CALL() as direct call. */
-#include "pfs_system_provider.h"  // IWYU pragma: keep
+#ifdef MYSQL_SERVER
+#ifndef MYSQL_DYNAMIC_PLUGIN
+#include "pfs_system_provider.h"
+#endif
 #endif
 
 #ifndef PSI_SYSTEM_CALL

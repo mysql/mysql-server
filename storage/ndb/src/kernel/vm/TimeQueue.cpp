@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -58,7 +58,8 @@ TimeQueue::clear()
 }
 
 void 
-TimeQueue::insert(Signal25* signal, Uint32 delayTime)
+TimeQueue::insert(Signal* signal, BlockNumber bnr, 
+		  GlobalSignalNumber gsn, Uint32 delayTime)
 {
   Uint32 regCurrentTime = globalData.theCurrentTimer;
   Uint32 i;
@@ -72,7 +73,8 @@ TimeQueue::insert(Signal25* signal, Uint32 delayTime)
   newEntry.time_struct.job_index = getIndex();
   regSave = newEntry.copy_struct;
   
-  globalScheduler.insertTimeQueue(signal, newEntry.time_struct.job_index);
+  globalScheduler.insertTimeQueue(signal, bnr, gsn, 
+				  newEntry.time_struct.job_index);
  
   if (delayTime == SimulatedBlock::BOUNDED_DELAY)
   {

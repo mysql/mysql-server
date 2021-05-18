@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2018, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -48,7 +48,7 @@ Dbtux::treeAdd(TuxCtx& ctx, Frag& frag, TreePos treePos, TreeEnt ent)
       if (node.getOccup() < tree.m_maxOccup) {
         // node has room
         thrjamDebug(ctx.jamBuffer);
-        nodePushUp(ctx, node, pos, ent, RNIL, 0);
+        nodePushUp(ctx, node, pos, ent, RNIL);
         break;
       }
       treeAddFull(ctx, frag, node, pos, ent);
@@ -56,7 +56,7 @@ Dbtux::treeAdd(TuxCtx& ctx, Frag& frag, TreePos treePos, TreeEnt ent)
     }
     thrjamDebug(ctx.jamBuffer);
     insertNode(ctx, node);
-    nodePushUp(ctx, node, 0, ent, RNIL, 0);
+    nodePushUp(ctx, node, 0, ent, RNIL);
     node.setSide(2);
     tree.m_root = node.m_loc;
     break;
@@ -77,8 +77,7 @@ Dbtux::treeAddFull(TuxCtx& ctx,
 {
   TreeHead& tree = frag.m_tree;
   TupLoc loc = lubNode.getLink(0);
-  if (loc != NullTupLoc)
-  {
+  if (loc != NullTupLoc) {
     // find g.l.b node
     NodeHandle glbNode(frag);
     do {
@@ -86,30 +85,17 @@ Dbtux::treeAddFull(TuxCtx& ctx,
       selectNode(ctx, glbNode, loc);
       loc = glbNode.getLink(1);
     } while (loc != NullTupLoc);
-    if (glbNode.getOccup() < tree.m_maxOccup)
-    {
+    if (glbNode.getOccup() < tree.m_maxOccup) {
       // g.l.b node has room
       thrjamDebug(ctx.jamBuffer);
       Uint32 scanList = RNIL;
-      Uint32 scanInstance = 0;
-      if (pos != 0)
-      {
+      if (pos != 0) {
         thrjamDebug(ctx.jamBuffer);
         // add the new entry and return min entry
-        nodePushDown(ctx,
-                     lubNode,
-                     pos - 1,
-                     ent,
-                     scanList,
-                     scanInstance);
+        nodePushDown(ctx, lubNode, pos - 1, ent, scanList);
       }
       // g.l.b node receives min entry from l.u.b node
-      nodePushUp(ctx,
-                 glbNode,
-                 glbNode.getOccup(),
-                 ent,
-                 scanList,
-                 scanInstance);
+      nodePushUp(ctx, glbNode, glbNode.getOccup(), ent, scanList);
       return;
     }
     treeAddNode(ctx, frag, lubNode, pos, ent, glbNode, 1);
@@ -141,20 +127,13 @@ Dbtux::treeAddNode(TuxCtx& ctx,
   glbNode.setLink(2, parentNode.m_loc);
   glbNode.setSide(i);
   Uint32 scanList = RNIL;
-  Uint32 scanInstance = 0;
-  if (pos != 0)
-  {
+  if (pos != 0) {
     thrjam(ctx.jamBuffer);
     // add the new entry and return min entry
-    nodePushDown(ctx,
-                 lubNode,
-                 pos - 1,
-                 ent,
-                 scanList,
-                 scanInstance);
+    nodePushDown(ctx, lubNode, pos - 1, ent, scanList);
   }
   // g.l.b node receives min entry from l.u.b node
-  nodePushUp(ctx, glbNode, 0, ent, scanList, scanInstance);
+  nodePushUp(ctx, glbNode, 0, ent, scanList);
   // re-balance the tree
   treeAddRebalance(ctx, frag, parentNode, i);
 }
@@ -233,7 +212,7 @@ Dbtux::treeRemove(Frag& frag, TreePos treePos)
     if (node.getOccup() > tree.m_minOccup) {
       // no underflow in any node type
       jam();
-      nodePopDown(c_ctx, node, pos, ent, nullptr, nullptr);
+      nodePopDown(c_ctx, node, pos, ent, 0);
       break;
     }
     if (node.getChilds() == 2) {
@@ -243,7 +222,7 @@ Dbtux::treeRemove(Frag& frag, TreePos treePos)
       break;
     }
     // remove entry in semi/leaf
-    nodePopDown(c_ctx, node, pos, ent, nullptr, nullptr);
+    nodePopDown(c_ctx, node, pos, ent, 0);
     if (node.getLink(0) != NullTupLoc) {
       jam();
       treeRemoveSemi(frag, node, 0);
@@ -280,19 +259,12 @@ Dbtux::treeRemoveInner(Frag& frag,
   } while (loc != NullTupLoc);
   // borrow max entry from semi/leaf
   Uint32 scanList = RNIL;
-  Uint32 scanInstance = 0;
-  nodePopDown(c_ctx,
-              glbNode,
-              glbNode.getOccup() - 1,
-              ent,
-              &scanList,
-              &scanInstance);
+  nodePopDown(c_ctx, glbNode, glbNode.getOccup() - 1, ent, &scanList);
   // g.l.b may be empty now
   // a descending scan may try to enter the empty g.l.b
   // we prevent this in scanNext
-  nodePopUp(c_ctx, lubNode, pos, ent, scanList, scanInstance);
-  if (glbNode.getLink(0) != NullTupLoc)
-  {
+  nodePopUp(c_ctx, lubNode, pos, ent, scanList);
+  if (glbNode.getLink(0) != NullTupLoc) {
     jam();
     treeRemoveSemi(frag, glbNode, 0);
     return;

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+  Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -31,11 +31,12 @@
 #include <unistd.h>
 #endif
 
-#include "tcp_address.h"
+using std::invalid_argument;
+using std::string;
 
 namespace mysqlrouter {
 
-std::string BasePluginConfig::get_section_name(
+string BasePluginConfig::get_section_name(
     const mysql_harness::ConfigSection *section) const noexcept {
   auto name = section->name;
   if (!section->key.empty()) {
@@ -44,11 +45,10 @@ std::string BasePluginConfig::get_section_name(
   return name;
 }
 
-std::string BasePluginConfig::get_option_string(
-    const mysql_harness::ConfigSection *section,
-    const std::string &option) const {
+string BasePluginConfig::get_option_string(
+    const mysql_harness::ConfigSection *section, const string &option) const {
   bool required = is_required(option);
-  std::string value;
+  string value;
 
   try {
     value = section->get(option);
@@ -68,7 +68,7 @@ std::string BasePluginConfig::get_option_string(
   return value;
 }
 
-std::string BasePluginConfig::get_log_prefix(
+string BasePluginConfig::get_log_prefix(
     const std::string &option,
     const mysql_harness::ConfigSection *section) const noexcept {
   return "option " + option + " in [" +
@@ -109,7 +109,7 @@ std::chrono::milliseconds BasePluginConfig::get_option_milliseconds(
 }
 
 mysql_harness::TCPAddress BasePluginConfig::get_option_tcp_address(
-    const mysql_harness::ConfigSection *section, const std::string &option,
+    const mysql_harness::ConfigSection *section, const string &option,
     bool require_port, int default_port) {
   std::string value = get_option_string(section, option);
 
@@ -117,32 +117,59 @@ mysql_harness::TCPAddress BasePluginConfig::get_option_tcp_address(
     return mysql_harness::TCPAddress{};
   }
 
-  auto make_res = mysql_harness::make_tcp_address(value);
-  if (!make_res) {
-    throw std::invalid_argument(get_log_prefix(option) + " is invalid");
-  }
+  try {
+    std::pair<string, uint16_t> bind_info = mysqlrouter::split_addr_port(value);
 
-  auto address = make_res->address();
-  auto port = make_res->port();
+    uint16_t port = bind_info.second;
 
-  if (port <= 0) {
-    if (default_port > 0) {
-      port = static_cast<uint16_t>(default_port);
-    } else if (require_port) {
-      throw std::runtime_error("TCP port missing");
+    if (port <= 0) {
+      if (default_port > 0) {
+        port = static_cast<uint16_t>(default_port);
+      } else if (require_port) {
+        throw std::runtime_error("TCP port missing");
+      }
     }
+
+    return mysql_harness::TCPAddress(bind_info.first, port);
+
+  } catch (const std::runtime_error &exc) {
+    throw invalid_argument(get_log_prefix(option) + " is incorrect (" +
+                           exc.what() + ")");
+  }
+}
+
+int BasePluginConfig::get_option_tcp_port(
+    const mysql_harness::ConfigSection *section, const string &option) {
+  auto value = get_option_string(section, option);
+
+  if (!value.empty()) {
+    char *rest;
+    errno = 0;
+    auto result = std::strtol(value.c_str(), &rest, 0);
+
+    if (errno > 0 || *rest != '\0' || result > UINT16_MAX || result < 1) {
+      std::ostringstream os;
+      os << get_log_prefix(option)
+         << " needs value between 1 and 65535 inclusive";
+      if (!value.empty()) {
+        os << ", was '" << value << "'";
+      }
+      throw std::invalid_argument(os.str());
+    }
+
+    return static_cast<int>(result);
   }
 
-  return {address, port};
+  return -1;
 }
 
 mysql_harness::Path BasePluginConfig::get_option_named_socket(
-    const mysql_harness::ConfigSection *section, const std::string &option) {
+    const mysql_harness::ConfigSection *section, const string &option) {
   std::string value = get_option_string(section, option);
 
   std::string error;
   if (!is_valid_socket_name(value, error)) {
-    throw std::invalid_argument(error);
+    throw invalid_argument(error);
   }
 
   if (value.empty()) {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -23,10 +23,9 @@
 // Implements
 #include "storage/ndb/plugin/ndb_sync_excluded_objects_table.h"
 
-#include <assert.h>
 #include <cstring>  // std::strlen
 
-// assert
+#include "my_dbug.h"                                  // DBUG_ASSERT
 #include "storage/ndb/plugin/ha_ndbcluster_binlog.h"  // ndbcluster_binlog_retrieve_sync_excluded_objects
 
 static unsigned long long ndb_excluded_objects_row_count() {
@@ -74,7 +73,7 @@ extern SERVICE_TYPE_NO_CONST(pfs_plugin_column_enum_v1) * pfscol_enum;
 
 int Ndb_sync_excluded_objects_table::read_column_value(PSI_field *field,
                                                        unsigned int index) {
-  assert(!is_empty() && rows_pending_read());
+  DBUG_ASSERT(!is_empty() && rows_pending_read());
   PSI_ulonglong bigint_value;
 
   unsigned int row_index = get_position();
@@ -97,17 +96,17 @@ int Ndb_sync_excluded_objects_table::read_column_value(PSI_field *field,
       break;
     case 3: /* REASON: Reason for exclusion */
       // Check if reason is not empty
-      assert(obj.m_reason != "");
+      DBUG_ASSERT(obj.m_reason != "");
       /*
         Check if reason has fewer than 256 characters. The PFS handler
         automatically truncates the reason if it has more than 256 characters
       */
-      assert(std::strlen(obj.m_reason.c_str()) <= 256);
+      DBUG_ASSERT(std::strlen(obj.m_reason.c_str()) <= 256);
       pfscol_string->set_varchar_utf8(
           field, obj.m_reason == "" ? "Unknown" : obj.m_reason.c_str());
       break;
     default:
-      assert(false);
+      DBUG_ASSERT(false);
   }
   return 0;
 }

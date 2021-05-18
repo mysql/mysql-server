@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -35,6 +35,7 @@
 
 class KEY;
 class Item;
+class Item_copy;
 class Window;
 struct CHARSET_INFO;
 struct MEM_ROOT;
@@ -72,6 +73,14 @@ typedef Mem_root_array<Func_ptr> Func_ptr_array;
 
 class Temp_table_param {
  public:
+  /**
+    Used to store the values of grouped non-column-reference expressions in
+    between groups, so they can be retreived when the group changes.
+
+    @see setup_copy_fields
+    @see copy_fields
+  */
+  Mem_root_vector<Item_copy *> grouped_expressions;
   Mem_root_vector<Copy_field> copy_fields;
 
   uchar *group_buff;
@@ -187,7 +196,8 @@ class Temp_table_param {
   Window *m_window;
 
   Temp_table_param(MEM_ROOT *mem_root = *THR_MALLOC)
-      : copy_fields(Mem_root_allocator<Copy_field>(mem_root)),
+      : grouped_expressions(Mem_root_allocator<Item_copy *>(mem_root)),
+        copy_fields(Mem_root_allocator<Copy_field>(mem_root)),
         group_buff(nullptr),
         items_to_copy(nullptr),
         keyinfo(nullptr),
@@ -210,7 +220,10 @@ class Temp_table_param {
         m_window_short_circuit(false),
         m_window(nullptr) {}
 
-  void cleanup() { copy_fields.clear(); }
+  void cleanup() {
+    grouped_expressions.clear();
+    copy_fields.clear();
+  }
 };
 
 #endif  // TEMP_TABLE_PARAM_INCLUDED

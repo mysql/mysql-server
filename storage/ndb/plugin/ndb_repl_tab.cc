@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2012, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -258,12 +258,17 @@ int Ndb_rep_tab_reader::scan_candidates(Ndb *ndb,
       /* Compare row to searchkey to get quality of match */
       int match_quality =
           Ndb_rep_tab_key::get_match_quality(&searchkey, &row.key);
-      row.null_terminate_strings();
+#ifndef DBUG_OFF
+      {
+        row.null_terminate_strings();
 
-      DBUG_PRINT("debug",
-                 ("Candidate : %s.%s %u : %u %s Match quality : %u.",
-                  row.key.get_db(), row.key.get_table_name(), row.key.server_id,
-                  row.binlog_type, row.get_conflict_fn_spec(), match_quality));
+        DBUG_PRINT("info", ("Candidate : %s.%s %u : %u %s"
+                            " Match quality : %u.",
+                            row.key.get_db(), row.key.get_table_name(),
+                            row.key.server_id, row.binlog_type,
+                            row.get_conflict_fn_spec(), match_quality));
+      }
+#endif
 
       if (match_quality > 0) {
         if (match_quality == best_match_quality) {
@@ -340,19 +345,21 @@ int Ndb_rep_tab_reader::lookup(Ndb *ndb,
   conflict_fn_spec = NULL;
   warning_msg = NULL;
 
-  Ndb_table_guard ndbtab_g(ndb, ndb_rep_db, ndb_replication_table);
+  ndb->setDatabaseName(ndb_rep_db);
+  NdbDictionary::Dictionary *dict = ndb->getDictionary();
+  Ndb_table_guard ndbtab_g(dict, ndb_replication_table);
   const NdbDictionary::Table *reptab = ndbtab_g.get_table();
 
   do {
     if (reptab == NULL) {
-      if (ndbtab_g.getNdbError().classification == NdbError::SchemaError ||
-          ndbtab_g.getNdbError().code == 4009) {
+      if (dict->getNdbError().classification == NdbError::SchemaError ||
+          dict->getNdbError().code == 4009) {
         DBUG_PRINT("info",
                    ("No %s.%s table", ndb_rep_db, ndb_replication_table));
         return 0;
       } else {
         error = 0;
-        ndberror = ndbtab_g.getNdbError();
+        ndberror = dict->getNdbError();
         break;
       }
     }

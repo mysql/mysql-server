@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2010, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 #ifndef FILESORT_UTILS_INCLUDED
 #define FILESORT_UTILS_INCLUDED
 
-#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <memory>
@@ -32,7 +31,7 @@
 
 #include "map_helpers.h"
 #include "my_base.h"  // ha_rows
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/service_mysql_alloc.h"  // my_free
 #include "sql/sql_array.h"              // Bounds_checked_array
@@ -113,7 +112,7 @@ class Filesort_buffer {
     not get reused for subsequent records.
   */
   Bounds_checked_array<uchar> get_next_record_pointer(size_t min_size) {
-    assert(min_size != 0xFFFFFFFFu);
+    DBUG_ASSERT(min_size != 0xFFFFFFFFu);
     // See if we need to allocate a new block.
     if (m_next_rec_ptr == nullptr ||
         m_next_rec_ptr + min_size > m_current_block_end) {
@@ -197,7 +196,7 @@ class Filesort_buffer {
     Only valid after buffer has been sorted!
   */
   uchar *get_sorted_record(size_t ix) {
-    assert(ix < m_record_pointers.size());
+    DBUG_ASSERT(ix < m_record_pointers.size());
     return m_record_pointers[ix];
   }
 

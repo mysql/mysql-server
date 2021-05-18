@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2008, 2020, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License, version 2.0,
@@ -236,8 +236,6 @@ static void test_bootstrap() {
   ok(psi == nullptr, "no mdl version 0");
   psi = mdl_boot->get_interface(PSI_MDL_VERSION_1);
   ok(psi != nullptr, "mdl version 1");
-  psi = mdl_boot->get_interface(PSI_MDL_VERSION_2);
-  ok(psi != nullptr, "mdl version 2");
 
   psi = idle_boot->get_interface(0);
   ok(psi == nullptr, "no idle version 0");
@@ -392,7 +390,7 @@ static void load_perfschema(
   *table_service =
       (PSI_table_service_t *)table_boot->get_interface(PSI_TABLE_VERSION_1);
   *mdl_service =
-      (PSI_mdl_service_t *)mdl_boot->get_interface(PSI_CURRENT_MDL_VERSION);
+      (PSI_mdl_service_t *)mdl_boot->get_interface(PSI_MDL_VERSION_1);
   *idle_service =
       (PSI_idle_service_t *)idle_boot->get_interface(PSI_IDLE_VERSION_1);
   *stage_service =
@@ -1441,23 +1439,27 @@ static void test_locker_disabled() {
   socket_class_A->m_enabled = true;
   update_instruments_derived_flags();
 
-  ok(mutex_A1->m_enabled == false, "mutex_A1 disabled");
-  ok(rwlock_A1->m_enabled == false, "rwlock_A1 disabled");
-  ok(cond_A1->m_enabled == false, "cond_A1 disabled");
-
+  mutex_locker = mutex_service->start_mutex_wait(&mutex_state, mutex_A1,
+                                                 PSI_MUTEX_LOCK, "foo.cc", 12);
+  ok(mutex_locker == nullptr, "no locker (global disabled)");
+  rwlock_locker = rwlock_service->start_rwlock_rdwait(
+      &rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK, "foo.cc", 12);
+  ok(rwlock_locker == nullptr, "no locker (global disabled)");
+  cond_locker = cond_service->start_cond_wait(&cond_state, cond_A1, mutex_A1,
+                                              PSI_COND_WAIT, "foo.cc", 12);
+  ok(cond_locker == nullptr, "no locker (global disabled)");
   file_locker = file_service->get_thread_file_name_locker(
       &file_state, file_key_A, PSI_FILE_OPEN, "xxx", nullptr);
   ok(file_locker == nullptr, "no locker (global disabled)");
-
   file_locker = file_service->get_thread_file_stream_locker(
       &file_state, file_A1, PSI_FILE_READ);
   ok(file_locker == nullptr, "no locker (global disabled)");
-
   file_locker = file_service->get_thread_file_descriptor_locker(
       &file_state, (File)12, PSI_FILE_READ);
   ok(file_locker == nullptr, "no locker (global disabled)");
-
-  ok(socket_A1->m_enabled == false, "socket_A1 disabled");
+  socket_locker = socket_service->start_socket_wait(
+      &socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
+  ok(socket_locker == nullptr, "no locker (global disabled)");
 
   /* Pretend the mode is global, counted only */
   /* ---------------------------------------- */
@@ -1521,25 +1523,27 @@ static void test_locker_disabled() {
   socket_class_A->m_enabled = false;
   update_instruments_derived_flags();
 
-  ok(mutex_A1->m_enabled == false, "mutex_A1 disabled");
-
-  ok(rwlock_A1->m_enabled == false, "rwlock_A1 disabled");
-
-  ok(cond_A1->m_enabled == false, "cond_A1 disabled");
-
+  mutex_locker = mutex_service->start_mutex_wait(&mutex_state, mutex_A1,
+                                                 PSI_MUTEX_LOCK, "foo.cc", 12);
+  ok(mutex_locker == nullptr, "no locker");
+  rwlock_locker = rwlock_service->start_rwlock_rdwait(
+      &rwlock_state, rwlock_A1, PSI_RWLOCK_READLOCK, "foo.cc", 12);
+  ok(rwlock_locker == nullptr, "no locker");
+  cond_locker = cond_service->start_cond_wait(&cond_state, cond_A1, mutex_A1,
+                                              PSI_COND_WAIT, "foo.cc", 12);
+  ok(cond_locker == nullptr, "no locker");
   file_locker = file_service->get_thread_file_name_locker(
       &file_state, file_key_A, PSI_FILE_OPEN, "xxx", nullptr);
   ok(file_locker == nullptr, "no locker");
-
   file_locker = file_service->get_thread_file_stream_locker(
       &file_state, file_A1, PSI_FILE_READ);
   ok(file_locker == nullptr, "no locker");
-
   file_locker = file_service->get_thread_file_descriptor_locker(
       &file_state, (File)12, PSI_FILE_READ);
   ok(file_locker == nullptr, "no locker");
-
-  ok(socket_A1->m_enabled == false, "socket_A1 disabled");
+  socket_locker = socket_service->start_socket_wait(
+      &socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);
+  ok(socket_locker == nullptr, "no locker");
 
   /* Pretend everything is enabled and timed */
   /* --------------------------------------- */
@@ -1918,8 +1922,7 @@ static void test_event_name_index() {
   table_service =
       (PSI_table_service_t *)table_boot->get_interface(PSI_TABLE_VERSION_1);
   ok(table_service != nullptr, "table_service");
-  mdl_service =
-      (PSI_mdl_service_t *)mdl_boot->get_interface(PSI_CURRENT_MDL_VERSION);
+  mdl_service = (PSI_mdl_service_t *)mdl_boot->get_interface(PSI_MDL_VERSION_1);
   ok(mdl_service != nullptr, "mdl_service");
   idle_service =
       (PSI_idle_service_t *)idle_boot->get_interface(PSI_IDLE_VERSION_1);
@@ -2541,7 +2544,7 @@ static void do_all_tests() {
 }
 
 int main(int, char **) {
-  plan(360);
+  plan(359);
 
   MY_INIT("pfs-t");
   do_all_tests();

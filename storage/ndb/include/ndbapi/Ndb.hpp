@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -2188,11 +2188,17 @@ private:
   static
   const char * externalizeTableName(const char * internalTableName,
                                     bool fullyQualifiedNames);
+  const char * externalizeTableName(const char * internalTableName);
   const BaseString internalize_table_name(const char * external_name) const;
 
   static
   const char * externalizeIndexName(const char * internalIndexName,
                                     bool fullyQualifiedNames);
+  const char * externalizeIndexName(const char * internalIndexName);
+  const BaseString old_internalize_index_name(const NdbTableImpl * table,
+					      const char * external_name) const;
+  const BaseString internalize_index_name(const NdbTableImpl * table,
+                                          const char * external_name) const;
 
   static
   const BaseString getDatabaseFromInternalName(const char * internalName);
@@ -2217,7 +2223,7 @@ private:
 
   Uint32                theNextConnectNode;
 
-  bool deleted_v8_0_24;
+  bool fullyQualifiedNames;
 
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2002, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -23,7 +23,6 @@
 #ifndef _SP_H_
 #define _SP_H_
 
-#include <assert.h>
 #include <stddef.h>
 #include <sys/types.h>
 #include <string>
@@ -31,7 +30,7 @@
 #include "field_types.h"
 #include "lex_string.h"
 #include "map_helpers.h"
-
+#include "my_dbug.h"
 #include "my_inttypes.h"
 #include "mysql/udf_registration_types.h"
 #include "sql/item.h"     // Item::Type
@@ -302,11 +301,11 @@ class Sroutine_hash_entry {
   }
 
   const char *part_mdl_key() {
-    assert(!use_normalized_key());
+    DBUG_ASSERT(!use_normalized_key());
     return (char *)m_key + 1;
   }
   size_t part_mdl_key_length() {
-    assert(!use_normalized_key());
+    DBUG_ASSERT(!use_normalized_key());
     return m_key_length - 1U;
   }
 
@@ -363,8 +362,8 @@ inline bool sp_add_own_used_routine(Query_tables_list *prelocking_ctx,
                                     Query_arena *arena,
                                     Sroutine_hash_entry::entry_type type,
                                     sp_name *sp_name) {
-  assert(type == Sroutine_hash_entry::FUNCTION ||
-         type == Sroutine_hash_entry::PROCEDURE);
+  DBUG_ASSERT(type == Sroutine_hash_entry::FUNCTION ||
+              type == Sroutine_hash_entry::PROCEDURE);
 
   return sp_add_used_routine(
       prelocking_ctx, arena, type, sp_name->m_db.str, sp_name->m_db.length,

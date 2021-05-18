@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2005, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -22,7 +22,6 @@
 
 #include "sql/item_xmlfunc.h"
 
-#include <assert.h>
 #include <sys/types.h>
 
 #include <algorithm>
@@ -32,7 +31,7 @@
 
 #include "m_ctype.h"
 #include "m_string.h"
-
+#include "my_dbug.h"
 #include "my_sys.h"
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
@@ -876,10 +875,10 @@ static Item *create_comparator(MY_XPATH *xpath, int oper, MY_XPATH_LEX *context,
 */
 static Item_nodeset_func *nametestfunc(MY_XPATH *xpath, int type, Item *arg,
                                        const char *beg, size_t len) {
-  assert(arg != nullptr);
-  assert(arg->type() == Item::XPATH_NODESET);
-  assert(beg != nullptr);
-  assert(len > 0);
+  DBUG_ASSERT(arg != nullptr);
+  DBUG_ASSERT(arg->type() == Item::XPATH_NODESET);
+  DBUG_ASSERT(beg != nullptr);
+  DBUG_ASSERT(len > 0);
 
   Item_nodeset_func *res;
   switch (type) {
@@ -2209,13 +2208,13 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
         (spv = spc->find_variable(name_str, name_length, false))) {
       Item_splocal *splocal = new Item_splocal(
           Name_string(name_str, name_length, false), spv->offset, spv->type, 0);
-#ifndef NDEBUG
+#ifndef DBUG_OFF
       if (splocal) splocal->m_sp = lex->sphead;
 #endif
-      xpath->item = splocal;
+      xpath->item = down_cast<Item *>(splocal);
     } else {
       xpath->item = nullptr;
-      assert(xpath->query.end > dollar_pos);
+      DBUG_ASSERT(xpath->query.end > dollar_pos);
       size_t len = xpath->query.end - dollar_pos;
       len = std::min(len, size_t(32));
       my_printf_error(ER_UNKNOWN_ERROR, "Unknown XPATH variable at: '%.*s'",
@@ -2239,7 +2238,7 @@ static int my_xpath_parse_VariableReference(MY_XPATH *xpath) {
 */
 static int my_xpath_parse_NodeTest_QName(MY_XPATH *xpath) {
   if (!my_xpath_parse_QName(xpath)) return 0;
-  assert(xpath->context);
+  DBUG_ASSERT(xpath->context);
   size_t len = xpath->prevtok.end - xpath->prevtok.beg;
   xpath->context =
       nametestfunc(xpath, xpath->axis, xpath->context, xpath->prevtok.beg, len);
@@ -2247,7 +2246,7 @@ static int my_xpath_parse_NodeTest_QName(MY_XPATH *xpath) {
 }
 static int my_xpath_parse_NodeTest_asterisk(MY_XPATH *xpath) {
   if (!my_xpath_parse_term(xpath, MY_XPATH_LEX_ASTERISK)) return 0;
-  assert(xpath->context);
+  DBUG_ASSERT(xpath->context);
   xpath->context = nametestfunc(xpath, xpath->axis, xpath->context, "*", 1);
   return 1;
 }
@@ -2330,7 +2329,7 @@ bool Item_xml_str_func::parse_xpath(Item *xpath_expr) {
     return true;
   }
 
-  assert(nodeset_func == nullptr);
+  DBUG_ASSERT(nodeset_func == nullptr);
   nodeset_func = xpath.item;
   if (nodeset_func && nodeset_func->fix_fields(current_thd, &nodeset_func))
     return true;
@@ -2367,7 +2366,7 @@ int xml_enter(MY_XML_PARSER *st, const char *attr, size_t len) {
 
   node.parent = data->parent;  // Set parent for the new node to old parent
   data->parent = data->pxml->size();  // Remember current node as new parent
-  assert(data->level < MAX_LEVEL);
+  DBUG_ASSERT(data->level < MAX_LEVEL);
   data->pos[data->level] = data->pxml->size();
   if (data->level < MAX_LEVEL - 1)
     node.level = data->level++;
@@ -2423,7 +2422,7 @@ extern "C" int xml_leave(MY_XML_PARSER *st, const char *attr, size_t len);
 
 int xml_leave(MY_XML_PARSER *st, const char *, size_t) {
   auto *data = reinterpret_cast<MY_XML_USER_DATA *>(st->user_data);
-  assert(data->level > 0);
+  DBUG_ASSERT(data->level > 0);
   data->level--;
 
   data->parent = data->pxml->at(data->parent).parent;
@@ -2483,7 +2482,7 @@ String *Item_func_xml_extractvalue::val_str(String *str) {
   String *res;
   null_value = false;
   if (!nodeset_func && parse_xpath(args[1])) {
-    assert(is_nullable());
+    DBUG_ASSERT(maybe_null);
     null_value = true;
     return nullptr;
   }
@@ -2502,7 +2501,7 @@ String *Item_func_xml_update::val_str(String *str) {
 
   null_value = false;
   if (!nodeset_func && parse_xpath(args[1])) {
-    assert(is_nullable());
+    DBUG_ASSERT(maybe_null);
     null_value = true;
     return nullptr;
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2015, 2020, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -39,7 +39,6 @@
 #include "mysql/plugin.h"
 #include "mysql/psi/mysql_mutex.h"
 #include "mysql_com.h"
-#include "sql/auth/auth_acls.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/conn_handler/connection_handler_manager.h"
 #include "sql/current_thd.h"  // current_thd
@@ -310,7 +309,7 @@ int thd_tablespace_op(const MYSQL_THD thd) {
     code and the Alter_info::flags.
   */
   if (thd->lex->sql_command != SQLCOM_ALTER_TABLE) return 0;
-  assert(thd->lex->alter_info != nullptr);
+  DBUG_ASSERT(thd->lex->alter_info != nullptr);
 
   return (thd->lex->alter_info->flags & (Alter_info::ALTER_DISCARD_TABLESPACE |
                                          Alter_info::ALTER_IMPORT_TABLESPACE))
@@ -392,7 +391,7 @@ int thd_tx_priority(const MYSQL_THD thd) {
 
 MYSQL_THD thd_tx_arbitrate(MYSQL_THD requestor, MYSQL_THD holder) {
   /* Should be different sessions. */
-  assert(holder != requestor);
+  DBUG_ASSERT(holder != requestor);
 
   return (thd_tx_priority(requestor) == thd_tx_priority(holder)
               ? requestor
@@ -483,7 +482,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     We have to copy the new string to the destination buffer because the string
     was reallocated to a larger buffer to be able to fit.
   */
-  assert(buffer != nullptr);
+  DBUG_ASSERT(buffer != nullptr);
   length = min(str.length(), length - 1);
   memcpy(buffer, str.c_ptr_quick(), length);
   /* Make sure that the new string is null terminated */
@@ -495,6 +494,13 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid) {
   *xid = *pointer_cast<const MYSQL_XID *>(
       thd->get_transaction()->xid_state()->get_xid());
 }
+
+/**
+  Check the killed state of a user thread
+  @param v_thd  user thread
+  @retval 0 the user thread is active
+  @retval 1 the user thread has been killed
+*/
 
 int thd_killed(const void *v_thd) {
   const THD *thd = static_cast<const THD *>(v_thd);
@@ -510,6 +516,12 @@ int thd_killed(const void *v_thd) {
 */
 
 void thd_set_kill_status(const MYSQL_THD thd) { thd->send_kill_message(); }
+
+/**
+  Return the thread id of a user thread
+  @param thd user thread
+  @return thread id
+*/
 
 unsigned long thd_get_thread_id(const MYSQL_THD thd) {
   return ((unsigned long)thd->thread_id());
@@ -531,7 +543,7 @@ int thd_allow_batch(MYSQL_THD thd) {
 
 void thd_mark_transaction_to_rollback(MYSQL_THD thd, int all) {
   DBUG_TRACE;
-  assert(thd);
+  DBUG_ASSERT(thd);
   /*
     The parameter "all" has type int since the function is defined
     in plugin.h. The corresponding parameter in the call below has
@@ -647,10 +659,4 @@ void remove_ssl_err_thread_state() {
 
 unsigned int thd_get_num_vcpus() {
   return resourcegroups::platform::num_vcpus();
-}
-
-bool thd_check_connection_admin_privilege(MYSQL_THD thd) {
-  Security_context *sctx = thd->security_context();
-  return (!(sctx->check_access(SUPER_ACL) ||
-            sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first));
 }

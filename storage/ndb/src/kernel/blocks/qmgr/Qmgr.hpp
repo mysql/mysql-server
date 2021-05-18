@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (c) 2003, 2020, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -515,7 +515,6 @@ private:
   Uint32 count_previously_alive_nodes();
   void computeArbitNdbMask(NodeBitmaskPOD& aMask);
   void computeArbitNdbMask(NdbNodeBitmaskPOD& aMask);
-  void computeBeforeFailNdbMask(NdbNodeBitmaskPOD& aMask);
   void computeNonDiedNdbMask(NdbNodeBitmaskPOD& aMask);
   void reportArbitEvent(Signal* signal, Ndb_logevent_type type,
                         const NodeBitmask mask = NodeBitmask());

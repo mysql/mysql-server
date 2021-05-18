@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2017, 2019, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -114,7 +114,7 @@ bool unbind_thread(my_thread_os_id_t thread_id) {
 int thread_priority() { return getpriority(PRIO_PROCESS, my_thread_os_id()); }
 
 int thread_priority(my_thread_os_id_t) {
-  assert(0);
+  DBUG_ASSERT(0);
   LogErr(WARNING_LEVEL, ER_RES_GRP_GET_THREAD_PRIO_NOT_SUPPORTED, "FreeBSD");
   return 0;
 }

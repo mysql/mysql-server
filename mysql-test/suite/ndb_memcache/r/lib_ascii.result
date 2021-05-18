@@ -1,0 +1,16 @@
+OK: Test 1
+OK: Test 2
+OK: Test 3
+OK: Test 4
+OK: Test 5
+OK: Test 6
+OK: Test 7
+OK: Test 8
+OK: Test 9
+OK: Test 10
+SELECT mkey, string_value FROM ndbmemcache.demo_table 
+WHERE mkey like 'lib_test%' ORDER BY mkey;
+mkey	string_value
+lib_test_1	1502
+lib_test_2	1504
+DELETE FROM ndbmemcache.demo_table where mkey like 'lib_test%';

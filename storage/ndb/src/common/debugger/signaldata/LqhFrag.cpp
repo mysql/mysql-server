@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2003, 2021, Oracle and/or its affiliates.
+   Copyright (C) 2003, 2005, 2006, 2008 MySQL AB
+    Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -42,12 +43,9 @@ printLQH_FRAG_REQ(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recB
 
   fprintf(output, " maxRowsLow/High: %u/%u  minRowsLow/High: %u/%u\n",
 	  sig->maxRowsLow, sig->maxRowsHigh, sig->minRowsLow, sig->minRowsHigh);
-  fprintf(output, " nextLCP: %d logPartId: %u tablespace_id: %u\n",
-	  sig->nextLCP, sig->logPartId, sig->tablespace_id);
-  fprintf(output, " tableVersion: %u startGci: %u, reqinfo: %x\n",
-          sig->tableVersion, sig->startGci, sig->requestInfo);
-  fprintf(output, " changeMask: %x, partitionId: %u, createGci: %u\n",
-          sig->changeMask, sig->partitionId, sig->createGci);
+  fprintf(output, " nextLCP: %d\n",
+	  sig->nextLCP);
+  
   return true;
 }
 bool
