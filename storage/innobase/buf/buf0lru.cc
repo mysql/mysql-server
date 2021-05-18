@@ -1370,8 +1370,7 @@ static size_t calculate_desired_LRU_old_size(const buf_pool_t *buf_pool) {
 /** Moves the LRU_old pointer so that the length of the old blocks list
 is inside the allowed limits.
 @param[in]	buf_pool	buffer pool instance */
-UNIV_INLINE
-void buf_LRU_old_adjust_len(buf_pool_t *buf_pool) {
+static inline void buf_LRU_old_adjust_len(buf_pool_t *buf_pool) {
   ulint old_len;
   ulint new_len;
 
@@ -1482,8 +1481,7 @@ void buf_LRU_adjust_hp(buf_pool_t *buf_pool, const buf_page_t *bpage) {
 
 /** Removes a block from the LRU list.
 @param[in]	bpage	control block */
-UNIV_INLINE
-void buf_LRU_remove_block(buf_page_t *bpage) {
+static inline void buf_LRU_remove_block(buf_page_t *bpage) {
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
@@ -1580,8 +1578,7 @@ page_size from the buffer page when adding a block into LRU
                         else put to the start; if the LRU list is very short,
                         the block is added to the start, regardless of this
                         parameter */
-UNIV_INLINE
-void buf_LRU_add_block_low(buf_page_t *bpage, ibool old) {
+static inline void buf_LRU_add_block_low(buf_page_t *bpage, ibool old) {
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));

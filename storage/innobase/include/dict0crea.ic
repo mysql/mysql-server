@@ -46,8 +46,7 @@ bool row_is_mysql_tmp_table_name(const char *name)
  A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
  where the numbers start from 1, and are given locally for this table, that is,
  the number is not global, as it used to be before MySQL 4.0.18.  */
-UNIV_INLINE
-dberr_t dict_create_add_foreign_id(
+static inline dberr_t dict_create_add_foreign_id(
     ulint *id_nr,            /*!< in/out: number to use in id generation;
                              incremented if used */
     const char *name,        /*!< in: table name */
@@ -101,8 +100,7 @@ of Sys_columns. The column number includes both its virtual column sequence
 @param[in]	v_pos		virtual column sequence
 @param[in]	col_pos		column position in original table definition
 @return composed column position number */
-UNIV_INLINE
-ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos) {
+static inline ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos) {
   ut_ad(v_pos <= REC_MAX_N_FIELDS);
   ut_ad(col_pos <= REC_MAX_N_FIELDS);
 
@@ -113,12 +111,12 @@ ulint dict_create_v_col_pos(ulint v_pos, ulint col_pos) {
 original table), stored in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return column position in original table */
-UNIV_INLINE
-ulint dict_get_v_col_mysql_pos(ulint pos) { return (pos & 0xFFFF); }
+static inline ulint dict_get_v_col_mysql_pos(ulint pos) {
+  return (pos & 0xFFFF);
+}
 
 /** Get a virtual column sequence (the "nth" virtual column) for a
 virtual column, stord in the "POS" field of Sys_columns
 @param[in]	pos		virtual column position
 @return virtual column sequence */
-UNIV_INLINE
-ulint dict_get_v_col_pos(ulint pos) { return ((pos >> 16) - 1); }
+static inline ulint dict_get_v_col_pos(ulint pos) { return ((pos >> 16) - 1); }

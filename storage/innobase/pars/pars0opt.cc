@@ -369,8 +369,8 @@ static ulint opt_calc_index_goodness(
 
 /** Calculates the number of matched fields based on an index goodness.
  @return number of excatly or partially matched fields */
-UNIV_INLINE
-ulint opt_calc_n_fields_from_goodness(ulint goodness) /*!< in: goodness */
+static inline ulint opt_calc_n_fields_from_goodness(
+    ulint goodness) /*!< in: goodness */
 {
   return (((goodness % 1024) + 2) / 4);
 }
@@ -378,8 +378,7 @@ ulint opt_calc_n_fields_from_goodness(ulint goodness) /*!< in: goodness */
 /** Converts a comparison operator to the corresponding search mode PAGE_CUR_GE,
  ...
  @return search mode */
-UNIV_INLINE
-page_cur_mode_t opt_op_to_search_mode(
+static inline page_cur_mode_t opt_op_to_search_mode(
     ibool asc, /*!< in: TRUE if the rows should be fetched in an
                ascending order */
     ulint op)  /*!< in: operator '=', PARS_GE_TOKEN, ... */

@@ -306,26 +306,22 @@ extern const fts_index_selector_t fts_index_selector_5_7[];
 @param[in]	p1	id1
 @param[in]	p2	id2
 @return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_trx_row_doc_id_cmp(const void *p1, const void *p2);
+static inline int fts_trx_row_doc_id_cmp(const void *p1, const void *p2);
 
 /** Compare two fts_ranking_t instances doc_ids.
 @param[in]	p1	id1
 @param[in]	p2	id2
 @return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_ranking_doc_id_cmp(const void *p1, const void *p2);
+static inline int fts_ranking_doc_id_cmp(const void *p1, const void *p2);
 
 /** Compare two fts_update_t instances doc_ids.
 @param[in]	p1	id1
 @param[in]	p2	id2
 @return < 0 if n1 < n2, < 0 if n1 < n2, > 0 if n1 > n2 */
-UNIV_INLINE
-int fts_update_doc_id_cmp(const void *p1, const void *p2);
+static inline int fts_update_doc_id_cmp(const void *p1, const void *p2);
 
 /** Decode and return the integer that was encoded using our VLC scheme.*/
-UNIV_INLINE
-ulint fts_decode_vlc(
+static inline ulint fts_decode_vlc(
     /*!< out: value decoded */
     byte **ptr); /*!< in: ptr to decode from, this ptr is
                  incremented by the number of bytes decoded */
@@ -335,13 +331,11 @@ ulint fts_decode_vlc(
 @param[in]	src	src string
 @param[in]	heap	heap to use
 */
-UNIV_INLINE
-void fts_string_dup(fts_string_t *dst, const fts_string_t *src,
-                    mem_heap_t *heap);
+static inline void fts_string_dup(fts_string_t *dst, const fts_string_t *src,
+                                  mem_heap_t *heap);
 
 /** Return length of val if it were encoded using our VLC scheme. */
-UNIV_INLINE
-ulint fts_get_encoded_len(
+static inline ulint fts_get_encoded_len(
     /*!< out: length of value
      encoded, in bytes */
     ulint val); /*!< in: value to encode */
@@ -350,26 +344,24 @@ ulint fts_get_encoded_len(
 @param[in]	val	value to encode
 @param[in]	buf	buffer, must have enough space
 @return length of value encoded, in bytes */
-UNIV_INLINE
-ulint fts_encode_int(ulint val, byte *buf);
+static inline ulint fts_encode_int(ulint val, byte *buf);
 
 /** Get the selected FTS aux INDEX suffix. */
-UNIV_INLINE
-const char *fts_get_suffix(ulint selected); /*!< in: selected index */
+static inline const char *fts_get_suffix(
+    ulint selected); /*!< in: selected index */
 
 /** Return the selected FTS aux index suffix in 5.7 compatible format
 @param[in]	selected	selected index
 @return the suffix name */
-UNIV_INLINE
-const char *fts_get_suffix_5_7(ulint selected);
+static inline const char *fts_get_suffix_5_7(ulint selected);
 
 /** Select the FTS auxiliary index for the given character.
 @param[in]	cs	charset
 @param[in]	str	string
 @param[in]	len	string length in bytes
 @return the index to use for the string */
-UNIV_INLINE
-ulint fts_select_index(const CHARSET_INFO *cs, const byte *str, ulint len);
+static inline ulint fts_select_index(const CHARSET_INFO *cs, const byte *str,
+                                     ulint len);
 
 #include "fts0types.ic"
 #include "fts0vlc.ic"

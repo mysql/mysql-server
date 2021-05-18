@@ -79,18 +79,17 @@ void ib_list_remove(ib_list_t *list, ib_list_node_t *node);
 
 /** Get the first node in the list.
  @return first node, or NULL */
-UNIV_INLINE
-ib_list_node_t *ib_list_get_first(ib_list_t *list); /*!< in: list */
+static inline ib_list_node_t *ib_list_get_first(
+    ib_list_t *list); /*!< in: list */
 
 /** Get the last node in the list.
  @return last node, or NULL */
-UNIV_INLINE
-ib_list_node_t *ib_list_get_last(ib_list_t *list); /*!< in: list */
+static inline ib_list_node_t *ib_list_get_last(
+    ib_list_t *list); /*!< in: list */
 
 /********************************************************************
 Check if list is empty. */
-UNIV_INLINE
-ibool ib_list_is_empty(
+static inline ibool ib_list_is_empty(
     /* out: TRUE if empty else  */
     const ib_list_t *list); /* in: list */
 

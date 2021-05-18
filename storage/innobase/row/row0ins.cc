@@ -2241,8 +2241,8 @@ func_exit:
  of a unique secondary index record by checking the cursor->up_match,
  but we do not do so, because it could have some locking implications.
  @return true if the existing record should be updated; false if not */
-UNIV_INLINE
-ibool row_ins_must_modify_rec(const btr_cur_t *cursor) /*!< in: B-tree cursor */
+static inline ibool row_ins_must_modify_rec(
+    const btr_cur_t *cursor) /*!< in: B-tree cursor */
 {
   /* NOTE: (compare to the note in row_ins_duplicate_error_in_clust)
   Because node pointers on upper levels of the B-tree may match more
@@ -3450,8 +3450,8 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 }
 
 /** Allocates a row id for row and inits the node->index field. */
-UNIV_INLINE
-void row_ins_alloc_row_id_step(ins_node_t *node) /*!< in: row insert node */
+static inline void row_ins_alloc_row_id_step(
+    ins_node_t *node) /*!< in: row insert node */
 {
   row_id_t row_id;
 
@@ -3471,8 +3471,8 @@ void row_ins_alloc_row_id_step(ins_node_t *node) /*!< in: row insert node */
 }
 
 /** Gets a row to insert from the values list. */
-UNIV_INLINE
-void row_ins_get_row_from_values(ins_node_t *node) /*!< in: row insert node */
+static inline void row_ins_get_row_from_values(
+    ins_node_t *node) /*!< in: row insert node */
 {
   que_node_t *list_node;
   dfield_t *dfield;
@@ -3500,8 +3500,7 @@ void row_ins_get_row_from_values(ins_node_t *node) /*!< in: row insert node */
 }
 
 /** Gets a row to insert from the select list. */
-UNIV_INLINE
-void row_ins_get_row_from_query_block(
+static inline void row_ins_get_row_from_query_block(
     ins_node_t *node) /*!< in: row insert node */
 {
   que_node_t *list_node;

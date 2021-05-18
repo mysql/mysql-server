@@ -216,8 +216,7 @@ void rec_get_offsets_reverse(
                               offsets[0] allocated elements */
 
 /** Gets a bit field from within 1 byte. */
-UNIV_INLINE
-ulint rec_get_bit_field_1(
+static inline ulint rec_get_bit_field_1(
     const rec_t *rec, /*!< in: pointer to record origin */
     ulint offs,       /*!< in: offset from the origin down */
     ulint mask,       /*!< in: mask used to filter bits */
@@ -229,8 +228,7 @@ ulint rec_get_bit_field_1(
 }
 
 /** Gets a bit field from within 2 bytes. */
-UNIV_INLINE
-uint16_t rec_get_bit_field_2(
+static inline uint16_t rec_get_bit_field_2(
     const rec_t *rec, /*!< in: pointer to record origin */
     ulint offs,       /*!< in: offset from the origin down */
     ulint mask,       /*!< in: mask used to filter bits */
@@ -243,7 +241,7 @@ uint16_t rec_get_bit_field_2(
 
 /** The following function retrieves the status bits of a new-style record.
  @return status bits */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
+static inline MY_ATTRIBUTE((warn_unused_result)) ulint
     rec_get_status(const rec_t *rec) /*!< in: physical record */
 {
   ulint ret;
@@ -271,8 +269,7 @@ inline bool rec_info_bits_valid(ulint bits) {
 @param[in]	rec	physical record
 @param[in]	comp	nonzero=compact page format
 @return info bits */
-UNIV_INLINE
-ulint rec_get_info_bits(const rec_t *rec, ulint comp) {
+static inline ulint rec_get_info_bits(const rec_t *rec, ulint comp) {
   const ulint val =
       rec_get_bit_field_1(rec, comp ? REC_NEW_INFO_BITS : REC_OLD_INFO_BITS,
                           REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
@@ -284,8 +281,7 @@ ulint rec_get_info_bits(const rec_t *rec, ulint comp) {
 record.
 @param[in]	rec	physical record
 @return	info bits */
-UNIV_INLINE
-ulint rec_get_info_bits_temp(const rec_t *rec) {
+static inline ulint rec_get_info_bits_temp(const rec_t *rec) {
   const ulint val = rec_get_bit_field_1(
       rec, REC_TMP_INFO_BITS, REC_INFO_BITS_MASK, REC_INFO_BITS_SHIFT);
   ut_ad(rec_info_bits_valid(val));
@@ -295,7 +291,7 @@ ulint rec_get_info_bits_temp(const rec_t *rec) {
 /** The following function is used to get the number of fields
  in an old-style record, which is stored in the rec
  @return number of data fields */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) uint16_t
+static inline MY_ATTRIBUTE((warn_unused_result)) uint16_t
     rec_get_n_fields_old_raw(const rec_t *rec) /*!< in: physical record */
 {
   uint16_t ret;
@@ -317,7 +313,7 @@ current index.
 @param[in]	rec	physical record
 @param[in]	index	index where the record resides
 @return number of data fields */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) uint16_t
+static inline MY_ATTRIBUTE((warn_unused_result)) uint16_t
     rec_get_n_fields_old(const rec_t *rec, const dict_index_t *index) {
   uint16_t n = rec_get_n_fields_old_raw(rec);
 
@@ -358,9 +354,9 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) uint16_t
  instant ADD COLUMN, some records may have less fields than
  index.
  @return number of data fields */
-UNIV_INLINE
-ulint rec_get_n_fields(const rec_t *rec,          /*!< in: physical record */
-                       const dict_index_t *index) /*!< in: record descriptor */
+static inline ulint rec_get_n_fields(
+    const rec_t *rec,          /*!< in: physical record */
+    const dict_index_t *index) /*!< in: record descriptor */
 {
   ut_ad(rec);
   ut_ad(index);
@@ -388,9 +384,8 @@ record in the same page specified
 @param[in]	rec	record of the same page
 @param[in]	entry	index entry
 @return	true if n_fields is sane */
-UNIV_INLINE
-bool rec_n_fields_is_sane(dict_index_t *index, const rec_t *rec,
-                          const dtuple_t *entry) {
+static inline bool rec_n_fields_is_sane(dict_index_t *index, const rec_t *rec,
+                                        const dtuple_t *entry) {
   return (rec_get_n_fields(rec, index) == dtuple_get_n_fields(entry)
           /* a record for older SYS_INDEXES table
           (missing merge_threshold column) is acceptable. */
@@ -401,7 +396,7 @@ bool rec_n_fields_is_sane(dict_index_t *index, const rec_t *rec,
 /** The following function returns the number of allocated elements
  for an array of offsets.
  @return number of elements */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_get_n_alloc(
+static inline MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_get_n_alloc(
     const ulint *offsets) /*!< in: array for rec_get_offsets() */
 {
   ulint n_alloc;
@@ -414,10 +409,10 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_get_n_alloc(
 
 /** The following function sets the number of allocated elements
  for an array of offsets. */
-UNIV_INLINE
-void rec_offs_set_n_alloc(ulint *offsets, /*!< out: array for rec_get_offsets(),
-                                          must be allocated */
-                          ulint n_alloc)  /*!< in: number of elements */
+static inline void rec_offs_set_n_alloc(
+    ulint *offsets, /*!< out: array for rec_get_offsets(),
+                    must be allocated */
+    ulint n_alloc)  /*!< in: number of elements */
 {
   ut_ad(offsets);
   ut_ad(n_alloc > REC_OFFS_HEADER_SIZE);
@@ -426,10 +421,10 @@ void rec_offs_set_n_alloc(ulint *offsets, /*!< out: array for rec_get_offsets(),
 }
 
 /** The following function sets the number of fields in offsets. */
-UNIV_INLINE
-void rec_offs_set_n_fields(ulint *offsets, /*!< in/out: array returned by
-                                           rec_get_offsets() */
-                           ulint n_fields) /*!< in: number of fields */
+static inline void rec_offs_set_n_fields(
+    ulint *offsets, /*!< in/out: array returned by
+                    rec_get_offsets() */
+    ulint n_fields) /*!< in: number of fields */
 {
   ut_ad(offsets);
   ut_ad(n_fields > 0);
@@ -440,7 +435,7 @@ void rec_offs_set_n_fields(ulint *offsets, /*!< in/out: array returned by
 
 /** The following function returns the number of fields in a record.
  @return number of fields */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_n_fields(
+static inline MY_ATTRIBUTE((warn_unused_result)) ulint rec_offs_n_fields(
     const ulint *offsets) /*!< in: array returned by rec_get_offsets() */
 {
   ulint n_fields;
@@ -458,9 +453,8 @@ field is a field added after an instant ADD COLUMN
 @param[in]	n	Nth field to get offset
 @param[in]	offs	Last offset before current field
 @return The offset of the specified field */
-UNIV_INLINE
-uint64_t rec_get_instant_offset(const dict_index_t *index, ulint n,
-                                uint64_t offs) {
+static inline uint64_t rec_get_instant_offset(const dict_index_t *index,
+                                              ulint n, uint64_t offs) {
   ut_ad(index->has_instant_cols());
 
   ulint length;
@@ -494,7 +488,7 @@ void rec_init_offsets(const rec_t *rec,          /*!< in: physical record */
 #ifdef UNIV_DEBUG
 /** Validates offsets returned by rec_get_offsets().
  @return true if valid */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
+static inline MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
     const rec_t *rec,          /*!< in: record or NULL */
     const dict_index_t *index, /*!< in: record descriptor or NULL */
     const ulint *offsets)      /*!< in: array returned by
@@ -555,8 +549,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool rec_offs_validate(
 
 /** Updates debug data in offsets, in order to avoid bogus
  rec_offs_validate() failures. */
-UNIV_INLINE
-void rec_offs_make_valid(
+static inline void rec_offs_make_valid(
     const rec_t *rec,          /*!< in: record */
     const dict_index_t *index, /*!< in: record descriptor */
     ulint *offsets)            /*!< in: array returned by
@@ -613,8 +606,7 @@ inline void rec_init_fixed_offsets(const dict_index_t *index, ulint *offsets) {
 /** The following function tells if a new-style record is instant record or not
 @param[in]	rec	new-style record
 @return true if it's instant affected */
-UNIV_INLINE
-bool rec_get_instant_flag_new(const rec_t *rec) {
+static inline bool rec_get_instant_flag_new(const rec_t *rec) {
   ulint info = rec_get_info_bits(rec, TRUE);
   return ((info & REC_INFO_INSTANT_FLAG) != 0);
 }
@@ -623,8 +615,7 @@ bool rec_get_instant_flag_new(const rec_t *rec) {
 record or not
 @param[in]	rec	new-style temporary record
 @return	true if it's instant affected */
-UNIV_INLINE
-bool rec_get_instant_flag_new_temp(const rec_t *rec) {
+static inline bool rec_get_instant_flag_new_temp(const rec_t *rec) {
   ulint info = rec_get_info_bits_temp(rec);
   return ((info & REC_INFO_INSTANT_FLAG) != 0);
 }
@@ -635,9 +626,9 @@ This is only needed for table after instant ADD COLUMN.
 @param[in]	extra_bytes	extra bytes of this record
 @param[in,out]	length		length of number of fields
 @return	number of fields */
-UNIV_INLINE
-uint32_t rec_get_n_fields_instant(const rec_t *rec, const ulint extra_bytes,
-                                  uint16_t *length) {
+static inline uint32_t rec_get_n_fields_instant(const rec_t *rec,
+                                                const ulint extra_bytes,
+                                                uint16_t *length) {
   uint16_t n_fields;
   const byte *ptr;
 
@@ -665,10 +656,11 @@ for a new-style temporary record
 @param[out]	lens		the start of variable length bytes
 @param[out]	n_null		number of null fields
 @return	the number of fields which are inlined of the record */
-UNIV_INLINE
-uint16_t rec_init_null_and_len_temp(const rec_t *rec, const dict_index_t *index,
-                                    const byte **nulls, const byte **lens,
-                                    uint16_t *n_null) {
+static inline uint16_t rec_init_null_and_len_temp(const rec_t *rec,
+                                                  const dict_index_t *index,
+                                                  const byte **nulls,
+                                                  const byte **lens,
+                                                  uint16_t *n_null) {
   uint16_t non_default_fields =
       static_cast<uint16_t>(dict_index_get_n_fields(index));
 
@@ -708,10 +700,11 @@ for a new style record
 @param[out]	lens		the start of variable length bytes
 @param[out]	n_null		number of null fields
 @return	the number of fields which are inlined of the record */
-UNIV_INLINE
-uint16_t rec_init_null_and_len_comp(const rec_t *rec, const dict_index_t *index,
-                                    const byte **nulls, const byte **lens,
-                                    uint16_t *n_null) {
+static inline uint16_t rec_init_null_and_len_comp(const rec_t *rec,
+                                                  const dict_index_t *index,
+                                                  const byte **nulls,
+                                                  const byte **lens,
+                                                  uint16_t *n_null) {
   uint16_t non_default_fields =
       static_cast<uint16_t>(dict_index_get_n_fields(index));
 
@@ -742,8 +735,7 @@ uint16_t rec_init_null_and_len_comp(const rec_t *rec, const dict_index_t *index,
 /** Determine the offset to each field in a leaf-page record
  in ROW_FORMAT=COMPACT.  This is a special case of
  rec_init_offsets() and rec_get_offsets_func(). */
-UNIV_INLINE
-void rec_init_offsets_comp_ordinary(
+static inline void rec_init_offsets_comp_ordinary(
     const rec_t *rec,          /*!< in: physical record in
                                ROW_FORMAT=COMPACT */
     bool temp,                 /*!< in: whether to use the
@@ -865,7 +857,7 @@ void rec_init_offsets_comp_ordinary(
 /** The following function is used to test whether the data offsets in the
  record are stored in one-byte or two-byte format.
  @return true if 1-byte form */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool
+static inline MY_ATTRIBUTE((warn_unused_result)) ibool
     rec_get_1byte_offs_flag(const rec_t *rec) /*!< in: physical record */
 {
 #if TRUE != 1
@@ -880,7 +872,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ibool
  offsets form. If the field is SQL null, the flag is ORed in the returned
  value.
  @return offset of the start of the field, SQL null flag ORed */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
+static inline MY_ATTRIBUTE((warn_unused_result)) ulint
     rec_1_get_field_end_info(const rec_t *rec, /*!< in: record */
                              ulint n)          /*!< in: field index */
 {
@@ -895,7 +887,7 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
  value.
  @return offset of the start of the field, SQL null flag and extern
  storage flag ORed */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) ulint
+static inline MY_ATTRIBUTE((warn_unused_result)) ulint
     rec_2_get_field_end_info(const rec_t *rec, /*!< in: record */
                              ulint n)          /*!< in: field index */
 {

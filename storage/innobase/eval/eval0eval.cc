@@ -45,8 +45,7 @@ static byte eval_dummy;
 
 /*************************************************************************
 Gets the like node from the node */
-UNIV_INLINE
-que_node_t *que_node_get_like_node(
+static inline que_node_t *que_node_get_like_node(
     /* out: next node in a list of nodes */
     que_node_t *node) /* in: node in a list */
 {
@@ -117,9 +116,8 @@ void eval_node_free_val_buf(que_node_t *node) /*!< in: query graph node */
 /*********************************************************************
 Evaluates a LIKE comparison node.
 @return the result of the comparison */
-UNIV_INLINE
-ibool eval_cmp_like(que_node_t *arg1, /* !< in: left operand */
-                    que_node_t *arg2) /* !< in: right operand */
+static inline ibool eval_cmp_like(que_node_t *arg1, /* !< in: left operand */
+                                  que_node_t *arg2) /* !< in: right operand */
 {
   ib_like_t op;
   que_node_t *arg3;
@@ -206,8 +204,8 @@ ibool eval_cmp(func_node_t *cmp_node) /*!< in: comparison node */
 }
 
 /** Evaluates a logical operation node. */
-UNIV_INLINE
-void eval_logical(func_node_t *logical_node) /*!< in: logical operation node */
+static inline void eval_logical(
+    func_node_t *logical_node) /*!< in: logical operation node */
 {
   que_node_t *arg1;
   que_node_t *arg2;
@@ -243,8 +241,8 @@ void eval_logical(func_node_t *logical_node) /*!< in: logical operation node */
 }
 
 /** Evaluates an arithmetic operation node. */
-UNIV_INLINE
-void eval_arith(func_node_t *arith_node) /*!< in: arithmetic operation node */
+static inline void eval_arith(
+    func_node_t *arith_node) /*!< in: arithmetic operation node */
 {
   que_node_t *arg1;
   que_node_t *arg2;
@@ -283,8 +281,8 @@ void eval_arith(func_node_t *arith_node) /*!< in: arithmetic operation node */
 }
 
 /** Evaluates an aggregate operation node. */
-UNIV_INLINE
-void eval_aggregate(func_node_t *node) /*!< in: aggregate operation node */
+static inline void eval_aggregate(
+    func_node_t *node) /*!< in: aggregate operation node */
 {
   que_node_t *arg;
   lint val;
@@ -312,8 +310,8 @@ void eval_aggregate(func_node_t *node) /*!< in: aggregate operation node */
 }
 
 /** Evaluates a notfound-function node. */
-UNIV_INLINE
-void eval_notfound(func_node_t *func_node) /*!< in: function node */
+static inline void eval_notfound(
+    func_node_t *func_node) /*!< in: function node */
 {
   sym_node_t *cursor;
   sel_node_t *sel_node;
@@ -343,8 +341,7 @@ void eval_notfound(func_node_t *func_node) /*!< in: function node */
 }
 
 /** Evaluates a substr-function node. */
-UNIV_INLINE
-void eval_substr(func_node_t *func_node) /*!< in: function node */
+static inline void eval_substr(func_node_t *func_node) /*!< in: function node */
 {
   que_node_t *arg1;
   que_node_t *arg2;
@@ -477,8 +474,8 @@ static void eval_concat(func_node_t *func_node) /*!< in: function node */
  bytes, and converts the integer to a VARCHAR.
  If the first argument is of some other type, this function converts it to
  BINARY. */
-UNIV_INLINE
-void eval_to_binary(func_node_t *func_node) /*!< in: function node */
+static inline void eval_to_binary(
+    func_node_t *func_node) /*!< in: function node */
 {
   que_node_t *arg1;
   que_node_t *arg2;
@@ -515,8 +512,7 @@ void eval_to_binary(func_node_t *func_node) /*!< in: function node */
 }
 
 /** Evaluate the predefined LENGTH function. */
-UNIV_INLINE
-void eval_length(func_node_t *func_node) /*!< in: function node */
+static inline void eval_length(func_node_t *func_node) /*!< in: function node */
 {
   ut_ad(func_node->func == PARS_LENGTH_TOKEN);
   eval_node_set_int_val(

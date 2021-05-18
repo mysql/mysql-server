@@ -1799,9 +1799,9 @@ static ibool row_upd_changes_first_fields_binary(
 @param[in]	offsets	array returned by rec_get_offsets()
 @param[in]	index	clustered index where record resides
 @param[in]	column	first column in a column list, or nullptr */
-UNIV_INLINE
-void row_upd_copy_columns(rec_t *rec, const ulint *offsets,
-                          const dict_index_t *index, sym_node_t *column) {
+static inline void row_upd_copy_columns(rec_t *rec, const ulint *offsets,
+                                        const dict_index_t *index,
+                                        sym_node_t *column) {
   const byte *data;
   ulint len;
 
@@ -1818,8 +1818,8 @@ void row_upd_copy_columns(rec_t *rec, const ulint *offsets,
 
 /** Calculates the new values for fields to update. Note that
  row_upd_copy_columns must have been called first. */
-UNIV_INLINE
-void row_upd_eval_new_vals(upd_t *update) /*!< in/out: update vector */
+static inline void row_upd_eval_new_vals(
+    upd_t *update) /*!< in/out: update vector */
 {
   que_node_t *exp;
   upd_field_t *upd_field;

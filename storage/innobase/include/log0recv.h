@@ -197,8 +197,7 @@ size_t meb_heap_used();
 
 /** Returns true if recovery is currently running.
 @return recv_recovery_on */
-UNIV_INLINE
-bool recv_recovery_is_on() MY_ATTRIBUTE((warn_unused_result));
+static inline bool recv_recovery_is_on() MY_ATTRIBUTE((warn_unused_result));
 
 /** Returns true if the page is brand new (the next log record is init_file_page
 or no records to apply).

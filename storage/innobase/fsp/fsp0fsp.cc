@@ -330,12 +330,12 @@ bool fsp_skip_sanity_check(space_id_t space_id) {
 
 /** Gets a descriptor bit of a page.
  @return true if free */
-UNIV_INLINE
-ibool xdes_mtr_get_bit(const xdes_t *descr, /*!< in: descriptor */
-                       ulint bit, /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-                       page_no_t offset, /*!< in: page offset within extent:
-                                         0 ... FSP_EXTENT_SIZE - 1 */
-                       mtr_t *mtr)       /*!< in: mini-transaction */
+static inline ibool xdes_mtr_get_bit(
+    const xdes_t *descr, /*!< in: descriptor */
+    ulint bit,           /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+    page_no_t offset,    /*!< in: page offset within extent:
+                         0 ... FSP_EXTENT_SIZE - 1 */
+    mtr_t *mtr)          /*!< in: mini-transaction */
 {
   ut_ad(mtr->is_active());
   ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
@@ -344,13 +344,13 @@ ibool xdes_mtr_get_bit(const xdes_t *descr, /*!< in: descriptor */
 }
 
 /** Sets a descriptor bit of a page. */
-UNIV_INLINE
-void xdes_set_bit(xdes_t *descr,    /*!< in: descriptor */
-                  ulint bit,        /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-                  page_no_t offset, /*!< in: page offset within extent:
-                                    0 ... FSP_EXTENT_SIZE - 1 */
-                  ibool val,        /*!< in: bit value */
-                  mtr_t *mtr)       /*!< in/out: mini-transaction */
+static inline void xdes_set_bit(
+    xdes_t *descr,    /*!< in: descriptor */
+    ulint bit,        /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+    page_no_t offset, /*!< in: page offset within extent:
+                      0 ... FSP_EXTENT_SIZE - 1 */
+    ibool val,        /*!< in: bit value */
+    mtr_t *mtr)       /*!< in/out: mini-transaction */
 {
   ulint index;
   ulint byte_index;
@@ -377,13 +377,13 @@ void xdes_set_bit(xdes_t *descr,    /*!< in: descriptor */
  and scans upward; at the end of the extent the search is wrapped to
  the start of the extent.
  @return bit index of the bit, ULINT_UNDEFINED if not found */
-UNIV_INLINE
-page_no_t xdes_find_bit(xdes_t *descr, /*!< in: descriptor */
-                        ulint bit, /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
-                        ibool val, /*!< in: desired bit value */
-                        page_no_t hint, /*!< in: hint of which bit position
-                                        would be desirable */
-                        mtr_t *mtr)     /*!< in/out: mini-transaction */
+static inline page_no_t xdes_find_bit(
+    xdes_t *descr,  /*!< in: descriptor */
+    ulint bit,      /*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+    ibool val,      /*!< in: desired bit value */
+    page_no_t hint, /*!< in: hint of which bit position
+                    would be desirable */
+    mtr_t *mtr)     /*!< in/out: mini-transaction */
 {
   page_no_t i;
 
@@ -408,9 +408,9 @@ page_no_t xdes_find_bit(xdes_t *descr, /*!< in: descriptor */
 
 /** Returns the number of used pages in a descriptor.
  @return number of pages used */
-UNIV_INLINE
-page_no_t xdes_get_n_used(const xdes_t *descr, /*!< in: descriptor */
-                          mtr_t *mtr)          /*!< in/out: mini-transaction */
+static inline page_no_t xdes_get_n_used(
+    const xdes_t *descr, /*!< in: descriptor */
+    mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
   page_no_t count = 0;
 
@@ -445,9 +445,8 @@ bool xdes_state_is_valid(ulint state) {
 
 /** Returns true if extent contains no used pages.
  @return true if totally free */
-UNIV_INLINE
-ibool xdes_is_free(const xdes_t *descr, /*!< in: descriptor */
-                   mtr_t *mtr)          /*!< in/out: mini-transaction */
+static inline ibool xdes_is_free(const xdes_t *descr, /*!< in: descriptor */
+                                 mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   if (0 == xdes_get_n_used(descr, mtr)) {
     ut_ad(xdes_get_state(descr, mtr) != XDES_FSEG_FRAG);
@@ -460,9 +459,8 @@ ibool xdes_is_free(const xdes_t *descr, /*!< in: descriptor */
 
 /** Returns true if extent contains no free pages.
  @return true if full */
-UNIV_INLINE
-ibool xdes_is_full(const xdes_t *descr, /*!< in: descriptor */
-                   mtr_t *mtr)          /*!< in/out: mini-transaction */
+static inline ibool xdes_is_full(const xdes_t *descr, /*!< in: descriptor */
+                                 mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   if (FSP_EXTENT_SIZE == xdes_get_n_used(descr, mtr)) {
     return (TRUE);
@@ -472,10 +470,9 @@ ibool xdes_is_full(const xdes_t *descr, /*!< in: descriptor */
 }
 
 /** Sets the state of an xdes. */
-UNIV_INLINE
-void xdes_set_state(xdes_t *descr,      /*!< in/out: descriptor */
-                    xdes_state_t state, /*!< in: state to set */
-                    mtr_t *mtr)         /*!< in/out: mini-transaction */
+static inline void xdes_set_state(xdes_t *descr,      /*!< in/out: descriptor */
+                                  xdes_state_t state, /*!< in: state to set */
+                                  mtr_t *mtr) /*!< in/out: mini-transaction */
 {
   ut_ad(descr && mtr);
   ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
@@ -522,9 +519,8 @@ inline void xdes_set_segment_id(xdes_t *descr, const ib_id_t seg_id,
 }
 
 /** Inits an extent descriptor to the free and clean state. */
-UNIV_INLINE
-void xdes_init(xdes_t *descr, /*!< in: descriptor */
-               mtr_t *mtr)    /*!< in/out: mini-transaction */
+static inline void xdes_init(xdes_t *descr, /*!< in: descriptor */
+                             mtr_t *mtr)    /*!< in/out: mini-transaction */
 {
   ulint i;
 
@@ -551,7 +547,7 @@ void xdes_init(xdes_t *descr, /*!< in: descriptor */
 the same as the tablespace header
 @return pointer to the extent descriptor, NULL if the page does not
 exist in the space or if the offset exceeds free limit */
-UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) xdes_t
+static inline MY_ATTRIBUTE((warn_unused_result)) xdes_t
     *xdes_get_descriptor_with_space_hdr(fsp_header_t *sp_header,
                                         space_id_t space, page_no_t offset,
                                         mtr_t *mtr, bool init_space = false,
@@ -652,9 +648,9 @@ is x-locked.
                                 descriptor
 @param[in,out]	mtr		Mini-transaction
 @return pointer to the extent descriptor */
-UNIV_INLINE
-xdes_t *xdes_lst_get_descriptor(space_id_t space, const page_size_t &page_size,
-                                fil_addr_t lst_node, mtr_t *mtr) {
+static inline xdes_t *xdes_lst_get_descriptor(space_id_t space,
+                                              const page_size_t &page_size,
+                                              fil_addr_t lst_node, mtr_t *mtr) {
   xdes_t *descr;
 
   ut_ad(mtr);
@@ -668,8 +664,8 @@ xdes_t *xdes_lst_get_descriptor(space_id_t space, const page_size_t &page_size,
 
 /** Returns page offset of the first page in extent described by a descriptor.
  @return offset of the first page in extent */
-UNIV_INLINE
-page_no_t xdes_get_offset(const xdes_t *descr) /*!< in: extent descriptor */
+static inline page_no_t xdes_get_offset(
+    const xdes_t *descr) /*!< in: extent descriptor */
 {
   ut_ad(descr);
 
@@ -1938,10 +1934,8 @@ static void fsp_free_extent(const page_id_t &page_id,
 @param[in]	page_size	Page size
 @param[in,out]	mtr		Mini-transaction
 @return segment inode */
-UNIV_INLINE
-fseg_inode_t *fsp_seg_inode_page_get_nth_inode(page_t *page, page_no_t i,
-                                               const page_size_t &page_size,
-                                               mtr_t *mtr) {
+static inline fseg_inode_t *fsp_seg_inode_page_get_nth_inode(
+    page_t *page, page_no_t i, const page_size_t &page_size, mtr_t *mtr) {
   ut_ad(i < FSP_SEG_INODES_PER_PAGE(page_size));
   ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_SX_FIX));
 
@@ -2180,8 +2174,7 @@ static fseg_inode_t *fseg_inode_get(fseg_header_t *header, space_id_t space,
 
 /** Gets the page number from the nth fragment page slot.
  @return page number, FIL_NULL if not in use */
-UNIV_INLINE
-page_no_t fseg_get_nth_frag_page_no(
+static inline page_no_t fseg_get_nth_frag_page_no(
     fseg_inode_t *inode, /*!< in: segment inode */
     ulint n,             /*!< in: slot index */
     mtr_t *mtr MY_ATTRIBUTE((unused)))
@@ -2198,11 +2191,11 @@ page_no_t fseg_get_nth_frag_page_no(
 }
 
 /** Sets the page number in the nth fragment page slot. */
-UNIV_INLINE
-void fseg_set_nth_frag_page_no(fseg_inode_t *inode, /*!< in: segment inode */
-                               ulint n,             /*!< in: slot index */
-                               page_no_t page_no, /*!< in: page number to set */
-                               mtr_t *mtr) /*!< in/out: mini-transaction */
+static inline void fseg_set_nth_frag_page_no(
+    fseg_inode_t *inode, /*!< in: segment inode */
+    ulint n,             /*!< in: slot index */
+    page_no_t page_no,   /*!< in: page number to set */
+    mtr_t *mtr)          /*!< in/out: mini-transaction */
 {
   ut_ad(inode && mtr);
   ut_ad(n < FSEG_FRAG_ARR_N_SLOTS);
@@ -2578,9 +2571,8 @@ XDES_FRAG_N_USED.
 @param[in]	page_size	The page size
 @param[in,out]	mtr		Mini-transaction
 @return	true if the extent is leasable, false otherwise. */
-UNIV_INLINE
-bool xdes_is_leasable(const xdes_t *descr, const page_size_t &page_size,
-                      mtr_t *mtr) {
+static inline bool xdes_is_leasable(const xdes_t *descr,
+                                    const page_size_t &page_size, mtr_t *mtr) {
   ut_ad(descr && mtr);
   ut_ad(mtr_memo_contains_page(mtr, descr, MTR_MEMO_PAGE_SX_FIX));
 

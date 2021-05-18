@@ -158,8 +158,8 @@ typedef std::map<const char *, dict_index_t *, ut_strcmp_functor,
  - stats recalc
  - stats save
  @return true if exists and all tables are ok */
-UNIV_INLINE
-bool dict_stats_should_ignore_index(const dict_index_t *index) /*!< in: index */
+static inline bool dict_stats_should_ignore_index(
+    const dict_index_t *index) /*!< in: index */
 {
   return ((index->type & DICT_FTS) || index->is_corrupted() ||
           dict_index_is_spatial(index) || index->to_be_dropped ||
@@ -1121,12 +1121,13 @@ be big enough)
 to the number of externally stored pages which were encountered
 @return offsets1 or offsets2 (the offsets of *out_rec),
 or NULL if the page is empty and does not contain user records. */
-UNIV_INLINE
-ulint *dict_stats_scan_page(const rec_t **out_rec, ulint *offsets1,
-                            ulint *offsets2, const dict_index_t *index,
-                            const page_t *page, ulint n_prefix,
-                            page_scan_method_t scan_method, ib_uint64_t *n_diff,
-                            ib_uint64_t *n_external_pages) {
+static inline ulint *dict_stats_scan_page(const rec_t **out_rec,
+                                          ulint *offsets1, ulint *offsets2,
+                                          const dict_index_t *index,
+                                          const page_t *page, ulint n_prefix,
+                                          page_scan_method_t scan_method,
+                                          ib_uint64_t *n_diff,
+                                          ib_uint64_t *n_external_pages) {
   ulint *offsets_rec = offsets1;
   ulint *offsets_next_rec = offsets2;
   const rec_t *rec;
@@ -1602,9 +1603,8 @@ static bool dict_stats_analyze_index_for_n_prefix(
 /** Set dict_index_t::stat_n_diff_key_vals[] and stat_n_sample_sizes[].
 @param[in]	n_diff_data	input data to use to derive the results
 @param[in,out]	index		index whose stat_n_diff_key_vals[] to set */
-UNIV_INLINE
-void dict_stats_index_set_n_diff(const n_diff_data_t *n_diff_data,
-                                 dict_index_t *index) {
+static inline void dict_stats_index_set_n_diff(const n_diff_data_t *n_diff_data,
+                                               dict_index_t *index) {
   for (ulint n_prefix = dict_index_get_n_unique(index); n_prefix >= 1;
        n_prefix--) {
     /* n_diff_all_analyzed_pages can be 0 here if
@@ -3064,8 +3064,7 @@ dberr_t dict_stats_drop_index(
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-dberr_t dict_stats_delete_from_table_stats(
+static inline dberr_t dict_stats_delete_from_table_stats(
     const char *database_name, /*!< in: database name, e.g. 'db' */
     const char *table_name)    /*!< in: table name, e.g. 'table' */
 {
@@ -3097,8 +3096,7 @@ dberr_t dict_stats_delete_from_table_stats(
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-dberr_t dict_stats_delete_from_index_stats(
+static inline dberr_t dict_stats_delete_from_index_stats(
     const char *database_name, /*!< in: database name, e.g. 'db' */
     const char *table_name)    /*!< in: table name, e.g. 'table' */
 {
@@ -3202,8 +3200,7 @@ dberr_t dict_stats_drop_table(
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-dberr_t dict_stats_rename_table_in_table_stats(
+static inline dberr_t dict_stats_rename_table_in_table_stats(
     const char *old_dbname_utf8,    /*!< in: database name, e.g. 'olddb' */
     const char *old_tablename_utf8, /*!< in: table name, e.g. 'oldtable' */
     const char *new_dbname_utf8,    /*!< in: database name, e.g. 'newdb' */
@@ -3243,8 +3240,7 @@ dberr_t dict_stats_rename_table_in_table_stats(
  WHERE database_name = '...' AND table_name = '...';
  Creates its own transaction and commits it.
  @return DB_SUCCESS or error code */
-UNIV_INLINE
-dberr_t dict_stats_rename_table_in_index_stats(
+static inline dberr_t dict_stats_rename_table_in_index_stats(
     const char *old_dbname_utf8,    /*!< in: database name, e.g. 'olddb' */
     const char *old_tablename_utf8, /*!< in: table name, e.g. 'oldtable' */
     const char *new_dbname_utf8,    /*!< in: database name, e.g. 'newdb' */

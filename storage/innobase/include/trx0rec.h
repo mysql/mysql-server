@@ -53,29 +53,25 @@ this program; if not, write to the Free Software Foundation, Inc.,
 @param[in]	undo_offset	offset of the undo record in the page
 @param[in]	heap		heap where copied
 @return copy of undo log record */
-UNIV_INLINE
-trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page, uint32_t undo_offset,
-                                  mem_heap_t *heap);
+static inline trx_undo_rec_t *trx_undo_rec_copy(const page_t *undo_page,
+                                                uint32_t undo_offset,
+                                                mem_heap_t *heap);
 
 /** Reads the undo log record type.
  @return record type */
-UNIV_INLINE
-ulint trx_undo_rec_get_type(
+static inline ulint trx_undo_rec_get_type(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 /** Reads from an undo log record the record compiler info.
  @return compiler info */
-UNIV_INLINE
-ulint trx_undo_rec_get_cmpl_info(
+static inline ulint trx_undo_rec_get_cmpl_info(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 /** Returns TRUE if an undo log record contains an extern storage field.
  @return true if extern */
-UNIV_INLINE
-ibool trx_undo_rec_get_extern_storage(
+static inline ibool trx_undo_rec_get_extern_storage(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 /** Reads the undo log record number.
  @return undo no */
-UNIV_INLINE
-undo_no_t trx_undo_rec_get_undo_no(
+static inline undo_no_t trx_undo_rec_get_undo_no(
     const trx_undo_rec_t *undo_rec); /*!< in: undo log record */
 
 /** Returns the start of the undo record data area. */

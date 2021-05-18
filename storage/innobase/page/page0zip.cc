@@ -183,9 +183,9 @@ bool page_zip_is_too_big(const dict_index_t *index, const dtuple_t *entry) {
 
 /** Find the slot of the given non-free record in the dense page directory.
  @return dense directory slot, or NULL if record not found */
-UNIV_INLINE
-byte *page_zip_dir_find(page_zip_des_t *page_zip, /*!< in: compressed page */
-                        ulint offset) /*!< in: offset of user record */
+static inline byte *page_zip_dir_find(
+    page_zip_des_t *page_zip, /*!< in: compressed page */
+    ulint offset)             /*!< in: offset of user record */
 {
   byte *end = page_zip->data + page_zip_get_size(page_zip);
 

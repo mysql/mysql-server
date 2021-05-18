@@ -153,26 +153,24 @@ A single user buffer of 'size' will fit in the block.
 @param[in]	type		Heap type
 @return own: memory heap, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INLINE
-mem_heap_t *mem_heap_create_func(ulint size,
+static inline mem_heap_t *mem_heap_create_func(ulint size,
 #ifdef UNIV_DEBUG
-                                 const char *file_name, ulint line,
+                                               const char *file_name,
+                                               ulint line,
 #endif /* UNIV_DEBUG */
-                                 ulint type);
+                                               ulint type);
 
 /** Frees the space occupied by a memory heap.
 NOTE: Use the corresponding macro instead of this function.
 @param[in]	heap	Heap to be freed */
-UNIV_INLINE
-void mem_heap_free(mem_heap_t *heap);
+static inline void mem_heap_free(mem_heap_t *heap);
 
 /** Allocates and zero-fills n bytes of memory from a memory heap.
 @param[in]	heap	memory heap
 @param[in]	n	number of bytes; if the heap is allowed to grow into
 the buffer pool, this must be <= MEM_MAX_ALLOC_IN_BUF
 @return allocated, zero-filled storage */
-UNIV_INLINE
-void *mem_heap_zalloc(mem_heap_t *heap, ulint n);
+static inline void *mem_heap_zalloc(mem_heap_t *heap, ulint n);
 
 /** Allocates n bytes of memory from a memory heap.
 @param[in]	heap	memory heap
@@ -180,36 +178,31 @@ void *mem_heap_zalloc(mem_heap_t *heap, ulint n);
 the buffer pool, this must be <= MEM_MAX_ALLOC_IN_BUF
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INLINE
-void *mem_heap_alloc(mem_heap_t *heap, ulint n);
+static inline void *mem_heap_alloc(mem_heap_t *heap, ulint n);
 
 /** Returns a pointer to the heap top.
 @param[in]	heap		memory heap
 @return pointer to the heap top */
-UNIV_INLINE
-byte *mem_heap_get_heap_top(mem_heap_t *heap);
+static inline byte *mem_heap_get_heap_top(mem_heap_t *heap);
 
 /** Frees the space in a memory heap exceeding the pointer given.
 The pointer must have been acquired from mem_heap_get_heap_top.
 The first memory block of the heap is not freed.
 @param[in]	heap		heap from which to free
 @param[in]	old_top		pointer to old top of heap */
-UNIV_INLINE
-void mem_heap_free_heap_top(mem_heap_t *heap, byte *old_top);
+static inline void mem_heap_free_heap_top(mem_heap_t *heap, byte *old_top);
 
 /** Empties a memory heap.
 The first memory block of the heap is not freed.
 @param[in]	heap		heap to empty */
-UNIV_INLINE
-void mem_heap_empty(mem_heap_t *heap);
+static inline void mem_heap_empty(mem_heap_t *heap);
 
 /** Returns a pointer to the topmost element in a memory heap.
 The size of the element must be given.
 @param[in]	heap	memory heap
 @param[in]	n	size of the topmost element
 @return pointer to the topmost element */
-UNIV_INLINE
-void *mem_heap_get_top(mem_heap_t *heap, ulint n);
+static inline void *mem_heap_get_top(mem_heap_t *heap, ulint n);
 
 /** Checks if a given chunk of memory is the topmost element stored in the
 heap. If this is the case, then calling mem_heap_free_top() would free
@@ -218,8 +211,8 @@ that element from the heap.
 @param[in]	buf	presumed topmost element
 @param[in]	buf_sz	size of buf in bytes
 @return true if topmost */
-UNIV_INLINE
-bool mem_heap_is_top(mem_heap_t *heap, const void *buf, ulint buf_sz)
+static inline bool mem_heap_is_top(mem_heap_t *heap, const void *buf,
+                                   ulint buf_sz)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
@@ -232,9 +225,8 @@ and this function will be equivallent to mem_heap_alloc().
 @param[in]	new_sz	desired size of the new chunk
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INLINE
-void *mem_heap_replace(mem_heap_t *heap, const void *top, ulint top_sz,
-                       ulint new_sz);
+static inline void *mem_heap_replace(mem_heap_t *heap, const void *top,
+                                     ulint top_sz, ulint new_sz);
 
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element and then copy the specified data to it. If the memory chunk
@@ -248,9 +240,9 @@ mem_heap_dup().
 @param[in]	data_sz	size of data in bytes
 @return allocated storage, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INLINE
-void *mem_heap_dup_replace(mem_heap_t *heap, const void *top, ulint top_sz,
-                           const void *data, ulint data_sz);
+static inline void *mem_heap_dup_replace(mem_heap_t *heap, const void *top,
+                                         ulint top_sz, const void *data,
+                                         ulint data_sz);
 
 /** Allocate a new chunk of memory from a memory heap, possibly discarding the
 topmost element and then copy the specified string to it. If the memory chunk
@@ -263,33 +255,28 @@ mem_heap_strdup().
 @param[in]	str	new data to duplicate
 @return allocated string, NULL if did not succeed (only possible for
 MEM_HEAP_BTR_SEARCH type heaps) */
-UNIV_INLINE
-char *mem_heap_strdup_replace(mem_heap_t *heap, const void *top, ulint top_sz,
-                              const char *str);
+static inline char *mem_heap_strdup_replace(mem_heap_t *heap, const void *top,
+                                            ulint top_sz, const char *str);
 
 /** Frees the topmost element in a memory heap.
 @param[in]	heap	memory heap
 @param[in]	n	size of the topmost element
 The size of the element must be given. */
-UNIV_INLINE
-void mem_heap_free_top(mem_heap_t *heap, ulint n);
+static inline void mem_heap_free_top(mem_heap_t *heap, ulint n);
 
 /** Returns the space in bytes occupied by a memory heap. */
-UNIV_INLINE
-ulint mem_heap_get_size(mem_heap_t *heap); /*!< in: heap */
+static inline ulint mem_heap_get_size(mem_heap_t *heap); /*!< in: heap */
 
 /** Duplicates a NUL-terminated string.
 @param[in]	str	string to be copied
 @return own: a copy of the string, must be deallocated with ut_free */
-UNIV_INLINE
-char *mem_strdup(const char *str);
+static inline char *mem_strdup(const char *str);
 
 /** Makes a NUL-terminated copy of a nonterminated string.
 @param[in]	str	string to be copied
 @param[in]	len	length of str, in bytes
 @return own: a copy of the string, must be deallocated with ut_free */
-UNIV_INLINE
-char *mem_strdupl(const char *str, ulint len);
+static inline char *mem_strdupl(const char *str, ulint len);
 
 /** Duplicates a NUL-terminated string, allocated from a memory heap.
 @param[in]	heap	memory heap where string is allocated
@@ -303,8 +290,8 @@ memory heap.
 @param[in]	str	string to be copied
 @param[in]	len	length of str, in bytes
 @return own: a copy of the string */
-UNIV_INLINE
-char *mem_heap_strdupl(mem_heap_t *heap, const char *str, ulint len);
+static inline char *mem_heap_strdupl(mem_heap_t *heap, const char *str,
+                                     ulint len);
 
 /** Concatenate two strings and return the result, using a memory heap.
  @return own: the result */
@@ -331,8 +318,7 @@ char *mem_heap_printf(mem_heap_t *heap,   /*!< in: memory heap */
 
 /** Checks that an object is a memory heap (or a block of it)
 @param[in]	heap	Memory heap to check */
-UNIV_INLINE
-void mem_block_validate(const mem_heap_t *heap);
+static inline void mem_block_validate(const mem_heap_t *heap);
 
 #ifdef UNIV_DEBUG
 

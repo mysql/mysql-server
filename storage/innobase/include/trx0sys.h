@@ -62,8 +62,7 @@ extern trx_sys_t *trx_sys;
 /** Checks if a page address is the trx sys header page.
 @param[in]	page_id	page id
 @return true if trx sys header page */
-UNIV_INLINE
-bool trx_sys_hdr_page(const page_id_t &page_id);
+static inline bool trx_sys_hdr_page(const page_id_t &page_id);
 
 /** Creates and initializes the central memory structures for the transaction
  system. This is called when the database is started.
@@ -86,8 +85,7 @@ ulint trx_sysf_rseg_find_free(mtr_t *mtr);
 
 /** Gets a pointer to the transaction system file copy and x-locks its page.
  @return pointer to system file copy, page x-locked */
-UNIV_INLINE
-trx_sysf_t *trx_sysf_get(mtr_t *mtr); /*!< in: mtr */
+static inline trx_sysf_t *trx_sysf_get(mtr_t *mtr); /*!< in: mtr */
 
 /** Gets the space of the nth rollback segment slot in the trx system
 file copy.
@@ -95,8 +93,8 @@ file copy.
 @param[in]	i		slot index == rseg id
 @param[in]	mtr		mtr
 @return space id */
-UNIV_INLINE
-space_id_t trx_sysf_rseg_get_space(trx_sysf_t *sys_header, ulint i, mtr_t *mtr);
+static inline space_id_t trx_sysf_rseg_get_space(trx_sysf_t *sys_header,
+                                                 ulint i, mtr_t *mtr);
 
 /** Gets the page number of the nth rollback segment slot in the trx system
 file copy.
@@ -104,9 +102,8 @@ file copy.
 @param[in]	i		slot index == rseg id
 @param[in]	mtr		mtr
 @return page number, FIL_NULL if slot unused */
-UNIV_INLINE
-page_no_t trx_sysf_rseg_get_page_no(trx_sysf_t *sys_header, ulint i,
-                                    mtr_t *mtr);
+static inline page_no_t trx_sysf_rseg_get_page_no(trx_sysf_t *sys_header,
+                                                  ulint i, mtr_t *mtr);
 
 /** Sets the space id of the nth rollback segment slot in the trx system
 file copy.
@@ -114,9 +111,8 @@ file copy.
 @param[in]	i		slot index == rseg id
 @param[in]	space		space id
 @param[in]	mtr		mtr */
-UNIV_INLINE
-void trx_sysf_rseg_set_space(trx_sysf_t *sys_header, ulint i, space_id_t space,
-                             mtr_t *mtr);
+static inline void trx_sysf_rseg_set_space(trx_sysf_t *sys_header, ulint i,
+                                           space_id_t space, mtr_t *mtr);
 
 /** Set the page number of the nth rollback segment slot in the trx system
 file copy.
@@ -125,9 +121,8 @@ file copy.
 @param[in]	page_no		page number, FIL_NULL if the slot is reset to
                                 unused
 @param[in]	mtr		mtr */
-UNIV_INLINE
-void trx_sysf_rseg_set_page_no(trx_sysf_t *sys_header, ulint i,
-                               page_no_t page_no, mtr_t *mtr);
+static inline void trx_sysf_rseg_set_page_no(trx_sysf_t *sys_header, ulint i,
+                                             page_no_t page_no, mtr_t *mtr);
 
 /** Allocates a new transaction id (for trx->id). Before calling,
 the trx_sys_mutex must be acquired.
@@ -154,40 +149,35 @@ extern uint trx_rseg_n_slots_debug;
 future version, this function should be used instead of mach_write_...
 @param[in]	ptr	pointer to memory where written
 @param[in]	id	id */
-UNIV_INLINE
-void trx_write_trx_id(byte *ptr, trx_id_t id);
+static inline void trx_write_trx_id(byte *ptr, trx_id_t id);
 
 #ifndef UNIV_HOTBACKUP
 /** Reads a trx id from an index page. In case that the id size changes in
  some future version, this function should be used instead of
  mach_read_...
  @return id */
-UNIV_INLINE
-trx_id_t trx_read_trx_id(
+static inline trx_id_t trx_read_trx_id(
     const byte *ptr); /*!< in: pointer to memory from where to read */
 
 /** Looks for the trx handle with the given id in rw trxs list.
  The caller must be holding trx_sys->mutex.
  @param[in]   trx_id   trx id to search for
  @return the trx handle or NULL if not found */
-UNIV_INLINE
-trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id);
+static inline trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id);
 
 /** Returns the minimum trx id in rw trx list. This is the smallest id for which
 the rw trx can possibly be active. (But, you must look at the trx->state
 to find out if the minimum trx id transaction itself is active, or already
 committed.)
 @return the minimum trx id, or trx_sys->rw_max_trx_id+1 if the list is empty */
-UNIV_INLINE
-trx_id_t trx_rw_min_trx_id(void);
+static inline trx_id_t trx_rw_min_trx_id(void);
 
 /** Checks if a rw transaction with the given id is active.
 @param[in]	trx_id		trx id of the transaction
 @param[in]	corrupt		NULL or pointer to a flag that will be set if
                                 corrupt
 @return transaction instance if active, or NULL */
-UNIV_INLINE
-trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt);
+static inline trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt);
 
 /** Checks if a rw transaction with the given id is active.
 Please note, that positive result means only that the trx was active
@@ -203,14 +193,14 @@ violation in case of holding trx->mutex.
                                 corrupt
 @param[in]	do_ref_count	if true then increment the trx_t::n_ref_count
 @return transaction instance if active, or NULL; */
-UNIV_INLINE
-trx_t *trx_rw_is_active(trx_id_t trx_id, ibool *corrupt, bool do_ref_count);
+static inline trx_t *trx_rw_is_active(trx_id_t trx_id, ibool *corrupt,
+                                      bool do_ref_count);
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 /** Assert that a transaction has been recovered.
  @return true */
-UNIV_INLINE
-ibool trx_assert_recovered(trx_id_t trx_id) /*!< in: transaction identifier */
+static inline ibool trx_assert_recovered(
+    trx_id_t trx_id) /*!< in: transaction identifier */
     MY_ATTRIBUTE((warn_unused_result));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
@@ -255,8 +245,7 @@ void trx_sys_close(void);
 
 /** Determine if there are incomplete transactions in the system.
 @return whether incomplete transactions need rollback */
-UNIV_INLINE
-bool trx_sys_need_rollback();
+static inline bool trx_sys_need_rollback();
 
 /** Reads number of recovered transactions which have state
 equal to TRX_STATE_ACTIVE (so are not prepared transactions).
@@ -275,12 +264,10 @@ void trx_sys_after_pre_dd_shutdown_validate();
 of InnoDB exited during shutdown of MySQL. */
 void trx_sys_after_background_threads_shutdown_validate();
 
-#endif /* !UNIV_HOTBACKUP */
-/**
-Add the transaction to the RW transaction set
+/** Add the transaction to the RW transaction set
 @param trx		transaction instance to add */
-UNIV_INLINE
-void trx_sys_rw_trx_add(trx_t *trx);
+static inline void trx_sys_rw_trx_add(trx_t *trx);
+#endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
 /** Validate the trx_sys_t::rw_trx_list.

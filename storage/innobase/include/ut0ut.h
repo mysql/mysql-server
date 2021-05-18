@@ -167,6 +167,8 @@ struct Location {
 #define ut_max std::max
 #define ut_min std::min
 
+#ifndef UNIV_HOTBACKUP
+
 /** Calculate the minimum of two pairs.
 @param[out]	min_hi	MSB of the minimum pair
 @param[out]	min_lo	LSB of the minimum pair
@@ -174,16 +176,15 @@ struct Location {
 @param[in]	a_lo	LSB of the first pair
 @param[in]	b_hi	MSB of the second pair
 @param[in]	b_lo	LSB of the second pair */
-UNIV_INLINE
-void ut_pair_min(ulint *min_hi, ulint *min_lo, ulint a_hi, ulint a_lo,
-                 ulint b_hi, ulint b_lo);
+static inline void ut_pair_min(ulint *min_hi, ulint *min_lo, ulint a_hi,
+                               ulint a_lo, ulint b_hi, ulint b_lo);
+#endif /* !UNIV_HOTBACKUP */
 
 /** Compares two ulints.
 @param[in]	a	ulint
 @param[in]	b	ulint
 @return 1 if a > b, 0 if a == b, -1 if a < b */
-UNIV_INLINE
-int ut_ulint_cmp(ulint a, ulint b);
+static inline int ut_ulint_cmp(ulint a, ulint b);
 
 /** Compare two pairs of integers.
 @param[in]	a_h	more significant part of first pair
@@ -194,8 +195,7 @@ int ut_ulint_cmp(ulint a, ulint b);
 @retval -1 if (a_h,a_l) is less than (b_h,b_l)
 @retval 0 if (a_h,a_l) is equal to (b_h,b_l)
 @retval 1 if (a_h,a_l) is greater than (b_h,b_l) */
-UNIV_INLINE
-int ut_pair_cmp(ulint a_h, ulint a_l, ulint b_h, ulint b_l)
+static inline int ut_pair_cmp(ulint a_h, ulint a_l, ulint b_h, ulint b_l)
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Calculates fast the remainder of n/m when m is a power of two.
@@ -223,14 +223,12 @@ int ut_pair_cmp(ulint a_h, ulint a_l, ulint b_h, ulint b_l)
 /** Calculates fast the 2-logarithm of a number, rounded upward to an
  integer.
  @return logarithm in the base 2, rounded upward */
-UNIV_INLINE
-ulint ut_2_log(ulint n); /*!< in: number */
+static inline ulint ut_2_log(ulint n); /*!< in: number */
 
 /** Calculates 2 to power n.
 @param[in]	n	power of 2
 @return 2 to power n */
-UNIV_INLINE
-uint32_t ut_2_exp(uint32_t n);
+static inline uint32_t ut_2_exp(uint32_t n);
 
 /** Calculates fast the number rounded up to the nearest power of 2.
 @param[in]  n   number != 0

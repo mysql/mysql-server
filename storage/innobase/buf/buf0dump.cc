@@ -365,9 +365,9 @@ normal client queries.
 @param[in]	last_activity_count	activity count
 @param[in]	n_io			number of IO ops done since buffer
                                         pool load has started */
-UNIV_INLINE
-void buf_load_throttle_if_needed(ib_time_monotonic_ms_t *last_check_time,
-                                 ulint *last_activity_count, ulint n_io) {
+static inline void buf_load_throttle_if_needed(
+    ib_time_monotonic_ms_t *last_check_time, ulint *last_activity_count,
+    ulint n_io) {
   if (n_io % srv_io_capacity < srv_io_capacity - 1) {
     return;
   }

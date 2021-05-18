@@ -84,8 +84,7 @@ void trx_set_detailed_error_from_file(
     FILE *file); /*!< in: file to read message from */
 /** Retrieves the error_info field from a trx.
  @return the error index */
-UNIV_INLINE
-const dict_index_t *trx_get_error_index(
+static inline const dict_index_t *trx_get_error_index(
     const trx_t *trx); /*!< in: trx object */
 /** Creates a transaction object for MySQL.
  @return own: transaction object */
@@ -235,12 +234,10 @@ void trx_mark_sql_stat_end(trx_t *trx); /*!< in: trx handle */
 ReadView *trx_assign_read_view(trx_t *trx); /*!< in: active transaction */
 
 /** @return the transaction's read view or NULL if one not assigned. */
-UNIV_INLINE
-ReadView *trx_get_read_view(trx_t *trx);
+static inline ReadView *trx_get_read_view(trx_t *trx);
 
 /** @return the transaction's read view or NULL if one not assigned. */
-UNIV_INLINE
-const ReadView *trx_get_read_view(const trx_t *trx);
+static inline const ReadView *trx_get_read_view(const trx_t *trx);
 
 /** Prepares a transaction for commit/rollback. */
 void trx_commit_or_rollback_prepare(trx_t *trx); /*!< in/out: transaction */
@@ -286,25 +283,22 @@ void trx_print(FILE *f, const trx_t *trx, ulint max_query_len);
 
 /** Determine if a transaction is a dictionary operation.
  @return dictionary operation mode */
-UNIV_INLINE
-enum trx_dict_op_t trx_get_dict_operation(
+static inline enum trx_dict_op_t trx_get_dict_operation(
     const trx_t *trx) /*!< in: transaction */
     MY_ATTRIBUTE((warn_unused_result));
 
 /** Flag a transaction a dictionary operation.
 @param[in,out]	trx	transaction
 @param[in]	op	operation, not TRX_DICT_OP_NONE */
-UNIV_INLINE
-void trx_set_dict_operation(trx_t *trx, enum trx_dict_op_t op);
+static inline void trx_set_dict_operation(trx_t *trx, enum trx_dict_op_t op);
 
 /** Determines if a transaction is in the given state.
  The caller must hold trx_sys->mutex, or it must be the thread
  that is serving a running transaction.
  A running RW transaction must be in trx_sys->rw_trx_list.
  @return true if trx->state == state */
-UNIV_INLINE
-bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
-                  trx_state_t state) /*!< in: state */
+static inline bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
+                                trx_state_t state) /*!< in: state */
     MY_ATTRIBUTE((warn_unused_result));
 #ifdef UNIV_DEBUG
 /** Determines if trx can be handled by current thread, which is when
@@ -347,8 +341,8 @@ trx_get_que_state_str(). */
 /** Retrieves transaction's que state in a human readable string. The string
  should not be free()'d or modified.
  @return string in the data segment */
-UNIV_INLINE
-const char *trx_get_que_state_str(const trx_t *trx); /*!< in: transaction */
+static inline const char *trx_get_que_state_str(
+    const trx_t *trx); /*!< in: transaction */
 
 /** Retreieves the transaction ID.
 In a given point in time it is guaranteed that IDs of the running
@@ -358,8 +352,7 @@ as a RO transaction that existed in the past. The values returned by this
 function should be used for printing purposes only.
 @param[in]	trx	transaction whose id to retrieve
 @return transaction id */
-UNIV_INLINE
-trx_id_t trx_get_id_for_print(const trx_t *trx);
+static inline trx_id_t trx_get_id_for_print(const trx_t *trx);
 
 /** Assign a temp-tablespace bound rollback-segment to a transaction.
 @param[in,out]	trx	transaction that involves write to temp-table. */
@@ -384,14 +377,12 @@ committed and the reference count is not incremented.
 @param trx Transaction that is being referenced
 @param do_ref_count Increment the reference iff this is true
 @return transaction instance if it is not committed */
-UNIV_INLINE
-trx_t *trx_reference(trx_t *trx, bool do_ref_count);
+static inline trx_t *trx_reference(trx_t *trx, bool do_ref_count);
 
 /**
 Release the transaction. Decrease the reference count.
 @param trx Transaction that is being released */
-UNIV_INLINE
-void trx_release_reference(trx_t *trx);
+static inline void trx_release_reference(trx_t *trx);
 
 /**
 Check if the transaction is being referenced. */
@@ -402,14 +393,13 @@ Check if the transaction is being referenced. */
 @param[in] holder	Transaction holding the lock
 @return the transaction that will be rolled back, null don't care */
 
-UNIV_INLINE
-const trx_t *trx_arbitrate(const trx_t *requestor, const trx_t *holder);
+static inline const trx_t *trx_arbitrate(const trx_t *requestor,
+                                         const trx_t *holder);
 
 /**
 @param[in] trx		Transaction to check
 @return true if the transaction is a high priority transaction.*/
-UNIV_INLINE
-bool trx_is_high_priority(const trx_t *trx);
+static inline bool trx_is_high_priority(const trx_t *trx);
 
 /**
 If this is a high priority transaction,
@@ -422,16 +412,14 @@ Contrast this with trx->id and trx_get_id_for_print(trx) which change value once
 a transaction can no longer be treated as read-only and becomes read-write.
 @param[in]  trx   The transaction for which you want an immutable id
 @return the transaction's immutable id */
-UNIV_INLINE
-uint64_t trx_immutable_id(const trx_t *trx) {
+static inline uint64_t trx_immutable_id(const trx_t *trx) {
   return (uint64_t{reinterpret_cast<uintptr_t>(trx)});
 }
 
 /**
 Check if redo/noredo rseg is modified for insert/update.
 @param[in] trx		Transaction to check */
-UNIV_INLINE
-bool trx_is_rseg_updated(const trx_t *trx);
+static inline bool trx_is_rseg_updated(const trx_t *trx);
 
 /**
 Transactions that aren't started by the MySQL server don't set

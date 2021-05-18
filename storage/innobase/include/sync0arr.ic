@@ -40,8 +40,7 @@ extern sync_array_t **sync_wait_array;
 /** Get an instance of the sync wait array.
  @return an instance of the sync wait array. */
 
-UNIV_INLINE
-sync_array_t *sync_array_get() {
+static inline sync_array_t *sync_array_get() {
   if (sync_array_size <= 1) {
     return (sync_wait_array[0]);
   }
@@ -56,8 +55,7 @@ sync_array_t *sync_array_get() {
  If reserving cell of the instance fails, try to get another new
  instance until we can reserve an empty cell of it.
  @return the sync array reserved, never NULL. */
-UNIV_INLINE
-sync_array_t *sync_array_get_and_reserve_cell(
+static inline sync_array_t *sync_array_get_and_reserve_cell(
     void *object,       /*!< in: pointer to the object to wait for */
     ulint type,         /*!< in: lock request type */
     const char *file,   /*!< in: file where requested */

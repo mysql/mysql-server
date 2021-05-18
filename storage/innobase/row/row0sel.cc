@@ -384,8 +384,8 @@ void sel_node_free_private(sel_node_t *node) /*!< in: select node struct */
 
 /** Evaluates the values in a select list. If there are aggregate functions,
  their argument value is added to the aggregate total. */
-UNIV_INLINE
-void sel_eval_select_list(sel_node_t *node) /*!< in: select node */
+static inline void sel_eval_select_list(
+    sel_node_t *node) /*!< in: select node */
 {
   que_node_t *exp;
 
@@ -400,10 +400,10 @@ void sel_eval_select_list(sel_node_t *node) /*!< in: select node */
 
 /** Assigns the values in the select list to the possible into-variables in
  SELECT ... INTO ... */
-UNIV_INLINE
-void sel_assign_into_var_values(sym_node_t *var,  /*!< in: first variable in a
-                                                  list of  variables */
-                                sel_node_t *node) /*!< in: select node */
+static inline void sel_assign_into_var_values(
+    sym_node_t *var,  /*!< in: first variable in a
+                      list of  variables */
+    sel_node_t *node) /*!< in: select node */
 {
   que_node_t *exp;
 
@@ -423,8 +423,8 @@ void sel_assign_into_var_values(sym_node_t *var,  /*!< in: first variable in a
 
 /** Resets the aggregate value totals in the select list of an aggregate type
  query. */
-UNIV_INLINE
-void sel_reset_aggregate_vals(sel_node_t *node) /*!< in: select node */
+static inline void sel_reset_aggregate_vals(
+    sel_node_t *node) /*!< in: select node */
 {
   func_node_t *func_node;
 
@@ -440,8 +440,8 @@ void sel_reset_aggregate_vals(sel_node_t *node) /*!< in: select node */
 }
 
 /** Copies the input variable values when an explicit cursor is opened. */
-UNIV_INLINE
-void row_sel_copy_input_variable_vals(sel_node_t *node) /*!< in: select node */
+static inline void row_sel_copy_input_variable_vals(
+    sel_node_t *node) /*!< in: select node */
 {
   for (auto var : node->copy_variables) {
     eval_node_copy_val(var, var->alias);
@@ -624,8 +624,8 @@ static void sel_dequeue_prefetched_row(
 
 /** Pushes the column values for a prefetched, cached row to the column prefetch
  buffers from the val fields in the column nodes. */
-UNIV_INLINE
-void sel_enqueue_prefetched_row(plan_t *plan) /*!< in: plan node for a table */
+static inline void sel_enqueue_prefetched_row(
+    plan_t *plan) /*!< in: plan node for a table */
 {
   sel_buf_t *sel_buf;
   dfield_t *val;
@@ -747,8 +747,7 @@ static void row_sel_build_committed_vers_for_mysql(
 /** Tests the conditions which determine when the index segment we are searching
  through has been exhausted.
  @return true if row passed the tests */
-UNIV_INLINE
-ibool row_sel_test_end_conds(
+static inline ibool row_sel_test_end_conds(
     plan_t *plan) /*!< in: plan for the table; the column values must
                   already have been retrieved and the right sides of
                   comparisons evaluated */
@@ -774,8 +773,7 @@ ibool row_sel_test_end_conds(
 
 /** Tests the other conditions.
  @return true if row passed the tests */
-UNIV_INLINE
-ibool row_sel_test_other_conds(
+static inline ibool row_sel_test_other_conds(
     plan_t *plan) /*!< in: plan for the table; the column values must
                   already have been retrieved */
 {
@@ -959,11 +957,10 @@ nature of splitting)
 @param[in]	thr		query thread
 @param[in]	mtr		mtr
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-UNIV_INLINE
-dberr_t sel_set_rtr_rec_lock(btr_pcur_t *pcur, const rec_t *first_rec,
-                             dict_index_t *index, const ulint *offsets,
-                             select_mode sel_mode, ulint mode, ulint type,
-                             que_thr_t *thr, mtr_t *mtr) {
+static inline dberr_t sel_set_rtr_rec_lock(
+    btr_pcur_t *pcur, const rec_t *first_rec, dict_index_t *index,
+    const ulint *offsets, select_mode sel_mode, ulint mode, ulint type,
+    que_thr_t *thr, mtr_t *mtr) {
   matched_rec_t *match = pcur->m_btr_cur.rtr_info->matches;
   mem_heap_t *heap = nullptr;
   dberr_t err = DB_SUCCESS;
@@ -1135,11 +1132,11 @@ nature of splitting)
 @param[in]	thr		query thread
 @param[in]	mtr		mtr
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
-UNIV_INLINE
-dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
-                         dict_index_t *index, const ulint *offsets,
-                         select_mode sel_mode, ulint mode, ulint type,
-                         que_thr_t *thr, mtr_t *mtr) {
+static inline dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
+                                       dict_index_t *index,
+                                       const ulint *offsets,
+                                       select_mode sel_mode, ulint mode,
+                                       ulint type, que_thr_t *thr, mtr_t *mtr) {
   trx_t *trx;
   dberr_t err = DB_SUCCESS;
   const buf_block_t *block;
@@ -1329,8 +1326,7 @@ static ibool row_sel_restore_pcur_pos(plan_t *plan, /*!< in: table plan */
 }
 
 /** Resets a plan cursor to a closed state. */
-UNIV_INLINE
-void plan_reset_cursor(plan_t *plan) /*!< in: plan */
+static inline void plan_reset_cursor(plan_t *plan) /*!< in: plan */
 {
   plan->pcur_is_open = FALSE;
   plan->cursor_at_end = FALSE;
@@ -3583,8 +3579,7 @@ static Record_buffer *row_sel_get_record_buffer(
 }
 
 /** Pops a cached row for MySQL from the fetch cache. */
-UNIV_INLINE
-void row_sel_dequeue_cached_row_for_mysql(
+static inline void row_sel_dequeue_cached_row_for_mysql(
     byte *buf,                /*!< in/out: buffer where to copy the
                               row */
     row_prebuilt_t *prebuilt) /*!< in: prebuilt struct */
@@ -3646,8 +3641,7 @@ void row_sel_dequeue_cached_row_for_mysql(
 }
 
 /** Initialise the prefetch cache. */
-UNIV_INLINE
-void row_sel_prefetch_cache_init(
+static inline void row_sel_prefetch_cache_init(
     row_prebuilt_t *prebuilt) /*!< in/out: prebuilt struct */
 {
   ulint i;
@@ -3680,8 +3674,7 @@ void row_sel_prefetch_cache_init(
 
 /** Get the last fetch cache buffer from the queue.
  @return pointer to buffer. */
-UNIV_INLINE
-byte *row_sel_fetch_last_buf(
+static inline byte *row_sel_fetch_last_buf(
     row_prebuilt_t *prebuilt) /*!< in/out: prebuilt struct */
 {
   const auto record_buffer = row_sel_get_record_buffer(prebuilt);
@@ -3714,8 +3707,7 @@ byte *row_sel_fetch_last_buf(
 }
 
 /** Pushes a row for MySQL to the fetch cache. */
-UNIV_INLINE
-void row_sel_enqueue_cache_row_for_mysql(
+static inline void row_sel_enqueue_cache_row_for_mysql(
     byte *mysql_rec,          /*!< in/out: MySQL record */
     row_prebuilt_t *prebuilt) /*!< in/out: prebuilt struct */
 {

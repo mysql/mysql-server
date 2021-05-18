@@ -323,10 +323,10 @@ trx_undo_rec_t *trx_undo_get_first_rec(trx_id_t *modifier_trx_id,
 /*============== UNDO LOG FILE COPY CREATION AND FREEING ==================*/
 
 /** Writes the mtr log entry of an undo log page initialization. */
-UNIV_INLINE
-void trx_undo_page_init_log(page_t *undo_page, /*!< in: undo log page */
-                            ulint type,        /*!< in: undo log type */
-                            mtr_t *mtr)        /*!< in: mtr */
+static inline void trx_undo_page_init_log(
+    page_t *undo_page, /*!< in: undo log page */
+    ulint type,        /*!< in: undo log type */
+    mtr_t *mtr)        /*!< in: mtr */
 {
   mlog_write_initial_log_record(undo_page, MLOG_UNDO_INIT, mtr);
 
@@ -472,8 +472,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t trx_undo_seg_create(
 }
 
 /** Writes the mtr log entry of an undo log header initialization. */
-UNIV_INLINE
-void trx_undo_header_create_log(
+static inline void trx_undo_header_create_log(
     const page_t *undo_page, /*!< in: undo log header page */
     trx_id_t trx_id,         /*!< in: transaction id */
     mtr_t *mtr)              /*!< in: mtr */
@@ -814,8 +813,7 @@ static void trx_undo_header_add_space_for_xid(
 }
 
 /** Writes the mtr log entry of an undo log header reuse. */
-UNIV_INLINE
-void trx_undo_insert_header_reuse_log(
+static inline void trx_undo_insert_header_reuse_log(
     const page_t *undo_page, /*!< in: undo log header page */
     trx_id_t trx_id,         /*!< in: transaction id */
     mtr_t *mtr)              /*!< in: mtr */

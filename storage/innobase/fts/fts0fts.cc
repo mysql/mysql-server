@@ -261,8 +261,7 @@ static void fts_cache_destroy(fts_cache_t *cache) {
 /** Get a character set based on precise type.
 @param prtype precise type
 @return the corresponding character set */
-UNIV_INLINE
-CHARSET_INFO *fts_get_charset(ulint prtype) {
+static inline CHARSET_INFO *fts_get_charset(ulint prtype) {
 #ifdef UNIV_DEBUG
   switch (prtype & DATA_MYSQL_TYPE_MASK) {
     case MYSQL_TYPE_BIT:
@@ -957,8 +956,7 @@ void fts_cache_clear(fts_cache_t *cache) {
 
 /** Search the index specific cache for a particular FTS index.
  @return the index cache else NULL */
-UNIV_INLINE
-fts_index_cache_t *fts_get_index_cache(
+static inline fts_index_cache_t *fts_get_index_cache(
     fts_cache_t *cache,        /*!< in: cache to search */
     const dict_index_t *index) /*!< in: index to search for */
 {
@@ -5051,8 +5049,8 @@ static void fts_update_max_cache_size(fts_sync_t *sync) /*!< in: sync state */
 #endif /* FTS_CACHE_SIZE_DEBUG */
 
 /** Free the modified rows of a table. */
-UNIV_INLINE
-void fts_trx_table_rows_free(ib_rbt_t *rows) /*!< in: rbt of rows to free */
+static inline void fts_trx_table_rows_free(
+    ib_rbt_t *rows) /*!< in: rbt of rows to free */
 {
   const ib_rbt_node_t *node;
 
@@ -5078,8 +5076,7 @@ void fts_trx_table_rows_free(ib_rbt_t *rows) /*!< in: rbt of rows to free */
 }
 
 /** Free an FTS savepoint instance. */
-UNIV_INLINE
-void fts_savepoint_free(
+static inline void fts_savepoint_free(
     fts_savepoint_t *savepoint) /*!< in: savepoint instance */
 {
   const ib_rbt_node_t *node;
@@ -5506,9 +5503,9 @@ fts_shutdown(
 #endif
 
 /** Take a FTS savepoint. */
-UNIV_INLINE
-void fts_savepoint_copy(const fts_savepoint_t *src, /*!< in: source savepoint */
-                        fts_savepoint_t *dst) /*!< out: destination savepoint */
+static inline void fts_savepoint_copy(
+    const fts_savepoint_t *src, /*!< in: source savepoint */
+    fts_savepoint_t *dst)       /*!< out: destination savepoint */
 {
   const ib_rbt_node_t *node;
   const ib_rbt_t *tables;
@@ -5554,9 +5551,9 @@ void fts_savepoint_take(trx_t *trx, fts_trx_t *fts_trx, const char *name) {
 
 /** Lookup a savepoint instance by name.
  @return ULINT_UNDEFINED if not found */
-UNIV_INLINE
-ulint fts_savepoint_lookup(ib_vector_t *savepoints, /*!< in: savepoints */
-                           const char *name)        /*!< in: savepoint name */
+static inline ulint fts_savepoint_lookup(
+    ib_vector_t *savepoints, /*!< in: savepoints */
+    const char *name)        /*!< in: savepoint name */
 {
   ulint i;
 

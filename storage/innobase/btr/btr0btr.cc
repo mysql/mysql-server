@@ -601,8 +601,7 @@ void btr_page_free(dict_index_t *index, /*!< in: index tree */
 }
 
 /** Sets the child node file address in a node pointer. */
-UNIV_INLINE
-void btr_node_ptr_set_child_page_no(
+static inline void btr_node_ptr_set_child_page_no(
     rec_t *rec,               /*!< in: node pointer record */
     page_zip_des_t *page_zip, /*!< in/out: compressed page whose uncompressed
                              part will be updated, or NULL */
@@ -2747,11 +2746,11 @@ static void btr_level_list_remove_func(space_id_t space,
 
 /** Writes the redo log record for setting an index record as the predefined
  minimum record. */
-UNIV_INLINE
-void btr_set_min_rec_mark_log(rec_t *rec,     /*!< in: record */
-                              mlog_id_t type, /*!< in: MLOG_COMP_REC_MIN_MARK or
-                                              MLOG_REC_MIN_MARK */
-                              mtr_t *mtr)     /*!< in: mtr */
+static inline void btr_set_min_rec_mark_log(
+    rec_t *rec,     /*!< in: record */
+    mlog_id_t type, /*!< in: MLOG_COMP_REC_MIN_MARK or
+                    MLOG_REC_MIN_MARK */
+    mtr_t *mtr)     /*!< in: mtr */
 {
   mlog_write_initial_log_record(rec, type, mtr);
 

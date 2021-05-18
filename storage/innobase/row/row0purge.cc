@@ -571,10 +571,10 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
 }
 
 /** Removes a secondary index entry if possible. */
-UNIV_INLINE
-void row_purge_remove_sec_if_poss(purge_node_t *node, /*!< in: row purge node */
-                                  dict_index_t *index,   /*!< in: index */
-                                  const dtuple_t *entry) /*!< in: index entry */
+static inline void row_purge_remove_sec_if_poss(
+    purge_node_t *node,    /*!< in: row purge node */
+    dict_index_t *index,   /*!< in: index */
+    const dtuple_t *entry) /*!< in: index entry */
 {
   ibool success;
   ulint n_tries = 0;

@@ -67,13 +67,12 @@ the in-memory table object and is not saved on disk. It will be read from the
 @param[in,out]	table	table
 @param[in]	ps_on	persistent stats explicitly enabled
 @param[in]	ps_off	persistent stats explicitly disabled */
-UNIV_INLINE
-void dict_stats_set_persistent(dict_table_t *table, ibool ps_on, ibool ps_off);
+static inline void dict_stats_set_persistent(dict_table_t *table, ibool ps_on,
+                                             ibool ps_off);
 
 /** Check whether persistent statistics is enabled for a given table.
  @return true if enabled, false otherwise */
-UNIV_INLINE
-ibool dict_stats_is_persistent_enabled(
+static inline ibool dict_stats_is_persistent_enabled(
     const dict_table_t *table) /*!< in: table */
     MY_ATTRIBUTE((warn_unused_result));
 
@@ -84,24 +83,21 @@ from MySQL after a server restart.
 @param[in,out]	table		table
 @param[in]	auto_recalc_on	explicitly enabled
 @param[in]	auto_recalc_off	explicitly disabled */
-UNIV_INLINE
-void dict_stats_auto_recalc_set(dict_table_t *table, ibool auto_recalc_on,
-                                ibool auto_recalc_off);
+static inline void dict_stats_auto_recalc_set(dict_table_t *table,
+                                              ibool auto_recalc_on,
+                                              ibool auto_recalc_off);
 
 /** Check whether auto recalc is enabled for a given table.
  @return true if enabled, false otherwise */
-UNIV_INLINE
-ibool dict_stats_auto_recalc_is_enabled(
+static inline ibool dict_stats_auto_recalc_is_enabled(
     const dict_table_t *table); /*!< in: table */
 
 /** Initialize table's stats for the first time when opening a table. */
-UNIV_INLINE
-void dict_stats_init(dict_table_t *table); /*!< in/out: table */
+static inline void dict_stats_init(dict_table_t *table); /*!< in/out: table */
 
 /** Deinitialize table's stats after the last close of the table. This is
  used to detect "FLUSH TABLE" and refresh the stats upon next open. */
-UNIV_INLINE
-void dict_stats_deinit(dict_table_t *table); /*!< in/out: table */
+static inline void dict_stats_deinit(dict_table_t *table); /*!< in/out: table */
 
 /** Calculates new estimates for table and index statistics. The statistics
  are used in query optimization.

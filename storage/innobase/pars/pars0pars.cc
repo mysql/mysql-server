@@ -101,8 +101,7 @@ void pars_close() { mutex_free(&pars_mutex); }
 
 /********************************************************************
 Get user function with the given name.*/
-UNIV_INLINE
-pars_user_func_t *pars_info_lookup_user_func(
+static inline pars_user_func_t *pars_info_lookup_user_func(
     /* out: user func, or NULL if not
     found */
     pars_info_t *info, /* in: info struct */
@@ -128,8 +127,7 @@ pars_user_func_t *pars_info_lookup_user_func(
 
 /********************************************************************
 Get bound identifier with the given name.*/
-UNIV_INLINE
-pars_bound_id_t *pars_info_lookup_bound_id(
+static inline pars_bound_id_t *pars_info_lookup_bound_id(
     /* out: bound literal, or NULL if
     not found */
     pars_info_t *info, /* in: info struct */
@@ -155,8 +153,7 @@ pars_bound_id_t *pars_info_lookup_bound_id(
 
 /********************************************************************
 Get bound literal with the given name.*/
-UNIV_INLINE
-pars_bound_lit_t *pars_info_lookup_bound_lit(
+static inline pars_bound_lit_t *pars_info_lookup_bound_lit(
     /* out: bound literal, or NULL if
     not found */
     pars_info_t *info, /* in: info struct */

@@ -65,8 +65,7 @@ class Spatial_reference_system;
 
 /** Writes the mtr log entry of the inserted undo log record on the undo log
  page. */
-UNIV_INLINE
-void trx_undof_page_add_undo_rec_log(
+static inline void trx_undof_page_add_undo_rec_log(
     page_t *undo_page, /*!< in: undo log page */
     ulint old_free,    /*!< in: start offset of the inserted entry */
     ulint new_free,    /*!< in: end offset of the entry */
@@ -139,9 +138,8 @@ byte *trx_undo_parse_add_undo_rec(byte *ptr,     /*!< in: buffer */
 #ifndef UNIV_HOTBACKUP
 /** Calculates the free space left for extending an undo log record.
  @return bytes left */
-UNIV_INLINE
-ulint trx_undo_left(const page_t *page, /*!< in: undo log page */
-                    const byte *ptr)    /*!< in: pointer to page */
+static inline ulint trx_undo_left(const page_t *page, /*!< in: undo log page */
+                                  const byte *ptr) /*!< in: pointer to page */
 {
   /* The '- 10' is a safety margin, in case we have some small
   calculation error below */

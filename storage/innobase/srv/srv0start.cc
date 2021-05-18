@@ -1640,17 +1640,16 @@ static void srv_create_sdi_indexes() {
 }
 
 /** Set state to indicate start of particular group of threads in InnoDB. */
-UNIV_INLINE
-void srv_start_state_set(srv_start_state_t state) /*!< in: indicate current
-                                                  state of thread startup */
+static inline void srv_start_state_set(
+    srv_start_state_t state) /*!< in: indicate current
+                             state of thread startup */
 {
   srv_start_state |= state;
 }
 
 /** Check if following group of threads is started.
  @return true if started */
-UNIV_INLINE
-bool srv_start_state_is_set(
+static inline bool srv_start_state_is_set(
     srv_start_state_t state) /*!< in: state to check for */
 {
   return (srv_start_state & state);

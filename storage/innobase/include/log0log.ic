@@ -296,8 +296,7 @@ inline void log_buffer_flush_to_disk(bool sync) {
 #if defined(UNIV_HOTBACKUP) && defined(UNIV_DEBUG)
 /** Print a log file header.
 @param[in]	block	pointer to the log buffer */
-UNIV_INLINE
-void meb_log_print_file_hdr(byte *block) {
+static inline void meb_log_print_file_hdr(byte *block) {
   ib::info(ER_IB_MSG_626) << "Log file header:"
                           << " format "
                           << mach_read_from_4(block + LOG_HEADER_FORMAT)

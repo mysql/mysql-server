@@ -47,8 +47,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifdef UNIV_DEBUG
 /** Returns the page cursor component of a tree cursor.
  @return pointer to page cursor component */
-UNIV_INLINE
-page_cur_t *btr_cur_get_page_cur(
+static inline page_cur_t *btr_cur_get_page_cur(
     const btr_cur_t *cursor) /*!< in: tree cursor */
 {
   return (&((btr_cur_t *)cursor)->page_cur);
@@ -56,16 +55,16 @@ page_cur_t *btr_cur_get_page_cur(
 
 /** Returns the buffer block on which the tree cursor is positioned.
  @return pointer to buffer block */
-UNIV_INLINE
-buf_block_t *btr_cur_get_block(const btr_cur_t *cursor) /*!< in: tree cursor */
+static inline buf_block_t *btr_cur_get_block(
+    const btr_cur_t *cursor) /*!< in: tree cursor */
 {
   return (page_cur_get_block(btr_cur_get_page_cur(cursor)));
 }
 
 /** Returns the record pointer of a tree cursor.
  @return pointer to record */
-UNIV_INLINE
-rec_t *btr_cur_get_rec(const btr_cur_t *cursor) /*!< in: tree cursor */
+static inline rec_t *btr_cur_get_rec(
+    const btr_cur_t *cursor) /*!< in: tree cursor */
 {
   return (page_cur_get_rec(btr_cur_get_page_cur(cursor)));
 }
@@ -73,26 +72,26 @@ rec_t *btr_cur_get_rec(const btr_cur_t *cursor) /*!< in: tree cursor */
 
 /** Returns the compressed page on which the tree cursor is positioned.
  @return pointer to compressed page, or NULL if the page is not compressed */
-UNIV_INLINE
-page_zip_des_t *btr_cur_get_page_zip(btr_cur_t *cursor) /*!< in: tree cursor */
+static inline page_zip_des_t *btr_cur_get_page_zip(
+    btr_cur_t *cursor) /*!< in: tree cursor */
 {
   return (buf_block_get_page_zip(btr_cur_get_block(cursor)));
 }
 
 /** Returns the page of a tree cursor.
  @return pointer to page */
-UNIV_INLINE
-page_t *btr_cur_get_page(btr_cur_t *cursor) /*!< in: tree cursor */
+static inline page_t *btr_cur_get_page(
+    btr_cur_t *cursor) /*!< in: tree cursor */
 {
   return (page_align(page_cur_get_rec(&(cursor->page_cur))));
 }
 
 /** Positions a tree cursor at a given record. */
-UNIV_INLINE
-void btr_cur_position(dict_index_t *index, /*!< in: index */
-                      rec_t *rec,          /*!< in: record in tree */
-                      buf_block_t *block,  /*!< in: buffer block of rec */
-                      btr_cur_t *cursor)   /*!< out: cursor */
+static inline void btr_cur_position(
+    dict_index_t *index, /*!< in: index */
+    rec_t *rec,          /*!< in: record in tree */
+    buf_block_t *block,  /*!< in: buffer block of rec */
+    btr_cur_t *cursor)   /*!< out: cursor */
 {
   ut_ad(page_align(rec) == block->frame);
 
@@ -104,9 +103,9 @@ void btr_cur_position(dict_index_t *index, /*!< in: index */
 /** Checks if compressing an index page where a btr cursor is placed makes
  sense.
  @return true if compression is recommended */
-UNIV_INLINE
-ibool btr_cur_compress_recommendation(btr_cur_t *cursor, /*!< in: btr cursor */
-                                      mtr_t *mtr)        /*!< in: mtr */
+static inline ibool btr_cur_compress_recommendation(
+    btr_cur_t *cursor, /*!< in: btr cursor */
+    mtr_t *mtr)        /*!< in: mtr */
 {
   const page_t *page;
 
@@ -134,8 +133,7 @@ ibool btr_cur_compress_recommendation(btr_cur_t *cursor, /*!< in: btr cursor */
 /** Checks if the record on which the cursor is placed can be deleted without
  making tree compression necessary (or, recommended).
  @return true if can be deleted without recommended compression */
-UNIV_INLINE
-ibool btr_cur_can_delete_without_compress(
+static inline ibool btr_cur_can_delete_without_compress(
     btr_cur_t *cursor, /*!< in: btr cursor */
     ulint rec_size,    /*!< in: rec_get_size(btr_cur_get_rec(cursor))*/
     mtr_t *mtr)        /*!< in: mtr */
@@ -162,9 +160,9 @@ ibool btr_cur_can_delete_without_compress(
   return (TRUE);
 }
 
-UNIV_INLINE
-void btr_rec_set_deleted_flag(rec_t *rec, page_zip_des_t *page_zip,
-                              ulint flag) {
+static inline void btr_rec_set_deleted_flag(rec_t *rec,
+                                            page_zip_des_t *page_zip,
+                                            ulint flag) {
   if (page_rec_is_comp(rec)) {
     rec_set_deleted_flag_new(rec, page_zip, flag);
   } else {

@@ -1093,8 +1093,8 @@ static dtuple_t *row_get_prebuilt_insert_row(
 
 /** Updates the table modification counter and calculates new estimates
  for table and index statistics if necessary. */
-UNIV_INLINE
-void row_update_statistics_if_needed(dict_table_t *table) /*!< in: table */
+static inline void row_update_statistics_if_needed(
+    dict_table_t *table) /*!< in: table */
 {
   ib_uint64_t counter;
   ib_uint64_t n_rows;
@@ -3664,9 +3664,9 @@ run_again:
 @param[in,out]	aux_vec		Fts aux table name vector
 @param[in,out]	trx		Transaction handle
 @return error code or DB_SUCCESS */
-UNIV_INLINE
-dberr_t row_drop_ancillary_fts_tables(dict_table_t *table,
-                                      aux_name_vec_t *aux_vec, trx_t *trx) {
+static inline dberr_t row_drop_ancillary_fts_tables(dict_table_t *table,
+                                                    aux_name_vec_t *aux_vec,
+                                                    trx_t *trx) {
   /* Drop ancillary FTS tables */
   if (dict_table_has_fts_index(table) ||
       DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
@@ -3699,8 +3699,8 @@ dberr_t row_drop_ancillary_fts_tables(dict_table_t *table,
 @param[in,out]	table		Table cache entry
 @param[in,out]	trx		Transaction handle
 @return error code or DB_SUCCESS */
-UNIV_INLINE
-dberr_t row_drop_table_from_cache(dict_table_t *table, trx_t *trx) {
+static inline dberr_t row_drop_table_from_cache(dict_table_t *table,
+                                                trx_t *trx) {
   /* Remove the pointer to this table object from the list
   of modified tables by the transaction because the object
   is going to be destroyed below. */
