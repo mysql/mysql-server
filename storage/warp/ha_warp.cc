@@ -152,9 +152,9 @@ static int warp_init_func(void *p) {
   DBUG_ENTER("warp_init_func");
   sql_print_information("WARP storage engine initialization started");
   handlerton *warp_hton;
-  ibis::fileManager::adjustCacheSize(my_cache_size);
+  ibis::fileManager::adjustCacheSize(16ULL * 1024 * 1024 * 1024);
   ibis::init(NULL, "/tmp/fastbit.log");
-  ibis::util::setVerboseLevel(1);
+  ibis::util::setVerboseLevel(0);
 #ifdef HAVE_PSI_INTERFACE
   init_warp_psi_keys();
 #endif
@@ -2555,6 +2555,9 @@ int ha_warp::append_column_filter(const Item *cond,
              field would return true for NULL rows...
           */
           if(field_may_be_null) {
+            if(build_where_clause != "") {
+              build_where_clause += " AND ";
+            }
             build_where_clause +=
                 "(n" + std::to_string(field_index) + " = 0 AND ";
           }

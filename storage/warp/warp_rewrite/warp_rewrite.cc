@@ -153,6 +153,7 @@ static int warp_rewriter_plugin_deinit(void *) {
 }
 
 std::string get_warp_partitions(std::string schema, std::string table) {
+  //std::cout << "GET_WARP_PARTITIONS\n";
   std::string path = schema + "/" + table + ".data/";
   std::string parts = "";
     
@@ -175,20 +176,26 @@ std::string get_warp_partitions(std::string schema, std::string table) {
       parts += "('" + std::string(ent->d_name) +"')";
     }
   }
+  //std::cout << parts << "\n";
   return parts;
 }
 
 bool is_warp_table(std::string schema, std::string table) {
+  //std::cout << "is_warp_table:";
   std::string path = schema + "/" + table + ".data/-part.txt";
   struct stat st;
-  return !stat(path.c_str(), &st);
+  auto res = !stat(path.c_str(), &st);
+  //std::cout << res << "\n";
+  return res;
 }
 
 uint64_t get_warp_row_count(std::string schema, std::string table) {
+  //std::cout << "get_warp_row_count: ";
   std::string path = schema + "/" + table + ".data/";
   ibis::table* base_table = ibis::mensa::create(path.c_str());
   uint64_t rows = base_table->nRows();
   delete base_table;
+  //std::cout << std::to_string(rows) << "\n";
   return rows;
 }
 
@@ -200,6 +207,7 @@ bool process_having_item(THD* thd,
                          std::unordered_map<std::string, uint> &used_fields
                          ) 
 { 
+  //std::cout << "process_having\n";
   String item_str;
   item_str.reserve(1024 * 1024);
   std::string orig_clause;
@@ -371,7 +379,7 @@ bool process_having(THD* thd,
                     std::string &ll_query, 
                     std::string &coord_group, 
                     std::unordered_map<std::string, uint> &used_fields) 
-{
+{ //std::cout << "process_having\n";
   static int depth=0;
   std::string new_having;
   // reset the variables when called at depth 0
@@ -416,6 +424,7 @@ bool process_having(THD* thd,
 }
 
 std::string escape_for_call(const std::string &str) {
+  //std::cout << "escape_for_call\n";
   std::string retval;
   retval.reserve(str.length() * 2);
   for(long unsigned int i =0; i< str.length(); ++i) {
@@ -424,6 +433,7 @@ std::string escape_for_call(const std::string &str) {
     }
     retval += str[i];
   }
+  //std::cout << retval << "\n";
   return retval;
 }
 bool warp_alloc_query(THD *thd, const char *packet, size_t packet_length) {
@@ -509,7 +519,7 @@ static int warp_rewrite_query_notify(
   MYSQL_THD thd, mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
   const void *event
 ) {
-  DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
+  //DBUG_ASSERT(event_class == MYSQL_AUDIT_PARSE_CLASS);
   const struct mysql_event_parse *event_parse =
       static_cast<const struct mysql_event_parse *>(event);
   
@@ -517,24 +527,24 @@ static int warp_rewrite_query_notify(
     // this is not a post-parse call to the plugin    
     return 0;
   }
-
+  
   if(THDVAR(thd,parallel_query) != true) {
     //std::cout << "PARALLEL QUERY IS DISABLED\n";
     return 0;
   } 
-
+  
   // currently only support SELECT statements
   if(mysql_parser_get_statement_type(thd) != STATEMENT_TYPE_SELECT) {
     return 0;
   }
-
+  
   // currently prepared statements are not supported
   if(mysql_parser_get_number_params(thd) != 0) {
     return 0;
   }
-
+  
   //auto orig_query = mysql_parser_get_query(thd);
-  //std::cout << "WORKING ON: " << std::string(orig_query.str) << "\n";
+  ////std::cout << "WORKING ON: " << std::string(orig_query.str) << "\n";
   // the query sent to the parallel workers
   std::string ll_query;
 
@@ -550,9 +560,9 @@ static int warp_rewrite_query_notify(
   // the HAVING clause for the coord query
   std::string coord_having;
   
-  auto select_lex =thd->lex->select_lex;
-  auto field_list = select_lex->get_fields_list();
-  auto tables = select_lex->table_list;
+  auto select_lex =thd->lex->query_block[0];
+  auto field_list = select_lex.get_fields_list();
+  auto tables = select_lex.table_list;
   //bool is_straight_join = (stristr(strtolower(orig_query.str), "straight_join") != NULL);
   bool is_straight_join = 1;
   // query has no tables - do nothing
@@ -611,7 +621,7 @@ static int warp_rewrite_query_notify(
 
        // item func
        case Item::Type::FUNC_ITEM: 
-         //std::cout << "NON-AGGREGATE FUNCTIONS NOT YET SUPPORTED\n";
+         ////std::cout << "NON-AGGREGATE FUNCTIONS NOT YET SUPPORTED\n";
          return 0;
        break;
        
@@ -621,7 +631,7 @@ static int warp_rewrite_query_notify(
          std::string func_name = std::string(sum_item->func_name());
     
          if(sum_item->has_with_distinct()) {
-           //std::cout << "UNSUPPORTED SUM_FUNC_TYPE HAS DISTINCT: " << func_name << "\n";
+           ////std::cout << "UNSUPPORTED SUM_FUNC_TYPE HAS DISTINCT: " << func_name << "\n";
            ll_query += raw_field.substr(func_name.length(), raw_field.length() - func_name.length()) + " AS " + alias;
            coord_query += func_name + "( DISTINCT " + alias + ") AS " + orig_alias;
            if(ll_group.length() > 0) {
@@ -641,7 +651,7 @@ static int warp_rewrite_query_notify(
            ll_query += raw_field + " AS " + alias;
            coord_query += "SUM(" + alias + ") AS " + orig_alias;
          } else {
-           //std::cout << "UNSUPPORTED SUM_FUNC_TYPE: " << func_name << "\n";
+           ////std::cout << "UNSUPPORTED SUM_FUNC_TYPE: " << func_name << "\n";
            return 0;  
          } 
       
@@ -651,15 +661,15 @@ static int warp_rewrite_query_notify(
 
        // unsupported!
        default:
-         //std::cout << "UNSUPPORTED ITEM TYPE: " << field->type() << "\n";
+         ////std::cout << "UNSUPPORTED ITEM TYPE: " << field->type() << "\n";
          return 0;
      }
   }
   
   /* handle GROUP BY */
-  ORDER* group_pos = select_lex->group_list.first;
-  expr_num = select_lex->get_fields_list()->size();
-  for(int i=0; i < select_lex->group_list_size(); ++i, ++expr_num) {
+  ORDER* group_pos = select_lex.group_list.first;
+  expr_num = select_lex.get_fields_list()->size();
+  for(int i=0; i < select_lex.group_list_size(); ++i, ++expr_num) {
 
     // is this group item one of the select items?
     auto group_item = *(group_pos->item);
@@ -709,12 +719,12 @@ static int warp_rewrite_query_notify(
   for(long unsigned long int i = 0; i < tables.size(); ++i) {
     tmp_from = "";
     if(tbl->is_table_function()) {
-      //std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
+      ////std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
       return 0;
     }
     
     if(tbl->is_derived()) {
-      //std::cout << "UNSUPPORTED TABLE TYPE: DERIVED TABLES NOT SUPPORTED\n";
+      ////std::cout << "UNSUPPORTED TABLE TYPE: DERIVED TABLES NOT SUPPORTED\n";
       return 0;
     }
     
@@ -855,10 +865,10 @@ static int warp_rewrite_query_notify(
 
   /* Process the WHERE clause */
   std::string ll_where;
-  if(thd->lex->select_lex->where_cond() != nullptr) {
+  if(select_lex.where_cond() != nullptr) {
     String where_str;
     where_str.reserve(1024 * 1024);
-    thd->lex->select_lex->where_cond()->print(thd, &where_str, QT_ORDINARY);
+    select_lex.where_cond()->print(thd, &where_str, QT_ORDINARY);
     ll_where = std::string(where_str.ptr(), where_str.length());
   }
 
@@ -870,19 +880,19 @@ static int warp_rewrite_query_notify(
      by the coord_query clause!
   */
   std::string coord_where;
-  if(select_lex->having_cond() != nullptr) {
-    process_having(thd, select_lex->having_cond(), coord_having, ll_query, coord_group, used_fields);
+  if(select_lex.having_cond() != nullptr) {
+    process_having(thd, select_lex.having_cond(), coord_having, ll_query, coord_group, used_fields);
   }
 
   std::string coord_order;
-  auto orderby = select_lex->order_list;
+  auto orderby = select_lex.order_list;
   String tmp_ob;
   tmp_ob.reserve(1024*1024);  
   if(orderby.size() > 0) {
     auto ob = orderby.first;
     for(uint i = 0;i<orderby.size();++i) {    
-      tmp_ob.set("", 0, &my_charset_bin);
-      ob->item_ptr->print_for_order(thd, &tmp_ob,QT_ORDINARY,ob->used_alias);
+      tmp_ob.set("", 0, &my_charset_bin);  
+      (*(ob->item))->print_for_order(thd, &tmp_ob,QT_ORDINARY,ob->used_alias);
       if(coord_order != "") {
         coord_order += ",";
       }

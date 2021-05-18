@@ -19,12 +19,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-<<<<<<< HEAD
 IF(COMPILE_TESTS)
-=======
 
 DISABLE_MISSING_PROFILE_WARNING()
->>>>>>> 98b2ccb470de120d36bc4a623c814cdfded958ec
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 
 ADD_LIBRARY(pfs_server_stubs STATIC pfs_server_stubs.cc)
