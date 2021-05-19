@@ -755,6 +755,20 @@ static bool ContainsAnyMRRPaths(AccessPath *path) {
   return any_mrr_paths;
 }
 
+Item *CreateConjunction(List<Item> *items) {
+  if (items->size() == 0) {
+    return nullptr;
+  } else if (items->size() == 1) {
+    return items->head();
+  } else {
+    Item *condition = new Item_cond_and(*items);
+    condition->quick_fix_field();
+    condition->update_used_tables();
+    condition->apply_is_true();
+    return condition;
+  }
+}
+
 /**
   Return a new iterator that wraps "iterator" and that tests all of the given
   conditions (if any), ANDed together. If there are no conditions, just return
@@ -787,16 +801,9 @@ AccessPath *PossiblyAttachFilter(AccessPath *path,
     }
   }
 
-  Item *condition = nullptr;
-  if (items.size() == 0) {
+  Item *condition = CreateConjunction(&items);
+  if (condition == nullptr) {
     return path;
-  } else if (items.size() == 1) {
-    condition = items.head();
-  } else {
-    condition = new Item_cond_and(items);
-    condition->quick_fix_field();
-    condition->update_used_tables();
-    condition->apply_is_true();
   }
   *conditions_depend_on_outer_tables |= condition->used_tables();
 

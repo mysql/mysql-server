@@ -2710,6 +2710,11 @@ void Item_sum_hybrid::clear() {
   m_saved_last_value_at = 0;
 }
 
+void Item_sum_hybrid::update_after_wf_arguments_changed(THD *) {
+  value->setup(args[0]);
+  arg_cache->setup(args[0]);
+}
+
 bool Item_sum_hybrid::check_wf_semantics1(THD *thd, Query_block *select,
                                           Window_evaluation_requirements *r) {
   bool result = Item_sum::check_wf_semantics1(thd, select, r);
@@ -2978,7 +2983,7 @@ void Item_sum_hybrid::split_sum_func(THD *thd, Ref_item_array ref_item_array,
     replaced with aggregate ref's in split_sum_func. So need to redo the cache
     setup.
   */
-  arg_cache->setup(args[0]);
+  update_after_wf_arguments_changed(thd);
 }
 
 void Item_sum_hybrid::cleanup() {
@@ -4666,6 +4671,16 @@ my_decimal *Item_row_number::val_decimal(my_decimal *buffer) {
 
 void Item_row_number::clear() { m_ctr = 0; }
 
+void Item_rank::update_after_wf_arguments_changed(THD *thd) {
+  const PT_order_list *order = m_window->effective_order_by();
+  if (!order) return;
+  ORDER *o = order->value.first;
+  for (unsigned i = 0; i < m_previous.size(); ++i, o = o->next) {
+    thd->change_item_tree(m_previous[i]->get_item_ptr(),
+                          (*o->item)->real_item());
+  }
+}
+
 bool Item_rank::check_wf_semantics1(THD *thd, Query_block *select,
                                     Window_evaluation_requirements *) {
   const PT_order_list *order = m_window->effective_order_by();
@@ -5017,7 +5032,7 @@ void Item_first_last_value::split_sum_func(THD *thd,
                                            mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   // Need to redo this now:
-  m_value->setup(args[0]);
+  update_after_wf_arguments_changed(thd);
 }
 
 bool Item_first_last_value::setup_first_last() {
@@ -5035,6 +5050,10 @@ void Item_first_last_value::clear() {
   m_value->clear();
   null_value = true;
   cnt = 0;
+}
+
+void Item_first_last_value::update_after_wf_arguments_changed(THD *) {
+  m_value->setup(args[0]);
 }
 
 bool Item_first_last_value::compute() {
@@ -5188,7 +5207,7 @@ void Item_nth_value::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                     mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   // If function was set up, need to redo this now:
-  m_value->setup(args[0]);
+  update_after_wf_arguments_changed(thd);
 }
 
 bool Item_nth_value::setup_nth() {
@@ -5206,6 +5225,10 @@ void Item_nth_value::clear() {
   m_value->clear();
   null_value = true;
   m_cnt = 0;
+}
+
+void Item_nth_value::update_after_wf_arguments_changed(THD *) {
+  m_value->setup(args[0]);
 }
 
 bool Item_nth_value::check_wf_semantics1(THD *thd, Query_block *select,
@@ -5429,8 +5452,7 @@ void Item_lead_lag::split_sum_func(THD *thd, Ref_item_array ref_item_array,
                                    mem_root_deque<Item *> *fields) {
   super::split_sum_func(thd, ref_item_array, fields);
   // If function was set up, need to redo these now:
-  m_value->setup(args[0]);
-  if (m_default != nullptr) m_default->setup(args[2]);
+  update_after_wf_arguments_changed(thd);
 }
 
 bool Item_lead_lag::setup_lead_lag() {
@@ -5466,6 +5488,11 @@ void Item_lead_lag::clear() {
   null_value = true;
   m_has_value = false;
   m_use_default = false;
+}
+
+void Item_lead_lag::update_after_wf_arguments_changed(THD *) {
+  m_value->setup(args[0]);
+  if (m_default != nullptr) m_default->setup(args[2]);
 }
 
 longlong Item_lead_lag::val_int() {

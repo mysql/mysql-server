@@ -856,6 +856,7 @@ struct AccessPath {
     } append;
     struct {
       AccessPath *child;
+      TABLE *temp_table;
       Temp_table_param *temp_table_param;
       int ref_slice;
       bool needs_buffering;

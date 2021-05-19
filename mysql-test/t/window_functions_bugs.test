@@ -663,3 +663,34 @@ CREATE TABLE t(f1 SET('a','b'), f2 INTEGER);
 INSERT INTO t VALUES ('b',1), ('a',2), ('a,b',3), ('b',0), ('a',1);
 SELECT FIRST_VALUE(f2) OVER(ORDER BY f1 RANGE CURRENT ROW) FROM t;
 DROP TABLE t;
+
+--echo #
+--echo # Bug #33012642: WL#14419: ASSERTION `*TO_LEN >= 2 + FROM->SIGN' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER NOT NULL );
+INSERT INTO t1 VALUES (4);
+
+# Make sure we don't try to sort-ahead on a, SUM(a) before the grouping.
+SELECT a, SUM(a) OVER () AS s
+FROM t1
+GROUP BY a
+ORDER BY a, s;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #33014346: WL#14419: ASSERTION `RECEIVER.HASSECONDARYENGINECOSTHOOK()' FAILED
+--echo #
+
+CREATE TABLE t1 ( a INTEGER, b INTEGER );
+
+# The (a,b,m) ordering is pre-reduced and combined with (a,b),
+# so we can't ignore it for GROUP BY on the grounds that it
+# used to contain an aggregate.
+SELECT ROW_NUMBER() OVER (ORDER BY a), COUNT(*) AS m
+FROM t1
+GROUP BY a, b
+ORDER BY a, b, m;
+
+DROP TABLE t1;

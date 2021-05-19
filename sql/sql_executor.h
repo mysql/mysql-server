@@ -520,6 +520,12 @@ struct PendingCondition {
   int table_index_to_attach_to;  // -1 means “on the last possible outer join”.
 };
 
+/**
+  Create an AND conjuction of all given items. If there are no items, returns
+  nullptr. If there's only one item, returns that item.
+ */
+Item *CreateConjunction(List<Item> *items);
+
 unique_ptr_destroy_only<RowIterator> PossiblyAttachFilterIterator(
     unique_ptr_destroy_only<RowIterator> iterator,
     const std::vector<Item *> &conditions, THD *thd);
