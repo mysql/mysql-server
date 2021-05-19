@@ -104,6 +104,8 @@ typedef Bitmap<((MAX_INDEXES + 7) / 8 * 8)> Key_map; /* Used for finding keys */
 #define TEST_DO_QUICK_LEAK_CHECK       \
   4096 /**< Do Valgrind leak check for \
           each command. */
+#define TEST_NO_TEMP_TABLES \
+  8192 /**< No temp table engine is loaded, so use dummy costs. */
 
 #define SPECIAL_NO_NEW_FUNC 2     /* Skip new functions */
 #define SPECIAL_SKIP_SHOW_DB 4    /* Don't allow 'show db' */

@@ -1580,6 +1580,10 @@ AccessPath *GetAccessPathForDerivedTable(
   path->cost_before_filter = path->cost;
   path->num_output_rows_before_filter = path->num_output_rows;
 
+  if (rematerialize) {
+    path->safe_for_rowid = AccessPath::SAFE_IF_SCANNED_ONCE;
+  }
+
   table_ref->access_path_for_derived = path;
   return path;
 }

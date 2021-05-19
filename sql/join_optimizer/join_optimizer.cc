@@ -65,6 +65,7 @@
 #include "sql/join_optimizer/subgraph_enumeration.h"
 #include "sql/join_optimizer/walk_access_paths.h"
 #include "sql/mem_root_array.h"
+#include "sql/mysqld.h"
 #include "sql/query_options.h"
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/sql_base.h"
@@ -122,6 +123,9 @@ AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
                                       TABLE *temp_table,
                                       Temp_table_param *temp_table_param,
                                       bool copy_items);
+
+AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
+                              bool need_rowid);
 
 // An ordering that we could be doing sort-ahead by; typically either an
 // interesting ordering or an ordering homogenized from one.
@@ -1067,6 +1071,12 @@ bool CostingReceiver::ProposeTableScan(TABLE *table, int node_idx,
       materialize_path->parameter_tables =
           GetNodeMapFromTableMap(tl->derived_query_expression()->m_lateral_deps,
                                  m_graph.table_num_to_node_num);
+
+      // If we don't need row IDs, we also don't care about row ID safety.
+      // This keeps us from retaining many extra unneeded paths.
+      if (!m_need_rowid) {
+        materialize_path->safe_for_rowid = AccessPath::SAFE;
+      }
     }
 
     materialize_path->filter_predicates = path.filter_predicates;
@@ -1796,6 +1806,16 @@ void CostingReceiver::ProposeHashJoin(
   }
   join_path.cost = cost;
 
+  // For each scan, hash join will read the left side once and the right side
+  // once, so we are as safe as the least safe of the two. (This isn't true
+  // if we set spill_to_disk = false, but we never do that in the hypergraph
+  // optimizer.) Note that if the right side fits entirely in RAM, we don't
+  // scan it the second time (so we could make the operation _more_ safe
+  // than the right side, and we should consider both ways of doing
+  // an inner join), but we cannot know that when planning.
+  join_path.safe_for_rowid =
+      std::max(left_path->safe_for_rowid, right_path->safe_for_rowid);
+
   // Only trace once; the rest ought to be identical.
   if (m_trace != nullptr && !*wrote_trace) {
     *m_trace += StringPrintf(
@@ -2184,6 +2204,15 @@ void CostingReceiver::ProposeNestedLoopJoin(
   join_path.ordering_state =
       m_orderings->ApplyFDs(left_path->ordering_state, new_fd_set);
 
+  // We may scan the right side several times, but the left side maybe once.
+  // So if the right side is not safe to scan for row IDs after multiple scans,
+  // neither are we. But if it's safe, we're exactly as safe as the left side.
+  if (right_path->safe_for_rowid != AccessPath::SAFE) {
+    join_path.safe_for_rowid = AccessPath::UNSAFE;
+  } else {
+    join_path.safe_for_rowid = left_path->safe_for_rowid;
+  }
+
   {
     FunctionalDependencySet filter_fd_set;
     ApplyDelayedPredicatesAfterJoin(
@@ -2296,6 +2325,16 @@ static inline PathComparisonResult CompareAccessPaths(
     b_is_better = true;
   }
 
+  // If one path is safe for row IDs and another one is not,
+  // that is also something we need to take into account.
+  // Safer values have lower numerical values, so we can compare them
+  // as integers.
+  if (a.safe_for_rowid < b.safe_for_rowid) {
+    a_is_better = true;
+  } else if (b.safe_for_rowid < a.safe_for_rowid) {
+    b_is_better = true;
+  }
+
   if (!a_is_better && !b_is_better) {
     return PathComparisonResult::IDENTICAL;
   } else if (a_is_better && !b_is_better) {
@@ -2336,6 +2375,12 @@ static string PrintCost(const AccessPath &path, const JoinHypergraph &graph,
 
   if (path.ordering_state != 0) {
     str += StringPrintf(", order=%d", path.ordering_state);
+  }
+
+  if (path.safe_for_rowid == AccessPath::SAFE_IF_SCANNED_ONCE) {
+    str += StringPrintf(", safe_for_rowid_once");
+  } else if (path.safe_for_rowid == AccessPath::UNSAFE) {
+    str += StringPrintf(", unsafe_for_rowid");
   }
 
   if (strcmp(description_for_trace, "") == 0) {
@@ -2591,6 +2636,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
   if (path->parameter_tables != 0) {
     return;
   }
+
+  path = GetSafePathToSort(m_thd, m_query_block->join, path, m_need_rowid);
 
   // Try sort-ahead for all interesting orderings.
   // (For the final sort, this might not be so much _ahead_, but still
@@ -2855,6 +2902,7 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
     stream_path->num_output_rows_before_filter = stream_path->num_output_rows;
     stream_path->cost_before_filter = stream_path->cost;
     stream_path->ordering_state = path->ordering_state;
+    stream_path->safe_for_rowid = path->safe_for_rowid;
     return stream_path;
   } else {
     // Filesort needs sort by row ID, possibly because large blobs are
@@ -2864,6 +2912,18 @@ AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
     // by docid, but this situation is rare, so we go for simplicity.)
     return CreateMaterializationPath(thd, join, path, /*temp_table=*/nullptr,
                                      /*temp_table_param=*/nullptr, copy_items);
+  }
+}
+
+AccessPath *GetSafePathToSort(THD *thd, JOIN *join, AccessPath *path,
+                              bool need_rowid) {
+  if (need_rowid && path->safe_for_rowid == AccessPath::UNSAFE) {
+    // We need to materialize this path before we can sort it,
+    // since it might not give us stable row IDs.
+    return CreateMaterializationOrStreamingPath(thd, join, path, need_rowid,
+                                                /*copy_items=*/true);
+  } else {
+    return path;
   }
 }
 
@@ -2887,6 +2947,7 @@ AccessPath *CreateMaterializationPath(THD *thd, JOIN *join, AccessPath *path,
 
   EstimateMaterializeCost(thd, materialize_path);
   materialize_path->ordering_state = path->ordering_state;
+  materialize_path->safe_for_rowid = AccessPath::SAFE_IF_SCANNED_ONCE;
   return materialize_path;
 }
 
@@ -3391,23 +3452,29 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
     table_path->num_output_rows = path->num_output_rows;
     table_path->init_cost = table_path->init_once_cost = 0.0;
 
-    TABLE dummy_table;
-    TABLE *temp_table = table_path->table_scan().table;
-    if (temp_table == nullptr) {
-      // We need a dummy TABLE object to get estimates.
-      handlerton *handlerton = ha_default_temp_handlerton(thd);
-      dummy_table.file =
-          handlerton->create(handlerton, /*share=*/nullptr,
-                             /*partitioned=*/false, thd->mem_root);
-      dummy_table.file->set_ha_table(&dummy_table);
-      dummy_table.init_cost_model(thd->cost_model());
-      temp_table = &dummy_table;
-    }
+    if (Overlaps(test_flags, TEST_NO_TEMP_TABLES)) {
+      // Unit tests don't load any temporary table engines,
+      // so just make up a number.
+      table_path->cost = path->num_output_rows * 0.1;
+    } else {
+      TABLE dummy_table;
+      TABLE *temp_table = table_path->table_scan().table;
+      if (temp_table == nullptr) {
+        // We need a dummy TABLE object to get estimates.
+        handlerton *handlerton = ha_default_temp_handlerton(thd);
+        dummy_table.file =
+            handlerton->create(handlerton, /*share=*/nullptr,
+                               /*partitioned=*/false, thd->mem_root);
+        dummy_table.file->set_ha_table(&dummy_table);
+        dummy_table.init_cost_model(thd->cost_model());
+        temp_table = &dummy_table;
+      }
 
-    // Try to get usable estimates. Ignored by InnoDB, but used by
-    // TempTable.
-    temp_table->file->stats.records = path->num_output_rows;
-    table_path->cost = temp_table->file->table_scan_cost().total_cost();
+      // Try to get usable estimates. Ignored by InnoDB, but used by
+      // TempTable.
+      temp_table->file->stats.records = path->num_output_rows;
+      table_path->cost = temp_table->file->table_scan_cost().total_cost();
+    }
   }
 
   path->init_cost = path->cost + std::max(table_path->init_cost, 0.0);
@@ -3534,6 +3601,9 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
                                    /*obsolete_orderings=*/0, "sort elided");
         continue;
       }
+
+      root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
+
       // We need to sort. Try all sort-ahead, not just the one directly
       // derived from DISTINCT clause, because a broader one might help us
       // elide ORDER BY later.
@@ -3605,6 +3675,8 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
       } else {
         const bool push_limit_to_filesort =
             limit_rows != HA_POS_ERROR && !join->calc_found_rows;
+
+        root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
 
         AccessPath *sort_path = new (thd->mem_root) AccessPath;
         sort_path->type = AccessPath::SORT;
@@ -5482,6 +5554,8 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                                    /*obsolete_orderings=*/0, "sort elided");
         continue;
       }
+
+      root_path = GetSafePathToSort(thd, join, root_path, need_rowid);
 
       // We need to sort. Try all sort-ahead, not just the one directly derived
       // from GROUP BY clause, because a broader one might help us elide ORDER

@@ -227,6 +227,34 @@ struct AccessPath {
   /// and which ones do not, so the only canonical reference is the tests.
   bool count_examined_rows = false;
 
+  /// A general enum to describe the safety of a given operation.
+  /// Currently we only use this to describe row IDs, but it can easily
+  /// be reused for safety of updating a table we're reading from
+  /// (the Halloween problem), or just generally unreproducible results
+  /// (e.g. a TABLESAMPLE changing due to external factors).
+  ///
+  /// Less safe values have higher numerical values.
+  enum Safety : uint8_t {
+    /// The given operation is always safe on this access path.
+    SAFE = 0,
+
+    /// The given operation is safe if this access path is scanned once,
+    /// but not if it's scanned multiple times (e.g. used on the inner side
+    /// of a nested-loop join). A typical example of this is a derived table
+    /// or CTE that is rematerialized on each scan, so that references to
+    /// the old values (such as row IDs) are no longer valid.
+    SAFE_IF_SCANNED_ONCE = 1,
+
+    /// The given operation is unsafe on this access path, no matter how many
+    /// or few times it's scanned. Often, it may help to materialize it
+    /// (assuming the materialization itself doesn't use the operation
+    /// in question).
+    UNSAFE = 2
+  };
+
+  /// Whether it is safe to get row IDs (for sorting) from this access path.
+  Safety safe_for_rowid = SAFE;
+
   /// Which ordering the rows produced by this path follow, if any
   /// (see interesting_orders.h). This is really a LogicalOrderings::StateIndex,
   /// but we don't want to add a dependency on interesting_orders.h from
@@ -908,6 +936,7 @@ inline void CopyBasicProperties(const AccessPath &from, AccessPath *to) {
   to->init_cost = from.init_cost;
   to->init_once_cost = from.init_once_cost;
   to->parameter_tables = from.parameter_tables;
+  to->safe_for_rowid = from.safe_for_rowid;
   to->ordering_state = from.ordering_state;
 }
 
