@@ -774,8 +774,11 @@ ADD_COMPILE_FLAGS(
 IF(WIN32)
   ADD_COMPILE_FLAGS(
     gis/difference.cc
+    gis/difference_functor.cc
+    gis/intersection_functor.cc
     gis/touches.cc
     gis/union.cc
+    gis/union_functor.cc
     gis/within.cc
     item_geofunc.cc
     item_geofunc_relchecks.cc
