@@ -649,7 +649,7 @@ class ut_allocator {
 
   /** Allocate a chunk of memory that can hold 'n_elements' objects of
   type 'T' and trace the allocation.
-  If the allocation fails this method may throw an exception. This
+  If the allocation fails this method will throw an exception. This
   is mandated by the standard and if it returns NULL instead, then
   STL containers that use it (e.g. std::vector) may get confused.
   After successful allocation the returned pointer must be passed
@@ -660,22 +660,12 @@ class ut_allocator {
   @param[in]  key             performance schema key
   @param[in]  set_to_zero     if true, then the returned memory is
                               initialized with 0x0 bytes.
-  @param[in]  throw_on_error  if true, then exception is throw on
-                              allocation failure
   @return pointer to the allocated memory */
   pointer allocate(size_type n_elements, const_pointer hint = nullptr,
                    PSI_memory_key key = PSI_NOT_INSTRUMENTED,
-                   bool set_to_zero = false, bool throw_on_error = true) {
-    if (n_elements == 0) {
-      return (nullptr);
-    }
-
+                   bool set_to_zero = false) {
     if (n_elements > max_size()) {
-      if (throw_on_error) {
-        throw(std::bad_alloc());
-      } else {
-        return (nullptr);
-      }
+      throw std::bad_array_new_length();
     }
 
     void *ptr;
@@ -705,11 +695,7 @@ class ut_allocator {
           << alloc_max_retries << " retries over " << alloc_max_retries
           << " seconds. OS error: " << strerror(errno) << " (" << errno << "). "
           << OUT_OF_MEMORY_MSG;
-      if (throw_on_error) {
-        throw(std::bad_alloc());
-      } else {
-        return (nullptr);
-      }
+      throw std::bad_alloc();
     }
 
 #ifdef UNIV_PFS_MEMORY
@@ -777,7 +763,7 @@ class ut_allocator {
     }
 
     if (ptr == nullptr) {
-      return (allocate(n_elements, nullptr, key, false, false));
+      return (allocate(n_elements, nullptr, key, false));
     }
 
     if (n_elements > max_size()) {
@@ -834,11 +820,7 @@ class ut_allocator {
     static_assert(std::is_default_constructible<T>::value,
                   "Array element type must be default-constructible");
 
-    T *p = allocate(n_elements, nullptr, key, false, false);
-
-    if (p == nullptr) {
-      return (nullptr);
-    }
+    T *p = allocate(n_elements, nullptr, key, false);
 
     T *first = p;
     size_type i;
@@ -1005,12 +987,11 @@ pointer must be passed to UT_DELETE() when no longer needed.
 @param[in]	expr	any expression that could follow "new"
 @param[in]	key	performance schema memory tracing key
 @return pointer to the created object or NULL */
-#define UT_NEW(expr, key)                                                \
-  /* Placement new will return NULL and not attempt to construct an      \
-  object if the passed in pointer is NULL, e.g. if allocate() has        \
-  failed to allocate memory and has returned NULL. */                    \
-  ::new (ut_allocator<decltype(expr)>(key).allocate(1, NULL, key, false, \
-                                                    false)) expr
+#define UT_NEW(expr, key)                                           \
+  /* Placement new will return NULL and not attempt to construct an \
+  object if the passed in pointer is NULL, e.g. if allocate() has   \
+  failed to allocate memory and has returned NULL. */               \
+  ::new (ut_allocator<decltype(expr)>(key).allocate(1, NULL, key, false)) expr
 
 /** Allocate, trace the allocation and construct an object.
 Use this macro instead of 'new' within InnoDB and instead of UT_NEW()
@@ -1104,27 +1085,27 @@ ut_malloc has the same problems as the standard library malloc.
 
 #define ut_malloc(n_bytes, key)                         \
   static_cast<void *>(ut_allocator<byte>(key).allocate( \
-      n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false, false))
+      n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false))
 
 #define ut_zalloc(n_bytes, key)                         \
   static_cast<void *>(ut_allocator<byte>(key).allocate( \
-      n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true, false))
+      n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true))
 
 #define ut_malloc_nokey(n_bytes)               \
   static_cast<void *>(                         \
       ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
-          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false, false))
+          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, false))
 
 #define ut_zalloc_nokey(n_bytes)               \
   static_cast<void *>(                         \
       ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
-          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true, false))
+          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true))
 
 #define ut_zalloc_nokey_nofatal(n_bytes)       \
   static_cast<void *>(                         \
       ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
           .set_oom_not_fatal()                 \
-          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true, false))
+          .allocate(n_bytes, NULL, UT_NEW_THIS_FILE_PSI_KEY, true))
 
 #define ut_realloc(ptr, n_bytes)                               \
   static_cast<void *>(ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
