@@ -472,6 +472,12 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
       continue;
     }
 
+    // Window functions have much more state than just the parameter,
+    // so we cannot say that e.g. {a} → SUM(a) OVER (...).
+    if (item->has_wf()) {
+      continue;
+    }
+
     Item_field *base_field = nullptr;
     bool error =
         WalkItem(item, enum_walk::POSTFIX, [&base_field](Item *sub_item) {
@@ -513,6 +519,7 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
     fd.type = FunctionalDependency::FD;
     fd.head = Bounds_checked_array<ItemHandle>(&head_item, 1);
     fd.tail = item_idx;
+    fd.always_active = true;
     AddFunctionalDependency(thd, fd);
 
     // Extend existing FDs transitively (see function comment).
