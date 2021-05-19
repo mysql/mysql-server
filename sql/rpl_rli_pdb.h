@@ -713,6 +713,17 @@ public:
   };
 
   int slave_worker_exec_event(Log_event *ev);
+  /**
+    Make the necessary changes to both the `Slave_worker` and current
+    `Log_event` objects, before retrying to apply the transaction.
+
+    Since the event is going to be re-read from the relay-log file, there
+    may be actions needed to be taken to reset the state both of `this`
+    instance, as well as of the current `Log_event` being processed.
+
+    @param event The `Log_event` object currently being processed.
+  */
+  void prepare_for_retry(Log_event &event);
   bool retry_transaction(uint start_relay_number, my_off_t start_relay_pos,
                          uint end_relay_number, my_off_t end_relay_pos);
 

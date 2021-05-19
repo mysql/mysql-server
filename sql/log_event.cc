@@ -13373,6 +13373,7 @@ int Rows_query_log_event::do_apply_event(Relay_log_info const *rli)
   const_cast<Relay_log_info*>(rli)->rows_query_ev= this;
   /* Tell worker not to free the event */
   worker= NULL;
+  DBUG_EXECUTE_IF("error_on_rows_query_event_apply", { DBUG_RETURN(1); };);
   DBUG_RETURN(0);
 }
 #endif
