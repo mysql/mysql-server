@@ -1651,3 +1651,18 @@ UPDATE t1, t2
   );
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #33030793: WL#14419: ASSERTION `NEW_PATH->COST >= NEW_PATH->INIT_COST' FAILED
+--echo #
+
+CREATE TABLE t1 ( a BLOB );
+
+SELECT t1.a
+FROM
+  t1,
+  LATERAL ( SELECT t1.a FROM t1 AS inner_t1 LIMIT 1 ) AS d1
+WHERE 1 IN ( SELECT a FROM t1 )
+ORDER BY a;
+
+DROP TABLE t1;

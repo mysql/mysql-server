@@ -1917,6 +1917,67 @@ TEST_F(HypergraphOptimizerTest, CycleFromMultipleEquality) {
   EXPECT_EQ(m_thd->m_current_query_partial_plans, 7);
 }
 
+TEST_F(HypergraphOptimizerTest, SwitchesOrderToMakeSafeForRowid) {
+  // Mark t1.y as a blob, to make sure we need rowids for our sort.
+  Mock_field_long t1_x(/*is_unsigned=*/false);
+  Base_mock_field_blob t1_y(/*length=*/1000000);
+  t1_x.field_name = "x";
+  t1_y.field_name = "y";
+
+  Fake_TABLE *t1 = new (m_initializer.thd()->mem_root) Fake_TABLE(&t1_x, &t1_y);
+  m_fake_tables["t1"] = t1;
+
+  t1->set_created();
+  Query_block *query_block = ParseAndResolve(
+      "SELECT t1.y FROM t1 JOIN t2 ON t1.x=t2.x ORDER BY t1.y, t2.y",
+      /*nullable=*/true);
+
+  t1->create_index(t1->field[0], nullptr, /*unique=*/false);
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t2->create_index(t2->field[0], nullptr, /*unique=*/false);
+
+  // The normal case for rowid-unsafe tables are LATERAL derived tables,
+  // but since we don't support derived tables in the unit test,
+  // we cheat and mark t2 as unsafe for row IDs manually instead,
+  // and also disallow hash join.
+  handlerton *hton = EnableSecondaryEngine(/*aggregation_is_unordered=*/false);
+  hton->secondary_engine_flags =
+      MakeSecondaryEngineFlags(SecondaryEngineFlag::SUPPORTS_NESTED_LOOP_JOIN);
+  hton->secondary_engine_modify_access_path_cost =
+      [](THD *, const JoinHypergraph &, AccessPath *path) {
+        if (path->type == AccessPath::REF &&
+            strcmp("t2", path->ref().table->alias) == 0) {
+          path->safe_for_rowid = AccessPath::SAFE_IF_SCANNED_ONCE;
+        }
+        return false;
+      };
+
+  m_fake_tables["t1"]->file->stats.records = 99;
+  m_fake_tables["t2"]->file->stats.records = 100;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Normally, it would be better to have t1 on the outside
+  // and t2 on the inside, since t2 is the larger one, but that would create
+  // a materialization, so the better version is to flip.
+  ASSERT_EQ(AccessPath::SORT, root->type);
+  AccessPath *join = root->sort().child;
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, join->type);
+  AccessPath *outer = join->nested_loop_join().outer;
+  AccessPath *inner = join->nested_loop_join().inner;
+
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_STREQ("t2", outer->table_scan().table->alias);
+
+  ASSERT_EQ(AccessPath::REF, inner->type);
+  EXPECT_STREQ("t1", inner->ref().table->alias);
+}
+
 namespace {
 
 struct FullTextParam {
