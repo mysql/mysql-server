@@ -1012,7 +1012,7 @@ void Query_expression::create_access_paths(THD *thd) {
         /*ref_slice=*/-1,
         /*rematerialize=*/true, push_limit_down ? limit : HA_POS_ERROR,
         /*reject_multiple_rows=*/false);
-    EstimateMaterializeCost(param.path);
+    EstimateMaterializeCost(thd, param.path);
     param.path = MoveCompositeIteratorsFromTablePath(param.path);
     param.join = nullptr;
     union_all_sub_paths->push_back(param);

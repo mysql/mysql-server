@@ -159,7 +159,7 @@ void FindSargablePredicates(THD *thd, std::string *trace,
                             JoinHypergraph *graph);
 
 void EstimateAggregateCost(AccessPath *path);
-void EstimateMaterializeCost(AccessPath *path);
+void EstimateMaterializeCost(THD *thd, AccessPath *path);
 
 // Change all items in the ORDER list to point to the temporary table.
 // This isn't important for streaming (the items would get the correct
