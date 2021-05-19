@@ -1,7 +1,6 @@
 --source include/not_valgrind.inc
 --source include/not_sparc_debug.inc
 --source include/big_test.inc
---source include/not_hypergraph.inc
 
 --echo # ----------------------------------------------------------------------
 --echo # Time consuming tests of window functions.

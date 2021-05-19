@@ -1019,8 +1019,11 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
         if (!param->m_window) {
           // A pre-windowing table; no point in storing WF.
           store_column = false;
-        } else if (param->m_window != down_cast<Item_sum *>(item)->window()) {
+        } else if (param->m_window != down_cast<Item_sum *>(item)->window() &&
+                   down_cast<Item_sum *>(item)->window()->m_not_processed_yet) {
           // A later window's WF: no point in storing it in this table.
+          // (The first comparison is for the pre-hypergraph join optimizer,
+          // which doesn't use m_not_processed_yet.)
           store_column = false;
         }
       } else if (item->has_wf()) {

@@ -61,7 +61,7 @@ using std::min;
 namespace {
 
 void SwitchSlice(JOIN *join, int slice_num) {
-  if (!join->ref_items[slice_num].is_null()) {
+  if (slice_num != -1 && !join->ref_items[slice_num].is_null()) {
     join->set_ref_item_slice(slice_num);
   }
 }

@@ -9013,7 +9013,10 @@ Item_cache *Item_cache::get_cache(const Item *item, const Item_result type) {
 }
 
 void Item_cache::store(Item *item) {
-  example = item;
+  if (current_thd->lex->is_exec_started())
+    current_thd->change_item_tree(&example, item);
+  else
+    example = item;
   if (!item) {
     assert(is_nullable());
     null_value = true;

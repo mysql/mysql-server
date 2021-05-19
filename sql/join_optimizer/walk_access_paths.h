@@ -271,6 +271,8 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
                                         include_pruned_tables);
             }
             return false;
+          case AccessPath::WINDOW:
+            return func(path->window().temp_table);
           case AccessPath::AGGREGATE:
           case AccessPath::APPEND:
           case AccessPath::BKA_JOIN:
@@ -288,7 +290,6 @@ void WalkTablesUnderAccessPath(AccessPath *root_path, Func &&func,
           case AccessPath::TABLE_VALUE_CONSTRUCTOR:
           case AccessPath::TEMPTABLE_AGGREGATE:
           case AccessPath::WEEDOUT:
-          case AccessPath::WINDOW:
           case AccessPath::ZERO_ROWS_AGGREGATED:
             return false;
         }

@@ -1,7 +1,6 @@
 --echo # Test of SQL window functions.
 --echo # ----------------------------------------------------------------------
 --source include/have_innodb_16k.inc
---source include/not_hypergraph.inc   # Windowing functions are not supported yet.
 SET NAMES utf8;
 
 --echo

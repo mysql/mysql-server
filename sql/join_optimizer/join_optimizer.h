@@ -34,12 +34,14 @@
 
   It is intended to eventually take over completely from the older join
   optimizer based on prefix search (sql_planner.cc and related code),
-  but is currently in early alpha stage with a very simplistic cost model
-  and certain limitations. The most notable ones are that we do not support:
+  and is nearly feature complete, but is currently in the early stages
+  with a very simplistic cost model and certain limitations.
+  The most notable ones are that we do not support:
 
-    - Window functions.
     - Hints (except STRAIGHT_JOIN).
     - TRADITIONAL and JSON formats for EXPLAIN (use FORMAT=tree).
+    - Too large queries (more than 64 ON/WHERE predicates, or too
+      many possible subgraphs).
 
   For unsupported queries, we will return an error; every valid SQL
   query should either give such an error a correct result set.
@@ -58,8 +60,14 @@
 
 struct AccessPath;
 struct JoinHypergraph;
-class THD;
+class Func_ptr;
+template <class T>
+class Mem_root_array;
+struct ORDER;
 class Query_block;
+class THD;
+
+using Func_ptr_array = Mem_root_array<Func_ptr>;
 
 /**
   The main entry point for the hypergraph join optimizer; takes in a query
@@ -152,5 +160,12 @@ void FindSargablePredicates(THD *thd, std::string *trace,
 
 void EstimateAggregateCost(AccessPath *path);
 void EstimateMaterializeCost(AccessPath *path);
+
+// Change all items in the ORDER list to point to the temporary table.
+// This isn't important for streaming (the items would get the correct
+// value anyway -- although possibly with some extra calculations),
+// but it is for materialization.
+void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
+                                          const Func_ptr_array &items_to_copy);
 
 #endif  // SQL_JOIN_OPTIMIZER_JOIN_OPTIMIZER_H
