@@ -260,6 +260,22 @@ IF(NOT LINUX_RHEL AND MY_HOST_SYSTEM_NAME MATCHES "Linux")
   ENDIF()
 ENDIF()
 
+IF(EXISTS "/etc/SuSE-release")
+  SET(LINUX_SUSE 1)
+ENDIF()
+
+IF(LINUX_SUSE)
+  FILE(READ "/etc/SuSE-release" MY_OS_RELEASE)
+  IF(MY_OS_RELEASE MATCHES "SUSE Linux Enterprise Server 12")
+    SET(LINUX_SUSE_12 1)
+  ELSEIF(MY_OS_RELEASE MATCHES "SUSE Linux Enterprise Server 15" OR
+      MY_OS_RELEASE MATCHES "openSUSE .* 15")
+    SET(LINUX_SUSE_15 1)
+  ELSE()
+    MESSAGE(WARNING "Unknown SUSE version.")
+  ENDIF()
+ENDIF()
+
 IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
     AND NOT CMAKE_C_COMPILER AND NOT CMAKE_CXX_COMPILER)
   # Cannot INCLUDE(CMakeDetermineSystem) prior to PROJECT initialization below.
@@ -294,8 +310,10 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
         MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
         MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
       ELSE()
-        MESSAGE(WARNING "Could not find devtoolset compiler in ${ALTERNATIVE_PATHS}")
-        MESSAGE(FATAL_ERROR "Please set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
+        MESSAGE(WARNING
+          "Could not find devtoolset compiler in ${ALTERNATIVE_PATHS}")
+        MESSAGE(FATAL_ERROR
+          "Please set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
       ENDIF()
 
     ELSEIF(LINUX_UBUNTU_18_04)
@@ -318,29 +336,42 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
       ENDIF()
 
-    ELSEIF(MY_HOST_SYSTEM_NAME MATCHES "Linux" AND
-        EXISTS "/etc/os-release")
-      FILE(READ "/etc/os-release" MY_OS_RELEASE)
-      IF (MY_OS_RELEASE MATCHES "SUSE Linux Enterprise Server 12")
-        MESSAGE(STATUS "We need to look for a newer GCC on SLES 12")
-
-        FIND_PROGRAM(ALTERNATIVE_GCC gcc-7
+    ELSEIF(LINUX_SUSE_12 OR LINUX_SUSE_15)
+      MESSAGE(STATUS "We need to look for a newer GCC on SUSE Linux.")
+      IF(LINUX_SUSE_12)
+        FIND_PROGRAM(ALTERNATIVE_GCC gcc-10
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        FIND_PROGRAM(ALTERNATIVE_GPP g++-7
+        FIND_PROGRAM(ALTERNATIVE_GPP g++-10
           NO_DEFAULT_PATH
           PATHS "/usr/bin")
-        IF (ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
-          SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
-          SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
-          MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
-          MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
-          # Use the new ABI so that std::string can be used with allocators
-          # that are not default-constructible (e.g. Memroot_allocator)
+      ELSEIF(LINUX_SUSE_15)
+        FIND_PROGRAM(ALTERNATIVE_GCC gcc-9
+          NO_DEFAULT_PATH
+          PATHS "/usr/bin")
+        FIND_PROGRAM(ALTERNATIVE_GPP g++-9
+          NO_DEFAULT_PATH
+          PATHS "/usr/bin")
+      ENDIF()
+      IF (ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
+        SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
+        SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
+        MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
+        MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
+        # Use the new ABI so that std::string can be used with allocators
+        # that are not default-constructible (e.g. Memroot_allocator)
+        IF(LINUX_SUSE_12)
           ADD_DEFINITIONS(-D_GLIBCXX_USE_CXX11_ABI=1)
+        ENDIF()
+      ELSE()
+        MESSAGE(WARNING "Could not find newer gcc.")
+        IF(LINUX_SUSE_12)
+          MESSAGE(FATAL_ERROR "Please do zypper install gcc10 gcc10-c++\n"
+            "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
         ELSE()
-          MESSAGE(WARNING "Could not find newer gcc")
-	ENDIF()
+          MESSAGE(FATAL_ERROR "Please do zypper install gcc9 gcc9-c++\n"
+            "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
+        ENDIF()
       ENDIF()
     ENDIF()
   ENDIF()

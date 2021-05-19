@@ -138,7 +138,8 @@ BuildRequires:  libnuma-devel
 BuildRequires:  ncurses-devel
 BuildRequires:  openssl-devel
 BuildRequires:  zlib-devel
-%{?sles12:BuildRequires: gcc7 gcc7-c++}
+%{?sles12:BuildRequires: gcc10 gcc10-c++}
+%{?sles15:BuildRequires: gcc9 gcc9-c++}
 %{?sles16:BuildRequires: rpcgen pkgconfig(libtirpc)}
 BuildRequires:  systemd
 BuildRequires:  pkgconfig(systemd)
