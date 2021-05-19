@@ -786,7 +786,7 @@ bool JOIN::optimize() {
     }
 
     bool simple_sort = true;
-    Deps_of_remaining_lateral_derived_tables deps_lateral(this, all_table_map);
+    Table_map_restorer deps_lateral(&deps_of_remaining_lateral_derived_tables);
     // Check whether join cache could be used
     for (uint i = const_tables; i < tables; i++) {
       JOIN_TAB *const tab = best_ref[i];
@@ -795,7 +795,11 @@ bool JOIN::optimize() {
       if (tab->use_join_cache() != JOIN_CACHE::ALG_NONE) simple_sort = false;
       assert(tab->type() != JT_FT ||
              tab->use_join_cache() == JOIN_CACHE::ALG_NONE);
-      deps_lateral.recalculate(tab, i + 1);
+      if (has_lateral && get_lateral_deps(*best_ref[i]) != 0) {
+        deps_of_remaining_lateral_derived_tables =
+            calculate_deps_of_remaining_lateral_derived_tables(all_table_map,
+                                                               i + 1);
+      }
     }
     if (!simple_sort) {
       /*
@@ -3096,9 +3100,9 @@ table_map JOIN::calculate_deps_of_remaining_lateral_derived_tables(
   table_map deps = 0;
   auto last = best_ref + tables;
   for (auto **pos = best_ref + idx; pos < last; pos++) {
-    if ((*pos)->table_ref && (*pos)->table_ref->is_derived() &&
-        ((*pos)->table_ref->map() & plan_tables))
-      deps |= (*pos)->table_ref->derived_query_expression()->m_lateral_deps;
+    if ((*pos)->table_ref && ((*pos)->table_ref->map() & plan_tables)) {
+      deps |= get_lateral_deps(**pos);
+    }
   }
   return deps;
 }
