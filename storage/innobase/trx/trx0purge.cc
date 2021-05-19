@@ -2012,10 +2012,10 @@ struct Purge_groups_t {
 
   std::size_t find_smallest_group();
 
-  /** Redistribute the undo records across different groups.  If a group has
-  more records than it should, move all the extra records to the next group.
-  Maximum two passes might be needed. */
-  void distribute();
+  /** Check the history list length and decide if distribution of workload
+  between purge threads is needed or not.  If needed, do the distribution,
+  otherwise do nothing. */
+  void distribute_if_needed();
 
   std::ostream &print(std::ostream &out) const;
 
@@ -2070,6 +2070,12 @@ struct Purge_groups_t {
 
   /** Total number of undo records parsed and grouped. */
   std::size_t m_total_rec;
+
+ private:
+  /** Redistribute the undo records across different groups.  If a group has
+  more records than it should, move all the extra records to the next group.
+  Maximum two passes might be needed. */
+  void distribute();
 };
 
 std::size_t Purge_groups_t::find_smallest_group() {
@@ -2166,6 +2172,16 @@ void Purge_groups_t::distribute() {
     ut_ad(distribution_failed);
   }
 #endif /* UNIV_DEBUG */
+}
+
+void Purge_groups_t::distribute_if_needed() {
+  const uint64_t rseg_history_len = trx_sys->rseg_history_len.load();
+
+  /* If the history list length is greater than maximum allowed purge lag,
+  then distribute the workload across all purge threads. */
+  if (srv_max_purge_lag > 0 && rseg_history_len > srv_max_purge_lag) {
+    distribute();
+  }
 }
 
 /** Fetches the next undo log record from the history list to purge. It must
@@ -2281,7 +2297,7 @@ static ulint trx_purge_attach_undo_recs(const ulint n_purge_threads,
     purge_groups.add(rec);
   }
 
-  purge_groups.distribute();
+  purge_groups.distribute_if_needed();
   purge_groups.assign(run_thrs);
 
   ut_ad(trx_purge_check_limit());
