@@ -30,6 +30,7 @@
 
 #include "storage/ndb/plugin/ha_ndbcluster.h"
 
+#include <algorithm>  // std::min(),std::max()
 #include <memory>
 #include <sstream>
 #include <string>
