@@ -152,7 +152,7 @@ static int warp_init_func(void *p) {
   DBUG_ENTER("warp_init_func");
   sql_print_information("WARP storage engine initialization started");
   handlerton *warp_hton;
-  ibis::fileManager::adjustCacheSize(16ULL * 1024 * 1024 * 1024);
+  ibis::fileManager::adjustCacheSize(my_cache_size);
   ibis::init(NULL, "/tmp/fastbit.log");
   ibis::util::setVerboseLevel(0);
 #ifdef HAVE_PSI_INTERFACE
