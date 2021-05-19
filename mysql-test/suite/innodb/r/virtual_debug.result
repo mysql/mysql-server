@@ -525,3 +525,105 @@ DB_ROW_ID	6	MYSQL_TYPE_INT24	SE	NULL
 DB_TRX_ID	7	MYSQL_TYPE_INT24	SE	NULL
 DB_ROLL_PTR	8	MYSQL_TYPE_LONGLONG	SE	NULL
 DROP TABLE t1;
+#
+# Bug #30556595  FAILING ASSERTION: !CURSOR->INDEX->IS_COMMITTED()
+# ON TABLE WITH GCOLS
+#
+# Set binlog_row_image = MINIMAL.
+SET @old_binlog_row_image = @@binlog_row_image;
+SET @@session.binlog_row_image = 'MINIMAL';
+# Testcase-1
+CREATE TABLE t (pid int PRIMARY KEY,
+uid int,
+vid int AS (uid) VIRTUAL);
+# Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+# Insert a record to generate an insert row log for the new index.
+# LOG-1 idx_vid : INSERT [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+# Update the record changing PK. It should generate 2 row logs for the new index.
+# LOG-2 idx_vid : DELETE [10, 1]
+# LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SELECT * FROM t;
+pid	uid	vid
+2	10	10
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+# Insert a record to re-use the delete marked record in idx_vid [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+SELECT * FROM t;
+pid	uid	vid
+1	10	10
+2	10	10
+DROP TABLE t;
+# Testcase-2
+CREATE TABLE t (pid int PRIMARY KEY,
+uid int,
+vid int AS (uid) VIRTUAL);
+# Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+# Start transaction
+BEGIN;
+# Insert a record to generate an insert row log for the new index.
+# LOG-1 idx_vid : INSERT [10, 1]
+INSERT INTO t(pid, uid) VALUES (1,10);
+# Update the record changing PK. It should generate 2 row logs for the new index.
+# LOG-2 idx_vid : DELETE [10, 1]
+# LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SELECT * FROM t;
+pid	uid	vid
+2	10	10
+# Rollback transaction
+# LOG-4 idx_vid : DELETE [10, 2]
+# LOG-5 idx_vid : INSERT [10, 1]
+# LOG-6 idx_vid : DELETE [10, 1]
+ROLLBACK;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+# Insert a record to check valid entry in idx_vid [NULL, 1]
+INSERT INTO t(pid) VALUES (1);
+SELECT * FROM t;
+pid	uid	vid
+1	NULL	NULL
+DROP TABLE t;
+# Testcase-3
+CREATE TABLE t (pid int PRIMARY KEY,
+uid int,
+vid int AS (uid) VIRTUAL);
+INSERT INTO t(pid, uid) VALUES (1,10);
+# Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+# Update the record changing PK. It should generate 2 row logs for the new index.
+# LOG-2 idx_vid : DELETE [10, 1]
+# LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+# Read [2, 10, 10] row using idx_vid index key.
+select * from t where VID=10;
+pid	uid	vid
+2	10	10
+DROP TABLE t;
+# Testcase-4
+CREATE TABLE t (pid int PRIMARY KEY,
+uid int,
+vid int AS (uid) VIRTUAL);
+INSERT INTO t(pid, uid) VALUES (1,10);
+# Create index on virtual column and stop before applying row logs.
+SET DEBUG_SYNC = 'row_log_apply_before SIGNAL start_dml WAIT_FOR resume_ddl';
+ALTER TABLE t ADD INDEX idx_vid(vid), algorithm=inplace;
+SET DEBUG_SYNC= 'now WAIT_FOR start_dml';
+# Update the record changing PK. It should generate 2 row logs for the new index.
+# LOG-2 idx_vid : DELETE [10, 1]
+# LOG-3 idx_vid : INSERT [10, 2]
+UPDATE t SET pid = 2 WHERE pid = 1;
+SET DEBUG_SYNC= 'now SIGNAL resume_ddl';
+# Delete a record.
+delete from t limit 1;
+DROP TABLE t;
+SET @@session.binlog_row_image = @old_binlog_row_image;
