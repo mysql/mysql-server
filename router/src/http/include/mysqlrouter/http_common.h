@@ -44,6 +44,7 @@
 #include <system_error>
 #include <vector>
 
+#include "my_io.h"
 #include "my_macros.h"
 
 #include "mysql/harness/net_ts/impl/socket_constants.h"
@@ -63,6 +64,7 @@ class HTTP_COMMON_EXPORT Event {
 
  public:
   static bool initialize_threads();
+  static void shutdown();
   static void set_log_callback(const CallbackLog);
   static void enable_debug_logging(const DebugLogLevel which);
 
@@ -93,7 +95,7 @@ constexpr type Write{1 << Pos::Write};
 constexpr type Signal{1 << Pos::Signal};
 }  // namespace EventFlags
 using EventBaseSocket = evutil_socket_t;
-const int kEventBaseInvalidSocket = EVUTIL_INVALID_SOCKET;
+const int kEventBaseInvalidSocket = INVALID_SOCKET;
 /**
  * Main event registration and dispatch `engine`
  *
