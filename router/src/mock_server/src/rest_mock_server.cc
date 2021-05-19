@@ -47,6 +47,7 @@
 
 #include "mysqlrouter/plugin_config.h"
 
+#include "common.h"  // ScopeGuard
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/mock_server_component.h"
 
@@ -262,22 +263,23 @@ static void init(mysql_harness::PluginFuncEnv *env) {
   }
 }
 
-static void start(mysql_harness::PluginFuncEnv *env) {
+static void run(mysql_harness::PluginFuncEnv *env) {
   auto &srv = HttpServerComponent::get_instance();
 
-  srv.add_route(kRestGlobalsUri, std::unique_ptr<BaseRequestHandler>(
-                                     new RestApiV1MockServerGlobals()));
-  srv.add_route(kRestConnectionsUri, std::unique_ptr<BaseRequestHandler>(
-                                         new RestApiV1MockServerConnections()));
+  srv.add_route(kRestGlobalsUri,
+                std::make_unique<RestApiV1MockServerGlobals>());
+  mysql_harness::ScopeGuard global_route_guard(
+      [&srv]() { srv.remove_route(kRestGlobalsUri); });
+
+  srv.add_route(kRestConnectionsUri,
+                std::make_unique<RestApiV1MockServerConnections>());
+  mysql_harness::ScopeGuard connection_route_guard(
+      [&srv]() { srv.remove_route(kRestConnectionsUri); });
 
   mysql_harness::on_service_ready(env);
-}
 
-static void stop(mysql_harness::PluginFuncEnv *) {
-  auto &srv = HttpServerComponent::get_instance();
-
-  srv.remove_route(kRestConnectionsUri);
-  srv.remove_route(kRestGlobalsUri);
+  // wait until we are stopped.
+  wait_for_stop(env, 0);
 }
 
 #if defined(_MSC_VER) && defined(rest_mock_server_EXPORTS)
@@ -305,8 +307,8 @@ mysql_harness::Plugin DLLEXPORT harness_plugin_rest_mock_server = {
     0, nullptr,
     init,     // init
     nullptr,  // deinit
-    start,    // start
-    stop,     // stop
+    run,      // run
+    nullptr,  // stop
     true,     // declares_readiness
 };
 }
