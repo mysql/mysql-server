@@ -49,6 +49,7 @@ class QUICK_SELECT_I;
 class SJ_TMP_TABLE;
 class Table_function;
 class Temp_table_param;
+class Window;
 struct AccessPath;
 struct ORDER;
 struct POSITION;
@@ -856,6 +857,7 @@ struct AccessPath {
     } append;
     struct {
       AccessPath *child;
+      Window *window;
       TABLE *temp_table;
       Temp_table_param *temp_table_param;
       int ref_slice;

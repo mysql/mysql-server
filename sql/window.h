@@ -303,22 +303,6 @@ class Window {
   Frame_buffer_position m_tmp_pos;
 
   /**
-    Whether this window has been processed yet by the optimizer. This is used
-    only during optimization to mark which windows have been applied.
-    Window functions that belong to future windows should not be attempted
-    materialized into temporary tables.
-
-    Only the hypergraph join optimizer needs this. The old join optimizer can
-    simply keep track of what is the “current” window and ignore all others,
-    since all WFs corresponding to earlier windows have already been replaced
-    in the select list when the temporary tables are created. The hypergraph
-    join optimizer, however, doesn't replace the select list until after
-    setting up all the temporary tables, so the earlier WFs will still be
-    visible and will need to be actively ignored.
-  */
-  bool m_not_processed_yet = true;
-
-  /**
     See #m_tmp_pos
   */
   void save_pos(Window_retrieve_cached_row_reason reason) {

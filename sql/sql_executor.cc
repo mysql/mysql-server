@@ -1531,7 +1531,7 @@ AccessPath *GetAccessPathForDerivedTable(
         query_expression->offset_limit_cnt == 0
             ? query_expression->m_reject_multiple_rows
             : false);
-    EstimateMaterializeCost(path);
+    EstimateMaterializeCost(thd, path);
     path = MoveCompositeIteratorsFromTablePath(path);
     if (query_expression->offset_limit_cnt != 0) {
       // LIMIT is handled inside MaterializeIterator, but OFFSET is not.
@@ -1573,7 +1573,7 @@ AccessPath *GetAccessPathForDerivedTable(
         query_expression,
         /*ref_slice=*/-1, rematerialize, tmp_table_param->end_write_records,
         query_expression->m_reject_multiple_rows);
-    EstimateMaterializeCost(path);
+    EstimateMaterializeCost(thd, path);
     path = MoveCompositeIteratorsFromTablePath(path);
   }
 
@@ -1669,7 +1669,7 @@ AccessPath *GetTableAccessPath(THD *thd, QEP_TAB *qep_tab, QEP_TAB *qep_tabs) {
         /*ref_slice=*/-1, qep_tab->rematerialize,
         sjm->table_param.end_write_records,
         /*reject_multiple_rows=*/false);
-    EstimateMaterializeCost(table_path);
+    EstimateMaterializeCost(thd, table_path);
 
 #ifndef NDEBUG
     // Make sure we clear this table out when the join is reset,
@@ -2891,7 +2891,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*cte=*/nullptr, query_expression(), qep_tab->ref_item_slice,
             /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
             /*reject_multiple_rows=*/false);
-        EstimateMaterializeCost(path);
+        EstimateMaterializeCost(thd, path);
       }
     }
   } else {
@@ -3069,7 +3069,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*ref_slice=*/-1,
             /*rematerialize=*/true, tmp_table_param.end_write_records,
             /*reject_multiple_rows=*/false);
-        EstimateMaterializeCost(path);
+        EstimateMaterializeCost(thd, path);
       }
     } else if (qep_tab->op_type == QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
       path = NewTemptableAggregateAccessPath(
@@ -3115,7 +3115,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*cte=*/nullptr, query_expression(), qep_tab->ref_item_slice,
             /*rematerialize=*/true, qep_tab->tmp_table_param->end_write_records,
             /*reject_multiple_rows=*/false);
-        EstimateMaterializeCost(path);
+        EstimateMaterializeCost(thd, path);
       }
     }
 
