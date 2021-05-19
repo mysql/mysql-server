@@ -587,6 +587,7 @@ class system_context : public execution_context {
   }
 
   executor_type get_executor() noexcept { return {}; }
+
   void stop() {
     std::lock_guard<std::mutex> lk(mtx_);
     stopped_ = true;
@@ -597,7 +598,9 @@ class system_context : public execution_context {
     std::lock_guard<std::mutex> lk(mtx_);
     return stopped_;
   }
-  void join() { thread_.join(); }
+  void join() {
+    if (thread_.joinable()) thread_.join();
+  }
 
  private:
   struct __tag {};
@@ -611,7 +614,7 @@ class system_context : public execution_context {
       {
         std::unique_lock<std::mutex> lk(mtx_);
 
-        cv_.wait(lk, [this] { return !stopped_ && !tasks_.empty(); });
+        cv_.wait(lk, [this] { return stopped_ || !tasks_.empty(); });
 
         if (stopped_) return;
 
