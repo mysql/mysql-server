@@ -2247,11 +2247,11 @@ Ndb::printOverflowErrorAndExit()
                        getReference(), getNdbObjectName());
   g_eventLogger->error("Ndb Event Buffer : Event buffer out of memory.");
   g_eventLogger->error("Ndb Event Buffer : Fatal error.");
-  Uint32 maxalloc = get_eventbuf_max_alloc();
+  Uint64 maxalloc = get_eventbuf_max_alloc();
   if (maxalloc != 0)
   {
     // limited memory is allocated for event buffer, give recommendation
-    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %u).", maxalloc);
+    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %ull).", maxalloc);
   }
   g_eventLogger->error("Ndb Event Buffer : Consider using the new API.");
   exit(-1);
