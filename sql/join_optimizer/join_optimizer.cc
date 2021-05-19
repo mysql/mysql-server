@@ -2812,12 +2812,12 @@ namespace {
   table. If none is needed (because earlier iterators already materialize
   what needs to be done), returns the path itself.
 
-  temp_table can be nullptr, in which case you must fill it out later yourself
-  (both in the path itself and in the table_path).
+  The actual temporary table will be created and filled out during finalization.
  */
-AccessPath *CreateMaterializationOrStreamingPath(
-    THD *thd, JOIN *join, AccessPath *path, TABLE *temp_table, bool need_rowid,
-    Temp_table_param *temp_table_param, bool copy_items) {
+AccessPath *CreateMaterializationOrStreamingPath(THD *thd, JOIN *join,
+                                                 AccessPath *path,
+                                                 bool need_rowid,
+                                                 bool copy_items) {
   // See if later sorts will need row IDs from us or not.
   if (!need_rowid) {
     // The common case; we can use streaming.
@@ -2826,9 +2826,9 @@ AccessPath *CreateMaterializationOrStreamingPath(
       // iterator here at all.
       return path;
     }
-    AccessPath *stream_path =
-        NewStreamingAccessPath(thd, path, join, temp_table_param, temp_table,
-                               /*ref_slice=*/-1);
+    AccessPath *stream_path = NewStreamingAccessPath(
+        thd, path, join, /*temp_table_param=*/nullptr, /*temp_table=*/nullptr,
+        /*ref_slice=*/-1);
     stream_path->num_output_rows = path->num_output_rows;
     stream_path->cost = path->cost;
     stream_path->init_cost = path->init_cost;
@@ -2844,8 +2844,8 @@ AccessPath *CreateMaterializationOrStreamingPath(
     // smaller temporary table at the expense of more seeks, we could
     // materialize only aggregate functions and do a multi-table sort
     // by docid, but this situation is rare, so we go for simplicity.)
-    return CreateMaterializationPath(thd, join, path, temp_table,
-                                     temp_table_param, copy_items);
+    return CreateMaterializationPath(thd, join, path, /*temp_table=*/nullptr,
+                                     /*temp_table_param=*/nullptr, copy_items);
   }
 }
 
@@ -3474,14 +3474,11 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
        (*join->sum_funcs != nullptr ||
         join->rollup_state != JOIN::RollupState::NONE || need_rowid)) &&
       join->m_windows.is_empty()) {
-    Temp_table_param *temp_table_param = nullptr;
-    TABLE *temp_table = CreateTemporaryTableFromSelectList(
-        thd, query_block, /*window=*/nullptr, &temp_table_param);
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
-      root_path = CreateMaterializationOrStreamingPath(
-          thd, join, root_path, temp_table, SortWillBeOnRowId(temp_table),
-          temp_table_param, /*copy_items=*/true);
+      root_path =
+          CreateMaterializationOrStreamingPath(thd, join, root_path, need_rowid,
+                                               /*copy_items=*/true);
       receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
     }
@@ -3557,9 +3554,6 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
             orderings.ordering(sort_ahead_ordering.ordering_idx));
         sort_path.sort().order = order_copy;
 
-        if (need_rowid) {
-          FindTablesToGetRowidFor(&sort_path);
-        }
         EstimateSortCost(&sort_path);
         receiver.ProposeAccessPath(&sort_path, &new_root_candidates,
                                    /*obsolete_orderings=*/0, "");
@@ -3642,9 +3636,9 @@ static AccessPath *ApplyWindow(THD *thd, AccessPath *root_path, Window *window,
 
   // NOTE: copy_items = false, because the window iterator does the copying
   // itself.
-  return CreateMaterializationOrStreamingPath(
-      thd, join, window_path, /*temp_table=*/nullptr, need_rowid_for_window,
-      /*temp_table_param=*/nullptr, /*copy_items=*/false);
+  return CreateMaterializationOrStreamingPath(thd, join, window_path,
+                                              need_rowid_for_window,
+                                              /*copy_items=*/false);
 }
 
 /**
@@ -4941,11 +4935,28 @@ static void CreateTemporaryTableForWindow(THD *thd, Query_block *query_block,
     *last_window_temp_table = path->window().temp_table;
   } else if (path->type == AccessPath::MATERIALIZE) {
     if (path->materialize().param->table == nullptr) {
-      assert(*last_window_temp_table != nullptr);
-      path->materialize().param->table = *last_window_temp_table;
-      path->materialize().table_path->table_scan().table =
-          *last_window_temp_table;
+      if (*last_window_temp_table != nullptr) {
+        // A materialization that comes directly after a window;
+        // it's intended to materialize the output of that window.
+        path->materialize().param->table =
+            path->materialize().table_path->table_scan().table =
+                *last_window_temp_table;
+      } else {
+        // All other materializations are of the SELECT list.
+        assert(path->materialize().param->query_blocks.size() == 1);
+        TABLE *table = CreateTemporaryTableFromSelectList(
+            thd, query_block, nullptr,
+            &path->materialize().param->query_blocks[0].temp_table_param);
+        path->materialize().param->table =
+            path->materialize().table_path->table_scan().table = table;
+      }
       EstimateMaterializeCost(thd, path);
+    }
+    *last_window_temp_table = nullptr;
+  } else if (path->type == AccessPath::STREAM) {
+    if (path->stream().table == nullptr) {
+      path->stream().table = CreateTemporaryTableFromSelectList(
+          thd, query_block, nullptr, &path->stream().temp_table_param);
     }
     *last_window_temp_table = nullptr;
   } else {
@@ -5154,11 +5165,18 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   bool need_rowid = false;
   if (query_block->is_explicitly_grouped() || query_block->is_ordered() ||
       join->select_distinct) {
-    for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
-         tl = tl->next_leaf) {
-      if (SortWillBeOnRowId(tl->table)) {
+    // NOTE: This is distinct from SortWillBeOnRowId(), as it also checks blob
+    // fields arising from blob-generating functions on non-blob fields.
+    for (Item *item : *join->fields) {
+      if (item->is_blob_field()) {
         need_rowid = true;
         break;
+      }
+    }
+    for (TABLE_LIST *tl = query_block->leaf_tables;
+         tl != nullptr && !need_rowid; tl = tl->next_leaf) {
+      if (SortWillBeOnRowId(tl->table)) {
+        need_rowid = true;
       }
     }
   }
@@ -5470,14 +5488,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   // the comment near the top of ApplyDistinctAndOrder() for why.
   if (query_block->is_explicitly_grouped() && !join->m_windows.is_empty()) {
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
-    Temp_table_param *after_grouping_temp_table_param = nullptr;
-    TABLE *after_grouping_temp_table = CreateTemporaryTableFromSelectList(
-        thd, query_block, /*window=*/nullptr, &after_grouping_temp_table_param);
     for (AccessPath *root_path : root_candidates) {
-      root_path = CreateMaterializationOrStreamingPath(
-          thd, join, root_path, after_grouping_temp_table,
-          SortWillBeOnRowId(after_grouping_temp_table),
-          after_grouping_temp_table_param, /*copy_items=*/true);
+      root_path =
+          CreateMaterializationOrStreamingPath(thd, join, root_path, need_rowid,
+                                               /*copy_items=*/true);
       receiver.ProposeAccessPath(root_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
     }
@@ -5556,20 +5570,13 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
       *trace += "Adding temporary table for SQL_BUFFER_RESULT.\n";
     }
 
-    // If we have windows, we need to include the last window here,
-    // or create_tmp_table() will not create fields for its window functions.
-    // (All other windows have already been materialized.)
-    Window *window = nullptr;
-    if (!join->m_windows.is_empty()) {
-      window = join->m_windows[join->m_windows.size() - 1];
-    }
-
-    Temp_table_param *temp_table_param = nullptr;
-    TABLE *buffer_temp_table = CreateTemporaryTableFromSelectList(
-        thd, query_block, window, &temp_table_param);
+    // If we have windows, we may need to add a materialization for the last
+    // window here, or create_tmp_table() will not create fields for its window
+    // functions. (All other windows have already been materialized.)
+    bool copy_items = join->m_windows.is_empty();
     root_path =
-        CreateMaterializationPath(thd, join, root_path, buffer_temp_table,
-                                  temp_table_param, /*copy_items=*/true);
+        CreateMaterializationPath(thd, join, root_path, /*temp_table=*/nullptr,
+                                  /*temp_table_param=*/nullptr, copy_items);
   }
 
   if (trace != nullptr) {
