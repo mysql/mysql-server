@@ -125,6 +125,8 @@ bool Event::initialize_threads() {
 #endif  // EVTHREAD_USE_PTHREADS_IMPLEMENTED
 }
 
+void Event::shutdown() { libevent_global_shutdown(); }
+
 void Event::set_log_callback(const CallbackLog cb) {
   cbLog_ = cb;
   event_set_log_callback([](int severity, const char *message) {

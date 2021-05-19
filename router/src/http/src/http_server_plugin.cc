@@ -571,6 +571,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       has_started = true;
 
       Event::initialize_threads();
+      mysql_harness::ScopeGuard initialization_finished(
+          []() { Event::shutdown(); });
 
       HttpServerPluginConfig config{section};
 
@@ -605,6 +607,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
         srv->add_route("", std::make_unique<HttpStaticFolderHandler>(
                                config.static_basedir, config.require_realm));
       }
+
+      initialization_finished.dismiss();
     }
   } catch (const std::invalid_argument &exc) {
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
@@ -614,6 +618,8 @@ static void init(mysql_harness::PluginFuncEnv *env) {
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
   }
 }
+
+static void deinit(mysql_harness::PluginFuncEnv *) { Event::shutdown(); }
 
 static void start(mysql_harness::PluginFuncEnv *env) {
   // - version string
@@ -679,7 +685,7 @@ mysql_harness::Plugin HTTP_SERVER_EXPORT harness_plugin_http_server = {
     // conflicts
     0, nullptr,
     init,     // init
-    nullptr,  // deinit
+    deinit,   // deinit
     start,    // start
     nullptr,  // stop
     true,     // declares_readiness
