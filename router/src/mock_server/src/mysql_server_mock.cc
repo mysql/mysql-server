@@ -61,7 +61,8 @@ namespace server_mock {
 
 static constexpr const size_t kWorkerThreadCount{8};
 
-MySQLServerMock::MySQLServerMock(std::string expected_queries_file,
+MySQLServerMock::MySQLServerMock(net::io_context &io_ctx,
+                                 std::string expected_queries_file,
                                  std::vector<std::string> module_prefixes,
                                  std::string bind_address, unsigned bind_port,
                                  std::string protocol_name, bool debug_mode,
@@ -70,6 +71,7 @@ MySQLServerMock::MySQLServerMock(std::string expected_queries_file,
     : bind_address_(std::move(bind_address)),
       bind_port_{bind_port},
       debug_mode_{debug_mode},
+      io_ctx_{io_ctx},
       expected_queries_file_{std::move(expected_queries_file)},
       module_prefixes_{std::move(module_prefixes)},
       protocol_name_(std::move(protocol_name)),

@@ -27,15 +27,16 @@
 #include "mysqlrouter/mock_server_global_scope.h"
 
 //
-// HTTP Server's public API
+// Mock Server's public API
 //
 std::shared_ptr<MockServerGlobalScope> MockServerComponent::get_global_scope() {
   return server_mock::MySQLServerSharedGlobals::get();
 }
 
 void MockServerComponent::register_server(
+    const std::string &name,
     std::shared_ptr<server_mock::MySQLServerMock> srv) {
-  srvs_.push_back(srv);
+  srvs_([&](auto srvs) { srvs.emplace(name, srv); });
 }
 
 MockServerComponent &MockServerComponent::get_instance() {
@@ -45,10 +46,12 @@ MockServerComponent &MockServerComponent::get_instance() {
 }
 
 void MockServerComponent::close_all_connections() {
-  for (auto &srv : srvs_) {
-    // if we have a mock_server instance, call its close_all_connections()
-    if (auto server = srv.lock()) {
-      server->close_all_connections();
+  srvs_([&](auto srvs) {
+    for (auto &srv : srvs) {
+      // if we have a mock_server instance, call its close_all_connections()
+      if (auto server = srv.second.lock()) {
+        server->close_all_connections();
+      }
     }
-  }
+  });
 }

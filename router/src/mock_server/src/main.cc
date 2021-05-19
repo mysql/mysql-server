@@ -172,6 +172,12 @@ class MysqlServerMockFrontend {
         "data_folder",
         mysql_harness::Path(base_path).join("var").join("share").str());
 
+    {
+      auto &section = loader_config->add("io");
+      section.add("library", "io");
+      section.add("threads", "1");
+    }
+
     if (!config_.http_port.empty()) {
       auto &rest_mock_server_config =
           loader_config->add("rest_mock_server", "");
