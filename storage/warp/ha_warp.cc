@@ -2554,10 +2554,10 @@ int ha_warp::append_column_filter(const Item *cond,
              NULL marker is zero because otherwise searching for 0 in a NULLable
              field would return true for NULL rows...
           */
+          if(build_where_clause != "") {
+            build_where_clause += " AND ";
+          }
           if(field_may_be_null) {
-            if(build_where_clause != "") {
-              build_where_clause += " AND ";
-            }
             build_where_clause +=
                 "(n" + std::to_string(field_index) + " = 0 AND ";
           }
