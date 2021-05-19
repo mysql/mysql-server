@@ -76,7 +76,7 @@ function used in an SQL execution graph.
 que_thr_t *row_purge_step(que_thr_t *thr) /*!< in: query thread */
     MY_ATTRIBUTE((warn_unused_result));
 
-using Page_free_tuple = std::tuple<index_id_t, page_id_t>;
+using Page_free_tuple = std::tuple<index_id_t, page_id_t, table_id_t>;
 
 struct Compare_page_free_tuple {
   bool operator()(const Page_free_tuple &lhs,
@@ -176,14 +176,9 @@ struct purge_node_t {
 
   /** Add an LOB page to the list of pages that will be freed at the end of a
   purge batch.
-   @param[in]    index       the clust index to which the LOB belongs.
-   @param[in]    page_id     the page_id of the first page of the LOB. */
-  void add_lob_page(dict_index_t *index, const page_id_t &page_id) {
-    const index_id_t id(page_id.space(), index->id);
-    const auto tup = std::make_tuple(id, page_id);
-    ut_ad(m_lob_pages.find(tup) == m_lob_pages.end());
-    m_lob_pages.insert(tup);
-  }
+  @param[in]    index       the clust index to which the LOB belongs.
+  @param[in]    page_id     the page_id of the first page of the LOB. */
+  void add_lob_page(dict_index_t *index, const page_id_t &page_id);
 
   /** Free the LOB first pages at end of purge batch. */
   void free_lob_pages();

@@ -1342,18 +1342,28 @@ bool purge_node_t::check_duplicate_undo_no() const {
   return (true);
 }
 #endif /* UNIV_DEBUG */
+
+void purge_node_t::add_lob_page(dict_index_t *index, const page_id_t &page_id) {
+  const index_id_t id(page_id.space(), index->id);
+  const auto tup = std::make_tuple(id, page_id, index->table->id);
+  ut_ad(m_lob_pages.find(tup) == m_lob_pages.end());
+  m_lob_pages.insert(tup);
+}
+
 void purge_node_t::free_lob_pages() {
   mtr_t local_mtr;
 
   for (const auto &tup : m_lob_pages) {
     const index_id_t index_id = std::get<0>(tup);
     const page_id_t &page_id = std::get<1>(tup);
+    const table_id_t table_id = std::get<2>(tup);
     const space_id_t space_id = page_id.space();
 
     mutex_enter(&dict_sys->mutex);
     const dict_index_t *idx = dict_index_find(index_id);
 
-    if (idx == nullptr || idx->space != space_id) {
+    if (idx == nullptr || idx->space != space_id ||
+        idx->table->id != table_id) {
       mutex_exit(&dict_sys->mutex);
       continue;
     }
@@ -1368,6 +1378,12 @@ void purge_node_t::free_lob_pages() {
       mtr_start(&local_mtr);
       buf_block_t *block =
           buf_page_get(page_id, page_size, RW_X_LATCH, &local_mtr);
+
+#ifdef UNIV_DEBUG
+      const page_type_t page_type = block->get_page_type();
+      ut_ad(page_type == FIL_PAGE_TYPE_LOB_FIRST ||
+            page_type == FIL_PAGE_TYPE_ZLOB_FIRST);
+#endif /* UNIV_DEBUG */
 
       btr_page_free_low(index, block, ULINT_UNDEFINED, &local_mtr);
       mtr_commit(&local_mtr);
