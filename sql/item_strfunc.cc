@@ -3468,6 +3468,12 @@ bool Item_typecast_char::resolve_type(THD *thd) {
                 : args[0]->collation.collation;
 
   collation.set(cast_cs, DERIVATION_IMPLICIT);
+  if (cast_length >= 0 &&
+      cast_length > MAX_FIELD_BLOBLENGTH / cast_cs->mbmaxlen) {
+    my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "char(n)", func_name());
+    return true;
+  }
+  // cast_length can be -1, see validate_cast_type_and_extract_length().
   set_data_type_string((uint32)(cast_length >= 0
                                     ? cast_length
                                     : cast_cs == &my_charset_bin

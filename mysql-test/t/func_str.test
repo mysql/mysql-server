@@ -2257,3 +2257,18 @@ DO ST_ISVALID(INSTR(9223372036854775806 ,0x46bc299f));
 
 --error ER_CANNOT_CONVERT_STRING
 DO ST_SRID(LOCATE(0x58ed0b8e,8,135));
+
+--echo #
+--echo # Bug #32864958 ITEM_STR_FUNC::PUSH_PACKET_OVERFLOW_WARNING:
+--echo #               ASSERTION `IS_NULLABLE()' FAILED.
+
+--source include/turn_off_strict_mode.inc
+
+--error ER_DATA_OUT_OF_RANGE
+DO NOT CAST(UTC_TIME AS CHAR(2877246026) CHARACTER SET ujis);
+
+DO REPEAT(LAST_INSERT_ID(''), 4294967295);
+
+DO REPEAT(LAST_INSERT_ID(''), 0x96e4ed7e70a7fec7f11572c8980a);
+
+--source include/restore_strict_mode.inc

@@ -1975,7 +1975,6 @@ class Item_func_last_insert_id final : public Item_int_func {
   bool resolve_type(THD *thd) override {
     if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_LONGLONG)) return true;
     unsigned_flag = true;
-    if (arg_count) max_length = args[0]->max_length;
     return false;
   }
   bool check_function_as_value_generator(uchar *checker_args) override {
