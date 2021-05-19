@@ -1803,6 +1803,16 @@ void Slave_worker::report_commit_order_deadlock() {
   m_commit_order_deadlock.store(true);
 }
 
+void Slave_worker::prepare_for_retry(Log_event &event) {
+  if (event.get_type_code() ==
+      binary_log::ROWS_QUERY_LOG_EVENT) {  // If a `Rows_query_log_event`, let
+                                           // the event be disposed in the main
+                                           // worker loop.
+    event.worker = this;
+    this->rows_query_ev = nullptr;
+  }
+}
+
 std::tuple<bool, bool, uint> Slave_worker::check_and_report_end_of_retries(
     THD *thd) {
   DBUG_TRACE;
@@ -1873,7 +1883,7 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
   bool cleaned_up{false};
 
   /* Resets the worker context for next transaction retry, if any */
-  auto clean_retry_context = [&]() -> void {
+  auto clean_retry_context = [&cleaned_up, &thd, this]() -> void {
     if (!cleaned_up) {
       cleanup_context(thd, true);
       reset_commit_order_deadlock();
@@ -1893,7 +1903,17 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
     cleaned_up = false;
 
     std::tie(ret, silent, error) = check_and_report_end_of_retries(thd);
+    DBUG_EXECUTE_IF("error_on_rows_query_event_apply", { ret = false; };);
     if (ret) return true;
+
+    DBUG_EXECUTE_IF("error_on_rows_query_event_apply", {
+      if (c_rli->retried_trans == 2) {
+        DBUG_SET("-d,error_on_rows_query_event_apply");
+        std::string act{"now SIGNAL end_retries_on_rows_query_event_apply"};
+        assert(!debug_sync_set_action(thd, act.data(), act.length()));
+      }
+      silent = true;
+    };);
 
     if (!silent) {
       trans_retries++;
@@ -1981,6 +2001,7 @@ bool Slave_worker::read_and_apply_events(uint start_relay_number,
       /* It is a event belongs to the transaction */
       if (!ev->is_mts_sequential_exec()) {
         int ret = 0;
+        RLI_current_event_raii current_event_guard{this, ev};
 
         ev->future_event_relay_log_pos = relaylog_file_reader.position();
         ev->mts_group_idx = gaq_index;
@@ -2529,6 +2550,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli) {
     worker->stats_exec_time +=
         diff_timespec(&worker->ts_exec[1], &worker->ts_exec[0]);
     if (error || worker->found_commit_order_deadlock()) {
+      worker->prepare_for_retry(*ev);
       error = worker->retry_transaction(start_relay_number, start_relay_pos,
                                         job_item->relay_number,
                                         job_item->relay_pos);

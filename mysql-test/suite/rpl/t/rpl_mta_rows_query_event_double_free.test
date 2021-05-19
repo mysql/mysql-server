@@ -1,0 +1,74 @@
+# ==== Purpose ====
+#
+# The purpose of this script is to test if there isn't any double-free
+# corruption when a Rows_query_event is retried by the MTA.
+#
+# ==== Requirements ====
+#
+# R1. After a Rows_log_event is retried, the event is re-read from the
+#     relay log but the reference to the original event shouldn't be
+#     disposed during context cleanup because is further accessed.
+#
+# ==== Implementation ====
+#
+# 1. Enable `binlog_rows_query_log_events` option.
+# 2. On the source, create a table.
+# 3. On the source, insert a record into the table.
+# 4. On the replica, activate a debug symbol that will force failure while
+#    applying Rows_query_event 3 times.
+# 5. On the replica, wait for a debug sync signal that notifies that the
+#    Rows_query_event was sucessfully applied.
+# 6. On the replica, remove the debug point and sync with the source.
+# 7. Clean up.
+#
+# ==== References ====
+#
+# BUG#32590974 MTS: SEGFAULT OR HEAP-USE-AFTER-FREE IN
+#              SLAVE_WORKER_EXEC_JOB_GROUP
+#
+
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/only_mts_replica_parallel_workers.inc
+--let $option_name = replica_transaction_retries
+--let $option_operator = >
+--let $option_value = 2
+--source include/only_with_option.inc
+--source include/master-slave.inc
+
+# 1. Enable `binlog_rows_query_log_events` option.
+--let $saved_binlog_rows_query_log_events = `SELECT @@SESSION.binlog_rows_query_log_events`
+SET SESSION binlog_rows_query_log_events = ON;
+
+# 2. On the source, create a table.
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+
+# 3. On the source, insert a record into the table.
+--source include/rpl_connection_master.inc
+INSERT INTO t1 VALUES (0, 0);
+
+# 4. On the replica, activate a debug symbol that will force failure while
+#    applying Rows_query_event 3 times.
+--source include/rpl_connection_slave.inc
+--let $debug_point = error_on_rows_query_event_apply
+--source include/add_debug_point.inc
+--source include/start_slave.inc
+
+# 5. On the replica, wait for a debug sync signal that notifies that the
+#    Rows_query_event was sucessfully applied.
+SET DEBUG_SYNC = "now WAIT_FOR end_retries_on_rows_query_event_apply";
+
+# 6. On the replica, remove the debug point and sync with the source.
+--source include/rpl_connection_master.inc
+--source include/sync_slave_sql_with_master.inc
+--let $debug_point = error_on_rows_query_event_apply
+--source include/remove_debug_point.inc
+
+# 7. Clean up.
+--source include/rpl_connection_master.inc
+DROP TABLE t1;
+--replace_result $saved_binlog_rows_query_log_events BINLOG_ROWS_QUERY_LOG_EVENTS
+--eval SET SESSION binlog_rows_query_log_events = $saved_binlog_rows_query_log_events
+--source include/rpl_end.inc
