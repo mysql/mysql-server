@@ -2251,7 +2251,7 @@ Ndb::printOverflowErrorAndExit()
   if (maxalloc != 0)
   {
     // limited memory is allocated for event buffer, give recommendation
-    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %ull).", maxalloc);
+    g_eventLogger->error("Ndb Event Buffer : Change eventbuf_max_alloc (Current max_alloc is %llu).", maxalloc);
   }
   g_eventLogger->error("Ndb Event Buffer : Consider using the new API.");
   exit(-1);
