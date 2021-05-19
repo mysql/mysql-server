@@ -5360,3 +5360,20 @@ DO ST_ISVALID(INSTR(9223372036854775806 ,0x46bc299f));
 ERROR HY000: Cannot convert string 'F\xBC)\x9F' from binary to utf8mb4
 DO ST_SRID(LOCATE(0x58ed0b8e,8,135));
 ERROR HY000: Cannot convert string 'X\xED\x0B\x8E' from binary to utf8mb4
+#
+# Bug #32864958 ITEM_STR_FUNC::PUSH_PACKET_OVERFLOW_WARNING:
+#               ASSERTION `IS_NULLABLE()' FAILED.
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+DO NOT CAST(UTC_TIME AS CHAR(2877246026) CHARACTER SET ujis);
+ERROR 22003: char(n) value is out of range in 'cast_as_char'
+DO REPEAT(LAST_INSERT_ID(''), 4294967295);
+Warnings:
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated
+DO REPEAT(LAST_INSERT_ID(''), 0x96e4ed7e70a7fec7f11572c8980a);
+Warnings:
+Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
+Warning	1292	Truncated incorrect BINARY value: 'x'96e4ed7e70a7fec7f11572c8980a''
+Warning	1292	Truncated incorrect INTEGER value: ''
+Warning	1301	Result of repeat() was larger than max_allowed_packet (67108864) - truncated

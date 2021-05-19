@@ -61,16 +61,20 @@ drop table t1;
 #
 # BUG#11898467 - SERVER CRASHES ON SELECT HEX(WEIGHT_STRING(STR AS [CHAR|BINARY](N))) IF N IS BIG 
 #
-SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000)));
-HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000)))
+SET GLOBAL max_allowed_packet=1024;
+Warnings:
+Warning	1708	The value of 'max_allowed_packet' should be no less than the value of 'net_buffer_length'
+SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000)));
+HEX(WEIGHT_STRING('ab' AS CHAR(1000000)))
 NULL
 Warnings:
-Warning	1301	Result of weight_string() was larger than max_allowed_packet (67108864) - truncated
-SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000)));
-HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000)))
+Warning	1301	Result of weight_string() was larger than max_allowed_packet (1024) - truncated
+SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000)));
+HEX(WEIGHT_STRING('ab' AS BINARY(1000000)))
 NULL
 Warnings:
-Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (67108864) - truncated
+Warning	1301	Result of cast_as_binary() was larger than max_allowed_packet (1024) - truncated
+SET GLOBAL max_allowed_packet=default;
 #
 # BUG#21974321: WEIGHT_STRING RESULT IS WRONG IF USED IN A
 #               VIEW (AS CHAR CLAUSE IS LOST)

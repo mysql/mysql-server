@@ -95,8 +95,19 @@ drop table t1;
 --echo #
 --echo # BUG#11898467 - SERVER CRASHES ON SELECT HEX(WEIGHT_STRING(STR AS [CHAR|BINARY](N))) IF N IS BIG 
 --echo #
-SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000000000000000))); 
-SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000000000000000))); 
+
+--source include/count_sessions.inc
+SET GLOBAL max_allowed_packet=1024;
+
+connect (con1,localhost,root,,);
+
+SELECT HEX(WEIGHT_STRING('ab' AS CHAR(1000000))); 
+SELECT HEX(WEIGHT_STRING('ab' AS BINARY(1000000))); 
+
+connection default;
+disconnect con1;
+
+SET GLOBAL max_allowed_packet=default;
 
 --echo #
 --echo # BUG#21974321: WEIGHT_STRING RESULT IS WRONG IF USED IN A
