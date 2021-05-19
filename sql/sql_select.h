@@ -206,7 +206,6 @@ class Key_use {
         read_cost(0.0) {}
 
   TABLE_LIST *table_ref;  ///< table owning the index
-
   /**
     Value used for lookup into @c key. It may be an Item_field, a
     constant or any other expression. If @c val contains a field from
@@ -214,11 +213,14 @@ class Key_use {
     the field(s) in @c val should be before @c table in the join plan.
   */
   Item *val;
-
   /**
     All tables used in @c val, that is all tables that provide bindings
     for the expression @c val. These tables must be in the plan before
     executing the equi-join described by a Key_use.
+    For all expressions except for the MATCH function, this is the same
+    as val->used_tables().
+    For the MATCH function, val is the actual MATCH function, and used_tables
+    is the set of tables used in the AGAINST argument.
   */
   table_map used_tables;
   uint key;                  ///< number of index

@@ -8008,7 +8008,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
                                 Query_block *query_block,
                                 SARGABLE_PARAM **sargables) {
   assert(cond == nullptr || cond->is_bool_func());
-  uint and_level, i, found_eq_constant;
+  uint and_level, i;
   Key_field *key_fields, *end, *field;
   size_t sz;
   uint m = max(query_block->max_equal_elems, 1U);
@@ -8129,10 +8129,11 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
 
     use = save_pos = keyuse->begin();
     const Key_use *prev = &key_end;
-    found_eq_constant = 0;
+    bool found_eq_constant = false;
     for (i = 0; i < keyuse->size() - 1; i++, use++) {
       TABLE *const table = use->table_ref->table;
-      if (!use->used_tables && use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
+      if (use->val->const_for_execution() &&
+          use->optimize != KEY_OPTIMIZE_REF_OR_NULL)
         table->const_key_parts[use->key] |= use->keypart_map;
       if (use->keypart != FT_KEYPART) {
         if (use->key == prev->key && use->table_ref == prev->table_ref) {
@@ -8150,7 +8151,7 @@ static bool update_ref_and_keys(THD *thd, Key_use_array *keyuse,
        */
       if (save_pos != use) *save_pos = *use;
       prev = use;
-      found_eq_constant = !use->used_tables;
+      found_eq_constant = use->val->const_for_execution();
       /* Save ptr to first use */
       if (!table->reginfo.join_tab->keyuse())
         table->reginfo.join_tab->set_keyuse(save_pos);
