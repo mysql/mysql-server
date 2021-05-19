@@ -199,6 +199,57 @@ INSTANTIATE_TEST_CASE_P(Spec, MockServerCLITest,
 
 class MockServerCLITestBase : public RouterComponentTest {};
 
+TEST_F(MockServerCLITestBase, classic_many_connections) {
+  auto mysql_server_mock_path = get_mysqlserver_mock_exec().str();
+  auto bind_port = port_pool_.get_next_available();
+  ASSERT_THAT(mysql_server_mock_path, ::testing::StrNe(""));
+
+  std::map<std::string, std::string> config{
+      {"--module-prefix", get_data_dir().str()},
+      {"--filename", get_data_dir().join("my_port.js").str()},
+      {"--port", std::to_string(bind_port)},
+  };
+
+  std::vector<std::string> cmdline_args;
+
+  for (const auto &arg : config) {
+    cmdline_args.push_back(arg.first);
+    cmdline_args.push_back(arg.second);
+  }
+
+  SCOPED_TRACE("// start " + mysql_server_mock_path);
+  spawner(mysql_server_mock_path).spawn(cmdline_args);
+
+  // Opening a new connection takes ~12ms on a dev-machine.
+  //
+  // Spawning 80 connections sequentially takes ~1sec.
+  //
+  // ideas to improve this time:
+  //
+  // - use libmysqlclient's async connect code.
+  // - make the mock handle connections faster.
+  constexpr int kNumConnections{80};
+  std::vector<mysqlrouter::MySQLSession> classic_sessions{kNumConnections};
+
+  for (auto &sess : classic_sessions) {
+    try {
+      sess.connect("127.0.0.1", bind_port, "root", "fake-pass", "", "");
+    } catch (const std::exception &e) {
+      FAIL() << e.what();
+    }
+  }
+
+  for (auto &sess : classic_sessions) {
+    try {
+      auto row = sess.query_one("select @@port");
+      ASSERT_EQ(row->size(), 1);
+      EXPECT_EQ((*row)[0], std::to_string(bind_port));
+    } catch (const std::exception &e) {
+      FAIL() << e.what();
+    }
+  }
+}
+
 struct MockServerConnectOkTestParam {
   const char *test_name;
 

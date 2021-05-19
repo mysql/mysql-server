@@ -23,14 +23,17 @@
 */
 
 #include "mysqlrouter/mock_server_component.h"
+
+#include <memory>  // shared_ptr
+
 #include "mysql_server_mock.h"
 #include "mysqlrouter/mock_server_global_scope.h"
 
-//
-// Mock Server's public API
-//
 std::shared_ptr<MockServerGlobalScope> MockServerComponent::get_global_scope() {
-  return server_mock::MySQLServerSharedGlobals::get();
+  static std::shared_ptr<MockServerGlobalScope> instance{
+      std::make_shared<MockServerGlobalScope>()};
+
+  return instance;
 }
 
 void MockServerComponent::register_server(

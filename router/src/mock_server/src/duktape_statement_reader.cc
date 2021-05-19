@@ -51,6 +51,17 @@ IMPORT_LOG_FUNCTIONS()
 
 namespace server_mock {
 
+std::unique_ptr<StatementReaderBase>
+DuktapeStatementReaderFactory::operator()() {
+  try {
+    return std::make_unique<DuktapeStatementReader>(filename_, module_prefixes_,
+                                                    session_, global_scope_);
+  } catch (const std::exception &ex) {
+    log_warning("%s", ex.what());
+    return std::make_unique<FailedStatementReader>(ex.what());
+  }
+}
+
 static duk_int_t process_get_shared(duk_context *ctx);
 static duk_int_t process_set_shared(duk_context *ctx);
 static duk_int_t process_get_keys(duk_context *ctx);
@@ -202,7 +213,7 @@ MySQLColumnType column_type_from_string(const std::string &type) {
  */
 class DukHeap {
  public:
-  DukHeap(const std::vector<std::string> &module_prefixes,
+  DukHeap(std::vector<std::string> module_prefixes,
           std::shared_ptr<MockServerGlobalScope> shared_globals)
       : heap_{duk_create_heap(nullptr, nullptr, nullptr, nullptr,
                               [](void *, const char *msg) {
@@ -213,7 +224,7 @@ class DukHeap {
     duk_module_shim_init(context(), module_prefixes);
   }
 
-  void prepare(const std::string &filename,
+  void prepare(std::string filename,
                const std::map<std::string, std::string> &session_data) {
     auto ctx = context();
     duk_push_global_stash(ctx);
@@ -392,8 +403,7 @@ class DukHeapPool {
   static DukHeapPool *instance() { return &instance_; }
 
   std::unique_ptr<DukHeap> get(
-      const std::string &filename,
-      const std::vector<std::string> &module_prefixes,
+      const std::string &filename, std::vector<std::string> module_prefixes,
       std::map<std::string, std::string> session_data,
       std::shared_ptr<MockServerGlobalScope> shared_globals) {
     {
@@ -407,7 +417,8 @@ class DukHeapPool {
     }
 
     // there is no free context object, create new one
-    auto result = std::make_unique<DukHeap>(module_prefixes, shared_globals);
+    auto result =
+        std::make_unique<DukHeap>(std::move(module_prefixes), shared_globals);
     result->prepare(filename, session_data);
 
     return result;
@@ -767,15 +778,23 @@ static void check_handshake_section(duk_context *ctx) {
 }
 
 DuktapeStatementReader::DuktapeStatementReader(
-    const std::string &filename,
-    const std::vector<std::string> &module_prefixes,
+    std::string filename, std::vector<std::string> module_prefixes,
     std::map<std::string, std::string> session_data,
     std::shared_ptr<MockServerGlobalScope> shared_globals)
     : pimpl_{std::make_unique<Pimpl>(DukHeapPool::instance()->get(
-          filename, module_prefixes, session_data, shared_globals))} {
+          std::move(filename), std::move(module_prefixes), session_data,
+          shared_globals))} {
   auto ctx = pimpl_->ctx;
   has_notices_ = check_notices_section(ctx);
 }
+
+// must be declared here as Pimpl an incomplete type in the header
+
+DuktapeStatementReader::DuktapeStatementReader(DuktapeStatementReader &&) =
+    default;
+
+DuktapeStatementReader &DuktapeStatementReader::operator=(
+    DuktapeStatementReader &&) = default;
 
 DuktapeStatementReader::~DuktapeStatementReader() {
   DukHeapPool::instance()->release(std::move(pimpl_->heap_));
@@ -909,7 +928,7 @@ std::chrono::microseconds DuktapeStatementReader::server_greeting_exec_time() {
   return exec_time;
 }
 
-stdx::expected<DuktapeStatementReader::handshake_data, std::error_code>
+stdx::expected<DuktapeStatementReader::handshake_data, ErrorResponse>
 DuktapeStatementReader::handshake() {
   auto *ctx = pimpl_->ctx;
 
@@ -980,7 +999,7 @@ DuktapeStatementReader::handshake() {
   duk_pop(ctx);
 
   if (ec) {
-    return stdx::make_unexpected(ec);
+    return stdx::make_unexpected(ErrorResponse{2013, "hmm", "HY000"});
   }
 
   return handshake_data{error,         username,     password,
@@ -1040,7 +1059,8 @@ void DuktapeStatementReader::handle_statement(const std::string &statement,
       duk_pop(ctx);
 
       // startement received, but no matching statement in the iterator.
-      protocol->send_error(1064, "Unknown statement. (end of stmts)");
+      protocol->encode_error(
+          {1064, "Unknown statement. (end of stmts)", "HY000"});
       return;
     }
     // @-3 is an enumarator
@@ -1075,19 +1095,20 @@ void DuktapeStatementReader::handle_statement(const std::string &statement,
   bool response_sent{false};
   duk_get_prop_string(ctx, -1, "result");
   if (!duk_is_undefined(ctx, -1)) {
-    protocol->send_resultset(pimpl_->get_result(-1), exec_time);
+    protocol->exec_timer().expires_after(exec_time);
+    protocol->encode_resultset(pimpl_->get_result(-1));
     response_sent = true;
   } else {
     duk_pop(ctx);  // result
     duk_get_prop_string(ctx, -1, "error");
     if (!duk_is_undefined(ctx, -1)) {
-      protocol->send_error(pimpl_->get_error(-1));
+      protocol->encode_error(pimpl_->get_error(-1));
       response_sent = true;
     } else {
       duk_pop(ctx);  // error
       duk_get_prop_string(ctx, -1, "ok");
       if (!duk_is_undefined(ctx, -1)) {
-        protocol->send_ok(pimpl_->get_ok(-1));
+        protocol->encode_ok(pimpl_->get_ok(-1));
         response_sent = true;
       } else {
         throw std::runtime_error("expected 'error', 'ok' or 'result'");
@@ -1102,7 +1123,7 @@ void DuktapeStatementReader::handle_statement(const std::string &statement,
   }
 
   if (!response_sent) {
-    protocol->send_error(1064, "Unsupported command");
+    protocol->encode_error({1064, "Unsupported command", "HY000"});
   }
 }
 
