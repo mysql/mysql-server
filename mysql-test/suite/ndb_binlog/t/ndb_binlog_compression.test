@@ -1,0 +1,92 @@
+--source include/have_ndb.inc
+--source include/have_log_bin.inc
+#
+#
+# This test aims at checking if ndbcluster can adapt to the 
+# changes made to binlog_transaction_compression dynamically during runtime.
+#
+#
+
+--echo ################################################
+--echo Case 1: Observe binlog compression in ndbcluster
+--echo when binlog_transaction_compression = default
+--echo ################################################
+
+show variables like 'binlog_transaction_compression';
+show variables like 'binlog_transaction_compression_level_zstd';
+
+# Create and insert rows to the table to check if the data is compressed.
+create table t1 (a int) engine=ndb;
+insert into t1 values (1);
+insert into t1 select a+1 from t1;
+insert into t1 select a+2 from t1;
+
+# Check for compressed data in binlog using binary_log_transaction_compression_stats table
+# As default for binlog_transaction_compression is OFF, there should not be any row with ZSTD compression type
+# SELECT LOG_TYPE, COMPRESSION_TYPE, COMPRESSED_BYTES_COUNTER, UNCOMPRESSED_BYTES_COUNTER FROM PERFORMANCE_SCHEMA.binary_log_transaction_compression_stats;
+--let $nrows = `SELECT COUNT(*) FROM performance_schema.binary_log_transaction_compression_stats WHERE log_type = 'BINARY' AND COMPRESSION_TYPE = 'ZSTD'`
+--let $assert_cond = $nrows = 0
+--let $assert_text = Number of rows in performance_schema.binary_log_transaction_compression (BINARY, ZSTD) = 0
+--source include/assert.inc
+
+--echo ################################################
+--echo Case 2: Observe binlog compression in ndbcluster
+--echo when binlog_transaction_compression = ON
+--echo ################################################
+
+# Turn ON binlog_transaction_compression to check if the binlog thread can adapt to this change
+set global binlog_transaction_compression = ON;
+show global variables like 'binlog_transaction_compression';
+
+insert into t1 select a+4 from t1;
+# Wait for epoch
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+# Check if there are any compressed data in binlog using binary_log_transaction_compression_stats table
+# As binlog_transaction_compression is ON, there should be atleast one row with ZSTD compression type
+# SELECT LOG_TYPE, COMPRESSION_TYPE, COMPRESSED_BYTES_COUNTER, UNCOMPRESSED_BYTES_COUNTER FROM PERFORMANCE_SCHEMA.binary_log_transaction_compression_stats;
+--let $nrows = `SELECT COUNT(*) FROM performance_schema.binary_log_transaction_compression_stats WHERE log_type = 'BINARY' AND COMPRESSION_TYPE = 'ZSTD'`
+--let $assert_cond = $nrows = 1
+--let $assert_text = Number of rows in performance_schema.binary_log_transaction_compression (BINARY, ZSTD) = 1
+--source include/assert.inc
+
+# Record the current size of data in the binlog.
+--let $compressed_data = `SELECT COMPRESSED_BYTES_COUNTER FROM performance_schema.binary_log_transaction_compression_stats WHERE log_type = 'BINARY' AND COMPRESSION_TYPE = 'ZSTD'`
+--let $uncompressed_data = `SELECT COMPRESSED_BYTES_COUNTER FROM performance_schema.binary_log_transaction_compression_stats WHERE log_type = 'BINARY' AND COMPRESSION_TYPE = 'NONE'`
+
+--echo ################################################
+--echo Case 3: Observe binlog compression in ndbcluster
+--echo when binlog_transaction_compression = OFF
+--echo ################################################
+
+# Turn OFF binlog_transaction_compression to check if the binlog thread can adapt to this change
+set global binlog_transaction_compression = OFF;
+show global variables like 'binlog_transaction_compression';
+
+insert into t1 select a+8 from t1;
+# Wait for epoch
+--disable_query_log
+--disable_result_log
+show binlog events;
+--enable_result_log
+--enable_query_log
+
+# SELECT LOG_TYPE, COMPRESSION_TYPE, COMPRESSED_BYTES_COUNTER, UNCOMPRESSED_BYTES_COUNTER FROM PERFORMANCE_SCHEMA.binary_log_transaction_compression_stats;
+--let $new_compressed_data = `SELECT COMPRESSED_BYTES_COUNTER FROM performance_schema.binary_log_transaction_compression_stats WHERE log_type = 'BINARY' AND COMPRESSION_TYPE = 'ZSTD'`
+--let $assert_cond = $new_compressed_data = $compressed_data
+--let $assert_text = Compressed data size remains same.
+--source include/assert.inc
+ 
+--let $new_uncompressed_data = `SELECT COMPRESSED_BYTES_COUNTER FROM performance_schema.binary_log_transaction_compression_stats WHERE log_type = 'BINARY' AND COMPRESSION_TYPE = 'NONE'`
+--let $assert_cond = $new_uncompressed_data > $uncompressed_data
+--let $assert_text = Uncompressed data size increased.
+--source include/assert.inc
+
+# Cleanup
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+drop table t1;
+

@@ -6471,6 +6471,39 @@ static bool check_event_list_consistency(Ndb *ndb,
 }
 #endif
 
+void Ndb_binlog_thread::fix_per_epoch_trans_settings(THD *thd) {
+  // No effect for self logging engine
+  // thd->variables.binlog_row_format
+
+  // With HTON_NO_BINLOG_ROW_OPT handlerton flag setting has no effect
+  // thd->variables.binlog_row_image
+
+  // NOTE! these will be replaced by new --ndb-log-compression* settings
+  // Compression settings should take effect next binlog transaction
+  thd->variables.binlog_trx_compression =
+      global_system_variables.binlog_trx_compression;
+  thd->variables.binlog_trx_compression_type =
+      global_system_variables.binlog_trx_compression_type;
+  thd->variables.binlog_trx_compression_level_zstd =
+      global_system_variables.binlog_trx_compression_level_zstd;
+
+  // Without HA_BLOB_PARTIAL_UPDATE setting has no effect
+  // thd->variables.binlog_row_value_options & PARTIAL_JSON
+
+  // Controls writing Rows_query_log events with the query to binlog, disable
+  // since query is not known for changes received from NDB
+  thd->variables.binlog_rows_query_log_events = false;
+
+  // No effect unless statement-based binary logging
+  // thd->variables.binlog_direct_non_trans_update
+
+  // Write set extraction setting will be handled by --ndb-log- variable
+  // thd->variables.transaction_write_set_extraction =
+
+  // Charset setting
+  thd->variables.character_set_client = &my_charset_latin1;
+}
+
 /**
    @brief Handle events for one epoch
 
@@ -6503,14 +6536,16 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
 
   ndb_binlog_index_row _row;
   ndb_binlog_index_row *rows = &_row;
-  injector_transaction trans;
-  unsigned trans_row_count = 0;
-  unsigned replicated_row_count = 0;
-
   memset(&_row, 0, sizeof(_row));
-  thd->variables.character_set_client = &my_charset_latin1;
+
+  fix_per_epoch_trans_settings(thd);
+
+  // Create new binlog transaction
+  injector_transaction trans;
   inj->new_trans(thd, &trans);
 
+  unsigned trans_row_count = 0;
+  unsigned replicated_row_count = 0;
   if (event_type == NdbDictionary::Event::TE_EMPTY) {
     // Handle empty epoch
     if (opt_ndb_log_empty_epochs) {

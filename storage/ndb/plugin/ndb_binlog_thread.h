@@ -248,6 +248,17 @@ class Ndb_binlog_thread : public Ndb_component {
   void dbug_sync_setting() const;
 #endif
 
+  /**
+    @brief The binlog injector thread is not a client thread, but has its own
+    THD object which is used when writing to the binlog. Thus its thread-local
+    variables controlling how binlog is written need to be updated from global
+    values so that the changed settings will take effect during next epoch
+    transaction.
+
+    @param thd Thread handle
+   */
+  void fix_per_epoch_trans_settings(THD *thd);
+
   // Functions for handling received events
   int handle_data_get_blobs(const TABLE *table,
                             const NdbValue *const value_array,

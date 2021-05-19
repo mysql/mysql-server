@@ -1,0 +1,38 @@
+################################################
+Case 1: Observe binlog compression in ndbcluster
+when binlog_transaction_compression = default
+################################################
+show variables like 'binlog_transaction_compression';
+Variable_name	Value
+binlog_transaction_compression	OFF
+show variables like 'binlog_transaction_compression_level_zstd';
+Variable_name	Value
+binlog_transaction_compression_level_zstd	3
+create table t1 (a int) engine=ndb;
+insert into t1 values (1);
+insert into t1 select a+1 from t1;
+insert into t1 select a+2 from t1;
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression (BINARY, ZSTD) = 0]
+################################################
+Case 2: Observe binlog compression in ndbcluster
+when binlog_transaction_compression = ON
+################################################
+set global binlog_transaction_compression = ON;
+show global variables like 'binlog_transaction_compression';
+Variable_name	Value
+binlog_transaction_compression	ON
+insert into t1 select a+4 from t1;
+include/assert.inc [Number of rows in performance_schema.binary_log_transaction_compression (BINARY, ZSTD) = 1]
+################################################
+Case 3: Observe binlog compression in ndbcluster
+when binlog_transaction_compression = OFF
+################################################
+set global binlog_transaction_compression = OFF;
+show global variables like 'binlog_transaction_compression';
+Variable_name	Value
+binlog_transaction_compression	OFF
+insert into t1 select a+8 from t1;
+include/assert.inc [Compressed data size remains same.]
+include/assert.inc [Uncompressed data size increased.]
+TRUNCATE performance_schema.binary_log_transaction_compression_stats;
+drop table t1;
