@@ -36,7 +36,7 @@
 
 #include <rapidjson/document.h>
 
-#include "mysqlrouter/http_common.h"
+#include "mysqlrouter/http_request.h"
 #include "mysqlrouter/utils.h"  // string_format()
 
 /**

@@ -78,6 +78,9 @@ Options:
 --expect-error=<error_code> Default connection must fail with specified code (default: OFF)
 -B, --bindump         Dump binary representation of messages sent, in format suitable for
 --trace-protocol      Enable X Protocol tracing
+--history-protocol=<0|1|true|false>
+                      Enable/disable X Protocol message tracing into
+                      history buffer, which is printed at test failure
 --verbose             Enable extra verbose messages
 --daemon              Work as a daemon (unix only)
 --help                Show command line help

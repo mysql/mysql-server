@@ -46,7 +46,9 @@ using Message_ptr = std::unique_ptr<xcl::XProtocol::Message>;
 class Connection_manager {
  public:
   Connection_manager(const Connection_options &co,
-                     Variable_container *variables, const Console &console);
+                     Variable_container *variables,
+                     const Console &console_with_flow_history,
+                     const Console &console);
   ~Connection_manager();
 
   void get_credentials(std::string *ret_user, std::string *ret_pass);
@@ -86,6 +88,7 @@ class Connection_manager {
   std::string m_active_session_name;
   Connection_options m_default_connection_options;
   Variable_container *m_variables;
+  const Console &m_console_with_flow_history;
   const Console &m_console;
 };
 

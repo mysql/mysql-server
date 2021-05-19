@@ -36,7 +36,8 @@ exec $execute_command -uuser1 --password='p1'
 --echo # and client IP doesn't match
 --replace_regex $accounts_host
 error 1;
-exec $execute_command -uuser2 --password='p2'
+exec $execute_command
+ -uuser2 --password='p2'
  -h$ip%$interface -e "SELECT USER()" 2>&1;
 
 --disable_query_log

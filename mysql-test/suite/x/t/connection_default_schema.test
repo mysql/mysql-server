@@ -100,7 +100,7 @@ let $expect_error=ERROR 1044 ;
 
 --echo
 --echo # Using mysqlxtest
-let $execute_command=$MYSQLXTEST;
+let $execute_command=$MYSQLXTEST --history-protocol false;
 let $user=user_with_access_to_xdb;
 let $schema=ydb;
 let $expect_error=code 1044;
@@ -125,7 +125,7 @@ let $expect_error=ERROR 1049 ;
 
 --echo
 --echo # Using mysqlxtest
-let $execute_command=$MYSQLXTEST;
+let $execute_command=$MYSQLXTEST --history-protocol false;
 let $user=root;
 let $schema=non_existing_schema;
 let $expect_error=code 1049;
