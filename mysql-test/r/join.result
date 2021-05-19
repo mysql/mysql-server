@@ -2443,3 +2443,25 @@ JOIN t1 AS t5 ON t4.b = t5.b
 WHERE t1.b >= 6 OR t3.b <> t4.b;
 a	b	a	b	a	b	a	b	a	b
 DROP TABLE t1;
+# Bug#32508878 - MYSQL SERVER CRASH - ASSERTION FAILURE IN
+# DEPS_OF_REMAINING_LATERAL_DERIVED_TABLES::RECALCULATE
+#
+CREATE TABLE t1(a INT NOT NULL, b INT, PRIMARY KEY(a));
+INSERT INTO t1 VALUES (1,1), (2,2), (3,3);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+EXPLAIN SELECT * FROM t1 AS x3 WHERE EXISTS
+(SELECT * FROM t1 AS x1 JOIN t1 AS x2 ON x1.b=x2.b
+JOIN LATERAL (SELECT COUNT(a) AS c FROM t1
+WHERE t1.b=x1.b) AS d3 ON x1.b=c);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	x3	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
+1	PRIMARY	x1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Rematerialize (<derived3>)
+1	PRIMARY	x2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+1	PRIMARY	<derived3>	NULL	ref	<auto_key0>	<auto_key0>	8	test.x1.b	2	100.00	Using where; Using index; FirstMatch(x3)
+3	DEPENDENT DERIVED	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+Warnings:
+Note	1276	Field or reference 'test.x1.b' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select `test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b` from `test`.`t1` `x3` semi join (`test`.`t1` `x1` join `test`.`t1` `x2` join lateral (/* select#3 */ select count(`test`.`t1`.`a`) AS `c` from `test`.`t1` where (`test`.`t1`.`b` = `test`.`x1`.`b`)) `d3`) where ((`test`.`x2`.`b` = `test`.`x1`.`b`) and (`test`.`x1`.`b` = `d3`.`c`))
+DROP TABLE t1;

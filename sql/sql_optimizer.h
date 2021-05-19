@@ -242,9 +242,41 @@ class JOIN {
   */
   table_map found_const_table_map;
   /**
-     Used in some loops which scan the JOIN's tables: it is the bitmap of all
-     tables which are dependencies of lateral derived tables which the loop
-     has not yet processed.
+     This is the bitmap of all tables which are dependencies of
+     lateral derived tables which are not (yet) part of the partial
+     plan.  (The value is a logical 'or' of zero or more
+     TABLE_LIST.map() values.)
+
+     When we are building the join order, there is a partial plan (an
+     ordered sequence of JOIN_TABs), and an unordered set of JOIN_TABs
+     not yet added to the plan. Due to backtracking, the partial plan
+     may both grow and shrink. When we add a new table to the plan, we
+     may wish to set up join buffering, so that rows from the preceding
+     table are buffered. If any of the remaining tables are derived
+     tables that depends on any of the predecessors of the table we
+     are adding (i.e. a lateral dependency), join buffering would be
+     inefficient. (@see setup_join_buffering() for a detailed
+     explanation of why this is so.)
+
+     For this reason we need to maintain this table_map of lateral
+     dependencies of tables not yet in the plan. Whenever we add a new
+     table to the plan, we update the map by calling
+     Optimize_table_order::recalculate_lateral_deps_incrementally().
+     And when we remove a table, we restore the previous map value
+     using a Tabel_map_restorer object.
+
+     As an example, assume that we join four tables, t1, t2, t3 and
+     d1, where d1 is a derived table that depends on t1:
+
+     SELECT * FROM t1 JOIN t2 ON t1.a=t2.b JOIN t3 ON t2.c=t3.d
+       JOIN LATERAL (SELECT DISTINCT e AS x FROM t4 WHERE t4.f=t1.c)
+       AS d1 ON t3.e=d1.x;
+
+     Now, if our partial plan is t1->t2, the map (of lateral
+     dependencies of the remaining tables) will contain t1.
+     This tells us that we should not use join buffering when joining t1
+     with t2. But if the partial plan is t1->d2->t2, the map will be
+     empty. We may thus use join buffering when joining d2 with t2.
   */
   table_map deps_of_remaining_lateral_derived_tables{0};
 
@@ -1070,70 +1102,31 @@ inline bool field_time_cmp_date(const Field *f, const Item *v) {
 bool substitute_gc(THD *thd, Query_block *query_block, Item *where_cond,
                    ORDER *group_list, ORDER *order);
 
-/// RAII class to manage JOIN::deps_of_remaining_lateral_derived_tables
-class Deps_of_remaining_lateral_derived_tables {
-  JOIN *const join;
-  table_map saved;
-  /// All lateral tables not part of this map should be ignored
-  const table_map plan_tables;
+/**
+   This class restores a table_map object to its original value
+   when '*this' is destroyed.
+ */
+class Table_map_restorer final {
+  /** The location to be restored.*/
+  table_map *const m_location;
+  /** The original value to restore.*/
+  const table_map m_saved_value;
 
  public:
   /**
      Constructor.
-     @param j                the JOIN
-     @param plan_tables_arg  table_map of derived tables @see
-     JOIN::deps_of_remaining_lateral_derived_tables
+     @param map The table map that we wish to restore.
   */
-  Deps_of_remaining_lateral_derived_tables(JOIN *j, table_map plan_tables_arg)
-      : join(j),
-        saved(join->deps_of_remaining_lateral_derived_tables),
-        plan_tables(plan_tables_arg) {}
-  ~Deps_of_remaining_lateral_derived_tables() { restore(); }
-  void restore() { join->deps_of_remaining_lateral_derived_tables = saved; }
-  void assert_unchanged() const {
-    assert(join->deps_of_remaining_lateral_derived_tables == saved);
-  }
-  void recalculate(uint next_idx) {
-    if (join->has_lateral)
-      /*
-        No cur_tab given, so assume we start from a place in the plan which
-        may be backward or forward compared to where we were before:
-        recalculate.
-      */
-      join->deps_of_remaining_lateral_derived_tables =
-          join->calculate_deps_of_remaining_lateral_derived_tables(plan_tables,
-                                                                   next_idx);
-  }
+  explicit Table_map_restorer(table_map *map)
+      : m_location(map), m_saved_value(*map) {}
 
-  void recalculate(JOIN_TAB *cur_tab, uint next_idx) {
-    if (join->has_lateral) {
-      assert(join->deps_of_remaining_lateral_derived_tables ==
-             join->calculate_deps_of_remaining_lateral_derived_tables(
-                 plan_tables, next_idx - 1));
-      /*
-        We have just added cur_tab to the plan; if it's not lateral, the map
-        doesn't change, no need to recalculate it.
-      */
-      if (cur_tab->table_ref->is_derived() &&
-          cur_tab->table_ref->derived_query_expression()->m_lateral_deps) {
-        /*
-          This function requires join->deps_of_remaining_lateral_derived_tables
-          to contain the dependencies of the lateral derived tables from
-          join->best_ref[next_idx-1] and on. The assert below checks that this
-          precondition holds.
-        */
-        recalculate(next_idx);
-      }
-    }
-  }
-  void init() {
-    // Normally done once in a run of JOIN::optimize().
-    if (join->has_lateral) {
-      recalculate(join->const_tables);
-      // Forget stale value:
-      saved = join->deps_of_remaining_lateral_derived_tables;
-    }
-  }
+  // This class is not intended to be copied.
+  Table_map_restorer(const Table_map_restorer &) = delete;
+  Table_map_restorer &operator=(const Table_map_restorer &) = delete;
+
+  ~Table_map_restorer() { restore(); }
+  void restore() { *m_location = m_saved_value; }
+  void assert_unchanged() const { assert(*m_location == m_saved_value); }
 };
 
 /**

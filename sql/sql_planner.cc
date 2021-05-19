@@ -1203,6 +1203,16 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
     trace_access_scan.add("use_tmp_table", true);
     join->sort_by_table = (TABLE *)1;  // Must use temporary table
   }
+
+  if (!got_final_plan) {
+    /*
+      Since we have decided the table order up to 'tab', we store the
+      lateral dependencies of the remaining tables so that we do not
+      need to calculate it again.
+    */
+    pos->set_suffix_lateral_deps(
+        join->deps_of_remaining_lateral_derived_tables);
+  }
 }
 
 float calculate_condition_filter(const JOIN_TAB *const tab,
@@ -1588,7 +1598,7 @@ bool Optimize_table_order::semijoin_loosescan_fill_driving_table_position(
   pos->use_join_buffer = false;
   /*
     No join buffer, so no need to manage any
-    Deps_of_remaining_lateral_derived_tables object.
+    Table_map_restorer object.
     As this function calculates some read cost, we have to include any lateral
     materialization cost:
   */
@@ -1979,8 +1989,9 @@ bool Optimize_table_order::choose_table_order() {
                            enum_walk::POSTFIX, nullptr);
   }
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
-  deps_lateral.init();
+  recalculate_lateral_deps(join->const_tables);
+  Table_map_restorer deps_lateral(
+      &join->deps_of_remaining_lateral_derived_tables);
 
   if (straight_join)
     optimize_straight_join(join_tables);
@@ -2083,7 +2094,8 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
   // resolve_subquery() disables semijoin if STRAIGHT_JOIN
   assert(join->query_block->sj_nests.empty());
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
+  Table_map_restorer deps_lateral(
+      &join->deps_of_remaining_lateral_derived_tables);
 
   Opt_trace_context *const trace = &join->thd->opt_trace;
   for (JOIN_TAB **pos = join->best_ref + idx; *pos; idx++, pos++) {
@@ -2117,7 +2129,7 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables) {
         .add("cost_for_plan", cost);
     join_tables &= ~(s->table_ref->map());
 
-    deps_lateral.recalculate(s, idx + 1);
+    recalculate_lateral_deps_incrementally(idx + 1);
   }
 
   if (join->sort_by_table &&
@@ -2295,7 +2307,8 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
 
   /* Number of tables remaining to be optimized */
   uint size_remain = n_tables;
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
+  Table_map_restorer deps_lateral(
+      &join->deps_of_remaining_lateral_derived_tables);
   // We should start with the lateral dependencies of all non-const JOIN_TABs.
   assert(!join->has_lateral ||
          (join->deps_of_remaining_lateral_derived_tables ==
@@ -2378,7 +2391,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
                             join->positions[idx].prefix_cost,
                             join->positions[idx].prefix_cost, "extended"););
 
-    deps_lateral.recalculate(join->best_ref[idx], idx + 1);
+    recalculate_lateral_deps_incrementally(idx + 1);
     --size_remain;
     ++idx;
   } while (true);
@@ -2721,7 +2734,8 @@ bool Optimize_table_order::best_extension_by_limited_search(
   memcpy(saved_refs, join->best_ref + idx,
          sizeof(JOIN_TAB *) * (join->tables - idx));
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
+  Table_map_restorer deps_lateral(
+      &join->deps_of_remaining_lateral_derived_tables);
 
   for (JOIN_TAB **pos = join->best_ref + idx; *pos && !use_best_so_far; pos++) {
     JOIN_TAB *const s = *pos;
@@ -2820,7 +2834,7 @@ bool Optimize_table_order::best_extension_by_limited_search(
         }
       }
 
-      deps_lateral.recalculate(s, idx + 1);
+      recalculate_lateral_deps_incrementally(idx + 1);
 
       const table_map remaining_tables_after =
           (remaining_tables & ~real_table_bit);
@@ -3051,7 +3065,8 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
   memcpy(saved_refs, join->best_ref + idx,
          sizeof(JOIN_TAB *) * (join->tables - idx));
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
+  Table_map_restorer deps_lateral(
+      &join->deps_of_remaining_lateral_derived_tables);
 
   for (JOIN_TAB **pos = join->best_ref + idx; (s = *pos); pos++) {
     const table_map real_table_bit = s->table_ref->map();
@@ -3143,7 +3158,7 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
           continue;
         }
 
-        deps_lateral.recalculate(s, idx + 1);
+        recalculate_lateral_deps_incrementally(idx + 1);
 
         eq_ref_ext = real_table_bit;
         const table_map remaining_tables_after =
@@ -3671,9 +3686,10 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     no_jbuf_before = (table_count > 1) ? last_tab + 1 : first_tab;
   }
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
+  Table_map_restorer deps_lateral(
+      &join->deps_of_remaining_lateral_derived_tables);
   // recalculate, as we go back in the range of "unoptimized" tables:
-  deps_lateral.recalculate(first_tab);
+  recalculate_lateral_deps(first_tab);
 
   for (uint i = first_tab; i <= last_tab; i++) {
     JOIN_TAB *const tab = positions[i].table;
@@ -3740,7 +3756,7 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
     else
       outer_fanout *= pos->rows_fetched * pos->filter_effect;
 
-    deps_lateral.recalculate(tab, i + 1);
+    recalculate_lateral_deps_incrementally(i + 1);
   }
 
   *newcount = rowcount * outer_fanout;
@@ -3810,9 +3826,10 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
   const double inner_fanout = sjm_nest->nested_join->sjm.expected_rowcount;
   double outer_fanout = 1.0;
 
-  Deps_of_remaining_lateral_derived_tables deps_lateral(join, ~excluded_tables);
+  Table_map_restorer deps_lateral(
+      &join->deps_of_remaining_lateral_derived_tables);
   // recalculate, as we go back in the range of "unoptimized" tables:
-  deps_lateral.recalculate(last_inner_tab + 1);
+  recalculate_lateral_deps(last_inner_tab + 1);
 
   for (uint i = last_inner_tab + 1; i <= last_outer_tab; i++) {
     Opt_trace_object trace_one_table(trace);
@@ -3827,7 +3844,7 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
     cost += dst_pos->read_cost + cost_model->row_evaluate_cost(
                                      rowcount * inner_fanout * outer_fanout);
     outer_fanout *= dst_pos->filter_effect;
-    deps_lateral.recalculate(tab, i + 1);
+    recalculate_lateral_deps_incrementally(i + 1);
   }
 
   *newcount = rowcount * outer_fanout;
@@ -4626,6 +4643,125 @@ void Optimize_table_order::backout_nj_state(const table_map remaining_tables
 
     if (!was_fully_covered) break;
   }
+}
+
+/**
+   Calculate the lateral dependencies of the suffix of JOIN_TABs from tab_no
+   to join->tables-1 in the final join plan, i.e. the plan contained in
+   join->best_positions. This function is only called from asserts that verify
+   the values cached in join->best_positions[table_no].m_suffix_lateral_deps.
+
+   @param tab_no index of the first table in the suffix for which we calculate
+                 the dependencies.
+   @return the set of lateral dependencies.
+   @see JOIN::calculate_deps_of_remaining_lateral_derived_tables()
+*/
+table_map Optimize_table_order::calculate_lateral_deps_of_final_plan(
+    uint tab_no) const {
+  assert(tab_no <= join->tables);
+  assert(got_final_plan);
+  assert(!plan_has_duplicate_tabs());
+  table_map deps = 0;
+
+  for (uint i = tab_no; i < join->tables; i++) {
+    const JOIN_TAB &tab = *join->best_positions[i].table;
+    if (tab.table_ref->map() & ~excluded_tables) {
+      deps |= get_lateral_deps(tab);
+    }
+  }
+
+  return deps;
+}
+
+/**
+   Set join->deps_of_remaining_lateral_derived_tables to the
+   set of lateral dependencies of the tables in the suffix
+   of the join plan from 'tab_no' and on.
+   @param tab_no index (in the join order) of the first JOIN_TAB
+   in the suffix.
+*/
+void Optimize_table_order::recalculate_lateral_deps(uint first_tab_no) {
+  assert(first_tab_no <= join->tables);
+  assert(!plan_has_duplicate_tabs());
+
+  if (join->has_lateral) {
+    if (first_tab_no == join->tables) {
+      join->deps_of_remaining_lateral_derived_tables = 0;
+    } else if (got_final_plan) {
+      join->deps_of_remaining_lateral_derived_tables =
+          join->positions[first_tab_no].get_suffix_lateral_deps();
+      assert(join->deps_of_remaining_lateral_derived_tables ==
+             calculate_lateral_deps_of_final_plan(first_tab_no));
+    } else {
+      join->deps_of_remaining_lateral_derived_tables =
+          join->calculate_deps_of_remaining_lateral_derived_tables(
+              ~excluded_tables, first_tab_no);
+    }
+  }
+}
+
+/**
+   Update join->deps_of_remaining_lateral_derived_tables after adding
+   JOIN_TAB first_tab_no-1 to the plan.
+   Precondition: deps_of_remaining_lateral_derived_tables must contain
+   the dependencies of the plan suffix from first_tab_no-1 and on.
+   @param first_tab_no index (in the join order) of the first JOIN_TAB
+   in the suffix.
+
+   This method intends to be faster than recalculate_lateral_deps(),
+   as it only calculates the increment change of adding on more table.
+   But it requires the precondition above to be fulfilled.
+*/
+void Optimize_table_order::recalculate_lateral_deps_incrementally(
+    uint first_tab_no) {
+  assert(first_tab_no > 0 && first_tab_no <= join->tables);
+  assert(!plan_has_duplicate_tabs());
+
+  if (join->has_lateral) {
+    /*
+      This function requires join->deps_of_remaining_lateral_derived_tables
+      to contain the dependencies of the lateral derived tables from
+      join->best_ref[next_idx-1] and on. The assert below checks that this
+      precondition holds.
+    */
+    assert(got_final_plan ||
+           join->deps_of_remaining_lateral_derived_tables ==
+               join->calculate_deps_of_remaining_lateral_derived_tables(
+                   ~excluded_tables, first_tab_no - 1));
+
+    if (first_tab_no == join->tables) {
+      join->deps_of_remaining_lateral_derived_tables = 0;
+
+      /*
+        We have just added join->best_ref[first_tab_no - 1] to the plan; if it
+        is not lateral, the map doesn't change, no need to recalculate it.
+      */
+    } else if (got_final_plan ||
+               get_lateral_deps(*join->best_ref[first_tab_no - 1]) != 0) {
+      recalculate_lateral_deps(first_tab_no);
+    }
+  }
+}
+
+/**
+   Check if any TABLE_LIST appears twice in the plan (which is an error).
+   @return 'true' if there are any duplicates.
+*/
+bool Optimize_table_order::plan_has_duplicate_tabs() const {
+  table_map plan{0};
+  for (uint i = 0; i < join->tables; i++) {
+    TABLE_LIST *const tab_ref = got_final_plan
+                                    ? join->best_positions[i].table->table_ref
+                                    : join->best_ref[i]->table_ref;
+
+    if (tab_ref != nullptr) {
+      if ((plan & tab_ref->map()) != 0) {
+        return true;
+      }
+      plan |= tab_ref->map();
+    }
+  }
+  return false;
 }
 
 /**

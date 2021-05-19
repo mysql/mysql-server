@@ -569,6 +569,17 @@ struct POSITION {
     }
     prefix_rowcount *= filter_effect;
   }
+
+  void set_suffix_lateral_deps(table_map deps) { m_suffix_lateral_deps = deps; }
+
+  table_map get_suffix_lateral_deps() const { return m_suffix_lateral_deps; }
+
+ private:
+  /**
+     The lateral dependendencies of 'table' and all subsequent JOIN_TABs
+     in the join plan.
+   */
+  table_map m_suffix_lateral_deps;
 };
 
 /**
