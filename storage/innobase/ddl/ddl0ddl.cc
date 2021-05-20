@@ -239,7 +239,7 @@ dict_index_t *create_index(trx_t *trx, dict_table_t *table,
   }
 
   /* Create B-tree */
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   dict_build_index_def(table, index, trx);
 
@@ -248,7 +248,7 @@ dict_index_t *create_index(trx_t *trx, dict_table_t *table,
 
   if (err != DB_SUCCESS) {
     trx->error_state = err;
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     return nullptr;
   }
 
@@ -258,7 +258,7 @@ dict_index_t *create_index(trx_t *trx, dict_table_t *table,
 
   err = dict_create_index_tree_in_mem(index, trx);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   if (err != DB_SUCCESS) {
     if ((index->type & DICT_FTS) && table->fts) {
@@ -483,7 +483,7 @@ static void drop_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
 
 void drop_indexes(trx_t *trx, dict_table_t *table, bool locked) noexcept {
   ut_ad(!srv_read_only_mode);
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
   ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 

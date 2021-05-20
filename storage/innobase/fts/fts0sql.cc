@@ -212,10 +212,10 @@ que_t *fts_parse_sql(
     aux_table = dd_table_open_on_name_in_mem(table_name, false);
     DBUG_EXECUTE_IF(
         "force_evict_fts_aux_table_and_reload", if (aux_table != nullptr) {
-          mutex_enter(&dict_sys->mutex);
+          dict_sys_mutex_enter();
           dd_table_close(aux_table, nullptr, nullptr, true);
           dict_table_remove_from_cache(aux_table);
-          mutex_exit(&dict_sys->mutex);
+          dict_sys_mutex_exit();
           aux_table = nullptr;
         });
 

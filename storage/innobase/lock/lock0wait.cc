@@ -271,7 +271,7 @@ void lock_wait_suspend_thread(que_thr_t *thr) /*!< in: query thread associated
     case RW_X_LATCH:
       /* We may wait for rec lock in dd holding
       dict_operation_lock for creating FTS AUX table */
-      ut_ad(!mutex_own(&dict_sys->mutex));
+      ut_ad(!dict_sys_mutex_own());
       rw_lock_x_unlock(dict_operation_lock);
       break;
   }

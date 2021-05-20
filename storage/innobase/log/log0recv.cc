@@ -334,7 +334,7 @@ void MetadataRecover::apply() {
       continue;
     }
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     /* At this time, the metadata in DDTableBuffer has
     already been applied to table object, we can apply
@@ -380,7 +380,7 @@ void MetadataRecover::apply() {
     }
 
     mutex_exit(&dict_persist->mutex);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     dd_table_close(table, nullptr, nullptr, false);
   }

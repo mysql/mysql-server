@@ -181,7 +181,7 @@ static dberr_t dict_stats_exec_sql(pars_info_t *pinfo, const char *sql,
   bool trx_started = false;
 
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   if (trx == nullptr) {
     trx = trx_allocate_for_background();
@@ -584,7 +584,7 @@ when no longer needed.
 @param[in]	table	table whose stats to copy
 @return incomplete table object */
 static dict_table_t *dict_stats_snapshot_create(dict_table_t *table) {
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   dict_table_stats_lock(table, RW_S_LATCH);
 
@@ -603,7 +603,7 @@ static dict_table_t *dict_stats_snapshot_create(dict_table_t *table) {
 
   dict_table_stats_unlock(table, RW_S_LATCH);
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   return (t);
 }
@@ -2682,7 +2682,7 @@ static dberr_t dict_stats_fetch_from_ps(
   char db_utf8[dict_name::MAX_DB_UTF8_LEN];
   char table_utf8[dict_name::MAX_TABLE_UTF8_LEN];
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   /* Initialize all stats to dummy values before fetching because if
   the persistent storage contains incomplete stats (e.g. missing stats
@@ -2796,7 +2796,7 @@ void dict_stats_update_for_index(dict_index_t *index) /*!< in/out: index */
 {
   DBUG_TRACE;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   if (dict_stats_is_persistent_enabled(index->table)) {
     dict_table_stats_lock(index->table, RW_X_LATCH);
@@ -2822,7 +2822,7 @@ the stats or to fetch them from
 the persistent statistics
 storage */
 {
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   if (table->ibd_file_missing) {
     if (!dict_table_is_discarded(table)) {
@@ -3001,7 +3001,7 @@ dberr_t dict_stats_drop_index(
   pars_info_t *pinfo;
   dberr_t ret;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   /* skip indexes whose table names do not contain a database name
   e.g. if we are dropping an index from SYS_TABLES */
@@ -3140,7 +3140,7 @@ dberr_t dict_stats_drop_table(
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
   /* WL#9536 TODO: Once caller don't hold dict sys mutex, clean
   this and following(exit&enter) up */
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   /* skip tables that do not contain a database name
   e.g. if we are dropping SYS_TABLES */
@@ -3157,7 +3157,7 @@ dberr_t dict_stats_drop_table(
   dict_fs2utf8(db_and_table, db_utf8, sizeof(db_utf8), table_utf8,
                sizeof(table_utf8));
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   ret = dict_stats_delete_from_table_stats(db_utf8, table_utf8);
 
@@ -3165,7 +3165,7 @@ dberr_t dict_stats_drop_table(
     ret = dict_stats_delete_from_index_stats(db_utf8, table_utf8);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   if (ret == DB_STATS_DO_NOT_EXIST) {
     ret = DB_SUCCESS;

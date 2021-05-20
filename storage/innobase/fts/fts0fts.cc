@@ -1306,13 +1306,13 @@ static dberr_t fts_drop_table(trx_t *trx, const char *table_name,
     }
 
     if (aux_vec == nullptr) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
       if (!dd_drop_fts_table(table_name2, file_per_table)) {
         error = DB_FAIL;
       }
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
     } else {
       aux_vec->aux_name.push_back(mem_strdup(table_name2));
     }
@@ -1362,13 +1362,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t fts_rename_one_aux_table(
 
     /* Release dict_sys->mutex to avoid mutex reentrant. */
     table->acquire();
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (!replay && !dd_rename_fts_table(table, fts_table_old_name)) {
       ut_ad(0);
     }
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     table->release();
   }
 
@@ -1512,7 +1512,7 @@ static dberr_t fts_init_config_table(fts_table_t *fts_table) {
   dberr_t error = DB_SUCCESS;
   trx_t *trx;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   info = pars_info_create();
 
@@ -1553,9 +1553,9 @@ static dberr_t fts_empty_table(trx_t *trx, fts_table_t *fts_table) {
   fts_get_table_name(fts_table, table_name);
   pars_info_bind_id(info, true, "table_name", table_name);
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   graph = fts_parse_sql(fts_table, info, "BEGIN DELETE FROM $table_name;");
 
@@ -1563,7 +1563,7 @@ static dberr_t fts_empty_table(trx_t *trx, fts_table_t *fts_table) {
 
   que_graph_free(graph);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   return (error);
 }
@@ -1915,7 +1915,7 @@ dberr_t fts_create_common_tables(trx_t *trx, const dict_table_t *table,
   dict_index_t *index = nullptr;
   trx_dict_op_t op;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
   ut_ad(!fts_check_common_tables_exist(table));
 
   mem_heap_t *heap = mem_heap_create(1024);
@@ -2106,7 +2106,7 @@ void fts_detach_aux_tables(const dict_table_t *table, bool dict_locked) {
   char table_name[MAX_FULL_NAME_LEN];
 
   if (!dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   FTS_INIT_FTS_TABLE(&fts_table, nullptr, FTS_COMMON_TABLE, table);
@@ -2129,7 +2129,7 @@ void fts_detach_aux_tables(const dict_table_t *table, bool dict_locked) {
   fts_t *fts = table->fts;
   if (fts == nullptr) {
     if (!dict_locked) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
 
     return;
@@ -2159,7 +2159,7 @@ void fts_detach_aux_tables(const dict_table_t *table, bool dict_locked) {
   }
 
   if (!dict_locked) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 }
 
@@ -2329,13 +2329,13 @@ dberr_t fts_create_index_tables(trx_t *trx, dict_index_t *index) {
   dberr_t err;
   dict_table_t *table;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   table = dd_table_open_on_name_in_mem(index->table_name, false);
   ut_a(table != nullptr);
-  ut_d(mutex_enter(&dict_sys->mutex));
+  ut_d(dict_sys_mutex_enter());
   ut_ad(table->get_ref_count() > 1);
-  ut_d(mutex_exit(&dict_sys->mutex));
+  ut_d(dict_sys_mutex_exit());
 
   err = fts_create_index_tables_low(trx, index, table->name.m_name, table->id);
 
@@ -6221,7 +6221,7 @@ ibool fts_init_index(dict_table_t *table,  /*!< in: Table with FTS */
   fts_cache_t *cache = table->fts->cache;
   bool need_init = false;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   /* First check cache->get_docs is initialized */
   if (!has_cache_lock) {
@@ -6284,10 +6284,10 @@ func_exit:
   }
 
   if (need_init) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     /* Register the table with the optimize thread. */
     fts_optimize_add_table(table);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   return (TRUE);
@@ -6299,7 +6299,7 @@ func_exit:
 @return new fts table if success, else nullptr on failure */
 static dict_table_t *fts_upgrade_rename_aux_table_low(const char *old_name,
                                                       const char *new_name) {
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   dict_table_t *old_aux_table =
       dict_table_open_on_name(old_name, true, false, DICT_ERR_IGNORE_NONE);
@@ -6308,14 +6308,14 @@ static dict_table_t *fts_upgrade_rename_aux_table_low(const char *old_name,
   dict_table_close(old_aux_table, true, false);
   dberr_t err = dict_table_rename_in_cache(old_aux_table, new_name, false);
   if (err != DB_SUCCESS) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     return (nullptr);
   }
 
   dict_table_t *new_aux_table =
       dict_table_open_on_name(new_name, true, false, DICT_ERR_IGNORE_NONE);
   ut_ad(new_aux_table != nullptr);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   return (new_aux_table);
 }
@@ -6342,10 +6342,10 @@ static void fts_upgrade_rename_aux_table(const char *old_name,
     return;
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   dict_table_allow_eviction(new_table);
   dict_table_close(new_table, true, false);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 }
 
 /** During upgrade, tables are moved by DICT_MAX_DD_TABLES
@@ -6397,9 +6397,9 @@ dberr_t fts_upgrade_aux_tables(dict_table_t *table) {
       return (DB_ERROR);
     }
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_prevent_eviction(new_table);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (!dd_create_fts_common_table(table, new_table, is_config)) {
       dict_table_close(new_table, false, false);
@@ -6441,9 +6441,9 @@ dberr_t fts_upgrade_aux_tables(dict_table_t *table) {
         return (DB_ERROR);
       }
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       dict_table_prevent_eviction(new_table);
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
       CHARSET_INFO *charset = fts_get_charset(index->get_field(0)->col->prtype);
 

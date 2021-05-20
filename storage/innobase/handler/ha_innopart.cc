@@ -132,7 +132,7 @@ bool Ha_innopart_share::open_one_table_part(
   dict_table_t *part_table = nullptr;
   bool cached = false;
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   part_table = dict_table_check_if_in_cache_low(part_name);
   if (part_table != nullptr) {
     cached = true;
@@ -159,7 +159,7 @@ bool Ha_innopart_share::open_one_table_part(
       dict_table_ddl_release(part_table);
     }
   }
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   if (!cached) {
     part_table = dd_open_table(client, table, part_name, dd_part, thd);
@@ -203,7 +203,7 @@ all m_table_parts[]->vc_templ to it.
 @param[in]	name		Table name (db/table_name) */
 void Ha_innopart_share::set_v_templ(TABLE *table, dict_table_t *ib_table,
                                     const char *name) {
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   if (ib_table->n_v_cols > 0) {
     for (ulint i = 0; i < m_tot_parts; i++) {
@@ -239,13 +239,13 @@ void Ha_innopart_share::increment_ref_counts() {
   m_ref_count++;
 
   /* Increment dict_table_t reference count for all partitions */
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   for (uint i = 0; i < m_tot_parts; i++) {
     dict_table_t *table = m_table_parts[i];
     table->acquire();
     ut_ad(table->get_ref_count() >= m_ref_count);
   }
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 }
 
 /** Open InnoDB tables for partitions and return them as array.
@@ -945,9 +945,9 @@ int ha_innopart::open(const char *name, int, uint, const dd::Table *table_def) {
   m_prebuilt->m_mysql_handler = this;
 
   if (ib_table->n_v_cols > 0) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     m_part_share->set_v_templ(table, ib_table, name);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   key_used_on_scan = table_share->primary_key;
@@ -3444,7 +3444,7 @@ static int update_table_stats(dict_table_t *table, bool is_analyze) {
     opt = DICT_STATS_RECALC_TRANSIENT;
   }
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
   ret = dict_stats_update(table, opt);
 
   if (ret != DB_SUCCESS) {

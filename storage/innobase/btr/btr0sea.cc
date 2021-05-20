@@ -287,7 +287,7 @@ void btr_search_sys_free() {
 static void btr_search_disable_ref_count(dict_table_t *table) {
   dict_index_t *index;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   for (index = table->first_index(); index != nullptr; index = index->next()) {
     ut_ad(rw_lock_own(btr_get_search_latch(index), RW_LOCK_X));
@@ -300,15 +300,15 @@ static void btr_search_disable_ref_count(dict_table_t *table) {
 @param[in]	need_mutex	Need to acquire dict_sys->mutex */
 void btr_search_disable(bool need_mutex) {
   if (need_mutex) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
   btr_search_x_lock_all(UT_LOCATION_HERE);
 
   if (!btr_search_enabled) {
     if (need_mutex) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
 
     btr_search_x_unlock_all();
@@ -328,7 +328,7 @@ void btr_search_disable(bool need_mutex) {
   }
 
   if (need_mutex) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   /* Set all block->index = NULL. */
@@ -1080,7 +1080,7 @@ retry:
         rw_lock_own(&block->lock, RW_LOCK_X));
 
   /* We must not dereference index here, because it could be freed
-  if (index->table->n_ref_count == 0 && !mutex_own(&dict_sys->mutex)).
+  if (index->table->n_ref_count == 0 && !dict_sys_mutex_own()).
   Determine the ahi_slot based on the block contents. */
 
   const space_index_t index_id = btr_page_get_index_id(block->frame);
@@ -1266,7 +1266,7 @@ void btr_search_drop_page_hash_when_freed(const page_id_t &page_id,
       /* In all our callers, the table handle should
       be open, or we should be in the process of
       dropping the table (preventing eviction). */
-      ut_ad(index->table->n_ref_count > 0 || mutex_own(&dict_sys->mutex));
+      ut_ad(index->table->n_ref_count > 0 || dict_sys_mutex_own());
       btr_search_drop_page_hash_index(block);
     }
   }

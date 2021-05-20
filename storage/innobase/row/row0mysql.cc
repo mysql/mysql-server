@@ -1125,7 +1125,7 @@ static inline void row_update_statistics_if_needed(
   a counter table which is very small and updated very often. */
 
   if (counter > 16 + n_rows / 16 /* 6.25% */) {
-    ut_ad(!mutex_own(&dict_sys->mutex));
+    ut_ad(!dict_sys_mutex_own());
     /* this will reset table->stat_modified_counter to 0 */
     dict_stats_update(table, DICT_STATS_RECALC_TRANSIENT);
   }
@@ -2737,7 +2737,7 @@ void row_mysql_lock_data_dictionary_func(trx_t *trx, const char *file,
   rw_lock_x_lock_inline(dict_operation_lock, 0, file, line);
   trx->dict_operation_lock_mode = RW_X_LATCH;
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 }
 
 /** Unlocks the data dictionary exclusive lock. */
@@ -2748,7 +2748,7 @@ void row_mysql_unlock_data_dictionary(trx_t *trx) /*!< in/out: transaction */
   /* Serialize data dictionary operations with dictionary mutex:
   no deadlocks can occur then in these operations */
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   rw_lock_x_unlock(dict_operation_lock);
 
   trx->dict_operation_lock_mode = 0;
@@ -2760,7 +2760,7 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
   mem_heap_t *heap;
   dberr_t err;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   DBUG_EXECUTE_IF("ib_create_table_fail_at_start_of_row_create_table_for_mysql",
                   {
@@ -2796,9 +2796,9 @@ dberr_t row_create_table_for_mysql(dict_table_t *table, const char *compression,
 
     dict_table_add_system_columns(table, heap);
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, false, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     /* During upgrade, etc., the log_ddl may haven't been
     initialized and we don't need to write DDL logs too.
@@ -2863,13 +2863,13 @@ error_handling:
 
       /* Still do it here so that the table can always be freed */
       if (dd_table_open_on_name_in_mem(table->name.m_name, false)) {
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
 
         dd_table_close(table, nullptr, nullptr, true);
 
         dict_table_remove_from_cache(table);
 
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
       } else {
         dict_mem_table_free(table);
       }
@@ -3018,9 +3018,9 @@ dberr_t row_create_index_for_mysql(
     err = dict_create_index_tree_in_mem(index, trx);
 
     if (err != DB_SUCCESS && !table->is_intrinsic()) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       dict_index_remove_from_cache(table, index);
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
   }
 
@@ -3062,7 +3062,7 @@ dberr_t row_table_load_foreign_constraints(trx_t *trx, const char *name,
 
   DBUG_TRACE;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   trx->op_info = "adding foreign keys";
 
@@ -3462,13 +3462,13 @@ static dberr_t row_discard_tablespace(trx_t *trx, dict_table_t *table,
   /* For SDI tables, acquire exclusive MDL and set sdi_table->ibd_file_missing
   to true. Purge on SDI table acquire shared MDL & also check for missing
   flag. */
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   MDL_ticket *sdi_mdl = nullptr;
   err = dd_sdi_acquire_exclusive_mdl(trx->mysql_thd, table->space, &sdi_mdl);
   if (err != DB_SUCCESS) {
     return (err);
   }
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   /* Play safe and remove all insert buffer entries, though we should
   have removed them already when DISCARD TABLESPACE was called */
@@ -3803,7 +3803,7 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
       nonatomic = true;
     }
 
-    ut_ad(mutex_own(&dict_sys->mutex));
+    ut_ad(dict_sys_mutex_own());
     ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
     table = dict_table_check_if_in_cache_low(name);
@@ -3824,9 +3824,9 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
 
     /* Need to exclusive lock all AUX tables for drop table */
     if (table && table->fts) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       err = fts_lock_all_aux_tables(thd, table);
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
 
       if (err != DB_SUCCESS) {
         dd_table_close(table, nullptr, nullptr, true);
@@ -3849,9 +3849,9 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   concurrent DROP while purge is happening on SDI table */
   if (file_per_table) {
     MDL_ticket *sdi_mdl = nullptr;
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     err = dd_sdi_acquire_exclusive_mdl(thd, table->space, &sdi_mdl);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     if (err != DB_SUCCESS) {
       dd_table_close(table, nullptr, nullptr, true);
@@ -4026,12 +4026,12 @@ dberr_t row_drop_table_for_mysql(const char *name, trx_t *trx, bool nonatomic,
   }
 
   if (!table->is_temporary() && !file_per_table) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     for (dict_index_t *index = table->first_index();
          err == DB_SUCCESS && index != nullptr; index = index->next()) {
       err = log_ddl->write_free_tree_log(trx, index, true);
     }
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     if (err != DB_SUCCESS) {
       goto funct_exit;
     }
@@ -4139,7 +4139,7 @@ funct_exit:
 
   if (aux_vec.aux_name.size() > 0) {
     if (trx->dict_operation_lock_mode == RW_X_LATCH) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
 
     if (!fts_drop_dd_tables(&aux_vec, file_per_table)) {
@@ -4147,7 +4147,7 @@ funct_exit:
     }
 
     if (trx->dict_operation_lock_mode == RW_X_LATCH) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
     }
 
     fts_free_aux_names(&aux_vec);
@@ -4300,8 +4300,8 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
        table is opened. */
     if (is_rename || !table->refresh_fk) {
       if (dict_locked) {
-        ut_ad(mutex_own(&dict_sys->mutex));
-        mutex_exit(&dict_sys->mutex);
+        ut_ad(dict_sys_mutex_own());
+        dict_sys_mutex_exit();
       }
 
       err = dd_table_load_fk(client, new_name, nullptr, table, dd_table, thd,
@@ -4309,7 +4309,7 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
                              &fk_tables);
 
       if (dict_locked) {
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
       }
 
       if (is_rename) {

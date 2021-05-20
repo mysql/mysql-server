@@ -165,7 +165,7 @@ void dict_stats_recalc_pool_del(
     const dict_table_t *table) /*!< in: table to remove */
 {
   ut_ad(!srv_read_only_mode);
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   mutex_enter(&recalc_pool_mutex);
 
@@ -274,27 +274,27 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
   /* We need to enter dict_sys->mutex for setting
   table->stats_bg_flag. This is for blocking other DDL, like drop
   table. */
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   table = dd_table_open_on_id(table_id, thd, &mdl, true, true);
 
   if (table == nullptr) {
     /* table does not exist, must have been DROPped
     after its id was enqueued */
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     return;
   }
 
   /* Check whether table is corrupted */
   if (table->is_corrupted()) {
     dd_table_close(table, thd, &mdl, true);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     return;
   }
 
   /* Set bg flag. */
   table->stats_bg_flag = BG_STAT_IN_PROGRESS;
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* ut_time_monotonic() could be expensive, the current function
   is called once every time a table has been changed more than 10% and
@@ -314,12 +314,12 @@ static void dict_stats_process_entry_from_recalc_pool(THD *thd) {
     dict_stats_update(table, DICT_STATS_RECALC_PERSISTENT);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   /* Set back bg flag */
   table->stats_bg_flag = BG_STAT_NONE;
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* This call can't be moved into dict_sys->mutex protection,
   since it'll cause deadlock while release mdl lock. */

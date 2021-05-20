@@ -1028,7 +1028,7 @@ dberr_t Log_DDL::insert_delete_space_log(trx_t *trx, uint64_t id,
   ut_ad(trx->ddl_operation);
 
   if (dict_locked) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   DDL_Record record;
@@ -1044,7 +1044,7 @@ dberr_t Log_DDL::insert_delete_space_log(trx_t *trx, uint64_t id,
   }
 
   if (dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   if (!has_dd_trx) {
@@ -1122,8 +1122,8 @@ dberr_t Log_DDL::insert_rename_space_log(uint64_t id, ulint thread_id,
   trx_start_internal(trx);
   trx->ddl_operation = true;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
-  mutex_exit(&dict_sys->mutex);
+  ut_ad(dict_sys_mutex_own());
+  dict_sys_mutex_exit();
 
   DDL_Record record;
   record.set_id(id);
@@ -1138,7 +1138,7 @@ dberr_t Log_DDL::insert_rename_space_log(uint64_t id, ulint thread_id,
     error = ddl_log.insert(record);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   trx_commit_for_mysql(trx);
   trx_free_for_background(trx);
@@ -1282,11 +1282,11 @@ dberr_t Log_DDL::write_drop_log(trx_t *trx, const table_id_t table_id) {
 dberr_t Log_DDL::insert_drop_log(trx_t *trx, uint64_t id, ulint thread_id,
                                  const table_id_t table_id) {
   ut_ad(trx->ddl_operation);
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   trx_start_if_not_started(trx, true);
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   dberr_t error;
   DDL_Record record;
@@ -1300,7 +1300,7 @@ dberr_t Log_DDL::insert_drop_log(trx_t *trx, uint64_t id, ulint thread_id,
     error = ddl_log.insert(record);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   if (error == DB_SUCCESS && srv_print_ddl_logs) {
     ib::info(ER_IB_MSG_650) << "DDL log insert : " << record;
@@ -1350,8 +1350,8 @@ dberr_t Log_DDL::insert_rename_table_log(uint64_t id, ulint thread_id,
   trx_start_internal(trx);
   trx->ddl_operation = true;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
-  mutex_exit(&dict_sys->mutex);
+  ut_ad(dict_sys_mutex_own());
+  dict_sys_mutex_exit();
 
   DDL_Record record;
   record.set_id(id);
@@ -1366,7 +1366,7 @@ dberr_t Log_DDL::insert_rename_table_log(uint64_t id, ulint thread_id,
     error = ddl_log.insert(record);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   trx_commit_for_mysql(trx);
   trx_free_for_background(trx);
@@ -1446,7 +1446,7 @@ dberr_t Log_DDL::delete_by_id(trx_t *trx, uint64_t id, bool dict_locked) {
   ut_ad(trx->ddl_operation);
 
   if (dict_locked) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   {
@@ -1460,7 +1460,7 @@ dberr_t Log_DDL::delete_by_id(trx_t *trx, uint64_t id, bool dict_locked) {
   }
 
   if (dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   if (srv_print_ddl_logs && err == DB_SUCCESS) {
@@ -1641,7 +1641,7 @@ void Log_DDL::replay_free_tree_log(space_id_t space_id, page_no_t page_no,
   }
 
   /* This is required by dropping hash index afterwards. */
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   mtr_t mtr;
   mtr_start(&mtr);
@@ -1650,7 +1650,7 @@ void Log_DDL::replay_free_tree_log(space_id_t space_id, page_no_t page_no,
 
   mtr_commit(&mtr);
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   DBUG_INJECT_CRASH("ddl_log_crash_after_replay", crash_after_replay_counter++);
 }
@@ -1686,9 +1686,9 @@ void Log_DDL::replay_delete_space_log(space_id_t space_id,
     /* For general tablespace, MDL on SDI tables is already
     acquired at innobase_drop_tablespace() and for file_per_table
     tablespace, MDL is acquired at row_drop_table_for_mysql() */
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_sdi_remove_from_cache(space_id, nullptr, true);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   /* A master key rotation blocks all DDLs using backup_lock, so it is assured
@@ -1893,11 +1893,11 @@ void Log_DDL::replay_remove_cache_log(table_id_t table_id,
   if (table != nullptr) {
     ut_ad(strcmp(table->name.m_name, table_name) == 0);
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dd_table_close(table, nullptr, nullptr, true);
     btr_drop_ahi_for_table(table);
     dict_table_remove_from_cache(table);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 }
 
