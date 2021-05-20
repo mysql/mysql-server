@@ -1397,8 +1397,8 @@ bool channel_change_source_connection_auto_failover(const char *channel,
 }
 
 bool unset_source_connection_auto_failover_on_all_channels() {
+  channel_map.assert_some_wrlock();
   bool error = false;
-  channel_map.wrlock();
 
   for (mi_map::iterator it = channel_map.begin();
        !error && it != channel_map.end(); it++) {
@@ -1410,13 +1410,14 @@ bool unset_source_connection_auto_failover_on_all_channels() {
     }
   }
 
-  channel_map.unlock();
   return error;
 }
 
 void reload_failover_channels_status() {
   DBUG_TRACE;
+  channel_map.rdlock();
   rpl_acf_configuration_handler->reload_failover_channels_status();
+  channel_map.unlock();
 }
 
 bool get_replication_failover_channels_configuration(
@@ -1430,8 +1431,11 @@ bool set_replication_failover_channels_configuration(
     const std::vector<std::string>
         &exchanged_replication_failover_channels_serialized_configuration) {
   DBUG_TRACE;
-  return rpl_acf_configuration_handler->set_configuration(
+  channel_map.wrlock();
+  bool error = rpl_acf_configuration_handler->set_configuration(
       exchanged_replication_failover_channels_serialized_configuration);
+  channel_map.unlock();
+  return error;
 }
 
 bool force_my_replication_failover_channels_configuration_on_all_members() {

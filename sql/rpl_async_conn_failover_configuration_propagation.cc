@@ -70,6 +70,15 @@ std::string Rpl_acf_status_configuration::get_key_name(
 
 bool Rpl_acf_status_configuration::reset() {
   DBUG_TRACE;
+  /*
+    On operations that touch both channels info objects and this
+    object, the lock order must be:
+      1) channel_map.wrlock()
+      2) Rpl_acf_status_configuration::m_lock
+    thence the caller must acquire channel_map.wrlock() before calling
+    this method.
+  */
+  channel_map.assert_some_wrlock();
   MUTEX_LOCK(guard, &m_lock);
 
   m_version = 0;
@@ -80,12 +89,20 @@ bool Rpl_acf_status_configuration::reset() {
 
 void Rpl_acf_status_configuration::reload() {
   DBUG_TRACE;
+  /*
+    On operations that touch both channels info objects and this
+    object, the lock order must be:
+      1) channel_map.rdlock()
+      2) Rpl_acf_status_configuration::m_lock
+    thence the caller must acquire channel_map.rdlock() before calling
+    this method.
+  */
+  channel_map.assert_some_lock();
   MUTEX_LOCK(guard, &m_lock);
 
   m_version = 0;
   m_status.clear();
 
-  channel_map.wrlock();
   for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
        it++) {
     Master_info *mi = it->second;
@@ -98,7 +115,6 @@ void Rpl_acf_status_configuration::reload() {
       m_status.insert(std::make_pair(key_pair, 1));
     }
   }
-  channel_map.unlock();
 }
 
 void Rpl_acf_status_configuration::delete_channel_status(
@@ -149,6 +165,15 @@ bool Rpl_acf_status_configuration::set(
     const protobuf_replication_asynchronous_connection_failover::
         VariableStatusList &configuration) {
   DBUG_TRACE;
+  /*
+    On operations that touch both channels info objects and this
+    object, the lock order must be:
+      1) channel_map.wrlock()
+      2) Rpl_acf_status_configuration::m_lock
+    thence the caller must acquire channel_map.wrlock() before calling
+    this method.
+  */
+  channel_map.assert_some_wrlock();
   MUTEX_LOCK(guard, &m_lock);
 
   if (configuration.version() > m_version) {
@@ -169,10 +194,8 @@ bool Rpl_acf_status_configuration::set(
       if (!get_key_name(
                Rpl_acf_status_configuration::SOURCE_CONNECTION_AUTO_FAILOVER)
                .compare(status.key())) {
-        channel_map.wrlock();
         bool error = channel_change_source_connection_auto_failover(
             status.channel().c_str(), status.status());
-        channel_map.unlock();
         if (error) {
           return true;
         }
@@ -187,6 +210,15 @@ bool Rpl_acf_status_configuration::set(
     const protobuf_replication_asynchronous_connection_failover::
         SourceAndManagedAndStatusList &configuration) {
   DBUG_TRACE;
+  /*
+    On operations that touch both channels info objects and this
+    object, the lock order must be:
+      1) channel_map.wrlock()
+      2) Rpl_acf_status_configuration::m_lock
+    thence the caller must acquire channel_map.wrlock() before calling
+    this method.
+  */
+  channel_map.assert_some_wrlock();
   MUTEX_LOCK(guard, &m_lock);
 
   if (unset_source_connection_auto_failover_on_all_channels()) {
@@ -206,10 +238,8 @@ bool Rpl_acf_status_configuration::set(
     if (!get_key_name(
              Rpl_acf_status_configuration::SOURCE_CONNECTION_AUTO_FAILOVER)
              .compare(status.key())) {
-      channel_map.wrlock();
       bool error = channel_change_source_connection_auto_failover(
           status.channel().c_str(), status.status());
-      channel_map.unlock();
       if (error) {
         return true;
       }
@@ -437,7 +467,12 @@ bool Rpl_acf_configuration_handler::receive_channel_status(
   }
 
   if (configuration.origin().compare(server_uuid)) {
-    return m_rpl_failover_channels_status.set(configuration);
+    channel_map.wrlock();
+    bool set_status_error = m_rpl_failover_channels_status.set(configuration);
+    channel_map.unlock();
+    if (set_status_error) {
+      return true;
+    }
   }
 
   return false;
@@ -870,7 +905,10 @@ bool Rpl_acf_configuration_handler::receive_failover_and_managed_and_status(
     }
 
     /* status */
-    if (m_rpl_failover_channels_status.set(configuration)) {
+    channel_map.wrlock();
+    bool set_status_error = m_rpl_failover_channels_status.set(configuration);
+    channel_map.unlock();
+    if (set_status_error) {
       return true;
     }
   }
