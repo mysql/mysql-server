@@ -2588,6 +2588,8 @@ files_checked:
       log_buffer_flush_to_disk(*log_sys);
     }
 
+    log_sys->m_allow_checkpoints.store(true, std::memory_order_release);
+
     if (!srv_force_recovery && !recv_sys->found_corrupt_log &&
         (srv_log_file_size_requested != srv_log_file_size ||
          srv_n_log_files_found != srv_n_log_files)) {

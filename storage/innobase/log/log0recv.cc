@@ -3996,7 +3996,11 @@ dberr_t recv_recovery_from_checkpoint_start(log_t &log, lsn_t flush_lsn) {
 
   ut_d(log.first_block_is_correct_for_lsn = recovered_lsn);
 
-  log_start(log, checkpoint_no + 1, checkpoint_lsn, recovered_lsn);
+  /* Disallow checkpoints until recovery is finished, and changes gathered
+  in recv_sys->recovered_metadata (srv_dict_metadata) are transferred to
+  dict_table_t objects (happens in srv0start.cc). */
+
+  log_start(log, checkpoint_no + 1, checkpoint_lsn, recovered_lsn, false);
 
   /* Copy the checkpoint info to the log; remember that we have
   incremented checkpoint_no by one, and the info will not be written

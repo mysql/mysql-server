@@ -1963,6 +1963,14 @@ static lsn_t log_writer_wait_on_checkpoint(log_t &log, lsn_t last_write_lsn,
 
     log_writer_mutex_exit(log);
 
+    if (!log.m_allow_checkpoints.load()) {
+      if (srv_force_recovery < 4) {
+        ib::fatal(ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES);
+      } else {
+        ib::fatal(ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED);
+      }
+    }
+
     /* We don't want to ask for sync checkpoint, because it
     is possible, that the oldest dirty page is latched and
     user thread, which keeps the latch, is waiting for space
