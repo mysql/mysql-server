@@ -1766,9 +1766,11 @@ int Arg_comparator::compare_real() {
 int Arg_comparator::compare_decimal() {
   my_decimal decimal1;
   my_decimal *val1 = (*left)->val_decimal(&decimal1);
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     my_decimal decimal2;
     my_decimal *val2 = (*right)->val_decimal(&decimal2);
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       return my_decimal_cmp(val1, val2);
@@ -1781,8 +1783,10 @@ int Arg_comparator::compare_decimal() {
 int Arg_comparator::compare_real_fixed() {
   double val1, val2;
   val1 = (*left)->val_real();
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     val2 = (*right)->val_real();
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 == val2 || fabs(val1 - val2) < precision) return 0;
@@ -1796,8 +1800,10 @@ int Arg_comparator::compare_real_fixed() {
 
 int Arg_comparator::compare_int_signed() {
   longlong val1 = (*left)->val_int();
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     longlong val2 = (*right)->val_int();
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
@@ -1850,8 +1856,10 @@ int Arg_comparator::compare_time_packed() {
 
 int Arg_comparator::compare_int_unsigned() {
   ulonglong val1 = (*left)->val_int();
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     ulonglong val2 = (*right)->val_int();
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (val1 < val2) return -1;
@@ -1869,8 +1877,10 @@ int Arg_comparator::compare_int_unsigned() {
 
 int Arg_comparator::compare_int_signed_unsigned() {
   longlong sval1 = (*left)->val_int();
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     ulonglong uval2 = static_cast<ulonglong>((*right)->val_int());
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (sval1 < 0 || (ulonglong)sval1 < uval2) return -1;
@@ -1888,8 +1898,10 @@ int Arg_comparator::compare_int_signed_unsigned() {
 
 int Arg_comparator::compare_int_unsigned_signed() {
   ulonglong uval1 = static_cast<ulonglong>((*left)->val_int());
+  if (current_thd->is_error()) return 0;
   if (!(*left)->null_value) {
     longlong sval2 = (*right)->val_int();
+    if (current_thd->is_error()) return 0;
     if (!(*right)->null_value) {
       if (set_null) owner->null_value = false;
       if (sval2 < 0) return 1;
