@@ -671,7 +671,7 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
 
     const bool transactional_table = insert_table->file->has_transactions();
 
-    const bool changed MY_ATTRIBUTE((unused)) =
+    const bool changed [[maybe_unused]] =
         info.stats.copied || info.stats.deleted || info.stats.updated;
 
     if (!has_error ||
@@ -2453,7 +2453,7 @@ bool Query_result_insert::stmt_binlog_is_trans() const {
 
 bool Query_result_insert::send_eof(THD *thd) {
   ulonglong id, row_count;
-  bool changed MY_ATTRIBUTE((unused));
+  bool changed [[maybe_unused]];
   THD::killed_state killed_status = thd->killed;
   DBUG_TRACE;
   DBUG_PRINT("enter",
@@ -2566,7 +2566,7 @@ void Query_result_insert::abort_result_set(THD *thd) {
     and the end of the function.
    */
   if (table != nullptr) {
-    bool changed MY_ATTRIBUTE((unused));
+    bool changed [[maybe_unused]];
     bool transactional_table;
     /*
       Try to end the bulk insert which might have been started before.

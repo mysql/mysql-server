@@ -206,7 +206,7 @@ fail:                           /* purecov: begin inspected */
   @retval          -1                   can not add event to buffer (OOM?)
   @retval          >0                   number of added fields
 */
-int log_sink_buffer(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
+int log_sink_buffer(void *instance [[maybe_unused]], log_line *ll) {
   log_line_buffer *llb = nullptr;  ///< log-line buffer
   ulonglong now = 0;
   int count = 0;

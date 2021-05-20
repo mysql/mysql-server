@@ -840,8 +840,8 @@ uint Handler::max_supported_key_length() const {
   return length;
 }
 
-uint Handler::max_supported_key_part_length(
-    HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
+uint Handler::max_supported_key_part_length(HA_CREATE_INFO *create_info
+                                            [[maybe_unused]]) const {
   DBUG_TRACE;
 
   const uint length = std::numeric_limits<uint>::max();

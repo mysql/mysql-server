@@ -1374,7 +1374,7 @@ class Json_wrapper {
     @param[in] message If given, the JSON document is prefixed with
     this message.
   */
-  void dbug_print(const char *message MY_ATTRIBUTE((unused)) = "") const;
+  void dbug_print(const char *message [[maybe_unused]] = "") const;
 
   /**
     Format the JSON value to an external JSON string in buffer in the format of

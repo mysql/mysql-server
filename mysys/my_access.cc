@@ -192,9 +192,9 @@ static bool does_drive_exists(char drive_letter) {
 
   @return true if the file name is allowed, false otherwise.
 */
-bool is_filename_allowed(const char *name MY_ATTRIBUTE((unused)),
-                         size_t length MY_ATTRIBUTE((unused)),
-                         bool allow_current_dir MY_ATTRIBUTE((unused))) {
+bool is_filename_allowed(const char *name [[maybe_unused]],
+                         size_t length [[maybe_unused]],
+                         bool allow_current_dir [[maybe_unused]]) {
   /*
     For Windows, check if the file name contains : character.
     Start from end of path and search if the file name contains :

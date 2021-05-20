@@ -109,9 +109,9 @@ void destroy_internal_thd(THD *thd) {
   delete thd;
 }
 
-void thd_init(THD *thd, char *stack_start, bool bound MY_ATTRIBUTE((unused)),
-              PSI_thread_key psi_key MY_ATTRIBUTE((unused)),
-              unsigned int psi_seqnum MY_ATTRIBUTE((unused))) {
+void thd_init(THD *thd, char *stack_start, bool bound [[maybe_unused]],
+              PSI_thread_key psi_key [[maybe_unused]],
+              unsigned int psi_seqnum [[maybe_unused]]) {
   DBUG_TRACE;
   // TODO: Purge threads currently terminate too late for them to be added.
   // Note that P_S interprets all threads with thread_id != 0 as

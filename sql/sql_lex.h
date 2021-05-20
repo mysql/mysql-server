@@ -4529,12 +4529,12 @@ struct st_lex_local : public LEX {
     return (*THR_MALLOC)->Alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
+  static void operator delete(void *ptr [[maybe_unused]],
+                              size_t size [[maybe_unused]]) {
     TRASH(ptr, size);
   }
   static void operator delete(
@@ -4596,9 +4596,10 @@ inline bool is_invalid_string(const LEX_CSTRING &string_val,
   with inconsistent hidden flags. Must be called before adding the item to
   fields.
  */
-inline void assert_consistent_hidden_flags(
-    const mem_root_deque<Item *> &fields MY_ATTRIBUTE((unused)),
-    Item *item MY_ATTRIBUTE((unused)), bool hidden MY_ATTRIBUTE((unused))) {
+inline void assert_consistent_hidden_flags(const mem_root_deque<Item *> &fields
+                                           [[maybe_unused]],
+                                           Item *item [[maybe_unused]],
+                                           bool hidden [[maybe_unused]]) {
 #ifndef NDEBUG
   if (std::find(fields.begin(), fields.end(), item) != fields.end()) {
     // The item is already in the list, so we can't add it

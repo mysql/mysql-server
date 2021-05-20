@@ -433,7 +433,7 @@ int dump_ja_hans(MY_UCA *uca, FILE *infile, FILE *outfile) {
     int bytes = my_mb_wc_utf8mb4(&ja_ch_u16, ja_han, ja_han + ja_length);
     if (bytes <= 0) break;
     ja_han += bytes;
-    int page MY_ATTRIBUTE((unused)) = ja_ch_u16 >> 8;
+    int page [[maybe_unused]] = ja_ch_u16 >> 8;
     assert(page >= 0x4E && page <= 0x9F);
     MY_UCA_ITEM *item = &uca->item[ja_ch_u16 - 0x4E00];
     item->num_of_ce = 1;

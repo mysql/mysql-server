@@ -821,8 +821,8 @@ class MDL_request {
 
  public:
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
 
@@ -1755,7 +1755,7 @@ class MDL_lock_is_owned_visitor : public MDL_context_visitor {
     m_exists to true is enough.
   */
 
-  void visit_context(const MDL_context *ctx MY_ATTRIBUTE((unused))) override {
+  void visit_context(const MDL_context *ctx [[maybe_unused]]) override {
     m_exists = true;
   }
 

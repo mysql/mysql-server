@@ -41,12 +41,12 @@ static unsigned long long s_next_row_pos{0};
 
 static unsigned long long get_row_count() { return s_rows.size(); }
 
-static int rnd_init(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
-                    bool scan MY_ATTRIBUTE((unused))) {
+static int rnd_init(PSI_table_handle *handle [[maybe_unused]],
+                    bool scan [[maybe_unused]]) {
   return 0;
 }
 
-static int rnd_next(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+static int rnd_next(PSI_table_handle *handle [[maybe_unused]]) {
   s_current_row_pos = s_next_row_pos;
   if (s_current_row_pos < get_row_count()) {
     s_next_row_pos++;
@@ -56,7 +56,7 @@ static int rnd_next(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
   return PFS_HA_ERR_END_OF_FILE;
 }
 
-static int rnd_pos(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+static int rnd_pos(PSI_table_handle *handle [[maybe_unused]]) {
   if (s_current_row_pos >= get_row_count()) {
     return PFS_HA_ERR_END_OF_FILE;
   }
@@ -64,12 +64,12 @@ static int rnd_pos(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
   return 0;
 }
 
-static void reset_position(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+static void reset_position(PSI_table_handle *handle [[maybe_unused]]) {
   s_current_row_pos = 0;
   s_next_row_pos = 0;
 }
 
-static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
+static int read_column_value(PSI_table_handle *handle [[maybe_unused]],
                              PSI_field *field, unsigned int index) {
   Registry_guard guard;
   my_service<SERVICE_TYPE(pfs_plugin_table)> table_service{
@@ -97,7 +97,7 @@ static int read_column_value(PSI_table_handle *handle MY_ATTRIBUTE((unused)),
   return 0;
 }
 
-static PSI_table_handle *open_table(PSI_pos **pos MY_ATTRIBUTE((unused))) {
+static PSI_table_handle *open_table(PSI_pos **pos [[maybe_unused]]) {
   s_rows.clear();
   s_current_row_pos = 0;
   s_next_row_pos = 0;
@@ -144,7 +144,7 @@ static PSI_table_handle *open_table(PSI_pos **pos MY_ATTRIBUTE((unused))) {
   return dummy;
 }
 
-static void close_table(PSI_table_handle *handle MY_ATTRIBUTE((unused))) {
+static void close_table(PSI_table_handle *handle [[maybe_unused]]) {
   s_rows.clear();
 }
 

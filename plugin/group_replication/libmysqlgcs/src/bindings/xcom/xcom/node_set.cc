@@ -158,7 +158,7 @@ node_set *reset_node_set(node_set *set) {
 /**
    Debug a node set with G_MESSAGE.
  */
-void _g_dbg_node_set(node_set set, const char *name MY_ATTRIBUTE((unused))) {
+void _g_dbg_node_set(node_set set, const char *name [[maybe_unused]]) {
   u_int n = 2 * set.node_set_len + 1;
   char *s = (char *)calloc((size_t)n, (size_t)1);
   u_int i;

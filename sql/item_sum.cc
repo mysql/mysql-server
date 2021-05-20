@@ -838,7 +838,7 @@ void Item_sum::cleanup() {
   forced_const = false;
 }
 
-bool Item_sum::fix_fields(THD *thd, Item **ref MY_ATTRIBUTE((unused))) {
+bool Item_sum::fix_fields(THD *thd, Item **ref [[maybe_unused]]) {
   assert(fixed == 0);
   if (m_window != nullptr) {
     if (m_window_resolved) return false;
@@ -4015,7 +4015,7 @@ int group_concat_key_cmp_with_order(const void *arg, const void *key1,
   Append data from current leaf to item->result.
 */
 
-int dump_leaf_key(void *key_arg, element_count count MY_ATTRIBUTE((unused)),
+int dump_leaf_key(void *key_arg, element_count count [[maybe_unused]],
                   void *item_arg) {
   DBUG_TRACE;
   Item_func_group_concat *item = (Item_func_group_concat *)item_arg;
@@ -5448,9 +5448,9 @@ bool Item_lead_lag::setup_lead_lag() {
   return false;
 }
 
-bool Item_lead_lag::check_wf_semantics1(
-    THD *thd MY_ATTRIBUTE((unused)), Query_block *select MY_ATTRIBUTE((unused)),
-    Window_evaluation_requirements *r) {
+bool Item_lead_lag::check_wf_semantics1(THD *thd [[maybe_unused]],
+                                        Query_block *select [[maybe_unused]],
+                                        Window_evaluation_requirements *r) {
   if (m_null_treatment == NT_IGNORE_NULLS) {
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "IGNORE NULLS");
     return true;

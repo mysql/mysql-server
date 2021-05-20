@@ -85,13 +85,13 @@ class PFS_engine_table {
   int delete_row(TABLE *table, const unsigned char *buf, Field **fields);
 
   /** Initialize table scan. */
-  virtual int rnd_init(bool scan MY_ATTRIBUTE((unused))) { return 0; }
+  virtual int rnd_init(bool scan [[maybe_unused]]) { return 0; }
 
   /** Fetch the next row in this cursor. */
   virtual int rnd_next(void) = 0;
 
-  virtual int index_init(uint idx MY_ATTRIBUTE((unused)),
-                         bool sorted MY_ATTRIBUTE((unused))) {
+  virtual int index_init(uint idx [[maybe_unused]],
+                         bool sorted [[maybe_unused]]) {
     assert(false);
     return HA_ERR_UNSUPPORTED;
   }
@@ -99,9 +99,9 @@ class PFS_engine_table {
   virtual int index_read(KEY *key_infos, uint index, const uchar *key,
                          uint key_len, enum ha_rkey_function find_flag);
 
-  virtual int index_read_last(KEY *key_infos MY_ATTRIBUTE((unused)),
-                              const uchar *key MY_ATTRIBUTE((unused)),
-                              uint key_len MY_ATTRIBUTE((unused))) {
+  virtual int index_read_last(KEY *key_infos [[maybe_unused]],
+                              const uchar *key [[maybe_unused]],
+                              uint key_len [[maybe_unused]]) {
     return HA_ERR_UNSUPPORTED;
   }
 

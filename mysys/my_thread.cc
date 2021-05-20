@@ -199,7 +199,7 @@ static Win32_library_procedure<decltype(SetThreadDescription)>
     set_thread_name_proc("kernel32.dll", "SetThreadDescription");
 #endif
 
-void my_thread_self_setname(const char *name MY_ATTRIBUTE((unused))) {
+void my_thread_self_setname(const char *name [[maybe_unused]]) {
 #ifdef HAVE_PTHREAD_SETNAME_NP_LINUX
   /*
     GNU extension, see pthread_setname_np(3)

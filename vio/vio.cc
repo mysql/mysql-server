@@ -85,16 +85,16 @@ void internal_vio_delete(Vio *vio);
   @retval 1       The requested I/O event has occurred.
 */
 
-static int no_io_wait(Vio *vio MY_ATTRIBUTE((unused)),
-                      enum enum_vio_io_event event MY_ATTRIBUTE((unused)),
-                      int timeout MY_ATTRIBUTE((unused))) {
+static int no_io_wait(Vio *vio [[maybe_unused]],
+                      enum enum_vio_io_event event [[maybe_unused]],
+                      int timeout [[maybe_unused]]) {
   return 1;
 }
 
 #endif
 
 extern "C" {
-static bool has_no_data(Vio *vio MY_ATTRIBUTE((unused))) { return false; }
+static bool has_no_data(Vio *vio [[maybe_unused]]) { return false; }
 }  // extern "C"
 
 Vio::Vio(uint flags) {
@@ -348,7 +348,7 @@ static bool vio_init(Vio *vio, enum enum_vio_type type, my_socket sd,
 */
 
 bool vio_reset(Vio *vio, enum enum_vio_type type, my_socket sd,
-               void *ssl MY_ATTRIBUTE((unused)), uint flags) {
+               void *ssl [[maybe_unused]], uint flags) {
   int ret = false;
   Vio new_vio(flags);
   DBUG_TRACE;

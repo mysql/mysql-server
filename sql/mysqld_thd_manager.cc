@@ -237,8 +237,7 @@ void Global_THD_manager::release_thread_id(my_thread_id thread_id) {
   if (thread_id == reserved_thread_id)
     return;  // Some temporary THDs are never given a proper ID.
   MUTEX_LOCK(lock, &LOCK_thread_ids);
-  const size_t num_erased MY_ATTRIBUTE((unused)) =
-      thread_ids.erase_unique(thread_id);
+  const size_t num_erased [[maybe_unused]] = thread_ids.erase_unique(thread_id);
   // Assert if the ID was not found in the list.
   assert(1 == num_erased);
 }

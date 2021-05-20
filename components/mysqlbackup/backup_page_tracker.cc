@@ -192,8 +192,8 @@ bool Backup_page_tracker::set_page_tracking_init(UDF_INIT *, UDF_ARGS *,
 /**
    Callback method for initialization of UDF "mysqlbackup_page_track_set".
 */
-void Backup_page_tracker::set_page_tracking_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
+void Backup_page_tracker::set_page_tracking_deinit(UDF_INIT *initid
+                                                   [[maybe_unused]]) {}
 
 /**
   UDF for "mysqlbackup_page_track_set"
@@ -245,8 +245,8 @@ bool Backup_page_tracker::page_track_get_start_lsn_init(UDF_INIT *, UDF_ARGS *,
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_start_lsn"
 */
-void Backup_page_tracker::page_track_get_start_lsn_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
+void Backup_page_tracker::page_track_get_start_lsn_deinit(UDF_INIT *initid
+                                                          [[maybe_unused]]) {}
 
 /**
   UDF for "mysqlbackup_page_track_get_start_lsn"
@@ -290,7 +290,7 @@ bool Backup_page_tracker::page_track_get_changed_page_count_init(UDF_INIT *,
    "mysqlbackup_page_track_get_changed_page_count".
 */
 void Backup_page_tracker::page_track_get_changed_page_count_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {}
+    UDF_INIT *initid [[maybe_unused]]) {}
 
 /**
   UDF for "mysqlbackup_page_track_get_changed_page_count"
@@ -340,8 +340,8 @@ bool Backup_page_tracker::page_track_get_changed_pages_init(UDF_INIT *,
    Callback method for initialization of UDF
    "mysqlbackup_page_track_get_changed_pages".
 */
-void Backup_page_tracker::page_track_get_changed_pages_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {
+void Backup_page_tracker::page_track_get_changed_pages_deinit(UDF_INIT *initid [
+    [maybe_unused]]) {
   free(m_changed_pages_buf);
   m_changed_pages_buf = nullptr;
 }
@@ -436,10 +436,10 @@ long long Backup_page_tracker::page_track_get_changed_pages(UDF_INIT *,
    @retval 0 success
    @retval non-zero failure
 */
-int page_track_callback(MYSQL_THD opaque_thd MY_ATTRIBUTE((unused)),
+int page_track_callback(MYSQL_THD opaque_thd [[maybe_unused]],
                         const uchar *buffer,
-                        size_t buffer_length MY_ATTRIBUTE((unused)),
-                        int page_count, void *context MY_ATTRIBUTE((unused))) {
+                        size_t buffer_length [[maybe_unused]], int page_count,
+                        void *context [[maybe_unused]]) {
   // Append to the disk file in binary mode
   FILE *fd = fopen(Backup_page_tracker::m_changed_pages_file, "ab");
   if (!fd) {

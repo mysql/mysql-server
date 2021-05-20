@@ -58,7 +58,7 @@ class Debug_options : public Abstract_options_provider {
   void options_parsed() override;
 
  private:
-  void debug_option_callback(char *argument MY_ATTRIBUTE((unused)));
+  void debug_option_callback(char *argument [[maybe_unused]]);
 
   Abstract_program *m_program;
   bool m_debug_info_flag{false};

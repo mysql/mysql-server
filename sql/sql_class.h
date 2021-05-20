@@ -3859,8 +3859,8 @@ class THD : public MDL_context_owner,
     Set query to be displayed in performance schema (threads table etc.). Also
     mark the query safe to display for information_schema.process_list.
   */
-  void set_query_for_display(const char *query_arg MY_ATTRIBUTE((unused)),
-                             size_t query_length_arg MY_ATTRIBUTE((unused))) {
+  void set_query_for_display(const char *query_arg [[maybe_unused]],
+                             size_t query_length_arg [[maybe_unused]]) {
     // Set in pfs events statements table
     MYSQL_SET_STATEMENT_TEXT(m_statement_psi, query_arg,
                              static_cast<uint>(query_length_arg));

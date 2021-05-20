@@ -788,8 +788,9 @@ bool Gtid_state::update_gtids_impl_begin(THD *thd) {
   return thd->is_commit_in_middle_of_statement;
 }
 
-void Gtid_state ::update_gtids_impl_own_gtid_set(
-    THD *thd MY_ATTRIBUTE((unused)), bool is_commit MY_ATTRIBUTE((unused))) {
+void Gtid_state ::update_gtids_impl_own_gtid_set(THD *thd [[maybe_unused]],
+                                                 bool is_commit
+                                                 [[maybe_unused]]) {
 #ifdef HAVE_GTID_NEXT_LIST
   rpl_sidno prev_sidno = 0;
   Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
@@ -933,8 +934,7 @@ void Gtid_state::update_gtids_impl_own_anonymous(THD *thd, bool *more_trx) {
   }
 }
 
-void Gtid_state::update_gtids_impl_own_nothing(
-    THD *thd MY_ATTRIBUTE((unused))) {
+void Gtid_state::update_gtids_impl_own_nothing(THD *thd [[maybe_unused]]) {
   assert(thd->commit_error != THD::CE_COMMIT_ERROR ||
          thd->has_gtid_consistency_violation);
   assert(thd->variables.gtid_next.type == AUTOMATIC_GTID);

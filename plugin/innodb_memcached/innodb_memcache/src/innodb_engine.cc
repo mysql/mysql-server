@@ -74,7 +74,7 @@ static bool bk_thd_exited = true;
 /** The SDI buffer length for storing list of SDI keys. Example output
 looks like "1:2|2:2|3:4|..". So SDI list of key retrieval has this limit of
 characters from memcached plugin. This is sufficent for testing. */
-const uint32_t SDI_LIST_BUF_MAX_LEN MY_ATTRIBUTE((unused)) = 10000;
+const uint32_t SDI_LIST_BUF_MAX_LEN [[maybe_unused]] = 10000;
 
 /** Tells whether all connections need to release MDL locks */
 bool release_mdl_lock = false;
@@ -303,7 +303,7 @@ static void innodb_commit_and_release_crsr_trx(innodb_conn_data_t *conn_data) {
   assert(!conn_data->mysql_tbl);
   innodb_close_cursors(conn_data);
   innodb_cb_trx_commit(conn_data->crsr_trx);
-  auto err MY_ATTRIBUTE((unused)) = ib_cb_trx_release(conn_data->crsr_trx);
+  auto err [[maybe_unused]] = ib_cb_trx_release(conn_data->crsr_trx);
   assert(err == DB_SUCCESS);
   conn_data->crsr_trx = nullptr;
 }
@@ -532,7 +532,7 @@ static void innodb_conn_clean_data(
   innodb_close_cursors(conn_data);
 
   if (conn_data->crsr_trx) {
-    ib_err_t err MY_ATTRIBUTE((unused));
+    ib_err_t err [[maybe_unused]];
     innodb_cb_trx_commit(conn_data->crsr_trx);
     err = ib_cb_trx_release(conn_data->crsr_trx);
     assert(err == DB_SUCCESS);
@@ -1933,7 +1933,7 @@ search_done:
   if (result->extra_col_value) {
     int i;
     char *c_value;
-    char *value_end MY_ATTRIBUTE((unused));
+    char *value_end [[maybe_unused]];
     unsigned int total_len = 0;
     char int_buf[MAX_INT_CHAR_LEN];
     GET_OPTION(meta_info, OPTION_ID_COL_SEP, option_delimiter, option_length);

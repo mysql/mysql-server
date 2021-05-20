@@ -1469,7 +1469,7 @@ void Foreign_key_parents_invalidator::invalidate(THD *thd) {
     */
     Dummy_error_handler error_handler;
     thd->push_internal_handler(&error_handler);
-    bool ignored MY_ATTRIBUTE((unused));
+    bool ignored [[maybe_unused]];
     ignored = thd->dd_client()->invalidate(parent_it.first.first.c_str(),
                                            parent_it.first.second.c_str());
     DBUG_EXECUTE_IF("fail_while_invalidating_fk_parents",
@@ -2485,8 +2485,7 @@ static bool rm_table_check_fks(THD *thd, Drop_tables_ctx *drop_ctx) {
 */
 static bool adjust_fk_children_for_parent_drop(
     THD *thd, const char *parent_table_db, const char *parent_table_name,
-    const dd::Table *parent_table_def,
-    handlerton *hton MY_ATTRIBUTE((unused))) {
+    const dd::Table *parent_table_def, handlerton *hton [[maybe_unused]]) {
   for (const dd::Foreign_key_parent *parent_fk :
        parent_table_def->foreign_key_parents()) {
     if (my_strcasecmp(table_alias_charset,
@@ -10745,7 +10744,7 @@ bool mysql_create_like_table(THD *thd, TABLE_LIST *table, TABLE_LIST *src_table,
           */
           create_info->used_fields |= HA_CREATE_USED_ENGINE;
 
-          bool result MY_ATTRIBUTE((unused)) = store_create_info(
+          bool result [[maybe_unused]] = store_create_info(
               thd, table, &query, create_info, true /* show_database */);
 
           assert(result == 0);  // store_create_info() always return 0
@@ -17870,8 +17869,8 @@ bool mysql_trans_commit_alter_copy_data(THD *thd) {
 }
 
 static int copy_data_between_tables(
-    THD *thd, PSI_stage_progress *psi MY_ATTRIBUTE((unused)), TABLE *from,
-    TABLE *to, List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
+    THD *thd, PSI_stage_progress *psi [[maybe_unused]], TABLE *from, TABLE *to,
+    List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
     Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
   DBUG_TRACE;
 

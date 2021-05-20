@@ -1889,7 +1889,7 @@ static bool find_mpvio_user(THD *thd, MPVIO_EXT *mpvio) {
 
 static bool read_client_connect_attrs(THD *thd, char **ptr,
                                       size_t *max_bytes_available,
-                                      MPVIO_EXT *mpvio MY_ATTRIBUTE((unused))) {
+                                      MPVIO_EXT *mpvio [[maybe_unused]]) {
   size_t length, length_length;
   char *ptr_save;
 
@@ -3818,9 +3818,9 @@ static int validate_sha256_password_hash(char *const inbuf,
   return 1;
 }
 
-static int set_sha256_salt(const char *password MY_ATTRIBUTE((unused)),
-                           unsigned int password_len MY_ATTRIBUTE((unused)),
-                           unsigned char *salt MY_ATTRIBUTE((unused)),
+static int set_sha256_salt(const char *password [[maybe_unused]],
+                           unsigned int password_len [[maybe_unused]],
+                           unsigned char *salt [[maybe_unused]],
                            unsigned char *salt_len) {
   *salt_len = 0;
   return 0;
@@ -4045,7 +4045,7 @@ static int my_vio_is_encrypted(MYSQL_PLUGIN_VIO *vio) {
   The unused parameters must be here due to function pointer casting
   in sql_show.cc.
 */
-int show_rsa_public_key(THD *, SHOW_VAR *var MY_ATTRIBUTE((unused)), char *) {
+int show_rsa_public_key(THD *, SHOW_VAR *var [[maybe_unused]], char *) {
   var->type = SHOW_CHAR;
   var->value = const_cast<char *>(g_sha256_rsa_keys->get_public_key_as_pem());
   return 0;

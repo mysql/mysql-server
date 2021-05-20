@@ -110,9 +110,8 @@ class ha_example : public handler {
     If all_parts is set, MySQL wants to know the flags for the combined
     index, up to and including 'part'.
   */
-  ulong index_flags(uint inx MY_ATTRIBUTE((unused)),
-                    uint part MY_ATTRIBUTE((unused)),
-                    bool all_parts MY_ATTRIBUTE((unused))) const override {
+  ulong index_flags(uint inx [[maybe_unused]], uint part [[maybe_unused]],
+                    bool all_parts [[maybe_unused]]) const override {
     return 0;
   }
 

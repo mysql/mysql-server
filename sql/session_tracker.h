@@ -105,7 +105,7 @@ class State_tracker {
   /** Mark the entity as changed. */
   virtual void mark_as_changed(THD *thd, LEX_CSTRING *name) = 0;
 
-  virtual void claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {}
+  virtual void claim_memory_ownership(bool claim [[maybe_unused]]) {}
 };
 
 /**

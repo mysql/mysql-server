@@ -708,7 +708,7 @@ Ndb_index_stat::Ndb_index_stat() {
   Argument "from" is 0=stats thread 1=client.
 */
 static void ndb_index_stat_error(Ndb_index_stat *st, int from,
-                                 const char *place MY_ATTRIBUTE((unused))) {
+                                 const char *place [[maybe_unused]]) {
   time_t now = ndb_index_stat_time();
   NdbIndexStat::Error error = st->is->getNdbError();
   if (error.code == 0) {

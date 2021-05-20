@@ -532,8 +532,8 @@ void get_granted_roles(Role_vertex_descriptor &v,
     @retval false User was removed
 */
 
-bool revoke_role_helper(THD *thd MY_ATTRIBUTE((unused)),
-                        std::string &authid_role, std::string &authid_user,
+bool revoke_role_helper(THD *thd [[maybe_unused]], std::string &authid_role,
+                        std::string &authid_user,
                         Role_vertex_descriptor *user_vert,
                         Role_vertex_descriptor *role_vert) {
   DBUG_TRACE;
@@ -600,7 +600,7 @@ void revoke_role(THD *thd, ACL_USER *role, ACL_USER *user) {
     has changed. As a consequence we now need to rebuild the authid_to_vertex
     index.
 */
-void rebuild_vertex_index(THD *thd MY_ATTRIBUTE((unused))) {
+void rebuild_vertex_index(THD *thd [[maybe_unused]]) {
   assert(assert_acl_cache_write_lock(thd));
   for (auto &acl_user : *acl_users) {
     create_role_vertex(&acl_user);
@@ -1117,8 +1117,8 @@ void make_database_privilege_statement(THD *thd, ACL_USER *role,
 
 */
 
-void make_proxy_privilege_statement(THD *thd MY_ATTRIBUTE((unused)),
-                                    ACL_USER *user, Protocol *protocol) {
+void make_proxy_privilege_statement(THD *thd [[maybe_unused]], ACL_USER *user,
+                                    Protocol *protocol) {
   assert(assert_acl_cache_read_lock(thd));
   for (ACL_PROXY_USER *proxy = acl_proxy_users->begin();
        proxy != acl_proxy_users->end(); ++proxy) {
@@ -5502,7 +5502,7 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
 }
 
 bool acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
-                                  bool with_grant MY_ATTRIBUTE((unused))) {
+                                  bool with_grant [[maybe_unused]]) {
   DBUG_TRACE;
   DBUG_PRINT("info",
              ("user=%s host=%s with_grant=%d", user, host, (int)with_grant));
@@ -7292,8 +7292,7 @@ Default_local_authid::Default_local_authid(const THD *thd) : m_thd(thd) {}
   @retval true an error occurred
   @retval false success
 */
-bool Default_local_authid::precheck(
-    Security_context *sctx MY_ATTRIBUTE((unused))) {
+bool Default_local_authid::precheck(Security_context *sctx [[maybe_unused]]) {
   return false;
 }
 
@@ -7304,8 +7303,7 @@ bool Default_local_authid::precheck(
   @retval true an error occurred
   @retval false success
 */
-bool Default_local_authid::create(
-    Security_context *sctx MY_ATTRIBUTE((unused))) {
+bool Default_local_authid::create(Security_context *sctx [[maybe_unused]]) {
   return false;
 }
 
@@ -7313,8 +7311,8 @@ Grant_temporary_dynamic_privileges::Grant_temporary_dynamic_privileges(
     const THD *thd, std::vector<std::string> privs)
     : m_thd(thd), m_privs(std::move(privs)) {}
 
-bool Grant_temporary_dynamic_privileges::precheck(
-    Security_context *sctx MY_ATTRIBUTE((unused))) {
+bool Grant_temporary_dynamic_privileges::precheck(Security_context *sctx
+                                                  [[maybe_unused]]) {
   return false;
 }
 
@@ -7340,8 +7338,8 @@ Grant_temporary_static_privileges::Grant_temporary_static_privileges(
     const THD *thd, ulong privs)
     : m_thd(thd), m_privs(privs) {}
 
-bool Grant_temporary_static_privileges::precheck(
-    Security_context *sctx MY_ATTRIBUTE((unused))) {
+bool Grant_temporary_static_privileges::precheck(Security_context *sctx
+                                                 [[maybe_unused]]) {
   return false;
 }
 

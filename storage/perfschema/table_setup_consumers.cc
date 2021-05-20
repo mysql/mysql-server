@@ -187,7 +187,7 @@ int table_setup_consumers::rnd_pos(const void *pos) {
   return 0;
 }
 
-int table_setup_consumers::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_setup_consumers::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_setup_consumers *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_setup_consumers);

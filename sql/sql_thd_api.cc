@@ -153,7 +153,7 @@ void thd_set_killed(THD *thd) {
   @param thd              THD object
 */
 
-void thd_clear_errors(THD *thd MY_ATTRIBUTE((unused))) { set_my_errno(0); }
+void thd_clear_errors(THD *thd [[maybe_unused]]) { set_my_errno(0); }
 
 /**
   Close the socket used by this connection

@@ -32,11 +32,9 @@ IO_CACHE_istream::~IO_CACHE_istream() { close(); }
 
 bool IO_CACHE_istream::open(
 #ifdef HAVE_PSI_INTERFACE
-    PSI_file_key log_file_key MY_ATTRIBUTE((unused)),
-    PSI_file_key log_cache_key,
+    PSI_file_key log_file_key [[maybe_unused]], PSI_file_key log_cache_key,
 #endif
-    const char *file_name, myf flags MY_ATTRIBUTE((unused)),
-    size_t cache_size) {
+    const char *file_name, myf flags [[maybe_unused]], size_t cache_size) {
   File file = -1;
 
   file = mysql_file_open(log_file_key, file_name, O_RDONLY, MYF(MY_WME));

@@ -298,7 +298,7 @@ spinning.
 @param[in]	line		line where requested
 @return true if success */
 static inline bool rw_lock_s_lock_low(rw_lock_t *lock,
-                                      ulint pass MY_ATTRIBUTE((unused)),
+                                      ulint pass [[maybe_unused]],
                                       const char *file_name, ulint line);
 
 /** NOTE! Use the corresponding macro, not directly this function, except if

@@ -3512,7 +3512,7 @@ bool Protocol_text::store_decimal(const my_decimal *d, uint prec, uint dec) {
   if (pos == nullptr) return true;
 
   int string_length = DECIMAL_MAX_STR_LENGTH + 1;
-  int error MY_ATTRIBUTE((unused)) =
+  int error [[maybe_unused]] =
       decimal2string(d, pos + 1, &string_length, prec, dec);
 
   // decimal2string() can only fail with E_DEC_TRUNCATED or E_DEC_OVERFLOW.

@@ -2133,8 +2133,9 @@ type_conversion_status Item_func_now::save_in_field_inner(Field *to, bool) {
     Converts current time in my_time_t to MYSQL_TIME represenatation for local
     time zone. Defines time zone (local) used for whole SYSDATE function.
 */
-bool Item_func_sysdate_local::get_date(
-    MYSQL_TIME *now_time, my_time_flags_t fuzzy_date MY_ATTRIBUTE((unused))) {
+bool Item_func_sysdate_local::get_date(MYSQL_TIME *now_time,
+                                       my_time_flags_t fuzzy_date
+                                       [[maybe_unused]]) {
   THD *thd = current_thd;
   ulonglong tmp = my_micro_time();
   thd->time_zone()->gmt_sec_to_TIME(now_time, (my_time_t)(tmp / 1000000));
@@ -2334,8 +2335,9 @@ bool Item_func_from_unixtime::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_from_unixtime::get_date(
-    MYSQL_TIME *ltime, my_time_flags_t fuzzy_date MY_ATTRIBUTE((unused))) {
+bool Item_func_from_unixtime::get_date(MYSQL_TIME *ltime,
+                                       my_time_flags_t fuzzy_date
+                                       [[maybe_unused]]) {
   THD *thd = current_thd;
   lldiv_t lld;
   if (decimals) {
@@ -2384,8 +2386,9 @@ bool Item_func_convert_tz::resolve_type(THD *thd) {
   return false;
 }
 
-bool Item_func_convert_tz::get_date(
-    MYSQL_TIME *ltime, my_time_flags_t fuzzy_date MY_ATTRIBUTE((unused))) {
+bool Item_func_convert_tz::get_date(MYSQL_TIME *ltime,
+                                    my_time_flags_t fuzzy_date
+                                    [[maybe_unused]]) {
   my_time_t my_time_tmp;
   String str;
   THD *thd = current_thd;

@@ -144,8 +144,8 @@ Partition_share::~Partition_share() {
     @retval false Success.
 */
 
-bool Partition_share::init_auto_inc_mutex(
-    TABLE_SHARE *table_share MY_ATTRIBUTE((unused))) {
+bool Partition_share::init_auto_inc_mutex(TABLE_SHARE *table_share
+                                          [[maybe_unused]]) {
   DBUG_TRACE;
   assert(!auto_inc_mutex);
 #ifndef NDEBUG
@@ -171,7 +171,7 @@ bool Partition_share::init_auto_inc_mutex(
   @param max_reserved    End of reserved auto inc range.
 */
 void Partition_share::release_auto_inc_if_possible(
-    THD *thd, TABLE_SHARE *table_share MY_ATTRIBUTE((unused)),
+    THD *thd, TABLE_SHARE *table_share [[maybe_unused]],
     const ulonglong next_insert_id, const ulonglong max_reserved) {
   assert(auto_inc_mutex);
 
@@ -2105,7 +2105,7 @@ int Partition_helper::ph_index_next(uchar *buf) {
 */
 
 int Partition_helper::ph_index_next_same(uchar *buf,
-                                         uint keylen MY_ATTRIBUTE((unused))) {
+                                         uint keylen [[maybe_unused]]) {
   DBUG_TRACE;
 
   assert(keylen == m_start_key.length);

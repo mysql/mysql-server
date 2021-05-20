@@ -1113,7 +1113,7 @@ static bool fill_columns_from_dd(THD *thd, TABLE_SHARE *share,
   share->gen_def_field_count = 0;
 
   // Iterate through all the columns.
-  uchar *null_flags MY_ATTRIBUTE((unused));
+  uchar *null_flags [[maybe_unused]];
   uchar *null_pos, *rec_pos;
   null_flags = null_pos = share->default_values;
   rec_pos = share->default_values + share->null_bytes;

@@ -1709,8 +1709,9 @@ static bool opt_flush_ok_packet(MYSQL *mysql, bool *is_ok_packet) {
   return false;
 }
 
-static net_async_status cli_flush_use_result_nonblocking(
-    MYSQL *mysql, bool flush_all_results MY_ATTRIBUTE((unused))) {
+static net_async_status cli_flush_use_result_nonblocking(MYSQL *mysql,
+                                                         bool flush_all_results
+                                                         [[maybe_unused]]) {
   DBUG_TRACE;
   /*
     flush_all_results is only used for mysql_stmt_close, and async is not
@@ -3212,7 +3213,7 @@ MYSQL *STDCALL mysql_init(MYSQL *mysql) {
   of MYSQL_EXTENSION structure).
 */
 
-MYSQL_EXTENSION *mysql_extension_init(MYSQL *mysql MY_ATTRIBUTE((unused))) {
+MYSQL_EXTENSION *mysql_extension_init(MYSQL *mysql [[maybe_unused]]) {
   MYSQL_EXTENSION *ext;
   DBUG_TRACE;
 
@@ -3279,12 +3280,12 @@ void mysql_extension_free(MYSQL_EXTENSION *ext) {
   NB! Errors are not reported until you do mysql_real_connect.
 */
 
-bool STDCALL mysql_ssl_set(MYSQL *mysql MY_ATTRIBUTE((unused)),
-                           const char *key MY_ATTRIBUTE((unused)),
-                           const char *cert MY_ATTRIBUTE((unused)),
-                           const char *ca MY_ATTRIBUTE((unused)),
-                           const char *capath MY_ATTRIBUTE((unused)),
-                           const char *cipher MY_ATTRIBUTE((unused))) {
+bool STDCALL mysql_ssl_set(MYSQL *mysql [[maybe_unused]],
+                           const char *key [[maybe_unused]],
+                           const char *cert [[maybe_unused]],
+                           const char *ca [[maybe_unused]],
+                           const char *capath [[maybe_unused]],
+                           const char *cipher [[maybe_unused]]) {
   bool result = false;
   DBUG_TRACE;
   result = mysql_options(mysql, MYSQL_OPT_SSL_KEY, key) +
@@ -3345,7 +3346,7 @@ static void mysql_ssl_free(MYSQL *mysql) {
 
 */
 
-const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql MY_ATTRIBUTE((unused))) {
+const char *STDCALL mysql_get_ssl_cipher(MYSQL *mysql [[maybe_unused]]) {
   DBUG_TRACE;
   if (mysql->net.vio && mysql->net.vio->ssl_arg)
     return SSL_get_cipher_name((SSL *)mysql->net.vio->ssl_arg);
@@ -4065,7 +4066,7 @@ error:
   send_client_reply_packet()
 */
 static char *mysql_fill_packet_header(MYSQL *mysql, char *buff,
-                                      size_t buff_size MY_ATTRIBUTE((unused))) {
+                                      size_t buff_size [[maybe_unused]]) {
   NET *net = &mysql->net;
   char *end;
   uchar *buff_p = (uchar *)buff;
@@ -7041,8 +7042,8 @@ static void mysql_prune_stmt_list(MYSQL *mysql) {
     should also be reflected there.
 */
 
-void mysql_detach_stmt_list(LIST **stmt_list MY_ATTRIBUTE((unused)),
-                            const char *func_name MY_ATTRIBUTE((unused))) {
+void mysql_detach_stmt_list(LIST **stmt_list [[maybe_unused]],
+                            const char *func_name [[maybe_unused]]) {
 #ifndef MYSQL_SERVER
   /* Reset connection handle in all prepared statements. */
   LIST *element = *stmt_list;

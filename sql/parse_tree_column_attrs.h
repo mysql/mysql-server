@@ -97,13 +97,14 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
   virtual void apply_gen_default_value(Value_generator **) {}
   virtual void apply_on_update_value(Item **) const {}
   virtual void apply_srid_modifier(Nullable<gis::srid_t> *) const {}
-  virtual bool apply_collation(
-      Column_parse_context *, const CHARSET_INFO **to MY_ATTRIBUTE((unused)),
-      bool *has_explicit_collation MY_ATTRIBUTE((unused))) const {
+  virtual bool apply_collation(Column_parse_context *,
+                               const CHARSET_INFO **to [[maybe_unused]],
+                               bool *has_explicit_collation
+                               [[maybe_unused]]) const {
     return false;
   }
   virtual bool add_check_constraints(
-      Sql_check_constraint_spec_list *check_const_list MY_ATTRIBUTE((unused))) {
+      Sql_check_constraint_spec_list *check_const_list [[maybe_unused]]) {
     return false;
   }
 
@@ -133,8 +134,7 @@ class PT_column_attr_base : public Parse_tree_node_tmpl<Column_parse_context> {
     @returns false if success, true if error (e.g. if [NOT] ENFORCED follows
              something other than the CHECK clause.)
   */
-  virtual bool set_constraint_enforcement(
-      bool enforced MY_ATTRIBUTE((unused))) {
+  virtual bool set_constraint_enforcement(bool enforced [[maybe_unused]]) {
     return true;  // error
   }
 };

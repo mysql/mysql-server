@@ -233,7 +233,7 @@ int table_uvar_by_thread::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_uvar_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_uvar_by_thread::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_uvar_by_thread *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_uvar_by_thread);

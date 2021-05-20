@@ -437,9 +437,9 @@ static int parse_vtokens(char *input, enum command type) {
   @param event_class  audit API event class
   @param event        pointer to the audit API event data
 */
-static int version_token_check(
-    MYSQL_THD thd, mysql_event_class_t event_class MY_ATTRIBUTE((unused)),
-    const void *event) {
+static int version_token_check(MYSQL_THD thd,
+                               mysql_event_class_t event_class [[maybe_unused]],
+                               const void *event) {
   char *sess_var;
 
   const struct mysql_event_general *event_general =
@@ -537,7 +537,7 @@ static struct st_mysql_audit version_token_descriptor = {
 };
 
 /** Plugin init. */
-static int version_tokens_init(void *arg MY_ATTRIBUTE((unused))) {
+static int version_tokens_init(void *arg [[maybe_unused]]) {
 #ifdef HAVE_PSI_INTERFACE
   // Initialize psi keys.
   vtoken_init_psi_keys();
@@ -568,7 +568,7 @@ static int version_tokens_init(void *arg MY_ATTRIBUTE((unused))) {
 }
 
 /** Plugin deinit. */
-static int version_tokens_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int version_tokens_deinit(void *arg [[maybe_unused]]) {
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   {
     my_service<SERVICE_TYPE(dynamic_privilege_register)> service(

@@ -97,7 +97,7 @@ int table_log_status::rnd_next(void) {
   return res;
 }
 
-int table_log_status::rnd_pos(const void *pos MY_ATTRIBUTE((unused))) {
+int table_log_status::rnd_pos(const void *pos [[maybe_unused]]) {
   int res = HA_ERR_RECORD_DELETED;
 
   set_position(pos);
@@ -310,10 +310,10 @@ end:
   return error ? HA_ERR_RECORD_DELETED : 0;
 }
 
-int table_log_status::read_row_values(TABLE *table MY_ATTRIBUTE((unused)),
-                                      unsigned char *buf MY_ATTRIBUTE((unused)),
-                                      Field **fields MY_ATTRIBUTE((unused)),
-                                      bool read_all MY_ATTRIBUTE((unused))) {
+int table_log_status::read_row_values(TABLE *table [[maybe_unused]],
+                                      unsigned char *buf [[maybe_unused]],
+                                      Field **fields [[maybe_unused]],
+                                      bool read_all [[maybe_unused]]) {
   Field *f;
 
   assert(table->s->null_bytes == 0);

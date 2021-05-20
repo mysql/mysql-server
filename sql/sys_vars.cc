@@ -153,7 +153,7 @@ TYPELIB bool_typelib = {array_elements(bool_values) - 1, "", bool_values,
                         nullptr};
 
 static bool update_buffer_size(THD *, KEY_CACHE *key_cache,
-                               ptrdiff_t offset MY_ATTRIBUTE((unused)),
+                               ptrdiff_t offset [[maybe_unused]],
                                ulonglong new_value) {
   bool error = false;
   assert(offset == offsetof(KEY_CACHE, param_buff_size));
@@ -234,8 +234,10 @@ static bool update_keycache_param(THD *, KEY_CACHE *key_cache, ptrdiff_t offset,
   @param thd the session context
   @param setv the SET operations metadata
  */
-static bool check_session_admin_or_replication_applier(
-    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *setv) {
+static bool check_session_admin_or_replication_applier(sys_var *self
+                                                       [[maybe_unused]],
+                                                       THD *thd,
+                                                       set_var *setv) {
   assert(self->scope() != sys_var::GLOBAL);
   Security_context *sctx = thd->security_context();
   if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
@@ -271,7 +273,7 @@ static bool check_session_admin_or_replication_applier(
   @param thd the session context
   @param setv the SET operations metadata
  */
-static bool check_session_admin(sys_var *self MY_ATTRIBUTE((unused)), THD *thd,
+static bool check_session_admin(sys_var *self [[maybe_unused]], THD *thd,
                                 set_var *setv) {
   assert(self->scope() !=
          sys_var::GLOBAL);  // don't abuse check_session_admin()
@@ -1322,8 +1324,8 @@ static Sys_var_enum rbr_exec_mode(
     DEFAULT(RBR_EXEC_MODE_STRICT), NO_MUTEX_GUARD, NOT_IN_BINLOG,
     ON_CHECK(prevent_global_rbr_exec_mode_idempotent), ON_UPDATE(nullptr));
 
-static bool check_binlog_row_image(sys_var *self MY_ATTRIBUTE((unused)),
-                                   THD *thd, set_var *var) {
+static bool check_binlog_row_image(sys_var *self [[maybe_unused]], THD *thd,
+                                   set_var *var) {
   DBUG_TRACE;
   if (check_session_admin(self, thd, var)) return true;
   if (var->save_result.ulonglong_value == BINLOG_ROW_IMAGE_FULL) {
@@ -1367,7 +1369,7 @@ static Sys_var_enum Sys_binlog_row_metadata(
     binlog_row_metadata_names, DEFAULT(BINLOG_ROW_METADATA_MINIMAL),
     NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr));
 
-static bool check_binlog_trx_compression(sys_var *self MY_ATTRIBUTE((unused)),
+static bool check_binlog_trx_compression(sys_var *self [[maybe_unused]],
                                          THD *thd, set_var *var) {
   DBUG_TRACE;
   if (check_session_admin(self, thd, var)) return true;
@@ -2459,9 +2461,8 @@ static bool check_log_error_services(sys_var *self, THD *thd, set_var *var) {
   return false;
 }
 
-static bool fix_log_error_services(sys_var *self MY_ATTRIBUTE((unused)),
-                                   THD *thd,
-                                   enum_var_type type MY_ATTRIBUTE((unused))) {
+static bool fix_log_error_services(sys_var *self [[maybe_unused]], THD *thd,
+                                   enum_var_type type [[maybe_unused]]) {
   bool ret = false;
   // syntax is OK and services exist; try to initialize them!
   size_t pos;
@@ -2527,9 +2528,10 @@ static bool check_log_error_suppression_list(sys_var *self, THD *thd,
   return false;
 }
 
-static bool fix_log_error_suppression_list(
-    sys_var *self MY_ATTRIBUTE((unused)), THD *thd MY_ATTRIBUTE((unused)),
-    enum_var_type type MY_ATTRIBUTE((unused))) {
+static bool fix_log_error_suppression_list(sys_var *self [[maybe_unused]],
+                                           THD *thd [[maybe_unused]],
+                                           enum_var_type type
+                                           [[maybe_unused]]) {
   // syntax is OK and errcodes have messages; try to make filter rules for
   // them!
   int rr = log_builtins_filter_parse_suppression_list(
@@ -3178,7 +3180,7 @@ export void update_parser_max_mem_size() {
   global_system_variables.parser_max_mem_size = new_val;
 }
 
-static bool check_optimizer_switch(sys_var *, THD *thd MY_ATTRIBUTE((unused)),
+static bool check_optimizer_switch(sys_var *, THD *thd [[maybe_unused]],
                                    set_var *var) {
   const bool current_hypergraph_optimizer =
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
@@ -3377,8 +3379,8 @@ static bool check_read_only(sys_var *, THD *thd, set_var *) {
   return false;
 }
 
-static bool check_require_secure_transport(
-    sys_var *, THD *, set_var *var MY_ATTRIBUTE((unused))) {
+static bool check_require_secure_transport(sys_var *, THD *,
+                                           set_var *var [[maybe_unused]]) {
 #if !defined(_WIN32)
   /*
     always allow require_secure_transport to be enabled on
@@ -4116,7 +4118,7 @@ bool Sys_var_gtid_set::session_update(THD *thd, set_var *var) {
 
 */
 static void issue_deprecation_warnings_gtid_mode(
-    THD *thd, Gtid_mode::value_type oldmode MY_ATTRIBUTE((unused)),
+    THD *thd, Gtid_mode::value_type oldmode [[maybe_unused]],
     Gtid_mode::value_type newmode) {
   channel_map.assert_some_lock();
 
@@ -5181,8 +5183,8 @@ static Sys_var_bit Sys_log_off("sql_log_off", "sql_log_off",
 
   @return @c false.
 */
-static bool fix_sql_log_bin_after_update(
-    sys_var *, THD *thd, enum_var_type type MY_ATTRIBUTE((unused))) {
+static bool fix_sql_log_bin_after_update(sys_var *, THD *thd,
+                                         enum_var_type type [[maybe_unused]]) {
   assert(type == OPT_SESSION);
 
   if (thd->variables.sql_log_bin)
@@ -5618,7 +5620,7 @@ static Sys_var_charptr Sys_general_log_path(
     DEFAULT(nullptr), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_log_path),
     ON_UPDATE(fix_general_log_file));
 
-static bool fix_slow_log_file(sys_var *, THD *thd MY_ATTRIBUTE((unused)),
+static bool fix_slow_log_file(sys_var *, THD *thd [[maybe_unused]],
                               enum_var_type) {
   bool res;
 
@@ -5675,7 +5677,7 @@ static Sys_var_have Sys_have_geometry(
     "have_geometry", "have_geometry",
     READ_ONLY NON_PERSIST GLOBAL_VAR(have_geometry), NO_CMD_LINE);
 
-static SHOW_COMP_OPTION have_ssl_func(THD *thd MY_ATTRIBUTE((unused))) {
+static SHOW_COMP_OPTION have_ssl_func(THD *thd [[maybe_unused]]) {
   return have_ssl() ? SHOW_OPTION_YES : SHOW_OPTION_DISABLED;
 }
 
@@ -7042,8 +7044,9 @@ static Sys_var_uint Sys_immediate_server_version(
     BLOCK_SIZE(1), NO_MUTEX_GUARD, IN_BINLOG,
     ON_CHECK(check_session_admin_or_replication_applier));
 
-static bool check_set_default_table_encryption_access(
-    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *var) {
+static bool check_set_default_table_encryption_access(sys_var *self
+                                                      [[maybe_unused]],
+                                                      THD *thd, set_var *var) {
   DBUG_EXECUTE_IF("skip_table_encryption_admin_check_for_set",
                   { return false; });
   if ((var->type == OPT_GLOBAL || var->type == OPT_PERSIST) &&

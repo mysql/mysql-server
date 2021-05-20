@@ -156,37 +156,34 @@ class PFS_index_data_locks : public PFS_engine_index {
 
   ~PFS_index_data_locks() override = default;
 
-  virtual bool match_engine(const char *engine MY_ATTRIBUTE((unused)),
-                            size_t engine_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_engine(const char *engine [[maybe_unused]],
+                            size_t engine_length [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_lock_id(const char *engine_lock_id MY_ATTRIBUTE((unused)),
-                             size_t engine_lock_id_length
-                                 MY_ATTRIBUTE((unused))) {
+  virtual bool match_lock_id(const char *engine_lock_id [[maybe_unused]],
+                             size_t engine_lock_id_length [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_transaction_id(
-      ulonglong engine_transaction_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_transaction_id(ulonglong engine_transaction_id
+                                    [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_thread_id_event_id(
-      ulonglong thread_id MY_ATTRIBUTE((unused)),
-      ulonglong event_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_thread_id_event_id(ulonglong thread_id [[maybe_unused]],
+                                        ulonglong event_id [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_object(
-      const char *table_schema MY_ATTRIBUTE((unused)),
-      size_t table_schema_length MY_ATTRIBUTE((unused)),
-      const char *table_name MY_ATTRIBUTE((unused)),
-      size_t table_name_length MY_ATTRIBUTE((unused)),
-      const char *partition_name MY_ATTRIBUTE((unused)),
-      size_t partition_name_length MY_ATTRIBUTE((unused)),
-      const char *sub_partition_name MY_ATTRIBUTE((unused)),
-      size_t sub_partition_name_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_object(const char *table_schema [[maybe_unused]],
+                            size_t table_schema_length [[maybe_unused]],
+                            const char *table_name [[maybe_unused]],
+                            size_t table_name_length [[maybe_unused]],
+                            const char *partition_name [[maybe_unused]],
+                            size_t partition_name_length [[maybe_unused]],
+                            const char *sub_partition_name [[maybe_unused]],
+                            size_t sub_partition_name_length [[maybe_unused]]) {
     return true;
   }
 };
@@ -348,42 +345,46 @@ class PFS_index_data_lock_waits : public PFS_engine_index {
 
   ~PFS_index_data_lock_waits() override = default;
 
-  virtual bool match_engine(const char *engine MY_ATTRIBUTE((unused)),
-                            size_t engine_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_engine(const char *engine [[maybe_unused]],
+                            size_t engine_length [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_requesting_lock_id(
-      const char *engine_lock_id MY_ATTRIBUTE((unused)),
-      size_t engine_lock_id_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_requesting_lock_id(const char *engine_lock_id
+                                        [[maybe_unused]],
+                                        size_t engine_lock_id_length
+                                        [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_blocking_lock_id(
-      const char *engine_lock_id MY_ATTRIBUTE((unused)),
-      size_t engine_lock_id_length MY_ATTRIBUTE((unused))) {
+  virtual bool match_blocking_lock_id(const char *engine_lock_id
+                                      [[maybe_unused]],
+                                      size_t engine_lock_id_length
+                                      [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_requesting_transaction_id(
-      ulonglong engine_transaction_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_requesting_transaction_id(ulonglong engine_transaction_id
+                                               [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_blocking_transaction_id(
-      ulonglong engine_transaction_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_blocking_transaction_id(ulonglong engine_transaction_id
+                                             [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_requesting_thread_id_event_id(
-      ulonglong thread_id MY_ATTRIBUTE((unused)),
-      ulonglong event_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_requesting_thread_id_event_id(ulonglong thread_id
+                                                   [[maybe_unused]],
+                                                   ulonglong event_id
+                                                   [[maybe_unused]]) {
     return true;
   }
 
-  virtual bool match_blocking_thread_id_event_id(
-      ulonglong thread_id MY_ATTRIBUTE((unused)),
-      ulonglong event_id MY_ATTRIBUTE((unused))) {
+  virtual bool match_blocking_thread_id_event_id(ulonglong thread_id
+                                                 [[maybe_unused]],
+                                                 ulonglong event_id
+                                                 [[maybe_unused]]) {
     return true;
   }
 };

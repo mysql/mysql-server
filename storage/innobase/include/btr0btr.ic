@@ -152,7 +152,7 @@ static inline void btr_page_set_level(
  @return next page number */
 static inline page_no_t btr_page_get_next(
     const page_t *page, /*!< in: index page */
-    mtr_t *mtr MY_ATTRIBUTE((unused)))
+    mtr_t *mtr [[maybe_unused]])
 /*!< in: mini-transaction handle */
 {
   ut_ad(page != nullptr);
@@ -183,8 +183,8 @@ static inline void btr_page_set_next(
 /** Gets the previous index page number.
  @return prev page number */
 static inline page_no_t btr_page_get_prev(
-    const page_t *page,                /*!< in: index page */
-    mtr_t *mtr MY_ATTRIBUTE((unused))) /*!< in: mini-transaction handle */
+    const page_t *page,          /*!< in: index page */
+    mtr_t *mtr [[maybe_unused]]) /*!< in: mini-transaction handle */
 {
   ut_ad(page != nullptr);
   ut_ad(mtr != nullptr);

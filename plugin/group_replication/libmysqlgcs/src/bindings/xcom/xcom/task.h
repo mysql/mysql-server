@@ -502,7 +502,7 @@ void channel_put_front(channel *c,
 #define END_ENV \
   }             \
   ;             \
-  struct env MY_ATTRIBUTE((unused)) * ep
+  [[maybe_unused]] struct env *ep
 
 /* Try to lock a fd for read or write.
    Yield and spin until it succeeds.

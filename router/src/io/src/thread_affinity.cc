@@ -115,7 +115,7 @@ ThreadAffinity::affinity() const noexcept {
 
 stdx::expected<void, std::error_code> ThreadAffinity::affinity(
     std::bitset<ThreadAffinity::max_cpus> cpus
-        MY_ATTRIBUTE((unused))) const noexcept {
+    [[maybe_unused]]) const noexcept {
 #if defined(__linux__) || defined(__FreeBSD__)
   thread_affinity_cpu_set_type cpuset;
 

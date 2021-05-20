@@ -3917,9 +3917,10 @@ static inline void tmp_restore_column_map(MY_BITMAP *bitmap,
 
 /* The following is only needed for debugging */
 
-static inline my_bitmap_map *dbug_tmp_use_all_columns(
-    TABLE *table MY_ATTRIBUTE((unused)),
-    MY_BITMAP *bitmap MY_ATTRIBUTE((unused))) {
+static inline my_bitmap_map *dbug_tmp_use_all_columns(TABLE *table
+                                                      [[maybe_unused]],
+                                                      MY_BITMAP *bitmap
+                                                      [[maybe_unused]]) {
 #ifndef NDEBUG
   return tmp_use_all_columns(table, bitmap);
 #else
@@ -3927,9 +3928,10 @@ static inline my_bitmap_map *dbug_tmp_use_all_columns(
 #endif
 }
 
-static inline void dbug_tmp_restore_column_map(
-    MY_BITMAP *bitmap MY_ATTRIBUTE((unused)),
-    my_bitmap_map *old MY_ATTRIBUTE((unused))) {
+static inline void dbug_tmp_restore_column_map(MY_BITMAP *bitmap
+                                               [[maybe_unused]],
+                                               my_bitmap_map *old
+                                               [[maybe_unused]]) {
 #ifndef NDEBUG
   tmp_restore_column_map(bitmap, old);
 #endif
@@ -3940,10 +3942,9 @@ static inline void dbug_tmp_restore_column_map(
   Provide for the possiblity of the read set being the same as the write set
 */
 static inline void dbug_tmp_use_all_columns(
-    TABLE *table MY_ATTRIBUTE((unused)),
-    my_bitmap_map **save MY_ATTRIBUTE((unused)),
-    MY_BITMAP *read_set MY_ATTRIBUTE((unused)),
-    MY_BITMAP *write_set MY_ATTRIBUTE((unused))) {
+    TABLE *table [[maybe_unused]], my_bitmap_map **save [[maybe_unused]],
+    MY_BITMAP *read_set [[maybe_unused]],
+    MY_BITMAP *write_set [[maybe_unused]]) {
 #ifndef NDEBUG
   save[0] = read_set->bitmap;
   save[1] = write_set->bitmap;
@@ -3953,9 +3954,8 @@ static inline void dbug_tmp_use_all_columns(
 }
 
 static inline void dbug_tmp_restore_column_maps(
-    MY_BITMAP *read_set MY_ATTRIBUTE((unused)),
-    MY_BITMAP *write_set MY_ATTRIBUTE((unused)),
-    my_bitmap_map **old MY_ATTRIBUTE((unused))) {
+    MY_BITMAP *read_set [[maybe_unused]], MY_BITMAP *write_set [[maybe_unused]],
+    my_bitmap_map **old [[maybe_unused]]) {
 #ifndef NDEBUG
   tmp_restore_column_map(read_set, old[0]);
   tmp_restore_column_map(write_set, old[1]);

@@ -98,7 +98,7 @@ class Mock_protocol : public Protocol {
   ulong get_client_capabilities() override { return 0; }
   bool has_client_capability(unsigned long) override { return false; }
   void end_partial_result_set() override {}
-  int shutdown(bool server_shutdown MY_ATTRIBUTE((unused)) = false) override {
+  int shutdown(bool server_shutdown [[maybe_unused]] = false) override {
     return 0;
   }
   SSL_handle get_ssl() { return nullptr; }

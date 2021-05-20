@@ -42,7 +42,7 @@ void fatal_error(const char *r) {
   exit(0);
 }
 
-int main(int argc MY_ATTRIBUTE((unused)), char **argv) {
+int main(int argc [[maybe_unused]], char **argv) {
   char client_key[] = "../SSL/client-key.pem",
        client_cert[] = "../SSL/client-cert.pem";
   char ca_file[] = "../SSL/cacert.pem", *ca_path = 0, *cipher = 0;

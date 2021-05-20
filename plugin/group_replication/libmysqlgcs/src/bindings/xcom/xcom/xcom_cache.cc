@@ -622,7 +622,7 @@ void do_cache_maintenance() {
   }
 }
 
-int cache_manager_task(task_arg arg MY_ATTRIBUTE((unused))) {
+int cache_manager_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   int dummy;
   END_ENV;

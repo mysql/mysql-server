@@ -185,7 +185,7 @@ class Query_result {
     @param t  TABLE to answer for
     @return   true if "on the fly"
   */
-  virtual bool immediate_update(TABLE_LIST *t MY_ATTRIBUTE((unused))) const {
+  virtual bool immediate_update(TABLE_LIST *t [[maybe_unused]]) const {
     assert(false);
     return false;
   }

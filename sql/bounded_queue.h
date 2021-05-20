@@ -115,12 +115,12 @@ class Bounded_queue {
 
     if (m_queue.size() == m_queue.capacity()) {
       const Key_type &pq_top = m_queue.top();
-      const uint MY_ATTRIBUTE((unused)) rec_sz =
+      [[maybe_unused]] const uint rec_sz =
           m_sort_param->make_sortkey(pq_top, element_size, opaque);
       assert(rec_sz <= m_element_size);
       m_queue.update_top();
     } else {
-      const uint MY_ATTRIBUTE((unused)) rec_sz = m_sort_param->make_sortkey(
+      [[maybe_unused]] const uint rec_sz = m_sort_param->make_sortkey(
           m_sort_keys[m_queue.size()], element_size, opaque);
       assert(rec_sz <= m_element_size);
       m_queue.push(m_sort_keys[m_queue.size()]);

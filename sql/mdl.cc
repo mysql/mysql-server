@@ -135,7 +135,7 @@ PSI_stage_info MDL_key::m_namespace_to_wait_state_name[NAMESPACE_END] = {
 void MDL_key::init_psi_keys() {
   int i;
   int count;
-  PSI_stage_info *info MY_ATTRIBUTE((unused));
+  PSI_stage_info *info [[maybe_unused]];
 
   count =
       static_cast<int>(array_elements(MDL_key::m_namespace_to_wait_state_name));

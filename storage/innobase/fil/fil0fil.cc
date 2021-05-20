@@ -4897,9 +4897,10 @@ static void fil_name_write_rename(space_id_t space_id, const char *old_name,
 @param[in]	size		Number of bytes by which the file
                                 is extended starting from the offset
 @param[in,out]	mtr		Mini-transaction */
-MY_ATTRIBUTE((unused))
-static void fil_op_write_space_extend(space_id_t space_id, os_offset_t offset,
-                                      os_offset_t size, mtr_t *mtr) {
+[[maybe_unused]] static void fil_op_write_space_extend(space_id_t space_id,
+                                                       os_offset_t offset,
+                                                       os_offset_t size,
+                                                       mtr_t *mtr) {
   ut_ad(space_id != TRX_SYS_SPACE);
 
   byte *log_ptr;

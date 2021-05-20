@@ -60,8 +60,8 @@ unsigned int mysql_errno_to_sqlstate_index(unsigned int) { return 0; }
 
 SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return nullptr; }
 
-int mysql_plugin_registry_release(SERVICE_TYPE(registry) *
-                                  reg MY_ATTRIBUTE((unused))) {
+int mysql_plugin_registry_release(SERVICE_TYPE(registry) * reg
+                                  [[maybe_unused]]) {
   return 0;
 }
 

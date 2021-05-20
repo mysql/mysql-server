@@ -3520,8 +3520,8 @@ no_join_cache:
 class COND_CMP : public ilink<COND_CMP> {
  public:
   static void *operator new(size_t size) { return (*THR_MALLOC)->Alloc(size); }
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
+  static void operator delete(void *ptr [[maybe_unused]],
+                              size_t size [[maybe_unused]]) {
     TRASH(ptr, size);
   }
 

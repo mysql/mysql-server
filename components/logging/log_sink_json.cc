@@ -462,7 +462,7 @@ DEFINE_METHOD(log_service_error, log_service_imp::get_log_name,
   @retval  =0        success, returned hande is valid
 */
 DEFINE_METHOD(log_service_error, log_service_imp::open,
-              (log_line * ll MY_ATTRIBUTE((unused)), void **instance)) {
+              (log_line * ll [[maybe_unused]], void **instance)) {
   log_service_error rr;
   my_state *mi;
   char buff[10];

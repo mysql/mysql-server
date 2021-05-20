@@ -416,15 +416,15 @@ void free_root(MEM_ROOT *root, myf flags);
  * a MEM_ROOT using regular placement new. We should make a less ambiguous
  * syntax, e.g. new (On(mem_root)) Foo().
  */
-inline void *operator new(
-    size_t size, MEM_ROOT *mem_root,
-    const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) noexcept {
+inline void *operator new(size_t size, MEM_ROOT *mem_root,
+                          const std::nothrow_t &arg
+                          [[maybe_unused]] = std::nothrow) noexcept {
   return mem_root->Alloc(size);
 }
 
-inline void *operator new[](
-    size_t size, MEM_ROOT *mem_root,
-    const std::nothrow_t &arg MY_ATTRIBUTE((unused)) = std::nothrow) noexcept {
+inline void *operator new[](size_t size, MEM_ROOT *mem_root,
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
   return mem_root->Alloc(size);
 }
 

@@ -152,10 +152,9 @@ static void delete_current_thread_noop(void) { return; }
 
 static void delete_thread_noop(PSI_thread *) { return; }
 
-static int set_thread_connect_attrs_noop(
-    const char *buffer MY_ATTRIBUTE((unused)),
-    uint length MY_ATTRIBUTE((unused)),
-    const void *from_cs MY_ATTRIBUTE((unused))) {
+static int set_thread_connect_attrs_noop(const char *buffer [[maybe_unused]],
+                                         uint length [[maybe_unused]],
+                                         const void *from_cs [[maybe_unused]]) {
   return 0;
 }
 

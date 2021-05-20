@@ -1725,14 +1725,13 @@ int Client::set_error(const uchar *buffer, size_t length) {
   return (err);
 }
 
-int Client_Cbk::file_cbk(Ha_clone_file from_file MY_ATTRIBUTE((unused)),
-                         uint len MY_ATTRIBUTE((unused))) {
+int Client_Cbk::file_cbk(Ha_clone_file from_file [[maybe_unused]],
+                         uint len [[maybe_unused]]) {
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "Remote Clone Client");
   return (ER_NOT_SUPPORTED_YET);
 }
 
-int Client_Cbk::buffer_cbk(uchar *from_buffer MY_ATTRIBUTE((unused)),
-                           uint buf_len) {
+int Client_Cbk::buffer_cbk(uchar *from_buffer [[maybe_unused]], uint buf_len) {
   auto client = get_clone_client();
 
   uint64_t data_estimate = 0;

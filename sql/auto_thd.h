@@ -55,11 +55,11 @@ class Auto_THD : public Internal_error_handler {
 
     @return This function always return false.
   */
-  bool handle_condition(class THD *thd MY_ATTRIBUTE((unused)),
-                        uint sql_errno MY_ATTRIBUTE((unused)),
-                        const char *sqlstate MY_ATTRIBUTE((unused)),
+  bool handle_condition(class THD *thd [[maybe_unused]],
+                        uint sql_errno [[maybe_unused]],
+                        const char *sqlstate [[maybe_unused]],
                         Sql_condition::enum_severity_level *level
-                            MY_ATTRIBUTE((unused)),
+                        [[maybe_unused]],
                         const char *msg) override;
 
   /** Thd associated with the object. */

@@ -5505,7 +5505,7 @@ bool buf_page_io_complete(buf_page_t *bpage, bool evict) {
     byte *frame{};
     page_no_t read_page_no;
     space_id_t read_space_id;
-    bool is_wrong_page_id MY_ATTRIBUTE((unused)) = false;
+    bool is_wrong_page_id [[maybe_unused]] = false;
 
     if (bpage->size.is_compressed()) {
       frame = bpage->zip.data;

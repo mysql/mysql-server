@@ -275,7 +275,7 @@ void invalidate_detector_sites(site_def *site) {
 }
 
 /* Notify others about our current view */
-int detector_task(task_arg arg MY_ATTRIBUTE((unused))) {
+int detector_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   int notify;
   int local_notify;
@@ -405,7 +405,7 @@ static void validate_update_configuration(site_def const *site,
 static unsigned int dump = 0;
 #endif
 
-int alive_task(task_arg arg MY_ATTRIBUTE((unused))) {
+int alive_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   pax_msg *i_p;
   pax_msg *you_p;

@@ -60,9 +60,9 @@ void delete_keyring_file_data();
 bool init_keyring_locks();
 bool create_keyring_dir_if_does_not_exist(const char *keyring_file_path);
 
-void update_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *var MY_ATTRIBUTE((unused)),
-                              void *var_ptr MY_ATTRIBUTE((unused)),
+void update_keyring_file_data(MYSQL_THD thd [[maybe_unused]],
+                              SYS_VAR *var [[maybe_unused]],
+                              void *var_ptr [[maybe_unused]],
                               const void *save_ptr);
 
 bool mysql_key_fetch(std::unique_ptr<IKey> key_to_fetch, char **key_type,

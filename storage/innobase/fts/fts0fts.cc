@@ -205,7 +205,7 @@ and insert into FTS auxiliary table and its cache.
 @param[in]	fts_indexes	affected FTS indexes
 @return true if successful */
 static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
-                               ib_vector_t *fts_indexes MY_ATTRIBUTE((unused)));
+                               ib_vector_t *fts_indexes [[maybe_unused]]);
 
 /** Update the last document id. This function could create a new
  transaction to update the last document id.
@@ -3556,8 +3556,7 @@ and insert into FTS auxiliary table and its cache.
 @param[in]	fts_indexes	affected FTS indexes
 @return true if successful */
 static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
-                               ib_vector_t *fts_indexes
-                                   MY_ATTRIBUTE((unused))) {
+                               ib_vector_t *fts_indexes [[maybe_unused]]) {
   mtr_t mtr;
   mem_heap_t *heap;
   btr_pcur_t pcur;
@@ -3668,7 +3667,7 @@ static ulint fts_add_doc_by_id(fts_trx_table_t *ftt, doc_id_t doc_id,
                              offsets, &doc);
 
       if (doc.found) {
-        ibool success MY_ATTRIBUTE((unused));
+        ibool success [[maybe_unused]];
 
         btr_pcur_store_position(doc_pcur, &mtr);
         mtr_commit(&mtr);
@@ -3762,7 +3761,7 @@ static ibool fts_read_ulint(void *row,      /*!< in: sel_node_t* */
 doc_id_t fts_get_max_doc_id(dict_table_t *table) /*!< in: user table */
 {
   dict_index_t *index;
-  dict_field_t *dfield MY_ATTRIBUTE((unused)) = nullptr;
+  dict_field_t *dfield [[maybe_unused]] = nullptr;
   doc_id_t doc_id = 0;
   mtr_t mtr;
   btr_pcur_t pcur;

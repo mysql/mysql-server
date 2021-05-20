@@ -1227,7 +1227,7 @@ exist a dup()-like call that would give us two different file descriptors.
 *************************************************************************/
 
 int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *org_name,
-                     File file_to_dup MY_ATTRIBUTE((unused))) {
+                     File file_to_dup [[maybe_unused]]) {
   char *data_name = share->data_file_name;
   char real_data_name[FN_REFLEN];
   ST_FILE_ID file_id = {0, 0};

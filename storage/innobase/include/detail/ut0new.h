@@ -246,8 +246,7 @@ struct Aligned_alloc_impl {
     // after we clean up circular-dependencies from our headers. Until then, it
     // is not possible as including ut0dbg.h header makes the build fail in
     // mysterious ways.
-    MY_ATTRIBUTE((unused))
-    auto ret = std::align(alignment, size, buf, buf_size);
+    [[maybe_unused]] auto ret = std::align(alignment, size, buf, buf_size);
     assert(ret != nullptr);
 
     return {buf, reinterpret_cast<std::uintptr_t>(buf) -

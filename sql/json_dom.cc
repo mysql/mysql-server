@@ -903,7 +903,7 @@ bool Json_object::consume(Json_object_ptr other) {
 }
 
 template <typename Key>
-static Json_dom *json_object_get(const Json_dom *object MY_ATTRIBUTE((unused)),
+static Json_dom *json_object_get(const Json_dom *object [[maybe_unused]],
                                  const Json_object_map &map, const Key &key) {
   const Json_object_map::const_iterator iter = map.find(key);
 
@@ -1797,8 +1797,7 @@ bool Json_wrapper::to_pretty_string(String *buffer,
   return wrapper_to_string(*this, buffer, true, true, func_name, 0);
 }
 
-void Json_wrapper::dbug_print(
-    const char *message MY_ATTRIBUTE((unused))) const {
+void Json_wrapper::dbug_print(const char *message [[maybe_unused]]) const {
 #ifndef NDEBUG
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buf;
   if (to_string(&buf, false, "Json_wrapper::dbug_print"))

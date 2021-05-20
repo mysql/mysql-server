@@ -1600,9 +1600,8 @@ int ha_myisam::index_last(uchar *buf) {
   return error;
 }
 
-int ha_myisam::index_next_same(uchar *buf,
-                               const uchar *key MY_ATTRIBUTE((unused)),
-                               uint length MY_ATTRIBUTE((unused))) {
+int ha_myisam::index_next_same(uchar *buf, const uchar *key [[maybe_unused]],
+                               uint length [[maybe_unused]]) {
   int error;
   assert(inited == INDEX);
   ha_statistic_increment(&System_status_var::ha_read_next_count);

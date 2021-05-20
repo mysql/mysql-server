@@ -1256,8 +1256,8 @@ std::string Rpl_encryption_header_v1::key_id_prefix() {
   return ostr.str();
 }
 
-std::string Rpl_encryption_header_v1::seqno_to_key_id(
-    uint32_t seqno MY_ATTRIBUTE((unused))) {
+std::string Rpl_encryption_header_v1::seqno_to_key_id(uint32_t seqno
+                                                      [[maybe_unused]]) {
   std::ostringstream ostr;
 #ifdef MYSQL_SERVER
   ostr << key_id_prefix() << "_" << seqno;
@@ -1265,8 +1265,8 @@ std::string Rpl_encryption_header_v1::seqno_to_key_id(
   return ostr.str();
 }
 
-std::string Rpl_encryption_header_v1::key_id_with_suffix(
-    const char *suffix MY_ATTRIBUTE((unused))) {
+std::string Rpl_encryption_header_v1::key_id_with_suffix(const char *suffix
+                                                         [[maybe_unused]]) {
   std::ostringstream ostr;
 #ifdef MYSQL_SERVER
   ostr << key_id_prefix() << "_" << suffix;

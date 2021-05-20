@@ -211,8 +211,9 @@ int table_rpl_async_connection_failover_managed::rnd_pos(const void *pos) {
   return res;
 }
 
-int table_rpl_async_connection_failover_managed::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_rpl_async_connection_failover_managed::index_init(uint idx
+                                                            [[maybe_unused]],
+                                                            bool) {
   DBUG_TRACE;
   PFS_index_rpl_async_conn_failover_managed *result = nullptr;
   assert(idx == 0);

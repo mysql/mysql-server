@@ -364,21 +364,21 @@ struct NDB_SHARE {
   };
   Ndb_share_references *refs;
 #endif
-  void refs_insert(const char *reference MY_ATTRIBUTE((unused))) {
+  void refs_insert(const char *reference [[maybe_unused]]) {
     assert(refs->insert(reference));
   }
-  void refs_insert(const ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
+  void refs_insert(const ha_ndbcluster *reference [[maybe_unused]]) {
     assert(refs->insert(reference));
   }
-  void refs_erase(const char *reference MY_ATTRIBUTE((unused))) {
+  void refs_erase(const char *reference [[maybe_unused]]) {
     assert(refs->erase(reference));
   }
-  void refs_erase(const ha_ndbcluster *reference MY_ATTRIBUTE((unused))) {
+  void refs_erase(const ha_ndbcluster *reference [[maybe_unused]]) {
     assert(refs->erase(reference));
   }
 
  public:
-  bool refs_exists(const char *reference MY_ATTRIBUTE((unused))) const {
+  bool refs_exists(const char *reference [[maybe_unused]]) const {
 #ifndef NDEBUG
     return refs->exists(reference);
 #else

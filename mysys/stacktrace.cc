@@ -79,8 +79,8 @@ static const char *heap_start;
 extern char *__bss_start;
 #endif /* __linux */
 
-static inline bool ptr_sane(const char *p MY_ATTRIBUTE((unused)),
-                            const char *heap_end MY_ATTRIBUTE((unused))) {
+static inline bool ptr_sane(const char *p [[maybe_unused]],
+                            const char *heap_end [[maybe_unused]]) {
 #ifdef __linux__
   return p && p >= heap_start && p <= heap_end;
 #else

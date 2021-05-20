@@ -232,14 +232,14 @@ const char *Mysql_connection_options::get_null_or_string(
 }
 
 #ifdef _WIN32
-void Mysql_connection_options::pipe_protocol_callback(
-    char *not_used MY_ATTRIBUTE((unused))) {
+void Mysql_connection_options::pipe_protocol_callback(char *not_used
+                                                      [[maybe_unused]]) {
   this->m_protocol = MYSQL_PROTOCOL_PIPE;
 }
 #endif
 
-void Mysql_connection_options::protocol_callback(
-    char *not_used MY_ATTRIBUTE((unused))) {
+void Mysql_connection_options::protocol_callback(char *not_used
+                                                 [[maybe_unused]]) {
   this->m_protocol = find_type_or_exit(this->m_protocol_string.value().c_str(),
                                        &sql_protocol_typelib, "protocol");
 }

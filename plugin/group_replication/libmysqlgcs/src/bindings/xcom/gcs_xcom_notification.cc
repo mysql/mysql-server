@@ -177,8 +177,8 @@ Gcs_xcom_engine::~Gcs_xcom_engine() {
   m_wait_for_notification_mutex.destroy();
 }
 
-void Gcs_xcom_engine::initialize(
-    xcom_initialize_functor *functor MY_ATTRIBUTE((unused))) {
+void Gcs_xcom_engine::initialize(xcom_initialize_functor *functor
+                                 [[maybe_unused]]) {
   MYSQL_GCS_LOG_DEBUG("Gcs_xcom_engine::initialize invoked!");
   assert(m_notification_queue.empty());
   assert(m_schedule);

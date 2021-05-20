@@ -92,7 +92,7 @@ static my_h_service h_my_svc =
   @retval false  success
   @retval true   failure
 */
-static bool test_plugin_registry(MYSQL_PLUGIN p MY_ATTRIBUTE((unused))) {
+static bool test_plugin_registry(MYSQL_PLUGIN p [[maybe_unused]]) {
   bool result = false;
   SERVICE_TYPE(registry) *r = mysql_plugin_registry_acquire();
   my_h_service h_reg = nullptr;

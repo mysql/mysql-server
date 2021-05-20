@@ -259,7 +259,7 @@ bool PFS_data_lock_container::accept_object(
 }
 
 void PFS_data_lock_container::add_lock_row(
-    const char *engine, size_t engine_length MY_ATTRIBUTE((unused)),
+    const char *engine, size_t engine_length [[maybe_unused]],
     const char *engine_lock_id, size_t engine_lock_id_length,
     ulonglong transaction_id, ulonglong thread_id, ulonglong event_id,
     const char *table_schema, size_t table_schema_length,
@@ -431,7 +431,7 @@ bool PFS_data_lock_wait_container::accept_blocking_thread_id_event_id(
 }
 
 void PFS_data_lock_wait_container::add_lock_wait_row(
-    const char *engine, size_t engine_length MY_ATTRIBUTE((unused)),
+    const char *engine, size_t engine_length [[maybe_unused]],
     const char *requesting_engine_lock_id,
     size_t requesting_engine_lock_id_length,
     ulonglong requesting_transaction_id, ulonglong requesting_thread_id,

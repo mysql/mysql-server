@@ -153,20 +153,20 @@ void my_free(void *ptr) {
 
 #else
 
-void *my_malloc(PSI_memory_key key MY_ATTRIBUTE((unused)), size_t size,
+void *my_malloc(PSI_memory_key key [[maybe_unused]], size_t size,
                 myf my_flags) {
   return my_raw_malloc(size, my_flags);
 }
 
 static void *my_raw_realloc(void *oldpoint, size_t size, myf my_flags);
 
-void *my_realloc(PSI_memory_key key MY_ATTRIBUTE((unused)), void *ptr,
-                 size_t size, myf flags) {
+void *my_realloc(PSI_memory_key key [[maybe_unused]], void *ptr, size_t size,
+                 myf flags) {
   return my_raw_realloc(ptr, size, flags);
 }
 
-void my_claim(const void *ptr MY_ATTRIBUTE((unused)),
-              bool claim MY_ATTRIBUTE((unused))) { /* Empty */
+void my_claim(const void *ptr [[maybe_unused]],
+              bool claim [[maybe_unused]]) { /* Empty */
 }
 
 void my_free(void *ptr) { my_raw_free(ptr); }

@@ -577,10 +577,10 @@ int my_wildcmp_mb_bin(const CHARSET_INFO *cs, const char *str,
                       const char *str_end, const char *wildstr,
                       const char *wildend, int escape, int w_one, int w_many);
 
-int my_strcasecmp_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-                         const char *s, const char *t);
+int my_strcasecmp_mb_bin(const CHARSET_INFO *cs [[maybe_unused]], const char *s,
+                         const char *t);
 
-void my_hash_sort_mb_bin(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
+void my_hash_sort_mb_bin(const CHARSET_INFO *cs [[maybe_unused]],
                          const uchar *key, size_t len, uint64 *nr1,
                          uint64 *nr2);
 

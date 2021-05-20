@@ -3284,7 +3284,7 @@ int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
 }
 
 size_t Field_tiny::make_sort_key(uchar *to,
-                                 size_t length MY_ATTRIBUTE((unused))) const {
+                                 size_t length [[maybe_unused]]) const {
   assert(length == 1);
   if (is_unsigned())
     *to = *ptr;
@@ -3463,7 +3463,7 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
 }
 
 size_t Field_short::make_sort_key(uchar *to,
-                                  size_t length MY_ATTRIBUTE((unused))) const {
+                                  size_t length [[maybe_unused]]) const {
   assert(length == 2);
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first) {
@@ -3622,7 +3622,7 @@ int Field_medium::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
 }
 
 size_t Field_medium::make_sort_key(uchar *to,
-                                   size_t length MY_ATTRIBUTE((unused))) const {
+                                   size_t length [[maybe_unused]]) const {
   assert(length == 3);
   if (is_unsigned())
     to[0] = ptr[2];
@@ -3804,7 +3804,7 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
 }
 
 size_t Field_long::make_sort_key(uchar *to,
-                                 size_t length MY_ATTRIBUTE((unused))) const {
+                                 size_t length [[maybe_unused]]) const {
   assert(length == 4);
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first) {
@@ -4139,7 +4139,7 @@ int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
 }
 
 size_t Field_float::make_sort_key(uchar *to,
-                                  size_t length MY_ATTRIBUTE((unused))) const {
+                                  size_t length [[maybe_unused]]) const {
   assert(length == sizeof(float));
   float nr;
   if (table->s->db_low_byte_first)
@@ -5082,8 +5082,8 @@ int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   return ((uint32)a < (uint32)b) ? -1 : ((uint32)a > (uint32)b) ? 1 : 0;
 }
 
-size_t Field_timestamp::make_sort_key(
-    uchar *to, size_t length MY_ATTRIBUTE((unused))) const {
+size_t Field_timestamp::make_sort_key(uchar *to,
+                                      size_t length [[maybe_unused]]) const {
   assert(length == 4);
 #ifdef WORDS_BIGENDIAN
   if (!table || !table->s->db_low_byte_first) {
@@ -5392,7 +5392,7 @@ int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
 }
 
 size_t Field_time::make_sort_key(uchar *to,
-                                 size_t length MY_ATTRIBUTE((unused))) const {
+                                 size_t length [[maybe_unused]]) const {
   assert(length == 3);
   to[0] = (uchar)(ptr[2] ^ 128);
   to[1] = ptr[1];
@@ -6332,7 +6332,7 @@ size_t Field_string::make_sort_key(uchar *to, size_t length) const {
   }
 
   assert(char_length_cache == char_length());
-  size_t tmp MY_ATTRIBUTE((unused)) = field_charset->coll->strnxfrm(
+  size_t tmp [[maybe_unused]] = field_charset->coll->strnxfrm(
       field_charset, to, length, char_length_cache, ptr, input_length,
       MY_STRXFRM_PAD_TO_MAXLEN);
   assert(tmp == length);
@@ -10115,8 +10115,8 @@ static inline void handle_int16(uchar *to, const uchar *from, size_t max_length,
 
 // Byteswaps and/or truncates int24 values; used for both pack() and unpack().
 static inline void handle_int24(uchar *to, const uchar *from, size_t max_length,
-                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
-                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+                                bool low_byte_first_from [[maybe_unused]],
+                                bool low_byte_first_to [[maybe_unused]]) {
   int32 val;
   uchar buf[3];
 #ifdef WORDS_BIGENDIAN
@@ -10169,8 +10169,8 @@ static inline void handle_int32(uchar *to, const uchar *from, size_t max_length,
 
 // Byteswaps and/or truncates int64 values; used for both pack() and unpack().
 static inline void handle_int64(uchar *to, const uchar *from, size_t max_length,
-                                bool low_byte_first_from MY_ATTRIBUTE((unused)),
-                                bool low_byte_first_to MY_ATTRIBUTE((unused))) {
+                                bool low_byte_first_from [[maybe_unused]],
+                                bool low_byte_first_to [[maybe_unused]]) {
   int64 val;
   uchar buf[sizeof(val)];
 #ifdef WORDS_BIGENDIAN

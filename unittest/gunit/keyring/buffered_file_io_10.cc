@@ -28,9 +28,9 @@
 #include "my_io.h"
 
 namespace keyring {
-bool Buffered_file_io_10::flush_to_file(
-    PSI_file_key *file_key MY_ATTRIBUTE((unused)), const std::string *filename,
-    const Digest *) {
+bool Buffered_file_io_10::flush_to_file(PSI_file_key *file_key [[maybe_unused]],
+                                        const std::string *filename,
+                                        const Digest *) {
   File file;
   bool was_error = true;
   file = mysql_file_open(*file_key, filename->c_str(),

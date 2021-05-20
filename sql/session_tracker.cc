@@ -826,8 +826,9 @@ bool Current_schema_tracker::store(THD *thd, String &buf) {
   @param tracked_item_name Always null (unused).
 */
 
-void Current_schema_tracker::mark_as_changed(
-    THD *thd, LEX_CSTRING *tracked_item_name MY_ATTRIBUTE((unused))) {
+void Current_schema_tracker::mark_as_changed(THD *thd,
+                                             LEX_CSTRING *tracked_item_name
+                                             [[maybe_unused]]) {
   m_changed = true;
   thd->lex->safe_to_cache_query = false;
 }
@@ -1634,9 +1635,9 @@ bool Session_gtids_tracker::store(THD *thd, String &buf) {
   @param tracked_item_name          Always null.
 */
 
-void Session_gtids_tracker::mark_as_changed(THD *thd MY_ATTRIBUTE((unused)),
+void Session_gtids_tracker::mark_as_changed(THD *thd [[maybe_unused]],
                                             LEX_CSTRING *tracked_item_name
-                                                MY_ATTRIBUTE((unused))) {
+                                            [[maybe_unused]]) {
   m_changed = true;
 }
 

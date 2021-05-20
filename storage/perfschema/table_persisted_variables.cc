@@ -143,8 +143,7 @@ int table_persisted_variables::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_persisted_variables::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                          bool) {
+int table_persisted_variables::index_init(uint idx [[maybe_unused]], bool) {
   /*
     Build a cache of system variables for this thread.
   */

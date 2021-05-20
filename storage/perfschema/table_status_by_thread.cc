@@ -170,7 +170,7 @@ int table_status_by_thread::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_status_by_thread::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_status_by_thread::index_init(uint idx [[maybe_unused]], bool) {
   /* Build array of SHOW_VARs from the global status array. */
   m_status_cache.initialize_session();
 

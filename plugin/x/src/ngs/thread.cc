@@ -29,8 +29,8 @@
 #include "my_sys.h"     // my_thread_stack_size NOLINT(build/include_subdir)
 #include "my_thread.h"  // NOLINT(build/include_subdir)
 
-void ngs::thread_create(PSI_thread_key key MY_ATTRIBUTE((unused)),
-                        Thread_t *thread, Start_routine_t func, void *arg) {
+void ngs::thread_create(PSI_thread_key key [[maybe_unused]], Thread_t *thread,
+                        Start_routine_t func, void *arg) {
   my_thread_attr_t connection_attrib;
 
   (void)my_thread_attr_init(&connection_attrib);

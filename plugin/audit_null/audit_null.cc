@@ -210,7 +210,7 @@ static MYSQL_THDVAR_STR(event_record,
     1                    failure (cannot happen)
 */
 
-static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused))) {
+static int audit_null_plugin_init(void *arg [[maybe_unused]]) {
   SHOW_VAR *var;
 
   for (var = simple_status; var->value != nullptr; var++) {
@@ -239,7 +239,7 @@ static int audit_null_plugin_init(void *arg MY_ATTRIBUTE((unused))) {
 
 */
 
-static int audit_null_plugin_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int audit_null_plugin_deinit(void *arg [[maybe_unused]]) {
   if (g_plugin_installed == true) {
     my_free((void *)(g_record_buffer));
 

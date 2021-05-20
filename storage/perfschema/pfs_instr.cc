@@ -556,7 +556,7 @@ void carry_global_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
   @return a thread instance, or NULL
 */
 PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
-                          const void *identity MY_ATTRIBUTE((unused)),
+                          const void *identity [[maybe_unused]],
                           ulonglong processlist_id) {
   PFS_thread *pfs;
   pfs_dirty_state dirty_state;

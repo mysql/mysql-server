@@ -3384,7 +3384,7 @@ void my_init_signals() {
 #else  // !_WIN32
 
 extern "C" {
-static void empty_signal_handler(int sig MY_ATTRIBUTE((unused))) {}
+static void empty_signal_handler(int sig [[maybe_unused]]) {}
 }
 
 void my_init_signals() {
@@ -3503,7 +3503,7 @@ static void start_signal_handler() {
 /** This thread handles SIGTERM, SIGQUIT, SIGHUP, SIGUSR1 and SIGUSR2 signals.
  */
 /* ARGSUSED */
-extern "C" void *signal_hand(void *arg MY_ATTRIBUTE((unused))) {
+extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
   my_thread_init();
 
   sigset_t set;
@@ -9732,7 +9732,7 @@ static int parse_replicate_rewrite_db(char **key, char **val, char *argument) {
 }
 
 bool mysqld_get_one_option(int optid,
-                           const struct my_option *opt MY_ATTRIBUTE((unused)),
+                           const struct my_option *opt [[maybe_unused]],
                            char *argument) {
   Rpl_filter *rpl_filter = nullptr;
   char *filter_val;
@@ -10547,8 +10547,8 @@ static int get_options(int *argc_ptr, char ***argv_ptr) {
 #endif
 
 static void set_server_version(void) {
-  char *end MY_ATTRIBUTE((unused)) = strxmov(
-      server_version, MYSQL_SERVER_VERSION, MYSQL_SERVER_SUFFIX_STR, NullS);
+  char *end [[maybe_unused]] = strxmov(server_version, MYSQL_SERVER_VERSION,
+                                       MYSQL_SERVER_SUFFIX_STR, NullS);
 #ifndef NDEBUG
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end = my_stpcpy(end, "-debug");

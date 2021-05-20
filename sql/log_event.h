@@ -1155,7 +1155,7 @@ class Log_event {
                  databases the event accesses.
   */
   virtual uint8 get_mts_dbs(Mts_db_names *arg,
-                            Rpl_filter *rpl_filter MY_ATTRIBUTE((unused))) {
+                            Rpl_filter *rpl_filter [[maybe_unused]]) {
     arg->name[0] = get_db();
 
     return arg->num = mts_number_dbs();
@@ -1260,7 +1260,7 @@ class Log_event {
     @retval 0     Event applied successfully
     @retval errno Error code if event application failed
   */
-  virtual int do_apply_event(Relay_log_info const *rli MY_ATTRIBUTE((unused))) {
+  virtual int do_apply_event(Relay_log_info const *rli [[maybe_unused]]) {
     return 0; /* Default implementation does nothing */
   }
 
@@ -3098,9 +3098,10 @@ class Rows_log_event : public virtual binary_log::Rows_event, public Log_event {
     @retval 0 Success
     @retval ER_* Error code returned by unpack_current_row
   */
-  virtual int skip_after_image_for_update_event(
-      const Relay_log_info *rli MY_ATTRIBUTE((unused)),
-      const uchar *curr_bi_start MY_ATTRIBUTE((unused))) {
+  virtual int skip_after_image_for_update_event(const Relay_log_info *rli
+                                                [[maybe_unused]],
+                                                const uchar *curr_bi_start
+                                                [[maybe_unused]]) {
     return 0;
   }
 
@@ -3227,10 +3228,11 @@ class Write_rows_log_event : public Rows_log_event,
   Write_rows_log_event(const char *buf,
                        const Format_description_event *description_event);
 #if defined(MYSQL_SERVER)
-  static bool binlog_row_logging_function(
-      THD *thd, TABLE *table, bool is_transactional,
-      const uchar *before_record MY_ATTRIBUTE((unused)),
-      const uchar *after_record);
+  static bool binlog_row_logging_function(THD *thd, TABLE *table,
+                                          bool is_transactional,
+                                          const uchar *before_record
+                                          [[maybe_unused]],
+                                          const uchar *after_record);
   bool read_write_bitmaps_cmp(const TABLE *table) const override {
     return bitmap_cmp(get_cols(), table->write_set);
   }
@@ -3430,9 +3432,11 @@ class Delete_rows_log_event : public Rows_log_event,
   Delete_rows_log_event(const char *buf,
                         const Format_description_event *description_event);
 #ifdef MYSQL_SERVER
-  static bool binlog_row_logging_function(
-      THD *thd, TABLE *table, bool is_transactional, const uchar *before_record,
-      const uchar *after_record MY_ATTRIBUTE((unused)));
+  static bool binlog_row_logging_function(THD *thd, TABLE *table,
+                                          bool is_transactional,
+                                          const uchar *before_record,
+                                          const uchar *after_record
+                                          [[maybe_unused]]);
   bool read_write_bitmaps_cmp(const TABLE *table) const override {
     return bitmap_cmp(get_cols(), table->read_set);
   }

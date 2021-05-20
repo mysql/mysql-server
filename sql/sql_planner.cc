@@ -2365,7 +2365,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables) {
       join state will not be reverted back to its initial state because we
       don't "pop" tables already present in the partial plan.
     */
-    bool is_interleave_error MY_ATTRIBUTE((unused)) =
+    bool is_interleave_error [[maybe_unused]] =
         check_interleaving_with_nj(best_table);
     /* This has been already checked by best_extension_by_limited_search */
     assert(!is_interleave_error);
@@ -4620,7 +4620,7 @@ void Optimize_table_order::advance_sj_state(table_map remaining_tables,
 */
 
 void Optimize_table_order::backout_nj_state(const table_map remaining_tables
-                                                MY_ATTRIBUTE((unused)),
+                                            [[maybe_unused]],
                                             const JOIN_TAB *tab) {
   assert(remaining_tables & tab->table_ref->map());
 

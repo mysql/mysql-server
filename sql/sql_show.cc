@@ -1027,8 +1027,8 @@ class Show_create_error_handler : public Internal_error_handler {
      failed is not available at this point. The only way for us to check is by
      reconstructing the actual error message and see if it's the same.
   */
-  // MY_ATTRIBUTE((unused)) This applies to CHECK_ERRMSG_FORMAT = ON
-  const char *get_view_access_denied_message(THD *thd MY_ATTRIBUTE((unused))) {
+  // [[maybe_unused]] This applies to CHECK_ERRMSG_FORMAT = ON
+  const char *get_view_access_denied_message(THD *thd [[maybe_unused]]) {
     if (!m_view_access_denied_message_ptr) {
       m_view_access_denied_message_ptr = m_view_access_denied_message;
       snprintf(m_view_access_denied_message, MYSQL_ERRMSG_SIZE,

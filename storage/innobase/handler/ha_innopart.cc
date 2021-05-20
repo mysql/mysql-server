@@ -637,8 +637,8 @@ This should only be called once from ha_innobase::open().
 Therefore there's no need for a covering lock.
 @param[in]	no_lock	If locking should be skipped. Not used!
 @return	0 for success or error code. */
-inline int ha_innopart::initialize_auto_increment(
-    bool no_lock MY_ATTRIBUTE((unused))) {
+inline int ha_innopart::initialize_auto_increment(bool no_lock
+                                                  [[maybe_unused]]) {
   int error = 0;
   ulonglong auto_inc = 0;
   const Field *field = table->found_next_number_field;

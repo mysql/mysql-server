@@ -356,7 +356,7 @@ class QUICK_SELECT_I {
       0     Ok
       other Error
   */
-  virtual int init_ror_merged_scan(bool reuse_handler MY_ATTRIBUTE((unused))) {
+  virtual int init_ror_merged_scan(bool reuse_handler [[maybe_unused]]) {
     assert(0);
     return 1;
   }
@@ -380,7 +380,7 @@ class QUICK_SELECT_I {
     This function is implemented only by quick selects that merge other quick
     selects output and/or can produce output suitable for merging.
   */
-  virtual void add_info_string(String *str MY_ATTRIBUTE((unused))) {}
+  virtual void add_info_string(String *str [[maybe_unused]]) {}
   /*
     Return 1 if any index used by this quick select
     uses field which is marked in passed bitmap.
@@ -415,11 +415,11 @@ class QUICK_SELECT_I {
   /*
     Returns a QUICK_SELECT with reverse order of to the index.
   */
-  virtual QUICK_SELECT_I *make_reverse(
-      uint used_key_parts_arg MY_ATTRIBUTE((unused))) {
+  virtual QUICK_SELECT_I *make_reverse(uint used_key_parts_arg
+                                       [[maybe_unused]]) {
     return nullptr;
   }
-  virtual void set_handler(handler *file_arg MY_ATTRIBUTE((unused))) {}
+  virtual void set_handler(handler *file_arg [[maybe_unused]]) {}
 
   /**
     Get the fields used by the range access method.

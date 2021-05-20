@@ -2835,8 +2835,7 @@ void acl_users_add_one(const char *user, const char *host,
                        const MYSQL_TIME &password_change_time,
                        const LEX_ALTER &password_life, bool add_role_vertex,
                        Restrictions &restrictions, uint failed_login_attempts,
-                       int password_lock_time,
-                       THD *thd MY_ATTRIBUTE((unused))) {
+                       int password_lock_time, THD *thd [[maybe_unused]]) {
   DBUG_TRACE;
   ACL_USER acl_user;
 
@@ -2936,7 +2935,7 @@ void acl_users_add_one(const char *user, const char *host,
   }
 }
 
-void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
+void acl_insert_user(THD *thd [[maybe_unused]], const char *user,
                      const char *host, enum SSL_type ssl_type,
                      const char *ssl_cipher, const char *x509_issuer,
                      const char *x509_subject, USER_RESOURCES *mqh,
@@ -3413,11 +3412,11 @@ class Acl_cache_error_handler : public Internal_error_handler {
     @param [in] msg           Message string. Unused.
   */
 
-  bool handle_condition(THD *thd MY_ATTRIBUTE((unused)), uint sql_errno,
-                        const char *sqlstate MY_ATTRIBUTE((unused)),
+  bool handle_condition(THD *thd [[maybe_unused]], uint sql_errno,
+                        const char *sqlstate [[maybe_unused]],
                         Sql_condition::enum_severity_level *level
-                            MY_ATTRIBUTE((unused)),
-                        const char *msg MY_ATTRIBUTE((unused))) override {
+                        [[maybe_unused]],
+                        const char *msg [[maybe_unused]]) override {
     return (sql_errno == ER_LOCK_DEADLOCK ||
             sql_errno == ER_LOCK_WAIT_TIMEOUT ||
             sql_errno == ER_QUERY_INTERRUPTED || sql_errno == ER_QUERY_TIMEOUT);

@@ -543,7 +543,7 @@ class ha_innopart : public ha_innobase,
                                                      part_id);
   }
 
-  uint alter_flags(uint flags MY_ATTRIBUTE((unused))) const override {
+  uint alter_flags(uint flags [[maybe_unused]]) const override {
     return (HA_PARTITION_FUNCTION_SUPPORTED | HA_INPLACE_CHANGE_PARTITION);
   }
 
@@ -719,7 +719,7 @@ class ha_innopart : public ha_innobase,
   Therefore there's no need for a covering lock.
   @param[in]	no_lock	If locking should be skipped. Not used!
   @return	0 for success or error code. */
-  int initialize_auto_increment(bool no_lock MY_ATTRIBUTE((unused))) override;
+  int initialize_auto_increment(bool no_lock [[maybe_unused]]) override;
 
   /** Save currently highest auto increment value.
   @param[in]	nr	Auto increment value to save. */

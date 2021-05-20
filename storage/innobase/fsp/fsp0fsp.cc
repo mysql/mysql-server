@@ -767,10 +767,10 @@ static void fsp_init_file_page(buf_block_t *block, mtr_t *mtr) {
 
 /** Parses a redo log record of a file page init.
  @return end of log record or NULL */
-byte *fsp_parse_init_file_page(
-    byte *ptr,                            /*!< in: buffer */
-    byte *end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
-    buf_block_t *block)                   /*!< in: block or NULL */
+byte *fsp_parse_init_file_page(byte *ptr, /*!< in: buffer */
+                               byte *end_ptr
+                               [[maybe_unused]],   /*!< in: buffer end */
+                               buf_block_t *block) /*!< in: block or NULL */
 {
   if (block) {
     fsp_init_file_page_low(block);
@@ -2177,7 +2177,7 @@ static fseg_inode_t *fseg_inode_get(fseg_header_t *header, space_id_t space,
 static inline page_no_t fseg_get_nth_frag_page_no(
     fseg_inode_t *inode, /*!< in: segment inode */
     ulint n,             /*!< in: slot index */
-    mtr_t *mtr MY_ATTRIBUTE((unused)))
+    mtr_t *mtr [[maybe_unused]])
 /*!< in/out: mini-transaction */
 {
 #ifdef UNIV_DEBUG
@@ -4584,7 +4584,7 @@ static bool load_encryption_from_header(fil_space_t *space) {
       return true;
     }
   } else {
-    dberr_t err MY_ATTRIBUTE((unused)) = fil_set_encryption(
+    dberr_t err [[maybe_unused]] = fil_set_encryption(
         space->id, Encryption::AES, encryption_key, encryption_iv);
     ut_ad(err == DB_SUCCESS);
     if (err != DB_SUCCESS) {

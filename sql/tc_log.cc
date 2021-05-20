@@ -429,7 +429,7 @@ bool TC_LOG_MMAP::sync() {
   cookie points directly to the memory where xid was logged.
 */
 
-void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid MY_ATTRIBUTE((unused))) {
+void TC_LOG_MMAP::unlog(ulong cookie, my_xid xid [[maybe_unused]]) {
   PAGE *p = pages + (cookie / tc_log_page_size);
   my_xid *x = (my_xid *)(data + cookie);
 

@@ -152,8 +152,8 @@ int table_replication_applier_status::rnd_pos(const void *pos) {
   return res;
 }
 
-int table_replication_applier_status::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_replication_applier_status::index_init(uint idx [[maybe_unused]],
+                                                 bool) {
   PFS_index_rpl_applier_status *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_status);

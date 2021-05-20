@@ -3659,7 +3659,7 @@ class Point_accumulator : public WKB_scanner_event_handler {
     }
   }
 
-  void on_wkb_end(const void *wkb MY_ATTRIBUTE((unused))) override {
+  void on_wkb_end(const void *wkb [[maybe_unused]]) override {
     if (pt_start)
       assert(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
 

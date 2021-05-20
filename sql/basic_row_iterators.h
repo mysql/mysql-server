@@ -334,7 +334,7 @@ class FakeSingleRowIterator final : public RowIterator {
     }
   }
 
-  void SetNullRowFlag(bool is_null_row MY_ATTRIBUTE((unused))) override {
+  void SetNullRowFlag(bool is_null_row [[maybe_unused]]) override {
     assert(!is_null_row);
   }
 

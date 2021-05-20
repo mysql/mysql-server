@@ -499,7 +499,7 @@ void table_def_free(void) {
 
 uint cached_table_definitions(void) { return table_def_cache->size(); }
 
-static TABLE_SHARE *process_found_table_share(THD *thd MY_ATTRIBUTE((unused)),
+static TABLE_SHARE *process_found_table_share(THD *thd [[maybe_unused]],
                                               TABLE_SHARE *share,
                                               bool open_view) {
   DBUG_TRACE;

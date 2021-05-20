@@ -148,7 +148,7 @@ void acl_users_add_one(const char *user, const char *host,
                        const MYSQL_TIME &password_change_time,
                        const LEX_ALTER &password_life, bool add_role_vertex,
                        Restrictions &restrictions, uint failed_login_attempts,
-                       int password_lock_time, THD *thd MY_ATTRIBUTE((unused)));
+                       int password_lock_time, THD *thd [[maybe_unused]]);
 void acl_insert_user(THD *thd, const char *user, const char *host,
                      enum SSL_type ssl_type, const char *ssl_cipher,
                      const char *x509_issuer, const char *x509_subject,

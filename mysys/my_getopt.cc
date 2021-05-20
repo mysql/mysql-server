@@ -1353,7 +1353,7 @@ static void init_one_value(const struct my_option *option, void *variable,
 */
 
 static void fini_one_value(const struct my_option *option, void *variable,
-                           longlong value MY_ATTRIBUTE((unused))) {
+                           longlong value [[maybe_unused]]) {
   DBUG_TRACE;
   switch ((option->var_type & GET_TYPE_MASK)) {
     case GET_STR_ALLOC:

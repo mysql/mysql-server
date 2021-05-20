@@ -769,8 +769,9 @@ class Time_zone_utc : public Time_zone {
   RETURN VALUE
     Corresponding my_time_t value, or 0 in case of error.
 */
-my_time_t Time_zone_utc::TIME_to_gmt_sec(
-    const MYSQL_TIME *mt, bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
+my_time_t Time_zone_utc::TIME_to_gmt_sec(const MYSQL_TIME *mt,
+                                         bool *in_dst_time_gap
+                                         [[maybe_unused]]) const {
   return sec_since_epoch(*mt);
 }
 
@@ -953,8 +954,9 @@ Time_zone_offset::Time_zone_offset(long tz_offset_arg) : offset(tz_offset_arg) {
 
   @return Corresponding my_time_t value or 0 for invalid datetime values.
 */
-my_time_t Time_zone_offset::TIME_to_gmt_sec(
-    const MYSQL_TIME *t, bool *in_dst_time_gap MY_ATTRIBUTE((unused))) const {
+my_time_t Time_zone_offset::TIME_to_gmt_sec(const MYSQL_TIME *t,
+                                            bool *in_dst_time_gap
+                                            [[maybe_unused]]) const {
   /*
     Check timestamp range. We have to do this as the caller relies on
     us to make all validation checks here.

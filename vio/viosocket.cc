@@ -70,7 +70,7 @@
 
 #include "mysql/psi/mysql_socket.h"
 
-int vio_errno(Vio *vio MY_ATTRIBUTE((unused))) {
+int vio_errno(Vio *vio [[maybe_unused]]) {
 /* These transport types are not Winsock based. */
 #ifdef _WIN32
   if (vio->type == VIO_TYPE_NAMEDPIPE || vio->type == VIO_TYPE_SHARED_MEMORY)
@@ -306,8 +306,7 @@ bool vio_is_blocking(Vio *vio) {
   return vio->is_blocking_flag;
 }
 
-int vio_socket_timeout(Vio *vio, uint which MY_ATTRIBUTE((unused)),
-                       bool old_mode) {
+int vio_socket_timeout(Vio *vio, uint which [[maybe_unused]], bool old_mode) {
   int ret = 0;
   DBUG_TRACE;
 

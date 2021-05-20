@@ -497,7 +497,7 @@ ulonglong sys_var_pluginvar::get_max_value() {
   @retval true not valid
   @retval false valid
 */
-bool sys_var_pluginvar::on_check_pluginvar(sys_var *self MY_ATTRIBUTE((unused)),
+bool sys_var_pluginvar::on_check_pluginvar(sys_var *self [[maybe_unused]],
                                            THD *, set_var *var) {
   /* This handler is installed only if NO_DEFAULT is specified */
   assert(((sys_var_pluginvar *)self)->plugin_var->flags & PLUGIN_VAR_NODEFAULT);

@@ -2229,18 +2229,18 @@ File my_create_temp_file(const char **filename) {
 }
 
 /* Simulated my_close() */
-int my_close(File fd MY_ATTRIBUTE((unused)), bool success) {
+int my_close(File fd [[maybe_unused]], bool success) {
   return (success ? 0 : 1);
 }
 
 /* Simulated my_delete() */
-int my_delete(const char *filename MY_ATTRIBUTE((unused)), bool success) {
+int my_delete(const char *filename [[maybe_unused]], bool success) {
   return (success ? 0 : 1);
 }
 
 /* Simulated my_rename() */
-int my_rename(const char *from MY_ATTRIBUTE((unused)),
-              const char *to MY_ATTRIBUTE((unused)), bool success) {
+int my_rename(const char *from [[maybe_unused]],
+              const char *to [[maybe_unused]], bool success) {
   return (success ? 0 : 1);
 }
 

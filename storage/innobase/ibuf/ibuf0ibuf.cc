@@ -570,7 +570,7 @@ void ibuf_bitmap_page_init(buf_block_t *block, /*!< in: bitmap page */
  @return end of log record or NULL */
 byte *ibuf_parse_bitmap_init(byte *ptr, /*!< in: buffer */
                              byte *end_ptr
-                                 MY_ATTRIBUTE((unused)), /*!< in: buffer end */
+                             [[maybe_unused]],   /*!< in: buffer end */
                              buf_block_t *block, /*!< in: block or NULL */
                              mtr_t *mtr)         /*!< in: mtr or NULL */
 {

@@ -159,8 +159,7 @@ int table_ees_by_thread_by_error::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_ees_by_thread_by_error::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                             bool) {
+int table_ees_by_thread_by_error::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_ees_by_thread_by_error *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_ees_by_thread_by_error);

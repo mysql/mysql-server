@@ -1224,7 +1224,7 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin) {
       could be unlocked faster - optimizing for LIFO semantics.
     */
     plugin_ref *iter = lex->plugins.end() - 1;
-    bool found_it MY_ATTRIBUTE((unused)) = false;
+    bool found_it [[maybe_unused]] = false;
     for (; iter >= lex->plugins.begin() - 1; --iter) {
       if (plugin == *iter) {
         lex->plugins.erase(iter);
@@ -3505,9 +3505,9 @@ static my_option *construct_help_options(MEM_ROOT *mem_root, st_plugin_int *p) {
   @retval 0 Success
 */
 
-static bool check_if_option_is_deprecated(
-    int optid, const struct my_option *opt,
-    char *argument MY_ATTRIBUTE((unused))) {
+static bool check_if_option_is_deprecated(int optid,
+                                          const struct my_option *opt,
+                                          char *argument [[maybe_unused]]) {
   if (optid == -1) {
     push_deprecated_warn(nullptr, opt->name, (opt->name + strlen("plugin-")));
   }
@@ -3551,7 +3551,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, st_plugin_int *tmp,
   LEX_CSTRING plugin_name;
   char *varname;
   int error;
-  sys_var *v MY_ATTRIBUTE((unused));
+  sys_var *v [[maybe_unused]];
   st_bookmark *var;
   size_t len;
   uint count = EXTRA_OPTIONS;

@@ -686,8 +686,7 @@ uint hp_rb_pack_key(const HP_KEYDEF *keydef, uchar *key, const uchar *old,
   return (uint)(key - start_key);
 }
 
-uint hp_rb_key_length(HP_KEYDEF *keydef,
-                      const uchar *key MY_ATTRIBUTE((unused))) {
+uint hp_rb_key_length(HP_KEYDEF *keydef, const uchar *key [[maybe_unused]]) {
   return keydef->length;
 }
 

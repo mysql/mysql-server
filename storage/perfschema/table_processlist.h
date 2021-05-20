@@ -117,7 +117,7 @@ class table_processlist : public cursor_by_thread {
  protected:
   table_processlist();
 
-  int rnd_init(bool scan MY_ATTRIBUTE((unused))) override;
+  int rnd_init(bool scan [[maybe_unused]]) override;
 
   int index_init(uint idx, bool sorted) override;
   int read_row_values(TABLE *table, unsigned char *buf, Field **fields,

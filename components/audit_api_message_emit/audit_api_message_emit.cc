@@ -92,8 +92,7 @@ typedef bool (*validate_function)(IError_handler &handler, const char *arg,
   Check, whether the argument is not null pointer.
 */
 static bool not_null(IError_handler &handler, const char *arg,
-                     unsigned long length MY_ATTRIBUTE((unused)),
-                     size_t arg_pos) {
+                     unsigned long length [[maybe_unused]], size_t arg_pos) {
   if (arg == nullptr) {
     handler.error("Argument cannot be NULL [%d].", arg_pos);
     return false;
@@ -426,10 +425,10 @@ class String_error_handler : public IError_handler {
 /**
   UDF function itself.
 */
-static char *emit(UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
+static char *emit(UDF_INIT *initid [[maybe_unused]], UDF_ARGS *args,
                   char *result, unsigned long *length,
-                  unsigned char *null_value MY_ATTRIBUTE((unused)),
-                  unsigned char *error MY_ATTRIBUTE((unused))) {
+                  unsigned char *null_value [[maybe_unused]],
+                  unsigned char *error [[maybe_unused]]) {
   /*
     Store the error as the result of the UDF.
   */

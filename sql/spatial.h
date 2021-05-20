@@ -471,27 +471,27 @@ class Geometry {
   virtual uint32 get_data_size() const { return -1; }
 
   /* read from trs the wkt string and write into wkb as wkb encoded data. */
-  virtual bool init_from_wkt(Gis_read_stream *trs MY_ATTRIBUTE((unused)),
-                             String *wkb MY_ATTRIBUTE((unused))) {
+  virtual bool init_from_wkt(Gis_read_stream *trs [[maybe_unused]],
+                             String *wkb [[maybe_unused]]) {
     return true;
   }
 
   /* read from wkb the wkb data and write into res as wkb encoded data. */
   /* returns the length of the wkb that was read */
-  virtual uint init_from_wkb(THD *thd MY_ATTRIBUTE((unused)),
-                             const char *wkb MY_ATTRIBUTE((unused)),
-                             uint len MY_ATTRIBUTE((unused)),
-                             wkbByteOrder bo MY_ATTRIBUTE((unused)),
-                             String *res MY_ATTRIBUTE((unused))) {
+  virtual uint init_from_wkb(THD *thd [[maybe_unused]],
+                             const char *wkb [[maybe_unused]],
+                             uint len [[maybe_unused]],
+                             wkbByteOrder bo [[maybe_unused]],
+                             String *res [[maybe_unused]]) {
     return 0;
   }
 
-  virtual bool get_data_as_wkt(String *txt MY_ATTRIBUTE((unused)),
-                               wkb_parser *wkb MY_ATTRIBUTE((unused))) const {
+  virtual bool get_data_as_wkt(String *txt [[maybe_unused]],
+                               wkb_parser *wkb [[maybe_unused]]) const {
     return true;
   }
-  virtual bool get_mbr(MBR *mbr MY_ATTRIBUTE((unused)),
-                       wkb_parser *wkb MY_ATTRIBUTE((unused))) const {
+  virtual bool get_mbr(MBR *mbr [[maybe_unused]],
+                       wkb_parser *wkb [[maybe_unused]]) const {
     return true;
   }
   bool get_mbr(MBR *mbr) {
@@ -518,45 +518,30 @@ class Geometry {
     return 0;
   }
 
-  virtual int get_x(double *x MY_ATTRIBUTE((unused))) const { return -1; }
-  virtual int get_y(double *y MY_ATTRIBUTE((unused))) const { return -1; }
-  virtual int geom_length(double *len MY_ATTRIBUTE((unused))) const {
+  virtual int get_x(double *x [[maybe_unused]]) const { return -1; }
+  virtual int get_y(double *y [[maybe_unused]]) const { return -1; }
+  virtual int geom_length(double *len [[maybe_unused]]) const { return -1; }
+  virtual int is_closed(int *closed [[maybe_unused]]) const { return -1; }
+  virtual int num_interior_ring(uint32 *n_int_rings [[maybe_unused]]) const {
     return -1;
   }
-  virtual int is_closed(int *closed MY_ATTRIBUTE((unused))) const { return -1; }
-  virtual int num_interior_ring(
-      uint32 *n_int_rings MY_ATTRIBUTE((unused))) const {
-    return -1;
-  }
-  virtual int num_points(uint32 *n_points MY_ATTRIBUTE((unused))) const {
-    return -1;
-  }
-  virtual int num_geometries(uint32 *num MY_ATTRIBUTE((unused))) const {
-    return -1;
-  }
-  virtual int copy_points(String *result MY_ATTRIBUTE((unused))) const {
-    return -1;
-  }
+  virtual int num_points(uint32 *n_points [[maybe_unused]]) const { return -1; }
+  virtual int num_geometries(uint32 *num [[maybe_unused]]) const { return -1; }
+  virtual int copy_points(String *result [[maybe_unused]]) const { return -1; }
   /* The following 7 functions return geometries in wkb format. */
-  virtual int start_point(String *point MY_ATTRIBUTE((unused))) const {
+  virtual int start_point(String *point [[maybe_unused]]) const { return -1; }
+  virtual int end_point(String *point [[maybe_unused]]) const { return -1; }
+  virtual int exterior_ring(String *ring [[maybe_unused]]) const { return -1; }
+  virtual int point_n(uint32 num [[maybe_unused]],
+                      String *result [[maybe_unused]]) const {
     return -1;
   }
-  virtual int end_point(String *point MY_ATTRIBUTE((unused))) const {
+  virtual int interior_ring_n(uint32 num [[maybe_unused]],
+                              String *result [[maybe_unused]]) const {
     return -1;
   }
-  virtual int exterior_ring(String *ring MY_ATTRIBUTE((unused))) const {
-    return -1;
-  }
-  virtual int point_n(uint32 num MY_ATTRIBUTE((unused)),
-                      String *result MY_ATTRIBUTE((unused))) const {
-    return -1;
-  }
-  virtual int interior_ring_n(uint32 num MY_ATTRIBUTE((unused)),
-                              String *result MY_ATTRIBUTE((unused))) const {
-    return -1;
-  }
-  virtual int geometry_n(uint32 num MY_ATTRIBUTE((unused)),
-                         String *result MY_ATTRIBUTE((unused))) const {
+  virtual int geometry_n(uint32 num [[maybe_unused]],
+                         String *result [[maybe_unused]]) const {
     return -1;
   }
 

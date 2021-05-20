@@ -932,7 +932,7 @@ bool Rewriter_show_create_user::rewrite(String &rlb) const {
   @param [in, out]  str    The string in which the clause is suffixed
 */
 void Rewriter_show_create_user::rewrite_user_application_user_metadata(
-    const LEX *lex MY_ATTRIBUTE((unused)), String *str) const {
+    const LEX *lex [[maybe_unused]], String *str) const {
   /* Only show the ATTRIBUTE operator if there's any attribute to show. */
   if (show_params_->metadata_str->length() > 0) {
     str->append(" ATTRIBUTE '");

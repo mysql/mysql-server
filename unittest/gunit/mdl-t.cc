@@ -76,8 +76,7 @@ extern "C" void test_error_handler_hook(uint err, const char *str, myf) {
   Mock away this global function.
   We don't need DEBUG_SYNC functionality in a unit test.
  */
-void debug_sync(THD *, const char *sync_point_name MY_ATTRIBUTE((unused)),
-                size_t) {
+void debug_sync(THD *, const char *sync_point_name [[maybe_unused]], size_t) {
   DBUG_PRINT("debug_sync_point", ("hit: '%s'", sync_point_name));
   FAIL() << "Not yet implemented.";
 }

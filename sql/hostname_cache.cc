@@ -925,7 +925,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage, const char *ip_string,
     char ip_buffer[HOST_ENTRY_KEY_SIZE];
 
     {
-      bool err_status MY_ATTRIBUTE((unused));
+      bool err_status [[maybe_unused]];
       err_status = vio_get_normalized_ip_string(addr_info->ai_addr,
                                                 addr_info->ai_addrlen,
                                                 ip_buffer, sizeof(ip_buffer));

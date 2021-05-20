@@ -284,7 +284,7 @@ bool read_frame_buffer_row(int64 rowno, Window *w,
 #ifndef NDEBUG
                            bool for_nth_value)
 #else
-                           bool for_nth_value MY_ATTRIBUTE((unused)))
+                           bool for_nth_value [[maybe_unused]])
 #endif
 {
   int use_idx = 0;  // closest prior position found, a priori 0 (row 1)

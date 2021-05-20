@@ -795,7 +795,7 @@ static int write_merge_key_varlen(MI_SORT_PARAM *info, IO_CACHE *to_file,
   return (0);
 }
 
-static int write_merge_key(MI_SORT_PARAM *info MY_ATTRIBUTE((unused)),
+static int write_merge_key(MI_SORT_PARAM *info [[maybe_unused]],
                            IO_CACHE *to_file, uchar *key, uint sort_length,
                            uint count) {
   return my_b_write(to_file, key, (size_t)sort_length * count);

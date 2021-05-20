@@ -494,7 +494,7 @@ static int validate_password_init(MYSQL_PLUGIN plugin_info) {
   It empty the std::set and returns 0
 */
 
-static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int validate_password_deinit(void *arg [[maybe_unused]]) {
   push_deprecated_warn(thd_get_current_thd(), "validate password plugin",
                        "validate_password component");
   free_dictionary_file();
@@ -510,9 +510,9 @@ static int validate_password_deinit(void *arg MY_ATTRIBUTE((unused))) {
   If dictionary file is changed, this function will flush
   the cache and re-load the new dictionary file.
 */
-static void dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *var MY_ATTRIBUTE((unused)),
-                              void *var_ptr, const void *save) {
+static void dictionary_update(MYSQL_THD thd [[maybe_unused]],
+                              SYS_VAR *var [[maybe_unused]], void *var_ptr,
+                              const void *save) {
   *static_cast<const char **>(var_ptr) =
       *static_cast<const char **>(const_cast<void *>(save));
   read_dictionary_file();
@@ -525,8 +525,8 @@ static void dictionary_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
   3. validate_password_mixed_case_count
   4. validate_password_special_char_count
 */
-static void length_update(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                          SYS_VAR *var MY_ATTRIBUTE((unused)), void *var_ptr,
+static void length_update(MYSQL_THD thd [[maybe_unused]],
+                          SYS_VAR *var [[maybe_unused]], void *var_ptr,
                           const void *save) {
   /* check if there is an actual change */
   if (*static_cast<int *>(var_ptr) == *static_cast<const int *>(save)) return;

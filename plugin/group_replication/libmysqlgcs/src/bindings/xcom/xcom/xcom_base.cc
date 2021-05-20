@@ -705,7 +705,7 @@ static int wait_forced_config = 0;
 
 /* Definition of majority */
 static inline int majority(bit_set const *nodeset, site_def const *s, int all,
-                           int delay MY_ATTRIBUTE((unused)), int force) {
+                           int delay [[maybe_unused]], int force) {
   node_no ok = 0;
   node_no i = 0;
   int retval = 0;
@@ -926,7 +926,7 @@ static void free_forced_config_site_def() {
 }
 
 #if TASK_DBUG_ON
-static void dbg_proposers() MY_ATTRIBUTE((unused));
+[[maybe_unused]] static void dbg_proposers();
 static void dbg_proposers() {
   GET_GOUT;
   if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
@@ -1655,7 +1655,7 @@ static synode_no getstart(app_data_ptr a) {
   if (a && a->group_id == null_id) {
     /* purecov: begin deadcode */
     a->group_id = a->app_key.group_id; /* app_key may have valid group */
-    /* purecov: end */
+                                       /* purecov: end */
   }
   G_DEBUG("pid %d getstart group_id %x", xpid(), a->group_id);
   if (!a || a->group_id == null_id) {
@@ -2122,7 +2122,7 @@ static int proposer_task(task_arg arg) {
       if (ep->client_msg->p->force_delivery)
         ep->p->force_delivery = ep->client_msg->p->force_delivery;
       {
-        int MY_ATTRIBUTE((unused)) lock = lock_pax_machine(ep->p);
+        [[maybe_unused]] int lock = lock_pax_machine(ep->p);
         assert(!lock);
       }
 
@@ -2248,7 +2248,7 @@ static int proposer_task(task_arg arg) {
   }
   replace_pax_msg(&ep->prepare_msg, NULL);
   if (ep->client_msg) { /* If we get here with a client message, we have
-                           failed to deliver */
+                                             failed to deliver */
     DBGOUT_ASSERT(check_lsn(ep->client_msg->p->a), STRLIT("NULL lsn"));
     IFDBG(D_NONE, FN;
           STRLIT("undelivered message at task end -> delivery_failure"));
@@ -2522,8 +2522,7 @@ synode_no set_current_message(synode_no msgno) {
 static void update_max_synode(pax_msg *p);
 
 #if TASK_DBUG_ON
-static void perf_dbg(int *_n, int *_old_n, double *_old_t)
-    MY_ATTRIBUTE((unused));
+static void perf_dbg(int *_n, int *_old_n, double *_old_t) [[maybe_unused]];
 static void perf_dbg(int *_n, int *_old_n, double *_old_t) {
   int n = *_n;
   int old_n = *_old_n;
@@ -2569,7 +2568,7 @@ static inline int LOSER(synode_no x, site_def const *site) {
 #define LOSER(x, site) 0
 #endif
 
-static void debug_loser(synode_no x) MY_ATTRIBUTE((unused));
+[[maybe_unused]] static void debug_loser(synode_no x);
 #if defined(TASK_DBUG_ON) && TASK_DBUG_ON
 static void debug_loser(synode_no x) {
   if (!IS_XCOM_DEBUG_WITH(XCOM_DEBUG_TRACE)) return;
@@ -2585,7 +2584,7 @@ static void debug_loser(synode_no x) {
 }
 #else
 /* purecov: begin deadcode */
-static void debug_loser(synode_no x MY_ATTRIBUTE((unused))) {}
+static void debug_loser(synode_no x [[maybe_unused]]) {}
 /* purecov: end */
 #endif
 
@@ -3459,8 +3458,8 @@ static void x_execute(execute_context *xc) {
 
 static execute_context *debug_xc;
 
-static void dump_exec_state(execute_context *xc MY_ATTRIBUTE((unused)),
-                            long dbg MY_ATTRIBUTE((unused))) {
+static void dump_exec_state(execute_context *xc [[maybe_unused]],
+                            long dbg [[maybe_unused]]) {
   IFDBG(dbg, FN; SYCEXP(executed_msg); SYCEXP(delivered_msg);
         SYCEXP(max_synode); SYCEXP(last_delivered_msg); NDBG(delay_fifo.n, d);
         NDBG(delay_fifo.front, d); NDBG(delay_fifo.rear, d);
@@ -3480,7 +3479,7 @@ static void x_terminate(execute_context *xc) {
   xc->state = 0;
 }
 
-static int executor_task(task_arg arg MY_ATTRIBUTE((unused))) {
+static int executor_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   execute_context xc;
   END_ENV;
@@ -3558,7 +3557,7 @@ static synode_no get_sweep_start() {
   return find;
 }
 
-static int sweeper_task(task_arg arg MY_ATTRIBUTE((unused))) {
+static int sweeper_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   synode_no find;
   END_ENV;
@@ -3602,7 +3601,7 @@ static int sweeper_task(task_arg arg MY_ATTRIBUTE((unused))) {
                 add_event(EVENT_DUMP_PAD, string_arg("pm"));
                 add_event(EVENT_DUMP_PAD, void_arg(pm)););
         if (pm && !pm->force_delivery) { /* We want full 3 phase Paxos for
-                                            forced messages */
+                                                              forced messages */
           ADD_DBG(
               D_CONS, add_event(EVENT_DUMP_PAD, string_arg("sweeper checking"));
               add_synode_event(ep->find);
@@ -3985,8 +3984,8 @@ static pax_msg *check_learn(site_def const *site, pax_machine *p) {
   }
 }
 
-static void do_learn(site_def const *site MY_ATTRIBUTE((unused)),
-                     pax_machine *p, pax_msg *m) {
+static void do_learn(site_def const *site [[maybe_unused]], pax_machine *p,
+                     pax_msg *m) {
   ADD_DBG(D_CONS, add_synode_event(p->synode);
           add_event(EVENT_DUMP_PAD, string_arg("m->from"));
           add_event(EVENT_DUMP_PAD, uint_arg(m->from));

@@ -53,11 +53,10 @@ REQUIRES_SERVICE_PLACEHOLDER(mysql_audit_api_message);
 
   @retval 0 This function always returns 0.
 */
-static long long message_internal(UDF_INIT *init MY_ATTRIBUTE((unused)),
-                                  UDF_ARGS *args MY_ATTRIBUTE((unused)),
-                                  unsigned char *null_value
-                                      MY_ATTRIBUTE((unused)),
-                                  unsigned char *error MY_ATTRIBUTE((unused))) {
+static long long message_internal(UDF_INIT *init [[maybe_unused]],
+                                  UDF_ARGS *args [[maybe_unused]],
+                                  unsigned char *null_value [[maybe_unused]],
+                                  unsigned char *error [[maybe_unused]]) {
   mysql_event_message_key_value_t val;
 
   lex_cstring_set(&val.key, "my_numeric_key");
@@ -83,10 +82,10 @@ static long long message_internal(UDF_INIT *init MY_ATTRIBUTE((unused)),
 
   @retval 0 This function always returns 0.
 */
-static long long message_user(UDF_INIT *init MY_ATTRIBUTE((unused)),
-                              UDF_ARGS *args MY_ATTRIBUTE((unused)),
-                              unsigned char *null_value MY_ATTRIBUTE((unused)),
-                              unsigned char *error MY_ATTRIBUTE((unused))) {
+static long long message_user(UDF_INIT *init [[maybe_unused]],
+                              UDF_ARGS *args [[maybe_unused]],
+                              unsigned char *null_value [[maybe_unused]],
+                              unsigned char *error [[maybe_unused]]) {
   mysql_event_message_key_value_t val;
 
   lex_cstring_set(&val.key, "my_string_key");

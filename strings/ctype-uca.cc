@@ -5033,8 +5033,8 @@ static void my_hash_sort_uca_900(const CHARSET_INFO *cs, const uchar *s,
   a constant just if the collation itself allows expansions or contractions.
 */
 bool my_propagate_uca_900(const CHARSET_INFO *cs,
-                          const uchar *str MY_ATTRIBUTE((unused)),
-                          size_t length MY_ATTRIBUTE((unused))) {
+                          const uchar *str [[maybe_unused]],
+                          size_t length [[maybe_unused]]) {
   return !my_uca_have_contractions(cs->uca);
 }
 
@@ -5055,8 +5055,8 @@ static size_t my_strnxfrm_uca_900_tmpl(const CHARSET_INFO *cs,
 
   if (dst != dst_end) {
     scanner.for_each_weight(
-        [&dst, dst_end](
-            int s_res, bool is_level_separator MY_ATTRIBUTE((unused))) -> bool {
+        [&dst, dst_end](int s_res,
+                        bool is_level_separator [[maybe_unused]]) -> bool {
           assert(is_level_separator == (s_res == 0));
           if (LEVELS_FOR_COMPARE == 1) assert(!is_level_separator);
 
@@ -5080,7 +5080,7 @@ extern "C" {
 
 static size_t my_strnxfrm_uca_900(const CHARSET_INFO *cs, uchar *dst,
                                   size_t dstlen,
-                                  uint num_codepoints MY_ATTRIBUTE((unused)),
+                                  uint num_codepoints [[maybe_unused]],
                                   const uchar *src, size_t srclen, uint flags) {
   if (cs->cset->mb_wc == my_mb_wc_utf8mb4_thunk) {
     switch (cs->levels_for_compare) {
@@ -11393,10 +11393,12 @@ CHARSET_INFO my_charset_utf8mb4_zh_0900_as_cs = {
   my_strnxfrm_unicode_full_bin() chooses to transform to UCS before collation;
   this is purely for legacy reasons and is not needed here.
  */
-static size_t my_strnxfrm_utf8mb4_0900_bin(
-    const CHARSET_INFO *cs MY_ATTRIBUTE((unused)), uchar *dst, size_t dstlen,
-    uint nweights MY_ATTRIBUTE((unused)), const uchar *src, size_t srclen,
-    uint flags) {
+static size_t my_strnxfrm_utf8mb4_0900_bin(const CHARSET_INFO *cs
+                                           [[maybe_unused]],
+                                           uchar *dst, size_t dstlen,
+                                           uint nweights [[maybe_unused]],
+                                           const uchar *src, size_t srclen,
+                                           uint flags) {
   assert(src);
 
   size_t weight_len = std::min<size_t>(srclen, dstlen);

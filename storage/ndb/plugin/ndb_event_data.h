@@ -124,9 +124,9 @@ class Ndb_event_data {
 
   // Convert the opaque pointer stored as 'custom data' in the event operation
   // to Ndb_event_data*, perform the paranoid checks in debug
-  static inline Ndb_event_data *get_event_data(
-      void *custom_data_ptr,
-      const NDB_SHARE *check_share MY_ATTRIBUTE((unused)) = nullptr) {
+  static inline Ndb_event_data *get_event_data(void *custom_data_ptr,
+                                               const NDB_SHARE *check_share
+                                               [[maybe_unused]] = nullptr) {
     assert(check_custom_data(custom_data_ptr, check_share));
     return static_cast<Ndb_event_data *>(custom_data_ptr);
   }

@@ -276,12 +276,11 @@ class PFS_object_visitor {
   virtual void visit_table_share(PFS_table_share *) {}
   /** Visit a table share index. */
   virtual void visit_table_share_index(PFS_table_share *,
-                                       uint index MY_ATTRIBUTE((unused))) {}
+                                       uint index [[maybe_unused]]) {}
   /** Visit a table. */
   virtual void visit_table(PFS_table *) {}
   /** Visit a table index. */
-  virtual void visit_table_index(PFS_table *,
-                                 uint index MY_ATTRIBUTE((unused))) {}
+  virtual void visit_table_index(PFS_table *, uint index [[maybe_unused]]) {}
 };
 
 /**

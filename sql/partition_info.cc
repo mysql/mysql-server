@@ -2722,7 +2722,7 @@ bool partition_info::same_key_column_order(List<Create_field> *create_list) {
   return true;
 }
 
-void partition_info::print_debug(const char *str MY_ATTRIBUTE((unused)),
+void partition_info::print_debug(const char *str [[maybe_unused]],
                                  uint *value) {
   DBUG_TRACE;
   if (value)

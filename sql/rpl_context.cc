@@ -174,7 +174,7 @@ void Session_consistency_gtids_ctx::register_ctx_change_listener(
 
 void Session_consistency_gtids_ctx::unregister_ctx_change_listener(
     Session_consistency_gtids_ctx::Ctx_change_listener *listener
-        MY_ATTRIBUTE((unused))) {
+    [[maybe_unused]]) {
   assert(m_listener == listener || m_listener == nullptr);
 
   if (m_gtid_set) delete m_gtid_set;

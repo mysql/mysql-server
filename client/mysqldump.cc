@@ -4493,7 +4493,7 @@ RETURN VALUES
   0        Success.
   1        Failure.
 */
-int init_dumping_views(char *qdatabase MY_ATTRIBUTE((unused))) {
+int init_dumping_views(char *qdatabase [[maybe_unused]]) {
   return 0;
 } /* init_dumping_views */
 

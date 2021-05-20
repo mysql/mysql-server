@@ -55,8 +55,7 @@ using std::max;
 using std::min;
 
 template <typename T, typename UT>
-void Bit_stream_base<T, UT>::dbug_print(
-    const char *str MY_ATTRIBUTE((unused))) const {
+void Bit_stream_base<T, UT>::dbug_print(const char *str) const {
 #ifndef NDEBUG
   StringBuffer<STRING_BUFFER_USUAL_SIZE> s;
   s.reserve(static_cast<size_t>(m_current_bit + 1));

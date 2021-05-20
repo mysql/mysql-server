@@ -602,8 +602,7 @@ class Item_func : public Item_result_field {
     @retval true   arg can be cached
     @retval false  otherwise
   */
-  virtual enum_const_item_cache can_cache_json_arg(
-      Item *arg MY_ATTRIBUTE((unused))) {
+  virtual enum_const_item_cache can_cache_json_arg(Item *arg [[maybe_unused]]) {
     return CACHE_NONE;
   }
 
@@ -695,8 +694,7 @@ class Item_func : public Item_result_field {
     }
     return false;
   }
-  bool check_column_from_derived_table(
-      uchar *arg MY_ATTRIBUTE((unused))) override {
+  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
     return false;
   }
   bool check_column_in_window_functions(uchar *arg) override;

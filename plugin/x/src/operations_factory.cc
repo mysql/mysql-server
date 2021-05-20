@@ -53,7 +53,7 @@ class Socket : public iface::Socket {
  public:
   explicit Socket(MYSQL_SOCKET mysql_socket) : m_mysql_socket(mysql_socket) {}
 
-  Socket(PSI_socket_key key MY_ATTRIBUTE((unused)), int domain, int type,
+  Socket(PSI_socket_key key [[maybe_unused]], int domain, int type,
          int protocol)
       : m_mysql_socket(mysql_socket_socket(key, domain, type, protocol)) {}
 
@@ -63,7 +63,7 @@ class Socket : public iface::Socket {
     return mysql_socket_bind(m_mysql_socket, addr, len);
   }
 
-  MYSQL_SOCKET accept(PSI_socket_key key MY_ATTRIBUTE((unused)),
+  MYSQL_SOCKET accept(PSI_socket_key key [[maybe_unused]],
                       struct sockaddr *addr, socklen_t *addr_len) override {
     return mysql_socket_accept(key, m_mysql_socket, addr, addr_len);
   }

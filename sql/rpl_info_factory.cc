@@ -1254,9 +1254,9 @@ Master_info *Rpl_info_factory::create_mi_and_rli_objects(
 */
 
 bool Rpl_info_factory::load_channel_names_from_repository(
-    std::vector<std::string> &channel_list,
-    uint mi_instances MY_ATTRIBUTE((unused)), uint mi_repository,
-    const char *default_channel, bool *default_channel_existed_previously) {
+    std::vector<std::string> &channel_list, uint mi_instances [[maybe_unused]],
+    uint mi_repository, const char *default_channel,
+    bool *default_channel_existed_previously) {
   DBUG_TRACE;
 
   *default_channel_existed_previously = false;

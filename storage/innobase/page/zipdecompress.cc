@@ -87,9 +87,9 @@ static void *page_zip_zalloc(void *opaque, /*!< in/out: memory heap */
 }
 
 /** Deallocate memory for zlib. */
-static void page_zip_free(
-    void *opaque MY_ATTRIBUTE((unused)),  /*!< in: memory heap */
-    void *address MY_ATTRIBUTE((unused))) /*!< in: object to free */
+static void page_zip_free(void *opaque [[maybe_unused]], /*!< in: memory heap */
+                          void *address
+                          [[maybe_unused]]) /*!< in: object to free */
 {}
 
 } /* extern "C" */

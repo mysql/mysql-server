@@ -627,7 +627,7 @@ TEST_F(PropertiesTest, IterationSize) {
 
   EXPECT_TRUE(p->size() == 0);
 
-  for (dd::Properties::iterator it MY_ATTRIBUTE((unused)) = p->begin();
+  for (dd::Properties::iterator it [[maybe_unused]] = p->begin();
        it != p->end(); ++it, ++i)
     EXPECT_TRUE(false);
 

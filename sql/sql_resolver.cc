@@ -5752,8 +5752,7 @@ static bool replace_aggregate_in_list(Item::Aggregate_replacement &info,
   @returns true on error, else false
 */
 bool Query_block::remove_aggregates(THD *thd,
-                                    Query_block MY_ATTRIBUTE((unused)) *
-                                        select) {
+                                    [[maybe_unused]] Query_block *select) {
   for (auto it = fields.begin(); it != fields.end(); ++it) {
     Item *select_expr = *it;
     if (!select_expr->m_is_window_function &&
@@ -6217,7 +6216,7 @@ bool Query_block::transform_grouped_to_derived(THD *thd, bool *break_off) {
 
       for (Item_sum *agg : having_aggs.list) {
         Item::Aggregate_ref_update info(agg, new_derived);
-        bool MY_ATTRIBUTE((unused)) error = new_derived->m_having_cond->walk(
+        [[maybe_unused]] bool error = new_derived->m_having_cond->walk(
             &Item::update_aggr_refs, enum_walk::PREFIX,
             pointer_cast<uchar *>(&info));
         assert(!error);
@@ -6497,7 +6496,7 @@ bool Query_block::nest_derived(THD *thd, Item *join_cond,
                                mem_root_deque<TABLE_LIST *> *nested_join_list,
                                TABLE_LIST *derived_table) {
   // Locate join nest in which the joinee with the condition sits
-  const bool found MY_ATTRIBUTE((unused)) = walk_join_list(
+  const bool found [[maybe_unused]] = walk_join_list(
       *nested_join_list,
       [join_cond, &nested_join_list](TABLE_LIST *tr) mutable -> bool {
         if (tr->join_cond() == join_cond) {

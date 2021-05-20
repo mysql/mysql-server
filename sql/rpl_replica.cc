@@ -1950,7 +1950,7 @@ static int terminate_slave_thread(THD *thd, mysql_mutex_t *term_lock,
       ESRCH: thread already killed (can happen, should be ignored)
     */
 #ifndef _WIN32
-    int err MY_ATTRIBUTE((unused)) = pthread_kill(thd->real_id, SIGALRM);
+    int err [[maybe_unused]] = pthread_kill(thd->real_id, SIGALRM);
     assert(err != EINVAL);
 #endif
     if (force)

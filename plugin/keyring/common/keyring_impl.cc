@@ -139,9 +139,9 @@ void log_opearation_error(const char *failed_operation,
   }
 }
 
-void update_keyring_file_data(MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *var MY_ATTRIBUTE((unused)),
-                              void *var_ptr MY_ATTRIBUTE((unused)),
+void update_keyring_file_data(MYSQL_THD thd [[maybe_unused]],
+                              SYS_VAR *var [[maybe_unused]],
+                              void *var_ptr [[maybe_unused]],
                               const void *save_ptr) {
   mysql_rwlock_wrlock(&LOCK_keyring);
   IKeys_container *new_keys =

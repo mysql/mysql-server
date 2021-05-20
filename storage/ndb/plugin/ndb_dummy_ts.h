@@ -44,7 +44,7 @@ namespace ndb_dummy_ts {
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_create(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
+static bool sdi_create(dd::Tablespace *tablespace [[maybe_unused]]) {
   assert(false);  // Never called
   return false;   // Success
 }
@@ -56,7 +56,7 @@ static bool sdi_create(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_drop(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
+static bool sdi_drop(dd::Tablespace *tablespace [[maybe_unused]]) {
   assert(false);  // Never called
   return false;   // Success
 }
@@ -68,9 +68,8 @@ static bool sdi_drop(dd::Tablespace *tablespace MY_ATTRIBUTE((unused))) {
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_get_keys(const dd::Tablespace &tablespace
-                             MY_ATTRIBUTE((unused)),
-                         sdi_vector_t &vector MY_ATTRIBUTE((unused))) {
+static bool sdi_get_keys(const dd::Tablespace &tablespace [[maybe_unused]],
+                         sdi_vector_t &vector [[maybe_unused]]) {
   assert(false);  // Never called
   return false;   // Success
 }
@@ -84,10 +83,10 @@ static bool sdi_get_keys(const dd::Tablespace &tablespace
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_get(const dd::Tablespace &tablespace MY_ATTRIBUTE((unused)),
-                    const sdi_key_t *sdi_key MY_ATTRIBUTE((unused)),
-                    void *sdi MY_ATTRIBUTE((unused)),
-                    uint64 *sdi_len MY_ATTRIBUTE((unused))) {
+static bool sdi_get(const dd::Tablespace &tablespace [[maybe_unused]],
+                    const sdi_key_t *sdi_key [[maybe_unused]],
+                    void *sdi [[maybe_unused]],
+                    uint64 *sdi_len [[maybe_unused]]) {
   assert(false);  // Never called
   return false;   // Success
 }
@@ -103,12 +102,12 @@ static bool sdi_get(const dd::Tablespace &tablespace MY_ATTRIBUTE((unused)),
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_set(handlerton *hton MY_ATTRIBUTE((unused)),
-                    const dd::Tablespace &tablespace MY_ATTRIBUTE((unused)),
-                    const dd::Table *table MY_ATTRIBUTE((unused)),
-                    const sdi_key_t *sdi_key MY_ATTRIBUTE((unused)),
-                    const void *sdi MY_ATTRIBUTE((unused)),
-                    uint64 sdi_len MY_ATTRIBUTE((unused))) {
+static bool sdi_set(handlerton *hton [[maybe_unused]],
+                    const dd::Tablespace &tablespace [[maybe_unused]],
+                    const dd::Table *table [[maybe_unused]],
+                    const sdi_key_t *sdi_key [[maybe_unused]],
+                    const void *sdi [[maybe_unused]],
+                    uint64 sdi_len [[maybe_unused]]) {
   return false;  // Success
 }
 
@@ -121,9 +120,9 @@ static bool sdi_set(handlerton *hton MY_ATTRIBUTE((unused)),
   @retval		false		success
   @retval		true		failure
 */
-static bool sdi_delete(const dd::Tablespace &tablespace MY_ATTRIBUTE((unused)),
-                       const dd::Table *table MY_ATTRIBUTE((unused)),
-                       const sdi_key_t *sdi_key MY_ATTRIBUTE((unused))) {
+static bool sdi_delete(const dd::Tablespace &tablespace [[maybe_unused]],
+                       const dd::Table *table [[maybe_unused]],
+                       const sdi_key_t *sdi_key [[maybe_unused]]) {
   return false;  // Success
 }
 }  // namespace ndb_dummy_ts

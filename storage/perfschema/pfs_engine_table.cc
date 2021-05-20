@@ -1298,7 +1298,7 @@ enum ha_rkey_function PFS_key_reader::read_timestamp(
 
 enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
     enum ha_rkey_function find_flag, bool &isnull, char *buffer,
-    uint *buffer_length, uint buffer_capacity MY_ATTRIBUTE((unused))) {
+    uint *buffer_length, uint buffer_capacity [[maybe_unused]]) {
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     /*
       Stored as:
@@ -1350,7 +1350,7 @@ enum ha_rkey_function PFS_key_reader::read_varchar_utf8(
 
 enum ha_rkey_function PFS_key_reader::read_text_utf8(
     enum ha_rkey_function find_flag, bool &isnull, char *buffer,
-    uint *buffer_length, uint buffer_capacity MY_ATTRIBUTE((unused))) {
+    uint *buffer_length, uint buffer_capacity [[maybe_unused]]) {
   if (m_remaining_key_part_info->store_length <= m_remaining_key_len) {
     /*
       Stored as:

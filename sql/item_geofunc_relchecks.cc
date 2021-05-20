@@ -429,7 +429,7 @@ template <typename Coordsys>
 int Item_func_spatial_rel::geocol_relcheck_within(
     const typename BG_geometry_collection::Geometry_list *gv1,
     const typename BG_geometry_collection::Geometry_list *gv2,
-    enum Functype spatial_rel MY_ATTRIBUTE((unused))) {
+    enum Functype spatial_rel [[maybe_unused]]) {
   int tres = 0;
 
   /*

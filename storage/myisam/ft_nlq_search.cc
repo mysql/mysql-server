@@ -323,8 +323,8 @@ int ft_nlq_read_next(FT_INFO *handler_base, char *record) {
 }
 
 float ft_nlq_find_relevance(FT_INFO *handler_base,
-                            uchar *record MY_ATTRIBUTE((unused)),
-                            uint length MY_ATTRIBUTE((unused))) {
+                            uchar *record [[maybe_unused]],
+                            uint length [[maybe_unused]]) {
   st_ft_info_nlq *handler = (st_ft_info_nlq *)handler_base;
   int a, b, c;
   FT_DOC *docs = handler->doc;

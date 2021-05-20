@@ -545,7 +545,7 @@ class Eq_creator : public Linear_comp_creator {
 
 class Equal_creator : public Linear_comp_creator {
  public:
-  const char *symbol(bool invert MY_ATTRIBUTE((unused))) const override {
+  const char *symbol(bool invert [[maybe_unused]]) const override {
     // This will never be called with true.
     assert(!invert);
     return "<=>";
@@ -1150,8 +1150,7 @@ class Item_func_reject_if : public Item_bool_func {
   longlong val_int() override;
   const char *func_name() const override { return "reject_if"; }
   /// Redefine to avoid pushing into derived table
-  bool check_column_from_derived_table(
-      uchar *arg MY_ATTRIBUTE((unused))) override {
+  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
     return true;
   }
   float get_filtering_effect(THD *thd, table_map filter_for_table,

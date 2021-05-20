@@ -496,7 +496,7 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length) {
   @see key_cmp()
 */
 int key_cmp2(KEY_PART_INFO *key_part, const uchar *key1, uint key1_length,
-             const uchar *key2, uint key2_length MY_ATTRIBUTE((unused))) {
+             const uchar *key2, uint key2_length [[maybe_unused]]) {
   assert(key_part && key1 && key2);
   assert((key1_length == key2_length) && key1_length != 0);
   uint store_length;

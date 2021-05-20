@@ -69,8 +69,8 @@ static HANDLE hEventLog = NULL;  // global
      0 Success
     -1 Error
 */
-int my_syslog(const CHARSET_INFO *cs MY_ATTRIBUTE((unused)),
-              enum loglevel level, const char *msg) {
+int my_syslog(const CHARSET_INFO *cs [[maybe_unused]], enum loglevel level,
+              const char *msg) {
 #ifdef _WIN32
   int _level = EVENTLOG_INFORMATION_TYPE;
   wchar_t buff[MAX_SYSLOG_MESSAGE_SIZE];

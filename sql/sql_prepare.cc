@@ -2954,7 +2954,7 @@ bool Prepared_statement::execute_loop(String *expanded_query,
                                       bool open_cursor) {
   Reprepare_observer reprepare_observer;
   bool error;
-  bool reprepared_for_types MY_ATTRIBUTE((unused)) = false;
+  bool reprepared_for_types [[maybe_unused]] = false;
 
   /* Check if we got an error when sending long data */
   if (m_arena.get_state() == Query_arena::STMT_ERROR) {

@@ -635,7 +635,7 @@ Upgrade_status::enum_stage Upgrade_status::read() {
   assert(m_file);
 
   enum_stage stage = enum_stage::NONE;
-  size_t items_read MY_ATTRIBUTE((unused));
+  size_t items_read [[maybe_unused]];
 
   if (!feof(m_file)) items_read = fread(&stage, sizeof(int), 1, m_file);
 

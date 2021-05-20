@@ -672,7 +672,7 @@ class Settable_routine_parameter {
                       MODE_OUT   - UPDATE_ACL
                       MODE_INOUT - SELECT_ACL | UPDATE_ACL
   */
-  virtual void set_required_privilege(ulong privilege MY_ATTRIBUTE((unused))) {}
+  virtual void set_required_privilege(ulong privilege [[maybe_unused]]) {}
 
   /*
     Set parameter value.
@@ -690,7 +690,7 @@ class Settable_routine_parameter {
   */
   virtual bool set_value(THD *thd, sp_rcontext *ctx, Item **it) = 0;
 
-  virtual void set_out_param_info(Send_field *info MY_ATTRIBUTE((unused))) {}
+  virtual void set_out_param_info(Send_field *info [[maybe_unused]]) {}
 
   virtual const Send_field *get_out_param_info() const { return nullptr; }
 };
@@ -822,13 +822,13 @@ class Item : public Parse_tree_node {
     return (*THR_MALLOC)->Alloc(size);
   }
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
 
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
+  static void operator delete(void *ptr [[maybe_unused]],
+                              size_t size [[maybe_unused]]) {
     TRASH(ptr, size);
   }
   static void operator delete(void *, MEM_ROOT *,
@@ -1134,9 +1134,10 @@ class Item : public Parse_tree_node {
     @param removed_query_block query_block that tables are moved away from,
                           child of parent_query_block.
   */
-  virtual void fix_after_pullout(
-      Query_block *parent_query_block MY_ATTRIBUTE((unused)),
-      Query_block *removed_query_block MY_ATTRIBUTE((unused))) {}
+  virtual void fix_after_pullout(Query_block *parent_query_block
+                                 [[maybe_unused]],
+                                 Query_block *removed_query_block
+                                 [[maybe_unused]]) {}
   /*
     should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
@@ -1153,9 +1154,8 @@ class Item : public Parse_tree_node {
 
     @returns false if success, true if error
   */
-  virtual bool propagate_type(THD *thd MY_ATTRIBUTE((unused)),
-                              const Type_properties &type
-                                  MY_ATTRIBUTE((unused))) {
+  virtual bool propagate_type(THD *thd [[maybe_unused]],
+                              const Type_properties &type [[maybe_unused]]) {
     return false;
   }
 
@@ -1631,8 +1631,8 @@ class Item : public Parse_tree_node {
         - If the value of the function is NULL then the bound is the
           smallest possible value of LLONG_MIN
   */
-  virtual longlong val_int_endpoint(bool left_endp MY_ATTRIBUTE((unused)),
-                                    bool *incl_endp MY_ATTRIBUTE((unused))) {
+  virtual longlong val_int_endpoint(bool left_endp [[maybe_unused]],
+                                    bool *incl_endp [[maybe_unused]]) {
     assert(0);
     return 0;
   }
@@ -1853,7 +1853,7 @@ class Item : public Parse_tree_node {
     @return false if successful, true on failure
   */
   /* purecov: begin deadcode */
-  virtual bool val_json(Json_wrapper *result MY_ATTRIBUTE((unused))) {
+  virtual bool val_json(Json_wrapper *result [[maybe_unused]]) {
     assert(false);
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "item type for JSON");
     return error_json();
@@ -1881,12 +1881,13 @@ class Item : public Parse_tree_node {
     @return                  the filtering effect (between 0 and 1) this
                              Item contributes with.
   */
-  virtual float get_filtering_effect(
-      THD *thd MY_ATTRIBUTE((unused)),
-      table_map filter_for_table MY_ATTRIBUTE((unused)),
-      table_map read_tables MY_ATTRIBUTE((unused)),
-      const MY_BITMAP *fields_to_ignore MY_ATTRIBUTE((unused)),
-      double rows_in_table MY_ATTRIBUTE((unused))) {
+  virtual float get_filtering_effect(THD *thd [[maybe_unused]],
+                                     table_map filter_for_table
+                                     [[maybe_unused]],
+                                     table_map read_tables [[maybe_unused]],
+                                     const MY_BITMAP *fields_to_ignore
+                                     [[maybe_unused]],
+                                     double rows_in_table [[maybe_unused]]) {
     // Filtering effect cannot be calculated for a table already read.
     assert((read_tables & filter_for_table) == 0);
     return COND_FILTER_ALLPASS;
@@ -2345,8 +2346,8 @@ class Item : public Parse_tree_node {
                        by agreement, an error may have been reported
   */
 
-  virtual bool walk(Item_processor processor,
-                    enum_walk walk MY_ATTRIBUTE((unused)), uchar *arg) {
+  virtual bool walk(Item_processor processor, enum_walk walk [[maybe_unused]],
+                    uchar *arg) {
     return (this->*processor)(arg);
   }
 
@@ -2519,7 +2520,7 @@ class Item : public Parse_tree_node {
      @param arg  A MY_BITMAP* cast to unsigned char*, where the bits represent
                  Field::field_index values.
    */
-  virtual bool remove_column_from_bitmap(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool remove_column_from_bitmap(uchar *arg [[maybe_unused]]) {
     return false;
   }
   virtual bool find_item_in_field_list_processor(uchar *) { return false; }
@@ -2537,9 +2538,7 @@ class Item : public Parse_tree_node {
 
     @param arg        Mark_field object
   */
-  virtual bool mark_field_in_map(uchar *arg MY_ATTRIBUTE((unused))) {
-    return false;
-  }
+  virtual bool mark_field_in_map(uchar *arg [[maybe_unused]]) { return false; }
 
   /// Traverse the item tree and replace fields that are outside of reach with
   /// fields that are within reach. This is used by hash join when it detects
@@ -2576,9 +2575,7 @@ class Item : public Parse_tree_node {
     @param arg   pointing to a bool which, if true, says to reset state
                  for framing window function, else for non-framing
   */
-  virtual bool reset_wf_state(uchar *arg MY_ATTRIBUTE((unused))) {
-    return false;
-  }
+  virtual bool reset_wf_state(uchar *arg [[maybe_unused]]) { return false; }
 
   /**
     Return used table information for the specified query block (level).
@@ -2594,7 +2591,7 @@ class Item : public Parse_tree_node {
     @note This function is used to update used tables information after
           merging a query block (a subquery) with its parent.
   */
-  virtual bool used_tables_for_level(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool used_tables_for_level(uchar *arg [[maybe_unused]]) {
     return false;
   }
   /**
@@ -2602,7 +2599,7 @@ class Item : public Parse_tree_node {
 
     @param thd   thread handle
   */
-  virtual bool check_column_privileges(uchar *thd MY_ATTRIBUTE((unused))) {
+  virtual bool check_column_privileges(uchar *thd [[maybe_unused]]) {
     return false;
   }
   virtual bool inform_item_in_cond_of_tab(uchar *) { return false; }
@@ -2810,8 +2807,8 @@ class Item : public Parse_tree_node {
 
     @returns false if the function is not DEFAULT(args), otherwise true.
   */
-  virtual bool check_gcol_depend_default_processor(
-      uchar *args MY_ATTRIBUTE((unused))) {
+  virtual bool check_gcol_depend_default_processor(uchar *args
+                                                   [[maybe_unused]]) {
     return false;
   }
   /**
@@ -2819,8 +2816,7 @@ class Item : public Parse_tree_node {
     derived table. Used in determining if a condition can be pushed
     down to derived table.
   */
-  virtual bool check_column_from_derived_table(
-      uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) {
     // A generic item cannot be pushed down unless constant.
     return !const_item();
   }
@@ -2830,8 +2826,7 @@ class Item : public Parse_tree_node {
     in PARTITION clause of window functions of the derived table.
     Used in checking if a condition can be pushed down to derived table.
   */
-  virtual bool check_column_in_window_functions(
-      uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool check_column_in_window_functions(uchar *arg [[maybe_unused]]) {
     return false;
   }
   /**
@@ -2839,7 +2834,7 @@ class Item : public Parse_tree_node {
     in GROUP BY clause of the derived table. Used in checking if
     a condition can be pushed down to derived table.
   */
-  virtual bool check_column_in_group_by(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool check_column_in_group_by(uchar *arg [[maybe_unused]]) {
     return false;
   }
   /**
@@ -2849,7 +2844,7 @@ class Item : public Parse_tree_node {
     in the derived table's definition. We replace with a clone, because the
     condition can be pushed further down in case of nested derived tables.
   */
-  virtual Item *replace_with_derived_expr(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual Item *replace_with_derived_expr(uchar *arg [[maybe_unused]]) {
     return this;
   }
   /**
@@ -2860,8 +2855,7 @@ class Item : public Parse_tree_node {
     clone is not used because HAVING condition will not be pushed further
     down in case of nested derived tables.
   */
-  virtual Item *replace_with_derived_expr_ref(
-      uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual Item *replace_with_derived_expr_ref(uchar *arg [[maybe_unused]]) {
     return this;
   }
   /**
@@ -2871,8 +2865,7 @@ class Item : public Parse_tree_node {
     We replace with a clone, because the referenced item in a view reference
     is shared by all the view references to that expression.
   */
-  virtual Item *replace_view_refs_with_clone(
-      uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual Item *replace_view_refs_with_clone(uchar *arg [[maybe_unused]]) {
     return this;
   }
   /*
@@ -2906,8 +2899,8 @@ class Item : public Parse_tree_node {
     @param thd   Thread handle
     @param test  Truth test
   */
-  virtual Item *truth_transformer(THD *thd MY_ATTRIBUTE((unused)),
-                                  Bool_test test MY_ATTRIBUTE((unused))) {
+  virtual Item *truth_transformer(THD *thd [[maybe_unused]],
+                                  Bool_test test [[maybe_unused]]) {
     return nullptr;
   }
   virtual Item *update_value_transformer(uchar *) { return this; }
@@ -3204,7 +3197,7 @@ class Item : public Parse_tree_node {
 
     @param arg  Keep track of whether an Item_ref refers to an Item_field.
   */
-  virtual bool repoint_const_outer_ref(uchar *arg MY_ATTRIBUTE((unused))) {
+  virtual bool repoint_const_outer_ref(uchar *arg [[maybe_unused]]) {
     return false;
   }
   virtual bool strip_db_table_name_processor(uchar *) { return false; }
@@ -3396,8 +3389,8 @@ class Item : public Parse_tree_node {
     @return true if this expression can be used for partial update,
       false otherwise
   */
-  virtual bool supports_partial_update(
-      const Field_json *field MY_ATTRIBUTE((unused))) const {
+  virtual bool supports_partial_update(const Field_json *field
+                                       [[maybe_unused]]) const {
     return false;
   }
 
@@ -3526,8 +3519,7 @@ class Item_sp_variable : public Item {
     // ZEROFILL attribute.
     return this_item()->send(protocol, str);
   }
-  bool check_column_from_derived_table(
-      uchar *arg MY_ATTRIBUTE((unused))) override {
+  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
     // It is ok to push down a condition like "column > SP_variable"
     return false;
   }
@@ -4682,8 +4674,7 @@ class Item_param final : public Item, private Settable_routine_parameter {
     func_arg->err_code = func_arg->get_unnamed_function_error_code();
     return true;
   }
-  bool check_column_from_derived_table(
-      uchar *arg MY_ATTRIBUTE((unused))) override {
+  bool check_column_from_derived_table(uchar *arg [[maybe_unused]]) override {
     // It is ok to push down a condition like "column > PS_parameter"
     return false;
   }

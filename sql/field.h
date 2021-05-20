@@ -1093,8 +1093,7 @@ class Field {
     Useful only for variable length datatypes where it's overloaded.
     By default assume the length is constant.
   */
-  virtual uint32 data_length(
-      ptrdiff_t row_offset MY_ATTRIBUTE((unused)) = 0) const {
+  virtual uint32 data_length(ptrdiff_t row_offset [[maybe_unused]] = 0) const {
     return pack_length();
   }
 
@@ -1198,12 +1197,12 @@ class Field {
   }
   int cmp(const uchar *str) const { return cmp(ptr, str); }
   virtual int cmp_max(const uchar *a, const uchar *b,
-                      uint max_len MY_ATTRIBUTE((unused))) const {
+                      uint max_len [[maybe_unused]]) const {
     return cmp(a, b);
   }
   virtual int cmp(const uchar *, const uchar *) const = 0;
   virtual int cmp_binary(const uchar *a, const uchar *b,
-                         uint32 max_length MY_ATTRIBUTE((unused)) = ~0L) const {
+                         uint32 max_length [[maybe_unused]] = ~0L) const {
     return memcmp(a, b, pack_length());
   }
   virtual int cmp_offset(ptrdiff_t row_offset) const {
@@ -1215,8 +1214,7 @@ class Field {
   virtual int key_cmp(const uchar *a, const uchar *b) const {
     return cmp(a, b);
   }
-  virtual int key_cmp(const uchar *str,
-                      uint length MY_ATTRIBUTE((unused))) const {
+  virtual int key_cmp(const uchar *str, uint length [[maybe_unused]]) const {
     return cmp(ptr, str);
   }
   virtual uint decimals() const { return 0; }
@@ -1433,7 +1431,7 @@ class Field {
   */
 
   virtual size_t get_key_image(uchar *buff, size_t length,
-                               imagetype type MY_ATTRIBUTE((unused))) const {
+                               imagetype type [[maybe_unused]]) const {
     get_image(buff, length, &my_charset_bin);
     return length;
   }
@@ -1554,8 +1552,8 @@ class Field {
 
     @retval false The field was written.
   */
-  virtual bool pack_diff(uchar **to MY_ATTRIBUTE((unused)),
-                         ulonglong value_options MY_ATTRIBUTE((unused))) const {
+  virtual bool pack_diff(uchar **to [[maybe_unused]],
+                         ulonglong value_options [[maybe_unused]]) const {
     return true;
   }
 
@@ -1700,8 +1698,8 @@ class Field {
   }
 
   /* Validate the value stored in a field */
-  virtual type_conversion_status validate_stored_val(
-      THD *thd MY_ATTRIBUTE((unused))) {
+  virtual type_conversion_status validate_stored_val(THD *thd
+                                                     [[maybe_unused]]) {
     return TYPE_OK;
   }
 
@@ -1830,8 +1828,8 @@ class Field {
 
      @returns 0 no bytes written.
   */
-  virtual int do_save_field_metadata(
-      uchar *metadata_ptr MY_ATTRIBUTE((unused))) const {
+  virtual int do_save_field_metadata(uchar *metadata_ptr
+                                     [[maybe_unused]]) const {
     return 0;
   }
 
@@ -2220,7 +2218,7 @@ class Field_tiny : public Field_num {
   }
 
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     *to = *from;
     return from + 1;
   }
@@ -2271,7 +2269,7 @@ class Field_short final : public Field_num {
   }
 
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int16(to, from);
   }
 
@@ -2361,7 +2359,7 @@ class Field_long : public Field_num {
     return pack_int32(to, from, max_length);
   }
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int32(to, from);
   }
 
@@ -2411,7 +2409,7 @@ class Field_longlong : public Field_num {
     return pack_int64(to, from, max_length);
   }
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int64(to, from);
   }
 
@@ -2688,8 +2686,7 @@ class Field_temporal : public Field {
     @param  thd  THD
     @retval      sql_mode flags mixed with the field type flags.
   */
-  virtual my_time_flags_t date_flags(
-      const THD *thd MY_ATTRIBUTE((unused))) const {
+  virtual my_time_flags_t date_flags(const THD *thd [[maybe_unused]]) const {
     return 0;
   }
 
@@ -2971,7 +2968,7 @@ class Field_timestamp : public Field_temporal_with_date_and_time {
     return pack_int32(to, from, max_length);
   }
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int32(to, from);
   }
   /* Validate the value stored in a field */
@@ -3345,7 +3342,7 @@ class Field_datetime : public Field_temporal_with_date_and_time {
     return pack_int64(to, from, max_length);
   }
   const uchar *unpack(uchar *to, const uchar *from,
-                      uint param_data MY_ATTRIBUTE((unused))) final {
+                      uint param_data [[maybe_unused]]) final {
     return unpack_int64(to, from);
   }
 };

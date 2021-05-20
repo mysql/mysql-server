@@ -66,8 +66,7 @@ static inline int native_rw_init(native_rw_lock_t *rwp) {
 #endif
 }
 
-static inline int native_rw_destroy(
-    native_rw_lock_t *rwp MY_ATTRIBUTE((unused))) {
+static inline int native_rw_destroy(native_rw_lock_t *rwp [[maybe_unused]]) {
 #ifdef _WIN32
   return 0; /* no destroy function */
 #else

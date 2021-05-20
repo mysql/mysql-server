@@ -623,8 +623,7 @@ int Transaction_consistency_manager::before_transaction_begin(
 
 int Transaction_consistency_manager::transaction_begin_sync_before_execution(
     my_thread_id thread_id,
-    enum_group_replication_consistency_level consistency_level
-        MY_ATTRIBUTE((unused)),
+    enum_group_replication_consistency_level consistency_level [[maybe_unused]],
     ulong timeout) const {
   DBUG_TRACE;
   assert(GROUP_REPLICATION_CONSISTENCY_BEFORE == consistency_level ||

@@ -1503,7 +1503,7 @@ bool Item_exists_subselect::resolve_type(THD *thd) {
 */
 bool Item_exists_subselect::choose_semijoin_or_antijoin() {
   can_do_aj = false;
-  bool MY_ATTRIBUTE((unused)) might_do_sj = false, might_do_aj = false;
+  [[maybe_unused]] bool might_do_sj = false, might_do_aj = false;
   bool null_problem = false;
   switch (value_transform) {
     case BOOL_IS_TRUE:

@@ -411,8 +411,8 @@ class qep_row {
 
     @param subquery     WHERE clause subquery's unit
   */
-  virtual void register_where_subquery(
-      Query_expression *subquery MY_ATTRIBUTE((unused))) {}
+  virtual void register_where_subquery(Query_expression *subquery
+                                       [[maybe_unused]]) {}
 
   void format_extra(Opt_trace_object *obj);
 };

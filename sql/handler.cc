@@ -1270,7 +1270,7 @@ void ha_pre_dd_shutdown(void) {
 
 */
 void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
-                       const ulonglong *trxid MY_ATTRIBUTE((unused))) {
+                       const ulonglong *trxid [[maybe_unused]]) {
   Ha_trx_info *ha_info;
   Transaction_ctx *trn_ctx = thd->get_transaction();
   Transaction_ctx::enum_trx_scope trx_scope =
@@ -1310,15 +1310,15 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht_arg,
 
   trn_ctx->xid_state()->set_query_id(thd->query_id);
 /*
-  Register transaction start in performance schema if not done already.
-  By doing this, we handle cases when the transaction is started implicitly in
-  autocommit=0 mode, and cases when we are in normal autocommit=1 mode and the
-  executed statement is a single-statement transaction.
+        Register transaction start in performance schema if not done already.
+        By doing this, we handle cases when the transaction is started
+   implicitly in autocommit=0 mode, and cases when we are in normal autocommit=1
+   mode and the executed statement is a single-statement transaction.
 
-  Explicitly started transactions are handled in trans_begin().
+        Explicitly started transactions are handled in trans_begin().
 
-  Do not register transactions in which binary log is the only participating
-  transactional storage engine.
+        Do not register transactions in which binary log is the only
+   participating transactional storage engine.
 */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi == nullptr && ht_arg->db_type != DB_TYPE_BINLOG &&
@@ -1763,8 +1763,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock) {
     goto end;
   }
 /*
-  Mark multi-statement (any autocommit mode) or single-statement
-  (autocommit=1) transaction as rolled back
+        Mark multi-statement (any autocommit mode) or single-statement
+        (autocommit=1) transaction as rolled back
 */
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (is_real_trans && thd->m_transaction_psi != nullptr) {
@@ -3087,16 +3087,14 @@ int handler::ha_sample_next(void *scan_ctx, uchar *buf) {
   return result;
 }
 
-int handler::sample_init(void *&scan_ctx MY_ATTRIBUTE((unused)), double, int,
+int handler::sample_init(void *&scan_ctx [[maybe_unused]], double, int,
                          enum_sampling_method, const bool) {
   return rnd_init(true);
 }
 
-int handler::sample_end(void *scan_ctx MY_ATTRIBUTE((unused))) {
-  return rnd_end();
-}
+int handler::sample_end(void *scan_ctx [[maybe_unused]]) { return rnd_end(); }
 
-int handler::sample_next(void *scan_ctx MY_ATTRIBUTE((unused)), uchar *buf) {
+int handler::sample_next(void *scan_ctx [[maybe_unused]], uchar *buf) {
   // Temporary set inited to RND, since we are calling rnd_next().
   int res = rnd_next(buf);
 
@@ -3920,11 +3918,11 @@ void handler::column_bitmaps_signal() {
   reserved to "positive infinite".
 */
 
-void handler::get_auto_increment(
-    ulonglong offset MY_ATTRIBUTE((unused)),
-    ulonglong increment MY_ATTRIBUTE((unused)),
-    ulonglong nb_desired_values MY_ATTRIBUTE((unused)), ulonglong *first_value,
-    ulonglong *nb_reserved_values) {
+void handler::get_auto_increment(ulonglong offset [[maybe_unused]],
+                                 ulonglong increment [[maybe_unused]],
+                                 ulonglong nb_desired_values [[maybe_unused]],
+                                 ulonglong *first_value,
+                                 ulonglong *nb_reserved_values) {
   ulonglong nr;
   int error;
   DBUG_TRACE;
@@ -4105,10 +4103,10 @@ bool handler::is_fatal_error(int error) {
   // Catch errors that are not fatal
   switch (error) {
     /*
-      Deadlock and lock timeout cause transaction/statement rollback so that
-      THD::is_fatal_sub_stmt_error will be set. This means that they will not
-      be possible to handle by stored program handlers inside stored functions
-      and triggers even if non-fatal.
+            Deadlock and lock timeout cause transaction/statement rollback so
+       that THD::is_fatal_sub_stmt_error will be set. This means that they will
+       not be possible to handle by stored program handlers inside stored
+       functions and triggers even if non-fatal.
     */
     case HA_ERR_LOCK_WAIT_TIMEOUT:
     case HA_ERR_LOCK_DEADLOCK:
@@ -4427,8 +4425,8 @@ void handler::print_error(int error, myf errflag) {
   @return
     Returns true if this is a temporary error
 */
-bool handler::get_error_message(int error MY_ATTRIBUTE((unused)),
-                                String *buf MY_ATTRIBUTE((unused))) {
+bool handler::get_error_message(int error [[maybe_unused]],
+                                String *buf [[maybe_unused]]) {
   return false;
 }
 
@@ -4590,9 +4588,8 @@ int handler::delete_table(const char *name, const dd::Table *) {
 }
 
 int handler::rename_table(const char *from, const char *to,
-                          const dd::Table *from_table_def
-                              MY_ATTRIBUTE((unused)),
-                          dd::Table *to_table_def MY_ATTRIBUTE((unused))) {
+                          const dd::Table *from_table_def [[maybe_unused]],
+                          dd::Table *to_table_def [[maybe_unused]]) {
   int error = 0;
   const char **ext, **start_ext;
 
@@ -4889,8 +4886,7 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
 */
 
 enum_alter_inplace_result handler::check_if_supported_inplace_alter(
-    TABLE *altered_table MY_ATTRIBUTE((unused)),
-    Alter_inplace_info *ha_alter_info) {
+    TABLE *altered_table [[maybe_unused]], Alter_inplace_info *ha_alter_info) {
   DBUG_TRACE;
 
   HA_CREATE_INFO *create_info = ha_alter_info->create_info;
@@ -5991,7 +5987,7 @@ Cost_estimate handler::table_scan_cost() {
 }
 
 Cost_estimate handler::index_scan_cost(uint index,
-                                       double ranges MY_ATTRIBUTE((unused)),
+                                       double ranges [[maybe_unused]],
                                        double rows) {
   /*
     This function returns a Cost_estimate object. The function should be
@@ -6092,10 +6088,11 @@ static bool key_uses_partial_cols(TABLE *table, uint keyno) {
                   contain scan parameters.
 */
 
-ha_rows handler::multi_range_read_info_const(
-    uint keyno, RANGE_SEQ_IF *seq, void *seq_init_param,
-    uint n_ranges_arg MY_ATTRIBUTE((unused)), uint *bufsz, uint *flags,
-    Cost_estimate *cost) {
+ha_rows handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
+                                             void *seq_init_param,
+                                             uint n_ranges_arg [[maybe_unused]],
+                                             uint *bufsz, uint *flags,
+                                             Cost_estimate *cost) {
   KEY_MULTI_RANGE range;
   range_seq_t seq_it;
   ha_rows rows, total_rows = 0;
@@ -6298,7 +6295,7 @@ ha_rows handler::multi_range_read_info(uint keyno, uint n_ranges, uint n_rows,
 int handler::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
                                    void *seq_init_param, uint n_ranges,
                                    uint mode,
-                                   HANDLER_BUFFER *buf MY_ATTRIBUTE((unused))) {
+                                   HANDLER_BUFFER *buf [[maybe_unused]]) {
   DBUG_TRACE;
   mrr_iter = seq_funcs->init(seq_init_param, n_ranges, mode);
   mrr_funcs = *seq_funcs;
@@ -6761,7 +6758,7 @@ end:
 */
 ha_rows DsMrr_impl::dsmrr_info(uint keyno, uint n_ranges, uint rows,
                                uint *bufsz, uint *flags, Cost_estimate *cost) {
-  ha_rows res MY_ATTRIBUTE((unused));
+  ha_rows res [[maybe_unused]];
   uint def_flags = *flags;
   uint def_bufsz = *bufsz;
 
@@ -7202,7 +7199,7 @@ void get_sweep_read_cost(TABLE *table, ha_rows nrows, bool interrupted,
 */
 int handler::read_range_first(const key_range *start_key,
                               const key_range *end_key, bool eq_range_arg,
-                              bool sorted MY_ATTRIBUTE((unused))) {
+                              bool sorted [[maybe_unused]]) {
   int result;
   DBUG_TRACE;
 

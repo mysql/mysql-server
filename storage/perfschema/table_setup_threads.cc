@@ -137,7 +137,7 @@ int table_setup_threads::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_setup_threads::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_setup_threads::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_setup_threads *result;
 
   assert(idx == 0);

@@ -677,7 +677,7 @@ class AsyncTimer {
   ~AsyncTimer() {
     auto now = std::chrono::system_clock::now();
     auto delta = now - start_;
-    ulonglong MY_ATTRIBUTE((unused)) micros =
+    [[maybe_unused]] ulonglong micros =
         std::chrono::duration_cast<std::chrono::microseconds>(delta).count();
     DBUG_PRINT("async_timing",
                ("%s total micros: %llu", label_.c_str(), micros));
@@ -687,7 +687,7 @@ class AsyncTimer {
     auto now = std::chrono::system_clock::now();
     auto delta = now - time_;
     time_ = now;
-    ulonglong MY_ATTRIBUTE((unused)) micros =
+    [[maybe_unused]] ulonglong micros =
         std::chrono::duration_cast<std::chrono::microseconds>(delta).count();
     DBUG_PRINT("async_timing", ("%s op micros: %llu", label_.c_str(), micros));
   }
@@ -3194,7 +3194,7 @@ static void do_source(struct st_command *command) {
 }
 
 static FILE *my_popen(DYNAMIC_STRING *ds_cmd, const char *mode,
-                      struct st_command *command MY_ATTRIBUTE((unused))) {
+                      struct st_command *command [[maybe_unused]]) {
 #ifdef _WIN32
   /*
     --execw is for tests executing commands containing non-ASCII characters.
@@ -4925,8 +4925,7 @@ static int do_echo(struct st_command *command) {
   return 0;
 }
 
-static void do_wait_for_slave_to_stop(
-    struct st_command *c MY_ATTRIBUTE((unused))) {
+static void do_wait_for_slave_to_stop(struct st_command *c [[maybe_unused]]) {
   static int SLAVE_POLL_INTERVAL = 300000;
   MYSQL *mysql = &cur_con->mysql;
   for (;;) {
@@ -5660,7 +5659,7 @@ static bool kill_process(int pid) {
   @param pid  Process id.
   @param path Path to create minidump file in.
 */
-static void abort_process(int pid, const char *path MY_ATTRIBUTE((unused))) {
+static void abort_process(int pid, const char *path [[maybe_unused]]) {
 #ifdef _WIN32
   HANDLE proc;
   proc = OpenProcess(PROCESS_ALL_ACCESS, false, pid);
@@ -10505,7 +10504,7 @@ struct REPLACE_STRING {
 };
 
 void replace_strings_append(REPLACE *rep, DYNAMIC_STRING *ds, const char *str,
-                            size_t len MY_ATTRIBUTE((unused))) {
+                            size_t len [[maybe_unused]]) {
   REPLACE *rep_pos;
   REPLACE_STRING *rep_str;
   const char *start, *from;

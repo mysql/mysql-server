@@ -670,9 +670,9 @@ void redo_log_archive_deinit() {
   @param[in]	value     incoming string
   @return 0 for valid contents
 */
-int validate_redo_log_archive_dirs(THD *thd MY_ATTRIBUTE((unused)),
-                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                   void *save, struct st_mysql_value *value) {
+int validate_redo_log_archive_dirs(THD *thd [[maybe_unused]],
+                                   SYS_VAR *var [[maybe_unused]], void *save,
+                                   struct st_mysql_value *value) {
   ut_a(save != nullptr);
   ut_a(value != nullptr);
   char buff[STRING_BUFFER_USUAL_SIZE];
@@ -1938,7 +1938,7 @@ static void redo_log_archive_consumer() {
 
   See include/mysql/udf_registration_types.h
 */
-bool innodb_redo_log_archive_start_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+bool innodb_redo_log_archive_start_init(UDF_INIT *initid [[maybe_unused]],
                                         UDF_ARGS *args, char *message) {
   if ((args->arg_count < 1) || (args->arg_count > 2)) {
     strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
@@ -1964,8 +1964,7 @@ bool innodb_redo_log_archive_start_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
 
   See include/mysql/udf_registration_types.h
 */
-void innodb_redo_log_archive_start_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {
+void innodb_redo_log_archive_start_deinit(UDF_INIT *initid [[maybe_unused]]) {
   return;
 }
 
@@ -1987,10 +1986,11 @@ void innodb_redo_log_archive_start_deinit(
 
   Returns zero on success, one otherwise.
 */
-long long innodb_redo_log_archive_start(
-    UDF_INIT *initid MY_ATTRIBUTE((unused)), UDF_ARGS *args,
-    unsigned char *null_value MY_ATTRIBUTE((unused)),
-    unsigned char *error MY_ATTRIBUTE((unused))) {
+long long innodb_redo_log_archive_start(UDF_INIT *initid [[maybe_unused]],
+                                        UDF_ARGS *args,
+                                        unsigned char *null_value
+                                        [[maybe_unused]],
+                                        unsigned char *error [[maybe_unused]]) {
   return static_cast<long long>(meb::redo_log_archive_start(
       current_thd, args->args[0],
       (args->arg_count == 2) ? args->args[1] : nullptr));
@@ -2001,7 +2001,7 @@ long long innodb_redo_log_archive_start(
 
   See include/mysql/udf_registration_types.h
 */
-bool innodb_redo_log_archive_stop_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+bool innodb_redo_log_archive_stop_init(UDF_INIT *initid [[maybe_unused]],
                                        UDF_ARGS *args, char *message) {
   if (args->arg_count != 0) {
     strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
@@ -2015,8 +2015,7 @@ bool innodb_redo_log_archive_stop_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
 
   See include/mysql/udf_registration_types.h
 */
-void innodb_redo_log_archive_stop_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {
+void innodb_redo_log_archive_stop_deinit(UDF_INIT *initid [[maybe_unused]]) {
   return;
 }
 
@@ -2032,11 +2031,11 @@ void innodb_redo_log_archive_stop_deinit(
 
   Returns zero on success, one otherwise.
 */
-long long innodb_redo_log_archive_stop(
-    UDF_INIT *initid MY_ATTRIBUTE((unused)),
-    UDF_ARGS *args MY_ATTRIBUTE((unused)),
-    unsigned char *null_value MY_ATTRIBUTE((unused)),
-    unsigned char *error MY_ATTRIBUTE((unused))) {
+long long innodb_redo_log_archive_stop(UDF_INIT *initid [[maybe_unused]],
+                                       UDF_ARGS *args [[maybe_unused]],
+                                       unsigned char *null_value
+                                       [[maybe_unused]],
+                                       unsigned char *error [[maybe_unused]]) {
   return static_cast<long long>(meb::redo_log_archive_stop(current_thd));
 }
 
@@ -2045,7 +2044,7 @@ long long innodb_redo_log_archive_stop(
 
   See include/mysql/udf_registration_types.h
 */
-bool innodb_redo_log_archive_flush_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
+bool innodb_redo_log_archive_flush_init(UDF_INIT *initid [[maybe_unused]],
                                         UDF_ARGS *args, char *message) {
   if (args->arg_count != 0) {
     strncpy(message, "Invalid number of arguments.", MYSQL_ERRMSG_SIZE);
@@ -2059,8 +2058,7 @@ bool innodb_redo_log_archive_flush_init(UDF_INIT *initid MY_ATTRIBUTE((unused)),
 
   See include/mysql/udf_registration_types.h
 */
-void innodb_redo_log_archive_flush_deinit(
-    UDF_INIT *initid MY_ATTRIBUTE((unused))) {
+void innodb_redo_log_archive_flush_deinit(UDF_INIT *initid [[maybe_unused]]) {
   return;
 }
 
@@ -2076,11 +2074,11 @@ void innodb_redo_log_archive_flush_deinit(
 
   Returns zero on success, one otherwise.
 */
-long long innodb_redo_log_archive_flush(
-    UDF_INIT *initid MY_ATTRIBUTE((unused)),
-    UDF_ARGS *args MY_ATTRIBUTE((unused)),
-    unsigned char *null_value MY_ATTRIBUTE((unused)),
-    unsigned char *error MY_ATTRIBUTE((unused))) {
+long long innodb_redo_log_archive_flush(UDF_INIT *initid [[maybe_unused]],
+                                        UDF_ARGS *args [[maybe_unused]],
+                                        unsigned char *null_value
+                                        [[maybe_unused]],
+                                        unsigned char *error [[maybe_unused]]) {
   return static_cast<long long>(meb::redo_log_archive_flush(current_thd));
 }
 

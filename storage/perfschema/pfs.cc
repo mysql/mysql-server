@@ -572,8 +572,8 @@ static void report_memory_accounting_error(const char *api_name,
   @code
 static inline int
 inline_mysql_mutex_lock(mysql_mutex_t *that,
-                        const char *src_file MY_ATTRIBUTE((unused)),
-                        uint src_line MY_ATTRIBUTE((unused))
+                        const char *src_file [[maybe_unused]],
+                        uint src_line [[maybe_unused]]
                         )
 {
   int result;
@@ -3501,8 +3501,7 @@ void pfs_notify_session_connect_vc(PSI_thread *thread) {
   Implementation of the thread instrumentation interface.
   @sa PSI_v2::notify_session_disconnect.
 */
-void pfs_notify_session_disconnect_vc(
-    PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_disconnect_vc(PSI_thread *thread [[maybe_unused]]) {
   pfs_notify_session_disconnect(thread);
 }
 
@@ -3510,8 +3509,7 @@ void pfs_notify_session_disconnect_vc(
   Implementation of the thread instrumentation interface.
   @sa PSI_v2::notify_session_change_user.
 */
-void pfs_notify_session_change_user_vc(
-    PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_change_user_vc(PSI_thread *thread [[maybe_unused]]) {
   pfs_notify_session_change_user(thread);
 }
 
@@ -4661,7 +4659,7 @@ void pfs_unlock_mutex_v1(PSI_mutex *mutex) {
   @sa PSI_v1::unlock_rwlock.
 */
 void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
-                          PSI_rwlock_operation op MY_ATTRIBUTE((unused))) {
+                          PSI_rwlock_operation op [[maybe_unused]]) {
   PFS_rwlock *pfs_rwlock = reinterpret_cast<PFS_rwlock *>(rwlock);
   assert(pfs_rwlock != nullptr);
   assert(pfs_rwlock == sanitize_rwlock(pfs_rwlock));
@@ -4740,7 +4738,7 @@ void pfs_unlock_rwlock_v2(PSI_rwlock *rwlock,
   Implementation of the cond instrumentation interface.
   @sa PSI_v1::signal_cond.
 */
-void pfs_signal_cond_v1(PSI_cond *cond MY_ATTRIBUTE((unused))) {
+void pfs_signal_cond_v1(PSI_cond *cond [[maybe_unused]]) {
 #ifdef PFS_LATER
   PFS_cond *pfs_cond = reinterpret_cast<PFS_cond *>(cond);
 
@@ -4754,7 +4752,7 @@ void pfs_signal_cond_v1(PSI_cond *cond MY_ATTRIBUTE((unused))) {
   Implementation of the cond instrumentation interface.
   @sa PSI_v1::broadcast_cond.
 */
-void pfs_broadcast_cond_v1(PSI_cond *cond MY_ATTRIBUTE((unused))) {
+void pfs_broadcast_cond_v1(PSI_cond *cond [[maybe_unused]]) {
 #ifdef PFS_LATER
   PFS_cond *pfs_cond = reinterpret_cast<PFS_cond *>(cond);
 
@@ -5682,9 +5680,9 @@ void pfs_end_file_close_wait_vc(PSI_file_locker *locker, int rc) {
   @sa PSI_v1::start_file_rename_wait.
 */
 void pfs_start_file_rename_wait_vc(PSI_file_locker *locker,
-                                   size_t count MY_ATTRIBUTE((unused)),
-                                   const char *old_name MY_ATTRIBUTE((unused)),
-                                   const char *new_name MY_ATTRIBUTE((unused)),
+                                   size_t count [[maybe_unused]],
+                                   const char *old_name [[maybe_unused]],
+                                   const char *new_name [[maybe_unused]],
                                    const char *src_file, uint src_line) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
@@ -5706,8 +5704,8 @@ void pfs_start_file_rename_wait_vc(PSI_file_locker *locker,
   @sa PSI_v1::end_file_rename_wait.
 */
 void pfs_end_file_rename_wait_vc(PSI_file_locker *locker,
-                                 const char *old_name MY_ATTRIBUTE((unused)),
-                                 const char *new_name MY_ATTRIBUTE((unused)),
+                                 const char *old_name [[maybe_unused]],
+                                 const char *new_name [[maybe_unused]],
                                  int rc) {
   PSI_file_locker_state *state =
       reinterpret_cast<PSI_file_locker_state *>(locker);
@@ -7817,7 +7815,7 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
 }
 
 void pfs_memory_free_vc(PSI_memory_key key, size_t size,
-                        PSI_thread *owner MY_ATTRIBUTE((unused))) {
+                        PSI_thread *owner [[maybe_unused]]) {
   PFS_memory_class *klass = find_memory_class(key);
   if (klass == nullptr) {
     return;
@@ -8153,7 +8151,7 @@ void pfs_unregister_data_lock_v1(
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::unload_plugin.
 */
-void pfs_unload_plugin_v1(const char *plugin_name MY_ATTRIBUTE((unused))) {
+void pfs_unload_plugin_v1(const char *plugin_name [[maybe_unused]]) {
   /*
     A plugin or component is being unloaded. Events that originated from the
     plugin contain string pointers set by the __FILE__ macro. These source file

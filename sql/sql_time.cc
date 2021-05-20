@@ -599,7 +599,7 @@ const char *get_date_time_format_str(const Known_date_time_format *format,
   @param[out] str      String to convert to
   @param      dec      Number of fractional digits.
 */
-void make_time(const Date_time_format *format MY_ATTRIBUTE((unused)),
+void make_time(const Date_time_format *format [[maybe_unused]],
                const MYSQL_TIME *l_time, String *str, uint dec) {
   uint length = static_cast<uint>(my_time_to_str(*l_time, str->ptr(), dec));
   str->length(length);
@@ -612,7 +612,7 @@ void make_time(const Date_time_format *format MY_ATTRIBUTE((unused)),
   @param      l_time   DATE value
   @param[out] str      String to convert to
 */
-void make_date(const Date_time_format *format MY_ATTRIBUTE((unused)),
+void make_date(const Date_time_format *format [[maybe_unused]],
                const MYSQL_TIME *l_time, String *str) {
   uint length = static_cast<uint>(my_date_to_str(*l_time, str->ptr()));
   str->length(length);
@@ -626,7 +626,7 @@ void make_date(const Date_time_format *format MY_ATTRIBUTE((unused)),
   @param[out] str      String to convert to
   @param      dec      Number of fractional digits.
 */
-void make_datetime(const Date_time_format *format MY_ATTRIBUTE((unused)),
+void make_datetime(const Date_time_format *format [[maybe_unused]],
                    const MYSQL_TIME *l_time, String *str, uint dec) {
   uint length = static_cast<uint>(my_datetime_to_str(*l_time, str->ptr(), dec));
   str->length(length);

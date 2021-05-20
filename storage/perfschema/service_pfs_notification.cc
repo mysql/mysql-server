@@ -334,7 +334,7 @@ int pfs_unregister_notification(int handle) {
   @param thread  instrumented thread
   @sa pfs_notify_thread_create
 */
-void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_thread_create(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_CREATE);
   if (node == nullptr) {
     return;
@@ -361,7 +361,7 @@ void pfs_notify_thread_create(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   @param thread  instrumented thread
   @sa pfs_notify_thread_destroy
 */
-void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_thread_destroy(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_THREAD_DESTROY);
   if (node == nullptr) {
     return;
@@ -387,7 +387,7 @@ void pfs_notify_thread_destroy(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_connect
 */
-void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_connect(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CONNECT);
   if (node == nullptr) {
     return;
@@ -413,7 +413,7 @@ void pfs_notify_session_connect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_disconnect
 */
-void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_disconnect(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_DISCONNECT);
   if (node == nullptr) {
     return;
@@ -439,7 +439,7 @@ void pfs_notify_session_disconnect(PSI_thread *thread MY_ATTRIBUTE((unused))) {
   @param thread  instrumented thread
   @sa PSI_v1::notify_session_change_user
 */
-void pfs_notify_session_change_user(PSI_thread *thread MY_ATTRIBUTE((unused))) {
+void pfs_notify_session_change_user(PSI_thread *thread [[maybe_unused]]) {
   auto node = pfs_notification_registry.get_first(EVENT_SESSION_CHANGE_USER);
   if (node == nullptr) {
     return;

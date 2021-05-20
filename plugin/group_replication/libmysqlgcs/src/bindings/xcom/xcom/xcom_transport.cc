@@ -418,7 +418,7 @@ int send_proto(connection_descriptor *con, xcom_proto x_proto,
 int apply_xdr(void *buff, uint32_t bufflen, xdrproc_t xdrfunc, void *xdrdata,
               enum xdr_op op) {
   XDR xdr;
-  int MY_ATTRIBUTE((unused)) s = 0;
+  [[maybe_unused]] int s = 0;
 
   xdr.x_ops = NULL;
   xdrmem_create(&xdr, (char *)buff, bufflen, op);
@@ -510,8 +510,8 @@ static int serialize(void *p, xcom_proto x_proto, uint32_t *out_len,
 }
 
 /* Version 1 has no new messages, only modified, so all should be sent */
-static inline int old_proto_knows(xcom_proto x_proto MY_ATTRIBUTE((unused)),
-                                  pax_op op MY_ATTRIBUTE((unused))) {
+static inline int old_proto_knows(xcom_proto x_proto [[maybe_unused]],
+                                  pax_op op [[maybe_unused]]) {
   return 1;
 }
 
@@ -758,7 +758,7 @@ int srv_unref(server *s) {
 }
 
 /* Listen for connections on socket and create a handler task */
-int incoming_connection_task(task_arg arg MY_ATTRIBUTE((unused))) {
+int incoming_connection_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   connection_descriptor *new_conn;
   END_ENV;
@@ -877,7 +877,7 @@ static int not_self(site_def const *s, node_no node) {
 /* Send message to set of nodes determined by test_func */
 static inline int send_to_node_set(site_def const *s, node_no max, pax_msg *p,
                                    node_set_selector test_func,
-                                   const char *dbg MY_ATTRIBUTE((unused))) {
+                                   const char *dbg [[maybe_unused]]) {
   int retval = 0;
   assert(s);
   if (s) {
@@ -920,7 +920,7 @@ int send_to_all(pax_msg *p, const char *dbg) {
 }
 
 static inline int send_other_loop(site_def const *s, pax_msg *p,
-                                  const char *dbg MY_ATTRIBUTE((unused))) {
+                                  const char *dbg [[maybe_unused]]) {
   int retval = 0;
   node_no i = 0;
 #ifdef MAXACCEPT
@@ -949,7 +949,7 @@ int send_to_others(site_def const *s, pax_msg *p, const char *dbg) {
 
 /* Send to some other live server, round robin */
 int send_to_someone(site_def const *s, pax_msg *p,
-                    const char *dbg MY_ATTRIBUTE((unused))) {
+                    const char *dbg [[maybe_unused]]) {
   int retval = 0;
   static node_no i = 0;
   node_no prev = 0;
@@ -1713,7 +1713,7 @@ void invalidate_servers(const site_def *old_site_def,
 }
 
 /* Remove tcp connections which seem to be idle */
-int tcp_reaper_task(task_arg arg MY_ATTRIBUTE((unused))) {
+int tcp_reaper_task(task_arg arg [[maybe_unused]]) {
   DECL_ENV
   int dummy;
   END_ENV;

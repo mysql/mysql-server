@@ -218,7 +218,7 @@ int table_tlws_by_table::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_tlws_by_table::index_init(uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_tlws_by_table::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_tlws_by_table *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_tlws_by_table);

@@ -487,13 +487,12 @@ class Acl_cache_allocator : public Malloc_allocator<T> {
   };
 
   template <class U>
-  Acl_cache_allocator(
-      const Acl_cache_allocator<U> &other MY_ATTRIBUTE((unused)))
+  Acl_cache_allocator(const Acl_cache_allocator<U> &other [[maybe_unused]])
       : Malloc_allocator<T>(key_memory_acl_cache) {}
 
   template <class U>
-  Acl_cache_allocator &operator=(
-      const Acl_cache_allocator<U> &other MY_ATTRIBUTE((unused))) {}
+  Acl_cache_allocator &operator=(const Acl_cache_allocator<U> &other
+                                 [[maybe_unused]]) {}
 };
 typedef Acl_cache_allocator<ACL_USER *> Acl_user_ptr_allocator;
 typedef std::list<ACL_USER *, Acl_user_ptr_allocator> Acl_user_ptr_list;

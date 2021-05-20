@@ -2451,7 +2451,7 @@ Item *Item_in_optimizer::compile(Item_analyzer analyzer, uchar **arg_p,
   return (this->*transformer)(arg_t);
 }
 
-void Item_in_optimizer::set_arg_resolve(THD *thd, uint i MY_ATTRIBUTE((unused)),
+void Item_in_optimizer::set_arg_resolve(THD *thd, uint i [[maybe_unused]],
                                         Item *newp) {
   assert(i == 0);
   // Maintain the invariant described in this class's comment

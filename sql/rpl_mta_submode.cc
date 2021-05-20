@@ -894,7 +894,7 @@ void Mts_submode_logical_clock::detach_temp_tables(THD *thd,
  */
 
 Slave_worker *Mts_submode_logical_clock::get_least_occupied_worker(
-    Relay_log_info *rli, Slave_worker_array *ws MY_ATTRIBUTE((unused)),
+    Relay_log_info *rli, Slave_worker_array *ws [[maybe_unused]],
     Log_event *ev) {
   Slave_worker *worker = nullptr;
   PSI_stage_info *old_stage = nullptr;
@@ -1016,7 +1016,7 @@ Slave_worker *Mts_submode_logical_clock::get_free_worker(Relay_log_info *rli) {
            0 no error.
  */
 int Mts_submode_logical_clock::wait_for_workers_to_finish(
-    Relay_log_info *rli, MY_ATTRIBUTE((unused)) Slave_worker *ignore) {
+    Relay_log_info *rli, [[maybe_unused]] Slave_worker *ignore) {
   PSI_stage_info *old_stage = nullptr;
   THD *thd = rli->info_thd;
   DBUG_TRACE;

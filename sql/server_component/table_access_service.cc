@@ -1269,7 +1269,7 @@ int impl_get_field_varchar_value(Table_access /* api_ta */, TA_table api_table,
   assert(value != nullptr);
 
   assert(!f->is_null());
-  String *s_ptr MY_ATTRIBUTE((unused));
+  String *s_ptr [[maybe_unused]];
   s_ptr = f->val_str(value, value);
   assert(s_ptr == value);
 
@@ -1301,7 +1301,7 @@ int impl_get_field_any_value(Table_access /* api_ta */, TA_table api_table,
   assert(value != nullptr);
 
   assert(!f->is_null());
-  String *s_ptr MY_ATTRIBUTE((unused));
+  String *s_ptr [[maybe_unused]];
   s_ptr = f->val_str(value, value);
   assert(s_ptr == value);
 

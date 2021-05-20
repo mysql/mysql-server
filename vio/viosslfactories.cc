@@ -313,8 +313,8 @@ static openssl_lock_t *openssl_stdlocks;
   as we are using our own locking mechanism.
 */
 static void openssl_lock(int mode, openssl_lock_t *lock,
-                         const char *file MY_ATTRIBUTE((unused)),
-                         int line MY_ATTRIBUTE((unused))) {
+                         const char *file [[maybe_unused]],
+                         int line [[maybe_unused]]) {
   int err;
   char const *what;
 
@@ -353,8 +353,8 @@ static void openssl_lock(int mode, openssl_lock_t *lock,
 }
 
 static void openssl_lock_function(int mode, int n,
-                                  const char *file MY_ATTRIBUTE((unused)),
-                                  int line MY_ATTRIBUTE((unused))) {
+                                  const char *file [[maybe_unused]],
+                                  int line [[maybe_unused]]) {
   if (n < 0 || n > CRYPTO_num_locks()) {
     /* Lock number out of bounds. */
     DBUG_PRINT("error", ("Fatal OpenSSL: %s:%d: interface problem (n = %d)",
@@ -367,8 +367,8 @@ static void openssl_lock_function(int mode, int n,
   openssl_lock(mode, &openssl_stdlocks[n], file, line);
 }
 
-static openssl_lock_t *openssl_dynlock_create(
-    const char *file MY_ATTRIBUTE((unused)), int line MY_ATTRIBUTE((unused))) {
+static openssl_lock_t *openssl_dynlock_create(const char *file [[maybe_unused]],
+                                              int line [[maybe_unused]]) {
   openssl_lock_t *lock;
 
   DBUG_PRINT("info", ("openssl_dynlock_create: %s:%d", file, line));
@@ -385,8 +385,8 @@ static openssl_lock_t *openssl_dynlock_create(
 }
 
 static void openssl_dynlock_destroy(openssl_lock_t *lock,
-                                    const char *file MY_ATTRIBUTE((unused)),
-                                    int line MY_ATTRIBUTE((unused))) {
+                                    const char *file [[maybe_unused]],
+                                    int line [[maybe_unused]]) {
   DBUG_PRINT("info", ("openssl_dynlock_destroy: %s:%d", file, line));
 
   mysql_rwlock_destroy(&lock->lock);
@@ -578,9 +578,9 @@ long process_tls_version(const char *tls_version) {
 static struct st_VioSSLFd *new_VioSSLFd(
     const char *key_file, const char *cert_file, const char *ca_file,
     const char *ca_path, const char *cipher,
-    const char *ciphersuites MY_ATTRIBUTE((unused)), bool is_client,
+    const char *ciphersuites [[maybe_unused]], bool is_client,
     enum enum_ssl_init_error *error, const char *crl_file, const char *crl_path,
-    const long ssl_ctx_flags, const char *server_host MY_ATTRIBUTE((unused))) {
+    const long ssl_ctx_flags, const char *server_host [[maybe_unused]]) {
   DH *dh;
   struct st_VioSSLFd *ssl_fd;
   long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;

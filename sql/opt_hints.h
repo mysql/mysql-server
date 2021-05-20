@@ -241,7 +241,7 @@ class Opt_hints {
 
     @return  true if all hint objects are resolved, false otherwise.
   */
-  virtual bool is_resolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) {
+  virtual bool is_resolved(opt_hints_enum type_arg [[maybe_unused]]) {
     return resolved;
   }
   /**
@@ -249,7 +249,7 @@ class Opt_hints {
 
     @param type_arg  hint type
   */
-  virtual void set_unresolved(opt_hints_enum type_arg MY_ATTRIBUTE((unused))) {}
+  virtual void set_unresolved(opt_hints_enum type_arg [[maybe_unused]]) {}
   /**
     If ignore_print() returns true, hint is not printed
     in Opt_hints::print() function. Atm used for
@@ -261,8 +261,7 @@ class Opt_hints {
     @return  true if the hint should not be printed
     in Opt_hints::print() function, false otherwise.
   */
-  virtual bool ignore_print(
-      opt_hints_enum type_arg MY_ATTRIBUTE((unused))) const {
+  virtual bool ignore_print(opt_hints_enum type_arg [[maybe_unused]]) const {
     return false;
   }
   void incr_resolved_children() { resolved_children++; }
@@ -284,8 +283,7 @@ class Opt_hints {
 
     @return  pointer to complex hint for a given type.
   */
-  virtual PT_hint *get_complex_hints(
-      opt_hints_enum type MY_ATTRIBUTE((unused))) {
+  virtual PT_hint *get_complex_hints(opt_hints_enum type [[maybe_unused]]) {
     assert(0);
     return nullptr; /* error C4716: must return a value */
   }
@@ -340,8 +338,8 @@ class Opt_hints {
     @param thd             pointer to THD object
     @param str             pointer to String object
   */
-  virtual void print_irregular_hints(const THD *thd MY_ATTRIBUTE((unused)),
-                                     String *str MY_ATTRIBUTE((unused))) {}
+  virtual void print_irregular_hints(const THD *thd [[maybe_unused]],
+                                     String *str [[maybe_unused]]) {}
 };
 
 /**
@@ -517,9 +515,8 @@ class Compound_key_hint {
   bool is_set_key_map(uint i) { return key_map.is_set(i); }
   bool is_key_map_clear_all() { return key_map.is_clear_all(); }
   Key_map *get_key_map() { return &key_map; }
-  virtual bool is_hint_conflicting(
-      Opt_hints_table *table_hint MY_ATTRIBUTE((unused)),
-      Opt_hints_key *key_hint MY_ATTRIBUTE((unused))) {
+  virtual bool is_hint_conflicting(Opt_hints_table *table_hint [[maybe_unused]],
+                                   Opt_hints_key *key_hint [[maybe_unused]]) {
     return false;
   }
 };

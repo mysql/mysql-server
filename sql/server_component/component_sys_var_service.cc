@@ -117,7 +117,7 @@ DEFINE_BOOL_METHOD(mysql_component_sys_variable_imp::register_variable,
                     void *variable_value)) {
   try {
     struct sys_var_chain chain = {nullptr, nullptr};
-    sys_var *sysvar MY_ATTRIBUTE((unused));
+    sys_var *sysvar [[maybe_unused]];
     char *com_sys_var_name, *optname;
     int com_sys_var_len;
     SYS_VAR *opt = nullptr;

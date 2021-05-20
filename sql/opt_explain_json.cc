@@ -300,9 +300,8 @@ class context : public Explain_context {
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_subquery(subquery_list_enum subquery_type
-                                MY_ATTRIBUTE((unused)),
-                            subquery_ctx *ctx MY_ATTRIBUTE((unused))) {
+  virtual bool add_subquery(subquery_list_enum subquery_type [[maybe_unused]],
+                            subquery_ctx *ctx [[maybe_unused]]) {
     assert(0);
     return true;
   }
@@ -314,8 +313,7 @@ class context : public Explain_context {
     @retval false               Ok
     @retval true                Error
   */
-  virtual bool format_nested_loop(
-      Opt_trace_context *json MY_ATTRIBUTE((unused))) {
+  virtual bool format_nested_loop(Opt_trace_context *json [[maybe_unused]]) {
     assert(0);
     return true;
   }
@@ -328,7 +326,7 @@ class context : public Explain_context {
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_join_tab(joinable_ctx *ctx MY_ATTRIBUTE((unused))) {
+  virtual bool add_join_tab(joinable_ctx *ctx [[maybe_unused]]) {
     assert(0);
     return true;
   }
@@ -339,7 +337,7 @@ class context : public Explain_context {
     @retval false               Ok
     @retval true                Error
   */
-  virtual void set_sort(sort_ctx *ctx MY_ATTRIBUTE((unused))) { assert(0); }
+  virtual void set_sort(sort_ctx *ctx [[maybe_unused]]) { assert(0); }
 
   /**
     Set nested WINDOW node to @c ctx
@@ -347,7 +345,7 @@ class context : public Explain_context {
     @retval false               Ok
     @retval true                Error
   */
-  virtual void set_window(window_ctx *ctx MY_ATTRIBUTE((unused))) { assert(0); }
+  virtual void set_window(window_ctx *ctx [[maybe_unused]]) { assert(0); }
 
   /**
     Add a query specification node to the CTX_UNION node
@@ -357,7 +355,7 @@ class context : public Explain_context {
     @retval false           Ok
     @retval true            Error
   */
-  virtual bool add_query_spec(context *ctx MY_ATTRIBUTE((unused))) {
+  virtual bool add_query_spec(context *ctx [[maybe_unused]]) {
     assert(0);
     return true;
   }
@@ -371,7 +369,7 @@ class context : public Explain_context {
     @retval false       Can't associate: this node or its child nodes are not
                         derived from the subquery
   */
-  virtual bool find_and_set_derived(context *subquery MY_ATTRIBUTE((unused))) {
+  virtual bool find_and_set_derived(context *subquery [[maybe_unused]]) {
     assert(0);
     return false;
   }
@@ -387,9 +385,8 @@ class context : public Explain_context {
        0   subqusery were added
        1   error occurred
   */
-  virtual int add_where_subquery(subquery_ctx *ctx MY_ATTRIBUTE((unused)),
-                                 Query_expression *subquery
-                                     MY_ATTRIBUTE((unused))) {
+  virtual int add_where_subquery(subquery_ctx *ctx [[maybe_unused]],
+                                 Query_expression *subquery [[maybe_unused]]) {
     assert(0);
     return false;
   }

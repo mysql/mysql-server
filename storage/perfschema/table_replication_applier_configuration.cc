@@ -170,8 +170,9 @@ int table_replication_applier_configuration::rnd_pos(const void *pos) {
   return res;
 }
 
-int table_replication_applier_configuration::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_replication_applier_configuration::index_init(uint idx
+                                                        [[maybe_unused]],
+                                                        bool) {
   PFS_index_rpl_applier_config *result = nullptr;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_rpl_applier_config);

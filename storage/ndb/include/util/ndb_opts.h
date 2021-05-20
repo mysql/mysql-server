@@ -146,7 +146,7 @@ void ndb_opt_set_usage_funcs(void (*short_usage)(void),
                              void (*usage)(void));
 bool
 ndb_std_get_one_option(int optid,
-		       const struct my_option *opt MY_ATTRIBUTE((unused)),
+		       const struct my_option *opt [[maybe_unused]],
                        char *argument);
 
 void ndb_short_usage_sub(const char* extra);

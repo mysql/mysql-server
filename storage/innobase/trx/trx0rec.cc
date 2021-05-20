@@ -2100,11 +2100,11 @@ static ibool trx_undo_erase_page_end(
 
 /** Parses a redo log record of erasing of an undo page end.
  @return end of log record or NULL */
-byte *trx_undo_parse_erase_page_end(
-    byte *ptr,                            /*!< in: buffer */
-    byte *end_ptr MY_ATTRIBUTE((unused)), /*!< in: buffer end */
-    page_t *page,                         /*!< in: page or NULL */
-    mtr_t *mtr)                           /*!< in: mtr or NULL */
+byte *trx_undo_parse_erase_page_end(byte *ptr, /*!< in: buffer */
+                                    byte *end_ptr
+                                    [[maybe_unused]], /*!< in: buffer end */
+                                    page_t *page,     /*!< in: page or NULL */
+                                    mtr_t *mtr)       /*!< in: mtr or NULL */
 {
   if (page == nullptr) {
     return (ptr);
@@ -2447,7 +2447,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool trx_undo_get_undo_rec(
 #ifdef UNIV_DEBUG
 #define ATTRIB_USED_ONLY_IN_DEBUG
 #else /* UNIV_DEBUG */
-#define ATTRIB_USED_ONLY_IN_DEBUG MY_ATTRIBUTE((unused))
+#define ATTRIB_USED_ONLY_IN_DEBUG [[maybe_unused]]
 #endif /* UNIV_DEBUG */
 
 bool trx_undo_prev_version_build(

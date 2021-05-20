@@ -711,14 +711,14 @@ int Server_Cbk::buffer_cbk(uchar *from_buffer, uint buf_len) {
 }
 
 /* purecov: begin deadcode */
-int Server_Cbk::apply_file_cbk(Ha_clone_file to_file MY_ATTRIBUTE((unused))) {
+int Server_Cbk::apply_file_cbk(Ha_clone_file to_file [[maybe_unused]]) {
   assert(false);
   my_error(ER_INTERNAL_ERROR, MYF(0), "Apply callback from Clone Server");
   return (ER_INTERNAL_ERROR);
 }
 
-int Server_Cbk::apply_buffer_cbk(uchar *&to_buffer MY_ATTRIBUTE((unused)),
-                                 uint &len MY_ATTRIBUTE((unused))) {
+int Server_Cbk::apply_buffer_cbk(uchar *&to_buffer [[maybe_unused]],
+                                 uint &len [[maybe_unused]]) {
   assert(false);
   my_error(ER_INTERNAL_ERROR, MYF(0), "Apply callback from Clone Server");
   return (ER_INTERNAL_ERROR);

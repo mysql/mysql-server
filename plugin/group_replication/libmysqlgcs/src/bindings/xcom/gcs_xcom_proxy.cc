@@ -402,7 +402,7 @@ enum_gcs_error Gcs_xcom_proxy_impl::xcom_wait_for_condition(
 }
 
 enum_gcs_error Gcs_xcom_proxy_impl::xcom_wait_ready() {
-  auto event_string = [](MY_ATTRIBUTE((unused)) int res) {
+  auto event_string = []([[maybe_unused]] int res) {
     return "the group communication engine to be ready";
   };
   return xcom_wait_for_condition(
@@ -473,7 +473,7 @@ void Gcs_xcom_proxy_impl::xcom_wait_for_xcom_comms_status_change(int &status) {
   auto wait_cond = [this]() {
     return m_xcom_comms_status == XCOM_COMM_STATUS_UNDEFINED;
   };
-  auto event_string = [](MY_ATTRIBUTE((unused)) int res) {
+  auto event_string = []([[maybe_unused]] int res) {
     return "the group communication engine's communications status to change";
   };
 

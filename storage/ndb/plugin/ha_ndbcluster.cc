@@ -4000,8 +4000,7 @@ inline int ha_ndbcluster::set_auto_inc_val(Ndb *ndb, Uint64 value) const {
   return 0;
 }
 
-void ha_ndbcluster::get_read_set(bool use_cursor,
-                                 uint idx MY_ATTRIBUTE((unused))) {
+void ha_ndbcluster::get_read_set(bool use_cursor, uint idx [[maybe_unused]]) {
   const bool is_delete = table->in_use->lex->sql_command == SQLCOM_DELETE ||
                          table->in_use->lex->sql_command == SQLCOM_DELETE_MULTI;
 
@@ -4258,7 +4257,7 @@ int ha_ndbcluster::prepare_conflict_detection(
   bool op_is_marked_as_read = false;
   bool op_is_marked_as_reflected = false;
   // Only used for sanity check and debug printout
-  bool op_is_marked_as_refresh MY_ATTRIBUTE((unused)) = false;
+  bool op_is_marked_as_refresh [[maybe_unused]] = false;
 
   if (thd->binlog_row_event_extra_data) {
     Ndb_binlog_extra_row_info extra_row_info;
@@ -6320,8 +6319,8 @@ int ha_ndbcluster::index_last(uchar *buf) {
 }
 
 int ha_ndbcluster::index_next_same(uchar *buf,
-                                   const uchar *key MY_ATTRIBUTE((unused)),
-                                   uint length MY_ATTRIBUTE((unused))) {
+                                   const uchar *key [[maybe_unused]],
+                                   uint length [[maybe_unused]]) {
   DBUG_TRACE;
   ha_statistic_increment(&System_status_var::ha_read_next_count);
   const int error = next_result(buf);
@@ -9170,8 +9169,8 @@ static bool drop_table_and_related(THD *thd, Ndb *ndb,
         can be used to avoid that ha_ndbcluster::print_error() reports
         another error.
 */
-int ha_ndbcluster::create(const char *path MY_ATTRIBUTE((unused)),
-                          TABLE *table_arg MY_ATTRIBUTE((unused)),
+int ha_ndbcluster::create(const char *path [[maybe_unused]],
+                          TABLE *table_arg [[maybe_unused]],
                           HA_CREATE_INFO *create_info, dd::Table *table_def) {
   THD *thd = current_thd;
   NDBTAB tab;
@@ -11252,9 +11251,9 @@ std::string ha_ndbcluster::explain_extra() const {
 
   @return handler error code, 0 on success.
 */
-int ha_ndbcluster::open(const char *path MY_ATTRIBUTE((unused)),
-                        int mode_unused MY_ATTRIBUTE((unused)),
-                        uint test_if_locked_unused MY_ATTRIBUTE((unused)),
+int ha_ndbcluster::open(const char *path [[maybe_unused]],
+                        int mode_unused [[maybe_unused]],
+                        uint test_if_locked_unused [[maybe_unused]],
                         const dd::Table *table_def) {
   THD *thd = current_thd;
   DBUG_TRACE;
@@ -12202,9 +12201,10 @@ static Ndb_server_hooks ndb_server_hooks;
   @see notify_alter_table() in handler.h
 */
 
-static bool ndbcluster_notify_alter_table(
-    THD *thd, const MDL_key *mdl_key MY_ATTRIBUTE((unused)),
-    ha_notification_type notification) {
+static bool ndbcluster_notify_alter_table(THD *thd,
+                                          const MDL_key *mdl_key
+                                          [[maybe_unused]],
+                                          ha_notification_type notification) {
   DBUG_TRACE;
   DBUG_PRINT("enter",
              ("db: '%s', name: '%s'", mdl_key->db_name(), mdl_key->name()));
@@ -12814,8 +12814,8 @@ uint ha_ndbcluster::max_supported_key_parts() const {
 uint ha_ndbcluster::max_supported_key_length() const {
   return NDB_MAX_KEY_SIZE;
 }
-uint ha_ndbcluster::max_supported_key_part_length(
-    HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
+uint ha_ndbcluster::max_supported_key_part_length(HA_CREATE_INFO *create_info
+                                                  [[maybe_unused]]) const {
   return NDB_MAX_KEY_SIZE;
 }
 bool ha_ndbcluster::low_byte_first() const {
@@ -13179,9 +13179,9 @@ ha_rows ha_ndbcluster::multi_range_read_info(uint keyno, uint n_ranges,
   @retval false  NDB-MRR implementation should be used
 */
 
-bool ha_ndbcluster::choose_mrr_impl(
-    uint keyno, uint n_ranges, ha_rows n_rows, uint *bufsz, uint *flags,
-    Cost_estimate *cost MY_ATTRIBUTE((unused))) {
+bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
+                                    uint *bufsz, uint *flags,
+                                    Cost_estimate *cost [[maybe_unused]]) {
   THD *thd = current_thd;
   NDB_INDEX_TYPE key_type = get_index_type(keyno);
 
@@ -16856,7 +16856,7 @@ static bool ndbcluster_get_tablespace_statistics(
 
   @retval false for success
 */
-bool ha_ndbcluster::get_num_parts(const char *path MY_ATTRIBUTE((unused)),
+bool ha_ndbcluster::get_num_parts(const char *path [[maybe_unused]],
                                   uint *num_parts) {
   if (table_share->m_part_info == nullptr) {
     // Bootstrap privilege table migration

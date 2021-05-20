@@ -549,9 +549,9 @@ void register_group_replication_rwlock_psi_keys(PSI_rwlock_info *keys,
   mysql_rwlock_register(category, keys, static_cast<int>(count));
 }
 
-void register_group_replication_stage_psi_keys(
-    PSI_stage_info **keys MY_ATTRIBUTE((unused)),
-    size_t count MY_ATTRIBUTE((unused))) {
+void register_group_replication_stage_psi_keys(PSI_stage_info **keys
+                                               [[maybe_unused]],
+                                               size_t count [[maybe_unused]]) {
 #ifdef HAVE_PSI_STAGE_INTERFACE
   const char *category = "group_rpl";
   mysql_stage_register(category, keys, static_cast<int>(count));

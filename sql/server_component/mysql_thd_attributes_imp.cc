@@ -56,8 +56,8 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
 }
 
 DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::set,
-                   (MYSQL_THD thd MY_ATTRIBUTE((unused)),
-                    const char *name MY_ATTRIBUTE((unused)),
-                    void *inout_pvalue MY_ATTRIBUTE((unused)))) {
+                   (MYSQL_THD thd [[maybe_unused]],
+                    const char *name [[maybe_unused]],
+                    void *inout_pvalue [[maybe_unused]])) {
   return true;
 }

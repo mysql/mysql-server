@@ -77,7 +77,7 @@ static struct my_option my_long_options[] =
 };
 
 static bool
-get_one_option(int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
+get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
 	       char *argument)
 {
   return 0;

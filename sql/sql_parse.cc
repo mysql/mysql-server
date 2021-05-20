@@ -2187,7 +2187,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     case COM_STATISTICS: {
       System_status_var current_global_status_var;
       ulong uptime;
-      size_t length MY_ATTRIBUTE((unused));
+      size_t length [[maybe_unused]];
       ulonglong queries_per_second1000;
       char buff[250];
       size_t buff_len = sizeof(buff);
@@ -4764,9 +4764,9 @@ finish:
   if (test_flags & TEST_DO_QUICK_LEAK_CHECK) {
     static unsigned long total_leaked_bytes = 0;
     unsigned long leaked = 0;
-    unsigned long dubious MY_ATTRIBUTE((unused));
-    unsigned long reachable MY_ATTRIBUTE((unused));
-    unsigned long suppressed MY_ATTRIBUTE((unused));
+    unsigned long dubious [[maybe_unused]];
+    unsigned long reachable [[maybe_unused]];
+    unsigned long suppressed [[maybe_unused]];
     /*
       We could possibly use VALGRIND_DO_CHANGED_LEAK_CHECK here,
       but that is a fairly new addition to the Valgrind api.
@@ -4810,7 +4810,7 @@ finish:
   @returns false if check is successful, true if error
 */
 
-bool show_precheck(THD *thd, LEX *lex, bool lock MY_ATTRIBUTE((unused))) {
+bool show_precheck(THD *thd, LEX *lex, bool lock [[maybe_unused]]) {
   assert(lex->sql_command == SQLCOM_SHOW_CREATE_USER);
   TABLE_LIST *const tables = lex->query_tables;
   if (tables != nullptr) {
@@ -5078,7 +5078,7 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state) {
         }
         lex->set_trg_event_type_for_tables();
 
-        int error MY_ATTRIBUTE((unused));
+        int error [[maybe_unused]];
         if (unlikely(thd->security_context()->password_expired() &&
                      lex->sql_command != SQLCOM_SET_PASSWORD &&
                      lex->sql_command != SQLCOM_ALTER_USER)) {
@@ -6426,7 +6426,7 @@ Comp_creator *comp_eq_creator(bool invert) {
   return invert ? (Comp_creator *)&ne_creator : (Comp_creator *)&eq_creator;
 }
 
-Comp_creator *comp_equal_creator(bool invert MY_ATTRIBUTE((unused))) {
+Comp_creator *comp_equal_creator(bool invert [[maybe_unused]]) {
   assert(!invert);  // Function never called with true.
   return &equal_creator;
 }

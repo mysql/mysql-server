@@ -3113,7 +3113,7 @@ void LO_graph::check_common(LO_thread *thread, const char *from_class_name,
                             const char *to_class_name, bool recursive,
                             const char *to_operation_name,
                             const LO_node *to_node,
-                            const LO_lock *new_lock MY_ATTRIBUTE((unused))) {
+                            const LO_lock *new_lock [[maybe_unused]]) {
   assert(thread != nullptr);
   assert(from_class_name != nullptr);
   /* from_state_name can be null. */
@@ -4727,8 +4727,8 @@ LO_node *LO_mutex_class::get_state_node_by_name(const char *name) const {
 }
 
 LO_node *LO_mutex_class::get_operation_node_by_name(
-    bool recursive MY_ATTRIBUTE((unused)),
-    const char *state MY_ATTRIBUTE((unused)), const char *operation) const {
+    bool recursive [[maybe_unused]], const char *state [[maybe_unused]],
+    const char *operation) const {
   if (operation == nullptr) {
     return m_node;
   }
@@ -5473,8 +5473,7 @@ void LO_rwlock_lock_pr::merge_lock(PSI_rwlock_operation op,
   set_locked(op, src_file, src_line);
 }
 
-bool LO_rwlock_lock_pr::set_unlocked(
-    PSI_rwlock_operation op MY_ATTRIBUTE((unused))) {
+bool LO_rwlock_lock_pr::set_unlocked(PSI_rwlock_operation op [[maybe_unused]]) {
   assert(op == PSI_RWLOCK_UNLOCK);
   if (m_read_count > 0) {
     m_read_count--;
@@ -5563,8 +5562,7 @@ void LO_rwlock_lock_rw::merge_lock(PSI_rwlock_operation op,
   set_locked(op, src_file, src_line);
 }
 
-bool LO_rwlock_lock_rw::set_unlocked(
-    PSI_rwlock_operation op MY_ATTRIBUTE((unused))) {
+bool LO_rwlock_lock_rw::set_unlocked(PSI_rwlock_operation op [[maybe_unused]]) {
   assert(op == PSI_RWLOCK_UNLOCK);
   if (m_read_count > 0) {
     m_read_count--;
@@ -5775,8 +5773,8 @@ LO_node *LO_cond_class::get_state_node_by_name(const char *state) const {
 }
 
 LO_node *LO_cond_class::get_operation_node_by_name(
-    bool recursive MY_ATTRIBUTE((unused)),
-    const char *state MY_ATTRIBUTE((unused)), const char *operation) const {
+    bool recursive [[maybe_unused]], const char *state [[maybe_unused]],
+    const char *operation) const {
   if (operation == nullptr) {
     return m_node;
   }
@@ -5944,8 +5942,8 @@ LO_node *LO_file_class::get_state_node_by_name(const char *state) const {
 }
 
 LO_node *LO_file_class::get_operation_node_by_name(
-    bool recursive MY_ATTRIBUTE((unused)),
-    const char *state MY_ATTRIBUTE((unused)), const char *operation) const {
+    bool recursive [[maybe_unused]], const char *state [[maybe_unused]],
+    const char *operation) const {
   if (operation == nullptr) {
     return m_node;
   }
@@ -7565,7 +7563,7 @@ static void lo_end_file_close_wait(PSI_file_locker *locker, int rc) {
 }
 
 static void lo_start_file_rename_wait(PSI_file_locker *locker,
-                                      size_t count MY_ATTRIBUTE((unused)),
+                                      size_t count [[maybe_unused]],
                                       const char *old_name,
                                       const char *new_name,
                                       const char *src_file, uint src_line) {

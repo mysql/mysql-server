@@ -1282,9 +1282,10 @@ static void usage(void) {
   my_print_variables(innochecksum_options);
 }
 
-extern "C" bool innochecksum_get_one_option(
-    int optid, const struct my_option *opt MY_ATTRIBUTE((unused)),
-    char *argument MY_ATTRIBUTE((unused))) {
+extern "C" bool innochecksum_get_one_option(int optid,
+                                            const struct my_option *opt
+                                            [[maybe_unused]],
+                                            char *argument [[maybe_unused]]) {
   switch (optid) {
 #ifndef NDEBUG
     case '#':

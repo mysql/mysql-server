@@ -307,9 +307,9 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   and adds a child list of TABLE_LIST to the parent handler.
 */
 
-int ha_myisammrg::open(const char *name, int mode MY_ATTRIBUTE((unused)),
+int ha_myisammrg::open(const char *name, int mode [[maybe_unused]],
                        uint test_if_locked_arg,
-                       const dd::Table *table_def MY_ATTRIBUTE((unused))) {
+                       const dd::Table *table_def [[maybe_unused]]) {
   DBUG_TRACE;
   DBUG_PRINT("myrg", ("name: '%s'  table: %p", name, table));
   DBUG_PRINT("myrg", ("test_if_locked_arg: %u", test_if_locked_arg));
@@ -1065,9 +1065,8 @@ int ha_myisammrg::index_last(uchar *buf) {
   return error;
 }
 
-int ha_myisammrg::index_next_same(uchar *buf,
-                                  const uchar *key MY_ATTRIBUTE((unused)),
-                                  uint length MY_ATTRIBUTE((unused))) {
+int ha_myisammrg::index_next_same(uchar *buf, const uchar *key [[maybe_unused]],
+                                  uint length [[maybe_unused]]) {
   int error;
   assert(this->file->children_attached);
   ha_statistic_increment(&System_status_var::ha_read_next_count);

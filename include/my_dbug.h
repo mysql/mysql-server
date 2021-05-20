@@ -340,8 +340,8 @@ extern void _db_flush_gcov_();
                   called in debug mode if the keyword is enabled.
  */
 template <class DBGCLOS>
-inline void dbug(const char *keyword MY_ATTRIBUTE((unused)),
-                 DBGCLOS &&clos MY_ATTRIBUTE((unused))) {
+inline void dbug(const char *keyword [[maybe_unused]],
+                 DBGCLOS &&clos [[maybe_unused]]) {
   DBUG_EXECUTE_IF(keyword, clos(););
 }
 

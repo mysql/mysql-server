@@ -498,12 +498,8 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_DEF)
 
-#if defined(__GNUC__)
 /* Tell the compiler that variable/function is unused. */
-#define UNIV_UNUSED MY_ATTRIBUTE((unused))
-#else
-#define UNIV_UNUSED
-#endif /* CHECK FOR GCC VER_GT_2 */
+#define UNIV_UNUSED [[maybe_unused]]
 
 /* Some macros to improve branch prediction and reduce cache misses */
 #if defined(COMPILER_HINTS) && defined(__GNUC__)

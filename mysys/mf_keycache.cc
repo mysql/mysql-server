@@ -2110,7 +2110,7 @@ static void read_block(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
 uchar *key_cache_read(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                       File file, my_off_t filepos, int level, uchar *buff,
                       uint length, uint block_length,
-                      int return_buffer MY_ATTRIBUTE((unused))) {
+                      int return_buffer [[maybe_unused]]) {
   bool locked_and_incremented = false;
   int error = 0;
   uchar *start = buff;
@@ -2521,7 +2521,7 @@ int key_cache_insert(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
 
 int key_cache_write(KEY_CACHE *keycache, st_keycache_thread_var *thread_var,
                     File file, my_off_t filepos, int level, uchar *buff,
-                    uint length, uint block_length MY_ATTRIBUTE((unused)),
+                    uint length, uint block_length [[maybe_unused]],
                     int dont_write) {
   bool locked_and_incremented = false;
   int error = 0;
@@ -3598,7 +3598,7 @@ static int flush_all_key_blocks(KEY_CACHE *keycache,
     0 on success (always because it can't fail)
 */
 
-int reset_key_cache_counters(const char *name MY_ATTRIBUTE((unused)),
+int reset_key_cache_counters(const char *name [[maybe_unused]],
                              KEY_CACHE *key_cache) {
   DBUG_TRACE;
   if (!key_cache->key_cache_inited) {

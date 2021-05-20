@@ -91,13 +91,12 @@ class Mem_root_allocator {
       : m_memroot(other.memroot()) {}
 
   template <class U>
-  Mem_root_allocator &operator=(
-      const Mem_root_allocator<U> &other MY_ATTRIBUTE((unused))) {
+  Mem_root_allocator &operator=(const Mem_root_allocator<U> &other
+                                [[maybe_unused]]) {
     assert(m_memroot == other.memroot());  // Don't swap memroot.
   }
 
-  pointer allocate(size_type n,
-                   const_pointer hint MY_ATTRIBUTE((unused)) = nullptr) {
+  pointer allocate(size_type n, const_pointer hint [[maybe_unused]] = nullptr) {
     if (n == 0) return nullptr;
     if (n > max_size()) throw std::bad_alloc();
 

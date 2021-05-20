@@ -417,7 +417,7 @@ void init_tmptable_sum_functions(Item_sum **func_ptr) {
 /** Update record 0 in tmp_table from record 1. */
 
 void update_tmptable_sum_func(Item_sum **func_ptr,
-                              TABLE *tmp_table MY_ATTRIBUTE((unused))) {
+                              TABLE *tmp_table [[maybe_unused]]) {
   DBUG_TRACE;
   Item_sum *func;
   while ((func = *(func_ptr++))) func->update_field();

@@ -93,7 +93,7 @@ class IO_CACHE_binlog_cache_storage : public Truncatable_ostream {
   bool truncate(my_off_t offset) override;
   /* purecov: inspected */
   /* binlog cache doesn't need seek operation. Setting true to return error */
-  bool seek(my_off_t offset MY_ATTRIBUTE((unused))) override { return true; }
+  bool seek(my_off_t offset [[maybe_unused]]) override { return true; }
   /**
      Reset status and drop all data. It looks like a cache never was used after
      reset.

@@ -77,8 +77,7 @@ void Debug_options::create_options() {
 #endif
 }
 
-void Debug_options::debug_option_callback(
-    char *argument MY_ATTRIBUTE((unused))) {
+void Debug_options::debug_option_callback(char *argument [[maybe_unused]]) {
   if (this->m_dbug_option.has_value()) {
     DBUG_PUSH(this->m_dbug_option.value().c_str());
   }

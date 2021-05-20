@@ -201,7 +201,7 @@ log_service_error log_sink_trad_parse_log_line(const char *line_start,
 
   @retval          int                  number of added fields, if any
 */
-int log_sink_trad(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
+int log_sink_trad(void *instance [[maybe_unused]], log_line *ll) {
   const char *label = "", *msg = "";
   int c, out_fields = 0;
   size_t msg_len = 0, iso_len = 0, label_len = 0, subsys_len = 0;

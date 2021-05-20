@@ -193,7 +193,7 @@ static bool unregister_status_variables() {
   @retval 0 on success, errorno on failure
 */
 static int mysqlbackup_backup_id_check(MYSQL_THD thd,
-                                       SYS_VAR *self MY_ATTRIBUTE((unused)),
+                                       SYS_VAR *self [[maybe_unused]],
                                        void *save,
                                        struct st_mysql_value *value) {
   if (!have_backup_admin_privilege(thd))

@@ -69,9 +69,7 @@ static long number_of_calls = 0; /* for SHOW STATUS, see below */
     1                    failure (cannot happen)
 */
 
-static int simple_parser_plugin_init(void *arg MY_ATTRIBUTE((unused))) {
-  return (0);
-}
+static int simple_parser_plugin_init(void *arg [[maybe_unused]]) { return (0); }
 
 /*
   Terminate the parser plugin at server shutdown or plugin deinstallation.
@@ -86,7 +84,7 @@ static int simple_parser_plugin_init(void *arg MY_ATTRIBUTE((unused))) {
 
 */
 
-static int simple_parser_plugin_deinit(void *arg MY_ATTRIBUTE((unused))) {
+static int simple_parser_plugin_deinit(void *arg [[maybe_unused]]) {
   return (0);
 }
 
@@ -104,8 +102,7 @@ static int simple_parser_plugin_deinit(void *arg MY_ATTRIBUTE((unused))) {
     1                    failure (cannot happen)
 */
 
-static int simple_parser_init(
-    MYSQL_FTPARSER_PARAM *param MY_ATTRIBUTE((unused))) {
+static int simple_parser_init(MYSQL_FTPARSER_PARAM *param [[maybe_unused]]) {
   return (0);
 }
 
@@ -123,8 +120,7 @@ static int simple_parser_init(
     1                    failure (cannot happen)
 */
 
-static int simple_parser_deinit(
-    MYSQL_FTPARSER_PARAM *param MY_ATTRIBUTE((unused))) {
+static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param [[maybe_unused]]) {
   return (0);
 }
 

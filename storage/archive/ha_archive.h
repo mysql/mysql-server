@@ -122,8 +122,8 @@ class ha_archive : public handler {
                           ulonglong *nb_reserved_values) override;
   uint max_supported_keys() const override { return 1; }
   uint max_supported_key_length() const override { return sizeof(ulonglong); }
-  uint max_supported_key_part_length(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
+  uint max_supported_key_part_length(HA_CREATE_INFO *create_info
+                                     [[maybe_unused]]) const override {
     return sizeof(ulonglong);
   }
   int records(ha_rows *num_rows) override {

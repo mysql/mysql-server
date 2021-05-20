@@ -158,8 +158,7 @@ class sp_instr : public sp_printable {
     index to the next instruction. Jump instruction will add their
     destination to the leads list.
   */
-  virtual uint opt_mark(sp_head *,
-                        List<sp_instr> *leads MY_ATTRIBUTE((unused))) {
+  virtual uint opt_mark(sp_head *, List<sp_instr> *leads [[maybe_unused]]) {
     m_marked = true;
     return get_ip() + 1;
   }
@@ -170,8 +169,7 @@ class sp_instr : public sp_printable {
     used to prevent the mark sweep from looping for ever. Return the
     end destination.
   */
-  virtual uint opt_shortcut_jump(sp_head *,
-                                 sp_instr *start MY_ATTRIBUTE((unused))) {
+  virtual uint opt_shortcut_jump(sp_head *, sp_instr *start [[maybe_unused]]) {
     return get_ip();
   }
 
@@ -181,8 +179,7 @@ class sp_instr : public sp_printable {
     must also take care of their destination pointers. Forward jumps get
     pushed to the backpatch list 'ibp'.
   */
-  virtual void opt_move(uint dst,
-                        List<sp_branch_instr> *ibp MY_ATTRIBUTE((unused))) {
+  virtual void opt_move(uint dst, List<sp_branch_instr> *ibp [[maybe_unused]]) {
     m_ip = dst;
   }
 
@@ -396,7 +393,7 @@ class sp_lex_instr : public sp_instr {
 
     @return Error flag.
   */
-  virtual bool on_after_expr_parsing(THD *thd MY_ATTRIBUTE((unused))) {
+  virtual bool on_after_expr_parsing(THD *thd [[maybe_unused]]) {
     return false;
   }
 

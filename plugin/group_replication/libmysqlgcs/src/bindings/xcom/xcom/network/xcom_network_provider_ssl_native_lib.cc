@@ -215,17 +215,18 @@ static long process_tls_version(const char *tls_version) {
 }
 
 /* purecov: begin deadcode */
-static int PasswordCallBack(char *passwd, int sz, int rw MY_ATTRIBUTE((unused)),
-                            void *userdata MY_ATTRIBUTE((unused))) {
+static int PasswordCallBack(char *passwd, int sz, int rw [[maybe_unused]],
+                            void *userdata [[maybe_unused]]) {
   const char *pw = ssl_pw ? ssl_pw : "yassl123";
   strncpy(passwd, pw, (size_t)sz);
   return (int)strlen(pw);
 }
 /* purecov: end */
 
-static int configure_ssl_algorithms(
-    SSL_CTX *ssl_ctx, const char *cipher, const char *tls_version,
-    const char *tls_ciphersuites MY_ATTRIBUTE((unused))) {
+static int configure_ssl_algorithms(SSL_CTX *ssl_ctx, const char *cipher,
+                                    const char *tls_version,
+                                    const char *tls_ciphersuites
+                                    [[maybe_unused]]) {
   DH *dh = NULL;
   long ssl_ctx_options = SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3;
   char cipher_list[SSL_CIPHER_LIST_SIZE] = {0};
@@ -367,7 +368,7 @@ error:
   return 1;
 }
 
-static int configure_ssl_revocation(SSL_CTX *ssl_ctx MY_ATTRIBUTE((unused)),
+static int configure_ssl_revocation(SSL_CTX *ssl_ctx [[maybe_unused]],
                                     const char *crl_file,
                                     const char *crl_path) {
   int retval = 0;

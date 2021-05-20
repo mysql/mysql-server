@@ -183,7 +183,7 @@ class Sys_var_integer : public sys_var {
  public:
   Sys_var_integer(
       const char *name_arg, const char *comment, int flag_args,
-      ptrdiff_t off, size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
+      ptrdiff_t off, size_t size [[maybe_unused]], CMD_LINE getopt,
       T min_val, T max_val, T def_val, uint block_size,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
@@ -635,7 +635,7 @@ class Sys_var_enum : public Sys_var_typelib {
  public:
   Sys_var_enum(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, const char *values[],
+      size_t size [[maybe_unused]], CMD_LINE getopt, const char *values[],
       uint def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -688,7 +688,7 @@ class Sys_var_bool : public Sys_var_typelib {
  public:
   Sys_var_bool(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, bool def_val,
+      size_t size [[maybe_unused]], CMD_LINE getopt, bool def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -801,9 +801,9 @@ class Sys_var_multi_enum : public sys_var {
   */
   Sys_var_multi_enum(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
-      const ALIAS aliases_arg[], uint value_count_arg, uint def_val,
-      uint command_line_no_value_arg, PolyLock *lock = nullptr,
+      size_t size [[maybe_unused]], CMD_LINE getopt, const ALIAS aliases_arg[],
+      uint value_count_arg, uint def_val, uint command_line_no_value_arg,
+      PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
       on_update_function on_update_func = nullptr,
@@ -1011,7 +1011,7 @@ class Sys_var_charptr : public sys_var {
  public:
   Sys_var_charptr(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
+      size_t size [[maybe_unused]], CMD_LINE getopt,
       enum charset_enum is_os_charset_arg, const char *def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
@@ -1191,7 +1191,7 @@ class Sys_var_lexstring : public Sys_var_charptr {
  public:
   Sys_var_lexstring(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
+      size_t size [[maybe_unused]], CMD_LINE getopt,
       enum charset_enum is_os_charset_arg, const char *def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
@@ -1391,7 +1391,7 @@ class Sys_var_double : public sys_var {
  public:
   Sys_var_double(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, double min_val,
+      size_t size [[maybe_unused]], CMD_LINE getopt, double min_val,
       double max_val, double def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -1522,7 +1522,7 @@ class Sys_var_flagset : public Sys_var_typelib {
  public:
   Sys_var_flagset(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, const char *values[],
+      size_t size [[maybe_unused]], CMD_LINE getopt, const char *values[],
       ulonglong def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -1622,7 +1622,7 @@ class Sys_var_set : public Sys_var_typelib {
  public:
   Sys_var_set(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, const char *values[],
+      size_t size [[maybe_unused]], CMD_LINE getopt, const char *values[],
       ulonglong def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -1725,7 +1725,7 @@ class Sys_var_plugin : public sys_var {
  public:
   Sys_var_plugin(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, int plugin_type_arg,
+      size_t size [[maybe_unused]], CMD_LINE getopt, int plugin_type_arg,
       const char **def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -1917,8 +1917,8 @@ class Sys_var_bit : public Sys_var_typelib {
  public:
   Sys_var_bit(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
-      ulonglong bitmask_arg, bool def_val, PolyLock *lock = nullptr,
+      size_t size [[maybe_unused]], CMD_LINE getopt, ulonglong bitmask_arg,
+      bool def_val, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
       pre_update_function pre_update_func = nullptr,
@@ -2097,8 +2097,7 @@ class Sys_var_have : public sys_var {
  public:
   Sys_var_have(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
-      PolyLock *lock = nullptr,
+      size_t size [[maybe_unused]], CMD_LINE getopt, PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
       on_update_function on_update_func = nullptr,
@@ -2197,7 +2196,7 @@ class Sys_var_struct : public sys_var {
  public:
   Sys_var_struct(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, void *def_val,
+      size_t size [[maybe_unused]], CMD_LINE getopt, void *def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,
@@ -2268,7 +2267,7 @@ class Sys_var_struct : public sys_var {
 class Sys_var_tz : public sys_var {
  public:
   Sys_var_tz(const char *name_arg, const char *comment, int flag_args,
-             ptrdiff_t off, size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt,
+             ptrdiff_t off, size_t size [[maybe_unused]], CMD_LINE getopt,
              Time_zone **def_val, PolyLock *lock = nullptr,
              enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
              on_check_function on_check_func = nullptr,
@@ -2401,7 +2400,7 @@ class Sys_var_gtid_next : public sys_var {
  public:
   Sys_var_gtid_next(
       const char *name_arg, const char *comment, int flag_args, ptrdiff_t off,
-      size_t size MY_ATTRIBUTE((unused)), CMD_LINE getopt, const char *def_val,
+      size_t size [[maybe_unused]], CMD_LINE getopt, const char *def_val,
       PolyLock *lock = nullptr,
       enum binlog_status_enum binlog_status_arg = VARIABLE_NOT_IN_BINLOG,
       on_check_function on_check_func = nullptr,

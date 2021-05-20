@@ -188,8 +188,8 @@ static PSI_memory_info all_archive_memory[] = {
 #endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 static void init_archive_psi_keys(void) {
-  const char *category MY_ATTRIBUTE((unused)) = "archive";
-  int count MY_ATTRIBUTE((unused));
+  const char *category [[maybe_unused]] = "archive";
+  int count [[maybe_unused]];
 
 #ifdef HAVE_PSI_MUTEX_INTERFACE
   count = static_cast<int>(array_elements(all_archive_mutexes));
@@ -1410,7 +1410,7 @@ int ha_archive::info(uint flag) {
     @return != 0 Error
 */
 
-int ha_archive::extra(enum ha_extra_function operation MY_ATTRIBUTE((unused))) {
+int ha_archive::extra(enum ha_extra_function operation [[maybe_unused]]) {
   int ret = 0;
   DBUG_TRACE;
   /* On windows we need to close all files before rename/delete. */

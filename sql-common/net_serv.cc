@@ -261,7 +261,7 @@ bool net_realloc(NET *net, size_t length) {
   @param check_buffer  Whether to check the socket buffer.
 */
 
-void net_clear(NET *net, bool check_buffer MY_ATTRIBUTE((unused))) {
+void net_clear(NET *net, bool check_buffer [[maybe_unused]]) {
   DBUG_TRACE;
 
   DBUG_EXECUTE_IF("simulate_bad_field_length_1", {
@@ -305,8 +305,7 @@ bool net_flush(NET *net) {
   @retval false   Operation should not be retried. Fatal error.
 */
 
-static bool net_should_retry(NET *net,
-                             uint *retry_count MY_ATTRIBUTE((unused))) {
+static bool net_should_retry(NET *net, uint *retry_count [[maybe_unused]]) {
   bool retry;
 
 #ifndef MYSQL_SERVER

@@ -372,8 +372,7 @@ int table_events_stages_current::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_stages_current::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                            bool) {
+int table_events_stages_current::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_events_stages *result;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_events_stages);
@@ -493,8 +492,7 @@ int table_events_stages_history::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_events_stages_history::index_init(uint idx MY_ATTRIBUTE((unused)),
-                                            bool) {
+int table_events_stages_history::index_init(uint idx [[maybe_unused]], bool) {
   PFS_index_events_stages *result;
   assert(idx == 0);
   result = PFS_NEW(PFS_index_events_stages);

@@ -1517,7 +1517,7 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
         if (addonf.null_bit && field->is_null()) {
           nulls[addonf.null_offset] |= addonf.null_bit;
         } else {
-          uchar *ptr MY_ATTRIBUTE((unused)) =
+          uchar *ptr [[maybe_unused]] =
               field->pack(to, field->field_ptr(), to_end - to);
           assert(ptr <= to + addonf.max_length);
         }

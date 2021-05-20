@@ -589,9 +589,10 @@ struct MY_FTB_PHRASE_PARAM {
   uint match;
 };
 
-static int ftb_phrase_add_word(
-    MYSQL_FTPARSER_PARAM *param, char *word, int word_len,
-    MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info MY_ATTRIBUTE((unused))) {
+static int ftb_phrase_add_word(MYSQL_FTPARSER_PARAM *param, char *word,
+                               int word_len,
+                               MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info
+                               [[maybe_unused]]) {
   MY_FTB_PHRASE_PARAM *phrase_param =
       (MY_FTB_PHRASE_PARAM *)param->mysql_ftparam;
   FT_WORD *w = (FT_WORD *)phrase_param->document->data;
@@ -811,9 +812,10 @@ struct MY_FTB_FIND_PARAM {
   FT_SEG_ITERATOR *ftsi;
 };
 
-static int ftb_find_relevance_add_word(
-    MYSQL_FTPARSER_PARAM *param, char *word, int len,
-    MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info MY_ATTRIBUTE((unused))) {
+static int ftb_find_relevance_add_word(MYSQL_FTPARSER_PARAM *param, char *word,
+                                       int len,
+                                       MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info
+                                       [[maybe_unused]]) {
   MY_FTB_FIND_PARAM *ftb_param = (MY_FTB_FIND_PARAM *)param->mysql_ftparam;
   FTB *ftb = ftb_param->ftb;
   FTB_WORD *ftbw;

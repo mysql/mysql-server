@@ -634,9 +634,9 @@ static inline void dbug_print_tree(const char *, SEL_TREE *,
                                    const RANGE_OPT_PARAM *) {}
 #endif
 
-void print_tree(String *out, const char *tree_name, SEL_TREE *tree,
-                const RANGE_OPT_PARAM *param, const bool print_full)
-    MY_ATTRIBUTE((unused));
+[[maybe_unused]] void print_tree(String *out, const char *tree_name,
+                                 SEL_TREE *tree, const RANGE_OPT_PARAM *param,
+                                 const bool print_full);
 
 /*
   A null_sel_tree is used in get_func_mm_tree_from_in_predicate to pass
@@ -1691,12 +1691,12 @@ class TABLE_READ_PLAN {
 
   /* Table read plans are allocated on MEM_ROOT and are never deleted */
   static void *operator new(size_t size, MEM_ROOT *mem_root,
-                            const std::nothrow_t &arg MY_ATTRIBUTE((unused)) =
-                                std::nothrow) noexcept {
+                            const std::nothrow_t &arg
+                            [[maybe_unused]] = std::nothrow) noexcept {
     return mem_root->Alloc(size);
   }
-  static void operator delete(void *ptr MY_ATTRIBUTE((unused)),
-                              size_t size MY_ATTRIBUTE((unused))) {
+  static void operator delete(void *ptr [[maybe_unused]],
+                              size_t size [[maybe_unused]]) {
     TRASH(ptr, size);
   }
   static void operator delete(
@@ -6584,7 +6584,7 @@ impossible_cond:
   recursively. Used only when tracking bugs in the range optimizer
   (for printf debugging); will not normally have any calls to it.
  */
-static void debug_print_tree(SEL_ROOT *origin) MY_ATTRIBUTE((unused));
+[[maybe_unused]] static void debug_print_tree(SEL_ROOT *origin);
 
 static void debug_print_tree(SEL_ROOT *origin) {
   if (!origin) return;

@@ -700,8 +700,8 @@ class Item_sum : public Item_func {
     input parameters which can be '?' and must be >=0: value isn't known
     before execution phase).
   */
-  virtual bool check_wf_semantics2(
-      Window_evaluation_requirements *reqs MY_ATTRIBUTE((unused))) {
+  virtual bool check_wf_semantics2(Window_evaluation_requirements *reqs
+                                   [[maybe_unused]]) {
     return false;
   }
 
@@ -2060,7 +2060,7 @@ int group_concat_key_cmp_with_distinct(const void *arg, const void *key1,
                                        const void *key2);
 int group_concat_key_cmp_with_order(const void *arg, const void *key1,
                                     const void *key2);
-int dump_leaf_key(void *key_arg, element_count count MY_ATTRIBUTE((unused)),
+int dump_leaf_key(void *key_arg, element_count count [[maybe_unused]],
                   void *item_arg);
 
 class Item_func_group_concat final : public Item_sum {
@@ -2116,8 +2116,7 @@ class Item_func_group_concat final : public Item_sum {
                                                 const void *key2);
   friend int group_concat_key_cmp_with_order(const void *arg, const void *key1,
                                              const void *key2);
-  friend int dump_leaf_key(void *key_arg,
-                           element_count count MY_ATTRIBUTE((unused)),
+  friend int dump_leaf_key(void *key_arg, element_count count [[maybe_unused]],
                            void *item_arg);
 
  public:
@@ -2235,7 +2234,7 @@ class Item_row_number : public Item_non_framing_wf {
   const char *func_name() const override { return "row_number"; }
   enum Sumfunctype sum_func() const override { return ROW_NUMBER_FUNC; }
 
-  bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
+  bool resolve_type(THD *thd [[maybe_unused]]) override {
     set_data_type_longlong();
     return false;
   }
@@ -2287,7 +2286,7 @@ class Item_rank : public Item_non_framing_wf {
     return m_dense ? DENSE_RANK_FUNC : RANK_FUNC;
   }
 
-  bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
+  bool resolve_type(THD *thd [[maybe_unused]]) override {
     set_data_type_longlong();
     return false;
   }
@@ -2318,7 +2317,7 @@ class Item_cume_dist : public Item_non_framing_wf {
   const char *func_name() const override { return "cume_dist"; }
   enum Sumfunctype sum_func() const override { return CUME_DIST_FUNC; }
 
-  bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
+  bool resolve_type(THD *thd [[maybe_unused]]) override {
     set_data_type_double();
     return false;
   }
@@ -2359,7 +2358,7 @@ class Item_percent_rank : public Item_non_framing_wf {
   const char *func_name() const override { return "percent_rank"; }
   enum Sumfunctype sum_func() const override { return PERCENT_RANK_FUNC; }
 
-  bool resolve_type(THD *thd MY_ATTRIBUTE((unused))) override {
+  bool resolve_type(THD *thd [[maybe_unused]]) override {
     set_data_type_double();
     return false;
   }

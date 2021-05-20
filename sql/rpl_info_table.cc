@@ -675,7 +675,7 @@ Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
 
 Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
     const int pos, uchar *value, const size_t size,
-    const uchar *default_value MY_ATTRIBUTE((unused))) {
+    const uchar *default_value [[maybe_unused]]) {
   if (bitmap_is_set(&field_values->is_null, pos)) {
     return Rpl_info_handler::enum_field_get_status::FIELD_VALUE_IS_NULL;
   } else {
@@ -740,7 +740,7 @@ Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
 
 Rpl_info_handler::enum_field_get_status Rpl_info_table::do_get_info(
     const int pos, Server_ids *value,
-    const Server_ids *default_value MY_ATTRIBUTE((unused))) {
+    const Server_ids *default_value [[maybe_unused]]) {
   if (value->unpack_dynamic_ids(field_values->value[pos].c_ptr_safe()))
     return Rpl_info_handler::enum_field_get_status::FAILURE;
 

@@ -88,7 +88,7 @@ bool Gcs_mysql_network_provider_native_interface_impl::mysql_ssl_set(
 int Gcs_mysql_network_provider_native_interface_impl::
     channel_get_network_namespace(std::string &net_ns
 #ifndef HAVE_SETNS
-                                      MY_ATTRIBUTE((unused))
+                                  [[maybe_unused]]
 #endif
     ) {
 #ifdef HAVE_SETNS
@@ -102,7 +102,7 @@ int Gcs_mysql_network_provider_native_interface_impl::
 bool Gcs_mysql_network_provider_native_interface_impl::set_network_namespace(
     const std::string &network_namespace
 #ifndef HAVE_SETNS
-        MY_ATTRIBUTE((unused))
+    [[maybe_unused]]
 #endif
 ) {
 #ifdef HAVE_SETNS
@@ -152,7 +152,7 @@ int Gcs_mysql_network_provider::stop() {
 }
 
 bool Gcs_mysql_network_provider::configure(
-    const Network_configuration_parameters &params MY_ATTRIBUTE((unused))) {
+    const Network_configuration_parameters &params [[maybe_unused]]) {
   return true;
 }
 
@@ -193,8 +193,7 @@ bool Gcs_mysql_network_provider::finalize_secure_connections_context() {
 
 std::unique_ptr<Network_connection> Gcs_mysql_network_provider::open_connection(
     const std::string &address, const unsigned short port,
-    const Network_security_credentials &security_credentials
-        MY_ATTRIBUTE((unused)),
+    const Network_security_credentials &security_credentials [[maybe_unused]],
     int connection_timeout) {
   MYSQL *mysql_connection = nullptr;
   ulong client_flag = CLIENT_REMEMBER_OPTIONS;

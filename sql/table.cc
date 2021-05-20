@@ -3698,7 +3698,7 @@ bool check_column_name(const char *name) {
   return last_char_is_space || (name_length > NAME_CHAR_LEN);
 }
 
-bool Table_check_intact::check(THD *thd MY_ATTRIBUTE((unused)), TABLE *table,
+bool Table_check_intact::check(THD *thd [[maybe_unused]], TABLE *table,
                                const TABLE_FIELD_DEF *table_def) {
   uint i;
   bool error = false;

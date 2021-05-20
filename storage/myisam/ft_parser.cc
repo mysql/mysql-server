@@ -257,7 +257,7 @@ void ft_parse_init(TREE *wtree, const CHARSET_INFO *cs) {
 
 static int ft_add_word(MYSQL_FTPARSER_PARAM *param, char *word, int word_len,
                        MYSQL_FTPARSER_BOOLEAN_INFO *boolean_info
-                           MY_ATTRIBUTE((unused))) {
+                       [[maybe_unused]]) {
   TREE *wtree;
   FT_WORD w;
   MY_FT_PARSER_PARAM *ft_param = (MY_FT_PARSER_PARAM *)param->mysql_ftparam;

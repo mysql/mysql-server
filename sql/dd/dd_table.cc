@@ -2459,10 +2459,10 @@ static bool is_foreign_key_name_locked(THD *thd, const char *db,
 }
 #endif
 
-bool rename_foreign_keys(THD *thd MY_ATTRIBUTE((unused)),
-                         const char *old_db MY_ATTRIBUTE((unused)),
+bool rename_foreign_keys(THD *thd [[maybe_unused]],
+                         const char *old_db [[maybe_unused]],
                          const char *old_table_name, handlerton *hton,
-                         const char *new_db MY_ATTRIBUTE((unused)),
+                         const char *new_db [[maybe_unused]],
                          dd::Table *new_tab) {
   // With LCTN = 2, we are using lower-case tablename for FK name.
   char old_table_name_norm[NAME_LEN + 1];

@@ -180,8 +180,8 @@ int table_esms_by_thread_by_event_name::rnd_pos(const void *pos) {
   return HA_ERR_RECORD_DELETED;
 }
 
-int table_esms_by_thread_by_event_name::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
+int table_esms_by_thread_by_event_name::index_init(uint idx [[maybe_unused]],
+                                                   bool) {
   assert(idx == 0);
   m_opened_index = PFS_NEW(PFS_index_esms_by_thread_by_event_name);
   m_index = m_opened_index;

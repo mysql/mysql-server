@@ -1396,7 +1396,7 @@ bool Log_event::is_valid() {
 */
 
 void Log_event::print_header(IO_CACHE *file, PRINT_EVENT_INFO *print_event_info,
-                             bool is_more MY_ATTRIBUTE((unused))) const {
+                             bool is_more [[maybe_unused]]) const {
   char llbuff[22];
   my_off_t hexdump_from = print_event_info->hexdump_from;
   DBUG_TRACE;
@@ -11709,8 +11709,7 @@ Write_rows_log_event::Write_rows_log_event(
 
 bool Write_rows_log_event::binlog_row_logging_function(
     THD *thd_arg, TABLE *table, bool is_transactional,
-    const uchar *before_record MY_ATTRIBUTE((unused)),
-    const uchar *after_record) {
+    const uchar *before_record [[maybe_unused]], const uchar *after_record) {
   return thd_arg->binlog_write_row(table, is_transactional, after_record,
                                    nullptr);
 }
@@ -12199,8 +12198,7 @@ Delete_rows_log_event::Delete_rows_log_event(THD *thd_arg, TABLE *tbl_arg,
 
 bool Delete_rows_log_event::binlog_row_logging_function(
     THD *thd_arg, TABLE *table, bool is_transactional,
-    const uchar *before_record,
-    const uchar *after_record MY_ATTRIBUTE((unused))) {
+    const uchar *before_record, const uchar *after_record [[maybe_unused]]) {
   return thd_arg->binlog_delete_row(table, is_transactional, before_record,
                                     nullptr);
 }
@@ -13768,8 +13766,9 @@ size_t Transaction_payload_log_event::get_data_size() {
 }
 
 #ifdef MYSQL_SERVER
-uint8 Transaction_payload_log_event::get_mts_dbs(
-    Mts_db_names *arg, Rpl_filter *rpl_filter MY_ATTRIBUTE((unused))) {
+uint8 Transaction_payload_log_event::get_mts_dbs(Mts_db_names *arg,
+                                                 Rpl_filter *rpl_filter
+                                                 [[maybe_unused]]) {
   Mts_db_names &mts_dbs = m_applier_ctx.get_mts_db_names();
   if (mts_dbs.num == OVER_MAX_DBS_IN_EVENT_MTS) {
     arg->name[0] = 0;

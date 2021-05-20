@@ -271,7 +271,7 @@ static void AssertSupportedPath(const AccessPath *path) {
   assert(path->secondary_engine_data == nullptr);
 }
 
-static bool OptimizeSecondaryEngine(THD *thd MY_ATTRIBUTE((unused)), LEX *lex) {
+static bool OptimizeSecondaryEngine(THD *thd [[maybe_unused]], LEX *lex) {
   // The context should have been set by PrepareSecondaryEngine.
   assert(lex->secondary_engine_execution_context() != nullptr);
 
@@ -334,9 +334,10 @@ static bool CompareJoinCost(THD *thd, const JOIN &join, double optimizer_cost,
   return false;
 }
 
-static bool ModifyAccessPathCost(
-    THD *thd MY_ATTRIBUTE((unused)),
-    const JoinHypergraph &hypergraph MY_ATTRIBUTE((unused)), AccessPath *path) {
+static bool ModifyAccessPathCost(THD *thd [[maybe_unused]],
+                                 const JoinHypergraph &hypergraph
+                                 [[maybe_unused]],
+                                 AccessPath *path) {
   assert(!thd->is_error());
   assert(hypergraph.query_block()->join == hypergraph.join());
   AssertSupportedPath(path);

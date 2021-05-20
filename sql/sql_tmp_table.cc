@@ -2816,8 +2816,7 @@ err_after_proc_info:
   @param length       how many available bytes in rowid_bytes
   @param row_num      PK to encode
 */
-void encode_innodb_position(uchar *rowid_bytes,
-                            uint length MY_ATTRIBUTE((unused)),
+void encode_innodb_position(uchar *rowid_bytes, uint length [[maybe_unused]],
                             ha_rows row_num) {
   assert(length == 6);
   for (int i = 0; i < 6; i++)

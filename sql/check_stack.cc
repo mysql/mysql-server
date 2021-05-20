@@ -69,7 +69,7 @@ std::atomic<long> max_stack_used;
   - Passing to check_stack_overrun() prevents the compiler from removing it.
 */
 bool check_stack_overrun(const THD *thd, long margin,
-                         unsigned char *buf MY_ATTRIBUTE((unused))) {
+                         unsigned char *buf [[maybe_unused]]) {
   assert(thd == current_thd);
   long stack_used =
       used_stack(thd->thread_stack, reinterpret_cast<char *>(&stack_used));

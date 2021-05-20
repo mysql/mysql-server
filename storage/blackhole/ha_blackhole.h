@@ -76,8 +76,8 @@ class ha_blackhole : public handler {
   uint max_supported_key_length() const override {
     return BLACKHOLE_MAX_KEY_LENGTH;
   }
-  uint max_supported_key_part_length(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const override {
+  uint max_supported_key_part_length(HA_CREATE_INFO *create_info
+                                     [[maybe_unused]]) const override {
     return BLACKHOLE_MAX_KEY_LENGTH;
   }
   int open(const char *name, int mode, uint test_if_locked,

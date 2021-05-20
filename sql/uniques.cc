@@ -153,7 +153,7 @@ static uint uniq_read_to_buffer(IO_CACHE *fromfile, Merge_chunk *merge_chunk,
 static int merge_buffers(THD *thd, Uniq_param *param, IO_CACHE *from_file,
                          IO_CACHE *to_file, Sort_buffer sort_buffer,
                          Merge_chunk *last_chunk, Merge_chunk_array chunk_array,
-                         int flag MY_ATTRIBUTE((unused))) {
+                         int flag [[maybe_unused]]) {
   int error = 0;
   uint rec_length;
   ha_rows maxcount;

@@ -809,7 +809,7 @@ int log_error_read_log_init() {
 
   @retval          int                  number of added fields, if any
 */
-int log_sink_perfschema(void *instance MY_ATTRIBUTE((unused)), log_line *ll) {
+int log_sink_perfschema(void *instance [[maybe_unused]], log_line *ll) {
   log_sink_pfs_event e;
   memset(&e, 0, sizeof(log_sink_pfs_event));
 

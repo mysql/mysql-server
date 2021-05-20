@@ -3497,8 +3497,8 @@ Item *Item_null::safe_charset_converter(THD *, const CHARSET_INFO *tocs) {
 */
 
 static void default_set_param_func(Item_param *param,
-                                   uchar **pos MY_ATTRIBUTE((unused)),
-                                   ulong len MY_ATTRIBUTE((unused))) {
+                                   uchar **pos [[maybe_unused]],
+                                   ulong len [[maybe_unused]]) {
   param->set_param_state(Item_param::NO_VALUE);
 }
 
@@ -5397,7 +5397,7 @@ bool Item_field::fix_fields(THD *thd, Item **reference) {
   } else if (thd->mark_used_columns != MARK_COLUMNS_NONE) {
     TABLE *table = field->table;
     MY_BITMAP *current_bitmap;
-    MY_BITMAP *other_bitmap MY_ATTRIBUTE((unused));
+    MY_BITMAP *other_bitmap [[maybe_unused]];
     if (thd->mark_used_columns == MARK_COLUMNS_READ) {
       current_bitmap = table->read_set;
       other_bitmap = table->write_set;
@@ -6357,8 +6357,9 @@ static type_conversion_status save_int_value_in_field(Field *field, longlong nr,
   @retval !TYPE_OK  Warning/error as indicated by type_conversion_status enum
                     value
 */
-type_conversion_status Item_int::save_in_field_inner(
-    Field *field, bool no_conversions MY_ATTRIBUTE((unused))) {
+type_conversion_status Item_int::save_in_field_inner(Field *field,
+                                                     bool no_conversions
+                                                     [[maybe_unused]]) {
   return save_int_value_in_field(field, val_int(), null_value, unsigned_flag);
 }
 
@@ -9630,8 +9631,8 @@ bool Item_cache_row::cache_value() {
   return true;
 }
 
-void Item_cache_row::illegal_method_call(
-    const char *method MY_ATTRIBUTE((unused))) const {
+void Item_cache_row::illegal_method_call(const char *method
+                                         [[maybe_unused]]) const {
   DBUG_TRACE;
   DBUG_PRINT("error", ("!!! %s method was called for row item", method));
   assert(0);

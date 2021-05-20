@@ -448,9 +448,8 @@ MY_COMPILER_CLANG_WORKAROUND_REF_DOCBUG()
 @see @ref sect_redo_log_add_dirty_pages */
 MY_COMPILER_DIAGNOSTIC_POP()
 
-MY_ATTRIBUTE((unused))
-static inline bool buf_flush_list_order_validate(lsn_t earlier_added_lsn,
-                                                 lsn_t new_added_lsn) {
+[[maybe_unused]] static inline bool buf_flush_list_order_validate(
+    lsn_t earlier_added_lsn, lsn_t new_added_lsn) {
   return (earlier_added_lsn <=
           new_added_lsn + log_buffer_flush_order_lag(*log_sys));
 }

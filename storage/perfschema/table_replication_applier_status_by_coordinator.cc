@@ -123,7 +123,7 @@ bool PFS_index_rpl_applier_status_by_coord_by_thread::match(Master_info *mi) {
     mysql_mutex_lock(&mi->rli->data_lock);
 
     if (mi->rli->slave_running) {
-      PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+      PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
       if (psi != nullptr) {
         row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);
@@ -275,7 +275,7 @@ int table_replication_applier_status_by_coordinator::make_row(Master_info *mi) {
   m_row.thread_id_is_null = true;
 
   if (mi->rli->slave_running) {
-    PSI_thread *psi MY_ATTRIBUTE((unused)) = thd_get_psi(mi->rli->info_thd);
+    PSI_thread *psi [[maybe_unused]] = thd_get_psi(mi->rli->info_thd);
 #ifdef HAVE_PSI_THREAD_INTERFACE
     if (psi != nullptr) {
       m_row.thread_id = PSI_THREAD_CALL(get_thread_internal_id)(psi);

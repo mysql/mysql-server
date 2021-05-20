@@ -345,7 +345,7 @@ static inline bool is_already_logged_transaction(const THD *thd) {
 
   @param  thd     The calling thread.
 */
-static inline void skip_statement(const THD *thd MY_ATTRIBUTE((unused))) {
+static inline void skip_statement(const THD *thd [[maybe_unused]]) {
   DBUG_TRACE;
 
   DBUG_PRINT("info", ("skipping statement '%s'. "
@@ -580,7 +580,7 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd) {
   return false;
 }
 
-void gtid_set_performance_schema_values(const THD *thd MY_ATTRIBUTE((unused))) {
+void gtid_set_performance_schema_values(const THD *thd [[maybe_unused]]) {
   DBUG_TRACE;
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   if (thd->m_transaction_psi != nullptr) {

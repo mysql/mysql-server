@@ -838,8 +838,8 @@ void log_sink_buffer_check_timeout(void);
 
 #else
 
-inline void dummy_log_message(longlong severity MY_ATTRIBUTE((unused)),
-                              longlong ecode MY_ATTRIBUTE((unused)), ...) {
+inline void dummy_log_message(longlong severity [[maybe_unused]],
+                              longlong ecode [[maybe_unused]], ...) {
   return;
 }
 
@@ -1502,9 +1502,9 @@ inline bool init_logging_service_for_plugin(
   @retval     true   Failed.
 */
 inline bool init_logging_service_for_plugin(
-    SERVICE_TYPE(registry) * *reg_srv MY_ATTRIBUTE((unused)),
-    SERVICE_TYPE(log_builtins) * *log_bi MY_ATTRIBUTE((unused)),
-    SERVICE_TYPE(log_builtins_string) * *log_bs MY_ATTRIBUTE((unused)))
+    SERVICE_TYPE(registry) * *reg_srv [[maybe_unused]],
+    SERVICE_TYPE(log_builtins) * *log_bi [[maybe_unused]],
+    SERVICE_TYPE(log_builtins_string) * *log_bs [[maybe_unused]])
 
 {
   return false;
@@ -1518,9 +1518,9 @@ inline bool init_logging_service_for_plugin(
   param[in,out]  log_bs     String service for error logging.
 */
 inline void deinit_logging_service_for_plugin(
-    SERVICE_TYPE(registry) * *reg_srv MY_ATTRIBUTE((unused)),
-    SERVICE_TYPE(log_builtins) * *log_bi MY_ATTRIBUTE((unused)),
-    SERVICE_TYPE(log_builtins_string) * *log_bs MY_ATTRIBUTE((unused))) {}
+    SERVICE_TYPE(registry) * *reg_srv [[maybe_unused]],
+    SERVICE_TYPE(log_builtins) * *log_bi [[maybe_unused]],
+    SERVICE_TYPE(log_builtins_string) * *log_bs [[maybe_unused]]) {}
 
 #endif  // MYSQL_DYNAMIC_PLUGIN
 

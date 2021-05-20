@@ -308,7 +308,7 @@ THD::Attachable_trx_rw::Attachable_trx_rw(THD *thd)
 
 void THD::enter_stage(const PSI_stage_info *new_stage,
                       PSI_stage_info *old_stage,
-                      const char *calling_func MY_ATTRIBUTE((unused)),
+                      const char *calling_func [[maybe_unused]],
                       const char *calling_file,
                       const unsigned int calling_line) {
   DBUG_PRINT("THD::enter_stage",
@@ -2623,7 +2623,7 @@ void THD::send_statement_status() {
   if (!error) da->set_is_sent(true);
 }
 
-void THD::claim_memory_ownership(bool claim MY_ATTRIBUTE((unused))) {
+void THD::claim_memory_ownership(bool claim [[maybe_unused]]) {
 #ifdef HAVE_PSI_MEMORY_INTERFACE
   /*
     Ownership of the THD object is transfered to this thread.

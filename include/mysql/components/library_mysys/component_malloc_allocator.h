@@ -87,7 +87,7 @@ class Component_malloc_allocator {
   // on release builds assert is not evaluated. So compilation error is seen,
   // hence used 'unused' attribute.
   Component_malloc_allocator &operator=(
-      const Component_malloc_allocator<U> &other MY_ATTRIBUTE((unused))) {
+      const Component_malloc_allocator<U> &other [[maybe_unused]]) {
     assert(m_key == other.psi_key());  // Don't swap key.
   }
 

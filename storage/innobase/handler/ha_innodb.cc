@@ -1550,9 +1550,9 @@ static void innodb_enable_monitor_at_startup(
 @param[in]	idx_cond	(unused) Intended for conditional pushdown
 @param[in]	idx		Table id that indicates which I_S table to fill
 @return Operation status */
-static int innobase_fill_i_s_table(handlerton *hton MY_ATTRIBUTE((unused)),
-                                   THD *thd, TABLE_LIST *tables,
-                                   Item *idx_cond MY_ATTRIBUTE((unused)),
+static int innobase_fill_i_s_table(handlerton *hton [[maybe_unused]], THD *thd,
+                                   TABLE_LIST *tables,
+                                   Item *idx_cond [[maybe_unused]],
                                    enum_schema_tables idx) {
   assert(idx == SCH_TABLESPACES);
 
@@ -5146,7 +5146,7 @@ static int innodb_init(void *p) {
 }
 
 /** De initialize the InnoDB storage engine plugin. */
-static int innodb_deinit(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+static int innodb_deinit(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   release_plugin_services();
   return 0;
 }
@@ -5454,7 +5454,7 @@ static bool innobase_flush_logs(handlerton *hton, bool binlog_group_flush) {
 void innobase_commit_low(trx_t *trx) /*!< in: transaction handle */
 {
   if (trx_is_started(trx)) {
-    const dberr_t error MY_ATTRIBUTE((unused)) = trx_commit_for_mysql(trx);
+    const dberr_t error [[maybe_unused]] = trx_commit_for_mysql(trx);
     // This is ut_ad not ut_a, because previously we did not have an assert
     // and nobody has noticed for a long time, so probably there is no much
     // harm in silencing this error. OTOH we believe it should no longer happen
@@ -20054,7 +20054,7 @@ or other posix implementations.
 static void innodb_extend_and_initialize_update(THD *thd, SYS_VAR *var,
                                                 void *var_ptr,
                                                 const void *save) {
-  bool extend_and_initialize MY_ATTRIBUTE((unused)) =
+  bool extend_and_initialize [[maybe_unused]] =
       *static_cast<const bool *>(save);
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
   *static_cast<bool *>(var_ptr) = extend_and_initialize;
@@ -20843,10 +20843,10 @@ is registered as a callback with MySQL.
 @param[in]	var       pointer to system variable
 @param[in]	var_ptr   where the formal string goes
 @param[in]	save      immediate result from check function */
-static void innodb_undo_tablespaces_update(
-    THD *thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)),
-    const void *save MY_ATTRIBUTE((unused))) {
+static void innodb_undo_tablespaces_update(THD *thd [[maybe_unused]],
+                                           SYS_VAR *var [[maybe_unused]],
+                                           void *var_ptr [[maybe_unused]],
+                                           const void *save [[maybe_unused]]) {
   innodb_undo_tablespaces_deprecate();
 }
 
@@ -21107,7 +21107,7 @@ of m_prebuilt->fts_doc_id
 @return the relevance ranking value */
 static float innobase_fts_retrieve_ranking(FT_INFO *fts_hdl) {
   fts_result_t *result;
-  row_prebuilt_t *ft_prebuilt MY_ATTRIBUTE((unused));
+  row_prebuilt_t *ft_prebuilt [[maybe_unused]];
 
   result = reinterpret_cast<NEW_FT_INFO *>(fts_hdl)->ft_result;
 
@@ -21164,9 +21164,10 @@ static uint innodb_merge_threshold_set_all_debug =
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
 @param[in]  save      immediate result from check function */
-static void wait_background_drop_list_empty(
-    THD *thd MY_ATTRIBUTE((unused)), SYS_VAR *var MY_ATTRIBUTE((unused)),
-    void *var_ptr MY_ATTRIBUTE((unused)), const void *save) {
+static void wait_background_drop_list_empty(THD *thd [[maybe_unused]],
+                                            SYS_VAR *var [[maybe_unused]],
+                                            void *var_ptr [[maybe_unused]],
+                                            const void *save) {
   row_wait_for_background_drop_list_empty();
 }
 
@@ -21176,9 +21177,9 @@ is a no-op. This function is registered as a callback with MySQL.
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
 @param[in]  save      immediate result from check function */
-static void purge_run_now_set(THD *thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *var MY_ATTRIBUTE((unused)),
-                              void *var_ptr MY_ATTRIBUTE((unused)),
+static void purge_run_now_set(THD *thd [[maybe_unused]],
+                              SYS_VAR *var [[maybe_unused]],
+                              void *var_ptr [[maybe_unused]],
                               const void *save) {
   if (*(bool *)save && trx_purge_state() != PURGE_STATE_DISABLED) {
     trx_purge_run();
@@ -21191,9 +21192,9 @@ is a no-op. This function is registered as a callback with MySQL.
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
 @param[in]  save      immediate result from check function */
-static void purge_stop_now_set(THD *thd MY_ATTRIBUTE((unused)),
-                               SYS_VAR *var MY_ATTRIBUTE((unused)),
-                               void *var_ptr MY_ATTRIBUTE((unused)),
+static void purge_stop_now_set(THD *thd [[maybe_unused]],
+                               SYS_VAR *var [[maybe_unused]],
+                               void *var_ptr [[maybe_unused]],
                                const void *save) {
   if (*(bool *)save && trx_purge_state() != PURGE_STATE_DISABLED) {
     trx_purge_stop();
@@ -21206,9 +21207,9 @@ This function is registered as a callback with MySQL.
 @param[in]      var       pointer to system variable, ignored
 @param[in,out]  var_ptr   where the formal string goes, ignored
 @param[in]      save      immediate result from check function */
-static void log_flush_now_set(THD *thd MY_ATTRIBUTE((unused)),
-                              SYS_VAR *var MY_ATTRIBUTE((unused)),
-                              void *var_ptr MY_ATTRIBUTE((unused)),
+static void log_flush_now_set(THD *thd [[maybe_unused]],
+                              SYS_VAR *var [[maybe_unused]],
+                              void *var_ptr [[maybe_unused]],
                               const void *save) {
   if (!*(bool *)save) {
     return;
@@ -21223,9 +21224,9 @@ dirty pages.
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
 @param[in]  save      immediate result from check function */
-static void checkpoint_now_set(THD *thd MY_ATTRIBUTE((unused)),
-                               SYS_VAR *var MY_ATTRIBUTE((unused)),
-                               void *var_ptr MY_ATTRIBUTE((unused)),
+static void checkpoint_now_set(THD *thd [[maybe_unused]],
+                               SYS_VAR *var [[maybe_unused]],
+                               void *var_ptr [[maybe_unused]],
                                const void *save) {
   if (*(bool *)save && !srv_checkpoint_disabled) {
     /* Note that it's defined only when UNIV_DEBUG is defined.
@@ -21253,9 +21254,9 @@ the internet.
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
 @param[in]  save      immediate result from check function */
-static void checkpoint_fuzzy_now_set(THD *thd MY_ATTRIBUTE((unused)),
-                                     SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                     void *var_ptr MY_ATTRIBUTE((unused)),
+static void checkpoint_fuzzy_now_set(THD *thd [[maybe_unused]],
+                                     SYS_VAR *var [[maybe_unused]],
+                                     void *var_ptr [[maybe_unused]],
                                      const void *save) {
   if (*(bool *)save && !srv_checkpoint_disabled) {
     /* Note that it's defined only when UNIV_DEBUG is defined.
@@ -21299,9 +21300,9 @@ static void checkpoint_disabled_update(THD *thd, SYS_VAR *var, void *var_ptr,
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
 @param[in]  save      immediate result from check function */
-static void buf_flush_list_now_set(THD *thd MY_ATTRIBUTE((unused)),
-                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                   void *var_ptr MY_ATTRIBUTE((unused)),
+static void buf_flush_list_now_set(THD *thd [[maybe_unused]],
+                                   SYS_VAR *var [[maybe_unused]],
+                                   void *var_ptr [[maybe_unused]],
                                    const void *save) {
   if (*(bool *)save) {
     buf_flush_sync_all_buf_pools();
@@ -21364,9 +21365,9 @@ to ON. This function is registered as a callback with MySQL.
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
 @param[in]  save      immediate result from check function */
-static void buffer_pool_dump_now(THD *thd MY_ATTRIBUTE((unused)),
-                                 SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                 void *var_ptr MY_ATTRIBUTE((unused)),
+static void buffer_pool_dump_now(THD *thd [[maybe_unused]],
+                                 SYS_VAR *var [[maybe_unused]],
+                                 void *var_ptr [[maybe_unused]],
                                  const void *save) {
   if (*(bool *)save && !srv_read_only_mode) {
     buf_dump_start();
@@ -21379,9 +21380,9 @@ to ON. This function is registered as a callback with MySQL.
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
 @param[in]  save      immediate result from check function */
-static void buffer_pool_load_now(THD *thd MY_ATTRIBUTE((unused)),
-                                 SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                 void *var_ptr MY_ATTRIBUTE((unused)),
+static void buffer_pool_load_now(THD *thd [[maybe_unused]],
+                                 SYS_VAR *var [[maybe_unused]],
+                                 void *var_ptr [[maybe_unused]],
                                  const void *save) {
   if (*(bool *)save) {
     buf_load_start();
@@ -21394,9 +21395,9 @@ is set to ON. This function is registered as a callback with MySQL.
 @param[in]  var       pointer to system variable
 @param[out] var_ptr   where the formal string goes
 @param[in]  save      immediate result from check function */
-static void buffer_pool_load_abort(THD *thd MY_ATTRIBUTE((unused)),
-                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
-                                   void *var_ptr MY_ATTRIBUTE((unused)),
+static void buffer_pool_load_abort(THD *thd [[maybe_unused]],
+                                   SYS_VAR *var [[maybe_unused]],
+                                   void *var_ptr [[maybe_unused]],
                                    const void *save) {
   if (*(bool *)save) {
     buf_load_abort();

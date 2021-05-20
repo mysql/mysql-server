@@ -2897,8 +2897,8 @@ class inplace_alter_handler_ctx {
  public:
   inplace_alter_handler_ctx() = default;
 
-  virtual void set_shared_data(
-      const inplace_alter_handler_ctx *ctx MY_ATTRIBUTE((unused))) {}
+  virtual void set_shared_data(const inplace_alter_handler_ctx *ctx
+                               [[maybe_unused]]) {}
   virtual ~inplace_alter_handler_ctx() = default;
 };
 
@@ -4536,10 +4536,9 @@ class handler {
     @return error code
     @retval 0 on success
   */
-  virtual int parallel_scan_init(void *&scan_ctx MY_ATTRIBUTE((unused)),
-                                 size_t *num_threads MY_ATTRIBUTE((unused)),
-                                 bool use_reserved_threads
-                                     MY_ATTRIBUTE((unused))) {
+  virtual int parallel_scan_init(void *&scan_ctx [[maybe_unused]],
+                                 size_t *num_threads [[maybe_unused]],
+                                 bool use_reserved_threads [[maybe_unused]]) {
     return 0;
   }
 
@@ -4601,11 +4600,11 @@ class handler {
     @return error code
     @retval 0 on success
   */
-  virtual int parallel_scan(void *scan_ctx MY_ATTRIBUTE((unused)),
-                            void **thread_ctxs MY_ATTRIBUTE((unused)),
-                            Load_init_cbk init_fn MY_ATTRIBUTE((unused)),
-                            Load_cbk load_fn MY_ATTRIBUTE((unused)),
-                            Load_end_cbk end_fn MY_ATTRIBUTE((unused))) {
+  virtual int parallel_scan(void *scan_ctx [[maybe_unused]],
+                            void **thread_ctxs [[maybe_unused]],
+                            Load_init_cbk init_fn [[maybe_unused]],
+                            Load_cbk load_fn [[maybe_unused]],
+                            Load_end_cbk end_fn [[maybe_unused]]) {
     return 0;
   }
 
@@ -4613,9 +4612,7 @@ class handler {
     End of the parallel scan.
     @param[in]      scan_ctx      A scan context created by parallel_scan_init.
   */
-  virtual void parallel_scan_end(void *scan_ctx MY_ATTRIBUTE((unused))) {
-    return;
-  }
+  virtual void parallel_scan_end(void *scan_ctx [[maybe_unused]]) { return; }
 
   /**
     Submit a dd::Table object representing a core DD table having
@@ -4703,7 +4700,7 @@ class handler {
     using an index by calling it using read_time(index, 1, table_size).
   */
 
-  virtual double read_time(uint index MY_ATTRIBUTE((unused)), uint ranges,
+  virtual double read_time(uint index [[maybe_unused]], uint ranges,
                            ha_rows rows) {
     return rows2double(ranges + rows);
   }
@@ -5046,7 +5043,7 @@ class handler {
     @retval  0           Success
     @retval  >0          Error code
   */
-  virtual int exec_bulk_update(uint *dup_key_found MY_ATTRIBUTE((unused))) {
+  virtual int exec_bulk_update(uint *dup_key_found [[maybe_unused]]) {
     assert(false);
     return HA_ERR_WRONG_COMMAND;
   }
@@ -5139,9 +5136,9 @@ class handler {
   int compare_key_icp(const key_range *range) const;
   int compare_key_in_buffer(const uchar *buf) const;
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
-  virtual FT_INFO *ft_init_ext(uint flags MY_ATTRIBUTE((unused)),
-                               uint inx MY_ATTRIBUTE((unused)),
-                               String *key MY_ATTRIBUTE((unused))) {
+  virtual FT_INFO *ft_init_ext(uint flags [[maybe_unused]],
+                               uint inx [[maybe_unused]],
+                               String *key [[maybe_unused]]) {
     return nullptr;
   }
   virtual FT_INFO *ft_init_ext_with_hints(uint inx, String *key,
@@ -5194,9 +5191,9 @@ class handler {
     @return Number of rows in range.
   */
 
-  virtual ha_rows records_in_range(uint inx MY_ATTRIBUTE((unused)),
-                                   key_range *min_key MY_ATTRIBUTE((unused)),
-                                   key_range *max_key MY_ATTRIBUTE((unused))) {
+  virtual ha_rows records_in_range(uint inx [[maybe_unused]],
+                                   key_range *min_key [[maybe_unused]],
+                                   key_range *max_key [[maybe_unused]]) {
     return (ha_rows)10;
   }
   /*
@@ -5235,8 +5232,8 @@ class handler {
   */
 
   virtual int info(uint flag) = 0;
-  virtual uint32 calculate_key_hash_value(
-      Field **field_array MY_ATTRIBUTE((unused))) {
+  virtual uint32 calculate_key_hash_value(Field **field_array
+                                          [[maybe_unused]]) {
     assert(0);
     return 0;
   }
@@ -5262,13 +5259,13 @@ class handler {
       0     on success
       error otherwise
   */
-  virtual int extra(enum ha_extra_function operation MY_ATTRIBUTE((unused))) {
+  virtual int extra(enum ha_extra_function operation [[maybe_unused]]) {
     return 0;
   }
 
  public:
   virtual int extra_opt(enum ha_extra_function operation,
-                        ulong cache_size MY_ATTRIBUTE((unused))) {
+                        ulong cache_size [[maybe_unused]]) {
     return extra(operation);
   }
 
@@ -5289,7 +5286,7 @@ class handler {
       0     on success
       error otherwise
   */
-  virtual int engine_push(AQP::Table_access *table MY_ATTRIBUTE((unused))) {
+  virtual int engine_push(AQP::Table_access *table [[maybe_unused]]) {
     return 0;
   }
 
@@ -5386,8 +5383,8 @@ class handler {
     @retval    0                 Success.
   */
 
-  virtual int start_stmt(THD *thd MY_ATTRIBUTE((unused)),
-                         thr_lock_type lock_type MY_ATTRIBUTE((unused))) {
+  virtual int start_stmt(THD *thd [[maybe_unused]],
+                         thr_lock_type lock_type [[maybe_unused]]) {
     return 0;
   }
   virtual void get_auto_increment(ulonglong offset, ulonglong increment,
@@ -5424,8 +5421,8 @@ class handler {
     @param    create_info         Create info from ALTER TABLE.
   */
 
-  virtual void update_create_info(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) {}
+  virtual void update_create_info(HA_CREATE_INFO *create_info
+                                  [[maybe_unused]]) {}
   virtual int assign_to_keycache(THD *, HA_CHECK_OPT *) {
     return HA_ADMIN_NOT_IMPLEMENTED;
   }
@@ -5442,7 +5439,7 @@ class handler {
   */
 
   virtual int indexes_are_disabled(void) { return 0; }
-  virtual void append_create_info(String *packet MY_ATTRIBUTE((unused))) {}
+  virtual void append_create_info(String *packet [[maybe_unused]]) {}
   virtual void init_table_handle_for_HANDLER() {
     return;
   } /* prepare InnoDB for HANDLER */
@@ -5471,11 +5468,11 @@ class handler {
   virtual uint max_supported_keys() const { return 0; }
   virtual uint max_supported_key_parts() const { return MAX_REF_PARTS; }
   virtual uint max_supported_key_length() const { return MAX_KEY_LENGTH; }
-  virtual uint max_supported_key_part_length(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused))) const {
+  virtual uint max_supported_key_part_length(HA_CREATE_INFO *create_info
+                                             [[maybe_unused]]) const {
     return 255;
   }
-  virtual uint min_record_length(uint options MY_ATTRIBUTE((unused))) const {
+  virtual uint min_record_length(uint options [[maybe_unused]]) const {
     return 1;
   }
 
@@ -5597,7 +5594,7 @@ class handler {
     pushed conditions.
   */
   virtual const Item *cond_push(const Item *cond,
-                                bool other_tbls_ok MY_ATTRIBUTE((unused))) {
+                                bool other_tbls_ok [[maybe_unused]]) {
     assert(pushed_cond == nullptr);
     return cond;
   }
@@ -5627,8 +5624,7 @@ class handler {
             not to evaluate
    */
 
-  virtual Item *idx_cond_push(uint keyno MY_ATTRIBUTE((unused)),
-                              Item *idx_cond) {
+  virtual Item *idx_cond_push(uint keyno [[maybe_unused]], Item *idx_cond) {
     return idx_cond;
   }
 
@@ -5677,9 +5673,9 @@ class handler {
   /**
     Part of old, deprecated in-place ALTER API.
   */
-  virtual bool check_if_incompatible_data(
-      HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused)),
-      uint table_changes MY_ATTRIBUTE((unused))) {
+  virtual bool check_if_incompatible_data(HA_CREATE_INFO *create_info
+                                          [[maybe_unused]],
+                                          uint table_changes [[maybe_unused]]) {
     return COMPATIBLE_DATA_NO;
   }
 
@@ -5928,10 +5924,10 @@ class handler {
      @retval   false             Success
   */
   virtual bool prepare_inplace_alter_table(
-      TABLE *altered_table MY_ATTRIBUTE((unused)),
-      Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused)),
-      const dd::Table *old_table_def MY_ATTRIBUTE((unused)),
-      dd::Table *new_table_def MY_ATTRIBUTE((unused))) {
+      TABLE *altered_table [[maybe_unused]],
+      Alter_inplace_info *ha_alter_info [[maybe_unused]],
+      const dd::Table *old_table_def [[maybe_unused]],
+      dd::Table *new_table_def [[maybe_unused]]) {
     return false;
   }
 
@@ -5964,11 +5960,12 @@ class handler {
      @retval   true              Error
      @retval   false             Success
   */
-  virtual bool inplace_alter_table(
-      TABLE *altered_table MY_ATTRIBUTE((unused)),
-      Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused)),
-      const dd::Table *old_table_def MY_ATTRIBUTE((unused)),
-      dd::Table *new_table_def MY_ATTRIBUTE((unused))) {
+  virtual bool inplace_alter_table(TABLE *altered_table [[maybe_unused]],
+                                   Alter_inplace_info *ha_alter_info
+                                   [[maybe_unused]],
+                                   const dd::Table *old_table_def
+                                   [[maybe_unused]],
+                                   dd::Table *new_table_def [[maybe_unused]]) {
     return false;
   }
 
@@ -6021,12 +6018,14 @@ class handler {
      @retval   true              Error
      @retval   false             Success
   */
-  virtual bool commit_inplace_alter_table(
-      TABLE *altered_table MY_ATTRIBUTE((unused)),
-      Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused)),
-      bool commit MY_ATTRIBUTE((unused)),
-      const dd::Table *old_table_def MY_ATTRIBUTE((unused)),
-      dd::Table *new_table_def MY_ATTRIBUTE((unused))) {
+  virtual bool commit_inplace_alter_table(TABLE *altered_table [[maybe_unused]],
+                                          Alter_inplace_info *ha_alter_info
+                                          [[maybe_unused]],
+                                          bool commit [[maybe_unused]],
+                                          const dd::Table *old_table_def
+                                          [[maybe_unused]],
+                                          dd::Table *new_table_def
+                                          [[maybe_unused]]) {
     /* Nothing to commit/rollback, mark all handlers committed! */
     ha_alter_info->group_commit_ctx = nullptr;
     return false;
@@ -6049,8 +6048,8 @@ class handler {
            the old schema and table name in this method for some reason it
            has to use ha_alter_info object to figure it out.
   */
-  virtual void notify_table_changed(
-      Alter_inplace_info *ha_alter_info MY_ATTRIBUTE((unused))) {}
+  virtual void notify_table_changed(Alter_inplace_info *ha_alter_info
+                                    [[maybe_unused]]) {}
 
  public:
   /* End of On-line/in-place ALTER TABLE interface. */
@@ -6128,7 +6127,7 @@ class handler {
   virtual int open(const char *name, int mode, uint test_if_locked,
                    const dd::Table *table_def) = 0;
   virtual int close(void) = 0;
-  virtual int index_init(uint idx, bool sorted MY_ATTRIBUTE((unused))) {
+  virtual int index_init(uint idx, bool sorted [[maybe_unused]]) {
     active_index = idx;
     return 0;
   }
@@ -6166,7 +6165,7 @@ class handler {
       @retval    0  Success.
       @retval != 0  Error code.
   */
-  virtual int write_row(uchar *buf MY_ATTRIBUTE((unused))) {
+  virtual int write_row(uchar *buf [[maybe_unused]]) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -6178,12 +6177,12 @@ class handler {
     the columns required for the error message are not read, the error
     message will contain garbage.
   */
-  virtual int update_row(const uchar *old_data MY_ATTRIBUTE((unused)),
-                         uchar *new_data MY_ATTRIBUTE((unused))) {
+  virtual int update_row(const uchar *old_data [[maybe_unused]],
+                         uchar *new_data [[maybe_unused]]) {
     return HA_ERR_WRONG_COMMAND;
   }
 
-  virtual int delete_row(const uchar *buf MY_ATTRIBUTE((unused))) {
+  virtual int delete_row(const uchar *buf [[maybe_unused]]) {
     return HA_ERR_WRONG_COMMAND;
   }
   /**
@@ -6227,8 +6226,8 @@ class handler {
     @return  non-0 in case of failure, 0 in case of success.
     When lock_type is F_UNLCK, the return value is ignored.
   */
-  virtual int external_lock(THD *thd MY_ATTRIBUTE((unused)),
-                            int lock_type MY_ATTRIBUTE((unused))) {
+  virtual int external_lock(THD *thd [[maybe_unused]],
+                            int lock_type [[maybe_unused]]) {
     return 0;
   }
   virtual void release_auto_increment() { return; }
@@ -6270,10 +6269,10 @@ class handler {
   }
 
   // Set se_private_id and se_private_data during upgrade
-  virtual bool upgrade_table(THD *thd MY_ATTRIBUTE((unused)),
-                             const char *dbname MY_ATTRIBUTE((unused)),
-                             const char *table_name MY_ATTRIBUTE((unused)),
-                             dd::Table *dd_table MY_ATTRIBUTE((unused))) {
+  virtual bool upgrade_table(THD *thd [[maybe_unused]],
+                             const char *dbname [[maybe_unused]],
+                             const char *table_name [[maybe_unused]],
+                             dd::Table *dd_table [[maybe_unused]]) {
     return false;
   }
 
@@ -6310,7 +6309,7 @@ class handler {
    *
    * @return 0 if success, error code otherwise.
    */
-  virtual int load_table(const TABLE &table MY_ATTRIBUTE((unused))) {
+  virtual int load_table(const TABLE &table [[maybe_unused]]) {
     /* purecov: begin inspected */
     assert(false);
     return HA_ERR_WRONG_COMMAND;
@@ -6329,9 +6328,9 @@ class handler {
    *                            should not prevent dropping the whole table.
    * @return 0 if success, error code otherwise.
    */
-  virtual int unload_table(const char *db_name MY_ATTRIBUTE((unused)),
-                           const char *table_name MY_ATTRIBUTE((unused)),
-                           bool error_if_not_loaded MY_ATTRIBUTE((unused))) {
+  virtual int unload_table(const char *db_name [[maybe_unused]],
+                           const char *table_name [[maybe_unused]],
+                           bool error_if_not_loaded [[maybe_unused]]) {
     /* purecov: begin inspected */
     assert(false);
     return HA_ERR_WRONG_COMMAND;
@@ -6339,16 +6338,15 @@ class handler {
   }
 
  protected:
-  virtual int index_read(uchar *buf MY_ATTRIBUTE((unused)),
-                         const uchar *key MY_ATTRIBUTE((unused)),
-                         uint key_len MY_ATTRIBUTE((unused)),
-                         enum ha_rkey_function find_flag
-                             MY_ATTRIBUTE((unused))) {
+  virtual int index_read(uchar *buf [[maybe_unused]],
+                         const uchar *key [[maybe_unused]],
+                         uint key_len [[maybe_unused]],
+                         enum ha_rkey_function find_flag [[maybe_unused]]) {
     return HA_ERR_WRONG_COMMAND;
   }
-  virtual int index_read_last(uchar *buf MY_ATTRIBUTE((unused)),
-                              const uchar *key MY_ATTRIBUTE((unused)),
-                              uint key_len MY_ATTRIBUTE((unused))) {
+  virtual int index_read_last(uchar *buf [[maybe_unused]],
+                              const uchar *key [[maybe_unused]],
+                              uint key_len [[maybe_unused]]) {
     set_my_errno(HA_ERR_WRONG_COMMAND);
     return HA_ERR_WRONG_COMMAND;
   }
@@ -6370,9 +6368,9 @@ class handler {
     @param    dup_key_found  Number of duplicate keys found
 
   */
-  virtual int bulk_update_row(const uchar *old_data MY_ATTRIBUTE((unused)),
-                              uchar *new_data MY_ATTRIBUTE((unused)),
-                              uint *dup_key_found MY_ATTRIBUTE((unused))) {
+  virtual int bulk_update_row(const uchar *old_data [[maybe_unused]],
+                              uchar *new_data [[maybe_unused]],
+                              uint *dup_key_found [[maybe_unused]]) {
     assert(false);
     return HA_ERR_WRONG_COMMAND;
   }
@@ -6422,7 +6420,7 @@ class handler {
             to data-dictionary only if storage engine supports atomic DDL
             (i.e. has HTON_SUPPORTS_ATOMIC_DDL flag set).
   */
-  virtual int truncate(dd::Table *table_def MY_ATTRIBUTE((unused))) {
+  virtual int truncate(dd::Table *table_def [[maybe_unused]]) {
     return HA_ERR_WRONG_COMMAND;
   }
   virtual int optimize(THD *, HA_CHECK_OPT *) {
@@ -6443,9 +6441,7 @@ class handler {
     @note Called if open_table_from_share fails and is_crashed().
   */
 
-  virtual bool check_and_repair(THD *thd MY_ATTRIBUTE((unused))) {
-    return true;
-  }
+  virtual bool check_and_repair(THD *thd [[maybe_unused]]) { return true; }
 
   /**
     Disable indexes for a while.
@@ -6456,7 +6452,7 @@ class handler {
     @retval   != 0                      Error.
   */
 
-  virtual int disable_indexes(uint mode MY_ATTRIBUTE((unused))) {
+  virtual int disable_indexes(uint mode [[maybe_unused]]) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -6469,7 +6465,7 @@ class handler {
     @retval   != 0                      Error.
   */
 
-  virtual int enable_indexes(uint mode MY_ATTRIBUTE((unused))) {
+  virtual int enable_indexes(uint mode [[maybe_unused]]) {
     return HA_ERR_WRONG_COMMAND;
   }
 
@@ -6488,9 +6484,9 @@ class handler {
     @retval   != 0  Error.
   */
 
-  virtual int discard_or_import_tablespace(bool discard MY_ATTRIBUTE((unused)),
+  virtual int discard_or_import_tablespace(bool discard [[maybe_unused]],
                                            dd::Table *table_def
-                                               MY_ATTRIBUTE((unused))) {
+                                           [[maybe_unused]]) {
     set_my_errno(HA_ERR_WRONG_COMMAND);
     return HA_ERR_WRONG_COMMAND;
   }
@@ -6519,8 +6515,8 @@ class handler {
   virtual int create(const char *name, TABLE *form, HA_CREATE_INFO *info,
                      dd::Table *table_def) = 0;
 
-  virtual bool get_se_private_data(dd::Table *dd_table MY_ATTRIBUTE((unused)),
-                                   bool reset MY_ATTRIBUTE((unused))) {
+  virtual bool get_se_private_data(dd::Table *dd_table [[maybe_unused]],
+                                   bool reset [[maybe_unused]]) {
     return false;
   }
 
@@ -6543,11 +6539,10 @@ class handler {
     @retval  non-0  Error.
   */
   virtual int get_extra_columns_and_keys(
-      const HA_CREATE_INFO *create_info MY_ATTRIBUTE((unused)),
-      const List<Create_field> *create_list MY_ATTRIBUTE((unused)),
-      const KEY *key_info MY_ATTRIBUTE((unused)),
-      uint key_count MY_ATTRIBUTE((unused)),
-      dd::Table *table_obj MY_ATTRIBUTE((unused))) {
+      const HA_CREATE_INFO *create_info [[maybe_unused]],
+      const List<Create_field> *create_list [[maybe_unused]],
+      const KEY *key_info [[maybe_unused]], uint key_count [[maybe_unused]],
+      dd::Table *table_obj [[maybe_unused]]) {
     return 0;
   }
 

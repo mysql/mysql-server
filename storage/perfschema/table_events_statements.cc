@@ -792,7 +792,7 @@ ha_rows table_events_statements_current::get_row_count(void) {
   return global_thread_container.get_row_count() * statement_stack_max;
 }
 
-int table_events_statements_current::index_init(uint idx MY_ATTRIBUTE((unused)),
+int table_events_statements_current::index_init(uint idx [[maybe_unused]],
                                                 bool) {
   PFS_index_events_statements *result;
   assert(idx == 0);
@@ -952,7 +952,7 @@ ha_rows table_events_statements_history::get_row_count(void) {
          global_thread_container.get_row_count();
 }
 
-int table_events_statements_history::index_init(uint idx MY_ATTRIBUTE((unused)),
+int table_events_statements_history::index_init(uint idx [[maybe_unused]],
                                                 bool) {
   PFS_index_events_statements *result;
   assert(idx == 0);

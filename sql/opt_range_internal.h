@@ -36,9 +36,9 @@ class SEL_IMERGE;
 class SEL_TREE;
 
 SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond);
-void print_tree(String *out, const char *tree_name, SEL_TREE *tree,
-                const RANGE_OPT_PARAM *param, const bool print_full)
-    MY_ATTRIBUTE((unused));
+[[maybe_unused]] void print_tree(String *out, const char *tree_name,
+                                 SEL_TREE *tree, const RANGE_OPT_PARAM *param,
+                                 const bool print_full);
 
 // Note: tree1 and tree2 are not usable by themselves after tree_and() or
 // tree_or().

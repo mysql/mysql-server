@@ -289,8 +289,7 @@ static int match_valid_donor_address(MYSQL_THD thd, const char *host,
 @param[out]	save	possibly updated variable value
 @param[in]	value	current variable value
 @return error code */
-static int check_donor_addr_format(MYSQL_THD thd,
-                                   SYS_VAR *var MY_ATTRIBUTE((unused)),
+static int check_donor_addr_format(MYSQL_THD thd, SYS_VAR *var [[maybe_unused]],
                                    void *save, struct st_mysql_value *value) {
   char temp_buffer[STRING_BUFFER_USUAL_SIZE];
   auto buf_len = static_cast<int>(sizeof(temp_buffer));
@@ -329,7 +328,7 @@ static int check_donor_addr_format(MYSQL_THD thd,
 /** Initialize clone plugin
 @param[in]	plugin_info	server plugin handle
 @return error code */
-static int plugin_clone_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+static int plugin_clone_init(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   /* Acquire registry and log service handles. */
   if (init_logging_service_for_plugin(&mysql_service_registry, &log_bi,
                                       &log_bs)) {
@@ -398,8 +397,7 @@ static int plugin_clone_init(MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
 /** Uninitialize clone plugin
 @param[in]	plugin_info	server plugin handle
 @return error code */
-static int plugin_clone_deinit(
-    MYSQL_PLUGIN plugin_info MY_ATTRIBUTE((unused))) {
+static int plugin_clone_deinit(MYSQL_PLUGIN plugin_info [[maybe_unused]]) {
   /* If service registry is uninitialized, return. */
   if (mysql_service_registry == nullptr) {
     return (0);

@@ -132,9 +132,9 @@ void do_cb_xcom_expel();
 
 synode_no cb_xcom_get_app_snap(blob *gcs_snap);
 int cb_xcom_get_should_exit();
-void cb_xcom_handle_app_snap(blob *store_snap MY_ATTRIBUTE((unused)),
-                             synode_no start MY_ATTRIBUTE((unused)),
-                             synode_no end MY_ATTRIBUTE((unused)));
+void cb_xcom_handle_app_snap(blob *store_snap [[maybe_unused]],
+                             synode_no start [[maybe_unused]],
+                             synode_no end [[maybe_unused]]);
 int cb_xcom_socket_accept(int fd, site_def const *xcom_config);
 
 xcom_input_request_ptr cb_xcom_input_try_pop();
@@ -1659,11 +1659,11 @@ end:
   delete xcom_nodes;
 }
 
-void cb_xcom_handle_app_snap(blob *store_snap MY_ATTRIBUTE((unused)),
-                             synode_no start MY_ATTRIBUTE((unused)),
-                             synode_no end MY_ATTRIBUTE((unused))) {}
+void cb_xcom_handle_app_snap(blob *store_snap [[maybe_unused]],
+                             synode_no start [[maybe_unused]],
+                             synode_no end [[maybe_unused]]) {}
 
-synode_no cb_xcom_get_app_snap(blob *gcs_snap MY_ATTRIBUTE((unused))) {
+synode_no cb_xcom_get_app_snap(blob *gcs_snap [[maybe_unused]]) {
   return null_synode;
 }
 
@@ -1674,7 +1674,7 @@ int cb_xcom_get_should_exit() {
     return 0;
 }
 
-void cb_xcom_ready(int status MY_ATTRIBUTE((unused))) {
+void cb_xcom_ready(int status [[maybe_unused]]) {
   if (s_xcom_proxy) s_xcom_proxy->xcom_signal_ready();
 }
 
@@ -1682,7 +1682,7 @@ void cb_xcom_comms(int status) {
   if (s_xcom_proxy) s_xcom_proxy->xcom_signal_comms_status_changed(status);
 }
 
-void cb_xcom_exit(int status MY_ATTRIBUTE((unused))) {
+void cb_xcom_exit(int status [[maybe_unused]]) {
   last_accepted_xcom_config.reset();
   if (s_xcom_proxy) s_xcom_proxy->xcom_signal_exit();
 }
@@ -1691,7 +1691,7 @@ void cb_xcom_exit(int status MY_ATTRIBUTE((unused))) {
   Callback function used by XCom to signal that a node has left the group
   because of a `die_op` or a view where the node does not belong to.
  */
-void cb_xcom_expel(int status MY_ATTRIBUTE((unused))) {
+void cb_xcom_expel(int status [[maybe_unused]]) {
   Gcs_xcom_notification *notification =
       new Expel_notification(do_cb_xcom_expel);
   bool scheduled = gcs_engine->push(notification);

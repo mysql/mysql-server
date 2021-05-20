@@ -55,10 +55,11 @@ Auto_THD::~Auto_THD() {
 
   @return This function always return false.
 */
-bool Auto_THD::handle_condition(
-    THD *thd MY_ATTRIBUTE((unused)), uint sql_errno, const char *sqlstate,
-    Sql_condition::enum_severity_level *level MY_ATTRIBUTE((unused)),
-    const char *msg) {
+bool Auto_THD::handle_condition(THD *thd [[maybe_unused]], uint sql_errno,
+                                const char *sqlstate,
+                                Sql_condition::enum_severity_level *level
+                                [[maybe_unused]],
+                                const char *msg) {
   int log_err_level = 0;
 
   if (*level == Sql_condition::SL_WARNING)

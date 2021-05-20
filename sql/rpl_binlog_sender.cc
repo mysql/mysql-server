@@ -223,7 +223,7 @@ class Binlog_sender::Event_allocator {
                                          event_offset);
   }
 
-  void deallocate(unsigned char *ptr MY_ATTRIBUTE((unused))) {}
+  void deallocate(unsigned char *ptr [[maybe_unused]]) {}
 
  private:
   Binlog_sender *m_sender = nullptr;

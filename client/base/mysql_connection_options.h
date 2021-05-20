@@ -115,9 +115,9 @@ class Mysql_connection_options : public Composite_options_provider,
    */
   void db_error(MYSQL *connection, const char *when);
 #ifdef _WIN32
-  void pipe_protocol_callback(char *not_used MY_ATTRIBUTE((unused)));
+  void pipe_protocol_callback(char *not_used [[maybe_unused]]);
 #endif
-  void protocol_callback(char *not_used MY_ATTRIBUTE((unused)));
+  void protocol_callback(char *not_used [[maybe_unused]]);
 
   static bool mysql_inited;
 

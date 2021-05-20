@@ -597,8 +597,8 @@ bool initialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) * *registry) {
   return false;
 }
 
-bool deinitialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) *
-                                  registry MY_ATTRIBUTE((unused))) {
+bool deinitialize_minimal_chassis(SERVICE_TYPE_NO_CONST(registry) * registry
+                                  [[maybe_unused]]) {
 #ifdef WITH_MYSQL_COMPONENTS_TEST_DRIVER
   /* Normal server code path. Hence we need to deinitialize minimal chassis */
   if (minimal_chassis_deinit(registry, &COMPONENT_REF(mysql_server))) {

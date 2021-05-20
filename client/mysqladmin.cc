@@ -321,8 +321,7 @@ static struct my_option my_long_options[] = {
 
 static const char *load_default_groups[] = {"mysqladmin", "client", nullptr};
 
-bool get_one_option(int optid,
-                    const struct my_option *opt MY_ATTRIBUTE((unused)),
+bool get_one_option(int optid, const struct my_option *opt [[maybe_unused]],
                     char *argument) {
   int error = 0;
 
@@ -578,7 +577,7 @@ int main(int argc, char *argv[]) {
   return error ? EXIT_FAILURE : EXIT_SUCCESS;
 }
 
-void endprog(int signal_number MY_ATTRIBUTE((unused))) { interrupted = true; }
+void endprog(int signal_number [[maybe_unused]]) { interrupted = true; }
 
 /**
    @brief connect to server, optionally waiting for same to come up
@@ -1327,7 +1326,7 @@ static void print_top(MYSQL_RES *result) {
 
 /* 3.rd argument, uint row, is not in use. Don't remove! */
 static void print_row(MYSQL_RES *result, MYSQL_ROW cur,
-                      uint row MY_ATTRIBUTE((unused))) {
+                      uint row [[maybe_unused]]) {
   uint i, length;
   MYSQL_FIELD *field;
 
@@ -1357,7 +1356,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row) {
   last_values[row] = tmp;
 }
 
-static void print_relative_row_vert(MYSQL_RES *result MY_ATTRIBUTE((unused)),
+static void print_relative_row_vert(MYSQL_RES *result [[maybe_unused]],
                                     MYSQL_ROW cur, uint row) {
   uint length;
   ulonglong tmp;

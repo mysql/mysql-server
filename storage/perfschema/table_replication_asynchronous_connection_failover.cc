@@ -222,7 +222,7 @@ int table_replication_asynchronous_connection_failover::rnd_pos(
 }
 
 int table_replication_asynchronous_connection_failover::index_init(
-    uint idx MY_ATTRIBUTE((unused)), bool) {
+    uint idx [[maybe_unused]], bool) {
   DBUG_TRACE;
   PFS_index_rpl_async_conn_failover *result = nullptr;
   assert(idx == 0);

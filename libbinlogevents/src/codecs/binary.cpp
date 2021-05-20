@@ -143,7 +143,7 @@ end:
  */
 std::pair<std::size_t, bool> Transaction_payload::encode(
     const Binary_log_event &from, unsigned char *to,
-    size_t size MY_ATTRIBUTE((unused))) const {
+    size_t size [[maybe_unused]]) const {
   bool result =
       from.header()->type_code != binary_log::TRANSACTION_PAYLOAD_EVENT;
   uchar *ptr = to;

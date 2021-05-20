@@ -119,7 +119,7 @@ int table_processlist::set_access(void) {
   return 0;
 }
 
-int table_processlist::rnd_init(bool scan MY_ATTRIBUTE((unused))) {
+int table_processlist::rnd_init(bool scan [[maybe_unused]]) {
   set_access();
   return 0;
 }

@@ -129,8 +129,8 @@ static PSI_memory_info all_options[] = {
 
 #ifdef HAVE_PSI_INTERFACE
 void my_init_persist_psi_keys(void) {
-  const char *category MY_ATTRIBUTE((unused)) = "persist";
-  int count MY_ATTRIBUTE((unused));
+  const char *category [[maybe_unused]] = "persist";
+  int count [[maybe_unused]];
 
 #ifdef HAVE_PSI_FILE_INTERFACE
   count = sizeof(all_persist_files) / sizeof(all_persist_files[0]);

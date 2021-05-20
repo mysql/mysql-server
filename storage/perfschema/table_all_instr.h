@@ -71,7 +71,7 @@ class PFS_index_all_instr : public PFS_engine_index {
   virtual bool match(PFS_file *) { return false; }
   virtual bool match(PFS_socket *) { return false; }
   /* All views match by default. */
-  virtual bool match_view(uint view MY_ATTRIBUTE((unused))) { return true; }
+  virtual bool match_view(uint view [[maybe_unused]]) { return true; }
 };
 
 /**
