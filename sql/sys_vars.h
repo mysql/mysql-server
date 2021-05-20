@@ -664,7 +664,8 @@ class Sys_var_enum : public Sys_var_typelib {
     var->save_result.ulonglong_value = option.def_value;
   }
   void saved_value_to_string(THD *, set_var *var, char *def_val) override {
-    longlong10_to_str((longlong)var->save_result.ulonglong_value, def_val, 10);
+    // Copy the symbolic name, not the numeric value.
+    strcpy(def_val, typelib.type_names[var->save_result.ulonglong_value]);
   }
   const uchar *session_value_ptr(THD *, THD *target_thd,
                                  LEX_STRING *) override {

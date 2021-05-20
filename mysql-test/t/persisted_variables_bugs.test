@@ -443,4 +443,14 @@ EOF
 --echo # start server with all defaults
 --source include/start_mysqld.inc
 
+--echo #
+--echo # Bug #32761053: SET PERSIST_ONLY ... = DEFAULT IS BROKEN FOR ENUM VARIABLES
+--echo #
+
+SET PERSIST_ONLY replica_exec_mode = DEFAULT;
+SELECT * FROM performance_schema.persisted_variables
+  WHERE variable_name='replica_exec_mode';
+
+RESET PERSIST;
+
 --echo # End of the 8.0 tests
