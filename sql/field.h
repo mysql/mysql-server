@@ -2154,6 +2154,7 @@ class Field_new_decimal : public Field_num {
   void set_keep_precision(bool arg) { m_keep_precision = arg; }
 };
 
+/* Class for storing booleans. Booleans are interpreted as 0 or 1, instead of pure false or true */
 class Field_boolean : public Field_num {
  public:
   Field_boolean(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg, uchar auto_flags_arg, const char *field_name_arg, bool zero_arg) : Field_num(ptr_arg, 1, null_ptr_arg, null_bit_arg, auto_flags_arg, field_name_arg, 0, zero_arg, 0){}
@@ -2190,6 +2191,7 @@ class Field_boolean : public Field_num {
     return from + 1;
   }
 
+  /* The maximum value of a boolean is 1 */
   ulonglong get_max_int_value() const final {
     return 0x01ULL;
   }

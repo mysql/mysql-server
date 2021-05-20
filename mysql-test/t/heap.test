@@ -548,7 +548,7 @@ DROP TABLE t1;
 
 
 #
-#BOOLEAN data type insert test
+# BOOLEAN data type insert test
 #
 
 CREATE TABLE t1(b BOOLEAN, i INTEGER) ENGINE=heap;

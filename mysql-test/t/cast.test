@@ -16,7 +16,9 @@ explain select ~5, cast(~5 as signed);
 select cast(5 as unsigned) -6.0;
 select cast(NULL as signed), cast(1/0 as signed);
 
+#
 # Cast from boolean column
+#
 CREATE TABLE t (b BOOLEAN);
 INSERT INTO t VALUES (FALSE), (TRUE), (NULL);
 SELECT b, CAST(b AS UNSIGNED) AS u, CAST(b AS SIGNED) AS s, CAST(b AS CHAR) AS c, CAST(b AS DECIMAL) AS d from t;
@@ -68,8 +70,8 @@ select cast('' as signed);
 #
 set names binary;
 select cast(_latin1'test' as char character set latin2);
-select cast(_koi8r'тест' as char character set cp1251);
-create table t1 select cast(_koi8r'тест' as char character set cp1251) as t;
+select cast(_koi8r'О©╫О©╫О©╫О©╫' as char character set cp1251);
+create table t1 select cast(_koi8r'О©╫О©╫О©╫О©╫' as char character set cp1251) as t;
 
 #Replace default engine value with static engine string 
 --replace_result $DEFAULT_ENGINE ENGINE
@@ -107,19 +109,19 @@ drop table t1;
 # Different number of warnings with ps protocol.
 --disable_ps_protocol
 select
-  cast(_koi8r'фг'  AS nchar)    as c1,
-  cast(_koi8r'ф '  AS nchar)    as c2,
-  cast(_koi8r'фгх' AS nchar(2)) as c3,
-  cast(_koi8r'ф  ' AS nchar(2)) as c4,
-  cast(_koi8r'ф'   AS nchar(2)) as c5;
+  cast(_koi8r'О©╫О©╫'  AS nchar)    as c1,
+  cast(_koi8r'О©╫ '  AS nchar)    as c2,
+  cast(_koi8r'О©╫О©╫О©╫' AS nchar(2)) as c3,
+  cast(_koi8r'О©╫  ' AS nchar(2)) as c4,
+  cast(_koi8r'О©╫'   AS nchar(2)) as c5;
 --enable_ps_protocol
 
 create table t1 select
-  cast(_koi8r'фг'  AS nchar)    as c1,
-  cast(_koi8r'ф '  AS nchar)    as c2,
-  cast(_koi8r'фгх' AS nchar(2)) as c3,
-  cast(_koi8r'ф  ' AS nchar(2)) as c4,
-  cast(_koi8r'ф'   AS nchar(2)) as c5;
+  cast(_koi8r'О©╫О©╫'  AS nchar)    as c1,
+  cast(_koi8r'О©╫ '  AS nchar)    as c2,
+  cast(_koi8r'О©╫О©╫О©╫' AS nchar(2)) as c3,
+  cast(_koi8r'О©╫  ' AS nchar(2)) as c4,
+  cast(_koi8r'О©╫'   AS nchar(2)) as c5;
 select * from t1;
 
 #Replace default engine value with static engine string 
@@ -157,7 +159,7 @@ SET sql_mode = default;
 # CAST from BINARY to non-BINARY and from non-BINARY to BINARY
 #
 create table t1 (a binary(4), b char(4) character set koi8r);
-insert into t1 values (_binary'тест',_binary'тест');
+insert into t1 values (_binary'О©╫О©╫О©╫О©╫',_binary'О©╫О©╫О©╫О©╫');
 select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;
 set names koi8r;
 select a,b,cast(a as char character set cp1251),cast(b as binary) from t1;

@@ -375,6 +375,7 @@ static void do_field_varbinary_pre50(Copy_field *copy, const Field *from_field,
 
 static void do_field_boolean(Copy_field *, const Field *from_field,
                          Field *to_field) {
+  // Could be val_int()?
   to_field->store(from_field->val_real());
 }
 

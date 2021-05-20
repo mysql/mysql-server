@@ -76,7 +76,7 @@ enum enum_field_types
   MYSQL_TYPE_TIME2,       /**< Internal to MySQL. Not used in protocol */
   MYSQL_TYPE_TYPED_ARRAY, /**< Used for replication only */
   MYSQL_TYPE_INVALID = 243,
-  MYSQL_TYPE_BOOL = 244, /**WIP */
+  MYSQL_TYPE_BOOL = 244,
   MYSQL_TYPE_JSON = 245,
   MYSQL_TYPE_NEWDECIMAL = 246,
   MYSQL_TYPE_ENUM = 247,

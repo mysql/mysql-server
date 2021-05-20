@@ -123,6 +123,7 @@ unsigned int max_display_length_for_field(enum_field_types sql_type,
     case MYSQL_TYPE_TINY:
       return 4;
     case MYSQL_TYPE_BOOL:
+      //Change to 5 if BOOLEAN is displayed as TRUE and FALSE
       return 1;
     case MYSQL_TYPE_SHORT:
       return 6;

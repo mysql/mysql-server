@@ -3170,6 +3170,7 @@ type_conversion_status Field_boolean::store(const char *from, size_t len,
   int conv_error;
   type_conversion_status err = TYPE_OK;
   const char *end;
+  // Parse the char* as a floating point number
   double nr = my_strntod(cs, from, len, &end, &conv_error);
   if (conv_error || (!len || (static_cast<uint>(end - from) != len &&
                               table->in_use->check_for_truncated_fields))) {
@@ -3185,11 +3186,13 @@ type_conversion_status Field_boolean::store(const char *from, size_t len,
 
 type_conversion_status Field_boolean::store(double nr) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
+  // Any number not exactly equal to 0 will be interpreted as true, or 1
   return store(nr != 0.0e0, 0);
 }
 
 type_conversion_status Field_boolean::store(longlong nr, bool) {
   ASSERT_COLUMN_MARKED_FOR_WRITE;
+  // Any integer can be inserted into a boolean field, so insertion is always ok
   type_conversion_status error = TYPE_OK;
   // Maybe change to *ptr = nr != 0
   if(nr != 0) {
@@ -3217,6 +3220,16 @@ longlong Field_boolean::val_int() const {
   return static_cast<longlong>(tmp);
 }
 
+/**
+   @brief Get the String representation of a boolean value.
+
+   This method is used to put a String representation of the field into val_buffer. 
+   As long as BOOLEAN is represented as 0 and 1 this could probably be simplified.
+
+   @param   val_buffer         Pointer to the String in which to store the value
+
+   @return  *val_buffer with the String representation of the field value
+*/
 String *Field_boolean::val_str(String *val_buffer, String *) const {
   ASSERT_COLUMN_MARKED_FOR_READ;
   const CHARSET_INFO *cs = &my_charset_numeric;
@@ -3237,8 +3250,17 @@ bool Field_boolean::send_to_protocol(Protocol *protocol) const {
   return protocol->store_boolean(Field_boolean::val_int());
 }
 
+/**
+   @brief Compare two uchars as booleans
+  
+   @param a_ptr pointer to first value to compare
+   @param b_ptr pointer to second value to compare
+  
+   @return -1 if *a_ptr < *b_ptr, 1 if *a_ptr > *b_ptr, 0 if *a_ptr == *b_ptr
+*/
 int Field_boolean::cmp(const uchar *a_ptr, const uchar *b_ptr) const {
   bool a, b;
+  /*  The overridden cmp method takes uchar, so they are converted to bools before comparing  */
   a = static_cast<bool>(a_ptr[0]);
   b = static_cast<bool>(b_ptr[0]);
   return (a < b) ? -1 : (a > b) ? 1 : 0;
@@ -3391,9 +3413,7 @@ size_t Field_tiny::make_sort_key(uchar *to,
 void Field_tiny::sql_type(String &res) const {
   if (field_length == 1 && !is_unsigned() && !zerofill) {
     // Print TINYINT(1) since connectors use this to indicate BOOLEAN
-
-    // #TODO Look at this later 
-
+    // #TODO This can probably be removed with the BOOLEAN feature from WL#3554
     res.length(0);
     res.append("tinyint(1)");
   } else {

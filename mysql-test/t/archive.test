@@ -1535,7 +1535,7 @@ DROP TABLE t1, t2, t4, t5, t6;
 --enable_warnings
 
 #
-#BOOLEAN data type test
+# BOOLEAN data type test
 #
 
 CREATE TABLE `t7` (b BOOLEAN, t TINYINT(1)) ENGINE=ARCHIVE; 

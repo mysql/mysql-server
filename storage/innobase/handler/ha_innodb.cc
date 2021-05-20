@@ -7740,7 +7740,6 @@ ulint get_innobase_type_from_mysql_dd_type(ulint *unsigned_flag,
   *charset_no = 0;
 
   switch (dd_type) {
-    //Create separate case for bool and break
     case dd::enum_column_types::BOOL:
       return (DATA_INT);
     case dd::enum_column_types::ENUM:
