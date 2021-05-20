@@ -2303,8 +2303,8 @@ withdraw_retry:
       /* reallocate buf_pool->chunks */
       const ulint new_chunks_size = buf_pool->n_chunks_new * sizeof(*chunk);
 
-      buf_chunk_t *new_chunks = reinterpret_cast<buf_chunk_t *>(
-          ut_zalloc_nokey_nofatal(new_chunks_size));
+      buf_chunk_t *new_chunks =
+          reinterpret_cast<buf_chunk_t *>(ut_zalloc_nokey(new_chunks_size));
 
       DBUG_EXECUTE_IF("buf_pool_resize_chunk_null",
                       buf_pool_resize_chunk_make_null(&new_chunks););
