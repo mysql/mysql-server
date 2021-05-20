@@ -1,5 +1,6 @@
-# Validate that STOP REPLICA IO_THREAD only stop the IO Thread and
-# the IO Monitor thread.
+# Validate that when SOURCE_CONNECTION_AUTO_FAILOVER is enabled and
+# STOP REPLICA IO_THREAD is executed, it stops both the IO Thread
+# and the IO Monitor thread.
 #
 # Test:
 #   0. This test requires two servers
@@ -8,6 +9,7 @@
 #   2. Stop IO thread. Verify that SQL thread is running.
 #   3. Clean up.
 ###############################################################################
+--source include/have_slave_repository_type_table.inc
 --let $rpl_skip_start_slave= 1
 --source include/master-slave.inc
 
