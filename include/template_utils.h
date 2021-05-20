@@ -28,6 +28,7 @@
 #include <stddef.h>
 #include <algorithm>
 #include <iterator>
+#include <optional>
 #include <type_traits>
 
 /**

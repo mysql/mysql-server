@@ -35,6 +35,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #ifndef trx0i_s_h
 #define trx0i_s_h
 
+#include <optional>
+
 #include "dict0types.h"
 #include "trx0types.h"
 #include "univ.i"

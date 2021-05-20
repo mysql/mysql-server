@@ -33,6 +33,7 @@
 #include <cstdio>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -50,7 +51,6 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "sql/enum_query_type.h"
 #include "sql/gis/geometries_cs.h"
 #include "sql/gis/wkb.h"
@@ -2756,7 +2756,7 @@ class Item_rollup_sum_switcher final : public Item_sum {
 
 class Item_sum_collect : public Item_sum {
  private:
-  Mysql::Nullable<gis::srid_t> srid;
+  std::optional<gis::srid_t> srid;
   std::unique_ptr<gis::Geometrycollection> m_geometrycollection;
   void pop_front();
 

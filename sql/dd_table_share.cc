@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <algorithm>
+#include <optional>
 #include <string>
 #include <type_traits>
 
@@ -47,7 +48,6 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "sql/dd/collection.h"
 #include "sql/dd/dd_table.h"       // dd::FIELD_NAME_SEPARATOR_CHAR
 #include "sql/dd/dd_tablespace.h"  // dd::get_tablespace_name

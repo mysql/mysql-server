@@ -32,6 +32,7 @@
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -72,7 +73,6 @@
 #include "mysql_version.h"
 #include "mysqld_error.h"
 #include "mysys_err.h"  // EE_CAPACITY_EXCEEDED
-#include "nullable.h"
 #include "pfs_thread_provider.h"
 #include "prealloced_array.h"
 #include "sql/auth/auth_acls.h"
@@ -195,7 +195,6 @@ namespace dd {
 class Abstract_table;
 }  // namespace dd
 
-using Mysql::Nullable;
 using std::max;
 
 /**
@@ -5226,7 +5225,7 @@ bool Alter_info::add_field(
     const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
     bool has_explicit_collation, uint uint_geom_type,
     Value_generator *gcol_info, Value_generator *default_val_expr,
-    const char *opt_after, Nullable<gis::srid_t> srid,
+    const char *opt_after, std::optional<gis::srid_t> srid,
     Sql_check_constraint_spec_list *col_check_const_spec_list,
     dd::Column::enum_hidden_type hidden, bool is_array) {
   uint8 datetime_precision = decimals ? atoi(decimals) : 0;

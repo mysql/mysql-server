@@ -26,6 +26,7 @@
 
 #include <stdlib.h>
 #include <functional>
+#include <optional>
 #include <sstream>
 #include <vector>
 
@@ -37,7 +38,6 @@
 #include "mysys_err.h"
 #include "typelib.h"
 
-using Mysql::Nullable;
 using Mysql::Tools::Base::Abstract_program;
 using namespace Mysql::Tools::Base::Options;
 using std::string;
@@ -223,7 +223,7 @@ void Mysql_connection_options::set_current_charset(CHARSET_INFO *charset) {
 }
 
 const char *Mysql_connection_options::get_null_or_string(
-    Nullable<string> &maybe_string) {
+    std::optional<string> &maybe_string) {
   if (maybe_string.has_value()) {
     return maybe_string.value().c_str();
   } else {

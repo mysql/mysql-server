@@ -30,7 +30,6 @@
 #include "my_compiler.h"
 #include "my_sys.h"
 #include "mysql/components/services/mysql_mutex_bits.h"
-#include "nullable.h"
 #include "sql/error_handler.h"
 #include "sql/sql_error.h"
 

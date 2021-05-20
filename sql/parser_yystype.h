@@ -26,6 +26,8 @@
 #include <assert.h>
 #include <sys/types.h>  // TODO: replace with cstdint
 
+#include <optional>
+
 #include "field_types.h"
 #include "lex_string.h"
 #include "my_base.h"

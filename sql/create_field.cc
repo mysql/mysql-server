@@ -31,6 +31,7 @@
 #include "template_utils.h"
 
 #include <cmath>
+#include <optional>
 
 /**
     Constructs a column definition from an object representing an actual
@@ -189,7 +190,7 @@ bool Create_field::init(
     List<String> *fld_interval_list, const CHARSET_INFO *fld_charset,
     bool has_explicit_collation, uint fld_geom_type,
     Value_generator *fld_gcol_info, Value_generator *fld_default_val_expr,
-    Nullable<gis::srid_t> srid, dd::Column::enum_hidden_type hidden,
+    std::optional<gis::srid_t> srid, dd::Column::enum_hidden_type hidden,
     bool is_array_arg) {
   uint sign_len, allowed_type_modifier = 0;
   ulong max_field_charlength = MAX_FIELD_CHARLENGTH;

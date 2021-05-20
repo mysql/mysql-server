@@ -26,15 +26,15 @@
 
 #include <stddef.h>
 #include <functional>
+#include <optional>
 
 #include "client/client_priv.h"
 
 using namespace Mysql::Tools::Base::Options;
-using Mysql::Nullable;
 using std::string;
 using std::placeholders::_1;
 
-Password_option::Password_option(Nullable<string> *value, string name,
+Password_option::Password_option(std::optional<string> *value, string name,
                                  string description)
     : Abstract_string_option<Password_option>(value, GET_PASSWORD, name,
                                               description) {
@@ -67,7 +67,7 @@ void Password_option::password_callback(char *argument) {
     if (*argument) argument[1] = 0;
   } else {
     char *password = ::get_tty_password(nullptr);
-    *this->m_destination_value = Nullable<string>(password);
+    *this->m_destination_value = std::optional<string>(password);
     my_free(password);
   }
 }

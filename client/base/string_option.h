@@ -25,11 +25,11 @@
 #ifndef STRING_OPTION_INCLUDED
 #define STRING_OPTION_INCLUDED
 
+#include <optional>
 #include <string>
 
 #include "client/base/abstract_string_option.h"
 #include "my_getopt.h"
-#include "nullable.h"
 
 namespace Mysql {
 namespace Tools {
@@ -48,7 +48,7 @@ class String_option : public Abstract_string_option<String_option> {
       --name.
     @param description Description of option to be printed in --help.
    */
-  String_option(Nullable<std::string> *value, std::string name,
+  String_option(std::optional<std::string> *value, std::string name,
                 std::string description);
 };
 

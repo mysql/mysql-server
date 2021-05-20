@@ -36,6 +36,7 @@
 #include <bitset>
 #include <functional>
 #include <map>
+#include <optional>
 #include <random>  // std::mt19937
 #include <set>
 #include <string>
@@ -58,7 +59,6 @@
 #include "my_table_map.h"
 #include "my_thread_local.h"  // my_errno
 #include "mysql/components/services/psi_table_bits.h"
-#include "nullable.h"          // Nullable
 #include "sql/dd/object_id.h"  // dd::Object_id
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/object_table.h"  // dd::Object_table
@@ -863,7 +863,7 @@ class st_alter_tablespace {
   ulonglong undo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong redo_buffer_size = 8 * 1024 * 1024;  // Default 8 MByte
   ulonglong initial_size = 128 * 1024 * 1024;    // Default 128 MByte
-  Mysql::Nullable<ulonglong> autoextend_size;    // No autoextension as default
+  std::optional<ulonglong> autoextend_size;      // No autoextension as default
   ulonglong max_size = 0;         // Max size == initial size => no extension
   ulonglong file_block_size = 0;  // 0=default or must be a valid Page Size
   uint nodegroup_id = UNDEF_NODEGROUP;

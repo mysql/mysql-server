@@ -29,6 +29,7 @@
 #include <string.h>
 #include <sys/types.h>
 #include <algorithm>
+#include <optional>
 
 #include "field_types.h"
 #include "m_ctype.h"
@@ -43,7 +44,6 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "sql/current_thd.h"
 #include "sql/field.h"
 #include "sql/item_timefunc.h"  // Item_func_now_local

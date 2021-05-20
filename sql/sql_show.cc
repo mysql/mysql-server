@@ -33,6 +33,7 @@
 #include <functional>
 #include <memory>
 #include <new>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -66,7 +67,6 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "scope_guard.h"         // Scope_guard
 #include "sql/auth/auth_acls.h"  // DB_ACLS
 #include "sql/auth/auth_common.h"

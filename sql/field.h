@@ -31,6 +31,7 @@
 #include <sys/types.h>
 
 #include <algorithm>
+#include <optional>
 
 #include "decimal.h"      // E_DEC_OOM
 #include "field_types.h"  // enum_field_types
@@ -49,7 +50,6 @@
 #include "mysql_com.h"
 #include "mysql_time.h"
 #include "mysqld_error.h"  // ER_*
-#include "nullable.h"
 #include "sql/dd/types/column.h"
 #include "sql/field_common_properties.h"
 #include "sql/gis/srid.h"
@@ -107,8 +107,6 @@ class Time_zone;
 class my_decimal;
 struct TYPELIB;
 struct timeval;
-
-using Mysql::Nullable;
 
 /*
   Inside an in-memory data record, memory pointers to pieces of the
@@ -3890,7 +3888,7 @@ class Field_blob : public Field_longstr {
 
 class Field_geom final : public Field_blob {
  private:
-  const Nullable<gis::srid_t> m_srid;
+  const std::optional<gis::srid_t> m_srid;
 
   type_conversion_status store_internal(const char *from, size_t length,
                                         const CHARSET_INFO *cs) final;
@@ -3901,13 +3899,13 @@ class Field_geom final : public Field_blob {
   Field_geom(uchar *ptr_arg, uchar *null_ptr_arg, uint null_bit_arg,
              uchar auto_flags_arg, const char *field_name_arg,
              TABLE_SHARE *share, uint blob_pack_length,
-             enum geometry_type geom_type_arg, Nullable<gis::srid_t> srid)
+             enum geometry_type geom_type_arg, std::optional<gis::srid_t> srid)
       : Field_blob(ptr_arg, null_ptr_arg, null_bit_arg, auto_flags_arg,
                    field_name_arg, share, blob_pack_length, &my_charset_bin),
         m_srid(srid),
         geom_type(geom_type_arg) {}
   Field_geom(uint32 len_arg, bool is_nullable_arg, const char *field_name_arg,
-             enum geometry_type geom_type_arg, Nullable<gis::srid_t> srid)
+             enum geometry_type geom_type_arg, std::optional<gis::srid_t> srid)
       : Field_blob(len_arg, is_nullable_arg, field_name_arg, &my_charset_bin,
                    false),
         m_srid(srid),
@@ -3942,7 +3940,7 @@ class Field_geom final : public Field_blob {
   }
   uint is_equal(const Create_field *new_field) const final;
 
-  Nullable<gis::srid_t> get_srid() const { return m_srid; }
+  std::optional<gis::srid_t> get_srid() const { return m_srid; }
 };
 
 /// A field that stores a JSON value.
@@ -4543,7 +4541,7 @@ Field *make_field(MEM_ROOT *mem_root_arg, TABLE_SHARE *share, uchar *ptr,
                   TYPELIB *interval, const char *field_name, bool is_nullable,
                   bool is_zerofill, bool is_unsigned, uint decimals,
                   bool treat_bit_as_char, uint pack_length_override,
-                  Nullable<gis::srid_t> srid, bool is_array);
+                  std::optional<gis::srid_t> srid, bool is_array);
 
 /**
   Instantiates a Field object with the given name and record buffer values.

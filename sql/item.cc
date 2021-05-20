@@ -33,6 +33,7 @@
 #endif
 #include <stddef.h>
 #include <algorithm>
+#include <optional>
 #include <utility>
 
 #include "decimal.h"
@@ -5899,7 +5900,7 @@ Field *Item::make_string_field(TABLE *table) const {
   else if (data_type() == MYSQL_TYPE_GEOMETRY) {
     field = new (*THR_MALLOC)
         Field_geom(max_length, m_nullable, item_name.ptr(),
-                   Field::GEOM_GEOMETRY, Nullable<gis::srid_t>());
+                   Field::GEOM_GEOMETRY, std::optional<gis::srid_t>());
   } else if (max_length / collation.collation->mbmaxlen >
              CONVERT_IF_BIGGER_TO_BLOB)
     field = new (*THR_MALLOC) Field_blob(

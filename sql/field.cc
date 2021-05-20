@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <cmath>   // isnan
 #include <memory>  // unique_ptr
+#include <optional>
 
 #include "decimal.h"
 #include "m_string.h"
@@ -9235,7 +9236,7 @@ Field *make_field(MEM_ROOT *mem_root, TABLE_SHARE *share, uchar *ptr,
                   TYPELIB *interval, const char *field_name, bool is_nullable,
                   bool is_zerofill, bool is_unsigned, uint decimals,
                   bool treat_bit_as_char, uint pack_length_override,
-                  Nullable<gis::srid_t> srid, bool is_array) {
+                  std::optional<gis::srid_t> srid, bool is_array) {
   uchar *bit_ptr = nullptr;
   uchar bit_offset = 0;
   assert(mem_root);

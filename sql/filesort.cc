@@ -46,6 +46,7 @@
 #include <atomic>
 #include <memory>
 #include <new>
+#include <optional>
 #include <vector>
 
 #include "add_with_saturate.h"
@@ -69,7 +70,6 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "priority_queue.h"
 #include "sql/auth/sql_security_ctx.h"
 #include "sql/bounded_queue.h"
@@ -112,7 +112,6 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
-using Mysql::Nullable;
 using std::max;
 using std::min;
 
@@ -1234,9 +1233,9 @@ inline bool advance_overflows(size_t num_bytes, uchar *to_end, uchar **to) {
   or UINT_MAX if the value would not provably fit within the given bounds.
 */
 size_t make_sortkey_from_item(Item *item, Item_result result_type,
-                              Nullable<size_t> dst_length, String *tmp_buffer,
-                              uchar *to, uchar *to_end, bool *maybe_null,
-                              ulonglong *hash) {
+                              std::optional<size_t> dst_length,
+                              String *tmp_buffer, uchar *to, uchar *to_end,
+                              bool *maybe_null, ulonglong *hash) {
   bool is_varlen = !dst_length.has_value();
 
   uchar *null_indicator = nullptr;
@@ -1405,7 +1404,7 @@ uint Sort_param::make_sortkey(Bounds_checked_array<uchar> dst,
     }
 
     bool maybe_null;
-    Nullable<size_t> dst_length;
+    std::optional<size_t> dst_length;
     if (!sort_field->is_varlen) dst_length = sort_field->length;
     uint actual_length;
     Item *item = sort_field->item;

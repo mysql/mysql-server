@@ -33,6 +33,7 @@
 #include <bitset>
 #include <cstring>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>  // std::forward
 
@@ -6311,7 +6312,7 @@ bool Item_sum_collect::check_wf_semantics1(THD *, Query_block *,
 void Item_sum_collect::clear() {
   m_geometrycollection.reset();
   null_value = true;
-  srid = Mysql::Nullable<gis::srid_t>{};
+  srid = std::optional<gis::srid_t>{};
 }
 
 bool Item_sum_collect::add() {

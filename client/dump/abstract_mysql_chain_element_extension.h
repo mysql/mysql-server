@@ -25,8 +25,10 @@
 #ifndef ABSTRACT_MYSQL_CHAIN_ELEMENT_EXTENSION_INCLUDED
 #define ABSTRACT_MYSQL_CHAIN_ELEMENT_EXTENSION_INCLUDED
 
-#include <sys/types.h>
 #include <functional>
+#include <optional>
+
+#include <sys/types.h>
 
 #include "client/base/message_data.h"
 #include "client/dump/abstract_data_object.h"
@@ -34,7 +36,6 @@
 #include "client/dump/i_connection_provider.h"
 #include "client/dump/mysql_chain_element_options.h"
 #include "my_inttypes.h"
-#include "nullable.h"
 
 #define MYSQL_UNIVERSAL_CLIENT_CHARSET "utf8mb4"
 #define MAX_NAME_LEN (64 * 3)
@@ -66,7 +67,7 @@ class Abstract_mysql_chain_element_extension : public virtual I_chain_element {
     Gets CREATE statement for specified object. If object type is database,
     then object_name should be empty.
    */
-  Mysql::Nullable<std::string> get_create_statement(
+  std::optional<std::string> get_create_statement(
       Mysql::Tools::Base::Mysql_query_runner *runner,
       const std::string &database_name, const std::string &object_name,
       const std::string &object_type, uint field_id = 1);

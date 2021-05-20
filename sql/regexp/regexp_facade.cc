@@ -22,6 +22,7 @@
 
 #include "sql/regexp/regexp_facade.h"
 
+#include <optional>
 #include <string>
 #include <tuple>
 
@@ -160,11 +161,11 @@ int Regexp_facade::ConvertLibPositionToCodePoint(int position) const {
   return cset->numchars(regexp_lib_charset, start, end);
 }
 
-Mysql::Nullable<bool> Regexp_facade::Matches(Item *subject_expr, int start,
-                                             int occurrence) {
+std::optional<bool> Regexp_facade::Matches(Item *subject_expr, int start,
+                                           int occurrence) {
   DBUG_TRACE;
 
-  if (Reset(subject_expr, start)) return Mysql::Nullable<bool>();
+  if (Reset(subject_expr, start)) return std::optional<bool>();
 
   /*
     As far as ICU is concerned, we always start on position 0, since we
@@ -173,10 +174,10 @@ Mysql::Nullable<bool> Regexp_facade::Matches(Item *subject_expr, int start,
   return m_engine->Matches(0, occurrence);
 }
 
-Mysql::Nullable<int> Regexp_facade::Find(Item *subject_expr, int start,
-                                         int occurrence, bool after_match) {
-  Nullable<bool> match_found = Matches(subject_expr, start, occurrence);
-  if (!match_found.has_value()) return Mysql::Nullable<int>();
+std::optional<int> Regexp_facade::Find(Item *subject_expr, int start,
+                                       int occurrence, bool after_match) {
+  std::optional<bool> match_found = Matches(subject_expr, start, occurrence);
+  if (!match_found.has_value()) return std::optional<int>();
   if (!match_found.value()) return 0;
   int native_start =
       after_match ? m_engine->EndOfMatch() : m_engine->StartOfMatch();

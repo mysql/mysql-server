@@ -174,7 +174,6 @@ SET(TESTS
   mysys_my_time
   mysys_my_write
   mysys_pathfuncs
-  nullable
   opt_recperkey
   partitioned_rwlock
   pattern_matcher

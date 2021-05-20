@@ -24,11 +24,12 @@
 
 #include "client/base/string_option.h"
 
+#include <optional>
+
 using namespace Mysql::Tools::Base::Options;
-using Mysql::Nullable;
 using std::string;
 
-String_option::String_option(Nullable<string> *value, string name,
+String_option::String_option(std::optional<string> *value, string name,
                              string description)
     : Abstract_string_option<String_option>(value, GET_STR, name, description) {
 }

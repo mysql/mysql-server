@@ -28,20 +28,19 @@
 #include <mysql/service_rules_table.h>
 #include <stddef.h>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "m_string.h"  // Needed because debug_sync.h is not self-sufficient.
 #include "my_dbug.h"
 #include "mysql/components/services/my_thread_bits.h"
 #include "mysqld_error.h"
-#include "nullable.h"
 #include "plugin/rewriter/messages.h"
 #include "plugin/rewriter/persisted_rule.h"
 #include "plugin/rewriter/rule.h"
 #include "sql/debug_sync.h"
 #include "template_utils.h"
 
-using Mysql::Nullable;
 using rules_table_service::Cursor;
 using std::string;
 namespace messages = rewriter_messages;
@@ -73,7 +72,7 @@ bool Rewriter::load_rule(MYSQL_THD thd, Persisted_rule *diskrule) {
     case Rule::OK:
       m_digests.emplace(hash_key_from_digest(memrule_ptr->digest_buffer()),
                         std::move(memrule_ptr));
-      diskrule->message = Nullable<string>();
+      diskrule->message = std::optional<string>();
       diskrule->pattern_digest =
           services::print_digest(memrule->digest_buffer());
       diskrule->normalized_pattern = memrule->normalized_pattern();
