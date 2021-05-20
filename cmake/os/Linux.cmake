@@ -60,30 +60,15 @@ IF(LINUX_FEDORA OR LINUX_RHEL OR LINUX_SUSE)
   SET(LINUX_RPM_PLATFORM 1)
 ENDIF()
 
-# We require at least GCC 5.3 or Clang 3.4.
+# We require at least GCC 7.1 Clang 5
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_GNU)
-    EXECUTE_PROCESS(COMMAND ${CMAKE_C_COMPILER} -dumpversion
-                    OUTPUT_STRIP_TRAILING_WHITESPACE
-                    OUTPUT_VARIABLE GCC_VERSION)
-    # -dumpversion may output only MAJOR.MINOR rather than MAJOR.MINOR.PATCH
-    IF(GCC_VERSION VERSION_LESS 5.3)
-      SET(WARNING_LEVEL WARNING)
-      IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.3)
-        SET(WARNING_LEVEL FATAL_ERROR)
-      ENDIF()
-      MESSAGE(${WARNING_LEVEL}
-        "GCC 5.3 or newer is required (-dumpversion says ${GCC_VERSION})")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.1)
+      MESSAGE(FATAL_ERROR "GCC 7.1 or newer is required")
     ENDIF()
   ELSEIF(MY_COMPILER_IS_CLANG)
-    CHECK_C_SOURCE_RUNS("
-      int main()
-      {
-        return (__clang_major__ < 3) ||
-               (__clang_major__ == 3 && __clang_minor__ < 4);
-      }" HAVE_SUPPORTED_CLANG_VERSION)
-    IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
-      MESSAGE(FATAL_ERROR "Clang 3.4 or newer is required!")
+    IF(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5)
+      MESSAGE(FATAL_ERROR "Clang 5 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

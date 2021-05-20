@@ -233,6 +233,10 @@ ENDIF()
 CMAKE_MINIMUM_REQUIRED(VERSION 3.5.1)
 INCLUDE(cmake_policies NO_POLICY_SCOPE)
 
+IF(MY_HOST_SYSTEM_NAME MATCHES "SunOS")
+  SET(SOLARIS 1)
+ENDIF()
+
 IF(MY_HOST_SYSTEM_NAME MATCHES "Linux")
   # Trust 'rpm -qf /' rather than 'uname -s'
   STRING(REGEX MATCH "\\.el([678])\\." MATCH_FSYS "${MY_HOST_FILESYSTEM_NAME}")
@@ -372,6 +376,22 @@ IF(CMAKE_HOST_UNIX AND NOT FORCE_UNSUPPORTED_COMPILER
           MESSAGE(FATAL_ERROR "Please do zypper install gcc9 gcc9-c++\n"
             "or set CMAKE_C_COMPILER and CMAKE_CXX_COMPILER explicitly.")
         ENDIF()
+      ENDIF()
+    ELSEIF(SOLARIS)
+      MESSAGE(STATUS "Looking for GCC 10 on Solaris.")
+      FIND_PROGRAM(ALTERNATIVE_GCC gcc
+        NO_DEFAULT_PATH
+        PATHS "/usr/gcc/10/bin")
+      FIND_PROGRAM(ALTERNATIVE_GPP g++
+        NO_DEFAULT_PATH
+        PATHS "/usr/gcc/10/bin")
+      IF (ALTERNATIVE_GCC AND ALTERNATIVE_GPP)
+        SET(CMAKE_C_COMPILER ${ALTERNATIVE_GCC})
+        SET(CMAKE_CXX_COMPILER ${ALTERNATIVE_GPP})
+        MESSAGE(STATUS "Using ${ALTERNATIVE_GCC}")
+        MESSAGE(STATUS "Using ${ALTERNATIVE_GPP}")
+      ELSE()
+        MESSAGE(WARNING "Could not find /usr/gcc/10/bin/gcc")
       ENDIF()
     ENDIF()
   ENDIF()

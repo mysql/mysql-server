@@ -1096,9 +1096,9 @@ same problems as the standard library malloc.
   static_cast<void *>(ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
                           .reallocate(ptr, n_bytes, UT_NEW_THIS_FILE_PSI_KEY))
 
-#define ut_free(ptr)                       \
-  ut_allocator<byte>(PSI_NOT_INSTRUMENTED) \
-      .deallocate(reinterpret_cast<byte *>(ptr))
+#define ut_free(ptr)                         \
+  ut_allocator<::byte>(PSI_NOT_INSTRUMENTED) \
+      .deallocate(reinterpret_cast<::byte *>(ptr))
 
 #else /* UNIV_PFS_MEMORY */
 

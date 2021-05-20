@@ -161,20 +161,13 @@ IF(MSVC)
     SET("${flag}" "${${flag}} /FC")
   ENDFOREACH()
 
-  # Turn on c++14 mode explicitly so that using c++17 features is disabled.
-  # For clang 10 we must use C++17. See:
-  # https://developercommunity.visualstudio.com/content/problem/665343/
-  # vs2019-stl-with-clang-cl-and-stdc14-generates-dupl.html
+  # Turn on c++17 mode explicitly so that using c++20 features is disabled.
   FOREACH(flag
       CMAKE_CXX_FLAGS_MINSIZEREL
       CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
       CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT
       )
-    IF(WIN32_CLANG)
-      SET("${flag}" "${${flag}} /std:c++17")
-    ELSE()
-      SET("${flag}" "${${flag}} /std:c++14")
-    ENDIF()
+    SET("${flag}" "${${flag}} /std:c++17")
   ENDFOREACH()
 
   FOREACH(type EXE SHARED MODULE)

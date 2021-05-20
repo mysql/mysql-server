@@ -28,16 +28,16 @@ IF(CMAKE_SYSTEM_PROCESSOR MATCHES "arm64")
   SET(APPLE_ARM 1)
 ENDIF()
 
-# We require at least XCode 9.0
+# We require at least XCode 10.0
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_CLANG)
     CHECK_C_SOURCE_RUNS("
       int main()
       {
-        return (__clang_major__ < 9);
+        return (__clang_major__ < 10);
       }" HAVE_SUPPORTED_CLANG_VERSION)
     IF(NOT HAVE_SUPPORTED_CLANG_VERSION)
-      MESSAGE(FATAL_ERROR "XCode 9.0 or newer is required!")
+      MESSAGE(FATAL_ERROR "XCode 10.0 or newer is required!")
     ENDIF()
   ELSE()
     MESSAGE(FATAL_ERROR "Unsupported compiler!")

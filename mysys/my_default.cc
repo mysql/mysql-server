@@ -1180,7 +1180,7 @@ static mysql_file_getline_ret mysql_file_getline(char *buff, int size,
 
   /* If the supplied buff/size is enough to store the line, then we return the
    * buff itself. In this case, we use this noop deleter */
-  static auto noop_free = [](void *) {};
+  static auto noop_free = [](void *) noexcept {};
 
   if (is_login_file) {
     if (mysql_file_ftell(file) == 0) {

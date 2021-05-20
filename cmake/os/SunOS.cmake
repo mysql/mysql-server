@@ -25,7 +25,6 @@ INCLUDE(CheckCSourceRuns)
 INCLUDE(CheckCSourceCompiles) 
 INCLUDE(CheckCXXSourceCompiles)
 
-SET(SOLARIS 1)
 IF(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
   SET(SOLARIS_SPARC 1)
 ELSE()
@@ -48,29 +47,7 @@ CHECK_TYPE_SIZE("void *" SIZEOF_VOIDP)
 # We require at least SunStudio 12.6 (CC 5.15)
 IF(NOT FORCE_UNSUPPORTED_COMPILER)
   IF(MY_COMPILER_IS_SUNPRO)
-    IF(SIZEOF_VOIDP MATCHES 4)
-      MESSAGE(FATAL_ERROR "32 bit Solaris builds are not supported. ")
-    ENDIF()
-    # CC -V yields
-    # CC: Studio 12.6 Sun C++ 5.15 SunOS_sparc Beta 2016/12/19
-    # CC: Studio 12.5 Sun C++ 5.14 SunOS_sparc Dodona 2016/04/04
-    # CC: Sun C++ 5.13 SunOS_sparc Beta 2014/03/11
-    # CC: Sun C++ 5.11 SunOS_sparc 2010/08/13
-    EXECUTE_PROCESS(
-      COMMAND ${CMAKE_CXX_COMPILER} "-V"
-      OUTPUT_VARIABLE stdout
-      ERROR_VARIABLE  stderr
-      RESULT_VARIABLE result
-    )
-    STRING(REGEX MATCH "CC: Sun C\\+\\+ 5\\.([0-9]+)" VERSION_STRING ${stderr})
-    IF (NOT CMAKE_MATCH_1 OR CMAKE_MATCH_1 STREQUAL "")
-      STRING(REGEX MATCH "CC: Studio 12\\.[56] Sun C\\+\\+ 5\\.([0-9]+)"
-        VERSION_STRING ${stderr})
-    ENDIF()
-    SET(CC_MINOR_VERSION ${CMAKE_MATCH_1})
-    IF(${CC_MINOR_VERSION} LESS 15)
-      MESSAGE(FATAL_ERROR "Oracle Studio 12.6 or newer is required!")
-    ENDIF()
+    MESSAGE(FATAL_ERROR "Oracle Studio is not supported.")
   ELSEIF(MY_COMPILER_IS_CLANG)
     MESSAGE(WARNING "Clang is experimental!!")
   ELSEIF(MY_COMPILER_IS_GNU)

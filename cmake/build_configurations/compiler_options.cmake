@@ -54,7 +54,7 @@ IF(UNIX)
       STRING_APPEND(COMMON_C_FLAGS   " -ffp-contract=off")
     ENDIF()
 
-    SET(COMMON_CXX_FLAGS             "-std=c++14 -fno-omit-frame-pointer")
+    SET(COMMON_CXX_FLAGS             "-std=c++17 -fno-omit-frame-pointer")
     # Disable inline optimizations for valgrind testing to avoid false positives
     IF(WITH_VALGRIND)
       STRING_PREPEND(COMMON_CXX_FLAGS  "-fno-inline ")
@@ -68,7 +68,7 @@ IF(UNIX)
   # Default Clang flags
   IF(MY_COMPILER_IS_CLANG)
     SET(COMMON_C_FLAGS               "-fno-omit-frame-pointer")
-    SET(COMMON_CXX_FLAGS             "-std=c++14 -fno-omit-frame-pointer")
+    SET(COMMON_CXX_FLAGS             "-std=c++17 -fno-omit-frame-pointer")
   ENDIF()
 
   # Faster TLS model
@@ -133,7 +133,7 @@ IF(UNIX)
       STRING_APPEND(COMMON_C_FLAGS " ${SUNPRO_C_WARNING_SUPPRESSION_FLAGS}")
 
 
-      SET(COMMON_CXX_FLAGS          "-std=c++14 ${SUNPRO_FLAGS}")
+      SET(COMMON_CXX_FLAGS          "-std=c++17 ${SUNPRO_FLAGS}")
 
       # Build list of C++ warning tags to suppress. Comment in/out as needed.
 
