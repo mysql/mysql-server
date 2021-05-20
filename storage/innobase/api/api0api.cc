@@ -789,9 +789,9 @@ ib_err_t ib_cursor_open_index_using_name(
   table = cursor->prebuilt->table;
   ut_a(table != nullptr);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   table->acquire();
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* The first index is always the cluster index. */
   index = table->first_index();

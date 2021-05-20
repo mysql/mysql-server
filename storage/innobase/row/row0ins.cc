@@ -1441,7 +1441,7 @@ dberr_t row_ins_check_foreign_constraint(
     if (check_table == nullptr && foreign->referenced_table_name_lookup) {
       ut_ad(check_index == nullptr);
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       check_table = dd_table_open_on_name(thd, &mdl,
                                           foreign->referenced_table_name_lookup,
                                           true, DICT_ERR_IGNORE_NONE);
@@ -1468,7 +1468,7 @@ dberr_t row_ins_check_foreign_constraint(
         foreign->referenced_index = check_index;
         tmp_open = true;
       }
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
   } else {
     check_table = foreign->foreign_table;
@@ -1717,10 +1717,10 @@ exit_func:
 
   /* TODO: NewDD: Remove this after WL#6049 */
   if (tmp_open) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dd_table_close(check_table, thd, &mdl, true);
     ut_free(tmp_foreign);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   return err;

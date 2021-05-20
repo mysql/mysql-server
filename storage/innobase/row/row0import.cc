@@ -1613,9 +1613,9 @@ dberr_t row_import::set_instant_info(THD *thd) UNIV_NOTHROW {
 
   new_size = mem_heap_get_size(m_table->heap);
   if (new_size > old_size) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_sys->size += new_size - old_size;
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   if (error == DB_SUCCESS && instants != m_n_instant_cols) {
@@ -2559,14 +2559,14 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_import_set_sys_max_row_id(
     /* Update the system row id if the imported index row id is
     greater than the max system row id. */
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     if (row_id >= dict_sys->row_id) {
       dict_sys->row_id = row_id + 1;
       dict_hdr_flush_row_id();
     }
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   return (DB_SUCCESS);

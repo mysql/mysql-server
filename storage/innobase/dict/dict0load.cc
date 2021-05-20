@@ -168,7 +168,7 @@ char *dict_get_first_table_name_in_db(
   ulint len;
   mtr_t mtr;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   heap = mem_heap_create(1000);
 
@@ -722,7 +722,7 @@ static void dict_load_virtual_one_col(dict_table_t *table, ulint nth_v_col,
   mtr_t mtr;
   ulint skipped = 0;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   if (v_col->num_base == 0) {
     return;
@@ -997,7 +997,7 @@ char *dict_get_first_path(ulint space_id) {
   char *filepath = nullptr;
   mem_heap_t *heap = mem_heap_create(1024);
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   mtr_start(&mtr);
 
@@ -1074,7 +1074,7 @@ static char *dict_space_get_name(space_id_t space_id,
   char *space_name = nullptr;
   mem_heap_t *heap = mem_heap_create(1024);
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   sys_tablespaces = dict_table_get_low("SYS_TABLESPACES");
   if (sys_tablespaces == nullptr) {
@@ -1147,7 +1147,7 @@ static const char *dict_sys_tables_rec_check(const rec_t *rec) {
   const byte *field;
   ulint len;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   if (rec_get_deleted_flag(rec, 0)) {
     return ("delete-marked record in SYS_TABLES");
@@ -1261,7 +1261,7 @@ static inline space_id_t dict_check_sys_tablespaces(bool validate) {
 
   DBUG_TRACE;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   /* Before traversing it, let's make sure we have
   SYS_TABLESPACES and SYS_DATAFILES loaded. */
@@ -1411,7 +1411,7 @@ static inline space_id_t dict_check_sys_tables(bool validate) {
 
   DBUG_TRACE;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   mtr_start(&mtr);
 
@@ -1615,7 +1615,7 @@ static void dict_load_columns(dict_table_t *table, /*!< in/out: table */
   mtr_t mtr;
   ulint n_skipped = 0;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   mtr_start(&mtr);
 
@@ -1724,7 +1724,7 @@ static ulint dict_load_fields(
   mtr_t mtr;
   dberr_t error;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   mtr_start(&mtr);
 
@@ -1798,7 +1798,7 @@ loading the index definition */
   mtr_t mtr;
   dberr_t error = DB_SUCCESS;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   mtr_start(&mtr);
 
@@ -1958,11 +1958,11 @@ loading the index definition */
     } else {
       dict_load_fields(index, heap);
 
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
       error = dict_index_add_to_cache(table, index, index->page, FALSE);
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
 
       /* The data dictionary tables should never contain
       invalid index definitions. */
@@ -2049,7 +2049,7 @@ then table->data_dir_path will remain nullptr.
 @param[in,out]	table		table instance
 @param[in]	filepath	filepath of tablespace */
 void dict_save_data_dir_path(dict_table_t *table, char *filepath) {
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
   ut_ad(DICT_TF_HAS_DATA_DIR(table->flags));
   ut_ad(table->data_dir_path == nullptr);
   ut_a(Fil_path::has_suffix(IBD, filepath));
@@ -2172,7 +2172,7 @@ dict_table_t *dict_load_table(const char *name, bool cached,
 
   const std::string cur_table(name);
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   result = dict_table_check_if_in_cache_low(name);
 
@@ -2336,7 +2336,7 @@ static dict_table_t *dict_load_table_one(table_name_t &name, bool cached,
   DBUG_TRACE;
   DBUG_PRINT("dict_load_table_one", ("table: %s", name.m_name));
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   dict_table_t *sys_tables = dict_table_get_low("SYS_TABLES", prev_table);
   if (sys_tables == nullptr) {
@@ -2581,7 +2581,7 @@ void dict_load_sys_table(dict_table_t *table) /*!< in: system table */
 {
   mem_heap_t *heap;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   heap = mem_heap_create(1000);
 
@@ -2614,7 +2614,7 @@ static void dict_load_foreign_cols(
   mtr_t mtr;
   size_t id_len;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   id_len = strlen(foreign->id);
 
@@ -2749,7 +2749,7 @@ stack. */
   DBUG_PRINT("dict_load_foreign",
              ("id: '%s', check_recursive: %d", id, check_recursive));
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   id_len = strlen(id);
 
@@ -2919,7 +2919,7 @@ foreign key constraints. */
 
   DBUG_TRACE;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   sys_foreign = dict_table_get_low("SYS_FOREIGN");
 
@@ -3048,7 +3048,7 @@ load_next_index:
 void dict_load_tablespaces_for_upgrade() {
   ut_ad(srv_is_upgrade_mode);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   mtr_t mtr;
   mtr_start(&mtr);
@@ -3060,5 +3060,5 @@ void dict_load_tablespaces_for_upgrade() {
   dict_check_sys_tablespaces(false);
   dict_check_sys_tables(false);
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 }

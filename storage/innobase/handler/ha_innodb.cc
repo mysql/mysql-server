@@ -3653,7 +3653,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool boot_tablespaces(THD *thd) {
   Releaser releaser(dc);
 
   /* Initialize the max space_id from sys header */
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   mtr_t mtr;
 
@@ -3666,7 +3666,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool boot_tablespaces(THD *thd) {
 
   fil_set_max_space_id_if_bigger(space_max_id);
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   ib::info(ER_IB_MSG_532) << "Reading DD tablespace files";
 
@@ -3729,7 +3729,7 @@ static void innobase_dict_cache_reset(const char *schema_name,
   char name[FN_REFLEN];
   snprintf(name, sizeof name, "%s/%s", schema_name, table_name);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   dict_table_t *table = dict_table_check_if_in_cache_low(name);
 
@@ -3740,13 +3740,13 @@ static void innobase_dict_cache_reset(const char *schema_name,
     dict_partitioned_table_remove_from_cache(name);
   }
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 }
 
 /** Invalidate user table dict cache after Replication Plugin recovers. Table
 definition could be different with XA commit/rollback of DDL operations */
 static void innobase_dict_cache_reset_tables_and_tablespaces() {
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   /* There should be no DDL/DML activity at this stage, so access
   the LRU chain without mutex. We only invalidates the table
@@ -3772,7 +3772,7 @@ static void innobase_dict_cache_reset_tables_and_tablespaces() {
 
     dict_table_remove_from_cache(table);
   }
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 }
 
 /** Perform high-level recovery in InnoDB as part of initializing the
@@ -6508,12 +6508,12 @@ void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
   ut_ad(n_v_col > 0);
 
   if (!locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   if (s_templ->vtempl) {
     if (!locked) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
     return;
   }
@@ -6611,7 +6611,7 @@ void innobase_build_v_templ(const TABLE *table, const dict_table_t *ib_table,
   }
 
   if (!locked) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   s_templ->db_name = table->s->db.str;
@@ -6645,7 +6645,7 @@ static bool innobase_build_index_translation(
 
   bool ret = true;
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   ulint mysql_num_index = table->s->keys;
   ulint ib_num_index = UT_LIST_GET_LEN(ib_table->indexes);
@@ -6727,7 +6727,7 @@ func_exit:
 
   share->idx_trans_tbl.index_mapping = index_mapping;
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   return ret;
 }
@@ -6908,7 +6908,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
   if (ib_table == nullptr) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     ib_table = dict_table_check_if_in_cache_low(norm_name);
     if (ib_table != nullptr) {
       if (ib_table->is_corrupted()) {
@@ -6924,7 +6924,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
         ib_table->acquire_with_lock();
 
         dict_names_t fk_tables;
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
         dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
         dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
@@ -6933,7 +6933,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
             &table_def->table(), thd, false,
             !thd_test_options(thd, OPTION_NO_FOREIGN_KEY_CHECKS), &fk_tables);
 
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
         ib_table->refresh_fk = false;
 
         if (err != DB_SUCCESS) {
@@ -6969,7 +6969,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
       }
     }
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (!cached) {
       dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
@@ -7122,7 +7122,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
   key_used_on_scan = table_share->primary_key;
 
   if (ib_table->n_v_cols) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     if (ib_table->vc_templ == nullptr) {
       ib_table->vc_templ = UT_NEW_NOKEY(dict_vcol_templ_t());
       ib_table->vc_templ->vtempl = nullptr;
@@ -7138,7 +7138,7 @@ int ha_innobase::open(const char *name, int, uint open_flags,
                              m_share->table_name);
     }
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   if (!innobase_build_index_translation(table, ib_table, m_share)) {
@@ -11328,9 +11328,9 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
         } else {
           dict_table_add_system_columns(table, temp_table_heap);
 
-          mutex_enter(&dict_sys->mutex);
+          dict_sys_mutex_enter();
           dict_table_add_to_cache(table, FALSE, temp_table_heap);
-          mutex_exit(&dict_sys->mutex);
+          dict_sys_mutex_exit();
         }
 
         DBUG_EXECUTE_IF("ib_ddl_crash_during_create2", DBUG_SUICIDE(););
@@ -11428,9 +11428,9 @@ inline MY_ATTRIBUTE((warn_unused_result)) int create_table_info_t::
   }
 
   if (err == DB_SUCCESS && (m_flags2 & DICT_TF2_FTS)) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     fts_optimize_add_table(table);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   if (err == DB_SUCCESS) {
@@ -12425,7 +12425,7 @@ ibool innobase_fts_load_stopword(
     trx_t *trx,          /*!< in: transaction */
     THD *thd)            /*!< in: current thread */
 {
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   return (fts_load_stopword(table, trx, innobase_server_stopword_table,
                             THDVAR(thd, ft_user_stopword_table),
@@ -12944,8 +12944,8 @@ bool create_table_info_t::innobase_table_flags() {
 
 /** Detach the just created table and its auxiliary tables if exist */
 void create_table_info_t::detach() {
-  ut_ad(!mutex_own(&dict_sys->mutex));
-  mutex_enter(&dict_sys->mutex);
+  ut_ad(!dict_sys_mutex_own());
+  dict_sys_mutex_enter();
 
   ut_ad(m_table != nullptr);
   ut_ad(!m_table->can_be_evicted);
@@ -12960,7 +12960,7 @@ void create_table_info_t::detach() {
     fts_detach_aux_tables(m_table, true);
   }
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 }
 
 /** Parse MERGE_THRESHOLD value from the string.
@@ -13461,9 +13461,9 @@ int create_table_info_t::create_table(const dd::Table *dd_table) {
   ) {
     dberr_t err = DB_SUCCESS;
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     err = row_table_load_foreign_constraints(m_trx, m_table_name, dd_table);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     switch (err) {
       case DB_PARENT_NO_INDEX:
@@ -13713,7 +13713,7 @@ int innobase_basic_ddl::create_impl(THD *thd, const char *name, TABLE *form,
 
 cleanup:
   if (!info.is_intrinsic_temp_table() && info.is_temp_table()) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     dict_table_t *table = dict_table_check_if_in_cache_low(norm_name);
 
@@ -13728,7 +13728,7 @@ cleanup:
       dict_table_remove_from_cache(table);
     }
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   } else {
     dict_table_t *intrinsic_table =
         thd_to_innodb_session(thd)->lookup_table_handler(info.table_name());
@@ -13831,9 +13831,9 @@ int innobase_basic_ddl::delete_impl(THD *thd, const char *name,
 
     if (err == 0 && tab != nullptr) {
       if (tab->can_be_evicted && dd_table_is_partitioned(dd_tab->table())) {
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
         dict_table_ddl_acquire(tab);
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
       }
 
       file_per_table = dict_table_is_file_per_table(tab);
@@ -13924,9 +13924,9 @@ int innobase_basic_ddl::rename_impl(THD *thd, const char *from, const char *to,
   }
 
   if (dd_table_is_partitioned(from_table->table())) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_ddl_acquire(table);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   dd_table_close(table, thd, nullptr, false);
@@ -14084,9 +14084,9 @@ int innobase_truncate<Table>::prepare() {
   }
 
   if (m_table->can_be_evicted) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_ddl_acquire(m_table);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   if (!dict_table_has_autoinc_col(m_table)) {
@@ -14162,7 +14162,7 @@ int innobase_truncate<Table>::truncate() {
   }
 
   if (error == 0) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     m_table = dict_table_check_if_in_cache_low(m_name);
     ut_ad(m_table != nullptr);
     m_table->acquire();
@@ -14172,7 +14172,7 @@ int innobase_truncate<Table>::truncate() {
       m_table->autoinc = autoinc;
     }
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   DBUG_EXECUTE_IF("ib_truncate_fail_after_create_new_table",
@@ -14195,9 +14195,9 @@ int innobase_truncate<Table>::rename_tablespace() {
       m_table->heap, m_table->name.m_name, m_table->id);
   uint64_t new_size = mem_heap_get_size(m_table->heap);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   dict_sys->size += new_size - old_size;
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   std::string new_path;
   char *old_path = fil_space_get_first_path(m_table->space);
@@ -14215,12 +14215,12 @@ int innobase_truncate<Table>::rename_tablespace() {
                                             new_path.c_str(), false);
 
   if (err == DB_SUCCESS) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     clone_mark_abort(true);
     err = fil_rename_tablespace(m_table->space, old_path, temp_name,
                                 new_path.c_str());
     clone_mark_active();
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     if (err == DB_SUCCESS) {
       m_table->trunc_name.m_name = temp_name;
@@ -15482,7 +15482,7 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
   }
 
   /* Rename any in-memory cached table->tablespace */
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   for (auto table : dict_sys->table_LRU) {
     if (table->tablespace && strcmp(from, table->tablespace) == 0) {
       old_size = mem_heap_get_size(table->heap);
@@ -15505,7 +15505,7 @@ static int innodb_alter_tablespace(handlerton *hton, THD *thd,
     }
   }
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   return 0;
 }
@@ -16760,7 +16760,7 @@ int ha_innobase::info_low(uint flag, bool is_analyze) {
         opt = DICT_STATS_RECALC_TRANSIENT;
       }
 
-      ut_ad(!mutex_own(&dict_sys->mutex));
+      ut_ad(!dict_sys_mutex_own());
       ret = dict_stats_update(ib_table, opt);
 
       if (ret != DB_SUCCESS) {
@@ -20085,9 +20085,9 @@ static int innodb_internal_table_validate(THD *thd, SYS_VAR *var, void *save,
 
     dd_table_close(user_table, thd, &mdl, false);
 
-    DBUG_EXECUTE_IF("innodb_evict_autoinc_table", mutex_enter(&dict_sys->mutex);
+    DBUG_EXECUTE_IF("innodb_evict_autoinc_table", dict_sys_mutex_enter();
                     dict_table_remove_from_cache_debug(user_table, true);
-                    mutex_exit(&dict_sys->mutex););
+                    dict_sys_mutex_exit(););
   }
 
   return (ret);
@@ -23023,10 +23023,10 @@ innobase_index_cond(ha_innobase *h) /*!< in/out: pointer to ha_innobase */
 /** Get the computed value by supplying the base column values.
 @param[in,out]	table	the table whose virtual column template to be built */
 void innobase_init_vc_templ(dict_table_t *table) {
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   if (table->vc_templ != nullptr) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     return;
   }
@@ -23049,7 +23049,7 @@ void innobase_init_vc_templ(dict_table_t *table) {
           &innobase_build_v_templ_callback, static_cast<void *>(table));
   ut_ad(!ret);
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 }
 
 /** Change dbname and table name in table->vc_templ.

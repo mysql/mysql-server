@@ -738,10 +738,10 @@ void trx_resurrect_locks() {
         ut_ad(!table->is_temporary());
 
         if (table->ibd_file_missing || table->is_temporary()) {
-          mutex_enter(&dict_sys->mutex);
+          dict_sys_mutex_enter();
           dd_table_close(table, nullptr, nullptr, true);
           dict_table_remove_from_cache(table);
-          mutex_exit(&dict_sys->mutex);
+          dict_sys_mutex_exit();
           continue;
         }
 

@@ -1388,7 +1388,7 @@ static bool innobase_init_foreign(
     ulint referenced_num_field)           /*!< in: number of referenced
                                           columns */
 {
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   if (constraint_name) {
     ulint db_len;
@@ -1779,7 +1779,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
       db_namep = &db_name[0];
     }
 #endif
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     referenced_table_name = dd_get_referenced_table(
         table->name.m_name, db_namep, db_name_len, tbl_namep, tbl_name_len,
@@ -1795,7 +1795,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
         });
 
     if (!referenced_table && trx->check_foreigns) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       my_error(ER_FK_CANNOT_OPEN_PARENT, MYF(0), tbl_namep);
 
       goto err_exit;
@@ -1822,7 +1822,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
         index in the the index create clause */
         if (!referenced_index) {
           dd_table_close(referenced_table, current_thd, &mdl, true);
-          mutex_exit(&dict_sys->mutex);
+          dict_sys_mutex_exit();
           my_error(ER_FK_NO_INDEX_PARENT, MYF(0),
                    fk_key->name.str ? fk_key->name.str : "", tbl_namep);
           goto err_exit;
@@ -1838,7 +1838,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
       if (referenced_table) {
         dd_table_close(referenced_table, current_thd, &mdl, true);
       }
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       my_error(ER_CANNOT_ADD_FOREIGN, MYF(0), tbl_namep);
       goto err_exit;
     }
@@ -1850,7 +1850,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
       if (referenced_table) {
         dd_table_close(referenced_table, current_thd, &mdl, true);
       }
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       my_error(ER_FK_DUP_NAME, MYF(0), add_fk[num_fk]->id);
       goto err_exit;
     }
@@ -1858,7 +1858,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_get_foreign_key_info(
     if (referenced_table) {
       dd_table_close(referenced_table, current_thd, &mdl, true);
     }
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     correct_option = innobase_set_foreign_key_option(add_fk[num_fk], fk_key);
 
@@ -2950,7 +2950,7 @@ online ALTER operation.
 @param[in]	locked	if it is dict_sys mutex locked */
 static void online_retry_drop_dict_indexes(dict_table_t *table, bool locked) {
   if (!locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   bool modify = false;
@@ -2980,7 +2980,7 @@ static void online_retry_drop_dict_indexes(dict_table_t *table, bool locked) {
   }
 
   if (!locked) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 }
 
@@ -4641,19 +4641,19 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
       }
     }
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     error = row_create_table_for_mysql(ctx->new_table, compression,
                                        ha_alter_info->create_info, ctx->trx);
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     switch (error) {
       dict_table_t *temp_table;
       case DB_SUCCESS:
         /* To bump up the table ref count and move it
         to LRU list if it's not temporary table */
-        ut_ad(mutex_own(&dict_sys->mutex));
+        ut_ad(dict_sys_mutex_own());
         if (!ctx->new_table->is_temporary() &&
             !ctx->new_table->explicitly_non_lru) {
           dict_table_allow_eviction(ctx->new_table);
@@ -4848,7 +4848,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
     trx_dict_op_t op = trx_get_dict_operation(ctx->trx);
 #endif
     ut_ad(ctx->trx->dict_operation_lock_mode == RW_X_LATCH);
-    ut_ad(mutex_own(&dict_sys->mutex));
+    ut_ad(dict_sys_mutex_own());
     ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
     DICT_TF2_FLAG_SET(ctx->new_table, DICT_TF2_FTS);
@@ -4863,9 +4863,9 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
     /* This function will commit the transaction and reset
     the trx_t::dict_operation flag on success. */
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     error = fts_create_index_tables(ctx->trx, fts_index);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     DBUG_EXECUTE_IF("innodb_test_fail_after_fts_index_table",
                     error = DB_LOCK_WAIT_TIMEOUT;
@@ -4879,7 +4879,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
         ib_vector_size(ctx->new_table->fts->indexes) == 0) {
       bool exist_fts_common;
 
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       exist_fts_common = fts_check_common_tables_exist(ctx->new_table);
 
       if (!exist_fts_common) {
@@ -4890,7 +4890,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
                         error = DB_LOCK_WAIT_TIMEOUT;);
 
         if (error != DB_SUCCESS) {
-          mutex_enter(&dict_sys->mutex);
+          dict_sys_mutex_enter();
           goto error_handling;
         }
 
@@ -4902,7 +4902,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool prepare_inplace_alter_table_dict(
                   ? DB_SUCCESS
                   : DB_ERROR;
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
 
       if (error != DB_SUCCESS) {
         goto error_handling;
@@ -4956,9 +4956,9 @@ error_handling:
     case DB_SUCCESS:
       ut_a(!dict_locked);
 
-      ut_d(mutex_enter(&dict_sys->mutex));
+      ut_d(dict_sys_mutex_enter());
       ut_d(dict_table_check_for_dup_indexes(user_table, CHECK_PARTIAL_OK));
-      ut_d(mutex_exit(&dict_sys->mutex));
+      ut_d(dict_sys_mutex_exit());
       return false;
     case DB_TABLESPACE_EXISTS:
       my_error(ER_TABLESPACE_EXISTS, MYF(0), "(unknown)");
@@ -5124,7 +5124,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool innobase_check_foreign_key_index(
 static void rename_index_in_cache(dict_index_t *index, const char *new_name) {
   DBUG_TRACE;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
   size_t old_name_len = strlen(index->name);
@@ -5308,9 +5308,9 @@ bool ha_innobase::prepare_inplace_alter_table_impl(
   }
 #endif /* UNIV_DEBUG */
 
-  ut_d(mutex_enter(&dict_sys->mutex));
+  ut_d(dict_sys_mutex_enter());
   ut_d(dict_table_check_for_dup_indexes(m_prebuilt->table, CHECK_ABORTED_OK));
-  ut_d(mutex_exit(&dict_sys->mutex));
+  ut_d(dict_sys_mutex_exit());
 
   indexed_table = m_prebuilt->table;
 
@@ -6169,9 +6169,9 @@ oom:
     KEY *dup_key;
   all_done:
   case DB_SUCCESS:
-    ut_d(mutex_enter(&dict_sys->mutex));
+    ut_d(dict_sys_mutex_enter());
     ut_d(dict_table_check_for_dup_indexes(m_prebuilt->table, CHECK_PARTIAL_OK));
-    ut_d(mutex_exit(&dict_sys->mutex));
+    ut_d(dict_sys_mutex_exit());
     /* prebuilt->table->n_ref_count can be anything here,
     given that we hold at most a shared lock on the table. */
     goto ok_exit;
@@ -6230,7 +6230,7 @@ oom:
 static void innobase_online_rebuild_log_free(dict_table_t *table) {
   dict_index_t *clust_index = table->first_index();
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
   ut_ad(rw_lock_own(dict_operation_lock, RW_LOCK_X));
 
   rw_lock_x_lock(&clust_index->lock);
@@ -6610,7 +6610,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   DBUG_TRACE;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   user_table = ctx->old_table;
 
@@ -6676,13 +6676,13 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   also be loaded. */
 
   while (err == DB_SUCCESS && !fk_tables.empty()) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dd::cache::Dictionary_client *client = dd::get_dd_client(user_thd);
 
     dd::cache::Dictionary_client::Auto_releaser releaser(client);
 
     dd_open_fk_tables(fk_tables, false, user_thd);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   return err;
@@ -7111,10 +7111,10 @@ inline MY_ATTRIBUTE((warn_unused_result)) bool commit_cache_norebuild(
       /* It is a single table tablespace and the .ibd file is
       missing if root is FIL_NULL, do nothing. */
       if (index->page != FIL_NULL) {
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
         ut_d(dberr_t err =) log_ddl->write_free_tree_log(trx, index, true);
         ut_ad(err == DB_SUCCESS);
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
       }
 
       btr_drop_ahi_for_index(index);
@@ -8083,13 +8083,13 @@ class alter_part {
   @param part_name	Partiioned table name .*/
   inline void free_old_part(bool check_in_cache, const char *part_name) {
     if (check_in_cache) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
 
       if (!dict_table_check_if_in_cache_low(part_name)) {
         *m_old = nullptr;
       }
 
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
     } else {
       *m_old = nullptr;
@@ -8567,11 +8567,11 @@ class alter_part_normal : public alter_part {
 
     btr_drop_ahi_for_table(*m_old);
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dd_table_close(*m_old, nullptr, nullptr, true);
     dict_table_remove_from_cache(*m_old);
     *m_old = nullptr;
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     return (0);
   }
 };
@@ -8657,12 +8657,12 @@ class alter_part_add : public alter_part {
                        m_file_per_table, m_autoinc, autoextend_size);
 
     if (error == 0 && alter_parts::need_copy(m_ha_alter_info)) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       m_new = dict_table_check_if_in_cache_low(part_name);
       ut_ad(m_new != nullptr);
       m_new->acquire();
       dict_table_ddl_release(m_new);
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
       return (m_new == nullptr ? DB_TABLE_NOT_FOUND : 0);
     }
@@ -8784,9 +8784,9 @@ class alter_part_drop : public alter_part {
                  dd::Partition *new_part) override {
     ut_ad(new_part == nullptr);
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_ddl_acquire(*m_old);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dd_table_close(*m_old, nullptr, nullptr, false);
 
     int error;
@@ -8973,12 +8973,12 @@ int alter_part_change::prepare(TABLE *altered_table,
                      m_file_per_table, m_autoinc, autoextend_size);
 
   if (error == 0) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     m_new = dict_table_check_if_in_cache_low(part_name);
     ut_ad(m_new != nullptr);
     m_new->acquire();
     dict_table_ddl_release(m_new);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     return (m_new == nullptr);
   }
@@ -9006,9 +9006,9 @@ int alter_part_change::try_commit(const TABLE *table, TABLE *altered_table,
   char *temp_old_name = dict_mem_create_temporary_tablename(
       (*m_old)->heap, (*m_old)->name.m_name, (*m_old)->id);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   dict_table_ddl_acquire(*m_old);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   dd_table_close(*m_old, nullptr, nullptr, false);
 
   std::string db_str;
@@ -10636,9 +10636,9 @@ void exchange_partition_adjust_datadir(THD *thd, dict_table_t *table_p,
     table_s->data_dir_path = mem_heap_strdup(table_s->heap, str.c_str());
 
     ulint new_size = mem_heap_get_size(table_s->heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_sys->size += new_size - old_size;
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   if (table_p->data_dir_path != nullptr) {
@@ -10720,10 +10720,10 @@ int ha_innopart::exchange_partition_low(uint part_id, dd::Table *part_table,
   dict_table_t *swap;
   const ulint fold = ut_fold_ull(table_id);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
   HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, dict_table_t *, swap,
               ut_ad(swap->cached), swap->id == table_id);
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   ut_ad(swap != nullptr);
   ut_ad(swap->n_ref_count == 1);
 

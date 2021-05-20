@@ -57,6 +57,14 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "ut0new.h"
 #include "ut0rnd.h"
 
+#define dict_sys_mutex_enter() mutex_enter(&dict_sys->mutex)
+
+#define dict_sys_mutex_exit() mutex_exit(&dict_sys->mutex)
+
+#define dict_sys_mutex_own() mutex_own(&dict_sys->mutex)
+
+#define dict_sys_mutex_free() mutex_free(&dict_sys->mutex)
+
 #define DICT_HEAP_SIZE                   \
   100 /*!< initial memory heap size when \
       creating a table or index object */

@@ -331,7 +331,7 @@ int dd_table_open_on_dd_obj(THD *thd, dd::cache::Dictionary_client *client,
 
   ut_ad(table_id != dd::INVALID_OBJECT_ID);
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, dict_table_t *, table,
               ut_ad(table->cached), table->id == table_id);
@@ -340,7 +340,7 @@ int dd_table_open_on_dd_obj(THD *thd, dd::cache::Dictionary_client *client,
     table->acquire();
   }
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   if (table != nullptr) {
     return 0;
@@ -627,7 +627,7 @@ dict_table_t *dd_table_open_on_id(table_id_t table_id, THD *thd,
   char full_name[MAX_FULL_NAME_LEN + 1];
 
   if (!dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, dict_table_t *, ib_table,
@@ -646,7 +646,7 @@ reopen:
 
       if (sdi_index == nullptr) {
         if (!dict_locked) {
-          mutex_exit(&dict_sys->mutex);
+          dict_sys_mutex_exit();
         }
         return nullptr;
       }
@@ -657,15 +657,15 @@ reopen:
       ib_table->acquire();
 
       if (!dict_locked) {
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
       }
     } else {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
       ib_table = dd_table_open_on_id_low(thd, mdl, table_id);
 
       if (dict_locked) {
-        mutex_enter(&dict_sys->mutex);
+        dict_sys_mutex_enter();
       }
     }
 #else  /* !UNIV_HOTBACKUP */
@@ -682,7 +682,7 @@ reopen:
     }
 
     if (!dict_locked) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
   } else {
     for (;;) {
@@ -698,26 +698,26 @@ reopen:
 
       ut_ad(!ib_table->is_temporary());
 
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
 #ifndef UNIV_HOTBACKUP
       if (db_str.empty() || tbl_str.empty()) {
         if (dict_locked) {
-          mutex_enter(&dict_sys->mutex);
+          dict_sys_mutex_enter();
         }
         return nullptr;
       }
 
       if (dd_mdl_acquire(thd, mdl, db_str.c_str(), tbl_str.c_str())) {
         if (dict_locked) {
-          mutex_enter(&dict_sys->mutex);
+          dict_sys_mutex_enter();
         }
         return nullptr;
       }
 #endif /* !UNIV_HOTBACKUP */
 
       /* Re-lookup the table after acquiring MDL. */
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
 
       HASH_SEARCH(id_hash, dict_sys->table_id_hash, fold, dict_table_t *,
                   ib_table, ut_ad(ib_table->cached), ib_table->id == table_id);
@@ -752,7 +752,7 @@ reopen:
         }
       }
 
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       break;
     }
 
@@ -777,11 +777,11 @@ reopen:
 #endif /* !UNIV_HOTBACKUP */
 
     if (dict_locked) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
     }
   }
 
-  ut_ad(dict_locked == mutex_own(&dict_sys->mutex));
+  ut_ad(dict_locked == dict_sys_mutex_own());
 
   return ib_table;
 }
@@ -908,13 +908,13 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
       that we will find and return to it will not be dropped while the caller
       is using it. So it is safe to exit, get the mdl and enter again before
       finding this dict_table_t. */
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
 
     bool got_mdl = dd_mdl_acquire(thd, mdl, db_name.c_str(), tbl_name.c_str());
 
     if (dict_locked) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
     }
 
     if (got_mdl) {
@@ -923,7 +923,7 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
   }
 
   if (!dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   table = dict_table_check_if_in_cache_low(name);
@@ -931,12 +931,12 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
   if (table != nullptr) {
     table->acquire_with_lock();
     if (!dict_locked) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
     return table;
   }
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   const dd::Table *dd_table = nullptr;
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
@@ -991,11 +991,11 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
 
   if (table && table->is_corrupted() &&
       !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     table->release();
     dict_table_remove_from_cache(table);
     table = nullptr;
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   if (table == nullptr && mdl) {
@@ -1004,7 +1004,7 @@ dict_table_t *dd_table_open_on_name(THD *thd, MDL_ticket **mdl,
   }
 
   if (dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   return table;
@@ -2222,7 +2222,7 @@ static MY_ATTRIBUTE((warn_unused_result)) int dd_fill_one_dict_index(
   unsigned n_fields = key.user_defined_key_parts;
   unsigned n_uniq = n_fields;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
   /* This name cannot be used for a non-primary index */
   ut_ad(key_num == form->primary_key ||
         my_strcasecmp(system_charset_info, key.name, primary_key_name) != 0);
@@ -2495,7 +2495,7 @@ inline int dd_fill_dict_index(const dd::Table &dd_table, const TABLE *m_form,
                               bool strict, THD *m_thd) {
   int error = 0;
 
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   /* Create the keys */
   if (m_form->s->keys == 0 || m_form->s->primary_key == MAX_KEY) {
@@ -2619,14 +2619,14 @@ inline int dd_fill_dict_index(const dd::Table &dd_table, const TABLE *m_form,
     }
   } else {
   dd_error:
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
 
     for (dict_index_t *f_index = UT_LIST_GET_LAST(m_table->indexes);
          f_index != nullptr; f_index = UT_LIST_GET_LAST(m_table->indexes)) {
       dict_index_remove_from_cache(m_table, f_index);
     }
 
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     dict_mem_table_free(m_table);
   }
@@ -3511,7 +3511,7 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
     }
 
     if (!dict_locked) {
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
     }
 #ifdef UNIV_DEBUG
     dict_table_t *for_table;
@@ -3526,7 +3526,7 @@ dberr_t dd_table_load_fk_from_dd(dict_table_t *m_table,
     err =
         dict_foreign_add_to_cache(foreign, col_names, FALSE, true, ignore_err);
     if (!dict_locked) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
 
     if (err != DB_SUCCESS) {
@@ -3576,7 +3576,7 @@ dberr_t dd_table_load_fk(dd::cache::Dictionary_client *client,
   }
 
   if (dict_locked) {
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   DBUG_EXECUTE_IF("enable_stack_overrun_post_alter_commit",
@@ -3587,7 +3587,7 @@ dberr_t dd_table_load_fk(dd::cache::Dictionary_client *client,
                   { DBUG_SET("-d,simulate_stack_overrun"); });
 
   if (dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   return err;
@@ -3658,7 +3658,7 @@ dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
 #endif /* !_WIN32 */
       }
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
 
       /* Load the foreign table first */
       dict_table_t *foreign_table =
@@ -3677,7 +3677,7 @@ dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
                                             false, ignore_err);
             if (err != DB_SUCCESS) {
               foreign_table->release();
-              mutex_exit(&dict_sys->mutex);
+              dict_sys_mutex_exit();
               return err;
             }
           }
@@ -3698,7 +3698,7 @@ dberr_t dd_table_check_for_child(dd::cache::Dictionary_client *client,
         dict_sys->size += new_size - old_size;
       }
 
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
 
       ut_ad(it != child_name.end());
       ++it;
@@ -3756,7 +3756,7 @@ char *dd_get_first_path(mem_heap_t *heap, dict_table_t *table,
   dd::Object_id dd_space_id;
 
   ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_DD);
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -3886,7 +3886,7 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
                         mem_heap_t *heap, dict_err_ignore_t ignore_err,
                         uint32_t expected_fsp_flags) {
   ut_ad(!table->is_temporary());
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   /* The system and temporary tablespaces are preloaded and
   always available. */
@@ -3919,9 +3919,9 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
     } else if (srv_sys_tablespaces_open) {
       /* For avoiding deadlock, we need to exit
       dict_sys->mutex. */
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       shared_space_name = mem_strdup(dd_table_get_space_name(dd_table));
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
     } else {
       /* Make the temporary tablespace name. */
       shared_space_name =
@@ -3981,10 +3981,10 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
 
   /* If the space is not open yet, then try to open by dd path. If the file
   path is changed then boot_tablespaces() would always open the tablespace. */
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   filepath = dd_get_first_path(heap, table, dd_table);
   DEBUG_SYNC_C("innodb_dd_load_tablespace_no_dict_mutex");
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   if (filepath == nullptr) {
     ib::warn(ER_IB_MSG_173) << "Could not find the filepath"
@@ -4030,7 +4030,7 @@ char *dd_space_get_name(mem_heap_t *heap, dict_table_t *table,
   dd::Tablespace *dd_space = nullptr;
 
   ut_ad(srv_shutdown_state.load() < SRV_SHUTDOWN_DD);
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   dd::cache::Dictionary_client *client = dd::get_dd_client(thd);
   dd::cache::Dictionary_client::Auto_releaser releaser(client);
@@ -4272,7 +4272,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
       /* Make sure the data_dir_path is set in the dict_table_t. */
       dd_get_and_save_data_dir_path(m_table, dd_table, false);
 
-      mutex_enter(&dict_sys->mutex);
+      dict_sys_mutex_enter();
       dd_load_tablespace(dd_table, m_table, heap, DICT_ERR_IGNORE_RECOVER_LOCK,
                          dd_fsp_flags);
 
@@ -4294,7 +4294,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
         ut_ad(ret == DB_SUCCESS);
       }
 
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
       first_index = false;
     }
 
@@ -4328,7 +4328,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
     dd_get_and_save_space_name(m_table, dd_table, false);
   }
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   if (fail) {
     for (dict_index_t *index = UT_LIST_GET_LAST(m_table->indexes);
@@ -4336,7 +4336,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
       dict_index_remove_from_cache(m_table, index);
     }
     dict_mem_table_free(m_table);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     mem_heap_free(heap);
 
     return nullptr;
@@ -4367,7 +4367,7 @@ dict_table_t *dd_open_table_one(dd::cache::Dictionary_client *client,
 
   m_table->acquire();
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
 
   /* Check if this is a DD system table */
   if (m_table != nullptr) {
@@ -4407,7 +4407,7 @@ static void dd_open_table_one_on_name(const char *name, bool dict_locked,
   MDL_ticket *mdl = nullptr;
 
   if (!dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 
   table = dict_table_check_if_in_cache_low(name);
@@ -4415,7 +4415,7 @@ static void dd_open_table_one_on_name(const char *name, bool dict_locked,
   if (table != nullptr) {
     /* If the table is in cached already, do nothing. */
     if (!dict_locked) {
-      mutex_exit(&dict_sys->mutex);
+      dict_sys_mutex_exit();
     }
 
     return;
@@ -4423,7 +4423,7 @@ static void dd_open_table_one_on_name(const char *name, bool dict_locked,
     /* Otherwise, open it by dd obj. */
 
     /* Exit sys mutex to access server info */
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
 
     std::string db_str;
     std::string tbl_str;
@@ -4480,7 +4480,7 @@ func_exit:
   }
 
   if (dict_locked) {
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
   }
 }
 

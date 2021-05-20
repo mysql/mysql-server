@@ -151,7 +151,7 @@ void dict_hdr_flush_row_id(void) {
   row_id_t id;
   mtr_t mtr;
 
-  ut_ad(mutex_own(&dict_sys->mutex));
+  ut_ad(dict_sys_mutex_own());
 
   id = dict_sys->row_id;
 
@@ -278,9 +278,9 @@ dberr_t dict_boot(void) {
     table->id = DICT_TABLES_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dict_sys->sys_tables = table;
     mem_heap_empty(heap);
 
@@ -323,9 +323,9 @@ dberr_t dict_boot(void) {
     table->id = DICT_COLUMNS_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dict_sys->sys_columns = table;
     mem_heap_empty(heap);
 
@@ -359,9 +359,9 @@ dberr_t dict_boot(void) {
     table->id = DICT_INDEXES_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dict_sys->sys_indexes = table;
     mem_heap_empty(heap);
 
@@ -388,9 +388,9 @@ dberr_t dict_boot(void) {
     table->id = DICT_FIELDS_ID;
 
     dict_table_add_system_columns(table, heap);
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_table_add_to_cache(table, FALSE, heap);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
     dict_sys->sys_fields = table;
     mem_heap_free(heap);
 
@@ -407,12 +407,12 @@ dberr_t dict_boot(void) {
         mtr_read_ulint(dict_hdr + DICT_HDR_FIELDS, MLOG_4BYTES, &mtr), FALSE);
     ut_a(err == DB_SUCCESS);
 
-    mutex_enter(&dict_sys->mutex);
+    dict_sys_mutex_enter();
     dict_load_sys_table(dict_sys->sys_tables);
     dict_load_sys_table(dict_sys->sys_columns);
     dict_load_sys_table(dict_sys->sys_indexes);
     dict_load_sys_table(dict_sys->sys_fields);
-    mutex_exit(&dict_sys->mutex);
+    dict_sys_mutex_exit();
   }
 
   mtr_commit(&mtr);

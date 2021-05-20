@@ -508,7 +508,7 @@ void que_graph_free(que_t *graph) /*!< in: query graph; we assume that the
                                   afterwards! */
 {
   ut_ad(graph);
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   if (graph->sym_tab) {
     /* The following call frees dynamic memory allocated

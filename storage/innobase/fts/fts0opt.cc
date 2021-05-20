@@ -2692,7 +2692,7 @@ static bool fts_is_sync_needed(const ib_vector_t *tables) /*!< in: registered
 
   last_check_sync_time = ut_time_monotonic();
 
-  mutex_enter(&dict_sys->mutex);
+  dict_sys_mutex_enter();
 
   for (ulint i = 0; i < ib_vector_size(tables); ++i) {
     const fts_slot_t *slot;
@@ -2713,13 +2713,13 @@ static bool fts_is_sync_needed(const ib_vector_t *tables) /*!< in: registered
       }
 
       if (total_memory > fts_max_total_cache_size) {
-        mutex_exit(&dict_sys->mutex);
+        dict_sys_mutex_exit();
         return (true);
       }
     }
   }
 
-  mutex_exit(&dict_sys->mutex);
+  dict_sys_mutex_exit();
   return (false);
 }
 

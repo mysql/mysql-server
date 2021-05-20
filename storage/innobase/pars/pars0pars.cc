@@ -1717,7 +1717,7 @@ que_t *pars_sql(pars_info_t *info, /*!< in: extra information, or NULL */
 
   /* Currently, the parser is not reentrant: */
   ut_ad(mutex_own(&pars_mutex));
-  ut_ad(!mutex_own(&dict_sys->mutex));
+  ut_ad(!dict_sys_mutex_own());
 
   pars_sym_tab_global = sym_tab_create(heap);
 
