@@ -54,6 +54,7 @@
 #include <signaldata/LocalSysfile.hpp>
 #include <signaldata/SyncThreadViaReqConf.hpp>
 #include <signaldata/TakeOverTcConf.hpp>
+#include <signaldata/TrpKeepAlive.hpp>
 #include <signaldata/GetNumMultiTrp.hpp>
 #include <signaldata/Sync.hpp>
 #include <ndb_version.h>
@@ -384,6 +385,12 @@ void Qmgr::execCONTINUEB(Signal* signal)
   {
     jam();
     send_switch_multi_transporter(signal, signal->theData[1], true);
+    return;
+  }
+  case ZSEND_TRP_KEEP_ALIVE:
+  {
+    jam();
+    send_trp_keep_alive(signal);
     return;
   }
   default:
@@ -777,6 +784,13 @@ void Qmgr::setCCDelay(UintR aCCDelay)
     m_connectivity_check.m_timer.setDelay(aCCDelay < 10 ? 10 : aCCDelay);
     m_connectivity_check.m_timer.reset(now);
   }
+}
+
+void Qmgr::setTrpKeepAliveSendDelay(Uint32 delay)
+{
+  const NDB_TICKS now = NdbTick_getCurrentTicks();
+  ka_send_timer.setDelay(delay);
+  ka_send_timer.reset(now);
 }
 
 void Qmgr::execCONNECT_REP(Signal* signal)
@@ -3552,6 +3566,13 @@ void Qmgr::timerHandlingLab(Signal* signal)
     jam();
     hb_api_timer.reset(TcurrentTime);
     apiHbHandlingLab(signal, TcurrentTime);
+  }
+
+  if (ka_send_timer.check(TcurrentTime))
+  {
+    jam();
+    ka_send_timer.reset(TcurrentTime);
+    send_trp_keep_alive_start(signal);
   }
 
   Ndb_GetRUsage(&m_timer_handling_rusage, false);
@@ -7690,6 +7711,20 @@ Qmgr::execAPI_BROADCAST_REP(Signal* signal)
 }
 
 void
+Qmgr::execTRP_KEEP_ALIVE(Signal* signal)
+{
+  /*
+   * This signal is sent via explicit transporter and signal may come in other
+   * order than other signals from same sender.
+   * That is ok since this signal is only there to generate traffic such that
+   * connection is not taken as idle connection and disconnected if one run in
+   * an environment there connection traffics are monitored and disconnected
+   * if idle for too long.
+   */
+  jamEntry();
+}
+
+void
 Qmgr::execNODE_FAILREP(Signal * signal)
 {
   jamEntry();
@@ -9668,6 +9703,72 @@ Qmgr::create_multi_transporter(NodeId node_id)
   DEB_MULTI_TRP(("Create multi trp for node %u", node_id));
   globalTransporterRegistry.createMultiTransporter(node_id,
                                                    m_num_multi_trps);
+}
+
+/*
+ * TRP_KEEP_ALIVE
+ */
+
+void Qmgr::send_trp_keep_alive_start(Signal* signal)
+{
+  jam();
+  c_keepalive_seqnum++;
+  if (c_keep_alive_send_in_progress)
+  {
+    jam();
+    g_eventLogger->warning("Sending keep alive messages on all links is slow, "
+                           "skipping one round (%u) of sending.",
+                           c_keepalive_seqnum);
+    return;
+  }
+  c_keep_alive_send_in_progress = true;
+  constexpr Uint32 node_id = 0;
+  signal->theData[0] = ZSEND_TRP_KEEP_ALIVE;
+  signal->theData[1] = node_id;
+  signal->theData[2] = c_keepalive_seqnum;
+  send_trp_keep_alive(signal);
+}
+
+void Qmgr::send_trp_keep_alive(Signal* signal)
+{
+  jam();
+
+  Uint32 node_id = signal->theData[1];
+  Uint32 keepalive_seqnum = signal->theData[2];
+
+  if ((node_id = c_clusterNodes.find(node_id)) != NdbNodeBitmask::NotFound)
+  {
+    jam();
+    NodeInfo nodeInfo = getNodeInfo(node_id);
+    ndbrequire(nodeInfo.m_type == NodeInfo::DB);
+    if (node_id != getOwnNodeId() &&
+        nodeInfo.m_version != 0 &&
+        ndbd_support_trp_keep_alive(nodeInfo.m_version))
+    {
+      jam();
+
+      const BlockReference qmgr_ref = calcQmgrBlockRef(node_id);
+
+      TrpKeepAlive* sig = reinterpret_cast<TrpKeepAlive*>(signal->theData);
+      sig->senderRef = reference();
+      sig->keepalive_seqnum = keepalive_seqnum;
+      Signal25* signal25 = reinterpret_cast<Signal25*>(signal);
+      sendSignalOverAllLinks(qmgr_ref, GSN_TRP_KEEP_ALIVE, signal25, 2, JBB);
+    }
+    node_id++;
+  }
+
+  if (node_id == NdbNodeBitmask::NotFound)
+  {
+    jam();
+    c_keep_alive_send_in_progress = false;
+    return;
+  }
+
+  signal->theData[0] = ZSEND_TRP_KEEP_ALIVE;
+  signal->theData[1] = node_id;
+  signal->theData[2] = keepalive_seqnum;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBA);
 }
 
 #include "../../../common/transporter/Transporter.hpp"
