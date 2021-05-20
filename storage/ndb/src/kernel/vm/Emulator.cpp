@@ -673,6 +673,8 @@ static const char* const jamFileNames[] =
    "QRestore.cpp",                       // 538
    "QRestoreProxy.hpp",                  // 539
    "QRestoreProxy.cpp",                  // 540
+   "TrpKeepAlive.hpp",                   // 541
+   "TrpKeepAlive.cpp",                   // 542
    };
 
 bool 

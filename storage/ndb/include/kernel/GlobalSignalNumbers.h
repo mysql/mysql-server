@@ -31,7 +31,7 @@
  *
  * When adding a new signal, remember to update MAX_GSN and SignalNames.cpp
  */
-const GlobalSignalNumber MAX_GSN = 849;
+const GlobalSignalNumber MAX_GSN = 850;
 
 struct GsnName {
   GlobalSignalNumber gsn;
@@ -1213,4 +1213,6 @@ extern const GlobalSignalNumber NO_OF_SIGNAL_NAMES;
 #define GSN_MEASURE_WAKEUP_TIME_ORD     847
 #define GSN_UPD_QUERY_DIST_ORD          848
 #define GSN_UPD_THR_LOAD_ORD            849
+
+#define GSN_TRP_KEEP_ALIVE              850
 #endif

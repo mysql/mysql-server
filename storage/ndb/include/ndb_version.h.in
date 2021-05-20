@@ -677,4 +677,16 @@ ndbd_support_sql_compare_semantics(Uint32 x)
 {
   return x >= NDBD_SUPPORT_SQL_COMPARE_SEMANTICS;
 }
+
+/*
+ * Only send GSN_TRP_KEEP_ALIVE to data nodes from 8.0.27 and newer.
+ */
+#define NDBD_SUPPORT_TRP_KEEP_ALIVE NDB_MAKE_VERSION(8,0,27)
+static
+inline
+bool
+ndbd_support_trp_keep_alive(Uint32 x)
+{
+  return x >= NDBD_SUPPORT_TRP_KEEP_ALIVE;
+}
 #endif
