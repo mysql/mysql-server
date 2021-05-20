@@ -333,8 +333,6 @@ SET(SQL_GIS_SOURCES
   item_geofunc_buffer.cc
   item_geofunc_internal.cc
   item_geofunc_relchecks.cc
-  item_geofunc_relchecks_bgwrap.cc
-  item_geofunc_setops.cc
   options_parser.cc
 )
 
@@ -788,7 +786,6 @@ IF(WIN32)
     gis/within.cc
     item_geofunc.cc
     item_geofunc_relchecks.cc
-    item_geofunc_setops.cc
     COMPILE_FLAGS "/bigobj")
 ENDIF()
 
@@ -798,7 +795,6 @@ IF(MY_COMPILER_IS_GNU)
   IF(HAS_WARN_FLAG)
     ADD_COMPILE_FLAGS(
       geometry_rtree.cc
-      item_geofunc_relchecks_bgwrap.cc
       COMPILE_FLAGS ${HAS_WARN_FLAG}
       )
   ENDIF()
