@@ -628,17 +628,29 @@ static ibool trx_rollback_or_clean_resurrected(
                 TRUE=roll back all non-PREPARED transactions */
 {
   ut_ad(trx_sys_mutex_own());
+  ut_ad(trx->in_rw_trx_list);
 
-  /* The trx->is_recovered flag and trx->state are set
-  atomically under the protection of the trx->mutex . We do not want
-  to accidentally clean up a non-recovered transaction here. */
+  /* Generally, an HA transaction with is_recovered && state==TRX_STATE_PREPARED
+  can be committed or rolled back by a client who knows its XID at any time.
+  To prove that no such state transition is possible while our thread operates,
+  observe that we hold trx_sys->mutex which is required by both commit and
+  rollback to deregister the trx from trx_sys->rw_trx_list during
+  trx_release_impl_and_expl_locks() and we see the trx is still in this list.
+  Thus, if we see is_recovered==true, then the state can not change until we
+  release the trx_sys->mutex. Moreover for TRX_STATE_PREPARED we do nothing, so
+  we will not interfere with an HA COMMIT or ROLLBACK. So, if XA ROLLBACK or
+  COMMIT latches trx_sys->mutex before us, then we will not see the trx in the
+  rw_trx_list (so trx_rollback_or_clean_resurrected() would not be called for
+  this transaction in the first place), and if we latch first, then we will
+  leave the trx intact. */
 
   trx_mutex_enter(trx);
-  bool is_recovered = trx->is_recovered;
-  trx_state_t state = trx->state;
+  const bool is_recovered = trx->is_recovered;
+  const trx_state_t state = trx->state;
   trx_mutex_exit(trx);
 
   if (!is_recovered) {
+    ut_ad(state != TRX_STATE_COMMITTED_IN_MEMORY);
     return (FALSE);
   }
 
@@ -650,12 +662,14 @@ static ibool trx_rollback_or_clean_resurrected(
 
       trx_cleanup_at_db_startup(trx);
       trx_free_resurrected(trx);
+      ut_ad(!trx->is_recovered);
       return (TRUE);
     case TRX_STATE_ACTIVE:
       if (all || trx->ddl_operation) {
         trx_sys_mutex_exit();
         trx_rollback_active(trx);
         trx_free_for_background(trx);
+        ut_ad(!trx->is_recovered);
         return (TRUE);
       }
       return (FALSE);
