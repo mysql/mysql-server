@@ -434,4 +434,13 @@ DROP USER 'bug28749668'@'%';
 include/assert_grep.inc [Server should fail to start as mysqld-auto.cnf file is with wrong JSON format.]
 # start server with all defaults
 # restart:
+#
+# Bug #32761053: SET PERSIST_ONLY ... = DEFAULT IS BROKEN FOR ENUM VARIABLES
+#
+SET PERSIST_ONLY replica_exec_mode = DEFAULT;
+SELECT * FROM performance_schema.persisted_variables
+WHERE variable_name='replica_exec_mode';
+VARIABLE_NAME	VARIABLE_VALUE
+replica_exec_mode	STRICT
+RESET PERSIST;
 # End of the 8.0 tests
