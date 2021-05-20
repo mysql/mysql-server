@@ -42,8 +42,7 @@
 /// the hash table key will be the value found in "t2.key", since that is the
 /// join condition that belongs to t2. If we have multiple equalities, they
 /// will be concatenated together in order to form the hash table key. The hash
-/// table key is bascially an std::string_view, and should be replaced when we
-/// go to C++17.
+/// table key is a std::string_view.
 ///
 /// In order to store a row, we use the function StoreFromTableBuffers. See the
 /// comments attached to the function for more details.
@@ -105,32 +104,7 @@ namespace hash_join_buffer {
 /// buffer, the data must have the same lifetime as the row buffer itself.
 /// When using the Key class for lookups in the row buffer, the same lifetime is
 /// not needed; the key object is only needed when the lookup is done.
-///
-/// When we move to C++17, this class should most likely be replaced with
-/// std::string_view.
-class Key {
- public:
-  /// Note that data can be nullptr if size is 0.
-  Key(const uchar *data, size_t size) : m_data(data), m_size(size) {}
-
-  bool operator==(const Key &other) const {
-    if (other.size() != size()) {
-      return false;
-    } else if (size() == 0) {
-      return true;
-    }
-
-    return memcmp(other.data(), data(), size()) == 0;
-  }
-
-  const uchar *data() const { return m_data; }
-
-  size_t size() const { return m_size; }
-
- private:
-  const uchar *m_data;
-  const size_t m_size;
-};
+using Key = std::string_view;
 
 class KeyEquals {
  public:
@@ -142,14 +116,7 @@ class KeyEquals {
 
   bool operator()(const Key &str1,
                   const ImmutableStringWithLength &other) const {
-    ImmutableStringWithLength::Decoded str2 = other.Decode();
-    if (str1.size() != str2.size) {
-      return false;
-    } else if (str1.size() == 0) {
-      return true;
-    } else {
-      return memcmp(str1.data(), str2.data, str1.size()) == 0;
-    }
+    return str1 == other.Decode();
   }
 
   bool operator()(const ImmutableStringWithLength &str1,
@@ -158,9 +125,7 @@ class KeyEquals {
   }
 };
 
-// A row in the hash join buffer is generally the same as the Key class. In
-// C++17, both of them should most likely be replaced with std::string_view. For
-// now, we create an alias to distinguish between Key and a row.
+// A row in the hash join buffer is the same as the Key class.
 using BufferRow = Key;
 
 class KeyHasher {
@@ -176,8 +141,8 @@ class KeyHasher {
   }
 
   size_t operator()(ImmutableStringWithLength key) const {
-    ImmutableStringWithLength::Decoded decoded = key.Decode();
-    return robin_hood::hash_bytes(decoded.data, decoded.size);
+    std::string_view decoded = key.Decode();
+    return robin_hood::hash_bytes(decoded.data(), decoded.size());
   }
 };
 

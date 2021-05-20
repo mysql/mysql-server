@@ -102,9 +102,9 @@ HashJoinRowBuffer::StoreLinkedImmutableStringFromTableBuffers(
 // pointer for us.
 void LoadBufferRowIntoTableBuffers(const TableCollection &tables,
                                    BufferRow row) {
-  const uchar *end MY_ATTRIBUTE((unused)) =
-      LoadIntoTableBuffers(tables, row.data());
-  assert(end == row.data() + row.size());
+  const uchar *data = pointer_cast<const uchar *>(row.data());
+  const uchar *end MY_ATTRIBUTE((unused)) = LoadIntoTableBuffers(tables, data);
+  assert(end == data + row.size());
 }
 
 void LoadImmutableStringIntoTableBuffers(const TableCollection &tables,

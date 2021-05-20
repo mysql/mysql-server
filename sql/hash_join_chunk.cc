@@ -152,7 +152,7 @@ bool HashJoinChunk::LoadRowFromChunk(String *buffer, bool *matched) {
   }
 
   hash_join_buffer::LoadBufferRowIntoTableBuffers(
-      m_tables, {pointer_cast<const uchar *>(buffer->ptr()), buffer->length()});
+      m_tables, {buffer->ptr(), buffer->length()});
 
   return false;
 }

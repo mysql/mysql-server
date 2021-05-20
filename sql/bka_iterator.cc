@@ -132,9 +132,8 @@ int BKAIterator::ReadOuterRows() {
       m_has_row_from_previous_batch = false;
       LoadBufferRowIntoTableBuffers(
           m_outer_input_tables,
-          hash_join_buffer::Key(
-              pointer_cast<const uchar *>(m_outer_row_buffer.ptr()),
-              m_outer_row_buffer.length()));
+          hash_join_buffer::Key(m_outer_row_buffer.ptr(),
+                                m_outer_row_buffer.length()));
     } else {
       int result = m_outer_input->Read();
       if (result == 1) {
@@ -177,7 +176,7 @@ int BKAIterator::ReadOuterRows() {
       break;
     }
 
-    uchar *row = m_mem_root.ArrayAlloc<uchar>(row_size);
+    char *row = m_mem_root.ArrayAlloc<char>(row_size);
     if (row == nullptr) {
       return 1;
     }
@@ -254,7 +253,8 @@ int BKAIterator::MakeNullComplementedRow() {
     } else {
       // Return a NULL-complemented row. (Our table already has the NULL flag
       // set.)
-      LoadIntoTableBuffers(m_outer_input_tables, m_current_pos->data());
+      LoadIntoTableBuffers(m_outer_input_tables,
+                           pointer_cast<const uchar *>(m_current_pos->data()));
       ++m_current_pos;
       return 0;
     }
@@ -441,7 +441,8 @@ int MultiRangeRowIterator::Read() {
     // See bug #30594210.
   } while (m_join_type == JoinType::SEMI && RowHasBeenRead(rec_ptr));
 
-  LoadIntoTableBuffers(m_outer_input_tables, rec_ptr->data());
+  LoadIntoTableBuffers(m_outer_input_tables,
+                       pointer_cast<const uchar *>(rec_ptr->data()));
 
   m_last_row_returned = rec_ptr;
 

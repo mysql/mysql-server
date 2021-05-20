@@ -880,9 +880,8 @@ void HashJoinIterator::LookupProbeRowInHashTable() {
     return;
   }
 
-  hash_join_buffer::Key key{
-      pointer_cast<uchar *>(m_temporary_row_and_join_key_buffer.ptr()),
-      m_temporary_row_and_join_key_buffer.length()};
+  hash_join_buffer::Key key{m_temporary_row_and_join_key_buffer.ptr(),
+                            m_temporary_row_and_join_key_buffer.length()};
 
   auto it = m_row_buffer.find(key);
   if (it == m_row_buffer.end()) {
