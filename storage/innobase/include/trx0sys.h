@@ -196,14 +196,6 @@ violation in case of holding trx->mutex.
 static inline trx_t *trx_rw_is_active(trx_id_t trx_id, ibool *corrupt,
                                       bool do_ref_count);
 
-#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-/** Assert that a transaction has been recovered.
- @return true */
-static inline ibool trx_assert_recovered(
-    trx_id_t trx_id) /*!< in: transaction identifier */
-    MY_ATTRIBUTE((warn_unused_result));
-#endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-
 /** Persist transaction number limit below which all transaction GTIDs
 are persisted to disk table.
 @param[in]	gtid_trx_no	transaction number */

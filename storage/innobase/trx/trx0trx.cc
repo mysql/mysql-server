@@ -586,7 +586,14 @@ void trx_free_prepared_or_active_recovered(trx_t *trx) {
     ut_a(trx_state_eq(trx, TRX_STATE_PREPARED));
     expected_undo_state = TRX_UNDO_PREPARED;
   }
-
+  /* A PREPARED transaction which got disconnected often has nonzero will_lock,
+  yet trx_free() expects it to be cleared. We clear it at the latest possible
+  moment, instead of doing it immediately on disconnect, because this field is
+  used to check if this transaction is "non-locking" in various functions which
+  might be called either here, or when another client reconnects to XA COMMIT or
+  XA ROLLBACK. Usually the field is cleared during rollback or commit, here we
+  have to do it ourselves as we neither rollback nor commit, just "free" it. */
+  ut_ad(!trx->will_lock || trx_state_eq(trx, TRX_STATE_PREPARED));
   assert_trx_in_rw_list(trx);
 
   trx_release_impl_and_expl_locks(trx, false);
@@ -596,18 +603,19 @@ void trx_free_prepared_or_active_recovered(trx_t *trx) {
   ut_a(!trx->read_only);
 
   trx->state = TRX_STATE_NOT_STARTED;
+  trx->will_lock = 0;
 
   trx_free(trx);
 }
 
-/** Disconnect a transaction from MySQL and optionally mark it as if
-it's been recovered. For the marking the transaction must be in prepared state.
-The recovery-marked transaction is going to survive "alone" so its association
-with the mysql handle is destroyed now rather than when it will be
-finally freed.
+/** Disconnect a transaction from MySQL.
 @param[in,out]	trx		transaction
-@param[in]	prepared	boolean value to specify whether trx is
-                                for recovery or not. */
+@param[in]	prepared	boolean value to specify whether trx is in
+                                TRX_STATE_PREPARED state (such as after XA
+                                PREPARE) and we want to unlink it from the
+                                mysql_thd object, so it can potentially be
+                                linked to another session in future.
+*/
 inline void trx_disconnect_from_mysql(trx_t *trx, bool prepared) {
   trx_sys_mutex_enter();
 
@@ -625,10 +633,15 @@ inline void trx_disconnect_from_mysql(trx_t *trx, bool prepared) {
   if (prepared) {
     ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 
-    trx->is_recovered = true;
+    /* During disconnection there is a short period when the server layer
+    already believes this XID is detached from this connection, and thus another
+    connection may try to XA COMMIT/ROLLBACK it, yet InnoDB is still processing
+    the trx object - another client can be executing innobase_commit_by_xid() in
+    parallel to our trx_disconnect_from_mysql(). We use trx->mysql_thd field,
+    under protection of trx_sys->mutex to synchronize with trx_get_trx_by_xid()
+    and convey if this trx is still attached to this thd or not. */
+    ut_ad(trx->mysql_thd != nullptr);
     trx->mysql_thd = nullptr;
-    /* todo/fixme: suggest to do it at innodb prepare */
-    trx->will_lock = 0;
   }
 
   trx_sys_mutex_exit();
@@ -966,6 +979,28 @@ static void trx_resurrect(trx_rseg_t *rseg) {
   }
 }
 
+/** Adds the transaction to trx_sys->rw_trx_list
+Requires trx_sys->mutex, unless called in the single threaded startup code.
+@param[in]  trx   The transaction assumed to not be in the rw_trx_list yet
+*/
+static inline void trx_add_to_rw_trx_list(trx_t *trx) {
+  ut_ad(srv_is_being_started || trx_sys_mutex_own());
+  ut_ad(!trx->in_rw_trx_list);
+  UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
+  ut_d(trx->in_rw_trx_list = true);
+}
+
+/** Removes the transaction from trx_sys->rw_trx_list.
+Requires trx_sys->mutex, unless called in the single threaded startup code.
+@param[in]  trx   The transaction assumed to be in the rw_trx_list
+*/
+static inline void trx_remove_from_rw_trx_list(trx_t *trx) {
+  ut_ad(srv_is_being_started || trx_sys_mutex_own());
+  ut_ad(trx->in_rw_trx_list);
+  UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
+  ut_d(trx->in_rw_trx_list = false);
+}
+
 /** Creates trx objects for transactions and initializes the trx list of
  trx_sys at database start. Rollback segments and undo log lists must
  already exist when this function is called, because the lists of
@@ -995,8 +1030,6 @@ void trx_lists_init_at_db_start(void) {
   TrxIdSet::iterator end = trx_sys->rw_trx_set.end();
 
   for (TrxIdSet::iterator it = trx_sys->rw_trx_set.begin(); it != end; ++it) {
-    ut_ad(it->m_trx->in_rw_trx_list);
-
     if (it->m_trx->id > trx_sys->rw_max_trx_id) {
       trx_sys->rw_max_trx_id = it->m_trx->id;
     }
@@ -1005,8 +1038,7 @@ void trx_lists_init_at_db_start(void) {
         it->m_trx->state == TRX_STATE_PREPARED) {
       trx_sys->rw_trx_ids.push_back(it->m_id);
     }
-
-    UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, it->m_trx);
+    trx_add_to_rw_trx_list(it->m_trx);
   }
 }
 
@@ -1280,9 +1312,7 @@ static void trx_start_low(
     ut_ad(trx->rsegs.m_redo.rseg != nullptr || srv_read_only_mode ||
           srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
 
-    UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
-
-    ut_d(trx->in_rw_trx_list = true);
+    trx_add_to_rw_trx_list(trx);
 
     trx->state = TRX_STATE_ACTIVE;
 
@@ -1736,11 +1766,11 @@ static void trx_erase_lists(trx_t *trx) {
     trx_sys->min_active_trx_id.store(min_id);
   }
 
+  ut_ad(1 == trx_sys->rw_trx_set.count(TrxTrack(trx->id)));
   if (trx->read_only || trx->rsegs.m_redo.rseg == nullptr) {
     ut_ad(!trx->in_rw_trx_list);
   } else {
-    UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
-    ut_d(trx->in_rw_trx_list = false);
+    trx_remove_from_rw_trx_list(trx);
     ut_ad(trx_sys_validate_trx_list());
 
     if (trx->read_view != nullptr) {
@@ -2167,10 +2197,7 @@ void trx_cleanup_at_db_startup(trx_t *trx) /*!< in: transaction */
   trx_sys_mutex_enter();
 
   ut_a(!trx->read_only);
-
-  UT_LIST_REMOVE(trx_sys->rw_trx_list, trx);
-
-  ut_d(trx->in_rw_trx_list = FALSE);
+  trx_remove_from_rw_trx_list(trx);
 
   trx_sys_mutex_exit();
 
@@ -3071,12 +3098,13 @@ static MY_ATTRIBUTE((warn_unused_result)) trx_t *trx_get_trx_by_xid_low(
   for (auto trx : trx_sys->rw_trx_list) {
     assert_trx_in_rw_list(trx);
 
-    /* Compare two X/Open XA transaction id's: their
-    length should be the same and binary comparison
-    of gtrid_length+bqual_length bytes should be
-    the same */
+    /* Most of the time server layer takes care of synchronizing access to a XID
+    from several connections, but when disconnecting there is a short period in
+    which server allows a new connection to pick up XID still processed by old
+    connection at InnoDB layer. To synchronize with trx_disconnect_from_mysql(),
+    we use trx->mysql_thd under protection of trx_sys->mutex. */
 
-    if (trx->is_recovered && trx_state_eq(trx, TRX_STATE_PREPARED) &&
+    if (trx->mysql_thd == nullptr && trx_state_eq(trx, TRX_STATE_PREPARED) &&
         xid->eq(trx->xid)) {
       /* Invalidate the XID, so that subsequent calls
       will not find it. */
@@ -3232,10 +3260,7 @@ void trx_set_rw_mode(trx_t *trx) /*!< in/out: transaction that is RW */
   if (MVCC::is_view_active(trx->read_view)) {
     MVCC::set_view_creator_trx_id(trx->read_view, trx->id);
   }
-
-  UT_LIST_ADD_FIRST(trx_sys->rw_trx_list, trx);
-
-  ut_d(trx->in_rw_trx_list = true);
+  trx_add_to_rw_trx_list(trx);
 
   trx_sys_mutex_exit();
 }

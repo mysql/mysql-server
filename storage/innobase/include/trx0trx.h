@@ -970,10 +970,18 @@ struct trx_t {
   Protected by trx->mutex or lock_sys latches or both */
   trx_lock_t lock;
 
-  bool is_recovered; /*!< 0=normal transaction,
-                     1=recovered, must be rolled back,
-                     protected by trx_sys->mutex when
-                     trx->in_rw_trx_list holds */
+  /**
+  false:  a normal transaction
+  true:   a recovered transaction
+
+  Set to true when srv_is_being_started for recovered transactions.
+  Set to false without any protection in trx_init (where no other thread should
+  access this object anyway).
+  Can be read safely when holding trx_sys->mutex and trx belongs to rw_trx_list,
+  as trx_init can not be called until trx leaves rw_trx_list which requires the
+  trx_sys->mutex.
+  */
+  bool is_recovered;
 
   std::atomic<std::thread::id> killed_by; /*!< The thread ID that wants to
                             kill this transaction asynchronously.
@@ -1090,12 +1098,10 @@ struct trx_t {
   in consistent read */
   /*------------------------------*/
 #ifdef UNIV_DEBUG
-  /** The following two fields are mutually exclusive. */
-  /** @{ */
+  /** True iff in trx_sys->rw_trx_list */
+  bool in_rw_trx_list;
 
-  bool in_rw_trx_list; /*!< true if in trx_sys->rw_trx_list */
-                       /** @} */
-#endif                 /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG */
   UT_LIST_NODE_T(trx_t)
   mysql_trx_list; /*!< list of transactions created for
                   MySQL; protected by trx_sys->mutex */

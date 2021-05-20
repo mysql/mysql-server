@@ -5921,6 +5921,7 @@ static int innobase_close_connection(
   get trx as NULL. */
 
   if (trx != nullptr) {
+    ut_ad(trx->mysql_thd == thd);
     TrxInInnoDB trx_in_innodb(trx);
 
     if (trx_in_innodb.is_aborted()) {
