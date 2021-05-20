@@ -605,7 +605,9 @@ ENDIF()
 
 # Do not set package specific flags if language flags already provided
 # in environment or on command line.
-IF(WITH_PACKAGE_FLAGS AND NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
+# And only for gcc (not clang).
+IF(MY_COMPILER_IS_GNU AND WITH_PACKAGE_FLAGS AND
+    NOT CMAKE_C_FLAGS AND NOT CMAKE_CXX_FLAGS)
   IF(LINUX_RPM_PLATFORM)
     IF(MY_RPM)
       ADD_LINUX_RPM_FLAGS()
