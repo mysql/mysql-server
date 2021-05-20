@@ -322,14 +322,19 @@ TEST_P(SocketCloseOnMetadataAuthFail, SocketCloseOnMetadataAuthFailTest) {
   };
 
   SCOPED_TRACE("// launch cluster with 3 nodes, 1 RW/2 RO");
-  setup_cluster(3, GetParam().tracefile);
+  ASSERT_NO_FATAL_FAILURE(setup_cluster(3, GetParam().tracefile));
 
   SCOPED_TRACE("// launch the router with metadata-cache configuration");
-  setup_router(GetParam().cluster_type);
+  ASSERT_NO_FATAL_FAILURE(setup_router(GetParam().cluster_type));
 
   SCOPED_TRACE("// check if both RO and RW ports are used");
   check_ports_not_available();
+
   SCOPED_TRACE("// RO and RW queries should pass");
+  ASSERT_NO_THROW(try_connection("127.0.0.1", router_rw_port, router_user,
+                                 router_password));
+  ASSERT_NO_THROW(try_connection("127.0.0.1", router_ro_port, router_user,
+                                 router_password));
 
   SCOPED_TRACE("// Toggle authentication failure on a primary node");
   toggle_auth_failure_on(node_http_ports[0], node_ports);
@@ -363,15 +368,18 @@ TEST_P(SocketCloseOnMetadataAuthFail, SocketCloseOnMetadataAuthFailTest) {
   toggle_auth_failure_off(node_http_ports[0], node_ports);
   check_ports_not_available();
 
-  SCOPED_TRACE("// Allow successful authentication on a first secondary node");
+  SCOPED_TRACE("// Allow successful authentication on secondary nodes");
   toggle_auth_failure_off(node_http_ports[1], node_ports);
+  toggle_auth_failure_off(node_http_ports[2], node_ports);
+  wait_for_transaction_count_increase(node_http_ports[0], 2);
+
   check_ports_not_available();
 
   SCOPED_TRACE("// RO and RW connections should work ok");
-  ASSERT_NO_FATAL_FAILURE(try_connection("127.0.0.1", router_rw_port,
-                                         router_user, router_password));
-  ASSERT_NO_FATAL_FAILURE(try_connection("127.0.0.1", router_ro_port,
-                                         router_user, router_password));
+  ASSERT_NO_THROW(try_connection("127.0.0.1", router_rw_port, router_user,
+                                 router_password));
+  ASSERT_NO_THROW(try_connection("127.0.0.1", router_ro_port, router_user,
+                                 router_password));
 }
 
 INSTANTIATE_TEST_SUITE_P(

@@ -269,7 +269,8 @@ class ProcessManager {
    * launch mysql_server_mock from cmdline args.
    */
   ProcessWrapper &launch_mysql_server_mock(
-      const std::vector<std::string> &server_params, int expected_exit_code = 0,
+      const std::vector<std::string> &server_params, unsigned port,
+      int expected_exit_code = 0,
       std::chrono::milliseconds wait_for_notify_ready =
           std::chrono::seconds(5));
 
