@@ -83,9 +83,9 @@ class Optimize_table_order {
   */
   bool choose_table_order();
 
-  void recalculate_lateral_deps(uint tab_no);
+  void recalculate_lateral_deps(uint first_tab_no);
 
-  void recalculate_lateral_deps_incrementally(uint tab_no);
+  void recalculate_lateral_deps_incrementally(uint first_tab_no);
 
  private:
   THD *const thd;           // Pointer to current THD
