@@ -163,6 +163,9 @@ int my_thread_join(my_thread_handle *thread, void **value_ptr);
 int my_thread_cancel(my_thread_handle *thread);
 void my_thread_exit(void *value_ptr) MY_ATTRIBUTE((noreturn));
 
+/** Sets the name of the thread for system and debugger, if possible.
+@param name Name to set, must be shorter than SETNAME_MAX_LENGTH, including NULL
+character. */
 void my_thread_self_setname(const char *name);
 
 extern bool my_thread_global_init();

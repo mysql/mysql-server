@@ -32,6 +32,7 @@
 #include "my_config.h"
 
 #ifdef HAVE_PTHREAD_SETNAME_NP_LINUX
+#include <cstring>
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
@@ -42,18 +43,15 @@
 #include <pthread.h>
 #endif /* HAVE_PTHREAD_SETNAME_NP_MACOS */
 
-#ifdef HAVE_SET_THREAD_DESCRIPTION
+#ifdef _WIN32
 #include <windows.h>
 
 #include <processthreadsapi.h>
 
 #include <stringapiset.h>
-#endif /* HAVE_SET_THREAD_DESCRIPTION */
-
+#endif /* _WIN32 */
 #include "my_thread.h"
 #include "mysql/components/services/my_thread_bits.h"
-
-#include <string.h>
 
 #ifdef _WIN32
 #include <errno.h>
@@ -170,6 +168,37 @@ void my_thread_exit(void *value_ptr) {
 */
 #define SETNAME_MAX_LENGTH 16
 
+#ifdef _WIN32
+template <class TMethod>
+class Win32_library_procedure {
+ public:
+  Win32_library_procedure(std::string module, std::string func_name)
+      : m_module(LoadLibrary(module.c_str())), m_func(nullptr) {
+    if (m_module != nullptr) {
+      m_func = reinterpret_cast<TMethod *>(
+          GetProcAddress(m_module, func_name.c_str()));
+    }
+  }
+  ~Win32_library_procedure() {
+    if (m_module != nullptr) {
+      FreeLibrary(m_module);
+    }
+  }
+  bool is_valid() { return m_func != nullptr; }
+  template <typename... TArgs>
+  auto operator()(TArgs... args) {
+    return m_func(std::forward<TArgs>(args)...);
+  }
+
+ private:
+  HMODULE m_module;
+  TMethod *m_func;
+};
+
+static Win32_library_procedure<decltype(SetThreadDescription)>
+    set_thread_name_proc("kernel32.dll", "SetThreadDescription");
+#endif
+
 void my_thread_self_setname(const char *name MY_ATTRIBUTE((unused))) {
 #ifdef HAVE_PTHREAD_SETNAME_NP_LINUX
   /*
@@ -179,26 +208,54 @@ void my_thread_self_setname(const char *name MY_ATTRIBUTE((unused))) {
   strncpy(truncated_name, name, sizeof(truncated_name) - 1);
   truncated_name[sizeof(truncated_name) - 1] = '\0';
   pthread_setname_np(pthread_self(), truncated_name);
-#else
-#ifdef HAVE_PTHREAD_SETNAME_NP_MACOS
+#elif HAVE_PTHREAD_SETNAME_NP_MACOS
   pthread_setname_np(name);
-#else
-#if HAVE_SET_THREAD_DESCRIPTION
-  /* Windows 10. */
-  wchar_t w_name[SETNAME_MAX_LENGTH];
-  int size;
+#elif _WIN32
+  /* Check if we can use the new Windows 10 API. */
+  if (set_thread_name_proc.is_valid()) {
+    wchar_t w_name[SETNAME_MAX_LENGTH];
+    int size;
 
-  size = MultiByteToWideChar(CP_UTF8, 0, name, -1, w_name, SETNAME_MAX_LENGTH);
-  if (size <= 0 || size > SETNAME_MAX_LENGTH) {
-    return;
+    size =
+        MultiByteToWideChar(CP_UTF8, 0, name, -1, w_name, SETNAME_MAX_LENGTH);
+    if (size > 0 && size <= SETNAME_MAX_LENGTH) {
+      /* Make sure w_name is NUL terminated when truncated. */
+      w_name[SETNAME_MAX_LENGTH - 1] = 0;
+      set_thread_name_proc(GetCurrentThread(), w_name);
+    }
   }
-  /* Make sure w_name is NUL terminated when truncated. */
-  w_name[SETNAME_MAX_LENGTH - 1] = 0;
-  SetThreadDescription(GetCurrentThread(), w_name);
+
+  /* According to Microsoft documentation there is a "secret handshake" between
+  debuggee & debugger using the special values used below. We use it always in
+  case there is a debugger attached, even if the new Win10 API for thread names
+  is available. */
+  constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
+#pragma pack(push, 8)
+  struct THREADNAME_INFO {
+    DWORD dwType;
+    LPCSTR szName;
+    DWORD dwThreadID;
+    DWORD dwFlags;
+  };
+#pragma pack(pop)
+
+  THREADNAME_INFO info;
+  info.dwType = 0x1000;
+  info.szName = name;
+  info.dwThreadID = GetCurrentThreadId();
+  info.dwFlags = 0;
+
+#pragma warning(push)
+#pragma warning(disable : 6320 6322)
+  __try {
+    RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR),
+                   (ULONG_PTR *)&info);
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+  }
+#pragma warning(pop)
+
 #else
   /* Do nothing for this platform. */
   return;
-#endif /* HAVE_SET_THREAD_DESCRIPTION */
-#endif /* HAVE_PTHREAD_SETNAME_NP_MACOS */
-#endif /* HAVE_PTHREAD_SETNAME_NP_LINUX */
+#endif
 }

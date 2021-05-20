@@ -637,22 +637,6 @@ int main(int argc, char **argv)
 }"
 HAVE_PTHREAD_SETNAME_NP_MACOS)
 
-# Check for SetThreadDescription() on Windows
-CHECK_C_SOURCE_RUNS("
-#include <windows.h>
-#include <processthreadsapi.h>
-int main(int argc, char **argv)
-{
-    HRESULT r;
-    const wchar_t *name = NULL;
-    r = SetThreadDescription(
-        GetCurrentThread(),
-        name);
-    return 0;
-}
-"
-HAVE_SET_THREAD_DESCRIPTION)
-
 #--------------------------------------------------------------------
 # Check for IPv6 support
 #--------------------------------------------------------------------
