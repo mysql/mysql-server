@@ -4677,7 +4677,7 @@ table_map Optimize_table_order::calculate_lateral_deps_of_final_plan(
    Set join->deps_of_remaining_lateral_derived_tables to the
    set of lateral dependencies of the tables in the suffix
    of the join plan from 'tab_no' and on.
-   @param tab_no index (in the join order) of the first JOIN_TAB
+   @param first_tab_no index (in the join order) of the first JOIN_TAB
    in the suffix.
 */
 void Optimize_table_order::recalculate_lateral_deps(uint first_tab_no) {
