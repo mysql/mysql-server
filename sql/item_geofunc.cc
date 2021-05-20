@@ -4156,7 +4156,10 @@ String *Item_func_spatial_decomp_n::val_str(String *str) {
   assert(fixed == 1);
   String arg_val;
   String *swkb = args[0]->val_str(&arg_val);
+  if (current_thd->is_error()) return error_str();
   long n = (long)args[1]->val_int();
+  if (current_thd->is_error()) return error_str();
+
   Geometry_buffer buffer;
   Geometry *geom = nullptr;
   gis::srid_t srid;
