@@ -22,3 +22,5 @@ source_downloads
 
 # Build folder
 build/
+
+USER_MANUAL.md
