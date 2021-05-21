@@ -214,7 +214,7 @@ static String *query_parameter_val_str(const PS_PARAM *param,
       break;
     case MYSQL_TYPE_LONGLONG:
       if (param->length == 8) {
-        int32 value = sint8korr(param->value);
+        longlong value = sint8korr(param->value);
         str = new String[1];
         str->set_int(value, param->unsigned_type != 0, cs);
       }
