@@ -155,7 +155,7 @@ class NonzeroSubsetsOf {
       assert(m_set == other.m_set);
       return m_state != other.m_state;
     }
-    size_t operator*() const { return m_state; }
+    uint64_t operator*() const { return m_state; }
     iterator &operator++() {
       m_state = (m_state - m_set) & m_set;
       return *this;
