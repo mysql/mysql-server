@@ -4472,6 +4472,8 @@ static int innodb_log_file_size_init() {
         } else {
           srv_n_log_files = 64;
         }
+
+        srv_n_log_files = std::max<ulong>(srv_n_log_files, 2);
       } else {
         ib::warn(ER_IB_MSG_1271)
             << " Option innodb_dedicated_server is ignored for "
