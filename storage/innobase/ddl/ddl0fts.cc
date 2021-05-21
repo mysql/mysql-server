@@ -394,7 +394,7 @@ dberr_t FTS::Parser::enqueue(FTS::Doc_item *doc_item) noexcept {
     auto err = get_error();
 
     if (err != DB_SUCCESS) {
-      ut_delete(doc_item);
+      UT_DELETE(doc_item);
       m_memory_used.fetch_sub(sz, std::memory_order_relaxed);
       return err;
     }
