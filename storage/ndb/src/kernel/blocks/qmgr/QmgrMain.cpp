@@ -3568,7 +3568,8 @@ void Qmgr::timerHandlingLab(Signal* signal)
     apiHbHandlingLab(signal, TcurrentTime);
   }
 
-  if (ka_send_timer.check(TcurrentTime))
+  if (ka_send_timer.getDelay() > 0 &&
+      ka_send_timer.check(TcurrentTime))
   {
     jam();
     ka_send_timer.reset(TcurrentTime);

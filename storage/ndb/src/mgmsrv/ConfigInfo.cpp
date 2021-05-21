@@ -1131,6 +1131,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL) },
 
   {
+    CFG_DB_TRP_KEEP_ALIVE_SEND_INTERVAL,
+    "KeepAliveSendInterval",
+    DB_TOKEN,
+    "Time between sending keep alive signals on " DB_TOKEN_PRINT "-" DB_TOKEN_PRINT " links",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "60000",
+    "0",
+    STR_VALUE(MAX_INT_RNIL) },
+
+  {
     CFG_DB_CONNECT_CHECK_DELAY,
     "ConnectCheckIntervalDelay",
     DB_TOKEN,
