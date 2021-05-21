@@ -10349,7 +10349,8 @@ int ha_innobase::index_last(uchar *buf) /*!< in/out: buffer for the row */
 
 int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
                              int sampling_seed,
-                             enum_sampling_method sampling_method) {
+                             enum_sampling_method sampling_method,
+                             const bool tablesample) {
   ut_ad(table_share->is_missing_primary_key() ==
         m_prebuilt->clust_index_was_generated);
 
@@ -10359,20 +10360,33 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
 
   if (sampling_percentage <= 0.0 || sampling_percentage > 100.0 ||
       sampling_method != enum_sampling_method::SYSTEM) {
-    return (0);
+    return 0;
   }
 
   if (dict_table_is_discarded(m_prebuilt->table)) {
     ib_senderrf(ha_thd(), IB_LOG_LEVEL_ERROR, ER_TABLESPACE_DISCARDED,
                 m_prebuilt->table->name.m_name);
 
-    return (HA_ERR_NO_SUCH_TABLE);
+    return HA_ERR_NO_SUCH_TABLE;
   }
 
   int err = change_active_index(table_share->primary_key);
 
   if (err != 0) {
-    return (err);
+    return err;
+  }
+
+  trx_t *trx{nullptr};
+
+  if (tablesample) {
+    update_thd();
+
+    trx = m_prebuilt->trx;
+    trx_start_if_not_started_xa(trx, false);
+
+    if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED) {
+      trx_assign_read_view(trx);
+    }
   }
 
   /* Parallel read is not currently supported for sampling. */
@@ -10394,7 +10408,7 @@ int ha_innobase::sample_init(void *&scan_ctx, double sampling_percentage,
 
   auto index = m_prebuilt->table->first_index();
 
-  auto success = sampler->init(nullptr, index, m_prebuilt);
+  auto success = sampler->init(trx, index, m_prebuilt);
 
   if (!success) {
     return (HA_ERR_SAMPLING_INIT_FAILED);

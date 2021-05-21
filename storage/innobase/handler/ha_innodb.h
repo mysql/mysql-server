@@ -214,10 +214,11 @@ class ha_innobase : public handler {
   @param[in]  sampling_seed       random seed that the random generator will use
   @param[in]  sampling_method     sampling method to be used; currently only
   SYSTEM sampling is supported
+  @param[in]  tablesample         true if the sampling is for tablesample
   @return 0 for success, else one of the HA_xxx values in case of error. */
   int sample_init(void *&scan_ctx, double sampling_percentage,
-                  int sampling_seed,
-                  enum_sampling_method sampling_method) override;
+                  int sampling_seed, enum_sampling_method sampling_method,
+                  const bool tablesample) override;
 
   /** Get the next record for sampling.
   @param[in]  scan_ctx  Scan context of the sampling

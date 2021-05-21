@@ -742,8 +742,11 @@ static bool fill_value_maps(
   for (auto &value_map : value_maps)
     value_map.second->set_sampling_rate(sample_percentage / 100.0);
 
+  /* This is not a tablesample request. */
+  bool tablesample = false;
+
   if (table->file->ha_sample_init(scan_ctx, sample_percentage, sampling_seed,
-                                  enum_sampling_method::SYSTEM)) {
+                                  enum_sampling_method::SYSTEM, tablesample)) {
     return true;
   }
 
