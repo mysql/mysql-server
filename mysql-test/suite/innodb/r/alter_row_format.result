@@ -1,0 +1,39 @@
+#
+# Bug #32507117	INDEX SIZE LARGER THAN 767 BYTES ALLOWED FOR INNODB WITH REDUNDANT ROW_FORMAT
+#
+SET @orig_default_row_format = @@global.innodb_default_row_format;
+set global innodb_default_row_format='redundant';
+CREATE TABLE `t1` (
+`id` int unsigned NOT NULL AUTO_INCREMENT,
+`comment` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT
+NULL DEFAULT '',
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+CREATE TABLE `t2` (
+`id` int unsigned NOT NULL AUTO_INCREMENT,
+`comment` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT
+NULL DEFAULT '',
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+insert into t1(comment) values('k');
+insert into t2(comment) values('k');
+create index idx123 on t1 (`comment`);
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+set global innodb_default_row_format='dynamic';
+create index idx123 on t1 (`comment`);
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+alter table t1 add index idx123 (`comment`);
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+alter table t1 add index idx123 (`comment`), algorithm=copy ;
+SELECT ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE NAME LIKE 'test/t1';
+ROW_FORMAT
+Dynamic
+SELECT ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE NAME LIKE 'test/t2';
+ROW_FORMAT
+Redundant
+alter table t2 ROW_FORMAT=dynamic;
+SELECT ROW_FORMAT FROM INFORMATION_SCHEMA.INNODB_SYS_TABLES WHERE NAME LIKE 'test/t2';
+ROW_FORMAT
+Dynamic
+drop table t1,t2;
+SET @@global.innodb_default_row_format=@orig_default_row_format;
