@@ -101,6 +101,7 @@ constexpr double kAggregateOneRowCost = 0.1;
 constexpr double kSortOneRowCost = 0.1;
 constexpr double kHashBuildOneRowCost = 0.1;
 constexpr double kHashProbeOneRowCost = 0.1;
+constexpr double kHashReturnOneRowCost = 0.07;
 constexpr double kMaterializeOneRowCost = 0.1;
 
 using OrderingSet = std::bitset<kMaxSupportedOrderings>;
@@ -1329,9 +1330,9 @@ void CostingReceiver::ProposeHashJoin(
   // TODO(sgunders): Add estimates for spill-to-disk costs.
   const double build_cost =
       right_path->cost + right_path->num_output_rows * kHashBuildOneRowCost;
-  double cost =
-      left_path->cost + build_cost +
-      (left_path->num_output_rows + num_output_rows) * kHashProbeOneRowCost;
+  double cost = left_path->cost + build_cost +
+                left_path->num_output_rows * kHashProbeOneRowCost +
+                num_output_rows * kHashReturnOneRowCost;
 
   // Note: This isn't strictly correct if the non-equijoin conditions
   // have selectivities far from 1.0; the cost should be calculated
