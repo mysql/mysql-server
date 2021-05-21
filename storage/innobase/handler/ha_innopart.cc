@@ -2018,7 +2018,8 @@ int ha_innopart::read_range_next_in_part(uint part, uchar *record) {
 
 int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
                              int sampling_seed,
-                             enum_sampling_method sampling_method) {
+                             enum_sampling_method sampling_method,
+                             const bool tablesample) {
   assert(table_share->is_missing_primary_key() ==
          m_prebuilt->clust_index_was_generated);
 
@@ -2028,7 +2029,20 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
 
   if (sampling_percentage <= 0.0 || sampling_percentage > 100.0 ||
       sampling_method != enum_sampling_method::SYSTEM) {
-    return (0);
+    return 0;
+  }
+
+  trx_t *trx{nullptr};
+
+  if (tablesample) {
+    update_thd(ha_thd());
+
+    trx = m_prebuilt->trx;
+    trx_start_if_not_started_xa(trx, false);
+
+    if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED) {
+      trx_assign_read_view(trx);
+    }
   }
 
   /* Parallel read is not currently supported for sampling. */
@@ -2065,7 +2079,7 @@ int ha_innopart::sample_init(void *&scan_ctx, double sampling_percentage,
 
     auto index = m_prebuilt->table->first_index();
 
-    auto success = sampler->init(nullptr, index, m_prebuilt);
+    auto success = sampler->init(trx, index, m_prebuilt);
 
     if (!success) {
       return (HA_ERR_SAMPLING_INIT_FAILED);

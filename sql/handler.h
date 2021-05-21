@@ -4810,11 +4810,13 @@ class handler {
     use
     @param[in]  sampling_method     sampling method to be used; currently only
     SYSTEM sampling is supported
+    @param[in]  tablesample         true if the sampling is for tablesample
 
     @return 0 for success, else one of the HA_xxx values in case of error.
   */
   int ha_sample_init(void *&scan_ctx, double sampling_percentage,
-                     int sampling_seed, enum_sampling_method sampling_method);
+                     int sampling_seed, enum_sampling_method sampling_method,
+                     const bool tablesample);
 
   /**
     Get the next record for sampling.
@@ -6283,10 +6285,12 @@ class handler {
   @param[in]  sampling_seed       random seed
   @param[in]  sampling_method     sampling method to be used; currently only
   SYSTEM sampling is supported
+  @param[in]  tablesample         true if the sampling is for tablesample
   @return 0 for success, else failure. */
   virtual int sample_init(void *&scan_ctx, double sampling_percentage,
                           int sampling_seed,
-                          enum_sampling_method sampling_method);
+                          enum_sampling_method sampling_method,
+                          const bool tablesample);
 
   /** Get the next record for sampling.
   @param[in] scan_ctx   Scan context of the sampling

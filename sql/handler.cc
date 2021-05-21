@@ -3041,7 +3041,8 @@ int handler::ha_ft_read(uchar *buf) {
 
 int handler::ha_sample_init(void *&scan_ctx, double sampling_percentage,
                             int sampling_seed,
-                            enum_sampling_method sampling_method) {
+                            enum_sampling_method sampling_method,
+                            const bool tablesample) {
   DBUG_TRACE;
   assert(sampling_percentage >= 0.0);
   assert(sampling_percentage <= 100.0);
@@ -3052,7 +3053,7 @@ int handler::ha_sample_init(void *&scan_ctx, double sampling_percentage,
   m_sampling_percentage = sampling_percentage;
 
   int result = sample_init(scan_ctx, sampling_percentage, sampling_seed,
-                           sampling_method);
+                           sampling_method, tablesample);
   inited = (result != 0) ? NONE : SAMPLING;
   return result;
 }
@@ -3087,7 +3088,7 @@ int handler::ha_sample_next(void *scan_ctx, uchar *buf) {
 }
 
 int handler::sample_init(void *&scan_ctx MY_ATTRIBUTE((unused)), double, int,
-                         enum_sampling_method) {
+                         enum_sampling_method, const bool) {
   return rnd_init(true);
 }
 
