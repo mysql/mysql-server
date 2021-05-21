@@ -239,6 +239,7 @@ eval $innodb_metrics_select;
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL rebuilt3 WAIT_FOR dml3_done';
 --error ER_MULTIPLE_PRI_KEY
 ALTER TABLE t1 ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
+--replace_regex /'\d'/'N'/
 --error ER_DUP_ENTRY
 ALTER TABLE t1 DROP PRIMARY KEY, ADD PRIMARY KEY(c22f), CHANGE c2 c22f INT;
 --send
