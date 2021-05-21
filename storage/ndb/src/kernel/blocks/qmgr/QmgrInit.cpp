@@ -112,7 +112,15 @@ void Qmgr::initData()
   interface_check_timer.setDelay(1000);
   interface_check_timer.reset(now);
 
-  setTrpKeepAliveSendDelay(60*1000); // 1 minute
+  Uint32 trp_keep_alive_send_interval = 60*1000; // 1 minute
+  ndb_mgm_get_int_parameter(p, CFG_DB_TRP_KEEP_ALIVE_SEND_INTERVAL,
+                            &trp_keep_alive_send_interval);
+  if (trp_keep_alive_send_interval > 0 &&
+      trp_keep_alive_send_interval < 10)
+  {
+    trp_keep_alive_send_interval = 10;
+  }
+  setTrpKeepAliveSendDelay(trp_keep_alive_send_interval);
   c_keepalive_seqnum = 0;
 
 #ifdef ERROR_INSERT

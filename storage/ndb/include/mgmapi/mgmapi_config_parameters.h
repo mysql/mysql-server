@@ -263,6 +263,7 @@
 
 #define CFG_DB_NUM_CPUS               676
 #define CFG_DB_AUTO_THREAD_CONFIG     677
+#define CFG_DB_TRP_KEEP_ALIVE_SEND_INTERVAL 678
 
 #define CFG_NODE_ARBIT_RANK           200
 #define CFG_NODE_ARBIT_DELAY          201
