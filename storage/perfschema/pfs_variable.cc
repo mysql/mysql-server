@@ -555,6 +555,7 @@ System_variable::System_variable()
       m_path_length(0),
       m_min_value_length(0),
       m_max_value_length(0),
+      m_default_value_length(0),
       m_set_time(0),
       m_set_user_str_length(0),
       m_set_host_str_length(0),
@@ -563,6 +564,7 @@ System_variable::System_variable()
   m_path_str[0] = '\0';
   m_min_value_str[0] = '\0';
   m_max_value_str[0] = '\0';
+  m_default_value_str[0] = '\0';
   m_set_user_str[0] = '\0';
   m_set_host_str[0] = '\0';
 }
@@ -582,6 +584,7 @@ System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var,
       m_path_length(0),
       m_min_value_length(0),
       m_max_value_length(0),
+      m_default_value_length(0),
       m_set_time(0),
       m_set_user_str_length(0),
       m_set_host_str_length(0),
@@ -590,6 +593,7 @@ System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var,
   m_path_str[0] = '\0';
   m_min_value_str[0] = '\0';
   m_max_value_str[0] = '\0';
+  m_default_value_str[0] = '\0';
   m_set_user_str[0] = '\0';
   m_set_host_str[0] = '\0';
   init(target_thd, show_var, query_scope);
@@ -609,6 +613,7 @@ System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var)
       m_path_length(0),
       m_min_value_length(0),
       m_max_value_length(0),
+      m_default_value_length(0),
       m_set_time(0),
       m_set_user_str_length(0),
       m_set_host_str_length(0),
@@ -617,6 +622,7 @@ System_variable::System_variable(THD *target_thd, const SHOW_VAR *show_var)
   m_path_str[0] = '\0';
   m_min_value_str[0] = '\0';
   m_max_value_str[0] = '\0';
+  m_default_value_str[0] = '\0';
   m_set_user_str[0] = '\0';
   m_set_host_str[0] = '\0';
   init(target_thd, show_var);
@@ -698,6 +704,14 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var) {
   m_charset = system_var->charset(target_thd);
   m_type = system_var->show_type();
   m_scope = system_var->scope();
+  const CHARSET_INFO *fromcs;
+  char val_buf[1024];
+  size_t def_str_len;
+  bool is_null = false;
+  const char * var_default = get_one_variable(current_thread, show_var,
+                                             OPT_DEFAULT, show_var->type,
+                                             nullptr, &fromcs, val_buf,
+                                             &def_str_len, &is_null);
 
   m_value_str[0] = '\0';
   m_value_length = 0;
@@ -720,6 +734,9 @@ void System_variable::init(THD *target_thd, const SHOW_VAR *show_var) {
   snprintf(m_max_value_str, sizeof(m_max_value_str), "%llu",
            system_var->get_max_value());
   m_max_value_length = strlen(m_max_value_str);
+  snprintf(m_default_value_str, sizeof(m_default_value_str), "%s",
+           var_default);
+  m_default_value_length = strlen(m_default_value_str);
 
   m_set_time = system_var->get_timestamp();
   m_set_user_str_length = strlen(system_var->get_user());

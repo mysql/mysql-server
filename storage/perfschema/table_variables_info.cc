@@ -58,6 +58,7 @@ Plugin_table table_variables_info::m_table_def(
     "  VARIABLE_PATH varchar(1024),\n"
     "  MIN_VALUE varchar(64),\n"
     "  MAX_VALUE varchar(64),\n"
+    "  DEFAULT_VALUE varchar(1024),\n"
     "  SET_TIME TIMESTAMP(6) default null,\n"
     "  SET_USER CHAR(32) collate utf8mb4_bin default null,\n"
     "  SET_HOST CHAR(255) CHARACTER SET ASCII default null\n",
@@ -157,6 +158,10 @@ int table_variables_info::make_row(const System_variable *system_var) {
          system_var->m_max_value_length);
   m_row.m_max_value_length = system_var->m_max_value_length;
 
+  memcpy(m_row.m_default_value, system_var->m_default_value_str,
+         system_var->m_default_value_length);
+  m_row.m_default_value_length = system_var->m_default_value_length;
+
   m_row.m_set_time = system_var->m_set_time;
 
   memcpy(m_row.m_set_user_str, system_var->m_set_user_str,
@@ -200,14 +205,18 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
           set_field_varchar_utf8(f, m_row.m_max_value,
                                  m_row.m_max_value_length);
           break;
-        case 5: /* SET_TIME */
+        case 5: /* DEFAULT_VALUE */
+          set_field_varchar_utf8(f, m_row.m_default_value,
+                                 m_row.m_default_value_length);
+          break;
+        case 6: /* SET_TIME */
           if (m_row.m_set_time != 0) {
             set_field_timestamp(f, m_row.m_set_time);
           } else {
             f->set_null();
           }
           break;
-        case 6: /* SET_USER */
+        case 7: /* SET_USER */
           if (m_row.m_set_user_str_length != 0) {
             set_field_char_utf8(f, m_row.m_set_user_str,
                                 m_row.m_set_user_str_length);
@@ -215,7 +224,7 @@ int table_variables_info::read_row_values(TABLE *table, unsigned char *buf,
             f->set_null();
           }
           break;
-        case 7: /* SET_HOST */
+        case 8: /* SET_HOST */
           if (m_row.m_set_host_str_length != 0) {
             set_field_char_utf8(f, m_row.m_set_host_str,
                                 m_row.m_set_host_str_length);

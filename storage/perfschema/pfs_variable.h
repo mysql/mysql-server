@@ -187,6 +187,8 @@ class System_variable {
   size_t m_min_value_length;
   char m_max_value_str[SHOW_VAR_FUNC_BUFF_SIZE + 1];
   size_t m_max_value_length;
+  char m_default_value_str[SHOW_VAR_FUNC_BUFF_SIZE + 1];
+  size_t m_default_value_length;
   ulonglong m_set_time;
   char m_set_user_str[USERNAME_LENGTH];
   size_t m_set_user_str_length;

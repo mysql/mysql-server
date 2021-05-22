@@ -18,3 +18,7 @@ source_downloads
 
 # Configuration files for Visual Studio Code
 .vscode/
+
+# CLion config and build files
+.idea/
+cmake-build-debug/

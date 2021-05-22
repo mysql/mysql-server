@@ -62,6 +62,9 @@ struct row_variables_info {
   /** Column MAX_VALUE. */
   char m_max_value[COL_SOURCE_SIZE];
   uint m_max_value_length;
+  /** Column DEFAULT_VALUE. */
+  char m_default_value[COL_INFO_SIZE];
+  uint m_default_value_length;
   /** Column SET_TIME. */
   ulonglong m_set_time;
   /** Column SET_USER. */
