@@ -3488,13 +3488,13 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
     them either info_thd_lock or run_lock hold is required.
   */
   mysql_mutex_lock(&mi->info_thd_lock);
-  protocol->store(mi->info_thd ? mi->info_thd->get_proc_info() : "",
+  protocol->store(mi->info_thd ? mi->info_thd->proc_info() : "",
                   &my_charset_bin);
   mysql_mutex_unlock(&mi->info_thd_lock);
 
   mysql_mutex_lock(&mi->rli->info_thd_lock);
   slave_sql_running_state = const_cast<char *>(
-      mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "");
+      mi->rli->info_thd ? mi->rli->info_thd->proc_info() : "");
   mysql_mutex_unlock(&mi->rli->info_thd_lock);
 
   mysql_mutex_lock(&mi->data_lock);
@@ -5299,7 +5299,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
                             uint *retry_count, bool suppress_warnings,
                             const char *messages[SLAVE_RECON_MSG_MAX]) {
   mi->slave_running = MYSQL_SLAVE_RUN_NOT_CONNECT;
-  thd->proc_info = messages[SLAVE_RECON_MSG_WAIT];
+  thd->set_proc_info(messages[SLAVE_RECON_MSG_WAIT]);
   thd->clear_active_vio();
   end_server(mysql);
   if ((*retry_count)++) {
@@ -5308,7 +5308,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
   }
   if (check_io_slave_killed(thd, mi, messages[SLAVE_RECON_MSG_KILLED_WAITING]))
     return 1;
-  thd->proc_info = messages[SLAVE_RECON_MSG_AFTER];
+  thd->set_proc_info(messages[SLAVE_RECON_MSG_AFTER]);
   if (!suppress_warnings) {
     char llbuff[22];
     /*
@@ -5877,7 +5877,7 @@ extern "C" void *handle_slave_io(void *arg) {
       through mi->info_thd are cleared: mi->info_thd= NULL.
 
       For instance, user thread might be issuing show_slave_status
-      and attempting to read mi->info_thd->get_proc_info().
+      and attempting to read mi->info_thd->proc_info().
       Therefore thd must only be deleted after info_thd is set
       to NULL.
     */
@@ -7385,7 +7385,7 @@ extern "C" void *handle_slave_sql(void *arg) {
       through mi->rli->info_thd are cleared: mi->rli->info_thd= NULL.
 
       For instance, user thread might be issuing show_slave_status
-      and attempting to read mi->rli->info_thd->get_proc_info().
+      and attempting to read mi->rli->info_thd->proc_info().
       Therefore thd must only be deleted after info_thd is set
       to NULL.
     */

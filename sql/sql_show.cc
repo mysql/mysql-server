@@ -2647,19 +2647,19 @@ class thread_info_compare {
   }
 };
 
-static const char *thread_state_info(THD *tmp) {
-  if (tmp->get_protocol()->get_rw_status()) {
-    if (tmp->get_protocol()->get_rw_status() == 2)
+static const char *thread_state_info(THD *inspected_thd) {
+  if (inspected_thd->get_protocol()->get_rw_status()) {
+    if (inspected_thd->get_protocol()->get_rw_status() == 2)
       return "Sending to client";
-    else if (tmp->get_command() == COM_SLEEP)
+    else if (inspected_thd->get_command() == COM_SLEEP)
       return "";
     else
       return "Receiving from client";
   } else {
-    MUTEX_LOCK(lock, &tmp->LOCK_current_cond);
-    if (tmp->proc_info)
-      return tmp->proc_info;
-    else if (tmp->current_cond.load())
+    MUTEX_LOCK(lock, &inspected_thd->LOCK_current_cond);
+    if (inspected_thd->proc_info())
+      return inspected_thd->proc_info();
+    else if (inspected_thd->current_cond.load())
       return "Waiting on cond";
     else
       return nullptr;

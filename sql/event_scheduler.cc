@@ -185,7 +185,7 @@ bool post_init_event_thread(THD *thd) {
 void deinit_event_thread(THD *thd) {
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
 
-  thd->proc_info = "Clearing";
+  thd->set_proc_info("Clearing");
   thd->get_protocol_classic()->end_net();
   DBUG_PRINT("exit", ("Event thread finishing"));
   thd->release_resources();
@@ -228,7 +228,7 @@ void pre_init_event_thread(THD *thd) {
     vio is NULL.
   */
 
-  thd->proc_info = "Initialized";
+  thd->set_proc_info("Initialized");
   thd->set_time();
 
   /* Do not use user-supplied timeout value for system threads. */
@@ -277,7 +277,7 @@ static void *event_scheduler_thread(void *arg) {
     if (!res)
       scheduler->run(thd);
     else {
-      thd->proc_info = "Clearing";
+      thd->set_proc_info("Clearing");
       thd->get_protocol_classic()->end_net();
       delete thd;
     }
@@ -526,7 +526,7 @@ bool Event_scheduler::start(int *err_no) {
     LogErr(ERROR_LEVEL, ER_CANT_CREATE_SCHEDULER_THREAD, *err_no)
         .os_errno(*err_no);
 
-    new_thd->proc_info = "Clearing";
+    new_thd->set_proc_info("Clearing");
     new_thd->get_protocol_classic()->end_net();
 
     state = INITIALIZED;
@@ -668,7 +668,7 @@ bool Event_scheduler::execute_top(Event_queue_element_for_exec *event_name) {
 
     LogErr(ERROR_LEVEL, ER_SCHEDULER_STOPPING_FAILED_TO_CREATE_WORKER, res);
 
-    new_thd->proc_info = "Clearing";
+    new_thd->set_proc_info("Clearing");
     new_thd->get_protocol_classic()->end_net();
 
     goto error;

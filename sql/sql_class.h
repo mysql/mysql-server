@@ -1148,20 +1148,6 @@ class THD : public MDL_context_owner,
   */
   bool m_disable_password_validation;
 
-  /*
-    Points to info-string that we show in SHOW PROCESSLIST
-    You are supposed to update thd->proc_info only if you have coded
-    a time-consuming piece that MySQL can get stuck in for a long time.
-
-    Set it using the  thd_proc_info(THD *thread, const char *message)
-    macro/function.
-
-    This member is accessed and assigned without any synchronization.
-    Therefore, it may point only to constant (statically
-    allocated) strings, which memory won't go away over time.
-  */
-  const char *proc_info;
-
   std::unique_ptr<Protocol_text> protocol_text;      // Normal protocol
   std::unique_ptr<Protocol_binary> protocol_binary;  // Binary protocol
 
@@ -1286,14 +1272,30 @@ class THD : public MDL_context_owner,
   void set_catalog(const LEX_CSTRING &catalog) { m_catalog = catalog; }
 
  private:
-  unsigned int m_current_stage_key;
+  PSI_stage_key m_current_stage_key;
+
+  /*
+    Points to info-string that we show in SHOW PROCESSLIST
+    You are supposed to update thd->proc_info only if you have coded
+    a time-consuming piece that MySQL can get stuck in for a long time.
+
+    Set it using the  thd_proc_info(THD *thread, const char *message)
+    macro/function.
+
+    This member is accessed and assigned without any synchronization.
+    Therefore, it may point only to constant (statically
+    allocated) strings, which memory won't go away over time.
+  */
+  const char *m_proc_info;
 
  public:
   // See comment in THD::enter_cond about why SUPPRESS_TSAN is needed.
   void enter_stage(const PSI_stage_info *stage, PSI_stage_info *old_stage,
                    const char *calling_func, const char *calling_file,
                    const unsigned int calling_line) SUPPRESS_TSAN;
-  const char *get_proc_info() const { return proc_info; }
+  const char *proc_info() const { return m_proc_info; }
+  void set_proc_info(const char *proc_info) { m_proc_info = proc_info; }
+  PSI_stage_key get_current_stage_key() const { return m_current_stage_key; }
 
   /*
     Used in error messages to tell user in what part of MySQL we found an

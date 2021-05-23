@@ -2277,7 +2277,7 @@ done:
 
   thd->reset_query();
   thd->set_command(COM_SLEEP);
-  thd->proc_info = nullptr;
+  thd->set_proc_info(nullptr);
   thd->lex->sql_command = SQLCOM_END;
 
   /* Performance Schema Interface instrumentation, end */

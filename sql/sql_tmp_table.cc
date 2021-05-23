@@ -2546,7 +2546,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     to be converted into on-disk temporary tables */
   }
 
-  const char *save_proc_info = thd->proc_info;
+  const char *save_proc_info = thd->proc_info();
   THD_STAGE_INFO(thd, stage_converting_heap_to_ondisk);
 
   TABLE_SHARE *const old_share = wtable->s;

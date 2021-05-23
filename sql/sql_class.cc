@@ -315,7 +315,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 
   if (old_stage != nullptr) {
     old_stage->m_key = m_current_stage_key;
-    old_stage->m_name = proc_info;
+    old_stage->m_name = proc_info();
   }
 
   if (new_stage != nullptr) {
@@ -326,7 +326,7 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
 #endif
 
     m_current_stage_key = new_stage->m_key;
-    proc_info = msg;
+    set_proc_info(msg);
 
     m_stage_progress_psi =
         MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
@@ -520,7 +520,7 @@ THD::THD(bool enable_plugins)
   mysql_cond_init(key_COND_thr_lock, &COND_thr_lock);
 
   /* Variables with default values */
-  proc_info = "login";
+  set_proc_info("login");
   where = THD::DEFAULT_WHERE;
   server_id = ::server_id;
   unmasked_server_id = server_id;

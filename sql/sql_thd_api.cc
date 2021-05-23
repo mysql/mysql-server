@@ -442,7 +442,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     and has to be protected by LOCK_thd_query or risk pointing to
     uninitialized memory.
   */
-  const char *proc_info = thd->proc_info;
+  const char *proc_info = thd->proc_info();
 
   len = snprintf(header, sizeof(header),
                  "MySQL thread id %u, OS thread handle %lu, query id %lu",

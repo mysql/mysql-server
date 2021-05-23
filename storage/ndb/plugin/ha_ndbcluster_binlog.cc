@@ -346,9 +346,9 @@ static void ndbcluster_binlog_wait(THD *thd) {
     return;
   }
 
-  const char *save_info = thd->proc_info;
-  thd->proc_info =
-      "Waiting for ndbcluster binlog update to reach current position";
+  const char *save_info = thd->proc_info();
+  thd->set_proc_info(
+      "Waiting for ndbcluster binlog update to reach current position");
 
   // Highest epoch that a transaction against Ndb has received
   // as part of commit processing *in this thread*. This is a
@@ -387,7 +387,7 @@ static void ndbcluster_binlog_wait(THD *thd) {
     assert(false);
   }
 
-  thd->proc_info = save_info;
+  thd->set_proc_info(save_info);
 }
 
 /*
@@ -4476,7 +4476,7 @@ class Ndb_schema_event_handler {
           (uint)(ndb_latest_received_binlog_epoch >> 32),
           (uint)(ndb_latest_received_binlog_epoch),
           (uint)(ndb_latest_epoch >> 32), (uint)(ndb_latest_epoch),
-          m_thd->proc_info);
+          m_thd->proc_info());
 
       // Check the schema operations first, although it's an unlikely
       // case with active schema operations at the same time as missing schema
@@ -5624,8 +5624,8 @@ int ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share) {
   DBUG_TRACE;
   assert(share);
 
-  const char *save_proc_info = thd->proc_info;
-  thd->proc_info = "Syncing ndb table schema operation and binlog";
+  const char *save_proc_info = thd->proc_info();
+  thd->set_proc_info("Syncing ndb table schema operation and binlog");
 
   int max_timeout = DEFAULT_SYNC_TIMEOUT;
 
@@ -5660,7 +5660,7 @@ int ndbcluster_binlog_wait_synch_drop_table(THD *thd, NDB_SHARE *share) {
   }
   mysql_mutex_unlock(&share->mutex);
 
-  thd->proc_info = save_proc_info;
+  thd->set_proc_info(save_proc_info);
 
   return 0;
 }
@@ -6740,7 +6740,7 @@ static void commit_trans(THD *thd, injector::transaction &trans,
     }
   }
 
-  thd->proc_info = "Committing events to binlog";
+  thd->set_proc_info("Committing events to binlog");
   if (int r = trans.commit()) {
     ndb_log_error("Error during COMMIT of GCI. Error: %d", r);
     /* TODO: Further handling? */
@@ -7020,7 +7020,7 @@ restart_cluster_failure:
 
   {
     log_verbose(1, "Wait for cluster to start");
-    thd->proc_info = "Waiting for ndbcluster to start";
+    thd->set_proc_info("Waiting for ndbcluster to start");
 
     while (!ndbcluster_is_connected(1) || !binlog_setup.setup(thd_ndb)) {
       // Failed to complete binlog_setup, remove all existing event
@@ -7075,7 +7075,7 @@ restart_cluster_failure:
   {
     log_verbose(1, "Wait for first event");
     // wait for the first event
-    thd->proc_info = "Waiting for first event from ndbcluster";
+    thd->set_proc_info("Waiting for first event from ndbcluster");
     Uint64 schema_gci;
     do {
       DBUG_PRINT("info", ("Waiting for the first event"));
@@ -7188,7 +7188,7 @@ restart_cluster_failure:
     /*
       now we don't want any events before next gci is complete
     */
-    thd->proc_info = "Waiting for event from ndbcluster";
+    thd->set_proc_info("Waiting for event from ndbcluster");
     thd->set_time();
 
     /**
@@ -7262,12 +7262,12 @@ restart_cluster_failure:
       */
       while (s_pOp == NULL && i_epoch > schema_epoch && schema_res >= 0) {
         static char buf[64];
-        thd->proc_info = "Waiting for schema epoch";
-        snprintf(buf, sizeof(buf), "%s %u/%u(%u/%u)", thd->proc_info,
+        thd->set_proc_info("Waiting for schema epoch");
+        snprintf(buf, sizeof(buf), "%s %u/%u(%u/%u)", thd->proc_info(),
                  (uint)(schema_epoch >> 32), (uint)(schema_epoch),
                  (uint)(ndb_latest_received_binlog_epoch >> 32),
                  (uint)(ndb_latest_received_binlog_epoch));
-        thd->proc_info = buf;
+        thd->set_proc_info(buf);
 
         my_thread_yield();
         mysql_mutex_lock(&injector_event_mutex);
@@ -7327,7 +7327,7 @@ restart_cluster_failure:
     *root_ptr = &mem_root;
 
     if (unlikely(s_pOp != NULL && s_pOp->getEpoch() == current_epoch)) {
-      thd->proc_info = "Processing events from schema table";
+      thd->set_proc_info("Processing events from schema table");
       g_ndb_log_replica_updates = opt_log_replica_updates;
       s_ndb->setReportThreshEventGCISlip(
           opt_ndb_report_thresh_binlog_epoch_slip);
@@ -7579,10 +7579,10 @@ restart_cluster_failure:
 err:
   if (binlog_thread_state != BCCC_restart) {
     log_info("Shutting down");
-    thd->proc_info = "Shutting down";
+    thd->set_proc_info("Shutting down");
   } else {
     log_info("Restarting");
-    thd->proc_info = "Restarting";
+    thd->set_proc_info("Restarting");
   }
 
   mysql_mutex_lock(&injector_event_mutex);

@@ -554,8 +554,8 @@ static void init_debug_sync_psi_keys(void) {
   spurious data.
 */
 static const char *debug_sync_thd_proc_info(THD *thd, const char *info) {
-  const char *old_proc_info = thd->proc_info;
-  thd->proc_info = info;
+  const char *old_proc_info = thd->proc_info();
+  thd->set_proc_info(info);
   return old_proc_info;
 }
 
@@ -1777,7 +1777,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
       st_debug_sync_control *ds_control = thd->debug_sync_control;
       strxnmov(ds_control->ds_proc_info, sizeof(ds_control->ds_proc_info) - 1,
                "debug sync point: ", action->sync_point.c_ptr(), NullS);
-      old_proc_info = thd->proc_info;
+      old_proc_info = thd->proc_info();
       debug_sync_thd_proc_info(thd, ds_control->ds_proc_info);
     }
 

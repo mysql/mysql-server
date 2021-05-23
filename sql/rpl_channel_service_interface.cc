@@ -1007,16 +1007,13 @@ int channel_is_applier_thread_waiting(unsigned long thread_id, bool worker) {
   Find_thd_with_id find_thd_with_id(thread_id);
   THD *thd = Global_THD_manager::get_instance()->find_thd(&find_thd_with_id);
   if (thd) {
-    result = 0;
-
-    const char *proc_info = thd->get_proc_info();
-    if (proc_info) {
-      const char *stage_name = stage_replica_has_read_all_relay_log.m_name;
-      if (worker)
-        stage_name = stage_replica_waiting_event_from_coordinator.m_name;
-
-      if (!strcmp(proc_info, stage_name)) result = 1;
-    }
+    if (thd->get_current_stage_key() ==
+        (worker ? stage_replica_waiting_event_from_coordinator
+                : stage_replica_has_read_all_relay_log)
+            .m_key)
+      result = 1;
+    else
+      result = 0;
     mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
 
