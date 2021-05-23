@@ -191,7 +191,8 @@ static version_vector_t version_vector = {
 
 namespace terminology_use_previous {
 
-compatible_name_t lookup(PFS_class_type class_type, std::string str) {
+compatible_name_t lookup(PFS_class_type class_type, const std::string str,
+                         bool use_prefix) {
   for (version_vector_t::size_type int_version = 0;
        int_version < version_vector.size(); ++int_version) {
     enum_compatibility_version enum_version{
@@ -200,10 +201,21 @@ compatible_name_t lookup(PFS_class_type class_type, std::string str) {
     auto class_name_pair = class_map.find(class_type);
     if (class_name_pair != class_map.end()) {
       auto &name_map = class_name_pair->second;
-      auto name_pair = name_map.find(str);
+      size_t prefix_length{0};
+      std::string lookup_str;
+      if (use_prefix)
+        lookup_str = str;
+      else {
+        // Get length of prefix and prepend it to str
+        assert(name_map.size());
+        auto &elem = name_map.begin()->first;
+        prefix_length = elem.rfind('/') + 1;
+        lookup_str = elem.substr(0, prefix_length) + str;
+      }
+      auto name_pair = name_map.find(lookup_str);
       if (name_pair != name_map.end()) {
         auto name = name_pair->second;
-        return compatible_name_t{name, enum_version};
+        return compatible_name_t{name + prefix_length, enum_version};
       }
     }
   }

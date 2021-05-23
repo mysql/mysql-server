@@ -3488,13 +3488,13 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
     them either info_thd_lock or run_lock hold is required.
   */
   mysql_mutex_lock(&mi->info_thd_lock);
-  protocol->store(mi->info_thd ? mi->info_thd->proc_info() : "",
+  protocol->store(mi->info_thd ? mi->info_thd->proc_info_session(thd) : "",
                   &my_charset_bin);
   mysql_mutex_unlock(&mi->info_thd_lock);
 
   mysql_mutex_lock(&mi->rli->info_thd_lock);
   slave_sql_running_state = const_cast<char *>(
-      mi->rli->info_thd ? mi->rli->info_thd->proc_info() : "");
+      mi->rli->info_thd ? mi->rli->info_thd->proc_info_session(thd) : "");
   mysql_mutex_unlock(&mi->rli->info_thd_lock);
 
   mysql_mutex_lock(&mi->data_lock);

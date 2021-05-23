@@ -1287,6 +1287,17 @@ class THD : public MDL_context_owner,
     allocated) strings, which memory won't go away over time.
   */
   const char *m_proc_info;
+  /**
+    Return the m_proc_info, possibly using the string of an older
+    server release, according to @@terminology_use_previous.
+
+    @param sysvars Use the value of
+    @@terminology_use_previous stored in this
+    System_variables object.
+
+    @return The "proc_info", also known as "stage", of this thread.
+  */
+  const char *proc_info(const System_variables &sysvars) const;
 
  public:
   // See comment in THD::enter_cond about why SUPPRESS_TSAN is needed.
@@ -1294,6 +1305,19 @@ class THD : public MDL_context_owner,
                    const char *calling_func, const char *calling_file,
                    const unsigned int calling_line) SUPPRESS_TSAN;
   const char *proc_info() const { return m_proc_info; }
+  /**
+    Return the m_proc_info, possibly using the string of an older
+    server release, according to
+    @@session.terminology_use_previous.
+
+    @param invoking_thd Use
+    @@session.terminology_use_previous of this session.
+
+    @return The "proc_info", also known as "stage", of this thread.
+  */
+  const char *proc_info_session(THD *invoking_thd) const {
+    return proc_info(invoking_thd->variables);
+  }
   void set_proc_info(const char *proc_info) { m_proc_info = proc_info; }
   PSI_stage_key get_current_stage_key() const { return m_current_stage_key; }
 

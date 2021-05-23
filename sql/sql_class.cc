@@ -105,6 +105,8 @@
 #include "sql/transaction.h"  // trans_rollback
 #include "sql/transaction_info.h"
 #include "sql/xa.h"
+#include "storage/perfschema/pfs_instr_class.h"  // PFS_CLASS_STAGE
+#include "storage/perfschema/terminology_use_previous.h"
 #include "template_utils.h"
 #include "thr_mutex.h"
 
@@ -335,6 +337,35 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
   }
 
   return;
+}
+
+const char *THD::proc_info(const System_variables &sysvars) const {
+  DBUG_TRACE;
+  const char *ret = proc_info();
+  terminology_use_previous::enum_compatibility_version version =
+      static_cast<terminology_use_previous::enum_compatibility_version>(
+          sysvars.terminology_use_previous);
+  DBUG_PRINT("info", ("session.terminology_use_previous=%d", (int)version));
+  if (version != terminology_use_previous::NONE) {
+    auto compatible_name_info =
+        terminology_use_previous::lookup(PFS_CLASS_STAGE, ret, false);
+#ifndef NDEBUG
+    if (compatible_name_info.version)
+      DBUG_PRINT(
+          "info",
+          ("old name found for proc info (aka stage) <%s>; "
+           "old name is <%s>; "
+           "old version is %d; "
+           "returning %s name",
+           ret, compatible_name_info.old_name, compatible_name_info.version,
+           version <= compatible_name_info.version ? "old" : "new"));
+    else
+      DBUG_PRINT("info", ("no old name for proc info (aka stage) <%s>", ret));
+#endif  // ifndef NDEBUG
+    if (version <= compatible_name_info.version)
+      ret = compatible_name_info.old_name;
+  }
+  return ret;
 }
 
 void Open_tables_state::set_open_tables_state(Open_tables_state *state) {

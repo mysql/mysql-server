@@ -2647,7 +2647,8 @@ class thread_info_compare {
   }
 };
 
-static const char *thread_state_info(THD *inspected_thd) {
+static const char *thread_state_info(THD *invoking_thd, THD *inspected_thd) {
+  DBUG_TRACE;
   if (inspected_thd->get_protocol()->get_rw_status()) {
     if (inspected_thd->get_protocol()->get_rw_status() == 2)
       return "Sending to client";
@@ -2657,8 +2658,9 @@ static const char *thread_state_info(THD *inspected_thd) {
       return "Receiving from client";
   } else {
     MUTEX_LOCK(lock, &inspected_thd->LOCK_current_cond);
-    if (inspected_thd->proc_info())
-      return inspected_thd->proc_info();
+    const char *proc_info = inspected_thd->proc_info_session(invoking_thd);
+    if (proc_info)
+      return proc_info;
     else if (inspected_thd->current_cond.load())
       return "Waiting on cond";
     else
@@ -2689,6 +2691,7 @@ class List_process_list : public Do_THD_Impl {
         m_max_query_length(max_query_length) {}
 
   void operator()(THD *inspect_thd) override {
+    DBUG_TRACE;
     Security_context *inspect_sctx = inspect_thd->security_context();
     LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
     LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
@@ -2751,7 +2754,7 @@ class List_process_list : public Do_THD_Impl {
     thd_info->command = (int)inspect_thd->get_command();  // Used for !killed.
 
     /* STATE */
-    thd_info->state_info = thread_state_info(inspect_thd);
+    thd_info->state_info = thread_state_info(m_client_thd, inspect_thd);
 
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
 
@@ -2892,6 +2895,7 @@ class Fill_process_list : public Do_THD_Impl {
   }
 
   void operator()(THD *inspect_thd) override {
+    DBUG_TRACE;
     Security_context *inspect_sctx = inspect_thd->security_context();
     LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
     LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
@@ -2969,7 +2973,7 @@ class Fill_process_list : public Do_THD_Impl {
     }
 
     /* STATE */
-    val = thread_state_info(inspect_thd);
+    val = thread_state_info(m_client_thd, inspect_thd);
     if (val) {
       table->field[6]->store(val, strlen(val), system_charset_info);
       table->field[6]->set_notnull();

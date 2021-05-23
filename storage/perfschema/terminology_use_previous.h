@@ -71,13 +71,19 @@ struct compatible_name_t {
 
   @param str The object name to check.
 
+  @param use_prefix If true, 'str' is expected to begin with the
+  prefix for 'class_type', and the return value will include the
+  prefix.  If false, 'str' is not expected to begin with the prefix
+  and the return value will not include the prefix.
+
   @retval A compatible_name_t object. If there is an alternative name,
   'old_name' points to a static buffer containing that name, and
   'version' represents the enum_compatibility_version where that name
   was introduced.  If there is no alternative name, 'old_name' is
   nullptr and version is 0.
 */
-compatible_name_t lookup(PFS_class_type class_type, std::string str);
+compatible_name_t lookup(PFS_class_type class_type, const std::string str,
+                         bool use_prefix = true);
 
 /**
   Checks the session variable
