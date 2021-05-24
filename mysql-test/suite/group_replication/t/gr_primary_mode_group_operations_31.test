@@ -28,10 +28,6 @@
 --echo
 --echo # 1. Server1 start, bootstrap the group and create table test.t1
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-
 --source include/start_and_bootstrap_group_replication.inc
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
@@ -42,18 +38,10 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-
 --source include/start_group_replication.inc
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
-
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 
 --source include/start_group_replication.inc
 

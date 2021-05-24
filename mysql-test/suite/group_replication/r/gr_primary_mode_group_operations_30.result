@@ -5,15 +5,9 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 
 # 1. Start a group in single primary mode.
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 [connection server2]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 include/start_group_replication.inc
 
 # 2. Go to a member that will be a secondary and lock a table

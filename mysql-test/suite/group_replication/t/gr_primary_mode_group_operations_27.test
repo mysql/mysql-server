@@ -34,10 +34,6 @@
 --echo
 --echo # 1. Create table for tests on a multi primary group
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
 --source include/rpl_sync.inc
@@ -53,10 +49,6 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 
 SET @@GLOBAL.group_replication_member_weight= 90;
 

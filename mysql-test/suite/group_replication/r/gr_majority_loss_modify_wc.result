@@ -1,10 +1,4 @@
 [connection server1]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 [connection server2]
 [connection server1]
 

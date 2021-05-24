@@ -73,7 +73,6 @@ call mtr.add_suppression("Due to a plugin error, some transactions were unable t
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
 call mtr.add_suppression("Plugin group_replication reported: 'Error while waiting for conflict detection procedure to finish on session.*");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 set session sql_log_bin=1;
 
 # Wait for INSERT to be blocked

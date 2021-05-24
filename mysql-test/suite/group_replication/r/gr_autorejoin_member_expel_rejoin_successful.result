@@ -20,9 +20,6 @@ SET @@GLOBAL.DEBUG='+d,group_replication_rejoin_short_retry';
 SET @@GLOBAL.DEBUG='+d,group_replication_stop_before_rejoin';
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 [connection server3]
 include/start_group_replication.inc

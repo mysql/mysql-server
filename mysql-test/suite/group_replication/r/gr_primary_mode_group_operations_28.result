@@ -6,19 +6,12 @@ Note	####	Storing MySQL user name or password information in the master info rep
 
 # 1. Start single primary group and create table
 include/start_and_bootstrap_group_replication.inc
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
 include/rpl_sync.inc
 [connection server2]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 include/start_group_replication.inc
 [connection server3]
 set session sql_log_bin=0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. The appointed primary for election left the group, this operation will be aborted*");
 set session sql_log_bin=1;
 include/start_group_replication.inc

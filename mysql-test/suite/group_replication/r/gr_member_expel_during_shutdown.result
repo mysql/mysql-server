@@ -6,17 +6,6 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin= 1;
-[connection server2]
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin= 1;
-[connection server3]
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin= 1;
 [connection server4]
 
 ############################################################
@@ -48,7 +37,6 @@ call mtr.add_suppression("Plugin group_replication reported: 'The server was aut
 call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'");
 call mtr.add_suppression("Error writing relay log configuration.");
 call mtr.add_suppression("Plugin group_replication reported: 'Failed to stop the group replication applier thread.");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SESSION sql_log_bin= 1;
 
 ############################################################

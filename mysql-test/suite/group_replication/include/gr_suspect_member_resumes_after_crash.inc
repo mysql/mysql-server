@@ -44,23 +44,14 @@
 SET GLOBAL group_replication_member_expel_timeout = 3600;
 --let $server1_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 3600;
-
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
 SET GLOBAL group_replication_member_expel_timeout = 3600;
 set session sql_log_bin=0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
 call mtr.add_suppression("Timeout on wait for view after joining group");

@@ -36,10 +36,6 @@
 --echo
 --echo # 1. Members in Multi Primary Mode, create two tables and rpl_sync
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
@@ -53,10 +49,6 @@ CREATE TABLE test.t2 (a INT PRIMARY KEY);
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-
 LOCK TABLE t1 READ;
 
 --echo
@@ -64,10 +56,6 @@ LOCK TABLE t1 READ;
 
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
-
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 
 --let $server3_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 

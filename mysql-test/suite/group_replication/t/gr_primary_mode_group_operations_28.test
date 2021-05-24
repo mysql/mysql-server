@@ -36,10 +36,6 @@
 
 --source include/start_and_bootstrap_group_replication.inc
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
 CREATE TABLE test.t1 (a INT PRIMARY KEY);
@@ -48,10 +44,6 @@ CREATE TABLE test.t1 (a INT PRIMARY KEY);
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 --source include/start_group_replication.inc
 
 --let $server2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -60,7 +52,6 @@ SET SESSION sql_log_bin = 1;
 --source include/rpl_connection.inc
 
 set session sql_log_bin=0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. The appointed primary for election left the group, this operation will be aborted*");
 set session sql_log_bin=1;
 

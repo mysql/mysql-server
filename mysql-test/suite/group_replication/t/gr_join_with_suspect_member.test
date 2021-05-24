@@ -71,7 +71,6 @@ set session sql_log_bin=0;
 call mtr.add_suppression("Timeout on wait for view after joining group");
 call mtr.add_suppression("The member is leaving a group without being on one");
 call mtr.add_suppression("The member has left the group but the new view will not be installed");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 set session sql_log_bin=1;
 
 --echo

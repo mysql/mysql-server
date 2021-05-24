@@ -119,7 +119,6 @@ call mtr.add_suppression("The member has failed to gracefully leave the group.")
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("Error while waiting for conflict detection procedure to finish on session .*");
 call mtr.add_suppression("Run function 'before_commit' in plugin 'group_replication' failed");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 set session sql_log_bin=1;
 
 --let $rpl_connection_name= server_2

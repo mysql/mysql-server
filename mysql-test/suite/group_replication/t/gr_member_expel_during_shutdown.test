@@ -25,29 +25,12 @@
 --let $rpl_server_count= 5
 --source include/group_replication.inc
 
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin= 1;
-
---let $rpl_connection_name= server2
---source include/rpl_connection.inc
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin= 1;
-
---let $rpl_connection_name= server3
---source include/rpl_connection.inc
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin= 1;
-
 # Ensure that member 4 was already notified that all 5 members are
 # online.
 --let $rpl_connection_name= server4
 --source include/rpl_connection.inc
 --let $wait_condition=SELECT COUNT(*)=5 FROM performance_schema.replication_group_members where MEMBER_STATE="ONLINE"
 --source include/wait_condition.inc
-
 
 --echo
 --echo ############################################################
@@ -110,7 +93,6 @@ call mtr.add_suppression("Plugin group_replication reported: 'The server was aut
 call mtr.add_suppression("Plugin group_replication reported: 'Skipping leave operation: concurrent attempt to leave the group is on-going.'");
 call mtr.add_suppression("Error writing relay log configuration.");
 call mtr.add_suppression("Plugin group_replication reported: 'Failed to stop the group replication applier thread.");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SESSION sql_log_bin= 1;
 
 

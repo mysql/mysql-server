@@ -26,9 +26,6 @@ SET @saved_exit_state_action = @@GLOBAL.group_replication_exit_state_action;
 SET @@GLOBAL.group_replication_exit_state_action = OFFLINE_MODE;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 [connection server3]
 include/start_group_replication.inc

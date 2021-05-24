@@ -12,9 +12,6 @@ INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 ############################################################
 # 2. Bootstrap server1 and add some data
 include/start_and_bootstrap_group_replication.inc
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
@@ -22,9 +19,6 @@ INSERT INTO t1 VALUES (2);
 ############################################################
 # 3. Install the clone plugin and start group replication on server3.
 [connection server3]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 INSTALL PLUGIN clone SONAME 'CLONE_PLUGIN';
 include/start_group_replication.inc
 

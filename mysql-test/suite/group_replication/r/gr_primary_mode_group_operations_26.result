@@ -11,7 +11,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET @@GLOBAL.DEBUG= '+d,group_replication_block_group_action';
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_set_as_primary' failed. Primary assigned for election left the group, this operation will be aborted*");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 set session sql_log_bin=1;
 
 # 1.2. On server2 execute action to change to single primary with
@@ -19,7 +18,6 @@ set session sql_log_bin=1;
 [connection server2]
 set session sql_log_bin=0;
 call mtr.add_suppression("The function 'group_replication_switch_to_single_primary_mode' failed. Primary assigned for election left the group, this operation will be aborted.");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 set session sql_log_bin=1;
 SELECT group_replication_switch_to_single_primary_mode("MEMBER1_UUID");
 
@@ -40,7 +38,6 @@ ERROR HY000: The function 'group_replication_switch_to_single_primary_mode' fail
 # 1.6. Add suppression on server3 for action failure
 [connection server3]
 set session sql_log_bin=0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 call mtr.add_suppression("Error while executing a group configuration operation: Primary assigned for election left the group, this operation will be aborted.");
 set session sql_log_bin=1;
 

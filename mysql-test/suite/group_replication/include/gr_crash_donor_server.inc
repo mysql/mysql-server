@@ -36,10 +36,6 @@ SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*");
-SET SESSION sql_log_bin = 1;
-
 # Extract the server_uuid
 --let $server1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 
@@ -47,10 +43,6 @@ SET SESSION sql_log_bin = 1;
 
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
-
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
@@ -106,7 +98,6 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SESSION sql_log_bin= 1;
 
 --let $group_replication_start_member_state= RECOVERING

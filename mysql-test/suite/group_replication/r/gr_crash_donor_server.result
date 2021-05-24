@@ -7,14 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*");
-SET SESSION sql_log_bin = 1;
 include/start_and_bootstrap_group_replication.inc
 [connection server2]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 SET sql_log_bin=0;
 CREATE TABLE t1(a int primary key);
 SET sql_log_bin=1;
@@ -46,7 +40,6 @@ SET SESSION sql_log_bin= 0;
 call mtr.add_suppression("There was an error when connecting to the donor server.*");
 call mtr.add_suppression("For details please check performance_schema.replication_connection_status table and error log messages of Slave I/O for channel group_replication_recovery.");
 call mtr.add_suppression("Slave I/O for channel 'group_replication_recovery': Master command COM_REGISTER_SLAVE failed: failed registering on master, reconnecting to try again.*");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SESSION sql_log_bin= 1;
 include/start_group_replication.inc
 CREATE PROCEDURE dml_operations_2()

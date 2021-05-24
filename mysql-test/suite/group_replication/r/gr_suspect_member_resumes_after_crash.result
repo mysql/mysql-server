@@ -9,18 +9,11 @@ Note	####	Storing MySQL user name or password information in the master info rep
 #    3600 seconds.
 [connection server1]
 SET GLOBAL group_replication_member_expel_timeout = 3600;
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 [connection server2]
 SET GLOBAL group_replication_member_expel_timeout = 3600;
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 [connection server3]
 SET GLOBAL group_replication_member_expel_timeout = 3600;
 set session sql_log_bin=0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
 call mtr.add_suppression("Timeout on wait for view after joining group");

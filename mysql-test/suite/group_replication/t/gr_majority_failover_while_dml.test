@@ -33,11 +33,6 @@
 --let $local_address_server1= `SELECT @@GLOBAL.group_replication_local_address`
 CREATE TABLE t1(a int primary key);
 
-set sql_log_bin=0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-set sql_log_bin=1;
-
-
 --source include/rpl_sync.inc
 
 # Create a procedure to perform the dml operations.
@@ -65,7 +60,6 @@ delimiter ;$$
 
 set sql_log_bin=0;
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 set sql_log_bin=1;
 

@@ -48,10 +48,6 @@
 
 --source include/start_and_bootstrap_group_replication.inc
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t1 VALUES (2);
@@ -62,10 +58,6 @@ INSERT INTO t1 VALUES (2);
 
 --let $rpl_connection_name= server3
 --source include/rpl_connection.inc
-
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 
 --let $server3_port = `SELECT @@port`
 --let $server3_ip_port= 127.0.0.1:$server3_port

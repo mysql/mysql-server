@@ -6,16 +6,10 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 
 [connection server2]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 include/install_replication_observers_example.inc
 include/start_and_bootstrap_group_replication.inc
 CREATE TABLE t1 (a INT NOT NULL AUTO_INCREMENT PRIMARY KEY , b INT);
 [connection server1]
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
 include/install_replication_observers_example.inc
 
 # 1. Server can't use send service when server status is OFFLINE

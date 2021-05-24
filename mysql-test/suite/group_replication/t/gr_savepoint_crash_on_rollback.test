@@ -30,10 +30,6 @@ SET @debug_save= @@GLOBAL.DEBUG;
 --source include/rpl_connection.inc
 --let $member2_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
-SET SESSION sql_log_bin = 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-SET SESSION sql_log_bin = 1;
-
 --let $rpl_connection_name= server1
 --source include/rpl_connection.inc
 

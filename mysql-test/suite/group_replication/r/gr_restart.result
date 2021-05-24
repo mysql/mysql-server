@@ -5,7 +5,6 @@
 include/start_and_bootstrap_group_replication.inc
 set session sql_log_bin=0;
 call mtr.add_suppression("The member lost contact with a majority of the members in the group. Until the network is restored.*");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 call mtr.add_suppression("The member resumed contact with a majority of the members in the group.*");
 set session sql_log_bin=1;
 SET @debug_saved= @@GLOBAL.DEBUG;

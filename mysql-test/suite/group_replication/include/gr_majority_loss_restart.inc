@@ -30,11 +30,6 @@
 --let $member1_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
 --let $member1_group_replication_local_address= `SELECT @@GLOBAL.group_replication_local_address`
 
-SET SESSION sql_log_bin= 0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-call mtr.add_suppression("A message intended for a client cannot be sent there as no client-session is attached. Therefore, we're sending the information to the error-log instead: MY-001158 - Got an error reading communication packets");
-SET SESSION sql_log_bin= 1;
-
 --let $rpl_connection_name= server2
 --source include/rpl_connection.inc
 --let $member2_uuid= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
@@ -46,7 +41,6 @@ call mtr.add_suppression("Timeout on wait for view after joining group");
 call mtr.add_suppression("read failed");
 call mtr.add_suppression("The member was unable to join the group. Local port: *.*");
 call mtr.add_suppression("Error connecting to all peers. Member join failed. Local port: *.*");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 SET SESSION sql_log_bin= 1;
 
 

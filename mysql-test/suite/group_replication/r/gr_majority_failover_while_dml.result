@@ -5,9 +5,6 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection server1]
 [connection server1]
 CREATE TABLE t1(a int primary key);
-set sql_log_bin=0;
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
-set sql_log_bin=1;
 include/rpl_sync.inc
 CREATE PROCEDURE dml_operations()
 BEGIN
@@ -27,7 +24,6 @@ call dml_operations();
 [connection server2]
 set sql_log_bin=0;
 call mtr.add_suppression(".*Slave SQL for channel 'group_replication_applier': ... The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state*");
-call mtr.add_suppression("Failed to establish MySQL client connection in Group Replication.*.");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 set sql_log_bin=1;
 # killing
