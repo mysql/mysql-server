@@ -842,6 +842,12 @@ protected:
 			   Uint32 length,
 			   SectionHandle* sections) const;
 
+  void sendSignalOverAllLinks(BlockReference ref,
+                        GlobalSignalNumber gsn,
+                        Signal25* signal,
+                        Uint32 length,
+                        JobBufferLevel jbuf ) const ;
+
   /**
    * EXECUTE_DIRECT comes in five variants.
    *
