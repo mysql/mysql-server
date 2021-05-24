@@ -1963,6 +1963,95 @@ SimulatedBlock::sendSignalWithDelay(BlockReference ref,
   sections->m_cnt = 0;
 }
 
+/*
+ * Copy implementation for sendSignalOverAllLinks from sendSignal, excluding part for
+ * local send.
+ */
+void
+SimulatedBlock::sendSignalOverAllLinks(BlockReference ref,
+                                 GlobalSignalNumber gsn,
+                                 Signal25* signal,
+                                 Uint32 length,
+                                 JobBufferLevel jobBuffer) const
+{
+
+  BlockReference sendBRef = reference();
+
+  Uint32 recBlock = refToBlock(ref);
+  Uint32 recNode   = refToNode(ref);
+  Uint32 ourProcessor         = globalData.ownId;
+
+  ndbrequire(signal->header.m_noOfSections == 0);
+  check_sections(signal, signal->header.m_noOfSections, 0);
+
+  signal->header.theLength = length;
+  signal->header.theVerId_signalNumber = gsn;
+  signal->header.theReceiversBlockNumber = recBlock;
+  signal->header.m_noOfSections = 0;
+
+  Uint32 tSignalId = signal->header.theSignalId;
+
+  if (unlikely((length == 0) || length > 25 || (recBlock == 0)))
+  {
+    signal_error(gsn, length, recBlock, __FILE__, __LINE__);
+    return;
+  }//if
+#ifdef VM_TRACE
+  if (globalData.testOn){
+    Uint16 proc =
+      (recNode == 0 ? globalData.ownId : recNode);
+    signal->header.theSendersBlockRef = sendBRef;
+    globalSignalLoggers.sendSignal(signal->header,
+                                   jobBuffer,
+                                   &signal->theData[0],
+                                   proc);
+  }
+#endif
+
+  // Local send part not copied from sendSignal.
+  ndbrequire(recNode != ourProcessor);
+  ndbrequire(recNode != 0);
+
+  // send distributed Signal
+  SignalHeader sh;
+
+  Uint32 tTrace = signal->getTrace();
+
+  sh.theVerId_signalNumber   = gsn;
+  sh.theReceiversBlockNumber = recBlock;
+  sh.theSendersBlockRef      = refToBlock(sendBRef);
+  sh.theLength               = length;
+  sh.theTrace                = tTrace;
+  sh.theSignalId             = tSignalId;
+  sh.m_noOfSections          = 0;
+  sh.m_fragmentInfo          = 0;
+
+#ifdef TRACE_DISTRIBUTED
+  g_eventLogger->info("send: %s(%d) to (%s, %d)", getSignalName(gsn), gsn,
+                      getBlockName(recBlock), recNode);
+#endif
+
+  SendStatus ss;
+#ifdef NDBD_MULTITHREADED
+  ss = mt_send_remote_over_all_links(m_threadId, &sh, jobBuffer,
+                                     &signal->theData[0], recNode);
+#else
+  TrpBitmask trp_ids;
+  ss = globalTransporterRegistry.
+         prepareSendOverAllLinks(getNonMTTransporterSendHandle(),
+                                 &sh, jobBuffer,
+                                 &signal->theData[0], recNode, trp_ids);
+#endif
+
+  if (unlikely(! (ss == SEND_OK ||
+                  ss == SEND_BLOCKED ||
+                  ss == SEND_DISCONNECTED)))
+  {
+    handle_send_failed(ss, signal, recNode, (LinearSectionPtr*)NULL);
+  }
+  return;
+}
+
 void
 SimulatedBlock::release(SegmentedSectionPtr & ptr)
 {

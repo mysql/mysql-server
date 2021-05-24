@@ -1058,31 +1058,11 @@ TransporterRegistry::prepareSendTemplate(
                                  Uint8 prio,
                                  const Uint32 * signalData,
                                  NodeId nodeId,
-                                 TrpId &trp_id,
+                                 Transporter *t,
                                  AnySectionArg section)
 {
-  Transporter *node_trp = theNodeIdTransporters[nodeId];
-  if (unlikely(node_trp == NULL))
-  {
-    DEBUG("Discarding message to unknown node: " << nodeId);
-    return SEND_UNKNOWN_NODE;
-  }
-  assert(!node_trp->isPartOfMultiTransporter());
-  Transporter *t;
-  t = node_trp->get_send_transporter(signalHeader->theReceiversBlockNumber,
-                                     signalHeader->theSendersBlockRef);
-  assert(!t->isMultiTransporter());
-  trp_id = t->getTransporterIndex();
-  if (unlikely(trp_id == 0))
-  {
-    /**
-     * Can happen in disconnect situations, node is disconnected, so send
-     * to it is successful since the node won't be there to receive the
-     * message.
-     */
-    DEBUG("Discarding message due to trp_id = 0");
-    return SEND_OK;
-  }
+  assert(t != nullptr);
+
   if(
     likely((ioStates[nodeId] != HaltOutput) && (ioStates[nodeId] != HaltIO)) || 
            (signalHeader->theReceiversBlockNumber == QMGR) ||
@@ -1093,6 +1073,7 @@ TransporterRegistry::prepareSendTemplate(
       const Uint32 lenBytes = t->m_packer.getMessageLength(signalHeader, section.m_ptr);
       if (likely(lenBytes <= MAX_SEND_MESSAGE_BYTESIZE))
       {
+        TrpId trp_id = t->getTransporterIndex();
         SendStatus error = SEND_OK;
 	Uint32 *insertPtr = getWritePtr(sendHandle,
                                         t,
@@ -1184,6 +1165,40 @@ TransporterRegistry::prepareSendTemplate(
 }
 
 
+Transporter*
+TransporterRegistry::prepareSend_getTransporter(
+                                const SignalHeader *signalHeader,
+                                NodeId nodeId,
+                                TrpId &trp_id,
+                                SendStatus& status)
+{
+  Transporter *node_trp = theNodeIdTransporters[nodeId];
+  if (unlikely(node_trp == NULL))
+  {
+    DEBUG("Discarding message to unknown node: " << nodeId);
+    status = SEND_UNKNOWN_NODE;
+    return nullptr;
+  }
+  assert(!node_trp->isPartOfMultiTransporter());
+  Transporter *t;
+  t = node_trp->get_send_transporter(signalHeader->theReceiversBlockNumber,
+                                     signalHeader->theSendersBlockRef);
+  assert(!t->isMultiTransporter());
+  trp_id = t->getTransporterIndex();
+  if (unlikely(trp_id == 0))
+  {
+    /**
+     * Can happen in disconnect situations, node is disconnected, so send
+     * to it is successful since the node won't be there to receive the
+     * message.
+     */
+    DEBUG("Discarding message due to trp_id = 0");
+    status = SEND_OK;
+    return nullptr;
+  }
+  return t;
+}
+
 SendStatus
 TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
                                  const SignalHeader *signalHeader,
@@ -1193,13 +1208,19 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
                                  TrpId &trp_id,
                                  const LinearSectionPtr ptr[3])
 {
+  SendStatus status;
+  Transporter *t = prepareSend_getTransporter(signalHeader, nodeId, trp_id,
+                                              status);
+  if (unlikely(t == nullptr))
+    return status;
+
   const Packer::LinearSectionArg section(ptr);
   return prepareSendTemplate(sendHandle,
                              signalHeader,
                              prio,
                              signalData,
                              nodeId,
-                             trp_id,
+                             t,
                              section);
 }
 
@@ -1214,13 +1235,19 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
                                  class SectionSegmentPool &thePool,
                                  const SegmentedSectionPtr ptr[3])
 {
+  SendStatus status;
+  Transporter *t = prepareSend_getTransporter(signalHeader, nodeId, trp_id,
+                                              status);
+  if (unlikely(t == nullptr))
+    return status;
+
   const Packer::SegmentedSectionArg section(thePool,ptr);
   return prepareSendTemplate(sendHandle,
                              signalHeader,
                              prio,
                              signalData,
                              nodeId,
-                             trp_id,
+                             t,
                              section);
 }
 
@@ -1234,14 +1261,112 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
                                  const GenericSectionPtr ptr[3])
 {
   TrpId trp_id = 0;
+  SendStatus status;
+  Transporter *t = prepareSend_getTransporter(signalHeader, nodeId, trp_id,
+                                              status);
+  if (unlikely(t == nullptr))
+    return status;
+
   const Packer::GenericSectionArg section(ptr);
   return prepareSendTemplate(sendHandle,
                              signalHeader,
                              prio,
                              signalData,
                              nodeId,
-                             trp_id,
+                             t,
                              section);
+}
+
+SendStatus
+TransporterRegistry::prepareSendOverAllLinks(
+                                 TransporterSendBufferHandle *sendHandle,
+                                 const SignalHeader *signalHeader,
+                                 Uint8 prio,
+                                 const Uint32 *signalData,
+                                 NodeId nodeId,
+                                 TrpBitmask &trp_ids)
+{
+  // node_trp handling copied from first part of prepareSend_getTransporter
+  Transporter *node_trp = theNodeIdTransporters[nodeId];
+  if (unlikely(node_trp == NULL))
+  {
+    DEBUG("Discarding message to unknown node: " << nodeId);
+    return SEND_UNKNOWN_NODE;
+  }
+  assert(!node_trp->isPartOfMultiTransporter());
+
+  LinearSectionPtr ptr[3];
+  require(signalHeader->m_noOfSections == 0);
+  const Packer::LinearSectionArg section(ptr);
+
+  if (!node_trp->isMultiTransporter())
+  {
+    Transporter *t = node_trp;
+    // t handling copied from second part of prepareSend_getTransporter
+    TrpId trp_id = t->getTransporterIndex();
+    if (unlikely(trp_id == 0))
+    {
+      /**
+       * Can happen in disconnect situations, node is disconnected, so send
+       * to it is successful since the node won't be there to receive the
+       * message.
+       */
+      DEBUG("Discarding message due to trp_id = 0");
+      return SEND_OK;
+    }
+
+    SendStatus status = prepareSendTemplate(sendHandle,
+                                            signalHeader,
+                                            prio,
+                                            signalData,
+                                            nodeId,
+                                            t,
+                                            section);
+
+    if (likely(status == SEND_OK))
+    {
+      require(trp_id < MAX_NTRANSPORTERS);
+      trp_ids.set(trp_id);
+    }
+    return status;
+  }
+  else
+  {
+    Multi_Transporter *multi_trp = get_node_multi_transporter(nodeId);
+    require(multi_trp == node_trp);
+
+    SendStatus return_status = SEND_OK;
+    Uint32 num_trps = multi_trp->get_num_active_transporters();
+    for (Uint32 i = 0; i < num_trps; i++)
+    {
+      Transporter *t = multi_trp->get_active_transporter(i);
+      require(t != nullptr);
+      const TrpId trp_id = t->getTransporterIndex();
+      if (unlikely(trp_id == 0))
+        continue;
+      SendStatus status = prepareSendTemplate(sendHandle,
+                                              signalHeader,
+                                              prio,
+                                              signalData,
+                                              nodeId,
+                                              t,
+                                              section);
+      if (likely(status == SEND_OK))
+      {
+        require(trp_id < MAX_NTRANSPORTERS);
+        trp_ids.set(trp_id);
+      }
+      else if (status != SEND_BLOCKED && status != SEND_DISCONNECTED)
+      {
+        /*
+         * Treat SEND_BLOCKED and SEND_DISCONNECTED as SEND_OK.
+         * Else take the last bad status returned.
+         */
+        return_status = status;
+      }
+    }
+    return return_status;
+  }
 }
 
 bool

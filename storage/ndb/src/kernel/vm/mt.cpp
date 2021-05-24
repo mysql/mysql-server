@@ -9157,6 +9157,37 @@ mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
   return ss;
 }
 
+SendStatus
+mt_send_remote_over_all_links(Uint32 self, const SignalHeader *sh, Uint8 prio,
+                              const Uint32 * data, NodeId nodeId)
+{
+  thr_repository *rep = g_thr_repository;
+  struct thr_data *selfptr = &rep->m_thread[self];
+  SendStatus ss;
+
+  mt_send_handle handle(selfptr);
+  /* prepareSend() is lock-free, as we have per-thread send buffers. */
+  TrpBitmask trp_ids;
+  ss = globalTransporterRegistry.prepareSendOverAllLinks(&handle,
+                                                         sh,
+                                                         prio,
+                                                         data,
+                                                         nodeId,
+                                                         trp_ids);
+  if (likely(ss == SEND_OK))
+  {
+    unsigned trp_id = trp_ids.find(0);
+    while (trp_id != trp_ids.NotFound)
+    {
+      require(trp_id < MAX_NTRANSPORTERS);
+      register_pending_send(selfptr, trp_id);
+      trp_id = trp_ids.find(trp_id + 1);
+    }
+  }
+  return ss;
+}
+
+
 /*
  * This functions sends a prio A STOP_FOR_CRASH signal to a thread.
  *
