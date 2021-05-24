@@ -45,13 +45,23 @@ EOF
 SET GLOBAL null_audit_event_order_check_consume_ignore_count = 6;
 SET GLOBAL null_audit_event_order_check = "MYSQL_AUDIT_CONNECTION_PRE_AUTHENTICATE;;ABORT_RET";
 --error 1
---exec $MYSQLXTEST --ssl-mode=REQUIRED -u user1_mysqlx --password='auth_string1' --plain-auth --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+exec $MYSQLXTEST
+    --ssl-mode=REQUIRED --history-protocol false
+    -u user1_mysqlx --password='auth_string1' --plain-auth
+    --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1;
 
 --error 1
---exec $MYSQLXTEST --tls-version=TLSv1.2 --ssl-mode=REQUIRED -u user3_mysqlx --password='auth_string3' --plain-auth --ssl-cipher="DHE-RSA-AES256-SHA" --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+exec $MYSQLXTEST
+    --tls-version=TLSv1.2 --ssl-mode=REQUIRED --history-protocol false
+    -u user3_mysqlx --password='auth_string3' --plain-auth
+    --ssl-cipher="DHE-RSA-AES256-SHA" --ssl-key=$MYSQL_TEST_DIR/std_data/client-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/client-cert.pem
+    --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1;
 
 --error 1
---exec $MYSQLXTEST --ssl-mode=REQUIRED -u user5_mysqlx --password='auth_string' --plain-auth --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1
+exec $MYSQLXTEST
+    --ssl-mode=REQUIRED --history-protocol false
+    -u user5_mysqlx --password='auth_string' --plain-auth
+    --ssl-key=$MYSQL_TEST_DIR/std_data/server-key.pem --ssl-cert=$MYSQL_TEST_DIR/std_data/server-cert.pem --file=$MYSQL_TMP_DIR/mysqlx-connection-info.tmp 2>&1;
 
 UNINSTALL PLUGIN null_audit;
 
