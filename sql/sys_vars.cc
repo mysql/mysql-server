@@ -4700,11 +4700,8 @@ static Sys_var_enum Sys_updatable_views_with_limit(
     HINT_UPDATEABLE SESSION_VAR(updatable_views_with_limit),
     CMD_LINE(REQUIRED_ARG), updatable_views_with_limit_names, DEFAULT(true));
 
-static char *system_time_zone_ptr;
-static Sys_var_charptr Sys_system_time_zone(
-    "system_time_zone", "The server system time zone",
-    READ_ONLY NON_PERSIST GLOBAL_VAR(system_time_zone_ptr), NO_CMD_LINE,
-    IN_FS_CHARSET, DEFAULT(system_time_zone));
+static Sys_var_system_time_zone Sys_system_time_zone(
+    "system_time_zone", "The server system time zone");
 
 static Sys_var_ulong Sys_table_def_size(
     "table_definition_cache", "The number of cached table definitions",
