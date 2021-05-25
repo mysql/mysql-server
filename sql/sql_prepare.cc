@@ -1129,6 +1129,9 @@ bool Sql_cmd_create_table::prepare(THD *thd) {
   if (create_table_precheck(thd, query_expression_tables, create_table))
     return true;
 
+  auto cleanup_se_guard = create_scope_guard(
+      [lex] { lex->set_secondary_engine_execution_context(nullptr); });
+
   if (!query_block->fields.empty()) {
     /* Base table and temporary table are not in the same name space. */
     if (!(lex->create_info->options & HA_LEX_CREATE_TMP_TABLE))

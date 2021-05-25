@@ -4315,19 +4315,12 @@ class THD : public MDL_context_owner,
 
   /**
     Checks if queries in this session can use a secondary storage engine for
-    execution. A secondary engine cannot be used if any of the following
-    conditions is true:
-
-    - Secondary engines are disabled in the session
-    - The user has disabled secondary engines
-    - LOCK TABLES mode is active
-    - Multi-statement transaction mode is active
-    - It is a sub-statement of a stored procedure
+    execution.
 
     @return true if secondary storage engines can be used in this
     session, or false otherwise
   */
-  bool secondary_storage_engine_eligible() const;
+  bool is_secondary_storage_engine_eligible() const;
 
  private:
   /**

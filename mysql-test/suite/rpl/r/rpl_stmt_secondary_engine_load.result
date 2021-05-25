@@ -114,25 +114,32 @@ test.t1	analyze	status	OK
 EXPLAIN INSERT INTO t2 SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 Warnings:
 Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
-2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	INSERT	t2	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
-1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
-2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	Using secondary engine MOCK
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	UNION	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	insert into `test`.`t2` /* select#1 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1` union all /* select#2 */ select `test`.`t1`.`pk` AS `pk`,`test`.`t1`.`vc` AS `vc`,`test`.`t1`.`j` AS `j`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`vb` AS `vb` from `test`.`t1`
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
+CREATE TABLE t3 SELECT * from t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+Variable_name	Value
+Secondary_engine_execution_count	0
 INSERT INTO t2 VALUES(NULL, 'Poodle', '{"key":"value"}', 'Pug', x'1234');
 INSERT INTO t2 VALUES(NULL, 'Labrador', '[{"key":"value"},{"key":"value2"}]',
 'Boxer', x'abcd');
@@ -153,6 +160,15 @@ t2	CREATE TABLE `t2` (
   `vb` varbinary(32) DEFAULT NULL,
   PRIMARY KEY (`pk`)
 ) ENGINE=InnoDB AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci SECONDARY_ENGINE=MOCK
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `pk` int NOT NULL DEFAULT '0',
+  `vc` varchar(10) DEFAULT NULL,
+  `j` json DEFAULT NULL,
+  `b` blob,
+  `vb` varbinary(32) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 FLUSH STATUS;
 SELECT * FROM t2;
 pk	vc	j	b	vb
@@ -179,6 +195,7 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	1
 ALTER TABLE t1 SECONDARY_UNLOAD;
+DROP TABLE t3;
 include/sync_slave_sql_with_master.inc
 [ Connection Slave ]
 FLUSH STATUS;
@@ -206,6 +223,8 @@ Got one of the listed errors
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 Variable_name	Value
 Secondary_engine_execution_count	0
+CREATE TABLE t3 SELECT * from t1;
+Got one of the listed errors
 SET use_secondary_engine = @save_use_secondary_engine;
 FLUSH STATUS;
 SELECT /*+SET_VAR(use_secondary_engine=FORCED)*/ * FROM t1;

@@ -1,0 +1,15 @@
+#####################################################################
+#                                                                   #
+# The aim of this test is to set up replication between a master    #
+# and slave and check that the new ALTER TABLE syntax that has      #
+# been introduced in WL#11581 and WL#11581 to support secondary     #
+# engines work as expected. A mock engine has been written to test  #
+# the statements.                                                   #
+#                                                                   #
+# Creation Date: 2018-06-21                                         #
+# Author: Deepa Dixit                                               #
+#                                                                   #
+#####################################################################
+
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/rpl/include/rpl_secondary_engine_load.inc

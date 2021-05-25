@@ -2734,12 +2734,30 @@ bool THD::is_one_phase_commit() {
   return (xa_op == XA_ONE_PHASE);
 }
 
-bool THD::secondary_storage_engine_eligible() const {
-  return secondary_engine_optimization() !=
-             Secondary_engine_optimization::PRIMARY_ONLY &&
-         variables.use_secondary_engine != SECONDARY_ENGINE_OFF &&
-         locked_tables_mode == LTM_NONE && !in_multi_stmt_transaction_mode() &&
-         sp_runtime_ctx == nullptr;
+bool THD::is_secondary_storage_engine_eligible() const {
+  // STATEMENT based replication is enabled and the statement is CTAS or
+  // INSERT INTO SELECT
+  if (variables.binlog_format == BINLOG_FORMAT_STMT &&
+      (lex->sql_command == SQLCOM_CREATE_TABLE ||
+       lex->sql_command == SQLCOM_INSERT_SELECT))
+    return false;
+  // Secondary engines had been disabled in the session
+  if (secondary_engine_optimization() ==
+      Secondary_engine_optimization::PRIMARY_ONLY)
+    return false;
+  // The user has explicitly disabled secondary engines
+  if (variables.use_secondary_engine == SECONDARY_ENGINE_OFF) return false;
+  // LOCK TABLES mode is active
+  if (locked_tables_mode != LTM_NONE) return false;
+  // Multi-statement transaction mode is active and the statement is not a
+  // CREATE TABLE AS SELECT (these are safe due to COMMIT being run before
+  // and after the statement is executed)
+  if ((in_multi_stmt_transaction_mode() &&
+       lex->sql_command != SQLCOM_CREATE_TABLE))
+    return false;
+  //  It is a sub-statement of a stored procedure
+  if (sp_runtime_ctx != nullptr) return false;
+  return true;
 }
 
 void THD::swap_rewritten_query(String &query_arg) {
