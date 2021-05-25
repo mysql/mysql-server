@@ -3643,7 +3643,6 @@ dberr_t row_merge_build_indexes(
     struct TABLE *eval_table) {
   merge_file_t *merge_files;
   row_merge_block_t *block;
-  ut_new_pfx_t block_pfx;
   ulint i;
   ulint j;
   dberr_t error;
@@ -3669,7 +3668,7 @@ dberr_t row_merge_build_indexes(
 
   /* This will allocate "3 * srv_sort_buf_size" elements of type
   row_merge_block_t. The latter is defined as byte. */
-  block = alloc.allocate_large(3 * srv_sort_buf_size, &block_pfx);
+  block = alloc.allocate_large(3 * srv_sort_buf_size);
 
   if (block == nullptr) {
     return DB_OUT_OF_MEMORY;
@@ -3906,7 +3905,7 @@ func_exit:
 
   ut_free(merge_files);
 
-  alloc.deallocate_large(block, &block_pfx);
+  alloc.deallocate_large(block);
 
   DICT_TF2_FLAG_UNSET(new_table, DICT_TF2_FTS_ADD_DOC_ID);
 

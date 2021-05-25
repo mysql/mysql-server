@@ -839,42 +839,60 @@ class ut_allocator {
   /** Allocate a large chunk of memory that can hold 'n_elements'
   objects of type 'T' and trace the allocation.
   @param[in]	n_elements	number of elements
-  @param[out]	pfx		storage for the description of the
-  allocated memory. The caller must provide space for this one and keep
-  it until the memory is no longer needed and then pass it to
-  deallocate_large().
   @return pointer to the allocated memory or NULL */
-  pointer allocate_large(size_type n_elements, ut_new_pfx_t *pfx) {
+  pointer allocate_large(size_type n_elements) {
     if (n_elements == 0 || n_elements > max_size()) {
       return (nullptr);
     }
 
-    ulint n_bytes = n_elements * sizeof(T);
+    ulint n_bytes = n_elements * sizeof(T) + CPU_PAGE_SIZE;
 
-    pointer ptr = reinterpret_cast<pointer>(os_mem_alloc_large(&n_bytes));
+    auto ptr = os_mem_alloc_large(&n_bytes);
+    if (unlikely(!ptr)) return nullptr;
 
 #ifdef UNIV_PFS_MEMORY
-    if (ptr != nullptr) {
-      allocate_trace(n_bytes, PSI_NOT_INSTRUMENTED, pfx);
-    }
+    ut_new_pfx_t *pfx = reinterpret_cast<ut_new_pfx_t *>(ptr);
+    allocate_trace(n_bytes, PSI_NOT_INSTRUMENTED, pfx);
 #else
-    pfx->m_size = n_bytes;
+    *reinterpret_cast<size_t *>(ptr) = n_bytes;
 #endif /* UNIV_PFS_MEMORY */
-
-    return (ptr);
+    return reinterpret_cast<pointer>(static_cast<uint8_t *>(ptr) +
+                                     CPU_PAGE_SIZE);
   }
 
   /** Free a memory allocated by allocate_large() and trace the
   deallocation.
   @param[in,out]	ptr	pointer to memory to free
-  @param[in]	pfx	descriptor of the memory, as returned by
-  allocate_large(). */
-  void deallocate_large(pointer ptr, const ut_new_pfx_t *pfx) {
+  */
+  void deallocate_large(pointer ptr) {
+    if (unlikely(!ptr)) return;
+
+    auto deduced_alloc_large_ptr = static_cast<uint8_t *>(ptr) - CPU_PAGE_SIZE;
+
 #ifdef UNIV_PFS_MEMORY
+    ut_new_pfx_t *pfx =
+        reinterpret_cast<ut_new_pfx_t *>(deduced_alloc_large_ptr);
+    size_t dealloc_size = pfx->m_size;
     deallocate_trace(pfx);
+#else
+    size_t dealloc_size = *reinterpret_cast<size_t *>(deduced_alloc_large_ptr);
 #endif /* UNIV_PFS_MEMORY */
 
-    os_mem_free_large(ptr, pfx->m_size);
+    os_mem_free_large(deduced_alloc_large_ptr, dealloc_size);
+  }
+
+  /** Find out the size of large allocation given the pointer to it.
+  @param[in,out] ptr pointer to memory returned by allocate_large()
+  @return Size of the large page that has been allocated. */
+  static size_t large_page_size(pointer ptr) {
+    auto deduced_alloc_large_ptr = static_cast<uint8_t *>(ptr) - CPU_PAGE_SIZE;
+#ifdef UNIV_PFS_MEMORY
+    ut_new_pfx_t *pfx =
+        reinterpret_cast<ut_new_pfx_t *>(deduced_alloc_large_ptr);
+    return pfx->m_size - CPU_PAGE_SIZE;
+#else
+    return *reinterpret_cast<size_t *>(deduced_alloc_large_ptr) - CPU_PAGE_SIZE;
+#endif
   }
 
  private:

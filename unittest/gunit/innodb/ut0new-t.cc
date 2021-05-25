@@ -216,11 +216,10 @@ struct big_t {
 /* test edge cases */
 TEST(ut0new, edgecases) {
   ut_allocator<byte> alloc1(mem_key_buf_buf_pool);
-  ut_new_pfx_t pfx;
   void *ret;
   const void *null_ptr = nullptr;
 
-  ret = alloc1.allocate_large(0, &pfx);
+  ret = alloc1.allocate_large(0);
   EXPECT_EQ(null_ptr, ret);
 
 #ifdef UNIV_PFS_MEMORY
@@ -232,6 +231,7 @@ TEST(ut0new, edgecases) {
 
   ret = UT_NEW_ARRAY_NOKEY(byte, 0);
   EXPECT_NE(null_ptr, ret);
+  UT_DELETE_ARRAY((byte *)ret);
 #endif /* UNIV_PFS_MEMORY */
 
   ut_allocator<big_t> alloc2(mem_key_buf_buf_pool);

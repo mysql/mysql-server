@@ -78,18 +78,15 @@ enum row_op {
 
 /** Log block for modifications during online ALTER TABLE */
 struct row_log_buf_t {
-  byte *block;            /*!< file block buffer */
-  ut_new_pfx_t block_pfx; /*!< opaque descriptor of "block". Set
-                       by ut_allocator::allocate_large() and fed to
-                       ut_allocator::deallocate_large(). */
-  mrec_buf_t buf;         /*!< buffer for accessing a record
-                          that spans two blocks */
-  ulint blocks;           /*!< current position in blocks */
-  ulint bytes;            /*!< current position within block */
-  ulonglong total;        /*!< logical position, in bytes from
-                          the start of the row_log_table log;
-                          0 for row_log_online_op() and
-                          row_log_apply(). */
+  byte *block;     /*!< file block buffer */
+  mrec_buf_t buf;  /*!< buffer for accessing a record
+                   that spans two blocks */
+  ulint blocks;    /*!< current position in blocks */
+  ulint bytes;     /*!< current position within block */
+  ulonglong total; /*!< logical position, in bytes from
+                   the start of the row_log_table log;
+                   0 for row_log_online_op() and
+                   row_log_apply(). */
 };
 
 /** Tracks BLOB allocation during online ALTER TABLE */
@@ -238,7 +235,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_log_block_allocate(
     DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", return false;);
 
     log_buf.block = ut_allocator<byte>(mem_key_row_log_buf)
-                        .allocate_large(srv_sort_buf_size, &log_buf.block_pfx);
+                        .allocate_large(srv_sort_buf_size);
 
     if (log_buf.block == nullptr) {
       return false;
@@ -252,8 +249,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_log_block_allocate(
 static void row_log_block_free(row_log_buf_t &log_buf) {
   DBUG_TRACE;
   if (log_buf.block != nullptr) {
-    ut_allocator<byte>(mem_key_row_log_buf)
-        .deallocate_large(log_buf.block, &log_buf.block_pfx);
+    ut_allocator<byte>(mem_key_row_log_buf).deallocate_large(log_buf.block);
     log_buf.block = nullptr;
   }
 }
