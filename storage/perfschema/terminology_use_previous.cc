@@ -138,6 +138,10 @@ static str_map_t stage_map_8_0_26 = {
      "stage/sql/Master has sent all binlog to slave; waiting for more updates"},
     {"stage/sql/Queueing source event to the relay log",
      "stage/sql/Queueing master event to the relay log"},
+    {"stage/sql/Reconnecting after a failed source event read",
+     "stage/sql/Reconnecting after a failed master event read"},
+    {"stage/sql/Reconnecting after a failed registration on source",
+     "stage/sql/Reconnecting after a failed registration on master"},
     {"stage/sql/Registering replica on source",
      "stage/sql/Registering slave on master"},
     {"stage/sql/Sending binlog event to replica",
@@ -168,7 +172,10 @@ static str_map_t stage_map_8_0_26 = {
      "stage/sql/Waiting for slave thread to start"},
     {"stage/sql/Waiting for the replica SQL thread to advance position",
      "stage/sql/Waiting for the slave SQL thread to advance position"},
-};
+    {"stage/sql/Waiting to reconnect after a failed registration on source",
+     "stage/sql/Waiting to reconnect after a failed registration on master"},
+    {"stage/sql/Waiting to reconnect after a failed source event read",
+     "stage/sql/Waiting to reconnect after a failed master event read"}};
 
 static str_map_t thread_command_map_8_0_26 = {
     {"statement/com/Register Replica", "statement/com/Register Slave"}};

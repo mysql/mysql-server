@@ -423,6 +423,10 @@ let $names = {
        "new": "Source has sent all binlog to replica; waiting for more updates" },
      { "old": "Queueing master event to the relay log",
        "new": "Queueing source event to the relay log" },
+     { "old": "Reconnecting after a failed master event read",
+       "new": "Reconnecting after a failed source event read" },
+     { "old": "Reconnecting after a failed registration on master",
+       "new": "Reconnecting after a failed registration on source" },
      { "old": "Registering slave on master",
        "new": "Registering replica on source" },
      { "old": "Sending binlog event to slave",
@@ -450,7 +454,11 @@ let $names = {
      { "old": "Waiting for slave thread to start",
        "new": "Waiting for replica thread to start" },
      { "old": "Waiting for the slave SQL thread to advance position",
-       "new": "Waiting for the replica SQL thread to advance position" }
+       "new": "Waiting for the replica SQL thread to advance position" },
+     { "old": "Waiting to reconnect after a failed registration on master",
+       "new": "Waiting to reconnect after a failed registration on source" },
+     { "old": "Waiting to reconnect after a failed master event read",
+       "new": "Waiting to reconnect after a failed source event read" }
   ],
 
   "command": [

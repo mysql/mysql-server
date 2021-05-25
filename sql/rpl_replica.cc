@@ -233,49 +233,53 @@ int disconnect_slave_event_count = 0, abort_slave_event_count = 0;
 
 static thread_local Master_info *RPL_MASTER_INFO = nullptr;
 
-enum enum_slave_reconnect_actions {
-  SLAVE_RECON_ACT_REG = 0,
-  SLAVE_RECON_ACT_DUMP = 1,
-  SLAVE_RECON_ACT_EVENT = 2,
-  SLAVE_RECON_ACT_MAX
+/**
+  Encapsulates the messages and thread stages used for a specific call
+  to try_to_reconnect.  Different Reconnect_messages objects may be
+  used by the caller of try_to_reconnect in order to make the errors
+  and stages include text that describes the reason for the reconnect.
+*/
+struct Reconnect_messages {
+  /// Stage used while waiting to reconnect
+  PSI_stage_info &stage_waiting_to_reconnect;
+  /// Error reported in case the thread is killed while waiting
+  std::string error_killed_while_waiting;
+  /// Stage used while reconnecting
+  PSI_stage_info &stage_reconnecting;
+  /// Description of the condition that caused the thread to reconnect
+  std::string triggering_error;
+  /**
+    The string representation of the enum_server_command that had been
+    sent to the source before condition that caused the thread to
+    reconnect happened.
+  */
+  std::string triggering_command;
 };
 
-enum enum_slave_reconnect_messages {
-  SLAVE_RECON_MSG_WAIT = 0,
-  SLAVE_RECON_MSG_KILLED_WAITING = 1,
-  SLAVE_RECON_MSG_AFTER = 2,
-  SLAVE_RECON_MSG_FAILED = 3,
-  SLAVE_RECON_MSG_COMMAND = 4,
-  SLAVE_RECON_MSG_KILLED_AFTER = 5,
-  SLAVE_RECON_MSG_MAX
-};
+static Reconnect_messages reconnect_messages_after_failed_registration{
+    stage_replica_waiting_to_reconnect_after_failed_registration_on_source,
+    "Slave I/O thread killed while waiting to reconnect after a failed "
+    "registration on master",
+    stage_replica_reconnecting_after_failed_registration_on_source,
+    "failed registering on master, reconnecting to try again, "
+    "log '%s' at position %s",
+    "COM_REGISTER_SLAVE"};
 
-static const char
-    *reconnect_messages[SLAVE_RECON_ACT_MAX][SLAVE_RECON_MSG_MAX] = {
-        {"Waiting to reconnect after a failed registration on master",
-         "Slave I/O thread killed while waiting to reconnect after a failed "
-         "registration on master",
-         "Reconnecting after a failed registration on master",
-         "failed registering on master, reconnecting to try again, "
-         "log '%s' at position %s",
-         "COM_REGISTER_SLAVE",
-         "Slave I/O thread killed during or after reconnect"},
-        {"Waiting to reconnect after a failed binlog dump request",
-         "Slave I/O thread killed while retrying master dump",
-         "Reconnecting after a failed binlog dump request",
-         "failed dump request, reconnecting to try again, log '%s' at position "
-         "%s",
-         "COM_BINLOG_DUMP",
-         "Slave I/O thread killed during or after reconnect"},
-        {"Waiting to reconnect after a failed master event read",
-         "Slave I/O thread killed while waiting to reconnect after a failed "
-         "read",
-         "Reconnecting after a failed master event read",
-         "Slave I/O thread: Failed reading log event, reconnecting to retry, "
-         "log '%s' at position %s",
-         "",
-         "Slave I/O thread killed during or after a reconnect done to recover "
-         "from failed read"}};
+static Reconnect_messages reconnect_messages_after_failed_dump{
+    stage_replica_waiting_to_reconnect_after_failed_binlog_dump_request,
+    "Slave I/O thread killed while retrying master dump",
+    stage_replica_reconnecting_after_failed_binlog_dump_request,
+    "failed dump request, reconnecting to try again, log '%s' at position "
+    "%s",
+    "COM_BINLOG_DUMP"};
+
+static Reconnect_messages reconnect_messages_after_failed_event_read{
+    stage_replica_waiting_to_reconnect_after_failed_event_read,
+    "Slave I/O thread killed while waiting to reconnect after a failed read",
+    stage_replica_reconnecting_after_failed_event_read,
+    "Slave I/O thread: Failed reading log event, reconnecting to retry, "
+    "log '%s' at position %s",
+    ""};
 
 enum enum_slave_apply_event_and_update_pos_retval {
   SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK = 0,
@@ -5277,10 +5281,12 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info) {
   @c safe_reconnect(). Variable pointed by @c retry_count is increased -
   if it exceeds @c mi->retry_count then connection is not re-established
   and function signals error.
-  Unless @c suppres_warnings is true, a warning is put in the server error log
-  when reconnecting. The warning message and messages used to report errors
-  are taken from @c messages array. In case @c mi->retry_count is exceeded,
-  no messages are added to the log.
+
+  Unless @c suppress_warnings is true, a warning is written to the
+  server error log when reconnecting. The warning message, the
+  messages used to report errors, and the thread stages, are taken
+  from @c rm. In case @c mi->retry_count is exceeded, no messages are
+  added to the log.
 
   @param[in]     thd                 Thread context.
   @param[in]     mysql               MySQL connection.
@@ -5288,8 +5294,8 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info) {
   @param[in,out] retry_count         Number of attempts to reconnect.
   @param[in]     suppress_warnings   true when a normal net read timeout
                                      has caused to reconnecting.
-  @param[in]     messages            Messages to print/log, see
-                                     reconnect_messages[] array.
+  @param[in]     messages            Error/warning messages and thread stage
+                                     information. See class Reconnect_messages.
 
   @retval        0                   OK.
   @retval        1                   There was an error.
@@ -5297,33 +5303,40 @@ static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info) {
 
 static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
                             uint *retry_count, bool suppress_warnings,
-                            const char *messages[SLAVE_RECON_MSG_MAX]) {
+                            const Reconnect_messages &messages) {
   mi->slave_running = MYSQL_SLAVE_RUN_NOT_CONNECT;
-  thd->set_proc_info(messages[SLAVE_RECON_MSG_WAIT]);
+  THD_STAGE_INFO(thd, messages.stage_waiting_to_reconnect);
+  DBUG_EXECUTE_IF("hang_in_stage_replica_waiting_to_reconnect", {
+    while (!io_slave_killed(thd, mi)) my_sleep(100000);  // 0.1 second
+  });
   thd->clear_active_vio();
   end_server(mysql);
   if ((*retry_count)++) {
     if (*retry_count > mi->retry_count) return 1;  // Don't retry forever
     slave_sleep(thd, mi->connect_retry, io_slave_killed, mi);
   }
-  if (check_io_slave_killed(thd, mi, messages[SLAVE_RECON_MSG_KILLED_WAITING]))
+  if (check_io_slave_killed(thd, mi,
+                            messages.error_killed_while_waiting.c_str()))
     return 1;
-  thd->set_proc_info(messages[SLAVE_RECON_MSG_AFTER]);
+  THD_STAGE_INFO(thd, messages.stage_reconnecting);
+  DBUG_EXECUTE_IF("hang_in_stage_replica_reconnecting", {
+    while (!io_slave_killed(thd, mi)) my_sleep(100000);  // 0.1 second
+  });
   if (!suppress_warnings) {
     char llbuff[22];
     /*
       Raise a warining during registering on master/requesting dump.
       Log a message reading event.
     */
-    if (messages[SLAVE_RECON_MSG_COMMAND][0]) {
+    if (messages.triggering_command.length()) {
       char buf[256];
-      snprintf(buf, sizeof(buf), messages[SLAVE_RECON_MSG_FAILED],
+      snprintf(buf, sizeof(buf), messages.triggering_error.c_str(),
                mi->get_io_rpl_log_name(),
                llstr(mi->get_master_log_pos(), llbuff));
 
       mi->report(WARNING_LEVEL, ER_SLAVE_MASTER_COM_FAILURE,
                  ER_THD(thd, ER_SLAVE_MASTER_COM_FAILURE),
-                 messages[SLAVE_RECON_MSG_COMMAND], buf);
+                 messages.triggering_command.c_str(), buf);
     } else {
       LogErr(INFORMATION_LEVEL, ER_SLAVE_RECONNECT_FAILED,
              mi->get_io_rpl_log_name(), llstr(mi->get_master_log_pos(), llbuff),
@@ -5355,9 +5368,6 @@ extern "C" void *handle_slave_io(void *arg) {
   uint retry_count;
   bool suppress_warnings;
   int ret;
-#ifndef NDEBUG
-  uint retry_count_reg = 0, retry_count_dump = 0, retry_count_event = 0;
-#endif
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -5488,7 +5498,8 @@ extern "C" void *handle_slave_io(void *arg) {
     if (ret == 1) /* Fatal error */
       goto err;
 
-    if (ret == 2) {
+    if (ret == 2 || DBUG_EVALUATE_IF(
+                        "simulate_reconnect_after_failed_registration", 1, 0)) {
       if (check_io_slave_killed(
               mi->info_thd, mi,
               "Slave I/O thread killed "
@@ -5498,7 +5509,7 @@ extern "C" void *handle_slave_io(void *arg) {
       /* Try to reconnect because the error was caused by a transient network
        * problem */
       if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                           reconnect_messages[SLAVE_RECON_ACT_REG]))
+                           reconnect_messages_after_failed_registration))
         goto err;
       goto connected;
     }
@@ -5513,52 +5524,31 @@ extern "C" void *handle_slave_io(void *arg) {
                                  "while registering slave on master")) {
         LogErr(ERROR_LEVEL, ER_RPL_SLAVE_IO_THREAD_CANT_REGISTER_ON_MASTER);
         if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                             reconnect_messages[SLAVE_RECON_ACT_REG]))
+                             reconnect_messages_after_failed_registration))
           goto err;
       } else
         goto err;
       goto connected;
     }
 
-    DBUG_EXECUTE_IF(
-        "FORCE_REPLICA_TO_RECONNECT_REG", if (!retry_count_reg) {
-          retry_count_reg++;
-          LogErr(INFORMATION_LEVEL, ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
-                 mi->get_for_channel_str());
-          if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                               reconnect_messages[SLAVE_RECON_ACT_REG]))
-            goto err;
-          goto connected;
-        });
-
     DBUG_PRINT("info", ("Starting reading binary log from master"));
     while (!io_slave_killed(thd, mi)) {
       MYSQL_RPL rpl;
 
       THD_STAGE_INFO(thd, stage_requesting_binlog_dump);
-      if (request_dump(thd, mysql, &rpl, mi, &suppress_warnings)) {
+      if (request_dump(thd, mysql, &rpl, mi, &suppress_warnings) ||
+          DBUG_EVALUATE_IF("simulate_reconnect_after_failed_binlog_dump", 1,
+                           0)) {
         LogErr(ERROR_LEVEL, ER_RPL_SLAVE_ERROR_REQUESTING_BINLOG_DUMP,
                mi->get_for_channel_str());
         if (check_io_slave_killed(thd, mi,
                                   "Slave I/O thread killed while "
                                   "requesting master dump") ||
             try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                             reconnect_messages[SLAVE_RECON_ACT_DUMP]))
+                             reconnect_messages_after_failed_dump))
           goto err;
         goto connected;
       }
-      DBUG_EXECUTE_IF(
-          "FORCE_REPLICA_TO_RECONNECT_DUMP", if (!retry_count_dump) {
-            retry_count_dump++;
-            LogErr(INFORMATION_LEVEL,
-                   ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
-                   mi->get_for_channel_str());
-            if (try_to_reconnect(thd, mysql, mi, &retry_count,
-                                 suppress_warnings,
-                                 reconnect_messages[SLAVE_RECON_ACT_DUMP]))
-              goto err;
-            goto connected;
-          });
       const char *event_buf;
 
       assert(mi->last_error().number == 0);
@@ -5576,20 +5566,10 @@ extern "C" void *handle_slave_io(void *arg) {
                                   "Slave I/O thread killed while "
                                   "reading event"))
           goto err;
-        DBUG_EXECUTE_IF(
-            "FORCE_REPLICA_TO_RECONNECT_EVENT", if (!retry_count_event) {
-              retry_count_event++;
-              LogErr(INFORMATION_LEVEL,
-                     ER_RPL_SLAVE_FORCING_TO_RECONNECT_IO_THREAD,
-                     mi->get_for_channel_str());
-              if (try_to_reconnect(thd, mysql, mi, &retry_count,
-                                   suppress_warnings,
-                                   reconnect_messages[SLAVE_RECON_ACT_EVENT]))
-                goto err;
-              goto connected;
-            });
 
-        if (event_len == packet_error) {
+        if (event_len == packet_error ||
+            DBUG_EVALUATE_IF("simulate_reconnect_after_failed_event_read", 1,
+                             0)) {
           uint mysql_error_number = mysql_errno(mysql);
           switch (mysql_error_number) {
             case CR_NET_PACKET_TOO_LARGE:
@@ -5613,7 +5593,7 @@ extern "C" void *handle_slave_io(void *arg) {
               goto err;
           }
           if (try_to_reconnect(thd, mysql, mi, &retry_count, suppress_warnings,
-                               reconnect_messages[SLAVE_RECON_ACT_EVENT]))
+                               reconnect_messages_after_failed_event_read))
             goto err;
           goto connected;
         }  // if (event_len == packet_error)

@@ -11457,8 +11457,14 @@ PSI_stage_info stage_searching_rows_for_update= { 0, "Searching rows for update"
 PSI_stage_info stage_sending_binlog_event_to_replica= { 0, "Sending binlog event to replica", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_setup= { 0, "setup", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_has_read_all_relay_log= { 0, "Replica has read all relay log; waiting for more updates", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_reconnecting_after_failed_binlog_dump_request{ 0, "Reconnecting after a failed binlog dump request", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_reconnecting_after_failed_event_read{ 0, "Reconnecting after a failed source event read", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_reconnecting_after_failed_registration_on_source{ 0, "Reconnecting after a failed registration on source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_for_workers_to_process_queue= { 0, "Waiting for replica workers to process their queues", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_to_reconnect_after_failed_binlog_dump_request{ 0, "Waiting to reconnect after a failed binlog dump request", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_to_reconnect_after_failed_event_read{ 0, "Waiting to reconnect after a failed source event read", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_to_reconnect_after_failed_registration_on_source{ 0, "Waiting to reconnect after a failed registration on source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_worker_queue= { 0, "Waiting for Replica Worker queue", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_worker_to_free_events= { 0, "Waiting for Replica Workers to free pending events", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_worker_to_release_partition= { 0, "Waiting for Replica Worker to release partition", 0, PSI_DOCUMENT_ME};
@@ -11553,9 +11559,15 @@ PSI_stage_info *all_server_stages[] = {
     &stage_sending_binlog_event_to_replica,
     &stage_setup,
     &stage_replica_has_read_all_relay_log,
+    &stage_replica_reconnecting_after_failed_binlog_dump_request,
+    &stage_replica_reconnecting_after_failed_event_read,
+    &stage_replica_reconnecting_after_failed_registration_on_source,
     &stage_replica_waiting_event_from_coordinator,
     &stage_replica_waiting_for_workers_to_process_queue,
     &stage_replica_waiting_worker_queue,
+    &stage_replica_waiting_to_reconnect_after_failed_binlog_dump_request,
+    &stage_replica_waiting_to_reconnect_after_failed_event_read,
+    &stage_replica_waiting_to_reconnect_after_failed_registration_on_source,
     &stage_replica_waiting_worker_to_free_events,
     &stage_replica_waiting_worker_to_release_partition,
     &stage_replica_waiting_workers_to_exit,

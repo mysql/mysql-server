@@ -131,19 +131,19 @@ include/assert.inc [There should be 0 unique 'old' thread names in performance_s
 
 ---- stage ----
 * performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME)
-include/assert.inc [There should be 21 unique 'new' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
 include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME)
-include/assert.inc [There should be 21 unique 'new' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
 include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME)
-include/assert.inc [There should be 21 unique 'new' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
 include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME)
-include/assert.inc [There should be 21 unique 'new' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
 include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME)
-include/assert.inc [There should be 21 unique 'new' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'new' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
 include/assert.inc [There should be 0 unique 'old' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.threads(PROCESSLIST_STATE)
 include/assert.inc [There should be 2 unique 'new' stage names in performance_schema.threads(PROCESSLIST_STATE) on server 2]
@@ -334,19 +334,19 @@ include/assert.inc [There should be 3 unique 'old' thread names in performance_s
 ---- stage ----
 * performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME)
 include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
-include/assert.inc [There should be 21 unique 'old' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_by_account_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME)
 include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
-include/assert.inc [There should be 21 unique 'old' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_by_host_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME)
 include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
-include/assert.inc [There should be 21 unique 'old' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_by_thread_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME)
 include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
-include/assert.inc [There should be 21 unique 'old' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_by_user_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME)
 include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
-include/assert.inc [There should be 21 unique 'old' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
+include/assert.inc [There should be 25 unique 'old' stage names in performance_schema.events_stages_summary_global_by_event_name(EVENT_NAME) on server 2]
 * performance_schema.threads(PROCESSLIST_STATE)
 include/assert.inc [There should be 0 unique 'new' stage names in performance_schema.threads(PROCESSLIST_STATE) on server 2]
 include/assert.inc [There should be 2 unique 'old' stage names in performance_schema.threads(PROCESSLIST_STATE) on server 2]
