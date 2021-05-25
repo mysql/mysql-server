@@ -443,7 +443,7 @@ static ibool fill_trx_row(
   ut_ad(locksys::owns_exclusive_global_latch());
 
   row->trx_id = trx_get_id_for_print(trx);
-  row->trx_started = (ib_time_t)trx->start_time;
+  row->trx_started = (ib_time_t)trx->start_time.load(std::memory_order_relaxed);
   row->trx_state = trx_get_que_state_str(trx);
   row->requested_lock_row = requested_lock_row;
   ut_ad(requested_lock_row == nullptr ||
@@ -890,8 +890,26 @@ static void fetch_data_into_cache_low(trx_i_s_cache_t *cache,
     trx_mutex_enter(trx);
 
     /* Note: Read only transactions that modify temporary
-    tables an have a transaction ID */
-    if (!trx_is_started(trx) ||
+    tables have a transaction ID.
+
+    Note: auto-commit non-locking read-only transactions
+    can have trx->state set from NOT_STARTED to ACTIVE and
+    then from ACTIVE to NOT_STARTED with neither trx_sys->mutex
+    nor trx->mutex acquired. However, as long as these transactions
+    are members of mysql_trx_list they are not freed. For such
+    transactions "trx_was_started(trx)" might be considered random,
+    but whatever is its result, the code below handles that well
+    (transaction won't release locks until its trx->mutex is acquired).
+
+    Note: locking read-only transactions can have trx->state set from
+    NOT_STARTED to ACTIVE with neither trx_sys->mutex nor trx->mutex
+    acquired. However, such transactions need to be marked as COMMITTED
+    before trx->state is set to NOT_STARTED and that is protected by the
+    trx->mutex. Therefore the assertion assert_trx_nonlocking_or_in_list()
+    should hold few lines below (note: the name of the assertion is wrong,
+    because it actually checks if the transaction is autocommit nonlocking,
+    whereas its name suggests that it only checks if the trx is nonlocking). */
+    if (!trx_was_started(trx) ||
         (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
       trx_mutex_exit(trx);
       continue;

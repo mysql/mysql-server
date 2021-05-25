@@ -557,7 +557,7 @@ ib_u32_t ib_trx_read_only(ib_trx_t ib_trx) /*!< in: trx handle */
 ib_u64_t ib_trx_get_start_time(ib_trx_t ib_trx) /*!< in: transaction */
 {
   trx_t *trx = (trx_t *)ib_trx;
-  return (static_cast<ib_u64_t>(trx->start_time));
+  return static_cast<ib_u64_t>(trx->start_time.load(std::memory_order_relaxed));
 }
 /** Release the resources of the transaction.
  @return DB_SUCCESS or err code */

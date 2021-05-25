@@ -244,8 +244,11 @@ bool Clone_persist_gtid::check_gtid_rollback(THD *thd, trx_t *trx,
   if (!found_gtid) {
     return (false);
   }
+
+  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+
   /* Skip GTID if XA transaction not in prepared state. */
-  if (trx->state != TRX_STATE_PREPARED) {
+  if (trx->state.load(std::memory_order_relaxed) != TRX_STATE_PREPARED) {
     return (false);
   }
 
@@ -276,8 +279,13 @@ bool Clone_persist_gtid::check_gtid_rollback(THD *thd, trx_t *trx,
 
 bool Clone_persist_gtid::has_gtid(trx_t *trx, THD *&thd, bool &passed_check) {
   passed_check = false;
+
+  /* Note, that the assertion does nothing useful if thd == nullptr. */
+  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+
   /* Transaction is not associated with mysql foreground session. */
-  if (trx->state == TRX_STATE_PREPARED && thd == nullptr) {
+  if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_PREPARED &&
+      thd == nullptr) {
     /* For XA transaction, the current transaction THD could be NULL. Also
     check the default THD of current thread. */
     thd = thd_get_current_thd();

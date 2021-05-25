@@ -278,7 +278,7 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
         mtr_read_ulint(undo_log_hdr + TRX_UNDO_DEL_MARKS, MLOG_2BYTES, mtr);
 
     TrxUndoRsegs elem(rseg->last_trx_no);
-    elem.push_back(rseg);
+    elem.insert(rseg);
 
     if (rseg->last_page_no != FIL_NULL) {
       /* The only time an rseg is added that has existing
@@ -289,7 +289,7 @@ trx_rseg_t *trx_rseg_mem_create(ulint id, space_id_t space_id,
       ut_ad(space_id == TRX_SYS_SPACE ||
             (srv_is_upgrade_mode != undo::is_reserved(space_id)));
 
-      purge_queue->push(elem);
+      purge_queue->push(std::move(elem));
     }
   } else {
     rseg->last_page_no = FIL_NULL;

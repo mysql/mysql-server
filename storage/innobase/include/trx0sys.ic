@@ -174,25 +174,23 @@ static inline trx_id_t trx_read_trx_id(
   return (mach_read_from_6(ptr));
 }
 
-static inline trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id) {
+static inline trx_t *trx_get_rw_trx_by_id_low(trx_id_t trx_id) {
   ut_ad(trx_id > 0);
-  ut_ad(trx_sys_mutex_own());
 
-  if (trx_sys->rw_trx_set.empty()) {
-    return (nullptr);
-  }
+  const auto trx_shard_no = trx_get_shard_no(trx_id);
+  ut_ad(trx_sys_shard_mutex_own(trx_shard_no));
 
-  TrxIdSet::iterator it;
+  const auto &trx_shard = trx_sys->shards[trx_shard_no];
 
-  it = trx_sys->rw_trx_set.find(TrxTrack(trx_id));
+  const auto it = trx_shard.rw_trx_set.find(TrxTrack(trx_id));
 
-  return (it == trx_sys->rw_trx_set.end() ? nullptr : it->m_trx);
+  return it == trx_shard.rw_trx_set.end() ? nullptr : it->m_trx;
 }
 
 /** Returns the minimum trx id in trx list. This is the smallest id for which
 the trx can possibly be active. (But, you must look at the trx->state
 to find out if the minimum trx id transaction itself is active, or already
-committed.). The caller must be holding the trx_sys_t::mutex in shared mode.
+committed). The caller must be holding the trx_sys->mutex.
 @return the minimum trx id, or trx_sys->rw_max_trx_id+1 if the list is empty */
 static inline trx_id_t trx_rw_min_trx_id_low(void) {
   trx_id_t id;
@@ -202,7 +200,7 @@ static inline trx_id_t trx_rw_min_trx_id_low(void) {
   const trx_t *trx = UT_LIST_GET_LAST(trx_sys->rw_trx_list);
 
   if (trx == nullptr) {
-    id = trx_sys->rw_max_trx_id + 1;
+    id = trx_sys->rw_max_trx_id.load(std::memory_order_relaxed) + 1;
   } else {
     assert_trx_in_rw_list(trx);
     id = trx->id;
@@ -221,54 +219,39 @@ static inline trx_id_t trx_rw_min_trx_id(void) {
   return (id);
 }
 
-static inline trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt) {
-  trx_t *trx;
+static inline trx_t *trx_rw_is_active_low(trx_id_t trx_id) {
+  ut_ad(trx_sys_shard_mutex_own(trx_get_shard_no(trx_id)));
 
-  ut_ad(trx_sys_mutex_own());
+  trx_t *const trx = trx_get_rw_trx_by_id_low(trx_id);
+  /* We remove trx from rw_trx_set and change state to
+  TRX_STATE_COMMITTED_IN_MEMORY in a same critical section protected by
+  Trx_shard's mutex, which we happen to hold here, so we expect the state
+  of trx to match its presence in that set */
+  ut_ad(trx == nullptr || !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 
-  if (trx_id < trx_rw_min_trx_id_low()) {
-    trx = nullptr;
-  } else if (trx_id > trx_sys->rw_max_trx_id) {
-    /* There must be corruption: we let the caller handle the
-    diagnostic prints in this case. */
-
-    trx = nullptr;
-    if (corrupt != nullptr) {
-      *corrupt = TRUE;
-    }
-  } else {
-    trx = trx_get_rw_trx_by_id(trx_id);
-    /* We remove trx from rw trxs list and change state to
-    TRX_STATE_COMMITTED_IN_MEMORY in a same critical section protected by
-    trx_sys->mutex, which we happen to hold here, so we expect the state of trx
-    to match its presence in that list */
-    ut_ad(trx == nullptr || !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
-  }
-
-  return (trx);
+  return trx;
 }
 
-static inline trx_t *trx_rw_is_active(trx_id_t trx_id, ibool *corrupt,
-                                      bool do_ref_count) {
-  trx_t *trx;
-
+static inline trx_t *trx_rw_is_active(trx_id_t trx_id, bool do_ref_count) {
   /* Fast checking. If it's smaller than minimal active trx id, just
   return NULL. */
   if (trx_sys->min_active_trx_id.load() > trx_id) {
-    return (nullptr);
+    return nullptr;
   }
 
-  trx_sys_mutex_enter();
+  Trx_shard_latch_guard guard{trx_id, UT_LOCATION_HERE};
 
-  trx = trx_rw_is_active_low(trx_id, corrupt);
+  trx_t *trx = trx_rw_is_active_low(trx_id);
 
   if (trx != nullptr) {
     trx = trx_reference(trx, do_ref_count);
   }
 
-  trx_sys_mutex_exit();
+  return trx;
+}
 
-  return (trx);
+inline bool trx_sys_id_is_corrupted(trx_id_t trx_id) {
+  return trx_sys->rw_max_trx_id.load(std::memory_order_relaxed) < trx_id;
 }
 
 inline trx_id_t trx_sys_get_trx_id_write_margin() {
@@ -303,8 +286,8 @@ inline trx_id_t trx_sys_allocate_trx_id_or_no() {
 inline trx_id_t trx_sys_allocate_trx_id() {
   ut_ad(trx_sys_mutex_own());
   const trx_id_t trx_id = trx_sys_allocate_trx_id_or_no();
-  if (trx_id > trx_sys->rw_max_trx_id) {
-    trx_sys->rw_max_trx_id = trx_id;
+  if (trx_id > trx_sys->rw_max_trx_id.load(std::memory_order_relaxed)) {
+    trx_sys->rw_max_trx_id.store(trx_id, std::memory_order_relaxed);
   }
   return trx_id;
 }
@@ -340,13 +323,12 @@ static inline bool trx_sys_need_rollback() {
   return (n_trx > 0);
 }
 
-/**
-Add the transaction to the RW transaction set
-@param trx		transaction instance to add */
 static inline void trx_sys_rw_trx_add(trx_t *trx) {
   ut_ad(trx->id != 0);
-
-  trx_sys->rw_trx_set.insert(TrxTrack(trx->id, trx));
+  const auto trx_shard_no = trx_get_shard_no(trx->id);
+  trx_sys_shard_mutex_enter(trx_shard_no, UT_LOCATION_HERE);
+  trx_sys->shards[trx_shard_no].rw_trx_set.insert(TrxTrack(trx->id, trx));
+  trx_sys_shard_mutex_exit(trx_shard_no);
 }
 
 #endif /* !UNIV_HOTBACKUP */

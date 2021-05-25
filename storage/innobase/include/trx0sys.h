@@ -43,6 +43,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "mtr0mtr.h"
 #include "page0types.h"
 #include "ut0byte.h"
+#include "ut0class_life_cycle.h"
 #include "ut0lst.h"
 #include "ut0mutex.h"
 #endif /* !UNIV_HOTBACKUP */
@@ -160,10 +161,10 @@ static inline trx_id_t trx_read_trx_id(
     const byte *ptr); /*!< in: pointer to memory from where to read */
 
 /** Looks for the trx handle with the given id in rw trxs list.
- The caller must be holding trx_sys->mutex.
- @param[in]   trx_id   trx id to search for
- @return the trx handle or NULL if not found */
-static inline trx_t *trx_get_rw_trx_by_id(trx_id_t trx_id);
+The caller must be holding trx_sys->shard's mutex for trx_id.
+@param[in]   trx_id   trx id to search for
+@return the trx handle or nullptr if not found */
+static inline trx_t *trx_get_rw_trx_by_id_low(trx_id_t trx_id);
 
 /** Returns the minimum trx id in rw trx list. This is the smallest id for which
 the rw trx can possibly be active. (But, you must look at the trx->state
@@ -174,27 +175,22 @@ static inline trx_id_t trx_rw_min_trx_id(void);
 
 /** Checks if a rw transaction with the given id is active.
 @param[in]	trx_id		trx id of the transaction
-@param[in]	corrupt		NULL or pointer to a flag that will be set if
-                                corrupt
 @return transaction instance if active, or NULL */
-static inline trx_t *trx_rw_is_active_low(trx_id_t trx_id, ibool *corrupt);
+static inline trx_t *trx_rw_is_active_low(trx_id_t trx_id);
 
 /** Checks if a rw transaction with the given id is active.
 Please note, that positive result means only that the trx was active
 at some moment during the call, but it might have already become
 TRX_STATE_COMMITTED_IN_MEMORY before the call returns to the caller, as this
-transition is protected by trx->mutex and trx_sys->mutex, but it is impossible
-for the caller to hold any of these mutexes when calling this function as the
-function itself internally acquires trx_sys->mutex which would cause recurrent
-mutex acquisition if caller already had trx_sys->mutex, or latching order
-violation in case of holding trx->mutex.
+transition is protected by trx->mutex and Trx_shard's mutex, but it is
+impossible for the caller to hold any of these mutexes when calling this
+function as the function itself internally acquires Trx_shard's mutex which
+would cause recurrent mutex acquisition if caller already had the same mutex,
+or latching order violation in case of holding trx->mutex.
 @param[in]	trx_id		trx id of the transaction
-@param[in]	corrupt		NULL or pointer to a flag that will be set if
-                                corrupt
 @param[in]	do_ref_count	if true then increment the trx_t::n_ref_count
 @return transaction instance if active, or NULL; */
-static inline trx_t *trx_rw_is_active(trx_id_t trx_id, ibool *corrupt,
-                                      bool do_ref_count);
+static inline trx_t *trx_rw_is_active(trx_id_t trx_id, bool do_ref_count);
 
 /** Persist transaction number limit below which all transaction GTIDs
 are persisted to disk table.
@@ -256,9 +252,10 @@ void trx_sys_after_pre_dd_shutdown_validate();
 of InnoDB exited during shutdown of MySQL. */
 void trx_sys_after_background_threads_shutdown_validate();
 
-/** Add the transaction to the RW transaction set
+/** Add the transaction to the RW transaction set.
 @param trx		transaction instance to add */
 static inline void trx_sys_rw_trx_add(trx_t *trx);
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
@@ -418,6 +415,25 @@ class Space_Ids : public std::vector<space_id_t, ut_allocator<space_id_t>> {
   iterator find(space_id_t id) { return (std::find(begin(), end(), id)); }
 };
 
+/** Shard for subset of transactions. */
+struct Trx_shard {
+  Trx_shard() { mutex_create(LATCH_ID_TRX_SYS_SHARD, &mutex); }
+
+  ~Trx_shard() { mutex_free(&mutex); }
+
+  /** Mutex protecting members inside this shard. */
+  TrxSysMutex mutex;
+
+  /** Padding to avoid false sharing between mutex and rw_trx_set. */
+  char pad_after_mutex[ut::INNODB_CACHE_LINE_SIZE];
+
+  /** Set of active RW transactions. */
+  TrxIdSet rw_trx_set;
+
+  /** Padding to eliminate risk of false sharing between consecutive shards. */
+  char pad_after_shard[ut::INNODB_CACHE_LINE_SIZE];
+};
+
 #ifndef UNIV_HOTBACKUP
 /** The transaction system central memory data structure. */
 struct trx_sys_t {
@@ -526,12 +542,12 @@ struct trx_sys_t {
   trx_ids_t rw_trx_ids;
 
   /** Max trx id of read-write transactions which exist or existed. */
-  trx_id_t rw_max_trx_id;
+  std::atomic<trx_id_t> rw_max_trx_id;
 
   char pad7[ut::INNODB_CACHE_LINE_SIZE];
 
   /** Mapping from transaction id to transaction instance. */
-  TrxIdSet rw_trx_set;
+  Trx_shard shards[TRX_SHARDS_N];
 
   /** Number of transactions currently in the XA PREPARED state. */
   ulint n_prepared_trx;
@@ -551,6 +567,8 @@ This cannot be part of the trx_sys_t object because it is initialized before
 that object is created. These are the old type of undo tablespaces that do not
 have space_IDs in the reserved range nor contain an RSEG_ARRAY page. */
 extern Space_Ids *trx_sys_undo_spaces;
+
+#ifndef UNIV_HOTBACKUP
 
 /** When a trx id which is zero modulo this number (which must be a power of
 two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
@@ -572,6 +590,64 @@ constexpr trx_id_t TRX_SYS_TRX_ID_WRITE_MARGIN = 256;
     trx_sys->mutex.exit();   \
   } while (0)
 
+/** Computes shard number for a given trx_id.
+@param[in]  trx_id  trx_id for which shard_no should be computed
+@return the computed shard number (number in range 0..TRX_SHARDS_N-1) */
+inline size_t trx_get_shard_no(trx_id_t trx_id) {
+  ut_ad(trx_id != 0);
+  return trx_id % TRX_SHARDS_N;
+}
+
+#ifdef UNIV_LIBRARY
+#ifdef UNIV_DEBUG
+inline bool trx_sys_shard_mutex_own(size_t) { return true; }
+#endif /* UNIV_DEBUG */
+inline void trx_sys_shard_mutex_enter(size_t, ut::Location) {}
+inline void trx_sys_shard_mutex_exit(size_t) {}
+#else
+#ifdef UNIV_DEBUG
+/** Test if mutex protecting a given trx shard is owned.
+@param[in]  shard_no  shard number
+@return true iff the shard's mutex is owned */
+inline bool trx_sys_shard_mutex_own(size_t shard_no) {
+  ut_ad(shard_no < TRX_SHARDS_N);
+  return trx_sys->shards[shard_no].mutex.is_owned();
+}
+#endif /* UNIV_DEBUG */
+/** Acquire the mutex protecting a given trx shard.
+@param[in]  shard_no  shard number
+@param[in]  location  defines place in code where this function is called */
+inline void trx_sys_shard_mutex_enter(size_t shard_no, ut::Location location) {
+  ut_ad(shard_no < TRX_SHARDS_N);
+  mutex_enter_inline(&trx_sys->shards[shard_no].mutex, location);
+}
+/** Release the mutex protecting a given trx shard.
+@param[in]  shard_no  shard number */
+inline void trx_sys_shard_mutex_exit(size_t shard_no) {
+  ut_ad(shard_no < TRX_SHARDS_N);
+  trx_sys->shards[shard_no].mutex.exit();
+}
+#endif /* !UNIV_LIBRARY */
+
+/** RAII-alike guard for a critical section protected by
+the trx_sys->shard's mutex. */
+struct Trx_shard_latch_guard : private ut::Non_copyable {
+  /** Acquires the trx_sys->shard's mutex for shard containing a given trx_id.
+  @param[in]  trx_id    the given trx_id
+  @param[in]  location  defines place in code, where it was called */
+  Trx_shard_latch_guard(trx_id_t trx_id, ut::Location location)
+      : m_shard_no{trx_get_shard_no(trx_id)} {
+    trx_sys_shard_mutex_enter(m_shard_no, location);
+  }
+
+  /** Releases the acquired trx_sys->shard's mutex (acquired in ctor). */
+  ~Trx_shard_latch_guard() { trx_sys_shard_mutex_exit(m_shard_no); }
+
+ private:
+  /** Shard which mutex was acquired in ctor (index in trx_sys->shards). */
+  const size_t m_shard_no;
+};
+
 /** Test if trx_sys->serialisation_mutex is owned. */
 #define trx_sys_serialisation_mutex_own() \
   (trx_sys->serialisation_mutex.is_owned())
@@ -587,6 +663,8 @@ constexpr trx_id_t TRX_SYS_TRX_ID_WRITE_MARGIN = 256;
   do {                                     \
     trx_sys->serialisation_mutex.exit();   \
   } while (0)
+
+#endif /* !UNIV_HOTBACKUP */
 
 #include "trx0sys.ic"
 

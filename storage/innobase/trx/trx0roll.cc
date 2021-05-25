@@ -178,12 +178,18 @@ static dberr_t trx_rollback_for_mysql_low(
 @param[in, out]	trx	transaction
 @return error code or DB_SUCCESS */
 static dberr_t trx_rollback_low(trx_t *trx) {
-  /* We are reading trx->state without holding trx_sys->mutex
-  here, because the rollback should be invoked for a running
-  active MySQL transaction (or recovered prepared transaction)
-  that is associated with the current thread. */
+  /* We are reading trx->state without mutex protection here,
+  because the rollback should either be invoked for:
+    - a running active MySQL transaction associated
+      with the current thread,
+    - or a recovered prepared transaction,
+    - or a transaction which is a victim being killed by HP transaction
+      run by the current thread, in which case it is guaranteed that
+      thread owning the transaction, which is being killed, is not
+      inside InnoDB (thanks to TRX_FORCE_ROLLBACK and TrxInInnoDB::wait()). */
+  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
 
-  switch (trx->state) {
+  switch (trx->state.load(std::memory_order_relaxed)) {
     case TRX_STATE_FORCED_ROLLBACK:
     case TRX_STATE_NOT_STARTED:
       trx->will_lock = 0;
@@ -279,13 +285,21 @@ dberr_t trx_rollback_last_sql_stat_for_mysql(
 {
   dberr_t err;
 
-  /* We are reading trx->state without holding trx_sys->mutex
-  here, because the statement rollback should be invoked for a
-  running active MySQL transaction that is associated with the
-  current thread. */
   ut_ad(trx->in_mysql_trx_list);
 
-  switch (trx->state) {
+  /* We are reading trx->state without mutex protection here,
+  because the rollback should either be invoked for:
+    - a running active MySQL transaction associated
+      with the current thread,
+    - or a recovered prepared transaction,
+    - or a transaction which is a victim being killed by HP transaction
+      run by the current thread, in which case it is guaranteed that
+      thread owning the transaction, which is being killed, is not
+      inside InnoDB (thanks to TRX_FORCE_ROLLBACK and TrxInInnoDB::wait()). */
+
+  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+
+  switch (trx->state.load(std::memory_order_relaxed)) {
     case TRX_STATE_FORCED_ROLLBACK:
     case TRX_STATE_NOT_STARTED:
       return (DB_SUCCESS);
@@ -427,10 +441,6 @@ dberr_t trx_rollback_to_savepoint_for_mysql(
 {
   trx_named_savept_t *savep;
 
-  /* We are reading trx->state without holding trx_sys->mutex
-  here, because the savepoint rollback should be invoked for a
-  running active MySQL transaction that is associated with the
-  current thread. */
   ut_ad(trx->in_mysql_trx_list);
 
   savep = trx_savepoint_find(trx, savepoint_name);
@@ -439,7 +449,19 @@ dberr_t trx_rollback_to_savepoint_for_mysql(
     return (DB_NO_SAVEPOINT);
   }
 
-  switch (trx->state) {
+  /* We are reading trx->state without mutex protection here,
+  because the rollback should either be invoked for:
+    - a running active MySQL transaction associated
+      with the current thread,
+    - or a recovered prepared transaction,
+    - or a transaction which is a victim being killed by HP transaction
+      run by the current thread, in which case it is guaranteed that
+      thread owning the transaction, which is being killed, is not
+      inside InnoDB (thanks to TRX_FORCE_ROLLBACK and TrxInInnoDB::wait()). */
+
+  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+
+  switch (trx->state.load(std::memory_order_relaxed)) {
     case TRX_STATE_NOT_STARTED:
     case TRX_STATE_FORCED_ROLLBACK:
 
@@ -646,7 +668,7 @@ static ibool trx_rollback_or_clean_resurrected(
 
   trx_mutex_enter(trx);
   const bool is_recovered = trx->is_recovered;
-  const trx_state_t state = trx->state;
+  const trx_state_t state = trx->state.load(std::memory_order_relaxed);
   trx_mutex_exit(trx);
 
   if (!is_recovered) {

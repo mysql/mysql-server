@@ -2137,8 +2137,21 @@ withdraw_retry:
       trx_sys_mutex_enter();
       bool found = false;
       for (auto trx : trx_sys->mysql_trx_list) {
-        if (trx->state != TRX_STATE_NOT_STARTED && trx->mysql_thd != nullptr &&
-            ut_difftime(withdraw_started, trx->start_time) > 0) {
+        /* Note that trx->state might be changed from TRX_STATE_NOT_STARTED to
+        TRX_STATE_ACTIVE without usage of trx_sys->mutex when the transaction
+        is read-only (look inside trx_start_low() for details).
+
+        These loads below might be inconsistent for read-only transactions,
+        because state and start_time for such transactions are saved using
+        the std::memory_order_relaxed, not to risk performance regression
+        on ARM (and this code here is the only victim of the issue, so seems
+        it is a minor issue with potentially incorrect warning message).
+
+        TODO: check performance gain from this micro-optimization */
+        const auto trx_state = trx->state.load(std::memory_order_relaxed);
+        const auto trx_start = trx->start_time.load(std::memory_order_relaxed);
+        if (trx_state != TRX_STATE_NOT_STARTED && trx->mysql_thd != nullptr &&
+            trx_start > 0 && ut_difftime(withdraw_started, trx_start) > 0) {
           if (!found) {
             ib::warn(ER_IB_MSG_61) << "The following trx might hold"
                                       " the blocks in buffer pool to"

@@ -350,6 +350,8 @@ MVCC::~MVCC() {
 Copy the transaction ids from the source vector */
 
 void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
+  ut_ad(trx_sys_mutex_own());
+
   ulint size = trx_ids.size();
 
   if (m_creator_trx_id > 0) {
@@ -404,12 +406,31 @@ void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
   m_up_limit_id = m_ids.front();
 
 #ifdef UNIV_DEBUG
-  /* Assert that all transaction ids in list are active. */
-  for (trx_ids_t::const_iterator it = trx_ids.begin(); it != trx_ids.end();
-       ++it) {
-    trx_t *trx = trx_get_rw_trx_by_id(*it);
-    ut_ad(trx != nullptr);
-    ut_ad(trx->state == TRX_STATE_ACTIVE || trx->state == TRX_STATE_PREPARED);
+  /* The check is done randomly from time to time, because the check adds
+  a kind of extra synchronization which itself could hide existing bugs. */
+  if (ut_rnd_interval(0, 99) == 0) {
+    /* Assert that all transaction ids in list are active. */
+    for (auto trx_id : trx_ids) {
+      while (true) {
+        {
+          Trx_shard_latch_guard guard{trx_id, UT_LOCATION_HERE};
+          trx_t *trx = trx_get_rw_trx_by_id_low(trx_id);
+          if (trx != nullptr) {
+            const auto trx_state = trx->state.load(std::memory_order_relaxed);
+            /* Transaction in rw_trx_ids might only be ACTIVE or PREPARED,
+            before it becomes COMMITTED it is removed from rw_trx_ids. */
+            ut_ad(trx_state == TRX_STATE_ACTIVE ||
+                  trx_state == TRX_STATE_PREPARED);
+            break;
+          }
+        }
+        /* It might happen that transaction became added to rw_trx_ids,
+        then trx_sys mutex has been released and thread become scheduled
+        out before the call to trx_sys_rw_trx_add(trx). We need to wait,
+        it will come (if we hang forever in this loop - it's a bug). */
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+      }
+    }
   }
 #endif /* UNIV_DEBUG */
 }
@@ -720,17 +741,4 @@ void MVCC::view_close(ReadView *&view, bool own_mutex) {
 
     view = nullptr;
   }
-}
-
-/**
-Set the view creator transaction id. Note: This shouldbe set only
-for views created by RW transactions.
-@param view		Set the creator trx id for this view
-@param id		Transaction id to set */
-
-void MVCC::set_view_creator_trx_id(ReadView *view, trx_id_t id) {
-  ut_ad(id > 0);
-  ut_ad(trx_sys_mutex_own());
-
-  view->creator_trx_id(id);
 }

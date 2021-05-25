@@ -40,22 +40,23 @@ this program; if not, write to the Free Software Foundation, Inc.,
 static inline bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
                                 trx_state_t state) /*!< in: state */
 {
+  const auto trx_state = trx->state.load(std::memory_order_relaxed);
 #ifdef UNIV_DEBUG
-  switch (trx->state) {
+  switch (trx_state) {
     case TRX_STATE_PREPARED:
 
       ut_ad(!trx_is_autocommit_non_locking(trx));
-      return (trx->state == state);
+      return trx_state == state;
 
     case TRX_STATE_ACTIVE:
 
       assert_trx_nonlocking_or_in_list(trx);
-      return (state == trx->state);
+      return state == trx_state;
 
     case TRX_STATE_COMMITTED_IN_MEMORY:
 
       check_trx_state(trx);
-      return (state == trx->state);
+      return state == trx_state;
 
     case TRX_STATE_NOT_STARTED:
     case TRX_STATE_FORCED_ROLLBACK:
@@ -66,11 +67,11 @@ static inline bool trx_state_eq(const trx_t *trx,  /*!< in: transaction */
 
       ut_ad(!trx->in_rw_trx_list);
 
-      return (true);
+      return true;
   }
   ut_error;
 #else  /* UNIV_DEBUG */
-  return (trx->state == state);
+  return trx_state == state;
 #endif /* UNIV_DEBUG */
 }
 
