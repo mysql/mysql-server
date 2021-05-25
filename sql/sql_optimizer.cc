@@ -218,6 +218,13 @@ bool JOIN::alloc_indirection_slices() {
   return false;
 }
 
+static bool HasFullTextFunction(Item *item) {
+  return WalkItem(item, enum_walk::PREFIX, [](Item *inner_item) {
+    return inner_item->type() == Item::FUNC_ITEM &&
+           down_cast<Item_func *>(inner_item)->functype() == Item_func::FT_FUNC;
+  });
+}
+
 /**
   Optimizes one query block into a query execution plan (QEP.)
 
@@ -872,6 +879,25 @@ bool JOIN::optimize() {
   if (rollup_state != RollupState::NONE &&  // (1)
       (select_distinct || has_windows || !order.empty()))
     need_tmp_before_win = true;
+
+  /*
+    If we have full-text columns involved in aggregation, we need to
+    materialize it, as the saving and loading of rows in AggregateIterator
+    does not include FTS information. If we have multiple tables, we'll
+    have a materialization (either because we're aggregating into a temporary
+    table, or because we always materialize before further operations),
+    and if we have a GROUP BY, we'll either have an aggregate-to-table
+    or a sort, which also fixes the issue. However, in the case of a single
+    table and implicit grouping, we need to force the temporary table here.
+   */
+  if (!need_tmp_before_win && implicit_grouping &&
+      primary_tables - const_tables == 1 && order.empty() &&
+      best_ref[const_tables]->table_ref->is_fulltext_searched()) {
+    for (Item *item : VisibleFields(*fields)) {
+      need_tmp_before_win |= HasFullTextFunction(item);
+      if (need_tmp_before_win) break;
+    }
+  }
 
   if (!plan_is_const())  // (2)
   {
