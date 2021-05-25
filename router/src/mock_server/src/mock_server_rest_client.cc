@@ -80,8 +80,9 @@ std::string MockServerRestClient::get_globals_as_json_string() {
   auto req = RestClient(io_ctx, "127.0.0.1", http_port_)
                  .request_sync(HttpMethod::Get, kMockServerGlobalsRestUri);
   if (!req) {
-    throw std::runtime_error(std::string("HTTP Request to ") + http_hostname_ +
-                             ":" + std::to_string(http_port_) +
+    throw std::runtime_error(std::string("GET ") + kMockServerGlobalsRestUri +
+                             " @ " + http_hostname_ + ":" +
+                             std::to_string(http_port_) +
                              " failed (early): " + req.error_msg());
   }
 

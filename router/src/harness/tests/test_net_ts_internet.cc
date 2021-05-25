@@ -24,15 +24,40 @@
 
 #include "mysql/harness/net_ts/internet.h"
 
-#include <gmock/gmock.h>
+#include <gmock/gmock-more-matchers.h>
+#include <gtest/gtest.h>
 
 #include <csignal>  // signal
+#include <sstream>
 
 #include "mysql/harness/stdx/expected_ostream.h"
 
 // helper to be used with ::testing::Truly to check if a std::expected<> has a
 // value and triggering the proper printer used in case of failure
 static auto res_has_value = [](const auto &t) { return bool(t); };
+
+static net::ip::tcp::endpoint net_ipv6_any_port_endpoint() {
+  // the test relies on bind(addr, port=0) assigns are random port.
+  //
+  // addr must be either "::" or "::1" depending on OS:
+  //
+  // - "::1" fails to bind() randomly on FreeBSD
+  // - "::" fails to connect() on Windows()
+
+  return {
+#if defined(__linux__) || defined(__FreeBSD__)
+    net::ip::address_v6().any()
+#else
+    net::ip::address_v6().loopback()
+#endif
+        ,
+        0
+  };
+}
+
+static net::ip::tcp::endpoint net_ipv4_any_port_endpoint() {
+  return {net::ip::address_v4().loopback(), 0};
+}
 
 namespace std {
 
@@ -489,21 +514,7 @@ TEST(NetTS_internet, udp_ipv4_socket_bind_sendmsg_recvmsg) {
 TEST(NetTS_internet, tcp_ipv6_socket_bind_accept_connect) {
   net::io_context io_ctx;
 
-  // the test relies on bind(addr, port=0) assigns are random port.
-  //
-  // addr must be either "::" or "::1" depending on OS:
-  //
-  // - "::1" fails to bind() randomly on FreeBSD
-  // - "::" fails to connect() on Windows()
-
-  net::ip::tcp::endpoint endp(
-#if defined(__linux__) || defined(__FreeBSD__)
-      net::ip::address_v6().any()
-#else
-      net::ip::address_v6().loopback()
-#endif
-          ,
-      0);
+  net::ip::tcp::endpoint endp = net_ipv6_any_port_endpoint();
 
   net::ip::tcp::acceptor acceptor(io_ctx);
   EXPECT_THAT(acceptor.open(endp.protocol()), ::testing::Truly(res_has_value));
@@ -728,6 +739,241 @@ TEST(NetTS_internet, udp_ipv4_socket_recv_0) {
           make_error_condition(std::errc::not_a_socket)          // windows
           ));
 }
+
+// ensure that async_accept(), async_connect(), async_receive(), async_send()
+// works.
+//
+// for socket:
+//
+// - blocking
+// - non-blocking
+class NetTS_internet_async : public ::testing::Test,
+                             public ::testing::WithParamInterface<
+                                 std::tuple<bool, net::ip::tcp::endpoint>> {};
+
+// client sends and closes the connection.
+//
+// the receiving side calls net::async_receive() which should read until the
+// end-of-stream.
+TEST_P(NetTS_internet_async, tcp_client_send_close) {
+  net::io_context io_ctx;
+
+  using protocol_type = net::ip::tcp;
+
+  // localhost, any port
+  protocol_type::endpoint endp = std::get<1>(GetParam());
+
+  protocol_type::acceptor acceptor(io_ctx);
+  EXPECT_THAT(acceptor.open(endp.protocol()), ::testing::Truly(res_has_value));
+  auto bind_res = acceptor.bind(endp);
+  if (!bind_res) {
+    // if we can't bind the IP-address, because the OS doesn't support the
+    // protocol, skip the test
+
+    // check we get the right error.
+    ASSERT_EQ(bind_res.error(),
+              make_error_condition(std::errc::address_not_available))
+        << ss_to_string(endp);
+
+    // leave, if we couldn't bind.
+    return;
+  }
+  EXPECT_THAT(acceptor.listen(128), ::testing::Truly(res_has_value));
+
+  // get the port we are bound to.
+  auto local_endp_res = acceptor.local_endpoint();
+  ASSERT_TRUE(local_endp_res);
+  auto local_endp = std::move(*local_endp_res);
+
+  std::vector<uint8_t> initial_buffer{0x01, 0x02, 0x03};
+
+  const size_t expected_transfer_size = initial_buffer.size();
+
+  std::vector<uint8_t> recv_buffer;
+
+  // storage of sockets to keep around after .async_accept() finished.
+  std::list<protocol_type::socket> server_sockets;
+
+  acceptor.async_accept(
+      [&](std::error_code ec, protocol_type::socket server_sock) {
+        ASSERT_FALSE(ec);
+
+        // move ownership to the 'server_sockets'
+        server_sockets.push_back(std::move(server_sock));
+
+        auto &sock = server_sockets.back();
+
+        net::async_read(
+            sock, net::dynamic_buffer(recv_buffer),
+            [expected_transfer_size](std::error_code ec, size_t transferred) {
+              EXPECT_FALSE(ec);
+
+              EXPECT_EQ(transferred, expected_transfer_size);
+            });
+
+        // acceptor leaves and doesn't accept another connection.
+      });
+
+  protocol_type::socket client_sock(io_ctx);
+
+  std::vector<uint8_t> send_buffer = initial_buffer;
+
+  EXPECT_TRUE(client_sock.open(local_endp.protocol()));
+
+  // check that the .async_connect() keeps the non-blocking state as before
+  // .async_connect() was called.
+  const bool socket_shall_be_non_blocking = std::get<0>(GetParam());
+
+  EXPECT_FALSE(client_sock.native_non_blocking());
+  EXPECT_TRUE(client_sock.native_non_blocking(socket_shall_be_non_blocking));
+  EXPECT_EQ(client_sock.native_non_blocking(), socket_shall_be_non_blocking);
+
+  client_sock.async_connect(local_endp, [&](std::error_code ec) {
+    ASSERT_FALSE(ec) << ec;
+
+    EXPECT_EQ(client_sock.native_non_blocking(), socket_shall_be_non_blocking);
+
+    net::async_write(client_sock, net::dynamic_buffer(send_buffer),
+                     [&client_sock, expected_transfer_size](std::error_code ec,
+                                                            size_t written) {
+                       EXPECT_FALSE(ec);
+
+                       EXPECT_EQ(written, expected_transfer_size);
+
+                       // ok done.
+                       client_sock.close();
+                     });
+  });
+
+  EXPECT_GT(io_ctx.run(), 0);
+
+  // data is moved from send-buffer to recv-buffer.
+  EXPECT_THAT(send_buffer, ::testing::IsEmpty());
+  EXPECT_EQ(recv_buffer, initial_buffer);
+}
+
+// client sends and closes the connection.
+//
+// the receiving side calls net::async_receive() which should read until the
+// end-of-stream.
+TEST_P(NetTS_internet_async, tcp_accept_with_endpoint) {
+  net::io_context io_ctx;
+
+  using protocol_type = net::ip::tcp;
+
+  // localhost, any port
+  protocol_type::endpoint endp = std::get<1>(GetParam());
+
+  protocol_type::acceptor acceptor(io_ctx);
+  EXPECT_THAT(acceptor.open(endp.protocol()), ::testing::Truly(res_has_value));
+  auto bind_res = acceptor.bind(endp);
+  if (!bind_res) {
+    // if we can't bind the IP-address, because the OS doesn't support the
+    // protocol, skip the test
+
+    // check we get the right error.
+    ASSERT_EQ(bind_res.error(),
+              make_error_condition(std::errc::address_not_available))
+        << ss_to_string(endp);
+
+    // leave, if we couldn't bind.
+    return;
+  }
+  EXPECT_THAT(acceptor.listen(128), ::testing::Truly(res_has_value));
+
+  // get the port we are bound to.
+  auto local_endp_res = acceptor.local_endpoint();
+  ASSERT_TRUE(local_endp_res);
+  auto local_endp = std::move(*local_endp_res);
+
+  std::vector<uint8_t> initial_buffer{0x01, 0x02, 0x03};
+
+  const size_t expected_transfer_size = initial_buffer.size();
+
+  std::vector<uint8_t> recv_buffer;
+
+  // storage of sockets to keep around after .async_accept() finished.
+  std::list<protocol_type::socket> server_sockets;
+
+  protocol_type::endpoint client_ep;
+
+  acceptor.async_accept(
+      client_ep, [&](std::error_code ec, protocol_type::socket server_sock) {
+        ASSERT_FALSE(ec);
+
+        EXPECT_GT(client_ep.size(), 0);  // 16 for ipv4, 28 for ipv6
+        EXPECT_TRUE(client_ep.address().is_loopback());
+        EXPECT_GT(client_ep.port(), 0);
+
+        // move ownership to the 'server_sockets'
+        server_sockets.push_back(std::move(server_sock));
+
+        auto &sock = server_sockets.back();
+
+        net::async_read(
+            sock, net::dynamic_buffer(recv_buffer),
+            [expected_transfer_size](std::error_code ec, size_t transferred) {
+              EXPECT_FALSE(ec);
+
+              EXPECT_EQ(transferred, expected_transfer_size);
+            });
+
+        // acceptor leaves and doesn't accept another connection.
+      });
+
+  protocol_type::socket client_sock(io_ctx);
+
+  std::vector<uint8_t> send_buffer = initial_buffer;
+
+  EXPECT_TRUE(client_sock.open(local_endp.protocol()));
+
+  // check that the .async_connect() keeps the non-blocking state as before
+  // .async_connect() was called.
+  const bool socket_shall_be_non_blocking = std::get<0>(GetParam());
+
+  EXPECT_FALSE(client_sock.native_non_blocking());
+  EXPECT_TRUE(client_sock.native_non_blocking(socket_shall_be_non_blocking));
+  EXPECT_EQ(client_sock.native_non_blocking(), socket_shall_be_non_blocking);
+
+  client_sock.async_connect(local_endp, [&](std::error_code ec) {
+    ASSERT_FALSE(ec) << ec;
+
+    EXPECT_EQ(client_sock.native_non_blocking(), socket_shall_be_non_blocking);
+
+    net::async_write(client_sock, net::dynamic_buffer(send_buffer),
+                     [&client_sock, expected_transfer_size](std::error_code ec,
+                                                            size_t written) {
+                       EXPECT_FALSE(ec);
+
+                       EXPECT_EQ(written, expected_transfer_size);
+
+                       // ok done.
+                       client_sock.close();
+                     });
+  });
+
+  EXPECT_GT(io_ctx.run(), 0);
+
+  // data is moved from send-buffer to recv-buffer.
+  EXPECT_THAT(send_buffer, ::testing::IsEmpty());
+  EXPECT_EQ(recv_buffer, initial_buffer);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    Spec, NetTS_internet_async,
+    ::testing::Combine(::testing::Bool(),
+                       ::testing::Values(net_ipv6_any_port_endpoint(),
+                                         net_ipv4_any_port_endpoint())),
+    [](const ::testing::TestParamInfo<NetTS_internet_async::ParamType> &info) {
+      using namespace std::string_literals;
+
+      const auto non_blocking = std::get<0>(info.param);
+      const auto any_endpoint = std::get<1>(info.param);
+
+      return (non_blocking ? "non_blocking"s : "blocking"s) + "_" +
+             (any_endpoint == net_ipv4_any_port_endpoint() ? "ipv4_any"
+                                                           : "ipv6_any");
+    });
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

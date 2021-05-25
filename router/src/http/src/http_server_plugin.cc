@@ -593,8 +593,7 @@ static void init(mysql_harness::PluginFuncEnv *env) {
       log_info("listening on %s:%u", config.srv_address.c_str(),
                config.srv_port);
 
-      http_servers.emplace(
-          std::make_pair(section->name, HttpServerFactory::create(config)));
+      http_servers.emplace(section->name, HttpServerFactory::create(config));
 
       auto srv = http_servers.at(section->name);
 

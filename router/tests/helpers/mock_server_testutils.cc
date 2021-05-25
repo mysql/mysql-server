@@ -115,7 +115,7 @@ void set_mock_metadata(uint16_t http_port, const std::string &gr_id,
 
   const auto json_str = json_to_string(json_doc);
 
-  EXPECT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
+  ASSERT_NO_THROW(MockServerRestClient(http_port).set_globals(json_str));
 }
 
 void set_mock_bootstrap_data(

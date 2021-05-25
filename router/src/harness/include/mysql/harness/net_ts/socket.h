@@ -737,6 +737,71 @@ class basic_socket : public socket_base, private basic_socket_impl<Protocol> {
         endpoint.size());
   }
 
+  template <class CompletionToken>
+  auto async_connect(const endpoint_type &endpoint, CompletionToken &&token) {
+    async_completion<CompletionToken, void(std::error_code)> init{token};
+
+    if (!is_open()) {
+      auto res = open(endpoint.protocol());
+      if (!res) {
+        init.completion_handler(res.error());
+
+        return;
+      }
+    }
+
+    net::defer(get_executor(), [this, endpoint,
+                                __compl_handler =
+                                    std::move(init.completion_handler)]() {
+      // remember the non-blocking flag.
+      const auto old_non_blocking = native_non_blocking();
+      if (old_non_blocking == false) native_non_blocking(true);
+
+      auto res = connect(endpoint);
+
+      // restore the non-blocking flag if needed.
+      if (old_non_blocking == false) native_non_blocking(false);
+
+      if (res) {
+        __compl_handler({});
+      } else {
+        const auto ec = res.error();
+
+        if ((ec !=
+             make_error_condition(std::errc::operation_in_progress)) /* posix */
+            && (ec != make_error_condition(
+                          std::errc::operation_would_block)) /* windows */) {
+          __compl_handler(ec);
+        } else {
+          get_executor().context().async_wait(
+              native_handle(), net::socket_base::wait_write,
+              [this, __compl_handler = std::move(__compl_handler)](
+                  std::error_code ec) mutable {
+                if (ec) {
+                  __compl_handler(ec);
+                  return;
+                }
+
+                // finish the non-blocking connect
+                net::socket_base::error so_error;
+
+                auto res = get_option(so_error);
+                if (!res) {
+                  __compl_handler(res.error());
+                  return;
+                }
+
+                // if so_error.value() is 0, the error_code will be 0 too
+                __compl_handler(
+                    impl::socket::make_error_code(so_error.value()));
+              });
+        }
+      }
+    });
+
+    return init.result.get();
+  }
+
   stdx::expected<void, error_type> bind(const endpoint_type &endpoint) {
     return __base::bind(endpoint);
   }
@@ -1496,6 +1561,68 @@ class basic_socket_acceptor : public socket_base,
   }
 
   template <class CompletionToken>
+  auto async_accept(endpoint_type &endpoint, CompletionToken &&token) {
+    return async_accept(get_executor().context(), endpoint,
+                        std::forward<CompletionToken>(token));
+  }
+
+  /**
+   * accept a connection with endpoint async'.
+   *
+   * - returns immediately
+   * - calls completiontoken when finished
+   *
+   * @param [in,out] io_ctx io-context to execute the waiting/execution in
+   * @param [out] endpoint remote endpoint of the accepted connection
+   * @param [in] token completion token of type 'void(std::error_code,
+   * socket_type)'
+   */
+  template <class CompletionToken>
+  auto async_accept(io_context &io_ctx, endpoint_type &endpoint,
+                    CompletionToken &&token) {
+    async_completion<CompletionToken, void(std::error_code, socket_type)> init{
+        token};
+
+    // - wait for acceptor to become readable
+    // - accept() it.
+    // - call completion with socket
+    io_ctx.get_executor().context().async_wait(
+        native_handle(), socket_base::wait_read,
+        [this, __compl_handler = std::move(init.completion_handler),
+         __protocol = protocol_, __fd = native_handle(), &__ep = endpoint,
+         &io_ctx](std::error_code ec) mutable {
+          if (ec) {
+            __compl_handler(ec, socket_type(io_ctx));
+            return;
+          }
+
+          while (true) {
+            socklen_t endpoint_len = __ep.capacity();
+
+            auto res = this->get_executor().context().socket_service()->accept(
+                __fd, static_cast<sockaddr *>(__ep.data()), &endpoint_len);
+
+            if (!res && !enable_connection_aborted() &&
+                res.error() ==
+                    make_error_condition(std::errc::connection_aborted)) {
+              continue;
+            }
+
+            if (!res) {
+              __compl_handler(res.error(), socket_type(io_ctx));
+            } else {
+              __ep.resize(endpoint_len);
+
+              __compl_handler({}, socket_type{io_ctx, __protocol, res.value()});
+            }
+            return;
+          }
+        });
+
+    return init.result.get();
+  }
+
+  template <class CompletionToken>
   auto async_accept(CompletionToken &&token) {
     return async_accept(get_executor().context(),
                         std::forward<CompletionToken>(token));
@@ -1663,6 +1790,7 @@ stdx::expected<InputIterator, std::error_code> connect(
 
   return stdx::make_unexpected(make_error_code(socket_errc::not_found));
 }
+
 template <class Protocol, class InputIterator, class ConnectCondition>
 stdx::expected<InputIterator, std::error_code> connect(
     basic_socket<Protocol> &s, InputIterator first, InputIterator last) {
