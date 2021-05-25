@@ -1,3 +1,4 @@
+--source include/have_innodb_16k.inc
 --echo #
 --echo # Bug #32507117	INDEX SIZE LARGER THAN 767 BYTES ALLOWED FOR INNODB WITH REDUNDANT ROW_FORMAT
 --echo #
