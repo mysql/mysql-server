@@ -1234,7 +1234,6 @@ static void trx_start_low(
   ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
   ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
   ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
-  ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 
   ++trx->version;
 
@@ -1915,7 +1914,7 @@ written */
 
     /* AC-NL-RO transactions can't be rolled back asynchronously. */
     ut_ad(!trx->abort);
-    ut_ad(!(trx->in_innodb & (TRX_FORCE_ROLLBACK | TRX_FORCE_ROLLBACK_ASYNC)));
+    ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
 
     trx->state = TRX_STATE_NOT_STARTED;
 
@@ -3374,7 +3373,6 @@ void trx_kill_blocking(trx_t *trx) {
 
     ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
     ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK);
-    ut_ad(victim_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC);
     ut_ad(victim_trx->killed_by == std::this_thread::get_id());
     ut_ad(victim_trx->version == it->m_version);
 

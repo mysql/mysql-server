@@ -62,11 +62,6 @@ static const ulint TRX_MAGIC_N = 91118598;
 asynchronously. */
 static const ib_uint32_t TRX_FORCE_ROLLBACK_DISABLE = 1 << 29;
 
-/** Was the transaction rolled back asynchronously or by the
-owning thread. This flag is relevant only if TRX_FORCE_ROLLBACK
-is set.  */
-static const ib_uint32_t TRX_FORCE_ROLLBACK_ASYNC = 1 << 30;
-
 /** Mark the transaction for forced rollback */
 static const ib_uint32_t TRX_FORCE_ROLLBACK = 1 << 31;
 
