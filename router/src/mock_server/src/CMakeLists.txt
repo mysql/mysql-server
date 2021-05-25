@@ -131,7 +131,6 @@ add_harness_plugin(mock_server
   x_protocol_decoder.cc
   x_protocol_encoder.cc
   mysql_server_mock.cc
-  mock_session.cc
   classic_mock_session.cc
   x_mock_session.cc
   mysql_server_mock_schema.cc
