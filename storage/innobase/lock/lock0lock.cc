@@ -1209,14 +1209,9 @@ static void lock_mark_trx_for_rollback(hit_list_t &hit_list, trx_id_t hp_trx_id,
   ut_ad(!trx->read_only);
   ut_ad(trx_mutex_own(trx));
   ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
-  ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
   ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE));
 
-  /* Note that we will attempt an async rollback. The _ASYNC
-  flag will be cleared if the transaction is rolled back
-  synchronously before we get a chance to do it. */
-
-  trx->in_innodb |= TRX_FORCE_ROLLBACK | TRX_FORCE_ROLLBACK_ASYNC;
+  trx->in_innodb |= TRX_FORCE_ROLLBACK;
 
   std::thread::id thread_id = std::this_thread::get_id();
 
@@ -1328,7 +1323,7 @@ dberr_t RecLock::add_to_waitq(const lock_t *wait_for, const lock_prdt_t *prdt) {
 
   DEBUG_SYNC_C("rec_lock_add_to_waitq");
 
-  if (m_trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC) {
+  if (m_trx->in_innodb & TRX_FORCE_ROLLBACK) {
     return (DB_DEADLOCK);
   }
 
@@ -1920,7 +1915,6 @@ void lock_make_trx_hit_list(trx_t *hp_trx, hit_list_t &hit_list) {
         victim transaction once marked and added to hit list. */
         if (trx_is_high_priority(trx) ||
             (trx->in_innodb & TRX_FORCE_ROLLBACK) != 0 ||
-            (trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC) != 0 ||
             (trx->in_innodb & TRX_FORCE_ROLLBACK_DISABLE) != 0 || trx->abort) {
           trx_mutex_exit(trx);
 
@@ -3468,7 +3462,7 @@ static dberr_t lock_table_enqueue_waiting(ulint mode, dict_table_t *table,
       ut_ad(0);
   }
 
-  if (trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC) {
+  if (trx->in_innodb & TRX_FORCE_ROLLBACK) {
     return (DB_DEADLOCK);
   }
 
