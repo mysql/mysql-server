@@ -27,17 +27,9 @@
 # Allow config access
   /etc/mysql/** r,
 
-# Allow pid, socket, socket lock file access
-  /var/run/mysqld/mysqld.pid rw,
-  /var/run/mysqld/mysqld.sock rw,
-  /var/run/mysqld/mysqld.sock.lock rw,
-  /var/run/mysqld/mysqlx.sock rw,
-  /var/run/mysqld/mysqlx.sock.lock rw,
-  /run/mysqld/mysqld.pid rw,
-  /run/mysqld/mysqld.sock rw,
-  /run/mysqld/mysqld.sock.lock rw,
-  /run/mysqld/mysqlx.sock rw,
-  /run/mysqld/mysqlx.sock.lock rw,
+# Allow pid, socket, socket lock and other file access
+  /run/mysqld/* rw,
+  /var/run/mysqld/* rw,
 
 # Allow systemd notify messages
   /{,var/}run/systemd/notify w,
