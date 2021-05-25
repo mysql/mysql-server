@@ -20341,6 +20341,61 @@ static void test_bug27443252() {
   myquery(rc);
 }
 
+static void test_bug32391415() {
+  MYSQL *lmysql;
+  MYSQL_ROW row;
+  MYSQL_RES *res;
+  int rc;
+
+  myheader("test_bug32391415");
+
+  lmysql = mysql_client_init(NULL);
+  DIE_UNLESS(lmysql != NULL);
+
+  lmysql = mysql_real_connect(lmysql, opt_host, opt_user, opt_password,
+                              current_db, opt_port, opt_unix_socket, 0);
+  DIE_UNLESS(lmysql != 0);
+  if (!opt_silent) fprintf(stdout, "Established a test connection\n");
+
+  rc = mysql_query(lmysql, "CREATE USER b32391415@localhost");
+  myquery2(lmysql, rc);
+  rc =
+      mysql_query(lmysql, "GRANT ALL PRIVILEGES ON *.* TO b32391415@localhost");
+  myquery2(lmysql, rc);
+
+  if (!opt_silent) fprintf(stdout, "Created the user\n");
+
+  /* put in an attr */
+  rc = mysql_options4(lmysql, MYSQL_OPT_CONNECT_ATTR_ADD, "key1", "value1");
+  DIE_UNLESS(rc == 0);
+
+  rc = mysql_change_user(lmysql, "b32391415", NULL, NULL);
+  myquery2(lmysql, rc);
+
+  /* success: the query attribute should be present */
+  rc = mysql_query(lmysql,
+                   "SELECT ATTR_NAME, ATTR_VALUE "
+                   " FROM performance_schema.session_account_connect_attrs"
+                   " WHERE ATTR_NAME IN ('key1') AND"
+                   "  PROCESSLIST_ID = CONNECTION_ID() ORDER BY ATTR_NAME");
+  myquery2(lmysql, rc);
+  res = mysql_use_result(lmysql);
+  DIE_UNLESS(res);
+
+  row = mysql_fetch_row(res);
+  DIE_UNLESS(row);
+  DIE_UNLESS(0 == strcmp(row[0], "key1"));
+  DIE_UNLESS(0 == strcmp(row[1], "value1"));
+  if (!opt_silent) fprintf(stdout, "Checked the query attribute\n");
+
+  mysql_free_result(res);
+
+  mysql_close(lmysql);
+
+  rc = mysql_query(mysql, "DROP USER b32391415@localhost");
+  myquery2(mysql, rc);
+}
+
 void perform_arithmatic() { fprintf(stdout, "\n Do some other stuff.\n"); }
 
 /* test mysql_fetch_row_nonblocking */
@@ -22400,6 +22455,7 @@ static struct my_tests_st my_tests[] = {
     {"test_skip_metadata", test_skip_metadata},
     {"test_bug25701141", test_bug25701141},
     {"test_bug27443252", test_bug27443252},
+    {"test_bug32391415", test_bug32391415},
     {"test_wl11381", test_wl11381},
     {"test_wl11381_qa", test_wl11381_qa},
     {"test_wl11772", test_wl11772},

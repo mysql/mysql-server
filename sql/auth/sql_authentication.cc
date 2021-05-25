@@ -2157,6 +2157,8 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
   if (ptr + 1 < end) {
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
       return true;
+    // skip over the charset's 2 bytes
+    ptr += 2;
   }
 
   /* Convert database and user names to utf8 */
@@ -2194,12 +2196,12 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
 
   const char *client_plugin;
   if (protocol->has_client_capability(CLIENT_PLUGIN_AUTH)) {
-    client_plugin = ptr + 2;
+    client_plugin = ptr;
     /*
       ptr needs to be updated to point to correct position so that
       connection attributes are read properly.
     */
-    ptr = ptr + 2 + strlen(client_plugin) + 1;
+    ptr = ptr + strlen(client_plugin) + 1;
 
     if (client_plugin >= end) {
       my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
@@ -2209,6 +2211,10 @@ static bool parse_com_change_user_packet(THD *thd, MPVIO_EXT *mpvio,
     client_plugin = Cached_authentication_plugins::get_plugin_name(
         PLUGIN_MYSQL_NATIVE_PASSWORD);
 
+  if (ptr > end) {
+    my_error(ER_UNKNOWN_COM_ERROR, MYF(0));
+    return true;
+  }
   size_t bytes_remaining_in_packet = end - ptr;
 
   if (protocol->has_client_capability(CLIENT_CONNECT_ATTRS) &&
