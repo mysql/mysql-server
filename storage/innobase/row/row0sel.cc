@@ -4756,9 +4756,12 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   thread that is currently serving the transaction. Because we
   are that thread, we can read trx->state without holding any
   mutex. */
-  ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
 
-  ut_ad(!trx_is_started(trx) || trx->state == TRX_STATE_ACTIVE);
+  ut_ad(prebuilt->sql_stat_start ||
+        trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
+
+  ut_ad(!trx_is_started(trx) ||
+        trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
 
   ut_ad(prebuilt->sql_stat_start || prebuilt->select_lock_type != LOCK_NONE ||
         MVCC::is_view_active(trx->read_view) || srv_read_only_mode);

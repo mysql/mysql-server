@@ -1081,7 +1081,7 @@ struct TrxUndoRsegsIterator {
   TrxUndoRsegs m_trx_undo_rsegs;
 
   /** Track the current element in m_trx_undo_rseg */
-  Rseg_Iterator m_iter;
+  typename Rsegs_array<2>::iterator m_iter;
 
   /** Sentinel value */
   static const TrxUndoRsegs NullElement;

@@ -476,7 +476,7 @@ purge_pq_t *trx_sys_init_at_db_start(void) {
 
   trx_sys->serialisation_min_trx_no.store(trx_sys->next_trx_id_or_no.load());
 
-  trx_sys->rw_max_trx_id = trx_sys_get_next_trx_id_or_no() - 1;
+  trx_sys->rw_max_trx_id.store(trx_sys_get_next_trx_id_or_no() - 1);
 
   mtr.commit();
 
@@ -558,7 +558,9 @@ void trx_sys_create(void) {
   new (&trx_sys->rw_trx_ids)
       trx_ids_t(ut_allocator<trx_id_t>(mem_key_trx_sys_t_rw_trx_ids));
 
-  new (&trx_sys->rw_trx_set) TrxIdSet();
+  for (auto &shard : trx_sys->shards) {
+    new (&shard) Trx_shard{};
+  }
 
   new (&trx_sys->rsegs) Rsegs();
   trx_sys->rsegs.set_empty();
@@ -621,13 +623,15 @@ void trx_sys_close(void) {
   ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
   ut_a(UT_LIST_GET_LEN(trx_sys->serialisation_list) == 0);
 
+  for (auto &shard : trx_sys->shards) {
+    shard.~Trx_shard();
+  }
+
   /* We used placement new to create this mutex. Call the destructor. */
-  mutex_free(&trx_sys->mutex);
   mutex_free(&trx_sys->serialisation_mutex);
+  mutex_free(&trx_sys->mutex);
 
   trx_sys->rw_trx_ids.~trx_ids_t();
-
-  trx_sys->rw_trx_set.~TrxIdSet();
 
   ut_free(trx_sys);
 
@@ -652,7 +656,7 @@ void trx_sys_before_pre_dd_shutdown_validate() {
     if (trx->purge_sys_trx) {
       continue;
     }
-    ut_a(trx->state == TRX_STATE_NOT_STARTED);
+    ut_a(trx->state.load(std::memory_order_relaxed) == TRX_STATE_NOT_STARTED);
   }
   trx_sys_mutex_exit();
 }
@@ -662,7 +666,7 @@ void trx_sys_after_pre_dd_shutdown_validate() {
   /** At this point we check the mysql_trx_list again, now we don't expect purge
   thread transactions in the list */
   for (auto trx : trx_sys->mysql_trx_list) {
-    ut_a(trx->state == TRX_STATE_NOT_STARTED);
+    ut_a(trx->state.load(std::memory_order_relaxed) == TRX_STATE_NOT_STARTED);
   }
   trx_sys_mutex_exit();
 
@@ -726,6 +730,7 @@ bool trx_sys_validate_trx_list() {
   return (true);
 }
 #endif /* UNIV_DEBUG */
+
 #endif /* !UNIV_HOTBACKUP */
 
 /** A list of undo tablespace IDs found in the TRX_SYS page. These are the

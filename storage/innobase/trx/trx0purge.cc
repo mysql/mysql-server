@@ -131,7 +131,7 @@ const page_size_t TrxUndoRsegsIterator::set_next() {
         m_trx_undo_rsegs = purge_sys->purge_queue->top();
       } else if (purge_sys->purge_queue->top().get_trx_no() ==
                  m_trx_undo_rsegs.get_trx_no()) {
-        m_trx_undo_rsegs.append(purge_sys->purge_queue->top());
+        m_trx_undo_rsegs.insert(purge_sys->purge_queue->top());
       } else {
         break;
       }
@@ -241,8 +241,8 @@ void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue) {
   here only because the query threads code requires it. It is otherwise
   quite unnecessary. We should get rid of it eventually. */
   purge_sys->trx->id = 0;
-  purge_sys->trx->start_time = ut_time();
-  purge_sys->trx->state = TRX_STATE_ACTIVE;
+  purge_sys->trx->start_time.store(ut_time(), std::memory_order_relaxed);
+  purge_sys->trx->state.store(TRX_STATE_ACTIVE, std::memory_order_relaxed);
   purge_sys->trx->op_info = "purge trx";
   purge_sys->trx->purge_sys_trx = true;
 
@@ -266,7 +266,7 @@ void trx_purge_sys_close() {
   ut_a(purge_sys->trx->id == 0);
   ut_a(purge_sys->sess->trx == purge_sys->trx);
 
-  purge_sys->trx->state = TRX_STATE_NOT_STARTED;
+  purge_sys->trx->state.store(TRX_STATE_NOT_STARTED, std::memory_order_relaxed);
 
   sess_close(purge_sys->sess);
 
@@ -1779,7 +1779,7 @@ static void trx_purge_rseg_get_next_history_log(
   rseg->last_del_marks = del_marks;
 
   TrxUndoRsegs elem(rseg->last_trx_no);
-  elem.push_back(rseg);
+  elem.insert(rseg);
 
   /* Purge can also produce events, however these are already ordered
   in the rollback segment and any user generated event will be greater
@@ -1788,7 +1788,7 @@ static void trx_purge_rseg_get_next_history_log(
 
   mutex_enter(&purge_sys->pq_mutex);
 
-  purge_sys->purge_queue->push(elem);
+  purge_sys->purge_queue->push(std::move(elem));
 
   mutex_exit(&purge_sys->pq_mutex);
 

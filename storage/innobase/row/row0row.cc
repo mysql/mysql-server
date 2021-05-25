@@ -393,8 +393,7 @@ static inline dtuple_t *row_build_low(ulint type, const dict_index_t *index,
   times, and the cursor restore can happen multiple times for single
   insert or update statement.  */
   ut_a(!rec_offs_any_null_extern(rec, offsets) ||
-       trx_rw_is_active(row_get_rec_trx_id(rec, index, offsets), nullptr,
-                        false));
+       trx_rw_is_active(row_get_rec_trx_id(rec, index, offsets), false));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
   if (type != ROW_COPY_POINTERS) {

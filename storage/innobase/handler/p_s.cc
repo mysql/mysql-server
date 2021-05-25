@@ -352,7 +352,7 @@ that are writing data and have an id, are also discarded.
 @returns True if the trx should be discarded
 */
 bool discard_trx(const trx_t *trx, bool read_write) {
-  if (!trx_is_started(trx)) {
+  if (!trx_was_started(trx)) {
     return true;
   }
 
@@ -394,6 +394,9 @@ static const trx_t *fetch_trx_in_trx_list(uint64_t filter_trx_immutable_id,
     if (discard_trx(trx, read_write)) {
       continue;
     }
+    /* Note: for read-only transactions the check above might be based on stale
+    values and does not bring any guarantee after it is finished, because state
+    of read-only transaction might be modified outside the trx_sys->mutex. */
 
     if (filter_trx_immutable_id == trx_immutable_id(trx)) {
       return trx;
@@ -668,6 +671,9 @@ size_t Innodb_data_lock_iterator::scan_trx_list(
     if (discard_trx(trx, read_write)) {
       continue;
     }
+    /* Note: for read-only transactions the check above might be based on stale
+    values and does not bring any guarantee after it is finished, because state
+    of read-only transaction might be modified outside the trx_sys->mutex. */
 
     trx_id = trx_get_id_for_print(trx);
 
@@ -946,6 +952,9 @@ size_t Innodb_data_lock_wait_iterator::scan_trx_list(
     if (discard_trx(trx, read_write)) {
       continue;
     }
+    /* Note: for read-only transactions the check above might be based on stale
+    values and does not bring any guarantee after it is finished, because state
+    of read-only transaction might be modified outside the trx_sys->mutex. */
 
     trx_id = trx_get_id_for_print(trx);
 

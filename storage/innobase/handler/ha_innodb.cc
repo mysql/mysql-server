@@ -745,6 +745,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(rtr_path_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(rtr_ssn_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_sys_mutex, 0, 0, PSI_DOCUMENT_ME),
+    PSI_MUTEX_KEY(trx_sys_shard_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(trx_sys_serialisation_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(zip_pad_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(master_key_id_mutex, 0, 0, PSI_DOCUMENT_ME),
@@ -2715,7 +2716,8 @@ static void innodb_replace_trx_in_thd(THD *thd, void *new_trx_arg,
     ut_ad(trx == nullptr || (trx->mysql_thd == thd && !trx->is_recovered));
 
   } else if (trx != nullptr) {
-    if (trx->state == TRX_STATE_NOT_STARTED) {
+    ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+    if (trx->state.load(std::memory_order_relaxed) == TRX_STATE_NOT_STARTED) {
       ut_ad(thd == trx->mysql_thd);
       trx_free_for_mysql(trx);
     } else {
@@ -5484,7 +5486,6 @@ static int innobase_start_trx_and_assign_read_view(
   innobase_srv_conc_force_exit_innodb(trx);
 
   /* The transaction should not be active yet, start it */
-
   ut_ad(!trx_is_started(trx));
 
   trx_start_if_not_started_xa(trx, false);
@@ -5718,7 +5719,9 @@ static int innobase_rollback(handlerton *hton, /*!< in: InnoDB handlerton */
       !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
     error = trx_rollback_for_mysql(trx);
 
-    if (trx->state == TRX_STATE_FORCED_ROLLBACK) {
+    ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+    if (trx->state.load(std::memory_order_relaxed) ==
+        TRX_STATE_FORCED_ROLLBACK) {
 #ifdef UNIV_DEBUG
       char buffer[1024];
 
@@ -5726,7 +5729,7 @@ static int innobase_rollback(handlerton *hton, /*!< in: InnoDB handlerton */
           << "Forced rollback : "
           << thd_security_context(thd, buffer, sizeof(buffer), 512);
 #endif /* UNIV_DEBUG */
-      trx->state = TRX_STATE_NOT_STARTED;
+      trx->state.store(TRX_STATE_NOT_STARTED, std::memory_order_relaxed);
     }
 
     trx_deregister_from_2pc(trx);
@@ -8764,6 +8767,7 @@ int ha_innobase::write_row(uchar *record) /*!< in: a row in MySQL format */
   }
 
   trx_t *trx = thd_to_trx(m_user_thd);
+
   TrxInInnoDB trx_in_innodb(trx);
 
   if (!m_prebuilt->table->is_intrinsic() && trx_in_innodb.is_aborted()) {

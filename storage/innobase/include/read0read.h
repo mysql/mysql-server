@@ -90,8 +90,14 @@ class MVCC {
 
   /**
   Set the view creator transaction id. Note: This shouldbe set only
-  for views created by RW transactions. */
-  static void set_view_creator_trx_id(ReadView *view, trx_id_t id);
+  for views created by RW transactions.
+  @param view   Set the creator trx id for this view
+  @param id     Transaction id to set */
+  static void set_view_creator_trx_id(ReadView *view, trx_id_t id) {
+    ut_ad(id > 0);
+
+    view->creator_trx_id(id);
+  }
 
  private:
   /**

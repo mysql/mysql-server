@@ -4179,7 +4179,8 @@ dberr_t row_rename_table_for_mysql(const char *old_name, const char *new_name,
 
   ut_a(old_name != nullptr);
   ut_a(new_name != nullptr);
-  ut_ad(trx->state == TRX_STATE_ACTIVE);
+  ut_ad(trx_can_be_handled_by_current_thread_or_is_hp_victim(trx));
+  ut_ad(trx->state.load(std::memory_order_relaxed) == TRX_STATE_ACTIVE);
 
   if (srv_force_recovery) {
     ib::info(ER_IB_MSG_995) << MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY;

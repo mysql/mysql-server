@@ -257,7 +257,7 @@ static bool row_vers_find_matching(
     delete-marked, because we never start a transaction by
     inserting a delete-marked record. */
     ut_ad(prev_version || !rec_get_deleted_flag(version, comp) ||
-          !trx_rw_is_active(trx_id, nullptr, false));
+          !trx_rw_is_active(trx_id, false));
 
     /* Free version and clust_offsets. */
     mem_heap_free(old_heap);
@@ -299,7 +299,6 @@ static inline trx_t *row_vers_impl_x_locked_low(
     const rec_t *const sec_rec, const dict_index_t *const sec_index,
     const ulint *const sec_offsets, mtr_t *const mtr) {
   trx_id_t trx_id;
-  ibool corrupt;
   ulint comp;
 
   ulint *clust_offsets;
@@ -495,14 +494,13 @@ static inline trx_t *row_vers_impl_x_locked_low(
       rec_get_offsets(clust_rec, clust_index, nullptr, ULINT_UNDEFINED, &heap);
 
   trx_id = row_get_rec_trx_id(clust_rec, clust_index, clust_offsets);
-  corrupt = FALSE;
 
-  trx_t *trx = trx_rw_is_active(trx_id, &corrupt, true);
+  trx_t *trx = trx_rw_is_active(trx_id, true);
 
   if (trx == nullptr) {
     /* The transaction that modified or inserted clust_rec is no
     longer active, or it is corrupt: no implicit lock on rec */
-    if (corrupt) {
+    if (trx_sys_id_is_corrupted(trx_id)) {
       lock_report_trx_id_insanity(trx_id, clust_rec, clust_index, clust_offsets,
                                   trx_sys_get_next_trx_id_or_no());
     }
@@ -1394,17 +1392,18 @@ void row_vers_build_for_semi_consistent_read(
       rec_trx_id = version_trx_id;
     }
 
-    trx_sys_mutex_enter();
-    version_trx = trx_get_rw_trx_by_id(version_trx_id);
-    /* Because version_trx is a read-write transaction,
-    its state cannot change from or to NOT_STARTED while
-    we are holding the trx_sys->mutex.  It may change from
-    ACTIVE to PREPARED or COMMITTED. */
-    if (version_trx &&
-        trx_state_eq(version_trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
-      version_trx = nullptr;
+    {
+      Trx_shard_latch_guard guard{version_trx_id, UT_LOCATION_HERE};
+      version_trx = trx_get_rw_trx_by_id_low(version_trx_id);
+      /* Because version_trx is a read-write transaction,
+      its state cannot change from or to NOT_STARTED while
+      we are holding the trx_sys->mutex.  It may change from
+      ACTIVE to PREPARED or COMMITTED. */
+      if (version_trx &&
+          trx_state_eq(version_trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
+        version_trx = nullptr;
+      }
     }
-    trx_sys_mutex_exit();
 
     if (!version_trx) {
     committed_version_trx:

@@ -902,7 +902,7 @@ static bool lock_rec_other_trx_holds_expl(ulint precise_mode, const trx_t *trx,
   from creating any new explicit locks.
   So, all explicit locks we will see must have been created at the time when
   the transaction was not committed yet. */
-  if (trx_t *impl_trx = trx_rw_is_active(trx->id, nullptr, false)) {
+  if (trx_t *impl_trx = trx_rw_is_active(trx->id, false)) {
     ulint heap_no = page_rec_get_heap_no(rec);
     mutex_enter(&trx_sys->mutex);
 
@@ -4869,12 +4869,8 @@ static bool lock_table_queue_validate(
   ut_ad(trx_sys_mutex_own());
 
   for (auto lock : table->locks) {
-    /* lock->trx->state cannot change from or to NOT_STARTED
-    while we are holding the trx_sys->mutex. It may change
-    from ACTIVE to PREPARED. It may become COMMITTED_IN_MEMORY even though we
-    hold trx_sys->mutex in case it has trx->id==0, but even in this case it
-    will not be freed until it can release the table lock, and we prevent
-    this by latching its shard. */
+    /* lock->trx->state cannot change to NOT_STARTED until transaction released
+    its table locks and that is prevented here by the locksys shard's mutex. */
     ut_ad(trx_assert_started(lock->trx));
 
     if (!lock_get_wait(lock)) {
@@ -4937,14 +4933,15 @@ static void rec_queue_validate_latched(const buf_block_t *block,
 
     trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
 
-    const trx_t *impl_trx = trx_rw_is_active_low(trx_id, nullptr);
+    Trx_shard_latch_guard guard{trx_id, UT_LOCATION_HERE};
+
+    const trx_t *impl_trx = trx_rw_is_active_low(trx_id);
     if (impl_trx != nullptr) {
       ut_ad(owns_page_shard(block->get_page_id()));
-      ut_ad(trx_sys_mutex_own());
       /* impl_trx cannot become TRX_STATE_COMMITTED_IN_MEMORY nor removed from
-      rw_trx_set until we release trx_sys->mutex, which means that currently all
-      other threads in the system consider this impl_trx active and thus should
-      respect implicit locks held by impl_trx*/
+      rw_trx_set until we release Trx_shard's mutex, which means that currently
+      all other threads in the system consider this impl_trx active and thus
+      should respect implicit locks held by impl_trx*/
 
       const lock_t *other_lock =
           lock_rec_other_has_expl_req(LOCK_S, block, true, heap_no, impl_trx);
@@ -5359,7 +5356,7 @@ static void lock_rec_convert_impl_to_expl(const buf_block_t *block,
 
     trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
 
-    trx = trx_rw_is_active(trx_id, nullptr, true);
+    trx = trx_rw_is_active(trx_id, true);
   } else {
     ut_ad(!dict_index_is_online_ddl(index));
 
