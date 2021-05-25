@@ -82,10 +82,6 @@ struct row_log_buf_t {
   /** File block buffer */
   byte *block;
 
-  /** opaque descriptor of "block". Set by ut_allocator::allocate_large() and
-   fed to ut_allocator::deallocate_large(). */
-  ut_new_pfx_t block_pfx;
-
   /** Buffer for accessing a record that spans two blocks */
   ddl::mrec_buf_t buf;
 
@@ -259,7 +255,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_log_block_allocate(
     DBUG_EXECUTE_IF("simulate_row_log_allocation_failure", return false;);
 
     log_buf.block = ut_allocator<byte>(mem_key_row_log_buf)
-                        .allocate_large(srv_sort_buf_size, &log_buf.block_pfx);
+                        .allocate_large(srv_sort_buf_size);
 
     if (log_buf.block == nullptr) {
       return false;
@@ -273,8 +269,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_log_block_allocate(
 static void row_log_block_free(row_log_buf_t &log_buf) {
   DBUG_TRACE;
   if (log_buf.block != nullptr) {
-    ut_allocator<byte>(mem_key_row_log_buf)
-        .deallocate_large(log_buf.block, &log_buf.block_pfx);
+    ut_allocator<byte>(mem_key_row_log_buf).deallocate_large(log_buf.block);
     log_buf.block = nullptr;
   }
 }

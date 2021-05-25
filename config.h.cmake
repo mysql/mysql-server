@@ -301,6 +301,7 @@
  * CPU info
  */
 #cmakedefine CPU_LEVEL1_DCACHE_LINESIZE @CPU_LEVEL1_DCACHE_LINESIZE@
+#cmakedefine CPU_PAGE_SIZE @CPU_PAGE_SIZE@
 
 /*
  * NDB

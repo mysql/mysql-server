@@ -827,7 +827,7 @@ static bool buf_pool_should_madvise = false;
 
 /* Implementation of buf_chunk_t's methods */
 
-/** Advices the OS that this chunk should not be dumped to a core file.
+/** Advices the OS that this chunk should be dumped to a core file.
 Emits a warning to the log if could not succeed.
 @return true iff succeeded, false if no OS support or failed */
 bool buf_chunk_t::madvise_dump() {
@@ -844,7 +844,7 @@ bool buf_chunk_t::madvise_dump() {
 #endif /* HAVE_MADV_DONTDUMP */
 }
 
-/** Advices the OS that this chunk should be dumped to a core file.
+/** Advices the OS that this chunk should not be dumped to a core file.
 Emits a warning to the log if could not succeed.
 @return true iff succeeded, false if no OS support or failed */
 bool buf_chunk_t::madvise_dont_dump() {
@@ -867,18 +867,9 @@ bool buf_chunk_t::madvise_dont_dump() {
 
 /* Implementation of buf_pool_t's methods */
 
-/** A wrapper for buf_pool_t::allocator.alocate_large which also advices the OS
-that this chunk should not be dumped to a core file if that was requested.
-Emits a warning to the log and disables @@global.core_file if advising was
-requested but could not be performed, but still return true as the allocation
-itself succeeded.
-@param[in]	mem_size  number of bytes to allocate
-@param[in,out]  chunk     mem and mem_pfx fields of this chunk will be updated
-                          to contain information about allocated memory region
-@return true iff allocated successfully */
 bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk) {
   ut_ad(mutex_own(&chunks_mutex));
-  chunk->mem = allocator.allocate_large(mem_size, &chunk->mem_pfx);
+  chunk->mem = allocator.allocate_large(mem_size);
   if (chunk->mem == nullptr) {
     return false;
   }
@@ -891,12 +882,6 @@ bool buf_pool_t::allocate_chunk(ulonglong mem_size, buf_chunk_t *chunk) {
   return true;
 }
 
-/** A wrapper for buf_pool_t::allocator.deallocate_large which also advices the
-OS that this chunk can be dumped to a core file.
-Emits a warning to the log and disables @@global.core_file if advising was
-requested but could not be performed.
-@param[in]  chunk    mem and mem_pfx fields of this chunk will be used to locate
-                     the memory region to free */
 void buf_pool_t::deallocate_chunk(buf_chunk_t *chunk) {
   ut_ad(mutex_own(&chunks_mutex));
   /* Undo the effect of the earlier MADV_DONTDUMP */
@@ -905,13 +890,9 @@ void buf_pool_t::deallocate_chunk(buf_chunk_t *chunk) {
       innobase_disable_core_dump();
     }
   }
-  allocator.deallocate_large(chunk->mem, &chunk->mem_pfx);
+  allocator.deallocate_large(chunk->mem);
 }
 
-/** Advices the OS that all chunks in this buffer pool instance can be dumped
-to a core file.
-Emits a warning to the log if could not succeed.
-@return true iff succeeded, false if no OS support or failed */
 bool buf_pool_t::madvise_dump() {
   ut_ad(mutex_own(&chunks_mutex));
   for (buf_chunk_t *chunk = chunks; chunk < chunks + n_chunks; chunk++) {
@@ -922,10 +903,6 @@ bool buf_pool_t::madvise_dump() {
   return true;
 }
 
-/** Advices the OS that all chunks in this buffer pool instance should not
-be dumped to a core file.
-Emits a warning to the log if could not succeed.
-@return true iff succeeded, false if no OS support or failed */
 bool buf_pool_t::madvise_dont_dump() {
   ut_ad(mutex_own(&chunks_mutex));
   for (buf_chunk_t *chunk = chunks; chunk < chunks + n_chunks; chunk++) {
@@ -1032,7 +1009,9 @@ static buf_chunk_t *buf_chunk_init(
   it is bigger, we may allocate more blocks than requested. */
 
   frame = (byte *)ut_align(chunk->mem, UNIV_PAGE_SIZE);
-  chunk->size = chunk->mem_pfx.m_size / UNIV_PAGE_SIZE - (frame != chunk->mem);
+  chunk->size =
+      ut_allocator<byte>::large_page_size(chunk->mem) / UNIV_PAGE_SIZE -
+      (frame != chunk->mem);
 
   /* Subtract the space needed for block descriptors. */
   {
