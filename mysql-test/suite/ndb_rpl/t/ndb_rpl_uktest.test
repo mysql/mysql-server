@@ -1,0 +1,115 @@
+#
+# Test replication of changes to a table with
+#   - A secondary unique key
+#   - All columns (including unchanged columns) are included in UPDATE events
+#     (ndb_log_updated_only=0)
+#   - Updates are logged as updates
+#     (ndb_log_update_as_write=0)
+#   - Updates change the value of a column other than the secondary unique column
+#   - INSERT and UPDATE events are interleaved
+#
+# Problem occurs as :
+#   - Bug in replication code carries INSERT related handler flags over to UPDATE
+#     processing
+#   - UPDATE processing modifies existing row with secondary unique value
+#   - Secondary unique value is present in incoming Binlog
+#   - Flag setting causes a 'check for existence' pre check on the secondary value
+#     before applying the UPDATE
+#     - The secondary value does exist as the row exists and the value is unchanged
+#     - This causes a replication failure
+#
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+
+drop table if exists mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+
+--echo Populate ndb_replication table as necessary
+eval replace into mysql.ndb_replication values
+  ("test", "t1", 0, 7, NULL);
+
+create table test.t1 (
+  a int primary key,
+  b int,
+  c int,
+  unique(c)) engine=ndb;
+
+--echo Insert some data
+
+insert into test.t1 values (1,1,1), (2,2,2), (3,3,3), (4,4,4), (5,5,5);
+
+--sync_slave_with_master slave
+
+--connection master
+--echo Now try to show problem
+--echo Generate inserts and updates interleaved
+--echo Updates are on existing keys, but do not affect existing key values
+
+insert into test.t1 values (6,6,6), (7,7,7), (8,8,8);
+
+update test.t1 set b=10 where a < 6;
+
+select * from t1 order by a;
+
+# Example of resulting binlog content (not deterministic):
+#
+# ## Table creation
+# master-bin.000001	1364	Query	1	1529	use `test`; create table test.t1 (
+# a int primary key,
+# b int,
+# c int,
+# unique(c)) engine=ndb /* xid=218 */
+#
+# ## Epoch transaction 1, all INSERTs
+# master-bin.000001	1529	Anonymous_Gtid	1	1608	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+# master-bin.000001	1608	Query	1	1679	BEGIN
+# master-bin.000001	1679	Table_map	1	1729	table_id: 259 (test.t1)
+# master-bin.000001	1729	Table_map	1	1801	table_id: 163 (mysql.ndb_apply_status)
+# master-bin.000001	1801	Write_rows	1	1866	table_id: 163
+# master-bin.000001	1866	Write_rows	1	1966	table_id: 259 flags: STMT_END_F
+# master-bin.000001	1966	Query	1	2038	COMMIT
+#
+#
+# ## Epoch transaction 2, interleaved INSERTs and UPDATEs, with STMT_END_F on last event.
+# master-bin.000001	2038	Anonymous_Gtid	1	2117	SET @@SESSION.GTID_NEXT= 'ANONYMOUS'
+# master-bin.000001	2117	Query	1	2188	BEGIN
+# master-bin.000001	2188	Table_map	1	2238	table_id: 259 (test.t1)
+# master-bin.000001	2238	Table_map	1	2310	table_id: 163 (mysql.ndb_apply_status)
+# master-bin.000001	2310	Write_rows	1	2375	table_id: 163
+# master-bin.000001	2375	Write_rows	1	2436	table_id: 259
+# master-bin.000001	2436	Update_rows	1	2576	table_id: 259
+# master-bin.000001	2576	Write_rows	1	2624	table_id: 259
+# master-bin.000001	2624	Update_rows	1	2686	table_id: 259 flags: STMT_END_F
+# master-bin.000001	2686	Query	1	2758	COMMIT
+#
+#
+# ##
+# The problems can occur when processing Update_rows events after Write_rows events - the
+# handler settings from the Write_rows event are retained when processing the Update_rows
+# event and cause it to behave incorrectly.
+# ##
+#
+
+
+
+--sync_slave_with_master slave
+
+select * from t1 order by a;
+
+--connection master
+#show binlog events;
+drop table test.t1;
+drop table mysql.ndb_replication;
+--sync_slave_with_master slave
+
+
+--source include/rpl_end.inc

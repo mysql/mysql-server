@@ -11851,6 +11851,16 @@ int Write_rows_log_event::do_after_row_operations(
   }
   m_table->next_number_field = nullptr;
   m_table->autoinc_field_has_explicit_non_null_value = false;
+
+  /**
+     Row based replication for Ndb requires resetting flags after each event.
+     This is symmetric with do_before_row_operations.
+  */
+  if (m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER) {
+    m_table->file->ha_extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
+    m_table->file->ha_extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
+  }
+
   if ((local_error = m_table->file->ha_end_bulk_insert())) {
     m_table->file->print_error(local_error, MYF(0));
   }
