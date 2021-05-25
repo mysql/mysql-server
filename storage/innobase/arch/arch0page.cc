@@ -344,28 +344,25 @@ dberr_t Arch_Group::write_file_header(byte *from_buffer, uint length) {
   return (err);
 }
 
-dberr_t Arch_Group::open_file_during_recovery(Arch_Page_Pos write_pos,
-                                              bool empty_file) {
+dberr_t Arch_Group::open_file(Arch_Page_Pos write_pos, bool create_new) {
   dberr_t err;
-  uint offset;
 
-  auto count = get_file_count();
-
+  ut_d(auto count = get_file_count());
   ut_ad(count > 0);
 
-  if (!empty_file) {
-    ut_ad(Arch_Block::get_file_index(write_pos.m_block_num) == count - 1);
+  if (!create_new) {
+    auto block_num = write_pos.m_block_num;
+    uint file_index = Arch_Block::get_file_index(block_num, ARCH_DATA_BLOCK);
+    uint offset = Arch_Block::get_file_offset(block_num, ARCH_DATA_BLOCK);
 
-    offset =
-        Arch_Block::get_file_offset(write_pos.m_block_num, ARCH_DATA_BLOCK);
+    ut_ad(file_index + 1 == count);
 
-    err = m_file_ctx.open(false, m_begin_lsn, count - 1, offset);
-
+    err = m_file_ctx.open(false, m_begin_lsn, file_index, offset);
   } else {
     err = m_file_ctx.open_new(m_begin_lsn, m_header_len);
   }
 
-  return (err);
+  return err;
 }
 
 void Arch_File_Ctx::update_stop_point(uint file_index, lsn_t stop_lsn) {
@@ -379,7 +376,8 @@ void Arch_File_Ctx::update_stop_point(uint file_index, lsn_t stop_lsn) {
 }
 
 void Arch_File_Ctx::save_reset_point_in_mem(lsn_t lsn, Arch_Page_Pos pos) {
-  uint current_file_index = Arch_Block::get_file_index(pos.m_block_num);
+  uint current_file_index =
+      Arch_Block::get_file_index(pos.m_block_num, ARCH_DATA_BLOCK);
 
   Arch_Point reset_point;
   reset_point.lsn = lsn;
@@ -1182,12 +1180,28 @@ bool wait_flush_archiver(Page_Wait_Flush_Archiver_Cbk cbk_func) {
   return (true);
 }
 
-uint Arch_Block::get_file_index(uint64_t block_num) {
-  return (block_num / ARCH_PAGE_FILE_DATA_CAPACITY);
+uint Arch_Block::get_file_index(uint64_t block_num, Arch_Blk_Type type) {
+  size_t file_index = -1;
+
+  switch (type) {
+    case ARCH_RESET_BLOCK:
+      file_index = block_num;
+      break;
+
+    case ARCH_DATA_BLOCK:
+      file_index = block_num / ARCH_PAGE_FILE_DATA_CAPACITY;
+      break;
+
+    default:
+      ut_ad(0);
+  }
+
+  return file_index;
 }
 
-uint Arch_Block::get_type(byte *block) {
-  return (mach_read_from_1(block + ARCH_PAGE_BLK_HEADER_TYPE_OFFSET));
+Arch_Blk_Type Arch_Block::get_type(byte *block) {
+  return static_cast<Arch_Blk_Type>(
+      mach_read_from_1(block + ARCH_PAGE_BLK_HEADER_TYPE_OFFSET));
 }
 
 uint Arch_Block::get_data_len(byte *block) {
@@ -1228,7 +1242,7 @@ uint64_t Arch_Block::get_file_offset(uint64_t block_num, Arch_Blk_Type type) {
       ut_ad(0);
   }
 
-  return (offset);
+  return offset;
 }
 
 bool Arch_Block::is_zeroes(const byte *block) {
@@ -1280,8 +1294,9 @@ void Arch_Block::begin_write(Arch_Page_Pos pos) {
   m_state = ARCH_BLOCK_ACTIVE;
 
   m_number =
-      (m_type == ARCH_DATA_BLOCK ? pos.m_block_num
-                                 : Arch_Block::get_file_index(pos.m_block_num));
+      (m_type == ARCH_DATA_BLOCK
+           ? pos.m_block_num
+           : Arch_Block::get_file_index(pos.m_block_num, ARCH_DATA_BLOCK));
 
   m_oldest_lsn = LSN_MAX;
   m_reset_lsn = LSN_MAX;
@@ -1360,7 +1375,9 @@ bool Arch_Block::set_data(uint read_len, byte *read_buff, uint read_offset) {
 
   memcpy(dest, read_buff, read_len);
 
-  return (true);
+  set_reset_lsn(Arch_Block::get_reset_lsn(m_data));
+
+  return true;
 }
 
 /** Flush this block to the file group.
@@ -1440,19 +1457,6 @@ void Arch_Block::copy_data(const Arch_Block *block) {
   m_reset_lsn = block->m_reset_lsn;
   m_oldest_lsn = block->m_oldest_lsn;
   set_data(m_size, block->m_data, 0);
-}
-
-void Arch_Block::read(Arch_Group *group, uint64_t offset) {
-  switch (m_type) {
-    case ARCH_DATA_BLOCK:
-      group->recovery_read_latest_blocks(m_data, offset, ARCH_DATA_BLOCK);
-      m_reset_lsn = Arch_Block::get_reset_lsn(m_data);
-      break;
-
-    case ARCH_RESET_BLOCK:
-      group->recovery_read_latest_blocks(m_data, offset, ARCH_RESET_BLOCK);
-      break;
-  }
 }
 
 /** Initialize a position */
@@ -2284,70 +2288,56 @@ void Arch_Page_Sys::set_tracking_buf_pool(lsn_t tracking_lsn) {
   }
 }
 
-int Arch_Page_Sys::start_during_recovery(Arch_Group *group,
-                                         bool new_empty_file) {
-  int err = 0;
-
+int Arch_Page_Sys::recovery_load_and_start(const Arch_Recv_Group_Info &info) {
   /* Initialise the page archiver with the info parsed from the files. */
 
-  arch_mutex_enter();
-  arch_oper_mutex_enter();
+  m_current_group = info.m_group;
 
-  m_current_group = group;
+  m_write_pos = info.m_write_pos;
+  m_reset_pos = info.m_reset_pos;
+  m_flush_pos = m_write_pos;
 
-  Arch_Reset_File last_reset_file;
-  group->recovery_fetch_info(last_reset_file, m_latest_stop_lsn);
-
+  Arch_Reset_File last_reset_file = info.m_last_reset_file;
   ut_ad(last_reset_file.m_start_point.size() > 0);
-
   Arch_Point reset_point = last_reset_file.m_start_point.back();
 
   m_last_pos = reset_point.pos;
   m_last_lsn = reset_point.lsn;
-  m_flush_pos = m_write_pos;
   m_last_reset_file_index = last_reset_file.m_file_index;
 
   ut_ad(m_last_lsn != LSN_MAX);
 
-  arch_oper_mutex_exit();
-  arch_mutex_exit();
-
-  err = m_ctx->init_during_recovery(m_current_group, m_last_lsn);
+  auto err = m_ctx->init_during_recovery(m_current_group, m_last_lsn);
 
   if (err != 0) {
-    return (err);
+    return err;
   }
 
-  arch_mutex_enter();
-  arch_oper_mutex_enter();
-
-  if (new_empty_file) {
+  if (info.m_new_empty_file) {
     m_flush_pos.set_next();
     m_write_pos.set_next();
     m_reset_pos.set_next();
     m_last_reset_file_index = m_reset_pos.m_block_num;
   }
 
-  /* Reload both the reset block and write block active at the time of
-  a crash. */
+  /* Reload both reset block and write block active at the time of a crash. */
 
   auto cur_blk = m_data.get_block(&m_write_pos, ARCH_DATA_BLOCK);
-  cur_blk->begin_write(m_write_pos);
-
   auto reset_block = m_data.get_block(&m_reset_pos, ARCH_RESET_BLOCK);
+
+  arch_mutex_enter();
+  arch_oper_mutex_enter();
+
+  cur_blk->begin_write(m_write_pos);
   reset_block->begin_write(m_write_pos);
 
-  if (!new_empty_file) {
+  if (!info.m_new_empty_file) {
     cur_blk->set_data_len(m_write_pos.m_offset - ARCH_PAGE_BLK_HEADER_LENGTH);
-    cur_blk->read(
-        m_current_group,
-        Arch_Block::get_file_offset(m_write_pos.m_block_num, ARCH_DATA_BLOCK));
+    cur_blk->set_data(ARCH_PAGE_BLK_SIZE, info.m_last_data_block, 0);
 
     reset_block->set_data_len(m_reset_pos.m_offset -
                               ARCH_PAGE_BLK_HEADER_LENGTH);
-    reset_block->read(
-        m_current_group,
-        Arch_Block::get_file_offset(m_reset_pos.m_block_num, ARCH_RESET_BLOCK));
+    reset_block->set_data(ARCH_PAGE_BLK_SIZE, info.m_last_reset_block, 0);
   }
 
   ut_d(print());
@@ -2355,7 +2345,7 @@ int Arch_Page_Sys::start_during_recovery(Arch_Group *group,
   arch_oper_mutex_exit();
   arch_mutex_exit();
 
-  return (err);
+  return err;
 }
 
 int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
@@ -2942,8 +2932,8 @@ int Arch_Group::read_from_file(Arch_Page_Pos *read_pos, uint read_len,
   char file_name[MAX_ARCH_PAGE_FILE_NAME_LEN];
 
   /* Build file name */
-  auto file_index =
-      static_cast<uint>(Arch_Block::get_file_index(read_pos->m_block_num));
+  auto file_index = static_cast<uint>(
+      Arch_Block::get_file_index(read_pos->m_block_num, ARCH_DATA_BLOCK));
 
   get_file_name(file_index, file_name, MAX_ARCH_PAGE_FILE_NAME_LEN);
 
@@ -3003,7 +2993,8 @@ int Arch_Group::read_data(Arch_Page_Pos cur_pos, byte *buff, uint buff_len) {
 bool Arch_Page_Sys::save_reset_point(bool is_durable) {
   /* 1. Add the reset info to the reset block */
 
-  uint current_file_index = Arch_Block::get_file_index(m_last_pos.m_block_num);
+  uint current_file_index =
+      Arch_Block::get_file_index(m_last_pos.m_block_num, ARCH_DATA_BLOCK);
 
   auto reset_block = m_data.get_block(&m_reset_pos, ARCH_RESET_BLOCK);
 
