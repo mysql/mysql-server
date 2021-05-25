@@ -22172,6 +22172,26 @@ static void test_bug32558782() {
   myquery(rc);
 }
 
+static void test_bug32847269() {
+  myheader("test_bug32847269");
+
+  /* init phase */
+  myquery(mysql_query(mysql,
+                      "INSTALL COMPONENT 'file://component_query_attributes'"));
+
+  MYSQL_BIND p1;
+  const char *name = "param1";
+  MYSQL_ROW row;
+  MYSQL_RES *res;
+  bool is_null_arg = false;
+  wl12542_test_numeric_type(MYSQL_TYPE_LONGLONG, long long int,
+                            9223372036854775807L, atoll, is_null_arg);
+
+  /* cleanup phase */
+  myquery(mysql_query(
+      mysql, "UNINSTALL COMPONENT 'file://component_query_attributes'"));
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_bug5194", test_bug5194},
     {"disable_query_logs", disable_query_logs},
@@ -22475,6 +22495,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug31691060_2", test_bug31691060_2},
     {"test_bug32372038", test_bug32372038},
     {"test_bug32558782", test_bug32558782},
+    {"test_bug32847269", test_bug32847269},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }
