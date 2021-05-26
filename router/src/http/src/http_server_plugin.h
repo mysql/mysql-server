@@ -26,6 +26,7 @@
 #define MYSQLROUTER_HTTP_SERVER_PLUGIN_INCLUDED
 
 #include <mutex>
+#include <regex>
 #include <string>
 #include <thread>
 #include <vector>
@@ -34,8 +35,6 @@
 #include "mysql/harness/stdx/monitor.h"
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_component.h"
-
-#include "posix_re.h"
 
 class HttpRequestRouter {
  public:
@@ -55,7 +54,7 @@ class HttpRequestRouter {
  private:
   struct RouterData {
     std::string url_regex_str;
-    PosixRE url_regex;
+    std::regex url_regex;
     std::unique_ptr<BaseRequestHandler> handler;
   };
   std::vector<RouterData> request_handlers_;

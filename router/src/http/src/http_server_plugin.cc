@@ -58,7 +58,6 @@
 #include "mysqlrouter/http_common.h"
 #include "mysqlrouter/http_server_component.h"
 #include "mysqlrouter/plugin_config.h"
-#include "posix_re.h"
 #include "static_files.h"
 
 IMPORT_LOG_FUNCTIONS()
@@ -75,8 +74,9 @@ static constexpr const char kSectionName[]{"http_server"};
 void HttpRequestRouter::append(const std::string &url_regex_str,
                                std::unique_ptr<BaseRequestHandler> cb) {
   std::lock_guard<std::mutex> lock(route_mtx_);
-  request_handlers_.emplace_back(
-      RouterData{url_regex_str, PosixRE{url_regex_str}, std::move(cb)});
+  request_handlers_.emplace_back(RouterData{
+      url_regex_str, std::regex{url_regex_str, std::regex_constants::extended},
+      std::move(cb)});
 }
 
 void HttpRequestRouter::remove(const std::string &url_regex_str) {
@@ -154,7 +154,7 @@ void HttpRequestRouter::route(HttpRequest req) {
   }
 
   for (auto &request_handler : request_handlers_) {
-    if (request_handler.url_regex.search(uri.get_path())) {
+    if (std::regex_search(uri.get_path(), request_handler.url_regex)) {
       request_handler.handler->handle_request(req);
       return;
     }
