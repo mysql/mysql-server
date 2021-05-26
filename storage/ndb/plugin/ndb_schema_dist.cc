@@ -624,20 +624,6 @@ bool Ndb_schema_dist_client::acl_notify(std::string user_list) {
                        SOT_ACL_SNAPSHOT);
 }
 
-bool Ndb_schema_dist_client::tablespace_changed(const char *tablespace_name,
-                                                int id, int version) {
-  DBUG_TRACE;
-  return log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd), "",
-                       tablespace_name, id, version, SOT_TABLESPACE);
-}
-
-bool Ndb_schema_dist_client::logfilegroup_changed(const char *logfilegroup_name,
-                                                  int id, int version) {
-  DBUG_TRACE;
-  return log_schema_op(ndb_thd_query(m_thd), ndb_thd_query_length(m_thd), "",
-                       logfilegroup_name, id, version, SOT_LOGFILE_GROUP);
-}
-
 bool Ndb_schema_dist_client::create_tablespace(const char *tablespace_name,
                                                int id, int version) {
   DBUG_TRACE;

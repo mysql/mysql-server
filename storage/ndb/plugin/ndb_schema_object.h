@@ -215,8 +215,10 @@ class NDB_SCHEMA_OBJECT {
      @param participant_node_id The nodeid of the node who reported result
      @param result The result received
      @param message The message describing the result if != 0
+
+     @return true if node was registered as participant, false otherwise
    */
-  void result_received_from_node(uint32 participant_node_id, uint32 result,
+  bool result_received_from_node(uint32 participant_node_id, uint32 result,
                                  const std::string &message) const;
 
   /**
