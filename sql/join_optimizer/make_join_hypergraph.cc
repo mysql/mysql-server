@@ -353,6 +353,14 @@ void CreateInnerJoinFromChildList(
   be items in the companion set that are not part of the same multi-join.
  */
 void FlattenInnerJoins(RelationalExpression *expr) {
+  if (expr->type == RelationalExpression::MULTI_INNER_JOIN) {
+    // Already flattened, but grandchildren might need re-flattening.
+    for (RelationalExpression *child : expr->multi_children) {
+      FlattenInnerJoins(child);
+      assert(child->type != RelationalExpression::MULTI_INNER_JOIN);
+    }
+    return;
+  }
   if (expr->type != RelationalExpression::TABLE) {
     FlattenInnerJoins(expr->left);
     FlattenInnerJoins(expr->right);

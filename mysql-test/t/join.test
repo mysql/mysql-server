@@ -1754,3 +1754,24 @@ EXPLAIN SELECT * FROM t1 AS x3 WHERE EXISTS
     WHERE t1.b=x1.b) AS d3 ON x1.b=c);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32917482: SIG11 IN FLATTENINNERJOINS|MAKE_JOIN_HYPERGRAPH.CC
+--echo #
+
+CREATE TABLE t1 (
+  a VARCHAR(1),
+  b INTEGER
+);
+
+SELECT *
+FROM
+  t1
+  JOIN t1 AS t2 ON t1.b = t2.b
+  JOIN t1 AS t3
+  JOIN (
+    t1 AS t4 STRAIGHT_JOIN t1 AS t5 ON t4.a = t5.b
+  ) ON t1.b = t4.b
+WHERE t1.a = t5.b;
+
+DROP TABLE t1;

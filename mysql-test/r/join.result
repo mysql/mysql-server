@@ -2465,3 +2465,21 @@ Warnings:
 Note	1276	Field or reference 'test.x1.b' of SELECT #3 was resolved in SELECT #2
 Note	1003	/* select#1 */ select `test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b` from `test`.`t1` `x3` semi join (`test`.`t1` `x1` join `test`.`t1` `x2` join lateral (/* select#3 */ select count(`test`.`t1`.`a`) AS `c` from `test`.`t1` where (`test`.`t1`.`b` = `test`.`x1`.`b`)) `d3`) where ((`test`.`x2`.`b` = `test`.`x1`.`b`) and (`test`.`x1`.`b` = `d3`.`c`))
 DROP TABLE t1;
+#
+# Bug #32917482: SIG11 IN FLATTENINNERJOINS|MAKE_JOIN_HYPERGRAPH.CC
+#
+CREATE TABLE t1 (
+a VARCHAR(1),
+b INTEGER
+);
+SELECT *
+FROM
+t1
+JOIN t1 AS t2 ON t1.b = t2.b
+JOIN t1 AS t3
+JOIN (
+t1 AS t4 STRAIGHT_JOIN t1 AS t5 ON t4.a = t5.b
+) ON t1.b = t4.b
+WHERE t1.a = t5.b;
+a	b	a	b	a	b	a	b	a	b
+DROP TABLE t1;
