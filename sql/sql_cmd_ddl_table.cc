@@ -101,6 +101,10 @@ static bool populate_table(THD *thd, LEX *lex) {
   if (lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     return true;
 
+  // Use the hypergraph optimizer for the SELECT statement, if enabled.
+  lex->using_hypergraph_optimizer =
+      thd->optimizer_switch_flag(OPTIMIZER_SWITCH_HYPERGRAPH_OPTIMIZER);
+
   lex->set_exec_started();
 
   /*

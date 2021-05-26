@@ -149,6 +149,7 @@ alter table t1 engine=myisam;
 --sorted_result
 select a+0, b+0 from t1;
 create table t2 engine=heap select * from t1;
+--sorted_result
 select a+0, b+0 from t2;
 drop table t1;
 create table t1 select * from t2;

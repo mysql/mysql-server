@@ -1134,6 +1134,7 @@ WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
        ON table2.col_int_key = table1.col_int_key
 );
 
+--sorted_result
 eval $query;
 eval EXPLAIN $query;
 

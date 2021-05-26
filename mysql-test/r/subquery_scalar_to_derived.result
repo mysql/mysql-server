@@ -2799,7 +2799,6 @@ JOIN t1 AS table2
 ON table2.col_int_key = table1.col_int_key
 );
 field1	( SELECT COUNT( col_int_key )
-FROM t1
 )
 0	4
 1	4
@@ -2807,6 +2806,7 @@ FROM t1
 8	4
 8	4
 8	4
+FROM t1
 EXPLAIN SELECT *
 FROM where_subselect_20070
 WHERE (field1, ( SELECT COUNT( col_int_key ) FROM t1 )) IN (
