@@ -3443,7 +3443,10 @@ class Item_func_match final : public Item_real_func {
  public:
   Item *against;
   uint key, flags;
-  bool join_key;
+  /// True if we are doing a full-text index scan with this MATCH function as a
+  /// predicate, and the score can be retrieved with get_relevance(). If it is
+  /// false, the score of the document must be retrieved with find_relevance().
+  bool score_from_index_scan{false};
   DTCollation cmp_collation;
   FT_INFO *ft_handler;
   TABLE_LIST *table_ref;
@@ -3471,7 +3474,6 @@ class Item_func_match final : public Item_real_func {
         against(against_arg),
         key(0),
         flags(b),
-        join_key(false),
         ft_handler(nullptr),
         table_ref(nullptr),
         master(nullptr),

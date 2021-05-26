@@ -2238,7 +2238,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
     length = 0;
     keyparts = 1;
-    ifm->get_master()->join_key = true;
+    ifm->get_master()->score_from_index_scan = true;
   } else /* not ftkey */
     calc_length_and_keyparts(org_keyuse, j, key, used_tables, chosen_keyuses,
                              &length, &keyparts, nullptr, nullptr);

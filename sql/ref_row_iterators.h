@@ -33,6 +33,7 @@
 #include "sql/row_iterator.h"
 #include "sql/sql_sort.h"
 
+class Item_func_match;
 class QEP_TAB;
 class THD;
 struct TABLE;
@@ -147,7 +148,8 @@ class ConstIterator final : public TableRowIterator {
 class FullTextSearchIterator final : public TableRowIterator {
  public:
   // "examined_rows", if not nullptr, is incremented for each successful Read().
-  FullTextSearchIterator(THD *thd, TABLE *table, TABLE_REF *ref, bool use_order,
+  FullTextSearchIterator(THD *thd, TABLE *table, TABLE_REF *ref,
+                         Item_func_match *ft_func, bool use_order,
                          ha_rows *examined_rows);
   ~FullTextSearchIterator() override;
 
@@ -156,6 +158,7 @@ class FullTextSearchIterator final : public TableRowIterator {
 
  private:
   TABLE_REF *const m_ref;
+  Item_func_match *const m_ft_func;
   const bool m_use_order;
   ha_rows *const m_examined_rows;
 };

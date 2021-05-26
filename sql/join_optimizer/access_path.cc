@@ -254,7 +254,8 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     case AccessPath::FULL_TEXT_SEARCH: {
       const auto &param = path->full_text_search();
       iterator = NewIterator<FullTextSearchIterator>(
-          thd, param.table, param.ref, param.use_order, examined_rows);
+          thd, param.table, param.ref, param.ft_func, param.use_order,
+          examined_rows);
       break;
     }
     case AccessPath::CONST_TABLE: {

@@ -7525,13 +7525,14 @@ bool Item_func_match::init_search(THD *thd) {
   TABLE *const table = table_ref->table;
   /* Check if init_search() has been called before */
   if (ft_handler && !master) {
-    /*
-      We should reset ft_handler (necessary in case of re-execution of
-      subquery), as it is cleaned up when initializing the
-      SortBufferIndirectIterator / SortFileIndirectIterator.
-      TODO: Those iterators should not clean up ft_handler.
-    */
-    if (join_key) table->file->ft_handler = ft_handler;
+    // Update handler::ft_handler even if the search is already initialized.
+    // If the first call to init_search() was done before we had decided if
+    // an index scan should be used, and we later decide that we will use
+    // one, ft_handler is not set. For example, the optimizer calls
+    // init_search() early if it needs to call Item_func_match::get_count()
+    // to perform COUNT(*) optimization or decide if a LIMIT clause can be
+    // satisfied by an index scan.
+    if (score_from_index_scan) table->file->ft_handler = ft_handler;
     return false;
   }
 
@@ -7581,7 +7582,7 @@ bool Item_func_match::init_search(THD *thd) {
   ft_handler = table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
   if (thd->is_error()) return true;
 
-  if (join_key) table->file->ft_handler = ft_handler;
+  if (score_from_index_scan) table->file->ft_handler = ft_handler;
 
   return false;
 }
@@ -7841,12 +7842,9 @@ double Item_func_match::val_real() {
   if (key != NO_SUCH_KEY && table->has_null_row())  // NULL row from outer join
     return 0.0;
 
-  if (get_master()->join_key) {
-    if (table->file->ft_handler) {
-      double val = ft_handler->please->get_relevance(ft_handler);
-      return val;
-    }
-    get_master()->join_key = false;
+  if (get_master()->score_from_index_scan) {
+    assert(table->file->ft_handler == ft_handler);
+    return ft_handler->please->get_relevance(ft_handler);
   }
 
   if (key == NO_SUCH_KEY) {
