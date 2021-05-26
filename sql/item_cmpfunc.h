@@ -169,6 +169,9 @@ class Arg_comparator {
 
   bool set_cmp_func(Item_result_field *owner_arg, Item **left, Item **right,
                     bool set_null_arg);
+
+  bool set_cmp_func(Item_result_field *owner_arg, Item **left, Item **right,
+                    bool set_null_arg, Item_result type);
   /**
      Comparison function are expected to operate on arguments having the
      same data types. Since MySQL has very loosened up rules, it accepts

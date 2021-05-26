@@ -176,8 +176,20 @@ bool Window::check_window_functions1(THD *thd, Query_block *select) {
 static Item_cache *make_result_item(Item *value) {
   Item *order_expr = *down_cast<Item_ref *>(value)->ref;
   Item_cache *result = nullptr;
+  Item_result result_type = order_expr->result_type();
 
-  switch (order_expr->result_type()) {
+  // In case of enum/set type, ordering is based on numeric
+  // comparison. So, we need to create items that will
+  // evalute to integers.
+  if (order_expr->real_item()->type() == Item::FIELD_ITEM) {
+    Item_field *field = down_cast<Item_field *>(order_expr->real_item());
+    if (field->field->real_type() == MYSQL_TYPE_ENUM ||
+        field->field->real_type() == MYSQL_TYPE_SET) {
+      result_type = INT_RESULT;
+    }
+  }
+
+  switch (result_type) {
     case INT_RESULT:
       result = new Item_cache_int(value->data_type());
       break;
@@ -328,8 +340,23 @@ bool Window::setup_range_expressions(THD *thd) {
             }
           }
           comparators[i] = Arg_comparator(left_args, right_args);
-          comparators[i].set_cmp_func(/*owner_arg=*/nullptr, left_args,
-                                      right_args, /*set_null_arg=*/true);
+          bool compare_func_set = false;
+          // In case of enum/set type, as ordering is based on
+          // numeric comparison we need to setup comparison
+          // functions to do numeric comparison.
+          if (nr->real_item()->type() == Item::FIELD_ITEM) {
+            Item_field *field = down_cast<Item_field *>(nr->real_item());
+            if (field->field->real_type() == MYSQL_TYPE_ENUM ||
+                field->field->real_type() == MYSQL_TYPE_SET) {
+              comparators[i].set_cmp_func(/*owner_arg=*/nullptr, left_args,
+                                          right_args, /*set_null_arg=*/true,
+                                          INT_RESULT);
+              compare_func_set = true;
+            }
+          }
+          if (!compare_func_set)
+            comparators[i].set_cmp_func(/*owner_arg=*/nullptr, left_args,
+                                        right_args, /*set_null_arg=*/true);
         }
         m_comparators[border == m_frame->m_to] = comparators;
         break;

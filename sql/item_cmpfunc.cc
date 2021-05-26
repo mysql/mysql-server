@@ -1242,6 +1242,13 @@ bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
   return set_cmp_func(owner_arg, left_arg, right_arg, item_result);
 }
 
+bool Arg_comparator::set_cmp_func(Item_result_field *owner_arg, Item **left_arg,
+                                  Item **right_arg, bool set_null_arg,
+                                  Item_result type) {
+  set_null = set_null_arg;
+  return set_cmp_func(owner_arg, left_arg, right_arg, type);
+}
+
 /**
    Wraps the item into a CAST function to the type provided as argument
    @param item - the item to be wrapped

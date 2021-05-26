@@ -653,3 +653,13 @@ SELECT 0.2 * AVG(f1) OVER w AS avg, f1
  WINDOW w AS (PARTITION BY t1_partkey);
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#32328576: BOOL PROCESS_BUFFERED_WINDOWING_RECORD: ASSERTION `!ROW_ADDED
+--echo #               && !FOUND_FIRST' FAILED.
+--echo #
+
+CREATE TABLE t(f1 SET('a','b'), f2 INTEGER);
+INSERT INTO t VALUES ('b',1), ('a',2), ('a,b',3), ('b',0), ('a',1);
+SELECT FIRST_VALUE(f2) OVER(ORDER BY f1 RANGE CURRENT ROW) FROM t;
+DROP TABLE t;
