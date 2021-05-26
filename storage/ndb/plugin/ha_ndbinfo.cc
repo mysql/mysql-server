@@ -24,6 +24,7 @@
 
 #include "storage/ndb/plugin/ha_ndbinfo.h"
 
+#include <algorithm>  // std::min(),std::max()
 #include <vector>
 
 #include <mysql/plugin.h>
