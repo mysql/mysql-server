@@ -523,8 +523,6 @@ const char *ut_strerr(dberr_t num) {
       return "Page was discarded, was not written to storage.";
     case DB_AUTOINC_READ_ERROR:
       return "Auto-increment read failed";
-    case DB_ERROR_UNSET:
-      break;
     case DB_FILE_READ_BEYOND_SIZE:
       return "File read failure because of the read being beyond file size.";
     case DB_ERROR_UNSET:;
