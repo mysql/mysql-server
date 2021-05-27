@@ -452,7 +452,7 @@ class HttpServerPluginConfig : public mysqlrouter::BasePluginConfig {
         ssl_cipher(get_option_string(section, "ssl_cipher")),
         ssl_dh_params(get_option_string(section, "ssl_dh_param")),
         ssl_curves(get_option_string(section, "ssl_curves")),
-        with_ssl(get_uint_option<bool>(section, "ssl")),
+        with_ssl(get_uint_option<uint8_t>(section, "ssl", 0, 1)),
         srv_port(get_uint_option<uint16_t>(section, "port")) {}
 
   std::string get_default_ciphers() const {
