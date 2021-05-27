@@ -3477,6 +3477,52 @@ static bool fix_super_read_only(sys_var *, THD *thd, enum_var_type type) {
   /* return immediately if turning super_read_only OFF: */
   if (super_read_only == false) {
     opt_super_readonly = false;
+
+    /*
+      Restart event scheduler if needed.
+
+      At present, turning on super_read_only means that we
+      can no longer acquire an MDL to update mysql.*.
+      As a result of this, updating the "last run at ..."
+      timestamp of events fails, and the event scheduler
+      shuts down when trying to do so.
+
+      As a convenience, we restart the event scheduler when
+      super_read_only is turned off, and the scheduler is
+      turned on (in the settings), but not actually running
+      (anymore).
+    */
+    if (Events::opt_event_scheduler == Events::EVENTS_ON) {
+      bool evsched_error;       // Did we fail to start the event scheduler?
+      int evsched_errcode = 0;  // If we failed, what was the actual error code?
+
+      /*
+        We must not hold the lock while starting the event scheduler,
+        as that will internally try to take the lock while creating a THD.
+      */
+      mysql_mutex_unlock(&LOCK_global_system_variables);
+      evsched_error = Events::start(&evsched_errcode);
+      mysql_mutex_lock(&LOCK_global_system_variables);
+
+      if (evsched_error) {
+        /*
+          The user requested a change of super_read_only.
+          That change succeeded, so we do not signal a failure here,
+          since it is only the side-effect/convenience of restarting
+          the event scheduler that failed.
+          We do however notify them of that failure, since we're
+          just that nice.
+          We also do not modify opt_event_scheduler, since user
+          intent has not changed. If this policy ever changes,
+          opt_event_scheduler should probably be unset when the
+          event scheduler shuts down.
+        */
+        push_warning_printf(
+            thd, Sql_condition::SL_WARNING, ER_EVENT_SET_VAR_ERROR,
+            ER_THD(thd, ER_EVENT_SET_VAR_ERROR), evsched_errcode);
+      }
+    }
+
     return false;
   }
   bool result = true;
