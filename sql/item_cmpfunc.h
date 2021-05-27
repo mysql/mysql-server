@@ -133,7 +133,7 @@ class Arg_comparator {
   Item **left{nullptr};
   Item **right{nullptr};
   arg_cmp_func func{nullptr};
-  Item_result_field *owner;
+  Item_result_field *owner{nullptr};
   Arg_comparator *comparators{nullptr};  // used only for compare_row()
   uint16 comparator_count{0};
   double precision{0.0};
