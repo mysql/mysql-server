@@ -753,7 +753,7 @@ int ThreadContext::get_user_lists_for_statement(ChangeNotice *notice) {
   assert(m_statement_users.size() == 0);
   assert(m_intersection.size() == 0);
 
-  for (const ChangeNotice::User &notice_user : notice->get_user_list()) {
+  for (const ChangeNotice::User notice_user : notice->get_user_list()) {
     std::string user;
     format_user(user, notice_user);
     m_statement_users.push_back(user);
