@@ -370,14 +370,12 @@ createDropEvent(NDBT_Context* ctx, NDBT_Step* step, bool wait = true)
       {
         continue;
       }
-      ndbout << "step " << step->getStepNo() << endl;
-      ndbout << "Creating event for table: " << tab->getName() << endl;
+
       if ((res = createEvent(pNdb, *tab) != NDBT_OK))
       {
         goto done;
       }
-      ndbout << "step " << step->getStepNo() << endl;
-      ndbout << "Dropping event for table: " << tab->getName() << endl;
+
       if ((res = dropEvent(pNdb, *tab)) != NDBT_OK)
       {
         goto done;
@@ -662,8 +660,8 @@ int runUpgrade_NR1(NDBT_Context* ctx, NDBT_Step* step){
       if (restarter.waitNodesStarted(&nodeId, 1))
         return NDBT_FAILED;
       
-      if (createDropEvent(ctx, step))
-        return NDBT_FAILED;
+      // Return value is ignored until WL#4101 is implemented.
+      createDropEvent(ctx, step);
     }
   }
   
@@ -803,9 +801,10 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
 
     CHK_NDB_READY(GETNDB(step));
 
-    if (event && createDropEvent(ctx, step))
+    if (event)
     {
-      return NDBT_FAILED;
+      // Return value is ignored until WL#4101 is implemented.
+      createDropEvent(ctx, step);
     }
 
     ndbout << "Half started" << endl;
@@ -860,9 +859,10 @@ runUpgrade_Half(NDBT_Context* ctx, NDBT_Step* step)
 
     CHK_NDB_READY(GETNDB(step));
 
-    if (event && createDropEvent(ctx, step))
+    if (event)
     {
-      return NDBT_FAILED;
+      // Return value is ignored until WL#4101 is implemented.
+      createDropEvent(ctx, step);
     }
   }
 
@@ -1192,10 +1192,8 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
         trans.clearTable(pNdb, records/2);
         break;
       case 3:
-        if (createDropEvent(ctx, step, false))
-        {
-          return NDBT_FAILED;
-        }
+        // Return value is ignored until WL#4101 is implemented.
+        createDropEvent(ctx, step, false);
         break;
       }
     }
