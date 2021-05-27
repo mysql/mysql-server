@@ -19853,9 +19853,14 @@ static int check_func_bool(THD *, SYS_VAR *, void *save,
   if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING) {
     char buff[STRING_BUFFER_USUAL_SIZE];
     int length = sizeof(buff);
+
     const char *str = value->val_str(value, buff, &length);
+
+    if (str == nullptr) return 1;
+
     result = find_type(&bool_typelib, str, length, true) - 1;
-    if (str == nullptr || result < 0) return 1;
+
+    if (result < 0) return 1;
   } else {
     long long tmp;
     if (value->val_int(value, &tmp) < 0) return 1;
