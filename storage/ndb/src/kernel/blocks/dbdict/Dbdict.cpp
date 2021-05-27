@@ -20294,12 +20294,6 @@ void Dbdict::dropEvent_sendReply(Signal* signal,
     ret->setErrorLine(evntRecPtr.p->m_errorLine);
     ret->setErrorNode(evntRecPtr.p->m_errorNode);
 
-    // Attempt to get the trace to investigate sporadic failures
-    #ifdef ERROR_INSERT
-      ndbrequire(evntRecPtr.p->m_errorCode != 4710); // Investigate Bug#32130078
-      ndbrequire(evntRecPtr.p->m_errorCode != 1418); // Investigate Bug#30647187
-    #endif
-
     sendSignal(senderRef, GSN_DROP_EVNT_REF, signal,
 	       DropEvntRef::SignalLength, JBB);
   } else {
