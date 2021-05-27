@@ -201,6 +201,9 @@ ENGINE_ERROR_CODE create_instance(uint64_t interface,
    *engine = default_engine;
 
    *handle = (ENGINE_HANDLE*)&engine->engine;
+	
+   free(engine);
+
    return ENGINE_SUCCESS;
 }
 
