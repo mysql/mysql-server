@@ -60,6 +60,14 @@ constexpr size_t pow2_round(size_t n, size_t m) {
   return (n & ~(m - 1));
 }
 
+/** Calculates the next multiple of m that is bigger or equal to n.
+    @param n in: number to find the next multiple of in terms of m
+    @param m in: alignment, must be a power of two
+    @return next next multiple of m bigger or equal than n */
+constexpr size_t round_to_next_multiple(size_t n, size_t m) {
+  return pow2_round(n + (m - 1), m);
+}
+
 }  // namespace detail
 }  // namespace ut
 

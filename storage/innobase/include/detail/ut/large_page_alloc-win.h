@@ -62,11 +62,13 @@ inline void *large_page_aligned_alloc(size_t n_bytes) {
 
     @param[in] ptr Pointer to large (huge) page aligned storage.
     @param[in] n_bytes Size of the storage.
+    @return Returns true if releasing the large (huge) page succeeded.
  */
-inline void large_page_aligned_free(void *ptr, size_t n_bytes) {
-  if (unlikely(!ptr)) return;
-  VirtualFree(ptr, 0, MEM_RELEASE);
+inline bool large_page_aligned_free(void *ptr, size_t n_bytes) {
+  if (unlikely(!ptr)) return false;
+  auto ret = VirtualFree(ptr, 0, MEM_RELEASE);
   (void)n_bytes;
+  return ret != 0;
 }
 
 /** Queries the current size of large (huge) pages on running system.

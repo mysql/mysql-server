@@ -65,12 +65,14 @@ inline void *large_page_aligned_alloc(size_t n_bytes) {
 
     @param[in] ptr Pointer to large (huge) page aligned storage.
     @param[in] n_bytes Size of the storage.
+    @return Returns true if releasing the large (huge) page succeeded.
  */
-inline void large_page_aligned_free(void *ptr, size_t n_bytes) {
-  if (unlikely(!ptr)) return;
+inline bool large_page_aligned_free(void *ptr, size_t n_bytes) {
+  if (unlikely(!ptr)) return false;
   // Freeing huge-pages require size to be the multiple of huge-page size
-  munmap(ptr, pow2_round(n_bytes + (large_page_default_size - 1),
-                         large_page_default_size));
+  auto ret = munmap(ptr, pow2_round(n_bytes + (large_page_default_size - 1),
+                                    large_page_default_size));
+  return ret == 0;
 }
 
 /** Queries all possible page-sizes. Solaris allows picking one at _runtime_
