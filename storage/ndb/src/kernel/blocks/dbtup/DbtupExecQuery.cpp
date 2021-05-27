@@ -4348,9 +4348,16 @@ Dbtup::expand_tuple(KeyReqStruct* req_struct,
     req_struct->m_disk_ptr= (Tuple_header*)dst_ptr;
     memcpy(dst_ptr, src_ptr, 4*tabPtrP->m_offsets[DD].m_fix_header_size);
     sizes[DD] = tabPtrP->m_offsets[DD].m_fix_header_size;
-    
-    ndbassert(! (req_struct->m_disk_ptr->m_header_bits & Tuple_header::FREE));
-    
+    if (unlikely(req_struct->m_disk_ptr->m_base_record_page_idx >=
+                 Tup_page::DATA_WORDS))
+    {
+      g_eventLogger->info("(%u) Crash on error in disk ref on row(%u,%u)",
+                          instance(),
+                          req_struct->frag_page_id,
+                          req_struct->operPtrP->m_tuple_location.m_page_idx);
+      ndbrequire(req_struct->m_disk_ptr->m_base_record_page_idx <
+                 Tup_page::DATA_WORDS);
+    }
     ndbrequire(dd_vars == 0);
   }
   
@@ -4560,13 +4567,14 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
     }
     // Fix diskpart
     req_struct->m_disk_ptr= (Tuple_header*)src_ptr;
-#ifdef VM_TRACE
-    if (req_struct->m_disk_ptr->m_header_bits & Tuple_header::FREE)
+    if (unlikely(req_struct->m_disk_ptr->m_base_record_page_idx >=
+                  Tup_page::DATA_WORDS))
     {
       Local_key key;
       memcpy(&key, disk_ref, sizeof(key));
       g_eventLogger->info(
-        "Crash: page(%u,%u,%u,%u).%u, DISK_INLINE= %u, tab(%u,%u,%u)",
+        "Crash: page(%u,%u,%u,%u).%u, DISK_INLINE= %u, tab(%x,%x,%x)"
+                     ", frag_page_id:%u, rowid_ref(%u,%u)",
                           instance(),
                           req_struct->m_disk_page_ptr.i,
                           req_struct->m_disk_page_ptr.p->m_file_no,
@@ -4575,10 +4583,13 @@ Dbtup::prepare_read(KeyReqStruct* req_struct,
                           bits & Tuple_header::DISK_INLINE ? 1 : 0,
                           req_struct->m_disk_page_ptr.p->m_table_id,
                           req_struct->m_disk_page_ptr.p->m_fragment_id,
-                          req_struct->m_disk_page_ptr.p->m_create_table_version);
+                          req_struct->m_disk_page_ptr.p->m_create_table_version,
+                          req_struct->frag_page_id,
+                          req_struct->m_disk_ptr->m_base_record_page_no,
+                          req_struct->m_disk_ptr->m_base_record_page_idx);
+      ndbrequire(req_struct->m_disk_ptr->m_base_record_page_idx <
+                 Tup_page::DATA_WORDS);
     }
-#endif
-    ndbassert(! (req_struct->m_disk_ptr->m_header_bits & Tuple_header::FREE));
     ndbrequire(dd_vars == 0);
   }
 

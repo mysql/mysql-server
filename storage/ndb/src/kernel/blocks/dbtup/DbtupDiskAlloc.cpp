@@ -1502,8 +1502,7 @@ Dbtup::disk_page_free(Signal *signal,
   {
     sz = 1;
     const Uint32 *src= ((Fix_page*)pagePtr.p)->get_ptr(page_idx, 0);
-    if (((*(src + 1)) & Tup_fixsize_page::FREE_RECORD) ==
-               Tup_fixsize_page::FREE_RECORD)
+    if (!((*(src + 1)) < Tup_page::DATA_WORDS))
     {
       g_eventLogger->info(
         "(%u)disk_page_free crash:tab(%u,%u):%u,page(%u,%u).%u.%u"
@@ -1519,8 +1518,7 @@ Dbtup::disk_page_free(Signal *signal,
                  gci,
                  row_id->m_page_no,
                  row_id->m_page_idx);
-      ndbrequire(((*(src + 1)) & Tup_fixsize_page::FREE_RECORD) !=
-                 Tup_fixsize_page::FREE_RECORD);
+      ndbrequire(((*(src + 1)) < Tup_page::DATA_WORDS));
     }
     lsn= disk_page_undo_free(signal,
                              pagePtr.p,
@@ -2213,7 +2211,8 @@ Dbtup::disk_restart_undo_lcp(Uint32 tableId,
   tabPtr.i= tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
 
-  if (tabPtr.p->tableStatus == DEFINED && tabPtr.p->m_no_of_disk_attributes)
+  if (tabPtr.p->tableStatus == DEFINED &&
+      tabPtr.p->m_no_of_real_disk_attributes)
   {
     jam();
     FragrecordPtr fragPtr;
@@ -2505,7 +2504,7 @@ Dbtup::disk_restart_undo_callback(Signal* signal,
     ptrCheckGuard(undo->m_table_ptr, cnoOfTablerec, tablerec);
     
     if (! (undo->m_table_ptr.p->tableStatus == DEFINED &&
-           undo->m_table_ptr.p->m_no_of_disk_attributes))
+           undo->m_table_ptr.p->m_no_of_real_disk_attributes))
     {
       jam();
       DEB_UNDO(("(%u)UNDO !defined (%u) on page(%u,%u).%u",
@@ -3174,7 +3173,7 @@ Dbtup::disk_restart_alloc_extent(EmulatedJamBuffer* jamBuf,
                    current_create_table_version));
 
   if (tabPtr.p->tableStatus == DEFINED &&
-      tabPtr.p->m_no_of_disk_attributes &&
+      tabPtr.p->m_no_of_real_disk_attributes &&
       (current_create_table_version == create_table_version ||
        create_table_version == 0))
   {
@@ -3260,7 +3259,7 @@ Dbtup::disk_restart_page_bits(EmulatedJamBuffer* jamBuf,
   tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
   if (tabPtr.p->tableStatus == DEFINED &&
-      tabPtr.p->m_no_of_disk_attributes &&
+      tabPtr.p->m_no_of_real_disk_attributes &&
       (current_create_table_version == create_table_version ||
        create_table_version == 0))
   {

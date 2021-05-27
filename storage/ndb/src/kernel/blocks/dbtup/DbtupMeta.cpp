@@ -1587,6 +1587,9 @@ Dbtup::computeTableMetaData(Tablerec *regTabPtr)
   regTabPtr->m_no_of_disk_attributes= 
     regTabPtr->m_attributes[DD].m_no_of_fixsize +
     regTabPtr->m_attributes[DD].m_no_of_varsize;
+
+  regTabPtr->m_no_of_real_disk_attributes = regTabPtr->m_no_of_disk_attributes;
+
   if(regTabPtr->m_no_of_disk_attributes > 0)
   {
     /* Room for disk part location. */
