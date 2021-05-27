@@ -317,29 +317,8 @@ static T get_uint_option(const mysql_harness::ConfigSection *section,
     throw std::invalid_argument(res.error().message());
   }
 
-  std::string value = std::move(res.value());
-  static_assert(
-      std::numeric_limits<T>::max() <= std::numeric_limits<long long>::max(),
-      "");
-
-  char *rest;
-  errno = 0;
-  long long tol = std::strtoll(value.c_str(), &rest, 10);
-  T result = static_cast<T>(tol);
-
-  if (tol < 0 || errno > 0 || *rest != '\0' || result > max_value ||
-      result < min_value ||
-      result != tol ||  // if casting lost high-order bytes
-      (max_value > 0 && result > max_value)) {
-    std::ostringstream os;
-    os << get_log_prefix(section, option) << " needs value between "
-       << min_value << " and " << std::to_string(max_value) << " inclusive";
-    if (!value.empty()) {
-      os << ", was '" << value << "'";
-    }
-    throw std::invalid_argument(os.str());
-  }
-  return result;
+  return mysql_harness::option_as_uint(
+      res.value(), get_log_prefix(section, option), min_value, max_value);
 }
 
 static SslMode get_option_ssl_mode(

@@ -28,12 +28,10 @@
 #include <cerrno>
 #include <cstdlib>
 #include <iostream>
-#include <limits>
 #include <map>
-#include <sstream>
 #include <string>
 
-#include "mysql/harness/config_parser.h"
+#include "mysql/harness/config_option.h"
 #include "mysql/harness/filesystem.h"
 #include "mysql/harness/logging/logging.h"
 #include "mysqlrouter/utils.h"
@@ -187,28 +185,8 @@ class BasePluginConfig {
                     T max_value = std::numeric_limits<T>::max()) {
     std::string value = get_option_string(section, option);
 
-    static_assert(
-        std::numeric_limits<T>::max() <= std::numeric_limits<long long>::max(),
-        "");
-
-    char *rest;
-    errno = 0;
-    long long tol = std::strtoll(value.c_str(), &rest, 10);
-    T result = static_cast<T>(tol);
-
-    if (tol < 0 || errno > 0 || *rest != '\0' || result > max_value ||
-        result < min_value ||
-        result != tol ||  // if casting lost high-order bytes
-        (max_value > 0 && result > max_value)) {
-      std::ostringstream os;
-      os << get_log_prefix(option, section) << " needs value between "
-         << min_value << " and " << to_string(max_value) << " inclusive";
-      if (!value.empty()) {
-        os << ", was '" << value << "'";
-      }
-      throw std::invalid_argument(os.str());
-    }
-    return result;
+    return mysql_harness::option_as_uint(value, get_log_prefix(option, section),
+                                         min_value, max_value);
   }
 
   /** @brief Gets a number of milliseconds using the given option
