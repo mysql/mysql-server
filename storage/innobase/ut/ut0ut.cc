@@ -525,6 +525,9 @@ const char *ut_strerr(dberr_t num) {
       return "Auto-increment read failed";
     case DB_ERROR_UNSET:
       break;
+    case DB_FILE_READ_BEYOND_SIZE:
+      return "File read failure because of the read being beyond file size.";
+    case DB_ERROR_UNSET:;
       /* Fall through. */
 
       /* do not add default: in order to produce a warning if new code

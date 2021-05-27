@@ -40,6 +40,10 @@ dberr_t Arch_Page_Sys::recover() {
 
   auto err = arch_recv.init_dblwr();
 
+  if (err == DB_FILE_READ_BEYOND_SIZE) {
+    ib::error(ER_IB_ERR_PAGE_ARCH_DBLWR_INIT_FAILED);
+  }
+
   /* Scan for group directories and files */
   if (!arch_recv.scan_for_groups()) {
     DBUG_PRINT("page_archiver", ("No group information available"));
@@ -100,7 +104,10 @@ dberr_t Arch_Dblwr_Ctx::read_file() {
     return err;
   }
 
-  ut_ad(m_file_ctx.get_phy_size() == m_file_size);
+  if (m_file_ctx.get_phy_size() < m_file_size) {
+    return DB_FILE_READ_BEYOND_SIZE;
+  }
+
   ut_ad(m_buf != nullptr);
 
   /* Read the entire file. */
@@ -418,9 +425,7 @@ dberr_t Arch_Page_Sys::Recovery::recover() {
   }
 
   /* There can be only one active group at a time. */
-  if (num_active > 1) {
-    ut_ad(0);
-  }
+  ut_ad(num_active <= 1);
 
   return err;
 }
@@ -612,10 +617,16 @@ dberr_t Arch_File_Ctx::Recovery::parse_stop_points(bool last_file,
   uint64_t offset;
   byte buf[ARCH_PAGE_BLK_SIZE];
 
+  auto phy_size = m_file_ctx.get_phy_size();
+
   if (last_file) {
-    offset = m_file_ctx.get_phy_size() - ARCH_PAGE_BLK_SIZE;
+    offset = phy_size - ARCH_PAGE_BLK_SIZE;
   } else {
     offset = ARCH_PAGE_FILE_DATA_CAPACITY * ARCH_PAGE_BLK_SIZE;
+  }
+
+  if (phy_size < offset + ARCH_PAGE_BLK_SIZE) {
+    return DB_FILE_READ_BEYOND_SIZE;
   }
 
   auto err = m_file_ctx.read(buf, offset, ARCH_PAGE_BLK_SIZE);
@@ -646,6 +657,10 @@ dberr_t Arch_File_Ctx::Recovery::parse_reset_points(
   ut_ad(m_file_ctx.m_index == file_index);
 
   byte buf[ARCH_PAGE_BLK_SIZE];
+
+  if (m_file_ctx.get_phy_size() < ARCH_PAGE_BLK_SIZE) {
+    return DB_FILE_READ_BEYOND_SIZE;
+  }
 
   /* Read reset block to fetch reset points. */
   auto err = m_file_ctx.read(buf, 0, ARCH_PAGE_BLK_SIZE);

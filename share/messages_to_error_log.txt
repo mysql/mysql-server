@@ -11427,6 +11427,9 @@ ER_RPL_INCREMENTING_MEMBER_ACTION_VERSION
 ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_SECONDARY_MEMBER
   eng "The '%s' thread of channel '%s' will error out as this server is a group secondary."
 
+ER_IB_ERR_PAGE_ARCH_DBLWR_INIT_FAILED
+  eng "Page Archiver's doublewrite buffer initialisation failed. Page tracking is at risk of losing tracked information."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
