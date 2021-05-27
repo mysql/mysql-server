@@ -1980,19 +1980,6 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
       {
         error= ER_LOCK_DEADLOCK;
       }
-#ifndef NDEBUG
-      else
-      {
-        /*
-          The non-debug binary will not retry this transactions, stopping the
-          SQL thread because of the non-temporary error. But, as this situation
-          is not supposed to happen as described in the comment above, we will
-          fail an assert to ease the issue investigation when it happens.
-        */
-        if (DBUG_EVALUATE_IF("rpl_fake_cod_deadlock", 0, 1))
-          assert(false);
-      }
-#endif
     }
 
     if ((!has_temporary_error(thd, error, &silent) ||
