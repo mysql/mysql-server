@@ -291,6 +291,8 @@ create_instance(
 
   *handle = (ENGINE_HANDLE *)&innodb_eng->engine;
 
+  free(engine);
+
   return (ENGINE_SUCCESS);
 }
 static void innodb_close_cursors(innodb_conn_data_t *conn_data) {
