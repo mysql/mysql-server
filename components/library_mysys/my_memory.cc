@@ -72,6 +72,8 @@ extern "C" void *my_malloc(PSI_memory_key key, size_t size, int flags) {
     mh->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size, &mh->m_owner);
     user_ptr = HEADER_TO_USER(mh);
     MEM_MALLOCLIKE_BLOCK(user_ptr, size, 0, (flags & MY_ZEROFILL));
+	  
+    free(mh);
     return user_ptr;
   }
   return nullptr;
