@@ -25,6 +25,8 @@
 #ifndef MYSQL_HARNESS_CONFIG_OPTION_INCLUDED
 #define MYSQL_HARNESS_CONFIG_OPTION_INCLUDED
 
+#include <limits>
+#include <sstream>
 #include <string>
 #include <system_error>
 
@@ -119,6 +121,50 @@ class ConfigOption {
   const bool is_required_;
   const std::string default_value_;
 };
+
+/** @brief Gets an unsigned integer using the given option value
+ *
+ * Gets an unsigned integer using the given option value. The type can be
+ * any unsigned integer type such as uint16_t.
+ *
+ * The min_value argument can be used to set a minimum value for
+ * the option. For example, when 0 (zero) is not allowed, min_value
+ * can be set to 0. The maximum value is whatever the maximum of the
+ * use type is.
+ *
+ * Throws std::invalid_argument on errors.
+ *
+ * @param value Option value
+ * @param option_name Option name
+ * @param min_value Minimum value
+ * @param max_value Maximum value
+ * @return value read from the configuration
+ */
+template <typename T>
+T option_as_uint(const std::string &value, const std::string &option_name,
+                 T min_value = 0, T max_value = std::numeric_limits<T>::max()) {
+  static_assert(std::numeric_limits<T>::max() <=
+                    std::numeric_limits<unsigned long long>::max(),
+                "");
+
+  char *rest;
+  errno = 0;
+  unsigned long long toul = std::strtoull(value.c_str(), &rest, 10);
+  T result = static_cast<T>(toul);
+
+  if (errno > 0 || *rest != '\0' || result > max_value || result < min_value ||
+      result != toul ||  // if casting lost high-order bytes
+      (max_value > 0 && result > max_value)) {
+    std::ostringstream os;
+    os << option_name << " needs value between " << std::to_string(min_value)
+       << " and " << std::to_string(max_value) << " inclusive";
+    if (!value.empty()) {
+      os << ", was '" << value << "'";
+    }
+    throw std::invalid_argument(os.str());
+  }
+  return result;
+}
 
 }  // namespace mysql_harness
 #endif
