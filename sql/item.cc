@@ -8313,9 +8313,9 @@ Item *Item_view_ref::replace_view_refs_with_clone(uchar *arg) {
   // Since the query block having dt2 is merged with the outer query
   // block, the context to resolve the field will be different than
   // the derived table context (dt1).
-  return dt->get_clone_for_derived_expr(
-      current_thd, *ref,
-      dt->derived_query_expression()->outer_query_block()->first_context);
+  Name_resolution_context *context_to_use =
+      m_merged_derived_context ? m_merged_derived_context : context;
+  return dt->get_clone_for_derived_expr(current_thd, *ref, context_to_use);
 }
 
 bool Item_default_value::itemize(Parse_context *pc, Item **res) {
