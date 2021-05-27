@@ -197,6 +197,8 @@ enum dberr_t {
   DB_OUT_OF_RESOURCES,
   /** Page was discarded, was not written to storage. */
   DB_PAGE_IS_STALE,
+  /** Failed to read as read was beyond file size. */
+  DB_FILE_READ_BEYOND_SIZE,
 
   /* The following are partial failure codes */
 

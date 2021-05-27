@@ -11385,6 +11385,9 @@ ER_IB_MSG_REENCRYPTED_TABLESPACE_KEY
 ER_IB_MSG_REENCRYPTED_GENERAL_TABLESPACE_KEY
   eng "Tablespace key for %s has been re-encrypted using the latest InnoDB master key. However, we recommend that you reencrypt the tablespace for better security."
 
+ER_IB_ERR_PAGE_ARCH_DBLWR_INIT_FAILED
+  eng "Page Archiver's doublewrite buffer initialisation failed. Page tracking is at risk of losing tracked information."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

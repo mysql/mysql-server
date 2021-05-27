@@ -523,6 +523,8 @@ const char *ut_strerr(dberr_t num) {
       return ("Too many nested sub-expressions in a full-text search");
     case DB_PAGE_IS_STALE:
       return "Page was discarded, was not written to storage.";
+    case DB_FILE_READ_BEYOND_SIZE:
+      return "File read failure because of the read being beyond file size.";
     case DB_ERROR_UNSET:;
       /* Fall through. */
 
