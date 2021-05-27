@@ -5720,10 +5720,11 @@ class Item_view_ref final : public Item_ref {
   Item_view_ref(Name_resolution_context *context_arg, Item **item,
                 const char *db_name_arg, const char *alias_name_arg,
                 const char *table_name_arg, const char *field_name_arg,
-                TABLE_LIST *tl)
+                TABLE_LIST *tl, Name_resolution_context *merged_derived_context)
       : Item_ref(context_arg, item, db_name_arg, alias_name_arg,
                  field_name_arg),
-        first_inner_table(nullptr) {
+        first_inner_table(nullptr),
+        m_merged_derived_context(merged_derived_context) {
     if (tl->is_view()) {
       m_orig_db_name = db_name_arg;
       m_orig_table_name = table_name_arg;
@@ -5827,6 +5828,11 @@ class Item_view_ref final : public Item_ref {
     then this field points to the first leaf table of the view, otherwise NULL.
   */
   TABLE_LIST *first_inner_table;
+  /**
+    Original Context of the underlying field in case of a merged derived
+    table.
+  */
+  Name_resolution_context *m_merged_derived_context;
 };
 
 /*

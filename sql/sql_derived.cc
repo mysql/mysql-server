@@ -1154,6 +1154,7 @@ bool Condition_pushdown::replace_columns_in_cond(Item **cond, bool is_having) {
   if (view_ref) {
     (*cond) = (*cond)->transform(&Item::replace_view_refs_with_clone,
                                  pointer_cast<uchar *>(m_derived_table));
+    if (cond == nullptr) return true;
   }
   Item *new_cond =
       is_having ? (*cond)->transform(&Item::replace_with_derived_expr_ref,

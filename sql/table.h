@@ -3519,6 +3519,12 @@ struct TABLE_LIST {
   ulonglong algorithm{0};
   ulonglong view_suid{0};   ///< view is suid (true by default)
   ulonglong with_check{0};  ///< WITH CHECK OPTION
+  /**
+    Context that is used to resolve a merged derived table's
+    fields. Needed when a field from a merged derived table
+    is cloned. Used during condition pushdown to derived tables.
+  */
+  Name_resolution_context *m_merged_derived_context{nullptr};
 
  private:
   /// The view algorithm that is actually used, if this is a view.

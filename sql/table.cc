@@ -157,7 +157,8 @@ LEX_CSTRING PARSE_GCOL_KEYWORD = {STRING_WITH_LEN("parse_gcol_expr")};
 
 static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
-                               Name_resolution_context *context);
+                               Name_resolution_context *context,
+                               Name_resolution_context *merged_derived_context);
 static void open_table_error(THD *thd, TABLE_SHARE *share, int error,
                              int db_errno);
 
@@ -4561,6 +4562,10 @@ bool TABLE_LIST::create_field_translation(THD *thd) {
   field_translation = transl;
   field_translation_end = transl + field_count;
 
+  // We capture the context used to resolve the fields of the merged
+  // derived table. This context is used when the field needs to be cloned
+  // to facilitate condition pushdown (replace_view_refs_with_clone()).
+  m_merged_derived_context = &select->context;
   return false;
 }
 
@@ -5010,7 +5015,8 @@ Item *Natural_join_column::create_item(THD *thd) {
     assert(table_field == nullptr);
     Query_block *select = thd->lex->current_query_block();
     return create_view_field(thd, table_ref, &view_field->item,
-                             view_field->name, &select->context);
+                             view_field->name, &select->context,
+                             /*merged_derived_context=*/nullptr);
   }
   return table_field;
 }
@@ -5073,12 +5079,14 @@ const char *Field_iterator_view::name() { return ptr->name; }
 
 Item *Field_iterator_view::create_item(THD *thd) {
   Query_block *select = thd->lex->current_query_block();
-  return create_view_field(thd, view, &ptr->item, ptr->name, &select->context);
+  return create_view_field(thd, view, &ptr->item, ptr->name, &select->context,
+                           view->m_merged_derived_context);
 }
 
-static Item *create_view_field(THD *, TABLE_LIST *view, Item **field_ref,
-                               const char *name,
-                               Name_resolution_context *context) {
+static Item *create_view_field(
+    THD *, TABLE_LIST *view, Item **field_ref, const char *name,
+    Name_resolution_context *context,
+    Name_resolution_context *merged_derived_context) {
   DBUG_TRACE;
 
   Item *field = *field_ref;
@@ -5123,8 +5131,9 @@ static Item *create_view_field(THD *, TABLE_LIST *view, Item **field_ref,
           mistakes, such as forgetting to mark the use of a field in both
           read_set and write_set (may happen e.g in an UPDATE statement).
   */
-  Item *item = new Item_view_ref(context, field_ref, db_name, view->alias,
-                                 table_name, name, view);
+  Item *item =
+      new Item_view_ref(context, field_ref, db_name, view->alias, table_name,
+                        name, view, merged_derived_context);
   return item;
 }
 
