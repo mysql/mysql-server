@@ -533,7 +533,9 @@ end:
       ->unregister_channel_observer(applier_channel_observer);
 
   // only try to leave if the applier managed to start
-  if (applier_error && applier_thd_state.is_running()) {
+  // or if the applier_thd was killed by the DBA.
+  if ((applier_error && applier_thd_state.is_running()) ||
+      applier_thd->killed) {
     const char *exit_state_action_abort_log_message =
         "Fatal error during execution on the Applier module of Group "
         "Replication.";
