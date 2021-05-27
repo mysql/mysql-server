@@ -4698,9 +4698,9 @@ public:
         fprintf(m_out, "MANDATORY (Legal values: Y, N)\n");
       else if (info.hasDefault(section, param_name))
       {
-        if (info.getDefault(section, param_name) == false)
+        if (info.getDefault(section, param_name) == 0)
           fprintf(m_out, "Default: N (Legal values: Y, N)\n");
-        else if (info.getDefault(section, param_name) == true)
+        else if (info.getDefault(section, param_name) == 1)
           fprintf(m_out, "Default: Y (Legal values: Y, N)\n");
         else
           fprintf(m_out, "UNKNOWN\n");
@@ -4857,9 +4857,9 @@ public:
         pairs.put("mandatory", "true");
       else if (info.hasDefault(section, param_name))
       {
-        if (info.getDefault(section, param_name) == false)
+        if (info.getDefault(section, param_name) == 0)
           pairs.put("default", "false");
-        else if (info.getDefault(section, param_name) == true)
+        else if (info.getDefault(section, param_name) == 1)
           pairs.put("default", "true");
       }
       break;
