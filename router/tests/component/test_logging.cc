@@ -171,10 +171,9 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
     // expect something like this to appear on STDERR
     // Error: Error when creating dir '/bla': 13
     const std::string out = router.get_full_output();
-    EXPECT_THAT(
-        out.c_str(),
-        HasSubstr("plugin 'logger' init failed: Error when creating dir '" +
-                  logging_dir + "': 13"));
+    EXPECT_THAT(out.c_str(),
+                HasSubstr("  init 'logger' failed: Error when creating dir '" +
+                          logging_dir + "': 13"));
   }
 
   // logging_folder exists but is not writeable
@@ -199,9 +198,8 @@ TEST_F(RouterLoggingTest, bad_logging_folder) {
 #ifndef _WIN32
     EXPECT_THAT(
         out.c_str(),
-        HasSubstr(
-            "plugin 'logger' init failed: Cannot create file in directory " +
-            logging_dir + ": Permission denied\n"));
+        HasSubstr("  init 'logger' failed: Cannot create file in directory " +
+                  logging_dir + ": Permission denied\n"));
 #endif
   }
 
@@ -995,7 +993,7 @@ INSTANTIATE_TEST_SUITE_P(
             "sinks=\n",
             /* logging_folder_empty = */ false,
             /* expected_error =  */
-            "plugin 'logger' init failed: sinks option does not contain any "
+            "  init 'logger' failed: sinks option does not contain any "
             "valid sink name, was ''"),
 
         // Empty sinks list
@@ -1005,7 +1003,7 @@ INSTANTIATE_TEST_SUITE_P(
             "sinks=,\n",
             /* logging_folder_empty = */ false,
             /* expected_error =  */
-            "plugin 'logger' init failed: Unsupported logger sink type: ''"),
+            "  init 'logger' failed: Unsupported logger sink type: ''"),
 
         // Leading comma on a sinks list
         /*3*/
@@ -1014,7 +1012,7 @@ INSTANTIATE_TEST_SUITE_P(
             "sinks=,consolelog\n",
             /* logging_folder_empty = */ false,
             /* expected_error =  */
-            "plugin 'logger' init failed: Unsupported logger sink type: ''"),
+            "  init 'logger' failed: Unsupported logger sink type: ''"),
 
         // Terminating comma on a sinks list
         /*4*/
@@ -1023,7 +1021,7 @@ INSTANTIATE_TEST_SUITE_P(
             "sinks=consolelog,\n",
             /* logging_folder_empty = */ false,
             /* expected_error =  */
-            "plugin 'logger' init failed: Unsupported logger sink type: ''"),
+            "  init 'logger' failed: Unsupported logger sink type: ''"),
 
         // Two commas separating sinks
         /*5*/
@@ -1032,7 +1030,7 @@ INSTANTIATE_TEST_SUITE_P(
             "sinks=consolelog,,filelog\n",
             /* logging_folder_empty = */ false,
             /* expected_error =  */
-            "plugin 'logger' init failed: Unsupported logger sink type: ''"),
+            "  init 'logger' failed: Unsupported logger sink type: ''"),
 
         // Empty space as a sink name
         /*6*/
@@ -1041,7 +1039,7 @@ INSTANTIATE_TEST_SUITE_P(
             "sinks= \n",
             /* logging_folder_empty = */ false,
             /* expected_error =  */
-            "plugin 'logger' init failed: sinks option does not contain any "
+            "  init 'logger' failed: sinks option does not contain any "
             "valid sink name, was ''"),
 
         // Invalid log level in the [logger] section
@@ -1087,7 +1085,7 @@ INSTANTIATE_TEST_SUITE_P(
             "sinks=filelog\n",
             /* logging_folder_empty = */ true,
             /* expected_error =  */
-            "plugin 'logger' init failed: filelog sink configured but the "
+            "  init 'logger' failed: filelog sink configured but the "
             "logging_folder is empty")));
 
 #ifndef _WIN32

@@ -858,7 +858,7 @@ TEST_F(RestMetadataCacheApiTest, metadata_cache_api_no_auth) {
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(router_output,
               ::testing::HasSubstr(
-                  "plugin 'rest_metadata_cache' init failed: option "
+                  "  init 'rest_metadata_cache' failed: option "
                   "require_realm in [rest_metadata_cache] is required"))
       << router_output;
 }
@@ -979,11 +979,10 @@ TEST_F(RestMetadataCacheApiTest, rest_metadata_cache_section_has_key) {
   check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_THAT(
-      router_output,
-      ::testing::HasSubstr(
-          "plugin 'rest_metadata_cache' init failed: [rest_metadata_cache] "
-          "section does not expect a key, found 'A'"))
+  EXPECT_THAT(router_output,
+              ::testing::HasSubstr(
+                  "  init 'rest_metadata_cache' failed: [rest_metadata_cache] "
+                  "section does not expect a key, found 'A'"))
       << router_output;
 }
 
