@@ -1,4 +1,5 @@
 source include/have_ndb.inc;
+source suite/ndb/include/backup_restore_setup.inc;
 
 --echo Verify that one can run ndb_print_backup_file on all saved backup files
 --echo without errors.
@@ -70,3 +71,51 @@ sub process
 find({ wanted => \&process, preprocess => \&sorted }, $NDB_SAVED_BACKUPS);
 
 EOF
+
+--echo Verify that ndb_print_backup_file can be used to check backup generated files individually (CTL, DATA, LOG)
+let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_mgmd_dump_file.txt;
+
+--exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/packed/BACKUP-1-0.2.Data > $dump_file 2>&1
+--let $assert_text= Checking .Data backup file
+--let $assert_select= Found 15 INSERT records
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/packed/BACKUP-1.2.ctl > $dump_file 2>&1
+--let $assert_text= Checking .ctl backup file
+--let $assert_select= Magic: NDBBCKUP
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/packed/BACKUP-1.2.log > $dump_file 2>&1
+--let $assert_text= Checking .log backup file
+--let $assert_select= Magic: NDBBCKUP
+--let $assert_file= $dump_file
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--remove_file $dump_file
+
+--echo Verify that ndb_print_backup_file can be used to check LCP Data and CTL files individually
+
+--echo ndb_print_backup_file suite/ndb/backups/LCP/0/T22F0.ctl
+--exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/LCP/0/T22F0.ctl
+
+--echo ndb_print_backup_file suite/ndb/backups/LCP/0/T10F0.Data
+--exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/LCP/0/T10F0.Data
+
+--echo ndb_print_backup_file suite/ndb/backups/LCP/0/T19F0.ctl
+--exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/LCP/0/T19F0.ctl
+
+--echo ndb_print_backup_file suite/ndb/backups/LCP/1/T22F0.Data
+--exec $NDB_PRINT_BACKUP_FILE $NDB_SAVED_BACKUPS/LCP/1/T22F0.Data
+
+
+--echo Verify that ndb_print_backup_file can be used to check
+--echo a set of LCP CTL + DATA files that will be used to restore a fragment
+
+--echo ndb_print_backup_file -c 0 -t 22 -f 0 --print-restored-rows
+--exec cd $NDB_SAVED_BACKUPS/LCP && $NDB_PRINT_BACKUP_FILE -c 0 -t 22 -f 0 --print-restored-rows
+
