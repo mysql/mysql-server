@@ -277,20 +277,23 @@ int ha_warp::encode_quote(uchar *) {
         break;
 
       case MYSQL_TYPE_DATE:
-        attribute.append(std::to_string((*field)->val_int()).c_str());
-        no_quote = true;
-        break;
-
       case MYSQL_TYPE_TIME:
       case MYSQL_TYPE_TIMESTAMP:
       case MYSQL_TYPE_DATETIME:
       case MYSQL_TYPE_NEWDATE:
       case MYSQL_TYPE_TIMESTAMP2:
       case MYSQL_TYPE_DATETIME2:
-      case MYSQL_TYPE_TIME2: {
-        attribute.append(std::to_string((*field)->val_int()).c_str());
+      case MYSQL_TYPE_TIME2: 
+      {
+        struct timeval tmp_tval;
+        MYSQL_TIME tmp_ltime;
+        (*field)->get_date(&tmp_ltime, 6);
+        auto tmp = TIME_to_longlong_datetime_packed(tmp_ltime);
+        attribute.append(std::to_string(tmp).c_str());
         no_quote = true;
-      } break;
+      }
+
+      break;
 
       default:
         (*field)->val_str(&attribute, &attribute);
@@ -683,9 +686,10 @@ int ha_warp::find_current_row(uchar *buf, ibis::table::cursor *cursor) {
         case MYSQL_TYPE_TIMESTAMP:
         case MYSQL_TYPE_TIMESTAMP2:
         case MYSQL_TYPE_DATETIME2: {
+          
           uint64_t tmp;
           rc = cursor->getColumnAsULong(cname.c_str(), tmp);
-          rc = (*field)->store(tmp, true);
+          rc = (*field)->store_packed(tmp);
         } break;
         /* the following are stored as strings in Fastbit */
         case MYSQL_TYPE_DECIMAL:
@@ -1015,6 +1019,7 @@ int ha_warp::write_row(uchar *buf) {
     Fastbit cache size must be greater than or equal to this value
     or an allocation failure will happen.
   */
+  //std::cout << std::string(buffer.c_ptr() << "\n";
   writer->appendRow(buffer.c_ptr(), ",");
   stats.records++;
   
@@ -1461,9 +1466,9 @@ void ha_warp::create_writer(TABLE *table_arg) {
 
       case MYSQL_TYPE_DATE:
       case MYSQL_TYPE_NEWDATE:
-        index_spec="<binning none/><encoding interval-equality/>";
+     /*   index_spec="<binning none/><encoding interval-equality/>";
         datatype = ibis::UINT;
-        break;
+        break;*/
 
       case MYSQL_TYPE_TIME:
       case MYSQL_TYPE_TIME2:
@@ -1792,6 +1797,8 @@ fetch_again:
      checked if the value is not the same as this 
      transaction.
   */
+
+  
   is_trx_visible_to_read(row_trx_id);
   
   if(!is_trx_visible) {
@@ -2595,13 +2602,38 @@ int ha_warp::append_column_filter(const Item *cond,
          Special note: TEMPORAL values are passed down as an 
          Item_func::DATE_FUNC and the date is extracted from it.
       */
+      //std::cout << "  HERE: ARG_TYPE: " << (*arg)->type() << "\n";
+      if((*arg)->type() == Item::Type::CACHE_ITEM) {
+        String str;
+        //fixme: max_packet_length?
+        str.reserve(1024*1024);
+        (*arg)->print(current_thd, &str, QT_ORDINARY);
+        if(
+          memcmp("date",str.c_ptr()+9,4) == 0 || 
+          strcasestr(str.c_ptr(), "interval ")!=NULL
+          ) {
+          auto t=(*arg)->val_temporal_by_field_type();
+          build_where_clause += std::to_string(t);
+          continue;        
+        }
+        // only date_sub date_add etc are supported right now
+        return 0;
+      }   
+
       if((*arg)->type() == Item::Type::FUNC_ITEM) {
-        if((dynamic_cast<Item_func *>(*arg))->functype() == Item_func::DATE_FUNC) {
-          build_where_clause += std::to_string((*arg)->val_uint());
-          continue;
-        } else {
-          //where_clause = "";
-          return 0;
+        auto func_item = dynamic_cast<Item_func *>(*arg);
+        
+        switch(func_item->functype()) {
+          case Item_func::DATE_FUNC:
+          case Item_func::ADDTIME_FUNC:
+            {  
+            auto t=(*arg)->val_temporal_by_field_type();
+            build_where_clause += std::to_string(t);
+            }
+            continue;
+          break;
+          default:
+            return 0;
         }
       }
       if((*arg)->type() == Item::Type::INT_ITEM) {
@@ -2902,11 +2934,13 @@ int ha_warp::bitmap_merge_join() {
         case MYSQL_TYPE_DATETIME:
         case MYSQL_TYPE_TIMESTAMP:
         case MYSQL_TYPE_TIMESTAMP2:
-        case MYSQL_TYPE_DATETIME2: {
+        case MYSQL_TYPE_DATETIME2: 
+          {
           uint64_t tmp;
-          rc = dim_cursor->getColumnAsULong(dim_colname.c_str(), tmp);
+          rc = dim_cursor->getColumnAsULong(dim_colname.c_str(), tmp); 
           fact_pushdown_clause += std::to_string(tmp);
-        } break;
+          } 
+          break;
 
         // the following are stored as strings in Fastbit 
         case MYSQL_TYPE_DECIMAL:
