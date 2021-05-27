@@ -226,6 +226,31 @@ static bool HasFullTextFunction(Item *item) {
 }
 
 /**
+  The List<Item_equal> in COND_EQUAL partially overlaps with the argument list
+  in various Item_cond via C-style casts. However, the hypergraph optimizer can
+  modify the lists in Item_cond (by calling compile()), causing an Item_equal to
+  be replaced with Item_func_eq, and this can cause a List<Item_equal> not to
+  contain Item_equal pointers anymore. This is is obviously bad if anybody wants
+  to actually look into these lists after optimization (in particular, NDB
+  wants this).
+
+  Since untangling this spaghetti seems very hard, we solve it by brute force:
+  Make a copy of all the COND_EQUAL lists, so that they no longer reach into the
+  Item_cond. This allows us to modify the Item_cond at will.
+ */
+static void SaveCondEqualLists(COND_EQUAL *cond_equal) {
+  if (cond_equal == nullptr) {
+    return;
+  }
+  List<Item_equal> copy;
+  for (Item_equal &item : cond_equal->current_level) {
+    copy.push_back(&item);
+  }
+  cond_equal->current_level = std::move(copy);
+  SaveCondEqualLists(cond_equal->upper_levels);
+}
+
+/**
   Optimizes one query block into a query execution plan (QEP.)
 
   This is the entry point to the query optimization phase. This phase
@@ -528,6 +553,8 @@ bool JOIN::optimize() {
 
     std::string trace_str;
     std::string *trace_ptr = thd->opt_trace.is_started() ? &trace_str : nullptr;
+
+    SaveCondEqualLists(cond_equal);
 
     m_root_access_path = FindBestQueryPlan(thd, query_block, trace_ptr);
 
