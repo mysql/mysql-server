@@ -268,7 +268,7 @@ bool arch_wake_threads();
 class Arch_Group;
 class Arch_Log_Sys;
 class Arch_Dblwr_Ctx;
-struct Arch_Recv_Group_Info;
+class Arch_Recv_Group_Info;
 
 /** Guard to release resources safely */
 class Arch_scope_guard {
