@@ -4711,7 +4711,9 @@ bool WalkAndReplace(
       case Item_func::EQ_FUNC:
       case Item_func::NE_FUNC:
       case Item_func::EQUAL_FUNC:
-        down_cast<Item_bool_func2 *>(item)->set_cmp_func();
+        if (down_cast<Item_bool_func2 *>(item)->set_cmp_func()) {
+          return true;
+        }
         break;
       default:
         break;

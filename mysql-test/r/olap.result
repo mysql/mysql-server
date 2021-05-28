@@ -2209,3 +2209,15 @@ i
 NULL
 1
 DROP TABLE t1;
+#
+# Bug #32918927: ASSERTION `!THD->IS_ERROR()' FAILED|SQL/SQL_EXECUTOR.CC
+#
+CREATE TABLE t1 ( a TIME );
+SELECT
+t1.a
+FROM
+t1, t1 AS t2
+GROUP BY t1.a WITH ROLLUP
+HAVING COUNT(*) = 0 AND t1.a = '刔';
+ERROR HY000: Illegal mix of collations for operation '='
+DROP TABLE t1;
