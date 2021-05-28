@@ -40,6 +40,7 @@
 class Common_table_expr;
 class Filesort;
 class Item;
+class Item_func_match;
 class JOIN;
 class KEY;
 class RowIterator;
@@ -699,6 +700,7 @@ struct AccessPath {
       TABLE *table;
       TABLE_REF *ref;
       bool use_order;
+      Item_func_match *ft_func;
     } full_text_search;
     struct {
       TABLE *table;
@@ -981,7 +983,9 @@ inline AccessPath *NewPushedJoinRefAccessPath(THD *thd, TABLE *table,
 }
 
 inline AccessPath *NewFullTextSearchAccessPath(THD *thd, TABLE *table,
-                                               TABLE_REF *ref, bool use_order,
+                                               TABLE_REF *ref,
+                                               Item_func_match *ft_func,
+                                               bool use_order,
                                                bool count_examined_rows) {
   AccessPath *path = new (thd->mem_root) AccessPath;
   path->type = AccessPath::FULL_TEXT_SEARCH;
@@ -989,6 +993,7 @@ inline AccessPath *NewFullTextSearchAccessPath(THD *thd, TABLE *table,
   path->full_text_search().table = table;
   path->full_text_search().ref = ref;
   path->full_text_search().use_order = use_order;
+  path->full_text_search().ft_func = ft_func;
   return path;
 }
 

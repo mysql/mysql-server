@@ -4056,10 +4056,13 @@ bool QEP_TAB::use_order() const {
 }
 
 FullTextSearchIterator::FullTextSearchIterator(THD *thd, TABLE *table,
-                                               TABLE_REF *ref, bool use_order,
+                                               TABLE_REF *ref,
+                                               Item_func_match *ft_func,
+                                               bool use_order,
                                                ha_rows *examined_rows)
     : TableRowIterator(thd, table),
       m_ref(ref),
+      m_ft_func(ft_func),
       m_use_order(use_order),
       m_examined_rows(examined_rows) {}
 
@@ -4068,6 +4071,9 @@ FullTextSearchIterator::~FullTextSearchIterator() {
 }
 
 bool FullTextSearchIterator::Init() {
+  assert(m_ft_func->ft_handler != nullptr);
+  assert(table()->file->ft_handler == m_ft_func->ft_handler);
+
   if (!table()->file->inited) {
     int error = table()->file->ha_index_init(m_ref->key, m_use_order);
     if (error) {
@@ -4075,6 +4081,10 @@ bool FullTextSearchIterator::Init() {
       return true;
     }
   }
+
+  // Mark the full-text function as reading from an index scan, and initialize
+  // the full-text index scan.
+  m_ft_func->score_from_index_scan = true;
   table()->file->ft_init();
   return false;
 }
@@ -4248,9 +4258,9 @@ AccessPath *QEP_TAB::access_path() {
       break;
 
     case JT_FT:
-      path =
-          NewFullTextSearchAccessPath(join()->thd, table(), &ref(), use_order(),
-                                      /*count_examined_rows=*/true);
+      path = NewFullTextSearchAccessPath(join()->thd, table(), &ref(),
+                                         ft_func(), use_order(),
+                                         /*count_examined_rows=*/true);
       used_ref = &ref();
       break;
 

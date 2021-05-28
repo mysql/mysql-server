@@ -2119,7 +2119,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
 
         /* Setup FT handler */
         ft_func->set_hints(join, FT_SORTED, select_limit, true);
-        ft_func->join_key = true;
+        ft_func->score_from_index_scan = true;
         table->file->ft_handler = ft_func->ft_handler;
         return true;
       }
