@@ -555,7 +555,7 @@ static bool generate_mv_hash_pke(const std::string &prefix_pke, THD *thd,
   return false;
 }
 
-bool add_pke(TABLE *table, THD *thd, uchar *record) {
+bool add_pke(TABLE *table, THD *thd, const uchar *record) {
   DBUG_TRACE;
   assert(record == table->record[0] || record == table->record[1]);
   /*
