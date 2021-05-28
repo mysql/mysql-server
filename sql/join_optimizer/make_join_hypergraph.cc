@@ -1455,8 +1455,16 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
   // filter that must either stay after this join, or it can be promoted
   // to a join condition for it.
 
-  if (AlreadyExistsOnJoin(cond, *expr)) {
+  if (AlreadyExistsOnJoin(cond, *expr) &&
+      !(expr->type == RelationalExpression::LEFT_JOIN ||
+        expr->type == RelationalExpression::ANTIJOIN)) {
     // Redundant, so we can just forget about it.
+    // (WHERE conditions are not pushable to outer joins or antijoins,
+    // and thus not redundant, because post-join filters are not equivalent to
+    // join conditions for those types. For outer joins, NULL-complemented rows
+    // would need re-filtering, and for antijoins, the antijoin condition
+    // repeated as a filter afterwards would simply return zero rows,
+    // by definition.)
     return;
   }
 

@@ -1775,3 +1775,19 @@ FROM
 WHERE t1.a = t5.b;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32939191: HYPERGRAPH: DIFFERENT RESULTS WHEN HYPERGRAPH_OPTIMIZER IS ON/OFF
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SELECT *
+  FROM
+    t1
+    LEFT JOIN (
+      t1 AS t2
+      LEFT JOIN t1 AS t3 ON FALSE
+    ) ON t1.a <=> t3.a
+  WHERE t1.a <=> t3.a;
+DROP TABLE t1;
