@@ -436,6 +436,17 @@ int delegates_init()
   return 0;
 }
 
+void delegates_shutdown()
+{
+  if (opt_replication_optimize_for_static_plugin_config)
+  {
+    opt_replication_optimize_for_static_plugin_config= false;
+    delegates_acquire_locks();
+    delegates_update_lock_type();
+    delegates_release_locks();
+  }
+}
+
 void delegates_destroy()
 {
   if (transaction_delegate)

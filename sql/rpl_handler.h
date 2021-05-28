@@ -413,6 +413,10 @@ private:
 #endif /* HAVE_REPLICATION */
 
 int delegates_init();
+/**
+  Verify that the replication plugins are ready and OK to be unloaded.
+ */
+void delegates_shutdown();
 void delegates_destroy();
 /**
   Invokes `write_lock()` for all the observer delegate objects.

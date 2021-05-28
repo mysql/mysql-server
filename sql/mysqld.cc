@@ -1329,6 +1329,7 @@ void clean_up(bool print_message)
 #endif
   }
   table_def_start_shutdown();
+  delegates_shutdown();
   plugin_shutdown();
   delete_optimizer_cost_module();
   ha_end();
