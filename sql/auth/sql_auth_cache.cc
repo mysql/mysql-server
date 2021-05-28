@@ -2253,8 +2253,10 @@ end:
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value) {
   DBUG_TRACE;
   assert(assert_acl_cache_write_lock(current_thd));
-  acl_proxy_users->push_back(*new_value);
-  std::sort(acl_proxy_users->begin(), acl_proxy_users->end(), ACL_compare());
+  auto upper_bound =
+      std::upper_bound(acl_proxy_users->begin(), acl_proxy_users->end(),
+                       *new_value, ACL_compare());
+  acl_proxy_users->insert(upper_bound, *new_value);
 }
 
 struct Free_grant_table {
@@ -2948,7 +2950,13 @@ void acl_insert_user(THD *thd MY_ATTRIBUTE((unused)), const char *user,
                     mqh, privileges, plugin, auth, EMPTY_CSTR,
                     password_change_time, password_life, true, restrictions,
                     failed_login_attempts, password_lock_time, thd);
-  std::sort(acl_users->begin(), acl_users->end(), ACL_USER_compare());
+  /*
+    acl_users_add_one() has added new entry as the last element in array,
+    let us move it to the position which is correct according to sort order.
+  */
+  auto upper_bound = std::upper_bound(acl_users->begin(), acl_users->end() - 1,
+                                      acl_users->back(), ACL_USER_compare());
+  std::rotate(upper_bound, acl_users->end() - 1, acl_users->end());
   rebuild_cached_acl_users_for_name();
   /* Rebuild 'acl_check_hosts' since 'acl_users' has been modified */
   rebuild_check_host();
@@ -3022,8 +3030,9 @@ void acl_insert_db(const char *user, const char *host, const char *db,
   acl_db.db = strdup_root(&global_acl_memory, db);
   acl_db.access = privileges;
   acl_db.sort = get_sort(3, acl_db.host.get_host(), acl_db.db, acl_db.user);
-  acl_dbs->push_back(acl_db);
-  std::sort(acl_dbs->begin(), acl_dbs->end(), ACL_compare());
+  auto upper_bound =
+      std::upper_bound(acl_dbs->begin(), acl_dbs->end(), acl_db, ACL_compare());
+  acl_dbs->insert(upper_bound, acl_db);
 }
 
 void get_mqh(THD *thd, const char *user, const char *host, USER_CONN *uc) {
