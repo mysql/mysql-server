@@ -32,8 +32,8 @@ perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-t
 # If no Ndb support, no tests will be attempted.
 perl mysql-test-run.pl --debug-server --force --timer    --big-test --testcase-timeout=90   --comment=ndb-ps-debug-big  --vardir=var-ndb-ps-debug-big  --ps-protocol --with-ndb-only
 
-# Run default suites with hypergraph optimizer only on el7
-perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=90 --comment=hypergraph-debug-big --vardir=var-hyp-default-big --hypergraph --platform=el7-x86-64bit --no-skip --skip-ndb
+# Run default suites with hypergraph optimizer
+perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=90 --comment=hypergraph-debug-big --vardir=var-hyp-default-big --hypergraph --no-skip --skip-ndb
 # Run all ndb tests with hypergraph optimizer only on el7 separately.
 # If no Ndb support, no tests will be attempted.
 perl mysql-test-run.pl --debug-server --force --timer --big-test --testcase-timeout=90 --comment=ndb-hypergraph-debug-big --vardir=var-ndb-hyp-default-big --hypergraph --platform=el7-x86-64bit --no-skip --with-ndb-only
