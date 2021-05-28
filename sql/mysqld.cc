@@ -5315,7 +5315,7 @@ static int init_server_auto_options() {
 
   DBUG_TRACE;
 
-  if (nullptr == fn_format(fname, "auto.cnf", mysql_data_home, "",
+  if (nullptr == fn_format(fname, "auto.cnf", mysql_real_data_home_ptr, "",
                            MY_UNPACK_FILENAME | MY_SAFE_PATH))
     return 1;
 
@@ -5997,7 +5997,7 @@ static int init_server_components() {
    does not exist. It should be initialized before opening binlog file. Because
    server's uuid will be stored into the new binlog file.
   */
-  if (init_server_auto_options()) {
+  if (!is_help_or_validate_option() && init_server_auto_options()) {
     LogErr(ERROR_LEVEL, ER_CANT_CREATE_UUID);
     unireg_abort(MYSQLD_ABORT_EXIT);
   }
