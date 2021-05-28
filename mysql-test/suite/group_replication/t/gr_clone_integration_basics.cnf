@@ -1,0 +1,7 @@
+!include ../my.cnf
+
+[mysqld.1]
+replication_optimize_for_static_plugin_config=ON
+
+[mysqld.2]
+replication_optimize_for_static_plugin_config=ON
