@@ -23,13 +23,11 @@ EOF
 --exec $MYSQLXTEST -h 10.0.2.1 --network-namespace=red -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connected-user-info.tmp 2>&1
 
 --echo # Non existing namespace
---error 1
---exec $MYSQLXTEST -h 10.0.2.1 --network-namespace=green -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connected-user-info.tmp 2>&1
+--exec $MYSQLXTEST --expect-error 2001 -h 10.0.2.1 --network-namespace=green -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connected-user-info.tmp 2>&1
 
 --echo # Simulate case where cap_sys_nice is not granted to mysqlxtest
 --copy_file $exe_mysqlxtest $MYSQLTEST_VARDIR/tmp/mysqlxtest
---error 1
---exec $MYSQLTEST_VARDIR/tmp/mysqlxtest -h 10.0.2.1 --network-namespace=red -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connected-user-info.tmp 2>&1
+--exec $MYSQLTEST_VARDIR/tmp/mysqlxtest --expect-error 2001 -h 10.0.2.1 --network-namespace=red -u x_root --password='' --file=$MYSQL_TMP_DIR/mysqlx-connected-user-info.tmp 2>&1
 
 REVOKE ALL ON *.* FROM 'x_root' @'10.0.2.1';
 DROP USER 'x_root' @'10.0.2.1';
