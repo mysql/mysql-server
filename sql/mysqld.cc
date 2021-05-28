@@ -2511,6 +2511,7 @@ static void clean_up(bool print_message) {
   item_create_cleanup();
   if (!opt_noacl) udf_unload_udfs();
   table_def_start_shutdown();
+  delegates_shutdown();
   plugin_shutdown();
   gtid_server_cleanup();  // after plugin_shutdown
   delete_optimizer_cost_module();
