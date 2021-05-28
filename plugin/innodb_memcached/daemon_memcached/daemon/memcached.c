@@ -2176,10 +2176,12 @@ static void process_bin_sasl_auth(conn *c) {
     int nkey = c->binary_header.request.keylen;
     int vlen = c->binary_header.request.bodylen - nkey;
 
+    assert(vlen >= 0);
+
     if (nkey > MAX_SASL_MECH_LEN) {
-        write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_EINVAL, vlen);
-        c->write_and_go = conn_swallow;
-        return;
+      write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_EINVAL, vlen);
+      c->write_and_go = conn_swallow;
+      return;
     }
 
     char *key = binary_get_key(c);
@@ -2906,28 +2908,34 @@ static RESPONSE_HANDLER response_handlers[256] = {
 };
 
 static void dispatch_bin_command(conn *c) {
-    int protocol_error = 0;
+  int protocol_error = 0;
 
-    int extlen = c->binary_header.request.extlen;
-    uint16_t keylen = c->binary_header.request.keylen;
-    uint32_t bodylen = c->binary_header.request.bodylen;
+  uint8_t extlen = c->binary_header.request.extlen;
+  uint16_t keylen = c->binary_header.request.keylen;
+  uint32_t bodylen = c->binary_header.request.bodylen;
 
-    if (settings.require_sasl && !authenticated(c)) {
-        write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_AUTH_ERROR, 0);
-        c->write_and_go = conn_closing;
-        return;
-    }
+  if (keylen > bodylen || keylen + extlen > bodylen) {
+    write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_UNKNOWN_COMMAND, 0);
+    c->write_and_go = conn_closing;
+    return;
+  }
 
-    MEMCACHED_PROCESS_COMMAND_START(c->sfd, c->rcurr, c->rbytes);
-    c->noreply = true;
+  if (settings.require_sasl && !authenticated(c)) {
+    write_bin_packet(c, PROTOCOL_BINARY_RESPONSE_AUTH_ERROR, 0);
+    c->write_and_go = conn_closing;
+    return;
+  }
 
-    /* binprot supports 16bit keys, but internals are still 8bit */
-    if (keylen > KEY_MAX_LENGTH) {
-        handle_binary_protocol_error(c);
-        return;
-    }
+  MEMCACHED_PROCESS_COMMAND_START(c->sfd, c->rcurr, c->rbytes);
+  c->noreply = true;
 
-    switch (c->cmd) {
+  /* binprot supports 16bit keys, but internals are still 8bit */
+  if (keylen > KEY_MAX_LENGTH) {
+    handle_binary_protocol_error(c);
+    return;
+  }
+
+  switch (c->cmd) {
     case PROTOCOL_BINARY_CMD_SETQ:
         c->cmd = PROTOCOL_BINARY_CMD_SET;
         break;
@@ -3244,9 +3252,11 @@ static void process_bin_append_prepend(conn *c) {
     nkey = c->binary_header.request.keylen;
     vlen = c->binary_header.request.bodylen - nkey;
 
+    assert(vlen >= 0);
+
     if (settings.verbose > 1) {
-        settings.extensions.logger->log(EXTENSION_LOG_DEBUG, c,
-                                        "Value len is %d\n", vlen);
+      settings.extensions.logger->log(EXTENSION_LOG_DEBUG, c,
+                                      "Value len is %d\n", vlen);
     }
 
     if (settings.detail_enabled) {
