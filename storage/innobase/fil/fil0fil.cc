@@ -9099,86 +9099,93 @@ bool fil_delete_file(const char *path) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Check if swapping two .ibd files can be done without failure.
-@param[in]	old_table	old table
-@param[in]	new_table	new table
-@param[in]	tmp_name	temporary table name
-@return innodb error code */
 dberr_t fil_rename_precheck(const dict_table_t *old_table,
                             const dict_table_t *new_table,
                             const char *tmp_name) {
-  dberr_t err;
-
   bool old_is_file_per_table = dict_table_is_file_per_table(old_table);
-
   bool new_is_file_per_table = dict_table_is_file_per_table(new_table);
 
-  /* If neither table is file-per-table,
-  there will be no renaming of files. */
+  /* If neither table is file-per-table, there will be no renaming of files. */
   if (!old_is_file_per_table && !new_is_file_per_table) {
     return DB_SUCCESS;
   }
 
-  auto old_dir = dict_table_get_datadir(old_table);
+  auto fetch_path = [](std::string &path, const dict_table_t *source_table,
+                       bool fpt) -> dberr_t {
+    char *path_ptr{};
 
-  char *old_path =
-      Fil_path::make(old_dir, old_table->name.m_name, IBD, !old_dir.empty());
+    /* It is possible that the file could be present in a directory outside of
+    the data directory (possible because of innodb_directories option), so
+    fetch the path accordingly.
 
-  if (old_path == nullptr) {
-    return DB_OUT_OF_MEMORY;
-  }
+    We are only interested in fetching the right path for file-per-table
+    tablespaces as during file_rename_tablespace_check the source table should
+    always exist and we do the rename for only source tables which are
+    file-per-table tablspaces. */
+    if (fpt && !dict_table_is_discarded(source_table)) {
+      path_ptr = fil_space_get_first_path(source_table->space);
 
-  if (old_is_file_per_table) {
-    char *tmp_path = Fil_path::make(old_dir, tmp_name, IBD, !old_dir.empty());
+      if (path_ptr == nullptr) {
+        return DB_TABLESPACE_NOT_FOUND;
+      }
+    } else {
+      auto dir = dict_table_get_datadir(source_table);
 
-    if (tmp_path == nullptr) {
-      ut_free(old_path);
-      return DB_OUT_OF_MEMORY;
-    }
+      path_ptr =
+          Fil_path::make(dir, source_table->name.m_name, IBD, !dir.empty());
 
-    /* Temp filepath must not exist. */
-    err = fil_rename_tablespace_check(old_table->space, old_path, tmp_path,
-                                      dict_table_is_discarded(old_table));
-
-    if (err != DB_SUCCESS) {
-      ut_free(old_path);
-      ut_free(tmp_path);
-      return err;
-    }
-
-    ut_free(tmp_path);
-  }
-
-  if (new_is_file_per_table) {
-    auto new_dir = dict_table_get_datadir(new_table);
-
-    char *new_path =
-        Fil_path::make(new_dir, new_table->name.m_name, IBD, !new_dir.empty());
-
-    if (new_path == nullptr) {
-      ut_free(old_path);
-      return DB_OUT_OF_MEMORY;
-    }
-
-    /* Destination filepath must not exist unless this ALTER
-    TABLE starts and ends with a file_per-table tablespace. */
-    if (!old_is_file_per_table) {
-      err = fil_rename_tablespace_check(new_table->space, new_path, old_path,
-                                        dict_table_is_discarded(new_table));
-
-      if (err != DB_SUCCESS) {
-        ut_free(old_path);
-        ut_free(new_path);
-        return err;
+      if (path_ptr == nullptr) {
+        return DB_OUT_OF_MEMORY;
       }
     }
 
-    ut_free(new_path);
+    path.assign(path_ptr);
+    ut_free(path_ptr);
+
+    return DB_SUCCESS;
+  };
+
+  std::string old_path;
+
+  auto err = fetch_path(old_path, old_table, old_is_file_per_table);
+
+  if (err != DB_SUCCESS) {
+    return err;
   }
 
-  ut_free(old_path);
+  if (old_is_file_per_table) {
+    std::string tmp_path =
+        Fil_path::make_new_path(old_path.c_str(), tmp_name, IBD);
 
-  return DB_SUCCESS;
+    /* Temp filepath must not exist. */
+    err = fil_rename_tablespace_check(old_table->space, old_path.c_str(),
+                                      tmp_path.c_str(),
+                                      dict_table_is_discarded(old_table));
+
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+  }
+
+  if (new_is_file_per_table) {
+    std::string new_path;
+
+    err = fetch_path(new_path, new_table, new_is_file_per_table);
+
+    if (err != DB_SUCCESS) {
+      return err;
+    }
+
+    /* Destination filepath must not exist unless this ALTER TABLE starts and
+    ends with a file_per-table tablespace. */
+    if (!old_is_file_per_table) {
+      err = fil_rename_tablespace_check(new_table->space, new_path.c_str(),
+                                        old_path.c_str(),
+                                        dict_table_is_discarded(new_table));
+    }
+  }
+
+  return err;
 }
 #endif /* !UNIV_HOTBACKUP */
 
