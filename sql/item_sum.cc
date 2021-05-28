@@ -568,10 +568,7 @@ bool Item_sum::eq(const Item *item, bool binary_cmp) const {
       (my_sum_func == Item_sum::UDF_SUM_FUNC &&
        my_strcasecmp(system_charset_info, func_name(), item_sum->func_name())))
     return false;
-  for (uint i = 0; i < arg_count; i++) {
-    if (!args[i]->eq(item_sum->args[i], binary_cmp)) return false;
-  }
-  return true;
+  return AllItemsAreEqual(args, item_sum->args, arg_count, binary_cmp);
 }
 
 bool Item_sum::aggregate_check_distinct(uchar *arg) {

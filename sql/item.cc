@@ -10308,3 +10308,28 @@ bool Item_asterisk::itemize(Parse_context *pc, Item **res) {
   pc->select->with_wild++;
   return false;
 }
+
+bool ItemsAreEqual(const Item *a, const Item *b, bool binary_cmp) {
+  const Item *real_a = const_cast<Item *>(a)->real_item();
+  const Item *real_b = const_cast<Item *>(b)->real_item();
+
+  // Unwrap caches, as they may not be added consistently
+  // to both sides.
+  if (real_a->type() == Item::CACHE_ITEM) {
+    real_a = down_cast<const Item_cache *>(real_a)->get_example();
+  }
+  if (real_b->type() == Item::CACHE_ITEM) {
+    real_b = down_cast<const Item_cache *>(real_b)->get_example();
+  }
+  return real_a->eq(real_b, binary_cmp);
+}
+
+bool AllItemsAreEqual(const Item *const *a, const Item *const *b, int num_items,
+                      bool binary_cmp) {
+  for (int i = 0; i < num_items; ++i) {
+    if (!ItemsAreEqual(a[i], b[i], binary_cmp)) {
+      return false;
+    }
+  }
+  return true;
+}
