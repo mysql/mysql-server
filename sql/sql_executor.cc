@@ -4859,15 +4859,6 @@ bool replace_contents_of_rollup_wrappers_with_tmp_fields(THD *thd,
         while (is_rollup_group_wrapper(real_item)) {
           real_item = unwrap_rollup_group(real_item)->real_item();
         }
-
-        // If the item was found to be constant, we could have added caches
-        // around it before we wrapped it in a rollup group wrapper -- but we
-        // wouldn't do it in the group list, so we need to unwrap the cache
-        // to get comparable items.
-        if (real_item->type() == Item::CACHE_ITEM) {
-          real_item = down_cast<Item_cache *>(real_item)->example;
-        }
-
         ORDER *order = select->find_in_group_list(real_item, nullptr);
         Item_rollup_group_item *new_item = new Item_rollup_group_item(
             rollup_item->min_rollup_level(),
@@ -4999,14 +4990,8 @@ bool change_to_use_tmp_fields_except_sums(mem_root_deque<Item *> *fields,
       rollup_item->inner_item()->set_result_field(item->get_result_field());
       new_item = rollup_item->inner_item()->get_tmp_table_item(thd);
 
-      // The group item may have been resolved to a different Item_field
-      // for the same field. Update it accordingly, for the sake of
-      // replace_contents_of_rollup_wrappers_with_tmp_fields() below.
-      Item *inner_item = rollup_item->inner_item();
-      if (inner_item->type() == Item::CACHE_ITEM) {
-        inner_item = down_cast<Item_cache *>(inner_item)->get_example();
-      }
-      ORDER *order = select->find_in_group_list(inner_item, nullptr);
+      ORDER *order =
+          select->find_in_group_list(rollup_item->inner_item(), nullptr);
       order->rollup_item->inner_item()->set_result_field(
           item->get_result_field());
 

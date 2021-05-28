@@ -1913,7 +1913,7 @@ bool Item_func_json_extract::eq(const Item *item, bool binary_cmp) const {
         binary_cmp ||
         (arg1->type() == STRING_ITEM &&
          my_charset_same(arg1->collation.collation, arg2->collation.collation));
-    return arg1->eq(arg2, ignore_collation);
+    return ItemsAreEqual(arg1, arg2, ignore_collation);
   };
   const auto item_json = down_cast<const Item_func_json_extract *>(item);
   return std::equal(args, args + arg_count, item_json->args, cmp);

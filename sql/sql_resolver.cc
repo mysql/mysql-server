@@ -4608,10 +4608,17 @@ bool Query_block::setup_group(THD *thd) {
 
 ORDER *Query_block::find_in_group_list(Item *item, int *rollup_level) const {
   Item *real_item = item->real_item();
+  if (real_item->type() == Item::CACHE_ITEM) {
+    // Unwrap the cache, if any. NOTE: There should never be any caches
+    // in the GROUP BY list, so we don't need to unwrap any from there.
+    real_item = down_cast<const Item_cache *>(real_item)->get_example();
+  }
+
   ORDER *best_candidate = nullptr;
   int idx = 0;
   for (ORDER *group = group_list.first; group; group = group->next, ++idx) {
     Item *group_item = *group->item;
+    assert(group_item->real_item()->type() != Item::CACHE_ITEM);
     if (real_item->eq(group_item->real_item(), /*binary_cmp=*/false)) {
       if (item->item_name.ptr() != nullptr &&
           group_item->item_name.ptr() != nullptr &&
