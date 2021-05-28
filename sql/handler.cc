@@ -7686,6 +7686,53 @@ static int write_locked_table_maps(THD *thd) {
   return 0;
 }
 
+/**
+  The purpose of an instance of this class is to :
+
+  1) Given a TABLE instance, backup the given TABLE::read_set, TABLE::write_set
+     and restore those members upon this instance disposal.
+
+  2) Store a reference to a dynamically allocated buffer and dispose of it upon
+     this instance disposal.
+ */
+
+class Binlog_log_row_cleanup {
+ public:
+  /**
+    This constructor aims to create temporary copies of readset and writeset.
+
+    @param table                 A pointer to TABLE object
+    @param temp_read_bitmap      Temporary BITMAP to store read_set.
+    @param temp_write_bitmap     Temporary BITMAP to store write_set.
+    */
+  Binlog_log_row_cleanup(TABLE &table, MY_BITMAP &temp_read_bitmap,
+
+                         MY_BITMAP &temp_write_bitmap)
+
+      : m_cleanup_table(table),
+        m_cleanup_read_bitmap(temp_read_bitmap),
+        m_cleanup_write_bitmap(temp_write_bitmap) {
+    bitmap_copy(&this->m_cleanup_read_bitmap, this->m_cleanup_table.read_set);
+    bitmap_copy(&this->m_cleanup_write_bitmap, this->m_cleanup_table.write_set);
+  }
+
+  /**
+    This destructor aims to restore the original readset and writeset and
+    delete the temporary copies.
+   */
+  virtual ~Binlog_log_row_cleanup() {
+    bitmap_copy(this->m_cleanup_table.read_set, &this->m_cleanup_read_bitmap);
+    bitmap_copy(this->m_cleanup_table.write_set, &this->m_cleanup_write_bitmap);
+    bitmap_free(&this->m_cleanup_read_bitmap);
+    bitmap_free(&this->m_cleanup_write_bitmap);
+  }
+
+ private:
+  TABLE &m_cleanup_table;  // Creating a TABLE to get access to its members.
+  MY_BITMAP &m_cleanup_read_bitmap;   // Temporary bitmap to store read_set.
+  MY_BITMAP &m_cleanup_write_bitmap;  // Temporary bitmap to store write_set.
+};
+
 int binlog_log_row(TABLE *table, const uchar *before_record,
                    const uchar *after_record, Log_func *log_func) {
   bool error = false;
@@ -7694,15 +7741,34 @@ int binlog_log_row(TABLE *table, const uchar *before_record,
   if (check_table_binlog_row_based(thd, table)) {
     if (thd->variables.transaction_write_set_extraction != HASH_ALGORITHM_OFF) {
       try {
-        if (before_record && after_record) {
-          /* capture both images pke */
-          if (add_pke(table, thd, table->record[0]) ||
-              add_pke(table, thd, table->record[1])) {
-            return HA_ERR_RBR_LOGGING_FAILED;
+        MY_BITMAP save_read_set;
+        MY_BITMAP save_write_set;
+        if (bitmap_init(&save_read_set, NULL, table->s->fields) ||
+            bitmap_init(&save_write_set, NULL, table->s->fields)) {
+          my_error(ER_OUT_OF_RESOURCES, MYF(0));
+          return HA_ERR_RBR_LOGGING_FAILED;
+        }
+
+        Binlog_log_row_cleanup cleanup_sentry(*table, save_read_set,
+                                              save_write_set);
+
+        if (thd->variables.binlog_row_image == 0) {
+          for (uint key_number = 0; key_number < table->s->keys; ++key_number) {
+            if (((table->key_info[key_number].flags & (HA_NOSAME)) ==
+                 HA_NOSAME)) {
+              table->mark_columns_used_by_index_no_reset(key_number,
+                                                         table->read_set);
+              table->mark_columns_used_by_index_no_reset(key_number,
+                                                         table->write_set);
+            }
           }
-        } else {
-          if (add_pke(table, thd, table->record[0])) {
-            return HA_ERR_RBR_LOGGING_FAILED;
+        }
+        std::array<const uchar *, 2> records{after_record, before_record};
+        for (auto rec : records) {
+          if (rec != nullptr) {
+            assert(rec == table->record[0] || rec == table->record[1]);
+            bool res = add_pke(table, thd, rec);
+            if (res) return HA_ERR_RBR_LOGGING_FAILED;
           }
         }
       } catch (const std::bad_alloc &) {
