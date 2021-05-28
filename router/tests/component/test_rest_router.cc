@@ -274,10 +274,9 @@ TEST_F(RestRouterApiTest, rest_router_section_has_key) {
   check_exit_code(router, EXIT_FAILURE, 10s);
 
   const std::string router_output = router.get_full_logfile();
-  EXPECT_THAT(
-      router_output,
-      ::testing::HasSubstr("plugin 'rest_router' init failed: [rest_router] "
-                           "section does not expect a key, found 'A'"))
+  EXPECT_THAT(router_output,
+              ::testing::HasSubstr("  init 'rest_router' failed: [rest_router] "
+                                   "section does not expect a key, found 'A'"))
       << router_output;
 }
 
@@ -300,7 +299,7 @@ TEST_F(RestRouterApiTest, router_api_no_auth) {
 
   const std::string router_output = router.get_full_logfile();
   EXPECT_THAT(router_output, ::testing::HasSubstr(
-                                 "plugin 'rest_router' init failed: option "
+                                 "  init 'rest_router' failed: option "
                                  "require_realm in [rest_router] is required"))
       << router_output;
 }

@@ -1111,7 +1111,7 @@ TEST_F(GrNotificationsTest, GrNotificationInconsistentMetadata) {
     auto port = std::strtoul(port_str, &errptr, 10);
     ASSERT_NE(errptr, nullptr);
     EXPECT_EQ(*errptr, '\0') << port_str;
-    EXPECT_GT(port, 0);  // 0 isn't valid port.
+    EXPECT_GT(port, 0u);  // 0 isn't valid port.
     EXPECT_LE(port, std::numeric_limits<uint16_t>::max());
 
     used_ports.insert(port);
