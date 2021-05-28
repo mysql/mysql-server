@@ -491,3 +491,14 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
 --replace_regex /time=\d+\.\d+\.\.\d+\.\d+/time=N.NNN..N.NNN/
 EXPLAIN ANALYZE SELECT * FROM t1 LEFT JOIN ( SELECT * FROM t1 ORDER BY t1.a LIMIT 3 ) d1 ON TRUE;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32915233: RECENT REGRESSION:ASSERTION `EXPLAIN.CHILDREN.SIZE() <= 1' FAILED.
+--echo #
+
+# Sets up an AlternativeIterator in the table access path.
+CREATE TABLE t1 (a int);
+SET sql_mode='';
+EXPLAIN FORMAT=tree SELECT a IN (SELECT a FROM (table t1) AS d) FROM t1 GROUP BY (@b:=5);
+SET sql_mode=DEFAULT;
+DROP TABLE t1;

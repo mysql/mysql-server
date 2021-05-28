@@ -180,7 +180,12 @@ static void AddTableIteratorDescription(const AccessPath *path, JOIN *join,
   for (;;) {
     ExplainData explain = ExplainAccessPath(subpath, join);
     for (string str : explain.description) {
-      assert(explain.children.size() <= 1);
+      if (explain.children.size() > 1) {
+        // This can happen if we have AlternativeIterator.
+        // TODO(sgunders): Consider having a RowIterator::parent(),
+        // so that we can show the entire tree.
+        str += " [other sub-iterators not shown]";
+      }
       description->push_back(str);
     }
     if (explain.children.empty()) break;
