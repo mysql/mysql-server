@@ -4315,8 +4315,10 @@ static Temp_table_param *GetMaterialization(AccessPath *path) {
       present its own challenges.
     - Join conditions.
  */
-static void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
-                                      AccessPath *root_path) {
+void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
+                               AccessPath *root_path) {
+  assert(query_block->join->needs_finalize);
+
   Mem_root_array<const Func_ptr_array *> applied_replacements(thd->mem_root);
   WalkAccessPaths(
       root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
@@ -4391,6 +4393,8 @@ static void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
         return false;
       },
       /*post_order_traversal=*/true);
+
+  query_block->join->needs_finalize = false;
 }
 
 /**
@@ -4871,8 +4875,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                   });
 #endif
 
-  FinalizePlanForQueryBlock(thd, query_block, root_path);
-
+  join->needs_finalize = true;
   join->best_rowcount = lrint(root_path->num_output_rows);
   join->best_read = root_path->cost;
 

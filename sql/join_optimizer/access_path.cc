@@ -196,6 +196,9 @@ bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
 
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode) {
+  if (join != nullptr) {
+    assert(!join->needs_finalize);
+  }
   if (FinalizeMaterializedSubqueries(thd, join, path)) {
     return nullptr;
   }

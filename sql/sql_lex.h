@@ -926,9 +926,25 @@ class Query_expression {
     @param create_iterators If false, only access paths are created,
       not iterators. Only top level query blocks (these that we are to call
       exec() on) should have iterators. See also force_create_iterators().
+
+    @param finalize_access_paths Relevant for the hypergraph optimizer only.
+      If false, the given access paths will _not_ be finalized, so you cannot
+      create iterators from it before finalize() is called (see
+      FinalizePlanForQueryBlock()), and create_iterators must also be false.
+      This is relevant only if you are potentially optimizing multiple times
+      (see change_to_access_path_without_in2exists()), since you are only
+      allowed to finalize a query block once. The fake_query_block, if any,
+      is always finalized.
    */
-  bool optimize(THD *thd, TABLE *materialize_destination,
-                bool create_iterators);
+  bool optimize(THD *thd, TABLE *materialize_destination, bool create_iterators,
+                bool finalize_access_paths);
+
+  /**
+    For any non-finalized query block, finalize it so that we are allowed to
+    create iterators. Must be called after the final access path is chosen
+    (ie., after any calls to change_to_access_path_without_in2exists()).
+   */
+  void finalize(THD *thd);
 
   /**
     Do everything that would be needed before running Init() on the root
@@ -1796,7 +1812,7 @@ class Query_block {
 
   bool setup_conds(THD *thd);
   bool prepare(THD *thd, mem_root_deque<Item *> *insert_field_list);
-  bool optimize(THD *thd);
+  bool optimize(THD *thd, bool finalize_access_paths);
   void reset_nj_counters(mem_root_deque<TABLE_LIST *> *join_list = nullptr);
 
   bool change_group_ref_for_func(THD *thd, Item *func, bool *changed);

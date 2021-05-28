@@ -611,7 +611,7 @@ class JOIN {
   */
   bool plan_is_single_table() { return primary_tables - const_tables == 1; }
 
-  bool optimize();
+  bool optimize(bool finalize_access_paths);
   void reset();
   bool prepare_result();
   void destroy();
@@ -787,6 +787,13 @@ class JOIN {
     When we get rid of slices entirely, we can get rid of this, too.
    */
   void refresh_base_slice();
+
+  /**
+    Whether this query block needs finalization (see
+    FinalizePlanForQueryBlock()) before it can be actually used.
+    This only happens when using the hypergraph join optimizer.
+   */
+  bool needs_finalize{false};
 
  private:
   bool optimized{false};  ///< flag to avoid double optimization in EXPLAIN

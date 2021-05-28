@@ -285,7 +285,7 @@ static void SaveCondEqualLists(COND_EQUAL *cond_equal) {
   @retval false Success.
   @retval true Error, error code saved in member JOIN::error.
 */
-bool JOIN::optimize() {
+bool JOIN::optimize(bool finalize_access_paths) {
   DBUG_TRACE;
 
   uint no_jbuf_after = UINT_MAX;
@@ -375,7 +375,8 @@ bool JOIN::optimize() {
       // Derived tables and const subqueries are already optimized
       if (!unit->is_optimized() &&
           unit->optimize(thd, /*materialize_destination=*/nullptr,
-                         /*create_iterators=*/false))
+                         /*create_iterators=*/false,
+                         /*finalize_access_paths=*/false))
         return true;
     }
   }
@@ -558,6 +559,9 @@ bool JOIN::optimize() {
     SaveCondEqualLists(cond_equal);
 
     m_root_access_path = FindBestQueryPlan(thd, query_block, trace_ptr);
+    if (finalize_access_paths && m_root_access_path != nullptr) {
+      FinalizePlanForQueryBlock(thd, query_block, m_root_access_path);
+    }
 
     // If this query block was modified by IN-to-EXISTS conversion,
     // the outer query block may want to undo that conversion and materialize
@@ -585,6 +589,7 @@ bool JOIN::optimize() {
       }
       where_cond = where_cond_no_in2exists;
       having_cond = having_cond_no_in2exists;
+      assert(!finalize_access_paths);
       m_root_access_path_no_in2exists =
           FindBestQueryPlan(thd, query_block, trace_ptr);
     } else {

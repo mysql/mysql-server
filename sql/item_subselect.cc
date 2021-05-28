@@ -391,6 +391,8 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
   if (unit->set_limit(thd, unit->global_parameters()))
     return true; /* purecov: inspected */
 
+  unit->finalize(thd);
+
   query_block->join->allow_outer_refs = true;  // for JOIN::set_prefix_tables()
   strategy = Subquery_strategy::SUBQ_EXISTS;
   return false;
@@ -459,6 +461,7 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
   // This part is only relevant for the hypergraph optimizer.
   unit->change_to_access_path_without_in2exists(thd);
   assert(!in2exists_info->dependent_before);
+  unit->finalize(thd);
 
   join->query_block->uncacheable &= ~UNCACHEABLE_DEPENDENT;
   unit->uncacheable &= ~UNCACHEABLE_DEPENDENT;
@@ -677,14 +680,22 @@ bool Item_subselect::exec(THD *thd) {
   // Normally, the unit would be optimized here, but statements like DO and SET
   // may still rely on lazy optimization. Also, we might not have iterators,
   // so make sure to create them if they're missing.
-  if (unit->is_optimized()) {
-    if (should_create_iterators) {
-      if (unit->force_create_iterators(thd)) return true;
-    }
-  } else {
+  if (!unit->is_optimized()) {
     if (unit->optimize(thd, /*materialize_destination=*/nullptr,
-                       should_create_iterators))
+                       /*create_iterators=*/false,
+                       /*finalize_access_paths=*/false))
       return true;
+
+    // NOTE: We defer finalization and creating iterators to the statements
+    // below; asking optimize() to finalize a plan with two choices
+    // (materialization and exists) rightfully causes a failed assertion. We
+    // should probably have made a cost-based choice between the two here, but
+    // as it stands, we will always implicitly choose in2exists in these cases
+    // (DO/SET).
+  }
+  if (should_create_iterators && unit->root_access_path() != nullptr) {
+    unit->finalize(thd);
+    if (unit->force_create_iterators(thd)) return true;
   }
   if (indexsubquery_engine != nullptr) {
     return indexsubquery_engine->exec(thd);
@@ -3379,6 +3390,7 @@ void subselect_hash_sj_engine::create_iterators(THD *thd) {
 
   m_root_access_path = path;
   JOIN *join = unit->is_union() ? nullptr : unit->first_query_block()->join;
+  unit->finalize(thd);
   m_iterator = CreateIteratorFromAccessPath(thd, path, join,
                                             /*eligible_for_batch_mode=*/true);
 

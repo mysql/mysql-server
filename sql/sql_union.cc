@@ -685,8 +685,13 @@ static bool finalize_full_text_functions(THD *thd,
 }
 
 bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
-                                bool create_iterators) {
+                                bool create_iterators,
+                                bool finalize_access_paths) {
   DBUG_TRACE;
+
+  if (!finalize_access_paths) {
+    assert(!create_iterators);
+  }
 
   assert(is_prepared() && !is_optimized());
 
@@ -697,13 +702,14 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
 
   if (query_result() != nullptr) query_result()->estimated_rowcount = 0;
 
-  for (Query_block *sl = first_query_block(); sl; sl = sl->next_query_block()) {
-    thd->lex->set_current_query_block(sl);
+  for (Query_block *query_block = first_query_block(); query_block != nullptr;
+       query_block = query_block->next_query_block()) {
+    thd->lex->set_current_query_block(query_block);
 
     // LIMIT is required for optimization
-    if (set_limit(thd, sl)) return true; /* purecov: inspected */
+    if (set_limit(thd, query_block)) return true; /* purecov: inspected */
 
-    if (sl->optimize(thd)) return true;
+    if (query_block->optimize(thd, finalize_access_paths)) return true;
 
     /*
       Accumulate estimated number of rows.
@@ -712,11 +718,11 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
       2. If GROUP BY clause is optimized away because it was a constant then
          query produces at most one row.
      */
-    estimated_rowcount +=
-        sl->is_implicitly_grouped() || sl->join->group_optimized_away
-            ? 1
-            : sl->join->best_rowcount;
-    estimated_cost += sl->join->best_read;
+    estimated_rowcount += query_block->is_implicitly_grouped() ||
+                                  query_block->join->group_optimized_away
+                              ? 1
+                              : query_block->join->best_rowcount;
+    estimated_cost += query_block->join->best_read;
 
     // TABLE_LIST::fetch_number_of_rows() expects to get the number of rows
     // from all earlier query blocks from the query result, so we need to update
@@ -769,7 +775,8 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
            fake_query_block->where_cond() == nullptr &&
            fake_query_block->having_cond() == nullptr);
 
-    if (fake_query_block->optimize(thd)) return true;
+    if (fake_query_block->optimize(thd, /*finalize_access_paths=*/true))
+      return true;
   } else if (saved_fake_query_block != nullptr) {
     // When GetTableIterator() sets up direct materialization, it looks for
     // the value of global_parameters()'s LIMIT in unit->select_limit_cnt;
@@ -856,6 +863,16 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
   }
 
   return false;
+}
+
+void Query_expression::finalize(THD *thd) {
+  for (Query_block *query_block = first_query_block(); query_block != nullptr;
+       query_block = query_block->next_query_block()) {
+    if (query_block->join != nullptr && query_block->join->needs_finalize) {
+      FinalizePlanForQueryBlock(thd, query_block,
+                                query_block->join->root_access_path());
+    }
+  }
 }
 
 bool Query_expression::force_create_iterators(THD *thd) {

@@ -126,6 +126,14 @@ class Query_block;
   materialize a subquery, though it may be suboptimal.
 
 
+  Note that the access path returned by FindBestQueryPlan() is not ready
+  for immediate conversion to iterators; see FinalizePlanForQueryBlock().
+  You may call FindBestQueryPlan() any number of times for a query block,
+  but FinalizePlanForQueryBlock() only once, as finalization generates
+  temporary tables and may rewrite expressions in ways that are incompatible
+  with future planning. The difference is most striking with the planning
+  done twice by in2exists (see above).
+
   @param thd Thread handle.
   @param query_block The query block to find a plan for.
   @param trace If not nullptr, will be filled with human-readable optimizer
@@ -133,6 +141,10 @@ class Query_block;
  */
 AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                               std::string *trace);
+
+// See comment in .cc file.
+void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
+                               AccessPath *root_path);
 
 // Exposed for unit testing only.
 void FindSargablePredicates(THD *thd, std::string *trace,

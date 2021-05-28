@@ -761,7 +761,7 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   Query_expression *unit = lex->unit;
 
   if (unit->optimize(thd, /*materialize_destination=*/nullptr,
-                     /*create_iterators=*/true))
+                     /*create_iterators=*/true, /*finalize_access_paths=*/true))
     return true;
 
   // Calculate the current statement cost.
@@ -1791,7 +1791,7 @@ void JOIN::cleanup_item_list(const mem_root_deque<Item *> &items) const {
   @returns false if success, true if error
 */
 
-bool Query_block::optimize(THD *thd) {
+bool Query_block::optimize(THD *thd, bool finalize_access_paths) {
   DBUG_TRACE;
 
   assert(join == nullptr);
@@ -1806,7 +1806,7 @@ bool Query_block::optimize(THD *thd) {
   join = join_local;
   thd->unlock_query_plan();
 
-  if (join->optimize()) return true;
+  if (join->optimize(finalize_access_paths)) return true;
 
   if (join->zero_result_cause && !is_implicitly_grouped()) return false;
 
@@ -1816,7 +1816,8 @@ bool Query_block::optimize(THD *thd) {
     // Derived tables and const subqueries are already optimized
     if (!query_expression->is_optimized() &&
         query_expression->optimize(thd, /*materialize_destination=*/nullptr,
-                                   /*create_iterators=*/false))
+                                   /*create_iterators=*/false,
+                                   /*finalize_access_paths=*/true))
       return true;
   }
 

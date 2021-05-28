@@ -1006,6 +1006,14 @@ Item *Condition_pushdown::extract_cond_for_table(Item *cond) {
       return nullptr;
   }
 
+  // Pushing in2exists conditions down into other query blocks
+  // could cause them to get lost, as Item_subselect would not know
+  // where to remove them from. They're a very rare case to have pushable,
+  // so simply refuse pushing them.
+  if (cond->created_by_in2exists()) {
+    return nullptr;
+  }
+
   // Mark the condition as it passed the checks
   cond->marker = Item::MARKER_COND_DERIVED_TABLE;
   return cond;
@@ -1335,7 +1343,9 @@ bool TABLE_LIST::optimize_derived(THD *thd) {
     }
   }
 
-  if (unit->optimize(thd, table, /*create_iterators=*/false) || thd->is_error())
+  if (unit->optimize(thd, table, /*create_iterators=*/false,
+                     /*finalize_access_paths=*/true) ||
+      thd->is_error())
     return true;
 
   // If the table is const, materialize it now. The hypergraph optimizer
