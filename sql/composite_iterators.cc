@@ -317,6 +317,15 @@ int AggregateIterator::Read() {
           // The group changed. Store the new row (we can't really use it yet;
           // next Read() will deal with it), then load back the group values
           // so that we can output a row for the current group.
+          // NOTE: This does not save and restore FTS information,
+          // so evaluating MATCH() on these rows may give the wrong result.
+          // (Storing the row ID and repositioning it with ha_rnd_pos()
+          // would, but we can't do the latter without disturbing
+          // ongoing scans. See bug #32565923.) For the old join optimizer,
+          // we generally solve this by inserting temporary tables or sorts
+          // (both of which restore the information correctly); for the
+          // hypergraph join optimizer, we add a special streaming step
+          // for MATCH columns.
           StoreFromTableBuffers(m_tables, &m_first_row_next_group);
           LoadIntoTableBuffers(m_tables, pointer_cast<const uchar *>(
                                              m_first_row_this_group.ptr()));
