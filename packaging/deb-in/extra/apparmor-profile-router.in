@@ -26,7 +26,10 @@
   /var/lib/mysqlrouter/** rw,
 
 # Allow libssl to read its global config
-  /etc/ssl/openssl.conf r,
+  /etc/ssl/openssl.cnf r,
+
+# Allow access to libmysqlclient's charset files
+  /usr/share/mysql-8.0/charsets/** r,
 
 # Allow runtime files such as PID-file
   /var/run/mysqlrouter/** rw,
