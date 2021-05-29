@@ -847,6 +847,8 @@ static PSI_thread_info all_innodb_threads[] = {
     PSI_THREAD_KEY(srv_ts_alter_encrypt_thread, "ib_ts_encrypt",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(parallel_read_thread, "ib_par_rd", 0, 0, PSI_DOCUMENT_ME),
+    PSI_THREAD_KEY(parallel_rseg_init_thread, "ib_par_rseg", 0, 0,
+                   PSI_DOCUMENT_ME),
     PSI_THREAD_KEY(meb::redo_log_archive_consumer_thread, "ib_meb_rl",
                    PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME)};
 #endif /* UNIV_PFS_THREAD */

@@ -355,6 +355,9 @@ extern FILE *srv_misc_tmpfile;
 
 extern char *srv_data_home;
 
+/* Number of threads used for initializing rollback segments */
+extern uint32_t srv_rseg_init_threads;
+
 /** Number of pages per doublewrite thread/segment */
 extern ulong srv_dblwr_pages;
 
@@ -787,6 +790,7 @@ extern mysql_pfs_key_t srv_worker_thread_key;
 extern mysql_pfs_key_t trx_recovery_rollback_thread_key;
 extern mysql_pfs_key_t srv_ts_alter_encrypt_thread_key;
 extern mysql_pfs_key_t parallel_read_thread_key;
+extern mysql_pfs_key_t parallel_rseg_init_thread_key;
 #endif /* UNIV_PFS_THREAD */
 #endif /* !UNIV_HOTBACKUP */
 

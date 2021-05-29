@@ -134,6 +134,10 @@ char *srv_doublewrite_dir = NULL;
 deliminated by ';', i.e the FIL_PATH_SEPARATOR. */
 char *srv_innodb_directories = nullptr;
 
+/** Number of threads spawned for initializing rollback segments
+in parallel */
+uint32_t srv_rseg_init_threads = 1;
+
 /** Undo tablespace directories.  This can be multiple paths
 separated by ';' and can also be absolute paths. */
 char *srv_undo_dir = nullptr;

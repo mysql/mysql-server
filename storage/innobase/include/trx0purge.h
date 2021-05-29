@@ -57,11 +57,15 @@ static inline fil_addr_t trx_purge_get_log_from_hist(
     fil_addr_t node_addr); /*!< in: file address of the history
                            list node of the log */
 
+/** Initialize in-memory purge structures */
+void trx_purge_sys_mem_create();
+
 /** Creates the global purge system control structure and inits the history
 mutex.
 @param[in]      n_purge_threads   number of purge threads
 @param[in,out]  purge_queue       UNDO log min binary heap */
-void trx_purge_sys_create(ulint n_purge_threads, purge_pq_t *purge_queue);
+void trx_purge_sys_initialize(uint32_t n_purge_threads,
+                              purge_pq_t *purge_queue);
 
 /** Frees the global purge system control structure. */
 void trx_purge_sys_close(void);
@@ -1055,6 +1059,9 @@ struct trx_purge_t {
 
   /** Set of all THDs allocated by the purge system. */
   ut::unordered_set<THD *> thds;
+
+  /** Set of all rseg queue. */
+  std::vector<trx_rseg_t *> rsegs_queue;
 };
 
 /** Choose the rollback segment with the smallest trx_no. */
