@@ -949,8 +949,7 @@ static inline uint get_field_offset(const TABLE *table, const Field *field);
 
 static MYSQL_THDVAR_BOOL(table_locks, PLUGIN_VAR_OPCMDARG,
                          "Enable InnoDB locking in LOCK TABLES",
-                         innodb_check_session_admin,
-                         /* update_func */ nullptr,
+                         /* check_func */ nullptr, /* update_func */ nullptr,
                          /* default */ TRUE);
 
 static MYSQL_THDVAR_BOOL(strict_mode, PLUGIN_VAR_OPCMDARG,

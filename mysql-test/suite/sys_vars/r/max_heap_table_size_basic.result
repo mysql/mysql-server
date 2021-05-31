@@ -219,26 +219,6 @@ SELECT session.max_heap_table_size;
 ERROR 42S02: Unknown table 'session' in field list
 SELECT max_heap_table_size = @@session.max_heap_table_size;
 ERROR 42S22: Unknown column 'max_heap_table_size' in 'field list'
-'#---------------------FN_DYNVARS_077_12----------------------#'
-CREATE USER foo, bar;
-GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
-SELECT @@session.max_heap_table_size;
-@@session.max_heap_table_size
-163840
-SET @@session.max_heap_table_size = 163845;
-ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
-SELECT @@session.max_heap_table_size;
-@@session.max_heap_table_size
-163840
-SET @@session.max_heap_table_size = 163845;
-Warnings:
-Warning	1292	Truncated incorrect max_heap_table_size value: '163845'
-SELECT @@session.max_heap_table_size;
-@@session.max_heap_table_size
-163840
-SET @@global.max_heap_table_size = 163845;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
-DROP USER foo, bar;
 SET @@global.max_heap_table_size = @start_global_value;
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size

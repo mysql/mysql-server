@@ -253,52 +253,6 @@ static bool check_session_admin_or_replication_applier(
 }
 
 /**
-  Utility method that checks if user has correct session administrative
-  dynamic privileges.
-  @return 0 on success, 1 on failure.
-*/
-static bool check_session_admin_privileges_only(
-    sys_var *self MY_ATTRIBUTE((unused)), THD *thd, set_var *setv) {
-  // Privilege check for global variable must have already done before.
-  assert(self->scope() != sys_var::GLOBAL);
-  Security_context *sctx = thd->security_context();
-  if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
-      !sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
-           .first &&
-      !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
-           .first) {
-    return true;
-  }
-  return false;
-}
-
-/**
-  Check if SESSION_VARIABLES_ADMIN granted. Throw SQL error if not.
-
-  Use this when setting session variables that are sensitive and should
-  be protected.
-
-  We also accept SYSTEM_VARIABLES_ADMIN since it doesn't make a lot of
-  sense to be allowed to set the global variable and not the session ones.
-
-  @retval true failure
-  @retval false success
-
-  @param self the system variable to set value for
-  @param thd the session context
-  @param setv the SET operations metadata
- */
-static bool check_session_admin_no_super(sys_var *self, THD *thd,
-                                         set_var *setv) {
-  if (check_session_admin_privileges_only(self, thd, setv)) {
-    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
-             "SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
-    return true;
-  }
-  return false;
-}
-
-/**
   Check if SESSION_VARIABLES_ADMIN granted. Throw SQL error if not.
 
   Use this when setting session variables that are sensitive and should
@@ -316,9 +270,16 @@ static bool check_session_admin_no_super(sys_var *self, THD *thd,
   @param thd the session context
   @param setv the SET operations metadata
  */
-static bool check_session_admin(sys_var *self, THD *thd, set_var *setv) {
+static bool check_session_admin(sys_var *self MY_ATTRIBUTE((unused)), THD *thd,
+                                set_var *setv) {
+  assert(self->scope() !=
+         sys_var::GLOBAL);  // don't abuse check_session_admin()
   Security_context *sctx = thd->security_context();
-  if (check_session_admin_privileges_only(self, thd, setv) &&
+  if ((setv->type == OPT_SESSION || setv->type == OPT_DEFAULT) &&
+      !sctx->has_global_grant(STRING_WITH_LEN("SESSION_VARIABLES_ADMIN"))
+           .first &&
+      !sctx->has_global_grant(STRING_WITH_LEN("SYSTEM_VARIABLES_ADMIN"))
+           .first &&
       !sctx->check_access(SUPER_ACL)) {
     my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0),
              "SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN");
@@ -1649,8 +1610,7 @@ static Sys_var_ulong Sys_select_into_buffer_size(
     "select_into_buffer_size", "Buffer size for SELECT INTO OUTFILE/DUMPFILE.",
     HINT_UPDATEABLE SESSION_VAR(select_into_buffer_size), CMD_LINE(OPT_ARG),
     VALID_RANGE(IO_SIZE * 2, INT_MAX32), DEFAULT(128 * 1024),
-    BLOCK_SIZE(IO_SIZE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_session_admin_no_super));
+    BLOCK_SIZE(IO_SIZE));
 
 static Sys_var_bool Sys_select_into_disk_sync(
     "select_into_disk_sync",
@@ -1663,8 +1623,7 @@ static Sys_var_uint Sys_select_into_disk_sync_delay(
     "The delay in milliseconds after each buffer sync "
     "for SELECT INTO OUTFILE/DUMPFILE. Requires select_into_sync_disk = ON.",
     HINT_UPDATEABLE SESSION_VAR(select_into_disk_sync_delay), CMD_LINE(OPT_ARG),
-    VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
+    VALID_RANGE(0, LONG_TIMEOUT), DEFAULT(0), BLOCK_SIZE(1));
 
 static bool check_not_null(sys_var *, THD *, set_var *var) {
   return var->value && var->value->is_null();
@@ -2707,7 +2666,7 @@ static Sys_var_bool Sys_low_priority_updates(
     "low_priority_updates",
     "INSERT/DELETE/UPDATE has lower priority than selects",
     SESSION_VAR(low_priority_updates), CMD_LINE(OPT_ARG), DEFAULT(false),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_low_prio_updates));
 
 static Sys_var_bool Sys_lower_case_file_system(
@@ -2832,8 +2791,7 @@ static Sys_var_long Sys_max_digest_length(
     READ_ONLY GLOBAL_VAR(max_digest_length), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(0, 1024 * 1024), DEFAULT(1024), BLOCK_SIZE(1));
 
-static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var) {
-  if (check_session_admin_no_super(self, thd, var)) return true;
+static bool check_max_delayed_threads(sys_var *, THD *, set_var *var) {
   return (!var->is_global_persist()) && var->save_result.ulonglong_value != 0 &&
          var->save_result.ulonglong_value !=
              global_system_variables.max_insert_delayed_threads;
@@ -2863,16 +2821,14 @@ static Sys_var_ulong Sys_max_delayed_threads(
 static Sys_var_ulong Sys_max_error_count(
     "max_error_count", "Max number of errors/warnings to store for a statement",
     HINT_UPDATEABLE SESSION_VAR(max_error_count), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, 65535), DEFAULT(DEFAULT_ERROR_COUNT), BLOCK_SIZE(1),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
+    VALID_RANGE(0, 65535), DEFAULT(DEFAULT_ERROR_COUNT), BLOCK_SIZE(1));
 
 static Sys_var_ulonglong Sys_max_heap_table_size(
     "max_heap_table_size",
     "Don't allow creation of heap tables bigger than this",
     HINT_UPDATEABLE SESSION_VAR(max_heap_table_size), CMD_LINE(REQUIRED_ARG),
     VALID_RANGE(16384, (ulonglong) ~(intptr)0), DEFAULT(16 * 1024 * 1024),
-    BLOCK_SIZE(1024), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_session_admin_no_super));
+    BLOCK_SIZE(1024));
 
 // relies on assert(sizeof(my_thread_id) == 4);
 static Sys_var_uint Sys_pseudo_thread_id(
@@ -2990,8 +2946,7 @@ static Sys_var_ulong Sys_min_examined_row_limit(
     "Don't write queries to slow log that examine fewer rows "
     "than that",
     SESSION_VAR(min_examined_row_limit), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD,
-    NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
+    VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #ifdef _WIN32
 static Sys_var_bool Sys_named_pipe("named_pipe", "Enable the named pipe (NT)",
@@ -3387,8 +3342,7 @@ static Sys_var_ulong Sys_preload_buff_size(
     "preload_buffer_size",
     "The size of the buffer that is allocated when preloading indexes",
     SESSION_VAR(preload_buff_size), CMD_LINE(REQUIRED_ARG),
-    VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(32768), BLOCK_SIZE(1),
-    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin_no_super));
+    VALID_RANGE(1024, 1024 * 1024 * 1024), DEFAULT(32768), BLOCK_SIZE(1));
 
 static Sys_var_uint Sys_protocol_version(
     "protocol_version",
@@ -5028,8 +4982,7 @@ static Sys_var_enum Sys_internal_tmp_mem_storage_engine(
     "The default storage engine for in-memory internal temporary tables.",
     HINT_UPDATEABLE SESSION_VAR(internal_tmp_mem_storage_engine),
     CMD_LINE(REQUIRED_ARG), internal_tmp_mem_storage_engine_names,
-    DEFAULT(TMP_TABLE_TEMPTABLE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_session_admin_no_super));
+    DEFAULT(TMP_TABLE_TEMPTABLE));
 
 static Sys_var_ulonglong Sys_temptable_max_ram(
     "temptable_max_ram",
@@ -6621,9 +6574,8 @@ static Sys_var_bool Sys_show_old_temporals(
     "table as a comment in COLUMN_TYPE field. "
     "This variable is deprecated and will be removed in a future release.",
     SESSION_VAR(show_old_temporals), CMD_LINE(OPT_ARG, OPT_SHOW_OLD_TEMPORALS),
-    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-    ON_CHECK(check_session_admin_no_super), ON_UPDATE(nullptr),
-    DEPRECATED_VAR(""));
+    DEFAULT(false), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
+    ON_UPDATE(nullptr), DEPRECATED_VAR(""));
 
 static Sys_var_charptr Sys_disabled_storage_engines(
     "disabled_storage_engines",
