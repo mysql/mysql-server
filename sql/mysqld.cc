@@ -1437,7 +1437,8 @@ time_t server_start_time, flush_status_time;
 
 char server_uuid[UUID_LENGTH + 1];
 const char *server_uuid_ptr;
-char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN], system_time_zone[30];
+char mysql_home[FN_REFLEN], pidfile_name[FN_REFLEN];
+char system_time_zone_dst_on[30], system_time_zone_dst_off[30];
 char default_logfile_name[FN_REFLEN];
 char default_binlogfile_name[FN_REFLEN];
 char default_binlog_index_name[FN_REFLEN + index_ext_length];
@@ -4539,14 +4540,16 @@ int init_common_variables() {
   if (init_thread_environment() || mysql_init_variables()) return 1;
 
   {
-    struct tm tm_tmp;
-    localtime_r(&server_start_time, &tm_tmp);
 #ifdef _WIN32
-    strmake(system_time_zone, _tzname[tm_tmp.tm_isdst != 0 ? 1 : 0],
-            sizeof(system_time_zone) - 1);
+    strmake(system_time_zone_dst_off, _tzname[0],
+            sizeof(system_time_zone_dst_off) - 1);
+    strmake(system_time_zone_dst_on, _tzname[1],
+            sizeof(system_time_zone_dst_on) - 1);
 #else
-    strmake(system_time_zone, tzname[tm_tmp.tm_isdst != 0 ? 1 : 0],
-            sizeof(system_time_zone) - 1);
+    strmake(system_time_zone_dst_off, tzname[0],
+            sizeof(system_time_zone_dst_off) - 1);
+    strmake(system_time_zone_dst_on, tzname[1],
+            sizeof(system_time_zone_dst_on) - 1);
 #endif
   }
   /*

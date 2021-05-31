@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <time.h>
 
 #include "keycache.h"  // dflt_key_cache
 #include "lex_string.h"
@@ -2602,6 +2603,35 @@ class Sys_var_gtid_executed : Sys_var_charptr_func {
       gs->to_string(buf);
     global_sid_lock->unlock();
     return (uchar *)buf;
+  }
+};
+
+/**
+  Class for @@global.system_time_zone.
+*/
+class Sys_var_system_time_zone : Sys_var_charptr_func {
+ public:
+  Sys_var_system_time_zone(const char *name_arg, const char *comment_arg)
+      : Sys_var_charptr_func(name_arg, comment_arg, GLOBAL) {
+    is_os_charset = true;
+  }
+
+  const uchar *global_value_ptr(THD *, LEX_STRING *) override {
+    DBUG_TRACE;
+    time_t current_time = my_time(0);
+    DBUG_EXECUTE_IF("set_cet_before_dst", {
+      // 1616893190 => Sunday March 28, 2021 01:59:50 (am) (CET)
+      current_time = 1616893190;
+    });
+    DBUG_EXECUTE_IF("set_cet_after_dst", {
+      // 1616893200 => Sunday March 28, 2021 03:00:00 (am) (CEST)
+      current_time = 1616893200;
+    });
+
+    struct tm tm_tmp;
+    localtime_r(&current_time, &tm_tmp);
+    return (uchar *)(tm_tmp.tm_isdst != 0 ? system_time_zone_dst_on
+                                          : system_time_zone_dst_off);
   }
 };
 
