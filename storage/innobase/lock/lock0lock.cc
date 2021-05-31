@@ -4708,7 +4708,7 @@ static bool lock_rec_fetch_page(const lock_t *lock) {
 
     /* Check if the space is exists or not. only
     when the space is valid, try to get the page. */
-    space = fil_space_acquire(space_id);
+    space = fil_space_acquire_silent(space_id);
     if (space) {
       mtr_start(&mtr);
       buf_page_get_gen(page_id, page_size, RW_NO_LATCH, nullptr,
@@ -5115,7 +5115,7 @@ static void lock_rec_block_validate(const page_id_t &page_id) {
 
   /* Make sure that the tablespace is not deleted while we are
   trying to access the page. */
-  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
+  if (fil_space_t *space = fil_space_acquire_silent(page_id.space())) {
     mtr_start(&mtr);
 
     block = buf_page_get_gen(page_id, page_size_t(space->flags), RW_X_LATCH,

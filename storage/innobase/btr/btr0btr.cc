@@ -1062,7 +1062,7 @@ void btr_truncate(const dict_index_t *index) {
 
   page_no_t root_page_no = index->page;
   space_id_t space_id = index->space;
-  fil_space_t *space = fil_space_acquire(space_id);
+  fil_space_t *space = fil_space_acquire_silent(space_id);
 
   if (space == nullptr) {
     return;
@@ -1118,7 +1118,7 @@ void btr_truncate_recover(const dict_index_t *index) {
 
   page_no_t root_page_no = index->page;
   space_id_t space_id = index->space;
-  fil_space_t *space = fil_space_acquire(space_id);
+  fil_space_t *space = fil_space_acquire_silent(space_id);
 
   if (space == nullptr) {
     return;

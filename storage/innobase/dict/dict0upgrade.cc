@@ -1290,7 +1290,7 @@ bool upgrade_space_version(const uint32 space_id, bool server_version_only) {
   page_t *page;
   mtr_t mtr;
 
-  fil_space_t *space = fil_space_acquire(space_id);
+  fil_space_t *space = fil_space_acquire_silent(space_id);
 
   if (space == nullptr) {
     return (true);

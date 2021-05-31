@@ -4084,7 +4084,7 @@ void ibuf_merge_or_delete_for_page(buf_block_t *block, const page_id_t &page_id,
       return;
     }
 
-    space = fil_space_acquire(page_id.space());
+    space = fil_space_acquire_silent(page_id.space());
 
     if (space == nullptr) {
       /* Do not try to read the bitmap page from space;
