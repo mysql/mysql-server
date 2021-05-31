@@ -121,13 +121,21 @@ static bool alloc_record_buffers(THD *thd, TABLE *table);
 
   After this, the table contents is created by calling TABLE::file->create()
   and the table is opened by calling open_tmp_table(), which itself calls
-  TABLE::file->ha_open(), increments TABLE_SHARE::tmp_handler_count to
-  indicate the number of active TABLE handles to this table, and sets
-  the TABLE::created flag.
+  TABLE::file->ha_open(), and sets the TABLE::created flag.
+
+  Thus, opening a temporary table is a two-stage operation:
+   1. assign and lock a storage engine, and
+   2. create the table contents.
+
+  Since a temporary table may be in any of the two stages, we use two
+  counter members in the TABLE_SHARE to count the number of TABLEs in each
+  of the stages: tmp_handler_count and tmp_open_count.
+  tmp_handler_count is incremented in setup_tmp_table_handler().
+  tmp_open_count is incremented in open_tmp_table().
 
   To open an already instantiated table, assign a storage handler by calling
   setup_tmp_table_handler(), then call open_tmp_table() which will
-  again increment TABLE_SHARE::tmp_handler_count and set TABLE::created.
+  again increment TABLE_SHARE::tmp_open_count and set TABLE::created.
 
   Insert, update, delete and read rows using the active TABLE handlers.
 
@@ -135,18 +143,20 @@ static bool alloc_record_buffers(THD *thd, TABLE *table);
   For simplicity, we may also call close_tmp_table() on a non-active TABLE,
   as it will check whether a storage handler has been assigned.
 
-  If the table is created, TABLE_SHARE::tmp_handler_count is decremented.
+  If the table is created, TABLE_SHARE::tmp_open_count is decremented.
   If there are no remaining active TABLE objects, delete the table contents
   by calling TABLE::file->ha_drop_table(), otherwise close it by calling
   TABLE::file->ha_close().
   Set status of the TABLE to deleted and delete the storage handler.
   If there are no remaining active tables and the storage engine is still
-  locked, unlock the plugin and disassociate it from the TABLE_SHARE object.
+  locked, unlock the plugin and disassociate it from the TABLE_SHARE object,
+  and decrement TABLE_SHARE::tmp_handler_count.
 
   After the final instantiation of an internal temporary table, call
   free_tmp_table() for all associated TABLE objects.
 
-  free_tmp_table() can only be called on a non-instantiated temporary table.
+  free_tmp_table() can only be called on a non-instantiated temporary table
+  (but handlers may be assigned for other TABLE objects to the same table)..
   It will decrement TABLE_SHARE::ref_count and the final call will also
   remove the temporary table's mem_root object.
 */
@@ -2103,6 +2113,8 @@ bool setup_tmp_table_handler(THD *thd, TABLE *table, ulonglong select_options,
                                 share->db_type());
   if (table->file == nullptr) return true;
 
+  share->tmp_handler_count++;
+
   // Update the handler with information about the table object
   table->file->change_table_ptr(table, share);
 
@@ -2186,7 +2198,7 @@ bool open_tmp_table(TABLE *table) {
   }
   (void)table->file->ha_extra(HA_EXTRA_QUICK); /* Faster */
 
-  table->s->tmp_handler_count++;
+  table->s->tmp_open_count++;
   table->set_created();
 
   return false;
@@ -2369,10 +2381,10 @@ bool instantiate_tmp_table(THD *thd, TABLE *table) {
   Close a temporary table at end of preparation or execution
 
   Any buffers associated with the table will be released.
-  When tmp_handler_count reaches zero, the following will happen:
+  When tmp_open_count reaches zero, the following will happen:
   - If table contents has been created, it will be deleted.
-  - If a storage handler has been allocated, it will be deleted and the
-    plugin will be released.
+  When tmp_handler_count reaches zero, the following will happen:
+  - The storage handler will be deleted and the plugin will be released.
 
   @param table  Table reference
 */
@@ -2380,32 +2392,36 @@ void close_tmp_table(TABLE *table) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", table->alias));
 
+  TABLE_SHARE *const share = table->s;
+
   // Free blobs, even if no storage handler is assigned
   for (Field **ptr = table->field; *ptr; ptr++) (*ptr)->mem_free();
 
   if (!table->has_storage_handler()) return;
 
-  assert(table->has_storage_handler() && table->s->ref_count() > 0 &&
-         table->s->tmp_handler_count <= table->s->ref_count());
+  assert(table->has_storage_handler() && share->ref_count() > 0 &&
+         share->tmp_handler_count > 0 &&
+         share->tmp_handler_count <= share->ref_count() &&
+         share->tmp_open_count <= share->tmp_handler_count);
   assert(table->mem_root.allocated_size() == 0);
 
   filesort_free_buffers(table, true);
 
   if (table->is_created()) {
-    if (--table->s->tmp_handler_count > 0) {
+    if (--share->tmp_open_count > 0) {
       table->file->ha_close();
     } else  // no more open 'handler' objects
       table->file->ha_drop_table(table->s->table_name.str);
     table->set_deleted();
   }
 
-  if (table->s->tmp_handler_count == 0 && table->s->db_plugin != nullptr) {
-    plugin_unlock(nullptr, table->s->db_plugin);
-    table->s->db_plugin = nullptr;
-  }
-
   destroy(table->file);
   table->file = nullptr;
+
+  if (--share->tmp_handler_count == 0 && share->db_plugin != nullptr) {
+    plugin_unlock(nullptr, share->db_plugin);
+    share->db_plugin = nullptr;
+  }
 
   free_io_cache(table);
 
@@ -2425,9 +2441,11 @@ void free_tmp_table(TABLE *table) {
   DBUG_TRACE;
   DBUG_PRINT("enter", ("table: %s", table->alias));
 
+  TABLE_SHARE *const share = table->s;
+
   assert(!table->is_created() && !table->has_storage_handler() &&
-         table->s->db_plugin == nullptr && table->s->ref_count() > 0 &&
-         table->s->tmp_handler_count == 0);
+         share->ref_count() > 0 && share->tmp_open_count == 0 &&
+         share->tmp_handler_count < share->ref_count());
 
   /*
     In create_tmp_table(), the share's memroot is allocated inside own_root
@@ -2435,9 +2453,9 @@ void free_tmp_table(TABLE *table) {
     so as soon as we free a memory block the memroot becomes unreadbable.
     So we need a copy to free it.
   */
-  if (table->s->decrement_ref_count() == 0)  // no more TABLE objects
+  if (share->decrement_ref_count() == 0)  // no more TABLE objects
   {
-    MEM_ROOT own_root = std::move(table->s->mem_root);
+    MEM_ROOT own_root = std::move(share->mem_root);
     destroy(table);
     free_root(&own_root, MYF(0));
   }
@@ -2503,10 +2521,6 @@ void free_tmp_table(TABLE *table) {
 bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
                              bool ignore_last_dup, bool *is_duplicate) {
   int write_err = 0;
-#ifndef NDEBUG
-  const uint initial_handler_count = wtable->s->tmp_handler_count;
-  bool rows_on_disk = false;
-#endif
   bool table_on_disk = false;
   DBUG_TRACE;
 
@@ -2537,6 +2551,13 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
 
   TABLE_SHARE *const old_share = wtable->s;
   const plugin_ref old_plugin = old_share->db_plugin;
+
+#ifndef NDEBUG
+  const uint initial_handler_count = old_share->tmp_handler_count;
+  const uint initial_open_count = old_share->tmp_open_count;
+  bool rows_on_disk = false;
+#endif
+
   TABLE_SHARE share = std::move(*old_share);
   assert(share.ha_share == nullptr);
 
@@ -2717,7 +2738,7 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
         // Closing the MEMORY table drops it if its ref count is down to zero
         (void)table->file->ha_close();
       }
-      share.tmp_handler_count--;
+      share.tmp_open_count--;
     }
 
     /*
@@ -2790,7 +2811,8 @@ bool create_ondisk_from_heap(THD *thd, TABLE *wtable, int error,
     it, and so do their table->file: everything is consistent.
   */
 
-  assert(initial_handler_count == wtable->s->tmp_handler_count);
+  assert(initial_handler_count == old_share->tmp_handler_count);
+  assert(initial_open_count == old_share->tmp_open_count);
 
   if (save_proc_info)
     thd_proc_info(thd, (!strcmp(save_proc_info, "Copying to tmp table")
