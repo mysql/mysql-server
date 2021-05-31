@@ -184,7 +184,7 @@ ulint buf_read_ahead_random(const page_id_t &page_id,
   /* Remember the tablespace version before we ask the tablespace size
   below: if DISCARD + IMPORT changes the actual .ibd file meanwhile, we
   do not try to read outside the bounds of the tablespace! */
-  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
+  if (fil_space_t *space = fil_space_acquire_silent(page_id.space())) {
     if (high > space->size) {
       high = space->size;
     }
@@ -372,7 +372,7 @@ ulint buf_read_ahead_linear(const page_id_t &page_id,
   do not try to read outside the bounds of the tablespace! */
   ulint space_size;
 
-  if (fil_space_t *space = fil_space_acquire(page_id.space())) {
+  if (fil_space_t *space = fil_space_acquire_silent(page_id.space())) {
     space_size = space->size;
 
     fil_space_release(space);
