@@ -118,9 +118,9 @@ CALL mtr.add_suppression("Plugin audit_log reported *");
 # Both queries must return 101 rows.
 SELECT * FROM performance_schema.persisted_variables;
 VARIABLE_NAME	VARIABLE_VALUE
+replica_type_conversions	
 innodb_log_buffer_size	16777216
 slave_type_conversions	
-replica_type_conversions	
 back_log	80
 binlog_gtid_simple_recovery	ON
 disabled_storage_engines	

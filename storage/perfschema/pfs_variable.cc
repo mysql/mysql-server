@@ -490,7 +490,7 @@ int PFS_system_persisted_variables_cache::do_materialize_all(THD *unsafe_thd) {
   if ((m_safe_thd = get_THD(unsafe_thd)) != nullptr) {
     Persisted_variables_cache *pv = Persisted_variables_cache::get_instance();
     if (pv) {
-      vector<st_persist_var> *persist_variables = pv->get_persisted_variables();
+      auto *persist_variables = pv->get_persisted_variables();
       pv->lock();
       for (auto iter = persist_variables->begin();
            iter != persist_variables->end(); iter++) {
