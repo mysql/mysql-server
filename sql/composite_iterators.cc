@@ -546,7 +546,7 @@ bool MaterializeIterator::Init() {
   // tables.
   if (!table()->materialized && m_cte != nullptr) {
     for (TABLE_LIST *table_ref : m_cte->tmp_tables) {
-      if (table_ref->table->materialized) {
+      if (table_ref->table != nullptr && table_ref->table->materialized) {
         table()->materialized = true;
         break;
       }

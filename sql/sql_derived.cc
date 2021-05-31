@@ -201,6 +201,7 @@ TABLE *Common_table_expr::clone_tmp_table(THD *thd, TABLE_LIST *tl) {
     return nullptr; /* purecov: inspected */
   assert(t->s == first->s && t != first && t->file != first->file);
   t->s->increment_ref_count();
+  t->s->tmp_handler_count++;
 
   // In case this clone is used to fill the materialized table:
   bitmap_set_all(t->write_set);

@@ -818,6 +818,12 @@ struct TABLE_SHARE {
   */
   uint tmp_handler_count{0};
 
+  /**
+    Only for internal temporary tables.
+    Count of TABLEs (having this TABLE_SHARE) which have opened this table.
+  */
+  uint tmp_open_count{0};
+
   // Can only be 1,2,4,8 or 16, but use uint32_t since that how it is
   // represented in InnoDB
   std::uint32_t key_block_size{0}; /* create key_block_size, if used */
