@@ -3236,6 +3236,7 @@ static void BuildInterestingOrders(
     Ordering ordering =
         Ordering::Alloc(thd->mem_root, pred.expr->equijoin_conditions.size());
     table_map used_tables = 0;
+    bool contains_row_item = false;
     for (size_t i = 0; i < pred.expr->equijoin_conditions.size(); ++i) {
       Item *item = pred.expr->equijoin_conditions[i]->get_arg(1);
       if (!IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS, inner_tables)) {
@@ -3243,8 +3244,23 @@ static void BuildInterestingOrders(
         assert(
             IsSubset(item->used_tables() & ~PSEUDO_TABLE_BITS, inner_tables));
       }
+      if (item->result_type() == ROW_RESULT) {
+        // In rare cases, the optimizer may set up semijoins where the
+        // items themselves are ROW() items. RemoveDuplicatesIterator
+        // isn't ready for ROW_RESULT type, so we unwrap the simple ones
+        // and simply ignore semijoins over more complex row-type items.
+        if (item->type() == Item::ROW_ITEM && item->cols() == 1) {
+          item = down_cast<Item_row *>(item)->element_index(0);
+        } else {
+          contains_row_item = true;
+          break;
+        }
+      }
       ordering[i].item = orderings->GetHandle(item);
       used_tables |= item->used_tables();
+    }
+    if (contains_row_item) {
+      continue;
     }
     CanonicalizeGrouping(&ordering);
 

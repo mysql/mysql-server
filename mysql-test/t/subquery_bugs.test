@@ -1562,3 +1562,21 @@ SELECT * FROM t1 WHERE a <= ALL (
 );
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32937950 - HYPERGRAPH: CACHED_ITEM* NEW_CACHED_ITEM: ASSERTION `0' FAILED.
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER,
+  PRIMARY KEY (a)
+) PARTITION BY LINEAR KEY () PARTITIONS 4;
+
+# Sets up a semijoin on ROW(a) = ROW(a) for some reason,
+# and the WHERE happens to make it cheapest to execute
+# by means of deduplication and inverting the join.
+SELECT 1 FROM t1 WHERE
+  ( SELECT a FROM ( SELECT 1 ) AS q )
+   IN ( SELECT a FROM t1 WHERE a > 0 GROUP BY a );
+
+DROP TABLE t1;

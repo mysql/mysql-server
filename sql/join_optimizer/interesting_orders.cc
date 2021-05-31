@@ -124,6 +124,13 @@ int LogicalOrderings::AddOrderingInternal(THD *thd, Ordering order,
       assert(order[i].item > order[i - 1].item);
       assert(order[i].direction == ORDER_NOT_RELEVANT);
     }
+
+    // Verify that none of the items are of ROW_RESULT,
+    // as RemoveDuplicatesIterator cannot handle them.
+    // (They would theoretically be fine for orderings.)
+    for (size_t i = 0; i < order.size(); ++i) {
+      assert(m_items[order[i].item].item->result_type() != ROW_RESULT);
+    }
   }
 #endif
 
