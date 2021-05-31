@@ -3698,6 +3698,12 @@ public:
   /**
     @return true if there is an active attachable transaction.
   */
+  int is_attachable_transaction_active() const
+  { return m_attachable_trx != NULL; }
+
+  /**
+    @return true if there is an active attachable readonly transaction.
+  */
   bool is_attachable_ro_transaction_active() const
   { return m_attachable_trx != NULL && m_attachable_trx->is_read_only(); }
 

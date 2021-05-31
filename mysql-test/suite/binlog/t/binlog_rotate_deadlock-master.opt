@@ -1,0 +1,7 @@
+--binlog-format=MIXED
+--max_binlog_size=4096
+--innodb_thread_concurrency=1
+--innodb_thread_sleep_delay=0
+--enforce_gtid_consistency=ON
+--gtid_mode=ON
+--master-info-repository=TABLE
