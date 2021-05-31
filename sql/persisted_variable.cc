@@ -395,24 +395,15 @@ bool Persisted_variables_cache::set_variable(THD *thd, set_var *setvar) {
       m_persist_ro_variables[tmp_var.key] = tmp_var;
     else {
       /*
-       if element is present remove from current position and insert
-       at end of vector to restore insertion order.
+       if element is present remove it and insert
+       it again with new value.
       */
-      string str = tmp_var.key;
-      auto itt =
-          std::find_if(m_persist_variables.begin(), m_persist_variables.end(),
-                       [str](st_persist_var const &s) { return s.key == str; });
-      if (itt != m_persist_variables.end()) m_persist_variables.erase(itt);
-      m_persist_variables.push_back(tmp_var);
+      m_persist_variables.erase(tmp_var);
+      m_persist_variables.insert(tmp_var);
       /* for plugin variables update m_persist_plugin_variables */
       if (setvar->var->cast_pluginvar()) {
-        auto it = std::find_if(
-            m_persist_plugin_variables.begin(),
-            m_persist_plugin_variables.end(),
-            [str](st_persist_var const &s) { return s.key == str; });
-        if (it != m_persist_plugin_variables.end())
-          m_persist_plugin_variables.erase(it);
-        m_persist_plugin_variables.push_back(tmp_var);
+        m_persist_plugin_variables.erase(tmp_var);
+        m_persist_plugin_variables.insert(tmp_var);
       }
     }
     unlock();
@@ -698,7 +689,8 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
   THD *thd;
   LEX lex_tmp, *sav_lex = nullptr;
   List<set_var_base> tmp_var_list;
-  vector<st_persist_var> *persist_variables = nullptr;
+  std::unordered_set<st_persist_var, st_persist_var_hash> *persist_variables =
+      nullptr;
   bool result = false, new_thd = false;
   const std::vector<std::string> priv_list = {
       "ENCRYPTION_KEY_ADMIN", "ROLE_ADMIN", "SYSTEM_VARIABLES_ADMIN",
@@ -779,9 +771,10 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
         keep track of this variable so that it is set when plugin
         is loaded and continue with remaining persisted variables
       */
-      m_persist_plugin_variables.push_back(*iter);
-      LogErr(WARNING_LEVEL, ER_UNKNOWN_VARIABLE_IN_PERSISTED_CONFIG_FILE,
-             var_name.c_str());
+      auto ret = m_persist_plugin_variables.insert(*iter);
+      if (ret.second == true)
+        LogErr(WARNING_LEVEL, ER_UNKNOWN_VARIABLE_IN_PERSISTED_CONFIG_FILE,
+               var_name.c_str());
       continue;
     }
     /*
@@ -867,9 +860,7 @@ bool Persisted_variables_cache::set_persist_options(bool plugin_options) {
       Once persisted variables are SET in the server,
       update variables source/user/timestamp/host from m_persist_variables.
     */
-    auto it = std::find_if(
-        m_persist_variables.begin(), m_persist_variables.end(),
-        [var_name](st_persist_var const &s) { return s.key == var_name; });
+    auto it = m_persist_variables.find(*iter);
     if (it != m_persist_variables.end()) {
       /* persisted variable is found */
       sysvar->set_source(enum_variable_source::PERSISTED);
@@ -1047,7 +1038,7 @@ bool Persisted_variables_cache::extract_variables_from_json(const Json_dom *dom,
     if (is_read_only)
       m_persist_ro_variables[var_name] = persist_var;
     else
-      m_persist_variables.push_back(persist_var);
+      m_persist_variables.insert(persist_var);
     unlock();
   }
   return false;
@@ -1092,14 +1083,12 @@ void Persisted_variables_cache::load_aliases() {
         }
       };
   lock();
-  size_t size = m_persist_variables.size();
-  for (size_t i = 0; i < size; i++) {
-    auto var = m_persist_variables[i];
+  for (auto iter : m_persist_variables) {
     insert_alias(
         [&](const char *name) -> bool {
           return var_set.find(name) != var_set.end();
         },
-        [&](st_persist_var &v) { m_persist_variables.push_back(v); }, var);
+        [&](st_persist_var &v) { m_persist_variables.insert(v); }, iter);
   }
   for (auto pair : m_persist_ro_variables) {
     insert_alias(
@@ -1375,7 +1364,8 @@ end:
 /**
   Return in-memory copy persist_variables_
 */
-vector<st_persist_var> *Persisted_variables_cache::get_persisted_variables() {
+std::unordered_set<st_persist_var, st_persist_var_hash>
+    *Persisted_variables_cache::get_persisted_variables() {
   return &m_persist_variables;
 }
 

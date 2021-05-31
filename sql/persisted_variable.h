@@ -26,7 +26,7 @@
 #include <stddef.h>
 #include <map>
 #include <string>
-#include <vector>
+#include <unordered_set>
 
 #include "my_alloc.h"
 #include "my_inttypes.h"
@@ -60,6 +60,21 @@ struct st_persist_var {
   st_persist_var(const std::string key, const std::string value,
                  const ulonglong timestamp, const std::string user,
                  const std::string host, const bool is_null);
+  /* This is custom comparision function used to make the unordered_set
+     to work with the default std::hash for userdefined types. */
+  bool operator==(const st_persist_var &persist_var) const {
+    return key == persist_var.key;
+  }
+};
+
+/**
+  STRUCT st_persist_var_hash
+
+  This structure has a custom hasher function used to make the unordered_set
+  to work with the default std::hash for userdefined types.
+*/
+struct st_persist_var_hash {
+  size_t operator()(const st_persist_var &pv) const { return pv.key.length(); }
 };
 
 /**
@@ -71,7 +86,7 @@ struct st_persist_var {
   --------
   When first SET PERSIST statement is executed we instantiate
   Persisted_variables_cache which loads the config file if present into
-  m_persist_variables vector. This is a singleton operation. m_persist_variables
+  m_persist_variables set. This is a singleton operation. m_persist_variables
   is an in-memory copy of config file itself. If the SET statement passes then
   this in-memory is updated and flushed to file as an atomic operation.
 
@@ -114,7 +129,8 @@ class Persisted_variables_cache {
   /**
     Get persisted variables
   */
-  std::vector<st_persist_var> *get_persisted_variables();
+  std::unordered_set<st_persist_var, st_persist_var_hash>
+      *get_persisted_variables();
   /**
     Get persisted static variables
   */
@@ -174,9 +190,10 @@ class Persisted_variables_cache {
 
  private:
   /* In memory copy of persistent config file */
-  std::vector<st_persist_var> m_persist_variables;
+  std::unordered_set<st_persist_var, st_persist_var_hash> m_persist_variables;
   /* copy of plugin variables whose plugin is not yet installed */
-  std::vector<st_persist_var> m_persist_plugin_variables;
+  std::unordered_set<st_persist_var, st_persist_var_hash>
+      m_persist_plugin_variables;
   /* In memory copy of read only persistent variables */
   std::map<std::string, st_persist_var> m_persist_ro_variables;
 
