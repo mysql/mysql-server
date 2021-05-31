@@ -162,30 +162,6 @@ SET @@global.innodb_table_locks = FALSE;
 SELECT @@global.innodb_table_locks;
 @@global.innodb_table_locks
 0
-'#---------------------FN_DYNVARS_046_10----------------------#'
-CREATE USER foo, bar;
-GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
-SELECT @@session.innodb_table_locks;
-@@session.innodb_table_locks
-0
-SET @@session.innodb_table_locks = 'OFF';
-ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
-SELECT @@session.innodb_table_locks;
-@@session.innodb_table_locks
-0
-SET @@session.innodb_table_locks = 'OFF';
-SET @@session.innodb_table_locks = 1;
-SET @@session.innodb_table_locks = FALSE;
-SELECT @@session.innodb_table_locks;
-@@session.innodb_table_locks
-0
-SET @@global.innodb_table_locks = FALSE;
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
-SET @@session.innodb_table_locks = -1;
-ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of '-1'
-SET @@session.innodb_table_locks = 'STR';
-ERROR 42000: Variable 'innodb_table_locks' can't be set to the value of 'STR'
-DROP USER foo, bar;
 SET @@session.innodb_table_locks = @session_start_value;
 SELECT @@session.innodb_table_locks;
 @@session.innodb_table_locks

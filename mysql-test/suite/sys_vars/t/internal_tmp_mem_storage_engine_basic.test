@@ -27,28 +27,5 @@ SELECT @@global.internal_tmp_mem_storage_engine;
 SET @@global.internal_tmp_mem_storage_engine = 'foo';
 SELECT @@global.internal_tmp_mem_storage_engine;
 
-######################################################################################
-#   Check if changing session variable throws error without sufficient privileges    #
-######################################################################################
-CREATE USER foo, bar;
-GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
---let $conn_name = foo_connection
---connect($conn_name, localhost, foo,,,)
-SELECT @@session.preload_buffer_size;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET @@session.internal_tmp_mem_storage_engine = 'memory';
---connection default
-disconnect $conn_name;
---let $conn_name = bar_connection
---connect($conn_name, localhost, bar,,,)
-SELECT @@session.internal_tmp_mem_storage_engine;
-SET @@session.internal_tmp_mem_storage_engine = 'memory';
-SELECT @@session.internal_tmp_mem_storage_engine;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET @@global.internal_tmp_mem_storage_engine = 'memory';
---connection default
-disconnect $conn_name;
-DROP USER foo, bar;
-
 SET @@global.internal_tmp_mem_storage_engine = default;
 SET @@session.internal_tmp_mem_storage_engine = default;

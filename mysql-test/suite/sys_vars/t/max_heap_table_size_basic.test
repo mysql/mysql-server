@@ -210,29 +210,6 @@ SELECT session.max_heap_table_size;
 --Error ER_BAD_FIELD_ERROR
 SELECT max_heap_table_size = @@session.max_heap_table_size;
 
---echo '#---------------------FN_DYNVARS_077_12----------------------#'
-######################################################################################
-#   Check if changing session variable throws error without sufficient privileges    #
-######################################################################################
-CREATE USER foo, bar;
-GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
---let $conn_name = foo_connection
---connect($conn_name, localhost, foo,,,)
-SELECT @@session.max_heap_table_size;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET @@session.max_heap_table_size = 163845;
---connection default
-disconnect $conn_name;
---let $conn_name = bar_connection
---connect($conn_name, localhost, bar,,,)
-SELECT @@session.max_heap_table_size;
-SET @@session.max_heap_table_size = 163845;
-SELECT @@session.max_heap_table_size;
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET @@global.max_heap_table_size = 163845;
---connection default
-disconnect $conn_name;
-DROP USER foo, bar;
 
 ####################################
 #     Restore initial value        #

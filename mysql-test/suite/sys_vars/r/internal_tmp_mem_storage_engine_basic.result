@@ -35,22 +35,5 @@ ERROR 42000: Variable 'internal_tmp_mem_storage_engine' can't be set to the valu
 SELECT @@global.internal_tmp_mem_storage_engine;
 @@global.internal_tmp_mem_storage_engine
 TempTable
-CREATE USER foo, bar;
-GRANT SESSION_VARIABLES_ADMIN ON *.*  TO bar;
-SELECT @@session.preload_buffer_size;
-@@session.preload_buffer_size
-32768
-SET @@session.internal_tmp_mem_storage_engine = 'memory';
-ERROR 42000: Access denied; you need (at least one of) the SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
-SELECT @@session.internal_tmp_mem_storage_engine;
-@@session.internal_tmp_mem_storage_engine
-TempTable
-SET @@session.internal_tmp_mem_storage_engine = 'memory';
-SELECT @@session.internal_tmp_mem_storage_engine;
-@@session.internal_tmp_mem_storage_engine
-MEMORY
-SET @@global.internal_tmp_mem_storage_engine = 'memory';
-ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
-DROP USER foo, bar;
 SET @@global.internal_tmp_mem_storage_engine = default;
 SET @@session.internal_tmp_mem_storage_engine = default;
