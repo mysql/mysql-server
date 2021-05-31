@@ -19,7 +19,7 @@ include/check_slave_no_error.inc
 [on slave]
 include/stop_slave.inc
 # R2: Set the ssl connection ON  and weak cipher CAMELLIA256-SHA
-CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;;
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'CAMELLIA256-SHA', SOURCE_RETRY_COUNT = 1;;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
@@ -32,7 +32,7 @@ SERVICE_STATE	LAST_ERROR_NUMBER
 OFF	2026
 # R3: Set the ssl connection ON and strong cipher
 include/stop_slave.inc
-CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_SSL_CIPHER = 'AES128-SHA';;
+CHANGE REPLICATION SOURCE TO SOURCE_USER = 'root', SOURCE_PASSWORD = '', SOURCE_SSL = 1, SOURCE_TLS_VERSION = 'TLSv1.2', SOURCE_SSL_CIPHER = 'AES128-SHA';;
 Warnings:
 Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	1760	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
