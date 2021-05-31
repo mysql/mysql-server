@@ -347,14 +347,14 @@ cleanup:
 
   recovery_aborted = true;  // to avoid the start missing signals
   delete recovery_thd;
-  recovery_thd_state.set_terminated();
-  mysql_cond_broadcast(&run_cond);
-  mysql_mutex_unlock(&run_lock);
 
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
 
   my_thread_end();
+  recovery_thd_state.set_terminated();
+  mysql_cond_broadcast(&run_cond);
+  mysql_mutex_unlock(&run_lock);
   my_thread_exit(nullptr);
 
   return error; /* purecov: inspected */

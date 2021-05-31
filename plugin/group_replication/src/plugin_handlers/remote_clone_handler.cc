@@ -896,10 +896,10 @@ thd_end:
   delete thd;
   m_clone_thd = nullptr;
   thd = nullptr;
+  my_thread_end();
   m_clone_process_thd_state.set_terminated();
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
 
-  my_thread_end();
   my_thread_exit(nullptr);
 }

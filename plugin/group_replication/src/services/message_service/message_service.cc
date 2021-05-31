@@ -196,13 +196,13 @@ void Message_service_handler::dispatcher() {
   thd->release_resources();
   global_thd_manager_remove_thd(thd);
   delete thd;
+  my_thread_end();
 
   mysql_mutex_lock(&m_message_service_run_lock);
   m_message_service_thd_state.set_terminated();
   mysql_cond_broadcast(&m_message_service_run_cond);
   mysql_mutex_unlock(&m_message_service_run_lock);
 
-  my_thread_end();
   my_thread_exit(nullptr);
 }
 

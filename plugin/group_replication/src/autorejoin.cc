@@ -273,11 +273,10 @@ void Autorejoin_thread::execute_rejoin_process() {
   global_thd_manager_remove_thd(m_thd);
   delete m_thd;
   m_thd = nullptr;
+  my_thread_end();
   m_autorejoin_thd_state.set_terminated();
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
 
-  // And finally, terminate the thread.
-  my_thread_end();
   my_thread_exit(nullptr);
 }

@@ -595,11 +595,12 @@ end:
 #endif
 
   delete applier_thd;
+  applier_thd = nullptr;
+  my_thread_end();
   applier_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
 
-  my_thread_end();
   applier_thread_is_exiting = true;
   my_thread_exit(nullptr);
 

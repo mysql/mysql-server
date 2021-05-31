@@ -163,11 +163,10 @@ int Delayed_initialization_thread::initialization_thread_handler() {
   thd->release_resources();
   global_thd_manager_remove_thd(thd);
   delete thd;
+  my_thread_end();
   delayed_thd_state.set_terminated();
   mysql_cond_broadcast(&run_cond);
   mysql_mutex_unlock(&run_lock);
-
-  my_thread_end();
 
   return error;
 }

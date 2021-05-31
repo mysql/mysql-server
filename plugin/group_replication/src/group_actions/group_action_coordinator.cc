@@ -915,6 +915,7 @@ int Group_action_coordinator::execute_group_action_handler() {
   thd->release_resources();
   global_thd_manager_remove_thd(thd);
   delete thd;
+  my_thread_end();
 
   mysql_mutex_lock(&group_thread_run_lock);
   action_handler_thd_state.set_terminated();
@@ -923,8 +924,6 @@ int Group_action_coordinator::execute_group_action_handler() {
 
   Gcs_interface_factory::cleanup_thread_communication_resources(
       Gcs_operations::get_gcs_engine());
-
-  my_thread_end();
 
   return error;
 }

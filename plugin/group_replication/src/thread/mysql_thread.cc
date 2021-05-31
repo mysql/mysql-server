@@ -177,13 +177,13 @@ void Mysql_thread::dispatcher() {
   global_thd_manager_remove_thd(thd);
   delete thd;
   m_thd = nullptr;
+  my_thread_end();
 
   mysql_mutex_lock(&m_run_lock);
   m_state.set_terminated();
   mysql_cond_broadcast(&m_run_cond);
   mysql_mutex_unlock(&m_run_lock);
 
-  my_thread_end();
   my_thread_exit(nullptr);
 }
 
