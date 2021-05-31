@@ -84,7 +84,14 @@ Item *FindReplacementOrReplaceMaterializedItems(
   if (replacement != nullptr) {
     return replacement;
   } else {
-    ReplaceMaterializedItems(thd, item, items_to_copy, need_exact_match);
+    // We don't need to care about the hidden flag when modifying the arguments
+    // to an item (ie., the item itself isn't in the SELECT list). Non-exact
+    // matches are important when modifying arguments within rollup group
+    // wrappers, since e.g. rollup_group_item(t1.a) will create a hidden item
+    // t1.a, and if we materialize t1.a -> <temporary>.a, we'll need to modify
+    // the argument to the rollup group wrapper as well.
+    ReplaceMaterializedItems(thd, item, items_to_copy,
+                             /*need_exact_match=*/false);
     return item;
   }
 }
