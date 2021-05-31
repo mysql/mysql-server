@@ -3743,6 +3743,12 @@
       <th>Description</th>
     </tr>
     <tr>
+      <td><tt>EXE_MYSQL</tt></td>
+      <td>
+        Path to the mysql client executable
+      </td>
+    </tr>
+    <tr>
       <td><tt>MTR_BUILD_THREAD</tt></td>
       <td>
         If set, defines which port number range is used for the server
@@ -3810,7 +3816,15 @@
         Users have to make sure this variable is set to the same path
         on all environments, and that this common path is mounted on
         all the environments.
-     <tr>
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MYSQL</tt></td>
+      <td>
+        Full path to <b>mysql</b> client executable ,along with options passed to server.
+      </td>
+    </tr>
+    <tr>
       <td><tt>MYSQL_BIN_PATH</tt></td>
       <td>
         Path to the directory having mysql binaries.
@@ -3826,6 +3840,12 @@
       <td><tt>MYSQL_CONFIG_EDITOR</tt></td>
       <td>
         Path name to <b>mysql_config_editor</b> binary.
+      </td>
+    </tr>
+    <tr>
+      <td><tt>MYSQL_OPTIONS</tt></td>
+      <td>
+        Options passed to server when connecting from mysql client.
       </td>
     </tr>
     <tr>
@@ -3907,6 +3927,10 @@
   actual port number directly (will be rounded down to a multiple of
   10). If you use <b>MTR_BUILD_THREAD</b>, the port number is found
   by multiplying this by 10 and adding 10000.
+
+  The variable <b>$MYSQL_OPTIONS</b> contains only the options used while
+  connecting to server from mysql client . whereas variable <b>$MYSQL</b>
+  contains path to mysql client executable along with options .
 
   Tests sometimes rely on certain environment variables being defined.
   For example, certain tests assume that <b>MYSQL_TEST</b> is
