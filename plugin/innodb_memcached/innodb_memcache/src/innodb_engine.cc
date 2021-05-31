@@ -367,6 +367,9 @@ static void *innodb_bk_thread(
       if (conn_data->is_stale) {
         assert(!conn_data->in_use);
         UT_LIST_REMOVE(conn_list, innodb_eng->conn_data, conn_data);
+        if (conn_data->thd) {
+          handler_thd_attach(conn_data->thd, nullptr);
+        }
         innodb_conn_clean_data(conn_data, true, true);
       } else if (!conn_data->in_use) {
         if (conn_data->thd) {
