@@ -1580,3 +1580,20 @@ SELECT 1 FROM t1 WHERE
    IN ( SELECT a FROM t1 WHERE a > 0 GROUP BY a );
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #32934187: HYPERGRAPH: CRASHING IN ITEM_IN_SUBSELECT::EXEC
+--echo #
+
+CREATE TABLE t1 (a DATETIME);
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+INSERT INTO t1 VALUES ('2000-01-01 00:00:00');
+
+SET @b := _latin1 'a';
+--disable_result_log
+# The hypergraph optimizer errors out, the old optimizer does not.
+--error 0,ER_WRONG_VALUE
+SELECT 1 FROM t1 WHERE (@b IN ( SELECT a FROM t1 )) = a;
+--enable_result_log
+
+DROP TABLE t1;

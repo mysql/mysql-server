@@ -808,6 +808,10 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
     }
     m_root_iterator = CreateIteratorFromAccessPath(
         thd, m_root_access_path, join, /*eligible_for_batch_mode=*/true);
+    if (m_root_iterator == nullptr) {
+      return true;
+    }
+
     if (false) {
       // This can be useful during debugging.
       bool is_root_of_join = (join != nullptr);

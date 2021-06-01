@@ -164,12 +164,12 @@ bool ShouldEnableBatchMode(AccessPath *path) {
   }
 }
 
-void FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
+bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
   if (path->type != AccessPath::FILTER ||
       !path->filter().materialize_subqueries) {
-    return;
+    return false;
   }
-  WalkItem(
+  return WalkItem(
       path->filter().condition, enum_walk::POSTFIX, [thd, join](Item *item) {
         if (!IsItemInSubSelect(item)) {
           return false;
@@ -180,8 +180,10 @@ void FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
                                                         join->query_block)) {
           return false;
         }
-        item_subs->finalize_materialization_transform(thd,
-                                                      subquery_block->join);
+        if (item_subs->finalize_materialization_transform(
+                thd, subquery_block->join)) {
+          return true;
+        }
         item_subs->create_iterators(thd);
         return false;
       });
@@ -189,7 +191,9 @@ void FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path) {
 
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode) {
-  FinalizeMaterializedSubqueries(thd, join, path);
+  if (FinalizeMaterializedSubqueries(thd, join, path)) {
+    return nullptr;
+  }
 
   unique_ptr_destroy_only<RowIterator> iterator;
 
@@ -304,11 +308,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       break;
     case AccessPath::ZERO_ROWS: {
       const auto &param = path->zero_rows();
-      unique_ptr_destroy_only<RowIterator> child =
-          param.child != nullptr
-              ? CreateIteratorFromAccessPath(thd, param.child, join,
-                                             /*eligible_for_batch_mode=*/false)
-              : nullptr;
+      unique_ptr_destroy_only<RowIterator> child;
+      if (param.child != nullptr) {
+        child = CreateIteratorFromAccessPath(thd, param.child, join,
+                                             /*eligible_for_batch_mode=*/false);
+        if (child == nullptr) {
+          return nullptr;
+        }
+      }
       iterator = NewIterator<ZeroRowsIterator>(thd, move(child));
       break;
     }
@@ -321,6 +328,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       unique_ptr_destroy_only<RowIterator> table_iterator =
           CreateIteratorFromAccessPath(thd, param.table_path, join,
                                        eligible_for_batch_mode);
+      if (table_iterator == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<MaterializedTableFunctionIterator>(
           thd, param.table_function, param.table, move(table_iterator));
       break;
@@ -332,8 +342,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->nested_loop_join();
       unique_ptr_destroy_only<RowIterator> outer = CreateIteratorFromAccessPath(
           thd, param.outer, join, /*eligible_for_batch_mode=*/false);
+      if (outer == nullptr) {
+        return nullptr;
+      }
       unique_ptr_destroy_only<RowIterator> inner = CreateIteratorFromAccessPath(
           thd, param.inner, join, eligible_for_batch_mode);
+      if (inner == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<NestedLoopIterator>(
           thd, move(outer), move(inner), param.join_type, param.pfs_batch_mode);
       break;
@@ -342,8 +358,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->nested_loop_semijoin_with_duplicate_removal();
       unique_ptr_destroy_only<RowIterator> outer = CreateIteratorFromAccessPath(
           thd, param.outer, join, /*eligible_for_batch_mode=*/false);
+      if (outer == nullptr) {
+        return nullptr;
+      }
       unique_ptr_destroy_only<RowIterator> inner = CreateIteratorFromAccessPath(
           thd, param.inner, join, eligible_for_batch_mode);
+      if (inner == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<NestedLoopSemiJoinWithDuplicateRemovalIterator>(
           thd, move(outer), move(inner), param.table, param.key, param.key_len);
       break;
@@ -356,8 +378,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
 
       unique_ptr_destroy_only<RowIterator> outer = CreateIteratorFromAccessPath(
           thd, param.outer, join, /*eligible_for_batch_mode=*/false);
+      if (outer == nullptr) {
+        return nullptr;
+      }
       unique_ptr_destroy_only<RowIterator> inner = CreateIteratorFromAccessPath(
           thd, param.inner, join, /*eligible_for_batch_mode=*/false);
+      if (inner == nullptr) {
+        return nullptr;
+      }
       MultiRangeRowIterator *mrr_iterator = down_cast<MultiRangeRowIterator *>(
           mrr_path->iterator->real_iterator());
       iterator = NewIterator<BKAIterator>(
@@ -372,8 +400,14 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const JoinPredicate *join_predicate = param.join_predicate;
       unique_ptr_destroy_only<RowIterator> outer = CreateIteratorFromAccessPath(
           thd, param.outer, join, eligible_for_batch_mode);
+      if (outer == nullptr) {
+        return nullptr;
+      }
       unique_ptr_destroy_only<RowIterator> inner = CreateIteratorFromAccessPath(
           thd, param.inner, join, /*eligible_for_batch_mode=*/true);
+      if (inner == nullptr) {
+        return nullptr;
+      }
       vector<HashJoinCondition> conditions;
       for (Item_func_eq *cond : join_predicate->expr->equijoin_conditions) {
         conditions.emplace_back(HashJoinCondition(cond, thd->mem_root));
@@ -436,6 +470,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->filter();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<FilterIterator>(thd, move(child), param.condition);
       break;
     }
@@ -443,6 +480,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->sort();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, /*eligible_for_batch_mode=*/true);
+      if (child == nullptr) {
+        return nullptr;
+      }
       ha_rows num_rows_estimate = param.child->num_output_rows < 0.0
                                       ? HA_POS_ERROR
                                       : lrint(param.child->num_output_rows);
@@ -463,6 +503,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->aggregate();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       Prealloced_array<TABLE *, 4> tables = GetUsedTables(param.child);
       iterator = NewIterator<AggregateIterator>(
           thd, move(child), join,
@@ -476,9 +519,15 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       unique_ptr_destroy_only<RowIterator> subquery_iterator =
           CreateIteratorFromAccessPath(thd, param.subquery_path, join,
                                        /*eligible_for_batch_mode=*/true);
+      if (subquery_iterator == nullptr) {
+        return nullptr;
+      }
       unique_ptr_destroy_only<RowIterator> table_iterator =
           CreateIteratorFromAccessPath(thd, param.table_path, join,
                                        eligible_for_batch_mode);
+      if (table_iterator == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<TemptableAggregateIterator>(
           thd, move(subquery_iterator), param.temp_table_param, param.table,
           move(table_iterator), join, param.ref_slice);
@@ -488,6 +537,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->limit_offset();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       ha_rows *send_records = nullptr;
       if (param.send_records_override != nullptr) {
         send_records = param.send_records_override;
@@ -503,6 +555,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->stream();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, param.join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<StreamingIterator>(
           thd, move(child), param.temp_table_param, param.table,
           param.provide_rowid, param.join, param.ref_slice);
@@ -521,6 +576,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       unique_ptr_destroy_only<RowIterator> table_iterator =
           CreateIteratorFromAccessPath(thd, path->materialize().table_path,
                                        join, eligible_for_batch_mode);
+      if (table_iterator == nullptr) {
+        return nullptr;
+      }
       MaterializePathParameters *param = path->materialize().param;
 
       Mem_root_array<MaterializeIterator::QueryBlock> query_blocks(
@@ -532,6 +590,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
         to.subquery_iterator =
             CreateIteratorFromAccessPath(thd, from.subquery_path, from.join,
                                          /*eligible_for_batch_mode=*/true);
+        if (to.subquery_iterator == nullptr) {
+          return nullptr;
+        }
         to.select_number = from.select_number;
         to.join = from.join;
         to.disable_deduplication_by_hash_field =
@@ -582,6 +643,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       unique_ptr_destroy_only<RowIterator> table_iterator =
           CreateIteratorFromAccessPath(thd, param.table_path, join,
                                        eligible_for_batch_mode);
+      if (table_iterator == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<MaterializeInformationSchemaTableIterator>(
           thd, move(table_iterator), param.table_list, param.condition);
       break;
@@ -593,6 +657,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       for (const AppendPathParameters &child : *param.children) {
         children.push_back(CreateIteratorFromAccessPath(
             thd, child.path, child.join, /*eligible_for_batch_mode=*/true));
+        if (children.back() == nullptr) {
+          return nullptr;
+        }
       }
       iterator = NewIterator<AppendIterator>(thd, move(children));
       break;
@@ -601,6 +668,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->window();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       if (param.needs_buffering) {
         iterator = NewIterator<BufferingWindowIterator>(
             thd, move(child), param.temp_table_param, join, param.ref_slice);
@@ -614,6 +684,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->weedout();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<WeedoutIterator>(
           thd, move(child), param.weedout_table, param.tables_to_get_rowid_for);
       break;
@@ -622,6 +695,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->remove_duplicates();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<RemoveDuplicatesIterator>(
           thd, move(child), join, param.group_items, param.group_items_size);
       break;
@@ -630,6 +706,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->remove_duplicates_on_index();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<RemoveDuplicatesOnIndexIterator>(
           thd, move(child), param.table, param.key, param.loosescan_key_len);
       break;
@@ -638,9 +717,15 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->alternative();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       unique_ptr_destroy_only<RowIterator> table_scan_iterator =
           CreateIteratorFromAccessPath(thd, param.table_scan_path, join,
                                        eligible_for_batch_mode);
+      if (table_scan_iterator == nullptr) {
+        return nullptr;
+      }
       iterator = NewIterator<AlternativeIterator>(
           thd, param.table_scan_path->table_scan().table, move(child),
           move(table_scan_iterator), param.used_ref);
@@ -650,6 +735,9 @@ unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
       const auto &param = path->cache_invalidator();
       unique_ptr_destroy_only<RowIterator> child = CreateIteratorFromAccessPath(
           thd, param.child, join, eligible_for_batch_mode);
+      if (child == nullptr) {
+        return nullptr;
+      }
       iterator =
           NewIterator<CacheInvalidatorIterator>(thd, move(child), param.name);
       break;

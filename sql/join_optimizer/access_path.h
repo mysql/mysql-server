@@ -1392,7 +1392,7 @@ void FindTablesToGetRowidFor(AccessPath *path);
   irrevocably be materialized, even if that is not the optimal plan given B.
   Thus, this is done when creating iterators.
  */
-void FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path);
+bool FinalizeMaterializedSubqueries(THD *thd, JOIN *join, AccessPath *path);
 
 unique_ptr_destroy_only<RowIterator> CreateIteratorFromAccessPath(
     THD *thd, AccessPath *path, JOIN *join, bool eligible_for_batch_mode);
