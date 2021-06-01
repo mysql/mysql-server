@@ -395,6 +395,9 @@ bool Sql_cmd_dml::prepare(THD *thd) {
         thd, is_show_cmd_using_system_view(thd));
 
     if (prepare_inner(thd)) goto err;
+    if (needs_explicit_preparation() && result != nullptr) {
+      result->cleanup(thd);
+    }
     if (!is_regular()) {
       if (save_cmd_properties(thd)) goto err;
       lex->set_secondary_engine_execution_context(nullptr);
@@ -417,6 +420,8 @@ err:
   lex->set_secondary_engine_execution_context(nullptr);
 
   if (error_handler_active) thd->pop_internal_handler();
+
+  if (result != nullptr) result->cleanup(thd);
 
   lex->cleanup(thd, false);
 
