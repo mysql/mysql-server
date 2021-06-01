@@ -6,19 +6,11 @@ Make sure that ndb_mgmd does _not_ create logger.log file
 Bug32045786
 MySQL Cluster Management Server
  ERROR    -- Mgmd node is started on port that is already in use. Attempt to bind '*:NDB_MGMD_PORT' failed with error: ERROR_CODE ERROR_MESSAGE
-Bug32553818
-# verify that mgmd fails without initial or reload when started with
-# -f option
-include/assert_grep.inc [Enforce using initial or reload with -f option]
 Bug32706682
-# verify that mgmd fails without initial or reload when skip-config-file
-# followed by -f option is provided
-include/assert_grep.inc [Verify mgmd fails without initial or reload when -f is provided after --skip-config-file]
-# verify that mgmd skips initial or reload validation when config-file
+# verify that mgmd fails to start when config-file
 # is not specified.
-include/assert_grep.inc [Skip initial or reload option validation when config-file option is not specified]
-# verify that mgmd skips initial or reload validation when
-# skip-config-file is specified.
-include/assert_grep.inc [Skip initial or reload option validation when --skip-config-file is specified.]
+include/assert_grep.inc [Mgmd fails to start when config-file option is not specified.]
+# verify that mgmd fails to start when skip-config-file is specified.
+include/assert_grep.inc [Mgmd fails to start when --skip-config-file is specified.]
 # verify that mgmd fails when started with both -f and --mycnf.
 include/assert_grep.inc [Verify mgmd fails when started with both -f and --mycnf]
