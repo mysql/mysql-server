@@ -1721,12 +1721,6 @@ void Item_typecast_json::print(const THD *thd, String *str,
   str->append(')');
 }
 
-void Item_func_json_length::cleanup() {
-  Item_int_func::cleanup();
-
-  m_path_cache.reset_cache();
-}
-
 longlong Item_func_json_length::val_int() {
   assert(fixed == 1);
   longlong result = 0;
@@ -1744,31 +1738,6 @@ longlong Item_func_json_length::val_int() {
     handle_std_exception(func_name());
     return error_int();
     /* purecov: end */
-  }
-
-  if (arg_count > 1) {
-    if (m_path_cache.parse_and_cache_path(current_thd, args, 1, true))
-      return error_int();
-    const Json_path *json_path = m_path_cache.get_path(1);
-    if (json_path == nullptr) {
-      null_value = true;
-      return 0;
-    }
-
-    Json_wrapper_vector hits(key_memory_JSON);
-    if (wrapper.seek(*json_path, json_path->leg_count(), &hits, true, true))
-      return error_int(); /* purecov: inspected */
-
-    if (hits.size() != 1) {
-      // path does not exist. return null.
-      null_value = true;
-      return 0;
-    }
-
-    // there should only be one hit because wildcards were forbidden
-    assert(hits.size() == 1);
-
-    wrapper = std::move(hits[0]);
   }
 
   result = wrapper.length();

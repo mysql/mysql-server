@@ -236,14 +236,6 @@ select json_length( 'true', 'c$' );
 --echo # invalid json path
 --error ER_INVALID_JSON_PATH
 select json_length( '{ "foo" : [ true, false ] }', '$.foo[bar]' );
---echo
---echo # wildcards not allowed in path expressions for this function
---error ER_INVALID_JSON_PATH_WILDCARD
-select json_length( 'true', '$.*' );
---echo
---echo # wildcards not allowed in path expressions for this function
---error ER_INVALID_JSON_PATH_WILDCARD
-select json_length( 'true', '$.foo**.bar' );
 
 # json_length() with non-vacuous path expressions
 
@@ -256,6 +248,10 @@ select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[2]' );
 # auto-wrapping: 1
 select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[2][0]' ); # auto-wrap scalar
 select json_length( '[ 1, [ 2, 3, 4 ], {"a": 1} ]', '$[2][0]' ); # ditto object
+
+# wildcards
+select json_length('{"a":1,"b":2}', '$.*');
+select json_length('{"foo":[{"bar":1},{"bar":2}]}', '$.foo**.bar');
 
 # non-existent path: null
 select json_length( '[ 1, [ 2, 3, 4 ], 5 ]', '$[2][1]' );
@@ -2525,7 +2521,6 @@ SELECT JSON_EXTRACT('true', '$[2 to 1]');
 SELECT JSON_EXTRACT('true', '$[last to last-1]');
 --error ER_INVALID_JSON_PATH_WILDCARD
 SELECT JSON_SET('[1,2,3]', '$[0 to 1]', 123);
---error ER_INVALID_JSON_PATH_WILDCARD
 SELECT JSON_LENGTH('[1,2,3]', '$[0 to 1]');
 
 SELECT j->'$[last]', j->'$[last-1]', j->'$[last-2]',

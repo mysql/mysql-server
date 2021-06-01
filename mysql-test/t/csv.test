@@ -1881,3 +1881,11 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#32597017: CSV ENGINE (TINA) DOES NOT HANDLE JSON TYPE
+--echo #
+CREATE TABLE t(j JSON NOT NULL) ENGINE = CSV;
+INSERT INTO t VALUES ('{"a": 1, "b": 2}');
+SELECT * FROM t;
+DROP TABLE t;
