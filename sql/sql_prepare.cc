@@ -2977,6 +2977,7 @@ Reprepare_observer::report_error(THD *thd)
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->set_error_status(ER_NEED_REPREPARE);
   m_invalidated= TRUE;
+  m_attempt++;
 
   return TRUE;
 }
@@ -3541,17 +3542,20 @@ Prepared_statement::set_parameters(String *expanded_query,
   validation error, prepare a new copy of the prepared statement,
   swap the old and the new statements, and try again.
   If there is a validation error again, repeat the above, but
-  perform no more than MAX_REPREPARE_ATTEMPTS.
+  perform not more than a maximum number of times. Reprepare_observer
+  ensures that a prepared statement execution is retried not more than a
+  maximum number of times.
 
   @note We have to try several times in a loop since we
   release metadata locks on tables after prepared statement
   prepare. Therefore, a DDL statement may sneak in between prepare
-  and execute of a new statement. If this happens repeatedly
-  more than MAX_REPREPARE_ATTEMPTS times, we give up.
+  and execute of a new statement. If a prepared statement execution
+  is retried for a maximum number of times then we give up.
+
 
   @return TRUE if an error, FALSE if success
-  @retval  TRUE    either MAX_REPREPARE_ATTEMPTS has been reached,
-                   or some general error
+  @retval  TRUE    either statement execution is retried for
+                   a maximum number of times or some general error.
   @retval  FALSE   successfully executed the statement, perhaps
                    after having reprepared it a few times.
 */
@@ -3562,10 +3566,8 @@ Prepared_statement::execute_loop(String *expanded_query,
                                  uchar *packet,
                                  uchar *packet_end)
 {
-  const int MAX_REPREPARE_ATTEMPTS= 3;
   Reprepare_observer reprepare_observer;
   bool error;
-  int reprepare_attempt= 0;
 
   /* Check if we got an error when sending long data */
   if (state == Query_arena::STMT_ERROR)
@@ -3617,7 +3619,7 @@ reexecute:
   if ((sql_command_flags[lex->sql_command] & CF_REEXECUTION_FRAGILE) &&
       error && !thd->is_fatal_error && !thd->killed &&
       reprepare_observer.is_invalidated() &&
-      reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
+      reprepare_observer.can_retry())
   {
     assert(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
     thd->clear_error();
