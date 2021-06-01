@@ -150,7 +150,7 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
                               std::string *trace);
 
 // See comment in .cc file.
-void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
+bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
                                AccessPath *root_path);
 
 // Exposed for unit testing only.

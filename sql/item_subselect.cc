@@ -391,7 +391,9 @@ bool Item_in_subselect::finalize_exists_transform(THD *thd,
   if (unit->set_limit(thd, unit->global_parameters()))
     return true; /* purecov: inspected */
 
-  unit->finalize(thd);
+  if (unit->finalize(thd)) {
+    return true;
+  }
 
   query_block->join->allow_outer_refs = true;  // for JOIN::set_prefix_tables()
   strategy = Subquery_strategy::SUBQ_EXISTS;
@@ -461,7 +463,9 @@ bool Item_in_subselect::finalize_materialization_transform(THD *thd,
   // This part is only relevant for the hypergraph optimizer.
   unit->change_to_access_path_without_in2exists(thd);
   assert(!in2exists_info->dependent_before);
-  unit->finalize(thd);
+  if (unit->finalize(thd)) {
+    return true;
+  }
 
   join->query_block->uncacheable &= ~UNCACHEABLE_DEPENDENT;
   unit->uncacheable &= ~UNCACHEABLE_DEPENDENT;
@@ -694,7 +698,9 @@ bool Item_subselect::exec(THD *thd) {
     // (DO/SET).
   }
   if (should_create_iterators && unit->root_access_path() != nullptr) {
-    unit->finalize(thd);
+    if (unit->finalize(thd)) {
+      return true;
+    }
     if (unit->force_create_iterators(thd)) return true;
   }
   if (indexsubquery_engine != nullptr) {

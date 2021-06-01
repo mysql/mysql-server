@@ -865,14 +865,17 @@ bool Query_expression::optimize(THD *thd, TABLE *materialize_destination,
   return false;
 }
 
-void Query_expression::finalize(THD *thd) {
+bool Query_expression::finalize(THD *thd) {
   for (Query_block *query_block = first_query_block(); query_block != nullptr;
        query_block = query_block->next_query_block()) {
     if (query_block->join != nullptr && query_block->join->needs_finalize) {
-      FinalizePlanForQueryBlock(thd, query_block,
-                                query_block->join->root_access_path());
+      if (FinalizePlanForQueryBlock(thd, query_block,
+                                    query_block->join->root_access_path())) {
+        return true;
+      }
     }
   }
+  return false;
 }
 
 bool Query_expression::force_create_iterators(THD *thd) {

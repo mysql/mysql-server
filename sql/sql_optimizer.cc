@@ -560,7 +560,9 @@ bool JOIN::optimize(bool finalize_access_paths) {
 
     m_root_access_path = FindBestQueryPlan(thd, query_block, trace_ptr);
     if (finalize_access_paths && m_root_access_path != nullptr) {
-      FinalizePlanForQueryBlock(thd, query_block, m_root_access_path);
+      if (FinalizePlanForQueryBlock(thd, query_block, m_root_access_path)) {
+        return true;
+      }
     }
 
     // If this query block was modified by IN-to-EXISTS conversion,
