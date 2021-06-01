@@ -4183,21 +4183,37 @@ class Common_table_expr {
 */
 class Derived_refs_iterator {
   TABLE_LIST *const start;  ///< The reference provided in construction.
-  int ref_idx;              ///< Current index in cte->tmp_tables
+  size_t ref_idx{0};        ///< Current index in cte->tmp_tables
+  bool m_is_first{true};    ///< True when at first reference in list
  public:
-  explicit Derived_refs_iterator(TABLE_LIST *start_arg)
-      : start(start_arg), ref_idx(-1) {}
+  explicit Derived_refs_iterator(TABLE_LIST *start_arg) : start(start_arg) {}
   TABLE *get_next() {
-    ref_idx++;
     const Common_table_expr *cte = start->common_table_expr();
-    if (!cte) return (ref_idx < 1) ? start->table : nullptr;
-    return ((uint)ref_idx < cte->tmp_tables.size())
-               ? cte->tmp_tables[ref_idx]->table
-               : nullptr;
+    m_is_first = ref_idx == 0;
+    // Derived tables and views have a single reference.
+    if (cte == nullptr) {
+      return ref_idx++ == 0 ? start->table : nullptr;
+    }
+    /*
+      CTEs may have multiple references. Return the next one, but notice that
+      some references may have been deleted.
+    */
+    while (ref_idx < cte->tmp_tables.size()) {
+      TABLE *table = cte->tmp_tables[ref_idx++]->table;
+      if (table != nullptr) return table;
+    }
+    return nullptr;
   }
-  void rewind() { ref_idx = -1; }
+  void rewind() {
+    ref_idx = 0;
+    m_is_first = true;
+  }
   /// @returns true if the last get_next() returned the first element.
-  bool is_first() const { return ref_idx == 0; }
+  bool is_first() const {
+    // Call after get_next() has been called:
+    assert(ref_idx > 0);
+    return m_is_first;
+  }
 };
 
 /**
