@@ -2185,4 +2185,6 @@ CREATE TABLE t (x VARCHAR(10) NOT NULL);
 INSERT INTO t VALUES ('');
 SELECT CAST(x <= 0x4891f642 AS UNSIGNED) FROM t;
 ERROR HY000: Cannot convert string 'H\x91\xF6B' from binary to utf8mb4
+SELECT CAST(STRCMP(x, 0x4891f642) AS UNSIGNED) FROM t;
+ERROR HY000: Cannot convert string 'H\x91\xF6B' from binary to utf8mb4
 DROP TABLE t;

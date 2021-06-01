@@ -2649,12 +2649,14 @@ longlong Item_func_strcmp::val_int() {
   const CHARSET_INFO *cs = cmp.cmp_collation.collation;
   String *a = eval_string_arg(cs, args[0], &cmp.value1);
   if (a == nullptr) {
+    if (current_thd->is_error()) return error_int();
     null_value = true;
     return 0;
   }
 
   String *b = eval_string_arg(cs, args[1], &cmp.value2);
   if (b == nullptr) {
+    if (current_thd->is_error()) return error_int();
     null_value = true;
     return 0;
   }
