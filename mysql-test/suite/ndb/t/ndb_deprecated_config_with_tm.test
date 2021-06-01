@@ -2,7 +2,7 @@ source include/have_ndb.inc;
 
 --error 1
 exec $NDB_MGMD --bind-address=localhost:$MASTER_MYPORT2 --config-file=suite/ndb/t/ndb_deprecated_config_with_tm.ini
-	--configdir=$MYSQLTEST_VARDIR --initial > $MYSQLTEST_VARDIR/mgmd_failure.log;
+	--configdir=$MYSQLTEST_VARDIR > $MYSQLTEST_VARDIR/mgmd_failure.log;
 
 
 

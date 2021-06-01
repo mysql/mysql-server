@@ -163,7 +163,6 @@ public:
     args.add("--nodaemon");
     args.add("--log-name=", name());
     args.add("--verbose");
-    args.add("--reload");
 
     if (first_extra_arg)
     {

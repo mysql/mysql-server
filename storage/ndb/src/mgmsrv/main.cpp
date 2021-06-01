@@ -375,17 +375,6 @@ static int mgmd_main(int argc, char** argv)
     mgmd_exit(1);
   }
 
-  /**
-    validation for initial or reload options is skipped when
-    config file is not specified.
-   */
-  if (opts.config_filename != nullptr && !(opts.initial || opts.reload)) {
-    fprintf(stderr,
-            "ERROR: Cannot start management node without --initial or --reload "
-            "when config-file(or -f) option is specified.\n");
-    mgmd_exit(1);
-  }
-
   /* Validation to prevent using relative path for config-dir */
   if (opts.config_cache && (opts.configdir != disabled_my_option) &&
       (strcmp(opts.configdir, MYSQLCLUSTERDIR) != 0)) {
