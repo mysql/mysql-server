@@ -2203,13 +2203,14 @@ bool Item_func_date_format::eq(const Item *item, bool binary_cmp) const {
   if (this == item) return true;
   const Item_func_date_format *item_func =
       down_cast<const Item_func_date_format *>(item);
-  if (!args[0]->eq(item_func->args[0], binary_cmp)) return false;
+  if (!ItemsAreEqual(args[0], item_func->args[0], binary_cmp)) return false;
   /*
     We must compare format string case sensitive.
     This needed because format modifiers with different case,
     for example %m and %M, have different meaning.
   */
-  if (!args[1]->eq(item_func->args[1], true)) return false;
+  if (!ItemsAreEqual(args[1], item_func->args[1], /*binary_tmp=*/true))
+    return false;
   return true;
 }
 
@@ -3720,11 +3721,11 @@ bool Item_func_internal_check_time::get_date(MYSQL_TIME *ltime,
     engine_name_ptr->c_ptr_safe();
 
     /*
-     The same native function used by I_S.PARTITIONS is used by I_S.TABLES.
-     We invoke native function with partition name only with I_S.PARTITIONS
-     as a last argument. So, we check for argument count below, before
-     reading partition name.
-   */
+      The same native function used by I_S.PARTITIONS is used by I_S.TABLES.
+      We invoke native function with partition name only with I_S.PARTITIONS
+      as a last argument. So, we check for argument count below, before
+      reading partition name.
+     */
     if (arg_count == 10)
       partition_name_ptr = args[9]->val_str(&partition_name);
     else if (arg_count == 9)

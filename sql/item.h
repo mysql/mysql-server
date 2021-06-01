@@ -6936,4 +6936,17 @@ inline Item *GetNthVisibleField(const mem_root_deque<Item *> &fields,
   return nullptr;
 }
 
+/**
+  Returns true iff the two items are equal, as in a->eq(b),
+  after unwrapping refs and Item_cache objects.
+ */
+bool ItemsAreEqual(const Item *a, const Item *b, bool binary_cmp);
+
+/**
+  Returns true iff all items in the two arrays (which must be of the same size)
+  are equal, as in a->eq(b), after unwrapping refs and Item_cache objects.
+ */
+bool AllItemsAreEqual(const Item *const *a, const Item *const *b, int num_items,
+                      bool binary_cmp);
+
 #endif /* ITEM_INCLUDED */

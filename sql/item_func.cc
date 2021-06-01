@@ -752,9 +752,7 @@ bool Item_func::eq(const Item *item, bool binary_cmp) const {
       (func_type == Item_func::FUNC_SP &&
        my_strcasecmp(system_charset_info, func_name(), item_func->func_name())))
     return false;
-  for (uint i = 0; i < arg_count; i++)
-    if (!args[i]->eq(item_func->args[i], binary_cmp)) return false;
-  return true;
+  return AllItemsAreEqual(args, item_func->args, arg_count, binary_cmp);
 }
 
 Field *Item_func::tmp_table_field(TABLE *table) {

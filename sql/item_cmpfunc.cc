@@ -2665,9 +2665,7 @@ bool Item_func_opt_neg::eq(const Item *item, bool binary_cmp) const {
     return false;
   if (negated != down_cast<const Item_func_opt_neg *>(item_func)->negated)
     return false;
-  for (uint i = 0; i < arg_count; i++)
-    if (!args[i]->eq(item_func->arguments()[i], binary_cmp)) return false;
-  return true;
+  return AllItemsAreEqual(args, item_func->arguments(), arg_count, binary_cmp);
 }
 
 bool Item_func_interval::itemize(Parse_context *pc, Item **res) {
@@ -5681,7 +5679,7 @@ bool Item_cond::eq(const Item *item, bool binary_cmp) const {
   assert(arg_count == 0 && item_cond->arg_count == 0);
   return std::equal(list.begin(), list.end(), item_cond->list.begin(),
                     [binary_cmp](const Item &i1, const Item &i2) {
-                      return i1.eq(&i2, binary_cmp);
+                      return ItemsAreEqual(&i1, &i2, binary_cmp);
                     });
 }
 
