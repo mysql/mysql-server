@@ -3,6 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection server1]
+SET @group_replication_components_stop_timeout_save = @@GLOBAL.group_replication_components_stop_timeout;
 SET GLOBAL group_replication_group_name= "2d249320-2e06-11e3-aa6e-0800200c9a66";
 SET GLOBAL group_replication_components_stop_timeout= NULL;
 ERROR 42000: Incorrect argument type to variable 'group_replication_components_stop_timeout'
@@ -21,5 +22,5 @@ include/assert.inc [The value for group_replication_components_stop_timeout shou
 include/start_and_bootstrap_group_replication.inc
 SET GLOBAL group_replication_components_stop_timeout= 3153;
 include/assert.inc [The value for group_replication_components_stop_timeout should be 3153]
-SET GLOBAL group_replication_components_stop_timeout= 31536000;
+SET GLOBAl group_replication_components_stop_timeout = @group_replication_components_stop_timeout_save;
 include/group_replication_end.inc

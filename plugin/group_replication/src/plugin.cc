@@ -4405,7 +4405,7 @@ static MYSQL_SYSVAR_ULONG(
     "shutting down.",
     check_sysvar_ulong_timeout, /* check func. */
     update_component_timeout,   /* update func. */
-    LONG_TIMEOUT,               /* default */
+    300,                        /* default */
     2,                          /* min */
     LONG_TIMEOUT,               /* max */
     0                           /* block */
