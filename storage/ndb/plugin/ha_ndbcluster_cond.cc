@@ -549,8 +549,8 @@ static bool is_supported_temporal_type(enum_field_types type) {
 
 /*
   operand_count() reflect the traverse_cond() operand traversal.
-  Note that traverse_cond() only traverse any operands for FUNC_ITEM
-  and COND_ITEM, which is reflected by operand_count().
+  Note that traverse_cond() only traverse any operands for FUNC_ITEM,
+  COND_ITEM and REF_ITEM, which is reflected by operand_count().
 */
 static uint operand_count(const Item *item) {
   switch (item->type()) {
@@ -565,6 +565,8 @@ static uint operand_count(const Item *item) {
       // A COND_ITEM (And/or) is visited both infix and postfix, so need '+1'
       return arguments->elements + 1;
     }
+    case Item::REF_ITEM:
+      return 1;
     default:
       return 0;
   }
@@ -858,6 +860,11 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
         }
 
         switch (item->type()) {
+          case Item::REF_ITEM: {
+            // Not interested in the REF_ITEM itself, just what it REF's.
+            // -> Ignore it and let traverse_cond() continue.
+            return;
+          }
           case Item::FIELD_ITEM: {
             const Item_field *field_item = down_cast<const Item_field *>(item);
             Field *field = field_item->field;

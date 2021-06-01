@@ -5618,6 +5618,13 @@ class Item_ref : public Item_ident {
   Item *transform(Item_transformer, uchar *arg) override;
   Item *compile(Item_analyzer analyzer, uchar **arg_p,
                 Item_transformer transformer, uchar *arg_t) override;
+  void traverse_cond(Cond_traverser traverser, void *arg,
+                     traverse_order order) override {
+    assert((*ref) != nullptr);
+    if (order == PREFIX) (*traverser)(this, arg);
+    (*ref)->traverse_cond(traverser, arg, order);
+    if (order == POSTFIX) (*traverser)(this, arg);
+  }
   bool explain_subquery_checker(uchar **) override {
     /*
       Always return false: we don't need to go deeper into referenced
