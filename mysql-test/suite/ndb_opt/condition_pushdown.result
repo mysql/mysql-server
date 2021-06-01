@@ -3659,3 +3659,71 @@ CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string2",f
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string2",false);
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 LIKE string3",false);
 CALL test_query("SELECT count(*) INTO @res FROM t1 WHERE string1 NOT LIKE string3",false);
+#
+# Bug#32924533 Conditions not pushed down to tables inside views and table-subqueries
+#
+create table t1 (
+a int not null,
+b int not null,
+c int not null,
+d int not null
+) engine=ndbcluster;
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+create view v1(a,b,c,d) as
+select a,b,c,d from t1;
+explain format=tree
+select * from v1
+where v1.d < 5;
+EXPLAIN
+-> Table scan on t1, with pushed condition: (t1.d < 5)
+
+explain format=tree
+select * from v1
+where v1.d < v1.c;
+EXPLAIN
+-> Table scan on t1, with pushed condition: (t1.d < t1.c)
+
+explain format=tree
+select * from t1,v1
+where v1.d < 5;
+EXPLAIN
+-> Inner hash join (no condition)
+    -> Table scan on t1
+    -> Hash
+        -> Table scan on t1, with pushed condition: (t1.d < 5)
+
+Warnings:
+Note	1003	Can't push table 't1' as child, 'type' must be a 'ref' access
+explain format=tree
+select * from
+(select a,b,c,d from t1) as v1(a,b,c,d)
+where v1.d < 5;
+EXPLAIN
+-> Table scan on t1, with pushed condition: (t1.d < 5)
+
+explain format=tree
+select * from
+(select a,b,c,d from t1) as v1(a,b,c,d)
+where v1.d < v1.c;
+EXPLAIN
+-> Table scan on t1, with pushed condition: (t1.d < t1.c)
+
+explain format=tree
+select * from t1,
+(select a,b,c,d from t1) as v1(a,b,c,d)
+where v1.d < 5;
+EXPLAIN
+-> Inner hash join (no condition)
+    -> Table scan on t1
+    -> Hash
+        -> Table scan on t1, with pushed condition: (t1.d < 5)
+
+Warnings:
+Note	1003	Can't push table 't1' as child, 'type' must be a 'ref' access
+drop view v1;
+drop table t1;

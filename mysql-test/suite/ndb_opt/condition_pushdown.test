@@ -3950,3 +3950,66 @@ DROP FUNCTION get_column;
 DROP TABLE t1;
 
 --enable_query_log
+
+
+--echo #
+--echo # Bug#32924533 Conditions not pushed down to tables inside views and table-subqueries
+--echo #
+
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  d int not null
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+create view v1(a,b,c,d) as
+  select a,b,c,d from t1;
+
+# The condition refering the view should be pushed down to t1
+# referred by the view as a pushed condition - NOT end up as
+# a server side FILTER on the full t1 table scan.
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from v1
+  where v1.d < 5;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from v1
+  where v1.d < v1.c;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t1,v1
+  where v1.d < 5;
+
+# Similar query where the view is replaced with its equivalent table subquery:
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from
+    (select a,b,c,d from t1) as v1(a,b,c,d)
+  where v1.d < 5;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from
+    (select a,b,c,d from t1) as v1(a,b,c,d)
+  where v1.d < v1.c;
+
+--replace_regex /  \(cost=.*//
+explain format=tree
+  select * from t1,
+    (select a,b,c,d from t1) as v1(a,b,c,d)
+  where v1.d < 5;
+
+drop view v1;
+drop table t1;
