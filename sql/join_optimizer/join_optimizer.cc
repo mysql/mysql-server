@@ -4991,6 +4991,19 @@ static void FinalizeWindowPath(
   window->make_special_rows_cache(thd, path->window().temp_table);
 }
 
+static bool ContainsMaterialization(AccessPath *path) {
+  bool found = false;
+  WalkAccessPaths(path, /*join=*/nullptr,
+                  WalkAccessPathPolicy::STOP_AT_MATERIALIZATION,
+                  [&found](AccessPath *sub_path, JOIN *) {
+                    if (sub_path->type == AccessPath::MATERIALIZE) {
+                      found = true;
+                    }
+                    return found;
+                  });
+  return found;
+}
+
 /*
   Do the final touchups of the access path tree, once we have selected a final
   plan (ie., there are no more alternatives). There are currently two major
@@ -5043,6 +5056,34 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
   Query_block *old_query_block = thd->lex->current_query_block();
   thd->lex->set_current_query_block(query_block);
 
+  // If we have a sort node (e.g. for GROUP BY) with a materialization under it,
+  // we need to make sure that what we sort on is included in the
+  // materialization. (We do this by putting it into the field list, and then
+  // removing it at the end of the function.) This is a bit overconservative
+  // (e.g., we don't need to include it in later materializations, too), but the
+  // situation should be fairly rare.
+  Mem_root_array<std::pair<Item *, bool>> extra_fields_needed(thd->mem_root);
+  mem_root_deque<Item *> *base_fields = query_block->join->fields;
+  WalkAccessPaths(
+      root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
+      [&extra_fields_needed](AccessPath *path, JOIN *join) {
+        if (path->type == AccessPath::SORT && ContainsMaterialization(path)) {
+          for (ORDER *order = path->sort().order; order != nullptr;
+               order = order->next) {
+            Item *item = *order->item;
+            if (std::none_of(join->fields->begin(), join->fields->end(),
+                             [item](Item *other_item) {
+                               return item->eq(other_item, /*binary_cmp=*/true);
+                             })) {
+              extra_fields_needed.push_back(std::make_pair(item, item->hidden));
+              item->hidden = true;
+              join->fields->push_front(item);
+            }
+          }
+        }
+        return false;
+      });
+
   Mem_root_array<const Func_ptr_array *> applied_replacements(thd->mem_root);
   TABLE *last_window_temp_table = nullptr;
   unsigned num_windows_seen = 0;
@@ -5080,6 +5121,11 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
         return false;
       },
       /*post_order_traversal=*/true);
+
+  for (const std::pair<Item *, bool> &item_and_hidden : extra_fields_needed) {
+    item_and_hidden.first->hidden = item_and_hidden.second;
+    base_fields->pop_front();
+  }
 
   query_block->join->needs_finalize = false;
   thd->lex->set_current_query_block(old_query_block);
