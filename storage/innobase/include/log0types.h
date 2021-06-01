@@ -621,6 +621,13 @@ struct alignas(ut::INNODB_CACHE_LINE_SIZE) log_t {
   Read by: log_checkpointer */
   bool periodical_checkpoints_enabled;
 
+  /** If checkpoints are allowed. When this is set to false, neither new
+  checkpoints might be written nor lsn available for checkpoint might be
+  updated. This is useful in recovery period, when neither flush lists can
+  be trusted nor DD dynamic metadata redo records might be reclaimed.
+  This is never set from true to false after log_start(). */
+  std::atomic_bool m_allow_checkpoints;
+
   /** Maximum sn up to which there is free space in the redo log.
   Threads check this limit and compare to current log.sn, when they
   are outside mini-transactions and hold no latches. The formula used

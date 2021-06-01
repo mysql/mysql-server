@@ -1071,12 +1071,13 @@ checkpoint_lsn and current lsn. Block for current_lsn must
 be properly initialized in the log buffer prior to calling
 this function. Therefore a proper value of first_rec_group
 must be set for that block before log_start is called.
-@param[in,out]  log             redo log
-@param[in]      checkpoint_no	  checkpoint no (sequential number)
-@param[in]      checkpoint_lsn  checkpoint lsn
-@param[in]      start_lsn       current lsn to start at */
+@param[in,out]  log                redo log
+@param[in]      checkpoint_no      checkpoint no (sequential number)
+@param[in]      checkpoint_lsn     checkpoint lsn
+@param[in]      start_lsn          current lsn to start at
+@param[in]      allow_checkpoints  true iff allows writing newer checkpoints */
 void log_start(log_t &log, checkpoint_no_t checkpoint_no, lsn_t checkpoint_lsn,
-               lsn_t start_lsn);
+               lsn_t start_lsn, bool allow_checkpoints = true);
 
 /** Validates that the log writer thread is active.
 Used only to assert, that the state is correct.

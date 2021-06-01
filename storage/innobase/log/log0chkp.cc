@@ -74,9 +74,8 @@ the file COPYING.Google.
 static void log_update_limits_low(log_t &log);
 
 /** Updates lsn available for checkpoint.
-@param[in,out]  log redo log
-@return the updated lsn value */
-static lsn_t log_update_available_for_checkpoint_lsn(log_t &log);
+@param[in,out]  log redo log */
+static void log_update_available_for_checkpoint_lsn(log_t &log);
 
 /** Calculates margin which has to be used in log_free_check() call,
 when checking if user thread should wait for more space in redo log.
@@ -263,7 +262,16 @@ static lsn_t log_compute_available_for_checkpoint_lsn(const log_t &log) {
   return (lsn);
 }
 
-static lsn_t log_update_available_for_checkpoint_lsn(log_t &log) {
+static void log_update_available_for_checkpoint_lsn(log_t &log) {
+  /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
+  and changes gathered in srv_dict_metadata are applied to dict_table_t
+  objects; or in log_start() if recovery was not needed. We can't trust
+  flush lists until recovery is finished, so we must not update lsn available
+  for checkpoint (as update would be based on what we can see inside them). */
+  if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
+    return;
+  }
+
   /* Update lsn available for checkpoint. */
   log.recent_closed.advance_tail();
   const lsn_t oldest_lsn = log_compute_available_for_checkpoint_lsn(log);
@@ -281,11 +289,7 @@ static lsn_t log_update_available_for_checkpoint_lsn(log_t &log) {
     log.available_for_checkpoint_lsn = oldest_lsn;
   }
 
-  const lsn_t result = log.available_for_checkpoint_lsn;
-
   log_limits_mutex_exit(log);
-
-  return (result);
 }
 
 /** @} */
@@ -481,6 +485,7 @@ void log_files_downgrade(log_t &log) {
 
 static lsn_t log_determine_checkpoint_lsn(log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
+  ut_ad(log.m_allow_checkpoints.load());
 
   log_limits_mutex_enter(log);
 
@@ -567,6 +572,7 @@ static void log_checkpoint(log_t &log) {
   ut_ad(log_checkpointer_mutex_own(log));
   ut_a(!srv_read_only_mode);
   ut_ad(!srv_checkpoint_disabled);
+  ut_ad(log.m_allow_checkpoints.load());
 
   /* Read the comment from log_should_checkpoint() from just before
   acquiring the limits mutex. It is ok if available_for_checkpoint_lsn
@@ -833,6 +839,15 @@ static bool log_request_sync_flush(const log_t &log, lsn_t new_oldest) {
 }
 
 lsn_t log_sync_flush_lsn(log_t &log) {
+  /* Note: log.m_allow_checkpoints is set to true after recovery is finished,
+  and changes gathered in srv_dict_metadata are applied to dict_table_t
+  objects; or in log_start() if recovery was not needed. Until that happens
+  checkpoints are disallowed, so sync flush decisions (based on checkpoint age)
+  should be postponed. */
+  if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
+    return 0;
+  }
+
   log_update_available_for_checkpoint_lsn(log);
 
   /* We acquire limits mutex only for a short period. Afterwards these
@@ -935,6 +950,14 @@ static bool log_should_checkpoint(log_t &log) {
     return (false);
   }
 #endif /* UNIV_DEBUG */
+
+  /* Note: log.allow_checkpoints is set to true after recovery is finished,
+  and changes gathered in srv_dict_metadata are applied to dict_table_t
+  objects; or in log_start() if recovery was not needed. We can't reclaim
+  free space in redo log until DD dynamic metadata records are safe. */
+  if (!log.m_allow_checkpoints.load(std::memory_order_acquire)) {
+    return false;
+  }
 
   last_checkpoint_lsn = log.last_checkpoint_lsn.load();
 
