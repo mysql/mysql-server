@@ -5036,17 +5036,21 @@ static void FinalizeWindowPath(
       present its own challenges.
     - Join conditions.
  */
-void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
+bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
                                AccessPath *root_path) {
   assert(query_block->join->needs_finalize);
+
+  Query_block *old_query_block = thd->lex->current_query_block();
+  thd->lex->set_current_query_block(query_block);
 
   Mem_root_array<const Func_ptr_array *> applied_replacements(thd->mem_root);
   TABLE *last_window_temp_table = nullptr;
   unsigned num_windows_seen = 0;
+  bool error = false;
   WalkAccessPaths(
       root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
       [thd, query_block, &applied_replacements, &last_window_temp_table,
-       &num_windows_seen](AccessPath *path, JOIN *join) {
+       &num_windows_seen, &error](AccessPath *path, JOIN *join) {
         CreateTemporaryTableForWindow(
             thd, query_block, path, &last_window_temp_table, &num_windows_seen);
 
@@ -5056,12 +5060,30 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
         if (path->type == AccessPath::WINDOW) {
           FinalizeWindowPath(thd, query_block, *original_fields,
                              applied_replacements, path);
+        } else if (path->type == AccessPath::AGGREGATE) {
+          // Set up aggregators, now that fields point into the right temporary
+          // table.
+          const bool need_distinct =
+              true;  // We don't support loose index scan yet.
+          for (Item_sum **func_ptr = join->sum_funcs; *func_ptr != nullptr;
+               ++func_ptr) {
+            Item_sum *func = *func_ptr;
+            Aggregator::Aggregator_type type =
+                need_distinct && func->has_with_distinct()
+                    ? Aggregator::DISTINCT_AGGREGATOR
+                    : Aggregator::SIMPLE_AGGREGATOR;
+            if (func->set_aggregator(type) || func->aggregator_setup(thd)) {
+              error = true;
+            }
+          }
         }
         return false;
       },
       /*post_order_traversal=*/true);
 
   query_block->join->needs_finalize = false;
+  thd->lex->set_current_query_block(old_query_block);
+  return error;
 }
 
 /**
@@ -5426,21 +5448,12 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
     }
     root_candidates = std::move(new_root_candidates);
 
-    Item_sum **func_ptr = join->sum_funcs;
-    Item_sum *func;
-    bool need_distinct = true;  // We don't support loose index scan yet.
-    while ((func = *(func_ptr++))) {
-      Aggregator::Aggregator_type type =
-          need_distinct && func->has_with_distinct()
-              ? Aggregator::DISTINCT_AGGREGATOR
-              : Aggregator::SIMPLE_AGGREGATOR;
-      if (func->set_aggregator(type) || func->aggregator_setup(thd)) {
-        return nullptr;
-      }
-    }
     if (make_group_fields(join, join)) {
       return nullptr;
     }
+
+    // Final setup will be done in FinalizePlanForQueryBlock(),
+    // when we have all materialization done.
   }
 
   // Apply HAVING, if applicable (sans any window-related in2exists parts,
