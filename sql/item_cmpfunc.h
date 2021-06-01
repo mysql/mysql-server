@@ -626,7 +626,9 @@ class Item_bool_func2 : public Item_bool_func {
 
  public:
   bool resolve_type(THD *) override;
-  bool set_cmp_func() { return cmp.set_cmp_func(this, args, args + 1, true); }
+  bool set_cmp_func() {
+    return cmp.set_cmp_func(this, args, args + 1, is_nullable());
+  }
   optimize_type select_optimize(const THD *) override { return OPTIMIZE_OP; }
   /// @returns an operator REV_OP so that "B REV_OP A" is equivalent to
   /// "A this_operator B".
