@@ -136,8 +136,6 @@ struct PFS_notification_registry {
     }
   }
 
-  bool is_empty() { return m_count > 0; }
-
   /**
     Add a new registration.
     @param new_node callback registraion node
