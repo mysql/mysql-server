@@ -87,6 +87,8 @@
   @{
 */
 
+namespace {
+
 /**
   @defgroup Instantiators Instantiator functions
 
@@ -123,10 +125,8 @@
 
   @see Function_factory::create_func()
 */
-static const auto MAX_ARGLIST_SIZE =
+constexpr auto MAX_ARGLIST_SIZE =
     std::numeric_limits<decltype(PT_item_list().elements())>::max();
-
-namespace {
 
 /**
   Instantiates a function class with the list of arguments.
