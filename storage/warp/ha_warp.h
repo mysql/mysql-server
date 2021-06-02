@@ -176,12 +176,18 @@ static MYSQL_THDVAR_STR(partition_filter, PLUGIN_VAR_RQCMDARG|PLUGIN_VAR_MEMALLO
                           "Set partition to scan in a particular table using alias.partname",
                           nullptr, nullptr, "");
 
+static MYSQL_THDVAR_BOOL(adjust_table_stats_for_joins, PLUGIN_VAR_NOCMDARG,
+                          "Sets the largest table in a query to have a row count of 2.  Can cause problems with some MySQL subquery optimizations.",
+                          nullptr, nullptr, false);
+
+
 SYS_VAR* system_variables[] = {
   MYSQL_SYSVAR(partition_max_rows),
   MYSQL_SYSVAR(cache_size),
   MYSQL_SYSVAR(write_cache_size),
   MYSQL_SYSVAR(lock_wait_timeout),
   MYSQL_SYSVAR(partition_filter),
+  MYSQL_SYSVAR(adjust_table_stats_for_joins),
   NULL
 };
 
@@ -196,6 +202,7 @@ struct WARP_SHARE {
   mysql_mutex_t mutex;
   THR_LOCK lock;
 };
+
 
 class warp_join_info {
   public:
@@ -527,7 +534,7 @@ int warp_upgrade_tables(uint16_t version);
 bool warp_is_trx_open(uint64_t trx_id);
 
 std::unordered_map<const char*, uint64_t> get_table_counts_in_schema(char* table_dir);
-const char* get_table_with_most_rows(std::unordered_map<const char*, uint64_t>* table_counts);
+const char* get_table_with_most_rows(std::unordered_map<const char*, uint64_t>* table_counts, std::unordered_map<std::string, bool> query_tables = {});
 
 warp_trx* warp_get_trx(handlerton* hton, THD* thd);
 
@@ -545,7 +552,8 @@ class ha_warp : public handler {
  uint64_t last_trx_id = 0;
  bool is_trx_visible = false;
  //warp_trx* current_trx = NULL;
-
+ public:
+ WARP_SHARE* get_warp_share();
 
  private:
   // used in combination with THDVAR partition_filter

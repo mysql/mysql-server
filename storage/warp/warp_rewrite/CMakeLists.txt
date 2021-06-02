@@ -27,6 +27,8 @@ MYSQL_ADD_PLUGIN(warp_rewriter
   MODULE_OUTPUT_NAME "warp_rewriter"
   )
 
+add_dependencies(warp fastbit fastbit-2.0.3)
+
 ADD_DEFINITIONS(-DMYSQL_SERVER)
 ADD_DEFINITIONS(-DLOG_COMPONENT_TAG="warp_rewriter")
 

@@ -70,6 +70,7 @@
 
 #include <vector>
 #include <map>
+#include <list>
 
 using std::string;
 
@@ -153,7 +154,6 @@ static int warp_rewriter_plugin_deinit(void *) {
 }
 
 std::string get_warp_partitions(std::string schema, std::string table) {
-  //std::cout << "GET_WARP_PARTITIONS\n";
   std::string path = schema + "/" + table + ".data/";
   std::string parts = "";
     
@@ -176,21 +176,17 @@ std::string get_warp_partitions(std::string schema, std::string table) {
       parts += "('" + std::string(ent->d_name) +"')";
     }
   }
-  //std::cout << parts << "\n";
   return parts;
 }
 
 bool is_warp_table(std::string schema, std::string table) {
-  //std::cout << "is_warp_table:";
   std::string path = schema + "/" + table + ".data/-part.txt";
   struct stat st;
   auto res = !stat(path.c_str(), &st);
-  //std::cout << res << "\n";
   return res;
 }
 
 uint64_t get_warp_row_count(std::string schema, std::string table) {
-  //std::cout << "get_warp_row_count: ";
   std::string path = schema + "/" + table + ".data/";
   ibis::table* base_table = ibis::mensa::create(path.c_str());
   uint64_t rows = base_table->nRows();
@@ -207,7 +203,7 @@ bool process_having_item(THD* thd,
                          std::unordered_map<std::string, uint> &used_fields
                          ) 
 { 
-  //std::cout << "process_having\n";
+  
   String item_str;
   item_str.reserve(1024 * 1024);
   std::string orig_clause;
@@ -379,7 +375,7 @@ bool process_having(THD* thd,
                     std::string &ll_query, 
                     std::string &coord_group, 
                     std::unordered_map<std::string, uint> &used_fields) 
-{ //std::cout << "process_having\n";
+{ 
   static int depth=0;
   std::string new_having;
   // reset the variables when called at depth 0
@@ -388,8 +384,6 @@ bool process_having(THD* thd,
 
   /* A simple comparison without conjuction or disjunction */
   if(cond->type() == Item::Type::FUNC_ITEM) {
-    //cond->print(thd, &item_str, QT_ORDINARY);
-    //coord_where += std::string(item_str.ptr(), item_str.length());
     process_having_item(thd, cond, new_having, ll_query, coord_group, used_fields);
   } else if(cond->type() == Item::Type::COND_ITEM) {
     auto item_cond = (dynamic_cast<Item_cond *>(const_cast<Item *>(cond)));
@@ -424,7 +418,6 @@ bool process_having(THD* thd,
 }
 
 std::string escape_for_call(const std::string &str) {
-  //std::cout << "escape_for_call\n";
   std::string retval;
   retval.reserve(str.length() * 2);
   for(long unsigned int i =0; i< str.length(); ++i) {
@@ -433,7 +426,6 @@ std::string escape_for_call(const std::string &str) {
     }
     retval += str[i];
   }
-  //std::cout << retval << "\n";
   return retval;
 }
 bool warp_alloc_query(THD *thd, const char *packet, size_t packet_length) {
@@ -602,14 +594,14 @@ static int warp_rewrite_query_notify(
     std::string raw_field = std::string(field_str.c_ptr(), field_str.length());
     std::string orig_alias = std::string("`") + std::string(field->item_name.ptr()) + std::string("`");
     std::string alias = std::string("`expr$") + std::to_string(expr_num) + std::string("`");
-
+    std::string raw_alias = std::string("expr$") + std::to_string(expr_num);
     if(ll_query.length() > 0) {
        ll_query += ", ";
      }
      if(coord_query.length() > 0) {
        coord_query += ", ";
      }
-
+     
      switch(field->type()) {
        // bare field is easily handled - it gets an alias of expr$NUM where NUM is the 
        // ordinal position in the SELECT clause
@@ -621,7 +613,7 @@ static int warp_rewrite_query_notify(
 
        // item func
        case Item::Type::FUNC_ITEM: 
-         ////std::cout << "NON-AGGREGATE FUNCTIONS NOT YET SUPPORTED\n";
+         std::cout << "NON-AGGREGATE FUNCTIONS NOT YET SUPPORTED\n";
          return 0;
        break;
        
@@ -631,7 +623,6 @@ static int warp_rewrite_query_notify(
          std::string func_name = std::string(sum_item->func_name());
     
          if(sum_item->has_with_distinct()) {
-           ////std::cout << "UNSUPPORTED SUM_FUNC_TYPE HAS DISTINCT: " << func_name << "\n";
            ll_query += raw_field.substr(func_name.length(), raw_field.length() - func_name.length()) + " AS " + alias;
            coord_query += func_name + "( DISTINCT " + alias + ") AS " + orig_alias;
            if(ll_group.length() > 0) {
@@ -650,18 +641,21 @@ static int warp_rewrite_query_notify(
            //ll_query += "COUNT" + raw_field.substr(3,raw_field.length()-3) + " AS " + alias;
            ll_query += raw_field + " AS " + alias;
            coord_query += "SUM(" + alias + ") AS " + orig_alias;
-         } else {
-           ////std::cout << "UNSUPPORTED SUM_FUNC_TYPE: " << func_name << "\n";
+         } else if(func_name == "avg") {
+           const char* raw_field_ptr = raw_field.c_str() + 4;
+           ll_query += "COUNT( " + std::string(raw_field_ptr) + " AS `" + raw_alias + "_cnt` , SUM(" + std::string(raw_field_ptr) + " AS `" + raw_alias + "_sum`";
+           coord_query += "SUM(`" + raw_alias + "_cnt`) / SUM(`" + raw_alias + "_sum`)" + " AS " + orig_alias ; 
+         } else {  
+           std::cout << "UNSUPPORTED PARALLEL QUERY SUM_FUNC_TYPE: " << func_name << "\n";
            return 0;  
-         } 
+         }      
       
          continue;
        }
        break;
-
-       // unsupported!
+       
        default:
-         ////std::cout << "UNSUPPORTED ITEM TYPE: " << field->type() << "\n";
+         std::cout << "UNSUPPORTED PARALLEL QUERY ITEM TYPE: " << field->type() << "\n";
          return 0;
      }
   }
@@ -719,12 +713,12 @@ static int warp_rewrite_query_notify(
   for(long unsigned long int i = 0; i < tables.size(); ++i) {
     tmp_from = "";
     if(tbl->is_table_function()) {
-      ////std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
+      std::cout << "UNSUPPORTED TABLE TYPE: TABLE FUNCTIONS NOT SUPPORTED\n";
       return 0;
     }
     
     if(tbl->is_derived()) {
-      ////std::cout << "UNSUPPORTED TABLE TYPE: DERIVED TABLES NOT SUPPORTED\n";
+      std::cout << "UNSUPPORTED TABLE TYPE: DERIVED TABLES NOT SUPPORTED\n";
       return 0;
     }
     

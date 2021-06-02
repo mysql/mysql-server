@@ -285,7 +285,6 @@ int ha_warp::encode_quote(uchar *) {
       case MYSQL_TYPE_DATETIME2:
       case MYSQL_TYPE_TIME2: 
       {
-        struct timeval tmp_tval;
         MYSQL_TIME tmp_ltime;
         (*field)->get_date(&tmp_ltime, 6);
         auto tmp = TIME_to_longlong_datetime_packed(tmp_ltime);
@@ -1019,7 +1018,6 @@ int ha_warp::write_row(uchar *buf) {
     Fastbit cache size must be greater than or equal to this value
     or an allocation failure will happen.
   */
-  //std::cout << std::string(buffer.c_ptr() << "\n";
   writer->appendRow(buffer.c_ptr(), ",");
   stats.records++;
   
@@ -1130,6 +1128,9 @@ int ha_warp::delete_all_rows() {
   return create(share->table_name.c_str(), table, NULL, NULL);
 }
 
+WARP_SHARE* ha_warp::get_warp_share() {
+  return share;
+}
 /*
   ::info() is used to return information to the optimizer.
   Currently this table handler doesn't implement most of the fields
@@ -1138,24 +1139,33 @@ int ha_warp::delete_all_rows() {
 int ha_warp::info(uint) {
   DBUG_ENTER("ha_warp::info");
   close_in_extra = true;
-  char table_with_most_rows[]="lineorder";
-  //std::unordered_map<const char*, uint64_t> table_counts = get_table_counts_in_schema(share->data_dir_name);
-  //const char* table_with_most_rows = get_table_with_most_rows(&table_counts);
+  //char table_with_most_rows[]="lineorder";
+  std::unordered_map<const char*, uint64_t> table_counts = get_table_counts_in_schema(share->data_dir_name);
+  
+  auto thd = current_thd;
+  auto cur_table = thd->open_tables;
+
+  std::unordered_map<std::string, bool> query_tables;
+  while(cur_table != NULL) {
+    auto handler = (ha_warp*)(cur_table->file);
+    auto other_share = handler->get_warp_share();
+    query_tables.emplace(std::make_pair(other_share->data_dir_name, true));
+    cur_table=cur_table->next;
+  }
+  
+  const char* table_with_most_rows = get_table_with_most_rows(&table_counts, query_tables);
   assert(table_with_most_rows != NULL);
   bool is_fact_table = false;
 
+  // list the tables in the query
   // if this is the fact table (largest table in schema) set the records to the smallest possible value
   // which is 2 (otherwise const evaluation will be used)
-  if(table_with_most_rows != NULL) {
-    
-    //if(std::string(share->data_dir_name) == std::string(table_with_most_rows)) {
-    if(strstr(share->data_dir_name, table_with_most_rows) != NULL) {
-      is_fact_table = true;
-      // stats.records = 2;
+  if(strstr(share->data_dir_name, table_with_most_rows) != NULL) {
+    is_fact_table = true;
+    if(THDVAR(table->in_use, adjust_table_stats_for_joins)) {
+      stats.records = 2;
     }
-  } else {
-    stats.records = 0;
-  }
+  } 
 
   stats.mean_rec_length = 0;
   for (Field **field = table->s->field; *field; field++) {
@@ -2438,6 +2448,7 @@ int ha_warp::append_column_filter(const Item *cond,
     if(tmp->arg_count == 2 && arg[0]->type() == Item::Type::FIELD_ITEM &&
         arg[0]->type() == arg[1]->type()
     ) {
+      
       // only support equijoin right now
       if(!is_eq) {
         return 0;
@@ -4264,10 +4275,16 @@ std::unordered_map<const char*, uint64_t> get_table_counts_in_schema(char* table
 }
 
 // return the path to the table with the most rows in the database
-const char* get_table_with_most_rows(std::unordered_map<const char*, uint64_t>* table_counts) {
+const char* get_table_with_most_rows(std::unordered_map<const char*, uint64_t>* table_counts, std::unordered_map<std::string, bool> query_tables) {
   uint64_t max_cnt = 0;
   const char* table_with_max_cnt = NULL;
+
   for(auto it = table_counts->begin(); it != table_counts->end(); it++) {
+    auto it2=query_tables.find(std::string(it->first));
+    if(it2 == query_tables.end()) {
+      continue;
+    }
+      
     if(it->second >= max_cnt) {
       max_cnt = it->second;
       table_with_max_cnt = it->first;
