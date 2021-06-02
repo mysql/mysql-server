@@ -271,23 +271,9 @@ static bool reads_not_secondary_columns(const LEX *lex) {
   return false;
 }
 
-/**
- * Validates a query that uses the secondary engine
- *
- * No validations are done if query has not been prepared against the secondary
- * engine.
- *
- * @param lex Parse tree descriptor.
- *
- * @return True if error, false otherwise.
- */
-static bool validate_use_secondary_engine(const LEX *lex) {
+bool validate_use_secondary_engine(const LEX *lex) {
   const THD *thd = lex->thd;
   const Sql_cmd *sql_cmd = lex->m_sql_cmd;
-
-  // Validation can only be done after statement has been prepared.
-  assert(sql_cmd->is_prepared());
-
   // Ensure that all read columns are in the secondary engine.
   if (sql_cmd->using_secondary_storage_engine()) {
     if (reads_not_secondary_columns(lex)) {
@@ -304,11 +290,13 @@ static bool validate_use_secondary_engine(const LEX *lex) {
   // and either
   // 2) Is a SELECT statement that accesses one or more base tables.
   // or
-  // 3) Is an INSERT SELECT statement that accesses two or more base tables
+  // 3) Is an INSERT SELECT or CREATE TABLE AS SELECT statement that accesses
+  // two or more base tables
   if (thd->variables.use_secondary_engine == SECONDARY_ENGINE_FORCED &&  // 1
       ((sql_cmd->sql_command_code() == SQLCOM_SELECT &&
         lex->table_count >= 1) ||  // 2
-       (sql_cmd->sql_command_code() == SQLCOM_INSERT_SELECT &&
+       ((sql_cmd->sql_command_code() == SQLCOM_INSERT_SELECT ||
+         sql_cmd->sql_command_code() == SQLCOM_CREATE_TABLE) &&
         lex->table_count >= 2))) {  // 3
     my_error(
         ER_SECONDARY_ENGINE, MYF(0),
@@ -653,14 +641,7 @@ err:
   return thd->is_error();
 }
 
-/**
-  Calculates the cost of executing a statement, including all its
-  subqueries.
-
-  @param lex the statement
-  @return the estimated cost of executing the statement
-*/
-static double accumulate_statement_cost(const LEX *lex) {
+void accumulate_statement_cost(const LEX *lex) {
   Opt_trace_context *trace = &lex->thd->opt_trace;
   Opt_trace_disable_I_S disable_trace(trace, true);
 
@@ -681,8 +662,7 @@ static double accumulate_statement_cost(const LEX *lex) {
 
     total_cost += query_block_cost;
   }
-
-  return total_cost;
+  lex->thd->m_current_query_cost = total_cost;
 }
 
 /**
@@ -716,7 +696,7 @@ static bool retry_with_secondary_engine(THD *thd) {
 
   // Don't retry if there is a property of the environment that prevents use of
   // secondary engines.
-  if (!thd->secondary_storage_engine_eligible()) return false;
+  if (!thd->is_secondary_storage_engine_eligible()) return false;
 
   // Only attempt to use the secondary engine if the estimated cost of the query
   // is higher than the specified cost threshold.
@@ -738,14 +718,7 @@ static bool retry_with_secondary_engine(THD *thd) {
   return true;
 }
 
-/**
-  Perform query optimizations that are specific to a secondary storage
-  engine.
-
-  @param thd      the current session
-  @return true on error, false on success
-*/
-static bool optimize_secondary_engine(THD *thd) {
+bool optimize_secondary_engine(THD *thd) {
   if (retry_with_secondary_engine(thd)) {
     thd->get_stmt_da()->reset_diagnostics_area();
     thd->get_stmt_da()->set_error_status(thd, ER_PREPARE_FOR_SECONDARY_ENGINE);
@@ -789,9 +762,8 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
                      /*create_iterators=*/true))
     return true;
 
-  // Calculate the current statement cost. It will be made available in
-  // the Last_query_cost status variable.
-  thd->m_current_query_cost = accumulate_statement_cost(lex);
+  // Calculate the current statement cost.
+  accumulate_statement_cost(lex);
 
   // Perform secondary engine optimizations, if needed.
   if (optimize_secondary_engine(thd)) return true;

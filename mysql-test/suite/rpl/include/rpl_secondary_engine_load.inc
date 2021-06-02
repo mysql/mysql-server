@@ -125,6 +125,11 @@ ANALYZE TABLE t1;
 EXPLAIN INSERT INTO t2 SELECT * FROM t1;
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION SELECT * FROM t1;
 EXPLAIN INSERT INTO t2 SELECT * FROM t1 UNION ALL SELECT * FROM t1;
+
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+CREATE TABLE t3 SELECT * from t1;
+SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+
 --disable_warnings
 INSERT INTO t2 VALUES(NULL, 'Poodle', '{"key":"value"}', 'Pug', x'1234');
 INSERT INTO t2 VALUES(NULL, 'Labrador', '[{"key":"value"},{"key":"value2"}]',
@@ -143,6 +148,7 @@ ALTER TABLE t2 SECONDARY_LOAD;
 
 # Check that t2 is created with the secondary engine.
 SHOW CREATE TABLE t2;
+SHOW CREATE TABLE t3;
 
 FLUSH STATUS;
 SELECT * FROM t2;
@@ -165,6 +171,7 @@ SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
 
 # Unload the table from the secondary engine.
 ALTER TABLE t1 SECONDARY_UNLOAD;
+DROP TABLE t3;
 
 --source include/sync_slave_sql_with_master.inc
 --echo [ Connection Slave ]
@@ -190,6 +197,9 @@ FLUSH STATUS;
 --error ER_SECONDARY_ENGINE,ER_SECONDARY_ENGINE_PLUGIN
 SELECT * FROM t1;
 SHOW SESSION STATUS LIKE 'Secondary_engine_execution_count';
+# ps-protocol and regular runs give different error codes
+--error ER_SECONDARY_ENGINE,ER_SECONDARY_ENGINE_PLUGIN
+CREATE TABLE t3 SELECT * from t1;
 
 SET use_secondary_engine = @save_use_secondary_engine;
 

@@ -6629,7 +6629,7 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   // secondary tables. However, do not disable use of secondary
   // storage engines for future executions of the statement, since the
   // environment may change before the next execution.
-  if (!thd->secondary_storage_engine_eligible()) return false;
+  if (!thd->is_secondary_storage_engine_eligible()) return false;
 
   auto hton = plugin_data<const handlerton *>(secondary_engine_plugin);
   sql_cmd->use_secondary_storage_engine(hton);
@@ -6637,9 +6637,11 @@ static bool open_secondary_engine_tables(THD *thd, uint flags) {
   // Replace the TABLE objects in the TABLE_LIST with secondary tables.
   Open_table_context ot_ctx(thd, flags | MYSQL_OPEN_SECONDARY_ENGINE);
   TABLE_LIST *tl = lex->query_tables;
-  // For INSERT INTO SELECT statements, the table to insert into does not have
-  // to have a secondary engine. This table is always first in the list.
-  if (lex->sql_command == SQLCOM_INSERT_SELECT && tl != nullptr)
+  // For INSERT INTO SELECT and CTAS statements, the table to insert into does
+  // not have to have a secondary engine. This table is always first in the list
+  if ((lex->sql_command == SQLCOM_INSERT_SELECT ||
+       lex->sql_command == SQLCOM_CREATE_TABLE) &&
+      tl != nullptr)
     tl = tl->next_global;
   for (; tl != nullptr; tl = tl->next_global) {
     if (tl->is_placeholder()) continue;
