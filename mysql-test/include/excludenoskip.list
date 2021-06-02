@@ -194,6 +194,7 @@ not_group_replication_plugin.inc
 # 13.0 Memcached plugin is not available on all PB2 builds. Only supported by
 # Linux, Solaris and OS X platforms.
 have_memcached_plugin.inc
+have_memcached_sasl.inc
 
 # 14.0 MTR tests that runs only with specific rpl modes:
 
