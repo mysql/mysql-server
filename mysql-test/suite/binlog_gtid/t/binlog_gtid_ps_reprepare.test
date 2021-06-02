@@ -1,0 +1,197 @@
+# ==== Purpose ====
+#
+# If re-prepare of a prepared statement or statement in stored program is
+# triggered then gtid_next should not be updated. Tests in this file verifies
+# gtid_next value update with prepared statement and stored procedure
+# re-prepare. Re-prepare statement code is same for all the stored programs. So
+# behavior is verified with only stored procedure in this file.
+#
+# ==== Requirements ====
+#
+# When a session has set GTID_NEXT to a UUID:NUMBER and AUTOCOMMIT is enabled,
+# the following requirements shall hold:
+#
+#  R1. If a statement is re-prepared, it shall leave GTID_NEXT unchanged:
+#
+#      R1.1. For prepared statements (EXECUTE)
+#      R1.2. For stored procedures (CALL)
+#
+#  R2. If a statement exhausts the re-prepare count so that it fails with
+#      ER_NEED_REPREPARE, it shall set GTID_NEXT to UNDEFINED:
+#
+#      R2.1. For prepared statements (EXECUTE)
+#      R2.2. For stored procedures (CALL)
+#
+# ==== Implementation ====
+#
+#  Initialize
+#  	a) create table
+#  	b) create prepared statement and stored procedure using table created
+#          in step a.
+#
+#  1) Verify behavior with a prepared statement
+#       1.1)  SET gtid_next = UUID:NUMBER
+#       1.2)  Execute prepared statement.
+#       1.3)  SET gtid_next = UUID:NUMBER
+#       1.4)  Truncate table so that table version is updated.
+#       1.5)  SET gtid_next = UUID:NUMBER
+#       1.6)  Re-execute prepared statement. Statement re-prepare is triggered
+#             as table version is changed. This operation should *not* invalidate
+#             gtid_next.
+#
+#  2) Verify behavior with a stored procedure.
+#       2.1) SET gtid_next = UUID:NUMBER
+#       2.2) Execute stored procedure.
+#       2.3) SET gtid_next = UUID:NUMBER
+#       2.4) Truncate table so that table version is updated.
+#       2.5) SET gtid_next = UUID:NUMBER
+#       2.6) Re-execute stored procedure. Statement re-prepare is triggered as
+#            table version is changed. This operation should *not* invalidate
+#            gtid_next.
+#
+#  3) Verify behavior with a prepared statement in stored procedure.
+#       3.1) SET gtid_next = UUID:NUMBER
+#       3.2) Execute stored procedure.
+#       3.3) SET gtid_next = UUID:NUMBER
+#       3.4) Truncate table so that table version is updated.
+#       3.5) SET gtid_next = UUID:NUMBER
+#       3.6) Re-execute stored procedure. Statement re-prepare is triggered as
+#            table version is changed. This operation should *not* invalidate
+#            gtid_next.
+#
+#  4) Verify behavior with a prepared statement in max re-prepare hit situation.
+#       4.1) SET gtid_next = UUID:NUMBER
+#       4.2) Execute prepared statement.
+#       4.3) SET gtid_next = UUID:NUMBER
+#       4.4) Truncate table so that table version is updated.
+#       4.5) SET gtid_next = UUID:NUMBER
+#       4.6) Simulate max prepared statement re-prepare hit condition.
+#       4.7) Re-execute prepared statement. Statement re-prepare is triggered as
+#            table version is changed. This operation fails and gtid_next is
+#            invalidated.
+#
+#  5) Verify behavior with a stored procedure in max re-prepare hit situation.
+#       5.1) SET gtid_next = UUID:NUMBER
+#       5.2) Execute stored procedure.
+#       5.3) SET gtid_next = UUID:NUMBER
+#       5.4) Truncate table so that table version is updated.
+#       5.5) SET gtid_next = UUID:NUMBER
+#       5.6) Simulate max prepared statement re-prepare hit condition.
+#       5.7) Re-execute stored procedure. Statement re-prepare is triggered as
+#            table version is changed. This operation fails and gtid_next is
+#            invalidated.
+#
+#
+# ==== References ====
+#
+# Bug#32326510 - REPREPARE AT THE BEGINNING OF AN IMPLICIT TRANS WILL CAUSE 1837
+#                ERROR.
+#
+
+--source include/have_debug.inc
+
+--echo # ==== Initialize ====
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+PREPARE stmt1 FROM 'INSERT INTO t1 VALUES (1)';
+DELIMITER $;
+CREATE PROCEDURE p1 ()
+BEGIN
+  INSERT INTO t2 VALUES(2);
+END
+$
+
+CREATE PROCEDURE p2 ()
+BEGIN
+  EXECUTE stmt1;
+END
+$
+DELIMITER ;$
+
+
+--echo # ==== Case 1 ====
+--echo # Test case to verify gtid_next update with prepared statement re-prepare.
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+EXECUTE stmt1;
+COMMIT;
+
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+TRUNCATE TABLE t1;
+
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+--echo # Without fix, following statement execution fails.
+EXECUTE stmt1;
+
+
+--echo # ==== Case 2 ====
+--echo # Test case to verify gtid_next update with stored procedure statement
+--echo # re-prepare.
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4';
+CALL p1();
+
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:5';
+TRUNCATE TABLE t2;
+
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:6';
+--echo # Without fix, following statement execution fails.
+CALL p1();
+
+
+--echo # ==== Case 3 ====
+--echo # Test case to verify gtid_next update with prepared statement re-prepare
+--echo # in stored procedure.
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:7';
+CALL p2();
+
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:8';
+TRUNCATE TABLE t1;
+
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:9';
+--echo # Without fix, following statement execution fails.
+CALL p2();
+
+
+--echo # === Case 4 ===
+--echo # Test case to verify gtid_next update with prepared statement max
+--echo # re-prepare attempt hits.
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10';
+TRUNCATE TABLE t1;
+
+
+--let $debug_point= simulate_max_reprepare_attempts_hit_case
+--let $debug_type= SESSION
+--source include/add_debug_point.inc
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:11';
+--echo # Error is reported when max re-prepare limit is hit. Transaction is
+--echo # rolled back and gtid_next is updated.
+--error ER_NEED_REPREPARE
+EXECUTE stmt1;
+--error ER_GTID_NEXT_TYPE_UNDEFINED_GTID
+INSERT INTO t1 VALUES(10);
+
+
+--echo # === Case 5 ===
+--echo # Test case to verify gtid_next update with stored procedure statement
+--echo # max re-prepare attempt hits.
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:12';
+TRUNCATE TABLE t2;
+
+SET gtid_next = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
+--echo # Error is reported when max re-prepare limit is hit. Transaction is
+--echo # rolled back and gtid_next is updated.
+--error ER_NEED_REPREPARE
+CALL p1;
+--error ER_GTID_NEXT_TYPE_UNDEFINED_GTID
+INSERT INTO t2 VALUES(10);
+
+
+--echo # ==== Cleanup ====
+SET gtid_next = DEFAULT;
+--let $debug_point= simulate_max_reprepare_attempts_hit_case
+--let $debug_type= SESSION
+--source include/remove_debug_point.inc
+DEALLOCATE PREPARE stmt1;
+DROP TABLE t1, t2;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;

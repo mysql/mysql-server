@@ -11436,6 +11436,13 @@ ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES
 ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED
   eng "There is not enough free space in the redo log during recovery, restore from backup (or retry with --innodb-force-recovery=6)."
 
+# This error is not supposed to be reported to the users. It is only
+# meant for internal use to signal that a statement should be
+# reprepared for the primary storage engine, without transformations.
+# The error should be caught and handled by the server.
+ER_PREPARE_FOR_PRIMARY_ENGINE
+  eng "Retry the statement using the primary storage engine."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.
