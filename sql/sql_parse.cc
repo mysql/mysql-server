@@ -4541,7 +4541,14 @@ finish:
 
   THD_STAGE_INFO(thd, stage_query_end);
 
-  if (!res) lex->set_exec_started();
+  if (res) {
+    if (thd->get_reprepare_observer() != nullptr &&
+        thd->get_reprepare_observer()->is_invalidated() &&
+        thd->get_reprepare_observer()->can_retry())
+      thd->skip_gtid_rollback = true;
+  } else {
+    lex->set_exec_started();
+  }
 
   // Cleanup EXPLAIN info
   if (!thd->in_sub_stmt) {
@@ -4699,6 +4706,8 @@ finish:
     gtid_state->end_gtid_violating_transaction(thd);  // just roll it back
     DEBUG_SYNC(thd, "restore_previous_state_after_statement_failed");
   }
+
+  thd->skip_gtid_rollback = false;
 
   return res || thd->is_error();
 }

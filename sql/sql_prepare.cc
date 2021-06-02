@@ -2196,6 +2196,7 @@ bool Reprepare_observer::report_error(THD *thd) {
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE);
   m_invalidated = true;
+  m_attempt++;
 
   return true;
 }
@@ -2926,31 +2927,31 @@ bool Prepared_statement::check_parameter_types() {
   validation error, prepare a new copy of the prepared statement,
   swap the old and the new statements, and try again.
   If there is a validation error again, repeat the above, but
-  perform no more than MAX_REPREPARE_ATTEMPTS.
+  perform not more than a maximum number of times. Reprepare_observer
+  ensures that a prepared statement execution is retried not more than a
+  maximum number of times.
 
   @note We have to try several times in a loop since we
   release metadata locks on tables after prepared statement
   prepare. Therefore, a DDL statement may sneak in between prepare
-  and execute of a new statement. If this happens repeatedly
-  more than MAX_REPREPARE_ATTEMPTS times, we give up.
+  and execute of a new statement. If a prepared statement execution
+  is retried for a maximum number of times then we give up.
 
   @param expanded_query   Query string.
   @param open_cursor      Flag to specift if a cursor should be used.
 
   @return  a bool value representing the function execution status.
-  @retval  true    error: either MAX_REPREPARE_ATTEMPTS has been reached,
-                   or some general error
+  @retval  true    error: either statement execution is retried for
+                   a maximum number of times or some general error.
   @retval  false   successfully executed the statement, perhaps
                    after having reprepared it a few times.
 */
 
 bool Prepared_statement::execute_loop(String *expanded_query,
                                       bool open_cursor) {
-  const int MAX_REPREPARE_ATTEMPTS = 3;
   Reprepare_observer reprepare_observer;
   bool error;
   bool reprepared_for_types MY_ATTRIBUTE((unused)) = false;
-  int reprepare_attempt = 0;
 
   /* Check if we got an error when sending long data */
   if (m_arena.get_state() == Query_arena::STMT_ERROR) {
@@ -3027,9 +3028,7 @@ reexecute:
     if (reprepare_observer.is_invalidated()) {
       assert(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
 
-      if ((reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS) &&
-          DBUG_EVALUATE_IF("simulate_max_reprepare_attempts_hit_case", false,
-                           true)) {
+      if (reprepare_observer.can_retry()) {
         thd->clear_error();
         error = reprepare();
         DEBUG_SYNC(thd, "after_statement_reprepare");
@@ -3047,12 +3046,10 @@ reexecute:
       // Otherwise, if repreparation was requested, try again in the primary
       // or secondary engine, depending on cause.
       const uint err_seen = thd->get_stmt_da()->mysql_errno();
-      if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE ||
-          (err_seen == ER_NEED_REPREPARE &&
-           reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)) {
-        assert((thd->secondary_engine_optimization() ==
-                Secondary_engine_optimization::PRIMARY_TENTATIVELY) ||
-               err_seen == ER_NEED_REPREPARE);
+      if (err_seen == ER_PREPARE_FOR_PRIMARY_ENGINE ||
+          err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE) {
+        assert(thd->secondary_engine_optimization() ==
+               Secondary_engine_optimization::PRIMARY_TENTATIVELY);
         assert(!lex->unit->is_executed());
         thd->clear_error();
         if (err_seen == ER_PREPARE_FOR_SECONDARY_ENGINE)

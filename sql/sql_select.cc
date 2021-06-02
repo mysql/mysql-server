@@ -761,7 +761,7 @@ static bool optimize_secondary_engine(THD *thd) {
     // performance.
     thd->lex->m_sql_cmd->set_optional_transform_prepared(false);
     thd->get_stmt_da()->reset_diagnostics_area();
-    thd->get_stmt_da()->set_error_status(thd, ER_NEED_REPREPARE);
+    thd->get_stmt_da()->set_error_status(thd, ER_PREPARE_FOR_PRIMARY_ENGINE);
     return true;
   }
 
