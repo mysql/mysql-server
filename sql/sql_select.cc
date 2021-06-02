@@ -58,6 +58,7 @@
 #include "mysql/udf_registration_types.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // *_ACL
 #include "sql/auth/sql_security_ctx.h"
@@ -4175,6 +4176,19 @@ bool JOIN::make_tmp_tables_info() {
   uint curr_tmp_table = const_tables;
   TABLE *exec_tmp_table = nullptr;
 
+  auto cleanup_tmp_tables_on_error =
+      create_scope_guard([this, &curr_tmp_table] {
+        for (unsigned table_idx = primary_tables; table_idx <= curr_tmp_table;
+             ++table_idx) {
+          TABLE *table = qep_tab[table_idx].table();
+          if (table != nullptr) {
+            close_tmp_table(table);
+            free_tmp_table(table);
+            qep_tab[table_idx].set_table(nullptr);
+          }
+        }
+      });
+
   /*
     If the plan is constant, we will not do window tmp table processing
     cf. special code path in do_query_block.
@@ -4727,6 +4741,7 @@ bool JOIN::make_tmp_tables_info() {
     etc).
   */
   assert(!query_block->is_recursive() || !tmp_tables);
+  cleanup_tmp_tables_on_error.commit();
   return false;
 }
 
