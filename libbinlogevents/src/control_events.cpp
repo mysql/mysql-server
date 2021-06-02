@@ -46,7 +46,7 @@ Rotate_event::Rotate_event(const char *buf, const Format_description_event *fde)
   */
   if (post_header_len) {
     READER_ASSERT_POSITION(header_size + R_POS_OFFSET);
-    READER_TRY_SET(pos, read_and_letoh<uint64_t>);
+    READER_TRY_SET(pos, read<uint64_t>);
     READER_ASSERT_POSITION(header_size + post_header_len);
   } else
     pos = 4;
@@ -224,7 +224,7 @@ Format_description_event::Format_description_event(
   number_of_event_types = 0;
 
   READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN + ST_BINLOG_VER_OFFSET);
-  READER_TRY_SET(binlog_version, read_and_letoh<uint16_t>);
+  READER_TRY_SET(binlog_version, read<uint16_t>);
 
   READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN + ST_SERVER_VER_OFFSET);
   READER_TRY_CALL(memcpy<char *>, server_version, ST_SERVER_VER_LEN);
@@ -233,7 +233,7 @@ Format_description_event::Format_description_event(
   server_version[ST_SERVER_VER_LEN - 1] = 0;
 
   READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN + ST_CREATED_OFFSET);
-  READER_TRY_SET(created, read_and_letoh<uint64_t>, 4);
+  READER_TRY_SET(created, read<uint64_t>, 4);
   dont_set_created = true;
 
   READER_ASSERT_POSITION(LOG_EVENT_MINIMAL_HEADER_LEN +
@@ -302,7 +302,7 @@ Incident_event::Incident_event(const char *buf,
   message_length = 0;
   incident = INCIDENT_NONE;
 
-  READER_TRY_SET(incident_number, read_and_letoh<uint16_t>);
+  READER_TRY_SET(incident_number, read<uint16_t>);
   if (incident_number >= INCIDENT_COUNT || incident_number <= INCIDENT_NONE)
     /*
       If the incident is not recognized, this binlog event is
@@ -354,9 +354,9 @@ XA_prepare_event::XA_prepare_event(const char *buf,
   READER_ASSERT_POSITION(fde->common_header_len);
   READER_TRY_CALL(forward, fde->post_header_len[XA_PREPARE_LOG_EVENT - 1]);
   READER_TRY_SET(one_phase, read<bool>);
-  READER_TRY_SET(my_xid.formatID, read_and_letoh<uint32_t>);
-  READER_TRY_SET(my_xid.gtrid_length, read_and_letoh<uint32_t>);
-  READER_TRY_SET(my_xid.bqual_length, read_and_letoh<uint32_t>);
+  READER_TRY_SET(my_xid.formatID, read<uint32_t>);
+  READER_TRY_SET(my_xid.gtrid_length, read<uint32_t>);
+  READER_TRY_SET(my_xid.bqual_length, read<uint32_t>);
 
   /* Sanity check */
   if (MY_XIDDATASIZE >= my_xid.gtrid_length + my_xid.bqual_length &&
@@ -504,7 +504,7 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
   // SIDNO is only generated if needed, in get_sidno().
   gtid_info_struct.rpl_gtid_sidno = -1;
 
-  READER_TRY_SET(gtid_info_struct.rpl_gtid_gno, read_and_letoh<int64_t>);
+  READER_TRY_SET(gtid_info_struct.rpl_gtid_gno, read<int64_t>);
   /* GNO sanity check */
   if (header()->type_code == GTID_LOG_EVENT) {
     if (gtid_info_struct.rpl_gtid_gno < MIN_GNO ||
@@ -523,8 +523,8 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
     uint8_t lc_typecode = 0;
     READER_TRY_SET(lc_typecode, read<uint8_t>);
     if (lc_typecode == LOGICAL_TIMESTAMP_TYPECODE) {
-      READER_TRY_SET(last_committed, read_and_letoh<uint64_t>);
-      READER_TRY_SET(sequence_number, read_and_letoh<uint64_t>);
+      READER_TRY_SET(last_committed, read<uint64_t>);
+      READER_TRY_SET(sequence_number, read<uint64_t>);
 
       /*
         Fetch the timestamps used to monitor replication lags with respect to
@@ -536,7 +536,7 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
       has_commit_timestamps =
           READER_CALL(can_read, IMMEDIATE_COMMIT_TIMESTAMP_LENGTH);
       if (has_commit_timestamps) {
-        READER_TRY_SET(immediate_commit_timestamp, read_and_letoh<uint64_t>,
+        READER_TRY_SET(immediate_commit_timestamp, read<uint64_t>,
                        IMMEDIATE_COMMIT_TIMESTAMP_LENGTH);
         // Check the MSB to determine how to populate
         // original_commit_timestamps
@@ -545,7 +545,7 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
           // Read the original_commit_timestamp
           immediate_commit_timestamp &=
               ~(1ULL << ENCODED_COMMIT_TIMESTAMP_LENGTH); /* Clear MSB. */
-          READER_TRY_SET(original_commit_timestamp, read_and_letoh<uint64_t>,
+          READER_TRY_SET(original_commit_timestamp, read<uint64_t>,
                          ORIGINAL_COMMIT_TIMESTAMP_LENGTH);
         } else {
           // The transaction originated in the previous server
@@ -564,14 +564,14 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
         original_server_version = UNDEFINED_SERVER_VERSION;
         immediate_server_version = UNDEFINED_SERVER_VERSION;
         if (READER_CALL(can_read, IMMEDIATE_SERVER_VERSION_LENGTH)) {
-          READER_TRY_SET(immediate_server_version, read_and_letoh<uint32_t>);
+          READER_TRY_SET(immediate_server_version, read<uint32_t>);
           // Check the MSB to determine how to populate original_server_version
           if ((immediate_server_version &
                (1ULL << ENCODED_SERVER_VERSION_LENGTH)) != 0) {
             // Read the original_server_version
             immediate_server_version &=
                 ~(1ULL << ENCODED_SERVER_VERSION_LENGTH);  // Clear MSB
-            READER_TRY_SET(original_server_version, read_and_letoh<uint32_t>,
+            READER_TRY_SET(original_server_version, read<uint32_t>,
                            ORIGINAL_SERVER_VERSION_LENGTH);
           } else
             original_server_version = immediate_server_version;
@@ -616,11 +616,11 @@ Transaction_context_event::Transaction_context_event(
   uint32_t read_set_len;
 
   READER_TRY_SET(server_uuid_len, read<uint8_t>);
-  READER_TRY_SET(thread_id, read_and_letoh<uint32_t>);
+  READER_TRY_SET(thread_id, read<uint32_t>);
   READER_TRY_SET(gtid_specified, read<bool>);
-  READER_TRY_SET(encoded_snapshot_version_length, read_and_letoh<uint32_t>);
-  READER_TRY_SET(write_set_len, read_and_letoh<uint32_t>);
-  READER_TRY_SET(read_set_len, read_and_letoh<uint32_t>);
+  READER_TRY_SET(encoded_snapshot_version_length, read<uint32_t>);
+  READER_TRY_SET(write_set_len, read<uint32_t>);
+  READER_TRY_SET(read_set_len, read<uint32_t>);
 
   READER_TRY_SET(server_uuid, strndup<const char *>, server_uuid_len);
   READER_TRY_SET(encoded_snapshot_version, strndup<const unsigned char *>,
@@ -680,8 +680,8 @@ View_change_event::View_change_event(const char *buffer,
   READER_TRY_CALL(memcpy<char *>, view_id, ENCODED_VIEW_ID_MAX_LEN);
   if (strlen(view_id) == 0) READER_THROW("Invalid View_change information");
 
-  READER_TRY_SET(seq_number, read_and_letoh<uint64_t>);
-  READER_TRY_SET(cert_info_len, read_and_letoh<uint32_t>);
+  READER_TRY_SET(seq_number, read<uint64_t>);
+  READER_TRY_SET(cert_info_len, read<uint32_t>);
   READER_TRY_CALL(read_data_map, cert_info_len, &certification_info);
 
   READER_CATCH_ERROR;

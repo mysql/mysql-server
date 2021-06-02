@@ -58,13 +58,13 @@ Table_map_event::Table_map_event(const char *buf,
   READER_TRY_CALL(forward, TM_MAPID_OFFSET);
   if (fde->post_header_len[TABLE_MAP_EVENT - 1] == 6) {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 4);
+    READER_TRY_SET(m_table_id, read<uint64_t>, 4);
   } else {
     BAPI_ASSERT(fde->post_header_len[TABLE_MAP_EVENT - 1] ==
                 TABLE_MAP_HEADER_LEN);
-    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 6);
+    READER_TRY_SET(m_table_id, read<uint64_t>, 6);
   }
-  READER_TRY_SET(m_flags, read_and_letoh<uint16_t>);
+  READER_TRY_SET(m_flags, read<uint16_t>);
 
   /* Read the variable part of the event */
 
@@ -400,18 +400,18 @@ Rows_event::Rows_event(const char *buf, const Format_description_event *fde)
 
   if (post_header_len == 6) {
     /* Master is of an intermediate source tree before 5.1.4. Id is 4 bytes */
-    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 4);
+    READER_TRY_SET(m_table_id, read<uint64_t>, 4);
   } else {
-    READER_TRY_SET(m_table_id, read_and_letoh<uint64_t>, 6);
+    READER_TRY_SET(m_table_id, read<uint64_t>, 6);
   }
-  READER_TRY_SET(m_flags, read_and_letoh<uint16_t>);
+  READER_TRY_SET(m_flags, read<uint16_t>);
 
   if (post_header_len == ROWS_HEADER_LEN_V2) {
     /*
       Have variable length header, check length,
       which includes length bytes
     */
-    READER_TRY_SET(var_header_len, read_and_letoh<uint16_t>);
+    READER_TRY_SET(var_header_len, read<uint16_t>);
     var_header_len -= 2;
 
     /* Iterate over var-len header, extracting 'chunks' */
