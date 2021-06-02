@@ -4321,7 +4321,7 @@ in_string::in_string(MEM_ROOT *mem_root, uint elements, const CHARSET_INFO *cs)
 
 void in_string::set(uint pos, Item *item) {
   String *str = base_pointers[pos];
-  String *res = item->val_str(str);
+  String *res = eval_string_arg(collation, item, str);
   if (res && res != str) {
     if (res->uses_buffer_owned_by(str)) res->copy();
     if (item->type() == Item::FUNC_ITEM)
