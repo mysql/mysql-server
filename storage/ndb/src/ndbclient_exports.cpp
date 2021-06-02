@@ -29,16 +29,16 @@
   NOTE! _ndbclient_exports() is not intended to be called
 */
 
-#include "../include/ndbapi/NdbApi.hpp"
+#include "ndbapi/NdbApi.hpp"
 #include "ndbapi/NdbInfo.hpp"
-#include "../include/portlib/NdbDir.hpp"
+#include "portlib/NdbDir.hpp"
+#include "util/ndb_opts.h"
+#include "util/ndb_rand.h"
+#include "util/random.h"
 
 #ifdef NDB_WITH_NDBJTIE
 extern "C" void _ndbjtie_exports(void);
 #endif
-extern "C" void ndb_usage(void);
-extern "C" void myRandom48Init(void);
-extern "C" void ndb_rand(void);
 
 extern "C"
 #ifdef _MSC_VER
@@ -60,8 +60,8 @@ _ndbclient_exports(void)
 #ifdef NDB_WITH_NDBJTIE
   _ndbjtie_exports();
 #endif
-  ndb_usage();
-  myRandom48Init();
+  ndb_std_print_version();
+  myRandom48Init(0);
   ndb_rand();
   (void)NdbDir::chdir("");
   (void)BitmaskImpl::setField(0, 0, 0, 37, (Uint32*)0);
