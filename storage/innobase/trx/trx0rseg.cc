@@ -335,12 +335,12 @@ page_no_t trx_rseg_get_page_no(space_id_t space_id, ulint rseg_id) {
   return (page_no);
 }
 
-/**
-@return OS_THREAD_DUMMY_RETURN */
-void trx_rseg_init_thread(void *arg) {
+/** Thread to initialize rollback segments in parallel.
+@param[in]	arg		purge queue
+@param[in]	gtid_trx_no	GTID to be set in the rollback segment */
+void trx_rseg_init_thread(void *arg, trx_id_t gtid_trx_no) {
   trx_rseg_t *rseg = nullptr;
   purge_pq_t *purge_queue = (purge_pq_t *)arg;
-  auto &gtid_persistor = clone_sys->get_gtid_persistor();
   while (true) {
     mutex_enter(&purge_sys->pq_mutex);
     if (purge_sys->rsegs_queue.empty()) {
@@ -354,8 +354,7 @@ void trx_rseg_init_thread(void *arg) {
     mutex_exit(&purge_sys->pq_mutex);
 
     mtr_start(&mtr);
-    trx_rseg_physical_initialize(rseg, purge_queue,
-                                 gtid_persistor.get_oldest_trx_no(), &mtr);
+    trx_rseg_physical_initialize(rseg, purge_queue, gtid_trx_no, &mtr);
     mtr_commit(&mtr);
   }
   active_rseg_init_threads.fetch_sub(1);
@@ -470,17 +469,6 @@ void trx_rsegs_init_start(purge_pq_t *purge_queue) {
   page_no_t page_no;
   trx_rseg_t *rseg = nullptr;
 
-  /* Get GTID transaction from SYS */
-  mtr.start();
-  trx_sysf_t *sys_header = trx_sysf_get(&mtr);
-  auto page = sys_header - TRX_SYS;
-  auto gtid_trx_no = mach_read_from_8(page + TRX_SYS_TRX_NUM_GTID);
-
-  mtr.commit();
-
-  auto &gtid_persistor = clone_sys->get_gtid_persistor();
-  gtid_persistor.set_oldest_trx_no_recovery(gtid_trx_no);
-
   for (slot = 0; slot < TRX_SYS_N_RSEGS; slot++) {
     mtr.start();
     trx_sysf_t *sys_header = trx_sysf_get(&mtr);
@@ -575,6 +563,18 @@ void trx_rsegs_parallel_init(purge_pq_t *purge_queue) /*!< in: rseg queue */
   std::vector<IB_thread> threads;
   active_rseg_init_threads = srv_rseg_init_threads;
 
+  /* Get GTID transaction from SYS */
+  mtr_t mtr;
+  mtr.start();
+  trx_sysf_t *sys_header = trx_sysf_get(&mtr);
+  auto page = sys_header - TRX_SYS;
+  auto gtid_trx_no = mach_read_from_8(page + TRX_SYS_TRX_NUM_GTID);
+
+  mtr.commit();
+
+  auto &gtid_persistor = clone_sys->get_gtid_persistor();
+  gtid_persistor.set_oldest_trx_no_recovery(gtid_trx_no);
+
   trx_rsegs_init_start(purge_queue);
 
   if (purge_sys->rsegs_queue.empty()) {
@@ -582,8 +582,9 @@ void trx_rsegs_parallel_init(purge_pq_t *purge_queue) /*!< in: rseg queue */
   }
 
   for (uint32_t i = 0; i < srv_rseg_init_threads; i++) {
-    auto thread = os_thread_create(parallel_rseg_init_thread_key, 0,
-                                   trx_rseg_init_thread, (void *)purge_queue);
+    auto thread =
+        os_thread_create(parallel_rseg_init_thread_key, 0, trx_rseg_init_thread,
+                         (void *)purge_queue, gtid_trx_no);
     threads.emplace_back(thread);
     thread.start();
   }
