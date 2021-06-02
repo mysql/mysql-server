@@ -1182,8 +1182,25 @@ bool CostingReceiver::FoundSubgraphPair(NodeMap left, NodeMap right,
 
   bool wrote_trace = false;
 
-  for (AccessPath *left_path : left_it->second.paths) {
-    for (AccessPath *right_path : right_it->second.paths) {
+  for (AccessPath *right_path : right_it->second.paths) {
+    if (edge->expr->join_conditions_reject_all_rows &&
+        edge->expr->type != RelationalExpression::FULL_OUTER_JOIN) {
+      // If the join condition can never be true, we also don't need to read the
+      // right side. For inner joins and semijoins, we can actually just skip
+      // reading the left side as well, but if so, the join condition would be
+      // pulled up into a WHERE condition (or into the join condition of the
+      // next higher non-inner join), so we'll never see that in practice,
+      // and thus, don't care particularly about the case. We also don't need to
+      // care much about the ordering, since we don't propagate the right-hand
+      // ordering properties through joins.
+      AccessPath *zero_path = NewZeroRowsAccessPath(
+          m_thd, right_path, "Join condition rejects all rows");
+      zero_path->applied_sargable_join_predicates =
+          right_path->applied_sargable_join_predicates;
+      zero_path->delayed_predicates = right_path->delayed_predicates;
+      right_path = zero_path;
+    }
+    for (AccessPath *left_path : left_it->second.paths) {
       // For inner joins and full outer joins, the order does not matter.
       // In lieu of a more precise cost model, always keep the one that hashes
       // the fewest amount of rows. (This has lower initial cost, and the same
@@ -1630,8 +1647,12 @@ void CostingReceiver::ProposeNestedLoopJoin(
       right_path->subsumed_sargable_join_predicates;
 
   double already_applied_selectivity = 1.0;
-  if (edge->expr->equijoin_conditions.size() != 0 ||
-      edge->expr->join_conditions.size() != 0) {
+  if (edge->expr->join_conditions_reject_all_rows) {
+    // We've already taken out all rows from the right-hand side
+    // (by means of a ZeroRowsIterator), so no need to add filters;
+    // they'd only clutter the EXPLAIN.
+  } else if (!edge->expr->equijoin_conditions.empty() ||
+             !edge->expr->join_conditions.empty()) {
     // Apply join filters. Don't update num_output_rows, as the join's
     // selectivity will already be applied in FindOutputRowsForJoin().
     // NOTE(sgunders): We don't model the effect of short-circuiting filters on

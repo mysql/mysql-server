@@ -1930,6 +1930,19 @@ bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
                              &expr->join_conditions)) {
     return true;
   }
+
+  // Find out if any of the conditions are plain “false”.
+  // Note that we don't actually try to remove any of the other conditions
+  // if so (although they may have been optimized away earlier);
+  // Cartesian products make for very restrictive join edges, so it's actually
+  // more flexible to leave them be.
+  for (Item *cond : expr->join_conditions) {
+    if (cond->const_item() && cond->val_int() == 0) {
+      expr->join_conditions_reject_all_rows = true;
+      break;
+    }
+  }
+
   return CanonicalizeJoinConditions(thd, expr->left) ||
          CanonicalizeJoinConditions(thd, expr->right);
 }

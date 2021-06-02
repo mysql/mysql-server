@@ -2582,6 +2582,47 @@ TEST_F(HypergraphOptimizerTest, SemiJoinThroughLooseScan) {
   query_block->cleanup(m_thd, /*full=*/true);
 }
 
+TEST_F(HypergraphOptimizerTest, ImpossibleJoinConditionGivesZeroRows) {
+  Query_block *query_block = ParseAndResolve(
+      "SELECT 1 FROM t1 LEFT JOIN (t2 JOIN t3 ON t2.x=t3.x AND 1=2) ON "
+      "t1.x=t2.x",
+      /*nullable=*/false);
+
+  // We don't need any statistics; the best plan is quite obvious.
+  // But we'd like to confirm the estimated row count for the join.
+  m_fake_tables["t1"]->file->stats.records = 10;
+  m_fake_tables["t2"]->file->stats.records = 1000;
+  m_fake_tables["t3"]->file->stats.records = 1000;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlan(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+
+  // Since there are no rows on the right side, we should have a nested loop
+  // with t1 on the left side.
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->type);
+  EXPECT_EQ(JoinType::OUTER, root->nested_loop_join().join_type);
+  EXPECT_FLOAT_EQ(10.0, root->num_output_rows);
+
+  AccessPath *outer = root->nested_loop_join().outer;
+  ASSERT_EQ(AccessPath::TABLE_SCAN, outer->type);
+  EXPECT_STREQ("t1", outer->table_scan().table->alias);
+
+  // On the right side, we should have pushed _up_ the 1=2 condition,
+  // and seen that it kills all the rows on the right side.
+  AccessPath *inner = root->nested_loop_join().inner;
+  ASSERT_EQ(AccessPath::ZERO_ROWS, inner->type);
+
+  // Just verify that we indeed have a join under there.
+  // (It is needed to get the zero row flags set on t2 and t3.)
+  EXPECT_EQ(AccessPath::NESTED_LOOP_JOIN, inner->zero_rows().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

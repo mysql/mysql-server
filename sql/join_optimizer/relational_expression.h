@@ -120,6 +120,9 @@ struct RelationalExpression {
       multi_children;  // See MULTI_INNER_JOIN.
   Mem_root_array<Item *> join_conditions;
   Mem_root_array<Item_func_eq *> equijoin_conditions;
+  // If true, at least one condition under “join_conditions” is a false (0)
+  // constant. (Such conditions can never be under “equijoin_conditions”.)
+  bool join_conditions_reject_all_rows{false};
   table_map conditions_used_tables{0};
   // If the join conditions were also added as predicates due to cycles
   // in the graph (see comment in AddCycleEdges()), contains a bitmap of
