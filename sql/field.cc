@@ -4371,7 +4371,9 @@ String *Field_double::val_str(String *val_buffer, String *) const {
   size_t len;
 
   if (dec >= DECIMAL_NOT_SPECIFIED)
-    len = my_gcvt(nr, MY_GCVT_ARG_DOUBLE, MAX_DOUBLE_STR_LENGTH, to, nullptr);
+    // +2 to avoid rounding errors when converting back to double.
+    len =
+        my_gcvt(nr, MY_GCVT_ARG_DOUBLE, MAX_DOUBLE_STR_LENGTH + 2, to, nullptr);
   else
     len = my_fcvt(nr, dec, to, nullptr);
 
