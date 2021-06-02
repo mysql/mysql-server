@@ -110,10 +110,10 @@ FROM performance_schema.memory_summary_global_by_event_name
 WHERE event_name = 'memory/temptable/physical_ram';
 sum_number_of_bytes_alloc >= 2*1024*1024
 1
-SELECT sum_number_of_bytes_alloc = 4*1024*1024
+SELECT sum_number_of_bytes_alloc = 4*1024*1024 + 64
 FROM performance_schema.memory_summary_global_by_event_name
 WHERE event_name = 'memory/temptable/physical_disk';
-sum_number_of_bytes_alloc = 4*1024*1024
+sum_number_of_bytes_alloc = 4*1024*1024 + 64
 1
 DROP TABLE t;
 SET GLOBAL temptable_max_ram = default;

@@ -3325,6 +3325,48 @@ static Sys_var_flagset Sys_optimizer_switch(
     optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT), NO_MUTEX_GUARD,
     NOT_IN_BINLOG, ON_CHECK(check_optimizer_switch), ON_UPDATE(nullptr));
 
+static PolyLock_mutex PLock_global_conn_mem_limit(&LOCK_global_conn_mem_limit);
+
+static Sys_var_ulonglong Sys_global_connection_memory_limit(
+    "global_connection_memory_limit",
+    "Maximum amount of memory all connections can consume",
+    GLOBAL_VAR(global_conn_mem_limit), CMD_LINE(REQUIRED_ARG),
+#ifndef NDEBUG
+    VALID_RANGE(1, max_mem_sz), DEFAULT(max_mem_sz),
+#else
+    VALID_RANGE(1024 * 1024 * 16, max_mem_sz), DEFAULT(max_mem_sz),
+#endif
+    BLOCK_SIZE(1), &PLock_global_conn_mem_limit, NOT_IN_BINLOG,
+    ON_CHECK(nullptr), ON_UPDATE(nullptr));
+
+static Sys_var_ulonglong Sys_connection_memory_limit(
+    "connection_memory_limit",
+    "Maximum amount of memory connection can consume",
+    SESSION_VAR(conn_mem_limit), CMD_LINE(REQUIRED_ARG),
+#ifndef NDEBUG
+    VALID_RANGE(1, max_mem_sz), DEFAULT(max_mem_sz),
+#else
+    VALID_RANGE(1024 * 1024 * 2, max_mem_sz), DEFAULT(max_mem_sz),
+#endif
+    BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
+    ON_UPDATE(nullptr));
+
+static Sys_var_ulong Sys_connection_memory_chunk_size(
+    "connection_memory_chunk_size",
+    "Chunk size regulating frequency of updating the global memory counter",
+    SESSION_VAR(conn_mem_chunk_size), CMD_LINE(REQUIRED_ARG),
+    VALID_RANGE(1, 1024 * 1024 * 512), DEFAULT(8912), BLOCK_SIZE(1),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
+    ON_UPDATE(nullptr));
+
+static Sys_var_bool Sys_connection_global_memory_tracking(
+    "global_connection_memory_tracking",
+    "Enable updating the global memory counter and checking "
+    "the global connection memory limit exceeding",
+    SESSION_VAR(conn_global_mem_tracking), CMD_LINE(OPT_ARG), DEFAULT(false),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_session_admin),
+    ON_UPDATE(nullptr));
+
 static Sys_var_bool Sys_var_end_markers_in_json(
     "end_markers_in_json",
     "In JSON output (\"EXPLAIN FORMAT=JSON\" and optimizer trace), "

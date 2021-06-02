@@ -11572,6 +11572,12 @@ ER_IB_WARN_MANY_NON_LRU_FILES_OPENED
 ER_IB_MSG_TRYING_TO_OPEN_FILE_FOR_LONG_TIME
   eng "Trying to open a file for %lld seconds. Configuration only allows for %zu open files. Consider setting innobase_open_files higher."
 
+ER_GLOBAL_CONN_LIMIT
+  eng "Connection closed. Global connection memory limit %llu bytes exceeded. Consumed %llu bytes."
+
+ER_CONN_LIMIT
+  eng "Connection closed. Connection memory limit %llu bytes exceeded. Consumed %llu bytes."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

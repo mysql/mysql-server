@@ -166,6 +166,7 @@ struct PSI_thread_bootstrap {
   void *(*get_interface)(int version);
 };
 typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
+typedef void (*set_mem_cnt_THD_v1_t)(THD *thd, THD **backup_thd);
 struct PSI_thread_service_v4 {
   register_thread_v1_t register_thread;
   spawn_thread_v1_t spawn_thread;
@@ -237,6 +238,7 @@ struct PSI_thread_service_v5 {
   notify_session_connect_v1_t notify_session_connect;
   notify_session_disconnect_v1_t notify_session_disconnect;
   notify_session_change_user_v1_t notify_session_change_user;
+  set_mem_cnt_THD_v1_t set_mem_cnt_THD;
 };
 typedef struct PSI_thread_service_v5 PSI_thread_service_t;
 extern PSI_thread_service_t *psi_thread_service;

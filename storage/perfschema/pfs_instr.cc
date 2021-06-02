@@ -545,6 +545,18 @@ void carry_global_memory_stat_free_delta(PFS_memory_stat_free_delta *delta,
   (void)stat->apply_free_delta(delta, &delta_buffer);
 }
 
+bool PFS_thread::mem_cnt_alloc(size_t size) {
+#ifndef NDEBUG
+  return thd_mem_cnt_alloc(m_cnt_thd, size, current_key_name);
+#else
+  return thd_mem_cnt_alloc(m_cnt_thd, size);
+#endif
+}
+
+void PFS_thread::mem_cnt_free(size_t size) {
+  thd_mem_cnt_free(m_cnt_thd, size);
+}
+
 /**
   Create instrumentation for a thread instance.
   @param klass                        the thread class
@@ -611,6 +623,10 @@ PFS_thread *create_thread(PFS_thread_class *klass, PSI_thread_seqnum seqnum,
     pfs->m_connection_type = NO_VIO_TYPE;
 
     pfs->m_thd = nullptr;
+    pfs->m_cnt_thd = nullptr;
+#ifndef NDEBUG
+    pfs->current_key_name = nullptr;
+#endif
     pfs->m_host = nullptr;
     pfs->m_user = nullptr;
     pfs->m_account = nullptr;
@@ -762,6 +778,7 @@ void destroy_thread(PFS_thread *pfs) {
   assert(pfs != nullptr);
   pfs->reset_session_connect_attrs();
   pfs->m_thd = nullptr;
+  pfs->m_cnt_thd = nullptr;
 
   PFS_thread_class *klass = pfs->m_class;
   if (klass->is_singleton()) {

@@ -81,6 +81,7 @@
 #include "my_io.h"
 #include "my_macros.h"
 #include "my_thread.h"
+#include "mysql/psi/mysql_memory.h"
 #include "mysql/psi/mysql_thread.h"
 #include "pfs_error_provider.h"
 /* Make sure exported prototypes match the implementation. */
@@ -3090,6 +3091,21 @@ void pfs_set_thread_THD_vc(PSI_thread *thread, THD *thd) {
     return;
   }
   pfs->m_thd = thd;
+  pfs->m_cnt_thd = thd;
+}
+
+/**
+  Implementation of the thread instrumentation interface.
+  @sa PSI_v2::set_mem_cnt_THD.
+*/
+void pfs_set_mem_cnt_THD_vc(THD *thd, THD **backup_thd) {
+  PFS_thread *pfs = my_thread_get_THR_PFS();
+  if (unlikely(pfs == nullptr)) {
+    *backup_thd = nullptr;
+    return;
+  }
+  *backup_thd = pfs->m_cnt_thd;
+  pfs->m_cnt_thd = thd;
 }
 
 /**
@@ -7572,6 +7588,7 @@ void pfs_register_memory_vc(const char *category, PSI_memory_info_v1 *info,
 
 PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
                                    PSI_thread **owner) {
+  PSI_memory_key result_key = key;
   PFS_thread **owner_thread = reinterpret_cast<PFS_thread **>(owner);
   assert(owner_thread != nullptr);
 
@@ -7604,6 +7621,14 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
       return PSI_NOT_INSTRUMENTED;
     }
 
+    if (klass->has_memory_cnt()) {
+#ifndef NDEBUG
+      pfs_thread->current_key_name = klass->m_name.str();
+#endif
+      if (pfs_thread->m_cnt_thd != nullptr && pfs_thread->mem_cnt_alloc(size))
+        result_key |= PSI_MEM_CNT_BIT;
+    }
+
     PFS_memory_safe_stat *event_name_array;
     PFS_memory_safe_stat *stat;
     PFS_memory_stat_alloc_delta delta_buffer;
@@ -7632,7 +7657,7 @@ PSI_memory_key pfs_memory_alloc_vc(PSI_memory_key key, size_t size,
     *owner_thread = nullptr;
   }
 
-  return key;
+  return result_key;
 }
 
 PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
@@ -7640,7 +7665,7 @@ PSI_memory_key pfs_memory_realloc_vc(PSI_memory_key key, size_t old_size,
   PFS_thread **owner_thread_hdl = reinterpret_cast<PFS_thread **>(owner);
   assert(owner != nullptr);
 
-  PFS_memory_class *klass = find_memory_class(key);
+  PFS_memory_class *klass = find_memory_class(PSI_REAL_MEM_KEY(key));
   if (klass == nullptr) {
     *owner_thread_hdl = nullptr;
     return PSI_NOT_INSTRUMENTED;
@@ -7717,7 +7742,7 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
   PFS_thread **owner_thread = reinterpret_cast<PFS_thread **>(owner);
   assert(owner_thread != nullptr);
 
-  PFS_memory_class *klass = find_memory_class(key);
+  PFS_memory_class *klass = find_memory_class(PSI_REAL_MEM_KEY(key));
   if (klass == nullptr) {
     *owner_thread = nullptr;
     return PSI_NOT_INSTRUMENTED;
@@ -7830,7 +7855,8 @@ PSI_memory_key pfs_memory_claim_vc(PSI_memory_key key, size_t size,
 
 void pfs_memory_free_vc(PSI_memory_key key, size_t size,
                         PSI_thread *owner [[maybe_unused]]) {
-  PFS_memory_class *klass = find_memory_class(key);
+  PFS_memory_class *klass = find_memory_class(PSI_REAL_MEM_KEY(key));
+
   if (klass == nullptr) {
     return;
   }
@@ -7850,6 +7876,11 @@ void pfs_memory_free_vc(PSI_memory_key key, size_t size,
     PFS_thread *pfs_thread = my_thread_get_THR_PFS();
     PFS_thread *owner_thread = reinterpret_cast<PFS_thread *>(owner);
     if (likely(pfs_thread != nullptr)) {
+      if (pfs_thread->m_cnt_thd != nullptr && (key & PSI_MEM_CNT_BIT)) {
+        assert(klass->has_memory_cnt());
+        pfs_thread->mem_cnt_free(size);
+      }
+
       if (pfs_thread == owner_thread) {
         /*
           Do not check pfs_thread->m_enabled.
@@ -8313,7 +8344,8 @@ PSI_thread_service_v5 pfs_thread_service_v5 = {
     pfs_unregister_notification_vc,
     pfs_notify_session_connect_vc,
     pfs_notify_session_disconnect_vc,
-    pfs_notify_session_change_user_vc};
+    pfs_notify_session_change_user_vc,
+    pfs_set_mem_cnt_THD_vc};
 
 SERVICE_TYPE(psi_thread_v5)
 SERVICE_IMPLEMENTATION(performance_schema, psi_thread_v5) = {

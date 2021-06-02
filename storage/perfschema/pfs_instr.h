@@ -651,6 +651,7 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
   PFS_events_transactions m_transaction_current;
 
   THD *m_thd;
+  THD *m_cnt_thd;
   PFS_host *m_host;
   PFS_user *m_user;
   PFS_account *m_account;
@@ -725,6 +726,11 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice {
     }
     return m_instr_class_memory_stats;
   }
+  bool mem_cnt_alloc(size_t size);
+  void mem_cnt_free(size_t size);
+#ifndef NDEBUG
+  const char *current_key_name;
+#endif
 };
 
 void carry_global_memory_stat_alloc_delta(PFS_memory_stat_alloc_delta *delta,

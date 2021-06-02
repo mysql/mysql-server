@@ -7719,6 +7719,15 @@ static void lo_notify_session_change_user(PSI_thread *thread) {
   }
 }
 
+static void lo_set_mem_cnt_THD(THD *thd, THD **backup_thd) {
+  LO_thread *lo = get_THR_LO();
+  if (lo != nullptr) {
+    if ((g_thread_chain != nullptr) && (lo->m_chain != nullptr)) {
+      g_thread_chain->set_mem_cnt_THD(thd, backup_thd);
+    }
+  }
+}
+
 PSI_thread_service_v5 LO_thread_v5 = {lo_register_thread,
                                       lo_spawn_thread,
                                       lo_new_thread,
@@ -7752,7 +7761,8 @@ PSI_thread_service_v5 LO_thread_v5 = {lo_register_thread,
                                       lo_unregister_notification,
                                       lo_notify_session_connect,
                                       lo_notify_session_disconnect,
-                                      lo_notify_session_change_user};
+                                      lo_notify_session_change_user,
+                                      lo_set_mem_cnt_THD};
 
 static void *lo_get_thread_interface(int version) {
   switch (version) {

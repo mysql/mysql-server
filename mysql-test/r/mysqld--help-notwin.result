@@ -272,6 +272,11 @@ The following options may be given as the first argument:
  NEVER, AUTO, ALWAYS
  --connect-timeout=# The number of seconds the mysqld server is waiting for a
  connect packet before responding with 'Bad handshake'
+ --connection-memory-chunk-size=# 
+ Chunk size regulating frequency of updating the global
+ memory counter
+ --connection-memory-limit=# 
+ Maximum amount of memory connection can consume
  --console           Write error output on screen; don't remove the console
  window on windows.
  --core-file         Write core on errors.
@@ -402,6 +407,11 @@ The following options may be given as the first argument:
  --generated-random-password-length=# 
  Determines the length randomly generated passwords in
  CREATE USER-,SET PASSWORD- or ALTER USER statements
+ --global-connection-memory-limit=# 
+ Maximum amount of memory all connections can consume
+ --global-connection-memory-tracking 
+ Enable updating the global memory counter and checking
+ the global connection memory limit exceeding
  --group-concat-max-len=# 
  The maximum length of the result of function 
  GROUP_CONCAT()
@@ -1643,6 +1653,8 @@ collation-server utf8mb4_0900_ai_ci
 completion-type NO_CHAIN
 concurrent-insert AUTO
 connect-timeout 10
+connection-memory-chunk-size 8912
+connection-memory-limit 18446744073709551615
 console FALSE
 create-admin-listener-thread FALSE
 cte-max-recursion-depth 1000
@@ -1679,6 +1691,8 @@ ft-stopword-file (No default value)
 gdb FALSE
 general-log FALSE
 generated-random-password-length 20
+global-connection-memory-limit 18446744073709551615
+global-connection-memory-tracking FALSE
 group-concat-max-len 1024
 group-replication-consistency EVENTUAL
 gtid-executed-compression-period 0

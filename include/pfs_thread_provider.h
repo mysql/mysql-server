@@ -81,6 +81,8 @@ void pfs_set_thread_os_id_vc(PSI_thread *thread);
 
 PSI_thread *pfs_get_thread_vc(void);
 
+void pfs_set_mem_cnt_THD_vc(THD *thd, THD **backup_thd);
+
 void pfs_set_thread_user_vc(const char *user, int user_len);
 
 void pfs_set_thread_account_vc(const char *user, int user_len, const char *host,

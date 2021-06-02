@@ -250,6 +250,8 @@ struct PFS_instr_class {
 
   bool has_auto_seqnum() const { return m_flags & PSI_FLAG_AUTO_SEQNUM; }
 
+  bool has_memory_cnt() const { return m_flags & PSI_FLAG_MEM_COLLECT; }
+
   void enforce_valid_flags(uint allowed_flags) {
     /* Reserved for future use. */
     allowed_flags |= PSI_FLAG_THREAD | PSI_FLAG_TRANSFER;

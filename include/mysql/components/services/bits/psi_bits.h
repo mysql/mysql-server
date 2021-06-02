@@ -134,6 +134,11 @@ static constexpr unsigned PSI_NOT_INSTRUMENTED = 0;
 */
 #define PSI_FLAG_NO_SEQNUM (1 << 11)
 
+/**
+  Enable collecting the memory consumed by threads.
+*/
+#define PSI_FLAG_MEM_COLLECT (1 << 12)
+
 #define PSI_VOLATILITY_UNKNOWN 0
 #define PSI_VOLATILITY_PERMANENT 1
 #define PSI_VOLATILITY_PROVISIONING 2

@@ -527,6 +527,9 @@ class Thd_backup_and_restore {
 
     m_new_thd->thread_stack = m_backup_thd->thread_stack;
     m_new_thd->store_globals();
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_mem_cnt_THD)(m_new_thd, &m_backup_cnt_thd);
+#endif
   }
 
   /**
@@ -543,11 +546,16 @@ class Thd_backup_and_restore {
 
     // Reset the global variables to the original state.
     m_backup_thd->store_globals();
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_mem_cnt_THD)(m_backup_cnt_thd, &m_dummy_cnt_thd);
+#endif
   }
 
  private:
   THD *m_backup_thd;
   THD *m_new_thd;
+  THD *m_backup_cnt_thd;
+  THD *m_dummy_cnt_thd;
   my_thread_t m_new_thd_old_real_id;
   const char *m_new_thd_old_thread_stack;
 };
@@ -8316,6 +8324,7 @@ int MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   assign_automatic_gtids_to_flush_group(first_seen);
   /* Flush thread caches to binary log. */
   for (THD *head = first_seen; head; head = head->next_to_commit) {
+    Thd_backup_and_restore switch_thd(current_thd, head);
     std::pair<int, my_off_t> result = flush_thread_caches(head);
     total_bytes += result.second;
     if (flush_error == 1) flush_error = result.first;

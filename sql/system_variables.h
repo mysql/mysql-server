@@ -426,6 +426,18 @@ struct System_variables {
     @sa Sys_terminology_use_previous
   */
   ulong terminology_use_previous;
+  /**
+    @sa Sys_connection_memory_limit
+  */
+  ulonglong conn_mem_limit;
+  /**
+    @sa Sys_connection_memory_chunk_size
+  */
+  ulong conn_mem_chunk_size;
+  /**
+    @sa Sys_connection_global_memory_tracking
+  */
+  bool conn_global_mem_tracking;
 };
 
 /**

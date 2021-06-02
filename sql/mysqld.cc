@@ -1112,6 +1112,7 @@ static PSI_mutex_key key_LOCK_admin_tls_ctx_options;
 static PSI_mutex_key key_LOCK_rotate_binlog_master_key;
 static PSI_mutex_key key_LOCK_partial_revokes;
 static PSI_mutex_key key_LOCK_authentication_policy;
+static PSI_mutex_key key_LOCK_global_conn_mem_limit;
 #endif /* HAVE_PSI_INTERFACE */
 
 /**
@@ -1352,6 +1353,9 @@ bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
 
+ulonglong global_conn_mem_limit = 0;
+ulonglong global_conn_mem_counter = 0;
+
 /**
   This variable holds handle to the object that's responsible
   for loading/unloading components from manifest file
@@ -1591,6 +1595,8 @@ mysql_mutex_t LOCK_rotate_binlog_master_key;
 */
 mysql_mutex_t LOCK_authentication_policy;
 
+mysql_mutex_t LOCK_global_conn_mem_limit;
+
 bool mysqld_server_started = false;
 /**
   Set to true to signal at startup if the process must die.
@@ -1824,6 +1830,19 @@ struct System_status_var *get_thd_status_var(THD *thd, bool *aggregated) {
   *aggregated = thd->status_var_aggregated;
   return &thd->status_var;
 }
+
+#ifndef NDEBUG
+bool thd_mem_cnt_alloc(THD *thd, size_t size, const char *key_name) {
+  thd->current_key_name = key_name;
+  return thd->mem_cnt->alloc_cnt(size);
+}
+#else
+bool thd_mem_cnt_alloc(THD *thd, size_t size) {
+  return thd->mem_cnt->alloc_cnt(size);
+}
+#endif
+
+void thd_mem_cnt_free(THD *thd, size_t size) { thd->mem_cnt->free_cnt(size); }
 
 static void option_error_reporter(enum loglevel level, uint ecode, ...) {
   va_list args;
@@ -2691,6 +2710,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_admin_tls_ctx_options);
   mysql_mutex_destroy(&LOCK_partial_revokes);
   mysql_mutex_destroy(&LOCK_authentication_policy);
+  mysql_mutex_destroy(&LOCK_global_conn_mem_limit);
 }
 
 /****************************************************************************
@@ -5257,6 +5277,8 @@ static int init_thread_environment() {
   mysql_mutex_init(key_LOCK_partial_revokes, &LOCK_partial_revokes,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_authentication_policy, &LOCK_authentication_policy,
+                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_global_conn_mem_limit, &LOCK_global_conn_mem_limit,
                    MY_MUTEX_INIT_FAST);
   return 0;
 }
@@ -9087,6 +9109,14 @@ static int show_prepared_stmt_count(THD *, SHOW_VAR *var, char *buff) {
   return 0;
 }
 
+static int show_global_mem_counter(THD *, SHOW_VAR *var, char *buff) {
+  var->type = SHOW_LONGLONG;
+  var->value = buff;
+  MUTEX_LOCK(lock, &LOCK_global_conn_mem_limit);
+  *((longlong *)buff) = (longlong)global_conn_mem_counter;
+  return 0;
+}
+
 static int show_table_definitions(THD *, SHOW_VAR *var, char *buff) {
   var->type = SHOW_LONG;
   var->value = buff;
@@ -9273,6 +9303,8 @@ SHOW_VAR status_vars[] = {
     {"Error_log_latest_write", (char *)&log_sink_pfs_latest_timestamp,
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
     {"Flush_commands", (char *)&refresh_version, SHOW_LONG_NOFLUSH,
+     SHOW_SCOPE_GLOBAL},
+    {"Global_connection_memory", (char *)&show_global_mem_counter, SHOW_FUNC,
      SHOW_SCOPE_GLOBAL},
     {"Handler_commit", (char *)offsetof(System_status_var, ha_commit_count),
      SHOW_LONGLONG_STATUS, SHOW_SCOPE_ALL},
@@ -11354,7 +11386,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_monitor_info_run_lock, "Source_IO_monitor::run_lock", 0, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_delegate_connection_mutex, "LOCK_delegate_connection_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_group_replication_connection_mutex, "LOCK_group_replication_connection_mutex", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
-  { &key_LOCK_authentication_policy, "LOCK_authentication_policy", PSI_FLAG_SINGLETON, 0, "A lock to ensure execution of CREATE USER or ALTER USER sql and SET @@global.authentication_policy variable are serialized"}
+{ &key_LOCK_authentication_policy, "LOCK_authentication_policy", PSI_FLAG_SINGLETON, 0, "A lock to ensure execution of CREATE USER or ALTER USER sql and SET @@global.authentication_policy variable are serialized"},
+  { &key_LOCK_global_conn_mem_limit, "LOCK_global_conn_mem_limit", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME}
 };
 /* clang-format on */
 

@@ -1228,7 +1228,7 @@ bool do_command(THD *thd) {
   bool return_value;
   int rc;
   NET *net = nullptr;
-  enum enum_server_command command;
+  enum enum_server_command command = COM_SLEEP;
   COM_DATA com_data;
   DBUG_TRACE;
   assert(thd->is_classic_protocol());
@@ -1274,20 +1274,25 @@ bool do_command(THD *thd) {
   */
   DEBUG_SYNC(thd, "before_do_command_net_read");
 
-  /*
-    Because of networking layer callbacks in place,
-    this call will maintain the following instrumentation:
-    - IDLE events
-    - SOCKET events
-    - STATEMENT events
-    - STAGE events
-    when reading a new network packet.
-    In particular, a new instrumented statement is started.
-    See init_net_server_extension()
-  */
-  thd->m_server_idle = true;
-  rc = thd->get_protocol()->get_command(&com_data, &command);
-  thd->m_server_idle = false;
+  rc = thd->mem_cnt->reset();
+  if (rc)
+    thd->mem_cnt->set_thd_error_status();
+  else {
+    /*
+      Because of networking layer callbacks in place,
+      this call will maintain the following instrumentation:
+      - IDLE events
+      - SOCKET events
+      - STATEMENT events
+      - STAGE events
+      when reading a new network packet.
+      In particular, a new instrumented statement is started.
+      See init_net_server_extension()
+    */
+    thd->m_server_idle = true;
+    rc = thd->get_protocol()->get_command(&com_data, &command);
+    thd->m_server_idle = false;
+  }
 
   if (rc) {
 #ifndef NDEBUG

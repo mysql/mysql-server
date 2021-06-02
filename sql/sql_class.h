@@ -213,6 +213,129 @@ void thd_set_psi(THD *thd, PSI_thread *psi);
 */
 extern "C" unsigned int thd_get_current_thd_terminology_use_previous();
 
+enum enum_mem_cnt_mode {
+  /**
+    Memory counter object doesn't update global memory counter and doesn't throw
+    OOM error.
+  */
+  MEM_CNT_DEFAULT = 0U,
+  /**
+    if MEM_CNT_UPDATE_GLOBAL_COUNTER is set, memory counter object updates
+    global memory counter.
+  */
+  MEM_CNT_UPDATE_GLOBAL_COUNTER = (1U << 0),
+  /**
+  if MEM_CNT_GENERATE_ERROR is set, memory counter object generates OOM error if
+  any.
+*/
+  MEM_CNT_GENERATE_ERROR = (1U << 1),
+  /**
+  if MEM_CNT_GENERATE_LOG_ERROR is set, memory counter object generates OOM
+  error to error log if any.
+*/
+  MEM_CNT_GENERATE_LOG_ERROR = (1U << 2)
+};
+
+class Thd_mem_cnt {
+ public:
+  Thd_mem_cnt() = default;
+  virtual ~Thd_mem_cnt() = default;
+  virtual bool alloc_cnt(size_t size) = 0;
+  virtual void free_cnt(size_t size) = 0;
+  virtual int reset() = 0;
+  virtual void flush() = 0;
+  virtual void restore_mode() = 0;
+  virtual void no_error_mode() = 0;
+  virtual void set_curr_mode(uint mode_arg) = 0;
+  virtual void set_orig_mode(uint mode_arg) = 0;
+  virtual bool is_error() = 0;
+  virtual void set_thd_error_status() = 0;
+};
+
+class Thd_mem_cnt_noop : public Thd_mem_cnt {
+ public:
+  bool alloc_cnt(size_t) override { return false; }
+  void free_cnt(size_t) override {}
+  int reset() override { return 0; }
+  void flush() override {}
+  void restore_mode() override {}
+  void no_error_mode() override {}
+  void set_curr_mode(uint) override {}
+  void set_orig_mode(uint) override {}
+  bool is_error() override { return false; }
+  void set_thd_error_status() override {}
+};
+
+class Thd_mem_cnt_conn : public Thd_mem_cnt {
+  THD *m_thd;                       // Pointer to THD object.
+  Diagnostics_area m_da{false};     // Diagnostics area.
+  ulonglong mem_counter{0};         // Amount of memory consumed by thread.
+  ulonglong max_conn_mem{0};        // Max amount memory consumed by thread.
+  ulonglong glob_mem_counter{0};    // Amount of memory added to global
+                                    // memory counter.
+  uint curr_mode{MEM_CNT_DEFAULT};  // Current memory counter mode.
+  uint orig_mode{MEM_CNT_DEFAULT};  // Original memory counter mode
+                                    // (sets at init_mode() stage).
+  bool is_connection_stage{true};   // True on connection stage,
+                                    // resets to false after successful
+                                    // connection.
+ public:
+  Thd_mem_cnt_conn(THD *thd_arg) : m_thd(thd_arg) {}
+  ~Thd_mem_cnt_conn() override {
+    assert(mem_counter == 0 && glob_mem_counter == 0);
+  }
+  bool alloc_cnt(size_t size) override;
+  void free_cnt(size_t size) override;
+  int reset() override;
+  void flush() override;
+  /**
+    Restore original memory counter mode.
+  */
+  void restore_mode() override { curr_mode = orig_mode; }
+  /**
+    Set NO ERROR memory counter mode.
+  */
+  void no_error_mode() override {
+    curr_mode &= ~(MEM_CNT_GENERATE_ERROR | MEM_CNT_GENERATE_LOG_ERROR);
+  }
+  /**
+     Function sets current memory counter mode.
+
+     @param mode_arg         current memory counter mode.
+  */
+  void set_curr_mode(uint mode_arg) override { curr_mode = mode_arg; }
+  /**
+     Function sets original memory counter mode.
+
+     @param mode_arg         original memory counter mode.
+  */
+  void set_orig_mode(uint mode_arg) override { orig_mode = mode_arg; }
+  /**
+    Check if memory counter error is issued.
+
+    @retval true if memory counter error is issued, false otherwise.
+  */
+  bool is_error() override { return m_da.is_error(); }
+  void set_thd_error_status() override;
+
+ private:
+  int generate_error(int err_no, ulonglong mem_limit, ulonglong mem_size);
+  /**
+    Check if memory counter is in error mode.
+
+    @retval true if memory counter is in error mode, false otherwise.
+  */
+  bool is_error_mode() const { return (curr_mode & MEM_CNT_GENERATE_ERROR); }
+  /**
+    Check if memory counter is in error log  mode.
+
+    @retval true if memory counter is in error log mode, false otherwise.
+  */
+  bool is_error_log_mode() const {
+    return (curr_mode & MEM_CNT_GENERATE_LOG_ERROR);
+  }
+};
+
 /**
   the struct aggregates two paramenters that identify an event
   uniquely in scope of communication of a particular master and slave couple.
@@ -4483,6 +4606,21 @@ class THD : public MDL_context_owner,
   void copy_table_access_properties(THD *thd);
   mysql_mutex_t LOCK_group_replication_connection_mutex;
   mysql_cond_t COND_group_replication_connection_cond_var;
+
+  Thd_mem_cnt *mem_cnt;
+  bool enable_mem_cnt();
+  void disable_mem_cnt();
+
+#ifndef NDEBUG
+  const char *current_key_name;
+  ulonglong conn_mem_alloc_number;
+  bool is_mem_cnt_error_issued;
+  bool is_mem_cnt_error() {
+    return (is_error() &&
+            (get_stmt_da()->mysql_errno() == ER_DA_GLOBAL_CONN_LIMIT ||
+             get_stmt_da()->mysql_errno() == ER_DA_CONN_LIMIT));
+  }
+#endif
 };
 
 /**

@@ -56,6 +56,14 @@ struct System_status_var *get_thd_status_var(THD *, bool *) {
   return nullptr;
 }
 
+#ifndef NDEBUG
+bool thd_mem_cnt_alloc(THD *, size_t, const char *) { return false; }
+#else
+bool thd_mem_cnt_alloc(THD *, size_t) { return false; }
+#endif
+
+void thd_mem_cnt_free(THD *, size_t) {}
+
 unsigned int mysql_errno_to_sqlstate_index(unsigned int) { return 0; }
 
 SERVICE_TYPE(registry) * mysql_plugin_registry_acquire() { return nullptr; }

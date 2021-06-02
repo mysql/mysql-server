@@ -1644,7 +1644,8 @@ PFS_memory_key register_memory_class(const char *name, uint name_length,
                      PFS_CLASS_MEMORY);
     entry->m_event_name_index = index;
 
-    entry->enforce_valid_flags(PSI_FLAG_ONLY_GLOBAL_STAT);
+    entry->enforce_valid_flags(
+        (PSI_FLAG_ONLY_GLOBAL_STAT | PSI_FLAG_MEM_COLLECT));
 
     /* Set user-defined configuration options for this instrument */
     configure_instr_class(entry);

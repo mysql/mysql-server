@@ -103,6 +103,13 @@ typedef struct PSI_thread_bootstrap PSI_thread_bootstrap;
 #ifdef HAVE_PSI_THREAD_INTERFACE
 
 /**
+  Set instrumented thread used for memory counting.
+  @param [in]  thd the instrumented thread
+  @param [out] backup_thd the backup thread
+*/
+typedef void (*set_mem_cnt_THD_v1_t)(THD *thd, THD **backup_thd);
+
+/**
   Performance Schema Thread Interface, version 4.
   @since PSI_THREAD_VERSION_4
 */
@@ -255,6 +262,8 @@ struct PSI_thread_service_v5 {
   notify_session_disconnect_v1_t notify_session_disconnect;
   /** @sa notify_session_change_user_v1_t. */
   notify_session_change_user_v1_t notify_session_change_user;
+  /** @sa  set_mem_cnt_THD_v1_t. */
+  set_mem_cnt_THD_v1_t set_mem_cnt_THD;
 };
 
 typedef struct PSI_thread_service_v5 PSI_thread_service_t;

@@ -143,7 +143,7 @@ FROM performance_schema.memory_summary_global_by_event_name
 WHERE event_name = 'memory/temptable/physical_ram';
 
 # We need to make sure we have exhausted the MMAP limit
-SELECT sum_number_of_bytes_alloc = 4*1024*1024
+SELECT sum_number_of_bytes_alloc = 4*1024*1024 + 64
 FROM performance_schema.memory_summary_global_by_event_name
 WHERE event_name = 'memory/temptable/physical_disk';
 
