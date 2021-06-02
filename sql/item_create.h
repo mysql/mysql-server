@@ -200,12 +200,12 @@ class Create_udf_func : public Create_func {
   Builder for cast expressions.
   @param thd The current thread
   @param pos Location of casting expression
-  @param a The item to cast
+  @param arg The item to cast
   @param type the type casted into
   @param as_array Cast to array
 */
-Item *create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type &type,
-                       bool as_array);
+Item *create_func_cast(THD *thd, const POS &pos, Item *arg,
+                       const Cast_type &type, bool as_array);
 
 Item *create_func_cast(THD *thd, const POS &pos, Item *a,
                        Cast_target cast_target, const CHARSET_INFO *cs_arg);
