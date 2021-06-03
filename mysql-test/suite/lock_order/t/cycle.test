@@ -26,6 +26,14 @@
 --replace_regex /\.so|\.dll/.xxx/
 --eval INSTALL PLUGIN validate_password SONAME '$VALIDATE_PASSWORD';
 
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN connection_control SONAME '$CONNECTION_CONTROL_PLUGIN';
+
+call mtr.add_suppression("Plugin Rewriter reported:");
+
+--replace_regex /\.so|\.dll/.xxx/
+--eval INSTALL PLUGIN rewriter SONAME '$REWRITER';
+
 INSTALL COMPONENT "file://component_pfs_example";
 
 INSTALL COMPONENT "file://component_validate_password";
@@ -49,6 +57,10 @@ select "Dumping lock_order.txt file now" as title;
 UNINSTALL COMPONENT "file://component_pfs_example";
 
 UNINSTALL COMPONENT "file://component_validate_password";
+
+UNINSTALL PLUGIN rewriter;
+
+UNINSTALL PLUGIN connection_control;
 
 UNINSTALL PLUGIN validate_password;
 

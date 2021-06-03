@@ -1697,7 +1697,7 @@ stack when the second lock was acquired:
 #define LO_MAX_THREAD_CLASS 100
 #define LO_MAX_MUTEX_CLASS 300
 #define LO_MAX_RWLOCK_CLASS 100
-#define LO_MAX_COND_CLASS 100
+#define LO_MAX_COND_CLASS 150
 #define LO_MAX_FILE_CLASS 100
 
 /*

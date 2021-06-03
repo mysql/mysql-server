@@ -5,6 +5,9 @@ INSTALL PLUGIN version_tokens SONAME 'version_token.xxx';;
 INSTALL PLUGIN validate_password SONAME 'validate_password.xxx';;
 Warnings:
 Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead
+INSTALL PLUGIN connection_control SONAME 'connection_control.xxx';;
+call mtr.add_suppression("Plugin Rewriter reported:");
+INSTALL PLUGIN rewriter SONAME 'rewriter.xxx';;
 INSTALL COMPONENT "file://component_pfs_example";
 INSTALL COMPONENT "file://component_validate_password";
 select "In SSL session";
@@ -16,6 +19,10 @@ Dumping lock_order.txt file now
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 UNINSTALL COMPONENT "file://component_pfs_example";
 UNINSTALL COMPONENT "file://component_validate_password";
+UNINSTALL PLUGIN rewriter;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+UNINSTALL PLUGIN connection_control;
 UNINSTALL PLUGIN validate_password;
 Warnings:
 Warning	1287	'validate password plugin' is deprecated and will be removed in a future release. Please use validate_password component instead

@@ -2,6 +2,8 @@
 --early-plugin-load=$KEYRING_PLUGIN
 --loose-keyring_file_data=keyring/lock-order
 --federated
+$CONNECTION_CONTROL_PLUGIN_OPT
+$REWRITER_OPT
 $PFS_EXAMPLE_OPT
 $PFS_EXAMPLE_PLUGIN_EMPLOYEE_OPT
 $SEMISYNC_SOURCE_PLUGIN_OPT
