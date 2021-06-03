@@ -1557,6 +1557,14 @@ class PT_query_expression final : public PT_query_primary {
       */
       return true;
     }
+    if (m_order != nullptr && m_limit == nullptr && !order && limit) {
+      /*
+        Allow pushdown of LIMIT into body with ORDER BY, e.g
+
+          (SELECT ... ORDER BY order1) LIMIT a;
+      */
+      return true;
+    }
     return false;
   }
 
