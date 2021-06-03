@@ -113,7 +113,7 @@ using OrderingSet = std::bitset<kMaxSupportedOrderings>;
 
 TABLE *CreateTemporaryTableFromSelectList(
     THD *thd, Query_block *query_block, Window *window,
-    Temp_table_param **temp_table_param_arg);
+    Temp_table_param **temp_table_param_arg, bool after_aggregation);
 
 void ReplaceSelectListWithTempTableFields(THD *thd, JOIN *join,
                                           const Func_ptr_array &items_to_copy);
@@ -2709,10 +2709,15 @@ void ReplaceUpdateValuesWithTempTableFields(
   rows to come from a single table instead of a join, or as the last step if the
   SQL_BUFFER_RESULT query option has been specified. It is also used for setting
   up the output temporary table for window functions.
+
+  NOTE: If after_aggregation = true, it is impossible to call this function
+  again later with after_aggregation = false, as count_field_types() will
+  remove item->has_aggregation() once called. Thus, we need to set up all
+  these temporary tables in FinalizePlanForQueryBlock(), in the right order.
  */
 TABLE *CreateTemporaryTableFromSelectList(
     THD *thd, Query_block *query_block, Window *window,
-    Temp_table_param **temp_table_param_arg) {
+    Temp_table_param **temp_table_param_arg, bool after_aggregation) {
   JOIN *join = query_block->join;
 
   Temp_table_param *temp_table_param = new (thd->mem_root) Temp_table_param;
@@ -2721,35 +2726,54 @@ TABLE *CreateTemporaryTableFromSelectList(
   assert(!temp_table_param->skip_create_table);
   temp_table_param->m_window = window;
   count_field_types(query_block, temp_table_param, *join->fields,
-                    /*reset_with_sum_func=*/true, /*save_sum_fields=*/true);
+                    /*reset_with_sum_func=*/after_aggregation,
+                    /*save_sum_fields=*/after_aggregation);
 
-  TABLE *temp_table =
-      create_tmp_table(thd, temp_table_param, *join->fields,
-                       /*group=*/nullptr, /*distinct=*/false,
-                       /*save_sum_fields=*/true, query_block->active_options(),
-                       /*rows_limit=*/HA_POS_ERROR, "<temporary>");
+  TABLE *temp_table = create_tmp_table(
+      thd, temp_table_param, *join->fields,
+      /*group=*/nullptr, /*distinct=*/false,
+      /*save_sum_fields=*/after_aggregation, query_block->active_options(),
+      /*rows_limit=*/HA_POS_ERROR, "<temporary>");
 
-  // Most items have been added to items_to_copy in create_tmp_field(), but not
-  // non-window aggregate functions, so add them here.
-  //
-  // Note that MIN/MAX in the presence of an index have special semantics
-  // where they are filled out elsewhere and may not have a result field,
-  // so we need to skip those that don't have one.
-  for (Item *item : *join->fields) {
-    if (item->type() == Item::SUM_FUNC_ITEM &&
-        !item->real_item()->m_is_window_function &&
-        item->get_result_field() != nullptr) {
-      temp_table_param->items_to_copy->push_back(
-          Func_ptr{item, item->get_result_field()});
+  if (after_aggregation) {
+    // Most items have been added to items_to_copy in create_tmp_field(), but
+    // not non-window aggregate functions, so add them here.
+    //
+    // Note that MIN/MAX in the presence of an index have special semantics
+    // where they are filled out elsewhere and may not have a result field,
+    // so we need to skip those that don't have one.
+    for (Item *item : *join->fields) {
+      if (item->type() == Item::SUM_FUNC_ITEM &&
+          !item->real_item()->m_is_window_function &&
+          item->get_result_field() != nullptr) {
+        temp_table_param->items_to_copy->push_back(
+            Func_ptr{item, item->get_result_field()});
+      }
+
+      // Verify that all non-constant, non-window-related items
+      // have been added to items_to_copy.
+      assert(item->const_for_execution() || item->has_wf() ||
+             std::any_of(
+                 temp_table_param->items_to_copy->begin(),
+                 temp_table_param->items_to_copy->end(),
+                 [item](const Func_ptr &ptr) { return ptr.func() == item; }));
     }
-
-    // Verify that all non-constant, non-window-related items
-    // have been added to items_to_copy.
-    assert(item->const_for_execution() || item->has_wf() ||
-           std::any_of(
-               temp_table_param->items_to_copy->begin(),
-               temp_table_param->items_to_copy->end(),
-               [item](const Func_ptr &ptr) { return ptr.func() == item; }));
+  } else {
+    // create_tmp_table() doesn't understand that rollup group items
+    // are not materializable before aggregation has run, so we simply
+    // take them out of the copy, and the replacement logic will do the rest
+    // (e.g. rollup_group_item(t1.x)+2 -> rollup_group_item(<temporary>.x)+2).
+    // This works because the base fields are always included. The logic is
+    // very similar to what happens in change_to_use_tmp_fields_except_sums().
+    //
+    // TODO: Consider removing the rollup group items on the inner levels,
+    // similar to what change_to_use_tmp_fields_except_sums() does.
+    auto new_end = std::remove_if(
+        temp_table_param->items_to_copy->begin(),
+        temp_table_param->items_to_copy->end(),
+        [](const Func_ptr &func) { return func.func()->has_rollup_expr(); });
+    temp_table_param->items_to_copy->erase(
+        new_end, temp_table_param->items_to_copy->end());
   }
 
   // We made a new table, so make sure it gets properly cleaned up
@@ -4899,17 +4923,18 @@ static void UpdateReferencesToMaterializedItems(
 }
 
 /**
-  If the given access path is a window function, it creates its output
-  temporary table (we cannot do this until we have a final access path
-  list, where we know the order of the windows). It also needs to
-  forward this information to the materialization access path coming
-  right after this window, if any, so it uses last_window_temp_table
-  as a buffer to hold this.
+  If the given access path needs a temporary table, it instantiates
+  said table (we cannot do this until we have a final access path
+  list, where we know which temporary tables are created and in which order).
+  For window functions, it also needs to forward this information to the
+  materialization access path coming right after this window, if any,
+  so it uses last_window_temp_table as a buffer to hold this.
  */
-static void CreateTemporaryTableForWindow(THD *thd, Query_block *query_block,
-                                          AccessPath *path,
-                                          TABLE **last_window_temp_table,
-                                          unsigned *num_windows_seen) {
+static void DelayedCreateTemporaryTable(THD *thd, Query_block *query_block,
+                                        AccessPath *path,
+                                        bool after_aggregation,
+                                        TABLE **last_window_temp_table,
+                                        unsigned *num_windows_seen) {
   if (path->type == AccessPath::WINDOW) {
     // Create the temporary table and parameters.
     Window *window = path->window().window;
@@ -4919,7 +4944,8 @@ static void CreateTemporaryTableForWindow(THD *thd, Query_block *query_block,
     window->set_is_last(*num_windows_seen ==
                         query_block->join->m_windows.size());
     path->window().temp_table = CreateTemporaryTableFromSelectList(
-        thd, query_block, window, &path->window().temp_table_param);
+        thd, query_block, window, &path->window().temp_table_param,
+        /*after_aggregation=*/true);
     path->window().temp_table_param->m_window = window;
     *last_window_temp_table = path->window().temp_table;
   } else if (path->type == AccessPath::MATERIALIZE) {
@@ -4935,7 +4961,8 @@ static void CreateTemporaryTableForWindow(THD *thd, Query_block *query_block,
         assert(path->materialize().param->query_blocks.size() == 1);
         TABLE *table = CreateTemporaryTableFromSelectList(
             thd, query_block, nullptr,
-            &path->materialize().param->query_blocks[0].temp_table_param);
+            &path->materialize().param->query_blocks[0].temp_table_param,
+            after_aggregation);
         path->materialize().param->table =
             path->materialize().table_path->table_scan().table = table;
       }
@@ -4945,7 +4972,8 @@ static void CreateTemporaryTableForWindow(THD *thd, Query_block *query_block,
   } else if (path->type == AccessPath::STREAM) {
     if (path->stream().table == nullptr) {
       path->stream().table = CreateTemporaryTableFromSelectList(
-          thd, query_block, nullptr, &path->stream().temp_table_param);
+          thd, query_block, nullptr, &path->stream().temp_table_param,
+          after_aggregation);
     }
     *last_window_temp_table = nullptr;
   } else {
@@ -5088,12 +5116,14 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
   TABLE *last_window_temp_table = nullptr;
   unsigned num_windows_seen = 0;
   bool error = false;
+  bool after_aggregation = false;
   WalkAccessPaths(
       root_path, query_block->join, WalkAccessPathPolicy::ENTIRE_QUERY_BLOCK,
       [thd, query_block, &applied_replacements, &last_window_temp_table,
-       &num_windows_seen, &error](AccessPath *path, JOIN *join) {
-        CreateTemporaryTableForWindow(
-            thd, query_block, path, &last_window_temp_table, &num_windows_seen);
+       &num_windows_seen, &error,
+       &after_aggregation](AccessPath *path, JOIN *join) {
+        DelayedCreateTemporaryTable(thd, query_block, path, after_aggregation,
+                                    &last_window_temp_table, &num_windows_seen);
 
         const mem_root_deque<Item *> *original_fields = join->fields;
         UpdateReferencesToMaterializedItems(thd, query_block, path,
@@ -5102,6 +5132,17 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
           FinalizeWindowPath(thd, query_block, *original_fields,
                              applied_replacements, path);
         } else if (path->type == AccessPath::AGGREGATE) {
+          for (Cached_item &ci : join->group_fields) {
+            for (const Func_ptr_array *earlier_replacement :
+                 applied_replacements) {
+              thd->change_item_tree(
+                  ci.get_item_ptr(),
+                  FindReplacementOrReplaceMaterializedItems(
+                      thd, ci.get_item(), *earlier_replacement,
+                      /*need_exact_match=*/true));
+            }
+          }
+
           // Set up aggregators, now that fields point into the right temporary
           // table.
           const bool need_distinct =
@@ -5117,6 +5158,7 @@ bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
               error = true;
             }
           }
+          after_aggregation = true;
         }
         return false;
       },
