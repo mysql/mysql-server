@@ -5663,8 +5663,13 @@ Item *Item_field::equal_fields_propagator(uchar *arg) {
     e.g. <bin_col> = <int_col> AND <bin_col> = <hex_string>) since
     Items don't know the context they are in and there are functions like
     IF (<hex_string>, 'yes', 'no').
+
+    Also, disable const propagation if the constant is nullable and this item is
+    not. If we were to allow propagation in this case, we would also need to
+    propagate the new nullability up to the parents of this item.
   */
-  if (!item || !has_compatible_context(item))
+  if (item == nullptr || !has_compatible_context(item) ||
+      (item->is_nullable() && !is_nullable()))
     item = this;
   else if (field && field->is_flag_set(ZEROFILL_FLAG) &&
            IS_NUM(field->type())) {

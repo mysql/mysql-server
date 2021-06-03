@@ -1597,3 +1597,13 @@ SELECT 1 FROM t1 WHERE (@b IN ( SELECT a FROM t1 )) = a;
 --enable_result_log
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#32895824: SIGNAL 6 ASSERTION`!NULL_VALUE || IS_NULLABLE()'
+--echo #               FAILED IN ../SQL/ITEM_FUNC.CC
+--echo #
+CREATE TABLE t(pk INT PRIMARY KEY);
+SELECT 1 FROM t
+WHERE CAST(pk AS UNSIGNED INTEGER) = 1
+      AND pk = (SELECT 1 FROM t);
+DROP TABLE t;
