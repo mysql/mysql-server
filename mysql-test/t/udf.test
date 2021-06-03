@@ -630,9 +630,40 @@ INSERT INTO t1 values
 ;
 SELECT a, my_median(b) from t1 GROUP BY a;
 
-DROP FUNCTION my_median;
 DROP TABLE t1;
 
+--echo # Bug#32528898: Calling UDF aggregate function corrupts plugin with JOIN
+
+CREATE TABLE users(id INTEGER, name VARCHAR(255));
+INSERT INTO users(id, name) VALUES (1, 'Jason'), (2, 'Brian');
+
+CREATE TABLE user_values(id INTEGER, user_id INTEGER, value INTEGER);
+INSERT INTO user_values(id, user_id, value) VALUES (1,1,1), (2,2,10);
+
+let $query = SELECT my_median(value) FROM user_values;
+eval $query;
+eval $query;
+
+let $query = SELECT user_id, my_median(value) FROM user_values GROUP BY user_id;
+eval $query;
+eval $query;
+
+let $query =
+SELECT users.id, my_median(value)
+FROM users,user_values
+WHERE users.id = user_values.user_id
+GROUP BY users.id;
+eval $query;
+eval $query;
+
+eval prepare ps from "$query";
+execute ps;
+execute ps;
+DEALLOCATE PREPARE ps;
+
+DROP TABLE users, user_values;
+
+DROP FUNCTION my_median;
 
 --echo #
 --echo # WL8980 - Move udf metatable table from MyISAM to InnoDB.

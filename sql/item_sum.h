@@ -1914,7 +1914,7 @@ class Item_udf_sum : public Item_sum {
     udf.m_original = false;
   }
   ~Item_udf_sum() override {
-    if (udf.is_initialized()) udf.free_handler();
+    if (udf.m_original && udf.is_initialized()) udf.free_handler();
   }
 
   bool itemize(Parse_context *pc, Item **res) override;
