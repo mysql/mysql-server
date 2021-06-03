@@ -1937,10 +1937,17 @@ bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
   // Cartesian products make for very restrictive join edges, so it's actually
   // more flexible to leave them be.
   for (Item *cond : expr->join_conditions) {
-    if (cond->const_item() && cond->val_int() == 0) {
+    if (cond->has_subquery() || cond->is_expensive()) {
+      continue;
+    }
+    if (cond->const_for_execution() && cond->val_int() == 0) {
       expr->join_conditions_reject_all_rows = true;
       break;
     }
+  }
+  if (thd->is_error()) {
+    // val_int() above failed.
+    return true;
   }
 
   return CanonicalizeJoinConditions(thd, expr->left) ||
