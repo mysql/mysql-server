@@ -298,7 +298,7 @@ class Event_reader {
     T value = 0;
     ::memcpy((char *)&value, m_ptr, bytes);
     m_ptr = m_ptr + bytes;
-    return letoh(value);
+    return (bytes > 1) ? letoh(value) : value;
   }
 
   /**
