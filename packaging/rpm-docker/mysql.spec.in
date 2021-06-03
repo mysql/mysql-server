@@ -52,6 +52,8 @@
 
 %global src_dir               %{src_base}-@VERSION_SRC@
 
+%global cmake3                cmake%{?el6:3}%{?el7:3}
+
 %global license_files_server  %{src_dir}/LICENSE %{src_dir}/README
 
 %if 0%{?commercial}
@@ -170,7 +172,7 @@ fi
 mkdir release
 (
   cd release
-  cmake3 ../%{src_dir} \
+  %{cmake3} ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DREPRODUCIBLE_BUILD=OFF \
            -DINSTALL_LAYOUT=RPM \
