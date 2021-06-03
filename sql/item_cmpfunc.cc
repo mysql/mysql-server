@@ -5291,6 +5291,7 @@ longlong Item_func_in::val_int() {
     const int rc = in_item->cmp(args[i]);
     if (rc == false) return (longlong)(!negated);
     have_null |= (rc == UNKNOWN);
+    if (current_thd->is_error()) return error_int();
   }
 
   null_value = have_null;

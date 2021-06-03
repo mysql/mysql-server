@@ -4288,3 +4288,9 @@ st_aswkt('2031-05-29 01:40:44.878673' +
 interval(!json_arrayagg('')) second_microsecond,
 'axis-order=long-lat')), connection_id());
 ERROR 22023: Invalid GIS data provided to function st_astext.
+#
+# Bug#32942328: ITEM_FUNC_COALESCE::VAL_JSON:
+#               ASSERTION `!CURRENT_THD->IS_ERROR() && HAS_VALUE'
+#
+DO 1 IN (JSON_PRETTY(''), ANY_VALUE(JSON_ARRAYAGG('')));
+ERROR 22032: Invalid JSON text in argument 1 to function json_pretty: "The document is empty." at position 0.
