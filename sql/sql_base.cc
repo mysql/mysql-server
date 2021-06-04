@@ -9033,6 +9033,14 @@ bool setup_fields(THD *thd, ulong want_privilege, bool allow_sum_func,
         my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
         return true;
       }
+      if (item->type() == Item::TRIGGER_FIELD_ITEM) {
+        char buff[NAME_LEN * 2];
+        String str(buff, sizeof(buff), &my_charset_bin);
+        str.length(0);
+        item->print(thd, &str, QT_ORDINARY);
+        my_error(ER_INVALID_ASSIGNMENT_TARGET, MYF(0), str.c_ptr());
+        return true;
+      }
       TABLE_LIST *tr = field->table_ref;
       if ((want_privilege & UPDATE_ACL) && !tr->is_updatable()) {
         /*
