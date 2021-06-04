@@ -9574,6 +9574,9 @@ ER_WARN_SQL_AFTER_MTS_GAPS_GAP_NOT_CALCULATED
 ER_INVALID_ASSIGNMENT_TARGET 42000
   eng "Invalid target for assignment in INSERT or UPDATE statement '%.192s'."
 
+ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON
+  eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!
