@@ -235,3 +235,10 @@ SELECT CAST(ST_COLLECT(geo) AS DECIMAL ) FROM simple_table;
 CAST(ST_COLLECT(geo) AS DECIMAL )
 0
 DROP TABLE simple_table;
+set @d:=repeat(1,228);
+select st_collect(substr(@d,110,47));
+ERROR SR001: There's no spatial reference system with SRID 825307441.
+select st_collect(left(@d,42));
+ERROR SR001: There's no spatial reference system with SRID 825307441.
+select st_collect(right(@d,42));
+ERROR SR001: There's no spatial reference system with SRID 825307441.
