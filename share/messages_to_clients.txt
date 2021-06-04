@@ -9580,6 +9580,9 @@ ER_OPERATION_NOT_ALLOWED_ON_GR_SECONDARY
 ER_GRP_RPL_FAILOVER_CHANNEL_STATUS_PROPAGATION
   eng "Unable to propagate the SOURCE_CONNECTION_AUTO_FAILOVER value for channel '%s' to group replication members. Please retry the operation."
 
+ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON
+  eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
+
 #
 #  End of 8.0 error messages (server-to-client).
 #  Do NOT add messages intended for the error log above!

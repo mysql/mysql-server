@@ -11436,6 +11436,9 @@ ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES
 ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED
   eng "There is not enough free space in the redo log during recovery, restore from backup (or retry with --innodb-force-recovery=6)."
 
+ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON_LOG
+  eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
+
 # This error is not supposed to be reported to the users. It is only
 # meant for internal use to signal that a statement should be
 # reprepared for the primary storage engine, without transformations.
