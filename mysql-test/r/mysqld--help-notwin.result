@@ -1969,7 +1969,7 @@ temptable-use-mmap TRUE
 terminology-use-previous NONE
 thread-cache-size 9
 thread-handling one-thread-per-connection
-thread-stack 262144
+thread-stack 1048576
 tls-ciphersuites (No default value)
 tmp-table-size 16777216
 transaction-alloc-block-size 8192

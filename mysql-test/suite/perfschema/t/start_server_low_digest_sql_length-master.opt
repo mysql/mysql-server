@@ -1,3 +1,2 @@
---thread_stack=655360
 --max_digest_length=10
 --loose-performance_schema_max_sql_text_length=10

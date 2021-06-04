@@ -47,21 +47,11 @@
 #define ETIMEDOUT 145 /* Win32 doesn't have this */
 #endif
 
-#if defined(__sparc) && (defined(__SUNPRO_CC) || defined(__SUNPRO_C))
-#define STACK_MULTIPLIER 2UL
-#elif defined HAVE_UBSAN
-#define STACK_MULTIPLIER 3UL
-#elif defined(HAVE_LSAN) || defined(HAVE_ASAN)
-#define STACK_MULTIPLIER 4UL
-#else
-#define STACK_MULTIPLIER 1UL
-#endif
-
-#if SIZEOF_CHARP > 4
-#define DEFAULT_THREAD_STACK (STACK_MULTIPLIER * 280UL * 1024UL)
-#else
-#define DEFAULT_THREAD_STACK (STACK_MULTIPLIER * 216UL * 1024UL)
-#endif
+// Pick a value which is enough for all mtr tests,
+// on all known/supported platforms.
+// Currently the largest stack requirement is with
+// clang with DEBUG and UBSAN -O0 -fno-inline
+#define DEFAULT_THREAD_STACK (1024UL * 1024UL)
 
 static inline int is_timeout(int e) {
 #if ETIMEDOUT == ETIME
