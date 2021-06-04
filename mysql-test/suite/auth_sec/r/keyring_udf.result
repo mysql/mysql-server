@@ -20,17 +20,17 @@ keyring_key_remove	2	keyring_udf.so	function
 keyring_key_store	2	keyring_udf.so	function
 keyring_key_type_fetch	0	keyring_udf.so	function
 select keyring_key_generate('Rob_AES_128','AES',16);
-ERROR HY000: Can't initialize function 'keyring_key_generate'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_generate'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_store('Rob_AES_128','AES',"0123456789012345");
-ERROR HY000: Can't initialize function 'keyring_key_store'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_store'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_fetch('Rob_AES_128');
-ERROR HY000: Can't initialize function 'keyring_key_fetch'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_fetch'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_type_fetch('Rob_AES_128');
-ERROR HY000: Can't initialize function 'keyring_key_type_fetch'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_type_fetch'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_length_fetch('Rob_AES_128');
-ERROR HY000: Can't initialize function 'keyring_key_length_fetch'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_length_fetch'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_remove('Rob_AES_128');
-ERROR HY000: Can't initialize function 'keyring_key_remove'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_remove'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 drop function keyring_key_store;
 drop function keyring_key_fetch;
 drop function keyring_key_type_fetch;
@@ -54,17 +54,17 @@ keyring_key_remove	2	keyring_udf.so	function
 keyring_key_store	2	keyring_udf.so	function
 keyring_key_type_fetch	0	keyring_udf.so	function
 select keyring_key_generate('Rob_AES_128','AES',16);
-ERROR HY000: Can't initialize function 'keyring_key_generate'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_generate'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_store('Rob_AES_128','AES',"0123456789012345");
-ERROR HY000: Can't initialize function 'keyring_key_store'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_store'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_fetch('Rob_AES_128');
-ERROR HY000: Can't initialize function 'keyring_key_fetch'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_fetch'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_type_fetch('Rob_AES_128');
-ERROR HY000: Can't initialize function 'keyring_key_type_fetch'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_type_fetch'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_length_fetch('Rob_AES_128');
-ERROR HY000: Can't initialize function 'keyring_key_length_fetch'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_length_fetch'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_remove('Rob_AES_128');
-ERROR HY000: Can't initialize function 'keyring_key_remove'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_remove'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 drop function keyring_key_store;
 drop function keyring_key_fetch;
 drop function keyring_key_type_fetch;
@@ -395,7 +395,7 @@ keyring_key_generate('roots_key', 'AES',16)
 create definer=root@localhost procedure shared_key() select keyring_key_fetch('roots_key');
 CREATE USER user_execute_test@localhost;
 select keyring_key_generate('Rob_DSA_no_privilege','DSA',384);
-ERROR HY000: Can't initialize function 'keyring_key_generate'; The user is not privileged to execute this function. User needs to have EXECUTE 
+ERROR HY000: Can't initialize function 'keyring_key_generate'; The user is not privileged to execute this function. User needs to have EXECUTE permission.
 GRANT EXECUTE ON *.* TO 'user_execute_test'@'localhost';
 select keyring_key_generate('Rob_DSA_no_privilege','DSA',384);
 keyring_key_generate('Rob_DSA_no_privilege','DSA',384)
@@ -744,17 +744,17 @@ DROP TABLE t1;
 UNINSTALL PLUGIN keyring_udf;
 # Test cases for keyring_udf not loaded and keyring_file plugin loaded
 select keyring_key_store('Rob_uninstalled','AES','123');
-ERROR HY000: Can't initialize function 'keyring_key_store'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_store'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_fetch('Rob_uninstalled');
-ERROR HY000: Can't initialize function 'keyring_key_fetch'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_fetch'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_type_fetch('Rob_uninstalled');
-ERROR HY000: Can't initialize function 'keyring_key_type_fetch'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_type_fetch'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_length_fetch('Rob_uninstalled');
-ERROR HY000: Can't initialize function 'keyring_key_length_fetch'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_length_fetch'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_remove('Rob_uninstalled');
-ERROR HY000: Can't initialize function 'keyring_key_remove'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_remove'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 select keyring_key_generate('Rob_uninstalled_generate','DSA',128);
-ERROR HY000: Can't initialize function 'keyring_key_generate'; This function requires keyring_udf plugin which is not installed. Please install
+ERROR HY000: Can't initialize function 'keyring_key_generate'; This function requires keyring_udf plugin which is not installed. Please install keyring_udf plugin and try again.
 drop function keyring_key_store;
 drop function keyring_key_fetch;
 drop function keyring_key_remove;
