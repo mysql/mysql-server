@@ -9138,14 +9138,14 @@ void MYSQL_BIN_LOG::report_missing_purged_gtids(
   mysql_mutex_lock(&current_thd->LOCK_thd_data);
   const auto it = current_thd->user_vars.find("replica_uuid");
   if (it != current_thd->user_vars.end() && it->second->length() > 0) {
-    tmp_uuid.copy(it->second->ptr(), it->second->length(), NULL);
+    tmp_uuid.copy(it->second->ptr(), it->second->length(), nullptr);
   }
   mysql_mutex_unlock(&current_thd->LOCK_thd_data);
 
-  char *missing_gtids = NULL;
-  char *slave_executed_gtids = NULL;
-  gtid_missing.to_string(&missing_gtids, NULL);
-  slave_executed_gtid_set->to_string(&slave_executed_gtids, NULL);
+  char *missing_gtids = nullptr;
+  char *slave_executed_gtids = nullptr;
+  gtid_missing.to_string(&missing_gtids);
+  slave_executed_gtid_set->to_string(&slave_executed_gtids);
 
   /*
      Log the information about the missing purged GTIDs to the error log.
@@ -9193,13 +9193,13 @@ void MYSQL_BIN_LOG::report_missing_gtids(
     const char **errmsg) {
   DBUG_TRACE;
   THD *thd = current_thd;
-  char *missing_gtids = NULL;
-  char *slave_executed_gtids = NULL;
+  char *missing_gtids = nullptr;
+  char *slave_executed_gtids = nullptr;
   Gtid_set gtid_missing(slave_executed_gtid_set->get_sid_map());
   gtid_missing.add_gtid_set(slave_executed_gtid_set);
   gtid_missing.remove_gtid_set(previous_gtid_set);
-  gtid_missing.to_string(&missing_gtids, NULL);
-  slave_executed_gtid_set->to_string(&slave_executed_gtids, NULL);
+  gtid_missing.to_string(&missing_gtids);
+  slave_executed_gtid_set->to_string(&slave_executed_gtids);
 
   String tmp_uuid;
 
@@ -9207,7 +9207,7 @@ void MYSQL_BIN_LOG::report_missing_gtids(
   mysql_mutex_lock(&current_thd->LOCK_thd_data);
   const auto it = current_thd->user_vars.find("replica_uuid");
   if (it != current_thd->user_vars.end() && it->second->length() > 0) {
-    tmp_uuid.copy(it->second->ptr(), it->second->length(), NULL);
+    tmp_uuid.copy(it->second->ptr(), it->second->length(), nullptr);
   }
   mysql_mutex_unlock(&current_thd->LOCK_thd_data);
 
