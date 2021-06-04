@@ -2295,11 +2295,11 @@ TABLE *CreateTemporaryTableFromSelectList(
   count_field_types(query_block, temp_table_param, *join->fields,
                     /*reset_with_sum_func=*/true, /*save_sum_fields=*/true);
 
-  TABLE *temp_table = create_tmp_table(
-      thd, temp_table_param, *join->fields,
-      /*group=*/nullptr, /*distinct=*/false, /*save_sum_fields=*/true,
-      query_block->active_options(), /*rows_limit=*/HA_POS_ERROR, "");
-  temp_table->alias = "<temporary>";
+  TABLE *temp_table =
+      create_tmp_table(thd, temp_table_param, *join->fields,
+                       /*group=*/nullptr, /*distinct=*/false,
+                       /*save_sum_fields=*/true, query_block->active_options(),
+                       /*rows_limit=*/HA_POS_ERROR, "<temporary>");
 
   // Most items have been added to items_to_copy in create_tmp_field(), but not
   // aggregate funtions, so add them here.
