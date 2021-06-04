@@ -138,5 +138,12 @@ int ReplSemiSyncSlave::slaveReply(MYSQL *mysql, const char *binlog_filename,
            net->last_errno);
   }
 
+  /*
+    The progress of the internal state of the NET object differs a bit between
+    compressed and non-compressed protocol. For compressed protocol, it is
+    necessary to call net_clear when switching between reading and writing.
+    For non-compressed protocol, it does not work when we call net_clear here
+  */
+  if (net->compress) net_clear(net, false);
   return function_exit(kWho, reply_res);
 }
