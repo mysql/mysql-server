@@ -9571,6 +9571,9 @@ ER_DA_ERROR_LOG_COMPONENT_FLUSH_FAILED
 ER_WARN_SQL_AFTER_MTS_GAPS_GAP_NOT_CALCULATED
   eng "The until clause SQL_AFTER_MTS_GAPS is being used for channel '%.192s' when GTID_MODE = ON and SOURCE_AUTO_POSITION=1 meaning the server did not compute internally what gaps may exist in the relay log transaction execution. To close any execution gaps use either the SQL_BEFORE_GTIDS or SQL_AFTER_GTIDS until clause."
 
+ER_INVALID_ASSIGNMENT_TARGET 42000
+  eng "Invalid target for assignment in INSERT or UPDATE statement '%.192s'."
+
 ER_OPERATION_NOT_ALLOWED_ON_GR_SECONDARY
    eng "This operation cannot be performed on a Group Replication secondary member, it must be done on the group primary."
 

@@ -410,9 +410,9 @@ bool PTI_simple_ident_q_2d::itemize(Parse_context *pc, Item **res) {
   sp_head *sp = lex->sphead;
 
   /*
-    FIXME This will work ok in simple_ident_nospvar case because
-    we can't meet simple_ident_nospvar in trigger now. But it
-    should be changed in future.
+    References with OLD and NEW designators can be used in expressions in
+    triggers. Semantic checks must ensure they are not used in invalid
+    contexts, such as assignment targets.
   */
   if (sp && sp->m_type == enum_sp_type::TRIGGER &&
       (!my_strcasecmp(system_charset_info, table, "NEW") ||
