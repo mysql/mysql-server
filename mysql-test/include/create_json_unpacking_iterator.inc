@@ -38,6 +38,8 @@
 #   $json_label
 #     Identifier used to distinguish this unpacker from other unpackers.
 #
+#   For all other parameters: see create_json_unpacker.inc
+#
 # Output:
 #
 #   This script generates two .inc files in $MYSQLTEST_VARDIR/tmp,

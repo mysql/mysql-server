@@ -219,8 +219,8 @@ int table_events_stages_common::make_row(PFS_events_stages *stage) {
   m_normalizer->to_pico(stage->m_timer_start, timer_end, &m_row.m_timer_start,
                         &m_row.m_timer_end, &m_row.m_timer_wait);
 
-  m_row.m_name = klass->m_name;
-  m_row.m_name_length = klass->m_name_length;
+  m_row.m_name = klass->m_name.str();
+  m_row.m_name_length = klass->m_name.length();
 
   make_source_column(stage->m_source_file, stage->m_source_line, m_row.m_source,
                      sizeof(m_row.m_source), m_row.m_source_length);

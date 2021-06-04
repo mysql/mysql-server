@@ -330,7 +330,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count,
   if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
     THD_STAGE_INFO(thd, stage_system_lock);
 
-  DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
+  DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info()));
   if (sql_lock->table_count &&
       lock_external(thd, sql_lock->table, sql_lock->table_count)) {
     /* Clear the lock type of all lock data to avoid reusage. */

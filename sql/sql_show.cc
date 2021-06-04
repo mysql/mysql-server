@@ -2647,19 +2647,21 @@ class thread_info_compare {
   }
 };
 
-static const char *thread_state_info(THD *tmp) {
-  if (tmp->get_protocol()->get_rw_status()) {
-    if (tmp->get_protocol()->get_rw_status() == 2)
+static const char *thread_state_info(THD *invoking_thd, THD *inspected_thd) {
+  DBUG_TRACE;
+  if (inspected_thd->get_protocol()->get_rw_status()) {
+    if (inspected_thd->get_protocol()->get_rw_status() == 2)
       return "Sending to client";
-    else if (tmp->get_command() == COM_SLEEP)
+    else if (inspected_thd->get_command() == COM_SLEEP)
       return "";
     else
       return "Receiving from client";
   } else {
-    MUTEX_LOCK(lock, &tmp->LOCK_current_cond);
-    if (tmp->proc_info)
-      return tmp->proc_info;
-    else if (tmp->current_cond.load())
+    MUTEX_LOCK(lock, &inspected_thd->LOCK_current_cond);
+    const char *proc_info = inspected_thd->proc_info_session(invoking_thd);
+    if (proc_info)
+      return proc_info;
+    else if (inspected_thd->current_cond.load())
       return "Waiting on cond";
     else
       return nullptr;
@@ -2689,6 +2691,7 @@ class List_process_list : public Do_THD_Impl {
         m_max_query_length(max_query_length) {}
 
   void operator()(THD *inspect_thd) override {
+    DBUG_TRACE;
     Security_context *inspect_sctx = inspect_thd->security_context();
     LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
     LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
@@ -2751,7 +2754,7 @@ class List_process_list : public Do_THD_Impl {
     thd_info->command = (int)inspect_thd->get_command();  // Used for !killed.
 
     /* STATE */
-    thd_info->state_info = thread_state_info(inspect_thd);
+    thd_info->state_info = thread_state_info(m_client_thd, inspect_thd);
 
     mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
 
@@ -2854,7 +2857,8 @@ void mysqld_list_processes(THD *thd, const char *user, bool verbose) {
     if (thd_info->proc_info)
       protocol->store(thd_info->proc_info, system_charset_info);
     else
-      protocol->store(command_name[thd_info->command].str, system_charset_info);
+      protocol->store(Command_names::str_session(thd_info->command).c_str(),
+                      system_charset_info);
     if (thd_info->start_time_in_secs)
       protocol->store_long((longlong)(now - thd_info->start_time_in_secs));
     else
@@ -2891,6 +2895,7 @@ class Fill_process_list : public Do_THD_Impl {
   }
 
   void operator()(THD *inspect_thd) override {
+    DBUG_TRACE;
     Security_context *inspect_sctx = inspect_thd->security_context();
     LEX_CSTRING inspect_sctx_user = inspect_sctx->user();
     LEX_CSTRING inspect_sctx_host = inspect_sctx->host();
@@ -2961,13 +2966,14 @@ class Fill_process_list : public Do_THD_Impl {
     if (inspect_thd->killed == THD::KILL_CONNECTION) {
       val = "Killed";
       table->field[4]->store(val, strlen(val), system_charset_info);
-    } else
-      table->field[4]->store(command_name[inspect_thd->get_command()].str,
-                             command_name[inspect_thd->get_command()].length,
-                             system_charset_info);
+    } else {
+      const std::string &cn =
+          Command_names::str_session(inspect_thd->get_command());
+      table->field[4]->store(cn.c_str(), cn.length(), system_charset_info);
+    }
 
     /* STATE */
-    val = thread_state_info(inspect_thd);
+    val = thread_state_info(m_client_thd, inspect_thd);
     if (val) {
       table->field[6]->store(val, strlen(val), system_charset_info);
       table->field[6]->set_notnull();

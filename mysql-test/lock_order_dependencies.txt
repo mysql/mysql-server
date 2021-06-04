@@ -3977,7 +3977,7 @@ BIND "cond/sql/Relay_log_info::data_cond" TO "mutex/sql/Relay_log_info::data_loc
 BIND "cond/sql/Relay_log_info::log_space_cond" TO "mutex/sql/Relay_log_info::log_space_lock"
 BIND "cond/sql/Relay_log_info::mta_gaq_cond" TO "mutex/sql/key_mta_gaq_LOCK"
 BIND "cond/sql/Relay_log_info::pending_jobs_cond" TO "mutex/sql/Relay_log_info::pending_jobs_lock"
-BIND "cond/sql/Relay_log_info::replica_worker_hash_lock" TO "mutex/sql/Relay_log_info::replica_worker_hash_lock"
+BIND "cond/sql/Relay_log_info::replica_worker_hash_cond" TO "mutex/sql/Relay_log_info::replica_worker_hash_lock"
 BIND "cond/sql/Relay_log_info::sleep_cond" TO "mutex/sql/Relay_log_info::sleep_lock"
 BIND "cond/sql/Relay_log_info::start_cond" TO "mutex/sql/Relay_log_info::run_lock"
 BIND "cond/sql/Relay_log_info::stop_cond" TO "mutex/sql/Relay_log_info::run_lock"

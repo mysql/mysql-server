@@ -1510,6 +1510,21 @@ The following options may be given as the first argument:
  Use mmap files for temptables. This variable is
  deprecated and will be removed in a future release.
  (Defaults to on; use --skip-temptable-use-mmap to disable.)
+ --terminology-use-previous=name 
+ Make monitoring tables and statements use the identifiers
+ that were in use before they were changed in a given
+ release. That includes names for mutexes, read/write
+ locks, condition variables, memory allocations, thread
+ names, thread stages, and thread commands. When the
+ session option is set to BEFORE_8_0_26, the session uses
+ the names that were in use until 8.0.25, when it selects
+ from performance_schema tables, or selects from
+ INFORMATION_SCHEMA.PROCESSLIST, or issues SHOW
+ PROCESSLIST or SHOW REPLICA STATUS. When the global
+ option is set to BEFORE_8_0_26, new sessions use
+ BEFORE_8_0_26 as default for the session option, and in
+ addition the thread commands that were in use until
+ 8.0.25 are written to the slow query log.
  --thread-cache-size=# 
  How many threads we should keep in a cache for reuse
  --thread-handling=name 
@@ -1966,6 +1981,7 @@ tc-heuristic-recover OFF
 temptable-max-mmap 1073741824
 temptable-max-ram 1073741824
 temptable-use-mmap TRUE
+terminology-use-previous NONE
 thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144

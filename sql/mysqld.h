@@ -575,8 +575,19 @@ extern PSI_stage_info stage_searching_rows_for_update;
 extern PSI_stage_info stage_sending_binlog_event_to_replica;
 extern PSI_stage_info stage_setup;
 extern PSI_stage_info stage_replica_has_read_all_relay_log;
+extern PSI_stage_info
+    stage_replica_reconnecting_after_failed_binlog_dump_request;
+extern PSI_stage_info stage_replica_reconnecting_after_failed_event_read;
+extern PSI_stage_info
+    stage_replica_reconnecting_after_failed_registration_on_source;
 extern PSI_stage_info stage_replica_waiting_event_from_coordinator;
 extern PSI_stage_info stage_replica_waiting_for_workers_to_process_queue;
+extern PSI_stage_info
+    stage_replica_waiting_to_reconnect_after_failed_binlog_dump_request;
+extern PSI_stage_info
+    stage_replica_waiting_to_reconnect_after_failed_event_read;
+extern PSI_stage_info
+    stage_replica_waiting_to_reconnect_after_failed_registration_on_source;
 extern PSI_stage_info stage_replica_waiting_worker_queue;
 extern PSI_stage_info stage_replica_waiting_worker_to_free_events;
 extern PSI_stage_info stage_replica_waiting_worker_to_release_partition;
@@ -674,6 +685,7 @@ extern mysql_mutex_t LOCK_global_system_variables;
 extern mysql_mutex_t LOCK_user_conn;
 extern mysql_mutex_t LOCK_log_throttle_qni;
 extern mysql_mutex_t LOCK_prepared_stmt_count;
+extern mysql_mutex_t LOCK_replica_list;
 extern mysql_mutex_t LOCK_error_messages;
 extern mysql_mutex_t LOCK_sql_replica_skip_counter;
 extern mysql_mutex_t LOCK_replica_net_timeout;

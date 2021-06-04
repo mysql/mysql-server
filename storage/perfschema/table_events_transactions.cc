@@ -255,8 +255,8 @@ int table_events_transactions_common::make_row(
   m_normalizer->to_pico(transaction->m_timer_start, timer_end,
                         &m_row.m_timer_start, &m_row.m_timer_end,
                         &m_row.m_timer_wait);
-  m_row.m_name = klass->m_name;
-  m_row.m_name_length = klass->m_name_length;
+  m_row.m_name = klass->m_name.str();
+  m_row.m_name_length = klass->m_name.length();
 
   make_source_column(transaction->m_source_file, transaction->m_source_line,
                      m_row.m_source, sizeof(m_row.m_source),

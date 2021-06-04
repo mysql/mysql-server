@@ -442,7 +442,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, size_t length,
     and has to be protected by LOCK_thd_query or risk pointing to
     uninitialized memory.
   */
-  const char *proc_info = thd->proc_info;
+  const char *proc_info = thd->proc_info();
 
   len = snprintf(header, sizeof(header),
                  "MySQL thread id %u, OS thread handle %lu, query id %lu",
@@ -661,4 +661,9 @@ bool thd_check_connection_admin_privilege(MYSQL_THD thd) {
   Security_context *sctx = thd->security_context();
   return (!(sctx->check_access(SUPER_ACL) ||
             sctx->has_global_grant(STRING_WITH_LEN("CONNECTION_ADMIN")).first));
+}
+
+unsigned int thd_get_current_thd_terminology_use_previous() {
+  if (!current_thd) return 0;
+  return current_thd->variables.terminology_use_previous;
 }

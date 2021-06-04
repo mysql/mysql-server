@@ -667,8 +667,8 @@ int table_events_waits_common::make_row(PFS_events_waits *wait) {
   normalizer->to_pico(wait->m_timer_start, timer_end, &m_row.m_timer_start,
                       &m_row.m_timer_end, &m_row.m_timer_wait);
 
-  m_row.m_name = safe_class->m_name;
-  m_row.m_name_length = safe_class->m_name_length;
+  m_row.m_name = safe_class->m_name.str();
+  m_row.m_name_length = safe_class->m_name.length();
 
   make_source_column(wait->m_source_file, wait->m_source_line, m_row.m_source,
                      sizeof(m_row.m_source), m_row.m_source_length);

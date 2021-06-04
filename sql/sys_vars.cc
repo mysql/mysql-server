@@ -146,6 +146,7 @@
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
+#include "storage/perfschema/terminology_use_previous.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 TYPELIB bool_typelib = {array_elements(bool_values) - 1, "", bool_values,
@@ -7234,3 +7235,24 @@ static Sys_var_bool Sys_skip_replica_start(
 
 static Sys_var_deprecated_alias Sys_skip_slave_start("skip_slave_start",
                                                      Sys_skip_replica_start);
+
+static const char *terminology_use_previous_names[] = {"NONE", "BEFORE_8_0_26",
+                                                       nullptr};
+
+static Sys_var_enum Sys_terminology_use_previous(
+    "terminology_use_previous",
+    "Make monitoring tables and statements use the identifiers that were "
+    "in use before they were changed in a given release. That includes names "
+    "for mutexes, read/write locks, condition variables, memory allocations, "
+    "thread names, thread stages, and thread commands. When the session "
+    "option is set to BEFORE_8_0_26, the session uses the names that were in "
+    "use until 8.0.25, when it selects from performance_schema tables, or "
+    "selects from INFORMATION_SCHEMA.PROCESSLIST, or issues SHOW PROCESSLIST "
+    "or SHOW REPLICA STATUS. When the global option is set to BEFORE_8_0_26, "
+    "new sessions use BEFORE_8_0_26 as default for the session option, and in "
+    "addition the thread commands that were in use until 8.0.25 are written "
+    "to the slow query log.",
+    SESSION_VAR(terminology_use_previous), CMD_LINE(REQUIRED_ARG),
+    terminology_use_previous_names, DEFAULT(terminology_use_previous::NONE),
+    NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr), ON_UPDATE(nullptr),
+    DEPRECATED_VAR(""));

@@ -317,8 +317,8 @@ int table_events_statements_common::make_row_part_1(
                         &m_row.m_timer_wait);
   m_row.m_lock_time = statement->m_lock_time * MICROSEC_TO_PICOSEC;
 
-  m_row.m_name = klass->m_name;
-  m_row.m_name_length = klass->m_name_length;
+  m_row.m_name = klass->m_name.str();
+  m_row.m_name_length = klass->m_name.length();
 
   m_row.m_current_schema_name_length = statement->m_current_schema_name_length;
   if (m_row.m_current_schema_name_length > 0)

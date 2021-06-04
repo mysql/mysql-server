@@ -1049,6 +1049,7 @@ static PSI_mutex_key key_LOCK_crypt;
 static PSI_mutex_key key_LOCK_user_conn;
 static PSI_mutex_key key_LOCK_global_system_variables;
 static PSI_mutex_key key_LOCK_prepared_stmt_count;
+static PSI_mutex_key key_LOCK_replica_list;
 static PSI_mutex_key key_LOCK_sql_replica_skip_counter;
 static PSI_mutex_key key_LOCK_replica_net_timeout;
 static PSI_mutex_key key_LOCK_replica_trans_dep_tracker;
@@ -1529,6 +1530,11 @@ mysql_mutex_t LOCK_sql_rand;
 */
 mysql_mutex_t LOCK_prepared_stmt_count;
 
+/**
+  Protects slave_list in rpl_source.cc; the list of currently running
+  dump threads with metadata for the replica.
+*/
+mysql_mutex_t LOCK_replica_list;
 /*
  The below two locks are introduced as guards (second mutex) for
   the global variables sql_replica_skip_counter and replica_net_timeout
@@ -2545,7 +2551,6 @@ static void clean_up(bool print_message) {
   free_tmpdir(&mysql_tmpdir_list);
   my_free(opt_bin_logname);
   free_max_user_conn();
-  end_slave_list();
   delete binlog_filter;
   rpl_channel_filters.clean_up();
   end_ssl();
@@ -2636,6 +2641,7 @@ static void clean_up_mutexes() {
   mysql_mutex_destroy(&LOCK_uuid_generator);
   mysql_mutex_destroy(&LOCK_sql_rand);
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
+  mysql_mutex_destroy(&LOCK_replica_list);
   mysql_mutex_destroy(&LOCK_sql_replica_skip_counter);
   mysql_mutex_destroy(&LOCK_replica_net_timeout);
   mysql_mutex_destroy(&LOCK_replica_trans_dep_tracker);
@@ -4464,7 +4470,8 @@ static void init_com_statement_info() {
   uint index;
 
   for (index = 0; index < (uint)COM_END + 1; index++) {
-    com_statement_info[index].m_name = command_name[index].str;
+    com_statement_info[index].m_name =
+        Command_names::str_notranslate(index).c_str();
     com_statement_info[index].m_flags = 0;
     com_statement_info[index].m_documentation = PSI_DOCUMENT_ME;
   }
@@ -5048,6 +5055,8 @@ static int init_thread_environment() {
   mysql_rwlock_init(key_rwlock_LOCK_system_variables_hash,
                     &LOCK_system_variables_hash);
   mysql_mutex_init(key_LOCK_prepared_stmt_count, &LOCK_prepared_stmt_count,
+                   MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_replica_list, &LOCK_replica_list,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_sql_replica_skip_counter,
                    &LOCK_sql_replica_skip_counter, MY_MUTEX_INIT_FAST);
@@ -5706,7 +5715,6 @@ static int init_server_components() {
 
   randominit(&sql_rand, (ulong)server_start_time, (ulong)server_start_time / 2);
   setup_fpu();
-  init_replica_list();
 
   setup_error_log();  // opens the log if needed
 
@@ -11157,6 +11165,7 @@ static PSI_mutex_info all_server_mutexes[]=
 #endif
   { &key_LOCK_manager, "LOCK_manager", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_prepared_stmt_count, "LOCK_prepared_stmt_count", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
+  { &key_LOCK_replica_list, "LOCK_replica_list", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_sql_replica_skip_counter, "LOCK_sql_replica_skip_counter", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_replica_net_timeout, "LOCK_replica_net_timeout", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_LOCK_replica_trans_dep_tracker, "LOCK_replica_trans_dep_tracker", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
@@ -11324,7 +11333,7 @@ static PSI_cond_info all_server_conds[]=
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_SINGLETON, 0, PSI_DOCUMENT_ME},
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0, 0, PSI_DOCUMENT_ME},
-  { &key_cond_slave_worker_hash, "Relay_log_info::replica_worker_hash_lock", 0, 0, PSI_DOCUMENT_ME},
+  { &key_cond_slave_worker_hash, "Relay_log_info::replica_worker_hash_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_monitor_info_run_cond, "Source_IO_monitor::run_cond", 0, 0, PSI_DOCUMENT_ME},
   { &key_COND_delegate_connection_cond_var, "THD::COND_delegate_connection_cond_var", 0, 0, PSI_DOCUMENT_ME},
   { &key_COND_group_replication_connection_cond_var, "THD::COND_group_replication_connection_cond_var", 0, 0, PSI_DOCUMENT_ME}
@@ -11470,8 +11479,14 @@ PSI_stage_info stage_searching_rows_for_update= { 0, "Searching rows for update"
 PSI_stage_info stage_sending_binlog_event_to_replica= { 0, "Sending binlog event to replica", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_setup= { 0, "setup", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_has_read_all_relay_log= { 0, "Replica has read all relay log; waiting for more updates", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_reconnecting_after_failed_binlog_dump_request{ 0, "Reconnecting after a failed binlog dump request", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_reconnecting_after_failed_event_read{ 0, "Reconnecting after a failed source event read", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_reconnecting_after_failed_registration_on_source{ 0, "Reconnecting after a failed registration on source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_for_workers_to_process_queue= { 0, "Waiting for replica workers to process their queues", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_to_reconnect_after_failed_binlog_dump_request{ 0, "Waiting to reconnect after a failed binlog dump request", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_to_reconnect_after_failed_event_read{ 0, "Waiting to reconnect after a failed source event read", 0, PSI_DOCUMENT_ME};
+PSI_stage_info stage_replica_waiting_to_reconnect_after_failed_registration_on_source{ 0, "Waiting to reconnect after a failed registration on source", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_worker_queue= { 0, "Waiting for Replica Worker queue", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_worker_to_free_events= { 0, "Waiting for Replica Workers to free pending events", 0, PSI_DOCUMENT_ME};
 PSI_stage_info stage_replica_waiting_worker_to_release_partition= { 0, "Waiting for Replica Worker to release partition", 0, PSI_DOCUMENT_ME};
@@ -11567,9 +11582,15 @@ PSI_stage_info *all_server_stages[] = {
     &stage_sending_binlog_event_to_replica,
     &stage_setup,
     &stage_replica_has_read_all_relay_log,
+    &stage_replica_reconnecting_after_failed_binlog_dump_request,
+    &stage_replica_reconnecting_after_failed_event_read,
+    &stage_replica_reconnecting_after_failed_registration_on_source,
     &stage_replica_waiting_event_from_coordinator,
     &stage_replica_waiting_for_workers_to_process_queue,
     &stage_replica_waiting_worker_queue,
+    &stage_replica_waiting_to_reconnect_after_failed_binlog_dump_request,
+    &stage_replica_waiting_to_reconnect_after_failed_event_read,
+    &stage_replica_waiting_to_reconnect_after_failed_registration_on_source,
     &stage_replica_waiting_worker_to_free_events,
     &stage_replica_waiting_worker_to_release_partition,
     &stage_replica_waiting_workers_to_exit,

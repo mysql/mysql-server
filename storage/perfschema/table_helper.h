@@ -596,8 +596,8 @@ struct PFS_event_name_row {
 
   /** Build a row from a memory buffer. */
   inline int make_row(PFS_instr_class *pfs) {
-    m_name = pfs->m_name;
-    m_name_length = pfs->m_name_length;
+    m_name = pfs->m_name.str();
+    m_name_length = pfs->m_name.length();
     return 0;
   }
 

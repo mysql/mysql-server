@@ -6550,10 +6550,10 @@ bool open_and_lock_tables(THD *thd, TABLE_LIST *tables, uint flags,
   if (open_tables(thd, &tables, &counter, flags, prelocking_strategy)) goto err;
 
   DBUG_EXECUTE_IF("sleep_open_and_lock_after_open", {
-    const char *old_proc_info = thd->proc_info;
-    thd->proc_info = "DBUG sleep";
+    const char *old_proc_info = thd->proc_info();
+    thd->set_proc_info("DBUG sleep");
     my_sleep(6000000);
-    thd->proc_info = old_proc_info;
+    thd->set_proc_info(old_proc_info);
   });
 
   if (lock_tables(thd, tables, counter, flags)) goto err;

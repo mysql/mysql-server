@@ -200,7 +200,7 @@ int table_replication_applier_status::make_row(Master_info *mi) {
   mysql_mutex_lock(&mi->rli->info_thd_lock);
 
   slave_sql_running_state = const_cast<char *>(
-      mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "");
+      mi->rli->info_thd ? mi->rli->info_thd->proc_info() : "");
   mysql_mutex_unlock(&mi->rli->info_thd_lock);
 
   mysql_mutex_lock(&mi->data_lock);

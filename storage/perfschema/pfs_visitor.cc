@@ -360,7 +360,7 @@ void PFS_instance_iterator::visit_all_mutex_classes(
   PFS_mutex_class *pfs = mutex_class_array;
   PFS_mutex_class *pfs_last = pfs + mutex_class_max;
   for (; pfs < pfs_last; pfs++) {
-    if (pfs->m_name_length != 0) {
+    if (pfs->m_name.length() != 0) {
       visitor->visit_mutex_class(pfs);
     }
   }
@@ -387,7 +387,7 @@ void PFS_instance_iterator::visit_all_rwlock_classes(
   PFS_rwlock_class *pfs = rwlock_class_array;
   PFS_rwlock_class *pfs_last = pfs + rwlock_class_max;
   for (; pfs < pfs_last; pfs++) {
-    if (pfs->m_name_length != 0) {
+    if (pfs->m_name.length() != 0) {
       visitor->visit_rwlock_class(pfs);
     }
   }
@@ -414,7 +414,7 @@ void PFS_instance_iterator::visit_all_cond_classes(
   PFS_cond_class *pfs = cond_class_array;
   PFS_cond_class *pfs_last = pfs + cond_class_max;
   for (; pfs < pfs_last; pfs++) {
-    if (pfs->m_name_length != 0) {
+    if (pfs->m_name.length() != 0) {
       visitor->visit_cond_class(pfs);
     }
   }
@@ -441,7 +441,7 @@ void PFS_instance_iterator::visit_all_file_classes(
   PFS_file_class *pfs = file_class_array;
   PFS_file_class *pfs_last = pfs + file_class_max;
   for (; pfs < pfs_last; pfs++) {
-    if (pfs->m_name_length != 0) {
+    if (pfs->m_name.length() != 0) {
       visitor->visit_file_class(pfs);
     }
   }

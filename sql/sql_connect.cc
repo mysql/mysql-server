@@ -814,7 +814,7 @@ static void prepare_new_connection_state(THD *thd) {
   // Initializing session system variables.
   alloc_and_copy_thd_dynamic_variables(thd, true);
 
-  thd->proc_info = nullptr;
+  thd->set_proc_info(nullptr);
   thd->set_command(COM_SLEEP);
   thd->init_query_mem_roots();
 
@@ -878,7 +878,7 @@ static void prepare_new_connection_state(THD *thd) {
       return;
     }
 
-    thd->proc_info = nullptr;
+    thd->set_proc_info(nullptr);
     thd->init_query_mem_roots();
   }
 }
