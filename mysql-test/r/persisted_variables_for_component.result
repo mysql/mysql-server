@@ -70,10 +70,9 @@ VARIABLE_NAME	VARIABLE_VALUE
 INSTALL COMPONENT 'file://component_validate_password';
 SET @@persist.validate_password.length=10;
 SET @@persist.validate_password.check_user_name=OFF;
-SELECT * FROM performance_schema.persisted_variables;
-VARIABLE_NAME	VARIABLE_VALUE
-validate_password.check_user_name	OFF
-validate_password.length	10
+SELECT COUNT(*) FROM performance_schema.persisted_variables;
+COUNT(*)
+2
 UNINSTALL COMPONENT 'file://component_validate_password';
 INSTALL COMPONENT 'file://component_validate_password';
 SELECT COUNT(*) FROM performance_schema.error_log WHERE ERROR_CODE = "MY-013185";
