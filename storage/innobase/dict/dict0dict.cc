@@ -1034,7 +1034,7 @@ void dict_init(void) {
 
 #ifndef UNIV_HOTBACKUP
   if (!srv_read_only_mode) {
-    dict_foreign_err_file = os_file_create_tmpfile(nullptr);
+    dict_foreign_err_file = os_file_create_tmpfile();
     ut_a(dict_foreign_err_file);
   }
 #endif /* !UNIV_HOTBACKUP */

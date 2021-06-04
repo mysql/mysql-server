@@ -2052,7 +2052,7 @@ dberr_t srv_start(bool create_new_db) {
       }
     } else {
       srv_monitor_file_name = nullptr;
-      srv_monitor_file = os_file_create_tmpfile(nullptr);
+      srv_monitor_file = os_file_create_tmpfile();
 
       if (!srv_monitor_file) {
         return (srv_init_abort(DB_ERROR));
@@ -2061,7 +2061,7 @@ dberr_t srv_start(bool create_new_db) {
 
     mutex_create(LATCH_ID_SRV_MISC_TMPFILE, &srv_misc_tmpfile_mutex);
 
-    srv_misc_tmpfile = os_file_create_tmpfile(nullptr);
+    srv_misc_tmpfile = os_file_create_tmpfile();
 
     if (!srv_misc_tmpfile) {
       return (srv_init_abort(DB_ERROR));

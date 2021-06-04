@@ -1634,23 +1634,17 @@ void AIO::release_with_mutex(Slot *slot) {
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Create a temporary file. This function is like tmpfile(3), but
-the temporary file is created in the given parameter path. If the path
-is NULL then it will create the file in the MySQL server configuration
-parameter (--tmpdir).
-@param[in]	path	location for creating temporary file
-@return temporary file handle, or NULL on error */
-FILE *os_file_create_tmpfile(const char *path) {
+FILE *os_file_create_tmpfile() {
   FILE *file = nullptr;
-  int fd = innobase_mysql_tmpfile(path);
+  int fd = innobase_mysql_tmpfile(mysql_tmpdir);
 
   if (fd >= 0) {
     file = fdopen(fd, "w+b");
   }
 
   if (file == nullptr) {
-    ib::error(ER_IB_MSG_751)
-        << "Unable to create temporary file; errno: " << errno;
+    ib::error(ER_IB_MSG_751) << "Unable to create temporary file inside \""
+                             << mysql_tmpdir << "\"; errno: " << errno;
 
     if (fd >= 0) {
       close(fd);
