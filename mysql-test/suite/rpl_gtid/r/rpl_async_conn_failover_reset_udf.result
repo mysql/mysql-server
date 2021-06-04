@@ -28,11 +28,11 @@ ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset';
 #    channels are running.
 #    It will not be allowed.
 SELECT asynchronous_connection_failover_reset();
-ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Can't execute the given operation while Replication channels configured with SOU
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Can't execute the given operation while Replication channels configured with SOURCE_CONNECTION_AUTO_FAILOVER are running.
 include/stop_slave_sql.inc [FOR CHANNEL 'ch1']
 include/assert.inc [Verify replica_monitor thread is running]
 SELECT asynchronous_connection_failover_reset();
-ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Can't execute the given operation while Replication channels configured with SOU
+ERROR HY000: Can't initialize function 'asynchronous_connection_failover_reset'; Can't execute the given operation while Replication channels configured with SOURCE_CONNECTION_AUTO_FAILOVER are running.
 
 ############################################################
 # 4. Reset asynchronous reconnection configuration while
