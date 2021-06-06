@@ -1112,6 +1112,8 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
     ndb_log_error_dump("}");
   }
 
+  int count = 0;
+
   // Wait for participants to complete the schema change
   while (true) {
     const bool completed = ndb_schema_object->client_wait_completed(1);
@@ -1119,6 +1121,21 @@ bool Ndb_schema_dist_client::log_schema_op_impl(
       // Schema operation completed
       ndb_log_verbose(19, "Distribution of '%s' - completed!", op_name.c_str());
       break;
+    }
+
+    count++;
+    if (count > opt_ndb_schema_dist_timeout &&
+        !ndb_schema_object->has_coordinator_received_schema_op()) {
+      // Client rely on the coordinator to time-out the schema operation.
+      // But when the client doesn't hear back from coordinator after
+      // ndb_schema_dist_timeout second(s), it implies that some thing is
+      // wrong and So, check if the coordinator has received the schema op.
+      ndb_log_verbose(19,
+                      "Schema events for '%s' - not received by "
+                      "the co-ordinator",
+                      op_name.c_str());
+      ndb_log_warning("Schema dist client detected timeout");
+      return false;
     }
 
     // Check if schema distribution is still ready.
@@ -3698,6 +3715,7 @@ class Ndb_schema_event_handler {
           ndbcluster::ndbrequire(false);
           return 0;
         }
+        ndb_schema_object->coordinator_received_schema_op();
         std::unordered_set<uint32> subscribers;
         m_schema_dist_data.get_subscriber_list(subscribers);
         ndb_schema_object->register_participants(subscribers);
