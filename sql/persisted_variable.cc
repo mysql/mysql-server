@@ -1053,8 +1053,8 @@ void Persisted_variables_cache::load_aliases() {
   // in alphabetic order. This makes test cases more deterministic.
   std::map<std::string, std::string> deprecated;
 
-  std::unordered_set<std::string> var_set;
-  for (auto &var : m_persist_variables) var_set.insert(var.key);
+  std::unordered_set<st_persist_var, st_persist_var_hash> var_set;
+  for (auto &var : m_persist_variables) var_set.insert(var);
 
   /*
     If variable has an alias, and it does not exist in the container,
@@ -1083,10 +1083,15 @@ void Persisted_variables_cache::load_aliases() {
         }
       };
   lock();
-  for (auto iter : m_persist_variables) {
+
+  for (auto iter : var_set) {
     insert_alias(
         [&](const char *name) -> bool {
-          return var_set.find(name) != var_set.end();
+          auto it = std::find_if(var_set.begin(), var_set.end(),
+                                 [name](st_persist_var const &s) {
+                                   return !strcmp(s.key.c_str(), name);
+                                 });
+          return it != var_set.end();
         },
         [&](st_persist_var &v) { m_persist_variables.insert(v); }, iter);
   }
