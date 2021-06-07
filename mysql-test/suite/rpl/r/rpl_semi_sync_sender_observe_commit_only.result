@@ -1,4 +1,3 @@
-SET GLOBAL replication_sender_observe_commit_only = 1;
 include/master-slave.inc
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
@@ -496,4 +495,3 @@ include/sync_slave_sql_with_master.inc
 drop user rpl@127.0.0.1;
 flush privileges;
 include/rpl_end.inc
-SET GLOBAL replication_sender_observe_commit_only = 0;

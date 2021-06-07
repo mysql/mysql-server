@@ -126,7 +126,7 @@ SET @@session.innodb_support_xa = ÓFF;
 
 # for global
 
-
+--Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_support_xa = -1;
 SELECT @@global.innodb_support_xa;
 

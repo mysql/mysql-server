@@ -2599,7 +2599,7 @@ static int check_func_bool(THD *thd, st_mysql_sys_var *var,
   {
     if (value->val_int(value, &tmp) < 0)
       goto err;
-    if (tmp > 1)
+    if (tmp > 1 || tmp < 0)
       goto err;
     result= (int) tmp;
   }

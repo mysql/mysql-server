@@ -73,8 +73,8 @@ set global innodb_stats_on_metadata=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_stats_on_metadata'
 set global innodb_stats_on_metadata=2;
 ERROR 42000: Variable 'innodb_stats_on_metadata' can't be set to the value of '2'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_stats_on_metadata=-3;
+ERROR 42000: Variable 'innodb_stats_on_metadata' can't be set to the value of '-3'
 select @@global.innodb_stats_on_metadata;
 @@global.innodb_stats_on_metadata
 1

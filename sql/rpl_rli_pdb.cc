@@ -1900,6 +1900,17 @@ bool Slave_worker::worker_sleep(ulong seconds)
   return ret;
 }
 
+void Slave_worker::prepare_for_retry(Log_event &event) {
+  if (event.get_type_code() ==
+      binary_log::ROWS_QUERY_LOG_EVENT)  // If a `Rows_query_log_event`, let the
+                                         // event be disposed in the main worker
+                                         // loop.
+  {
+    event.worker= this;
+    this->rows_query_ev= NULL;
+  }
+}
+
 /**
   It is called after an error happens. It checks if that is an temporary
   error and if the situation is allow to retry the transaction. Then it will
@@ -1969,23 +1980,12 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
       {
         error= ER_LOCK_DEADLOCK;
       }
-#ifndef NDEBUG
-      else
-      {
-        /*
-          The non-debug binary will not retry this transactions, stopping the
-          SQL thread because of the non-temporary error. But, as this situation
-          is not supposed to happen as described in the comment above, we will
-          fail an assert to ease the issue investigation when it happens.
-        */
-        if (DBUG_EVALUATE_IF("rpl_fake_cod_deadlock", 0, 1))
-          assert(false);
-      }
-#endif
     }
 
-    if (!has_temporary_error(thd, error, &silent) ||
-        thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::SESSION))
+    if ((!has_temporary_error(thd, error, &silent) ||
+         thd->get_transaction()->cannot_safely_rollback(
+             Transaction_ctx::SESSION)) &&
+        DBUG_EVALUATE_IF("error_on_rows_query_event_apply", false, true))
       DBUG_RETURN(true);
 
     if (trans_retries >= slave_trans_retries)
@@ -1997,6 +1997,16 @@ bool Slave_worker::retry_transaction(uint start_relay_number,
                     "the slave_transaction_retries variable.", trans_retries);
       DBUG_RETURN(true);
     }
+
+    DBUG_EXECUTE_IF("error_on_rows_query_event_apply", {
+      if (c_rli->retried_trans == 2)
+      {
+        DBUG_SET("-d,error_on_rows_query_event_apply");
+        std::string act("now SIGNAL end_retries_on_rows_query_event_apply");
+        assert(!debug_sync_set_action(thd, act.data(), act.length()));
+      }
+      silent= true;
+    };);
 
     if (!silent)
       trans_retries++;
@@ -2699,6 +2709,7 @@ int slave_worker_exec_job_group(Slave_worker *worker, Relay_log_info *rli)
                                              &worker->ts_exec[0]);
     if (error || worker->found_order_commit_deadlock())
     {
+      worker->prepare_for_retry(*ev);
       error= worker->retry_transaction(start_relay_number, start_relay_pos,
                                        job_item->relay_number,
                                        job_item->relay_pos);

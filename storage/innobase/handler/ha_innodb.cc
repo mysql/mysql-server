@@ -1507,13 +1507,12 @@ innobase_srv_conc_enter_innodb(
 	row_prebuilt_t*	prebuilt)
 {
 	/* We rely on server to do external_lock(F_UNLCK) to reset the
-	srv_conc.n_active counter. Since there are no locks on instrinsic
-	tables, we should skip this for intrinsic temporary tables. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	srv_conc.n_active counter.*/
+	if (skip_concurrency_ticket(prebuilt)) {
 		return;
 	}
 
-	trx_t*	trx	= prebuilt->trx;
+	trx_t*  trx     = prebuilt->trx;
 	if (srv_thread_concurrency) {
 		if (trx->n_tickets_to_enter_innodb > 0) {
 
@@ -1545,9 +1544,8 @@ innobase_srv_conc_exit_innodb(
 	row_prebuilt_t*	prebuilt)
 {
 	/* We rely on server to do external_lock(F_UNLCK) to reset the
-	srv_conc.n_active counter. Since there are no locks on instrinsic
-	tables, we should skip this for intrinsic temporary tables. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
+	srv_conc.n_active counter.*/
+	if (skip_concurrency_ticket(prebuilt)) {
 		return;
 	}
 
@@ -1584,6 +1582,36 @@ innobase_srv_conc_force_exit_innodb(
 	if (trx->declared_to_be_inside_innodb) {
 		srv_conc_force_exit_innodb(trx);
 	}
+}
+
+ibool
+skip_concurrency_ticket(row_prebuilt_t* prebuilt) {
+	/* Since there are no locks on instrinsic tables,
+	we should skip this for intrinsic temporary tables.*/
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return true;
+	}
+
+	THD *thd =  prebuilt->trx->mysql_thd;
+	if (thd == NULL) {
+		thd = current_thd;
+	}
+	/* Skip concurrency ticket in following cases
+	 (a) while implicitly updating GTID table.This
+	 is to avoid deadlock otherwise possible with
+	 low innodb_thread_concurrency.
+	 Session: RESET MASTER -> FLUSH LOGS -> get innodb ticket
+	 -> wait for GTID flush.
+	 GTID Background: Write to GTID table -> wait for innodb ticket.
+         (b) For attachable transaction. If a attachable trx in
+	 thread asks for a ticket while the main transaction
+	 has reserved a ticket. */
+	if (thd && (thd_has_active_attachable_trx(thd)
+		|| thd_is_operating_gtid_table_implicitly(thd))) {
+		return true;
+	}
+
+	return false;
 }
 
 /******************************************************************//**

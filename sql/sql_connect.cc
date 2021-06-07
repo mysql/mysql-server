@@ -713,6 +713,17 @@ static int check_connection(THD *thd)
   */
   thd->set_ssl(net->vio);
 
+  if (net->vio->ssl_arg) {
+    int version = SSL_version((SSL *)net->vio->ssl_arg);
+    if (version == TLS1_VERSION || version == TLS1_1_VERSION) {
+      Security_context *sctx = thd->security_context();
+      sql_print_warning(ER(ER_DEPRECATED_TLS_VERSION_SESSION),
+                        SSL_get_version((SSL *)net->vio->ssl_arg),
+                        sctx->priv_user().str, sctx->priv_host().str,
+                        sctx->host_or_ip().str, sctx->user().str);
+    }
+  }
+
   return auth_rc;
 }
 

@@ -7790,6 +7790,12 @@ ER_CANT_START_SERVER_NAMED_PIPE
 ER_WRITE_SET_EXCEEDS_LIMIT
   eng "The size of writeset data for the current transaction exceeds a limit imposed by an external component. If using Group Replication check 'group_replication_transaction_size_limit'."
 
+ER_DEPRECATED_TLS_VERSION_SESSION
+  eng "Accepted a connection with deprecated protocol '%s' for account `%s`@`%s` from host `%s`. Client supplied username `%s`"
+
+ER_WARN_DEPRECATED_TLS_VERSION
+  eng "A deprecated TLS version %s is enabled. Please use TLSv1.2 or higher."
+
 #
 #  End of 5.7 error messages.
 #

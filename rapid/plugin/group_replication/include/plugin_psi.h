@@ -136,7 +136,6 @@ extern PSI_rwlock_key
                key_GR_RWLOCK_cert_stable_gtid_set,
                key_GR_RWLOCK_io_cache_unused_list,
                key_GR_RWLOCK_plugin_stop,
-               key_GR_RWLOCK_gcs_operations,
-               key_GR_RWLOCK_gcs_operations_finalize_ongoing;
+               key_GR_RWLOCK_gcs_operations;
 
 #endif /* PLUGIN_PSI_INCLUDED */

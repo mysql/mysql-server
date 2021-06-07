@@ -37,7 +37,6 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql/backup
-  ${LZ4_INCLUDE_DIR}
 )
 
 # We should generate these separately for libmysqld to avoid
@@ -74,7 +73,7 @@ SET(SQL_EMBEDDED_SOURCES
   libmysqld.c
   ${GEN_SOURCES}
   ${GEN_YACC_SOURCES}
-  ../extra/lz4/xxhash.c
+  ${BUNDLED_LZ4_PATH}/xxhash.c
   ../client/get_password.c
   ../libmysql/errmsg.c
   ../libmysql/libmysql.c
@@ -122,9 +121,14 @@ INCLUDE_DIRECTORIES(SYSTEM
   )
 
 ADD_COMPILE_FLAGS(
-  ../extra/lz4/xxhash.c
-  COMPILE_FLAGS -DXXH_NAMESPACE=MY_
+  ${BUNDLED_LZ4_PATH}/xxhash.c
+  COMPILE_FLAGS -DXXH_NAMESPACE=MY_ -I${BUNDLED_LZ4_PATH}
 )
+
+ADD_COMPILE_FLAGS(
+  ../sql/rpl_write_set_handler.cc
+  COMPILE_FLAGS -I${CMAKE_SOURCE_DIR}/extra/lz4 -I${BUNDLED_LZ4_PATH}
+  )
 
 # Fixes "C1128: number of sections exceeded object file format limit" in MSVC /MD
 # The flag /bigobj is not added if the build is not /MD
@@ -195,6 +199,14 @@ IF(HAVE_MAYBE_UNINITIALIZED)
   ADD_COMPILE_FLAGS(
     ../sql/geometry_rtree.cc
     COMPILE_FLAGS "-Wno-maybe-uninitialized")
+ENDIF()
+
+# https://gcc.gnu.org/bugzilla/show_bug.cgi?id=98753
+IF(MY_COMPILER_IS_GNU AND NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 11)
+  ADD_COMPILE_FLAGS(
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
+    ${CMAKE_CURRENT_BINARY_DIR}/sql_hints.yy.cc
+    COMPILE_FLAGS "-Wno-free-nonheap-object")
 ENDIF()
 
 # Handle out-of-source build from source package with possibly broken 

@@ -3115,7 +3115,7 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
   Cost_estimate cost;
   ha_rows rows;
   uint bufsz= 4096;
-  uint join_cache_flags= HA_MRR_NO_NULL_ENDPOINTS;
+  uint join_cache_flags = 0;
   const bool bnl_on= hint_table_state(join->thd, tab->table_ref->table,
                                       BNL_HINT_ENUM, OPTIMIZER_SWITCH_BNL);
   const bool bka_on= hint_table_state(join->thd, tab->table_ref->table,
@@ -3125,6 +3125,16 @@ static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join, uint no_jbuf_after)
   const uint tab_sj_strategy= tab->get_sj_strategy();
   bool use_bka_unique= false;
   DBUG_EXECUTE_IF("test_bka_unique", use_bka_unique= true;);
+
+  /*
+    If all key_parts are null_rejecting, the MultiRangeRowIterator will
+    eliminate all NULL values in the key set, such that
+    HA_MRR_NO_NULL_ENDPOINTS can be promised.
+  */
+  const key_part_map keypart_map = make_prev_keypart_map(tab->ref().key_parts);
+  if (tab->ref().null_rejecting == keypart_map) {
+    join_cache_flags |= HA_MRR_NO_NULL_ENDPOINTS;
+  }
 
   // Set preliminary join cache setting based on decision from greedy search
   tab->set_use_join_cache(tab->position()->use_join_buffer ?

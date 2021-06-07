@@ -1192,6 +1192,7 @@ THD::THD(bool enable_plugins)
   get_transaction()->m_flags.enabled= true;
   active_vio = 0;
   m_SSL = NULL;
+  my_atomic_store32(&m_safe_to_display, 0);
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_query, &LOCK_thd_query, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thd_sysvar, &LOCK_thd_sysvar, MY_MUTEX_INIT_FAST);
@@ -3894,6 +3895,16 @@ extern "C" int thd_non_transactional_update(const MYSQL_THD thd)
 {
   return thd->get_transaction()->has_modified_non_trans_table(
     Transaction_ctx::SESSION);
+}
+
+extern "C" int thd_has_active_attachable_trx(const MYSQL_THD thd)
+{
+  return thd->is_attachable_transaction_active();
+}
+
+extern "C" int thd_is_operating_gtid_table_implicitly(const MYSQL_THD thd)
+{
+  return thd->is_operating_gtid_table_implicitly;
 }
 
 extern "C" int thd_binlog_format(const MYSQL_THD thd)

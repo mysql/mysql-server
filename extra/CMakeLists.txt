@@ -22,7 +22,6 @@
 
 INCLUDE_DIRECTORIES(
 ${CMAKE_SOURCE_DIR}/include 
-${LZ4_INCLUDE_DIR}
 # Following is for perror, in case NDB is compiled in.
 ${CMAKE_SOURCE_DIR}/storage/ndb/include
 ${CMAKE_BINARY_DIR}/storage/ndb/include
@@ -38,15 +37,6 @@ IF(NOT CMAKE_CROSSCOMPILING)
  ADD_EXECUTABLE(comp_err comp_err.c)
  TARGET_LINK_LIBRARIES(comp_err mysys mysys_ssl)
  SET_TARGET_PROPERTIES(comp_err PROPERTIES LINKER_LANGUAGE CXX)
-ENDIF()
-
-IF (BUILD_BUNDLED_LZ4)
-  ADD_CONVENIENCE_LIBRARY(lz4_lib
-    lz4/lz4.c
-    lz4/lz4frame.c
-    lz4/lz4hc.c
-    lz4/xxhash.c
-  )
 ENDIF()
 
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
@@ -102,9 +92,8 @@ TARGET_LINK_LIBRARIES(zlib_decompress ${ZLIB_LIBRARY})
 
 IF(WITH_INNOBASE_STORAGE_ENGINE)
 
-  IF(LZ4_INCLUDE_DIR AND LZ4_LIBRARY)
+  IF(LZ4_LIBRARY)
     ADD_DEFINITIONS(-DHAVE_LZ4=1)
-    INCLUDE_DIRECTORIES(${LZ4_INCLUDE_DIR})
   ENDIF()
 
   # Add path to the InnoDB headers

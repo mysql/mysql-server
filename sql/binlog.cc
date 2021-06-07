@@ -7580,6 +7580,8 @@ int MYSQL_BIN_LOG::rotate(bool force_rotate, bool* check_purge)
   assert(!is_relay_log);
   mysql_mutex_assert_owner(&LOCK_log);
 
+  DEBUG_SYNC(current_thd,"stop_binlog_rotation_after_acquiring_lock_log");
+
   *check_purge= false;
 
   if (DBUG_EVALUATE_IF("force_rotate", 1, 0) || force_rotate ||

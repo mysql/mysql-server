@@ -42,7 +42,6 @@ wait/synch/rwlock/group_rpl/RWLOCK_certifier_stable_gtid_set	YES	YES
 wait/synch/rwlock/group_rpl/RWLOCK_io_cache_unused_list	YES	YES
 wait/synch/rwlock/group_rpl/RWLOCK_plugin_stop	YES	YES
 wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations	YES	YES
-wait/synch/rwlock/group_rpl/RWLOCK_gcs_operations_finalize_ongoing	YES	YES
 wait/synch/cond/group_rpl/COND_applier_module_run	YES	YES
 wait/synch/cond/group_rpl/COND_applier_module_suspend	YES	YES
 wait/synch/cond/group_rpl/COND_applier_module_wait	YES	YES
