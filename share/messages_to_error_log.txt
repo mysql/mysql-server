@@ -11379,17 +11379,36 @@ ER_DEPRECATED_PERSISTED_VARIABLE_WITH_ALIAS
 ER_LOG_COMPONENT_FLUSH_FAILED
   eng "%d error logging component(s) failed to flush. For file-based logs this can happen when the path or permissions of the log-file have changed. Failure to flush filed-based logs may affect log-rotation."
 
-ER_DDL_MSG_1
-  eng "DDL failed to create a thread to load an index, fall back to single thread"
-
-ER_MTR_MSG_1
-  eng "Debug_check_no_latching failed, slot->type=%d"
-
 ER_IB_MSG_REENCRYPTED_TABLESPACE_KEY
   eng "Tablespace key for %s has been re-encrypted using the latest InnoDB master key. However, we recommend that you rebuild the table for better security."
 
 ER_IB_MSG_REENCRYPTED_GENERAL_TABLESPACE_KEY
   eng "Tablespace key for %s has been re-encrypted using the latest InnoDB master key. However, we recommend that you reencrypt the tablespace for better security."
+
+ER_IB_ERR_PAGE_ARCH_DBLWR_INIT_FAILED
+  eng "Page Archiver's doublewrite buffer initialisation failed. Page tracking is at risk of losing tracked information."
+
+ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES
+  eng "There is not enough free space in the redo log during recovery to perform pending ibuf merges. Please retry starting MySQL with --innodb-force-recovery=4."
+
+ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED
+  eng "There is not enough free space in the redo log during recovery, restore from backup (or retry with --innodb-force-recovery=6)."
+
+ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON_LOG
+  eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
+
+# This error is not supposed to be reported to the users. It is only
+# meant for internal use to signal that a statement should be
+# reprepared for the primary storage engine, without transformations.
+# The error should be caught and handled by the server.
+ER_PREPARE_FOR_PRIMARY_ENGINE
+  eng "Retry the statement using the primary storage engine."
+
+ER_DDL_MSG_1
+  eng "DDL failed to create a thread to load an index, fall back to single thread"
+
+ER_MTR_MSG_1
+  eng "Debug_check_no_latching failed, slot->type=%d"
 
 ER_GRP_RPL_MYSQL_NETWORK_PROVIDER_CLIENT_ERROR_CONN_ERR
   eng "Failed to establish MySQL client connection in Group Replication. Error establishing connection. Please refer to the manual to make sure that you configured Group Replication properly to work with MySQL Protocol connections."
@@ -11426,25 +11445,6 @@ ER_RPL_INCREMENTING_MEMBER_ACTION_VERSION
 
 ER_GRP_RPL_SLAVE_THREAD_ERROR_ON_SECONDARY_MEMBER
   eng "The '%s' thread of channel '%s' will error out as this server is a group secondary."
-
-ER_IB_ERR_PAGE_ARCH_DBLWR_INIT_FAILED
-  eng "Page Archiver's doublewrite buffer initialisation failed. Page tracking is at risk of losing tracked information."
-
-ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__SKIP_IBUF_MERGES
-  eng "There is not enough free space in the redo log during recovery to perform pending ibuf merges. Please retry starting MySQL with --innodb-force-recovery=4."
-
-ER_IB_MSG_RECOVERY_NO_SPACE_IN_REDO_LOG__UNEXPECTED
-  eng "There is not enough free space in the redo log during recovery, restore from backup (or retry with --innodb-force-recovery=6)."
-
-ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON_LOG
-  eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
-
-# This error is not supposed to be reported to the users. It is only
-# meant for internal use to signal that a statement should be
-# reprepared for the primary storage engine, without transformations.
-# The error should be caught and handled by the server.
-ER_PREPARE_FOR_PRIMARY_ENGINE
-  eng "Retry the statement using the primary storage engine."
 
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
