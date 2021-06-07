@@ -3064,7 +3064,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                                    (*field_ptr)->field_name, *field_ptr,
                                    is_create_table, &error_reported)) {
           *vfield_ptr = nullptr;
-          error = 4;  // in case no error is reported
+          if (thd->is_error())
+            error_reported = true;
+          else
+            error = 4;  // in case no error is reported
           goto err;
         }
 
