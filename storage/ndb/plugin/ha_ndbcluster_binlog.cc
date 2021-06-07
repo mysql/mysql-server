@@ -6443,7 +6443,7 @@ bool Ndb_binlog_thread::handle_events_for_epoch(THD *thd, injector *inj,
   }
 
   // No error has occurred in event stream, continue processing
-  thd->proc_info("Processing events");
+  thd->set_proc_info("Processing events");
 
   ndb_binlog_index_row _row;
   ndb_binlog_index_row *rows = &_row;
