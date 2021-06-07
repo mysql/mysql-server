@@ -2498,6 +2498,25 @@ LEFT JOIN t1 AS t3 ON FALSE
 WHERE t1.a <=> t3.a;
 a	a	a
 DROP TABLE t1;
+# Bug#32915307- RECENT REGRESSION: ASSERTION
+# `JOIN->DEPS_OF_REMAINING_LATERAL_DERIVED_TABLES
+# == CALCULATE_LATERAL_DEPS_OF_FINAL_PLAN(FIRST_TAB_NO)' FAILED.
+#
+CREATE TABLE t1(a INT);
+INSERT INTO t1 VALUES(1);
+CREATE TABLE t2(x INT);
+INSERT INTO t2 VALUES(2),(3);
+EXPLAIN SELECT 6 FROM t1 WHERE EXISTS
+(SELECT 7 FROM (SELECT a) d1 WHERE EXISTS (SELECT 8 FROM t2));
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Rematerialize (<derived3>)
+1	PRIMARY	<derived3>	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	FirstMatch(t1)
+3	DEPENDENT DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1276	Field or reference 'test.t1.a' of SELECT #3 was resolved in SELECT #1
+Note	1003	/* select#1 */ select 6 AS `6` from `test`.`t1` semi join (lateral (/* select#3 */ select `test`.`t1`.`a` AS `a`) `d1` join `test`.`t2`) where true
+DROP TABLE t1,t2;
 # Bug#32065606: Inconsistent results when running the same query
 CREATE TABLE t1(
 k INTEGER PRIMARY KEY,
