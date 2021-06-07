@@ -1329,6 +1329,7 @@ void clean_up(bool print_message)
 #endif
   }
   table_def_start_shutdown();
+  delegates_shutdown();
   plugin_shutdown();
   delete_optimizer_cost_module();
   ha_end();
@@ -3423,6 +3424,10 @@ int warn_self_signed_ca()
   return ret_val;
 }
 
+static void push_deprecated_tls_option_no_replacement(const char *tls_version) {
+  sql_print_warning(ER_DEFAULT(ER_WARN_DEPRECATED_TLS_VERSION), tls_version);
+}
+
 #endif /* EMBEDDED_LIBRARY */
 
 static int init_ssl()
@@ -3449,6 +3454,12 @@ static int init_ssl()
 
     enum enum_ssl_init_error error= SSL_INITERR_NOERROR;
     long ssl_ctx_flags= process_tls_version(opt_tls_version);
+
+    if (!(ssl_ctx_flags & SSL_OP_NO_TLSv1))
+      push_deprecated_tls_option_no_replacement("TLSv1");
+    if (!(ssl_ctx_flags & SSL_OP_NO_TLSv1_1))
+      push_deprecated_tls_option_no_replacement("TLSv1.1");
+
     /* having ssl_acceptor_fd != 0 signals the use of SSL */
     ssl_acceptor_fd= new_VioSSLAcceptorFd(opt_ssl_key, opt_ssl_cert,
 					  opt_ssl_ca, opt_ssl_capath,

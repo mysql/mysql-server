@@ -31,7 +31,7 @@
 #include "rpl_handler.h"
 
 #include "my_murmur3.h"    // murmur3_32
-#include "../extra/lz4/my_xxhash.h" // xxHash
+#include "my_xxhash.h" // xxHash
 
 #include <map>
 #include <string>
@@ -596,8 +596,9 @@ static bool generate_hash_pke(const std::string &pke, uint collation_conversion_
 }
 
 
-bool add_pke(TABLE *table, THD *thd)
+bool add_pke(TABLE *table, THD *thd, const uchar *record)
 {
+  assert(record == table->record[0] || record == table->record[1]);
   /*
     The next section extracts the primary key equivalent of the rows that are
     changing during the current transaction.
@@ -638,6 +639,8 @@ bool add_pke(TABLE *table, THD *thd)
 
   if(table->key_info && (table->s->primary_key < MAX_KEY))
   {
+    ptrdiff_t ptrdiff = record - table->record[0];
+
     char value_length_buffer[VALUE_LENGTH_BUFFER_SIZE];
     char* value_length= NULL;
 
@@ -710,9 +713,15 @@ bool add_pke(TABLE *table, THD *thd)
           int index= table->key_info[key_number].key_part[i].fieldnr;
           size_t length= 0;
 
+          Field *field= table->field[index - 1];
           /* Ignore if the value is NULL. */
-          if (table->field[index-1]->is_null())
-            break;
+          if (field->is_null(ptrdiff)) break;
+
+          /*
+            Update the field offset as we may be working on table->record[0]
+            or table->record[1], depending on the "record" parameter.
+          */
+          field->move_field_offset(ptrdiff);
 
           // convert using collation support conversion algorithm
           if (COLLATION_CONVERSION_ALGORITHM == collation_conversion_algorithm)
@@ -757,6 +766,7 @@ bool add_pke(TABLE *table, THD *thd)
           value_length= my_safe_itoa(10, length,
                                      &value_length_buffer[VALUE_LENGTH_BUFFER_SIZE-1]);
           pke.append(value_length);
+          field->move_field_offset(-ptrdiff);
         }
 
         /*
@@ -816,9 +826,15 @@ bool add_pke(TABLE *table, THD *thd)
       {
         for (uint i=0; i < table->s->fields; i++)
         {
-          /* Ignore if the value is NULL. */
-          if (table->field[i]->is_null())
-            continue;
+          Field *field = table->field[i];
+          if (field->is_null(ptrdiff)) continue;
+
+          /*
+            Update the field offset, since we may be operating on
+            table->record[0] or table->record[1] and both have
+            different offsets.
+          */
+          field->move_field_offset(ptrdiff);
 
           std::map<std::string,std::string>::iterator it=
               foreign_key_map.find(table->s->field[i]->field_name);
@@ -886,6 +902,8 @@ bool add_pke(TABLE *table, THD *thd)
               writeset_hashes_added++;
             }
           }
+          /* revert the field object record offset back */
+          field->move_field_offset(-ptrdiff);
         }
       }
     }

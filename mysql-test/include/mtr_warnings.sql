@@ -313,6 +313,10 @@ INSERT INTO global_suppressions VALUES
  ("RSA private key file not found"),
  ("RSA public key file not found"),
 
+ /* TLS v1.0 and v1.1 deprecated */
+ ("A deprecated TLS version TLSv1 is enabled"),
+ ("A deprecated TLS version TLSv1.1 is enabled"),
+
  ("THE_LAST_SUPPRESSION")||
 
 

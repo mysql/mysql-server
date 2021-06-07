@@ -1,0 +1,7 @@
+include/install_semisync_master.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = 1;
+include/stop_mysqld.inc [server 1]
+# restart
+SET GLOBAL replication_optimize_for_static_plugin_config = 0;
+include/uninstall_semisync_master.inc
+SET GLOBAL replication_optimize_for_static_plugin_config = REPLICATION_OPTIMIZE_FOR_STATIC_PLUGIN_CONFIG;

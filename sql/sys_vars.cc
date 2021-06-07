@@ -1275,8 +1275,8 @@ static bool check_storage_engine(sys_var *self, THD *thd, set_var *var)
     {
       // Use the default value defined by sys_var.
       lex_string_set(&se_name,
-        reinterpret_cast<const char*>(
-        dynamic_cast<Sys_var_plugin*>(self)->global_value_ptr(thd, NULL)));
+        pointer_cast<const char*>(
+          down_cast<Sys_var_plugin*>(self)->global_value_ptr(thd, NULL)));
     }
 
     plugin_ref plugin;

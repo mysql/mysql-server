@@ -99,9 +99,10 @@ set global innodb_ft_enable_stopword='AUTO';
 ERROR 42000: Variable 'innodb_ft_enable_stopword' can't be set to the value of 'AUTO'
 set session innodb_ft_enable_stopword='AUTO';
 ERROR 42000: Variable 'innodb_ft_enable_stopword' can't be set to the value of 'AUTO'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_ft_enable_stopword=-3;
+ERROR 42000: Variable 'innodb_ft_enable_stopword' can't be set to the value of '-3'
 set session innodb_ft_enable_stopword=-7;
+ERROR 42000: Variable 'innodb_ft_enable_stopword' can't be set to the value of '-7'
 select @@global.innodb_ft_enable_stopword;
 @@global.innodb_ft_enable_stopword
 1

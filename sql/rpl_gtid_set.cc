@@ -449,7 +449,7 @@ rpl_gno parse_gno(const char **s)
 {
   char *endp;
   rpl_gno ret= my_strtoll(*s, &endp, 0);
-  if (ret < 0 || ret == LLONG_MAX)
+  if (ret < 0 || ret >= GNO_END)
     return -1;
   *s= endp;
   return ret;
@@ -790,11 +790,12 @@ void Gtid_set::remove_gtid_set(const Gtid_set *other)
 bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const
 {
   DBUG_ENTER("Gtid_set::contains_gtid");
-  assert(sidno >= 1 && gno >= 1);
   if (sid_lock != NULL)
     sid_lock->assert_some_lock();
   if (sidno > get_max_sidno())
     DBUG_RETURN(false);
+  assert(sidno >= 1);
+  assert(gno >= 1);
   Const_interval_iterator ivit(this, sidno);
   const Interval *iv;
   while ((iv= ivit.get()) != NULL)
@@ -970,7 +971,8 @@ void Gtid_set::get_gtid_intervals(list<Gtid_interval> *gtid_intervals) const
 */
 static size_t get_string_length(rpl_gno gno)
 {
-  assert(gno >= 1 && gno < MAX_GNO);
+  assert(gno >= 1);
+  assert(gno < GNO_END);
   rpl_gno tmp_gno= gno;
   size_t len= 0;
   do

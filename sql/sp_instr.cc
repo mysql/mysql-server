@@ -705,7 +705,6 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd,
                                                  bool open_tables)
 {
   Reprepare_observer reprepare_observer;
-  int reprepare_attempt= 0;
 
   while (true)
   {
@@ -771,12 +770,14 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd,
           raise it to the user;
         - we take only 3 attempts to reprepare the query, otherwise we might end
           up in the endless loop.
+        - Reprepare_observer ensures that the statement is retried a maximum
+          number of times, to avoid an endless loop.
     */
     if (stmt_reprepare_observer &&
         !thd->is_fatal_error &&
         !thd->killed &&
         thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE &&
-        reprepare_attempt++ < 3)
+        stmt_reprepare_observer->can_retry())
     {
       assert(stmt_reprepare_observer->is_invalidated());
 

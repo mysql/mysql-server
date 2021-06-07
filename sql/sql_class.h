@@ -1522,7 +1522,7 @@ private:
   */
   LEX_CSTRING m_query_string;
   String m_normalized_query;
-
+  volatile int32 m_safe_to_display;
   /**
     Currently selected catalog.
   */
@@ -3698,6 +3698,12 @@ public:
   /**
     @return true if there is an active attachable transaction.
   */
+  int is_attachable_transaction_active() const
+  { return m_attachable_trx != NULL; }
+
+  /**
+    @return true if there is an active attachable readonly transaction.
+  */
   bool is_attachable_ro_transaction_active() const
   { return m_attachable_trx != NULL && m_attachable_trx->is_read_only(); }
 
@@ -4385,7 +4391,8 @@ public:
   }
 
   /**
-    Set query to be displayed in performance schema (threads table etc.).
+    Set query to be displayed in performance schema (threads table etc.).Also
+    mark the query safe to display for information_schema.process_list.
   */
   void set_query_for_display(const char *query_arg, size_t query_length_arg) {
     // Set in pfs events statements table
@@ -4394,10 +4401,27 @@ public:
     // Set in pfs threads table
     PSI_THREAD_CALL(set_thread_info)(query_arg, query_length_arg);
 #endif
+    set_safe_display(true);
   }
-  void reset_query_for_display(void) {
+
+  /**
+    Reset query string to be displayed in PFS. Also reset the safety flag
+    for information_schema.process_list for next query.
+  */
+  void reset_query_for_display() {
     set_query_for_display(NULL, 0);
+    my_atomic_store32(&m_safe_to_display, 0);
   }
+
+  /** Set if the query string to be safe to display.
+  @param[in]  safe  if it is safe to display query string */
+  void set_safe_display(bool safe) {
+    int32 value = safe ? 1 : 0;
+    my_atomic_store32(&m_safe_to_display, value);
+  }
+
+  /** @return true, if safe to display the query string. */
+  int32 safe_to_display() { return my_atomic_load32(&m_safe_to_display);}
 
   /**
     Assign a new value to thd->m_query_string.

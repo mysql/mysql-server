@@ -68,7 +68,7 @@ TEST_F(FatalSignalDeathTest, Segfault)
    gtest library instead.
   */
   EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
-#elif defined(__SANITIZE_ADDRESS__)
+#elif defined(HAVE_ASAN)
   /* gcc 4.8.1 with '-fsanitize=address -O1' */
   /* Newer versions of ASAN give other error message, disable it */
   // EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".*ASAN:SIGSEGV.*");

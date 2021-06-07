@@ -78,8 +78,9 @@ set session innodb_strict_mode=2;
 set global innodb_strict_mode='AUTO';
 --error ER_WRONG_VALUE_FOR_VAR
 set session innodb_strict_mode='AUTO';
---echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+--error ER_WRONG_VALUE_FOR_VAR
 set global innodb_strict_mode=-3;
+--error ER_WRONG_VALUE_FOR_VAR
 set session innodb_strict_mode=-7;
 select @@global.innodb_strict_mode;
 select @@session.innodb_strict_mode;

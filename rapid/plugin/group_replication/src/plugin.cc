@@ -39,8 +39,8 @@ unsigned int plugin_version= 0;
 
 //The plugin running flag and lock
 static mysql_mutex_t plugin_running_mutex;
-bool group_replication_running= false;
-bool group_replication_stopping= false;
+int32 group_replication_running= 0;
+int32 group_replication_stopping= 0;
 bool wait_on_engine_initialization= false;
 bool server_shutdown_status= false;
 bool plugin_is_auto_starting= false;
@@ -193,7 +193,7 @@ ulong compression_threshold_var= DEFAULT_COMPRESSION_THRESHOLD;
 /* GTID assignment block size options */
 #define DEFAULT_GTID_ASSIGNMENT_BLOCK_SIZE 1000000
 #define MIN_GTID_ASSIGNMENT_BLOCK_SIZE 1
-#define MAX_GTID_ASSIGNMENT_BLOCK_SIZE MAX_GNO
+#define MAX_GTID_ASSIGNMENT_BLOCK_SIZE GNO_END
 ulonglong gtid_assignment_block_size_var= DEFAULT_GTID_ASSIGNMENT_BLOCK_SIZE;
 
 /* Flow control options */
@@ -251,7 +251,6 @@ int configure_and_start_applier_module();
 void initialize_asynchronous_channels_observer();
 void initialize_group_partition_handler();
 int start_group_communication();
-void declare_plugin_running();
 int leave_group();
 int terminate_plugin_modules(bool flag_stop_async_channel= false);
 int terminate_applier_module();
@@ -273,12 +272,12 @@ mysql_mutex_t* get_plugin_running_lock()
 
 bool plugin_is_group_replication_running()
 {
-  return group_replication_running;
+  return my_atomic_load32(&group_replication_running);
 }
 
 bool get_plugin_is_stopping()
 {
-  return group_replication_stopping;
+  return my_atomic_load32(&group_replication_stopping);
 }
 
 int plugin_group_replication_set_retrieved_certification_info(void* info)
@@ -617,8 +616,8 @@ int initialize_plugin_and_join(enum_plugin_con_isolation sql_api_isolation,
     error= view_change_notifier->get_error();
     goto err;
   }
-  group_replication_running= true;
-  group_replication_stopping= false;
+  my_atomic_store32(&group_replication_running, 1);
+  my_atomic_store32(&group_replication_stopping, 0);
   log_primary_member_details();
 
 err:
@@ -853,7 +852,6 @@ int plugin_group_replication_stop()
   DBUG_ENTER("plugin_group_replication_stop");
 
   Mutex_autolock auto_lock_mutex(&plugin_running_mutex);
-  group_replication_stopping= true;
 
   DBUG_EXECUTE_IF("group_replication_wait_on_stop",
                  {
@@ -881,16 +879,25 @@ int plugin_group_replication_stop()
     delayed_initialization_thread= NULL;
   }
 
-  shared_plugin_stop_lock->grab_write_lock();
   if (!plugin_is_group_replication_running())
   {
-    shared_plugin_stop_lock->release_write_lock();
     DBUG_RETURN(0);
   }
+
+  my_atomic_store32(&group_replication_stopping, 1);
+
+  shared_plugin_stop_lock->grab_write_lock();
   log_message(MY_INFORMATION_LEVEL,
               "Plugin 'group_replication' is stopping.");
 
   plugin_is_waiting_to_set_server_read_mode= true;
+
+  DBUG_EXECUTE_IF("group_replication_hold_stop_before_leave_the_group", {
+    const char act[] =
+        "now signal signal.stopping_before_leave_the_group "
+        "wait_for signal.resume_stop_before_leave_the_group";
+    assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+  });
 
   // wait for all transactions waiting for certification
   bool timeout=
@@ -906,7 +913,7 @@ int plugin_group_replication_stop()
 
   int error= terminate_plugin_modules(true);
 
-  group_replication_running= false;
+  my_atomic_store32(&group_replication_running, 0);
   shared_plugin_stop_lock->release_write_lock();
   log_message(MY_INFORMATION_LEVEL,
               "Plugin 'group_replication' has been stopped.");
@@ -1013,8 +1020,8 @@ int terminate_plugin_modules(bool flag_stop_async_channel)
 int plugin_group_replication_init(MYSQL_PLUGIN plugin_info)
 {
   // Reset plugin local variables.
-  group_replication_running= false;
-  group_replication_stopping= false;
+  my_atomic_store32(&group_replication_running, 0);
+  my_atomic_store32(&group_replication_stopping, 0);
   plugin_is_being_uninstalled= false;
   plugin_is_waiting_to_set_server_read_mode= false;
 
@@ -1112,6 +1119,7 @@ int plugin_group_replication_deinit(void *p)
     return 0;
 
   plugin_is_being_uninstalled= true;
+  my_atomic_store32(&group_replication_stopping, 1);
   int observer_unregister_error= 0;
 
   if (plugin_group_replication_stop())
@@ -1219,11 +1227,6 @@ static bool init_group_sidno()
   }
 
   DBUG_RETURN(false);
-}
-
-void declare_plugin_running()
-{
-  group_replication_running= true;
 }
 
 int configure_and_start_applier_module()

@@ -8589,6 +8589,11 @@ bool queue_event(Master_info* mi,const char* buf, ulong event_len)
                            checksum_alg != binary_log::BINLOG_CHECKSUM_ALG_OFF ?
                            event_len - BINLOG_CHECKSUM_LEN : event_len,
                            mi->get_mi_description_event());
+    if (!gtid_ev.is_valid())
+    {
+      global_sid_lock->unlock();
+      goto err;
+    }
     gtid.sidno= gtid_ev.get_sidno(false);
     global_sid_lock->unlock();
     if (gtid.sidno < 0)

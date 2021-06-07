@@ -597,7 +597,9 @@ mem_strdupl(
 	ulint		len)	/*!< in: length of str, in bytes */
 {
 	char*	s = static_cast<char*>(ut_malloc_nokey(len + 1));
-	s[len] = 0;
+	if (s != NULL) {
+		s[len] = 0;
+	}
 	if (len > 0) {
 		memcpy(s, str, len);
 	}

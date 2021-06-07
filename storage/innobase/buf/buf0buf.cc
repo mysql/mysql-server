@@ -424,8 +424,14 @@ buf_pool_get_oldest_modification(void)
 		/* We don't let log-checkpoint halt because pages from system
 		temporary are not yet flushed to the disk. Anyway, object
 		residing in system temporary doesn't generate REDO logging. */
-		for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-		     bpage != NULL
+		bpage = buf_pool->oldest_hp.get();
+		if (bpage != NULL) {
+			ut_ad(bpage->in_flush_list);
+		} else {
+			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+		}
+
+		for (; bpage != NULL
 			&& fsp_is_system_temporary(bpage->id.space());
 		     bpage = UT_LIST_GET_PREV(list, bpage)) {
 			/* Do nothing. */
@@ -434,6 +440,12 @@ buf_pool_get_oldest_modification(void)
 		if (bpage != NULL) {
 			ut_ad(bpage->in_flush_list);
 			lsn = bpage->oldest_modification;
+			buf_pool->oldest_hp.set(bpage);
+		} else {
+			/* The last scanned page as entry point,
+			or nullptr. */
+			buf_pool->oldest_hp.set(
+				UT_LIST_GET_FIRST(buf_pool->flush_list));
 		}
 
 		buf_flush_list_mutex_exit(buf_pool);
@@ -1817,8 +1829,6 @@ buf_pool_init_instance(
 			LATCH_ID_HASH_TABLE_RW_LOCK,
 			srv_n_page_hash_locks, MEM_HEAP_FOR_PAGE_HASH);
 
-		buf_pool->page_hash_old = NULL;
-
 		buf_pool->zip_hash = hash_create(2 * buf_pool->curr_size);
 
 		buf_pool->last_printout_time = ut_time_monotonic();
@@ -1844,6 +1854,10 @@ buf_pool_init_instance(
 
 	/* Initialize the hazard pointer for flush_list batches */
 	new(&buf_pool->flush_hp)
+		FlushHp(buf_pool, &buf_pool->flush_list_mutex);
+
+	/* Initialize the hazard pointer for the oldest page scan */
+	new (&buf_pool->oldest_hp)
 		FlushHp(buf_pool, &buf_pool->flush_list_mutex);
 
 	/* Initialize the hazard pointer for LRU batches */
@@ -2442,8 +2456,6 @@ buf_pool_resize_hash(
 {
 	hash_table_t*	new_hash_table;
 
-	ut_ad(buf_pool->page_hash_old == NULL);
-
 	/* recreate page_hash */
 	new_hash_table = ib_recreate(
 		buf_pool->page_hash, 2 * buf_pool->curr_size);
@@ -2474,9 +2486,12 @@ buf_pool_resize_hash(
 				prev_bpage);
 		}
 	}
-
-	buf_pool->page_hash_old = buf_pool->page_hash;
-	buf_pool->page_hash = new_hash_table;
+        /* Concurrent threads may be accessing buf_pool->page_hash->n_cells,
+        n_sync_obj and try to latch sync_obj[i] while we are resizing. Therefore we
+        never deallocate page_hash, instead we overwrite n_cells (and other fields)
+        with the new values. The n_sync_obj and sync_obj are actually same in both. */
+        std::swap(*buf_pool->page_hash, *new_hash_table);
+        hash_table_free(new_hash_table);
 
 	/* recreate zip_hash */
 	new_hash_table = hash_create(2 * buf_pool->curr_size);
@@ -2929,11 +2944,6 @@ calc_buf_pool_size:
 
 		hash_unlock_x_all(buf_pool->page_hash);
 		buf_pool_mutex_exit(buf_pool);
-
-		if (buf_pool->page_hash_old != NULL) {
-			hash_table_free(buf_pool->page_hash_old);
-			buf_pool->page_hash_old = NULL;
-		}
 	}
 
 	UT_DELETE(chunk_map_old);
@@ -3200,6 +3210,21 @@ HazardPointer::is_hp(const buf_page_t* bpage)
 	ut_ad(!bpage || buf_pool_from_bpage(bpage) == m_buf_pool);
 
 	return(bpage == m_hp);
+}
+
+/** Adjust the value of hp for moving. This happens when some other thread
+working on the same list attempts to relocate the hp of the page.
+@param bpage	buffer block to be compared
+@param dpage	buffer block to be moved to */
+void
+HazardPointer::move(const buf_page_t *bpage, buf_page_t *dpage)
+{
+	ut_ad(bpage != NULL);
+	ut_ad(dpage != NULL);
+
+	if (is_hp(bpage)) {
+		m_hp = dpage;
+	}
 }
 
 /** Adjust the value of hp. This happens when some other thread working

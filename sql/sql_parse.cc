@@ -1939,6 +1939,7 @@ done:
   MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
   thd->m_statement_psi= NULL;
   thd->m_digest= NULL;
+  thd->reset_query_for_display();
 
   /* Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST. */
   thd->reset_rewritten_query();
@@ -4955,6 +4956,12 @@ error:
 finish:
   THD_STAGE_INFO(thd, stage_query_end);
 
+  if (res && thd->get_reprepare_observer() != NULL &&
+      thd->get_reprepare_observer()->is_invalidated() &&
+      thd->get_reprepare_observer()->can_retry()) {
+    thd->skip_gtid_rollback = true;
+  }
+
   // Cleanup EXPLAIN info
   if (!thd->in_sub_stmt)
   {
@@ -5101,6 +5108,8 @@ finish:
     gtid_state->end_gtid_violating_transaction(thd);  // just roll it back
     DEBUG_SYNC(thd, "restore_previous_state_after_statement_failed");
   }
+
+  thd->skip_gtid_rollback = false;
 
   DBUG_RETURN(res || thd->is_error());
 }
@@ -5472,6 +5481,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
       found_semicolon= parser_state->m_lip.found_semicolon;
     }
 
+    DEBUG_SYNC_C("sql_parse_before_rewrite");
+
     if (!err)
     {
       /*
@@ -5527,6 +5538,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
         }
       }
     }
+
+    DEBUG_SYNC_C("sql_parse_after_rewrite");
 
     if (!err)
     {

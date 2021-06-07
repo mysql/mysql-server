@@ -73,8 +73,8 @@ set global innodb_ft_enable_diag_print=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_ft_enable_diag_print'
 set global innodb_ft_enable_diag_print=2;
 ERROR 42000: Variable 'innodb_ft_enable_diag_print' can't be set to the value of '2'
-NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
 set global innodb_ft_enable_diag_print=-3;
+ERROR 42000: Variable 'innodb_ft_enable_diag_print' can't be set to the value of '-3'
 select @@global.innodb_ft_enable_diag_print;
 @@global.innodb_ft_enable_diag_print
 1

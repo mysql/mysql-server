@@ -36,6 +36,10 @@
 #include "table.h"
 #endif
 
+#ifndef INT64_MAX
+#define INT64_MAX   0x7fffffffffffffffLL
+#endif
+
 #include <list>
 #include "atomic_class.h"
 
@@ -401,7 +405,7 @@ inline const char *get_gtid_consistency_mode_string()
 
 
 /// The maximum value of GNO
-const rpl_gno MAX_GNO= LLONG_MAX;
+const rpl_gno GNO_END= INT64_MAX;
 /// The length of MAX_GNO when printed in decimal.
 const int MAX_GNO_TEXT_LENGTH= 19;
 /// The maximal possible length of thread_id when printed in decimal.
@@ -981,6 +985,7 @@ struct Gtid
   {
     assert(sidno_arg > 0);
     assert(gno_arg > 0);
+    assert(gno_arg < GNO_END);
     sidno= sidno_arg;
     gno= gno_arg;
   }
@@ -1140,6 +1145,9 @@ public:
   void _add_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     DBUG_ENTER("Gtid_set::_add_gtid(sidno, gno)");
+    assert(sidno > 0);
+    assert(gno > 0);
+    assert(gno < GNO_END);
     Interval_iterator ivit(this, sidno);
     Free_intervals_lock lock(this);
     add_gno_interval(&ivit, gno, gno + 1, &lock);

@@ -475,14 +475,14 @@ void Certifier::compute_group_available_gtid_intervals()
   }
 
   // For each used interval find the upper bound and from there
-  // add the free GTIDs up to the next interval or MAX_GNO.
+  // add the free GTIDs up to the next interval or GNO_END.
   while ((iv= ivit.get()) != NULL)
   {
     ivit.next();
     iv_next= ivit.get();
 
     rpl_gno start= iv->end;
-    rpl_gno end= MAX_GNO;
+    rpl_gno end= GNO_END;
     if (iv_next != NULL)
       end= iv_next->start - 1;
 
@@ -494,7 +494,7 @@ void Certifier::compute_group_available_gtid_intervals()
   // No GTIDs used, so the available interval is the complete set.
   if (group_available_gtid_intervals.size() == 0)
   {
-    Gtid_set::Interval interval= {1, MAX_GNO, NULL};
+    Gtid_set::Interval interval= {1, GNO_END, NULL};
     group_available_gtid_intervals.push_back(interval);
   }
 
@@ -1001,7 +1001,7 @@ rpl_gno Certifier::get_group_next_available_gtid(const char *member_uuid)
 
   if (member_uuid == NULL || gtid_assignment_block_size <= 1)
   {
-    result= get_group_next_available_gtid_candidate(1, MAX_GNO);
+    result= get_group_next_available_gtid_candidate(1, GNO_END);
     if (result < 0)
     {
       assert(result == -1);
@@ -1093,7 +1093,7 @@ Certifier::get_group_next_available_gtid_candidate(rpl_gno start,
   {
     assert(candidate >= start);
     const Gtid_set::Interval *iv= ivit.get();
-    rpl_gno next_interval_start= iv != NULL ? iv->start : MAX_GNO;
+    rpl_gno next_interval_start= iv != NULL ? iv->start : GNO_END;
 
     // Correct interval.
     if (candidate < next_interval_start)
