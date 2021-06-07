@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_restore\fR
+.\"     Title: ndb_restore
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_RESTORE\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_RESTORE" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -81,10 +81,9 @@ Section\ \&23.5.6, \(lqNDB Cluster Single User Mode\(rq, for more information\&.
 .sp .5v
 .RE
 .PP
-The following table includes options that are specific to the NDB Cluster native backup restoration program
-\fBndb_restore\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
-\fBndb_restore\fR), see
-Options Common to NDB Cluster Programs(1)\&.
+Options that can be used with
+\fBndb_restore\fR
+are shown in the following table\&. Additional descriptions follow the table\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -102,6 +101,24 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
 lB l l
 lB l l
 lB l l
@@ -215,11 +232,58 @@ T}:T{
 T}
 T{
 .PP
+\fB \fR\fB--character-sets-dir=path\fR\fB \fR
+T}:T{
+Directory containing character sets
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB--connect\fR,
 .PP
 \fB \fR\fB-c\fR\fB \fR
 T}:T{
 Alias for --connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--connect-retries=#\fR\fB \fR
+T}:T{
+Number of times to retry connection before giving up
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--connect-retry-delay=#\fR\fB \fR
+T}:T{
+Number of seconds to wait between attempts to contact management server
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--connect-string=connection-string\fR,
+.PP
+\fB \fR\fB-c\fR\fB \fR
+T}:T{
+Same as --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--core-file\fR\fB \fR
+T}:T{
+Write core file on error; used in debugging
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -232,6 +296,33 @@ Decrypt an encrypted backup; requires --backup-password
 T}:T{
 .PP
 ADDED: NDB 8.0.22
+T}
+T{
+.PP
+\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
+T}:T{
+Read given file after global files are read
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-file=path\fR\fB \fR
+T}:T{
+Read default options from given file only
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
+T}:T{
+Also read groups with concat(group, suffix)
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
 T}
 T{
 .PP
@@ -334,6 +425,17 @@ T}:T{
 T}
 T{
 .PP
+\fB--help\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB \fR\fB--hex\fR\fB \fR
 T}:T{
 Print binary types in hexadecimal format
@@ -391,6 +493,15 @@ T}:T{
 T}
 T{
 .PP
+\fB \fR\fB--login-path=path\fR\fB \fR
+T}:T{
+Read given path from login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB--lossy-conversions\fR,
 .PP
 \fB \fR\fB-L\fR\fB \fR
@@ -407,6 +518,15 @@ T{
 T}:T{
 If mysqld is connected and using binary logging, do not log restored
               data
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--no-defaults\fR\fB \fR
+T}:T{
+Do not read default options from any option file other than login file
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -436,12 +556,56 @@ T}:T{
 T}
 T{
 .PP
+\fB--ndb-connectstring=connection-string\fR,
+.PP
+\fB \fR\fB-c\fR\fB \fR
+T}:T{
+Set connect string for connecting to ndb_mgmd. Syntax:
+              "[nodeid=id;][host=]hostname[:port]". Overrides entries in
+              NDB_CONNECTSTRING and my.cnf
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--ndb-mgmd-host=connection-string\fR,
+.PP
+\fB \fR\fB-c\fR\fB \fR
+T}:T{
+Same as --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB--ndb-nodegroup-map=map\fR,
 .PP
 \fB \fR\fB-z\fR\fB \fR
 T}:T{
 Nodegroup map for NDBCLUSTER storage engine; syntax: list of
               (source_nodegroup, destination_nodegroup)
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--ndb-nodeid=#\fR\fB \fR
+T}:T{
+Set node ID for this node, overriding any ID set by --ndb-connectstring
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--ndb-optimized-node-selection\fR\fB \fR
+T}:T{
+Enable optimizations for selection of nodes for transactions. Enabled by
+              default; use --skip-ndb-optimized-node-selection to
+              disable
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -504,6 +668,15 @@ T{
 \fB \fR\fB--print-data\fR\fB \fR
 T}:T{
 Print data to stdout
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--print-defaults\fR\fB \fR
+T}:T{
+Print program argument list and exit
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -682,6 +855,17 @@ T}:T{
 T}
 T{
 .PP
+\fB--usage\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit; same as --help
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB \fR\fB--verbose=#\fR\fB \fR
 T}:T{
 Level of verbosity in output
@@ -689,96 +873,19 @@ T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
 T}
+T{
+.PP
+\fB--version\fR,
+.PP
+\fB \fR\fB-V\fR\fB \fR
+T}:T{
+Display version information and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
 .TE
 .sp 1
-.PP
-Typical options for this utility are shown here:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-ndb_restore [\-c \fIconnection_string\fR] \-n \fInode_id\fR \-b \fIbackup_id\fR \e
-      [\-m] \-r \-\-backup\-path=\fI/path/to/backup/files\fR
-.fi
-.if n \{\
-.RE
-.\}
-.PP
-Normally, when restoring from an NDB Cluster backup,
-\fBndb_restore\fR
-requires at a minimum the
-\fB\-\-nodeid\fR
-(short form:
-\fB\-n\fR),
-\fB\-\-backupid\fR
-(short form:
-\fB\-b\fR), and
-\fB\-\-backup\-path\fR
-options\&.
-.PP
-Prior to NDB 8\&.0\&.19, when
-\fBndb_restore\fR
-was used to restore any tables containing unique indexes, it was necessary to include
-\fB\-\-disable\-indexes\fR
-or
-\fB\-\-rebuild\-indexes\fR\&. Beginning with NDB 8\&.0\&.19, when automatic metadata synchronization is enabled, this is no longer necessary\&.
-.PP
-The
-\fB\-c\fR
-option is used to specify a connection string which tells
-ndb_restore
-where to locate the cluster management server (see
-Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq)\&. If this option is not used, then
-\fBndb_restore\fR
-attempts to connect to a management server on
-localhost:1186\&. This utility acts as a cluster API node, and so requires a free connection
-\(lqslot\(rq
-to connect to the cluster management server\&. This means that there must be at least one
-[api]
-or
-[mysqld]
-section that can be used by it in the cluster
-config\&.ini
-file\&. It is a good idea to keep at least one empty
-[api]
-or
-[mysqld]
-section in
-config\&.ini
-that is not being used for a MySQL server or other application for this reason (see
-Section\ \&23.3.3.7, \(lqDefining SQL and Other API Nodes in an NDB Cluster\(rq)\&.
-.PP
-In NDB 8\&.0\&.22 and later,
-\fBndb_restore\fR
-can decrypt an encrypted backup using
-\fB\-\-decrypt\fR
-and
-\fB\-\-backup\-password\fR\&. Both options must be specified to perform decryption\&. See the documentation for the
-START BACKUP
-management client command for information on creating encrypted backups\&.
-.PP
-You can verify that
-\fBndb_restore\fR
-is connected to the cluster by using the
-SHOW
-command in the
-\fBndb_mgm\fR
-management client\&. You can also accomplish this from a system shell, as shown here:
-.sp
-.if n \{\
-.RS 4
-.\}
-.nf
-shell> \fBndb_mgm \-e "SHOW"\fR
-.fi
-.if n \{\
-.RE
-.\}
-.PP
-More detailed information about all options used by
-\fBndb_restore\fR
-can be found in the following list:
 .sp
 .RS 4
 .ie n \{\
@@ -1083,9 +1190,9 @@ It is not possible to restore a backup made from a newer version of NDB Cluster 
 \fBndb_restore\fR
 from the newer NDB Cluster version to do so\&.
 .sp
-For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.22 to a cluster running NDB Cluster 7\&.4\&.32, you must use the
+For example, to restore a cluster backup taken from a cluster running NDB Cluster 7\&.5\&.23 to a cluster running NDB Cluster 7\&.4\&.33, you must use the
 \fBndb_restore\fR
-that comes with the NDB Cluster 7\&.5\&.22 distribution\&.
+that comes with the NDB Cluster 7\&.5\&.23 distribution\&.
 .sp .5v
 .RE
 For more rapid restoration, the data may be restored in parallel, provided that there is a sufficient number of cluster connections available\&. That is, when restoring to multiple nodes in parallel, you must have an
@@ -1263,6 +1370,28 @@ In NDB 8\&.0\&.15 and later, this option is required\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-character\-sets\-dir\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--character-sets-dir=path
+T}
+.TE
+.sp 1
+Directory containing character sets\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-connect\fR,
 \fB\-c\fR
 .TS
@@ -1299,6 +1428,155 @@ Alias for
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-connect\-retries\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retries=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+12
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+12
+T}
+.TE
+.sp 1
+Number of times to retry connection before giving up\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-retry\-delay\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-retry-delay=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+5
+T}
+T{
+Minimum Value
+T}:T{
+0
+T}
+T{
+Maximum Value
+T}:T{
+5
+T}
+.TE
+.sp 1
+Number of seconds to wait between attempts to contact management server\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-connect\-string\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--connect-string=connection-string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-core\-file\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--core-file
+T}
+.TE
+.sp 1
+Write core file on error; used in debugging\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-decrypt\fR
 .TS
 allbox tab(:);
@@ -1319,6 +1597,108 @@ T}
 Decrypt an encrypted backup using the password supplied by the
 \fB\-\-backup\-password\fR
 option\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-extra\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given file after global files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read default options from given file only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Also read groups with concat(group, suffix)\&.
 .RE
 .sp
 .RS 4
@@ -1839,6 +2219,28 @@ The string passed to this option is used to separate column values\&. The defaul
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
+Display help text and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-hex\fR
 .TS
 allbox tab(:);
@@ -2211,6 +2613,40 @@ Specifies the string used to end each line of output\&. The default is a linefee
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-login\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-lossy\-conversions\fR,
 \fB\-L\fR
 .TS
@@ -2241,6 +2677,15 @@ option\&. Using
 \fB\-\-lossy\-conversions\fR
 allows lossy conversions of column values (type demotions or changes in sign) when restoring data from backup\&. With some exceptions, the rules governing demotion are the same as for MySQL replication; see
 Section\ \&17.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for information about specific type conversions currently supported by attribute demotion\&.
+.sp
+Beginning with NDB 8\&.0\&.26, this option also makes it possible to restore a
+NULL
+column as
+NOT NULL\&. The column must not contain any
+NULL
+entries; otherwise
+\fBndb_restore\fR
+stops with an error\&.
 .sp
 \fBndb_restore\fR
 reports any truncation of data that it performs during lossy conversions once per attribute and column\&.
@@ -2344,6 +2789,75 @@ columns created using the old fixed format are resized and recreated using the v
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-ndb\-connectstring\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-connectstring=connection-string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Set connect string for connecting to ndb_mgmd\&. Syntax: "[nodeid=id;][host=]hostname[:port]"\&. Overrides entries in NDB_CONNECTSTRING and my\&.cnf\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-mgmd\-host\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-mgmd-host=connection-string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Same as
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-ndb\-nodegroup\-map\fR=\fImap\fR,
 \fB\-z\fR
 .TS
@@ -2358,6 +2872,87 @@ T}
 .sp 1
 This option can be used to restore a backup taken from one node group to a different node group\&. Its argument is a list of the form
 \fIsource_node_group\fR, \fItarget_node_group\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-nodeid\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-nodeid=#
+T}
+T{
+Type
+T}:T{
+Integer
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Set node ID for this node, overriding any ID set by
+\fB\-\-ndb\-connectstring\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-ndb\-optimized\-node\-selection\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--ndb-optimized-node-selection
+T}
+.TE
+.sp 1
+Enable optimizations for selection of nodes for transactions\&. Enabled by default; use
+\fB\-\-skip\-ndb\-optimized\-node\-selection\fR
+to disable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
+Do not read default options from any option file other than login file\&.
 .RE
 .sp
 .RS 4
@@ -2887,6 +3482,28 @@ column values are always truncated\&. Such values are truncated to the first 256
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
+Print program argument list and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-print\-log\fR
 .TS
 allbox tab(:);
@@ -3077,6 +3694,11 @@ INT
 or
 BIGINT\&. See
 Section\ \&17.5.1.9.2, \(lqReplication of Columns Having Different Data Types\(rq, for a table of type conversions currently supported by attribute promotion\&.
+.sp
+Beginning with NDB 8\&.0\&.26, this option also makes it possible to restore a
+NOT NULL
+column as
+NULL\&.
 .sp
 Attribute promotion by
 \fBndb_restore\fR
@@ -3886,6 +4508,29 @@ for the current directory\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-usage\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--usage
+T}
+.TE
+.sp 1
+Display help text and exit; same as
+\fB\-\-help\fR\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-verbose\fR=\fI#\fR
 .TS
 allbox tab(:);
@@ -3923,6 +4568,112 @@ T}
 .sp 1
 Sets the level for the verbosity of the output\&. The minimum is 0; the maximum is 255\&. The default value is 1\&.
 .RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-version\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--version
+T}
+.TE
+.sp 1
+Display version information and exit\&.
+.RE
+.PP
+Typical options for this utility are shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+ndb_restore [\-c \fIconnection_string\fR] \-n \fInode_id\fR \-b \fIbackup_id\fR \e
+      [\-m] \-r \-\-backup\-path=\fI/path/to/backup/files\fR
+.fi
+.if n \{\
+.RE
+.\}
+.PP
+Normally, when restoring from an NDB Cluster backup,
+\fBndb_restore\fR
+requires at a minimum the
+\fB\-\-nodeid\fR
+(short form:
+\fB\-n\fR),
+\fB\-\-backupid\fR
+(short form:
+\fB\-b\fR), and
+\fB\-\-backup\-path\fR
+options\&.
+.PP
+Prior to NDB 8\&.0\&.19, when
+\fBndb_restore\fR
+was used to restore any tables containing unique indexes, it was necessary to include
+\fB\-\-disable\-indexes\fR
+or
+\fB\-\-rebuild\-indexes\fR\&. Beginning with NDB 8\&.0\&.19, when automatic metadata synchronization is enabled, this is no longer necessary\&.
+.PP
+The
+\fB\-c\fR
+option is used to specify a connection string which tells
+ndb_restore
+where to locate the cluster management server (see
+Section\ \&23.3.3.3, \(lqNDB Cluster Connection Strings\(rq)\&. If this option is not used, then
+\fBndb_restore\fR
+attempts to connect to a management server on
+localhost:1186\&. This utility acts as a cluster API node, and so requires a free connection
+\(lqslot\(rq
+to connect to the cluster management server\&. This means that there must be at least one
+[api]
+or
+[mysqld]
+section that can be used by it in the cluster
+config\&.ini
+file\&. It is a good idea to keep at least one empty
+[api]
+or
+[mysqld]
+section in
+config\&.ini
+that is not being used for a MySQL server or other application for this reason (see
+Section\ \&23.3.3.7, \(lqDefining SQL and Other API Nodes in an NDB Cluster\(rq)\&.
+.PP
+In NDB 8\&.0\&.22 and later,
+\fBndb_restore\fR
+can decrypt an encrypted backup using
+\fB\-\-decrypt\fR
+and
+\fB\-\-backup\-password\fR\&. Both options must be specified to perform decryption\&. See the documentation for the
+START BACKUP
+management client command for information on creating encrypted backups\&.
+.PP
+You can verify that
+\fBndb_restore\fR
+is connected to the cluster by using the
+SHOW
+command in the
+\fBndb_mgm\fR
+management client\&. You can also accomplish this from a system shell, as shown here:
+.sp
+.if n \{\
+.RS 4
+.\}
+.nf
+shell> \fBndb_mgm \-e "SHOW"\fR
+.fi
+.if n \{\
+.RE
+.\}
 .PP
 \fBError reporting\fR. \fBndb_restore\fR
 reports both temporary and permanent errors\&. In the case of temporary errors, it may able to recover from them, and reports

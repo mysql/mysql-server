@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBmysqlrouter\fR
+.\"     Title: mysqlrouter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/04/2021
 .\"    Manual: MySQL Router
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBMYSQLROUTER\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Router"
+.TH "MYSQLROUTER" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Router"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -313,7 +313,13 @@ values for each connection type.
 .PP
 By default, generated
 \fBbind_port\fR
-values are as follows: For the classic protocol, Read-Write uses 6446 and Read-Only uses 6447, and for the X protocol Read-Write uses 64460 and Read-Only uses 64470.
+values are as follows: For the classic protocol, Read-Write uses 6446 and Read-Only uses 6447, and for the X protocol Read-Write uses 6448 and Read-Only uses 6449.
+.PP
+As of Router 8.0.24: Setting
+\fB--conf-base-port\fR
+to 0 changes the default
+\fBbind_port\fR
+values to previous (before 8.0.24) defaults, which were as follows: For the classic protocol, Read-Write uses 6446 and Read-Only uses 6447, and for the X protocol Read-Write uses 64460 and Read-Only uses 64470.
 T}
 T{
 \fB--conf-use-sockets\fR
@@ -1161,6 +1167,12 @@ for each bootstrapped route\&.
 .sp
 This value is used for the classic read\-write route, and each additional allocated port is incremented by a value of one\&. The port order set is classic read\-write / read\-only, and then x read\-write / read\-only\&.
 .sp
+As of Router 8\&.0\&.24: Setting
+\fB\-\-conf\-base\-port\fR
+to 0 changes the default
+\fBbind_port\fR
+values to previous (before 8\&.0\&.24) defaults, which were as follows: For the classic protocol, Read\-Write uses 6446 and Read\-Only uses 6447, and for the X protocol Read\-Write uses 64460 and Read\-Only uses 64470\&.
+.sp
 Example usage:
 .sp
 .if n \{\
@@ -1174,17 +1186,17 @@ Classic MySQL protocol connections to cluster \*(AqdevCluster\*(Aq:
 \- Read/Write Connections: localhost:6446
 \- Read/Only Connections: localhost:6447
 X protocol connections to cluster \*(AqdevCluster\*(Aq:
-\- Read/Write Connections: localhost:64460
-\- Read/Only Connections: localhost:64470
-\fB# Example demonstrating \-\-conf\-base\-port behavior\fR
-shell> mysqlrouter \-\-bootstrap root@localhost:3310 \-\-conf\-base\-port 6446
+\- Read/Write Connections: localhost:6448
+\- Read/Only Connections: localhost:6449
+\fB# Example demonstrating \-\-conf\-base\-port set to 0\fR
+shell> mysqlrouter \-\-bootstrap root@localhost:3310 \-\-conf\-base\-port 0
 \&.\&.\&.
 Classic MySQL protocol connections to cluster \*(AqdevCluster\*(Aq:
 \- Read/Write Connections: localhost:6446
 \- Read/Only Connections: localhost:6447
 X protocol connections to cluster \*(AqdevCluster\*(Aq:
-\- Read/Write Connections: localhost:6448
-\- Read/Only Connections: localhost:6449
+\- Read/Write Connections: localhost:64460
+\- Read/Only Connections: localhost:64470
 .fi
 .if n \{\
 .RE
@@ -1265,17 +1277,11 @@ is not defined\&.
 allbox tab(:);
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --read-timeout num_seconds
-T}
-T{
-Introduced
-T}:T{
-8.0.4
 T}
 T{
 Type
@@ -1314,17 +1320,11 @@ namespace\&.
 allbox tab(:);
 lB l
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --connect-timeout num_seconds
-T}
-T{
-Introduced
-T}:T{
-8.0.4
 T}
 T{
 Type
@@ -1638,17 +1638,11 @@ The configuration file equivalent is documented separately at
 .TS
 allbox tab(:);
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ssl-key file_path
-T}
-T{
-Introduced
-T}:T{
-8.0.4
 T}
 T{
 Type
@@ -1677,17 +1671,11 @@ Like
 .TS
 allbox tab(:);
 lB l
-lB l
 lB l.
 T{
 Command-Line Format
 T}:T{
 --ssl-key file_path
-T}
-T{
-Introduced
-T}:T{
-8.0.4
 T}
 T{
 Type
