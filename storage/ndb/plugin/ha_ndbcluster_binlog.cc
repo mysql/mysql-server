@@ -1053,7 +1053,7 @@ static void ndb_report_waiting(const char *key, int the_time, const char *op,
   const char *proc_info = "<no info>";
   mysql_mutex_lock(&injector_event_mutex);
   if (injector_ndb) ndb_latest_epoch = injector_ndb->getLatestGCI();
-  if (injector_thd) proc_info = injector_thd->proc_info;
+  if (injector_thd) proc_info = injector_thd->proc_info();
   mysql_mutex_unlock(&injector_event_mutex);
   {
     ndb_log_info(
@@ -7411,7 +7411,7 @@ restart_cluster_failure:
       } else {
         // Handle non-gap epoch: whether an empty or a non-empty epoch
 
-        thd->proc_info = "Processing events";
+        thd->set_proc_info("Processing events");
         ndb_binlog_index_row _row;
         ndb_binlog_index_row *rows = &_row;
         injector::transaction trans;
