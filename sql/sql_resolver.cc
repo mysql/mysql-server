@@ -556,20 +556,6 @@ bool Query_block::prepare(THD *thd, mem_root_deque<Item *> *insert_field_list) {
       recurses into subqueries.
      */
     if (apply_local_transforms(thd, true)) return true;
-    /*
-      Pushing conditions down to derived tables must be done after validity
-      checks of grouped queries done by apply_local_transforms(); indeed, by
-      replacing columns with expressions, inside equalities of WHERE, pushdown
-      makes the checks impossible.
-      The said validity checks must be done after simplify_joins() has been
-      done on all query blocks. While pushdown must be done on the top query
-      block first, then on subqueries.
-      These circular dependencies explain why:
-      - pushdown is not part of apply_local_transforms
-      - a pushed-down condition cannot help to convert LEFT JOIN to inner join
-      inside a derived table's definition.
-    */
-    if (push_conditions_to_derived_tables(thd)) return true;
   }
 
   // Eliminate unused window definitions, redundant sorts etc.
@@ -711,6 +697,9 @@ bool Query_block::prepare_values(THD *thd) {
   that each transformation happens on one single query block.
   Also perform partition pruning, which is most effective after transformations
   have been done.
+  This function also does condition pushdown to derived tables after all
+  the local transformations are applied although condition pushdown is
+  strictly not a local transform.
 
   @param thd      thread handler
   @param prune    if true, then prune partitions based on const conditions
@@ -798,6 +787,21 @@ bool Query_block::apply_local_transforms(THD *thd, bool prune) {
         set_empty_query();
     }
   }
+  /*
+     Pushing conditions down to derived tables must be done after validity
+     checks of grouped queries done above; indeed, by replacing columns
+     with expressions, inside equalities of WHERE, pushdown makes the checks
+     impossible.
+     The said validity checks must be done after simplify_joins() has been
+     done on all query blocks. While pushdown must be done on the outer
+     most query block first, then on subqueries.
+     These circular dependencies explain why:
+     - pushdown is done after all local transformations have been applied.
+     - a pushed-down condition cannot help to convert LEFT JOIN to inner join
+     inside a derived table's definition.
+   */
+  if (outer_query_block() == nullptr && push_conditions_to_derived_tables(thd))
+    return true;
 
   return false;
 }
