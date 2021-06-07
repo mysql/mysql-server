@@ -9574,6 +9574,12 @@ ER_WARN_SQL_AFTER_MTS_GAPS_GAP_NOT_CALCULATED
 ER_INVALID_ASSIGNMENT_TARGET 42000
   eng "Invalid target for assignment in INSERT or UPDATE statement '%.192s'."
 
+ER_OPERATION_NOT_ALLOWED_ON_GR_SECONDARY
+   eng "This operation cannot be performed on a Group Replication secondary member, it must be done on the group primary."
+
+ER_GRP_RPL_FAILOVER_CHANNEL_STATUS_PROPAGATION
+  eng "Unable to propagate the SOURCE_CONNECTION_AUTO_FAILOVER value for channel '%s' to group replication members. Please retry the operation."
+
 ER_WARN_AUDIT_LOG_FORMAT_UNIX_TIMESTAMP_ONLY_WHEN_JSON
   eng "audit_log_format_unix_timestamp is applicable only when audit_log_format = JSON."
 
