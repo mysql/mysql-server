@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_top\fR
+.\"     Title: ndb_top
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_TOP\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_TOP" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -159,6 +159,13 @@ lB l l
 lB l l
 lB l l
 lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
+lB l l
 lB l l.
 T{
 .PP
@@ -167,6 +174,33 @@ T{
 \fB \fR\fB-c\fR\fB \fR
 T}:T{
 Show ASCII graphs in color; use --skip-colors to disable
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-extra-file=path\fR\fB \fR
+T}:T{
+Read given file after global files are read
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-file=path\fR\fB \fR
+T}:T{
+Read default options from given file only
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--defaults-group-suffix=string\fR\fB \fR
+T}:T{
+Also read groups with concat(group, suffix)
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -184,9 +218,7 @@ T}:T{
 T}
 T{
 .PP
-\fB--help\fR,
-.PP
-\fB \fR\fB-?\fR\fB \fR
+\fB \fR\fB--help\fR\fB \fR
 T}:T{
 Show program usage information
 T}:T{
@@ -206,11 +238,29 @@ T}:T{
 T}
 T{
 .PP
+\fB \fR\fB--login-path=path\fR\fB \fR
+T}:T{
+Read given path from login file
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB--measured-load\fR,
 .PP
 \fB \fR\fB-m\fR\fB \fR
 T}:T{
 Show measured load by thread
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--no-defaults\fR\fB \fR
+T}:T{
+Do not read default options from any option file other than login file
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -262,6 +312,15 @@ T}:T{
 T}
 T{
 .PP
+\fB \fR\fB--print-defaults\fR\fB \fR
+T}:T{
+Print program argument list and exit
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
 \fB--sleep-time[=seconds]\fR,
 .PP
 \fB \fR\fB-s\fR\fB \fR
@@ -301,6 +360,15 @@ T{
 (>=7.6.6)
 T}:T{
 Display data using text
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB \fR\fB--usage\fR\fB \fR
+T}:T{
+Show program usage information; same as --help
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -355,6 +423,108 @@ T}
 Show ASCII graphs in color; use
 \fB\-\-skip\-colors\fR
 to disable\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-extra\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-extra-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given file after global files are read\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-file\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-file=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read default options from given file only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-defaults\-group\-suffix\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--defaults-group-suffix=string
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Also read groups with concat(group, suffix)\&.
 .RE
 .sp
 .RS 4
@@ -474,6 +644,40 @@ Host name or IP address of MySQL Server to connect to\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-login\-path\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--login-path=path
+T}
+T{
+Type
+T}:T{
+String
+T}
+T{
+Default Value
+T}:T{
+[none]
+T}
+.TE
+.sp 1
+Read given path from login file\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-measured\-load\fR,
 \fB\-m\fR
 .TS
@@ -501,6 +705,28 @@ T}
 Show measured load by thread\&. This option or
 \fB\-\-os\-load\fR
 must be true; both options may be true\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-no\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--no-defaults
+T}
+.TE
+.sp 1
+Do not read default options from any option file other than login file\&.
 .RE
 .sp
 .RS 4
@@ -662,6 +888,28 @@ Port number to use when connecting to MySQL Server\&.
 .sp -1
 .IP \(bu 2.3
 .\}
+\fB\-\-print\-defaults\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--print-defaults
+T}
+.TE
+.sp 1
+Print program argument list and exit\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
 \fB\-\-sleep\-time[\fR=\fIseconds]\fR,
 \fB\-s\fR
 .TS
@@ -800,6 +1048,41 @@ must be true; both options may be true\&.
 (The short form for this option was
 \fB\-x\fR
 in previous versions of NDB Cluster, but this is no longer supported\&.)
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-usage\fR
+.TS
+allbox tab(:);
+lB l
+lB l
+lB l.
+T{
+Command-Line Format
+T}:T{
+--usage
+T}
+T{
+Type
+T}:T{
+Boolean
+T}
+T{
+Default Value
+T}:T{
+TRUE
+T}
+.TE
+.sp 1
+Display help text and exit; same as
+\fB\-\-help\fR\&.
 .RE
 .sp
 .RS 4

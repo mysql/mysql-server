@@ -1,13 +1,13 @@
 '\" t
-.\"     Title: \fBndb_error_reporter\fR
+.\"     Title: ndb_error_reporter
 .\"    Author: [FIXME: author] [see http://docbook.sf.net/el/author]
 .\" Generator: DocBook XSL Stylesheets v1.79.1 <http://docbook.sf.net/>
-.\"      Date: 03/07/2021
+.\"      Date: 06/04/2021
 .\"    Manual: MySQL Database System
 .\"    Source: MySQL 8.0
 .\"  Language: English
 .\"
-.TH "\FBNDB_ERROR_REPORTER\FR" "1" "03/07/2021" "MySQL 8\&.0" "MySQL Database System"
+.TH "NDB_ERROR_REPORTER" "1" "06/04/2021" "MySQL 8\&.0" "MySQL Database System"
 .\" -----------------------------------------------------------------
 .\" * Define some portability stuff
 .\" -----------------------------------------------------------------
@@ -38,10 +38,9 @@ ndb_error_reporter \- NDB error\-reporting utility
 creates an archive from data node and management node log files that can be used to help diagnose bugs or other problems with a cluster\&.
 \fIIt is highly recommended that you make use of this utility when filing reports of bugs in NDB Cluster\fR\&.
 .PP
-The following table includes command options specific to the NDB Cluster program
-\fBndb_error_reporter\fR\&. Additional descriptions follow the table\&. For options common to most NDB Cluster programs (including
-\fBndb_error_reporter\fR), see
-Options Common to NDB Cluster Programs(1)\&.
+Options that can be used with
+\fBndb_error_reporter\fR
+are shown in the following table\&. Additional descriptions follow the table\&.
 .sp
 .it 1 an-trap
 .nr an-no-space-flag 1
@@ -59,6 +58,7 @@ T}:T{
 Added, Deprecated, or Removed
 T}
 .T&
+lB l l
 lB l l
 lB l l
 lB l l
@@ -87,6 +87,17 @@ T{
 T}:T{
 Include file system data in error report; can use a large amount of disk
               space
+T}:T{
+.PP
+(Supported in all NDB releases based on MySQL 8.0)
+T}
+T{
+.PP
+\fB--help\fR,
+.PP
+\fB \fR\fB-?\fR\fB \fR
+T}:T{
+Display help text and exit
 T}:T{
 .PP
 (Supported in all NDB releases based on MySQL 8.0)
@@ -193,6 +204,28 @@ T}
 Run
 \fBndb_error_reporter\fR
 without using scp from remote hosts\&. Used for testing only\&.
+.RE
+.sp
+.RS 4
+.ie n \{\
+\h'-04'\(bu\h'+03'\c
+.\}
+.el \{\
+.sp -1
+.IP \(bu 2.3
+.\}
+\fB\-\-help\fR
+.TS
+allbox tab(:);
+lB l.
+T{
+Command-Line Format
+T}:T{
+--help
+T}
+.TE
+.sp 1
+Display help text and exit\&.
 .RE
 .sp
 .RS 4
