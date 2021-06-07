@@ -1131,6 +1131,7 @@ same problems as the standard library malloc.
 #endif /* UNIV_PFS_MEMORY */
 
 namespace ut {
+
 #ifdef HAVE_PSI_MEMORY_INTERFACE
 constexpr bool WITH_PFS_MEMORY = true;
 #else
@@ -1170,6 +1171,76 @@ struct PSI_memory_key_t {
  */
 inline PSI_memory_key_t make_psi_memory_key(PSI_memory_key key) {
   return PSI_memory_key_t(key);
+}
+
+/** Dynamically allocates system page-aligned storage of given size. Instruments
+    the memory with given PSI memory key in case PFS memory support is enabled.
+
+    Actual page-alignment, and thus page-size, will depend on CPU architecture
+    but in general page is traditionally mostly 4K large. In contrast to Unices,
+    Windows do make an exception here and implement 64K granularity on top of
+    regular page-size for some legacy reasons. For more details see:
+      https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223
+
+    @param[in] key PSI memory key to be used for PFS memory instrumentation.
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the page-aligned storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc_page_withkey(key, 10*sizeof(int)));
+ */
+inline void *malloc_page_withkey(PSI_memory_key_t key,
+                                 std::size_t size) noexcept {
+  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using page_alloc_impl = detail::Page_alloc_<impl>;
+  return page_alloc_impl::alloc(size, key());
+}
+
+/** Dynamically allocates system page-aligned storage of given size.
+
+    Actual page-alignment, and thus page-size, will depend on CPU architecture
+    but in general page is traditionally mostly 4K large. In contrast to Unices,
+    Windows do make an exception here and implement 64K granularity on top of
+    regular page-size for some legacy reasons. For more details see:
+      https://devblogs.microsoft.com/oldnewthing/20031008-00/?p=42223
+
+    @param[in] size Size of storage (in bytes) requested to be allocated.
+    @return Pointer to the page-aligned storage. nullptr if dynamic storage
+    allocation failed.
+
+    Example:
+     int *x = static_cast<int*>(ut::malloc_page(10*sizeof(int)));
+ */
+inline void *malloc_page(std::size_t size) noexcept {
+  return ut::malloc_page_withkey(make_psi_memory_key(PSI_NOT_INSTRUMENTED),
+                                 size);
+}
+
+/** Retrieves the size of corresponding page-aligned storage.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_page*() variants.
+ */
+inline size_t page_allocation_size(void *ptr) noexcept {
+  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using page_alloc_impl = detail::Page_alloc_<impl>;
+  return page_alloc_impl::datalen(ptr);
+}
+
+/** Releases storage which has been dynamically allocated through any of
+    the ut::malloc_page*() variants.
+
+    @param[in] ptr Pointer which has been obtained through any of the
+    ut::malloc_page*() variants.
+
+    Example:
+     ut::free_page(ptr);
+ */
+inline void free_page(void *ptr) noexcept {
+  using impl = detail::select_page_alloc_impl_t<WITH_PFS_MEMORY>;
+  using page_alloc_impl = detail::Page_alloc_<impl>;
+  return page_alloc_impl::free(ptr);
 }
 
 /** Dynamically allocates storage of given size. Instruments the memory with
