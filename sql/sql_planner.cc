@@ -4689,7 +4689,7 @@ void Optimize_table_order::recalculate_lateral_deps(uint first_tab_no) {
       join->deps_of_remaining_lateral_derived_tables = 0;
     } else if (got_final_plan) {
       join->deps_of_remaining_lateral_derived_tables =
-          join->positions[first_tab_no].get_suffix_lateral_deps();
+          join->best_positions[first_tab_no].get_suffix_lateral_deps();
       assert(join->deps_of_remaining_lateral_derived_tables ==
              calculate_lateral_deps_of_final_plan(first_tab_no));
     } else {
