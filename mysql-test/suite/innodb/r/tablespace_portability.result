@@ -203,6 +203,7 @@ CREATE TABLE t1(a INT);
 include/save_error_log_position.inc
 # restart:
 include/assert_error_log.inc [server: 1, pattern: .*\[Warning\].*Tablespace .*, name 'test/t1', file '.*test.*t1.ibd' is missing]
-# restart: --innodb_directories=TMP_DIR
+# restart: --innodb_directories=INNODB_DIR
 ALTER TABLE t1 FORCE;
 DROP TABLE t1;
+# restart: 
