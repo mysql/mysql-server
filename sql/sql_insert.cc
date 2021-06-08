@@ -235,12 +235,12 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
           const Item *item2 = *j;
           if (item1->eq(item2, true)) {
             my_error(ER_FIELD_SPECIFIED_TWICE, MYF(0), item1->item_name.ptr());
-            break;
+            return true;
           }
         }
       }
-      assert(thd->is_error());
-      return true;
+      // A duplicate column name should have been found by now.
+      assert(false);
     }
   }
   /* Mark all generated columns for write*/

@@ -988,13 +988,10 @@ ERROR 42000: Column 'a' specified twice
 SHOW ERRORS;
 Level	Code	Message
 Error	1110	Column 'a' specified twice
-Error	1110	Column 'b' specified twice
 INSERT INTO t1(a, a, a, a) VALUES (1, 1, 1, 1);
 ERROR 42000: Column 'a' specified twice
 SHOW ERRORS;
 Level	Code	Message
-Error	1110	Column 'a' specified twice
-Error	1110	Column 'a' specified twice
 Error	1110	Column 'a' specified twice
 DROP TABLE t1;
 CREATE TABLE t1(a INT,
