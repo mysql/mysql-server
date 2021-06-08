@@ -454,11 +454,16 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   table->mark_columns_needed_for_update(thd,
                                         false /*mark_binlog_columns=false*/);
 
-  QEP_TAB_standalone qep_tab_st;
-  QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
+  QUICK_SELECT_I *quick = nullptr;
+  join_type type = JT_UNKNOWN;
 
-  qep_tab.set_table(table);
-  qep_tab.set_condition(conds);
+  auto cleanup = create_scope_guard([&quick, table] {
+    delete quick;
+    table->set_keyread(false);
+    table->file->ha_index_or_rnd_end();
+    free_io_cache(table);
+    filesort_free_buffers(table, true);
+  });
 
   if (conds &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
@@ -471,13 +476,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
     if (!no_rows && conds != nullptr) {
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
-      QUICK_SELECT_I *qck;
       no_rows = test_quick_select(thd, keys_to_use, 0, 0, 0, limit, safe_update,
-                                  ORDER_NOT_RELEVANT, qep_tab.table(),
-                                  qep_tab.skip_records_in_range(), conds,
-                                  &needed_reg_dummy, &qck, table->force_index,
+                                  ORDER_NOT_RELEVANT, table,
+                                  /*skip_records_in_range=*/false, conds,
+                                  &needed_reg_dummy, &quick, table->force_index,
                                   query_block) < 0;
-      qep_tab.set_quick(qck);
       if (thd->is_error()) return true;
     }
     if (no_rows) {
@@ -529,13 +532,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   uint used_index;
   {
     ORDER_with_src order_src(order, ESC_ORDER_BY);
-    QUICK_SELECT_I *quick = qep_tab.quick();
-    used_index = get_index_for_order(&order_src, qep_tab.table(), limit, &quick,
+    used_index = get_index_for_order(&order_src, table, limit, &quick,
                                      &need_sort, &reverse);
     if (quick != nullptr) {
       // May have been changed by get_index_for_order().
-      qep_tab.set_quick(quick);
-      qep_tab.set_type(calc_join_type(quick->get_type()));
+      type = calc_join_type(quick->get_type());
     }
   }
   if (need_sort) {  // Assign table scan index to check below for modified key
@@ -545,13 +546,13 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   if (used_index != MAX_KEY) {  // Check if we are modifying a key that we are
                                 // used to search with:
     used_key_is_modified = is_key_used(table, used_index, table->write_set);
-  } else if (qep_tab.quick()) {
+  } else if (quick) {
     /*
       select->quick != NULL and used_index == MAX_KEY happens for index
       merge and should be handled in a different way.
     */
-    used_key_is_modified = (!qep_tab.quick()->unique_key_range() &&
-                            qep_tab.quick()->is_keys_used(table->write_set));
+    used_key_is_modified =
+        (!quick->unique_key_range() && quick->is_keys_used(table->write_set));
   }
 
   if (table->part_info)
@@ -575,20 +576,17 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   {  // Start of scope for Modification_plan
     ha_rows rows;
-    if (qep_tab.quick())
-      rows = qep_tab.quick()->records;
+    if (quick)
+      rows = quick->records;
     else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {
       update_table_ref->fetch_number_of_rows();
       rows = table->file->stats.records;
     }
-    qep_tab.set_quick_optim();
-    qep_tab.set_condition_optim();
     DEBUG_SYNC(thd, "before_single_update");
-    Modification_plan plan(thd, MT_UPDATE, qep_tab.table(), qep_tab.type(),
-                           qep_tab.quick(), qep_tab.condition(), used_index,
-                           limit,
+    Modification_plan plan(thd, MT_UPDATE, table, type, quick, conds,
+                           used_index, limit,
                            (!using_filesort && (used_key_is_modified || order)),
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");
@@ -615,16 +613,16 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
         JOIN join(thd, query_block);  // Only for holding examined_rows.
         AccessPath *path = create_table_access_path(
-            thd, qep_tab.table(), qep_tab.quick(), qep_tab.table_ref,
-            qep_tab.position(), /*count_examined_rows=*/true);
+            thd, table, quick, /*table_ref=*/nullptr,
+            /*position=*/nullptr, /*count_examined_rows=*/true);
 
-        if (qep_tab.condition() != nullptr) {
-          path = NewFilterAccessPath(thd, path, qep_tab.condition());
+        if (conds != nullptr) {
+          path = NewFilterAccessPath(thd, path, conds);
         }
 
         // Force filesort to sort by position.
         fsort.reset(new (thd->mem_root) Filesort(
-            thd, {qep_tab.table()}, /*keep_buffers=*/false, order, limit,
+            thd, {table}, /*keep_buffers=*/false, order, limit,
             /*force_stable_sort=*/false,
             /*remove_duplicates=*/false,
             /*force_sort_positions=*/true, /*unwrap_rollup=*/false));
@@ -632,10 +630,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                                  /*count_examined_rows=*/false);
         iterator = CreateIteratorFromAccessPath(
             thd, path, &join, /*eligible_for_batch_mode=*/true);
-        // Prevent cleanup in JOIN::destroy() and
-        // QEP_shared_owner::qs_cleanup(), to avoid double-destroy of the
-        // SortingIterator.
-        table->sorting_iterator = nullptr;
 
         if (iterator == nullptr || iterator->Init()) return true;
         thd->inc_examined_row_count(join.examined_rows);
@@ -644,8 +638,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           Filesort has already found and selected the rows we want to update,
           so we don't need the where clause
         */
-        qep_tab.set_quick(nullptr);
-        qep_tab.set_condition(nullptr);
+        delete quick;
+        quick = nullptr;
+        conds = nullptr;
       } else {
         /*
           We are doing a search on a key that is updated. In this case
@@ -664,7 +659,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         table->prepare_for_position();
 
         /* If quick select is used, initialize it before retrieving rows. */
-        if (qep_tab.quick() && (error = qep_tab.quick()->reset())) {
+        if (quick && (error = quick->reset())) {
           if (table->file->is_fatal_error(error)) error_flags |= ME_FATALERROR;
 
           table->file->print_error(error, error_flags);
@@ -686,9 +681,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
 
         AccessPath *path;
-        if (used_index == MAX_KEY || qep_tab.quick()) {
-          path = create_table_access_path(thd, qep_tab.table(), qep_tab.quick(),
-                                          qep_tab.table_ref, qep_tab.position(),
+        if (used_index == MAX_KEY || quick) {
+          path = create_table_access_path(thd, table, quick,
+                                          /*table_ref=*/nullptr,
+                                          /*position=*/nullptr,
                                           /*count_examined_rows=*/false);
         } else {
           empty_record(table);
@@ -699,10 +695,6 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
         iterator = CreateIteratorFromAccessPath(
             thd, path, /*join=*/nullptr, /*eligible_for_batch_mode=*/true);
-        // Prevent cleanup in JOIN::destroy() and
-        // QEP_shared_owner::qs_cleanup(), to avoid double-destroy of the
-        // SortingIterator.
-        table->sorting_iterator = nullptr;
 
         if (iterator == nullptr || iterator->Init()) {
           return true;
@@ -725,8 +717,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
           assert(!thd->is_error());
           thd->inc_examined_row_count(1);
 
-          if (qep_tab.condition() != nullptr) {
-            const bool skip_record = qep_tab.condition()->val_int() == 0;
+          if (conds != nullptr) {
+            const bool skip_record = conds->val_int() == 0;
             if (thd->is_error()) {
               error = 1;
               /*
@@ -780,15 +772,17 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             /*examined_rows=*/nullptr);
         if (iterator->Init()) return true;
 
-        qep_tab.set_quick(nullptr);
-        qep_tab.set_condition(nullptr);
+        delete quick;
+        quick = nullptr;
+        conds = nullptr;
       }
     } else {
       // No ORDER BY or updated key underway, so we can use a regular read.
-      iterator = init_table_iterator(thd, qep_tab.table(), qep_tab.quick(),
-                                     qep_tab.table_ref, qep_tab.position(),
-                                     /*ignore_not_found_rows=*/false,
-                                     /*count_examined_rows=*/false);
+      iterator =
+          init_table_iterator(thd, table, quick,
+                              /*table_ref=*/nullptr, /*position=*/nullptr,
+                              /*ignore_not_found_rows=*/false,
+                              /*count_examined_rows=*/false);
       if (iterator == nullptr) return true; /* purecov: inspected */
     }
 
@@ -822,9 +816,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
         !thd->lex->is_ignore() && !using_limit && !has_update_triggers &&
-        qep_tab.quick() && qep_tab.quick()->index != MAX_KEY &&
+        quick && quick->index != MAX_KEY &&
         check_constant_expressions(*update_value_list))
-      read_removal = table->check_read_removal(qep_tab.quick()->index);
+      read_removal = table->check_read_removal(quick->index);
 
     // If the update is batched, we cannot do partial update, so turn it off.
     if (will_batch) table->cleanup_partial_update(); /* purecov: inspected */
@@ -835,8 +829,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       error = iterator->Read();
       if (error || thd->killed) break;
       thd->inc_examined_row_count(1);
-      if (qep_tab.condition() != nullptr) {
-        const bool skip_record = qep_tab.condition()->val_int() == 0;
+      if (conds != nullptr) {
+        const bool skip_record = conds->val_int() == 0;
         if (thd->is_error()) {
           error = 1;
           break;

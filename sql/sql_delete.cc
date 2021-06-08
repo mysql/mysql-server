@@ -37,6 +37,7 @@
 #include "my_sys.h"
 #include "mysql_com.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"
 #include "sql/auth/auth_acls.h"
 #include "sql/auth/auth_common.h"  // check_table_access
 #include "sql/binlog.h"            // mysql_bin_log
@@ -181,8 +182,16 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       table->triggers->has_triggers(TRG_EVENT_DELETE, TRG_ACTION_AFTER);
   unit->set_limit(thd, query_block);
 
-  QEP_TAB_standalone qep_tab_st;
-  QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
+  QUICK_SELECT_I *quick = nullptr;
+  join_type type = JT_UNKNOWN;
+
+  auto cleanup = create_scope_guard([&quick, table] {
+    delete quick;
+    table->set_keyread(false);
+    table->file->ha_index_or_rnd_end();
+    free_io_cache(table);
+    filesort_free_buffers(table, true);
+  });
 
   ha_rows limit = unit->select_limit_cnt;
   const bool using_limit = limit != HA_POS_ERROR;
@@ -340,9 +349,6 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
   table->covering_keys.clear_all();
 
-  qep_tab.set_table(table);
-  qep_tab.set_condition(conds);
-
   if (conds &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
     table->file->cond_push(conds, false);
@@ -354,13 +360,11 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
     if (!no_rows && conds != nullptr) {
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
-      QUICK_SELECT_I *qck;
-      no_rows = test_quick_select(
-                    thd, keys_to_use, 0, 0, 0, limit, safe_update,
-                    ORDER_NOT_RELEVANT, qep_tab.table(),
-                    qep_tab.skip_records_in_range(), conds, &needed_reg_dummy,
-                    &qck, qep_tab.table()->force_index, query_block) < 0;
-      qep_tab.set_quick(qck);
+      no_rows = test_quick_select(thd, keys_to_use, 0, 0, 0, limit, safe_update,
+                                  ORDER_NOT_RELEVANT, table,
+                                  /*skip_records_in_range=*/false, conds,
+                                  &needed_reg_dummy, &quick, table->force_index,
+                                  query_block) < 0;
     }
     if (thd->is_error())  // test_quick_select() has improper error propagation
       return true;
@@ -402,13 +406,11 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (conds != nullptr) table->update_const_key_parts(conds);
     order = simple_remove_const(order, conds);
     ORDER_with_src order_src(order, ESC_ORDER_BY);
-    QUICK_SELECT_I *quick = qep_tab.quick();
-    usable_index = get_index_for_order(&order_src, qep_tab.table(), limit,
-                                       &quick, &need_sort, &reverse);
+    usable_index = get_index_for_order(&order_src, table, limit, &quick,
+                                       &need_sort, &reverse);
     if (quick != nullptr) {
       // May have been changed by get_index_for_order().
-      qep_tab.set_quick(quick);
-      qep_tab.set_type(calc_join_type(quick->get_type()));
+      type = calc_join_type(quick->get_type());
     }
   }
 
@@ -417,19 +419,16 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
   {
     ha_rows rows;
-    if (qep_tab.quick())
-      rows = qep_tab.quick()->records;
+    if (quick)
+      rows = quick->records;
     else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {
       delete_table_ref->fetch_number_of_rows();
       rows = table->file->stats.records;
     }
-    qep_tab.set_quick_optim();
-    qep_tab.set_condition_optim();
-    Modification_plan plan(thd, MT_DELETE, qep_tab.table(), qep_tab.type(),
-                           qep_tab.quick(), qep_tab.condition(), usable_index,
-                           limit, false, need_sort, false, rows);
+    Modification_plan plan(thd, MT_DELETE, table, type, quick, conds,
+                           usable_index, limit, false, need_sort, false, rows);
     DEBUG_SYNC(thd, "planned_single_delete");
 
     if (lex->is_explain()) {
@@ -444,10 +443,11 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     unique_ptr_destroy_only<Filesort> fsort;
     JOIN join(thd, query_block);  // Only for holding examined_rows.
     AccessPath *path;
-    if (usable_index == MAX_KEY || qep_tab.quick()) {
-      path = create_table_access_path(thd, qep_tab.table(), qep_tab.quick(),
-                                      qep_tab.table_ref, qep_tab.position(),
-                                      /*count_examined_rows=*/true);
+    if (usable_index == MAX_KEY || quick) {
+      path =
+          create_table_access_path(thd, table, quick,
+                                   /*table_ref=*/nullptr, /*position=*/nullptr,
+                                   /*count_examined_rows=*/true);
     } else {
       empty_record(table);
       path = NewIndexScanAccessPath(thd, table, usable_index,
@@ -459,8 +459,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (need_sort) {
       assert(usable_index == MAX_KEY);
 
-      if (qep_tab.condition() != nullptr) {
-        path = NewFilterAccessPath(thd, path, qep_tab.condition());
+      if (conds != nullptr) {
+        path = NewFilterAccessPath(thd, path, conds);
       }
 
       fsort.reset(new (thd->mem_root) Filesort(
@@ -472,9 +472,6 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
                                /*count_examined_rows=*/false);
       iterator = CreateIteratorFromAccessPath(thd, path, &join,
                                               /*eligible_for_batch_mode=*/true);
-      // Prevent cleanup in JOIN::destroy() and QEP_shared_owner::qs_cleanup(),
-      // to avoid double-destroy of the SortingIterator.
-      table->sorting_iterator = nullptr;
       if (iterator == nullptr || iterator->Init()) return true;
       thd->inc_examined_row_count(join.examined_rows);
 
@@ -482,13 +479,10 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
         Filesort has already found and selected the rows we want to delete,
         so we don't need the where clause
       */
-      qep_tab.set_condition(nullptr);
+      conds = nullptr;
     } else {
       iterator = CreateIteratorFromAccessPath(thd, path, &join,
                                               /*eligible_for_batch_mode=*/true);
-      // Prevent cleanup in JOIN::destroy() and QEP_shared_owner::qs_cleanup(),
-      // to avoid double-destroy of the SortingIterator.
-      table->sorting_iterator = nullptr;
       if (iterator->Init()) return true;
     }
 
@@ -513,9 +507,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (thd->is_error()) return true;
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
-        !using_limit && !has_delete_triggers && qep_tab.quick() &&
-        qep_tab.quick()->index != MAX_KEY)
-      read_removal = table->check_read_removal(qep_tab.quick()->index);
+        !using_limit && !has_delete_triggers && quick &&
+        quick->index != MAX_KEY)
+      read_removal = table->check_read_removal(quick->index);
 
     assert(limit > 0);
 
@@ -525,8 +519,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       assert(!thd->is_error());
       thd->inc_examined_row_count(1);
 
-      if (qep_tab.condition() != nullptr) {
-        const bool skip_record = qep_tab.condition()->val_int() == 0;
+      if (conds != nullptr) {
+        const bool skip_record = conds->val_int() == 0;
         if (thd->is_error()) {
           error = 1;
           break;
