@@ -1374,7 +1374,8 @@ int JOIN::replace_index_subquery() {
 
   subselect_indexsubquery_engine *engine =
       new (thd->mem_root) subselect_indexsubquery_engine(
-          first_qep_tab,
+          first_qep_tab->table(), first_qep_tab->table_ref,
+          first_qep_tab->ref(), first_qep_tab->type(),
           down_cast<Item_in_subselect *>(query_expression()->item),
           first_qep_tab->condition(), having_cond);
   query_expression()->item->set_indexsubquery_engine(engine);

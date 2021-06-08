@@ -233,8 +233,6 @@ bool construct_lookup_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 /** Help function when we get some an error from the table handler. */
 int report_handler_error(TABLE *table, int error);
 
-int safe_index_read(QEP_TAB *tab);
-
 int join_read_const_table(JOIN_TAB *tab, POSITION *pos);
 
 int do_sj_dups_weedout(THD *thd, SJ_TMP_TABLE *sjtbl);

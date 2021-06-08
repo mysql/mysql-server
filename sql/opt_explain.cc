@@ -644,21 +644,19 @@ bool Explain::explain_subqueries() {
       fmt->entry()->col_table_name.set_const("<materialized_subquery>");
       fmt->entry()->using_temporary = true;
 
-      const QEP_TAB *const tmp_tab = unit->item->get_qep_tab();
-
-      fmt->entry()->col_join_type.set_const(join_type_str[tmp_tab->type()]);
+      fmt->entry()->col_join_type.set_const(
+          join_type_str[unit->item->get_join_type()]);
       fmt->entry()->col_key.set_const("<auto_key>");
 
       char buff_key_len[24];
       fmt->entry()->col_key_len.set(
           buff_key_len,
-          longlong10_to_str(tmp_tab->table()->key_info[0].key_length,
+          longlong10_to_str(unit->item->get_table()->key_info[0].key_length,
                             buff_key_len, 10) -
               buff_key_len);
 
-      if (explain_ref_key(fmt, tmp_tab->ref().key_parts,
-                          tmp_tab->ref().key_copy))
-        return true;
+      const TABLE_REF &ref = unit->item->get_table_ref();
+      if (explain_ref_key(fmt, ref.key_parts, ref.key_copy)) return true;
 
       fmt->entry()->col_rows.set(1);
       /*
