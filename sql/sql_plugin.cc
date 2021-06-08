@@ -1821,7 +1821,7 @@ static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv) {
   }
   table = tables.table;
   unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      new_thd, table, nullptr,
+      new_thd, table,
       /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
   if (iterator == nullptr) {
     close_trans_system_tables(new_thd);

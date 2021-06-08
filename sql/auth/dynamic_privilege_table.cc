@@ -96,9 +96,9 @@ bool populate_dynamic_privilege_caches(THD *thd, TABLE_LIST *tablelst) {
 
   TABLE *table = tablelst[0].table;
   table->use_all_columns();
-  unique_ptr_destroy_only<RowIterator> iterator = init_table_iterator(
-      thd, table, nullptr,
-      /*ignore_not_found_rows=*/false, /*count_examined_rows=*/false);
+  unique_ptr_destroy_only<RowIterator> iterator =
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/false,
+                          /*count_examined_rows=*/false);
   if (iterator == nullptr) {
     my_error(ER_TABLE_CORRUPT, MYF(0), table->s->db.str,
              table->s->table_name.str);

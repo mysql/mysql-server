@@ -17990,8 +17990,9 @@ static int copy_data_between_tables(
 
   unique_ptr_destroy_only<Filesort> fsort;
   unique_ptr_destroy_only<RowIterator> iterator;
-  AccessPath *path = create_table_access_path(thd, from, nullptr,
-                                              /*count_examined_rows=*/false);
+  AccessPath *path =
+      create_table_access_path(thd, from, nullptr, nullptr, nullptr,
+                               /*count_examined_rows=*/false);
 
   if (order != nullptr && to->s->primary_key != MAX_KEY &&
       to->file->primary_key_is_clustered()) {

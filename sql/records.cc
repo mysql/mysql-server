@@ -143,47 +143,39 @@ template class IndexScanIterator<false>;
   said iterator afterwards.
 
   @param thd      Thread handle
-  @param table    Table the data [originally] comes from; if nullptr,
-    `table` is inferred from `qep_tab`; if non-nullptr, `qep_tab` must
-   have the same table.
-  @param qep_tab  QEP_TAB for 'table', if there is one; we may use
-    qep_tab->quick() as data source
+  @param table    Table the data [originally] comes from
+  @param quick    QUICK_SELECT_I to scan the table with, or nullptr
+  @param table_ref
+                  Position for the table, must be non-nullptr for
+                  WITH RECURSIVE
+  @param position Place to get cost information from, or nullptr
   @param count_examined_rows
     See AccessPath::count_examined_rows.
  */
-AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+AccessPath *create_table_access_path(THD *thd, TABLE *table,
+                                     QUICK_SELECT_I *quick,
+                                     TABLE_LIST *table_ref, POSITION *position,
                                      bool count_examined_rows) {
-  // If only 'table' is given, assume no quick, no condition.
-  if (table != nullptr && qep_tab != nullptr) {
-    assert(table == qep_tab->table());
-  } else if (table == nullptr) {
-    table = qep_tab->table();
-  }
-
   AccessPath *path;
-  if (qep_tab != nullptr && qep_tab->quick() != nullptr) {
-    path = NewIndexRangeScanAccessPath(thd, table, qep_tab->quick(),
-                                       count_examined_rows);
-  } else if (qep_tab != nullptr && qep_tab->table_ref != nullptr &&
-             qep_tab->table_ref->is_recursive_reference()) {
+  if (quick != nullptr) {
+    path = NewIndexRangeScanAccessPath(thd, table, quick, count_examined_rows);
+  } else if (table_ref != nullptr && table_ref->is_recursive_reference()) {
     path = NewFollowTailAccessPath(thd, table, count_examined_rows);
   } else {
     path = NewTableScanAccessPath(thd, table, count_examined_rows);
   }
-  if (qep_tab != nullptr && qep_tab->position() != nullptr) {
-    SetCostOnTableAccessPath(*thd->cost_model(), qep_tab->position(),
+  if (position != nullptr) {
+    SetCostOnTableAccessPath(*thd->cost_model(), position,
                              /*is_after_filter=*/false, path);
   }
   return path;
 }
 
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool ignore_not_found_rows,
-    bool count_examined_rows) {
+    THD *thd, TABLE *table, QUICK_SELECT_I *quick, TABLE_LIST *table_ref,
+    POSITION *position, bool ignore_not_found_rows, bool count_examined_rows) {
   unique_ptr_destroy_only<RowIterator> iterator;
 
-  assert(!(table && qep_tab));
-  if (!table) table = qep_tab->table();
   empty_record(table);
 
   if (table->unique_result.io_cache &&
@@ -207,10 +199,10 @@ unique_ptr_destroy_only<RowIterator> init_table_iterator(
         ignore_not_found_rows, /*has_null_flags=*/false,
         /*examined_rows=*/nullptr);
   } else {
-    AccessPath *path =
-        create_table_access_path(thd, table, qep_tab, count_examined_rows);
+    AccessPath *path = create_table_access_path(thd, table, quick, table_ref,
+                                                position, count_examined_rows);
     iterator = CreateIteratorFromAccessPath(thd, path,
-                                            qep_tab ? qep_tab->join() : nullptr,
+                                            /*join=*/nullptr,
                                             /*eligible_for_batch_mode=*/false);
   }
   if (iterator->Init()) {

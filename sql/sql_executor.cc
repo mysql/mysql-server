@@ -2872,7 +2872,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       if (qep_tab->op_type == QEP_TAB::OT_MATERIALIZE) {
         qep_tab->table()->alias = "<temporary>";
         AccessPath *table_path =
-            create_table_access_path(thd, nullptr, qep_tab,
+            create_table_access_path(thd, qep_tab->table(), qep_tab->quick(),
+                                     qep_tab->table_ref, qep_tab->position(),
                                      /*count_examined_rows=*/false);
         path = NewMaterializeAccessPath(
             thd,
@@ -3043,7 +3044,8 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     }
 
     AccessPath *table_path =
-        create_table_access_path(thd, nullptr, qep_tab,
+        create_table_access_path(thd, qep_tab->table(), qep_tab->quick(),
+                                 qep_tab->table_ref, qep_tab->position(),
                                  /*count_examined_rows=*/false);
     qep_tab->table()->alias = "<temporary>";
 
@@ -4266,7 +4268,8 @@ AccessPath *QEP_TAB::access_path() {
         path = NewDynamicIndexRangeScanAccessPath(join()->thd, table(), this,
                                                   /*count_examined_rows=*/true);
       } else {
-        path = create_table_access_path(join()->thd, nullptr, this,
+        path = create_table_access_path(join()->thd, table(), quick(),
+                                        table_ref, position(),
                                         /*count_examined_rows=*/true);
       }
       break;

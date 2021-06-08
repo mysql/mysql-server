@@ -612,7 +612,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         */
         JOIN join(thd, query_block);  // Only for holding examined_rows.
         AccessPath *path = create_table_access_path(
-            thd, nullptr, &qep_tab, /*count_examined_rows=*/true);
+            thd, qep_tab.table(), qep_tab.quick(), qep_tab.table_ref,
+            qep_tab.position(), /*count_examined_rows=*/true);
 
         if (qep_tab.condition() != nullptr) {
           path = NewFilterAccessPath(thd, path, qep_tab.condition());
@@ -683,7 +684,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
         AccessPath *path;
         if (used_index == MAX_KEY || qep_tab.quick()) {
-          path = create_table_access_path(thd, nullptr, &qep_tab,
+          path = create_table_access_path(thd, qep_tab.table(), qep_tab.quick(),
+                                          qep_tab.table_ref, qep_tab.position(),
                                           /*count_examined_rows=*/false);
         } else {
           empty_record(table);
@@ -780,7 +782,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       }
     } else {
       // No ORDER BY or updated key underway, so we can use a regular read.
-      iterator = init_table_iterator(thd, nullptr, &qep_tab,
+      iterator = init_table_iterator(thd, qep_tab.table(), qep_tab.quick(),
+                                     qep_tab.table_ref, qep_tab.position(),
                                      /*ignore_not_found_rows=*/false,
                                      /*count_examined_rows=*/false);
       if (iterator == nullptr) return true; /* purecov: inspected */

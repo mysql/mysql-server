@@ -1805,7 +1805,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   /*
     Prepare reading from the mysql.db table
   */
-  iterator = init_table_iterator(thd, table = tables[1].table, nullptr,
+  iterator = init_table_iterator(thd, table = tables[1].table,
                                  /*ignore_not_found_rows=*/false,
                                  /*count_examined_rows=*/false);
   if (iterator == nullptr) goto end;
@@ -1862,7 +1862,7 @@ static bool acl_load(THD *thd, TABLE_LIST *tables) {
   acl_proxy_users->clear();
 
   if (tables[2].table) {
-    iterator = init_table_iterator(thd, table = tables[2].table, nullptr,
+    iterator = init_table_iterator(thd, table = tables[2].table,
                                    /*ignore_not_found_rows=*/false,
                                    /*count_examined_rows=*/false);
     if (iterator == nullptr) goto end;

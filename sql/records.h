@@ -38,8 +38,11 @@ class QEP_TAB;
 class THD;
 struct AccessPath;
 struct TABLE;
+struct POSITION;
 
-AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
+AccessPath *create_table_access_path(THD *thd, TABLE *table,
+                                     QUICK_SELECT_I *quick,
+                                     TABLE_LIST *table_ref, POSITION *position,
                                      bool count_examined_rows);
 
 /**
@@ -49,7 +52,19 @@ AccessPath *create_table_access_path(THD *thd, TABLE *table, QEP_TAB *qep_tab,
   Returns nullptr on failure.
  */
 unique_ptr_destroy_only<RowIterator> init_table_iterator(
-    THD *thd, TABLE *table, QEP_TAB *qep_tab, bool ignore_not_found_rows,
-    bool count_examined_rows);
+    THD *thd, TABLE *table, QUICK_SELECT_I *quick, TABLE_LIST *table_ref,
+    POSITION *position, bool ignore_not_found_rows, bool count_examined_rows);
+
+/**
+  A short form for when there's no range scan, recursive CTEs or cost
+  information; just a unique_result or a simple table scan. Normally, you should
+  prefer just instantiating an iterator yourself -- this is for legacy use only.
+ */
+inline unique_ptr_destroy_only<RowIterator> init_table_iterator(
+    THD *thd, TABLE *table, bool ignore_not_found_rows,
+    bool count_examined_rows) {
+  return init_table_iterator(thd, table, nullptr, nullptr, nullptr,
+                             ignore_not_found_rows, count_examined_rows);
+}
 
 #endif /* SQL_RECORDS_H */

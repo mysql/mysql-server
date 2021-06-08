@@ -443,7 +443,8 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     JOIN join(thd, query_block);  // Only for holding examined_rows.
     AccessPath *path;
     if (usable_index == MAX_KEY || qep_tab.quick()) {
-      path = create_table_access_path(thd, nullptr, &qep_tab,
+      path = create_table_access_path(thd, qep_tab.table(), qep_tab.quick(),
+                                      qep_tab.table_ref, qep_tab.position(),
                                       /*count_examined_rows=*/true);
     } else {
       empty_record(table);
@@ -1190,7 +1191,7 @@ int Query_result_delete::do_table_deletes(THD *thd, TABLE *table) {
     been deleted by foreign key handling
   */
   unique_ptr_destroy_only<RowIterator> iterator =
-      init_table_iterator(thd, table, nullptr, /*ignore_not_found_rows=*/true,
+      init_table_iterator(thd, table, /*ignore_not_found_rows=*/true,
                           /*count_examined_rows=*/false);
   if (iterator == nullptr) return 1;
   bool will_batch = !table->file->start_bulk_delete();
