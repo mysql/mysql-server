@@ -2292,13 +2292,13 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           QUICK_SELECT_I *qck;
           const bool no_quick =
               test_quick_select(
-                  thd, new_ref_key_map,
-                  0,  // empty table_map
+                  thd, new_ref_key_map, 0, 0, 0,  // empty table_map
                   join->calc_found_rows
                       ? HA_POS_ERROR
                       : join->query_expression()->select_limit_cnt,
                   false,  // don't force quick range
-                  order.order->direction, tab,
+                  order.order->direction, tab->table(),
+                  tab->skip_records_in_range(),
                   // we are after make_join_query_block():
                   tab->condition(), &tab->needed_reg, &qck,
                   tab->table()->force_index, join->query_block) <= 0;
@@ -2404,13 +2404,13 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       keys_to_use.set_bit(best_key);  // only best_key.
       QUICK_SELECT_I *qck;
       test_quick_select(
-          thd, keys_to_use,
-          0,  // empty table_map
+          thd, keys_to_use, 0, 0, 0,  // empty table_map
           join->calc_found_rows ? HA_POS_ERROR
                                 : join->query_expression()->select_limit_cnt,
           true,  // force quick range
-          order.order->direction, tab, tab->condition(), &tab->needed_reg, &qck,
-          tab->table()->force_index, join->query_block);
+          order.order->direction, tab->table(), tab->skip_records_in_range(),
+          tab->condition(), &tab->needed_reg, &qck, tab->table()->force_index,
+          join->query_block);
       if (order_direction < 0 && tab->quick() != nullptr &&
           tab->quick() != save_quick) {
         /*
@@ -2776,8 +2776,9 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
 
         QUICK_SELECT_I *qck;
         if (test_quick_select(
-                thd, new_ref_key_map, 0,  // empty table_map
-                tab->join()->row_limit, false, ordering, tab,
+                thd, new_ref_key_map, 0, 0, 0,  // empty table_map
+                tab->join()->row_limit, false, ordering, tab->table(),
+                tab->skip_records_in_range(),
                 tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
                 &tab->needed_reg, &qck, recheck_range,
                 tab->join()->query_block) > 0) {
@@ -5987,11 +5988,10 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
     Key_map keys_to_use = tab->const_keys;
     keys_to_use.merge(tab->skip_scan_keys);
     int error = test_quick_select(
-        thd, keys_to_use,
-        0,  // empty table_map
+        thd, keys_to_use, 0, 0, 0,  // empty table_map
         limit,
         false,  // don't force quick range
-        ORDER_NOT_RELEVANT, tab,
+        ORDER_NOT_RELEVANT, tab->table(), tab->skip_records_in_range(),
         tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
         &tab->needed_reg, &qck, tab->table()->force_index,
         tab->join()->query_block);
@@ -9553,12 +9553,14 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               QUICK_SELECT_I *qck;
               search_if_impossible =
                   test_quick_select(
-                      thd, usable_keys, used_tables & ~tab->table_ref->map(),
+                      thd, usable_keys, used_tables & ~tab->table_ref->map(), 0,
+                      0,
                       join->calc_found_rows
                           ? HA_POS_ERROR
                           : join->query_expression()->select_limit_cnt,
                       false,  // don't force quick range
-                      interesting_order, tab, tab->condition(),
+                      interesting_order, tab->table(),
+                      tab->skip_records_in_range(), tab->condition(),
                       &tab->needed_reg, &qck, tab->table()->force_index,
                       join->query_block) < 0;
               tab->set_quick(qck);
@@ -9579,12 +9581,14 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               QUICK_SELECT_I *qck;
               const bool impossible_where =
                   test_quick_select(
-                      thd, tab->keys(), used_tables & ~tab->table_ref->map(),
+                      thd, tab->keys(), used_tables & ~tab->table_ref->map(), 0,
+                      0,
                       join->calc_found_rows
                           ? HA_POS_ERROR
                           : join->query_expression()->select_limit_cnt,
                       false,  // don't force quick range
-                      ORDER_NOT_RELEVANT, tab, tab->condition(),
+                      ORDER_NOT_RELEVANT, tab->table(),
+                      tab->skip_records_in_range(), tab->condition(),
                       &tab->needed_reg, &qck, tab->table()->force_index,
                       join->query_block) < 0;
               tab->set_quick(qck);

@@ -356,9 +356,10 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
       no_rows = test_quick_select(
-                    thd, keys_to_use, 0, limit, safe_update, ORDER_NOT_RELEVANT,
-                    &qep_tab, conds, &needed_reg_dummy, &qck,
-                    qep_tab.table()->force_index, query_block) < 0;
+                    thd, keys_to_use, 0, 0, 0, limit, safe_update,
+                    ORDER_NOT_RELEVANT, qep_tab.table(),
+                    qep_tab.skip_records_in_range(), conds, &needed_reg_dummy,
+                    &qck, qep_tab.table()->force_index, query_block) < 0;
       qep_tab.set_quick(qck);
     }
     if (thd->is_error())  // test_quick_select() has improper error propagation

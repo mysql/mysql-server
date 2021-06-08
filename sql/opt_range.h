@@ -1127,10 +1127,11 @@ class QUICK_SKIP_SCAN_SELECT : public QUICK_SELECT_I {
 
 class QEP_shared_owner;
 
-int test_quick_select(THD *thd, Key_map keys, table_map prev_tables,
+int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
+                      table_map const_tables, table_map read_tables,
                       ha_rows limit, bool force_quick_range,
-                      const enum_order interesting_order,
-                      const QEP_shared_owner *tab, Item *cond,
+                      const enum_order interesting_order, TABLE *table,
+                      bool skip_records_in_range, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,
                       bool ignore_table_scan, Query_block *query_block);
 

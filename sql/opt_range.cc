@@ -2170,14 +2170,25 @@ static int fill_used_fields_bitmap(PARAM *param) {
       keys_to_use       Keys to use for range retrieval
       prev_tables       Tables assumed to be already read when the scan is
                         performed (but not read at the moment of this call)
+      const_tables      If invoked during execution: const tables for this join
+                        (so values can be assumed to be present). Otherwise 0.
+      read_tables       If invoked during execution: tables already read
+                        for this join (so values can be assumed to be present).
+                        Otherwise 0.
       limit             Query limit
       force_quick_range Prefer to use range (instead of full table scan) even
                         if it is more expensive.
       interesting_order The sort order the range access method must be able
                         to provide. Three-value logic: asc/desc/don't care
+      table             The table to optimize over.
+      skip_records_in_range
+                        Same as QEP_TAB::m_skip_records_in_range.
+      cond              The condition to optimize for, if any.
       needed_reg        this info is used in make_join_query_block() even if
-  there is no quick. quick[out]        Calculated QUICK, or NULL.
+                          there is no quick.
+      quick [out]       Calculated QUICK, or nullptr.
       ignore_table_scan Disregard table scan while looking for range.
+      query_block       The block the given table is part of.
 
   NOTES
     Updates the following:
@@ -2235,9 +2246,10 @@ static int fill_used_fields_bitmap(PARAM *param) {
 
 */
 int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
+                      table_map const_tables, table_map read_tables,
                       ha_rows limit, bool force_quick_range,
-                      const enum_order interesting_order,
-                      const QEP_shared_owner *tab, Item *cond,
+                      const enum_order interesting_order, TABLE *table,
+                      bool skip_records_in_range, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,
                       bool ignore_table_scan, Query_block *query_block) {
   DBUG_TRACE;
@@ -2247,25 +2259,13 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
   if (keys_to_use.is_clear_all()) return 0;
 
-  table_map const_tables, read_tables;
-  if (tab->join()) {
-    const_tables = tab->join()->found_const_table_map;
-    read_tables = tab->join()->is_executed() ?
-                                             // in execution, range estimation
-                                             // is done for each row, so can
-                                             // access previous tables
-                      (tab->prefix_tables() & ~tab->added_tables())
-                                             : const_tables;
-  } else
-    const_tables = read_tables = 0;
-
   DBUG_PRINT("enter", ("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
                        (ulong)keys_to_use.to_ulonglong(), (ulong)prev_tables,
                        (ulong)const_tables));
 
   bool force_skip_scan = false;
   const Cost_model_server *const cost_model = thd->cost_model();
-  TABLE *const head = tab->table();
+  TABLE *const head = table;
   ha_rows records = head->file->stats.records;
   if (!records) records++; /* purecov: inspected */
   double scan_time =
@@ -2346,7 +2346,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
         param.index_merge_allowed &&
         thd->optimizer_switch_flag(OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT);
 
-    param.skip_records_in_range = tab->skip_records_in_range();
+    param.skip_records_in_range = skip_records_in_range;
 
     init_sql_alloc(key_memory_test_quick_select_exec, &alloc,
                    thd->variables.range_alloc_block_size, 0);
