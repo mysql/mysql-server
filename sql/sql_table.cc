@@ -142,7 +142,6 @@
 #include "sql/sql_constraint.h"  // Constraint_type_resolver
 #include "sql/sql_db.h"          // get_default_db_collation
 #include "sql/sql_error.h"
-#include "sql/sql_executor.h"  // QEP_TAB_standalone
 #include "sql/sql_handler.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -17889,9 +17888,6 @@ static int copy_data_between_tables(
   Query_expression *const unit = thd->lex->unit;
   Query_block *const select = unit->first_query_block();
 
-  QEP_TAB_standalone qep_tab_st;
-  QEP_TAB &qep_tab = qep_tab_st.as_QEP_TAB();
-
   /*
     If target storage engine supports atomic DDL we should not commit
     and disable transaction to let SE do proper cleanup on error/crash.
@@ -18007,7 +18003,6 @@ static int copy_data_between_tables(
     push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR, warn_buff);
     order = nullptr;
   }
-  qep_tab.set_table(from);
   /* Tell handler that we have values for all columns in the to table */
   to->use_all_columns();
   if (order != nullptr) {
