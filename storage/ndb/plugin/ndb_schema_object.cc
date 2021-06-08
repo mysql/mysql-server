@@ -305,7 +305,7 @@ void NDB_SCHEMA_OBJECT::register_participants(
   ndbcluster::ndbrequire(nodes.size() == state.m_participants.size());
 }
 
-void NDB_SCHEMA_OBJECT::result_received_from_node(
+bool NDB_SCHEMA_OBJECT::result_received_from_node(
     uint32 participant_node_id, uint32 result,
     const std::string &message) const {
   std::lock_guard<std::mutex> lock_state(state.m_lock);
@@ -315,7 +315,7 @@ void NDB_SCHEMA_OBJECT::result_received_from_node(
     // Received reply from node not registered as participant, may happen
     // when a node hears the schema op but this node hasn't registered it as
     // subscriber yet.
-    return;
+    return false;  // Not registered
   }
 
   // Mark participant as completed and save result
@@ -323,6 +323,7 @@ void NDB_SCHEMA_OBJECT::result_received_from_node(
   participant.m_completed = true;
   participant.m_result = result;
   participant.m_message = message;
+  return true;
 }
 
 void NDB_SCHEMA_OBJECT::result_received_from_nodes(

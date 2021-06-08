@@ -2433,7 +2433,7 @@ class Ndb_schema_event_handler {
       return;
     }
 
-    // Check if all coordinator completed and wake up client
+    // Check if coordinator completed and wake up client
     const bool coordinator_completed =
         ndb_schema_object->check_coordinator_completed();
 
@@ -3649,7 +3649,7 @@ class Ndb_schema_event_handler {
         rewrite_acl_change_for_server_log(query);
 
       ndb_log_verbose(19,
-                      "got schema event on '%s.%s(%u/%u)' query: '%s' "
+                      "Schema event on '%s.%s(%u/%u)' query: '%s' "
                       "type: %s(%d) node: %u slock: %x%08x",
                       schema->db, schema->name, schema->id, schema->version,
                       query.c_str(),
@@ -3991,8 +3991,14 @@ class Ndb_schema_event_handler {
       return;
     }
 
-    ndb_schema_object->result_received_from_node(participant_node_id, result,
-                                                 unpacked_message);
+    const bool participant_registered =
+        ndb_schema_object->result_received_from_node(participant_node_id,
+                                                     result, unpacked_message);
+    if (!participant_registered) {
+      ndb_log_info("Ignoring node: %d, not a registered participant",
+                   participant_node_id);
+      return;
+    }
 
     if (ndb_schema_object->check_all_participants_completed()) {
       // All participants have completed(or failed) -> send final ack
