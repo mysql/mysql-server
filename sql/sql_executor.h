@@ -501,27 +501,6 @@ class QEP_TAB : public QEP_shared_owner {
   QEP_TAB &operator=(const QEP_TAB &);  // not defined
 };
 
-/**
-   @returns a pointer to the QEP_TAB whose index is qtab->member. For
-   example, QEP_AT(x,first_inner) is the first_inner table of x.
-*/
-#define QEP_AT(qtab, member) (qtab->join()->qep_tab[qtab->member])
-
-/**
-   Use this class when you need a QEP_TAB not connected to any JOIN_TAB.
-*/
-class QEP_TAB_standalone {
- public:
-  QEP_TAB_standalone() { m_qt.set_qs(&m_qs); }
-  ~QEP_TAB_standalone() { m_qt.cleanup(); }
-  /// @returns access to the QEP_TAB
-  QEP_TAB &as_QEP_TAB() { return m_qt; }
-
- private:
-  QEP_shared m_qs;
-  QEP_TAB m_qt;
-};
-
 bool set_record_buffer(TABLE *table, double expected_rows_to_fetch);
 void init_tmptable_sum_functions(Item_sum **func_ptr);
 void update_tmptable_sum_func(Item_sum **func_ptr, TABLE *tmp_table);
