@@ -586,7 +586,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     qep_tab.set_quick_optim();
     qep_tab.set_condition_optim();
     DEBUG_SYNC(thd, "before_single_update");
-    Modification_plan plan(thd, MT_UPDATE, &qep_tab, used_index, limit,
+    Modification_plan plan(thd, MT_UPDATE, qep_tab.table(), qep_tab.type(),
+                           qep_tab.quick(), qep_tab.condition(), used_index,
+                           limit,
                            (!using_filesort && (used_key_is_modified || order)),
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");

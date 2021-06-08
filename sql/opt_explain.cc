@@ -378,15 +378,24 @@ class Explain_union_result : public Explain {
 
 class Explain_table_base : public Explain {
  protected:
-  const TABLE *table;
   /**
      The QEP_TAB which we are currently explaining. It is NULL for the
-     inserted table in INSERT/REPLACE SELECT.
-     @note that you should never read quick() or condition(), they may change
-     under your feet without holding the mutex ; read quick_optim() and
-     condition_optim() instead.
+     inserted table in INSERT/REPLACE SELECT, and single-table UPDATE/DELETE.
+     @note that you should never read quick() or condition() even for SELECT,
+     they may change under your feet without holding the mutex;
+     read quick and condition in this class instead.
   */
-  QEP_TAB *tab;
+  QEP_TAB *tab{nullptr};
+
+  const TABLE *table{nullptr};
+  join_type type{JT_UNKNOWN};
+  QUICK_SELECT_I *quick{nullptr};
+  Item *condition{nullptr};
+  bool dynamic_range{false};
+  TABLE_LIST *table_ref{nullptr};
+  bool skip_records_in_range{false};
+  bool reversed_access{false};
+
   Key_map usable_keys;
 
   Explain_table_base(enum_parsing_context context_type_arg,
@@ -395,8 +404,7 @@ class Explain_table_base : public Explain {
                      TABLE *const table_arg = nullptr)
       : Explain(context_type_arg, explain_thd_arg, query_thd_arg,
                 query_block_arg),
-        table(table_arg),
-        tab(nullptr) {}
+        table(table_arg) {}
 
   bool explain_partitions() override;
   bool explain_possible_keys() override;
@@ -487,7 +495,8 @@ class Explain_table : public Explain_table_base {
  public:
   Explain_table(THD *const explain_thd_arg, const THD *query_thd_arg,
                 Query_block *query_block_arg, TABLE *const table_arg,
-                QEP_TAB *tab_arg, uint key_arg, ha_rows limit_arg,
+                enum join_type type_arg, QUICK_SELECT_I *quick_arg,
+                Item *condition_arg, uint key_arg, ha_rows limit_arg,
                 bool need_tmp_table_arg, bool need_sort_arg,
                 enum_mod_type mod_type_arg, bool used_key_is_modified_arg,
                 const char *msg)
@@ -500,7 +509,9 @@ class Explain_table : public Explain_table_base {
         mod_type(mod_type_arg),
         used_key_is_modified(used_key_is_modified_arg),
         message(msg) {
-    tab = tab_arg;
+    type = type_arg;
+    quick = quick_arg;
+    condition = condition_arg;
     usable_keys = table->possible_quick_keys;
     if (can_walk_clauses())
       order_list = (query_block_arg->order_list.elements != 0);
@@ -928,13 +939,12 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
       }
     }
     if (pushed_root == table) {
-      uint pushed_count = tab->table()->file->number_of_pushed_joins();
+      uint pushed_count = table->file->number_of_pushed_joins();
       len = snprintf(buf, sizeof(buf) - 1, "Parent of %d pushed join@%d",
                      pushed_count, pushed_id);
     } else {
       len = snprintf(buf, sizeof(buf) - 1, "Child of '%s' in pushed join@%d",
-                     tab->table()->file->parent_of_pushed_join()->alias,
-                     pushed_id);
+                     table->file->parent_of_pushed_join()->alias, pushed_id);
     }
 
     {
@@ -949,7 +959,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     case QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT:
     case QUICK_SELECT_I::QS_TYPE_INDEX_MERGE: {
       StringBuffer<32> buff(cs);
-      tab->quick_optim()->add_info_string(&buff);
+      quick->add_info_string(&buff);
       if (fmt->is_hierarchical()) {
         /*
           We are replacing existing col_key value with a quickselect info,
@@ -965,30 +975,29 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     default:;
   }
 
-  if (tab) {
-    if (tab->table_ref && tab->table_ref->table_function) {
-      StringBuffer<64> str(cs);
-      str.append(tab->table_ref->table_function->func_name());
+  if (table_ref && table_ref->table_function) {
+    StringBuffer<64> str(cs);
+    str.append(table_ref->table_function->func_name());
 
-      if (push_extra(ET_TABLE_FUNCTION, str) || push_extra(ET_USING_TEMPORARY))
-        return true;
-    }
-    if (tab->dynamic_range()) {
-      StringBuffer<64> str(STRING_WITH_LEN("index map: 0x"), cs);
-      /* 4 bits per 1 hex digit + terminating '\0' */
-      char buf[MAX_KEY / 4 + 1];
-      str.append(tab->keys().print(buf));
-      if (push_extra(ET_RANGE_CHECKED_FOR_EACH_RECORD, str)) return true;
-    } else if (tab->condition_optim()) {
-      if (fmt->is_hierarchical() && can_print_clauses()) {
-        Lazy_condition *c =
-            new (explain_thd->mem_root) Lazy_condition(tab->condition_optim());
-        if (c == nullptr) return true;
-        fmt->entry()->col_attached_condition.set(c);
-      } else if (push_extra(ET_USING_WHERE))
-        return true;
-    }
+    if (push_extra(ET_TABLE_FUNCTION, str) || push_extra(ET_USING_TEMPORARY))
+      return true;
+  }
+  if (dynamic_range) {
+    StringBuffer<64> str(STRING_WITH_LEN("index map: 0x"), cs);
+    /* 4 bits per 1 hex digit + terminating '\0' */
+    char buf[MAX_KEY / 4 + 1];
+    str.append(tab->keys().print(buf));
+    if (push_extra(ET_RANGE_CHECKED_FOR_EACH_RECORD, str)) return true;
+  } else if (condition) {
+    if (fmt->is_hierarchical() && can_print_clauses()) {
+      Lazy_condition *c = new (explain_thd->mem_root) Lazy_condition(condition);
+      if (c == nullptr) return true;
+      fmt->entry()->col_attached_condition.set(c);
+    } else if (push_extra(ET_USING_WHERE))
+      return true;
+  }
 
+  {
     const Item *pushed_cond = table->file->pushed_cond;
     if (pushed_cond) {
       StringBuffer<64> buff(cs);
@@ -996,8 +1005,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
         pushed_cond->print(explain_thd, &buff, cond_print_flags);
       if (push_extra(ET_USING_PUSHED_CONDITION, buff)) return true;
     }
-    if (((quick_type >= 0 && tab->quick_optim()->reverse_sorted()) ||
-         tab->reversed_access()) &&
+    if (((quick_type >= 0 && quick->reverse_sorted()) || reversed_access) &&
         push_extra(ET_BACKWARD_SCAN))
       return true;
   }
@@ -1005,7 +1013,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     return true;
 
   if (quick_type == QUICK_SELECT_I::QS_TYPE_RANGE) {
-    uint mrr_flags = ((QUICK_RANGE_SELECT *)(tab->quick_optim()))->mrr_flags;
+    uint mrr_flags = ((QUICK_RANGE_SELECT *)(quick))->mrr_flags;
 
     /*
       During normal execution of a query, multi_range_read_init() is
@@ -1023,7 +1031,7 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
       return true;
   }
 
-  if (tab && tab->type() == JT_FT &&
+  if (type == JT_FT &&
       (table->file->ha_table_flags() & HA_CAN_FULLTEXT_HINTS)) {
     /*
       Print info about FT hints.
@@ -1079,8 +1087,8 @@ bool Explain_table_base::explain_extra_common(int quick_type, uint keyno) {
     EXPLAIN FORMAT=JSON FOR CONNECTION will mention clearly that index dive has
     been skipped.
   */
-  if (explain_thd->lex->sql_command == SQLCOM_EXPLAIN_OTHER && tab &&
-      fmt->is_hierarchical() && tab->skip_records_in_range())
+  if (explain_thd->lex->sql_command == SQLCOM_EXPLAIN_OTHER &&
+      fmt->is_hierarchical() && skip_records_in_range)
     push_extra(ET_SKIP_RECORDS_IN_RANGE);
 
   return false;
@@ -1288,6 +1296,13 @@ bool Explain_join::shallow_explain() {
 
 bool Explain_join::explain_qep_tab(size_t tabnum) {
   tab = join->qep_tab + tabnum;
+  type = tab->type();
+  quick = tab->quick_optim();
+  condition = tab->condition_optim();
+  dynamic_range = tab->dynamic_range();
+  skip_records_in_range = tab->skip_records_in_range();
+  reversed_access = tab->reversed_access();
+  table_ref = tab->table_ref;
   if (!tab->position()) return false;
   table = tab->table();
   usable_keys = tab->keys();
@@ -1295,8 +1310,8 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   quick_type = -1;
 
   if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE) {
-    assert(tab->quick_optim());
-    quick_type = tab->quick_optim()->get_type();
+    assert(quick);
+    quick_type = quick->get_type();
   }
 
   if (tab->starts_weedout()) fmt->begin_context(CTX_DUPLICATES_WEEDOUT);
@@ -1328,8 +1343,7 @@ bool Explain_join::explain_qep_tab(size_t tabnum) {
   }
 
   if (fmt->flush_entry() ||
-      (can_walk_clauses() &&
-       mark_subqueries(tab->condition_optim(), fmt->entry())))
+      (can_walk_clauses() && mark_subqueries(condition, fmt->entry())))
     return true;
 
   if (sjm && fmt->is_hierarchical()) {
@@ -1401,7 +1415,7 @@ bool Explain_join::explain_id() {
 }
 
 bool Explain_join::explain_join_type() {
-  const join_type j_t = tab ? tab->type() : JT_ALL;
+  const join_type j_t = type == JT_UNKNOWN ? JT_ALL : type;
   const char *str = join_type_str[j_t];
   if ((j_t == JT_EQ_REF || j_t == JT_REF || j_t == JT_REF_OR_NULL) &&
       join->query_expression()->item) {
@@ -1424,12 +1438,11 @@ bool Explain_join::explain_key_and_len() {
   if (tab->ref().key_parts)
     return explain_key_and_len_index(tab->ref().key, tab->ref().key_length,
                                      tab->ref().key_parts);
-  else if (tab->type() == JT_INDEX_SCAN || tab->type() == JT_FT)
+  else if (type == JT_INDEX_SCAN || type == JT_FT)
     return explain_key_and_len_index(tab->index());
-  else if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE ||
-           ((tab->type() == JT_REF || tab->type() == JT_REF_OR_NULL) &&
-            tab->quick_optim()))
-    return explain_key_and_len_quick(tab->quick_optim());
+  else if (type == JT_RANGE || type == JT_INDEX_MERGE ||
+           ((type == JT_REF || type == JT_REF_OR_NULL) && quick))
+    return explain_key_and_len_quick(quick);
   return false;
 }
 
@@ -1444,7 +1457,7 @@ bool Explain_join::explain_rows_and_filtered() {
   POSITION *const pos = tab->position();
 
   if (explain_thd->lex->sql_command == SQLCOM_EXPLAIN_OTHER &&
-      tab->skip_records_in_range()) {
+      skip_records_in_range) {
     // Skipping col_rows, col_filtered, col_prefix_rows will set them to NULL.
     fmt->entry()->col_cond_cost.set(0);
     fmt->entry()->col_read_cost.set(0.0);
@@ -1494,15 +1507,14 @@ bool Explain_join::explain_extra() {
     if (tab->ref().key_parts)
       keyno = tab->ref().key;
     else if (tab->type() == JT_RANGE || tab->type() == JT_INDEX_MERGE)
-      keyno = tab->quick_optim()->index;
+      keyno = quick->index;
 
     if (explain_extra_common(quick_type, keyno)) return true;
 
     if (((tab->type() == JT_INDEX_SCAN || tab->type() == JT_CONST) &&
          table->covering_keys.is_set(tab->index())) ||
         (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&
-         !((QUICK_ROR_INTERSECT_SELECT *)tab->quick_optim())
-              ->need_to_fetch_row) ||
+         !((QUICK_ROR_INTERSECT_SELECT *)quick)->need_to_fetch_row) ||
         /*
           Notice that table->key_read can change on the fly (grep
           for set_keyread); so EXPLAIN CONNECTION reads a changing variable,
@@ -1511,8 +1523,7 @@ bool Explain_join::explain_extra() {
         */
         table->key_read || tab->keyread_optim()) {
       if (quick_type == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) {
-        QUICK_GROUP_MIN_MAX_SELECT *qgs =
-            (QUICK_GROUP_MIN_MAX_SELECT *)tab->quick_optim();
+        QUICK_GROUP_MIN_MAX_SELECT *qgs = (QUICK_GROUP_MIN_MAX_SELECT *)quick;
         StringBuffer<64> buff(cs);
         qgs->append_loose_scan_type(&buff);
         if (push_extra(ET_USING_INDEX_FOR_GROUP_BY, buff)) return true;
@@ -1672,8 +1683,8 @@ bool Explain_table::explain_table_name() {
 
 bool Explain_table::explain_join_type() {
   join_type jt;
-  if (tab && tab->quick_optim())
-    jt = calc_join_type(tab->quick_optim()->get_type());
+  if (quick)
+    jt = calc_join_type(quick->get_type());
   else if (key != MAX_KEY)
     jt = JT_INDEX_SCAN;
   else
@@ -1684,8 +1695,8 @@ bool Explain_table::explain_join_type() {
 }
 
 bool Explain_table::explain_ref() {
-  if (tab && tab->quick_optim()) {
-    int key_parts = tab->quick_optim()->used_key_parts;
+  if (quick) {
+    int key_parts = quick->used_key_parts;
     while (key_parts--) {
       fmt->entry()->col_ref.push_back("const");
     }
@@ -1694,8 +1705,8 @@ bool Explain_table::explain_ref() {
 }
 
 bool Explain_table::explain_key_and_len() {
-  if (tab && tab->quick_optim())
-    return explain_key_and_len_quick(tab->quick_optim());
+  if (quick)
+    return explain_key_and_len_quick(quick);
   else if (key != MAX_KEY)
     return explain_key_and_len_index(key);
   return false;
@@ -1725,9 +1736,9 @@ bool Explain_table::explain_extra() {
 
   uint keyno;
   int quick_type;
-  if (tab && tab->quick_optim()) {
-    keyno = tab->quick_optim()->index;
-    quick_type = tab->quick_optim()->get_type();
+  if (quick) {
+    keyno = quick->index;
+    quick_type = quick->get_type();
   } else {
     keyno = key;
     quick_type = -1;
@@ -1872,12 +1883,13 @@ bool explain_single_table_modification(THD *explain_thd, const THD *query_thd,
         check_acl_for_explain(query_thd->query_plan.get_lex()->query_tables))
       ret = true;
     else
-      ret = Explain_table(explain_thd, query_thd, select, plan->table,
-                          plan->tab, plan->key, plan->limit,
-                          plan->need_tmp_table, plan->need_sort, plan->mod_type,
-                          plan->used_key_is_modified, plan->message)
-                .send() ||
-            explain_thd->is_error();
+      ret =
+          Explain_table(explain_thd, query_thd, select, plan->table, plan->type,
+                        plan->quick, plan->condition, plan->key, plan->limit,
+                        plan->need_tmp_table, plan->need_sort, plan->mod_type,
+                        plan->used_key_is_modified, plan->message)
+              .send() ||
+          explain_thd->is_error();
   }
   if (ret)
     result.abort_result_set(explain_thd);
@@ -1944,8 +1956,9 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
         // INSERT/REPLACE SELECT ... FROM dual
         ret = Explain_table(
                   explain_thd, query_thd, query_block,
-                  query_plan->get_lex()->insert_table_leaf->table, nullptr,
-                  MAX_KEY, HA_POS_ERROR, false, false,
+                  query_plan->get_lex()->insert_table_leaf->table, JT_UNKNOWN,
+                  /*quick=*/nullptr, /*condition=*/nullptr, MAX_KEY,
+                  HA_POS_ERROR, false, false,
                   (query_plan->get_lex()->sql_command == SQLCOM_INSERT_SELECT
                        ? MT_INSERT
                        : MT_REPLACE),
@@ -2457,7 +2470,10 @@ void Modification_plan::register_in_thd() {
 
   @param thd_arg        owning thread
   @param mt             modification type - MT_INSERT/MT_UPDATE/etc
-  @param tab_arg        Table to modify
+  @param table_arg      Table to modify
+  @param type_arg       Access type (JT_*) for this table
+  @param quick_arg      Range index scan used, if any
+  @param condition_arg  Condition applied, if any
   @param key_arg        MAX_KEY or and index number of the key that was chosen
                         to access table data.
   @param limit_arg      HA_POS_ERROR or LIMIT value.
@@ -2470,16 +2486,17 @@ void Modification_plan::register_in_thd() {
   @param rows           How many rows we plan to modify in the table.
 */
 
-Modification_plan::Modification_plan(THD *thd_arg, enum_mod_type mt,
-                                     QEP_TAB *tab_arg, uint key_arg,
-                                     ha_rows limit_arg, bool need_tmp_table_arg,
-                                     bool need_sort_arg,
-                                     bool used_key_is_modified_arg,
-                                     ha_rows rows)
+Modification_plan::Modification_plan(
+    THD *thd_arg, enum_mod_type mt, TABLE *table_arg, enum join_type type_arg,
+    QUICK_SELECT_I *quick_arg, Item *condition_arg, uint key_arg,
+    ha_rows limit_arg, bool need_tmp_table_arg, bool need_sort_arg,
+    bool used_key_is_modified_arg, ha_rows rows)
     : thd(thd_arg),
       mod_type(mt),
-      table(tab_arg->table()),
-      tab(tab_arg),
+      table(table_arg),
+      type(type_arg),
+      quick(quick_arg),
+      condition(condition_arg),
       key(key_arg),
       limit(limit_arg),
       need_tmp_table(need_tmp_table_arg),
@@ -2516,7 +2533,6 @@ Modification_plan::Modification_plan(THD *thd_arg, enum_mod_type mt,
     : thd(thd_arg),
       mod_type(mt),
       table(table_arg),
-      tab(nullptr),
       key(MAX_KEY),
       limit(HA_POS_ERROR),
       need_tmp_table(false),

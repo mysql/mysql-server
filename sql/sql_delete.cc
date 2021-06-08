@@ -427,8 +427,9 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     }
     qep_tab.set_quick_optim();
     qep_tab.set_condition_optim();
-    Modification_plan plan(thd, MT_DELETE, &qep_tab, usable_index, limit, false,
-                           need_sort, false, rows);
+    Modification_plan plan(thd, MT_DELETE, qep_tab.table(), qep_tab.type(),
+                           qep_tab.quick(), qep_tab.condition(), usable_index,
+                           limit, false, need_sort, false, rows);
     DEBUG_SYNC(thd, "planned_single_delete");
 
     if (lex->is_explain()) {
