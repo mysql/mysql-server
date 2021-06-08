@@ -472,10 +472,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     if (!no_rows && conds != nullptr) {
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
       QUICK_SELECT_I *qck;
-      no_rows = test_quick_select(
-                    thd, keys_to_use, 0, limit, safe_update, ORDER_NOT_RELEVANT,
-                    &qep_tab, conds, &needed_reg_dummy, &qck,
-                    qep_tab.table()->force_index, query_block) < 0;
+      no_rows = test_quick_select(thd, keys_to_use, 0, limit, safe_update,
+                                  ORDER_NOT_RELEVANT, &qep_tab, conds,
+                                  &needed_reg_dummy, &qck, table->force_index,
+                                  query_block) < 0;
       qep_tab.set_quick(qck);
       if (thd->is_error()) return true;
     }
@@ -528,8 +528,14 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   uint used_index;
   {
     ORDER_with_src order_src(order, ESC_ORDER_BY);
-    used_index =
-        get_index_for_order(&order_src, &qep_tab, limit, &need_sort, &reverse);
+    QUICK_SELECT_I *quick = qep_tab.quick();
+    used_index = get_index_for_order(&order_src, qep_tab.table(), limit, &quick,
+                                     &need_sort, &reverse);
+    if (quick != nullptr) {
+      // May have been changed by get_index_for_order().
+      qep_tab.set_quick(quick);
+      qep_tab.set_type(calc_join_type(quick->get_type()));
+    }
   }
   if (need_sort) {  // Assign table scan index to check below for modified key
                     // fields:

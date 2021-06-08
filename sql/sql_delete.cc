@@ -401,8 +401,14 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
     if (conds != nullptr) table->update_const_key_parts(conds);
     order = simple_remove_const(order, conds);
     ORDER_with_src order_src(order, ESC_ORDER_BY);
-    usable_index =
-        get_index_for_order(&order_src, &qep_tab, limit, &need_sort, &reverse);
+    QUICK_SELECT_I *quick = qep_tab.quick();
+    usable_index = get_index_for_order(&order_src, qep_tab.table(), limit,
+                                       &quick, &need_sort, &reverse);
+    if (quick != nullptr) {
+      // May have been changed by get_index_for_order().
+      qep_tab.set_quick(quick);
+      qep_tab.set_type(calc_join_type(quick->get_type()));
+    }
   }
 
   // Reaching here only when table must be accessed

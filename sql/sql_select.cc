@@ -5112,8 +5112,9 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
   Find a key to apply single table UPDATE/DELETE by a given ORDER
 
   @param       order           Linked list of ORDER BY arguments
-  @param       tab             Table to find a key
+  @param       table           Table to find a key
   @param       limit           LIMIT clause parameter
+  @param [in,out] quick        QUICK_SELECT_I used for this table, if any
   @param [out] need_sort       true if filesort needed
   @param [out] reverse
     true if the key is reversed again given ORDER (undefined if key == MAX_KEY)
@@ -5130,12 +5131,12 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
       to table->file->stats.records.
 */
 
-uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab, ha_rows limit,
-                         bool *need_sort, bool *reverse) {
-  if (tab->quick() &&
-      tab->quick()->unique_key_range()) {  // Single row select (always
-                                           // "ordered"): Ok to use with key
-                                           // field UPDATE
+uint get_index_for_order(ORDER_with_src *order, TABLE *table, ha_rows limit,
+                         QUICK_SELECT_I **quick, bool *need_sort,
+                         bool *reverse) {
+  if ((*quick) && (*quick)->unique_key_range()) {  // Single row select (always
+                                                   // "ordered"): Ok to use with
+                                                   // key field UPDATE
     *need_sort = false;
     /*
       Returning of MAX_KEY here prevents updating of used_key_is_modified
@@ -5144,12 +5145,10 @@ uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab, ha_rows limit,
     return MAX_KEY;
   }
 
-  TABLE *const table = tab->table();
-
   if (order->empty()) {
     *need_sort = false;
-    if (tab->quick())
-      return tab->quick()->index;  // index or MAX_KEY, use quick select as is
+    if ((*quick))
+      return (*quick)->index;  // index or MAX_KEY, use quick select as is
     else
       return table->file
           ->key_used_on_scan;  // MAX_KEY or index for some engines
@@ -5161,19 +5160,19 @@ uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab, ha_rows limit,
     return MAX_KEY;
   }
 
-  if (tab->quick()) {
-    if (tab->quick()->index == MAX_KEY) {
+  if ((*quick)) {
+    if ((*quick)->index == MAX_KEY) {
       *need_sort = true;
       return MAX_KEY;
     }
 
     uint used_key_parts;
     bool skip_quick;
-    switch (test_if_order_by_key(order, table, tab->quick()->index,
-                                 &used_key_parts, &skip_quick)) {
+    switch (test_if_order_by_key(order, table, (*quick)->index, &used_key_parts,
+                                 &skip_quick)) {
       case 1:  // desired order
         *need_sort = false;
-        return tab->quick()->index;
+        return (*quick)->index;
       case 0:  // unacceptable order
         *need_sort = true;
         return MAX_KEY;
@@ -5181,10 +5180,9 @@ uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab, ha_rows limit,
       {
         QUICK_SELECT_I *reverse_quick;
         if (!skip_quick &&
-            (reverse_quick = tab->quick()->make_reverse(used_key_parts))) {
-          delete tab->quick();
-          tab->set_quick(reverse_quick);
-          tab->set_type(calc_join_type(reverse_quick->get_type()));
+            (reverse_quick = (*quick)->make_reverse(used_key_parts))) {
+          delete (*quick);
+          *quick = reverse_quick;
           *need_sort = false;
           return reverse_quick->index;
         } else {
