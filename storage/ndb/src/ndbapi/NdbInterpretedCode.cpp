@@ -534,13 +534,13 @@ NdbInterpretedCode::branch_col_ne_null(Uint32 attrId, Uint32 Label)
 }
 
 int
-NdbInterpretedCode::branch_col(Uint32 branch_type,
-                               Uint32 attrId,
-                               const void * val,
-                               Uint32 len,
-                               Uint32 label)
+NdbInterpretedCode::branch_col_val(Uint32 branch_type,
+                                   Uint32 attrId,
+                                   const void * val,
+                                   Uint32 len,
+                                   Uint32 label)
 {
-  DBUG_ENTER("NdbInterpretedCode::branch_col");
+  DBUG_ENTER("NdbInterpretedCode::branch_col_val");
   DBUG_PRINT("enter", ("type: %u  col:%u  val: %p  len: %u  label: %u",
                        branch_type, attrId, val, len, label));
   if (val != NULL)
@@ -639,12 +639,12 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
 }
 
 int
-NdbInterpretedCode::branch_col(Uint32 branch_type,
-                               Uint32 attrId1,
-                               Uint32 attrId2,
-                               Uint32 label)
+NdbInterpretedCode::branch_col_col(Uint32 branch_type,
+                                   Uint32 attrId1,
+                                   Uint32 attrId2,
+                                   Uint32 label)
 {
-  DBUG_ENTER("NdbInterpretedCode::branch_col");
+  DBUG_ENTER("NdbInterpretedCode::branch_col_col");
   DBUG_PRINT("enter", ("type: %u  col1:%u  col2:%u  label: %u",
                        branch_type, attrId1, attrId2, label));
   const Interpreter::BinaryCondition cond =
@@ -690,13 +690,54 @@ NdbInterpretedCode::branch_col(Uint32 branch_type,
   DBUG_RETURN(0);
 }
 
+int
+NdbInterpretedCode::branch_col_param(Uint32 branch_type,
+                                     Uint32 attrId,
+                                     Uint32 paramId,
+                                     Uint32 label)
+{
+  DBUG_ENTER("NdbInterpretedCode::branch_col_param");
+  DBUG_PRINT("enter", ("type: %u  col:%u  param:%u  label: %u",
+                       branch_type, attrId, paramId, label));
+  const Interpreter::BinaryCondition cond =
+    (Interpreter::BinaryCondition)branch_type;
+  assert(cond != Interpreter::LIKE && cond != Interpreter::NOT_LIKE);
+
+  if (unlikely(m_table_impl == nullptr))
+    /* NdbInterpretedCode instruction requires that table is set */
+    DBUG_RETURN(error(4538));
+
+  const NdbColumnImpl *col = m_table_impl->getColumn(attrId);
+  if (unlikely(col == nullptr))
+    DBUG_RETURN(error(BadAttributeId));
+
+  if (col->m_storageType == NDB_STORAGETYPE_DISK)
+    m_flags|= UsesDisk;
+
+  Interpreter::NullSemantics nulls = Interpreter::NULL_CMP_EQUAL;
+  if (m_unknown_action == CmpHasNoUnknowns)
+    nulls = Interpreter::NULL_CMP_EQUAL;
+  else if (m_unknown_action == BranchIfUnknown)
+    nulls = Interpreter::IF_NULL_BREAK_OUT;
+  else  // ContinueIfUnknown
+    nulls = Interpreter::IF_NULL_CONTINUE;
+
+  if (add_branch(Interpreter::BranchColParameter(cond, nulls), label) != 0)
+    DBUG_RETURN(-1);
+
+  if (add1(Interpreter::BranchColParameter_2(attrId, paramId)) != 0)
+    DBUG_RETURN(-1);
+
+  DBUG_RETURN(0);
+}
+
 int 
 NdbInterpretedCode::branch_col_eq(const void * val, 
                                   Uint32 len,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::EQ, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::EQ, attrId, val, 0, Label);
 }
 
 int 
@@ -705,7 +746,7 @@ NdbInterpretedCode::branch_col_ne(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::NE, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::NE, attrId, val, 0, Label);
 }
 
 int 
@@ -714,7 +755,7 @@ NdbInterpretedCode::branch_col_lt(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::LT, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::LT, attrId, val, 0, Label);
 }
 
 int 
@@ -723,7 +764,7 @@ NdbInterpretedCode::branch_col_le(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::LE, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::LE, attrId, val, 0, Label);
 }
 
 int 
@@ -732,7 +773,7 @@ NdbInterpretedCode::branch_col_gt(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::GT, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::GT, attrId, val, 0, Label);
 }
 
 int 
@@ -741,7 +782,7 @@ NdbInterpretedCode::branch_col_ge(const void * val,
                                   Uint32 attrId,
                                   Uint32 Label)
 {
-  return branch_col(Interpreter::GE, attrId, val, 0, Label);
+  return branch_col_val(Interpreter::GE, attrId, val, 0, Label);
 }
 
 int 
@@ -750,7 +791,7 @@ NdbInterpretedCode::branch_col_like(const void * val,
                                     Uint32 attrId,
                                     Uint32 Label)
 {
-  return branch_col(Interpreter::LIKE, attrId, val, len, Label);
+  return branch_col_val(Interpreter::LIKE, attrId, val, len, Label);
 }
 
 int 
@@ -759,7 +800,7 @@ NdbInterpretedCode::branch_col_notlike(const void * val,
                                        Uint32 attrId,
                                        Uint32 Label)
 {
-  return branch_col(Interpreter::NOT_LIKE, attrId, val, len, Label);
+  return branch_col_val(Interpreter::NOT_LIKE, attrId, val, len, Label);
 }
 
 int
@@ -768,7 +809,7 @@ NdbInterpretedCode::branch_col_and_mask_eq_mask(const void * mask,
                                                 Uint32 attrId,
                                                 Uint32 label)
 {
-  return branch_col(Interpreter::AND_EQ_MASK, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::AND_EQ_MASK, attrId, mask, 0, Label);
 }
 
 int
@@ -777,7 +818,7 @@ NdbInterpretedCode::branch_col_and_mask_ne_mask(const void * mask,
                                                 Uint32 attrId,
                                                 Uint32 label)
 {
-  return branch_col(Interpreter::AND_NE_MASK, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::AND_NE_MASK, attrId, mask, 0, Label);
 }
 
 int
@@ -786,7 +827,7 @@ NdbInterpretedCode::branch_col_and_mask_eq_zero(const void * mask,
                                                 Uint32 attrId,
                                                 Uint32 label)
 {
-  return branch_col(Interpreter::AND_EQ_ZERO, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::AND_EQ_ZERO, attrId, mask, 0, Label);
 }
 
 int
@@ -795,7 +836,7 @@ NdbInterpretedCode::branch_col_and_mask_ne_zero(const void * mask,
                                                 Uint32 attrId,
                                                 Uint32 label)
 {
-  return branch_col(Interpreter::AND_NE_ZERO, attrId, mask, 0, Label);
+  return branch_col_val(Interpreter::AND_NE_ZERO, attrId, mask, 0, Label);
 }
 
 /**
@@ -806,7 +847,7 @@ NdbInterpretedCode::branch_col_eq(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::EQ, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::EQ, attrId1, attrId2, label);
 }
 
 int
@@ -814,7 +855,7 @@ NdbInterpretedCode::branch_col_ne(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::NE, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::NE, attrId1, attrId2, label);
 }
 
 int
@@ -822,7 +863,7 @@ NdbInterpretedCode::branch_col_lt(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::LT, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::LT, attrId1, attrId2, label);
 }
 
 int
@@ -830,7 +871,7 @@ NdbInterpretedCode::branch_col_le(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::LE, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::LE, attrId1, attrId2, label);
 }
 
 int
@@ -838,7 +879,7 @@ NdbInterpretedCode::branch_col_gt(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::GT, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::GT, attrId1, attrId2, label);
 }
 
 int
@@ -846,7 +887,58 @@ NdbInterpretedCode::branch_col_ge(Uint32 attrId1,
                                   Uint32 attrId2,
                                   Uint32 label)
 {
-  return branch_col(Interpreter::GE, attrId1, attrId2, label);
+  return branch_col_col(Interpreter::GE, attrId1, attrId2, label);
+}
+
+/**
+ * Variants taking an attrId and a paramId arguments.
+ */
+int
+NdbInterpretedCode::branch_col_eq_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::EQ, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_ne_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::NE, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_lt_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::LT, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_le_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::LE, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_gt_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::GT, attrId, paramId, label);
+}
+
+int
+NdbInterpretedCode::branch_col_ge_param(Uint32 attrId,
+                                        Uint32 paramId,
+                                        Uint32 label)
+{
+  return branch_col_param(Interpreter::GE, attrId, paramId, label);
 }
 
 int

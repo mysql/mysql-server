@@ -322,6 +322,24 @@ public:
   int branch_col_eq_null(Uint32 attrId, Uint32 Label);
   int branch_col_ne_null(Uint32 attrId, Uint32 Label);
 
+  /*
+   * Variants comparing an Attribute from this table with a parameter
+   * value specified in the supplied attrInfo section.
+   *
+   * NULL values are allowed for the parameters, and are compared according
+   * to the specified 'UnknownHandling' (set_sql_null_semantics()).
+   * If not specified, the default will be to compare NULL such that NULL is
+   * less that any non-NULL value, and NULL is equal to NULL.
+   *
+   * BEWARE, that the later is not according to the specified SQL
+   * std spec, which is also implemented by MySql.
+   */
+  int branch_col_eq_param(Uint32 attrId, Uint32 paramId, Uint32 label);
+  int branch_col_ne_param(Uint32 attrId, Uint32 paramId, Uint32 label);
+  int branch_col_lt_param(Uint32 attrId, Uint32 paramId, Uint32 label);
+  int branch_col_le_param(Uint32 attrId, Uint32 paramId, Uint32 label);
+  int branch_col_gt_param(Uint32 attrId, Uint32 paramId, Uint32 label);
+  int branch_col_ge_param(Uint32 attrId, Uint32 paramId, Uint32 label);
 
   /* Table based pattern match conditional operations
    * ------------------------------------------------
@@ -734,10 +752,12 @@ private:
   int add_branch(Uint32 instruction, Uint32 Label);
   int read_attr_impl(const NdbColumnImpl *c, Uint32 RegDest);
   int write_attr_impl(const NdbColumnImpl *c, Uint32 RegSource);
-  int branch_col(Uint32 branch_type, Uint32 attrId, const void * val,
-                 Uint32 len, Uint32 label);
-  int branch_col(Uint32 branch_type, Uint32 attrId1, Uint32 attrId2,
-                 Uint32 label);
+  int branch_col_val(Uint32 branch_type, Uint32 attrId, const void * val,
+                     Uint32 len, Uint32 label);
+  int branch_col_col(Uint32 branch_type, Uint32 attrId1, Uint32 attrId2,
+                     Uint32 label);
+  int branch_col_param(Uint32 branch_type, Uint32 attrId, Uint32 paramId,
+                       Uint32 label);
   int getInfo(Uint32 number, CodeMetaInfo &info) const;
   static int compareMetaInfo(const void *a, 
                              const void *b);
