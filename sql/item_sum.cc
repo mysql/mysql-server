@@ -313,6 +313,18 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref) {
     return true;
   }
 
+  for (uint i = 0; i < arg_count; i++) {
+    if (args[i]->has_aggregation() &&
+        WalkItem(args[i], enum_walk::SUBQUERY_POSTFIX, [this](Item *subitem) {
+          if (subitem->type() != Item::SUM_FUNC_ITEM) return false;
+          Item_sum *si = down_cast<Item_sum *>(subitem);
+          return si->aggr_query_block == this->aggr_query_block;
+        })) {
+      my_error(ER_INVALID_GROUP_FUNC_USE, MYF(0));
+      return true;
+    }
+  }
+
   if (aggr_query_block != base_query_block) {
     referenced_by[0] = ref;
     /*
