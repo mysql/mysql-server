@@ -97,6 +97,9 @@ public:
   int cond_col_col(Interpreter::BinaryCondition,
                    Uint32 attrId1, Uint32 attrId2);
 
+  int cond_col_param(Interpreter::BinaryCondition,
+                     Uint32 attrId, Uint32 paramId);
+
   /* This method propagates an error code from NdbInterpretedCode
    * back to the NdbScanFilter object
    */
@@ -458,11 +461,15 @@ NdbScanFilter::isfalse(){
 typedef int (NdbInterpretedCode:: * Branch1)(Uint32 a1, Uint32 label);
 
 /* Two argument branch definition method signature,
- * Compare the column with eiter a string value, or another column.
+ * Compare the column with eiter a string value,
+ * another column or a parameter (in attrInfo).
  */
 typedef int (NdbInterpretedCode:: * StrBranch2)(const void *val, Uint32 len,
                                                 Uint32 a1, Uint32 label);
-typedef int (NdbInterpretedCode:: * Branch2Col)(Uint32 a1, Uint32 a2, Uint32 label);
+typedef int (NdbInterpretedCode:: * Branch2Col)(Uint32 a1, Uint32 a2,
+                                                Uint32 label);
+typedef int (NdbInterpretedCode:: * ParamBranch2)(Uint32 paramNo,
+                                                  Uint32 a1, Uint32 label);
 
 /**
  * Table indexed by the BinaryCondition or UnaryCondition,
@@ -723,6 +730,77 @@ NdbScanFilterImpl::cond_col_col(Interpreter::BinaryCondition op,
   return 0;
 }
 
+/**
+ * Branch table for comparing a column with parameter (in attrInfo).
+ *
+ * See comment for table3[] wrt. the confusing usage of branch
+ * methods for LT, LE, GT and GE
+ */
+static constexpr ParamBranch2 table5[] = {
+  &NdbInterpretedCode::branch_col_eq_param,     // EQ
+  &NdbInterpretedCode::branch_col_ne_param,     // NE
+  &NdbInterpretedCode::branch_col_gt_param,     // LT
+  &NdbInterpretedCode::branch_col_ge_param,     // LE
+  &NdbInterpretedCode::branch_col_lt_param,     // GT
+  &NdbInterpretedCode::branch_col_le_param,     // GE
+};
+
+static constexpr int tab5_sz = sizeof(table5)/sizeof(table5[0]);
+
+int
+NdbScanFilterImpl::cond_col_param(Interpreter::BinaryCondition op,
+                                  Uint32 attrId, Uint32 paramId) {
+  if (m_error.code != 0) return -1;
+
+  if (op < 0 || op >= tab5_sz) {
+    /* Condition is out of bounds */
+    m_error.code= 4262;
+    return -1;
+  }
+
+  /**
+   * Only AND/OR is possible, as NAND/NOR is converted to
+   * negated OR/AND in begin().
+   */
+  if (m_current.m_group != NdbScanFilter::AND &&
+      m_current.m_group != NdbScanFilter::OR) {
+    /* Operator is not defined in NdbScanFilter::Group */
+    m_error.code= 4260;
+    return -1;
+  }
+
+  const NdbDictionary::Table * table = m_code->getTable();
+  if (table == nullptr) {
+    /* NdbInterpretedCode instruction requires that table is set */
+    m_error.code= 4538;
+    return -1;
+  }
+
+  const NdbDictionary::Column * col = table->getColumn(attrId);
+  if (col == nullptr ) {
+    /* Column is NULL */
+    m_error.code= 4261;
+    return -1;
+  }
+
+  /**
+   * Find the operation to branch to a conclusive true/false outcome.
+   * Note that both AND and negate implies an inverted condition, having
+   * both of them is a double negation, canceling out each other.
+   */
+  Interpreter::BinaryCondition branchOp;
+  if ((m_current.m_group == NdbScanFilter::AND) != (m_negate))
+    branchOp = negateBinary[op];
+  else
+    branchOp = op;
+
+  const ParamBranch2 branch = table5[branchOp];
+  if ((m_code->* branch)(attrId, paramId, m_current.m_ownLabel) == -1)
+    return propagateErrorFromCode();
+
+  return 0;
+}
+
 int
 NdbScanFilter::cmp(BinaryCondition cond, int ColId, 
 		   const void *val, Uint32 len)
@@ -752,6 +830,30 @@ NdbScanFilter::cmp(BinaryCondition cond, int ColId,
     return m_impl.cond_col_const(Interpreter::AND_EQ_ZERO, ColId, val, len);
   case COND_AND_NE_ZERO:
     return m_impl.cond_col_const(Interpreter::AND_NE_ZERO, ColId, val, len);
+  }
+  return -1;
+}
+
+int
+NdbScanFilter::cmp_param(BinaryCondition cond, int ColId, int ParamId)
+{
+  switch(cond){
+  case COND_LE:
+    return m_impl.cond_col_param(Interpreter::LE, ColId, ParamId);
+  case COND_LT:
+    return m_impl.cond_col_param(Interpreter::LT, ColId, ParamId);
+  case COND_GE:
+    return m_impl.cond_col_param(Interpreter::GE, ColId, ParamId);
+  case COND_GT:
+    return m_impl.cond_col_param(Interpreter::GT, ColId, ParamId);
+  case COND_EQ:
+    return m_impl.cond_col_param(Interpreter::EQ, ColId, ParamId);
+  case COND_NE:
+    return m_impl.cond_col_param(Interpreter::NE, ColId, ParamId);
+  default:
+    /* Condition is out of bounds */
+    m_impl.m_error.code= 4262;
+    return -1;
   }
   return -1;
 }

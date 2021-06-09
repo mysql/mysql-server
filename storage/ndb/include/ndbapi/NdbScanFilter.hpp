@@ -170,6 +170,8 @@ public:
    */
   int cmp(BinaryCondition cond, int ColId1, int ColId2);
 
+  int cmp_param(BinaryCondition cond, int ColId, int ParamId);
+
   /** 
    * @name Integer Comparators
    * @{
