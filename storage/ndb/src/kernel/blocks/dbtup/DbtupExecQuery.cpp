@@ -3460,10 +3460,10 @@ int Dbtup::interpreterStartLab(Signal* signal,
 
   /* All information to be logged/propagated to replicas
    * is generated from here on so reset the log word count
-   */
-  /* Note that in case attrInfo contain multiple params for the
+   *
+   * Note that in case attrInfo contain multiple params for the
    * interpreterCode, we will only copy one of them into the cinBuffer[].
-   * Thus, 'RtotalLen + 5' may be '<' than RattrinbufLe.
+   * Thus, 'RtotalLen + 5' may be '<' than RattrinbufLen.
    */
   Uint32 RlogSize= req_struct->log_size= 0;
   if (likely(((RtotalLen + 5) <= RattrinbufLen) &&
@@ -3521,7 +3521,6 @@ int Dbtup::interpreterStartLab(Signal* signal,
       // a register-based virtual machine which can read and write attributes
       // to and from registers.
       /* ---------------------------------------------------------------- */
-      ndbassert(RinstructionCounter == 5+RinitReadLen);
       Uint32 RsubPC= RinstructionCounter + RexecRegionLen 
         + RfinalUpdateLen + RfinalRLen;     
       TnoDataRW= interpreterNextLab(signal,
