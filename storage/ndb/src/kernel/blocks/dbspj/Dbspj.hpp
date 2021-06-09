@@ -639,6 +639,7 @@ public:
       m_fragId = fid;
       m_state = SFH_NOT_STARTED;
       m_rangePtrI = RNIL;
+      m_paramPtrI = RNIL;
       m_readBackup = readBackup;
     }
 
@@ -649,7 +650,8 @@ public:
     Uint8 m_readBackup;
     Uint32 m_ref;
     Uint32 m_next_ref;
-    Uint32 m_rangePtrI;
+    Uint32 m_rangePtrI;  // Set of lower/upper bound keys.
+    Uint32 m_paramPtrI;  // Set of interpreter parameters
     union {
       Uint32 nextList;
       Uint32 nextPool;
