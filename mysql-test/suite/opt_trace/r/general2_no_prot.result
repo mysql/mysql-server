@@ -346,6 +346,7 @@ TRACE
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 2,
                         "cost": 0.464386,
                         "chosen": false,
@@ -4308,6 +4309,7 @@ link_alias_148._field_156	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -4383,6 +4385,7 @@ link_alias_148._field_156	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -4458,6 +4461,7 @@ link_alias_148._field_156	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true

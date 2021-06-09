@@ -1525,6 +1525,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -7237,6 +7238,7 @@ update t6 set d=5 where d is NULL	{
               "rowid_ordered": true,
               "using_mrr": false,
               "index_only": false,
+              "in_memory": -1,
               "rows": 1,
               "cost": 0.61,
               "chosen": true
@@ -7338,6 +7340,7 @@ delete from t6 where d=5	{
               "rowid_ordered": true,
               "using_mrr": false,
               "index_only": false,
+              "in_memory": -1,
               "rows": 1,
               "cost": 0.61,
               "chosen": true
@@ -7475,6 +7478,7 @@ insert into t6 select * from t6 where d>7	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 2,
                         "cost": 0.465814,
                         "chosen": true
@@ -7708,6 +7712,7 @@ update t5, t6 set t6.d=t6.d+t5.c+4-t5.c-4 where d>7000	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": false,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.61,
                         "chosen": true
@@ -7935,6 +7940,7 @@ delete t6 from t5, t6 where d>7000	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -10352,6 +10358,7 @@ insert into t2 select d,100,200 from t6 where d is not null	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": -1,
                         "rows": 4,
                         "cost": 0.677442,
                         "chosen": false,

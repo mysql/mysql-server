@@ -172,6 +172,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1)	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 5,
                         "cost": 0.761949,
                         "chosen": true
@@ -392,6 +393,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 OR a>10 OR a IN (1,2)	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 4,
                         "cost": 0.661462,
                         "chosen": true
@@ -616,6 +618,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b=4)	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 3,
                         "cost": 0.560975,
                         "chosen": true
@@ -845,6 +848,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b>4)	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 3,
                         "cost": 0.560975,
                         "chosen": true
@@ -1073,6 +1077,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5 AND (b=2 OR b=3 OR b IS NULL)	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 3,
                         "cost": 0.560975,
                         "chosen": true
@@ -1293,6 +1298,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 1,
                         "cost": 0.36,
                         "chosen": true
@@ -1512,6 +1518,7 @@ EXPLAIN SELECT * FROM t1 WHERE a=5	{
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 3,
                         "cost": 0.560975,
                         "chosen": true

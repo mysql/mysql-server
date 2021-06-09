@@ -1140,6 +1140,7 @@ table2.`col_int_nokey` <> any ( select 5 from t2 ) ) and table1.`pk` in
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": false,
+                        "in_memory": -1,
                         "rows": 2,
                         "cost": 1.21,
                         "chosen": true

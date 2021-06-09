@@ -167,6 +167,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 8,
                               "cost": 1.06277,
                               "chosen": true
@@ -186,6 +187,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3) */ f1 FROM t1 WHERE f2 = 5 OR f3 = 'c'
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 16,
                               "cost": 1.86594,
                               "chosen": true
@@ -443,6 +445,7 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": false,
+                        "in_memory": 1,
                         "rows": 128,
                         "cost": 45.06,
                         "chosen": false,
@@ -462,6 +465,7 @@ EXPLAIN SELECT /*+ NO_INDEX_MERGE(t1 f3) */ COUNT(*) FROM t1 WHERE f4 = 'h' AND 
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": false,
+                        "in_memory": 1,
                         "rows": 128,
                         "cost": 45.06,
                         "chosen": false,
@@ -756,6 +760,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 8,
                               "cost": 1.06277,
                               "chosen": true
@@ -775,6 +780,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 128,
                               "cost": 13.1103,
                               "chosen": true
@@ -830,6 +836,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": false,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 1,
                               "cost": 0.36,
                               "chosen": true
@@ -849,6 +856,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 1,
                               "cost": 0.36,
                               "chosen": true
@@ -1117,6 +1125,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 8,
                               "cost": 1.06277,
                               "chosen": true
@@ -1136,6 +1145,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 128,
                               "cost": 13.1103,
                               "chosen": true
@@ -1191,6 +1201,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": false,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 288,
                               "cost": 29.1737,
                               "chosen": true
@@ -1210,6 +1221,7 @@ EXPLAIN SELECT /*+ INDEX_MERGE(t1 f2, f3, f4) */ * FROM t1 WHERE (f2 = 5 OR f3  
                               "rowid_ordered": true,
                               "using_mrr": false,
                               "index_only": true,
+                              "in_memory": 1,
                               "rows": 1,
                               "cost": 0.36,
                               "chosen": true

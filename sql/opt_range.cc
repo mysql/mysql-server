@@ -5163,7 +5163,8 @@ static TRP_RANGE *get_key_scans_params(PARAM *param, SEL_TREE *tree,
 
         trace_idx.add("rowid_ordered", param->is_ror_scan)
             .add("using_mrr", !(mrr_flags & HA_MRR_USE_DEFAULT_IMPL))
-            .add("index_only", read_index_only);
+            .add("index_only", read_index_only)
+            .add("in_memory", cur_key.in_memory_estimate());
 
         if (param->skip_records_in_range) {
           trace_idx.add_alnum("rows", "not applicable")

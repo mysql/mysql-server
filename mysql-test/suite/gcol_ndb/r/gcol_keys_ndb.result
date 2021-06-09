@@ -249,6 +249,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 + 1 > 7	{
                         "rowid_ordered": false,
                         "using_mrr": true,
                         "index_only": false,
+                        "in_memory": -1,
                         "rows": 3,
                         "cost": 1.31,
                         "chosen": true

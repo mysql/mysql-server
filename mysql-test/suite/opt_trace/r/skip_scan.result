@@ -263,6 +263,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 750,
                         "cost": 79.0151,
                         "chosen": true
@@ -278,6 +279,7 @@ EXPLAIN SELECT a, b, c, d FROM t WHERE a IN (1, 2, 3, 4, 5) AND b IN (1, 2, 3) A
                         "rowid_ordered": false,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 3,
                         "cost": 0.561462,
                         "chosen": true
@@ -533,6 +535,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND c > 4 AND d < 3	{
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 250,
                         "cost": 25.345,
                         "chosen": false,
@@ -816,6 +819,7 @@ EXPLAIN SELECT b, c, d FROM t WHERE a = 5 AND d < 3	{
                         "rowid_ordered": true,
                         "using_mrr": false,
                         "index_only": true,
+                        "in_memory": 1,
                         "rows": 250,
                         "cost": 25.345,
                         "chosen": true
