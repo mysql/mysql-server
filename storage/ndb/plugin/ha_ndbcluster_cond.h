@@ -30,6 +30,7 @@
   the NDB Cluster handler
 */
 
+#include "my_table_map.h"
 #include "sql/sql_list.h"
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
@@ -50,7 +51,8 @@ class ha_ndbcluster_cond {
 
   // Prepare condition for being pushed. Need to call
   // use_cond_push() later to make it available for the handler
-  void prep_cond_push(const Item *cond, bool other_tbls_ok);
+  void prep_cond_push(const Item *cond, table_map const_expr_tables,
+                      table_map param_expr_tables);
 
   // Apply the 'cond_push', pre generate code if possible.
   // Return the pushed condition and the unpushable remainder

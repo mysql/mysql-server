@@ -2118,16 +2118,14 @@ EXPLAIN
         -> Nested loop left join  ()
             -> Nested loop inner join  ()
                 -> Table scan on table7, activating pushed join of 2 tables  ()
-                -> Filter: ((table6.col_int_unique = table2.col_int_unique) and (table6.col_int = table2.col_int))  ()
-                    -> Index lookup on table6 using col_int_key (col_int_key=table7.pk), child of table7 in pushed join  ()
+                -> Index lookup on table6 using col_int_key (col_int_key=table7.pk), child of table7 in pushed join, with pushed condition: ((table6.col_int_unique = table2.col_int_unique) and (table6.col_int = table2.col_int))  ()
             -> Nested loop left join  ()
                 -> Nested loop left join  ()
                     -> Filter: (table8.col_int = table2.col_int)  ()
                         -> Single-row index lookup on table8 using ix1 (col_int_unique=table2.col_int_unique), child of table2 in pushed join  ()
                     -> Filter: (((table2.col_int = table9.col_int) and (table8.col_int_key = table9.col_int_key) and (table2.col_int_unique = table9.col_int_unique)) is true)  ()
                         -> Table scan on table9, activating pushed join of 2 tables  ()
-                -> Filter: (table10.col_int_key = table8.col_int_key)  ()
-                    -> Single-row index lookup on table10 using ix1 (col_int_unique=table9.col_int_unique), child of table9 in pushed join  ()
+                -> Single-row index lookup on table10 using ix1 (col_int_unique=table9.col_int_unique), child of table9 in pushed join, with pushed condition: (table10.col_int_key = table8.col_int_key)  ()
         -> Index lookup on table5 using PRIMARY (col_int=table2.col_int)  ()
 
 Warnings:

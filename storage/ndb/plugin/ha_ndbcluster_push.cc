@@ -473,7 +473,7 @@ static ndb_table_access_map get_tables_in_range(uint first, uint last) {
  * Translate a table_map from external to internal table enumeration
  */
 ndb_table_access_map ndb_pushed_builder_ctx::get_table_map(
-    table_map external_map) const {
+    const table_map external_map) const {
   ndb_table_access_map internal_map;
   const uint count = m_plan.get_access_count();
   table_map bitmap = (external_map & ~PSEUDO_TABLE_BITS);
@@ -797,7 +797,6 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     return false;
   }
 
-  const AQP::enum_access_type root_type = m_join_root->get_access_type();
   const AQP::enum_access_type access_type = table->get_access_type();
 
   if (!(ndbcluster_is_lookup_operation(access_type) ||
@@ -812,7 +811,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
 
   // There is a limitation in not allowing LOOKUP - (index)SCAN operations
   if (access_type == AQP::AT_ORDERED_INDEX_SCAN &&
-      ndbcluster_is_lookup_operation(root_type)) {
+      !m_scan_operations.contain(root_no)) {
     EXPLAIN_NO_PUSH(
         "Push of table '%s' as scan-child "
         "with lookup-root '%s' not implemented",
@@ -932,11 +931,44 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
   if (pending_cond != nullptr &&
       current_thd->optimizer_switch_flag(
           OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
+    /**
+     * Calculate the set of tables where the referred Field values may be
+     * handled as either constant or parameter values from a pushed condition.
+     *
+     * 1) const_expr_tables:
+     *    Values from all tables prior to the query root has been evalued
+     *    when the query is pushed. Thus their Field values are known and can
+     *    be used to evaluated any expression they are part of into constants.
+     *
+     *    Note that we do not allow const_expr_tables if:
+     *    - Pushed join root is a lookup, where its EQRefIterator::Read
+     *      may detect equal keys and optimize away the read of pushed join.
+     *      (Note a similar limitation for keys in ::is_field_item_pushable())
+     *      TODO?: Integrate with setting of TABLE_REF::disable_cache and lift
+     *      these limitations when 'cache' is disabled.
+     *    - The entire (root of the) pushed join is being stored into a
+     *      join-cached (-> hash or BKA join).
+     *
+     *    Leave both of these limitation for WL#14370(or later), when most of
+     *    this code need to be rewritten anyway.
+     *
+     * 2) param_expr_tables:
+     *    ---- TODO in later patches for this WL, for now it is '0' ----
+     */
+    table_map const_expr_tables(0);
+    if (m_scan_operations.contain(root_no) && !m_join_root->uses_join_cache()) {
+      for (uint i = 0; i < root_no; i++) {
+        const TABLE *table = m_plan.get_table_access(i)->get_table();
+        if (table != nullptr && table->pos_in_table_list != nullptr) {
+          const_expr_tables |= table->pos_in_table_list->map();
+        }
+      }
+    }
+    table_map param_expr_tables(0);
     ha_ndbcluster *handler =
         down_cast<ha_ndbcluster *>(table->get_table()->file);
-
-    const bool other_tbls_ok = false;
-    handler->m_cond.prep_cond_push(pending_cond, other_tbls_ok);
+    handler->m_cond.prep_cond_push(pending_cond, const_expr_tables,
+                                   param_expr_tables);
     pending_cond = handler->m_cond.m_remainder_cond;
   }
   if (pending_cond != nullptr) {

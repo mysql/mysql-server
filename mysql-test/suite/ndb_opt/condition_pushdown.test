@@ -3999,3 +3999,43 @@ explain format=tree
 
 drop view v1;
 drop table t1;
+
+
+--echo #########################################################
+--echo # WL#14388 Push condition referring fields from an
+--echo            SPJ ancestor table
+--echo #########################################################
+
+create table t1 (
+  a int,
+  b int,
+  c int,
+  d int,
+  primary key(a,b)
+) engine=ndbcluster;
+
+insert into t1 values
+(1,1,1,1), (2,2,2,2), (3,3,3,3), (4,4,4,4),
+(1,2,5,1), (1,3,1,2), (1,4,2,3),
+(2,1,3,4), (2,3,4,5), (2,4,5,1),
+(3,1,1,2), (3,2,2,3), (3,4,3,4),
+(4,1,4,5), (4,2,5,1), (4,3,1,2);
+
+# Turn of BNL, as it would prevent condition pushdown
+# referring 'other' tables.
+set optimizer_switch='block_nested_loop=off';
+
+# Below query can not push t1 join t2 as there are no index on column 'd'.
+# t2 join t3 will be pushed. Thus, t1 is a 'const_expr_table' with regard to
+# the pushed join of 't2 join t3'
+# 1) Thus the predicate 't3.c >= t1.c' should be pushed as t1 is a 'const'
+# 2) In predicate 't3.c <= t2.c, t2 may be a param when WL#14388 is complete.
+#
+explain
+select *
+from t1
+  straight_join t1 as t2 on t2.d = t1.d
+  straight_join t1 as t3 on t3.a = t2.a
+where t3.c >= t1.c and t3.c <= t2.c;
+
+drop table t1;

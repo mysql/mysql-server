@@ -446,9 +446,13 @@ class Ndb_rewrite_context {
 */
 class Ndb_cond_traverse_context {
  public:
-  Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab)
+  Ndb_cond_traverse_context(TABLE *tab, const NdbDictionary::Table *ndb_tab,
+                            const table_map const_expr_tables,
+                            const table_map param_expr_tables)
       : table(tab),
         ndb_table(ndb_tab),
+        m_const_expr_tables(const_expr_tables),
+        m_param_expr_tables(param_expr_tables),
         supported(true),
         skip(0),
         rewrite_stack(NULL) {}
@@ -528,6 +532,8 @@ class Ndb_cond_traverse_context {
 
   TABLE *const table;
   const NdbDictionary::Table *const ndb_table;
+  const table_map m_const_expr_tables;
+  const table_map m_param_expr_tables;
   bool supported;
   List<const Ndb_item> items;
   Ndb_expect_stack expect_stack;
@@ -701,8 +707,9 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
           Generally any tables prior to 'this' table has values known by
           now, same is true for expressions being entirely 'const'.
         */
-        const table_map this_table = context->table->pos_in_table_list->map();
-        if (!(item->used_tables() & this_table)) {
+        // const table_map this_table(context->table->pos_in_table_list->map());
+        const table_map used_tables(item->used_tables() & ~PSEUDO_TABLE_BITS);
+        if ((used_tables & ~context->m_const_expr_tables) == 0) {
           /*
             Item value can be evaluated right away, and its value used in the
             condition, instead of the Item-expression. Note that this will
@@ -895,6 +902,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
             // Check that we are expecting a field with the correct
             // type, and possibly being 'comparable' with a previous Field.
             if (context->expecting(Item::FIELD_ITEM) &&
+                context->table == field->table &&
                 context->expecting_comparable_field(field) &&
                 // Bit fields not yet supported in scan filter
                 type != MYSQL_TYPE_BIT &&
@@ -907,7 +915,6 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                 type != MYSQL_TYPE_LONG_BLOB && type != MYSQL_TYPE_BLOB &&
                 type != MYSQL_TYPE_JSON && type != MYSQL_TYPE_GEOMETRY) {
               // Found a Field_item of a supported type. and from 'this' table
-              assert(context->table == field->table);
 
               const NdbDictionary::Column *col =
                   context->ndb_table->getColumn(field->field_name);
@@ -1421,8 +1428,12 @@ static int create_or_conditions(Item_cond *cond, List<Item> pushed_list,
   @param term          Condition to try to push down.
   @param table         The Table the conditions may be pushed to.
   @param ndb_table     The Ndb table.
-  @param other_tbls_ok Are other tables allowed to be referred
-                       from the condition terms pushed down.
+  @param const_expr_tables
+                       Mask of tables which can be treated as
+                       containing constant values.
+  @param param_expr_tables
+                       Mask of tables which can be supplied as
+                       parameter values.
   @param pushed_cond   The (part of) the condition term we may push
                        down to the ndbcluster storage engine.
   @param remainder_cond The remainder (part of) the condition term
@@ -1433,9 +1444,8 @@ static int create_or_conditions(Item_cond *cond, List<Item> pushed_list,
  */
 static List<const Ndb_item> cond_push_boolean_term(
     Item *term, TABLE *table, const NdbDictionary::Table *ndb_table,
-    bool other_tbls_ok, Item *&pushed_cond, Item *&remainder_cond)
-
-{
+    table_map const_expr_tables, table_map param_expr_tables,
+    Item *&pushed_cond, Item *&remainder_cond) {
   DBUG_TRACE;
   static const List<const Ndb_item> empty_list;
 
@@ -1454,7 +1464,8 @@ static List<const Ndb_item> cond_push_boolean_term(
       while ((boolean_term = li++)) {
         Item *pushed = nullptr, *remainder = nullptr;
         List<const Ndb_item> code_stub = cond_push_boolean_term(
-            boolean_term, table, ndb_table, other_tbls_ok, pushed, remainder);
+            boolean_term, table, ndb_table, const_expr_tables,
+            param_expr_tables, pushed, remainder);
 
         // Collect all bits we pushed, and its leftovers.
         if (!code_stub.is_empty()) code.concat(&code_stub);
@@ -1488,7 +1499,8 @@ static List<const Ndb_item> cond_push_boolean_term(
       while ((boolean_term = li++)) {
         Item *pushed = nullptr, *remainder = nullptr;
         List<const Ndb_item> code_stub = cond_push_boolean_term(
-            boolean_term, table, ndb_table, other_tbls_ok, pushed, remainder);
+            boolean_term, table, ndb_table, const_expr_tables,
+            param_expr_tables, pushed, remainder);
 
         if (pushed == nullptr) {
           // Failure of pushing one of the OR-terms fails entire OR'ed cond
@@ -1537,7 +1549,8 @@ static List<const Ndb_item> cond_push_boolean_term(
         Item *cond_arg = item_func->arguments()[0];
         Item *remainder = nullptr;
         List<const Ndb_item> code = cond_push_boolean_term(
-            cond_arg, table, ndb_table, other_tbls_ok, pushed_cond, remainder);
+            cond_arg, table, ndb_table, const_expr_tables, param_expr_tables,
+            pushed_cond, remainder);
 
         if (remainder == nullptr)
           remainder_cond = nullptr;  // Pushed all
@@ -1555,13 +1568,13 @@ static List<const Ndb_item> cond_push_boolean_term(
     }
   }
 
-  if (term->is_non_deterministic()) {
-    // Produce non deterministic results, dont push
-  } else if (other_tbls_ok || !(term->used_tables() & ~PSEUDO_TABLE_BITS &
-                                ~table->pos_in_table_list->map())) {
+  if (!term->is_non_deterministic()) {
+    // Produce deterministic results.
+    //
     // Has broken down the condition into predicate terms, or sub conditions,
     // which either has to be accepted or rejected for pushdown
-    Ndb_cond_traverse_context context(table, ndb_table);
+    Ndb_cond_traverse_context context(table, ndb_table, const_expr_tables,
+                                      param_expr_tables);
     context.expect(Item::FUNC_ITEM);
     context.expect(Item::COND_ITEM);
     term->traverse_cond(&ndb_serialize_cond, &context, Item::PREFIX);
@@ -1575,7 +1588,7 @@ static List<const Ndb_item> cond_push_boolean_term(
     }
     context.items.destroy_elements();
   }
-  // Failed to push
+  // Fall through: Failed to push
   pushed_cond = nullptr;
   remainder_cond = term;
   return empty_list;  // Discard any generated Ndb_cond's
@@ -1589,16 +1602,26 @@ static List<const Ndb_item> cond_push_boolean_term(
   we need to call use_cond_push() to make it available for the handler
   to be used.
  */
-void ha_ndbcluster_cond::prep_cond_push(const Item *cond, bool other_tbls_ok) {
+void ha_ndbcluster_cond::prep_cond_push(const Item *cond,
+                                        const table_map const_expr_tables,
+                                        const table_map param_expr_tables) {
   DBUG_TRACE;
+  assert(param_expr_tables == 0);  // Not implemented yet
+
+#ifndef DBUG_OFF
+  const table_map this_table(m_handler->table->pos_in_table_list->map());
+  assert((const_expr_tables & param_expr_tables) == 0);  // No overlap
+  assert((const_expr_tables & this_table) == 0);
+  assert((param_expr_tables & this_table) == 0);
+#endif
 
   // Build lists of the boolean terms either 'pushed', or being a 'remainder'
   Item *item = const_cast<Item *>(cond);
   Item *pushed_cond = nullptr;
   Item *remainder = nullptr;
-  m_ndb_cond =
-      cond_push_boolean_term(item, m_handler->table, m_handler->m_table,
-                             other_tbls_ok, pushed_cond, remainder);
+  m_ndb_cond = cond_push_boolean_term(
+      item, m_handler->table, m_handler->m_table, const_expr_tables,
+      param_expr_tables, pushed_cond, remainder);
 
   m_pushed_cond = pushed_cond;
   m_remainder_cond = remainder;

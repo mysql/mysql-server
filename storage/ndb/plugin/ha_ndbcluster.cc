@@ -13980,8 +13980,13 @@ int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp) {
       const bool other_tbls_ok = thd->lex->sql_command == SQLCOM_SELECT &&
                                  !table_aqp->uses_join_cache();
 
+      table_map const_expr_tables(0);
+      if (other_tbls_ok)
+        // Can refer all other (preceeding) tables, except 'self' as 'const
+        const_expr_tables = ~table->pos_in_table_list->map();
+
       /* Push condition to handler, possibly leaving a remainder */
-      m_cond.prep_cond_push(cond, other_tbls_ok);
+      m_cond.prep_cond_push(cond, const_expr_tables, table_map(0));
     }
 
     // Use whatever conditions got pushed, either as part of a pushed join
@@ -14232,8 +14237,7 @@ const Item *ha_ndbcluster::cond_push(const Item *cond) {
   assert(cond != nullptr);
   DBUG_EXECUTE("where", print_where(ha_thd(), cond, table_share->table_name.str,
                                     QT_ORDINARY););
-  bool other_tbls_ok = false;
-  m_cond.prep_cond_push(cond, other_tbls_ok);
+  m_cond.prep_cond_push(cond, table_map(0), table_map(0));
 
   const Item *remainder;
   if (unlikely(m_cond.use_cond_push(pushed_cond, remainder) != 0))
