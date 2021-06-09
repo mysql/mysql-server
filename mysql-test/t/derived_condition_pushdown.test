@@ -724,14 +724,17 @@ CREATE ALGORITHM=temptable VIEW v AS SELECT f1 FROM t1;
 
 #Check that condition f1=2 is pushed down to "v"
 --replace_regex /  \(cost=.*//
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree INSERT INTO t2 SELECT * FROM v WHERE f1=2;
 INSERT INTO t2 SELECT * FROM v WHERE f1=2;
 #Check that condition f1=2 is pushed down to "v"
 --replace_regex /  \(cost=.*//
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 UPDATE t2 SET f1=3 WHERE f1 IN (SELECT f1 FROM v WHERE f1=2);
 #Check that condition f1=3 is pushed down to "v"
 --replace_regex /  \(cost=.*//
+--skip_if_hypergraph  # Depends on the query plan.
 EXPLAIN format=tree DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 DELETE FROM t2 WHERE f1 IN (SELECT f1 FROM v WHERE f1=3);
 
