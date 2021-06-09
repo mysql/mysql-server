@@ -5795,7 +5795,7 @@ select * from t as a left join t as b
 on a.k is null and a.uq=b.uq;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	a	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
-1	SIMPLE	b	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (hash join)
+1	SIMPLE	b	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using pushed condition <cache>((`test`.`a`.`k` is null)); Using join buffer (hash join)
 Warnings:
 Note	1003	Can't push table 'b' as child, 'type' must be a 'ref' access
 Note	1003	/* select#1 */ select `test`.`a`.`k` AS `k`,`test`.`a`.`uq` AS `uq`,`test`.`b`.`k` AS `k`,`test`.`b`.`uq` AS `uq` from `test`.`t` `a` left join `test`.`t` `b` on(((`test`.`b`.`uq` = `test`.`a`.`uq`) and (`test`.`a`.`k` is null))) where true

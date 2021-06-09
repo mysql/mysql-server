@@ -660,6 +660,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
         // Traverse and serialize the rewritten predicate
         context->rewrite_stack = NULL;  // Disable rewrite mode
         context->expect_only(Item::FUNC_ITEM);
+        context->expect(Item::COND_ITEM);
         cmp_func->traverse_cond(&ndb_serialize_cond, context, Item::PREFIX);
         context->rewrite_stack = rewrite_context;  // Re-enable rewrite mode
 
@@ -709,17 +710,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
           String str;
           item->print(current_thd, &str, QT_ORDINARY);
 #endif
-          if (item->is_bool_func()) {
-            // Item is a boolean func, (e.g. an EQ_FUNC)
-            assert(item->result_type() == INT_RESULT);
-            DBUG_PRINT("info",
-                       ("BOOLEAN 'VALUE' expression: '%s'", str.c_ptr_safe()));
-            ndb_item = new (*THR_MALLOC) Ndb_item(item);
-
-            // Expect another logical expression
-            context->expect_only(Item::FUNC_ITEM);
-            context->expect(Item::COND_ITEM);
-          } else if (item->type() == Item::VARBIN_ITEM) {
+          if (item->type() == Item::VARBIN_ITEM) {
             // VARBIN_ITEM is special as no similar VARBIN_RESULT type is
             // defined, so it need to be explicitely handled here.
             DBUG_PRINT("info", ("VARBIN_ITEM 'VALUE' expression: '%s'",
@@ -756,7 +747,22 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
               case INT_RESULT:
                 DBUG_PRINT("info", ("INTEGER 'VALUE' expression: '%s'",
                                     str.c_ptr_safe()));
-                if (context->expecting(Item::INT_ITEM)) {
+                // MySQL do not define a 'BOOL_RESULT', INT_RESULT is used
+                // instead. Thus there are two different cases to be handled
+                // where an INT_RESULT is const-folded :
+                // 1) It is a 'BOOL_RESULT'  where the entire condition is
+                //    const-folded to true or false. In these cases we are
+                //    expecting a 'COND_ITEM'.
+                // 2) It is really an 'INT_RESULT'.
+                //    (Used as an argument in a condition.)
+                if (context->expecting(Item::COND_ITEM)) {  // 1)
+                  // Entire condition is a true/false-const
+                  assert(!context->expecting(Item::INT_ITEM));
+                  ndb_item = new (*THR_MALLOC) Ndb_item(item);
+                  // Expect another logical expression
+                  context->expect_only(Item::FUNC_ITEM);
+                  context->expect(Item::COND_ITEM);
+                } else if (context->expecting(Item::INT_ITEM)) {  // 2)
                   ndb_item = new (*THR_MALLOC) Ndb_item(item);
                   if (context->expecting_no_field_result()) {
                     // We have not seen the field argument yet
