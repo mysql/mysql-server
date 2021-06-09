@@ -4187,7 +4187,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
 	}
 
       case Interpreter::BRANCH_ATTR_OP_ATTR:
-      case Interpreter::BRANCH_ATTR_OP_ARG_2:
+      case Interpreter::BRANCH_ATTR_OP_PARAM:
       case Interpreter::BRANCH_ATTR_OP_ARG:{
         jamDebug();
         const Uint32 ins2 = TcurrentProgram[TprogramCounter];
@@ -4254,7 +4254,7 @@ int Dbtup::interpreterNextLab(Signal* signal,
           step = argLen;
           s2 = (char*)&TcurrentProgram[TprogramCounter+1];
         }
-        else if (opCode == Interpreter::BRANCH_ATTR_OP_ARG_2)
+        else if (opCode == Interpreter::BRANCH_ATTR_OP_PARAM)
         {
           // Compare ATTR with a parameter
           jamDebug();

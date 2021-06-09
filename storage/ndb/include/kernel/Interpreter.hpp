@@ -82,7 +82,7 @@ public:
   static constexpr Uint32 BRANCH_ATTR_OP_ARG = 23;
   static constexpr Uint32 BRANCH_ATTR_EQ_NULL = 24;
   static constexpr Uint32 BRANCH_ATTR_NE_NULL = 25;
-  static constexpr Uint32 BRANCH_ATTR_OP_ARG_2 = 26;
+  static constexpr Uint32 BRANCH_ATTR_OP_PARAM = 26;
   static constexpr Uint32 BRANCH_ATTR_OP_ATTR = 27;
 
   /**
@@ -108,7 +108,7 @@ public:
    * n = NULL cmp semantic        -  2 bits ( 6 - 7 )
    * a = Attribute id             -  16 bits
    * l = Length of string (bytes) -  16 bits OP_ARG
-   * p = parameter no             -  16 bits OP_ARG_2
+   * p = parameter no             -  16 bits OP_PARAM
    * b = Branch offset (words)    -  16 bits
    * t = branch type              -  4 bits
    * d = Array length diff  // UNUSED
@@ -121,12 +121,12 @@ public:
    * -string....                    -
    *
    *
-   * Branch OP_ARG_2 (Attr1 <op> <ParamNo>)
+   * Branch OP_PARAM (Attr1 <op> <ParamNo>)
    *
    * i = Instruction              -  6 Bits ( 0 - 5 ) max 63
    * n = NULL cmp semantic        -  2 bits ( 6 - 7 )
    * a = Attribute id             -  16 bits
-   * p = parameter no             -  16 bits OP_ARG_2
+   * p = parameter no             -  16 bits OP_PARAM
    * b = Branch offset (words)    -  16 bits
    * t = branch type              -  4 bits
    *
@@ -307,7 +307,7 @@ Uint32
 Interpreter::BranchColParameter(BinaryCondition cond, NullSemantics nulls)
 {
   return
-    BRANCH_ATTR_OP_ARG_2 +
+    BRANCH_ATTR_OP_PARAM +
     (nulls << 6) +
     (cond << 12);
 }
@@ -456,7 +456,7 @@ Interpreter::getInstructionPreProcessingInfo(Uint32 *op,
     Uint32 wordLength= (byteLength + 3) >> 2;
     return op + 2 + wordLength;
   }
-  case BRANCH_ATTR_OP_ARG_2:
+  case BRANCH_ATTR_OP_PARAM:
   case BRANCH_ATTR_OP_ATTR:
   {
     /* Second word of the branch instruction refer either paramNo
