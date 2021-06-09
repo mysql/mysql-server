@@ -197,10 +197,9 @@ void Arch_Page_Sys::Recovery::read_group_dirs(const std::string file_path) {
     lsn_t start_lsn = static_cast<lsn_t>(
         std::stoull(file_path.substr(pos + strlen(ARCH_PAGE_DIR))));
 
-    Arch_Recv_Group_Info info;
-    info.m_start_lsn = start_lsn;
+    auto &group_info = m_dir_group_info_map[file_path];
 
-    m_dir_group_info_map[file_path] = std::move(info);
+    group_info.m_start_lsn = start_lsn;
 
   } catch (const std::exception &) {
     ib::error(ER_IB_ERR_PAGE_ARCH_INVALID_FORMAT) << ARCH_PAGE_FILE;

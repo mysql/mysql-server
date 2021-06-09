@@ -39,9 +39,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 /** Info related to each group parsed at different stages of page archive
 recovery. */
 class Arch_Recv_Group_Info {
- private:
-  Arch_Recv_Group_Info &operator=(const Arch_Recv_Group_Info &) = default;
-
  public:
   Arch_Recv_Group_Info() {
     m_reset_pos.init();
@@ -54,25 +51,15 @@ class Arch_Recv_Group_Info {
   }
 
   ~Arch_Recv_Group_Info() {
-    UT_DELETE(m_last_reset_block);
-    UT_DELETE(m_last_data_block);
+    ut_free(m_last_reset_block);
+    ut_free(m_last_data_block);
   }
 
-  /** Delete copy constructor to force use of move constructor. */
+  /** Disable assignment. */
+  Arch_Recv_Group_Info &operator=(const Arch_Recv_Group_Info &) = delete;
+
+  /** Disable copy construction. */
   Arch_Recv_Group_Info(const Arch_Recv_Group_Info &) = delete;
-
-  /** Move constructor.
-  @param[in]  other rvalue of a Arch_Recv_Group_Info object
-  @return current object */
-  Arch_Recv_Group_Info &operator=(Arch_Recv_Group_Info &&other) {
-    *this = other;
-
-    other.m_group = nullptr;
-    other.m_last_reset_block = nullptr;
-    other.m_last_data_block = nullptr;
-
-    return *this;
-  }
 
   /** Group data. */
   Arch_Group *m_group{nullptr};
