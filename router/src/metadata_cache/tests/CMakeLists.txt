@@ -51,16 +51,7 @@ SET(include_dirs
 
 # We do not link to the metadata cache libraries since the sources are
 # already built as part of the test libraries.
-IF(NOT WIN32)
-  ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
-  TARGET_LINK_LIBRARIES(metadata_cache_tests
-    router_lib
-    mysqlclient
-    mysqlxclient_lite
-    mysqlxmessages_lite
-    ${PROTOBUF_LITE_LIBRARY}
-    )
-ELSE()
+IF(WIN32)
   ADD_LIBRARY(metadata_cache_tests STATIC ${METADATA_CACHE_TESTS_HELPER})
   TARGET_LINK_LIBRARIES(metadata_cache_tests
     router_lib
@@ -74,6 +65,15 @@ ELSE()
     PRIVATE -Dmetadata_cache_DEFINE_STATIC=1)
   TARGET_COMPILE_DEFINITIONS(metadata_cache_tests
     PRIVATE -Dmetadata_cache_tests_DEFINE_STATIC=1)
+ELSE()
+  ADD_LIBRARY(metadata_cache_tests SHARED ${METADATA_CACHE_TESTS_HELPER})
+  TARGET_LINK_LIBRARIES(metadata_cache_tests
+    router_lib
+    mysqlclient
+    mysqlxclient_lite
+    mysqlxmessages_lite
+    ${PROTOBUF_LITE_LIBRARY}
+    )
 ENDIF()
 
 SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(metadata_cache_tests)

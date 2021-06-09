@@ -60,12 +60,12 @@ IF(WIN32)
     ../../harness/src/logging/eventlog_rc/MSG00001.bin)
 ENDIF()
 
-IF(NOT WIN32)
-  ADD_LIBRARY(router_lib SHARED ${lib_source_files} ${common_files})
-ELSE()
+IF(WIN32)
   # on Windows, we statically link the router lib to otherwise avoid
   # exporting a bunch of symbols
   ADD_LIBRARY(router_lib STATIC ${lib_source_files})
+ELSE()
+  ADD_LIBRARY(router_lib SHARED ${lib_source_files} ${common_files})
 ENDIF()
 TARGET_LINK_LIBRARIES(router_lib
   ${CMAKE_DL_LIBS}
@@ -82,14 +82,14 @@ SET_TARGET_PROPERTIES(router_lib PROPERTIES
   RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/runtime_output_directory
 )
 
-IF(NOT WIN32)
+IF(WIN32)
   SET_TARGET_PROPERTIES(router_lib PROPERTIES
-    OUTPUT_NAME "mysqlrouter"
+    OUTPUT_NAME "mysqlrouter_lib"
     SOVERSION 1
   )
 ELSE()
   SET_TARGET_PROPERTIES(router_lib PROPERTIES
-    OUTPUT_NAME "mysqlrouter_lib"
+    OUTPUT_NAME "mysqlrouter"
     SOVERSION 1
   )
 ENDIF()
