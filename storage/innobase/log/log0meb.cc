@@ -718,11 +718,12 @@ int validate_redo_log_archive_dirs(THD *thd MY_ATTRIBUTE((unused)),
 }
 
 /**
-  Verify that thd has the INNODB_REDO_LOG_ARCHIVE privilege.
+  Verify that thd has a certain privilege.
   @param[in,out]  thd           current THD instance, current session
+  @param[in]      priv_name     name of the required privilege
   @return         status
-    @retval       false         success
-    @retval       true          failure
+    @retval       false         privilege is granted
+    @retval       true          privilege is denied
 */
 static bool verify_privilege(THD *thd, const char *priv_name) {
   DBUG_TRACE;
