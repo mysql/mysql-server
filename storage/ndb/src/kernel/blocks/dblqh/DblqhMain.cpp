@@ -15145,7 +15145,8 @@ void Dblqh::setup_scan_pointers_from_tc_con(TcConnectionrecPtr tcConnectptr,
   {
     jamDebug();
     Uint32 storedProcLen =
-      c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId);
+      c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId,
+                          bool(tcConnectptr.p->opExec));
     (void)storedProcLen;
     ndbassert(loc_scanptr.p->scanAiLength == storedProcLen);
   }
@@ -15209,7 +15210,8 @@ void Dblqh::setup_scan_pointers(Uint32 scanPtrI, Uint32 line)
   {
     jamDebug();
     Uint32 storedProcLen =
-      c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId);
+      c_tup->copyAttrinfo(loc_scanptr.p->scanStoredProcId,
+                          bool(loc_tcConnectptr.p->opExec));
     (void)storedProcLen;
     ndbassert(loc_scanptr.p->scanAiLength == storedProcLen);
   }
@@ -16797,7 +16799,7 @@ void Dblqh::accScanConfScanLab(Signal* signal,
       jamEntryDebug();
       Uint32 storedProcId = signal->theData[1];
       scanPtr->scanStoredProcId = storedProcId;
-      c_tup->copyAttrinfo(storedProcId);
+      c_tup->copyAttrinfo(storedProcId, bool(regTcPtr->opExec));
       storedProcConfScanLab(signal, tcConnectptr);
       return;
     }
@@ -16817,7 +16819,14 @@ void Dblqh::accScanConfScanLab(Signal* signal,
   {
     /* TUP already has the Stored procedure, continue */
     jam();
-    c_tup->copyAttrinfo(scanPtr->scanStoredProcId);
+    TcConnectionrec * const regTcPtr = tcConnectptr.p;
+
+    if (regTcPtr->opExec)  // has interpreter code, possibly using param
+    {
+      // Advance to next parameter in the attrInfo
+      c_tup->nextAttrInfoParam(scanPtr->scanStoredProcId);
+    }
+    c_tup->copyAttrinfo(scanPtr->scanStoredProcId, bool(regTcPtr->opExec));
     storedProcConfScanLab(signal, tcConnectptr);
     return;
   }
@@ -18320,7 +18329,7 @@ void Dblqh::initScanTc(const ScanFragReq* req,
   regTcPtr->m_dealloc_state = TcConnectionrec::DA_IDLE;
   regTcPtr->m_dealloc_data.m_dealloc_ref_count = RNIL;
   regTcPtr->operation = ZREAD;
-  regTcPtr->opExec = 1;
+  regTcPtr->opExec = 0;  // Default 'not interpret', set later if needed
   regTcPtr->abortState = TcConnectionrec::ABORT_IDLE;
   // set TcConnectionrec::OP_SAVEATTRINFO so that a
   // "old" scan (short signals) update currTupAiLen which is checked
@@ -19375,7 +19384,6 @@ void Dblqh::execCOPY_FRAGREQ(Signal* signal)
     regTcPtr->transactionState = TcConnectionrec::SCAN_STATE_USED;
   }
 
-
   {
     AccScanReq * req = (AccScanReq*)&signal->theData[0];
     Uint32 sig_request_info = 0;
@@ -19493,7 +19501,7 @@ void Dblqh::accScanConfCopyLab(Signal* signal)
   ndbrequire(signal->theData[0] == 0);
   scanPtr->scanStoredProcId = signal->theData[1];
   scanPtr->scanAiLength = signal->theData[2];
-  c_tup->copyAttrinfo(scanPtr->scanStoredProcId);
+  c_tup->copyAttrinfo(scanPtr->scanStoredProcId, bool(regTcPtr->opExec));
 
   if (scanPtr->scanCompletedStatus == ZTRUE)
   {
@@ -32700,7 +32708,7 @@ void Dblqh::initReqinfoExecSr(Signal* signal,
 /* ------------------------------------------------------------------------- */
   regTcPtr->lastReplicaNo = 0;
   regTcPtr->nextSeqNoReplica = 0;
-  regTcPtr->opExec = 0;
+  regTcPtr->opExec = 0;      /* NOT INTERPRETED MODE */
   regTcPtr->readlenAi = 0;
   regTcPtr->nodeAfterNext[0] = ZNIL;
   regTcPtr->nodeAfterNext[1] = ZNIL;

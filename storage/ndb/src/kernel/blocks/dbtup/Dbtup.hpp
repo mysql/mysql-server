@@ -1476,6 +1476,7 @@ TupTriggerData_pool c_triggerPool;
     }
 
     Uint32 storedProcIVal;
+    Uint32 storedParamNo; // Current attrInfo param being used
     Uint32 nextPool;
     Uint16 storedCode;
   };
@@ -2664,8 +2665,7 @@ private:
 			 Uint32 tmpAreaSz);
 
   const Uint32 * lookupInterpreterParameter(Uint32 paramNo,
-                                            const Uint32 * subptr,
-                                            Uint32 sublen) const;
+                                            const Uint32 * subptr) const;
 
 // *****************************************************************
 // Signal Sending methods.
@@ -3130,9 +3130,12 @@ private:
   void flush_read_buffer(KeyReqStruct *, const Uint32* outBuf,
 			 Uint32 resultRef, Uint32 resultData, Uint32 routeRef);
 public:
-  Uint32 copyAttrinfo(Uint32 storedProcId);
+  Uint32 copyAttrinfo(Uint32 storedProcId,
+                      bool interpretedFlag);
   void copyAttrinfo(Uint32 expectedLen,
                     Uint32 attrInfoIVal);
+
+  void nextAttrInfoParam(Uint32 storedProcId);
   /**
    * Used by Restore...
    */
@@ -3168,12 +3171,6 @@ private:
 //------------------------------------------------------------------
 //------------------------------------------------------------------
   void initOperationrec(Signal* signal);
-
-//------------------------------------------------------------------
-//------------------------------------------------------------------
-  void getStoredProcAttrInfo(Uint32 storedId,
-                             KeyReqStruct* req_struct,
-                             Uint32& attrInfoIVal);
 
 //------------------------------------------------------------------
 //------------------------------------------------------------------
