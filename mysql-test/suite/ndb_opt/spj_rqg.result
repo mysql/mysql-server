@@ -550,7 +550,7 @@ EXPLAIN
         -> Index lookup on table2 using PRIMARY (col_int=table1.col_int_unique), child of table1 in pushed join  ()
     -> Nested loop left join  ()
         -> Filter: (table3.col_int_key = table2.col_int_key)  ()
-            -> Single-row index lookup on table3 using ix1 (col_int=table1.col_int, col_int_unique=table1.col_int_unique), child of table1 in pushed join  ()
+            -> Single-row index lookup on table3 using ix1 (col_int=table1.col_int, col_int_unique=table1.col_int_unique), child of table2 in pushed join  ()
         -> Single-row index lookup on table4 using PRIMARY (col_int=table2.col_int_key, pk=table1.col_int_unique), child of table2 in pushed join  ()
 
 SELECT

@@ -1068,6 +1068,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
     }
     m_tables[first_inner].m_ancestors.add(depend_parents);
     assert(!m_tables[first_inner].m_ancestors.contain(first_inner));
+    assert(!m_tables[first_inner].m_ancestors.is_overlapping(inner_nest));
   }
 
   m_join_scope.add(tab_no);
@@ -1332,7 +1333,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
       NdbQueryBuilder::outerJoinedScanSupported(m_thd_ndb->ndb)) {
     // 'table' is part of a semi-join
     // (We support semi-join only if firstMatch strategy is used)
-    assert(m_tables[tab_no].m_sj_nest.contain(table->get_access_no()));
+    assert(m_tables[tab_no].m_sj_nest.contain(tab_no));
 
     if (!is_pushable_within_nest(table, m_tables[tab_no].m_sj_nest, "semi")) {
       return false;
@@ -2037,19 +2038,24 @@ int ndb_pushed_builder_ctx::optimize_query_plan() {
     table.m_parent = parent_no;
 
     /**
+     * If parent is in an upper nest(s), the join-nest itself become
+     * dependent on any ancestors outside of the nests.
+     * Such nest-level dependencies are recorded in the first_inner
+     * of the join-nests.
+     */
+    for (uint first_in_nest = table.m_first_inner; first_in_nest > parent_no;
+         first_in_nest = m_tables[first_in_nest].m_first_upper) {
+      depend_parents.intersect(m_tables[first_in_nest].m_upper_nests);
+      m_tables[first_in_nest].m_ancestors.add(depend_parents);
+    }
+
+    /**
      * Any remaining ancestor dependencies for this table has to be
      * added to the selected parent in order to be taken into account
      * for parent calculation for its ancestors.
      */
     depend_parents.clear_bit(parent_no);
     m_tables[parent_no].m_ancestors.add(depend_parents);
-
-    /**
-     * Similar for nest-level dependencies: Any dependencies to tables outside
-     * of this inner nest are enforces as mandatory nest-ancestor dependencies.
-     */
-    depend_parents.subtract(table.m_inner_nest);
-    m_tables[table.m_first_inner].m_ancestors.add(depend_parents);
   }
 
   /* Collect the full set of ancestors available through the selected 'm_parent'
