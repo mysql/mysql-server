@@ -9709,8 +9709,8 @@ Dbspj::parseDA(Build_context& ctx,
     } // DABits::NI_KEY_...
 
     const Uint32 mask =
-      DABits::NI_LINKED_ATTR | DABits::NI_ATTR_INTERPRET |
-      DABits::NI_ATTR_LINKED | DABits::NI_ATTR_PARAMS;
+      DABits::NI_LINKED_ATTR |
+      DABits::NI_ATTR_INTERPRET | DABits::NI_ATTR_LINKED;
 
     if (((treeBits & mask) | (paramBits & DABits::PI_ATTR_LIST)) != 0)
     {
@@ -9722,16 +9722,10 @@ Dbspj::parseDA(Build_context& ctx,
 
        * - NI_ATTR_INTERPRET - tree contains interpreted program
        * - NI_ATTR_LINKED - means that the attr-info contains linked-values
-       * - NI_ATTR_PARAMS - means that the attr-info is parameterized
-       *   PI_ATTR_PARAMS - means that the parameters contains attr parameters
        *
        * IF NI_ATTR_INTERPRET
        *   DATA0[LO/HI] = Length of program / total #arguments to program
        *   DATA1..N     = Program
-       *
-       * IF NI_ATTR_PARAMS
-       *   DATA0[LO/HI] = Length / #param
-       *   DATA1..N     = PARAM-0...PARAM-M
        *
        * IF PI_ATTR_INTERPRET
        *   DATA0[LO/HI] = Length of program / Length of subroutine-part
@@ -9803,8 +9797,15 @@ Dbspj::parseDA(Build_context& ctx,
             sectionptrs[1] = len_prg; // size of interpret program
           }  // NI_ATTR_INTERPRET
 
-          Uint32 tmp = * tree.ptr ++; // attr-pattern header
-          Uint32 cnt = tmp & 0xFFFF;
+          /**
+           * We do not support (or need) API supplied parameters to
+           * be expand'ed into the interpreter parameter section.
+           * Such parameters has always been included directly into the
+           * generated interpreter code. Thus the no_param being set up
+           * as expand() arguemt here.
+           */
+          DABuffer no_param;
+          no_param.ptr = nullptr;
 
           if (treeBits & DABits::NI_ATTR_LINKED)
           {
@@ -9818,7 +9819,7 @@ Dbspj::parseDA(Build_context& ctx,
             LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena,
                                     m_dependency_map_pool);
             Local_pattern_store pattern(pool,treeNodePtr.p->m_attrParamPattern);
-            err = expand(pattern, treeNodePtr, tree, len_pattern, param, cnt);
+            err = expand(pattern, treeNodePtr, tree, len_pattern, no_param, 0);
             if (unlikely(err))
             {
               jam();
@@ -9832,12 +9833,15 @@ Dbspj::parseDA(Build_context& ctx,
           else if (len_pattern > 0)
           {
             jam();
+            // This code branch has never been tested, unused as well.
+            ndbassert(false);  // Need validation before being used.
+
             /**
              * Expand pattern directly into attr-info param
              *   This means a "fixed" attr-info param from here on
              */
             bool hasNull;
-            err = expand(attrParamPtrI, tree, len_pattern, param, cnt, hasNull);
+            err = expand(attrParamPtrI, tree, len_pattern, no_param, 0, hasNull);
             if (unlikely(err))
             {
               jam();
@@ -9877,8 +9881,12 @@ Dbspj::parseDA(Build_context& ctx,
           sectionptrs[1] = program_len;
           param.ptr += program_len;
 
-          if (subroutine_len)
+          if (subroutine_len > 0)
           {
+            jam();
+            // This code branch has never been tested, unused as well.
+            ndbassert(false);  // Need validation before being used.
+
             if (unlikely(!appendToSection(attrParamPtrI,
                                           param.ptr, subroutine_len)))
             {
@@ -9893,12 +9901,6 @@ Dbspj::parseDA(Build_context& ctx,
         else // not PI_ATTR_INTERPRET
         {
           jam();
-          /**
-           * Only relevant for interpreted stuff
-           */
-          ndbrequire((treeBits & DABits::NI_ATTR_PARAMS) == 0);
-          ndbrequire((paramBits & DABits::PI_ATTR_PARAMS) == 0);
-
           treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
 
           if (! (treeBits & DABits::NI_ATTR_INTERPRET))

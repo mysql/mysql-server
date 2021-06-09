@@ -107,7 +107,7 @@ struct DABits
     NI_LINKED_ATTR    = 0x10,  // List of attributes to be used by children
 
     NI_ATTR_INTERPRET = 0x20,  // Is attr-info a interpreted program
-    NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
+    //NI_ATTR_PARAMS    = 0x40,  // Does attrinfo contain parameters
     NI_ATTR_LINKED    = 0x80,  // Does attrinfo contain linked values
 
     /**
@@ -169,7 +169,7 @@ struct DABits
     /**
      * These 2 must match their resp. QueryNode-definitions
      */
-    PI_ATTR_PARAMS = 0x2, // attr-info parameters (NI_ATTR_PARAMS)
+    //PI_ATTR_PARAMS = 0x2, // attr-info parameters (NI_ATTR_PARAMS)
     PI_KEY_PARAMS  = 0x4, // key-info parameters  (NI_KEY_PARAMS)
 
     /**
