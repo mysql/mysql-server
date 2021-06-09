@@ -92,16 +92,24 @@ Item *FindReplacementOrReplaceMaterializedItems(
 void ReplaceMaterializedItems(THD *thd, Item *item,
                               const Func_ptr_array &items_to_copy,
                               bool need_exact_match) {
-  const auto replace_functor = [&items_to_copy, need_exact_match](
+  bool modified = false;
+  const auto replace_functor = [&modified, &items_to_copy, need_exact_match](
                                    Item *sub_item, Item *,
                                    unsigned) -> ReplaceResult {
     Item *replacement = FindReplacementItem(sub_item->real_item(),
                                             items_to_copy, need_exact_match);
     if (replacement != nullptr) {
+      modified = true;
       return {ReplaceResult::REPLACE, replacement};
     } else {
       return {ReplaceResult::KEEP_TRAVERSING, nullptr};
     }
   };
   WalkAndReplace(thd, item, std::move(replace_functor));
+
+  // If the item was modified to reference temporary tables, we need to update
+  // its used tables to account for that.
+  if (modified) {
+    item->update_used_tables();
+  }
 }
