@@ -339,8 +339,6 @@ class ha_ndbcluster : public handler, public Partition_handler {
       cond_push()
       cond   Condition to be pushed. The condition tree must not be
       modified by the by the caller.
-      other_tbls_ok  Are other tables allowed to be referred
-      from the condition terms pushed down.
     RETURN
       The 'remainder' condition that caller must use to filter out records.
       NULL means the handler will not return rows that do not match the
@@ -359,7 +357,7 @@ class ha_ndbcluster : public handler, public Partition_handler {
     =, !=, >, >=, <, <=, like, "not like", "is null", and "is not null".
     Negated conditions are supported by NOT which generate NAND/NOR groups.
   */
-  const Item *cond_push(const Item *cond, bool other_tbls_ok) override;
+  const Item *cond_push(const Item *cond) override;
 
  public:
   /**

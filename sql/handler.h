@@ -5580,8 +5580,6 @@ class handler {
 
     @param  cond          Condition to be pushed. The condition tree
                           must not be modified by the caller.
-    @param  other_tbls_ok Are other tables than than 'this' allowed to
-                          be referred by the condition terms being pushed.
 
     @return
       The 'remainder' condition that caller must use to filter out records.
@@ -5593,8 +5591,7 @@ class handler {
     Calls to rnd_init/rnd_end, index_init/index_end etc do not affect the
     pushed conditions.
   */
-  virtual const Item *cond_push(const Item *cond,
-                                bool other_tbls_ok [[maybe_unused]]) {
+  virtual const Item *cond_push(const Item *cond) {
     assert(pushed_cond == nullptr);
     return cond;
   }

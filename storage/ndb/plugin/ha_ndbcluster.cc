@@ -13965,7 +13965,7 @@ int ha_ndbcluster::engine_push(AQP::Table_access *table_aqp) {
           !member_of_pushed_join()) {
         /*
           It is of limited value to push a condition to a single row
-          access method if not member of a pushed join , so we skip cond_push()
+          access method if not member of a pushed join, so we skip cond_push()
           for these. The exception is if we are member of a pushed join, where
           execution of entire join branches may be eliminated.
         */
@@ -14221,19 +14221,18 @@ table_map ha_ndbcluster::tables_in_pushed_join() const {
   update and delete queries, where the join part is not relevant.
 
   @param cond          Condition to be pushed down.
-  @param other_tbls_ok Are other tables allowed to be referred
-                       from the condition terms pushed down.
 
   @retval Return the 'remainder' condition, consisting of the AND'ed
           sum of boolean terms which could not be pushed. A nullptr
           is returned if entire condition was supported.
 */
-const Item *ha_ndbcluster::cond_push(const Item *cond, bool other_tbls_ok) {
+const Item *ha_ndbcluster::cond_push(const Item *cond) {
   DBUG_TRACE;
   assert(pushed_cond == nullptr);
   assert(cond != nullptr);
   DBUG_EXECUTE("where", print_where(ha_thd(), cond, table_share->table_name.str,
                                     QT_ORDINARY););
+  bool other_tbls_ok = false;
   m_cond.prep_cond_push(cond, other_tbls_ok);
 
   const Item *remainder;

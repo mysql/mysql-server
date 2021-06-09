@@ -351,7 +351,7 @@ bool Sql_cmd_delete::delete_from_single_table(THD *thd) {
 
   if (conds &&
       thd->optimizer_switch_flag(OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN)) {
-    table->file->cond_push(conds, false);
+    table->file->cond_push(conds);
   }
 
   {  // Enter scope for optimizer trace wrapper
