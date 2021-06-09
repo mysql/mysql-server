@@ -60,7 +60,8 @@ class ha_ndbcluster_cond {
 
   int build_cond_push();
 
-  int generate_scan_filter_from_cond(SqlScanFilter &filter);
+  int generate_scan_filter_from_cond(SqlScanFilter &filter,
+                                     bool param_is_const = false);
 
   static int generate_scan_filter_from_key(SqlScanFilter &filter,
                                            const class KEY *key_info,
@@ -82,9 +83,11 @@ class ha_ndbcluster_cond {
 
  private:
   int build_scan_filter_predicate(List_iterator<const Ndb_item> &cond,
-                                  SqlScanFilter *filter, bool negated) const;
+                                  SqlScanFilter *filter, bool negated,
+                                  bool param_is_const) const;
   int build_scan_filter_group(List_iterator<const Ndb_item> &cond,
-                              SqlScanFilter *filter, bool negated) const;
+                              SqlScanFilter *filter, bool negated,
+                              bool param_is_const) const;
 
   bool eval_condition() const;
 
