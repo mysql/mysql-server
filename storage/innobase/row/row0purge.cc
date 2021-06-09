@@ -1362,7 +1362,7 @@ void purge_node_t::free_lob_pages() {
     dict_sys_mutex_enter();
     const dict_index_t *idx = dict_index_find(index_id);
 
-    if (idx == nullptr || idx->space != space_id ||
+    if (idx == nullptr || idx->space != space_id || idx->page == FIL_NULL ||
         idx->table->id != table_id) {
       dict_sys_mutex_exit();
       continue;
