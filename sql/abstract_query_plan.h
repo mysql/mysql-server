@@ -208,8 +208,6 @@ class Table_access {
 
   // Is member of a firstMatch sj_nest?
   bool is_sj_firstmatch() const;
-  // Get the upper-table we skip out to upon a firstMatch
-  int get_firstmatch_return() const;
 
   bool is_antijoin() const;
 

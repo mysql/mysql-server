@@ -1341,20 +1341,22 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child_scan(
     if (table->get_first_sj_inner() == (int)tab_no) {
       /**
        * In order to do correct firstmatch duplicate elimination in
-       * SPJ, we need to ensure that the table to eliminate duplicates
-       * from is the parent of the firstmast-sj-nest -> enforce it
-       * as a mandatory ancestor of the sj-nest.
+       * SPJ, we need to ensure that there are no scans in between this
+       * semi-join nest and the 'last_parent' candidate. See reasoning
+       * above wrt returning 'ancestor-scan rowset multiple times'.
        */
-      const int firstmatch_return = table->get_firstmatch_return();
-      if (!all_parents.contain(firstmatch_return)) {
-        EXPLAIN_NO_PUSH(
-            "Can't push table '%s' as child of '%s', "
-            "the FirstMatch-return '%s' can not be made the parent of sj-nest",
-            table->get_table()->alias, m_join_root->get_table()->alias,
-            m_plan.get_table_access(firstmatch_return)->get_table()->alias);
-        return false;
+      const uint last_parent = all_parents.last_table(tab_no - 1);
+      for (uint ancestor = last_parent + 1; ancestor < tab_no; ancestor++) {
+        if (m_join_scope.contain(ancestor) &&
+            m_scan_operations.contain(ancestor)) {
+          EXPLAIN_NO_PUSH(
+              "Can't push table '%s' as child of '%s', "
+              "there is the scan '%s' in between the parent and sj-nest",
+              table->get_table()->alias, m_join_root->get_table()->alias,
+              m_plan.get_table_access(ancestor)->get_table()->alias);
+          return false;
+        }
       }
-      m_tables[tab_no].m_ancestors.add(firstmatch_return);
     }
   } else if (!m_tables[tab_no].m_sj_nest.is_clear_all()) {
     if (!m_tables[tab_no].m_sj_nest.contain(m_join_scope)) {

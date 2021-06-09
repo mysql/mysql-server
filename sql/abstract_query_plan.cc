@@ -406,13 +406,6 @@ bool Table_access::is_sj_firstmatch() const {
   const QEP_TAB *qep_tab = get_qep_tab();
   return (qep_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH);
 }
-int Table_access::get_firstmatch_return() const {
-  const int last_sj_inner = get_last_sj_inner();
-  if (last_sj_inner < 0) return -1;
-
-  const QEP_TAB *last_sj_inner_tab = m_join_plan->get_qep_tab(last_sj_inner);
-  return last_sj_inner_tab->firstmatch_return;
-}
 
 bool Table_access::is_antijoin() const {
   return get_table()->reginfo.not_exists_optimize;

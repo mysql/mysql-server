@@ -6667,7 +6667,7 @@ WHERE table1.b IN
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	table1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1
 1	SIMPLE	table2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.table1.a,test.table1.b	1	100.00	Child of 'table1' in pushed join@1
-1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table1.b	2	100.00	Child of 'table2' in pushed join@1; FirstMatch(table2)
+1	SIMPLE	table1s	p0,p1,p2,p3,p4,p5,p6,p7	ref	c	c	4	test.table1.b	2	100.00	Child of 'table1' in pushed join@1; FirstMatch(table2)
 Warnings:
 Note	1003	/* select#1 */ select /*+ SEMIJOIN(@`select#2` FIRSTMATCH) */ count(0) AS `count(*)` from `test`.`t1` `table1` join `test`.`t1` `table2` semi join (`test`.`t1` `table1s`) where ((`test`.`table2`.`a` = `test`.`table1`.`a`) and (`test`.`table2`.`b` = `test`.`table1`.`b`) and (`test`.`table1s`.`c` = `test`.`table1`.`b`))
 SELECT count(*)
