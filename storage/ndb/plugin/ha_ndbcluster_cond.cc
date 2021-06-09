@@ -37,8 +37,6 @@
 #include "storage/ndb/plugin/ndb_log.h"
 #include "storage/ndb/plugin/ndb_thd.h"
 
-#define ndbd_support_param_cmp(ver) (true)  // OJA TODO, implement version ctrl
-
 /**
  * The SqlScanFilter is a regular NdbScanFilter, except that it
  * use the NULL-compare semantic specified by ISO-SQL, instead of
@@ -1069,9 +1067,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
                   context->expect(Item::FIELD_ITEM);
                   context->expect_comparable_field(field);
                 }
-
-                if (item->used_tables() != this_table &&
-                    ndbd_support_param_cmp(ndb->getMinDbNodeVersion())) {
+                if (item->used_tables() != this_table) {
                   // Is a param, next need to be a 'real' Field from this_table
                   // Can't be another parameter or constant
                   context->expect_only_field_from_table(this_table);
@@ -1096,11 +1092,8 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
             context->expect_nothing();
             context->expect_no_length();
 
-            table_map this_or_param_table(this_table);
-            if (ndbd_support_param_cmp(ndb->getMinDbNodeVersion())) {
-              this_or_param_table |= context->m_param_expr_tables;
-            }
-
+            const table_map this_or_param_table(this_table |
+                                                context->m_param_expr_tables);
             const Item_func *func_item = static_cast<const Item_func *>(item);
             switch (func_item->functype()) {
               case Item_func::EQ_FUNC: {
@@ -1681,6 +1674,10 @@ void ha_ndbcluster_cond::prep_cond_push(const Item *cond,
   assert((const_expr_tables & this_table) == 0);
   assert((param_expr_tables & this_table) == 0);
 #endif
+
+  assert(param_expr_tables == 0 ||
+         ndbd_support_param_cmp(
+             get_thd_ndb(current_thd)->ndb->getMinDbNodeVersion()));
 
   // Build lists of the boolean terms either 'pushed', or being a 'remainder'
   Item *item = const_cast<Item *>(cond);

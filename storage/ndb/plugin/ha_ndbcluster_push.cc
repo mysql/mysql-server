@@ -992,7 +992,7 @@ bool ndb_pushed_builder_ctx::is_pushable_as_child(AQP::Table_access *table) {
       }
     }
     table_map param_expr_tables(0);
-    if (true) {  // OJA TODO: Add version check.
+    if (ndbd_support_param_cmp(m_thd_ndb->ndb->getMinDbNodeVersion())) {
       for (uint i = root_no; i < tab_no; i++) {
         if (all_ancestors.contain(i)) {
           const TABLE *table = m_plan.get_table_access(i)->get_table();
