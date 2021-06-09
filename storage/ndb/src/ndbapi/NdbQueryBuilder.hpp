@@ -233,6 +233,8 @@ public:
    */
   int setInterpretedCode(const class NdbInterpretedCode& code);
 
+  int setParameters(const NdbQueryOperand* const parameters[]);
+
   const NdbQueryOptionsImpl& getImpl() const;
 
 private:

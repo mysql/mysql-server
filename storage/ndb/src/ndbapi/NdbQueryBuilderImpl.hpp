@@ -284,7 +284,8 @@ public:
     m_parent(nullptr),
     m_firstUpper(nullptr),
     m_firstInner(nullptr),
-    m_interpretedCode(nullptr)
+    m_interpretedCode(nullptr),
+    m_parameters(0)
   {}
   NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
   ~NdbQueryOptionsImpl();
@@ -299,6 +300,7 @@ private:
   NdbQueryOperationDefImpl*      m_firstUpper;   //First in upper nest
   NdbQueryOperationDefImpl*      m_firstInner;   //First in this (inner-)nest
   const NdbInterpretedCode*      m_interpretedCode;
+  Vector<const NdbQueryOperandImpl*> m_parameters;
 
   /**
    * Assign NdbInterpretedCode by taking a deep copy of 'src'
@@ -389,6 +391,9 @@ public:
 
   const NdbInterpretedCode* getInterpretedCode() const
   { return m_options.m_interpretedCode; }
+
+  const Vector<const NdbQueryOperandImpl*>& getInterpretedParams() const
+  { return m_options.m_parameters; }
 
   // Establish a linked parent <-> child relationship with this operation
   int linkWithParent(NdbQueryOperationDefImpl* parentOp);
@@ -505,6 +510,8 @@ protected:
 
   // Append list of columns required by SPJ to instantiate child operations.
   Uint32 appendChildProjection(Uint32Buffer& serializedDef) const;
+
+  Uint32 appendParamConstructor(Uint32Buffer& serializedDef) const;
 
 protected:
   /** True if enclosing query has been prepared.*/
