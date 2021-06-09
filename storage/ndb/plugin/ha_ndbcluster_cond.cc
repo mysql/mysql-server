@@ -1098,7 +1098,6 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
 
             table_map this_or_param_table(this_table);
             if (ndbd_support_param_cmp(ndb->getMinDbNodeVersion())) {
-              assert(!context->m_param_expr_tables);  // TEMP, see next patches
               this_or_param_table |= context->m_param_expr_tables;
             }
 
@@ -1355,6 +1354,7 @@ ha_ndbcluster_cond::ha_ndbcluster_cond(ha_ndbcluster *handler)
     : m_handler(handler),
       m_ndb_cond(),
       m_scan_filter_code(nullptr),
+      m_scan_filter_params(),
       m_pushed_cond(nullptr),
       m_remainder_cond(nullptr),
       m_unpushed_cond(nullptr) {}
@@ -1368,6 +1368,7 @@ void ha_ndbcluster_cond::cond_clear() {
   DBUG_TRACE;
   m_ndb_cond.destroy_elements();
   m_scan_filter_code.reset();
+  m_scan_filter_params.clear();
   m_pushed_cond = nullptr;
   m_remainder_cond = nullptr;
   m_unpushed_cond = nullptr;
@@ -1381,6 +1382,7 @@ void ha_ndbcluster_cond::cond_clear() {
 void ha_ndbcluster_cond::cond_close() {
   if (m_pushed_cond != nullptr && !isGeneratedCodeReusable()) {
     m_scan_filter_code.reset();
+    m_scan_filter_params.clear();
     m_unpushed_cond = nullptr;
   }
 }
@@ -1672,7 +1674,6 @@ void ha_ndbcluster_cond::prep_cond_push(const Item *cond,
                                         const table_map const_expr_tables,
                                         const table_map param_expr_tables) {
   DBUG_TRACE;
-  assert(param_expr_tables == 0);  // Not implemented yet
 
 #ifndef DBUG_OFF
   const table_map this_table(m_handler->table->pos_in_table_list->map());
@@ -1691,6 +1692,21 @@ void ha_ndbcluster_cond::prep_cond_push(const Item *cond,
 
   m_pushed_cond = pushed_cond;
   m_remainder_cond = remainder;
+
+  // Collect the Ndb_param's and assign param id's
+  List<const Ndb_param> params;
+  List_iterator<const Ndb_item> li(m_ndb_cond);
+  const Ndb_item *ndb_item;
+  while ((ndb_item = li++)) {
+    if (ndb_item->get_type() == NDB_PARAM) {
+      const Ndb_param *param = down_cast<const Ndb_param *>(ndb_item);
+      param->set_param_no(params.size());
+      params.push_back(down_cast<const Ndb_param *>(ndb_item));
+    }
+  }
+
+  m_scan_filter_params.destroy_elements();
+  m_scan_filter_params = params;
 }
 
 bool ha_ndbcluster_cond::isGeneratedCodeReusable() const {
@@ -2349,6 +2365,11 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(
 */
 void ha_ndbcluster_cond::set_condition(const Item *cond) {
   m_unpushed_cond = cond;
+}
+
+// static
+const Item_field *ha_ndbcluster_cond::get_param_item(const Ndb_param *param) {
+  return param->get_item_field();
 }
 
 /**

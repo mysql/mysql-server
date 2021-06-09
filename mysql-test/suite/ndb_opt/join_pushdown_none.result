@@ -1710,7 +1710,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 5 pushed join@1
 1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x1.c,test.x1.c	1	100.00	Child of 'x1' in pushed join@1
 1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x2.c,test.x1.d	1	100.00	Child of 'x2' in pushed join@1
-1	SIMPLE	x4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x2.d,test.x3.b	1	100.00	Child of 'x3' in pushed join@1; Using where
+1	SIMPLE	x4	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x2.d,test.x3.b	1	100.00	Child of 'x3' in pushed join@1; Using pushed condition (`test`.`x4`.`b` = `test`.`x1`.`d`)
 1	SIMPLE	x5	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	test.x3.d,test.x4.d	1	100.00	Child of 'x4' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`x1`.`a` AS `a`,`test`.`x1`.`b` AS `b`,`test`.`x1`.`c` AS `c`,`test`.`x1`.`d` AS `d`,`test`.`x2`.`a` AS `a`,`test`.`x2`.`b` AS `b`,`test`.`x2`.`c` AS `c`,`test`.`x2`.`d` AS `d`,`test`.`x3`.`a` AS `a`,`test`.`x3`.`b` AS `b`,`test`.`x3`.`c` AS `c`,`test`.`x3`.`d` AS `d`,`test`.`x4`.`a` AS `a`,`test`.`x4`.`b` AS `b`,`test`.`x4`.`c` AS `c`,`test`.`x4`.`d` AS `d`,`test`.`x5`.`a` AS `a`,`test`.`x5`.`b` AS `b`,`test`.`x5`.`c` AS `c`,`test`.`x5`.`d` AS `d` from `test`.`t1` `x1` left join (`test`.`t1` `x2` join `test`.`t1` `x3` join `test`.`t1` `x4` join `test`.`t1` `x5`) on(((`test`.`x3`.`a` = `test`.`x2`.`c`) and (`test`.`x4`.`a` = `test`.`x2`.`d`) and (`test`.`x5`.`b` = `test`.`x4`.`d`) and (`test`.`x5`.`a` = `test`.`x3`.`d`) and (`test`.`x3`.`b` = `test`.`x1`.`d`) and (`test`.`x4`.`b` = `test`.`x1`.`d`) and (`test`.`x2`.`a` = `test`.`x1`.`c`) and (`test`.`x2`.`b` = `test`.`x1`.`c`))) where true
@@ -2327,10 +2327,9 @@ from t1 as x1 cross join t1 as x2;
 explain select count(*) from tx as x1 
 left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	256	100.00	NULL
-1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.x1.c	2	100.00	Using pushed condition (`test`.`x2`.`d` = `test`.`x1`.`d`)
+1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	256	100.00	Parent of 2 pushed join@1
+1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY	PRIMARY	4	test.x1.c	2	100.00	Child of 'x1' in pushed join@1; Using pushed condition (`test`.`x2`.`d` = `test`.`x1`.`d`)
 Warnings:
-Note	1003	Can't push outer joined table 'x2' as child of 'x1', table condition can not be fully evaluated by pushed join
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`tx` `x1` left join `test`.`tx` `x2` on(((`test`.`x2`.`d` = `test`.`x1`.`d`) and (`test`.`x2`.`a` = `test`.`x1`.`c`))) where true
 select count(*) from tx as x1 
 left join tx as x2 on x1.c=x2.a and x1.d=x2.d;
@@ -3004,7 +3003,7 @@ select * from t3 x, t3 y where y.a3=x.d3 and y.b3=x.b3
 and x.a3=0x2f and x.b3=0x3f;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`x`.`d3` is not null)
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1; Using pushed condition (`test`.`y`.`b3` = `test`.`x`.`b3`)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`b3`) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`x`.`b3` = 0x3f))
 select * from t3 x, t3 y where y.a3=x.d3 and y.b3=x.b3
@@ -3016,7 +3015,7 @@ select * from t3_hash x, t3_hash y where y.a3=x.d3 and y.b3=x.b3
 and x.a3=0x2f and x.b3=0x3f;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`x`.`d3` is not null)
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	PRIMARY	PRIMARY	8	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1; Using pushed condition (`test`.`y`.`b3` = `test`.`x`.`b3`)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3_hash` `x` join `test`.`t3_hash` `y` where ((`test`.`y`.`b3` = `test`.`x`.`b3`) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`x`.`b3` = 0x3f))
 select * from t3_hash x, t3_hash y where y.a3=x.d3 and y.b3=x.b3
@@ -3028,7 +3027,7 @@ select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3
 and x.a3=0x2f and x.b3=0x3f;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	b3	b3	8	const,const	1	100.00	Parent of 2 pushed join@1; Using pushed condition (`test`.`x`.`d3` is not null)
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	b3	b3	8	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	eq_ref	b3	b3	8	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1; Using pushed condition (`test`.`y`.`b3` = `test`.`x`.`b3`)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`pk` AS `pk`,`test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`pk` AS `pk`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3_unq` `x` join `test`.`t3_unq` `y` where ((`test`.`y`.`b3` = `test`.`x`.`b3`) and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f) and (`test`.`x`.`b3` = 0x3f))
 select * from t3_unq x, t3_unq y where y.a3=x.d3 and y.b3=x.b3
@@ -4971,8 +4970,8 @@ where x3.a < x2.pk and x4.a < x3.pk;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x1	p0,p1,p2,p3,p4,p5,p6,p7	ALL	NULL	NULL	NULL	NULL	#	#	Parent of 7 pushed join@1; Using pushed condition (`test`.`x1`.`a` is not null)
 1	SIMPLE	x2	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,ix1	ix1	5	test.x1.a	#	#	Child of 'x1' in pushed join@1
-1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,ix1	ix1	5	test.x1.a	#	#	Child of 'x1' in pushed join@1; Using where
-1	SIMPLE	x4	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	5	test.x1.a	#	#	Child of 'x1' in pushed join@1; Using where
+1	SIMPLE	x3	p0,p1,p2,p3,p4,p5,p6,p7	ref	PRIMARY,ix1	ix1	5	test.x1.a	#	#	Child of 'x2' in pushed join@1; Using pushed condition (`test`.`x3`.`a` < `test`.`x2`.`pk`)
+1	SIMPLE	x4	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	5	test.x1.a	#	#	Child of 'x3' in pushed join@1; Using pushed condition (`test`.`x4`.`a` < `test`.`x3`.`pk`)
 1	SIMPLE	x5	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	5	test.x1.a	#	#	Child of 'x1' in pushed join@1
 1	SIMPLE	x6	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	5	test.x1.a	#	#	Child of 'x1' in pushed join@1
 1	SIMPLE	x7	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	5	test.x1.a	#	#	Child of 'x1' in pushed join@1
@@ -5553,7 +5552,7 @@ explain
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0,p1,p2,p3,p4,p5,p6,p7	ALL	PRIMARY	NULL	NULL	NULL	#	#	Parent of 2 pushed join@1; Using pushed condition (`test`.`x`.`e` is not null)
-1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	4	test.x.e	#	#	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	p0,p1,p2,p3,p4,p5,p6,p7	ref	ix1	ix1	4	test.x.e	#	#	Child of 'x' in pushed join@1; Using pushed condition (`test`.`y`.`a` = `test`.`x`.`d`)
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`x`.`d` AS `d`,`test`.`x`.`e` AS `e`,`test`.`x`.`f` AS `f`,`test`.`x`.`a` AS `a`,`test`.`x`.`b` AS `b`,`test`.`x`.`c` AS `c`,`test`.`y`.`d` AS `d`,`test`.`y`.`e` AS `e`,`test`.`y`.`f` AS `f`,`test`.`y`.`a` AS `a`,`test`.`y`.`b` AS `b`,`test`.`y`.`c` AS `c` from `test`.`t1` `x` join `test`.`t1` `y` where ((`test`.`y`.`b` = `test`.`x`.`e`) and (`test`.`y`.`a` = `test`.`x`.`d`))
 insert into t1(a,b,c,d,e,f) values
@@ -7168,7 +7167,7 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 Ndb_pruned_scan_count	11
-Ndb_pushed_queries_defined	496
+Ndb_pushed_queries_defined	498
 Ndb_pushed_queries_dropped	13
 Ndb_sorted_scan_count	31
 drop table server_counts_at_startup;

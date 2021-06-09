@@ -35,9 +35,11 @@
 #include "storage/ndb/include/ndbapi/NdbApi.hpp"
 
 class Item;
+class Item_field;
 struct key_range;
 struct TABLE;
 class Ndb_item;
+class Ndb_param;
 class ha_ndbcluster;
 class SqlScanFilter;
 
@@ -69,9 +71,18 @@ class ha_ndbcluster_cond {
                                            const key_range *end_key);
 
   // Get a possibly pre-generated Interpreter code for the pushed condition
-  const NdbInterpretedCode &get_interpreter_code() {
+  const NdbInterpretedCode &get_interpreter_code() const {
     return m_scan_filter_code;
   }
+
+  // Get the list of Ndb_param's (opaque) referred by the interpreter code.
+  // Use get_param_item() to get the Item_field being the param source
+  const List<const Ndb_param> &get_interpreter_params() const {
+    return m_scan_filter_params;
+  }
+
+  // Get the 'Field' refered by Ndb_param (from previous table in query plan).
+  static const Item_field *get_param_item(const Ndb_param *param);
 
   void set_condition(const Item *cond);
   bool check_condition() const {
@@ -100,6 +111,9 @@ class ha_ndbcluster_cond {
 
   // A pre-generated scan_filter
   NdbInterpretedCode m_scan_filter_code;
+
+  // The list of Ndb_params referred by 'm_scan_filter_code'. (or empty)
+  List<const Ndb_param> m_scan_filter_params;
 
  public:
   /**
