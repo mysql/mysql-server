@@ -9517,8 +9517,8 @@ Uint32
 Dbspj::parseDA(Build_context& ctx,
                Ptr<Request> requestPtr,
                Ptr<TreeNode> treeNodePtr,
-               DABuffer& tree, Uint32 treeBits,
-               DABuffer& param, Uint32 paramBits)
+               DABuffer& tree, const Uint32 treeBits,
+               DABuffer& param, const Uint32 paramBits)
 {
   Uint32 err;
   Uint32 attrInfoPtrI = RNIL;
@@ -9739,19 +9739,17 @@ Dbspj::parseDA(Build_context& ctx,
        *
        * IF NI_ATTR_LINKED
        *   DATA0[LO/HI] = Length / #
-       *
-       *
        */
-      Uint32 sections[5] = { 0, 0, 0, 0, 0 };
-      Uint32 * sectionptrs = 0;
+      Uint32 *sectionptrs = nullptr;
 
-      bool interpreted =
+      const bool interpreted =
         (treeBits & DABits::NI_ATTR_INTERPRET) ||
         (paramBits & DABits::PI_ATTR_INTERPRET) ||
         (treeNodePtr.p->m_bits & TreeNode::T_ATTR_INTERPRETED);
 
       if (interpreted)
       {
+        static constexpr Uint32 sections[5] = { 0, 0, 0, 0, 0 };
         /**
          * Add section headers for interpreted execution
          *   and create pointer so that they can be updated later
@@ -9770,6 +9768,7 @@ Dbspj::parseDA(Build_context& ctx,
 
         if (treeBits & DABits::NI_ATTR_INTERPRET)
         {
+          // Note: NI_ATTR_INTERPRET seems to never have been used, nor tested
           jam();
 
           /**
@@ -9836,7 +9835,7 @@ Dbspj::parseDA(Build_context& ctx,
 //          ndbrequire(!hasNull);
           }
         }
-        else // if (treeBits & DABits::NI_ATTR_INTERPRET)
+        else // not 'DABits::NI_ATTR_INTERPRET'
         {
           jam();
           /**
@@ -9867,46 +9866,46 @@ Dbspj::parseDA(Build_context& ctx,
             sectionptrs[1] = 1;
           }
         } // if (treeBits & DABits::NI_ATTR_INTERPRET)
-      } // if (interpreted)
 
-      if (paramBits & DABits::PI_ATTR_INTERPRET)
-      {
-        jam();
-
-        /**
-         * Add the interpreted code that represents the scan filter.
-         */
-        const Uint32 len2 = * param.ptr++;
-        Uint32 program_len = len2 & 0xFFFF;
-        Uint32 subroutine_len = len2 >> 16;
-        err = DbspjErr::OutOfSectionMemory;
-        if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, program_len)))
+        if (paramBits & DABits::PI_ATTR_INTERPRET)
         {
           jam();
-          break;
-        }
-        /**
-         * The interpreted code is added is in the "Interpreted execute region"
-         * of the attrinfo (see Dbtup::interpreterStartLab() for details).
-         * It will thus execute before reading the attributes that constitutes
-         * the projections.
-         */
-        sectionptrs[1] = program_len;
-        param.ptr += program_len;
 
-        if (subroutine_len)
-        {
-          if (unlikely(!appendToSection(attrParamPtrI,
-                                        param.ptr, subroutine_len)))
+          /**
+           * Add the interpreted code that represents the scan filter.
+           */
+          const Uint32 len2 = * param.ptr++;
+          const Uint32 program_len = len2 & 0xFFFF;
+          const Uint32 subroutine_len = len2 >> 16;
+          err = DbspjErr::OutOfSectionMemory;
+          if (unlikely(!appendToSection(attrInfoPtrI, param.ptr, program_len)))
           {
             jam();
             break;
           }
-          sectionptrs[4] = subroutine_len;
-          param.ptr += subroutine_len;
-        }
-        treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
-      }
+          /**
+           * The interpreted code is added is in the "Interpreted execute region"
+           * of the attrinfo (see Dbtup::interpreterStartLab() for details).
+           * It will thus execute before reading the attributes that constitutes
+           * the projections.
+           */
+          sectionptrs[1] = program_len;
+          param.ptr += program_len;
+
+          if (subroutine_len)
+          {
+            if (unlikely(!appendToSection(attrParamPtrI,
+                                          param.ptr, subroutine_len)))
+            {
+              jam();
+              break;
+            }
+            sectionptrs[4] = subroutine_len;
+            param.ptr += subroutine_len;
+          }
+          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
+        } // PI_ATTR_INTERPRET
+      } // if (interpreted)
 
       Uint32 sum_read = 0;
       Uint32 dst[MAX_ATTRIBUTES_IN_TABLE + 2];
