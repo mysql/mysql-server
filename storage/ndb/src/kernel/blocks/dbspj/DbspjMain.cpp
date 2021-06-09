@@ -9766,34 +9766,42 @@ Dbspj::parseDA(Build_context& ctx,
         getSection(ptr, attrInfoPtrI);
         sectionptrs = ptr.p->theData;
 
-        if (treeBits & DABits::NI_ATTR_INTERPRET)
+	/**
+         * Note that there might be a NI_ATTR_LINKED without a NI_ATTR_INTERPRET.
+         * INTERPRET code can then be specified with PI_ATTR_INTERPRET. (or not)
+	 */
+        if (treeBits & (DABits::NI_ATTR_INTERPRET
+                        | DABits::NI_ATTR_LINKED))
         {
-          // Note: NI_ATTR_INTERPRET seems to never have been used, nor tested
           jam();
-
-          /**
-           * Having two interpreter programs is an error.
-           */
-          err = DbspjErr::BothTreeAndParametersContainInterpretedProgram;
-          if (unlikely(paramBits & DABits::PI_ATTR_INTERPRET))
-          {
-            jam();
-            break;
-          }
-
-          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
           Uint32 len2 = * tree.ptr++;
           Uint32 len_prg = len2 & 0xFFFF; // Length of interpret program
           Uint32 len_pattern = len2 >> 16;// Length of attr param pattern
-          err = DbspjErr::OutOfSectionMemory;
-          if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len_prg)))
+
+          // Note: NI_ATTR_INTERPRET seems to never have been used, nor tested
+          if (treeBits & DABits::NI_ATTR_INTERPRET)
           {
             jam();
-            break;
-          }
+            /**
+             * Having two interpreter programs is an error.
+             */
+            err = DbspjErr::BothTreeAndParametersContainInterpretedProgram;
+            if (unlikely(paramBits & DABits::PI_ATTR_INTERPRET))
+            {
+              jam();
+              break;
+            }
 
-          tree.ptr += len_prg;
-          sectionptrs[1] = len_prg; // size of interpret program
+            treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
+            err = DbspjErr::OutOfSectionMemory;
+            if (unlikely(!appendToSection(attrInfoPtrI, tree.ptr, len_prg)))
+            {
+              jam();
+              break;
+            }
+            tree.ptr += len_prg;
+            sectionptrs[1] = len_prg; // size of interpret program
+          }  // NI_ATTR_INTERPRET
 
           Uint32 tmp = * tree.ptr ++; // attr-pattern header
           Uint32 cnt = tmp & 0xFFFF;
@@ -9801,8 +9809,11 @@ Dbspj::parseDA(Build_context& ctx,
           if (treeBits & DABits::NI_ATTR_LINKED)
           {
             jam();
+            DEBUG("NI_ATTR_LINKED" << ", len_pattern:" << len_pattern);
             /**
              * Expand pattern into a new pattern (with linked values)
+             * Real attrInfo will be constructed with another expand
+             * when parent row values arrives.
              */
             LocalArenaPool<DataBufferSegment<14> > pool(requestPtr.p->m_arena,
                                     m_dependency_map_pool);
@@ -9818,7 +9829,7 @@ Dbspj::parseDA(Build_context& ctx,
              */
             treeNodePtr.p->m_bits |= TreeNode::T_ATTRINFO_CONSTRUCTED;
           }
-          else
+          else if (len_pattern > 0)
           {
             jam();
             /**
@@ -9832,44 +9843,18 @@ Dbspj::parseDA(Build_context& ctx,
               jam();
               break;
             }
-//          ndbrequire(!hasNull);
-          }
-        }
-        else // not 'DABits::NI_ATTR_INTERPRET'
-        {
-          jam();
-          /**
-           * Only relevant for interpreted stuff
-           */
-          ndbrequire((treeBits & DABits::NI_ATTR_PARAMS) == 0);
-          ndbrequire((paramBits & DABits::PI_ATTR_PARAMS) == 0);
-          ndbrequire((treeBits & DABits::NI_ATTR_LINKED) == 0);
+          }  // NI_ATTR_LINKED
+        } // NI_ATTR_INTERPRET | NI_ATTR_LINKED
 
-          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
-
-          if (! (paramBits & DABits::PI_ATTR_INTERPRET))
-          {
-            jam();
-
-            /**
-             * Tree node has interpreted execution,
-             *   but no interpreted program specified
-             *   auto-add Exit_ok (i.e return each row)
-             */
-            Uint32 tmp = Interpreter::ExitOK();
-            err = DbspjErr::OutOfSectionMemory;
-            if (unlikely(!appendToSection(attrInfoPtrI, &tmp, 1)))
-            {
-              jam();
-              break;
-            }
-            sectionptrs[1] = 1;
-          }
-        } // if (treeBits & DABits::NI_ATTR_INTERPRET)
-
+        /**
+         * Interpreter code may also be (usually is) specified in the
+         * param-section. That might be combined with a NI_ATTR_LINKED
+         * containing the constructor receipe for a parameter.
+         */
         if (paramBits & DABits::PI_ATTR_INTERPRET)
         {
           jam();
+          DEBUG("PI_ATTR_INTERPRET");
 
           /**
            * Add the interpreted code that represents the scan filter.
@@ -9904,7 +9889,37 @@ Dbspj::parseDA(Build_context& ctx,
             param.ptr += subroutine_len;
           }
           treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
-        } // PI_ATTR_INTERPRET
+        }
+        else // not PI_ATTR_INTERPRET
+        {
+          jam();
+          /**
+           * Only relevant for interpreted stuff
+           */
+          ndbrequire((treeBits & DABits::NI_ATTR_PARAMS) == 0);
+          ndbrequire((paramBits & DABits::PI_ATTR_PARAMS) == 0);
+
+          treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
+
+          if (! (treeBits & DABits::NI_ATTR_INTERPRET))
+          {
+            jam();
+
+            /**
+             * Tree node has interpreted execution,
+             *   but no interpreted program specified
+             *   auto-add Exit_ok (i.e return each row)
+             */
+            Uint32 tmp = Interpreter::ExitOK();
+            err = DbspjErr::OutOfSectionMemory;
+            if (unlikely(!appendToSection(attrInfoPtrI, &tmp, 1)))
+            {
+              jam();
+              break;
+            }
+            sectionptrs[1] = 1;
+          }
+        } // PI_ATTR_INTERPRET)
       } // if (interpreted)
 
       Uint32 sum_read = 0;
