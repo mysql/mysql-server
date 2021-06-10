@@ -211,3 +211,33 @@ GROUP BY t2.x
 HAVING t2.x = '');
 1
 DROP TABLE t;
+#
+# Bug#32980875: WL#14422: ASSERTION `FALSE' FAILED|SQL/BASIC_ROW_ITERATORS.H
+#
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+INSERT INTO t VALUES ('a'), ('b'), ('c');
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+PREPARE prep_stmt FROM '
+
+ SELECT DISTINCT
+   MATCH (t1.a) AGAINST(''x''),
+   MIN(t2.a),
+   t1.a
+ FROM t AS t1 JOIN t AS t2 ON t1.a = t2.a
+ GROUP BY MATCH (t1.a) AGAINST(''x''), t1.a
+
+';
+EXECUTE prep_stmt;
+MATCH (t1.a) AGAINST('x')	MIN(t2.a)	a
+0	a	a
+0	b	b
+0	c	c
+EXECUTE prep_stmt;
+MATCH (t1.a) AGAINST('x')	MIN(t2.a)	a
+0	a	a
+0	b	b
+0	c	c
+DEALLOCATE PREPARE prep_stmt;
+DROP TABLE t;

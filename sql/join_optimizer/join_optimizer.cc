@@ -130,6 +130,10 @@ struct SortAheadOrdering {
   // in these tables).
   NodeMap required_nodes;
 
+  // Whether aggregates must be computed before one can apply this sort
+  // (because it includes at least one aggregate).
+  bool aggregates_required;
+
   // The ordering expressed in a form that filesort can use.
   ORDER *order;
 };
@@ -2164,6 +2168,11 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
     if (!IsSubset(sort_ahead_ordering.required_nodes, nodes)) {
       continue;
     }
+    if (sort_ahead_ordering.aggregates_required) {
+      // For sort-ahead, we don't have any aggregates yet
+      // (since we never group-ahead).
+      continue;
+    }
 
     LogicalOrderings::StateIndex new_state = m_orderings->ApplyFDs(
         m_orderings->SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
@@ -3146,8 +3155,15 @@ static int AddOrdering(
     if (order_for_filesort == nullptr) {
       order_for_filesort = BuildSortAheadOrdering(thd, orderings, ordering);
     }
-    sort_ahead_orderings->push_back(
-        SortAheadOrdering{ordering_idx, required_nodes, order_for_filesort});
+    bool aggregates_required = false;
+    for (OrderElement element : orderings->ordering(ordering_idx)) {
+      if (orderings->item(element.item)->has_aggregation()) {
+        aggregates_required = true;
+        break;
+      }
+    }
+    sort_ahead_orderings->push_back(SortAheadOrdering{
+        ordering_idx, required_nodes, aggregates_required, order_for_filesort});
   }
 
   return ordering_idx;
@@ -3462,16 +3478,19 @@ static void BuildInterestingOrders(
     }
 
     table_map used_tables = 0;
+    bool aggregates_required = false;
     for (OrderElement element : orderings->ordering(ordering_idx)) {
-      used_tables |= orderings->item(element.item)->used_tables();
+      Item *item = orderings->item(element.item);
+      used_tables |= item->used_tables();
+      aggregates_required |= item->has_aggregation();
     }
     NodeMap required_nodes = GetNodeMapFromTableMap(
         used_tables & ~PSEUDO_TABLE_BITS, graph->table_num_to_node_num);
 
     ORDER *order = BuildSortAheadOrdering(thd, orderings,
                                           orderings->ordering(ordering_idx));
-    sort_ahead_orderings->push_back(
-        SortAheadOrdering{ordering_idx, required_nodes, order});
+    sort_ahead_orderings->push_back(SortAheadOrdering{
+        ordering_idx, required_nodes, aggregates_required, order});
   }
 }
 
@@ -3857,6 +3876,10 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
         LogicalOrderings::StateIndex ordering_state = orderings.ApplyFDs(
             orderings.SetOrder(sort_ahead_ordering.ordering_idx), fd_set);
         if (!orderings.DoesFollowOrder(ordering_state, group_by_ordering_idx)) {
+          continue;
+        }
+        if (sort_ahead_ordering.aggregates_required) {
+          // We can't sort by an aggregate before we've aggregated.
           continue;
         }
 

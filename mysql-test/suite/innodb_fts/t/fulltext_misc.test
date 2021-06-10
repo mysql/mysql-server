@@ -228,3 +228,31 @@ WHERE x IN
   HAVING t2.x = '');
 
 DROP TABLE t;
+
+--echo #
+--echo # Bug#32980875: WL#14422: ASSERTION `FALSE' FAILED|SQL/BASIC_ROW_ITERATORS.H
+--echo #
+
+CREATE TABLE t (a VARCHAR(10), FULLTEXT (a));
+INSERT INTO t VALUES ('a'), ('b'), ('c');
+ANALYZE TABLE t;
+
+PREPARE prep_stmt FROM '
+
+ SELECT DISTINCT
+   MATCH (t1.a) AGAINST(''x''),
+   MIN(t2.a),
+   t1.a
+ FROM t AS t1 JOIN t AS t2 ON t1.a = t2.a
+ GROUP BY MATCH (t1.a) AGAINST(''x''), t1.a
+
+';
+
+# The second execution used to fail with the hypergraph optimizer.
+--sorted_result
+EXECUTE prep_stmt;
+--sorted_result
+EXECUTE prep_stmt;
+
+DEALLOCATE PREPARE prep_stmt;
+DROP TABLE t;
