@@ -1668,7 +1668,7 @@ void ha_ndbcluster_cond::prep_cond_push(const Item *cond,
                                         const table_map param_expr_tables) {
   DBUG_TRACE;
 
-#ifndef DBUG_OFF
+#ifndef NDEBUG
   const table_map this_table(m_handler->table->pos_in_table_list->map());
   assert((const_expr_tables & param_expr_tables) == 0);  // No overlap
   assert((const_expr_tables & this_table) == 0);

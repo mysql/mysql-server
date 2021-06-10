@@ -2288,8 +2288,10 @@ FROM f AS table1
        table2.col_int_unique = table5.col_int_key
   ON table1.pk = table3.col_int_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+//
-eval explain format=tree $query;
+# We do not explain this query as a slightly different query plan
+# might be generated on Windows and Mac.
+#--replace_regex /cost=\d+\.\d+\ rows=\d+//
+#eval explain format=tree $query;
 --sorted_result
 eval $query;
 
@@ -2308,8 +2310,10 @@ FROM f AS table1
        table2.col_int_unique = table5.col_int_key
   ON table1.pk = table3.col_int_unique;
 
---replace_regex /cost=\d+\.\d+\ rows=\d+//
-eval explain format=tree $query;
+# We do not explain this query as a slightly different query plan
+# might be generated on Windows and Mac.
+#--replace_regex /cost=\d+\.\d+\ rows=\d+//
+#eval explain format=tree $query;
 --sorted_result
 eval $query;
 
