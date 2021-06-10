@@ -606,8 +606,10 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   {
     jam();
     Uint32 cnt = 16; // 512k
+    // Need at least two pages when initializing encrypted REDO/TS/UNDO files
+    const Uint32 min_cnt = (fsOpenReq->fileFlags & FsOpenReq::OM_ENCRYPT) ? 2 : 1;
     Ptr<GlobalPage> page_ptr;
-    m_ctx.m_mm.alloc_pages(RT_NDBFS_INIT_FILE_PAGE, &page_ptr.i, &cnt, 1);
+    m_ctx.m_mm.alloc_pages(RT_NDBFS_INIT_FILE_PAGE, &page_ptr.i, &cnt, min_cnt);
     if(cnt == 0)
     {
       ndbrequire(!file->has_buffer());

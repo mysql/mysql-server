@@ -432,6 +432,7 @@ AsyncFile::openReq(Request * request)
      */
     Uint32 page_cnt =
         (!m_xfile.is_transformed()) ? m_page_cnt : (m_page_cnt - 1);
+    require(page_cnt > 0);
     while (off < file_data_size)
     {
       ndb_file::off_t size = 0;
@@ -499,6 +500,7 @@ AsyncFile::openReq(Request * request)
         m_file.close();
         goto remove_if_created;
       }
+      require(save_size > 0);
       off += save_size;
     }
     if (m_file.sync() == -1)
