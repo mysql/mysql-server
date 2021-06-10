@@ -287,7 +287,7 @@ AsyncFile::openReq(Request * request)
                           use_gz,
                           pwd,
                           pwd_len,
-                          ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT,
+                          (backup ? ndb_openssl_evp::DEFAULT_KDF_ITER_COUNT : 1),
                           key_cipher,
                           ((key_count == 1)
                           ? ndb_ndbxfrm1::key_selection_mode_same
