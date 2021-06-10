@@ -815,7 +815,7 @@ TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
     (void)b;
 
     connection_descriptor *failed_con =
-        (connection_descriptor *)malloc(sizeof(connection_descriptor *));
+        (connection_descriptor *)malloc(sizeof(connection_descriptor));
     failed_con->fd = -1;
 
     return failed_con;
@@ -826,7 +826,7 @@ TEST_F(XComControlTest, JoinTestSkipOwnNodeAndCycleThroughPeerNodes) {
     (void)b;
 
     connection_descriptor *failed_con =
-        (connection_descriptor *)malloc(sizeof(connection_descriptor *));
+        (connection_descriptor *)malloc(sizeof(connection_descriptor));
     failed_con->fd = 0;
 
     return failed_con;
@@ -881,7 +881,7 @@ TEST_F(XComControlTest, JoinTestAllPeersUnavailable) {
     (void)b;
 
     connection_descriptor *failed_con =
-        (connection_descriptor *)malloc(sizeof(connection_descriptor *));
+        (connection_descriptor *)malloc(sizeof(connection_descriptor));
     failed_con->fd = -1;
 
     return failed_con;
