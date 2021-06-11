@@ -530,58 +530,6 @@ bool Rpl_async_conn_failover_table_operations::read_managed_random_rows(
   return error;
 }
 
-std::tuple<bool, RPL_FAILOVER_SOURCE_TUPLE>
-Rpl_async_conn_failover_table_operations::read_source_random_rows_pos(
-    std::string pos) {
-  DBUG_TRACE;
-  RPL_FAILOVER_SOURCE_TUPLE source_detail{};
-
-  Rpl_sys_table_access table_op(m_db, m_table_failover,
-                                m_table_failover_num_field);
-  if (table_op.open(m_lock_type)) {
-    return std::make_tuple(true, source_detail);
-  }
-
-  TABLE *table = table_op.get_table();
-  Rpl_sys_key_access key_access;
-
-  if (!key_access.init(table, pos)) {
-    if (!key_access.next()) {
-      /* get source connection detail */
-      get_data<RPL_FAILOVER_SOURCE_TUPLE>(table_op, source_detail);
-    }
-  }
-
-  auto error = key_access.deinit() || table_op.close(false);
-  return std::make_tuple(error, source_detail);
-}
-
-std::tuple<bool, RPL_FAILOVER_MANAGED_JSON_TUPLE>
-Rpl_async_conn_failover_table_operations::read_managed_random_rows_pos(
-    std::string pos) {
-  DBUG_TRACE;
-  RPL_FAILOVER_MANAGED_JSON_TUPLE source_detail{};
-
-  Rpl_sys_table_access table_op(m_db, m_table_managed,
-                                m_table_managed_num_field);
-  if (table_op.open(m_lock_type)) {
-    return std::make_tuple(true, source_detail);
-  }
-
-  TABLE *table = table_op.get_table();
-  Rpl_sys_key_access key_access;
-
-  if (!key_access.init(table, pos)) {
-    if (!key_access.next()) {
-      /* get source connection detail */
-      get_data<RPL_FAILOVER_MANAGED_JSON_TUPLE>(table_op, source_detail);
-    }
-  }
-
-  auto error = key_access.deinit() || table_op.close(false);
-  return std::make_tuple(error, source_detail);
-}
-
 template <class TUP>
 void Rpl_async_conn_failover_table_operations::get_data(
     Rpl_sys_table_access &table_op, TUP &rows) {

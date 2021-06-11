@@ -178,6 +178,9 @@
   performance_schema tables changed in MySQL 8.0.27
   - WL#9852 added replication_group_members column
     MEMBER_COMMUNICATION_PROTOCOL_STACK
+  - Bug#32701593:'SELECT FROM
+    PS.REPLICATION_ASYNCHRONOUS_CONNECTION_FAILOVER' DIDN'T RETURN A RE
+
 */
 
 static const uint PFS_DD_VERSION = 80027;

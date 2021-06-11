@@ -397,40 +397,6 @@ class Rpl_async_conn_failover_table_operations {
   bool read_managed_random_rows(std::vector<RPL_FAILOVER_MANAGED_TUPLE> &rows);
 
   /**
-    Get the row at the position from the sources table using random scan
-    (ha_rnd_pos) to fetch the row.
-
-    @returns std::tuple<bool, Tuple> where each element has
-             following meaning:
-
-             first element of tuple is function return value and determines:
-               false  Successful
-               true   Error
-
-             second element of the tuple is list of return details based on
-             open table and template provided.
-  */
-  std::tuple<bool, RPL_FAILOVER_SOURCE_TUPLE> read_source_random_rows_pos(
-      std::string pos);
-
-  /**
-    Get the row at the position from the managed table using random scan
-    (ha_rnd_pos) to fetch the row.
-
-    @returns std::tuple<bool, Tuple> where each element has
-             following meaning:
-
-             first element of tuple is function return value and determines:
-               false  Successful
-               true   Error
-
-             second element of the tuple is list of return details based on
-             open table and template provided.
-  */
-  std::tuple<bool, RPL_FAILOVER_MANAGED_JSON_TUPLE>
-  read_managed_random_rows_pos(std::string pos);
-
-  /**
     Get stored data in table.
 
     @param[in]  table_op  Rpl_sys_table_access class object.
