@@ -557,6 +557,24 @@ class LogicalOrderings {
   // After PruneFDs() has run, maps from the old indexes to the new indexes.
   Bounds_checked_array<int> m_optimized_fd_mapping;
 
+  // The canonical order for two items in a grouping
+  // (after BuildEquivalenceClasses() has run; enforced by
+  // RecanonicalizeGroupings()). The reason why we sort by
+  // canonical_item first is so that switching out one element
+  // with an equivalent one (ie., applying an EQUIVALENCE
+  // functional dependency) does not change the order of the
+  // elements in the grouing, which could give false negatives
+  // in CouldBecomeInterestingOrdering().
+  inline bool ItemHandleBeforeInGroup(ItemHandle a, ItemHandle b) {
+    if (m_items[a].canonical_item != m_items[b].canonical_item)
+      return m_items[a].canonical_item < m_items[b].canonical_item;
+    return a < b;
+  }
+
+  inline bool ItemBeforeInGroup(const OrderElement &a, const OrderElement &b) {
+    return ItemHandleBeforeInGroup(a.item, b.item);
+  }
+
   // Helper for AddOrdering().
   int AddOrderingInternal(THD *thd, Ordering order, OrderingWithInfo::Type type,
                           bool used_at_end, table_map homogenize_tables);
@@ -573,6 +591,9 @@ class LogicalOrderings {
 
   // Populates ItemInfo::canonical_item.
   void BuildEquivalenceClasses();
+
+  // See comment in .cc file.
+  void RecanonicalizeGroupings();
 
   // See comment in .cc file.
   void AddFDsFromComputedItems(THD *thd);

@@ -22,6 +22,7 @@
 
 #include "sql/join_optimizer/interesting_orders.h"
 #include <algorithm>
+#include <functional>
 #include <type_traits>
 #include "sql/item.h"
 #include "sql/item_func.h"
@@ -29,6 +30,7 @@
 #include "sql/join_optimizer/print_utils.h"
 #include "sql/sql_class.h"
 
+using std::bind;
 using std::distance;
 using std::equal;
 using std::fill;
@@ -42,6 +44,8 @@ using std::string;
 using std::swap;
 using std::unique;
 using std::upper_bound;
+using std::placeholders::_1;
+using std::placeholders::_2;
 
 namespace {
 
@@ -196,6 +200,7 @@ int LogicalOrderings::AddFunctionalDependency(THD *thd,
 
 void LogicalOrderings::Build(THD *thd, string *trace) {
   BuildEquivalenceClasses();
+  RecanonicalizeGroupings();
   AddFDsFromComputedItems(thd);
   AddFDsFromConstItems(thd);
   PreReduceOrderings(thd);
@@ -436,6 +441,20 @@ void LogicalOrderings::BuildEquivalenceClasses() {
       done_anything = true;
     }
   } while (done_anything);
+}
+
+// Put all groupings into a canonical form that we can compare them
+// as orderings without further logic. (It needs to be on a form that
+// does not change markedly after applying equivalences, and it needs
+// to be deterministic, but apart from that, the order is pretty arbitrary.)
+// We can only do this after BuildEquivalenceClasses().
+void LogicalOrderings::RecanonicalizeGroupings() {
+  for (OrderingWithInfo &ordering : m_orderings) {
+    if (IsGrouping(ordering.ordering)) {
+      sort(ordering.ordering.begin(), ordering.ordering.end(),
+           bind(&LogicalOrderings::ItemBeforeInGroup, this, _1, _2));
+    }
+  }
 }
 
 /**
@@ -963,9 +982,7 @@ void LogicalOrderings::AddHomogenizedOrderingIfPossible(
   if (IsGrouping(reduced_ordering)) {
     // We've replaced some items, so we need to re-sort.
     sort(tmpbuf, tmpbuf + length,
-         [](const OrderElement &a, const OrderElement &b) {
-           return a.item < b.item;
-         });
+         bind(&LogicalOrderings::ItemBeforeInGroup, this, _1, _2));
   }
 
   AddOrderingInternal(thd, Ordering(tmpbuf, length),
@@ -1026,7 +1043,9 @@ bool LogicalOrderings::CouldBecomeInterestingOrdering(Ordering ordering) const {
       continue;
     }
 
-    // Since groupings are ordered by item, we can use the same comparison
+    // Since groupings are ordered by item (actually canonical item;
+    // see RecanonicalizeGroupings(), ItemBeforeInGroup() and
+    // the GroupReordering unit test), we can use the same comparison
     // for ordering-ordering and grouping-grouping comparisons.
     bool match = true;
     for (size_t i = 0, j = 0;
@@ -1265,9 +1284,7 @@ void LogicalOrderings::AddGroupingFromOrdering(THD *thd, int state_idx,
     }
   }
   sort(tmpbuf, tmpbuf + ordering.size(),
-       [](const OrderElement &a, const OrderElement &b) {
-         return a.item < b.item;
-       });
+       bind(&LogicalOrderings::ItemBeforeInGroup, this, _1, _2));
   AddEdge(thd, state_idx, /*required_fd_idx=*/0,
           Ordering(tmpbuf, ordering.size()));
 }
@@ -1283,18 +1300,20 @@ void LogicalOrderings::TryAddingOrderWithElementInserted(
   for (size_t add_pos = start_point; add_pos <= old_ordering.size();
        ++add_pos) {
     if (direction == ORDER_NOT_RELEVANT) {
-      // For groupings, we just deduplicate right away.
-      if (add_pos < old_ordering.size() &&
-          old_ordering[add_pos].item == item_to_add) {
-        break;
-      }
-
       // For groupings, only insert in the sorted sequence.
       // (If we have found the right insertion spot, we immediately
       // exit after this at the end of the loop.)
       if (add_pos < old_ordering.size() &&
-          old_ordering[add_pos].item < item_to_add) {
+          ItemHandleBeforeInGroup(old_ordering[add_pos].item, item_to_add)) {
         continue;
+      }
+
+      // For groupings, we just deduplicate right away.
+      // TODO(sgunders): When we get C++20, use operator<=> so that we
+      // can use a == b here instead of !(a < b) && !(b < a) as we do now.
+      if (add_pos < old_ordering.size() &&
+          !ItemHandleBeforeInGroup(item_to_add, old_ordering[add_pos].item)) {
+        break;
       }
     }
 
