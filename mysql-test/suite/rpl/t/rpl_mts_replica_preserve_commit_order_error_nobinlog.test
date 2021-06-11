@@ -13,7 +13,7 @@ CALL mtr.add_suppression("Slave worker has stopped since one or more of the
   previous worker(s) have encountered an error and replica-preserve-commit-order
   is enabled.*");
 
---let $debug_point=set_commit_parent_100
+--let $debug_point= set_commit_parent_100
 --source include/add_debug_point.inc
 
 CREATE TABLE t_w1 (c1 int PRIMARY KEY) ENGINE = InnoDB;
@@ -52,7 +52,10 @@ INSERT INTO t_w3 VALUES(4);
 COMMIT;
 
 INSERT INTO t_w4 VALUES(1);
-SET GLOBAL debug = @save_debug;
+
+--let $debug_point= set_commit_parent_100
+--source include/remove_debug_point.inc
+
 --source include/save_master_pos.inc
 --source include/rpl_connection_slave.inc
 

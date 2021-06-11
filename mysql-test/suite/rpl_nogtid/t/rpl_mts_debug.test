@@ -39,7 +39,7 @@ ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
 # one in binlog as a warmup.
 INSERT INTO db_1.test_1 VALUES(0);
 --source include/sync_slave_sql_with_master.inc
-SET GLOBAL debug="d,mta_debug_concurrent_access";
+SET GLOBAL debug="+d,mta_debug_concurrent_access";
 
 --connection master
 BEGIN;
@@ -88,7 +88,7 @@ set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 # set @@global.replica_checkpoint_group= 524280 + 1;
 
 set @save.debug= @@global.debug;
-SET @@global.debug= "d,mta_worker_thread_fails";
+SET @@global.debug= "+d,mta_worker_thread_fails";
 set @@global.replica_parallel_workers= 2;
 
 start slave sql_thread;
@@ -155,7 +155,7 @@ SET @@global.replica_checkpoint_group=524281;
 
 --source include/stop_slave.inc
 --let $saved_debug=`SELECT @global.debug`
-SET @@global.debug= "d,inject_init_worker_init_info_fault";
+SET @@global.debug= "+d,inject_init_worker_init_info_fault";
 START SLAVE SQL_THREAD;
 --let $slave_sql_errno=13117
 --source include/wait_for_slave_sql_error.inc
@@ -182,7 +182,7 @@ set @@global.replica_parallel_workers= 2;
 --source include/start_slave.inc
 --source include/stop_slave.inc
 
-set @@global.debug= "d,mta_debug_reset_workers_fails";
+set @@global.debug= "+d,mta_debug_reset_workers_fails";
 
 let $relay_file = query_get_value( SHOW SLAVE STATUS, Relay_Log_File, 1 );
 let $relay_pos = query_get_value( SHOW SLAVE STATUS, Relay_Log_Pos, 1 );
@@ -192,7 +192,8 @@ eval CHANGE REPLICATION SOURCE to relay_log_file='$relay_file', relay_log_pos=$r
 
 ## Relay_log_info::reset_workers_recovered() error branch
 
-set @@global.debug= "d,mta_debug_recovery_reset_fails";
+set @@global.debug= "-d,mta_debug_reset_workers_fails";
+set @@global.debug= "+d,mta_debug_recovery_reset_fails";
 start slave sql_thread;
 # ER_SLAVE_FATAL_ERROR
 --let $slave_sql_errno=13117
@@ -210,14 +211,14 @@ set @@global.replica_parallel_workers= 2;
 
 call mtr.add_suppression("Error creating relay log info: Failed to initialize the worker info structure.");
 
-set @@global.debug= "d,mta_replica_worker_init_at_gaps_fails";
+set @@global.debug= "+d,mta_replica_worker_init_at_gaps_fails";
 --error ER_MASTER_INFO
 start slave sql_thread;
 
 #
 # clean up
 #
-SET @@global.debug= "";
+set @@global.debug= "-d,mta_replica_worker_init_at_gaps_fails";
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 
 --source include/start_slave.inc

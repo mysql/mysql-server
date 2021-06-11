@@ -15,7 +15,7 @@ CALL mtr.add_suppression("Slave worker has stopped since one or more of the
   is enabled.*");
 
 SET @save_debug = @@GLOBAL.debug;
-SET GLOBAL debug = "d,set_commit_parent_100";
+SET GLOBAL debug = "+d,set_commit_parent_100";
 
 CREATE TABLE t_w1 (c1 int PRIMARY KEY) ENGINE = InnoDB;
 CREATE TABLE t_w2 (c1 int PRIMARY KEY) ENGINE = InnoDB;

@@ -133,7 +133,7 @@ SELECT name, type, processlist_state FROM performance_schema.threads
 --echo #
 
 SET @save_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_simulate_select_error';
+SET GLOBAL debug = '+d,rpl_semisync_simulate_select_error';
 
 # wait enough time to guarantee that select() timeout happens
 --sleep 2
@@ -188,7 +188,7 @@ SET GLOBAL rpl_semi_sync_source_trace_level = 255;
 --echo #
 --echo # Failure on creating ack receiver thread
 --echo #
-SET GLOBAL debug = 'd,rpl_semisync_simulate_create_thread_failure';
+SET GLOBAL debug = '+d,rpl_semisync_simulate_create_thread_failure';
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 
 --let $assert_variable_name= rpl_semi_sync_source_enabled
@@ -206,7 +206,7 @@ SET GLOBAL rpl_semi_sync_source_enabled= ON;
 SET GLOBAL debug= @save_debug;
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 
-SET GLOBAL debug = 'd,rpl_semisync_simulate_thread_join_failure';
+SET GLOBAL debug= '+d,rpl_semisync_simulate_thread_join_failure';
 SET GLOBAL rpl_semi_sync_source_enabled= OFF;
 
 --let $assert_variable_name= rpl_semi_sync_source_enabled
@@ -220,7 +220,8 @@ SET GLOBAL rpl_semi_sync_source_enabled= OFF;
 --echo #
 --echo # Failure on registering semisync slave
 --echo #
-SET GLOBAL debug= 'd,rpl_semisync_simulate_add_replica_failure';
+SET GLOBAL debug= '-d,rpl_semisync_simulate_thread_join_failure';
+SET GLOBAL debug= '+d,rpl_semisync_simulate_add_replica_failure';
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 
 --let $rpl_connection_name= server_2
@@ -233,7 +234,7 @@ CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 1, SOURCE_CONNECT_RETRY = 5;
 # Make IO thread hungs after connecting to master. So we can make sure it is
 # stopped by add_slave_failure
 SET @save_debug= @@GLOBAL.debug;
-SET GLOBAL debug= 'd,dbug.before_get_SOURCE_UUID';
+SET GLOBAL debug= '+d,dbug.before_get_SOURCE_UUID';
 --source include/install_semisync_replica.inc
 
 # Clear the debug point and signal IO thread to resume

@@ -29,8 +29,8 @@ INSERT INTO t1 VALUES(1, 1);
 # make sure there are no zombie threads
 --source include/stop_dump_threads.inc
 
-let $debug_save= `SELECT @@GLOBAL.debug`;
-SET GLOBAL debug= 'd,dump_thread_wait_before_send_xid';
+--let $debug_point= dump_thread_wait_before_send_xid
+--source include/add_debug_point.inc
 
 --source include/rpl_connection_slave.inc
 --source include/start_slave.inc
@@ -79,7 +79,10 @@ reap;
 # sure that we disable the DBUG_EXECUTE_IF
 # that would set the dump thread to wait
 --source include/rpl_connection_master.inc
-SET GLOBAL debug= $debug_save;
+
+--let $debug_point= dump_thread_wait_before_send_xid
+--source include/remove_debug_point.inc
+
 # make sure that there are no zombie threads
 --source include/stop_dump_threads.inc
 

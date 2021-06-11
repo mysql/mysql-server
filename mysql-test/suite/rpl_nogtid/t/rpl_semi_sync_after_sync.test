@@ -33,7 +33,7 @@ eval SET GLOBAL binlog_order_commits= $saved_binlog_order_commits;
 --echo # For coverage test, simulate after_sync hook error
 --echo #
 SET @saved_debug= @@GLOBAL.debug;
-SET GLOBAL debug='d,simulate_after_sync_hook_error';
+SET GLOBAL debug='+d,simulate_after_sync_hook_error';
 INSERT INTO t1 VALUES(1);
 SELECT * FROM t1;
 SET GLOBAL debug= @saved_debug;

@@ -35,7 +35,7 @@
 #         protocol).
 --source include/rpl_connection_slave.inc
 SET @save_debug = @@GLOBAL.debug;
-SET GLOBAL debug="d,fake_5_5_version_replica";
+SET GLOBAL debug="+d,fake_5_5_version_replica";
 
 # Step-2) Start IO thread on Slave which will start a dump thread on Master.
 --source include/start_slave_io.inc

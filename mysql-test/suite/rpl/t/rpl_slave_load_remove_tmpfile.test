@@ -27,8 +27,9 @@
 ##########################################################################
 
 connection slave;
---let $old_debug= `SELECT @@GLOBAL.DEBUG`
-SET @@GLOBAL.DEBUG = '+d,remove_replica_load_file_before_write';
+
+--let $debug_point= remove_replica_load_file_before_write
+--source include/add_debug_point.inc
 
 connection master;
 
@@ -80,7 +81,8 @@ call mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 
 --let $rpl_only_running_threads= 1
 
-eval SET @@GLOBAL.DEBUG = '$old_debug';
+--let $debug_point= remove_replica_load_file_before_write
+--source include/remove_debug_point.inc
 
 --source include/rpl_end.inc
 

@@ -6,7 +6,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection slave]
 include/start_slave_io.inc
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG= "d,stop_io_after_reading_write_rows_log_event";
+SET GLOBAL DEBUG= "+d,stop_io_after_reading_write_rows_log_event";
 [connection master]
 CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 BEGIN;
@@ -16,7 +16,6 @@ COMMIT;
 include/wait_for_slave_io_to_stop.inc
 # Kill and restart
 include/rpl_reconnect.inc
-SET GLOBAL DEBUG= @save_debug;
 include/start_slave.inc
 [connection master]
 include/sync_slave_io_with_master.inc

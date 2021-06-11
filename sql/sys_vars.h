@@ -1275,12 +1275,12 @@ class Sys_var_dbug : public sys_var {
   }
   const uchar *session_value_ptr(THD *running_thd, THD *,
                                  LEX_STRING *) override {
-    char buf[256];
+    char buf[512];
     DBUG_EXPLAIN(buf, sizeof(buf));
     return (uchar *)running_thd->mem_strdup(buf);
   }
   const uchar *global_value_ptr(THD *thd, LEX_STRING *) override {
-    char buf[256];
+    char buf[512];
     DBUG_EXPLAIN_INITIAL(buf, sizeof(buf));
     return (uchar *)thd->mem_strdup(buf);
   }

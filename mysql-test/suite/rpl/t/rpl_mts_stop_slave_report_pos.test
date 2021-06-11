@@ -94,7 +94,7 @@ COMMIT;
 # Debug simulation which will ensure that SLAVE STOPS as a regular exit
 # without an error. This ensures we have the same scenario as that of the bug
 # report.
-SET global debug="d,simulate_stop_when_mta_in_group";
+SET global debug="+d,simulate_stop_when_mta_in_group";
 --source include/start_slave_io.inc
 
 --source include/wait_for_slave_sql_to_stop.inc

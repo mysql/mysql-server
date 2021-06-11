@@ -26,8 +26,7 @@ include/assert.inc ['Asynchronous Replication Connection Failover is disabled']
 #    count and retry time to 2 and verify its enabled in
 #    performance_schema.replication_connection_configuration.
 #
-SET @debug_saved= @@GLOBAL.DEBUG;
-SET GLOBAL debug = '+d,async_conn_failover_disable_weight_check';
+# Adding debug point 'async_conn_failover_disable_weight_check' to @@GLOBAL.debug
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_CONNECT_RETRY=1, SOURCE_RETRY_COUNT=2, SOURCE_CONNECTION_AUTO_FAILOVER=1;
 include/start_slave.inc
@@ -47,7 +46,7 @@ include/assert.inc ['There are three rows in performance_schema.replication_asyn
 #    Reconnect to server 2 and start replica on it.
 #
 include/rpl_start_server.inc [server_number=2]
-SET GLOBAL debug = '+d,async_conn_failover_crash';
+# Adding debug point 'async_conn_failover_crash' to @@GLOBAL.debug
 include/rpl_stop_server.inc [server_number=1]
 include/rpl_reconnect.inc
 include/start_slave.inc
@@ -61,7 +60,6 @@ include/assert_grep.inc [Assert that the IO thread tried five times connecting t
 # 7. Clean up
 #
 [connection server_2]
-SET @@GLOBAL.DEBUG= @debug_saved;
 include/stop_slave.inc
 include/rpl_reset_slave.inc
 SELECT asynchronous_connection_failover_delete_source('', '127.0.0.1', SERVER_MYPORT_3, '');;

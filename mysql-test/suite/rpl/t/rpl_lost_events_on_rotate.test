@@ -24,7 +24,7 @@ CREATE TABLE t (i INT);
 
 # When reaching the EOF the dump thread will wait before deciding if
 # it should move to a new binlong file.
-SET GLOBAL DEBUG= "d,wait_after_binlog_EOF";
+SET GLOBAL DEBUG= "+d,wait_after_binlog_EOF";
 
 INSERT INTO t VALUES (1);
 

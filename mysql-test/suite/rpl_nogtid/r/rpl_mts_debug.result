@@ -17,7 +17,7 @@ ALTER TABLE mysql.slave_worker_info ENGINE= Innodb;
 include/start_slave.inc
 INSERT INTO db_1.test_1 VALUES(0);
 include/sync_slave_sql_with_master.inc
-SET GLOBAL debug="d,mta_debug_concurrent_access";
+SET GLOBAL debug="+d,mta_debug_concurrent_access";
 BEGIN;
 INSERT INTO db_1.test_1 VALUES(1);
 BEGIN;
@@ -38,7 +38,7 @@ include/stop_slave.inc
 set @save.replica_checkpoint_group= @@global.replica_checkpoint_group;
 set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @save.debug= @@global.debug;
-SET @@global.debug= "d,mta_worker_thread_fails";
+SET @@global.debug= "+d,mta_worker_thread_fails";
 set @@global.replica_parallel_workers= 2;
 start slave sql_thread;
 Warnings:
@@ -66,7 +66,7 @@ include/assert.inc [Assert that replica_checkpoint_group was truncated to a vali
 include/check_slave_is_running.inc
 include/rpl_reset.inc
 include/stop_slave.inc
-SET @@global.debug= "d,inject_init_worker_init_info_fault";
+SET @@global.debug= "+d,inject_init_worker_init_info_fault";
 START SLAVE SQL_THREAD;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -82,10 +82,11 @@ set @save.replica_parallel_workers= @@global.replica_parallel_workers;
 set @@global.replica_parallel_workers= 2;
 include/start_slave.inc
 include/stop_slave.inc
-set @@global.debug= "d,mta_debug_reset_workers_fails";
+set @@global.debug= "+d,mta_debug_reset_workers_fails";
 CHANGE REPLICATION SOURCE to RELAY_LOG_FILE=FILE,  RELAY_LOG_POS= POS;
 ERROR HY000: Cannot clean up worker info tables. Additional error messages can be found in the MySQL error log.
-set @@global.debug= "d,mta_debug_recovery_reset_fails";
+set @@global.debug= "-d,mta_debug_reset_workers_fails";
+set @@global.debug= "+d,mta_debug_recovery_reset_fails";
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -95,10 +96,10 @@ set @@global.replica_parallel_workers= 2;
 include/start_slave.inc
 include/stop_slave.inc
 call mtr.add_suppression("Error creating relay log info: Failed to initialize the worker info structure.");
-set @@global.debug= "d,mta_replica_worker_init_at_gaps_fails";
+set @@global.debug= "+d,mta_replica_worker_init_at_gaps_fails";
 start slave sql_thread;
 ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
-SET @@global.debug= "";
+set @@global.debug= "-d,mta_replica_worker_init_at_gaps_fails";
 set @@global.replica_parallel_workers= @save.replica_parallel_workers;
 include/start_slave.inc
 include/rpl_reset.inc

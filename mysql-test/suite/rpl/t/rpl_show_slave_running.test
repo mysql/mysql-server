@@ -12,8 +12,9 @@ connection slave;
 
 SET DEBUG_SYNC= 'RESET';
 source include/stop_slave.inc;
-let $debug_saved= `select @@global.debug`;
-set global debug= 'd,dbug.before_get_running_status_yes'; # to block due-started IO
+
+--let $debug_point= dbug.before_get_running_status_yes
+--source include/add_debug_point.inc
 
 # Test 1. Slave is stopped
 
@@ -70,7 +71,8 @@ connection master;
 # sync and waiting.
 --source include/sync_slave_sql_with_master.inc
 
-eval set global debug= '$debug_saved';
+--let $debug_point= dbug.before_get_running_status_yes
+--source include/remove_debug_point.inc
 
 SET DEBUG_SYNC= 'RESET';
 --echo End of tests

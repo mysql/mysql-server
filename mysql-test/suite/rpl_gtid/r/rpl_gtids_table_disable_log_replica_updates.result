@@ -3,7 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
-SET @@GLOBAL.DEBUG= '+d, dont_compress_gtid_table';
+# Adding debug point 'dont_compress_gtid_table' to @@GLOBAL.debug
 CREATE TABLE IF NOT EXISTS t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(1);
@@ -128,7 +128,7 @@ INSERT INTO t1 VALUES (57);;
 INSERT INTO t1 VALUES (58);;
 INSERT INTO t1 VALUES (59);;
 COMMIT;
-SET GLOBAL DEBUG= @debug_save;
+# Removing debug point 'dont_compress_gtid_table' from @@GLOBAL.debug
 SET GLOBAL MAX_BINLOG_SIZE=@SIZE_DEFAULT;
 SELECT * FROM mysql.gtid_executed where source_uuid="MASTER_UUID";
 source_uuid	interval_start	interval_end

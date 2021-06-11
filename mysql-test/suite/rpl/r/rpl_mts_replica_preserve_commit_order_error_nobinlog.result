@@ -37,7 +37,7 @@ INSERT INTO t_w3 VALUES(3);
 INSERT INTO t_w3 VALUES(4);
 COMMIT;
 INSERT INTO t_w4 VALUES(1);
-SET GLOBAL debug = @save_debug;
+# Removing debug point 'set_commit_parent_100' from @@GLOBAL.debug
 include/save_master_pos.inc
 [connection slave]
 UNLOCK TABLES;

@@ -161,7 +161,6 @@ if (!$skip_case)
     --let $debug_point= $master_debug_symbol
     --let $debug_type= SESSION
     --source include/add_debug_point.inc
-    SELECT @@SESSION.DEBUG;
   }
   if ($use_mysqlbinlog) {
     --source include/save_binlog_position.inc

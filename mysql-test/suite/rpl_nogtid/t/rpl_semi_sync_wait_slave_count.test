@@ -124,7 +124,7 @@ INSERT INTO t1 VALUES(103);
 --let $rpl_connection_name= server_4
 --source include/rpl_connection.inc
 SET @original_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
+SET GLOBAL debug = '+d,rpl_semisync_before_send_ack';
 
 --let $rpl_connection_name= default
 --source include/rpl_connection.inc
@@ -194,7 +194,7 @@ SET DEBUG_SYNC = 'now SIGNAL continue';
 --let $wait_condition= SELECT count(*) FROM t1 WHERE c1 = 130;
 --source include/wait_condition.inc
 SET @original_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
+SET GLOBAL debug = '+d,rpl_semisync_before_send_ack';
 
 --let $rpl_connection_name= server_3
 --source include/rpl_connection.inc
@@ -203,7 +203,7 @@ SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
 --let $wait_condition= SELECT count(*) FROM t1 WHERE c1 = 130;
 --source include/wait_condition.inc
 SET @original_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
+SET GLOBAL debug = '+d,rpl_semisync_before_send_ack';
 
 --let $rpl_connection_name= default
 --source include/rpl_connection.inc
@@ -274,7 +274,7 @@ INSERT INTO t1 VALUES(109);
 --echo # setting rpl_semi_sync_source_wait_for_replica_count fails
 --echo ######################################################################
 SET @original_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_simulate_allocate_ack_container_failure';
+SET GLOBAL debug = '+d,rpl_semisync_simulate_allocate_ack_container_failure';
 
 SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 2;
 --let $assert_variable_name= rpl_semi_sync_source_wait_for_replica_count
