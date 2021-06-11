@@ -174,14 +174,14 @@ IF(SOLARIS)
   TARGET_LINK_LIBRARIES(harness-archive -lnsl -lsocket)
 ENDIF()
 
-IF(NOT WIN32)
-  SET_TARGET_PROPERTIES(harness-archive harness-library PROPERTIES
-    OUTPUT_NAME "mysqlharness"
+IF(WIN32)
+  SET_TARGET_PROPERTIES(harness-archive PROPERTIES
+    OUTPUT_NAME "mysqlharness_a"
     PREFIX "lib"
     SOVERSION 1)
 ELSE()
-  SET_TARGET_PROPERTIES(harness-archive PROPERTIES
-    OUTPUT_NAME "mysqlharness_a"
+  SET_TARGET_PROPERTIES(harness-archive harness-library PROPERTIES
+    OUTPUT_NAME "mysqlharness"
     PREFIX "lib"
     SOVERSION 1)
 ENDIF()
@@ -201,16 +201,16 @@ ENDIF()
 ADD_INSTALL_RPATH_FOR_OPENSSL(harness-library)
 SET_PATH_TO_CUSTOM_SSL_FOR_APPLE(harness-library)
 
-IF(NOT WIN32)
+IF(WIN32)
+  INSTALL(TARGETS harness-library
+    RUNTIME DESTINATION "${ROUTER_INSTALL_BINDIR}"
+    COMPONENT Router)
+ELSE()
   INSTALL(TARGETS harness-library
     LIBRARY
     DESTINATION ${ROUTER_INSTALL_LIBDIR} COMPONENT Router
     NAMELINK_SKIP
     )
-ELSE()
-  INSTALL(TARGETS harness-library
-    RUNTIME DESTINATION "${ROUTER_INSTALL_BINDIR}"
-    COMPONENT Router)
 ENDIF()
 
 ADD_LIBRARY(harness_stdx SHARED
