@@ -25,10 +25,6 @@ ADD_WSHADOW_WARNING()
 SET(MY_TIME_SOURCES my_time.cc my_systime.cc)
 
 ADD_CONVENIENCE_LIBRARY(mytime ${MY_TIME_SOURCES})
-IF(SOLARIS_INTEL AND MY_COMPILER_IS_SUNPRO)
-  # Sun Studio 12.6 generates code that segfaults for std::chrono stuff.
-  TARGET_COMPILE_OPTIONS(mytime_objlib PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO1>)
-ENDIF()
 
 SET(MYSYS_SOURCES
   array.cc
@@ -168,12 +164,6 @@ ENDIF()
 
 IF(HAVE_GETPWNAM)
   SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_getpwnam.cc)
-ENDIF()
-
-IF(SOLARIS AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
-  # Inline assembly template for rdtsc
-  SET_SOURCE_FILES_PROPERTIES(my_rdtsc.cc
-    PROPERTIES COMPILE_FLAGS "${CMAKE_CURRENT_SOURCE_DIR}/my_timer_cycles.il")
 ENDIF()
 
 IF(HAVE_LINUX_LARGE_PAGES)

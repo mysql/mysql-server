@@ -33,7 +33,6 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
     ENABLE_EXPORTS
     EXCLUDE_FROM_ALL   # add target, but do not build it by default
     EXCLUDE_FROM_PGO   # add target, but do not build for PGO
-    EXCLUDE_ON_SOLARIS # do not build by default on Solaris
     SKIP_INSTALL       # do not install it
     )
   SET(EXECUTABLE_ONE_VALUE_KW
@@ -93,14 +92,6 @@ FUNCTION(MYSQL_ADD_EXECUTABLE target_arg)
       SET(ARG_SKIP_INSTALL TRUE)
       UNSET(ARG_ADD_TEST)
     ENDIF()
-  ENDIF()
-
-  IF(SOLARIS AND ARG_EXCLUDE_ON_SOLARIS)
-    MESSAGE(WARNING
-      "Likely link failure for this compiler, skipping target ${target}")
-    SET(ARG_EXCLUDE_FROM_ALL TRUE)
-    SET(ARG_SKIP_INSTALL TRUE)
-    UNSET(ARG_ADD_TEST)
   ENDIF()
 
   IF(ARG_ENABLE_EXPORTS)

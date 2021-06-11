@@ -111,15 +111,6 @@ NDB_ADD_TEST("ndb_blobs_buffer-t" "plugin/ndb_blobs_buffer.cc" LIBS ndbgeneral)
 # Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
-IF(SOLARIS_INTEL)
-  # Sun Studio 12.6 on x86 machines creates a bogus code
-  # when -xO2 is used and crashes the executable whenever
-  # it calls std::condition_variable::wait_for()
-  STRING_APPEND(CMAKE_CXX_FLAGS_RELWITHDEBINFO " -xO1")
-  STRING_APPEND(CMAKE_CXX_FLAGS_RELEASE " -xO1")
-  STRING_APPEND(CMAKE_CXX_FLAGS_MINSIZEREL " -xO1")
-ENDIF()
-
 IF(NOT WITHOUT_SERVER)
   MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
     DEFAULT STATIC_ONLY

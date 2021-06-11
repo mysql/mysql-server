@@ -273,17 +273,6 @@ MYSQL_ADD_PLUGIN(innobase
   LINK_LIBRARIES sql_dd sql_gis ${ZLIB_LIBRARY} ${LZ4_LIBRARY} ${NUMA_LIBRARY})
 
 
-# Avoid generating Hardware Capabilities due to crc32 instructions
-IF(SOLARIS_INTEL)
-  MY_CHECK_CXX_COMPILER_FLAG("-Wa,-nH" HAVE_WA_NH)
-  IF(HAVE_WA_NH)
-    ADD_COMPILE_FLAGS(
-      ut/crc32.cc
-      COMPILE_FLAGS "-Wa,-nH"
-    )
-  ENDIF()
-ENDIF()
-
 # On linux: /usr/include/stdio.h:#define BUFSIZ 8192
 # On Solaris: /usr/include/iso/stdio_iso.h:#define    BUFSIZ  1024
 IF(SOLARIS AND MY_COMPILER_IS_GNU)

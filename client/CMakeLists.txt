@@ -49,14 +49,6 @@ IF(NOT WITHOUT_SERVER)
     )
 ENDIF()
 
-# Enable inlining, to avoid stack overflow for some long regular expressions.
-IF(SOLARIS_SPARC AND MY_COMPILER_IS_SUNPRO AND
-    CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
-  ADD_COMPILE_FLAGS(mysqltest/regular_expressions.cc
-    COMPILE_FLAGS "-xO3"
-    )
-ENDIF()
-
 MYSQL_ADD_EXECUTABLE(mysqltest
   mysqltest.cc
   mysqltest/error_names.cc

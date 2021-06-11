@@ -1722,18 +1722,6 @@ ADD_SUBDIRECTORY(libbinlogevents)
 ADD_SUBDIRECTORY(libbinlogstandalone)
 
 IF(NOT WITHOUT_SERVER)
-  # Build failure on Solaris 11.3 for debug builds with NDBCLUSTER.
-  # Adding basic local optimizations unbreaks it.
-  # We *could* test 'uname -v' VERSION_LESS 11.4 here.
-  # A clean build takes roughly the same time with or without -xO1
-  # Link time of mysqld is roughly 10% faster with -xO1.
-  IF(SOLARIS_SPARC AND MY_COMPILER_IS_SUNPRO AND
-      CMAKE_BUILD_TYPE_UPPER STREQUAL "DEBUG")
-    MESSAGE(STATUS
-      "Adding -xO1 for debug builds on Solaris ${MY_KERNEL_VERSION}")
-    STRING_APPEND(CMAKE_CXX_FLAGS_DEBUG " -xO1")
-  ENDIF()
-
   IF(WITH_UNIT_TESTS)
     IF(WIN32)
       SET(WITH_SHARED_UNITTEST_LIBRARY_DEFAULT OFF)

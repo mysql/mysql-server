@@ -794,13 +794,6 @@ IF(WIN32)
       )
 ENDIF()
 
-# Segfault in boost::geometry code at high optimization levels
-IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
-  IF(CMAKE_BUILD_TYPE_UPPER MATCHES "REL")
-    ADD_COMPILE_FLAGS(item_geofunc_buffer.cc COMPILE_FLAGS "-xO2")
-  ENDIF()
-ENDIF()
-
 ADD_COMPILE_DEFINITIONS(
   ${BUNDLED_LZ4_PATH}/xxhash.c
   COMPILE_DEFINITIONS XXH_NAMESPACE=MY_
@@ -902,28 +895,6 @@ IF(COMPRESS_DEBUG_SECTIONS)
   IF(HAVE_COMPRESS_GZ_OPTION)
     TARGET_COMPILE_OPTIONS(sql_gis PRIVATE -gz)
   ENDIF()
-ENDIF()
-
-# A class with a reference member lacks a user-defined constructor,
-# which can lead to errors.
-# Constexpr function return type is not a literal type.
-IF(MY_COMPILER_IS_SUNPRO)
-  SET_TARGET_PROPERTIES(sql_gis PROPERTIES
-    COMPILE_FLAGS "-erroff=refmemnoconstr,w_constexprnonlitret")
-  ADD_COMPILE_FLAGS(
-    item_geofunc_setops.cc
-    COMPILE_FLAGS "-erroff=refmemnoconstr")
-ENDIF()
-
-# -g0 is the same as -g, except that inlining is enabled.
-# With Studio 12.6 we may get linking errors for large binaries,
-# so we add -g0 here to enable inlining of boost/geometry.
-# This also cuts link time by almost one hour for large binaries ....
-IF(MY_COMPILER_IS_SUNPRO)
-  ADD_COMPILE_FLAGS(
-    ${SQL_GIS_SOURCES}
-    sql_exception_handler.cc
-    COMPILE_FLAGS " -g0 -xdebuginfo=no%decl")
 ENDIF()
 
 ADD_LIBRARY(sql_dd STATIC ${DD_SOURCES})
@@ -1193,19 +1164,12 @@ IF(WITH_AUTHENTICATION_LDAP AND LINK_MYSQLD_LDAP_LIBRARY)
   TARGET_LINK_LIBRARIES(mysqld ${LDAP_LIBRARY})
 ENDIF()
 
+IF(SOLARIS)
+  TARGET_LINK_LIBRARIES(mysqld mtmalloc)
+ENDIF()
+
 # Remove transitive link dependencies when linking plugins
 SET_TARGET_PROPERTIES(mysqld PROPERTIES INTERFACE_LINK_LIBRARIES "")
-
-SET(WITH_MYSQLD_LDFLAGS "" CACHE STRING "Additional linker flags for mysqld")
-MARK_AS_ADVANCED(WITH_MYSQLD_LDFLAGS)
-IF(WITH_MYSQLD_LDFLAGS)
-  GET_TARGET_PROPERTY(MYSQLD_LINK_FLAGS mysqld LINK_FLAGS)
-  IF(NOT MYSQLD_LINK_FLAGS)
-    SET(MYSQLD_LINK_FLAGS)
-  ENDIF()
-  SET_TARGET_PROPERTIES(mysqld PROPERTIES LINK_FLAGS
-     "${MYSQLD_LINK_FLAGS} ${WITH_MYSQLD_LDFLAGS}")
-ENDIF()
 
 # See DEBUG_EXTNAME above: mysqld may already have name mysqld-debug,
 # and the rename is a no-op. If it is called 'mysqld' we rename it.

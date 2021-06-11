@@ -83,10 +83,6 @@ SET(GCS_XCOM_TESTS
   xcom/gcs_xcom_network_provider_manager
 )
 
-IF(SOLARIS)
-  LIST(REMOVE_ITEM GCS_XCOM_TESTS gcs_xcom_network_provider)
-ENDIF()
-
 ###
 ### Configure the tests and add target
 ###

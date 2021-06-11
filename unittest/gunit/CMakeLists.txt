@@ -81,21 +81,6 @@ ADD_LIBRARY(gunit_small STATIC
 SET_TARGET_PROPERTIES(gunit_small
   PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
 )
-IF(MY_COMPILER_IS_SUNPRO)
-  TARGET_COMPILE_OPTIONS(gunit_small PRIVATE $<$<CONFIG:RelWithDebInfo>:-xO4>)
-  # Segfaults in EXPECT_EQ(TYPE_OK, set_field_to_null(field));
-  # unless we switch off optimization.
-  ADD_COMPILE_FLAGS(item_json_func-t.cc COMPILE_FLAGS "-xO0")
-ENDIF()
-
-# Several "small" unit tests got 'missing symbol client_errors'
-# When building with Sun Studio
-ADD_LIBRARY(libmysql_errmsg STATIC
-  ${CMAKE_SOURCE_DIR}/libmysql/errmsg.cc
-)
-SET_TARGET_PROPERTIES(libmysql_errmsg
-  PROPERTIES COMPILE_DEFINITIONS "${DISABLE_PSI_DEFINITIONS}"
-)
 
 ADD_LIBRARY(gunit_large STATIC
   benchmark.cc
@@ -105,11 +90,8 @@ ADD_LIBRARY(gunit_large STATIC
 )
 ADD_DEPENDENCIES(gunit_small GenError)
 ADD_DEPENDENCIES(gunit_large GenError)
-TARGET_LINK_LIBRARIES(gunit_small
-  mysys strings ${GTEST_LIBRARIES} libmysql_errmsg)
-TARGET_LINK_LIBRARIES(gunit_large
-  mysys strings ${GTEST_LIBRARIES})
-MESSAGE(STATUS "GTEST_LIBRARIES:${GTEST_LIBRARIES}")
+TARGET_LINK_LIBRARIES(gunit_small mysys strings ${GTEST_LIBRARIES})
+TARGET_LINK_LIBRARIES(gunit_large mysys strings ${GTEST_LIBRARIES})
 
 IF(WIN32)
   ## Create an object library of nt_servc.cc, so we don't have to

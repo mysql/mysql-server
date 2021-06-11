@@ -80,10 +80,6 @@ SET(test_files
   test_setup_named_socket_service.cc
   test_setup_tcp_service.cc
   )
-# This compiler fails to handle some of the mock functions involved.
-IF(MY_COMPILER_IS_SUNPRO)
-  LIST(REMOVE_ITEM test_files test_connection.cc)
-ENDIF()
 
 FOREACH(test_file ${test_files})
   add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}

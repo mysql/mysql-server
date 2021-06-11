@@ -36,10 +36,6 @@ SET(TESTS
   test_mysqlrouter_app.cc
   test_mysqlrouter_utils.cc
   )
-# This compiler fails to handle some of the mock functions involved.
-IF(MY_COMPILER_IS_SUNPRO)
-  LIST(REMOVE_ITEM TESTS test_mysqlrouter_app.cc)
-ENDIF()
 
 FOREACH(TEST_FILE ${TESTS})
   ADD_TEST_FILE(${TEST_FILE}

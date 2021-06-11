@@ -34,10 +34,6 @@ SET(TESTS
   group_replication_gcs_mysql_network_provider
   )
 
-IF(MY_COMPILER_IS_SUNPRO)
-  LIST(REMOVE_ITEM TESTS group_replication_gcs_mysql_network_provider)
-ENDIF()
-
 FOREACH(test ${TESTS})
   SET(SRC_FILES ${test}-t.cc)
   IF(WIN32)

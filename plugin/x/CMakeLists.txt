@@ -89,13 +89,6 @@ ADD_COMPILE_FLAGS(${XPLUGIN_SRC}
   COMPILE_FLAGS "${MYSQLX_PROTOCOL_FLAGS}"
 )
 
-# assertion failed in function assert_with_dumps() @ ssa.c:621 when using -xO3
-IF(MY_COMPILER_IS_SUNPRO)
-  ADD_COMPILE_FLAGS(${MYSQLX_PROJECT_DIR}/src/client.cc
-    COMPILE_FLAGS "-xO2"
-  )
-ENDIF()
-
 # MYSQL_ADD_PLUGIN may have disabled the plugin.
 IF(WITH_MYSQLX)
   MYSQL_ADD_PLUGIN(${MYSQLX_PLUGIN_NAME}
