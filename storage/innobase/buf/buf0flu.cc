@@ -1032,7 +1032,7 @@ void buf_flush_init_for_writing(const buf_block_t *block, byte *page,
         if (page_zip->data != page) {
           memcpy(page_zip->data, page, size);
         }
-        /* fall through */
+        [[fallthrough]];
       case FIL_PAGE_TYPE_ZBLOB:
       case FIL_PAGE_TYPE_ZBLOB2:
       case FIL_PAGE_SDI_ZBLOB:

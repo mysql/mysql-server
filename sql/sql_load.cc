@@ -1317,7 +1317,7 @@ char READ_INFO::unescape(char chr) {
     case 'N':
       found_null = true;
 
-      /* fall through */
+      [[fallthrough]];
     default:
       return chr;
   }

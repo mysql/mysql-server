@@ -3597,7 +3597,7 @@ String *Item_func_export_set::val_str(String *str) {
       if (num_set_values > 64) num_set_values = 64;
       if (current_thd->is_error() || args[4]->null_value) return error_str();
 
-      /* Fall through */
+      [[fallthrough]];
     case 4:
       sep = eval_string_arg(collation.collation, args[3], &sep_buf);
       if (sep == nullptr) return error_str();

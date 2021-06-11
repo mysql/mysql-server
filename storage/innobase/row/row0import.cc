@@ -2162,7 +2162,7 @@ dberr_t PageConverter::update_page(buf_block_t *block,
 
     case FIL_PAGE_TYPE_XDES:
       err = set_current_xdes(block->page.id.page_no(), get_frame(block));
-      /* Fall through. */
+      [[fallthrough]];
     case FIL_PAGE_INODE:
     case FIL_PAGE_TYPE_TRX_SYS:
     case FIL_PAGE_IBUF_FREE_LIST:

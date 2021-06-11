@@ -5253,7 +5253,7 @@ dberr_t lock_rec_insert_check_and_lock(
   switch (err) {
     case DB_SUCCESS_LOCKED_REC:
       err = DB_SUCCESS;
-      /* fall through */
+      [[fallthrough]];
     case DB_SUCCESS:
       if (!inherit_in || index->is_clustered()) {
         break;

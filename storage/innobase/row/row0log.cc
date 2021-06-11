@@ -2013,7 +2013,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_log_table_apply_update(
 
       When applying the subsequent ROW_T_DELETE, no matching
       record will be found. */
-      /* Fall through. */
+      [[fallthrough]];
     case DB_SUCCESS:
       ut_ad(row != nullptr);
       break;
@@ -3737,7 +3737,7 @@ func_exit:
         /* The log file grew too big. */
         error = DB_ONLINE_LOG_TOO_BIG;
       }
-      /* fall through */
+      [[fallthrough]];
     default:
       /* We set the flag directly instead of
       invoking dict_set_corrupted() here,

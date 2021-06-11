@@ -976,7 +976,7 @@ static int file_roll_forward(std::string &data_file, int final_state) {
           << "Clone File Roll Forward: Save data file " << data_file
           << " state: " << cur_state;
     }
-      /* Fall through */
+      [[fallthrough]];
 
     case FILE_STATE_CLONE_SAVED: {
       if (final_state == FILE_STATE_CLONE_SAVED) {
@@ -990,7 +990,7 @@ static int file_roll_forward(std::string &data_file, int final_state) {
           << "Clone File Roll Forward: Rename clone to data file " << data_file
           << " state: " << cur_state;
     }
-      /* Fall through */
+      [[fallthrough]];
 
     case FILE_STATE_REPLACED: {
       if (final_state == FILE_STATE_REPLACED) {
@@ -1004,7 +1004,7 @@ static int file_roll_forward(std::string &data_file, int final_state) {
           << "Clone File Roll Forward: Remove saved data file " << data_file
           << " state: " << cur_state;
     }
-      /* Fall through */
+      [[fallthrough]];
 
     case FILE_STATE_NORMAL:
       /* Nothing to do. */
@@ -1032,7 +1032,7 @@ static void file_rollback(std::string &data_file) {
           << "Clone File Roll Back: Rename data to cloned file " << data_file
           << " state: " << cur_state;
     }
-      /* Fall through */
+      [[fallthrough]];
 
     case FILE_STATE_CLONE_SAVED: {
       /* Replace data file with saved file. */
@@ -1043,7 +1043,7 @@ static void file_rollback(std::string &data_file) {
           << "Clone File Roll Back: Rename saved to data file " << data_file
           << " state: " << cur_state;
     }
-      /* Fall through */
+      [[fallthrough]];
 
     case FILE_STATE_CLONED: {
       /* Remove cloned data file. */
@@ -1054,7 +1054,7 @@ static void file_rollback(std::string &data_file) {
           << "Clone File Roll Back: Remove cloned file " << data_file
           << " state: " << cur_state;
     }
-      /* Fall through */
+      [[fallthrough]];
 
     case FILE_STATE_NORMAL:
       /* Nothing to do. */
@@ -1112,7 +1112,7 @@ static void old_file_roll_forward(std::string &data_file, int final_state) {
           << "Clone Old File Roll Forward: Saved data file " << data_file
           << " state: " << cur_state;
     }
-      /* Fall through */
+      [[fallthrough]];
 
     case FILE_STATE_SAVED: {
       if (final_state == FILE_STATE_SAVED) {
@@ -1126,7 +1126,7 @@ static void old_file_roll_forward(std::string &data_file, int final_state) {
           << "Clone Old File Roll Forward: Remove saved file " << data_file
           << " state: " << cur_state;
     }
-      /* Fall through */
+      [[fallthrough]];
 
     case FILE_STATE_NONE:
       /* Nothing to do. */
@@ -1163,7 +1163,7 @@ static void old_file_rollback(std::string &data_file) {
           << "Clone Old File Roll Back: Renamed saved data file " << data_file
           << " state: " << cur_state;
     }
-      /* Fall through */
+      [[fallthrough]];
 
     case FILE_STATE_NORMAL:
     case FILE_STATE_NONE:

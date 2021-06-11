@@ -5235,7 +5235,7 @@ rec_loop:
           prebuilt->new_rec_lock[row_prebuilt_t::LOCK_PCUR] = true;
         }
         err = DB_SUCCESS;
-        // Fall through
+        [[fallthrough]];
       case DB_SUCCESS:
         if (row_to_range_relation.row_must_be_at_end) {
           prebuilt->m_stop_tuple_found = true;

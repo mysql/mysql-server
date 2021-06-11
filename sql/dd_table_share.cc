@@ -1919,26 +1919,26 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
     case dd::Table::PT_RANGE_COLUMNS:
       part_info->column_list = true;
       part_info->list_of_part_fields = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_RANGE:
       part_info->part_type = partition_type::RANGE;
       break;
     case dd::Table::PT_LIST_COLUMNS:
       part_info->column_list = true;
       part_info->list_of_part_fields = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_LIST:
       part_info->part_type = partition_type::LIST;
       break;
     case dd::Table::PT_LINEAR_HASH:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_HASH:
       part_info->part_type = partition_type::HASH;
       break;
     case dd::Table::PT_LINEAR_KEY_51:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_KEY_51:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_51;
       part_info->list_of_part_fields = true;
@@ -1946,7 +1946,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::PT_LINEAR_KEY_55:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_KEY_55:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->list_of_part_fields = true;
@@ -1954,7 +1954,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::PT_AUTO_LINEAR:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::PT_AUTO:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->part_type = partition_type::HASH;
@@ -1973,13 +1973,13 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::ST_LINEAR_HASH:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::ST_HASH:
       part_info->subpart_type = partition_type::HASH;
       break;
     case dd::Table::ST_LINEAR_KEY_51:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::ST_KEY_51:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_51;
       part_info->list_of_subpart_fields = true;
@@ -1987,7 +1987,7 @@ static bool fill_partitioning_from_dd(THD *thd, TABLE_SHARE *share,
       break;
     case dd::Table::ST_LINEAR_KEY_55:
       part_info->linear_hash_ind = true;
-      // Fall through.
+      [[fallthrough]];
     case dd::Table::ST_KEY_55:
       part_info->key_algorithm = enum_key_algorithm::KEY_ALGORITHM_55;
       part_info->list_of_subpart_fields = true;

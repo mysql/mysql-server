@@ -654,7 +654,7 @@ static ibool page_zip_decompress_node_ptrs(
         if (!d_stream->avail_out) {
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         page_zip_fail(
             ("page_zip_decompress_node_ptrs:"
@@ -686,7 +686,7 @@ static ibool page_zip_decompress_node_ptrs(
         if (!d_stream->avail_out) {
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         page_zip_fail(
             ("page_zip_decompress_node_ptrs:"
@@ -831,7 +831,7 @@ static ibool page_zip_decompress_sec(
           if (!d_stream->avail_out) {
             break;
           }
-          /* fall through */
+          [[fallthrough]];
         default:
           page_zip_fail(
               ("page_zip_decompress_sec:"
@@ -1053,7 +1053,7 @@ static ibool page_zip_decompress_clust_ext(
           if (!d_stream->avail_out) {
             break;
           }
-          /* fall through */
+          [[fallthrough]];
         default:
           page_zip_fail(
               ("page_zip_decompress_clust_ext:"
@@ -1083,7 +1083,7 @@ static ibool page_zip_decompress_clust_ext(
           if (!d_stream->avail_out) {
             break;
           }
-          /* fall through */
+          [[fallthrough]];
         default:
           page_zip_fail(
               ("page_zip_decompress_clust_ext:"
@@ -1157,7 +1157,7 @@ static ibool page_zip_decompress_clust(
         if (UNIV_LIKELY(!d_stream->avail_out)) {
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         page_zip_fail(
             ("page_zip_decompress_clust:"
@@ -1205,7 +1205,7 @@ static ibool page_zip_decompress_clust(
           if (!d_stream->avail_out) {
             break;
           }
-          /* fall through */
+          [[fallthrough]];
         default:
           page_zip_fail(
               ("page_zip_decompress_clust:"
@@ -1235,7 +1235,7 @@ static ibool page_zip_decompress_clust(
         if (!d_stream->avail_out) {
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         page_zip_fail(
             ("page_zip_decompress_clust:"

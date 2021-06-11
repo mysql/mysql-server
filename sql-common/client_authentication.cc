@@ -323,7 +323,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
     }
       ctx->client_auth_plugin_state =
           client_auth_sha256_password_plugin_status::SHA256_READ_PUBLIC_KEY;
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case client_auth_sha256_password_plugin_status::SHA256_READ_PUBLIC_KEY:
       if (public_key == nullptr) {
         status = vio->read_packet_nonblocking(vio, &pkt, &io_result);
@@ -347,7 +347,7 @@ net_async_status sha256_password_auth_client_nonblocking(MYSQL_PLUGIN_VIO *vio,
       ctx->client_auth_plugin_state =
           client_auth_sha256_password_plugin_status::
               SHA256_SEND_ENCRYPTED_PASSWORD;
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case client_auth_sha256_password_plugin_status::
         SHA256_SEND_ENCRYPTED_PASSWORD: {
       char passwd_scramble[512];
@@ -419,9 +419,9 @@ static bool is_secure_transport(MYSQL *mysql) {
     case VIO_TYPE_SSL: {
       if (mysql_get_ssl_cipher(mysql) == nullptr) return false;
     }
-    // Fall through
+      [[fallthrough]];
     case VIO_TYPE_SHARED_MEMORY:
-    // Fall through
+      [[fallthrough]];
     case VIO_TYPE_SOCKET:
       return true;
     default:
@@ -645,7 +645,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
       ctx->client_auth_plugin_state =
           client_auth_caching_sha2_password_plugin_status::
               CACHING_SHA2_WRITING_RESPONSE;
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case client_auth_caching_sha2_password_plugin_status::
         CACHING_SHA2_WRITING_RESPONSE:
       if (mysql->passwd[0] == 0) {
@@ -689,7 +689,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
       ctx->client_auth_plugin_state =
           client_auth_caching_sha2_password_plugin_status::
               CACHING_SHA2_CHALLENGE_RESPONSE;
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case client_auth_caching_sha2_password_plugin_status::
         CACHING_SHA2_CHALLENGE_RESPONSE:
       status = vio->read_packet_nonblocking(vio, &pkt, &io_result);
@@ -718,7 +718,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
             client_auth_caching_sha2_password_plugin_status::
                 CACHING_SHA2_SEND_PLAIN_PASSWORD;
       return NET_ASYNC_NOT_READY;
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case client_auth_caching_sha2_password_plugin_status::
         CACHING_SHA2_REQUEST_PUBLIC_KEY:
       /* If connection isn't secure attempt to get the RSA public key file */
@@ -741,7 +741,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
       ctx->client_auth_plugin_state =
           client_auth_caching_sha2_password_plugin_status::
               CACHING_SHA2_READ_PUBLIC_KEY;
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case client_auth_caching_sha2_password_plugin_status::
         CACHING_SHA2_READ_PUBLIC_KEY: {
       if (public_key == nullptr && mysql->options.extension &&
@@ -809,7 +809,7 @@ net_async_status caching_sha2_password_auth_client_nonblocking(
       ctx->client_auth_plugin_state =
           client_auth_caching_sha2_password_plugin_status::
               CACHING_SHA2_SEND_ENCRYPTED_PASSWORD;
-    /* FALLTHROUGH */
+      [[fallthrough]];
     case client_auth_caching_sha2_password_plugin_status::
         CACHING_SHA2_SEND_ENCRYPTED_PASSWORD: {
       status = vio->write_packet_nonblocking(vio, (uchar *)encrypted_password,

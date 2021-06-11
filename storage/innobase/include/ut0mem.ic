@@ -196,13 +196,13 @@ static inline ulint ut_str_sql_format(
         buf[buf_i] = '\'';
         buf_i++;
       }
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case 2:
     case 1:
 
       buf[buf_i] = '\0';
       buf_i++;
-      /* FALLTHROUGH */
+      [[fallthrough]];
     case 0:
 
       return (buf_i);
@@ -241,7 +241,7 @@ static inline ulint ut_str_sql_format(
         }
         buf[buf_i] = ch;
         buf_i++;
-        /* FALLTHROUGH */
+        [[fallthrough]];
       default:
 
         buf[buf_i] = ch;

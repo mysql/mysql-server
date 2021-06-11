@@ -222,13 +222,13 @@ done:
   switch (state) {
     case MY_SVC_ACQUIRED:
       r->release(h_ret_svc);
-      /* fall through */
+      [[fallthrough]];
     case MY_SVC_REGISTERED:
       reg->unregister("test_services_plugin_registry_service.mysql_server");
-      /* fall through */
+      [[fallthrough]];
     case REG_ACQUIRED:
       r->release(h_reg);
-      /* fall through */
+      [[fallthrough]];
     case IDLE:
     default:
       mysql_plugin_registry_release(r);

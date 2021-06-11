@@ -1289,7 +1289,7 @@ void Clone_Task_Manager::reinit_apply_state(const byte *ref_loc, uint ref_len,
       break;
 
     case CLONE_SNAPSHOT_NONE:
-      /* fall through */
+      [[fallthrough]];
 
     default:
       ut_ad(false);
@@ -1386,7 +1386,7 @@ void Clone_Task_Manager::reinit_copy_state(const byte *loc, uint loc_len) {
       break;
 
     case CLONE_SNAPSHOT_NONE:
-      /* fall through */
+      [[fallthrough]];
 
     default:
       ut_ad(false);

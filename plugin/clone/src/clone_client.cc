@@ -1279,7 +1279,7 @@ int Client::prepare_command_buffer(Command_RPC com, size_t &buf_len) {
       break;
 
     case COM_MAX:
-      /* Fall through */
+      [[fallthrough]];
 
     default:
       assert(false);
@@ -1532,6 +1532,7 @@ int Client::handle_response(const uchar *packet, size_t length, int in_err,
 
       /* COM_RES_DATA must follow COM_RES_DATA_DESC and is handled
       in apply_file_cbk(). Fall through to return error. */
+      [[fallthrough]];
     default:
       assert(false);
       err = ER_CLONE_PROTOCOL;

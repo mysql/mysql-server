@@ -2204,7 +2204,7 @@ dberr_t srv_start(bool create_new_db) {
       break;
     case DB_CANNOT_OPEN_FILE:
       ib::error(ER_IB_MSG_1134);
-      /* fall through */
+      [[fallthrough]];
     default:
 
       /* Other errors might come from

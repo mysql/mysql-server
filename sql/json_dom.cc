@@ -2989,7 +2989,7 @@ bool Json_wrapper::coerce_date(MYSQL_TIME *ltime, const char *msgnam,
           !status.warnings)
         break;
     }
-    /* Fall through */
+      [[fallthrough]];
     default:
       handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
                             ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);
@@ -3013,7 +3013,7 @@ bool Json_wrapper::coerce_time(MYSQL_TIME *ltime, const char *msgnam,
           !status.warnings)
         break;
     }
-    /* Fall through */
+      [[fallthrough]];
     default:
       handle_coercion_error(cr_error, "DATE/TIME/DATETIME/TIMESTAMP",
                             ER_INVALID_JSON_VALUE_FOR_CAST, msgnam);

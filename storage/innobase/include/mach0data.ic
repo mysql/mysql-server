@@ -755,19 +755,26 @@ static inline void mach_swap_byte_order(
 
   switch (len & 0x7) {
     case 0:
-      *--dest = *from++;  // Fall through.
+      *--dest = *from++;
+      [[fallthrough]];
     case 7:
-      *--dest = *from++;  // Fall through.
+      *--dest = *from++;
+      [[fallthrough]];
     case 6:
-      *--dest = *from++;  // Fall through.
+      *--dest = *from++;
+      [[fallthrough]];
     case 5:
-      *--dest = *from++;  // Fall through.
+      *--dest = *from++;
+      [[fallthrough]];
     case 4:
-      *--dest = *from++;  // Fall through.
+      *--dest = *from++;
+      [[fallthrough]];
     case 3:
-      *--dest = *from++;  // Fall through.
+      *--dest = *from++;
+      [[fallthrough]];
     case 2:
-      *--dest = *from++;  // Fall through.
+      *--dest = *from++;
+      [[fallthrough]];
     case 1:
       *--dest = *from;
   }

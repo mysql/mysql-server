@@ -319,7 +319,8 @@ static bool get_one_option(int optid, const struct my_option *opt,
       what_to_do = DO_CHECK;
       opt_check_only_changed = true;
       break;
-    case 'I': /* Fall through */
+    case 'I':
+      [[fallthrough]];
     case '?':
       usage();
       exit(0);

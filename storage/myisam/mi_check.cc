@@ -816,7 +816,6 @@ static int chk_index(MI_CHECK *param, MI_INFO *info, MI_KEYDEF *keyinfo,
         (*keys) += tmp_keys - 1;
         continue;
       }
-      /* fall through */
     }
     if (record >= info->state->data_file_length) {
 #ifndef NDEBUG

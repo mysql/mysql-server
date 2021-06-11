@@ -2755,7 +2755,7 @@ bool AIO::is_linux_native_aio_supported() {
              " AIO or you can set innodb_use_native_aio to"
              " FALSE to avoid this message.";
 
-      /* fall through. */
+      [[fallthrough]];
     default:
       ib::error(ER_IB_MSG_766) << "Linux Native AIO check on "
                                << (srv_read_only_mode ? name : "tmpdir")

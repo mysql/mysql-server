@@ -2206,7 +2206,7 @@ static void check_result() {
       break; /* ok */
     case RESULT_LENGTH_MISMATCH:
       mess = "Result length mismatch\n";
-      /* Fallthrough */
+      [[fallthrough]];
     case RESULT_CONTENT_MISMATCH: {
       /*
         Result mismatched, dump results to .reject file
@@ -9834,7 +9834,7 @@ int main(int argc, char **argv) {
             command->query = command->first_argument;
             command->first_word_len = 0;
           }
-          /* fall through */
+          [[fallthrough]];
         case Q_QUERY:
         case Q_REAP: {
           bool old_display_result_vertically = display_result_vertically;
@@ -10373,7 +10373,8 @@ void replace_numeric_round_append(int round, DYNAMIC_STRING *result,
           to 1.2000000
         */
         if (size1 < (size_t)r) r = size1;
-      // fallthrough: all cases till next break are executed
+        // fallthrough: all cases till next break are executed
+        [[fallthrough]];
       case 'e':
       case 'E':
         if (isdigit(*(from + size + 1))) {

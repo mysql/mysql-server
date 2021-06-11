@@ -4738,7 +4738,7 @@ void NDB_SHARE::set_binlog_flags(Ndb_binlog_type ndb_binlog_type) {
       break;
     case NBT_USE_UPDATE:
       DBUG_PRINT("info", ("NBT_USE_UPDATE"));
-      // fall through
+      [[fallthrough]];
     case NBT_UPDATED_ONLY_USE_UPDATE:
       DBUG_PRINT("info", ("NBT_UPDATED_ONLY_USE_UPDATE"));
       flags &= ~NDB_SHARE::FLAG_BINLOG_MODE_FULL;
@@ -5929,7 +5929,7 @@ void Ndb_binlog_thread::handle_non_data_event(THD *thd, NdbEventOperation *pOp,
     case NDBEVENT::TE_CLUSTER_FAILURE:
       log_verbose(1, "cluster failure for epoch %u/%u.",
                   (uint)(pOp->getGCI() >> 32), (uint)(pOp->getGCI()));
-      // fallthrough
+      [[fallthrough]];
     case NDBEVENT::TE_DROP:
       if (m_apply_status_share == share) {
         if (ndb_binlog_tables_inited && ndb_binlog_running)

@@ -2110,7 +2110,7 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
         }
       }
     }
-    /* fall through */
+      [[fallthrough]];
     case BUF_BLOCK_ZIP_PAGE:
       ut_a(!bpage->is_dirty());
       if (bpage->size.is_compressed()) {

@@ -1095,7 +1095,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip) {
               case '_':
               case '%':
                 *to++ = '\\';  // remember prefix for wildcard
-                               /* Fall through */
+                [[fallthrough]];
               default:
                 *to++ = *str;
                 break;
@@ -1438,13 +1438,13 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
           state = MY_LEX_HEX_NUMBER;
           break;
         }
-        // Fall through.
+        [[fallthrough]];
       case MY_LEX_IDENT_OR_BIN:
         if (lip->yyPeek() == '\'') {  // Found b'bin-number'
           state = MY_LEX_BIN_NUMBER;
           break;
         }
-        // Fall through.
+        [[fallthrough]];
       case MY_LEX_IDENT:
         const char *start;
         if (use_mb(cs)) {
@@ -1454,7 +1454,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
               break;
             case 0:
               if (my_mbmaxlenlen(cs) < 2) break;
-              /* else fall through */
+              [[fallthrough]];
             default:
               int l =
                   my_ismbchar(cs, lip->get_ptr() - 1, lip->get_end_of_query());
@@ -1470,7 +1470,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
                 break;
               case 0:
                 if (my_mbmaxlenlen(cs) < 2) break;
-                /* else fall through */
+                [[fallthrough]];
               default:
                 int l;
                 if ((l = my_ismbchar(cs, lip->get_ptr() - 1,
@@ -1607,7 +1607,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
           }
           lip->yyUnget();
         }
-        // fall through
+        [[fallthrough]];
       case MY_LEX_IDENT_START:  // We come here after '.'
         result_state = IDENT;
         if (use_mb(cs)) {
@@ -1618,7 +1618,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
                 break;
               case 0:
                 if (my_mbmaxlenlen(cs) < 2) break;
-                /* else fall through */
+                [[fallthrough]];
               default:
                 int l;
                 if ((l = my_ismbchar(cs, lip->get_ptr() - 1,
@@ -1690,7 +1690,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
           yylval->lex_str = get_token(lip, 0, lip->yyLength());
           return int_token(yylval->lex_str.str, (uint)yylval->lex_str.length);
         }
-        // fall through
+        [[fallthrough]];
       case MY_LEX_REAL:  // Incomplete real number
         while (my_isdigit(cs, c = lip->yyGet()))
           ;
@@ -1775,7 +1775,7 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
           break;
         }
         /* " used for strings */
-        // Fall through.
+        [[fallthrough]];
       case MY_LEX_STRING:  // Incomplete text string
         if (!(yylval->lex_str.str = get_text(lip, 1, 1))) {
           state = MY_LEX_CHAR;  // Read char by char
@@ -2893,21 +2893,25 @@ void Query_block::print(const THD *thd, String *str,
     if (print_error(thd, str)) return;
 
     switch (parent_lex->sql_command) {
-      case SQLCOM_UPDATE:  // Fall through
+      case SQLCOM_UPDATE:
+        [[fallthrough]];
       case SQLCOM_UPDATE_MULTI:
         print_update(thd, str, query_type);
         return;
-      case SQLCOM_DELETE:  // Fall through
+      case SQLCOM_DELETE:
+        [[fallthrough]];
       case SQLCOM_DELETE_MULTI:
         print_delete(thd, str, query_type);
         return;
-      case SQLCOM_INSERT:  // Fall through
+      case SQLCOM_INSERT:
+        [[fallthrough]];
       case SQLCOM_INSERT_SELECT:
       case SQLCOM_REPLACE:
       case SQLCOM_REPLACE_SELECT:
         print_insert(thd, str, query_type);
         return;
-      case SQLCOM_SELECT:  // Fall through
+      case SQLCOM_SELECT:
+        [[fallthrough]];
       default:
         break;
     }
@@ -3611,10 +3615,10 @@ bool LEX::can_use_merged() {
       allowed to be mergeable, which makes the INFORMATION_SCHEMA
       query execution faster.
 
-      According to optimizer team (Roy), making this decision based on
-      the command type here is a hack. This should probably change when
-      we introduce Sql_cmd_show class, which should treat the following
-      SHOW commands same as SQLCOM_SELECT.
+      According to optimizer team (Roy), making this decision based
+      on the command type here is a hack. This should probably change when we
+      introduce Sql_cmd_show class, which should treat the following SHOW
+      commands same as SQLCOM_SELECT.
      */
     case SQLCOM_SHOW_CHARSETS:
     case SQLCOM_SHOW_COLLATIONS:
@@ -3916,46 +3920,45 @@ void LEX::set_trg_event_type_for_tables() {
           static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_UPDATE)) |
           static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_DELETE));
       break;
-    /*
-            Basic INSERT. If there is an additional ON DUPLIATE KEY UPDATE
-            clause, it will be handled later in this method.
-    */
-    case SQLCOM_INSERT: /* fall through */
+    case SQLCOM_INSERT:
     case SQLCOM_INSERT_SELECT:
-    /*
-            LOAD DATA ... INFILE is expected to fire BEFORE/AFTER INSERT
-            triggers.
-            If the statement also has REPLACE clause, it will be
-            handled later in this method.
-    */
-    case SQLCOM_LOAD: /* fall through */
-    /*
-            REPLACE is semantically equivalent to INSERT. In case
-            of a primary or unique key conflict, it deletes the old
-            record and inserts a new one. So we also may need to
-            fire ON DELETE triggers. This functionality is handled
-            later in this method.
-    */
-    case SQLCOM_REPLACE: /* fall through */
+      /*
+        Basic INSERT. If there is an additional ON DUPLIATE KEY
+        UPDATE clause, it will be handled later in this method.
+       */
+    case SQLCOM_LOAD:
+      /*
+        LOAD DATA ... INFILE is expected to fire BEFORE/AFTER
+        INSERT triggers. If the statement also has REPLACE clause, it will be
+        handled later in this method.
+       */
+    case SQLCOM_REPLACE:
     case SQLCOM_REPLACE_SELECT:
-    /*
-            CREATE TABLE ... SELECT defaults to INSERT if the table or
-            view already exists. REPLACE option of CREATE TABLE ...
-            REPLACE SELECT is handled later in this method.
-    */
+      /*
+        REPLACE is semantically equivalent to INSERT. In case
+        of a primary or unique key conflict, it deletes the old
+        record and inserts a new one. So we also may need to
+        fire ON DELETE triggers. This functionality is handled
+        later in this method.
+      */
     case SQLCOM_CREATE_TABLE:
+      /*
+        CREATE TABLE ... SELECT defaults to INSERT if the table
+        or view already exists. REPLACE option of CREATE TABLE ... REPLACE
+        SELECT is handled later in this method.
+       */
       new_trg_event_map |=
           static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_INSERT));
       break;
-    /* Basic update and multi-update */
-    case SQLCOM_UPDATE: /* fall through */
+    case SQLCOM_UPDATE:
     case SQLCOM_UPDATE_MULTI:
+      /* Basic update and multi-update */
       new_trg_event_map |=
           static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_UPDATE));
       break;
-    /* Basic delete and multi-delete */
-    case SQLCOM_DELETE: /* fall through */
+    case SQLCOM_DELETE:
     case SQLCOM_DELETE_MULTI:
+      /* Basic delete and multi-delete */
       new_trg_event_map |=
           static_cast<uint8>(1 << static_cast<int>(TRG_EVENT_DELETE));
       break;

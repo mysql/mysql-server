@@ -284,16 +284,20 @@ int mysql_parser_get_statement_type(MYSQL_THD thd) {
   switch (lex->sql_command) {
     case SQLCOM_SELECT:
       return STATEMENT_TYPE_SELECT;
-    case SQLCOM_UPDATE:  // Fall through
+    case SQLCOM_UPDATE:
+      [[fallthrough]];
     case SQLCOM_UPDATE_MULTI:
       return STATEMENT_TYPE_UPDATE;
-    case SQLCOM_INSERT:  // Fall through
+    case SQLCOM_INSERT:
+      [[fallthrough]];
     case SQLCOM_INSERT_SELECT:
       return STATEMENT_TYPE_INSERT;
-    case SQLCOM_REPLACE:  // Fall through
+    case SQLCOM_REPLACE:
+      [[fallthrough]];
     case SQLCOM_REPLACE_SELECT:
       return STATEMENT_TYPE_REPLACE;
-    case SQLCOM_DELETE:  // Fall through
+    case SQLCOM_DELETE:
+      [[fallthrough]];
     case SQLCOM_DELETE_MULTI:
       return STATEMENT_TYPE_DELETE;
     default:

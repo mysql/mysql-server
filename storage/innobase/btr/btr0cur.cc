@@ -2299,7 +2299,7 @@ bool btr_cur_open_at_rnd_pos_func(
     case BTR_CONT_MODIFY_TREE:
     case BTR_CONT_SEARCH_TREE:
       ut_ad(0);
-      /* fall through */
+      [[fallthrough]];
     default:
       if (!srv_read_only_mode) {
         mtr_s_lock(dict_index_get_lock(index), mtr);
@@ -5446,7 +5446,7 @@ bool btr_estimate_number_of_different_key_vals(
     case SRV_STATS_NULLS_IGNORED:
       n_not_null =
           (ib_uint64_t *)mem_heap_zalloc(heap, n_cols * sizeof *n_not_null);
-      /* fall through */
+      [[fallthrough]];
 
     case SRV_STATS_NULLS_UNEQUAL:
       /* for both SRV_STATS_NULLS_IGNORED and SRV_STATS_NULLS_UNEQUAL

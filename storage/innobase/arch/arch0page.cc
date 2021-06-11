@@ -2391,7 +2391,7 @@ int Arch_Page_Sys::start(Arch_Group **group, lsn_t *start_lsn,
 
     case ARCH_STATE_INIT:
     case ARCH_STATE_IDLE:
-      /* Fall through */
+      [[fallthrough]];
 
     case ARCH_STATE_ACTIVE:
 

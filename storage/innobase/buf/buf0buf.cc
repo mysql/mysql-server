@@ -5090,7 +5090,7 @@ static void buf_page_monitor(
         }
         break;
       }
-      /* fall through */
+      [[fallthrough]];
     case FIL_PAGE_RTREE:
       if (is_leaf) {
         counter = MONITOR_RW_COUNTER(io_type, MONITOR_INDEX_LEAF_PAGE);
@@ -5972,7 +5972,7 @@ static ibool buf_pool_validate_instance(buf_pool_t *buf_pool) {
       case BUF_BLOCK_ZIP_DIRTY:
         n_lru++;
         n_zip++;
-        /* fallthrough */
+        [[fallthrough]];
       case BUF_BLOCK_FILE_PAGE:
         if (b->is_io_fix_write()) {
           switch (buf_page_get_flush_type(b)) {

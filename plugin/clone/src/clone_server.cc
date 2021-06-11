@@ -267,7 +267,7 @@ int Server::parse_command_buffer(uchar command, uchar *com_buf, size_t com_len,
       break;
 
     case COM_MAX:
-      /* Fall through */
+      [[fallthrough]];
     default:
       /* purecov: begin deadcode */
       err = ER_CLONE_PROTOCOL;

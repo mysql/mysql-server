@@ -4461,7 +4461,7 @@ BackupRestore::dropPkMappingIndex(const TableS* table)
         dropped = true;
         break;
       }
-      /* Fall through */
+      [[fallthrough]];
     default:
       restoreLogger.log_error("Error dropping mapping index on %s %u %s",
                               tablename,

@@ -120,7 +120,7 @@ type_conversion_status set_field_to_null(Field *field) {
   switch (current_thd->check_for_truncated_fields) {
     case CHECK_FIELD_WARN:
       field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
-      /* fall through */
+      [[fallthrough]];
     case CHECK_FIELD_IGNORE:
       return TYPE_OK;
     case CHECK_FIELD_ERROR_FOR_NULL:
@@ -214,7 +214,7 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
   switch (thd->check_for_truncated_fields) {
     case CHECK_FIELD_WARN:
       field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
-      /* fall through */
+      [[fallthrough]];
     case CHECK_FIELD_IGNORE:
       if (field->type() == MYSQL_TYPE_BLOB) {
         /*

@@ -3112,7 +3112,7 @@ bool make_join_readinfo(JOIN *join, uint no_jbuf_after) {
       case JT_ALL:
         join->thd->set_status_no_index_used();
         qep_tab->using_dynamic_range = (tab->use_quick == QS_DYNAMIC_RANGE);
-      /* Fall through */
+        [[fallthrough]];
       case JT_INDEX_SCAN:
         if (tab->position()->filter_effect != COND_FILTER_STALE_NO_CONST &&
             !tab->sj_mat_exec()) {

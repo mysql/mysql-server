@@ -629,23 +629,23 @@ err:
   switch (errpos) {
     case 6:
       my_free(m_info);
-      /* fall through */
+      [[fallthrough]];
     case 5:
       (void)mysql_file_close(info.dfile, MYF(0));
       if (old_share) break; /* Don't remove open table */
 
-      /* fall through */
+      [[fallthrough]];
     case 4:
       my_free(share);
-      /* fall through */
+      [[fallthrough]];
     case 3:
       if (!lock_error) (void)my_lock(kfile, F_UNLCK, MYF(MY_SEEK_NOT_DONE));
-      /* fall through */
+      [[fallthrough]];
     case 2:
-      /* fall through */
+      [[fallthrough]];
     case 1:
       (void)mysql_file_close(kfile, MYF(0));
-      /* fall through */
+      [[fallthrough]];
     case 0:
     default:
       break;

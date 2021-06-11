@@ -424,13 +424,13 @@ dberr_t SysTablespace::create_file(Datafile &file) {
       written over */
       m_created_new_raw = true;
 
-      /* Fall through. */
+      [[fallthrough]];
 
     case SRV_OLD_RAW:
 
       srv_start_raw_disk_in_use = TRUE;
 
-      /* Fall through. */
+      [[fallthrough]];
 
     case SRV_NOT_RAW:
       err =
@@ -459,7 +459,7 @@ dberr_t SysTablespace::open_file(Datafile &file) {
       written over */
       m_created_new_raw = true;
 
-      /* Fall through */
+      [[fallthrough]];
 
     case SRV_OLD_RAW:
       srv_start_raw_disk_in_use = TRUE;
@@ -473,7 +473,7 @@ dberr_t SysTablespace::open_file(Datafile &file) {
         return (DB_ERROR);
       }
 
-      /* Fall through */
+      [[fallthrough]];
 
     case SRV_NOT_RAW:
       err =

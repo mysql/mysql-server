@@ -303,7 +303,7 @@ int BKAIterator::Read() {
           break;
         }
       }
-      // Fall through.
+        [[fallthrough]];
       case State::RETURNING_NULL_COMPLEMENTED_ROWS: {
         int err = MakeNullComplementedRow();
         if (err != -1) {

@@ -1945,7 +1945,7 @@ int ha_ndbcluster_cond::build_scan_filter_predicate(
             //    not both are NULL.
             if (!field1_maybe_null) break;
             // Fall through to check 'field2_maybe_null'
-
+            [[fallthrough]];
           case NDB_GE_FUNC:
           case NDB_GT_FUNC:
             // NdbInterpreter incorrectly compare f1 > <NULL> as true -> NULL

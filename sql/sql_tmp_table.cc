@@ -428,7 +428,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
       *from_field = item_field->field;
       break;
     }
-    /* Fall through */
+      [[fallthrough]];
     case Item::FUNC_ITEM:
       if (down_cast<Item_func *>(item)->functype() == Item_func::FUNC_SP) {
         Item_func_sp *item_func_sp = down_cast<Item_func_sp *>(item);
@@ -450,7 +450,7 @@ Field *create_tmp_field(THD *thd, TABLE *table, Item *item, Item::Type type,
         break;
       }
 
-      /* Fall through */
+      [[fallthrough]];
     case Item::COND_ITEM:
     case Item::FIELD_AVG_ITEM:
     case Item::FIELD_BIT_ITEM:

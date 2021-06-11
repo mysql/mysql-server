@@ -1184,6 +1184,7 @@ void ha_ndbcluster::set_rec_per_key(THD *thd) {
                                       1.0F);
 
         // intentional fall thru to logic for ordered index
+        [[fallthrough]];
       case ORDERED_INDEX:
         // 'records per key' are unknown for non-unique indexes (may change when
         // we get better index statistics).
@@ -10668,7 +10669,7 @@ int ha_ndbcluster::rename_table(const char *from, const char *to,
     case SQLCOM_DROP_INDEX:
     case SQLCOM_CREATE_INDEX:
       DBUG_PRINT("info", ("CREATE or DROP INDEX as copying ALTER"));
-      // fallthrough
+      [[fallthrough]];
     case SQLCOM_ALTER_TABLE:
       DBUG_PRINT("info", ("SQLCOM_ALTER_TABLE"));
 

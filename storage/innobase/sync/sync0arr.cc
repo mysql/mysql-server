@@ -650,7 +650,7 @@ static bool sync_array_detect_deadlock(
             if (thread == cell->thread_id) {
               break;
             }
-            /* fall through */
+            [[fallthrough]];
           case RW_LOCK_S:
 
             /* The (wait) x-lock request can block

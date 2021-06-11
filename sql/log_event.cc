@@ -13835,7 +13835,7 @@ static bool shall_delete_event_after_apply(Log_event *ev) {
         thread terminates.
       */
 
-      /* fall through */
+      [[fallthrough]];
     case binary_log::ROWS_QUERY_LOG_EVENT:
       /*
          ROWS_QUERY_LOG_EVENT is destroyed at the end of the current statement

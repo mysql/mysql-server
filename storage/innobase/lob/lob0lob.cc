@@ -214,15 +214,15 @@ dberr_t zReader::fetch() {
         if (m_rctx.m_page_no == FIL_NULL) {
           goto end_of_blob;
         }
-      /* fall through */
+        [[fallthrough]];
       default:
         err = DB_FAIL;
         ib::error(ER_IB_MSG_630)
             << "inflate() of compressed BLOB page "
             << page_id_t(m_rctx.m_space_id, curr_page_no) << " returned "
             << zlib_err << " (" << m_stream.msg << ")";
-        /* fall through */
         ut_error;
+        [[fallthrough]];
       case Z_BUF_ERROR:
         goto end_of_blob;
     }

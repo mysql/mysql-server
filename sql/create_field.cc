@@ -462,7 +462,7 @@ bool Create_field::init(
     case MYSQL_TYPE_TIMESTAMP:
       /* Add flags for TIMESTAMP for 4.0 MYD and 4.0 InnoDB compatibility */
       flags |= ZEROFILL_FLAG | UNSIGNED_FLAG;
-      /* Fall through */
+      [[fallthrough]];
     case MYSQL_TYPE_TIMESTAMP2:
       if (display_width_in_codepoints == nullptr) {
         m_max_display_width_in_codepoints =
@@ -492,7 +492,7 @@ bool Create_field::init(
     case MYSQL_TYPE_DATE:
       /* Old date type. */
       sql_type = MYSQL_TYPE_NEWDATE;
-      /* fall through */
+      [[fallthrough]];
     case MYSQL_TYPE_NEWDATE:
       m_max_display_width_in_codepoints = MAX_DATE_WIDTH;
       break;

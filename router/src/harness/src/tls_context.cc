@@ -145,19 +145,19 @@ stdx::expected<void, std::error_code> TlsContext::version_range(
   switch (min_version) {
     default:
       // unknown, leave all disabled
-      // fallthrough
+      [[fallthrough]];
     case TlsVersion::TLS_1_3:
       opts |= SSL_OP_NO_TLSv1_2;
-      // fallthrough
+      [[fallthrough]];
     case TlsVersion::TLS_1_2:
       opts |= SSL_OP_NO_TLSv1_1;
-      // fallthrough
+      [[fallthrough]];
     case TlsVersion::TLS_1_1:
       opts |= SSL_OP_NO_TLSv1;
-      // fallthrough
+      [[fallthrough]];
     case TlsVersion::TLS_1_0:
       opts |= SSL_OP_NO_SSLv3;
-      // fallthrough
+      [[fallthrough]];
     case TlsVersion::AUTO:
     case TlsVersion::SSL_3:
       opts |= SSL_OP_NO_SSLv2;
@@ -165,16 +165,15 @@ stdx::expected<void, std::error_code> TlsContext::version_range(
   }
 
   switch (max_version) {
-      // fallthrough
     case TlsVersion::SSL_3:
       opts |= SSL_OP_NO_TLSv1;
-      // fallthrough
+      [[fallthrough]];
     case TlsVersion::TLS_1_0:
       opts |= SSL_OP_NO_TLSv1_1;
-      // fallthrough
+      [[fallthrough]];
     case TlsVersion::TLS_1_1:
       opts |= SSL_OP_NO_TLSv1_2;
-      // fallthrough
+      [[fallthrough]];
     default:
       break;
   }

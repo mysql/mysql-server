@@ -670,7 +670,7 @@ handle_new_error:
         trx_rollback_to_savepoint(trx, nullptr);
         break;
       }
-    /* fall through */
+      [[fallthrough]];
     case DB_DUPLICATE_KEY:
     case DB_FOREIGN_DUPLICATE_KEY:
     case DB_TOO_BIG_RECORD:
@@ -4673,7 +4673,8 @@ loop:
                                   " table "
                                << index->table->name << " returned " << ret;
     }
-    /* fall through (this error is ignored by CHECK TABLE) */
+      /* fall through (this error is ignored by CHECK TABLE) */
+      [[fallthrough]];
     case DB_END_OF_INDEX:
       ret = DB_SUCCESS;
     func_exit:

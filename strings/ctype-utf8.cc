@@ -5288,11 +5288,13 @@ static int my_uni_utf8(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
     case 3:
       r[2] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x800;  // Fall through.
+      wc |= 0x800;
+      [[fallthrough]];
     case 2:
       r[1] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0xc0;  // Fall through.
+      wc |= 0xc0;
+      [[fallthrough]];
     case 1:
       r[0] = (uchar)wc;
   }
@@ -5320,11 +5322,13 @@ static int my_uni_utf8_no_range(const CHARSET_INFO *cs [[maybe_unused]],
     case 3:
       r[2] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x800;  // Fall through.
+      wc |= 0x800;
+      [[fallthrough]];
     case 2:
       r[1] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0xc0;  // Fall through.
+      wc |= 0xc0;
+      [[fallthrough]];
     case 1:
       r[0] = (uchar)wc;
   }
@@ -7260,15 +7264,18 @@ static int my_wc_mb_utf8mb4(const CHARSET_INFO *cs [[maybe_unused]], my_wc_t wc,
     case 4:
       r[3] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x10000;  // Fall through.
+      wc |= 0x10000;
+      [[fallthrough]];
     case 3:
       r[2] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x800;  // Fall through.
+      wc |= 0x800;
+      [[fallthrough]];
     case 2:
       r[1] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0xc0;  // Fall through.
+      wc |= 0xc0;
+      [[fallthrough]];
     case 1:
       r[0] = (uchar)wc;
   }
@@ -7298,15 +7305,18 @@ static int my_wc_mb_utf8mb4_no_range(const CHARSET_INFO *cs [[maybe_unused]],
     case 4:
       r[3] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x10000;  // Fall through.
+      wc |= 0x10000;
+      [[fallthrough]];
     case 3:
       r[2] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0x800;  // Fall through.
+      wc |= 0x800;
+      [[fallthrough]];
     case 2:
       r[1] = (uchar)(0x80 | (wc & 0x3f));
       wc = wc >> 6;
-      wc |= 0xc0;  // Fall through.
+      wc |= 0xc0;
+      [[fallthrough]];
     case 1:
       r[0] = (uchar)wc;
   }

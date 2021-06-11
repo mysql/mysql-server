@@ -554,7 +554,7 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
         log_writer_mutex_exit(*log_sys);
         break;
       }
-      /* fall through */
+      [[fallthrough]];
 
     case ARCH_STATE_PREPARE_IDLE: {
       /* No active clients. Mark the group inactive and move
@@ -574,7 +574,7 @@ Arch_State Arch_Log_Sys::check_set_state(bool is_abort, lsn_t *archived_lsn,
       m_state = ARCH_STATE_IDLE;
       log_writer_mutex_exit(*log_sys);
     }
-      /* fall through */
+      [[fallthrough]];
 
     case ARCH_STATE_IDLE:
     case ARCH_STATE_INIT:

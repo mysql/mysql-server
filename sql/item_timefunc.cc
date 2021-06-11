@@ -277,7 +277,7 @@ static bool extract_date_time(const Date_time_format *format, const char *val,
         case 'I':
         case 'l':
           usa_time = true;
-          /* fall through */
+          [[fallthrough]];
         case 'k':
         case 'H':
           tmp = val + min(2, val_len);

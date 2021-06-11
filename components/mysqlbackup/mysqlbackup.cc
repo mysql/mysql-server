@@ -334,11 +334,14 @@ mysql_service_status_t mysqlbackup_init() {
   /* If failed before the last initialization succeeded, deinitialize. */
   switch (failpoint) {
     case 3:
-      unregister_status_variables(); /*FALLTHROUGH*/
+      unregister_status_variables();
+      [[fallthrough]];
     case 2:
-      unregister_system_variables(); /*FALLTHROUGH*/
+      unregister_system_variables();
+      [[fallthrough]];
     case 1:
-      deinitialize_log_service(); /*FALLTHROUGH*/
+      deinitialize_log_service();
+      [[fallthrough]];
     case 0:
       return (1);
   }

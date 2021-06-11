@@ -362,7 +362,7 @@ static int cmp_whole_field(ulint mtype, ulint prtype, bool is_asc,
                                     " using a character set collation!";
         ut_ad(0);
       }
-      /* fall through */
+      [[fallthrough]];
     case DATA_VARMYSQL:
     case DATA_MYSQL:
       cmp = innobase_mysql_cmp(prtype, a, a_length, b, b_length);
@@ -418,7 +418,7 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
         pad = 0x20;
         break;
       }
-      /* fall through */
+      [[fallthrough]];
     case DATA_INT:
     case DATA_SYS_CHILD:
     case DATA_SYS:
@@ -442,7 +442,7 @@ inline int cmp_data(ulint mtype, ulint prtype, bool is_asc, const byte *data1,
         pad = ULINT_UNDEFINED;
         break;
       }
-      /* fall through */
+      [[fallthrough]];
     default:
       return (cmp_whole_field(mtype, prtype, is_asc, data1, (unsigned)len1,
                               data2, (unsigned)len2));
@@ -703,7 +703,7 @@ static inline ulint cmp_get_pad_char(const dtype_t *type) {
         VARBINARY or BINARY columns. */
         return (ULINT_UNDEFINED);
       }
-      /* Fall through */
+      [[fallthrough]];
     case DATA_CHAR:
     case DATA_VARCHAR:
     case DATA_MYSQL:
@@ -718,7 +718,7 @@ static inline ulint cmp_get_pad_char(const dtype_t *type) {
       if (!(type->prtype & DATA_BINARY_TYPE)) {
         return (0x20);
       }
-      /* Fall through */
+      [[fallthrough]];
     default:
       /* No padding specified */
       return (ULINT_UNDEFINED);
@@ -801,7 +801,7 @@ int cmp_dtuple_rec_with_match_bytes(const dtuple_t *dtuple, const rec_t *rec,
         if (type->prtype & DATA_BINARY_TYPE) {
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         ut_ad(!(dfield_is_multi_value(dfield) &&
                 dtuple_f_len == UNIV_MULTI_VALUE_ARRAY_MARKER));

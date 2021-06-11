@@ -765,7 +765,8 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
 
   switch (((Item_func *)cond)->functype()) {
     case Item_func::ISNULL_FUNC:
-      is_null = true; /* fall through */
+      is_null = true;
+      [[fallthrough]];
     case Item_func::EQ_FUNC:
       eq_type = true;
       break;
@@ -773,12 +774,14 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       eq_type = is_null_safe_eq = true;
       break;
     case Item_func::LT_FUNC:
-      noeq_type = true; /* fall through */
+      noeq_type = true;
+      [[fallthrough]];
     case Item_func::LE_FUNC:
       less_fl = true;
       break;
     case Item_func::GT_FUNC:
-      noeq_type = true; /* fall through */
+      noeq_type = true;
+      [[fallthrough]];
     case Item_func::GE_FUNC:
       break;
     case Item_func::BETWEEN:
@@ -1080,7 +1083,7 @@ static bool maxmin_in_range(bool max_fl, Item_field *item_field, Item *cond) {
     case Item_func::LT_FUNC:
     case Item_func::LE_FUNC:
       less_fl = true;
-      // Fall through
+      [[fallthrough]];
     case Item_func::GT_FUNC:
     case Item_func::GE_FUNC: {
       Item *item = down_cast<Item_func *>(cond)->arguments()[1];

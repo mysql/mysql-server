@@ -1289,7 +1289,7 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
             ER_DEFAULT(ER_ILLEGAL_HA_CREATE_OPTION), innobase_hton_name, name);
       }
     }
-      /* fall through */
+      [[fallthrough]];
     case ROW_TYPE_DEFAULT:
       switch (real_type) {
         case ROW_TYPE_FIXED:
@@ -1298,7 +1298,7 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
         case ROW_TYPE_DEFAULT:
           /* get_real_row_type() should not return these */
           ut_ad(0);
-          /* fall through */
+          [[fallthrough]];
         case ROW_TYPE_DYNAMIC:
           ut_ad(*zip_ssize == 0);
           break;
@@ -1323,7 +1323,7 @@ static bool format_validate(THD *thd, const TABLE *form, row_type real_type,
         }
         break;
       }
-      /* fall through */
+      [[fallthrough]];
     case ROW_TYPE_COMPRESSED:
       if (is_temporary) {
         if (strict) {

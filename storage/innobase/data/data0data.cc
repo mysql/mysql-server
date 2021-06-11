@@ -330,7 +330,7 @@ void dfield_print_also_hex(const dfield_t *dfield) {
       }
 
       data = static_cast<byte *>(dfield_get_data(dfield));
-      /* fall through */
+      [[fallthrough]];
 
     case DATA_BINARY:
     default:

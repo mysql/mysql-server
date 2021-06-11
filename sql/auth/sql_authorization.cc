@@ -5967,7 +5967,7 @@ bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
     switch (schema_access->check(LOCK_TABLES_ACL, &dummy)) {
       case ACL_INTERNAL_ACCESS_DENIED:
         *fake_lock_tables_acl = true;
-        // Fall through.
+        [[fallthrough]];
       case ACL_INTERNAL_ACCESS_GRANTED:
         want_access &= ~LOCK_TABLES_ACL;
         break;
@@ -5978,7 +5978,7 @@ bool check_lock_view_underlying_table_access(THD *thd, TABLE_LIST *tbl,
           switch (table_access->check(LOCK_TABLES_ACL, &dummy)) {
             case ACL_INTERNAL_ACCESS_DENIED:
               *fake_lock_tables_acl = true;
-              // Fall through.
+              [[fallthrough]];
             case ACL_INTERNAL_ACCESS_GRANTED:
               want_access &= ~LOCK_TABLES_ACL;
               break;

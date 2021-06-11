@@ -502,7 +502,7 @@ void Item_in_subselect::cleanup() {
         unit->first_query_block()->uncacheable |= UNCACHEABLE_DEPENDENT;
         unit->uncacheable |= UNCACHEABLE_DEPENDENT;
       }
-      // fall through
+      [[fallthrough]];
     case Subquery_strategy::SUBQ_EXISTS:
       /*
         Back to EXISTS_OR_MAT, so that next execution of this statement can

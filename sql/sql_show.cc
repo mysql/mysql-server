@@ -1060,7 +1060,7 @@ class Show_create_error_handler : public Internal_error_handler {
           is_handled = false;
           break;
         }
-        // Fall through
+        [[fallthrough]];
       case ER_COLUMNACCESS_DENIED_ERROR:
       // ER_VIEW_NO_EXPLAIN cannot happen here.
       case ER_PROCACCESS_DENIED_ERROR:

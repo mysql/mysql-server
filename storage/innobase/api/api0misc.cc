@@ -78,7 +78,7 @@ handle_new_error:
         trx_rollback_for_mysql(trx);
       }
       break;
-      /* fall through */
+      [[fallthrough]];
     case DB_DUPLICATE_KEY:
     case DB_FOREIGN_DUPLICATE_KEY:
     case DB_TOO_BIG_RECORD:

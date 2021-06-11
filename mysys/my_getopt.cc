@@ -395,7 +395,7 @@ int my_handle_options(int *argc, char ***argv, const struct my_option *longopts,
                 if ((opt_found = findopt(opt_str, length, &optp))) {
                   switch (i) {
                     case OPT_SKIP:
-                    case OPT_DISABLE: /* fall through */
+                    case OPT_DISABLE:
                       /*
                         double negation is actually enable again,
                         for example: --skip-option=0 -> option = true
@@ -1554,7 +1554,7 @@ void my_print_variables_ex(const struct my_option *options, FILE *file) {
           break;
         case GET_STR:
         case GET_PASSWORD:
-        case GET_STR_ALLOC: /* fall through */
+        case GET_STR_ALLOC:
           fprintf(file, "%s\n",
                   *((char **)value) ? *((char **)value) : "(No default value)");
           break;

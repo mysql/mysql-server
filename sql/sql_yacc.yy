@@ -6097,11 +6097,11 @@ size_number:
                 case 'g':
                 case 'G':
                   text_shift_number+=10;
-                  // Fall through.
+                  [[fallthrough]];
                 case 'm':
                 case 'M':
                   text_shift_number+=10;
-                  // Fall through.
+                  [[fallthrough]];
                 case 'k':
                 case 'K':
                   text_shift_number+=10;

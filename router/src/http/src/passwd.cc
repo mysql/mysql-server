@@ -190,7 +190,7 @@ int PasswdFrontend::run() {
 
           break;
         }
-        /* Falls through. */
+        [[fallthrough]];
       default:
         if (config_.cmd == PasswdFrontend::Cmd::List) {
           throw UsageError("expected at least one extra argument: <filename>");

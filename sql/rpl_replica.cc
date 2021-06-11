@@ -7990,7 +7990,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       compressed_transaction_bytes = uncompressed_transaction_bytes =
           anon_gtid_ev.transaction_length - anon_gtid_ev.get_event_length();
     }
-    /* fall through */
+      [[fallthrough]];
     default:
       inc_pos = event_len;
       break;

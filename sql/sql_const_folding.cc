@@ -244,7 +244,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
         break;
       }
     }
-      // fall-through
+      [[fallthrough]];
     case REAL_RESULT: {
       /*
         Try to convert to decimal. If that fails, we know the constant is out of
@@ -289,7 +289,7 @@ static bool analyze_int_field_constant(THD *thd, Item_field *f,
       }
       d = &dec;
     }
-      // fall-through
+      [[fallthrough]];
     case DECIMAL_RESULT: {
       /*
         If out of bounds of longlong, return RP_OUTSIDE_LOW or RP_OUTSIDE_HIGH
@@ -534,7 +534,7 @@ static bool analyze_decimal_field_constant(THD *thd, const Item_field *f,
       }
       was_string_or_real = true;
     }
-      // fall-thru
+      [[fallthrough]];
     case DECIMAL_RESULT: {
       /*
         Decimal constant can have different range and precision

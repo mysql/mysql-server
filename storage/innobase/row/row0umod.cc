@@ -774,7 +774,7 @@ static void row_undo_mod_sec_flag_corrupted(
       dict_set_corrupted(index);
       break;
     default:
-      /* fall through */
+      [[fallthrough]];
     case RW_X_LATCH:
       /* This should be the rollback of a data dictionary
       transaction. */

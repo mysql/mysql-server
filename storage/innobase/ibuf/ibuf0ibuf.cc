@@ -1684,7 +1684,7 @@ static dtuple_t *ibuf_entry_build(
     case 1:
       /* set the flag for ROW_FORMAT=COMPACT */
       *ti++ = 0;
-      /* fall through */
+      [[fallthrough]];
     case 0:
       /* the old format does not allow delete buffering */
       ut_ad(op == IBUF_OP_INSERT);

@@ -285,7 +285,7 @@ bool Window::setup_range_expressions(THD *thd) {
         return true;
       ok:;
       }
-      // fall through
+        [[fallthrough]];
       case WBT_CURRENT_ROW: {
         auto comparators = Bounds_checked_array<Arg_comparator>::Alloc(
             thd->mem_root, o->value.size());
@@ -1339,7 +1339,7 @@ void Window::reset_execution_state(Reset_level level) {
       m_frame_buffer_total_rows = 0;
       m_frame_buffer_partition_offset = 0;
       m_part_row_number = 0;
-    // fall-through
+      [[fallthrough]];
     case RL_PARTITION:
       /*
         Forget positions in the frame buffer: they won't be valid in a new

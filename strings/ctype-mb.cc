@@ -481,13 +481,13 @@ int my_strnncollsp_mb_bin(const CHARSET_INFO *cs [[maybe_unused]],
     switch (cs->cset->ismbchar(cs, (const char *)src, (const char *)se)) {   \
       case 4:                                                                \
         *dst++ = *src++;                                                     \
-        /* fall through */                                                   \
+        [[fallthrough]];                                                     \
       case 3:                                                                \
         *dst++ = *src++;                                                     \
-        /* fall through */                                                   \
+        [[fallthrough]];                                                     \
       case 2:                                                                \
         *dst++ = *src++;                                                     \
-        /* fall through */                                                   \
+        [[fallthrough]];                                                     \
       case 0:                                                                \
         *dst++ = *src++; /* byte in range 0x80..0xFF which is not MB head */ \
     }                                                                        \
@@ -834,11 +834,11 @@ bool my_like_range_generic(const CHARSET_INFO *cs, const char *ptr,
                                  pointer_cast<const uchar *>(end))) <= 0) {
         if (res == MY_CS_ILSEQ)
           return true; /* min_length and max_length are not important */
-        /*
-           End of the string: Escape is the last character.
-           Put escape as a normal character.
-           We'll will leave the loop on the next iteration.
-        */
+                       /*
+                          End of the string: Escape is the last character.
+                          Put escape as a normal character.
+                          We'll will leave the loop on the next iteration.
+                       */
       } else
         ptr += res;
 

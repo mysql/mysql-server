@@ -266,7 +266,7 @@ inline void Alter_stage::inc(uint64_t inc_val) {
       break;
     case SORT:
       multi_factor = m_sort_multi_factor;
-      /* fall through */
+      [[fallthrough]];
     case INSERT: {
       /* Increment the progress every nth record. During
       sort and insert phases, this method is called once per

@@ -2370,7 +2370,8 @@ int setup_conflict_fn(Ndb *ndb, NDB_CONFLICT_FN_SHARE **ppcfn_share,
         return -1;
       }
     }
-    /* Fall through - for the rest of the EPOCH* processing... */
+      /* Fall through - for the rest of the EPOCH* processing... */
+      [[fallthrough]];
     case CFT_NDB_EPOCH:
     case CFT_NDB_EPOCH_TRANS: {
       if (num_args > 1) {

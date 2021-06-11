@@ -447,7 +447,7 @@ void Expression_generator::in_expression(const Mysqlx::Expr::Operator &arg,
         m_qb->put(")");
         break;
       }
-      // Fall through.
+      [[fallthrough]];
 
     default:
       m_qb->put("(");

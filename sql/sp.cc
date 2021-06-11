@@ -2248,7 +2248,7 @@ uint sp_get_flags_for_command(LEX *lex) {
         flags = 0; /* This is a SELECT with INTO clause */
         break;
       }
-      /* fallthrough */
+      [[fallthrough]];
     case SQLCOM_ANALYZE:
     case SQLCOM_OPTIMIZE:
     case SQLCOM_PRELOAD_KEYS:
@@ -2538,7 +2538,7 @@ String *sp_get_item_value(THD *thd, Item *item, String *str) {
         return item->val_str(str);
       else { /* Bit type is handled as binary string */
       }
-      // Fall through
+      [[fallthrough]];
     case STRING_RESULT: {
       String *result = item->val_str(str);
 

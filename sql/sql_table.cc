@@ -3951,7 +3951,7 @@ bool prepare_pack_create_field(THD *thd, Create_field *sql_field,
         my_error(ER_CHECK_NOT_IMPLEMENTED, MYF(0), "GEOMETRY");
         return true;
       }
-      /* fall-through */
+      [[fallthrough]];
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_MEDIUM_BLOB:
     case MYSQL_TYPE_TINY_BLOB:
@@ -4903,7 +4903,7 @@ static bool prepare_key_column(THD *thd, HA_CREATE_INFO *create_info,
           return true;
         }
         key_info->algorithm = HA_KEY_ALG_RTREE;
-        /* fall through */
+        [[fallthrough]];
       case MYSQL_TYPE_TINY_BLOB:
       case MYSQL_TYPE_MEDIUM_BLOB:
       case MYSQL_TYPE_LONG_BLOB:
@@ -12259,6 +12259,7 @@ static bool alter_table_manage_keys(
     case Alter_info::LEAVE_AS_IS:
       if (!indexes_were_disabled) break;
       /* fall-through: disabled indexes */
+      [[fallthrough]];
     case Alter_info::DISABLE:
       error = table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
   }
@@ -13007,7 +13008,7 @@ static bool mysql_inplace_alter_table(
     case HA_ALTER_ERROR:
     case HA_ALTER_INPLACE_NOT_SUPPORTED:
       assert(0);
-      // fall through
+      [[fallthrough]];
     case HA_ALTER_INPLACE_NO_LOCK:
     case HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE:
       switch (alter_info->requested_lock) {
@@ -14670,7 +14671,7 @@ bool prepare_fields_and_keys(THD *thd, const dd::Table *src_table, TABLE *table,
             */
             break;
           }
-          // Fall-through.
+          [[fallthrough]];
         case Alter_drop::KEY:
         case Alter_drop::COLUMN:
           my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0), drop->name);

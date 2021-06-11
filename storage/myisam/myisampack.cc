@@ -2313,7 +2313,7 @@ static int compress_isam_file(PACK_MRG_INFO *mrg, HUFF_COUNTS *huff_counts) {
             }
             DBUG_PRINT("fields", ("FIELD_SKIP_ZERO not only zeroes, bits:  1"));
             write_bits(0, 1);
-            /* Fall through */
+            [[fallthrough]];
           case FIELD_NORMAL:
             DBUG_PRINT("fields", ("FIELD_NORMAL %lu bytes",
                                   (ulong)(end_pos - start_pos)));

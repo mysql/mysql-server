@@ -809,7 +809,7 @@ net_async_status net_write_command_nonblocking(NET *net, uchar command,
         goto done;
       }
       net_async->async_operation = NET_ASYNC_OP_WRITING;
-      /* fallthrough */
+      [[fallthrough]];
     case NET_ASYNC_OP_WRITING:
       status = net_write_vector_nonblocking(net, &rc);
       if (status == NET_ASYNC_COMPLETE) {
@@ -1581,7 +1581,7 @@ static net_async_status net_read_data_nonblocking(NET *net, size_t count,
       net_async->async_bytes_wanted = count;
       net_async->async_operation = NET_ASYNC_OP_READING;
       net_async->cur_pos = net->buff + net->where_b;
-      /* fallthrough */
+      [[fallthrough]];
     case NET_ASYNC_OP_READING:
       rc = net_read_available(net, net_async->async_bytes_wanted);
       if (rc == packet_error) {
@@ -1598,7 +1598,7 @@ static net_async_status net_read_data_nonblocking(NET *net, size_t count,
         return NET_ASYNC_NOT_READY;
       }
       net_async->async_operation = NET_ASYNC_OP_COMPLETE;
-      /* fallthrough */
+      [[fallthrough]];
     case NET_ASYNC_OP_COMPLETE:
       net_async->async_bytes_wanted = 0;
       net_async->async_operation = NET_ASYNC_OP_IDLE;
@@ -1676,7 +1676,7 @@ static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret) {
     case NET_ASYNC_PACKET_READ_IDLE:
       net_async->async_packet_read_state = NET_ASYNC_PACKET_READ_HEADER;
       net->reading_or_writing = 0;
-      /* fallthrough */
+      [[fallthrough]];
     case NET_ASYNC_PACKET_READ_HEADER:
       if (net_read_packet_header_nonblocking(net, &err) ==
           NET_ASYNC_NOT_READY) {
@@ -1720,7 +1720,7 @@ static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret) {
         goto error;
 
       net_async->async_packet_read_state = NET_ASYNC_PACKET_READ_BODY;
-      /* fallthrough */
+      [[fallthrough]];
     case NET_ASYNC_PACKET_READ_BODY:
       if (net_read_data_nonblocking(net, net_async->async_packet_length,
                                     &err) == NET_ASYNC_NOT_READY) {
@@ -1730,7 +1730,7 @@ static net_async_status net_read_packet_nonblocking(NET *net, ulong *ret) {
       if (err) goto error;
 
       net_async->async_packet_read_state = NET_ASYNC_PACKET_READ_COMPLETE;
-      /* fallthrough */
+      [[fallthrough]];
 
     case NET_ASYNC_PACKET_READ_COMPLETE:
       net_async->async_packet_read_state = NET_ASYNC_PACKET_READ_IDLE;

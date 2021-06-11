@@ -1691,7 +1691,7 @@ class Alter_instance_reload_tls : public Alter_instance {
                                      &server_admin_callback, &error, force_);
         break;
       case Ssl_acceptor_context_type::context_last:
-        // Fall through
+        [[fallthrough]];
       default:
         assert(false);
         return false;

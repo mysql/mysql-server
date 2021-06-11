@@ -298,7 +298,8 @@ void Client::handle_message(Message_request *request) {
           s->handle_message(*request);
         }
         break;
-      }  // Fall through.
+      }
+      [[fallthrough]];
 
     default:
       // invalid message at this time
@@ -398,7 +399,8 @@ void Client::on_client_addr() {
     } break;
 
     case xpl::Connection_namedpipe:
-    case xpl::Connection_unixsocket:  // fall through
+    case xpl::Connection_unixsocket:
+      [[fallthrough]];
       m_client_host = "localhost";
       return;
 

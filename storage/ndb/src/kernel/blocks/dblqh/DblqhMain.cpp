@@ -4187,7 +4187,7 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
   switch((DropTabReq::RequestType)req->requestType) {
   case DropTabReq::RestartDropTab:
     jam();
-    // Fall through
+    [[fallthrough]];
   case DropTabReq::CreateTabDrop:
     if (tabPtr.p->tableStatus == Tablerec::TABLE_DEFINED)
     {
@@ -4225,7 +4225,7 @@ Dblqh::execDROP_TAB_REQ(Signal* signal){
     case Tablerec::ADD_TABLE_ONGOING:
       jam();
       ndbassert(false);
-      // Fall through
+      [[fallthrough]];
     case Tablerec::PREP_DROP_TABLE_DONE:
       jam();
       tabPtr.p->m_informed_backup_drop_tab = false;
@@ -24487,7 +24487,7 @@ void Dblqh::execFSOPENCONF(Signal* signal)
       jam();
       m_redo_open_file_cache.m_lru.addFirst(logFilePtr);
     }
-    // Fall through
+    [[fallthrough]];
   case LogFileRecord::OPEN_EXEC_LOG_CACHED:
     jam();
     unlock_log_part(logPartPtr.p);

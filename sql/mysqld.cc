@@ -3337,7 +3337,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers) {
    To overcome, one could put a MessageBox, but this will not work in service.
    Better solution is to print error message and sleep some minutes
    until debugger is attached
- */
+*/
   wait_for_debugger(DEBUGGER_ATTACH_TIMEOUT);
 #endif /* DEBUG_UNHANDLED_EXCEPTION_FILTER */
   __try {
@@ -3560,7 +3560,7 @@ extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
       case SIGUSR2:
         signal_hand_thr_exit_code = MYSQLD_RESTART_EXIT;
 #ifndef __APPLE__  // Mac OS doesn't have sigwaitinfo.
-        //  Log a note if mysqld is restarted via kill command.
+                   //  Log a note if mysqld is restarted via kill command.
         if (sig_info.si_pid != getpid()) {
           sql_print_information(
               "Received signal SIGUSR2."
@@ -3568,7 +3568,7 @@ extern "C" void *signal_hand(void *arg [[maybe_unused]]) {
               server_version);
         }
 #endif             // __APPLE__
-        // fall through
+        [[fallthrough]];
       case SIGTERM:
       case SIGQUIT:
 #ifndef __APPLE__  // Mac OS doesn't have sigwaitinfo.
@@ -5425,14 +5425,14 @@ static void setup_error_log() {
 /* Setup logs */
 
 /*
-  Enable old-fashioned error log, except when the user has requested
-  help information. Since the implementation of plugin server
-  variables the help output is now written much later.
+        Enable old-fashioned error log, except when the user has requested
+        help information. Since the implementation of plugin server
+        variables the help output is now written much later.
 
-  log_error_dest can be:
-  disabled_my_option     --log-error was not used or --log-error=
-  ""                     --log-error without arguments (no '=')
-  filename               --log-error=filename
+        log_error_dest can be:
+        disabled_my_option     --log-error was not used or --log-error=
+        ""                     --log-error without arguments (no '=')
+        filename               --log-error=filename
 */
 #ifdef _WIN32
   /*
@@ -5601,7 +5601,7 @@ static int setup_error_log_components() {
         return 1;
       } /* purecov: end */
     }   // value was OK, but could not be set
-    // If we arrive here, the value was OK, and was set successfully.
+        // If we arrive here, the value was OK, and was set successfully.
   } else {
     /*
       We were given an illegal value at start-up, so the default was
@@ -9811,7 +9811,7 @@ bool mysqld_get_one_option(int optid,
       break;
     case 'L':
       push_deprecated_warn(nullptr, "--language/-l", "'--lc-messages-dir'");
-      /* Note:  fall-through */
+      [[fallthrough]];
     case OPT_LC_MESSAGES_DIRECTORY:
       strmake(lc_messages_dir, argument, sizeof(lc_messages_dir) - 1);
       lc_messages_dir_ptr = lc_messages_dir;
@@ -10109,7 +10109,7 @@ bool mysqld_get_one_option(int optid,
       break;
     case OPT_PLUGIN_LOAD:
       free_list(opt_plugin_load_list_ptr);
-      /* fall through */
+      [[fallthrough]];
     case OPT_PLUGIN_LOAD_ADD:
       opt_plugin_load_list_ptr->push_back(new i_string(argument));
       break;

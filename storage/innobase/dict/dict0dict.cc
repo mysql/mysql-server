@@ -385,7 +385,7 @@ void dict_table_stats_lock(dict_table_t *table, ulint latch_mode) {
       rw_lock_x_lock(table->stats_latch);
       break;
     case RW_NO_LATCH:
-      /* fall through */
+      [[fallthrough]];
     default:
       ut_error;
   }
@@ -413,7 +413,7 @@ void dict_table_stats_unlock(dict_table_t *table, ulint latch_mode) {
       rw_lock_x_unlock(table->stats_latch);
       break;
     case RW_NO_LATCH:
-      /* fall through */
+      [[fallthrough]];
     default:
       ut_error;
   }
@@ -1892,7 +1892,7 @@ static void dict_table_remove_from_cache_low(
       /* Write back the dirty metadata to DDTableBuffer */
       dict_table_persist_to_dd_table_buffer(table);
       ut_ad(table->dirty_status.load() != METADATA_DIRTY);
-      /* Fall through */
+      [[fallthrough]];
     case METADATA_BUFFERED:
       /* We have to remove it away here, since it's evicted.
       And we will add it again once it's re-loaded if possible */
@@ -4065,7 +4065,7 @@ void dict_table_mark_dirty(dict_table_t *table) {
       UT_LIST_ADD_LAST(dict_persist->dirty_dict_tables, table);
 #endif
       ut_d(table->in_dirty_dict_tables_list = true);
-      /* Fall through */
+      [[fallthrough]];
     case METADATA_BUFFERED:
       table->dirty_status.store(METADATA_DIRTY);
       ++dict_persist->num_dirty_tables;
@@ -4456,7 +4456,7 @@ void dict_table_check_for_dup_indexes(const dict_table_t *table,
             case ONLINE_INDEX_ABORTED_DROPPED:
               break;
           }
-          /* fall through */
+          [[fallthrough]];
         case CHECK_PARTIAL_OK:
           break;
       }

@@ -1864,7 +1864,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref) {
         return true;
       }
     }
-      // Fall through.
+      [[fallthrough]];
     case 2: {
       // Validate options argument
       if (args[1]->propagate_type(thd, MYSQL_TYPE_LONGLONG)) return true;
@@ -1873,7 +1873,7 @@ bool Item_func_geomfromgeojson::fix_fields(THD *thd, Item **ref) {
         return true;
       }
     }
-      // Fall through.
+      [[fallthrough]];
     case 1: {
       /*
         Validate GeoJSON argument type. We do not allow binary data as GeoJSON

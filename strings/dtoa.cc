@@ -1295,7 +1295,7 @@ static double my_strtod_int(const char *s00, const char **se, int *error,
   for (s = s00; s < end; s++) switch (*s) {
       case '-':
         sign = 1;
-        // Fall through.
+        [[fallthrough]];
       case '+':
         s++;
         goto break2;
@@ -1386,7 +1386,7 @@ dig_done:
     if (++s < end) switch (c = *s) {
         case '-':
           esign = 1;
-          // Fall through.
+          [[fallthrough]];
         case '+':
           if (++s < end) c = *s;
       }
@@ -2096,14 +2096,14 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
       break;
     case 2:
       leftright = 0;
-      // Fall through.
+      [[fallthrough]];
     case 4:
       if (ndigits <= 0) ndigits = 1;
       ilim = ilim1 = i = ndigits;
       break;
     case 3:
       leftright = 0;
-      // Fall through.
+      [[fallthrough]];
     case 5:
       i = ndigits + k + 1;
       ilim = i;

@@ -120,7 +120,7 @@ void CountFileOpen(OpenType pt, OpenType ct) {
         assert(my_file_opened + my_stream_opened == my_file_total_opened);
         return;
       }
-      // Fallthrough
+      [[fallthrough]];
     case OpenType::STREAM_BY_FOPEN:
       ++my_stream_opened;
       break;

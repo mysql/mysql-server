@@ -918,7 +918,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       exit(0);
     case (int)OPT_MASTER_DATA_DEPRECATED:
       CLIENT_WARN_DEPRECATED("--master-data", "--source-data");
-      // FALLTHROUGH
+      [[fallthrough]];
     case (int)OPT_SOURCE_DATA:
       if (!argument) /* work like in old versions */
         opt_master_data = MYSQL_OPT_SOURCE_DATA_EFFECTIVE_SQL;
@@ -932,7 +932,7 @@ static bool get_one_option(int optid, const struct my_option *opt,
       break;
     case (int)OPT_MYSQLDUMP_SLAVE_DATA_DEPRECATED:
       CLIENT_WARN_DEPRECATED("--dump-slave", "--dump-replica");
-      // FALLTHROUGH
+      [[fallthrough]];
     case (int)OPT_MYSQLDUMP_REPLICA_DATA:
       if (!argument) /* work like in old versions */
         opt_slave_data = MYSQL_OPT_SLAVE_DATA_EFFECTIVE_SQL;
@@ -1837,7 +1837,7 @@ static void print_quoted_xml(FILE *xml_file, const char *str, size_t len,
           fputs("_", xml_file);
           break;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         fputc(*str, xml_file);
         break;
@@ -1963,7 +1963,7 @@ static void print_xml_cdata(FILE *xml_file, const char *str, ulong len) {
           str += 2;
           continue;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         fputc(*str, xml_file);
         break;
@@ -2059,7 +2059,7 @@ static void print_xml_comment(FILE *xml_file, size_t len,
       case '-':
         if (*(comment_string + 1) == '-') /* Only one hyphen allowed. */
           break;
-        // Fall through.
+        [[fallthrough]];
       default:
         fputc(*comment_string, xml_file);
         break;

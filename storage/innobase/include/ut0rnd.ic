@@ -178,22 +178,22 @@ static inline ulint ut_fold_binary(const byte *str, /*!< in: string of bytes */
   switch (len & 0x7) {
     case 7:
       fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-      // Fall through.
+      [[fallthrough]];
     case 6:
       fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-      // Fall through.
+      [[fallthrough]];
     case 5:
       fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-      // Fall through.
+      [[fallthrough]];
     case 4:
       fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-      // Fall through.
+      [[fallthrough]];
     case 3:
       fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-      // Fall through.
+      [[fallthrough]];
     case 2:
       fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
-      // Fall through.
+      [[fallthrough]];
     case 1:
       fold = ut_fold_ulint_pair(fold, (ulint)(*str++));
   }

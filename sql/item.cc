@@ -2749,7 +2749,7 @@ inline static uint32 adjust_max_effective_column_length(Field *field_par,
         the column.
       */
       new_max_length += 1;
-      /* fall through */
+      [[fallthrough]];
     case MYSQL_TYPE_LONG:
     case MYSQL_TYPE_TINY:
     case MYSQL_TYPE_SHORT:
@@ -6006,6 +6006,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table,
         break;
       }
       /* Fall through to make_string_field() */
+      [[fallthrough]];
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_VAR_STRING:

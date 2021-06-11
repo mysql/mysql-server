@@ -535,7 +535,7 @@ handlerton *ha_resolve_by_legacy_type(THD *thd, enum legacy_db_type db_type) {
       if (db_type > DB_TYPE_UNKNOWN && db_type < DB_TYPE_DEFAULT &&
           (plugin = ha_lock_engine(thd, installed_htons[db_type])))
         return plugin_data<handlerton *>(plugin);
-      /* fall through */
+      [[fallthrough]];
     case DB_TYPE_UNKNOWN:
       return nullptr;
   }
@@ -828,7 +828,7 @@ int ha_initialize_handlerton(st_plugin_int *plugin) {
       if (hton->prepare) total_ha_2pc++;
       break;
     }
-      /* fall through */
+      [[fallthrough]];
     default:
       hton->state = SHOW_OPTION_DISABLED;
       break;

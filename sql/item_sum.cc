@@ -952,7 +952,7 @@ static enum enum_field_types calc_tmp_field_type(
       break;
     case INT_RESULT:
       table_field_type = MYSQL_TYPE_LONGLONG;
-      /* fallthrough */
+      [[fallthrough]];
     case DECIMAL_RESULT:
       if (table_field_type != MYSQL_TYPE_LONGLONG)
         table_field_type = MYSQL_TYPE_NEWDECIMAL;

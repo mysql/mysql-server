@@ -536,7 +536,7 @@ int ha_archive::open(const char *name, int, uint open_options,
       break;
     case HA_ERR_CRASHED_ON_USAGE:
       if (open_options & HA_OPEN_FOR_REPAIR) break;
-      /* fall through */
+      [[fallthrough]];
     default:
       return rc;
   }

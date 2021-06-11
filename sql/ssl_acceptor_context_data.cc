@@ -360,7 +360,7 @@ std::string Ssl_acceptor_context_data::show_property(
       break;
     }
     case Ssl_acceptor_context_property_type::last:
-      // Fall through
+      [[fallthrough]];
     default:
       output.assign("");
   }

@@ -1121,7 +1121,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
 
       case ADMIN_START_SLAVE:
         CLIENT_WARN_DEPRECATED("start-slave", "start-replica");
-        // FALLTHROUGH
+        [[fallthrough]];
       case ADMIN_START_REPLICA:
         if (mysql_query(mysql, "START REPLICA")) {
           my_printf_error(0, "Error starting replication: %s", error_flags,
@@ -1133,7 +1133,7 @@ static int execute_commands(MYSQL *mysql, int argc, char **argv) {
 
       case ADMIN_STOP_SLAVE:
         CLIENT_WARN_DEPRECATED("stop-slave", "stop-replica");
-        // FALLTHROUGH
+        [[fallthrough]];
       case ADMIN_STOP_REPLICA:
         if (mysql_query(mysql, "STOP REPLICA")) {
           my_printf_error(0, "Error stopping replication: %s", error_flags,

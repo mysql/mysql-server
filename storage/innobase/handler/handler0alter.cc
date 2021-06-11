@@ -767,7 +767,7 @@ enum_alter_inplace_result ha_innobase::check_if_supported_inplace_alter(
           may not be empty. Have to fall back to INPLACE */
           break;
         }
-        /* Fall through */
+        [[fallthrough]];
       case Instant_Type::INSTANT_NO_CHANGE:
       case Instant_Type::INSTANT_VIRTUAL_ONLY:
         ha_alter_info->handler_trivial_ctx = instant_type_to_int(instant_type);
@@ -1965,7 +1965,7 @@ static void innobase_col_to_mysql(
     case DATA_POINT:
       /* Above are the valid column types for MySQL data. */
       ut_ad(flen == len);
-      /* fall through */
+      [[fallthrough]];
     case DATA_FIXBINARY:
     case DATA_CHAR:
       /* We may have flen > len when there is a shorter
@@ -10033,7 +10033,7 @@ enum_alter_inplace_result ha_innopart::check_if_supported_inplace_alter(
         may not be empty. Have to fall back to INPLACE */
         break;
       }
-      /* Fall through */
+      [[fallthrough]];
     case Instant_Type::INSTANT_NO_CHANGE:
     case Instant_Type::INSTANT_VIRTUAL_ONLY:
       if (altered_table->s->fields > REC_MAX_N_USER_FIELDS) {

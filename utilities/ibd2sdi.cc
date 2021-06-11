@@ -1689,7 +1689,7 @@ uint64_t ibd2sdi::copy_compressed_blob(ib_tablespace *ts,
         if (next_page_num == FIL_NULL) {
           goto func_exit;
         }
-      /* fall through */
+        [[fallthrough]];
       default:
       inflate_error : {
         page_id_t page_id(space_id, page_num);

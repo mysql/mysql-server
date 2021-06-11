@@ -116,6 +116,7 @@ public:
         break;
       }
       // Fall through - for blob/text with ArrayTypeVar
+      [[fallthrough]];
     default:
       // Default twiddling parameters
       m_twiddle_size = attr_desc->size;

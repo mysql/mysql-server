@@ -536,7 +536,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd) {
           skip_statement(thd);
           return GTID_STATEMENT_SKIP;
         }
-        /*FALLTHROUGH*/
+        [[fallthrough]];
       case ANONYMOUS_GTID:
         return GTID_STATEMENT_EXECUTE;
       case INVALID_GTID:

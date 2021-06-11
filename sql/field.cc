@@ -1734,7 +1734,7 @@ type_conversion_status Field::check_constraints(int mysql_errno) {
   switch (m_check_for_truncated_fields_saved) {
     case CHECK_FIELD_WARN:
       set_warning(Sql_condition::SL_WARNING, mysql_errno, 1);
-      /* fall through */
+      [[fallthrough]];
     case CHECK_FIELD_IGNORE:
       return TYPE_OK;
     case CHECK_FIELD_ERROR_FOR_NULL:

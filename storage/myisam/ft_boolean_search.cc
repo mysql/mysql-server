@@ -204,7 +204,7 @@ static int ftb_query_add_word(MYSQL_FTPARSER_PARAM *param, char *word,
       for (tmp_expr = ftb_param->ftbe; tmp_expr->up; tmp_expr = tmp_expr->up)
         if (!(tmp_expr->flags & FTB_FLAG_YES)) break;
       ftbw->max_docid_expr = tmp_expr;
-      /* fall through */
+      [[fallthrough]];
     case FT_TOKEN_STOPWORD:
       if (!ftb_param->up_quot) break;
       phrase_word = (FT_WORD *)ftb_param->ftb->mem_root.Alloc(sizeof(FT_WORD));

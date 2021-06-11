@@ -1084,7 +1084,7 @@ static void row_upd_index_replace_new_col_val_func(
       dfield_set_data(dfield, data + len - BTR_EXTERN_FIELD_REF_SIZE,
                       BTR_EXTERN_FIELD_REF_SIZE);
       dfield_set_ext(dfield);
-      /* fall through */
+      [[fallthrough]];
     case 0:
       if (dfield_is_multi_value(dfield)) {
         dfield_multi_value_dup(dfield, heap);
@@ -2268,7 +2268,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
           ut_a(entry);
           row_log_online_op(index, entry, trx->id);
         }
-        /* fall through */
+        [[fallthrough]];
       case ONLINE_INDEX_ABORTED:
       case ONLINE_INDEX_ABORTED_DROPPED:
         mtr_commit(&mtr);

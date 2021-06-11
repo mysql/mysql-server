@@ -1382,9 +1382,9 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       break;
 
     /*
-      No server reply is expected after these commands so we reamin ready
-      for the next command.
-   */
+            No server reply is expected after these commands so we reamin ready
+            for the next command.
+*/
     case COM_STMT_SEND_LONG_DATA:
     case COM_STMT_CLOSE:
     case COM_REGISTER_SLAVE:
@@ -1392,8 +1392,8 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       break;
 
     /*
-      These replication commands are not supported and we bail out
-      by pretending that connection has been closed.
+            These replication commands are not supported and we bail out
+            by pretending that connection has been closed.
     */
     case COM_BINLOG_DUMP:
     case COM_BINLOG_DUMP_GTID:
@@ -1402,24 +1402,24 @@ bool cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       break;
 
     /*
-      After COM_CHANGE_USER a regular authentication exchange
-      is performed.
+            After COM_CHANGE_USER a regular authentication exchange
+            is performed.
     */
     case COM_CHANGE_USER:
       MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
       break;
 
     /*
-      Server replies to COM_STATISTICS with a single packet
-      containing a string with statistics information.
+            Server replies to COM_STATISTICS with a single packet
+            containing a string with statistics information.
     */
     case COM_STATISTICS:
       MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PACKET);
       break;
 
     /*
-      For all other commands we expect server to send regular reply which
-      is either OK, ERR or a result-set header.
+            For all other commands we expect server to send regular reply which
+            is either OK, ERR or a result-set header.
     */
     default:
       MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
@@ -8791,7 +8791,7 @@ static net_async_status native_password_auth_client_nonblocking(
       ctx->client_auth_plugin_state = (int)
           client_auth_native_password_plugin_status::NATIVE_WRITING_RESPONSE;
 
-      /* fallthrough */
+      [[fallthrough]];
 
     case client_auth_native_password_plugin_status::NATIVE_WRITING_RESPONSE:
       if (mysql->passwd[0]) {

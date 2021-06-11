@@ -1154,7 +1154,7 @@ bool set_and_validate_user_attributes(
         GRANT and REVOKE.
        */
       case SQLCOM_GRANT:
-        /* fall through */
+        [[fallthrough]];
       case SQLCOM_REVOKE:
         what_to_set.m_what = NONE_ATTR;
         Str->plugin = acl_user->plugin;

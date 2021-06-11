@@ -3824,7 +3824,7 @@ static bool innobase_dict_recover(dict_recovery_mode_t dict_recovery_mode,
     case DICT_RECOVERY_INITIALIZE_TABLESPACES:
       break;
     case DICT_RECOVERY_RESTART_SERVER:
-      /* Fall through */
+      [[fallthrough]];
     case DICT_RECOVERY_INITIALIZE_SERVER:
       if (dict_sys->dynamic_metadata == nullptr) {
         dict_sys->dynamic_metadata =
@@ -6429,12 +6429,12 @@ bool innobase_match_index_columns(const KEY *key_info,
               mtype == DATA_BLOB) {
             break;
           }
-          /* Fall through */
+          [[fallthrough]];
         case DATA_GEOMETRY:
           if (mtype == DATA_BLOB) {
             break;
           }
-          /* Fall through */
+          [[fallthrough]];
         default:
           /* Column type mismatches */
           return false;
@@ -7718,8 +7718,9 @@ ulint get_innobase_type_from_mysql_type(ulint *unsigned_flag, const void *f) {
         case MYSQL_TYPE_DATETIME:
         case MYSQL_TYPE_TIMESTAMP:
           return (DATA_INT);
-        default: /* Fall through */
+        default:
           assert((ulint)MYSQL_TYPE_DECIMAL < 256);
+          [[fallthrough]];
         case MYSQL_TYPE_TIME2:
         case MYSQL_TYPE_DATETIME2:
         case MYSQL_TYPE_TIMESTAMP2:
@@ -8463,6 +8464,7 @@ dberr_t ha_innobase::innobase_lock_autoinc(void) {
         }
       }
       /* Fall through to old style locking. */
+      [[fallthrough]];
 
     case AUTOINC_OLD_STYLE_LOCKING:
       DBUG_EXECUTE_IF("die_if_autoinc_old_lock_style_used", ut_ad(0););
@@ -9738,7 +9740,7 @@ void ha_innobase::unlock_row(void) {
       if (!m_prebuilt->trx->allow_semi_consistent()) {
         break;
       }
-      /* fall through */
+      [[fallthrough]];
     case ROW_READ_TRY_SEMI_CONSISTENT:
       row_unlock_for_mysql(m_prebuilt, FALSE);
       break;
@@ -12911,13 +12913,14 @@ bool create_table_info_t::innobase_table_flags() {
       }
       zip_allowed = false;
       /* fall through to set row_type = DYNAMIC */
+      [[fallthrough]];
     case ROW_TYPE_NOT_USED:
     case ROW_TYPE_FIXED:
     case ROW_TYPE_PAGED:
       push_warning(m_thd, Sql_condition::SL_WARNING,
                    ER_ILLEGAL_HA_CREATE_OPTION,
                    "InnoDB: assuming ROW_FORMAT=DYNAMIC.");
-      // Fall through.
+      [[fallthrough]];
     case ROW_TYPE_DYNAMIC:
       innodb_row_format = REC_FORMAT_DYNAMIC;
       break;
@@ -14453,14 +14456,14 @@ int ha_innobase::get_extra_columns_and_keys(const HA_CREATE_INFO *,
         case dd::Index::IT_PRIMARY:
           /* PRIMARY!=FTS_DOC_ID_INDEX */
           ut_ad(!"wrong fts_doc_id_index");
-          /* fall through */
+          [[fallthrough]];
         case dd::Index::IT_UNIQUE:
           /* We already checked for this. */
           ut_ad(fts_doc_id_index->algorithm() == dd::Index::IA_BTREE);
           if (dd_is_only_column(fts_doc_id_index, fts_doc_id)) {
             break;
           }
-          /* fall through */
+          [[fallthrough]];
         case dd::Index::IT_MULTIPLE:
         case dd::Index::IT_FULLTEXT:
         case dd::Index::IT_SPATIAL:

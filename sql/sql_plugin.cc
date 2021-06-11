@@ -1905,7 +1905,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
     switch ((*(p++) = *(list++))) {
       case '\0':
         list = nullptr; /* terminate the loop */
-                        /* fall through */
+        [[fallthrough]];
       case ';':
 #ifndef _WIN32
       case ':': /* can't use this as delimiter as it may be drive letter */
@@ -1967,7 +1967,7 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
           str->str = p;
           continue;
         }
-        // Fall through.
+        [[fallthrough]];
       default:
         str->length++;
         continue;

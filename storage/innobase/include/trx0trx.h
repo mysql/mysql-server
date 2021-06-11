@@ -471,7 +471,7 @@ Check transaction state */
     ut_ad(!trx_is_autocommit_non_locking((t))); \
     switch ((t)->state) {                       \
       case TRX_STATE_PREPARED:                  \
-        /* fall through */                      \
+        [[fallthrough]];                        \
       case TRX_STATE_ACTIVE:                    \
       case TRX_STATE_COMMITTED_IN_MEMORY:       \
         continue;                               \

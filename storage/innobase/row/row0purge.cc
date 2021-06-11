@@ -554,6 +554,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_remove_sec_if_poss_leaf
       }
       /* fall through (the index entry is still needed,
       or the deletion succeeded) */
+      [[fallthrough]];
     case ROW_NOT_DELETED_REF:
       /* The index entry is still needed. */
     case ROW_BUFFERED:
@@ -1105,7 +1106,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_purge_record_func(
       if (!updated_extern) {
         break;
       }
-      /* fall through */
+      [[fallthrough]];
     case TRX_UNDO_UPD_EXIST_REC:
       DBUG_EXECUTE_IF("innodb_purge_sleep_12",
                       std::this_thread::sleep_for(std::chrono::seconds(5)););

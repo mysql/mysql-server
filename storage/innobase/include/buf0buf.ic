@@ -633,7 +633,7 @@ static inline buf_frame_t *buf_block_get_frame(
       break;
     case BUF_BLOCK_FILE_PAGE:
       ut_a(block->page.buf_fix_count > 0);
-      /* fall through */
+      [[fallthrough]];
     case BUF_BLOCK_READY_FOR_USE:
     case BUF_BLOCK_MEMORY:
     case BUF_BLOCK_REMOVE_HASH:
@@ -1059,7 +1059,7 @@ static inline void buf_page_release_zip(
       }
     }
 #endif /* UNIV_DEBUG */
-       /* Fall through */
+      [[fallthrough]];
 
     case BUF_BLOCK_ZIP_PAGE:
     case BUF_BLOCK_ZIP_DIRTY:

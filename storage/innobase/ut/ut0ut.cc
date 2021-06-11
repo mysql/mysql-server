@@ -231,7 +231,7 @@ char *ut_format_name(const char *name, char *formatted, ulint formatted_size) {
   switch (formatted_size) {
     case 1:
       formatted[0] = '\0';
-      /* FALL-THROUGH */
+      [[fallthrough]];
     case 0:
       return (formatted);
   }

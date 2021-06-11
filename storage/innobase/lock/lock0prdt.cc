@@ -502,7 +502,7 @@ dberr_t lock_prdt_insert_check_and_lock(
   switch (err) {
     case DB_SUCCESS_LOCKED_REC:
       err = DB_SUCCESS;
-      /* fall through */
+      [[fallthrough]];
     case DB_SUCCESS:
       /* Update the page max trx id field */
       page_update_max_trx_id(block, buf_block_get_page_zip(block), trx->id,

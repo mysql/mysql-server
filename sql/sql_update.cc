@@ -1938,6 +1938,7 @@ static bool safe_update_on_fly(JOIN_TAB *join_tab, TABLE_LIST *table_ref,
       // If the index access is using some secondary key(s), and if the table
       // has a clustered primary key, modifying that key might affect the
       // functioning of the the secondary key(s), so fall through to check that.
+      [[fallthrough]];
     case JT_ALL:
       assert(join_tab->type() != JT_ALL || join_tab->quick() == nullptr);
       // If using the clustered key under the cover:

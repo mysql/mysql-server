@@ -4282,7 +4282,7 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
                    ? true
                    : all_gtids != nullptr || first_gtid != nullptr);
       }
-      // Fall through.
+        [[fallthrough]];
       default:
         // if we found any other event type without finding a
         // previous_gtids_log_event, then the rest of this binlog
@@ -4565,7 +4565,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
             assert(lost_gtids->is_empty());
             goto end;
           }
-          /*FALLTHROUGH*/
+          [[fallthrough]];
         }
         case TRUNCATED: {
           break;
@@ -4686,7 +4686,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
           verify_checksum, is_relay_log)) {
         case ERROR: {
           error = 1;
-          /*FALLTHROUGH*/
+          [[fallthrough]];
         }
         case GOT_GTIDS: {
           goto end;
@@ -4707,7 +4707,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
             read any more binary logs.
           */
           if (binlog_gtid_simple_recovery) goto end;
-          /*FALLTHROUGH*/
+          [[fallthrough]];
         }
         case TRUNCATED: {
           break;
@@ -11489,7 +11489,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, const char *query_arg,
       DBUG_PRINT("debug", ("is_current_stmt_binlog_format_row: %d",
                            is_current_stmt_binlog_format_row()));
       if (is_current_stmt_binlog_format_row()) return 0;
-      /* Fall through */
+      [[fallthrough]];
 
       /*
         STMT_QUERY_TYPE means that the query must be logged in statement

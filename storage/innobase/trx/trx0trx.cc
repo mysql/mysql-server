@@ -1699,7 +1699,7 @@ static void trx_flush_log_if_needed_low(lsn_t lsn) /*!< in: lsn up to which logs
     case 2:
       /* Write the log but do not flush it to disk */
       flush = false;
-      /* fall through */
+      [[fallthrough]];
     case 1:
       /* Write the log and optionally flush it to disk */
       wait_stats = log_write_up_to(*log_sys, lsn, flush);
@@ -2287,7 +2287,7 @@ void trx_commit_or_rollback_prepare(trx_t *trx) /*!< in/out: transaction */
     case TRX_STATE_FORCED_ROLLBACK:
 
       trx_start_low(trx, true);
-      /* fall through */
+      [[fallthrough]];
 
     case TRX_STATE_ACTIVE:
     case TRX_STATE_PREPARED:
@@ -2401,7 +2401,7 @@ dberr_t trx_commit_for_mysql(trx_t *trx) /*!< in/out: transaction */
       ut_d(trx->start_line = __LINE__);
 
       trx_start_low(trx, true);
-      /* fall through */
+      [[fallthrough]];
     case TRX_STATE_ACTIVE:
     case TRX_STATE_PREPARED:
       trx->op_info = "committing";
@@ -2464,7 +2464,7 @@ void trx_mark_sql_stat_end(trx_t *trx) /*!< in: trx handle */
     case TRX_STATE_FORCED_ROLLBACK:
       trx->undo_no = 0;
       trx->undo_rseg_space = 0;
-      /* fall through */
+      [[fallthrough]];
     case TRX_STATE_ACTIVE:
       trx->last_sql_stat_start.least_undo_no = trx->undo_no;
 

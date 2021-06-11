@@ -259,7 +259,7 @@ int AggregateIterator::Read() {
 
       m_last_unchanged_group_item_idx = 0;
     }
-      // Fall through.
+      [[fallthrough]];
 
     case LAST_ROW_STARTED_NEW_GROUP:
       SetRollupLevel(m_join->send_group_parts);

@@ -315,7 +315,7 @@ dberr_t Context::cleanup(dberr_t err) noexcept {
           index->type |= DICT_CORRUPT;
           rw_lock_x_unlock(latch);
           m_new_table->drop_aborted = true;
-          /* fall through */
+          [[fallthrough]];
         case ONLINE_INDEX_ABORTED:
         case ONLINE_INDEX_ABORTED_DROPPED:
           break;

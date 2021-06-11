@@ -1813,7 +1813,7 @@ static byte *recv_parse_or_apply_log_rec_body(
         break;
       }
 
-      // fall through
+      [[fallthrough]];
 
     case MLOG_1BYTE:
       /* If 'ALTER TABLESPACE ... ENCRYPTION' was in progress and page 0 has
@@ -1846,7 +1846,7 @@ static byte *recv_parse_or_apply_log_rec_body(
         fil_space_release(space);
       }
 
-      // fall through
+      [[fallthrough]];
 
     case MLOG_2BYTES:
     case MLOG_8BYTES:
@@ -2019,7 +2019,7 @@ static byte *recv_parse_or_apply_log_rec_body(
         break;
       }
 
-      /* Fall through */
+      [[fallthrough]];
 
     case MLOG_REC_SEC_DELETE_MARK:
 
@@ -2967,7 +2967,7 @@ static bool recv_single_rec(byte *ptr, byte *end_ptr) {
 #endif /* !UNIV_HOTBACKUP */
       }
 
-      /* fall through */
+      [[fallthrough]];
 
     case MLOG_INDEX_LOAD:
     case MLOG_FILE_DELETE:

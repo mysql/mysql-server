@@ -2475,7 +2475,7 @@ and return. don't execute actual insert. */
           break;
         default:
           ut_ad(0);
-          /* fall through */
+          [[fallthrough]];
         case DB_SUCCESS_LOCKED_REC:
         case DB_DUPLICATE_KEY:
           if (thr != nullptr) {
@@ -2954,7 +2954,7 @@ dberr_t row_ins_sec_index_entry_low(uint32_t flags, ulint mode,
           private to its call stack. */
           err = DB_SUCCESS;
         }
-        /* fall through */
+        [[fallthrough]];
       default:
         if (dict_index_is_spatial(index)) {
           rtr_clean_rtr_info(&rtr_info, true);
@@ -3567,7 +3567,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
         case DB_DUPLICATE_KEY:
           thr_get_trx(thr)->error_state = DB_DUPLICATE_KEY;
           thr_get_trx(thr)->error_index = node->index;
-        // fall through
+          [[fallthrough]];
         default:
           return err;
       }

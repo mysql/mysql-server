@@ -3973,7 +3973,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         my_ok(thd);
         break;
       }
-      // Fall through.
+      [[fallthrough]];
     case SQLCOM_FLUSH: {
       int write_to_binlog;
       if (is_reload_request_denied(thd, lex->type)) goto error;
@@ -4412,7 +4412,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_HA_READ:
     case SQLCOM_HA_CLOSE:
       assert(first_table == all_tables && first_table != nullptr);
-      /* fall through */
+      [[fallthrough]];
     case SQLCOM_CREATE_SERVER:
     case SQLCOM_CREATE_RESOURCE_GROUP:
     case SQLCOM_ALTER_SERVER:

@@ -923,7 +923,7 @@ class Acceptor {
                   r_->get_context().get_bind_named_socket().str().c_str(),
                   peer_pid, peer_uid);
             } else
-            // fall through
+            [[fallthrough]];
 #endif
               log_debug(
                   "[%s] fd=%d connection accepted at %s",

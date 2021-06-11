@@ -417,7 +417,7 @@ static void mark_secondary_indexes(trx_t *trx, dict_table_t *table) noexcept {
         row_log_abort_sec(index);
         rw_lock_x_unlock(dict_index_get_lock(index));
 
-        /* fall through */
+        [[fallthrough]];
 
       case ONLINE_INDEX_ABORTED:
         ut_a(table == index->table);

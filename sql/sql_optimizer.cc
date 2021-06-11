@@ -7817,7 +7817,7 @@ bool is_indexed_agg_distinct(JOIN *join,
       case Item_sum::AVG_DISTINCT_FUNC:
       case Item_sum::SUM_DISTINCT_FUNC:
         if (sum_item->argument_count() == 1) break;
-      /* fall through */
+        [[fallthrough]];
       default:
         return false;
     }

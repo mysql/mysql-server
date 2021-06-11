@@ -298,34 +298,44 @@ static inline int count_leading_zeroes(int i, dec1 val) {
     /* @note Intentional fallthrough in all case labels */
     case 9:
       if (val >= 1000000000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 8:
       if (val >= 100000000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 7:
       if (val >= 10000000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 6:
       if (val >= 1000000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 5:
       if (val >= 100000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 4:
       if (val >= 10000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 3:
       if (val >= 1000) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 2:
       if (val >= 100) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 1:
       if (val >= 10) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 0:
       if (val >= 1) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     default: {
       assert(false);
     }
@@ -354,34 +364,44 @@ static inline int count_trailing_zeroes(int i, dec1 val) {
     /* @note Intentional fallthrough in all case labels */
     case 0:
       if ((uval % 1) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 1:
       if ((uval % 10) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 2:
       if ((uval % 100) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 3:
       if ((uval % 1000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 4:
       if ((uval % 10000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 5:
       if ((uval % 100000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 6:
       if ((uval % 1000000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 7:
       if ((uval % 10000000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 8:
       if ((uval % 100000000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     case 9:
       if ((uval % 1000000000) != 0) break;
-      ++ret;  // Fall through.
+      ++ret;
+      [[fallthrough]];
     default: {
       assert(false);
     }

@@ -178,7 +178,7 @@ bool get_one_option(int optid, const struct my_option *opt, char *argument) {
       usage(true);
       break;
     case 'I':
-      // Fall through
+      [[fallthrough]];
     case '?':
       Options::s_help = true;
       usage(false);
