@@ -269,6 +269,7 @@ class Item_func_yearweek final : public Item_int_func {
       : Item_int_func(pos, a, b) {}
   longlong val_int() override;
   const char *func_name() const override { return "yearweek"; }
+  enum Functype functype() const override { return YEARWEEK_FUNC; }
   bool resolve_type(THD *thd) override;
   bool check_partition_func_processor(uchar *) override { return false; }
   bool check_valid_arguments_processor(uchar *) override {
