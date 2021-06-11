@@ -69,12 +69,19 @@ drop table t1,t2;
 select find_in_set(binary 'a',binary 'A,B,C');
 find_in_set(binary 'a',binary 'A,B,C')
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select find_in_set('a',binary 'A,B,C');
 find_in_set('a',binary 'A,B,C')
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select find_in_set(binary 'a', 'A,B,C');
 find_in_set(binary 'a', 'A,B,C')
 0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select find_in_set('1','3,1,');
 find_in_set('1','3,1,')
 2

@@ -30,5 +30,7 @@ ALTER TABLE t1 ADD KEY ifword(col1);
 SELECT * FROM t1 WHERE col1='ß' ORDER BY col1, BINARY col1;
 col1
 ß
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 ALTER SCHEMA test COLLATE utf8mb4_0900_ai_ci;

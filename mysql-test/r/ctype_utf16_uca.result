@@ -30,6 +30,10 @@ select 'a  a' > 'a', 'a  \0' < 'a';
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select 'c' like '\_' as want0;
 want0
 0
@@ -294,6 +298,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_icelandic_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -408,6 +414,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_latvian_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -523,6 +531,8 @@ ZzŹźŻż
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_romanian_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -633,6 +643,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_slovenian_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -742,6 +754,8 @@ ZzŹźŻż
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_polish_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -855,6 +869,8 @@ ZzŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_estonian_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -969,6 +985,8 @@ YyÝýÿŶŷŸ
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_spanish_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -1075,6 +1093,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_swedish_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -1183,6 +1203,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_turkish_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -1294,6 +1316,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_czech_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -1405,6 +1429,8 @@ ZzŹźŻż
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_danish_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -1513,6 +1539,8 @@ AAAaaaÅå
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_lithuanian_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -1622,6 +1650,8 @@ ZzŹźŻż
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_slovak_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -1734,6 +1764,8 @@ ZzŹźŻż
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_spanish2_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -1842,6 +1874,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_roman_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -1950,6 +1984,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_esperanto_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -2061,6 +2097,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_hungarian_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -2168,6 +2206,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_croatian_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -2278,6 +2318,8 @@ ZzŹźŻż
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_german2_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -2384,6 +2426,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_unicode_520_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -2482,6 +2526,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(c1 order by binary c1 separator '') from t1 group by c1 collate utf16_vietnamese_ci;
 group_concat(c1 order by binary c1 separator '')
 ÷
@@ -2593,6 +2639,8 @@ ZzŹźŻżŽž
 ǁ
 ǂ
 ǃ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 SET NAMES utf8;
 Warnings:
@@ -3241,6 +3289,8 @@ ud	00750064
 ue	00750065
 ü	00FC
 uf	00750066
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(s1 order by binary s1) from t1 group by s1;
 group_concat(s1 order by binary s1)
 a
@@ -3258,6 +3308,8 @@ u
 ud
 ue,ü
 uf
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1), hex(weight_string(s1)) FROM t1 ORDER BY s1, BINARY(s1);
 s1	hex(s1)	hex(weight_string(s1))
 a	0061	0E33
@@ -3283,12 +3335,16 @@ ud	00750064	101F0E6D
 ue	00750065	101F0E8B
 ü	00FC	101F0E8B
 uf	00750066	101F0EB9
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1) FROM t1 WHERE s1='ae' ORDER BY s1, BINARY(s1);
 s1	hex(s1)
 ae	00610065
 Æ	00C6
 ä	00E4
 æ	00E6
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 "END ctype_german.inc"
 #
@@ -3552,6 +3608,8 @@ D801DC06	D801DC2E	D801DC06	30D8	𐐆
 D801DC2E	D801DC2E	D801DC06	30D8	𐐮
 D801DC07	D801DC2F	D801DC07	30D9	𐐇
 D801DC2F	D801DC2F	D801DC07	30D9	𐐯
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0xFFFF));
 INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0x10FFFF));
@@ -3566,10 +3624,14 @@ SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDE
 hex(c)	hex(weight_string(c))	c
 D801DC00	30D2	𐐀
 D801DC28	30D2	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 D801DC00	30D2	𐐀
 D801DC28	30D2	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT hex(c) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3586,10 +3648,14 @@ SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDE
 hex(c)	hex(weight_string(c))	c
 D801DC00	30D2	𐐀
 D801DC28	30D2	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 D801DC00	30D2	𐐀
 D801DC28	30D2	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # End of 5.6 tests

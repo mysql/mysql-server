@@ -834,6 +834,8 @@ select json_extract(trace,"$.steps[*].statement_parameters") from information_sc
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR", "LONGLONG"]]
 prepare s from 'select BINARY(?)';
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR"]]

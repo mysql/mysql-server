@@ -2649,6 +2649,7 @@ select var;
 end|
 Warnings:
 Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 call bug7743("oneword")|
 Level	Code	Message
 var

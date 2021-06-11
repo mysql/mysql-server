@@ -42,6 +42,8 @@ Warning	1365	Division by 0
 select cast("A" as binary) = "a", cast(BINARY "a" as CHAR) = "A";
 cast("A" as binary) = "a"	cast(BINARY "a" as CHAR) = "A"
 0	1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select cast("2001-1-1" as DATE), cast("2001-1-1" as DATETIME);
 cast("2001-1-1" as DATE)	cast("2001-1-1" as DATETIME)
 2001-01-01	2001-01-01 00:00:00

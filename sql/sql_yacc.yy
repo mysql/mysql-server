@@ -10482,6 +10482,7 @@ simple_expr:
           }
         | BINARY_SYM simple_expr %prec NEG
           {
+            push_deprecated_warn(YYTHD, "BINARY expr", "CAST");
             $$= create_func_cast(YYTHD, @2, $2, ITEM_CAST_CHAR, &my_charset_bin);
           }
         | CAST_SYM '(' expr AS cast_type opt_array_cast ')'

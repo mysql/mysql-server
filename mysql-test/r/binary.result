@@ -84,11 +84,17 @@ create table t1 (b char(8));
 insert into t1 values(NULL);
 select b from t1 where binary b like '';
 b
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select b from t1 group by binary b like '';
 b
 NULL
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select b from t1 having binary b like '';
 b
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 create table t1 (a char(3) binary, b binary(3)) charset latin1;
 Warnings:
@@ -119,27 +125,41 @@ aaa	bbb
 select charset(a), charset(b), charset(binary 'ccc') from t1 limit 1;
 charset(a)	charset(b)	charset(binary 'ccc')
 latin1	binary	binary
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select collation(a), collation(b), collation(binary 'ccc') from t1 limit 1;
 collation(a)	collation(b)	collation(binary 'ccc')
 latin1_bin	binary	binary
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 create table t1( firstname char(20), lastname char(20));
 insert into t1 values ("john","doe"),("John","Doe");
 select * from t1 where firstname='john' and firstname like binary 'john';
 firstname	lastname
 john	doe
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select * from t1 where firstname='john' and binary 'john' = firstname;
 firstname	lastname
 john	doe
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select * from t1 where firstname='john' and firstname = binary 'john';
 firstname	lastname
 john	doe
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select * from t1 where firstname='John' and firstname like binary 'john';
 firstname	lastname
 john	doe
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select * from t1 where firstname='john' and firstname like binary 'John';
 firstname	lastname
 John	Doe
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 create table t1 (a binary) charset utf8mb4;
 show create table t1;

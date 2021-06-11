@@ -30,9 +30,15 @@ locate('he','hello')	locate('he','hello',2)	locate('lo','hello',2)
 select instr('hello','HE'), instr('hello',binary 'HE'), instr(binary 'hello','HE');
 instr('hello','HE')	instr('hello',binary 'HE')	instr(binary 'hello','HE')
 1	1	0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select position(binary 'll' in 'hello'),position('a' in binary 'hello');
 position(binary 'll' in 'hello')	position('a' in binary 'hello')
 3	0
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT LOCATE('d', _utf8mb4'abcdef');
 LOCATE('d', _utf8mb4'abcdef')
 4
@@ -897,6 +903,7 @@ explain select binary 'HE';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Note	1003	/* select#1 */ select cast('HE' as char charset binary) AS `binary 'HE'`
 explain select export_set(255,_latin2'y', _latin2'n', _latin2' ');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -4646,9 +4653,13 @@ hex(cast(0x20000000000000 as decimal(30,0)) + 2)
 SELECT REPLACE( 'a', binary 'b', NULL ) as xxx;
 xxx
 NULL
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT REPLACE( 'a', binary '', NULL ) as xxx;
 xxx
 NULL
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT REPLACE( 'a', 'b', NULL ) as xxx;
 xxx
 NULL
@@ -4667,6 +4678,8 @@ NULL
 SELECT REPLACE( 'a', binary NULL, 'bravo' ) as xxx;
 xxx
 NULL
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 #
 # Bug#22565155 DATA ROWS LOST AFTER ADDING DISTINCT WITH
 # SUBSTR() IN SELECT LIST

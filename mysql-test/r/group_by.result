@@ -411,6 +411,8 @@ a
 A
 B
 NULL
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a
 b
 SELECT a,count(*) FROM t1 GROUP BY binary a;
@@ -418,6 +420,8 @@ a	count(*)
 A	4
 B	4
 NULL	3
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a	1
 b	1
 SELECT binary a FROM t1 GROUP BY 1;
@@ -425,6 +429,8 @@ binary a
 A
 B
 NULL
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a
 b
 SELECT binary a,count(*) FROM t1 GROUP BY 1;
@@ -432,6 +438,8 @@ binary a	count(*)
 A	4
 B	4
 NULL	3
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a	1
 b	1
 SET BIG_TABLES=1;
@@ -450,6 +458,9 @@ a
 A
 B
 NULL
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a
 b
 SELECT a,count(*) FROM t1 GROUP BY binary a ORDER BY binary a;
@@ -457,6 +468,9 @@ a	count(*)
 A	4
 B	4
 NULL	3
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a	1
 b	1
 SELECT binary a FROM t1 GROUP BY 1 ORDER BY 1;
@@ -464,6 +478,8 @@ binary a
 A
 B
 NULL
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a
 b
 SELECT binary a,count(*) FROM t1 GROUP BY 1 ORDER BY 1;
@@ -471,6 +487,8 @@ binary a	count(*)
 A	4
 B	4
 NULL	3
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warnings:
 a	1
 b	1
 SET BIG_TABLES=0;

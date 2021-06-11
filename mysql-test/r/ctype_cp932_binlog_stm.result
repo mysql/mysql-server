@@ -57,6 +57,8 @@ SELECT hex(a), hex(lower(a)), hex(upper(a)) FROM t1 ORDER BY binary(a);
 hex(a)	hex(lower(a))	hex(upper(a))
 8352835E	8352835E	8352835E
 8372835E	8372835E	8372835E
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 End of 5.1 tests
 #
@@ -19502,6 +19504,8 @@ EFBFA2	81CA
 EFBFA3	8150
 EFBFA4	FA55
 EFBFA5	818F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # End of 5.5 tests

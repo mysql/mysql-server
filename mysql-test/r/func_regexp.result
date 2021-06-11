@@ -125,6 +125,8 @@ ERROR HY000: Character set 'latin1_swedish_ci' cannot be used in conjunction wit
 SELECT NULL REGEXP BINARY NULL;
 NULL REGEXP BINARY NULL
 NULL
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT 'A' REGEXP BINARY NULL;
 ERROR HY000: Character set 'latin1_swedish_ci' cannot be used in conjunction with 'binary' in call to regexp_like.
 SELECT "ABC" REGEXP BINARY NULL;

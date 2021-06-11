@@ -700,6 +700,7 @@ explain select * from t1 where a=binary 'aaa';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	range	a	a	11	NULL	2	100.00	Using where
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1739	Cannot use ref access on index 'a' due to type or collation conversion on field 'a'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(cast('aaa' as char charset binary)))
 explain select * from t1 where a='aaa' collate latin1_bin;
@@ -2678,6 +2679,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = cast(`test`.`t2`.`b` as datetime(6))) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
@@ -2688,12 +2691,17 @@ a	b
 2001-01-01 00:00:00	2001-01-01 00:00:00
 2001-01-01 00:00:00	2001.01.01
 2001-01-01 11:22:33	2001-01-01 11:22:33
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 
 EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 1	SIMPLE	t2	NULL	index	b	b	259	NULL	5	20.00	Using where; Using index; Using join buffer (hash join)
 Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
 Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (cast(`test`.`t2`.`b` as datetime(6)) = `test`.`t1`.`a`) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
@@ -2704,6 +2712,9 @@ a	b
 2001-01-01 00:00:00	2001-01-01 00:00:00
 2001-01-01 00:00:00	2001.01.01
 2001-01-01 11:22:33	2001-01-01 11:22:33
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 
 DROP TABLE t1,t2;
 #

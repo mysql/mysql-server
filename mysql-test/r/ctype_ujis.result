@@ -2195,6 +2195,8 @@ F4FB
 F4FC
 F4FD
 F4FE
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 SET collation_connection='ujis_japanese_ci';
 create table t1 select repeat('a',4000) a;
@@ -24923,6 +24925,8 @@ EFBE9E	DE
 EFBE9F	DF
 EFBFA3	8150
 EFBFA5	818F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # End of 5.5 tests

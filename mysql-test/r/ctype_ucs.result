@@ -118,6 +118,10 @@ select 'a  a' > 'a', 'a  \0' < 'a';
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 create table t1 (a varchar(2) character set ucs2 collate ucs2_bin, key(a));
 insert into t1 values ('A'),('A'),('B'),('C'),('D'),('A\t');
 insert into t1 values ('A\0'),('A\0'),('A\0'),('A\0'),('AZ');
@@ -695,6 +699,8 @@ uf	00750066
 æ	00E6
 Œ	0152
 œ	0153
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(s1 order by binary s1) from t1 group by s1;
 group_concat(s1 order by binary s1)
 a,ä
@@ -714,6 +720,8 @@ ue
 uf
 Æ,æ
 Œ,œ
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1), hex(weight_string(s1)) FROM t1 ORDER BY s1, BINARY(s1);
 s1	hex(s1)	hex(weight_string(s1))
 a	0061	0041
@@ -739,9 +747,13 @@ uf	00750066	00550046
 æ	00E6	00C6
 Œ	0152	0152
 œ	0153	0152
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1) FROM t1 WHERE s1='ae' ORDER BY s1, BINARY(s1);
 s1	hex(s1)
 ae	00610065
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 "END ctype_german.inc"
 CREATE TABLE t1 AS
@@ -4352,6 +4364,8 @@ ud	00750064
 ue	00750065
 ü	00FC
 uf	00750066
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select group_concat(s1 order by binary s1) from t1 group by s1;
 group_concat(s1 order by binary s1)
 a
@@ -4369,6 +4383,8 @@ u
 ud
 ue,ü
 uf
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1), hex(weight_string(s1)) FROM t1 ORDER BY s1, BINARY(s1);
 s1	hex(s1)	hex(weight_string(s1))
 a	0061	0E33
@@ -4394,12 +4410,16 @@ ud	00750064	101F0E6D
 ue	00750065	101F0E8B
 ü	00FC	101F0E8B
 uf	00750066	101F0EB9
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT s1, hex(s1) FROM t1 WHERE s1='ae' ORDER BY s1, BINARY(s1);
 s1	hex(s1)
 ae	00610065
 Æ	00C6
 ä	00E4
 æ	00E6
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 "END ctype_german.inc"
 #

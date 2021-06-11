@@ -28,6 +28,10 @@ select 'a  a' > 'a', 'a  \0' < 'a';
 select binary 'a  a' > 'a', binary 'a  \0' > 'a', binary 'a\0' > 'a';
 binary 'a  a' > 'a'	binary 'a  \0' > 'a'	binary 'a\0' > 'a'
 1	1	1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 #
 # Check that incomplete utf16le characters in HEX notation
 # are left-padded with zeros
@@ -273,6 +277,8 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT * FROM t1 WHERE a LIKE '%фЫв%' ORDER BY BINARY a;
 a
 ФЫВА
@@ -293,6 +299,8 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT * FROM t1 WHERE a LIKE 'фЫва%' ORDER BY BINARY a;
 a
 ФЫВА
@@ -313,10 +321,14 @@ a
 фывапролДж
 фывапролдЖ
 фывапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT * FROM t1 WHERE a LIKE 'фЫва%' COLLATE utf16le_bin ORDER BY BINARY a;
 a
 фЫва
 фЫвапролдж
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 CREATE TABLE t1 (word VARCHAR(64) NOT NULL, PRIMARY KEY (word))
 CHARACTER SET utf16le;

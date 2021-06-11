@@ -32624,6 +32624,8 @@ EFBE9E	DE
 EFBE9F	DF
 EFBFA3	8150
 EFBFA5	818F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # End of 5.5 tests

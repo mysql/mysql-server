@@ -642,6 +642,8 @@ a	b	c
 SELECT * FROM t2 WHERE BINARY b = 'customer_over';
 a	b	c
 1	customer_over	1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT DISTINCT p0.a FROM t2 p0 WHERE p0.b = 'customer_over';
 a
 1
@@ -649,9 +651,13 @@ a
 SELECT DISTINCT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
 a
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT p0.a FROM t2 p0 WHERE BINARY p0.b = 'customer_over';
 a
 1
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t2, t1;
 CREATE TABLE t1 ( a int ) ENGINE=innodb;
 BEGIN;

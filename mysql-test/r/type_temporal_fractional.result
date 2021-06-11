@@ -8443,6 +8443,9 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 ADD KEY (a);
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -8458,6 +8461,9 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t2 ADD KEY(b);
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -8473,6 +8479,9 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 DROP KEY a;
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -8488,6 +8497,9 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1, t2;
 #
 # Testing arithmetic with INT, DECIMAL, FLOAT
@@ -13143,6 +13155,9 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 ADD KEY (a);
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -13158,6 +13173,9 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t2 ADD KEY (b);
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -13173,6 +13191,9 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 DROP KEY a;
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -13188,6 +13209,9 @@ a	b
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.1230
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.12300
 2001-01-01 11:22:33.123000	2001-01-01 11:22:33.123000
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1, t2;
 #
 # Testing arithmetic with INT, DECIMAL, FLOAT

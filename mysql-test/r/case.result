@@ -12,9 +12,13 @@ CASE "c" when "a" then 1 when "b" then 2 ELSE 3 END
 select CASE BINARY "b" when "a" then 1 when "B" then 2 WHEN "b" then "ok" END;
 CASE BINARY "b" when "a" then 1 when "B" then 2 WHEN "b" then "ok" END
 ok
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END;
 CASE "b" when "a" then 1 when binary "B" then 2 WHEN "b" then "ok" END
 ok
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 select CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end;
 CASE concat("a","b") when concat("ab","") then "a" when "b" then "b" end
 a

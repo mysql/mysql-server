@@ -560,6 +560,8 @@ SELECT * FROM t1 WHERE s1='a' ORDER BY BINARY s1;
 s1
 a
 b
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 SET NAMES utf8 COLLATE utf8_phone_ci;
 Warnings:
@@ -760,6 +762,8 @@ lp-lni	233E
 飵	753D
 糳	753E
 咗	753F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 #
 # WL#5624, the same test with UCS2
 #
@@ -888,6 +892,8 @@ lp-lni	233E
 飵	753D
 糳	753E
 咗	753F
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # WL#5624, unsupported features
@@ -924,6 +930,8 @@ a	HEX(WEIGHT_STRING(a))
 x	02CE101F
 u	101F
 X	105A
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # WL#5624, testing Bengali collations
@@ -950,6 +958,8 @@ HEX(WEIGHT_STRING(a))	HEX(CONVERT(a USING ucs2))	HEX(a)
 0376	09A209BC	E0A6A2E0A6BC
 0376	09DD	E0A79D
 0377	09A3	E0A6A3
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 SET NAMES utf8, collation_connection=utf8_bengali_traditional_ci;
 Warnings:
@@ -1072,6 +1082,8 @@ HEX(WEIGHT_STRING(a))	HEX(CONVERT(a USING ucs2))	HEX(a)
 15D2	09B709CD	E0A6B7E0A78D
 15D3	09B809CD	E0A6B8E0A78D
 15D4	09B909CD	E0A6B9E0A78D
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT HEX(WEIGHT_STRING(a)) as wa,
 GROUP_CONCAT(HEX(CONVERT(a USING ucs2)) ORDER BY LENGTH(a), BINARY a)
 FROM t1 GROUP BY a ORDER BY a;
@@ -1141,6 +1153,8 @@ wa	GROUP_CONCAT(HEX(CONVERT(a USING ucs2)) ORDER BY LENGTH(a), BINARY a)
 15D2	09B709CD
 15D3	09B809CD
 15D4	09B909CD
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # WL#5624, shift after, using expansion
@@ -1221,6 +1235,8 @@ Z	0E293357
 AA	0E293358
 AAA	0E293359
 1	0E2A
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 #
 # End of WL#5624

@@ -226,6 +226,9 @@ Ww	57,77
 Xx	58,78
 Yy	59,79
 Zz	5A,7A
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 drop table t1;
 SELECT HEX(WEIGHT_STRING('aA'));
 HEX(WEIGHT_STRING('aA'))
@@ -715,6 +718,8 @@ F09FA881	F09FA881	F09FA881	FBC3FA0100000020	🨁
 F09FAC81	F09FAC81	F09FAC81	FBC3FB0100000020	🬁
 F09FB081	F09FB081	F09FB081	FBC3FC0100000020	🰁
 F09FB481	F09FB481	F09FB481	FBC3FD0100000020	🴁
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 INSERT INTO t1 VALUES ('a');
 INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0xFFFF));
 INSERT INTO t1 VALUES (concat(_utf32 0x61, _utf32 0x10FFFF));
@@ -729,10 +734,14 @@ SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDE
 hex(c)	hex(weight_string(c))	c
 F0909080	445200000020	𐐀
 F09090A8	445200000020	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 F0909080	445200000020	𐐀
 F09090A8	445200000020	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 ALTER TABLE t1 ADD KEY(c);
 EXPLAIN SELECT hex(c) FROM t1 WHERE c LIKE 'a%' ORDER BY c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -749,10 +758,14 @@ SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10400 ORDE
 hex(c)	hex(weight_string(c))	c
 F0909080	445200000020	𐐀
 F09090A8	445200000020	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 SELECT hex(c), hex(weight_string(c)), c FROM t1 WHERE c LIKE _utf32 0x10428 ORDER BY c, BINARY c;
 hex(c)	hex(weight_string(c))	c
 F0909080	445200000020	𐐀
 F09090A8	445200000020	𐐨
+Warnings:
+Warning	1287	'BINARY expr' is deprecated and will be removed in a future release. Please use CAST instead
 DROP TABLE t1;
 SELECT is_ipv4(inet_ntoa('1'));
 is_ipv4(inet_ntoa('1'))
