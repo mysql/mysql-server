@@ -1216,7 +1216,7 @@ Dbtup::releaseFragPage(Fragrecord* fragPtrP,
   {
     if (unlikely(lcp_scanned_bit != 0))
     {
-      g_eventLogger->info("(%u)tab(%u,%u):%u crash lcp_scanned_bit set",
+      g_eventLogger->info("(%u)tab(%u,%u):%u crash lcp_scanned_bit set"
                           " is lcp_scan_ptr_i RNIL %u,"
                           " last_lcp_state %u,"
                           " is_rowid_in_remaining_lcp_set %u"
