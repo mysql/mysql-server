@@ -7,7 +7,8 @@ stop slave;
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead
-SET GLOBAL debug= "d,simulate_io_replica_error_on_init,simulate_sql_replica_error_on_init";
+# Adding debug point 'simulate_io_replica_error_on_init' to @@GLOBAL.debug
+# Adding debug point 'simulate_sql_replica_error_on_init' to @@GLOBAL.debug
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -18,7 +19,8 @@ call mtr.add_suppression("Failed during slave.* thread initialization");
 SET SESSION sql_log_bin= 1;
 include/wait_for_slave_io_error.inc [errno=13117]
 Last_IO_Error = 'Fatal error: Failed during slave I/O thread initialization '
-SET GLOBAL debug= "";
+# Removing debug point 'simulate_io_replica_error_on_init' from @@GLOBAL.debug
+# Removing debug point 'simulate_sql_replica_error_on_init' from @@GLOBAL.debug
 reset slave;
 Warnings:
 Warning	1287	'RESET SLAVE' is deprecated and will be removed in a future release. Please use RESET REPLICA instead

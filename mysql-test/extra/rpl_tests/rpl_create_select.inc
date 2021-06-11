@@ -81,7 +81,7 @@ START SLAVE;
 --let $rpl_server_number= 2
 --source include/rpl_start_server.inc
 --disable_reconnect
-SET global DEBUG='-d, crash_on_transactional_ddl_insert';
+# Debug point disappeared on restart
 
 --let $assert_text= Make sure there is only table 't0' in schema 'test'.
 let $assert_cond= [SELECT count(table_name) COUNT FROM

@@ -99,7 +99,7 @@ insert into t1 values (1) /* will not be applied on slave due to simulation */;
 # instruction to the dump thread
 
 connection slave;
-set @@global.debug='d,simulate_replica_unaware_checksum';
+set @@global.debug='+d,simulate_replica_unaware_checksum';
 start slave;
 let $slave_io_errno= 13114; # ER_SERVER_MASTER_FATAL_ERROR_READING_BINLOG
 --let $show_slave_io_error= 1
@@ -115,7 +115,8 @@ select count(*) as zero from t1;
 # or in waiting state before updating the global debug
 # variable (see BUG#11765758 for details).
 --source include/stop_slave.inc
-set @@global.debug='';
+set @@global.debug='-d,simulate_replica_unaware_checksum';
+
 
 connection slave;
 source include/start_slave.inc;
@@ -127,10 +128,10 @@ source include/start_slave.inc;
 # C1. Failure by a client thread
 connection master;
 set @@global.source_verify_checksum = 1;
-set @@session.debug='d,simulate_checksum_test_failure';
+set @@session.debug='+d,simulate_checksum_test_failure';
 --error ER_ERROR_WHEN_EXECUTING_COMMAND
 show binlog events;
-set @@session.debug='';
+set @@session.debug='-d,simulate_checksum_test_failure';
 set @@global.source_verify_checksum = default;
 
 #connection master;
@@ -146,15 +147,15 @@ let $pos_master= query_get_value(SHOW MASTER STATUS, Position, 1);
 connection slave;
 
 # C2. Failure by IO thread
-# instruction to io thread
-set @@global.debug='d,simulate_checksum_test_failure';
+# instruction to io threadwait_for_slave_param.inc
+set @@global.debug='+d,simulate_checksum_test_failure';
 start slave io_thread;
 # ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
 let $slave_io_errno= 13122, 13115;
 --let $show_slave_io_error= 0
 source include/wait_for_slave_io_error.inc;
 # no need to stop the IO thread, it is already stopped
-set @@global.debug='';
+set @@global.debug='-d,simulate_checksum_test_failure';
 
 # to make IO thread re-read it again w/o the failure
 start slave io_thread;
@@ -164,14 +165,14 @@ start slave io_thread;
 # C3. Failure by SQL thread
 # instruction to sql thread;
 set @@global.replica_sql_verify_checksum = 1;
-set @@global.debug='d,simulate_checksum_test_failure';
+set @@global.debug='+d,simulate_checksum_test_failure';
 start slave sql_thread;
 let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --let $show_slave_sql_error= 1
 source include/wait_for_slave_sql_error.inc;
 --source include/stop_slave.inc
 # resuming SQL thread to parse out the event w/o the failure
-set @@global.debug=''; 
+set @@global.debug='-d,simulate_checksum_test_failure';
 source include/start_slave.inc;
 
 connection master;

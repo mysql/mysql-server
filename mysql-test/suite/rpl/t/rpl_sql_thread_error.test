@@ -29,7 +29,7 @@
 --source include/rpl_connection_slave.inc
 CALL mtr.add_suppression("Relay log read failure");
 SET @save_debug=@@GLOBAL.debug;
-SET GLOBAL debug="d,force_sql_thread_error";
+SET GLOBAL debug="+d,force_sql_thread_error";
 
 # Start SQL thread
 START SLAVE SQL_THREAD;

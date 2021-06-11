@@ -42,7 +42,7 @@ while ($i < $n)
 --source include/sync_slave_sql_with_master.inc
 
 --connection master
-SET GLOBAL debug= 'd,semi_sync_3-way_deadlock';
+SET GLOBAL debug= '+d,semi_sync_3-way_deadlock';
 SET DEBUG_SYNC= "before_process_commit_stage_queue WAIT_FOR signal.rotate_finished";
 
 --echo # Build 10 connections to master server

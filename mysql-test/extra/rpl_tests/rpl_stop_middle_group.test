@@ -53,7 +53,7 @@ source include/wait_for_slave_sql_to_stop.inc;
 --source include/assert.inc
 
 --source include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
 
 #
 # bug#45940 issues around rli->last_event_start_time
@@ -111,7 +111,8 @@ let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --source include/assert.inc
 
 --source include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
+set @@global.debug="-d,incomplete_group_in_relay_log";
 
 #
 # The mixed multi-table update
@@ -156,7 +157,8 @@ let $slave_sql_errno= 13117; # ER_SLAVE_FATAL_ERROR
 --source include/assert.inc
 
 --source include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
+set @@global.debug="-d,incomplete_group_in_relay_log";
 
 #
 # clean-up

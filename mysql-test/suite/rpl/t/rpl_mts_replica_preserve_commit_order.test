@@ -36,7 +36,7 @@ if (`SELECT @@GLOBAL.gtid_mode = "ON"`)
 # Make the following INSERTs have same commit parent. So they can be applied
 # parallel on slave.
 SET @save_debug = @@GLOBAL.debug;
-SET GLOBAL debug = "d,set_commit_parent_100";
+SET GLOBAL debug = "+d,set_commit_parent_100";
 
 # In each iteration, the master generates some transactions which can be applied
 # parallel. Slave is running in MTS mode and has 6 workers. To guarantee all

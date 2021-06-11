@@ -24,7 +24,7 @@ UPDATE t SET name='New';
 # as we have set slave_skip_error=all.
 include/sync_slave_sql_with_master.inc
 # Enable a debug point to simulate failure during rows event cleanup.
-SET @@GLOBAL.DEBUG= 'd,simulate_rows_event_cleanup_failure';
+# Adding debug point 'simulate_rows_event_cleanup_failure' to @@GLOBAL.debug
 [connection master]
 UPDATE t SET name='Old';
 [connection slave]
@@ -35,7 +35,7 @@ UPDATE t SET name='Old';
 include/wait_for_slave_sql_error.inc [errno=1180]
 include/assert_grep.inc [Found 2 warning in the error log]
 ==== Clean up ====
-SET @@GLOBAL.DEBUG= '$debug_saved';
+# Removing debug point 'simulate_rows_event_cleanup_failure' from @@GLOBAL.debug
 include/stop_slave_io.inc
 RESET MASTER;
 RESET SLAVE;

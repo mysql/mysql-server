@@ -88,7 +88,7 @@ BEGIN;
 INSERT INTO db1.t1 VALUES (50);
 COMMIT;
 [connection slave]
-SET global debug="d,simulate_stop_when_mta_in_group";
+SET global debug="+d,simulate_stop_when_mta_in_group";
 include/start_slave_io.inc
 include/wait_for_slave_sql_to_stop.inc
 include/assert_grep.inc [Assert that the expected entry is in the error log during STOP SLAVE]

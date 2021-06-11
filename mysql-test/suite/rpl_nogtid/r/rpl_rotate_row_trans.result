@@ -9,7 +9,7 @@ CREATE TABLE t1 (c1 INT) ENGINE=InnoDB;
 # Sync slave with master and setup debug sync point
 include/sync_slave_sql_with_master.inc
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG='d,stop_io_after_reading_write_rows_log_event';
+SET GLOBAL DEBUG='+d,stop_io_after_reading_write_rows_log_event';
 # Insert the data in the master
 [connection master]
 BEGIN;

@@ -44,7 +44,7 @@
 --source include/rpl_connection_slave.inc
 # Prepare the slave IO thread to stop after queuing a WRITE_ROWS event
 SET @save_debug=@@global.debug;
-SET GLOBAL DEBUG= "d,stop_io_after_reading_write_rows_log_event";
+SET GLOBAL DEBUG= "+d,stop_io_after_reading_write_rows_log_event";
 
 # Put some data in to the master
 --source include/rpl_connection_master.inc

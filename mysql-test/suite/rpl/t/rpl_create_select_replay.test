@@ -352,6 +352,5 @@ SET GLOBAL DEBUG='+d, crash_on_transactional_ddl_commit';
 --source include/assert.inc
 
 DROP TABLE t0;
-SET global DEBUG='-d, crash_on_transactional_ddl_commit';
 --remove_file $MYSQLBINLOG_OUTFILE
 RESET MASTER;

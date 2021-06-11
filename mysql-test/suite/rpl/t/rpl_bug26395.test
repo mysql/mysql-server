@@ -53,7 +53,7 @@ SHOW CREATE TABLE tinnodb;
 
 # do_not_write_xid stops the master from writing an XID event.
 set @old_debug= @@debug;
-set @@debug= 'd,do_not_write_xid';
+set @@debug= '+d,do_not_write_xid';
 
 
 --echo ==== Test ====

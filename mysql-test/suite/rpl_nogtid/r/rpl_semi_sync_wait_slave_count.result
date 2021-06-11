@@ -79,7 +79,7 @@ include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 ######################################################################
 [connection server_4]
 SET @original_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
+SET GLOBAL debug = '+d,rpl_semisync_before_send_ack';
 [connection default]
 INSERT INTO t1 VALUES(104);
 [connection server_2]
@@ -105,10 +105,10 @@ include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 INSERT INTO t1 VALUES(130);;
 [connection server_2]
 SET @original_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
+SET GLOBAL debug = '+d,rpl_semisync_before_send_ack';
 [connection server_3]
 SET @original_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_before_send_ack';
+SET GLOBAL debug = '+d,rpl_semisync_before_send_ack';
 [connection default]
 INSERT INTO t1 VALUES(131);;
 [connection server_5]
@@ -149,7 +149,7 @@ include/assert.inc [rpl_semi_sync_source_no_tx should be 4 + 0]
 # setting rpl_semi_sync_source_wait_for_replica_count fails
 ######################################################################
 SET @original_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_simulate_allocate_ack_container_failure';
+SET GLOBAL debug = '+d,rpl_semisync_simulate_allocate_ack_container_failure';
 SET GLOBAL rpl_semi_sync_source_wait_for_replica_count = 2;
 include/assert.inc [ should be 4]
 INSERT INTO t1 VALUES(110);

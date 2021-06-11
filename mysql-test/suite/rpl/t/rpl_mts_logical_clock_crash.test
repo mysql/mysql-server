@@ -20,7 +20,7 @@ SET @save_debug = @@GLOBAL.debug;
 
 # make the following transactions to have a common commit parent
 # so be parallelizable on slave.
-SET GLOBAL debug = "d,set_commit_parent_100";
+SET GLOBAL debug = "+d,set_commit_parent_100";
 
 INSERT INTO t2 VALUES(99); # just a warmup load
 BEGIN;

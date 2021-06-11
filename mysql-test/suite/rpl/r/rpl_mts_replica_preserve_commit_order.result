@@ -13,7 +13,7 @@ FLUSH BINARY LOGS;
 #
 [connection master]
 SET @save_debug = @@GLOBAL.debug;
-SET GLOBAL debug = "d,set_commit_parent_100";
+SET GLOBAL debug = "+d,set_commit_parent_100";
 [connection slave]
 LOCK TABLE t1 WRITE;
 [connection master]

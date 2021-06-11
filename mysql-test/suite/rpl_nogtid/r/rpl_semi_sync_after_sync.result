@@ -153,7 +153,7 @@ SET GLOBAL binlog_order_commits= 1;
 # For coverage test, simulate after_sync hook error
 #
 SET @saved_debug= @@GLOBAL.debug;
-SET GLOBAL debug='d,simulate_after_sync_hook_error';
+SET GLOBAL debug='+d,simulate_after_sync_hook_error';
 INSERT INTO t1 VALUES(1);
 SELECT * FROM t1;
 c1

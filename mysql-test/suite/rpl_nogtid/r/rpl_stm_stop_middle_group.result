@@ -22,7 +22,7 @@ include/assert.inc [Everything that was read, was executed]
 include/assert.inc [There is one row in table tm]
 include/assert.inc [There is one row in table ti]
 include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
 include/start_slave.inc
 truncate table tm;
 truncate table ti;
@@ -40,7 +40,8 @@ include/assert.inc [Not everything that was read, was executed]
 include/assert.inc [There is one row in table tm]
 include/assert.inc [There is no row in table ti]
 include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
+set @@global.debug="-d,incomplete_group_in_relay_log";
 truncate table tm;
 include/start_slave.inc
 set @@global.debug="+d,stop_replica_middle_group";
@@ -52,7 +53,8 @@ include/assert.inc [Not everything that was read, was executed]
 include/assert.inc [The max value for field 'a' is 2]
 include/assert.inc [The max value for field 'a' is 1]
 include/stop_slave.inc
-set @@global.debug="-d";
+set @@global.debug="-d,stop_replica_middle_group";
+set @@global.debug="-d,incomplete_group_in_relay_log";
 include/rpl_reset.inc
 drop table tm, ti;
 include/rpl_end.inc

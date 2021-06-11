@@ -9,7 +9,7 @@ include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
 [connection master]
 SET @save_debug = @@GLOBAL.debug;
-SET GLOBAL debug = "d,set_commit_parent_100";
+SET GLOBAL debug = "+d,set_commit_parent_100";
 INSERT INTO t2 VALUES(99);
 BEGIN;
 INSERT INTO t1 VALUES(1);

@@ -136,7 +136,7 @@ thread/semisync/Ack_receiver	BACKGROUND	Waiting for semi-sync ACK from replica
 # It should print an error to log if select() function returns -1
 #
 SET @save_debug = @@GLOBAL.debug;
-SET GLOBAL debug = 'd,rpl_semisync_simulate_select_error';
+SET GLOBAL debug = '+d,rpl_semisync_simulate_select_error';
 INSERT INTO t1 VALUES(1);
 SET GLOBAL debug = @save_debug;
 #
@@ -170,7 +170,7 @@ SET GLOBAL rpl_semi_sync_source_trace_level = 255;
 #
 # Failure on creating ack receiver thread
 #
-SET GLOBAL debug = 'd,rpl_semisync_simulate_create_thread_failure';
+SET GLOBAL debug = '+d,rpl_semisync_simulate_create_thread_failure';
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 include/assert.inc [ should be 0]
 include/assert.inc [ack receiver thread is destroied;]
@@ -179,20 +179,21 @@ include/assert.inc [ack receiver thread is destroied;]
 #
 SET GLOBAL debug= @save_debug;
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
-SET GLOBAL debug = 'd,rpl_semisync_simulate_thread_join_failure';
+SET GLOBAL debug= '+d,rpl_semisync_simulate_thread_join_failure';
 SET GLOBAL rpl_semi_sync_source_enabled= OFF;
 include/assert.inc [ should be 0]
 include/assert.inc [ack receiver thread is destroied]
 #
 # Failure on registering semisync slave
 #
-SET GLOBAL debug= 'd,rpl_semisync_simulate_add_replica_failure';
+SET GLOBAL debug= '-d,rpl_semisync_simulate_thread_join_failure';
+SET GLOBAL debug= '+d,rpl_semisync_simulate_add_replica_failure';
 SET GLOBAL rpl_semi_sync_source_enabled= ON;
 [connection server_2]
 include/stop_slave.inc
 CHANGE REPLICATION SOURCE TO SOURCE_RETRY_COUNT = 1, SOURCE_CONNECT_RETRY = 5;
 SET @save_debug= @@GLOBAL.debug;
-SET GLOBAL debug= 'd,dbug.before_get_SOURCE_UUID';
+SET GLOBAL debug= '+d,dbug.before_get_SOURCE_UUID';
 include/install_semisync_replica.inc
 Warnings:
 Note	3084	Replication thread(s) for channel '' are already stopped.

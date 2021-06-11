@@ -64,7 +64,7 @@ zero
 include/stop_slave.inc
 set @@global.binlog_checksum = CRC32;
 insert into t1 values (1) /* will not be applied on slave due to simulation */;
-set @@global.debug='d,simulate_replica_unaware_checksum';
+set @@global.debug='+d,simulate_replica_unaware_checksum';
 start slave;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
@@ -74,35 +74,35 @@ select count(*) as zero from t1;
 zero
 0
 include/stop_slave.inc
-set @@global.debug='';
+set @@global.debug='-d,simulate_replica_unaware_checksum';
 include/start_slave.inc
 set @@global.source_verify_checksum = 1;
-set @@session.debug='d,simulate_checksum_test_failure';
+set @@session.debug='+d,simulate_checksum_test_failure';
 show binlog events;
 ERROR HY000: Error when executing command SHOW BINLOG EVENTS: Event crc check failed! Most likely there is event corruption.
-set @@session.debug='';
+set @@session.debug='-d,simulate_checksum_test_failure';
 set @@global.source_verify_checksum = default;
 include/stop_slave.inc
 create table t2 (a int);
-set @@global.debug='d,simulate_checksum_test_failure';
+set @@global.debug='+d,simulate_checksum_test_failure';
 start slave io_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_io_error.inc [errno=13122, 13115]
-set @@global.debug='';
+set @@global.debug='-d,simulate_checksum_test_failure';
 start slave io_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/sync_slave_io_with_master.inc
 set @@global.replica_sql_verify_checksum = 1;
-set @@global.debug='d,simulate_checksum_test_failure';
+set @@global.debug='+d,simulate_checksum_test_failure';
 start slave sql_thread;
 Warnings:
 Warning	1287	'START SLAVE' is deprecated and will be removed in a future release. Please use START REPLICA instead
 include/wait_for_slave_sql_error.inc [errno=13117]
 Last_SQL_Error = 'Event crc check failed! Most likely there is event corruption.'
 include/stop_slave.inc
-set @@global.debug='';
+set @@global.debug='-d,simulate_checksum_test_failure';
 include/start_slave.inc
 select count(*) as 'must be zero' from t2;
 must be zero
