@@ -203,6 +203,7 @@ void LogicalOrderings::Build(THD *thd, string *trace) {
   RecanonicalizeGroupings();
   AddFDsFromComputedItems(thd);
   AddFDsFromConstItems(thd);
+  AddFDsFromAggregateItems(thd);
   PreReduceOrderings(thd);
   CreateOrderingsFromGroupings(thd);
   CreateHomogenizedOrderings(thd);
@@ -487,13 +488,14 @@ void LogicalOrderings::AddFDsFromComputedItems(THD *thd) {
       continue;
     }
 
-    // We only want to look at items that are not already Item_field,
-    // and that are generated from a single field. Some quick heuristics
-    // will eliminate most of these for us.
+    // We only want to look at items that are not already Item_field
+    // or aggregate functions (the latter are handled in
+    // AddFDsFromAggregateItems()), and that are generated from a single field.
+    // Some quick heuristics will eliminate most of these for us.
     Item *item = m_items[item_idx].item;
     const table_map used_tables = item->used_tables();
-    if (item->type() == Item::FIELD_ITEM || used_tables == 0 ||
-        Overlaps(used_tables, PSEUDO_TABLE_BITS) ||
+    if (item->type() == Item::FIELD_ITEM || item->has_aggregation() ||
+        used_tables == 0 || Overlaps(used_tables, PSEUDO_TABLE_BITS) ||
         !IsSingleBitSet(used_tables)) {
       continue;
     }
@@ -586,6 +588,44 @@ void LogicalOrderings::AddFDsFromConstItems(THD *thd) {
       FunctionalDependency fd;
       fd.type = FunctionalDependency::FD;
       fd.head = Bounds_checked_array<ItemHandle>();
+      fd.tail = item_idx;
+      fd.always_active = true;
+      AddFunctionalDependency(thd, fd);
+    }
+  }
+}
+
+void LogicalOrderings::AddFDsFromAggregateItems(THD *thd) {
+  // If ROLLUP is active, and we have nullable GROUP BY expressions, we could
+  // get two different NULL groups with different aggregates; one for the actual
+  // NULL value, and one for the rollup group. If so, these FDs no longer hold,
+  // and we cannot add them.
+  if (m_rollup) {
+    for (ItemHandle item : m_aggregate_head) {
+      if (m_items[item].item->is_nullable()) {
+        return;
+      }
+    }
+  }
+
+  int num_original_items = m_items.size();
+  for (int item_idx = 0; item_idx < num_original_items; ++item_idx) {
+    // We only care about items that are used in some ordering,
+    // not any used as base in FDs or the likes.
+    const ItemHandle canonical_idx = m_items[item_idx].canonical_item;
+    if (!m_items[canonical_idx].used_asc && !m_items[canonical_idx].used_desc &&
+        !m_items[canonical_idx].used_in_grouping) {
+      continue;
+    }
+
+    if (m_items[item_idx].item->has_aggregation() &&
+        !m_items[item_idx].item->has_wf()) {
+      // Add {all GROUP BY items} → item.
+      // Note that the head might be empty, for implicit grouping,
+      // which means all aggregate items are constant (there is only one row).
+      FunctionalDependency fd;
+      fd.type = FunctionalDependency::FD;
+      fd.head = m_aggregate_head;
       fd.tail = item_idx;
       fd.always_active = true;
       AddFunctionalDependency(thd, fd);

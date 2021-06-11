@@ -3393,7 +3393,6 @@ static void BuildInterestingOrders(
   // we don't do; see sql/aggregate_check.h. In particular, we don't
   // collect FDs from:
   //
-  //  - Deterministic functions ({x} → f(x) for relevant items f(x)).
   //  - Unique indexes that are nullable, but that are made non-nullable
   //    by WHERE predicates.
   //  - Generated columns. [*]
@@ -3412,6 +3411,21 @@ static void BuildInterestingOrders(
   CollectFunctionalDependenciesFromJoins(thd, graph, orderings);
   CollectFunctionalDependenciesFromPredicates(thd, graph, orderings);
   CollectFunctionalDependenciesFromUniqueIndexes(thd, graph, orderings);
+
+  // Collect the GROUP BY expression, which will be used by
+  // AddFDsFromAggregateItems() later.
+  if (query_block->is_explicitly_grouped()) {
+    auto head = Bounds_checked_array<ItemHandle>::Alloc(
+        thd->mem_root, query_block->group_list.size());
+    int idx = 0;
+    for (ORDER *group = query_block->group_list.first; group != nullptr;
+         group = group->next, ++idx) {
+      head[idx] = orderings->GetHandle(*group->item);
+    }
+    orderings->SetHeadForAggregates(head);
+  }
+  orderings->SetRollup(query_block->join->rollup_state !=
+                       JOIN::RollupState::NONE);
 
   orderings->Build(thd, trace);
 

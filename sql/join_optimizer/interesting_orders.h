@@ -269,6 +269,24 @@ class LogicalOrderings {
   // NOTE: Will include the decay (epsilon) FD.
   int num_fds() const { return m_fds.size(); }
 
+  // Set the list of GROUP BY expressions, if any. This is used as the
+  // head of the functional dependencies for all aggregate functions
+  // (which by definition are functionally dependent on the GROUP BY
+  // expressions, unless ROLLUP is active -- see below), and must be
+  // valid (ie., not freed or modified) until Build() has run.
+  //
+  // If none is set, and there are aggregates present in orderings,
+  // implicit aggregation is assumed (ie., all aggregate functions
+  // are constant).
+  void SetHeadForAggregates(Bounds_checked_array<ItemHandle> head) {
+    m_aggregate_head = head;
+  }
+
+  // Set whether ROLLUP is active; if so, we can no longer assume that
+  // aggregate functions are functionally dependent on (nullable)
+  // GROUP BY expressions, as two NULLs may be for different reasons.
+  void SetRollup(bool rollup) { m_rollup = rollup; }
+
   // Builds the actual FSMs; all information about orderings and FDs is locked,
   // optimized and then the state machine is built. After this, you can no
   // longer add new orderings or FDs, ie., you are moving into the actual
@@ -419,6 +437,15 @@ class LogicalOrderings {
   // All items we have seen in use (in orderings or FDs), deduplicated
   // and indexed by ItemHandle.
   Mem_root_array<ItemInfo> m_items;
+
+  // Head for all FDs generated for aggregate functions.
+  // See SetHeadForAggregates().
+  Bounds_checked_array<ItemHandle> m_aggregate_head;
+
+  // Whether rollup is active; if so, we need to take care not to create
+  // FDs for aggregates in some cases. See SetHeadForAggregates() and
+  // SetRollup().
+  bool m_rollup = false;
 
   struct NFSMState {
     enum { INTERESTING, ARTIFICIAL, DELETED } type;
@@ -597,6 +624,9 @@ class LogicalOrderings {
 
   // See comment in .cc file.
   void AddFDsFromComputedItems(THD *thd);
+
+  // See comment in .cc file.
+  void AddFDsFromAggregateItems(THD *thd);
 
   // See comment in .cc file.
   void AddFDsFromConstItems(THD *thd);

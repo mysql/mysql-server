@@ -4252,3 +4252,16 @@ EXECUTE stmt USING @a;
 STDDEV_POP(c1)	STDDEV_SAMP(c1)	VAR_POP(c1)	VAR_SAMP(c1)
 NULL	NULL	NULL	NULL
 DROP TABLE t1;
+#
+# Verify that ROLLUP and DISTINCT on nullable GROUP BY expressions
+# work as expected (the sort is not elided).
+#
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (NULL), (1), (2);
+SELECT DISTINCT a, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+a	COUNT(*)
+1	1
+2	1
+NULL	1
+NULL	3
+DROP TABLE t1;

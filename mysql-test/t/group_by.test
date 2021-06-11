@@ -3218,3 +3218,16 @@ EXECUTE stmt USING @a;
 set @a=32767;
 EXECUTE stmt USING @a;
 DROP TABLE t1;
+
+--echo #
+--echo # Verify that ROLLUP and DISTINCT on nullable GROUP BY expressions
+--echo # work as expected (the sort is not elided).
+--echo #
+
+CREATE TABLE t1 (a INTEGER);
+INSERT INTO t1 VALUES (NULL), (1), (2);
+
+--sorted_result
+SELECT DISTINCT a, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
+
+DROP TABLE t1;
