@@ -630,6 +630,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                                  /*count_examined_rows=*/false);
         iterator = CreateIteratorFromAccessPath(
             thd, path, &join, /*eligible_for_batch_mode=*/true);
+        // Prevent cleanup in JOIN::destroy() and in the cleanup condition
+        // guard, to avoid double-destroy of the SortingIterator.
+        table->sorting_iterator = nullptr;
 
         if (iterator == nullptr || iterator->Init()) return true;
         thd->inc_examined_row_count(join.examined_rows);
@@ -695,6 +698,9 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
         iterator = CreateIteratorFromAccessPath(
             thd, path, /*join=*/nullptr, /*eligible_for_batch_mode=*/true);
+        // Prevent cleanup in JOIN::destroy() and in the cleanup condition
+        // guard, to avoid double-destroy of the SortingIterator.
+        table->sorting_iterator = nullptr;
 
         if (iterator == nullptr || iterator->Init()) {
           return true;
