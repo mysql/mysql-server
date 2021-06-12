@@ -29,9 +29,11 @@
 #include <vector>
 
 #include "my_inttypes.h"
-#include "sql/opt_range.h"
-#include "sql/opt_range_internal.h"
 #include "sql/parse_tree_helpers.h"
+#include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/range_analysis.h"
+#include "sql/range_optimizer/range_optimizer.h"
+#include "sql/range_optimizer/tree.h"
 #include "unittest/gunit/fake_range_opt_param.h"
 #include "unittest/gunit/fake_table.h"
 #include "unittest/gunit/handler-t.h"

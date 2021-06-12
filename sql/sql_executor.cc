@@ -88,11 +88,11 @@
 #include "sql/nested_join.h"
 #include "sql/opt_costmodel.h"
 #include "sql/opt_explain_format.h"
-#include "sql/opt_range.h"  // QUICK_SELECT_I
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/query_options.h"
-#include "sql/record_buffer.h"  // Record_buffer
+#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
+#include "sql/record_buffer.h"                    // Record_buffer
 #include "sql/records.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/row_iterator.h"

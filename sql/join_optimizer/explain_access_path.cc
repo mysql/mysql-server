@@ -29,7 +29,7 @@
 #include "sql/hash_join_iterator.h"
 #include "sql/item_sum.h"
 #include "sql/join_optimizer/relational_expression.h"
-#include "sql/opt_range.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/ref_row_iterators.h"
 #include "sql/sorting_iterator.h"
 #include "sql/sql_optimizer.h"

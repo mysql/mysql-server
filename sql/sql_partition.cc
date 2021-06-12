@@ -80,13 +80,13 @@
 #include "sql/item_func.h"  // Item_func
 #include "sql/key.h"
 #include "sql/mdl.h"
-#include "sql/mysqld.h"     // mysql_tmpdir
-#include "sql/opt_range.h"  // store_key_image_to_rec
+#include "sql/mysqld.h"  // mysql_tmpdir
 #include "sql/parse_tree_node_base.h"
 #include "sql/partition_info.h"                  // partition_info
 #include "sql/partitioning/partition_handler.h"  // Partition_handler
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
+#include "sql/range_optimizer/range_optimizer.h"  // store_key_image_to_rec
 #include "sql/sql_alter.h"
 #include "sql/sql_base.h"   // wait_while_table_is_used
 #include "sql/sql_class.h"  // THD

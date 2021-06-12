@@ -72,7 +72,6 @@
 #include "sql/mysqld.h"       // stage_... mysql_tmpdir
 #include "sql/opt_explain.h"  // Modification_plan
 #include "sql/opt_explain_format.h"
-#include "sql/opt_range.h"  // QUICK_SELECT_I
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
@@ -80,6 +79,8 @@
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
+#include "sql/range_optimizer/partition_pruning.h"
+#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/select_lex_visitor.h"

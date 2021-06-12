@@ -83,14 +83,15 @@
 #include "sql/opt_costmodel.h"
 #include "sql/opt_explain.h"  // join_type_str
 #include "sql/opt_hints.h"    // hint_table_state
-#include "sql/opt_range.h"    // QUICK_SELECT_I
 #include "sql/opt_trace.h"    // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/parser_yystype.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
-#include "sql/sql_base.h"  // init_ftfuncs
+#include "sql/range_optimizer/partition_pruning.h"
+#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
+#include "sql/sql_base.h"                         // init_ftfuncs
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"

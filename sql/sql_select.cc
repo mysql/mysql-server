@@ -88,12 +88,12 @@
 #include "sql/opt_explain.h"
 #include "sql/opt_explain_format.h"
 #include "sql/opt_hints.h"  // hint_key_state()
-#include "sql/opt_range.h"  // QUICK_SELECT_I
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_node_base.h"
 #include "sql/query_options.h"
 #include "sql/query_result.h"
+#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/row_iterator.h"
 #include "sql/set_var.h"
 #include "sql/sorting_iterator.h"

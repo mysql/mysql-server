@@ -25,8 +25,8 @@
 
 #include <gmock/gmock.h>
 
-#include "sql/opt_range.h"
-#include "sql/opt_range_internal.h"
+#include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "unittest/gunit/fake_table.h"
 
 using ::testing::_;

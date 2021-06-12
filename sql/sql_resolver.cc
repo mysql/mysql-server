@@ -82,13 +82,14 @@
 #include "sql/mem_root_array.h"
 #include "sql/nested_join.h"
 #include "sql/opt_hints.h"
-#include "sql/opt_range.h"  // prune_partitions
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/opt_trace_context.h"
 #include "sql/parse_tree_nodes.h"  // PT_order_expr
 #include "sql/query_options.h"
 #include "sql/query_result.h"  // Query_result
-#include "sql/sql_base.h"      // setup_fields
+#include "sql/range_optimizer/partition_pruning.h"
+#include "sql/range_optimizer/range_optimizer.h"  // prune_partitions
+#include "sql/sql_base.h"                         // setup_fields
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"  // Sql_cmd
 #include "sql/sql_const.h"

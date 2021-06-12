@@ -52,10 +52,10 @@
 #include "sql/mysqld.h"              // LOCK_status
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/opt_explain.h"         // join_type_str
-#include "sql/opt_range.h"           // QUICK_SELECT_I
 #include "sql/opt_trace.h"
 #include "sql/opt_trace_context.h"
 #include "sql/psi_memory_key.h"
+#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_const.h"

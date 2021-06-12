@@ -52,9 +52,10 @@
 #include "sql/mysqld.h"       // stage_...
 #include "sql/opt_explain.h"  // Modification_plan
 #include "sql/opt_explain_format.h"
-#include "sql/opt_range.h"  // prune_partitions
 #include "sql/opt_trace.h"  // Opt_trace_object
 #include "sql/query_options.h"
+#include "sql/range_optimizer/partition_pruning.h"
+#include "sql/range_optimizer/range_optimizer.h"  // prune_partitions
 #include "sql/records.h"  // unique_ptr_destroy_only<RowIterator>
 #include "sql/row_iterator.h"
 #include "sql/sorting_iterator.h"

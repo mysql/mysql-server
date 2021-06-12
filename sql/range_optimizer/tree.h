@@ -20,119 +20,40 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef OPT_RANGE_INTERNAL_INCLUDED
-#define OPT_RANGE_INTERNAL_INCLUDED
+#ifndef SQL_RANGE_OPTIMIZER_TREE_H_
+#define SQL_RANGE_OPTIMIZER_TREE_H_
 
-#include "sql/opt_range.h"
+#include <assert.h>
+#include <string.h>
+#include <sys/types.h>
 
-#include "mysys_err.h"          // EE_CAPACITY_EXCEEDED
-#include "sql/derror.h"         // ER_THD
-#include "sql/error_handler.h"  // Internal_error_handler
-#include "sql/sql_class.h"      // THD
+#include "my_alloc.h"
+#include "my_base.h"
+#include "my_inttypes.h"
+#include "sql/field.h"
+#include "sql/mem_root_array.h"
+#include "sql/range_optimizer/internal.h"
+#include "sql/range_optimizer/range_opt_param.h"
+#include "sql/sql_bitmap.h"
+#include "sql/sql_const.h"
+#include "sql/sql_list.h"
 
-class RANGE_OPT_PARAM;
-struct ROR_SCAN_INFO;
-class SEL_IMERGE;
+class Cost_estimate;
+class SEL_ARG;
+class SEL_ROOT;
 class SEL_TREE;
-
-SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param, Item *cond);
-[[maybe_unused]] void print_tree(String *out, const char *tree_name,
-                                 SEL_TREE *tree, const RANGE_OPT_PARAM *param,
-                                 const bool print_full);
+struct KEY_PART;
+struct ROR_SCAN_INFO;
 
 // Note: tree1 and tree2 are not usable by themselves after tree_and() or
 // tree_or().
 SEL_TREE *tree_and(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2);
 SEL_TREE *tree_or(RANGE_OPT_PARAM *param, SEL_TREE *tree1, SEL_TREE *tree2);
-int sel_cmp(Field *f, uchar *a, uchar *b, uint8 a_flag, uint8 b_flag);
 SEL_ROOT *key_or(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2);
 SEL_ROOT *key_and(RANGE_OPT_PARAM *param, SEL_ROOT *key1, SEL_ROOT *key2);
 
-void append_range(String *out, const KEY_PART_INFO *key_parts,
-                  const uchar *min_key, const uchar *max_key, const uint flag);
-class Opt_trace_array;
-void append_range_all_keyparts(Opt_trace_array *range_trace,
-                               String *range_string, String *range_so_far,
-                               SEL_ROOT *keypart,
-                               const KEY_PART_INFO *key_parts,
-                               const bool print_full);
-
-/**
-  Shared sentinel node for all trees. Initialized by range_optimizer_init(),
-  destroyed by range_optimizer_free();
-  Put it in a namespace, to avoid possible conflicts with the global namespace.
-*/
-namespace opt_range {
-extern SEL_ARG *null_element;
-}
-
-/**
-  Error handling class for range optimizer. We handle only out of memory
-  error here. This is to give a hint to the user to
-  raise range_optimizer_max_mem_size if required.
-  Warning for the memory error is pushed only once. The consequent errors
-  will be ignored.
-*/
-class Range_optimizer_error_handler : public Internal_error_handler {
- public:
-  Range_optimizer_error_handler()
-      : m_has_errors(false), m_is_mem_error(false) {}
-
-  bool handle_condition(THD *thd, uint sql_errno, const char *,
-                        Sql_condition::enum_severity_level *level,
-                        const char *) override {
-    if (*level == Sql_condition::SL_ERROR) {
-      m_has_errors = true;
-      /* Out of memory error is reported only once. Return as handled */
-      if (m_is_mem_error && sql_errno == EE_CAPACITY_EXCEEDED) return true;
-      if (sql_errno == EE_CAPACITY_EXCEEDED) {
-        m_is_mem_error = true;
-        /* Convert the error into a warning. */
-        *level = Sql_condition::SL_WARNING;
-        push_warning_printf(
-            thd, Sql_condition::SL_WARNING, ER_CAPACITY_EXCEEDED,
-            ER_THD(thd, ER_CAPACITY_EXCEEDED),
-            (ulonglong)thd->variables.range_optimizer_max_mem_size,
-            "range_optimizer_max_mem_size",
-            ER_THD(thd, ER_CAPACITY_EXCEEDED_IN_RANGE_OPTIMIZER));
-        return true;
-      }
-    }
-    return false;
-  }
-
-  bool has_errors() const { return m_has_errors; }
-
- private:
-  bool m_has_errors;
-  bool m_is_mem_error;
-};
-
-/**
-  A helper function to invert min flags to max flags for DESC key parts.
-  It changes NEAR_MIN, NO_MIN_RANGE to NEAR_MAX, NO_MAX_RANGE appropriately
-*/
-
-static uint invert_min_flag(uint min_flag) {
-  uint max_flag_out = min_flag & ~(NEAR_MIN | NO_MIN_RANGE);
-  if (min_flag & NEAR_MIN) max_flag_out |= NEAR_MAX;
-  if (min_flag & NO_MIN_RANGE) max_flag_out |= NO_MAX_RANGE;
-  return max_flag_out;
-}
-
-/**
-  A helper function to invert max flags to min flags for DESC key parts.
-  It changes NEAR_MAX, NO_MAX_RANGE to NEAR_MIN, NO_MIN_RANGE appropriately
-*/
-
-static uint invert_max_flag(uint max_flag) {
-  uint min_flag_out = max_flag & ~(NEAR_MAX | NO_MAX_RANGE);
-  if (max_flag & NEAR_MAX) min_flag_out |= NEAR_MIN;
-  if (max_flag & NO_MAX_RANGE) min_flag_out |= NO_MIN_RANGE;
-  return min_flag_out;
-}
-
-class SEL_ARG;
+bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
+                           RANGE_OPT_PARAM *param);
 
 /**
   A graph of (possible multiple) key ranges, represented as a red-black
@@ -294,6 +215,32 @@ class SEL_ROOT {
   */
   uint16 elements{0};
 };
+
+int sel_cmp(Field *f, uchar *a, uchar *b, uint8 a_flag, uint8 b_flag);
+
+/**
+  A helper function to invert min flags to max flags for DESC key parts.
+  It changes NEAR_MIN, NO_MIN_RANGE to NEAR_MAX, NO_MAX_RANGE appropriately
+*/
+
+inline uint invert_min_flag(uint min_flag) {
+  uint max_flag_out = min_flag & ~(NEAR_MIN | NO_MIN_RANGE);
+  if (min_flag & NEAR_MIN) max_flag_out |= NEAR_MAX;
+  if (min_flag & NO_MIN_RANGE) max_flag_out |= NO_MAX_RANGE;
+  return max_flag_out;
+}
+
+/**
+  A helper function to invert max flags to min flags for DESC key parts.
+  It changes NEAR_MAX, NO_MAX_RANGE to NEAR_MIN, NO_MIN_RANGE appropriately
+*/
+
+inline uint invert_max_flag(uint max_flag) {
+  uint min_flag_out = max_flag & ~(NEAR_MAX | NO_MAX_RANGE);
+  if (max_flag & NEAR_MAX) min_flag_out |= NEAR_MIN;
+  if (max_flag & NO_MAX_RANGE) min_flag_out |= NO_MIN_RANGE;
+  return min_flag_out;
+}
 
 /*
   A construction block of the SEL_ARG-graph.
@@ -909,6 +856,15 @@ class SEL_ARG {
   }
 };
 
+inline bool SEL_ROOT::is_always() const {
+  return type == Type::KEY_RANGE && elements == 1 && !root->maybe_flag &&
+         (root->min_flag & NO_MIN_RANGE) && (root->max_flag & NO_MAX_RANGE);
+}
+
+inline bool SEL_ROOT::simple_key() const {
+  return elements == 1 && !root->next_key_part;
+}
+
 class SEL_TREE {
  public:
   /**
@@ -1030,105 +986,87 @@ class SEL_TREE {
   }
 };
 
-class RANGE_OPT_PARAM {
- public:
-  THD *thd;                 /* Current thread handle */
-  TABLE *table;             /* Table being analyzed */
-  Query_block *query_block; /* Query block the table is part of */
-  Item *cond;               /* Used inside get_mm_tree(). */
-  table_map prev_tables;
-  table_map read_tables;
-  table_map current_table; /* Bit of the table being analyzed */
-
-  /* Array of parts of all keys for which range analysis is performed */
-  KEY_PART *key_parts;
-  KEY_PART *key_parts_end;
-  MEM_ROOT
-  *mem_root; /* Memory that will be freed when range analysis completes */
-  MEM_ROOT *old_root; /* Memory that will last until the query end */
-  /*
-    Number of indexes used in range analysis (In SEL_TREE::keys only first
-    #keys elements are not empty)
-  */
-  uint keys;
-
-  /*
-    If true, the index descriptions describe real indexes (and it is ok to
-    call field->optimize_range(real_keynr[...], ...).
-    Otherwise index description describes fake indexes, like a partitioning
-    expression.
-  */
-  bool using_real_indexes;
-
-  /*
-    Aggressively remove "scans" that do not have conditions on first
-    keyparts. Such scans are usable when doing partition pruning but not
-    regular range optimization.
-  */
-  bool remove_jump_scans;
-
-  /*
-    used_key_no -> table_key_no translation table. Only makes sense if
-    using_real_indexes==true
-  */
-  uint real_keynr[MAX_KEY];
-
-  /*
-    Used to store 'current key tuples', in both range analysis and
-    partitioning (list) analysis
-  */
-  uchar min_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH],
-      max_key[MAX_KEY_LENGTH + MAX_FIELD_WIDTH];
-
-  bool force_default_mrr;
-  /**
-    Whether index statistics or index dives should be used when
-    estimating the number of rows in an equality range. If true, index
-    statistics is used for these indexes.
-  */
-  bool use_index_statistics;
-
-  /// Error handler for this param.
-
-  Range_optimizer_error_handler error_handler;
-
-  bool has_errors() const { return (error_handler.has_errors()); }
-
-  virtual ~RANGE_OPT_PARAM() = default;
-};
+#ifndef NDEBUG
+void print_sel_tree(PARAM *param, SEL_TREE *tree, Key_map *tree_map,
+                    const char *msg);
+#endif
 
 /*
-  SEL_IMERGE is a list of possible ways to do index merge, i.e. it is
-  a condition in the following form:
-   (t_1||t_2||...||t_N) && (next)
+  Get the SEL_ARG tree 'tree' for the keypart covering 'field', if
+  any. 'tree' must be a unique conjunction to ALL predicates in earlier
+  keyparts of 'keypart_tree'.
 
-  where all t_i are SEL_TREEs, next is another SEL_IMERGE and no pair
-  (t_i,t_j) contains SEL_ARGS for the same index.
+  E.g., if 'keypart_tree' is for a composite index (kp1,kp2) and kp2
+  covers 'field', all these conditions satisfies the requirement:
 
-  SEL_TREE contained in SEL_IMERGE always has merges=NULL.
+   1. "(kp1=2 OR kp1=3) AND kp2=10"    => returns "kp2=10"
+   2. "(kp1=2 AND kp2=10) OR (kp1=3 AND kp2=10)"  => returns "kp2=10"
+   3. "(kp1=2 AND (kp2=10 OR kp2=11)) OR (kp1=3 AND (kp2=10 OR kp2=11))"
+                                       => returns "kp2=10  OR kp2=11"
 
-  This class relies on memory manager to do the cleanup.
+   whereas these do not
+   1. "(kp1=2 AND kp2=10) OR kp1=3"
+   2. "(kp1=2 AND kp2=10) OR (kp1=3 AND kp2=11)"
+   3. "(kp1=2 AND kp2=10) OR (kp1=3 AND (kp2=10 OR kp2=11))"
+
+   This function effectively tests requirement WA2.
+
+  @param[in]   key_part_num   Key part number we want the SEL_ARG tree for
+  @param[in]   keypart_tree   The SEL_ARG* tree for the index
+  @param[out]  cur_range      The SEL_ARG tree, if any, for the keypart
+
+  @retval true   'keypart_tree' contained a predicate for key part that
+                  is not conjunction to all predicates on earlier keyparts
+  @retval false  otherwise
+*/
+bool get_sel_root_for_keypart(uint key_part_num, SEL_ROOT *keypart_tree,
+                              SEL_ROOT **cur_range);
+
+/*
+  Find the SEL_ROOT tree that corresponds to the chosen index.
+
+  SYNOPSIS
+    get_index_range_tree()
+    index     [in]  The ID of the index being looked for
+    range_tree[in]  Tree of ranges being searched
+    param     [in]  PARAM from test_quick_select
+
+  DESCRIPTION
+
+    A SEL_TREE contains range trees for all usable indexes. This procedure
+    finds the SEL_ROOT tree for 'index'. The members of a SEL_TREE are
+    ordered in the same way as the members of PARAM::key, thus we first find
+    the corresponding index in the array PARAM::key. This index is returned
+    through the variable param_idx, to be used later as argument of
+    check_quick_select().
+
+  RETURN
+    Pointer to the SEL_ROOT tree that corresponds to index.
 */
 
-class SEL_IMERGE {
-  enum { PREALLOCED_TREES = 10 };
+inline SEL_ROOT *get_index_range_tree(uint index, SEL_TREE *range_tree,
+                                      PARAM *param) {
+  uint idx = 0; /* Index nr in param->key_parts */
+  while (idx < param->keys) {
+    if (index == param->real_keynr[idx]) break;
+    idx++;
+  }
+  return (range_tree->keys[idx]);
+}
 
- public:
-  SEL_TREE *trees_prealloced[PREALLOCED_TREES];
-  SEL_TREE **trees;      /* trees used to do index_merge   */
-  SEL_TREE **trees_next; /* last of these trees            */
-  SEL_TREE **trees_end;  /* end of allocated space         */
+/**
+  Print the ranges in a SEL_TREE to debug log.
 
-  SEL_ARG ***best_keys; /* best keys to read in SEL_TREEs */
+  @param tree_name   Descriptive name of the tree
+  @param tree        The SEL_TREE that will be printed to debug log
+  @param param       PARAM from test_quick_select
+*/
+inline void dbug_print_tree([[maybe_unused]] const char *tree_name,
+                            [[maybe_unused]] SEL_TREE *tree,
+                            [[maybe_unused]] const RANGE_OPT_PARAM *param) {
+#ifndef NDEBUG
+  if (_db_enabled_()) print_tree(nullptr, tree_name, tree, param, true);
+#endif
+}
 
-  SEL_IMERGE()
-      : trees(&trees_prealloced[0]),
-        trees_next(trees),
-        trees_end(trees + PREALLOCED_TREES) {}
-  SEL_IMERGE(SEL_IMERGE *arg, RANGE_OPT_PARAM *param);
-  int or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree);
-  int or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tree);
-  int or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, SEL_IMERGE *imerge);
-};
-
-#endif  // OPT_RANGE_INTERNAL_INCLUDED
+#endif  // SQL_RANGE_OPTIMIZER_TREE_H_

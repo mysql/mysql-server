@@ -793,12 +793,12 @@ MySQL clients support the protocol:
 #include "sql/mdl_context_backup.h"  // mdl_context_backup_manager
 #include "sql/my_decimal.h"
 #include "sql/mysqld_daemon.h"
-#include "sql/mysqld_thd_manager.h"              // Global_THD_manager
-#include "sql/opt_costconstantcache.h"           // delete_optimizer_cost_module
-#include "sql/opt_range.h"                       // range_optimizer_init
-#include "sql/options_mysqld.h"                  // OPT_THREAD_CACHE_SIZE
-#include "sql/partitioning/partition_handler.h"  // partitioning_init
-#include "sql/persisted_variable.h"              // Persisted_variables_cache
+#include "sql/mysqld_thd_manager.h"     // Global_THD_manager
+#include "sql/opt_costconstantcache.h"  // delete_optimizer_cost_module
+#include "sql/range_optimizer/range_optimizer.h"  // range_optimizer_init
+#include "sql/options_mysqld.h"                   // OPT_THREAD_CACHE_SIZE
+#include "sql/partitioning/partition_handler.h"   // partitioning_init
+#include "sql/persisted_variable.h"               // Persisted_variables_cache
 #include "sql/plugin_table.h"
 #include "sql/protocol.h"
 #include "sql/psi_memory_key.h"  // key_memory_MYSQL_RELAY_LOG_index

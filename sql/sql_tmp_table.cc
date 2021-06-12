@@ -64,13 +64,13 @@
 #include "sql/mem_root_allocator.h"
 #include "sql/mem_root_array.h"     // Mem_root_array
 #include "sql/mysqld.h"             // heap_hton
-#include "sql/opt_range.h"          // QUICK_SELECT_I
 #include "sql/opt_trace.h"          // Opt_trace_object
 #include "sql/opt_trace_context.h"  // Opt_trace_context
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
-#include "sql/sql_base.h"   // free_io_cache
-#include "sql/sql_class.h"  // THD
+#include "sql/range_optimizer/range_optimizer.h"  // QUICK_SELECT_I
+#include "sql/sql_base.h"                         // free_io_cache
+#include "sql/sql_class.h"                        // THD
 #include "sql/sql_const.h"
 #include "sql/sql_executor.h"  // SJ_TMP_TABLE
 #include "sql/sql_lex.h"

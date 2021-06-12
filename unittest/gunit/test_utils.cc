@@ -51,7 +51,7 @@
 #include "sql/mysqld.h"  // set_remaining_args
 #include "sql/mysqld_thd_manager.h"
 #include "sql/opt_costconstantcache.h"  // optimizer cost constant cache
-#include "sql/opt_range.h"
+#include "sql/range_optimizer/range_optimizer.h"
 #include "sql/rpl_filter.h"
 #include "sql/rpl_handler.h"  // delegates_init()
 #include "sql/set_var.h"
