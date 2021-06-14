@@ -98,8 +98,8 @@ class METADATA_API ClusterMetadata : public MetaData {
    * @return a boolean to indicate if the connection and session parameters
    * setup was successful.
    */
-  bool connect_and_setup_session(
-      const metadata_cache::ManagedInstance &metadata_server) noexcept override;
+  bool connect_and_setup_session(const metadata_cache::metadata_server_t
+                                     &metadata_server) noexcept override;
 
   /** @brief Disconnects from the Metadata server
    *
@@ -114,21 +114,25 @@ class METADATA_API ClusterMetadata : public MetaData {
     return metadata_connection_;
   }
 
-  bool update_router_version(const metadata_cache::ManagedInstance &rw_instance,
+  bool update_router_version(const metadata_cache::metadata_server_t &rw_server,
                              const unsigned router_id) override;
 
   bool update_router_last_check_in(
-      const metadata_cache::ManagedInstance &rw_instance,
+      const metadata_cache::metadata_server_t &rw_server,
       const unsigned router_id) override;
 
   auth_credentials_t fetch_auth_credentials(
-      const std::string &cluster_name) override;
+      const mysqlrouter::TargetCluster &target_cluster,
+      const std::string &cluster_type_specific_id) override;
+
+  stdx::expected<metadata_cache::metadata_server_t, std::error_code>
+  find_rw_server(const std::vector<metadata_cache::ManagedInstance> &instances);
 
  protected:
   /** Connects a MYSQL connection to the given instance
    */
   bool do_connect(mysqlrouter::MySQLSession &connection,
-                  const metadata_cache::ManagedInstance &mi);
+                  const metadata_cache::metadata_server_t &mi);
 
   // throws metadata_cache::metadata_error and
   // MetadataUpgradeInProgressException
@@ -142,12 +146,6 @@ class METADATA_API ClusterMetadata : public MetaData {
   // Metadata node generic information
   mysql_ssl_mode ssl_mode_;
   mysqlrouter::SSLOptions ssl_options_;
-
-  std::string cluster_name_;
-#if 0  // not used so far
-  std::string metadata_uuid_;
-  std::string message_;
-#endif
 
   // The time after which trying to connect to the metadata server should
   // timeout.

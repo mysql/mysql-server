@@ -108,7 +108,7 @@ TEST_P(MetadataCachePluginConfigGoodTest, GoodConfigs) {
 
   EXPECT_THAT(plugin_config.user, StrEq(test_data.expected.user));
   EXPECT_THAT(plugin_config.ttl, Eq(test_data.expected.ttl));
-  EXPECT_THAT(plugin_config.metadata_cluster,
+  EXPECT_THAT(plugin_config.cluster_name,
               StrEq(test_data.expected.metadata_cluster));
   EXPECT_THAT(plugin_config.metadata_servers_addresses,
               ContainerEq(test_data.expected.bootstrap_addresses));

@@ -256,8 +256,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
     ASSERT_THAT(mysql_harness::list_elements(cluster_info.metadata_servers),
                 Eq("mysql://somehost:3306"));
-    ASSERT_THAT(cluster_info.metadata_cluster_name, Eq("mycluster"));
-    ASSERT_THAT(cluster_info.metadata_replicaset, Eq(""));
+    ASSERT_THAT(cluster_info.name, Eq("mycluster"));
   }
 
   {
@@ -272,8 +271,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_one) {
 
     ASSERT_THAT(mysql_harness::list_elements(cluster_info.metadata_servers),
                 Eq("mysql://somehost:3306"));
-    ASSERT_THAT(cluster_info.metadata_cluster_name, Eq("mycluster"));
-    ASSERT_THAT(cluster_info.metadata_replicaset, Eq(""));
+    ASSERT_THAT(cluster_info.name, Eq("mycluster"));
   }
 }
 
@@ -295,8 +293,7 @@ TEST_F(ConfigGeneratorTest, fetch_bootstrap_servers_three) {
     ASSERT_THAT(mysql_harness::list_elements(cluster_info.metadata_servers),
                 Eq("mysql://somehost:3306,mysql://otherhost:3306,mysql://"
                    "sumhost:3306"));
-    ASSERT_THAT(cluster_info.metadata_cluster_name, Eq("mycluster"));
-    ASSERT_THAT(cluster_info.metadata_replicaset, Eq(""));
+    ASSERT_THAT(cluster_info.name, Eq("mycluster"));
   }
 }
 
@@ -1457,7 +1454,7 @@ class CreateConfigGeneratorTest : public ConfigGeneratorTest {
     ConfigGeneratorTest::SetUp();
 
     cluster_info = {
-        {"server1", "server2", "server3"}, "", "mycluster", "myreplicaset"};
+        {"server1", "server2", "server3"}, "id", "gr_id", "mycluster"};
 
     common_pass_metadata_checks(mock_mysql.get());
     config_gen.init(kServerUrl, {});
@@ -1541,31 +1538,31 @@ TEST_F(CreateConfigGeneratorTest, create_config_basic) {
       "auth_cache_refresh_interval=2",
       "use_gr_notifications=0",
       "",
-      "[routing:mycluster_myreplicaset_rw]",
+      "[routing:mycluster_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6446",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_ro]",
+      "[routing:mycluster_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6447",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_x_rw]",
+      "[routing:mycluster_x_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6448",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
-      "[routing:mycluster_myreplicaset_x_ro]",
+      "[routing:mycluster_x_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6449",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
       ""};
@@ -1628,31 +1625,31 @@ TEST_F(CreateConfigGeneratorTest, create_config_system_instance) {
       "auth_cache_refresh_interval=2",
       "use_gr_notifications=0",
       "",
-      "[routing:mycluster_myreplicaset_rw]",
+      "[routing:mycluster_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6446",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_ro]",
+      "[routing:mycluster_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6447",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_x_rw]",
+      "[routing:mycluster_x_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6448",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
-      "[routing:mycluster_myreplicaset_x_ro]",
+      "[routing:mycluster_x_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6449",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
       ""};
@@ -1688,7 +1685,6 @@ TEST_F(CreateConfigGeneratorTest, create_config_base_port) {
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
                            "cluster_user", options, default_paths,
                            "state_file_name.json");
-
   std::vector<std::string> lines;
   for (std::string line; std::getline(conf_output, line);) {
     lines.push_back(line);
@@ -1719,31 +1715,31 @@ TEST_F(CreateConfigGeneratorTest, create_config_base_port) {
       "auth_cache_refresh_interval=2",
       "use_gr_notifications=0",
       "",
-      "[routing:mycluster_myreplicaset_rw]",
+      "[routing:mycluster_rw]",
       "bind_address=0.0.0.0",
       "bind_port=1234",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_ro]",
+      "[routing:mycluster_ro]",
       "bind_address=0.0.0.0",
       "bind_port=1235",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_x_rw]",
+      "[routing:mycluster_x_rw]",
       "bind_address=0.0.0.0",
       "bind_port=1236",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
-      "[routing:mycluster_myreplicaset_x_ro]",
+      "[routing:mycluster_x_ro]",
       "bind_address=0.0.0.0",
       "bind_port=1237",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
       ""};
@@ -1813,27 +1809,27 @@ TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
       "auth_cache_refresh_interval=2",
       "use_gr_notifications=0",
       "",
-      "[routing:mycluster_myreplicaset_rw]",
+      "[routing:mycluster_rw]",
       "socket=" + test_dir() + "/mysql.sock",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_ro]",
+      "[routing:mycluster_ro]",
       "socket=" + test_dir() + "/mysqlro.sock",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_x_rw]",
+      "[routing:mycluster_x_rw]",
       "socket=" + test_dir() + "/mysqlx.sock",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
-      "[routing:mycluster_myreplicaset_x_ro]",
+      "[routing:mycluster_x_ro]",
       "socket=" + test_dir() + "/mysqlxro.sock",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
       ""};
@@ -1844,7 +1840,6 @@ TEST_F(CreateConfigGeneratorTest, create_config_skip_tcp) {
   }
 
   ASSERT_THAT(lines, ::testing::ElementsAreArray(expected_config_lines));
-
   ASSERT_THAT(state_output.str(),
               Eq("{\n"
                  "    \"metadata-cache\": {\n"
@@ -1870,7 +1865,6 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
   config_gen.create_config(conf_output, state_output, 123, "", "", cluster_info,
                            "cluster_user", options, default_paths,
                            "state_file_name.json");
-
   std::vector<std::string> lines;
   for (std::string line; std::getline(conf_output, line);) {
     lines.push_back(line);
@@ -1901,35 +1895,35 @@ TEST_F(CreateConfigGeneratorTest, create_config_use_sockets) {
       "auth_cache_refresh_interval=2",
       "use_gr_notifications=0",
       "",
-      "[routing:mycluster_myreplicaset_rw]",
+      "[routing:mycluster_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6446",
       "socket=" + test_dir() + "/mysql.sock",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_ro]",
+      "[routing:mycluster_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6447",
       "socket=" + test_dir() + "/mysqlro.sock",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_x_rw]",
+      "[routing:mycluster_x_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6448",
       "socket=" + test_dir() + "/mysqlx.sock",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
-      "[routing:mycluster_myreplicaset_x_ro]",
+      "[routing:mycluster_x_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6449",
       "socket=" + test_dir() + "/mysqlxro.sock",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
       ""};
@@ -1998,31 +1992,31 @@ TEST_F(CreateConfigGeneratorTest, create_config_bind_address) {
       "auth_cache_refresh_interval=2",
       "use_gr_notifications=0",
       "",
-      "[routing:mycluster_myreplicaset_rw]",
+      "[routing:mycluster_rw]",
       "bind_address=127.0.0.1",
       "bind_port=6446",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_ro]",
+      "[routing:mycluster_ro]",
       "bind_address=127.0.0.1",
       "bind_port=6447",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_x_rw]",
+      "[routing:mycluster_x_rw]",
       "bind_address=127.0.0.1",
       "bind_port=6448",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
-      "[routing:mycluster_myreplicaset_x_ro]",
+      "[routing:mycluster_x_ro]",
       "bind_address=127.0.0.1",
       "bind_port=6449",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
       ""};
@@ -2033,7 +2027,6 @@ TEST_F(CreateConfigGeneratorTest, create_config_bind_address) {
   }
 
   ASSERT_THAT(lines, ::testing::ElementsAreArray(expected_config_lines));
-
   ASSERT_THAT(state_output.str(),
               Eq("{\n"
                  "    \"metadata-cache\": {\n"
@@ -2091,31 +2084,31 @@ TEST_F(CreateConfigGeneratorTest, create_config_disable_rest) {
       "auth_cache_refresh_interval=2",
       "use_gr_notifications=0",
       "",
-      "[routing:mycluster_myreplicaset_rw]",
+      "[routing:mycluster_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6446",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_ro]",
+      "[routing:mycluster_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6447",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=classic",
       "",
-      "[routing:mycluster_myreplicaset_x_rw]",
+      "[routing:mycluster_x_rw]",
       "bind_address=0.0.0.0",
       "bind_port=6448",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=PRIMARY",
+      "destinations=metadata-cache://mycluster/?role=PRIMARY",
       "routing_strategy=first-available",
       "protocol=x",
       "",
-      "[routing:mycluster_myreplicaset_x_ro]",
+      "[routing:mycluster_x_ro]",
       "bind_address=0.0.0.0",
       "bind_port=6449",
-      "destinations=metadata-cache://mycluster/myreplicaset?role=SECONDARY",
+      "destinations=metadata-cache://mycluster/?role=SECONDARY",
       "routing_strategy=round-robin-with-fallback",
       "protocol=x",
       ""};
@@ -3248,7 +3241,7 @@ TEST_F(ConfigGeneratorTest, ssl_stage3_create_config) {
             config_gen.fill_options(user_options, default_paths, {});
         std::stringstream conf_output, state_output;
         mysqlrouter::ClusterInfo cluster_info{
-            {"server1", "server2", "server3"}, "", "mycluster", "myreplicaset"};
+            {"server1", "server2", "server3"}, "", "gr_id", "mycluster"};
         config_gen.create_config(conf_output, state_output, 123, "myrouter",
                                  "user", cluster_info, "cluster_user", options,
                                  default_paths);

@@ -41,7 +41,8 @@ class METADATA_API GRMetadataCache : public MetadataCache {
    * @param auth_credentials_refresh_rate Refresh_rate of the rest user
    *                                      authentication data
    * @param ssl_options SSL related options for connection
-   * @param cluster_name The name of the desired cluster in the metadata server
+   * @param target_cluster object identifying the Cluster this operation refers
+   * to
    * @param thread_stack_size The maximum memory allocated for thread's stack
    * @param use_gr_notifications Flag indicating if the metadata cache should
    *                             use GR notifications as an additional trigger
@@ -55,13 +56,14 @@ class METADATA_API GRMetadataCache : public MetadataCache {
       const std::chrono::milliseconds auth_credentials_ttl,
       const std::chrono::milliseconds auth_credentials_refresh_rate,
       const mysqlrouter::SSLOptions &ssl_options,
-      const std::string &cluster_name,
+      const mysqlrouter::TargetCluster &target_cluster,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes,
       bool use_gr_notifications = false)
       : MetadataCache(router_id, group_replication_id, metadata_servers,
                       cluster_metadata, ttl, auth_credentials_ttl,
-                      auth_credentials_refresh_rate, ssl_options, cluster_name,
-                      thread_stack_size, use_gr_notifications) {}
+                      auth_credentials_refresh_rate, ssl_options,
+                      target_cluster, thread_stack_size, use_gr_notifications) {
+  }
 
   bool refresh() override;
 
@@ -69,19 +71,7 @@ class METADATA_API GRMetadataCache : public MetadataCache {
     return meta_data_->get_cluster_type();
   }
 
-  /**
-   * Fetches metadata from the metadata server we are currently connected to.
-   *
-   * @param instance        object representing the metadata server we are
-   * currently connected to
-   * @param [out] changed   true if the metadata read from the server has
-   * changed since the last update, false otherwise
-   *
-   * @return true if the operation succeeded, false otherwise
-   */
-  bool fetch_metadata_from_connected_instance(
-      const metadata_cache::ManagedInstance &instance, bool &changed);
-
+ private:
 #ifdef FRIEND_TEST
   FRIEND_TEST(FailoverTest, basics);
   FRIEND_TEST(FailoverTest, primary_failover);

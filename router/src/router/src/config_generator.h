@@ -313,7 +313,7 @@ class ConfigGenerator {
 
   std::tuple<std::string> try_bootstrap_deployment(
       uint32_t &router_id, std::string &username, std::string &password,
-      const std::string &router_name, const std::string &cluster_id,
+      const std::string &router_name, const ClusterInfo &cluster_info,
       const std::map<std::string, std::string> &user_options,
       const std::map<std::string, std::vector<std::string>> &multivalue_options,
       const Options &options);
@@ -344,9 +344,7 @@ class ConfigGenerator {
 
   static std::string gen_metadata_cache_routing_section(
       bool is_classic, bool is_writable, const Options::Endpoint endpoint,
-      const Options &options, const std::string &metadata_key,
-      const std::string &metadata_replicaset,
-      const std::string &fast_router_key);
+      const Options &options, const std::string &metadata_key);
 
   /** @brief Deletes Router accounts just created
    *

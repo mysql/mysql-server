@@ -58,26 +58,20 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
   metadata_cache::ManagedInstance ms1;
   metadata_cache::ManagedInstance ms2;
   metadata_cache::ManagedInstance ms3;
-  metadata_cache::ManagedInstance ms4;
-  metadata_cache::ManagedInstance ms5;
-  metadata_cache::ManagedInstance ms6;
-  metadata_cache::ManagedInstance ms7;
-  metadata_cache::ManagedInstance ms8;
-  metadata_cache::ManagedInstance ms9;
 
   /**
-   * Server list for each replicaset in the topology. Each server object
-   * represents all relevant information about the server that is
-   * part of the topology.
+   * Server list for the cluster. Each server object
+   * represents all relevant information about the server that is part of the
+   * topology.
    */
-  std::vector<metadata_cache::ManagedInstance> replicaset_1_vector;
-  std::vector<metadata_cache::ManagedInstance> replicaset_2_vector;
-  std::vector<metadata_cache::ManagedInstance> replicaset_3_vector;
+  metadata_cache::cluster_nodes_list_t cluster_instances_vector;
 
   /**
    * The information about the HA topology being managed.
    */
-  ReplicaSetsByName replicaset_map;
+  metadata_cache::ManagedCluster cluster_info;
+
+  metadata_cache::metadata_servers_list_t metadata_servers;
 
   /** @brief Constructor
    * @param user The user name used to authenticate to the metadata server.
@@ -111,8 +105,8 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
    *
    * @return a boolean to indicate if the connection was successful.
    */
-  bool connect_and_setup_session(
-      const metadata_cache::ManagedInstance &metadata_server) noexcept override;
+  bool connect_and_setup_session(const metadata_cache::metadata_server_t
+                                     &metadata_server) noexcept override;
 
   /** @brief Mock disconnect method.
    *
@@ -123,17 +117,15 @@ class METADATA_TESTS_API MockNG : public GRClusterMetadata {
 
   /**
    *
-   * Returns relation as a std::map between replicaset ID and list of managed
-   * servers.
+   * Returns cluster topology object.
    *
-   * @return Map of replicaset ID, server list pairs.
+   * @return Cluster topology object.
    */
-  ReplicaSetsByName fetch_instances(
-      const std::string &farm_name,
-      const std::string &group_replication_id) override;
-
-  ReplicaSetsByName fetch_instances(
-      const std::vector<metadata_cache::ManagedInstance> &instances,
+  stdx::expected<metadata_cache::ClusterTopology, std::error_code>
+  fetch_cluster_topology(
+      const std::atomic<bool> & /*terminated*/,
+      mysqlrouter::TargetCluster &target_cluster, const unsigned /*router_id*/,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
       const std::string &group_replication_id, size_t &instance_id) override;
 
 #if 0  // not used so far

@@ -37,20 +37,27 @@ IMPORT_LOG_FUNCTIONS()
 
 ARClusterMetadata::~ARClusterMetadata() = default;
 
-ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
-    const std::vector<metadata_cache::ManagedInstance> &instances,
+stdx::expected<metadata_cache::ClusterTopology, std::error_code>
+ARClusterMetadata::fetch_cluster_topology(
+    const std::atomic<bool> &terminated,
+    mysqlrouter::TargetCluster & /*target_cluster*/,
+    const unsigned /*router_id*/,
+    const metadata_cache::metadata_servers_list_t &metadata_servers,
     const std::string &cluster_type_specific_id, std::size_t &instance_id) {
   std::vector<metadata_cache::ManagedInstance> new_instances;
 
   bool metadata_read = false;
 
-  for (size_t i = 0; i < instances.size(); ++i) {
-    const auto &instance = instances[i];
+  for (size_t i = 0; i < metadata_servers.size(); ++i) {
+    if (terminated) {
+      return stdx::make_unexpected(make_error_code(
+          metadata_cache::metadata_errc::metadata_refresh_terminated));
+    }
+    const auto &metadata_server = metadata_servers[i];
     try {
-      if (!connect_and_setup_session(instance)) {
-        log_warning("Could not connect to the instance: %s on %s:%d",
-                    instance.mysql_server_uuid.c_str(), instance.host.c_str(),
-                    instance.port);
+      if (!connect_and_setup_session(metadata_server)) {
+        log_warning("Could not connect to the metadata server on %s:%d",
+                    metadata_server.address().c_str(), metadata_server.port());
         continue;
       }
 
@@ -75,8 +82,8 @@ ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
       unsigned view_id{0};
       if (!get_member_view_id(*metadata_connection_, cluster_type_specific_id,
                               view_id)) {
-        log_warning("Failed fetching view_id from the instance: %s",
-                    instance.mysql_server_uuid.c_str());
+        log_warning("Failed fetching view_id from the metadata server on %s:%d",
+                    metadata_server.address().c_str(), metadata_server.port());
         continue;
       }
 
@@ -97,26 +104,28 @@ ClusterMetadata::ReplicaSetsByName ARClusterMetadata::fetch_instances(
     } catch (const mysqlrouter::MetadataUpgradeInProgressException &) {
       throw;
     } catch (const std::exception &e) {
-      log_warning("Failed fetching metadata from instance: %s on %s:%d - %s",
-                  instance.mysql_server_uuid.c_str(), instance.host.c_str(),
-                  instance.port, e.what());
+      log_warning("Failed fetching metadata from metadata server on %s:%d - %s",
+                  metadata_server.address().c_str(), metadata_server.port(),
+                  e.what());
     }
   }
 
   if (new_instances.empty()) {
-    return {};
+    return stdx::make_unexpected(make_error_code(
+        metadata_cache::metadata_errc::no_metadata_read_successful));
   }
 
-  // pack the result into ManagedReplicaSet to satisfy the API
-  metadata_cache::ManagedReplicaSet replicaset;
-  ClusterMetadata::ReplicaSetsByName result;
+  metadata_cache::ClusterTopology result;
+  result.cluster_data.single_primary_mode = true;
+  result.cluster_data.members = std::move(new_instances);
+  result.cluster_data.writable_server =
+      find_rw_server(result.cluster_data.members);
+  result.cluster_data.view_id = this->view_id_;
 
-  replicaset.name = "default";
-  replicaset.single_primary_mode = true;
-  replicaset.members = std::move(new_instances);
-  replicaset.view_id = this->view_id_;
-
-  result["default"] = replicaset;
+  // for ReplicaSet Cluster we assume metadata servers are just Cluster nodes
+  for (const auto &cluster_node : result.cluster_data.members) {
+    result.metadata_servers.push_back({cluster_node.host, cluster_node.port});
+  }
 
   return result;
 }
@@ -193,10 +202,6 @@ ARClusterMetadata::fetch_instances_from_member(
                         : metadata_cache::ServerMode::ReadOnly;
 
     set_instance_attributes(instance, get_string(row[4]));
-
-    // remainig fields are for compatibility with existing interface so we go
-    // with defaults
-    instance.replicaset_name = "default";
 
     result.push_back(instance);
     return true;  // get next row if available

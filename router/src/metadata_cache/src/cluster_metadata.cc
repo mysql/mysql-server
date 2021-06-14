@@ -50,6 +50,7 @@ using mysqlrouter::MySQLSession;
 using mysqlrouter::sqlstring;
 using mysqlrouter::strtoi_checked;
 using mysqlrouter::strtoui_checked;
+using namespace std::string_literals;
 IMPORT_LOG_FUNCTIONS()
 
 /**
@@ -100,16 +101,16 @@ ClusterMetadata::ClusterMetadata(const std::string &user,
 ClusterMetadata::~ClusterMetadata() = default;
 
 bool ClusterMetadata::do_connect(MySQLSession &connection,
-                                 const metadata_cache::ManagedInstance &mi) {
-  std::string host = (mi.host == "localhost" ? "127.0.0.1" : mi.host);
+                                 const metadata_cache::metadata_server_t &mi) {
   try {
     connection.set_ssl_options(ssl_mode_, ssl_options_.tls_version,
                                ssl_options_.cipher, ssl_options_.ca,
                                ssl_options_.capath, ssl_options_.crl,
                                ssl_options_.crlpath);
-    connection.connect(host, static_cast<unsigned int>(mi.port), user_,
-                       password_, "" /* unix-socket */, "" /* default-schema */,
-                       connect_timeout_, read_timeout_);
+    connection.connect(mi.address(), static_cast<unsigned int>(mi.port()),
+                       user_, password_, "" /* unix-socket */,
+                       "" /* default-schema */, connect_timeout_,
+                       read_timeout_);
     return true;
   } catch (const MySQLSession::Error & /*e*/) {
     return false;  // error is logged in calling function
@@ -117,7 +118,7 @@ bool ClusterMetadata::do_connect(MySQLSession &connection,
 }
 
 bool ClusterMetadata::connect_and_setup_session(
-    const metadata_cache::ManagedInstance &metadata_server) noexcept {
+    const metadata_cache::metadata_server_t &metadata_server) noexcept {
   // Get a clean metadata server connection object
   // (RAII will close the old one if needed).
   try {
@@ -133,17 +134,17 @@ bool ClusterMetadata::connect_and_setup_session(
         mysqlrouter::setup_metadata_session(*metadata_connection_);
     if (result) {
       log_debug("Connected with metadata server running on %s:%i",
-                metadata_server.host.c_str(), metadata_server.port);
+                metadata_server.address().c_str(), metadata_server.port());
       return true;
     } else {
       log_warning("Failed setting up the session on Metadata Server %s:%d: %s",
-                  metadata_server.host.c_str(), metadata_server.port,
+                  metadata_server.address().c_str(), metadata_server.port(),
                   result.error().c_str());
     }
   } else {
     // connection attempt failed
     log_warning("Failed connecting with Metadata Server %s:%d: %s (%i)",
-                metadata_server.host.c_str(), metadata_server.port,
+                metadata_server.address().c_str(), metadata_server.port(),
                 metadata_connection_->last_error(),
                 metadata_connection_->last_errno());
   }
@@ -221,10 +222,10 @@ bool set_instance_ports(metadata_cache::ManagedInstance &instance,
 }
 
 bool ClusterMetadata::update_router_version(
-    const metadata_cache::ManagedInstance &rw_instance,
+    const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id) {
   auto connection = mysql_harness::DIM::instance().new_MySQLSession();
-  if (!do_connect(*connection, rw_instance)) {
+  if (!do_connect(*connection, rw_server)) {
     log_warning(
         "Updating the router version in metadata failed: Could not connect to "
         "the writable cluster member");
@@ -281,13 +282,13 @@ bool ClusterMetadata::update_router_version(
 }
 
 bool ClusterMetadata::update_router_last_check_in(
-    const metadata_cache::ManagedInstance &rw_instance,
+    const metadata_cache::metadata_server_t &rw_server,
     const unsigned router_id) {
   // only relevant to for metadata V2
   if (get_cluster_type() == ClusterType::GR_V1) return true;
 
   auto connection = mysql_harness::DIM::instance().new_MySQLSession();
-  if (!do_connect(*connection, rw_instance)) {
+  if (!do_connect(*connection, rw_server)) {
     log_warning(
         "Updating the router last_check_in in metadata failed: Could not "
         "connect to the writable cluster member");
@@ -326,15 +327,34 @@ bool ClusterMetadata::update_router_last_check_in(
   return true;
 }
 
+static std::string get_limit_target_cluster_clause(
+    const mysqlrouter::TargetCluster &target_cluster,
+    const std::string & /*cluster_type_specific_id*/,
+    const mysqlrouter::MySQLSession &session) {
+  switch (target_cluster.target_type()) {
+    case mysqlrouter::TargetCluster::TargetType::ByUUID:
+      return "(SELECT cluster_id FROM "
+             "mysql_innodb_cluster_metadata.v2_gr_clusters C WHERE "
+             "C.attributes->>'$.group_replication_group_name' = " +
+             session.quote(target_cluster.to_string()) + ")";
+    default:
+      // case mysqlrouter::TargetCluster::TargetType::ByName:
+      return "(SELECT cluster_id FROM "
+             "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name=" +
+             session.quote(target_cluster.to_string()) + ")";
+  }
+}
+
 ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
-    const std::string &cluster_name) {
+    const mysqlrouter::TargetCluster &target_cluster,
+    const std::string &cluster_type_specific_id) {
   ClusterMetadata::auth_credentials_t auth_credentials;
-  sqlstring query =
+  const std::string query =
       "SELECT user, authentication_string, privileges, authentication_method "
       "FROM mysql_innodb_cluster_metadata.v2_router_rest_accounts WHERE "
-      "cluster_id=(SELECT cluster_id FROM "
-      "mysql_innodb_cluster_metadata.v2_clusters WHERE cluster_name=?)";
-  query << cluster_name << sqlstring::end;
+      "cluster_id="s +
+      get_limit_target_cluster_clause(target_cluster, cluster_type_specific_id,
+                                      *metadata_connection_);
 
   auto result_processor =
       [&auth_credentials](const MySQLSession::Row &row) -> bool {
@@ -362,6 +382,19 @@ ClusterMetadata::auth_credentials_t ClusterMetadata::fetch_auth_credentials(
   if (metadata_connection_)
     metadata_connection_->query(query, result_processor);
   return auth_credentials;
+}
+
+stdx::expected<metadata_cache::metadata_server_t, std::error_code>
+ClusterMetadata::find_rw_server(
+    const std::vector<metadata_cache::ManagedInstance> &instances) {
+  for (auto &instance : instances) {
+    if (instance.mode == metadata_cache::ServerMode::ReadWrite) {
+      return metadata_cache::metadata_server_t{instance};
+    }
+  }
+
+  return stdx::make_unexpected(
+      make_error_code(metadata_cache::metadata_errc::no_rw_node_found));
 }
 
 /**

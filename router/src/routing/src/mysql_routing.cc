@@ -79,8 +79,6 @@ using namespace std::chrono_literals;
 
 static const int kListenQueueSize{1024};
 
-static const char *kDefaultReplicaSetName = "default";
-
 /**
  * encode a initial error-msg into a buffer.
  *
@@ -1450,13 +1448,13 @@ void MySQLRouting::set_destinations_from_uri(const mysqlrouter::URI &uri) {
   if (uri.scheme == "metadata-cache") {
     // Syntax:
     // metadata_cache://[<metadata_cache_key(unused)>]/<replicaset_name>?role=PRIMARY|SECONDARY|PRIMARY_AND_SECONDARY
-    std::string replicaset_name = kDefaultReplicaSetName;
+    //    std::string replicaset_name = kDefaultReplicaSetName;
 
-    if (uri.path.size() > 0 && !uri.path[0].empty())
-      replicaset_name = uri.path[0];
+    //    if (uri.path.size() > 0 && !uri.path[0].empty())
+    //      replicaset_name = uri.path[0];
 
     destination_ = std::make_unique<DestMetadataCacheGroup>(
-        io_ctx_, uri.host, replicaset_name, routing_strategy_, uri.query,
+        io_ctx_, uri.host, routing_strategy_, uri.query,
         context_.get_protocol(), access_mode_);
   } else {
     throw std::runtime_error(string_format(

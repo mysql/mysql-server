@@ -43,10 +43,6 @@
  */
 const unsigned kRouterId = 2;
 const std::string replication_group_id = "0000-0000-0001";
-const std::string kDefaultTestReplicaset_1 = "replicaset-1";  // replicaset-1
-const std::string kDefaultTestReplicaset_2 = "replicaset-2";  // replicaset-2
-const std::string kDefaultTestReplicaset_3 = "replicaset-3";  // replicaset-3
-
 const std::string kDefaultMetadataHost = "127.0.0.1";  // 127.0.0.1
 const std::string kDefaultMetadataUser = "admin";      // admin
 const std::string kDefaultMetadataPassword = "";       //
@@ -55,7 +51,7 @@ const std::chrono::milliseconds kDefaultMetadataTTL = std::chrono::seconds(1);
 const std::chrono::milliseconds kDefaultAuthCacheTTL = std::chrono::seconds(2);
 const std::chrono::milliseconds kDefaultAuthCacheRefreshInterval =
     std::chrono::milliseconds(-1);
-const std::string kDefaultMetadataReplicaset = "replicaset-1";
+const std::string kDefaultClusterName = "cluster_name_1";
 
 const mysql_harness::TCPAddress bootstrap_server(kDefaultMetadataHost,
                                                  kDefaultMetadataPort);
@@ -79,7 +75,9 @@ class MetadataCachePluginTest : public ::testing::Test {
         metadata_server_vector,
         {kDefaultMetadataUser, kDefaultMetadataPassword}, kDefaultMetadataTTL,
         kDefaultAuthCacheTTL, kDefaultAuthCacheRefreshInterval,
-        mysqlrouter::SSLOptions(), kDefaultMetadataReplicaset, 1, 1);
+        mysqlrouter::SSLOptions(),
+        {mysqlrouter::TargetCluster::TargetType::ByName, kDefaultClusterName},
+        1, 1);
     metadata_cache::MetadataCacheAPI::instance()->cache_start();
     int count = 1;
     /**
@@ -89,9 +87,7 @@ class MetadataCachePluginTest : public ::testing::Test {
      */
     while (instance_vector_1.size() != 3) {
       try {
-        instance_vector_1 =
-            cache_api_->lookup_replicaset(kDefaultTestReplicaset_1)
-                .instance_vector;
+        instance_vector_1 = cache_api_->get_cluster_nodes().instance_vector;
       } catch (const std::runtime_error &exc) {
         /**
          * If the lookup fails after 5 attempts it points to an error
@@ -115,19 +111,11 @@ class MetadataCachePluginTest : public ::testing::Test {
 };
 
 /**
- * Test that looking up an invalid replicaset returns a empty list.
+ * Test that the list of servers that are part of a cluster is accurate.
  */
-TEST_F(MetadataCachePluginTest, InvalidReplicasetTest) {
-  EXPECT_TRUE(cache_api_->lookup_replicaset("InvalidReplicaset")
-                  .instance_vector.empty());
-}
-
-/**
- * Test that the list of servers that are part of a replicaset is accurate.
- */
-TEST_F(MetadataCachePluginTest, ValidReplicasetTest_1) {
+TEST_F(MetadataCachePluginTest, ValidCluserTest_1) {
   std::vector<ManagedInstance> instance_vector_1 =
-      cache_api_->lookup_replicaset(kDefaultTestReplicaset_1).instance_vector;
+      cache_api_->get_cluster_nodes().instance_vector;
 
   EXPECT_EQ(instance_vector_1[0], mf.ms1);
   EXPECT_EQ(instance_vector_1[1], mf.ms2);

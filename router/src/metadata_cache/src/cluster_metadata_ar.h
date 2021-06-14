@@ -68,30 +68,28 @@ class METADATA_API ARClusterMetadata : public ClusterMetadata {
    */
   ~ARClusterMetadata() override;
 
-  /** @brief Returns replicasets defined in the metadata server
-   *
-   * Only to satisfy the API, not used for the ReplicaSet cluster
-   *
-   * @throws logic_error
-   */
-  ReplicaSetsByName fetch_instances(
-      const std::string & /*cluster_name*/,
-      const std::string & /*cluster_type_specific_id*/) override {
-    throw std::logic_error("Call to unexpected fetch_instances overload");
-  }
-
-  /** @brief Returns replicasets defined in the metadata given set of the
+  /** @brief Returns cluster defined in the metadata given set of the
    *         metadata servers (cluster members)
    *
-   * @param instances  set of the metadata servers to use to fetch the metadata
+   * @param terminated flag indicating that the process is cterminating,
+   * allowing the function to leave earlier if possible
+   * @param [in,out] target_cluster object identifying the Cluster this
+   * operation refers to
+   * @param router_id id of the router in the cluster metadata
+   * @param metadata_servers  set of the metadata servers to use to fetch the
+   * metadata
    * @param cluster_type_specific_id  (GR ID for GR cluster, cluster_id for AR
    * cluster)
    * @param [out] instance_id of the server the metadata was fetched from
-   * @return Map of replicaset ID, server list pairs.
+   * @return object containing cluster topology information in case of success,
+   * or error code in case of failure
    * @throws metadata_cache::metadata_error
    */
-  ReplicaSetsByName fetch_instances(
-      const std::vector<metadata_cache::ManagedInstance> &instances,
+  stdx::expected<metadata_cache::ClusterTopology, std::error_code>
+  fetch_cluster_topology(
+      const std::atomic<bool> &terminated,
+      mysqlrouter::TargetCluster &target_cluster, const unsigned router_id,
+      const metadata_cache::metadata_servers_list_t &metadata_servers,
       const std::string &cluster_type_specific_id,
       std::size_t &instance_id) override;
 

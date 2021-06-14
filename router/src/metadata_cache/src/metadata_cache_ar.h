@@ -33,7 +33,7 @@ class METADATA_API ARMetadataCache : public MetadataCache {
    * Initialize a connection to the MySQL Metadata server.
    *
    * @param router_id id of the router in the cluster metadata
-   * @param cluster_id id of the replication group
+   * @param cluster_specific_type_id id of the replication group
    * @param metadata_servers The servers that store the metadata
    * @param cluster_metadata metadata of the cluster
    * @param ttl The TTL of the cached data
@@ -41,22 +41,24 @@ class METADATA_API ARMetadataCache : public MetadataCache {
    * @param auth_credentials_refresh_rate Refresh rate of the rest user
    *                                      authentication data
    * @param ssl_options SSL related options for connection
-   * @param cluster_name The name of the desired cluster in the metadata server
+   * @param target_cluster object identifying the Cluster this operation refers
+   * to
    * @param thread_stack_size The maximum memory allocated for thread's stack
    */
   ARMetadataCache(
-      const unsigned router_id, const std::string &cluster_id,
+      const unsigned router_id, const std::string &cluster_specific_type_id,
       const std::vector<mysql_harness::TCPAddress> &metadata_servers,
       std::shared_ptr<MetaData> cluster_metadata,
       const std::chrono::milliseconds ttl,
       const std::chrono::milliseconds auth_credentials_ttl,
       const std::chrono::milliseconds auth_credentials_refresh_rate,
       const mysqlrouter::SSLOptions &ssl_options,
-      const std::string &cluster_name,
+      const mysqlrouter::TargetCluster &target_cluster,
       size_t thread_stack_size = mysql_harness::kDefaultStackSizeInKiloBytes)
-      : MetadataCache(router_id, cluster_id, metadata_servers, cluster_metadata,
-                      ttl, auth_credentials_ttl, auth_credentials_refresh_rate,
-                      ssl_options, cluster_name, thread_stack_size, false) {}
+      : MetadataCache(router_id, cluster_specific_type_id, metadata_servers,
+                      cluster_metadata, ttl, auth_credentials_ttl,
+                      auth_credentials_refresh_rate, ssl_options,
+                      target_cluster, thread_stack_size, false) {}
 
   bool refresh() override;
 

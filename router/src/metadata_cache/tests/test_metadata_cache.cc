@@ -55,7 +55,7 @@ class MetadataCacheTest : public ::testing::Test {
                            1, 1, mysqlrouter::SSLOptions(), false, 0),
               std::chrono::seconds(10), std::chrono::seconds(-1),
               std::chrono::seconds(20), mysqlrouter::SSLOptions(),
-              "replicaset-1") {
+              {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"}) {
     cache.refresh();
   }
 };
@@ -66,22 +66,11 @@ class MetadataCacheTest : public ::testing::Test {
 TEST_F(MetadataCacheTest, ValidReplicasetTest_1) {
   std::vector<ManagedInstance> instance_vector_1;
 
-  instance_vector_1 = cache.replicaset_lookup("replicaset-1");
+  instance_vector_1 = cache.get_cluster_nodes();
   ASSERT_EQ(3U, instance_vector_1.size());
   EXPECT_EQ(instance_vector_1[0], mf.ms1);
   EXPECT_EQ(instance_vector_1[1], mf.ms2);
   EXPECT_EQ(instance_vector_1[2], mf.ms3);
-}
-
-/**
- * Test that looking up an invalid replicaset returns a empty list.
- */
-TEST_F(MetadataCacheTest, InvalidReplicasetTest) {
-  std::vector<ManagedInstance> instance_vector;
-
-  instance_vector = cache.replicaset_lookup("InvalidReplicasetTest");
-
-  EXPECT_TRUE(instance_vector.empty());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -195,7 +184,7 @@ class MetadataCacheTest2 : public ::testing::Test {
 };
 
 void expect_cluster_routable(MetadataCache &mc) {
-  std::vector<ManagedInstance> instances = mc.replicaset_lookup("cluster-1");
+  std::vector<ManagedInstance> instances = mc.get_cluster_nodes();
   ASSERT_EQ(3U, instances.size());
   EXPECT_EQ("uuid-server1", instances[0].mysql_server_uuid);
   EXPECT_EQ(metadata_cache::ServerMode::ReadWrite, instances[0].mode);
@@ -206,7 +195,7 @@ void expect_cluster_routable(MetadataCache &mc) {
 }
 
 void expect_cluster_not_routable(GRMetadataCache &mc) {
-  std::vector<ManagedInstance> instances = mc.replicaset_lookup("cluster-1");
+  std::vector<ManagedInstance> instances = mc.get_cluster_nodes();
   ASSERT_EQ(0U, instances.size());
 }
 
@@ -215,10 +204,11 @@ TEST_F(MetadataCacheTest2, basic_test) {
   expect_sql_metadata();
   expect_sql_members();
 
-  GRMetadataCache mc(kRouterId, gr_id, metadata_servers, cmeta,
-                     std::chrono::seconds(10), std::chrono::seconds(-1),
-                     std::chrono::seconds(20), mysqlrouter::SSLOptions(),
-                     "cluster-1");
+  GRMetadataCache mc(
+      kRouterId, gr_id, metadata_servers, cmeta, std::chrono::seconds(10),
+      std::chrono::seconds(-1), std::chrono::seconds(20),
+      mysqlrouter::SSLOptions(),
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"});
   mc.refresh();
 
   // verify that cluster can be seen
@@ -247,10 +237,11 @@ TEST_F(MetadataCacheTest2, metadata_server_connection_failures) {
   // start off with all metadata servers up
   expect_sql_metadata();
   expect_sql_members();
-  GRMetadataCache mc(kRouterId, gr_id, metadata_servers, cmeta,
-                     std::chrono::seconds(10), std::chrono::seconds(-1),
-                     std::chrono::seconds(20), mysqlrouter::SSLOptions(),
-                     "cluster-1");
+  GRMetadataCache mc(
+      kRouterId, gr_id, metadata_servers, cmeta, std::chrono::seconds(10),
+      std::chrono::seconds(-1), std::chrono::seconds(20),
+      mysqlrouter::SSLOptions(),
+      {mysqlrouter::TargetCluster::TargetType::ByName, "cluster-1"});
   mc.refresh();
   expect_cluster_routable(mc);
 

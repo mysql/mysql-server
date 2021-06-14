@@ -451,7 +451,7 @@ class MySQLSession {
 
   virtual unsigned warning_count() noexcept;
 
-  virtual std::string quote(const std::string &s, char qchar = '\'') noexcept;
+  virtual std::string quote(const std::string &s, char qchar = '\'') const;
 
   virtual bool is_connected() noexcept { return connection_ && connected_; }
   const std::string &get_address() noexcept { return connection_address_; }
