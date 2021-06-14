@@ -235,8 +235,10 @@ void init_keyring(std::map<std::string, std::string> &default_section,
  * @param file_path path to the file we want to serach
  * @param predicate predicate to test the file
  * @param sleep_time max time to wait for the entry in the file
+ * @deprecated use wait_log_contains() or get_file_output() with
+ * "EXPECT_THAT(..., Contains())"
  */
-bool find_in_file(
+[[deprecated]] bool find_in_file(
     const std::string &file_path,
     const std::function<bool(const std::string &)> &predicate,
     std::chrono::milliseconds sleep_time = std::chrono::milliseconds(5000));

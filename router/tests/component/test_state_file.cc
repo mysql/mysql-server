@@ -34,7 +34,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "my_rapidjson_size_t.h"
 #endif
 
-#include <gmock/gmock.h>
+#include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 #include <rapidjson/document.h>
 #include <rapidjson/error/en.h>
@@ -47,6 +47,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #include "keyring/keyring_manager.h"
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
+#include "mysql/harness/string_utils.h"  // split_string
 #include "mysql_session.h"
 #include "mysqlrouter/cluster_metadata.h"
 #include "mysqlrouter/rest_client.h"
@@ -1076,14 +1077,7 @@ TEST_P(StateFileAccessRightsTest, ParametrizedStateFileSchemaTest) {
   ASSERT_NO_FATAL_FAILURE(check_exit_code(router, EXIT_FAILURE));
 
   // proper error should get logged
-  const bool found = find_in_file(
-      get_logging_dir().str() + "/mysqlrouter.log",
-      [&](const std::string &line) -> bool {
-        return pattern_found(line, test_params.expected_error);
-      },
-      1ms);
-
-  EXPECT_TRUE(found);
+  EXPECT_TRUE(wait_log_file_contains(router, test_params.expected_error, 1ms));
 }
 
 INSTANTIATE_TEST_SUITE_P(
@@ -1140,19 +1134,14 @@ TEST_F(StateFileDirectoryBootstrapTest, DirectoryBootstrapTest) {
                    "localhost");
 
   // check that static file has a proper reference to the dynamic file
-  const std::string static_conf = temp_test_dir.name() + "/mysqlrouter.conf";
-  const std::string expected_entry =
-      std::string("dynamic_state=") + Path(state_file).real_path().str();
-  const bool found = find_in_file(
-      static_conf,
-      [&](const std::string &line) -> bool {
-        return pattern_found(line, expected_entry);
-      },
-      1ms);
+  const std::string conf_content =
+      get_file_output("mysqlrouter.conf", temp_test_dir.name());
+  const std::vector<std::string> lines =
+      mysql_harness::split_string(conf_content, '\n');
 
-  EXPECT_TRUE(found) << "Did not found: " << expected_entry << "\n"
-                     << get_file_output("mysqlrouter.conf",
-                                        temp_test_dir.name());
+  ASSERT_THAT(lines,
+              ::testing::Contains(::testing::HasSubstr(
+                  "dynamic_state=" + Path(state_file).real_path().str())));
 }
 
 /*

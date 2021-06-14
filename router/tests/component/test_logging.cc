@@ -31,7 +31,7 @@
 #include <string>
 #include <thread>
 
-#include <gmock/gmock.h>
+#include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
 #include "config_builder.h"
@@ -39,11 +39,13 @@
 #include "mock_server_rest_client.h"
 #include "mock_server_testutils.h"
 #include "mysql/harness/logging/logging.h"
+#include "mysql/harness/string_utils.h"  // split_lines
 #include "mysql_session.h"
 #include "mysqlrouter/utils.h"  // rename_file
 #include "process_wrapper.h"
 #include "random_generator.h"
 #include "router_component_test.h"
+#include "router_test_helpers.h"  // get_file_output
 #include "tcp_port_pool.h"
 
 /**
@@ -125,15 +127,14 @@ TEST_F(RouterLoggingTest, log_startup_failure_to_logfile) {
   // expect something like this to appear in log:
   // 2018-12-19 03:54:04 main ERROR [7f539f628780] Configuration error: option
   // destinations in [routing] is required
-  auto matcher = [](const std::string &line) -> bool {
-    return line.find(
-               "Configuration error: option destinations in [routing] is "
-               "required") != line.npos;
-  };
+  auto file_content =
+      router.get_full_logfile("mysqlrouter.log", logging_folder.name());
+  auto lines = mysql_harness::split_string(file_content, '\n');
 
-  EXPECT_TRUE(find_in_file(logging_folder.name() + "/mysqlrouter.log", matcher))
-      << "log:"
-      << router.get_full_logfile("mysqlrouter.log", logging_folder.name());
+  EXPECT_THAT(lines,
+              ::testing::Contains(::testing::HasSubstr(
+                  "Configuration error: option destinations in [routing] is "
+                  "required")));
 }
 
 /** @test This test verifies that invalid logging_folder is properly handled and
@@ -1853,13 +1854,12 @@ TEST_F(RouterLoggingTest, is_debug_logs_written_to_file_if_logging_folder) {
   // check if log output contains the SQL queries.
   //
   // SQL queries are logged with host:port at the start.
-  auto matcher = [server_port](const std::string &line) -> bool {
-    return line.find("127.0.0.1:" + std::to_string(server_port)) != line.npos;
-  };
+  auto file_content =
+      router.get_full_logfile("mysqlrouter.log", bootstrap_conf.name());
+  auto lines = mysql_harness::split_string(file_content, '\n');
 
-  EXPECT_TRUE(find_in_file(bootstrap_conf.name() + "/mysqlrouter.log", matcher,
-                           std::chrono::milliseconds(5000)))
-      << router.get_full_logfile("mysqlrouter.log", bootstrap_conf.name());
+  EXPECT_THAT(lines, ::testing::Contains(::testing::HasSubstr(
+                         "127.0.0.1:" + std::to_string(server_port))));
 }
 
 /**
@@ -2041,6 +2041,24 @@ class MetadataCacheLoggingTest : public RouterLoggingTest {
   std::string routing_section;
 };
 
+template <class F>
+bool retry_for(F &&f, std::chrono::milliseconds duration) {
+  using clock_type = std::chrono::steady_clock;
+
+  auto sleep_time = duration / 20;
+  auto end_time = clock_type::now() + duration;
+
+  do {
+    auto res = f();
+
+    if (res) return true;
+
+    RouterComponentTest::sleep_for(sleep_time);
+  } while (clock_type::now() < end_time);
+
+  return false;
+}
+
 /**
  * @test verify if error message is logged if router cannot connect to any
  *       metadata server.
@@ -2061,18 +2079,19 @@ TEST_F(MetadataCacheLoggingTest,
   // expect something like this to appear on STDERR
   // 2017-12-21 17:22:35 metadata_cache ERROR [7ff0bb001700] Failed connecting
   // with any of the 3 metadata servers
-  auto matcher = [](const std::string &line) -> bool {
-    return line.find("metadata_cache ERROR") != line.npos &&
-           line.find(
-               "Failed fetching metadata from any of the 3 metadata servers") !=
-               line.npos;
-  };
+  EXPECT_TRUE(retry_for(
+      [&]() {
+        auto file_content = router.get_full_logfile();
+        auto lines = mysql_harness::split_string(file_content, '\n');
 
-  auto log_file = get_logging_dir();
-  log_file.append("mysqlrouter.log");
-  EXPECT_TRUE(
-      find_in_file(log_file.str(), matcher, std::chrono::milliseconds(5000)))
-      << router.get_full_logfile();
+        return ::testing::Value(
+            lines,
+            ::testing::Contains(::testing::AllOf(
+                ::testing::HasSubstr("metadata_cache ERROR"),
+                ::testing::HasSubstr("Failed fetching metadata from any of "
+                                     "the 3 metadata servers"))));
+      },
+      5s));
 }
 
 /**
@@ -2093,52 +2112,40 @@ TEST_F(MetadataCacheLoggingTest,
   set_mock_metadata(http_port, "", cluster_nodes_ports);
 
   // launch the router with metadata-cache configuration
-  /* auto &router = */ ProcessManager::launch_router(
+  auto &router = ProcessManager::launch_router(
       {"-c", init_keyring_and_config_file(conf_dir.name())}, EXIT_SUCCESS, true,
       false, -1s);
 
-  // expect something like this to appear on STDERR
-  // 2017-12-21 17:22:35 metadata_cache WARNING [7ff0bb001700] Failed connecting
-  // with Metadata Server 127.0.0.1:7002: Can't connect to MySQL server on
-  // '127.0.0.1' (111) (2003)
-  auto info_matcher = [&](const std::string &line) -> bool {
-    return line.find("metadata_cache WARNING") != line.npos &&
-           line.find("Failed connecting with Metadata Server localhost:" +
-                     std::to_string(cluster_nodes_ports[0])) != line.npos;
-  };
+  // expect something like this to appear on STDERR:
+  //
+  // - ... metadata_cache WARNING ... Failed connecting with Metadata Server
+  //   localhost:7002: Can't connect to MySQL server on '127.0.0.1' (111) (2003)
+  // - ... metadata_cache WARNING ... While updating metadata, could ...
 
-  EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
-                           info_matcher, 10s));
+  EXPECT_TRUE(retry_for(
+      [&]() {
+        using namespace ::testing;
 
-  auto warning_matcher = [](const std::string &line) -> bool {
-    return line.find("metadata_cache WARNING") != line.npos &&
-           line.find(
-               "While updating metadata, could not establish a connection to "
-               "cluster") != line.npos;
-  };
-  EXPECT_TRUE(find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
-                           warning_matcher, 10s));
+        auto file_content = router.get_full_logfile();
+        auto lines = mysql_harness::split_string(file_content, '\n');
+
+        return Value(
+            lines,
+            IsSupersetOf({
+                AllOf(HasSubstr("metadata_cache WARNING "),
+                      HasSubstr("While updating metadata, could "
+                                "not establish a connection to "
+                                "cluster")),
+                AllOf(HasSubstr("metadata_cache WARNING "),
+                      HasSubstr(
+                          "Failed connecting with Metadata Server localhost:" +
+                          std::to_string(cluster_nodes_ports[0]))),
+            }));
+      },
+      10s));
 }
 
 #ifndef _WIN32
-
-template <class F>
-bool retry_for(F &&f, std::chrono::milliseconds duration) {
-  using clock_type = std::chrono::steady_clock;
-
-  auto sleep_time = duration / 10;
-  auto end_time = clock_type::now() + duration;
-
-  do {
-    auto res = f();
-
-    if (res) return true;
-
-    RouterComponentTest::sleep_for(sleep_time);
-  } while (clock_type::now() < end_time);
-
-  return false;
-}
 
 /**
  * @test Checks that the logs rotation works (meaning Router will recreate

@@ -28,7 +28,7 @@
 #include <string>
 #include <thread>
 
-#include <gmock/gmock.h>
+#include <gmock/gmock-matchers.h>
 #include <gtest/gtest.h>
 
 #include "config_builder.h"
@@ -450,14 +450,8 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
   //       connection errors counter.  This test relies on that.
   ASSERT_NO_FATAL_FAILURE(check_port_ready(router, router_port));
 
-  // wait until blocking client host info appears in the log
-  bool res =
-      find_in_file(get_logging_dir().str() + "/mysqlrouter.log",
-                   [](const std::string &line) -> bool {
-                     return line.find("blocking client host") != line.npos;
-                   });
-
-  ASSERT_TRUE(res) << "Did not found expected entry in log file";
+  SCOPED_TRACE("// wait until 'blocking client host' appears in the log");
+  ASSERT_TRUE(wait_log_contains(router, "blocking client host", 5000ms));
 
   // for the next connection attempt we should get an error as the
   // max_connect_errors was exceeded
