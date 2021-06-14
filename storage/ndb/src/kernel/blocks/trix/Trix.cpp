@@ -2134,15 +2134,21 @@ Trix::statMetaGetHeadCB(Signal* signal, Uint32 statPtrI, Uint32 ret)
 {
   StatOp& stat = statOpGetPtr(statPtrI);
   D("statMetaGetHeadCB" << V(stat) << V(ret));
-  StatOp::Meta& meta = stat.m_meta;
   if (ret != 0)
   {
     jam();
-    Uint32 supress[] = { GetTabInfoRef::TableNotDefined, 0 };
-    statOpError(signal, stat, ret, __LINE__, supress);
+    Uint32 errorCode = ret;
+    if (errorCode == GetTabInfoRef::TableNotDefined)
+    {
+      // Map the generic TableNotDefined error to the more specific "Index stats
+      // system tables do not exist" error
+      errorCode = 4714;
+    }
+    const Uint32 suppress[] = { 4714, 0 };
+    statOpError(signal, stat, errorCode, __LINE__, suppress);
     return;
   }
-  g_statMetaHead.tableId = meta.m_conf.tableId;
+  g_statMetaHead.tableId = stat.m_meta.m_conf.tableId;
   statMetaGetSample(signal, stat);
 }
 
