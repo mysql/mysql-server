@@ -543,7 +543,8 @@ bool filesort(THD *thd, Filesort *filesort, RowIterator *source_iterator,
 
     // We will need an extra buffer in SortFileIndirectIterator
     if (fs_info->addon_fields != nullptr &&
-        !(fs_info->addon_fields->allocate_addon_buf(longest_addons)))
+        !(fs_info->addon_fields->allocate_addon_buf(
+            longest_addons + Addon_fields::size_of_length_field)))
       goto err; /* purecov: inspected */
 
     fs_info->read_chunk_descriptors(&chunk_file, num_chunks);
