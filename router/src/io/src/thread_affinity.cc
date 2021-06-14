@@ -113,6 +113,11 @@ ThreadAffinity::affinity() const noexcept {
 #endif
 }
 
+// Doxygen gets confused by [[maybe_unused]]
+
+/**
+ @cond
+*/
 stdx::expected<void, std::error_code> ThreadAffinity::affinity(
     std::bitset<ThreadAffinity::max_cpus> cpus
     [[maybe_unused]]) const noexcept {
@@ -170,3 +175,7 @@ stdx::expected<void, std::error_code> ThreadAffinity::affinity(
   return stdx::make_unexpected(make_error_code(std::errc::not_supported));
 #endif
 }
+
+/**
+ @endcond
+*/

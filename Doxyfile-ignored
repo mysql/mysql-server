@@ -64,6 +64,7 @@ sql/rpl_binlog_sender.cc:*
 sql/rpl_handler.h:*
 sql/rpl_io_monitor.h:*
 sql/rpl_rli_pdb.h:*
+sql/rpl_info_dummy.cc:*
 sql/rpl_trx_tracking.h:*
 sql/rpl_utility.h:*
 libbinlogevents/include/binlog_event.h:*
