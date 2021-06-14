@@ -333,6 +333,7 @@ void CreateInnerJoinFromChildList(
     left->multi_children = std::move(children);
     expr->left = left;
   }
+  expr->multi_children.clear();
 }
 
 /**
@@ -370,6 +371,7 @@ void FlattenInnerJoins(RelationalExpression *expr) {
   if (expr->type == RelationalExpression::INNER_JOIN &&
       expr->join_conditions.empty()) {
     // Collect and flatten children.
+    assert(expr->multi_children.empty());
     expr->type = RelationalExpression::MULTI_INNER_JOIN;
     if (expr->left->type == RelationalExpression::MULTI_INNER_JOIN) {
       for (RelationalExpression *child : expr->left->multi_children) {

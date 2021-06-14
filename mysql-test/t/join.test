@@ -1848,3 +1848,15 @@ eval $query;
 eval explain $query;
 
 DROP TABLE t1, t2, t3;
+
+--echo #
+--echo # Bug #32976194: HYPERGRAPH: ASSERTION `!OVERLAPS(EXPR->LEFT->TABLES_IN_SUBTREE, EXPR->RIGHT->TAB
+--echo #
+
+CREATE TABLE t1 ( a INTEGER );
+
+SELECT *
+FROM t1, t1 AS t2, t1 AS t3
+WHERE rand() > 0.5 OR (t1.a = 1 AND t2.a = 1);
+
+DROP TABLE t1;
