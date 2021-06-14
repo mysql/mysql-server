@@ -369,6 +369,10 @@ class sp_lex_instr : public sp_instr {
   */
   virtual void get_query(String *sql_query) const;
 
+  /**
+    Some expressions may be re-parsed as SELECT statements, but need to be
+    adjusted to another SQL command. This function facilitates that change.
+  */
   virtual void adjust_sql_command(LEX *) {}
 
   /**
@@ -555,6 +559,7 @@ class sp_instr_set : public sp_lex_instr {
   LEX_CSTRING get_expr_query() const override { return m_value_query; }
 
   void adjust_sql_command(LEX *lex) override {
+    assert(lex->sql_command == SQLCOM_SELECT);
     lex->sql_command = SQLCOM_SET_OPTION;
   }
 
@@ -840,6 +845,11 @@ class sp_lex_branch_instr : public sp_lex_instr, public sp_branch_instr {
     /* Calling backpatch twice is a logic flaw in jump resolution. */
     assert(m_dest == 0);
     m_dest = dest;
+  }
+
+  void adjust_sql_command(LEX *lex) override {
+    assert(lex->sql_command == SQLCOM_SELECT);
+    lex->sql_command = SQLCOM_END;
   }
 
  protected:

@@ -10001,3 +10001,78 @@ SELECT f2();
 SELECT f1(1);
 DROP FUNCTION f1;
 DROP FUNCTION f2;
+
+--echo # Bug#32855634: Assert(m_deque == other.m_deque) in mem_root_deque.h
+
+DELIMITER //;
+CREATE PROCEDURE p1()
+BEGIN
+  DROP TEMPORARY TABLE IF EXISTS tmp;
+  CREATE TEMPORARY TABLE tmp(name VARCHAR(64), value VARCHAR(64));
+
+  IF EXISTS(SELECT 1
+            FROM tmp d
+                 LEFT JOIN information_schema.columns c
+                 ON c.table_schema = 'test' AND
+                    upper(c.column_name) = upper(d.name)
+            WHERE c.table_schema IS NULL
+           )
+  THEN
+    SELECT 'then';
+  ELSE
+    SELECT 'else';
+  END IF;
+
+  CASE EXISTS(SELECT 1
+              FROM tmp d
+                   LEFT JOIN information_schema.columns c
+                   ON c.table_schema = 'test' AND
+                      upper(c.column_name) = upper(d.name)
+              WHERE c.table_schema IS NULL
+             )
+  WHEN TRUE THEN SELECT 'true';
+  WHEN FALSE THEN SELECT 'false';
+  END CASE;
+
+  CASE
+  WHEN EXISTS(SELECT 1
+              FROM tmp d
+                   LEFT JOIN information_schema.columns c
+                   ON c.table_schema = 'test' AND
+                      upper(c.column_name) = upper(d.name)
+              WHERE c.table_schema IS NULL
+             )
+  THEN SELECT 'true';
+  ELSE SELECT 'false';
+  END CASE;
+
+  WHILE EXISTS(SELECT 1
+               FROM tmp d
+                    LEFT JOIN information_schema.columns c
+                    ON c.table_schema = 'test' AND
+                       upper(c.column_name) = upper(d.name)
+               WHERE c.table_schema IS NULL
+              )
+  DO
+    SELECT 'while';
+  END WHILE;
+
+  REPEAT
+    SELECT 'repeat';
+  UNTIL NOT
+        EXISTS(SELECT 1
+               FROM tmp d
+                    LEFT JOIN information_schema.columns c
+                    ON c.table_schema = 'test' AND
+                       upper(c.column_name) = upper(d.name)
+               WHERE c.table_schema IS NULL
+              )
+  END REPEAT;
+  DROP TEMPORARY TABLE tmp;
+END;
+//
+DELIMITER ;//
+CALL p1();
+CALL p1();
+
+DROP PROCEDURE p1;
