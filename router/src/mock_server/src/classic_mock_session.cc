@@ -212,6 +212,10 @@ void MySQLServerMockSessionClassic::client_greeting() {
     return;
   }
 
+  if (auto *ssl = protocol_.ssl()) {
+    json_reader_->set_session_ssl_info(ssl);
+  }
+
   auto decode_res =
       classic_protocol::decode<classic_protocol::message::client::Greeting>(
           net::buffer(payload), protocol_.server_capabilities());
@@ -243,9 +247,6 @@ void MySQLServerMockSessionClassic::client_greeting() {
         disconnect();
         return;
       }
-
-      auto *ssl = protocol_.ssl();
-      json_reader_->set_session_ssl_info(ssl);
 
       // read again other part
       client_greeting();
