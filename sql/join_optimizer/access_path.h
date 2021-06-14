@@ -1411,8 +1411,15 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
   RAND_TABLE_BIT will be set as a convention and none of that access path's
   children will be included in the map. In this case, the caller will need to
   manually go in and find said access path, to ask it for its TABLE object.
+
+  If include_pruned_tables = true, tables that are hidden under a ZERO_ROWS
+  access path (ie., pruned away due to impossible join conditions) will be
+  included in the map. This is normally what you want, as those tables need to
+  be included whenever you store NULL flags and the likes, but if you don't
+  want them (perhaps to specifically check for conditions referring to pruned
+  tables), you can set it to false.
  */
-table_map GetUsedTableMap(const AccessPath *path);
+table_map GetUsedTableMap(const AccessPath *path, bool include_pruned_tables);
 
 /**
   For each access path in the (sub)tree rooted at “path”, expand any use of

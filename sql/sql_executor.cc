@@ -1996,8 +1996,10 @@ static AccessPath *CreateHashJoinAccessPath(
   // We also remove the join conditions, to avoid using time on extracting their
   // hash values. (Also, Item_func_eq::append_join_key_for_hash_join has an
   // assert that this case should never happen, so it would trigger.)
-  const table_map probe_used_tables = GetUsedTableMap(probe_path);
-  const table_map build_used_tables = GetUsedTableMap(build_path);
+  const table_map probe_used_tables =
+      GetUsedTableMap(probe_path, /*include_pruned_tables=*/false);
+  const table_map build_used_tables =
+      GetUsedTableMap(build_path, /*include_pruned_tables=*/false);
   for (const HashJoinCondition &condition : hash_join_conditions) {
     if ((!condition.left_uses_any_table(probe_used_tables) &&
          !condition.right_uses_any_table(probe_used_tables)) ||

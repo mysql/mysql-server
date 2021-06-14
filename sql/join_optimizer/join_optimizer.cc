@@ -2212,7 +2212,8 @@ void CostingReceiver::ProposeAccessPathWithOrderings(
 Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path) {
   Mem_root_array<TABLE *> tables(thd->mem_root);
   WalkTablesUnderAccessPath(
-      root_path, [&tables](TABLE *table) { return tables.push_back(table); });
+      root_path, [&tables](TABLE *table) { return tables.push_back(table); },
+      /*include_pruned_tables=*/true);
   return tables;
 }
 
