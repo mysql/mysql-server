@@ -2150,7 +2150,8 @@ TEST_P(SplicerParamTest, xproto) {
       if (!result->has_resultset()) {
         FAIL() << xerr.what();
       } else {
-        const auto row = result->get_next_row();
+        const auto row = result->get_next_row(&xerr);
+        ASSERT_TRUE(row) << xerr;
         std::string field;
         ASSERT_TRUE(row->get_string(1, &field));
 
