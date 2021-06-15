@@ -718,6 +718,8 @@ get_redostatus(NdbMgmHandle h, LogInfo& li)
         CHK1(rs.log_part < 4);
         LogPart& lp = ln.m_logpart[rs.log_part];
 
+        info("RedoStatus from node " << ev.source_nodeid << " log part " << rs.log_part);
+
         CHK1(!lp.m_set);
         LogPos& head = lp.m_head;
         LogPos& tail = lp.m_tail;
@@ -784,7 +786,10 @@ get_redostatus(NdbMgmHandle h, LogInfo& li)
       CHK1(result == 0);
     }
     CHK1(result == 0);
-    CHK2(rescnt == maxcnt, "got events " << rescnt << " != " << maxcnt);
+    CHK2(rescnt == maxcnt, "got events (after " << Int64(time(0) - start)
+                                                << "s of "
+                                                << maxwait << "s) "
+                                                << rescnt << " != " << maxcnt);
     require(li.isset()); // already implied by counts
 
     for (int n = 0; n < li.m_nodes; n++)

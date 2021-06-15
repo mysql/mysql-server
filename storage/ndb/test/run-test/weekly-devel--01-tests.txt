@@ -23,7 +23,7 @@
 # GENERATED FILE
 #
 cmd: testRedo
-args: -n RestartFD -l 2 T1
+args: -v -n RestartFD -l 2 T1
 max-time: 5760
 
 cmd: testSystemRestart

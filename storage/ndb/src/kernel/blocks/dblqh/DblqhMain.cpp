@@ -35519,9 +35519,16 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     if (cstartRecReq < SRR_REDO_COMPLETE)
     {
       jam();
+      g_eventLogger->info("DBLQH %u: Dump 2399 redo not complete - not "
+                          "sending status",
+                          instance());
       return;
     }
 
+    g_eventLogger->info("DBLQH %u: Dump 2399 redo complete - sending status "
+                        "for %u log parts.",
+                        instance(),
+                        clogPartFileSize);
     for(Uint32 i = 0; i < clogPartFileSize; i++)
     {
       LogPartRecordPtr logPartPtr;
@@ -35549,6 +35556,10 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
       signal->theData[10] = logPartPtr.p->noLogFiles;
       signal->theData[11] = clogFileSize;
       sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 12, JBB);
+      g_eventLogger->info("DBLQH %u: Dump 2399 sent redo log status for "
+                          "part %u.",
+                          instance(),
+                          logPartPtr.p->logPartNo);
     }
   }
 
