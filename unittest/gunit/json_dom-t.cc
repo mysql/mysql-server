@@ -258,7 +258,11 @@ TEST_F(JsonDomTest, BasicTest)
   std::auto_ptr<const Json_dom> c(a.clone());
   EXPECT_EQ(std::string("[null, false, true]"), format(a));
   EXPECT_EQ(std::string("[null, false, true]"), format(c.get()));
+}
 
+TEST_F(JsonDomTest, BasicTestTwo)
+{
+  Json_array a;
   /* DATETIME scalar */
   MYSQL_TIME dt;
   std::memset(&dt, 0, sizeof dt);
@@ -366,7 +370,7 @@ TEST_F(JsonDomTest, BasicTest)
   EXPECT_TRUE(dom.get() != NULL);
   const Json_object *obj= down_cast<const Json_object *>(dom.get());
   EXPECT_EQ(8U, obj->cardinality());
-  idx= 0;
+  int idx= 0;
 
   for (Json_object::const_iterator it= obj->begin(); it != obj->end(); ++it)
   {
