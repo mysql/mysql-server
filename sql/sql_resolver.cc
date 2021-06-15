@@ -665,6 +665,16 @@ bool Query_block::prepare_values(THD *thd) {
     resolve_place = RESOLVE_NONE;
   }
 
+  /*
+    A table value constructor may have a defined ordering, thus calling
+    setup_order() is needed, however calling setup_order_final() is
+    not necessary since this construct cannot be aggregated.
+  */
+  if (is_ordered() && setup_order(thd, base_ref_items, get_table_list(),
+                                  &fields, order_list.first)) {
+    return true;
+  }
+
   // Again, duplicating checks that are also done in Query_block::prepare for
   // resolving subqueries. This should, like the resolving of m_having_clause
   // above, be refactored such that there is less duplication of code from
@@ -675,16 +685,6 @@ bool Query_block::prepare_values(THD *thd) {
       !thd->lex->is_view_context_analysis()) {
     // Query block represents a subquery within an IN/ANY/ALL/EXISTS predicate
     if (resolve_subquery(thd)) return true;
-  }
-
-  /*
-    A table value constructor may have a defined ordering, thus calling
-    setup_order() is needed, however calling setup_order_final() is
-    not necessary since this construct cannot be aggregated.
-  */
-  if (is_ordered() && setup_order(thd, base_ref_items, get_table_list(),
-                                  &fields, order_list.first)) {
-    return true;
   }
 
   if (query_result() && query_result()->prepare(thd, fields, unit))

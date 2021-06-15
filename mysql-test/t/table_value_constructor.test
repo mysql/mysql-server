@@ -454,3 +454,11 @@ VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT column_1);
 VALUES ROW(1,9),ROW(2,4) ORDER BY (SELECT column_1) DESC;
 (VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT column_1);
 (VALUES ROW(1,9),ROW(2,4)) ORDER BY (SELECT column_1) DESC;
+
+--echo # Bug#32783943: Item_field::fix_outer_field: assertion `cur_query_block
+
+CREATE TABLE t (w INTEGER);
+--error ER_BAD_FIELD_ERROR
+SELECT (VALUES ROW(1) ORDER BY t) AS a FROM t;
+SELECT (VALUES ROW(1) ORDER BY w) AS a FROM t;
+DROP TABLE t;
