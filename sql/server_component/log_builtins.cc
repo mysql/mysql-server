@@ -66,7 +66,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 extern CHARSET_INFO my_charset_utf16le_bin;  // used in Windows EventLog
 static HANDLE hEventLog = NULL;              // global
-#define MSG_DEFAULT 0xC0000064L
 #endif
 
 PSI_memory_key key_memory_log_error_loaded_services;
