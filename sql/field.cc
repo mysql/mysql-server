@@ -7495,8 +7495,9 @@ type_conversion_status Field_geom::store_internal(const char *from,
     gis::srid_t geometry_srid = uint4korr(from);
     if (geometry_srid != get_srid().value()) {
       Field_blob::reset();
-      my_error(ER_WRONG_SRID_FOR_COLUMN, MYF(0), field_name, geometry_srid,
-               get_srid().value());
+      my_error(ER_WRONG_SRID_FOR_COLUMN, MYF(0), field_name,
+               static_cast<unsigned long>(geometry_srid),
+               static_cast<unsigned long>(get_srid().value()));
       return TYPE_ERR_BAD_VALUE;
     }
   }
