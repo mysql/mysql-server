@@ -283,3 +283,11 @@ SELECT JSON_ARRAYAGG(CASE WHEN true = false THEN NULL ELSE true END);
 
 DO GROUP_CONCAT(NULLIF(ELT(1, @e), POINT(250,41)) ORDER BY 1);
 
+--echo # Bug#32816305: Prepare type checking error
+
+CREATE TABLE t (t_date DATETIME NULL);
+PREPARE ps FROM 'INSERT INTO t SET t_date = NULLIF(?, '''')';
+SET @t_date = NOW();
+EXECUTE ps USING @t_date;
+DEALLOCATE PREPARE ps;
+DROP TABLE t;

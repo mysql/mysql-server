@@ -1926,6 +1926,21 @@ eval $show_trace;
 prepare s from 'select NULLIF(?,?)';
 eval $show_trace;
 
+prepare s from 'select NULLIF(100,?)';
+eval $show_trace;
+
+prepare s from 'select NULLIF(?,100)';
+eval $show_trace;
+
+prepare s from 'select 200 + NULLIF(?,?)';
+eval $show_trace;
+
+prepare s from 'select 200 + NULLIF("100",?)';
+eval $show_trace;
+
+prepare s from 'select 200 + NULLIF(?,"100")';
+eval $show_trace;
+
 # OCT
 
 prepare s from 'select OCT(?)';

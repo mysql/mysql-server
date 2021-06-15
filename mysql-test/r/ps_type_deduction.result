@@ -1912,6 +1912,26 @@ prepare s from 'select NULLIF(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
 [["VARCHAR", "VARCHAR"]]
+prepare s from 'select NULLIF(100,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select NULLIF(?,100)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG"]]
+prepare s from 'select 200 + NULLIF(?,?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["LONGLONG", "LONGLONG"]]
+prepare s from 'select 200 + NULLIF("100",?)';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
+prepare s from 'select 200 + NULLIF(?,"100")';
+select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
+json_extract(trace,"$.steps[*].statement_parameters")
+[["VARCHAR"]]
 prepare s from 'select OCT(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")

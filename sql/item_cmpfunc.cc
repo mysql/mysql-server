@@ -3492,8 +3492,9 @@ bool Item_func_if::get_time(MYSQL_TIME *ltime) {
 }
 
 bool Item_func_nullif::resolve_type(THD *thd) {
-  // If 1. argument has no type, type of this operator cannot be determined yet
-  if (args[0]->data_type() == MYSQL_TYPE_INVALID) {
+  // If no arguments have a type, type of this operator cannot be determined yet
+  if (args[0]->data_type() == MYSQL_TYPE_INVALID &&
+      args[1]->data_type() == MYSQL_TYPE_INVALID) {
     /*
       Due to inheritance from Item_bool_func2, data_type() is LONGLONG.
       Ensure propagate_type() is called for this class:
@@ -3510,13 +3511,13 @@ bool Item_func_nullif::resolve_type_inner(THD *thd) {
   set_nullable(true);
   set_data_type_from_item(args[0]);
   cached_result_type = args[0]->result_type();
-  if (cached_result_type == STRING_RESULT &&
-      agg_arg_charsets_for_comparison(cmp.cmp_collation, args, arg_count))
-    return true;
 
   // This class does not implement temporal data types
-  if (is_temporal()) set_data_type_string(args[0]->max_length);
-
+  if (is_temporal()) {
+    set_data_type_string(args[0]->max_length);
+    if (agg_arg_charsets_for_comparison(cmp.cmp_collation, args, arg_count))
+      return true;
+  }
   return false;
 }
 
