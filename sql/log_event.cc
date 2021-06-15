@@ -4805,6 +4805,7 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
       /* Execute the query (note that we bypass dispatch_command()) */
       Parser_state parser_state;
       if (!parser_state.init(thd, thd->query().str, thd->query().length)) {
+        parser_state.m_input.m_has_digest = true;
         assert(thd->m_digest == nullptr);
         thd->m_digest = &thd->m_digest_state;
         assert(thd->m_statement_psi == nullptr);

@@ -72,7 +72,6 @@
 #include "sql/sql_base.h"   // get_table_def_key
 #include "sql/sql_class.h"  // THD
 #include "sql/sql_const.h"
-#include "sql/sql_digest_stream.h"
 #include "sql/sql_error.h"
 #include "sql/sql_lex.h"
 #include "sql/sql_list.h"
@@ -1279,9 +1278,6 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   // Needed for correct units markup for EXPLAIN
   view_lex->explain_format = old_lex->explain_format;
 
-  if (thd->m_digest != nullptr)
-    thd->m_digest->reset(thd->m_token_array, max_digest_length);
-
   /*
     Push error handler allowing DD table access. Creating views referring
     to DD tables is rejected except for the I_S views. Thus, when parsing
@@ -1307,6 +1303,10 @@ bool parse_view_definition(THD *thd, TABLE_LIST *view_ref) {
   {
     // Switch off modes which can prevent normal parsing of VIEW
     Sql_mode_parse_guard parse_guard(thd);
+
+    // Do not pollute the current statement
+    // with a digest of the view definition
+    assert(!parser_state.m_input.m_has_digest);
 
     // Parse the query text of the view
     result = parse_sql(thd, &parser_state, view_ref->view_creation_ctx);

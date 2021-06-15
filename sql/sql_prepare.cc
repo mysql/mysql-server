@@ -2528,6 +2528,8 @@ bool Prepared_statement::prepare(const char *query_str, size_t query_length,
   digest.reset(token_array, max_digest_length);
   thd->m_digest = &digest;
 
+  parser_state.m_input.m_has_digest = true;
+
   // we produce digest if it's not explicitly turned off
   // by setting maximum digest length to zero
   if (get_max_digest_length() != 0)
