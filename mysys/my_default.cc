@@ -896,6 +896,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   uint i, rc;
   MY_DIR *search_dir;
   FILEINFO *search_file;
+  myf flags = MYF(report_os_error_on_open ? MY_WME : 0);
 
   if ((dir ? strlen(dir) : 0) + strlen(config_file) >= FN_REFLEN - 3)
     return 0; /* Ignore wrong paths */
@@ -909,15 +910,15 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   }
   fn_format(name, name, "", "", MY_UNPACK_FILENAME);
 
-  if ((rc = check_file_permissions(name, is_login_file)) < 2) return (int)rc;
+  if ((rc = check_file_permissions(name, is_login_file, flags)) < 2)
+    return (int)rc;
 
   if (is_login_file) {
     if (!(fp = mysql_file_fopen(key_file_cnf, name, O_RDONLY | MY_FOPEN_BINARY,
-                                MYF(report_os_error_on_open ? MY_WME : 0))))
+                                flags)))
       return 1; /* Ignore wrong files. */
   } else {
-    if (!(fp = mysql_file_fopen(key_file_cnf, name, O_RDONLY,
-                                MYF(report_os_error_on_open ? MY_WME : 0))))
+    if (!(fp = mysql_file_fopen(key_file_cnf, name, O_RDONLY, flags)))
       return 1; /* Ignore wrong files */
   }
 
@@ -1716,16 +1717,18 @@ int my_default_get_login_file(char *file_name, size_t file_name_size) {
 
   @param [in] file_name        Name of the option file.
   @param [in] is_login_file    TRUE, when login file is being processed.
+  @param [in] flags            error handling flags
 
   @return  0 - Non-allowable file permissions.
            1 - Failed to stat.
            2 - Success.
 */
-int check_file_permissions(const char *file_name, bool is_login_file) {
+int check_file_permissions(const char *file_name, bool is_login_file,
+                           myf flags) {
 #if !defined(_WIN32)
   MY_STAT stat_info;
 
-  if (!my_stat(file_name, &stat_info, MYF(0))) return 1;
+  if (!my_stat(file_name, &stat_info, flags)) return 1;
   /*
     Ignore .mylogin.cnf file if not exclusively readable/writable
     by current user.

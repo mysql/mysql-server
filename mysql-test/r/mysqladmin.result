@@ -55,6 +55,7 @@ include/assert_grep.inc [check the output of mysqladmin for old-password]
 mysqladmin: Can't read dir of '/nonexistent' (OS error
 mysqladmin: [ERROR] Stopped processing the 'includedir' directive in file file at line 1.
 mysqladmin: [ERROR] Fatal error in defaults handling. Program aborted!
+mysqladmin: File '\nonexistent' not found (OS error
 mysqladmin: [ERROR] Stopped processing the 'include' directive in file file2 at line 1.
 mysqladmin: [Warning] Using a password on the command line interface can be insecure.
 mysqld is alive
