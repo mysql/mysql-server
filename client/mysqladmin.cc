@@ -67,7 +67,7 @@ static bool option_force = false, interrupted = false, new_line = false,
             opt_vertical = false, tty_password = false, opt_nobeep;
 static bool debug_info_flag = false, debug_check_flag = false;
 static uint tcp_port = 0, option_wait = 0, option_silent = 0, nr_iterations;
-static uint opt_count_iterations = 0, my_end_arg;
+static uint opt_count_iterations = 0, my_end_arg = 0;
 static char *opt_bind_addr = nullptr;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char *unix_port = nullptr;
@@ -400,16 +400,16 @@ int main(int argc, char *argv[]) {
   char **commands, **temp_argv;
 
   MY_INIT(argv[0]);
-  mysql_init(&mysql);
   my_getopt_use_args_separator = true;
   MEM_ROOT alloc{PSI_NOT_INSTRUMENTED, 512};
-  if (load_defaults("my", load_default_groups, &argc, &argv, &alloc))
+  if (load_defaults("my", load_default_groups, &argc, &argv, &alloc)) {
+    my_end(my_end_arg);
     return EXIT_FAILURE;
+  }
   my_getopt_use_args_separator = false;
 
   if ((ho_error =
            handle_options(&argc, &argv, my_long_options, get_one_option))) {
-    mysql_close(&mysql);
     my_end(my_end_arg);
     return ho_error;
   }
@@ -419,6 +419,7 @@ int main(int argc, char *argv[]) {
 
   if (argc == 0) {
     usage();
+    my_end(my_end_arg);
     return EXIT_FAILURE;
   }
 
@@ -431,6 +432,7 @@ int main(int argc, char *argv[]) {
   (void)signal(SIGINT, endprog);  /* Here if abort */
   (void)signal(SIGTERM, endprog); /* Here if abort */
 
+  mysql_init(&mysql);
   if (opt_bind_addr) mysql_options(&mysql, MYSQL_OPT_BIND, opt_bind_addr);
   if (opt_compress) mysql_options(&mysql, MYSQL_OPT_COMPRESS, NullS);
   if (opt_connect_timeout) {
@@ -439,6 +441,8 @@ int main(int argc, char *argv[]) {
   }
   if (SSL_SET_OPTIONS(&mysql)) {
     fprintf(stderr, "%s", SSL_SET_OPTIONS_ERROR);
+    mysql_close(&mysql);
+    my_end(my_end_arg);
     return EXIT_FAILURE;
   }
   if (opt_protocol)
