@@ -46,11 +46,7 @@ class RTree_inserter;
 /** For loading indexes. */
 struct Builder {
   /** Build phase/states. */
-#if defined(__SUNPRO_C) || defined(__SUNPRO_CC)
-  enum class State : int {
-#else
   enum class State : uint8_t {
-#endif /* __SUNPRO_C || __SUNPRO_CC*/
     /** Initial phase. */
     INIT,
 

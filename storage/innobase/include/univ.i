@@ -514,23 +514,6 @@ it is read. */
 it is read or written. */
 #define UNIV_PREFETCH_RW(addr) __builtin_prefetch(addr, 1, 3)
 
-/* Sun Studio includes sun_prefetch.h as of version 5.9 */
-#elif (defined(__SUNPRO_C) || defined(__SUNPRO_CC))
-
-#include <sun_prefetch.h>
-
-#define UNIV_EXPECT(expr, value) (expr)
-#define UNIV_LIKELY_NULL(expr) (expr)
-
-#if defined(COMPILER_HINTS)
-//# define UNIV_PREFETCH_R(addr) sun_prefetch_read_many((void*) addr)
-#define UNIV_PREFETCH_R(addr) ((void)0)
-#define UNIV_PREFETCH_RW(addr) sun_prefetch_write_many(addr)
-#else
-#define UNIV_PREFETCH_R(addr) ((void)0)
-#define UNIV_PREFETCH_RW(addr) ((void)0)
-#endif /* COMPILER_HINTS */
-
 #elif defined __WIN__ && defined COMPILER_HINTS
 #include <xmmintrin.h>
 

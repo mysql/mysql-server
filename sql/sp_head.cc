@@ -2025,9 +2025,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success) {
   */
 
   {
-#if defined(__sparc) && defined(__SUNPRO_CC)
-    const int sp_stack_size = 10 * STACK_MIN_SIZE;
-#elif defined(__clang__) && defined(HAVE_ASAN)
+#if defined(__clang__) && defined(HAVE_ASAN)
     const int sp_stack_size = 12 * STACK_MIN_SIZE;
 #elif defined(__clang__) && defined(HAVE_UBSAN)
     const int sp_stack_size = 16 * STACK_MIN_SIZE;

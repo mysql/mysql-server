@@ -76,13 +76,7 @@ class TimingIterator final : public RowIterator {
   using duration = std::chrono::duration<T>;
 
   steady_clock::time_point now() const {
-#ifdef __SUNPRO_CC
-    // This no-op cast works around an optimization bug in Developer Studio
-    // where it attempts to dereference an integral time value, leading to
-    // crashes.
-    return std::chrono::time_point_cast<std::chrono::nanoseconds>(
-        steady_clock::now());
-#elif defined(__linux__)
+#if defined(__linux__)
     // Work around very slow libstdc++ implementations of std::chrono
     // (those compiled with _GLIBCXX_USE_CLOCK_GETTIME_SYSCALL).
     timespec tp;

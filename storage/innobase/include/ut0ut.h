@@ -102,11 +102,7 @@ typedef int64_t ib_time_monotonic_us_t;
 instruction has important side-effects and must not be removed.
 Also asm volatile may trigger a memory barrier (spilling all registers
 to memory). */
-#ifdef __SUNPRO_CC
-#define UT_RELAX_CPU() asm("pause")
-#else
 #define UT_RELAX_CPU() __asm__ __volatile__("pause")
-#endif /* __SUNPRO_CC */
 
 #elif defined(HAVE_FAKE_PAUSE_INSTRUCTION)
 #define UT_RELAX_CPU() __asm__ __volatile__("rep; nop")

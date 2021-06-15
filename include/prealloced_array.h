@@ -613,7 +613,9 @@ class Prealloced_array {
   // and m_alloced_size contains the real size.
   int m_inline_size = 0;
 
-  // Defined outside the union solely to avoid a crash with __SUNPRO_CC
+  // Defined outside the union because we need an initializer to avoid
+  // "may be used uninitialized" for -flto builds, and
+  // MSVC rejects initializers for individual members of an anonymous union.
   // (otherwise, we'd make it an anonymous struct, to avoid m_ext everywhere).
   struct External {
     Element_type *m_array_ptr;

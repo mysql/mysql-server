@@ -216,21 +216,7 @@ static bool my_demangle_symbol(char *line) {
     }
   }
   if (demangled) my_safe_printf_stderr("%s %s %s\n", line, demangled, end + 1);
-#elif defined(__SUNPRO_CC)  // Solaris has different formatting .....
-  char *begin = strchr(line, '\'');
-  char *end = begin ? strchr(begin, '+') : NULL;
-  if (begin && end) {
-    *begin++ = *end++ = '\0';
-    int status = 0;
-    demangled = my_demangle(begin, &status);
-    if (!demangled || status) {
-      demangled = NULL;
-      begin[-1] = ' ';
-      end[-1] = '+';
-    }
-  }
-  if (demangled) my_safe_printf_stderr("%s %s+%s\n", line, demangled, end);
-#else                       // !__APPLE__ and !__SUNPRO_CC
+#else  // !__APPLE__
   char *begin = strchr(line, '(');
   char *end = begin ? strchr(begin, '+') : nullptr;
 

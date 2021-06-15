@@ -51,7 +51,7 @@ struct Vio;
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 
-#if !defined(_WIN32) && !defined(HAVE_KQUEUE) && !defined(__SUNPRO_CC)
+#if !defined(_WIN32) && !defined(HAVE_KQUEUE)
 #define USE_PPOLL_IN_VIO
 #endif
 

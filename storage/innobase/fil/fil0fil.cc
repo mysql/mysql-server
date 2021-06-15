@@ -500,17 +500,7 @@ class Tablespace_dirs {
   using Result = std::pair<std::string, Tablespace_files::Names *>;
 
   /** Constructor */
-  Tablespace_dirs()
-      : m_dirs()
-#if !defined(__SUNPRO_CC)
-        ,
-        m_checked()
-#endif /* !__SUNPRO_CC */
-  {
-#if defined(__SUNPRO_CC)
-    m_checked = ATOMIC_VAR_INIT(0);
-#endif /* __SUNPRO_CC */
-  }
+  Tablespace_dirs() : m_dirs(), m_checked() {}
 
   /** Normalize and save a directory to scan for IBD and IBU datafiles
   before recovery.

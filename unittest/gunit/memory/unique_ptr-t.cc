@@ -51,20 +51,14 @@ TEST_F(Unique_ptr_test, Array_template_test) {
   ptr[9] = '\0';
 
   EXPECT_EQ(ptr[2], '2');
-#if !(defined(__SUNPRO_CC))
   EXPECT_EQ(*ptr, '0');
-#endif
   EXPECT_EQ(!ptr, false);
 
   EXPECT_EQ(*ptr.get(), '0');
-#if !(defined(__SUNPRO_CC))
   EXPECT_EQ(ptr.size(), 10);
-#endif
 
-#if !(defined(__SUNPRO_CC))
   ptr.reserve(20);
   EXPECT_EQ(ptr.size(), 20);
-#endif
   ptr[9] = '9';
   ptr[10] = '0';
   ptr[11] = '1';
@@ -79,9 +73,7 @@ TEST_F(Unique_ptr_test, Array_template_test) {
 
   EXPECT_EQ(ptr[12], '2');
   EXPECT_EQ(*ptr.get(), '0');
-#if !(defined(__SUNPRO_CC))
   EXPECT_EQ(ptr.size(), 20);
-#endif
 
   char *underlying = ptr.release();
   EXPECT_EQ(!ptr, true);
@@ -100,9 +92,7 @@ TEST_F(Unique_ptr_test, Class_template_test) {
   EXPECT_EQ(!ptr, false);
 
   EXPECT_EQ(*ptr.get(), "012345678");
-#if !(defined(__SUNPRO_CC))
   EXPECT_EQ(ptr.size(), sizeof(std::string));
-#endif
 
   std::string *underlying = ptr.release();
   EXPECT_EQ(!ptr, true);

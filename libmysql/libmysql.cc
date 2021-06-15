@@ -625,12 +625,7 @@ static int default_local_infile_error(void *ptr, char *error_msg,
   return CR_OUT_OF_MEMORY;
 }
 
-/*
-  Explicit extern "C" because otherwise solaris studio thinks
-  that the function pointer arguments have C++ linkage,
-  and then it overloads the declaration in include/mysql.h
- */
-extern "C" void mysql_set_local_infile_handler(
+void mysql_set_local_infile_handler(
     MYSQL *mysql, int (*local_infile_init)(void **, const char *, void *),
     int (*local_infile_read)(void *, char *, uint),
     void (*local_infile_end)(void *),

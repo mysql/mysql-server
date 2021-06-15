@@ -78,12 +78,7 @@ class Mem_compare {
  public:
   explicit Mem_compare(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) const {
-#ifdef __SUNPRO_CC
-    // The native memcmp is faster on SUN.
-    return memcmp(s1, s2, m_size) < 0;
-#else
     return my_mem_compare(s1, s2, m_size);
-#endif
   }
 
  private:
@@ -94,12 +89,7 @@ class Mem_compare_longkey {
  public:
   explicit Mem_compare_longkey(size_t n) : m_size(n) {}
   bool operator()(const uchar *s1, const uchar *s2) const {
-#ifdef __SUNPRO_CC
-    // The native memcmp is faster on SUN.
-    return memcmp(s1, s2, m_size) < 0;
-#else
     return my_mem_compare_longkey(s1, s2, m_size);
-#endif
   }
 
  private:

@@ -884,12 +884,7 @@ class Field {
   Field(uchar *ptr_arg, uint32 length_arg, uchar *null_ptr_arg,
         uchar null_bit_arg, uchar auto_flags_arg, const char *field_name_arg);
 
-#ifdef __SUNPRO_CC
-  // Several mock classes in unit tests need this.
-  virtual ~Field() {}
-#else
   virtual ~Field() = default;
-#endif
 
   void reset_warnings() { m_warnings_pushed = 0; }
 

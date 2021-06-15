@@ -23,15 +23,6 @@
 #ifndef RPL_RLI_H
 #define RPL_RLI_H
 
-#if defined(__SUNPRO_CC)
-/*
-  Solaris Studio 12.5 has a bug where, if you use dynamic_cast
-  and then later #include this file (which Boost does), you will
-  get a compile error. Work around it by just including it right now.
-*/
-#include <cxxabi.h>
-#endif
-
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>

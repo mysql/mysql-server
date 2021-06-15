@@ -3203,26 +3203,13 @@ class Validate_files {
       : m_mutex(),
         m_space_max_id(),
         m_n_to_check(),
-        m_n_threads()
-#if !defined(__SUNPRO_CC)
-        ,
+        m_n_threads(),
         m_n_validated(),
         m_n_skipped(),
         m_n_moved(),
         m_n_missing(),
         m_n_deleted(),
-        m_n_errors()
-#endif /* !__SUNPRO_CC */
-  {
-#if defined(__SUNPRO_CC)
-    m_n_validated = ATOMIC_VAR_INIT(0);
-    m_n_skipped = ATOMIC_VAR_INIT(0);
-    m_n_moved = ATOMIC_VAR_INIT(0);
-    m_n_missing = ATOMIC_VAR_INIT(0);
-    m_n_deleted = ATOMIC_VAR_INIT(0);
-    m_n_errors = ATOMIC_VAR_INIT(0);
-#endif /* __SUNPRO_CC */
-  }
+        m_n_errors() {}
 
   /** Validate the discovered tablespaces against the DD and attempt to open
   any DD tablespace not already open using a Parallel For Loop (par_for).

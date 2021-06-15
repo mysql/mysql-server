@@ -106,11 +106,7 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right) {
     Json_object_ptr right_object(down_cast<Json_object *>(right.release()));
     if (left_object->consume(std::move(right_object)))
       return nullptr; /* purecov: inspected */
-#ifdef __SUNPRO_CC
-    return std::move(left_object);
-#else
     return left_object;
-#endif
   }
 
   Json_array_ptr left_array = wrap_in_array(std::move(left));
@@ -119,11 +115,7 @@ Json_dom_ptr merge_doms(Json_dom_ptr left, Json_dom_ptr right) {
       left_array->consume(std::move(right_array)))
     return nullptr; /* purecov: inspected */
 
-#ifdef __SUNPRO_CC
-  return std::move(left_array);
-#else
   return left_array;
-#endif
 }
 #endif  // ifdef MYSQL_SERVER
 
@@ -956,11 +948,7 @@ Json_dom_ptr Json_object::clone() const {
       return nullptr; /* purecov: inspected */
   }
 
-#ifdef __SUNPRO_CC
-  return std::move(o);
-#else
   return o;
-#endif
 }
 
 bool Json_object::merge_patch(Json_object_ptr patch) {
@@ -1104,11 +1092,7 @@ Json_dom_ptr Json_array::clone() const {
     if (vv->append_clone(child.get())) return nullptr; /* purecov: inspected */
   }
 
-#ifdef __SUNPRO_CC
-  return std::move(vv);
-#else
   return vv;
-#endif
 }
 
 #ifdef MYSQL_SERVER
@@ -1411,9 +1395,7 @@ void Json_wrapper_object_iterator::initialize_current_member() {
 }
 
 Json_wrapper::Json_wrapper(Json_dom *dom_value, bool alias)
-    : m_dom_value(dom_value), m_is_dom(true) {
-  // Workaround for Solaris Studio, initialize in CTOR body
-  m_dom_alias = alias;
+    : m_dom_value(dom_value), m_dom_alias(alias), m_is_dom(true) {
   if (!dom_value) {
     m_dom_alias = true;  //!< no deallocation, make us empty
   }

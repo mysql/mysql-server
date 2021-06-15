@@ -1195,10 +1195,7 @@ class Json_wrapper {
   /**
     Create an empty wrapper. Cf #empty().
   */
-  Json_wrapper() : m_dom_value(nullptr), m_is_dom(true) {
-    // Workaround for Solaris Studio, initialize in CTOR body.
-    m_dom_alias = true;
-  }
+  Json_wrapper() : m_dom_value(nullptr), m_dom_alias(true), m_is_dom(true) {}
 
   /**
     Wrap the supplied DOM value (no copy taken). The wrapper takes
