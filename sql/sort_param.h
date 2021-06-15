@@ -141,6 +141,10 @@ class Addon_fields {
 
   /// SortFileIterator needs an extra buffer when unpacking.
   uchar *allocate_addon_buf(uint sz) {
+    if (using_packed_addons()) {
+      assert(sz + Addon_fields::size_of_length_field > sz);
+      sz += Addon_fields::size_of_length_field;
+    }
     if (m_addon_buf != nullptr) {
       assert(m_addon_buf_length == sz);
       return m_addon_buf;
