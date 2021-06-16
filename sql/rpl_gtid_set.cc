@@ -1148,6 +1148,9 @@ bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
   */
   do
   {
+    if (sub_iv == NULL)
+      DBUG_RETURN(true);
+
     if (super_iv == NULL)
       DBUG_RETURN(false);
 
