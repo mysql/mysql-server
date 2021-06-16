@@ -423,8 +423,8 @@ typedef Prealloced_array<QUICK_RANGE *, 16> Quick_ranges;
 typedef Prealloced_array<Quick_ranges *, 16> Quick_ranges_array;
 
 int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
-                      table_map const_tables, table_map read_tables,
-                      ha_rows limit, bool force_quick_range,
+                      table_map read_tables, ha_rows limit,
+                      bool force_quick_range,
                       const enum_order interesting_order, TABLE *table,
                       bool skip_records_in_range, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,

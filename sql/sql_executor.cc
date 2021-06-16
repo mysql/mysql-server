@@ -3945,15 +3945,13 @@ bool DynamicRangeIterator::Init() {
   table_map read_tables =
       m_qep_tab->prefix_tables() & ~m_qep_tab->added_tables();
   DEBUG_SYNC(thd(), "quick_not_created");
-  const int rc = test_quick_select(thd(), m_qep_tab->keys(),
-                                   0,  // empty table map
-                                   const_tables, read_tables, HA_POS_ERROR,
-                                   false,  // don't force quick range
-                                   ORDER_NOT_RELEVANT, m_qep_tab->table(),
-                                   m_qep_tab->skip_records_in_range(),
-                                   m_qep_tab->condition(), &needed_reg_dummy,
-                                   &qck, m_qep_tab->table()->force_index,
-                                   m_qep_tab->join()->query_block);
+  const int rc = test_quick_select(
+      thd(), m_qep_tab->keys(), const_tables, read_tables, HA_POS_ERROR,
+      false,  // don't force quick range
+      ORDER_NOT_RELEVANT, m_qep_tab->table(),
+      m_qep_tab->skip_records_in_range(), m_qep_tab->condition(),
+      &needed_reg_dummy, &qck, m_qep_tab->table()->force_index,
+      m_qep_tab->join()->query_block);
   if (thd()->is_error())  // @todo consolidate error reporting of
                           // test_quick_select
     return true;

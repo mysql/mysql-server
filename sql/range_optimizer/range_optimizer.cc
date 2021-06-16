@@ -380,9 +380,8 @@ static int fill_used_fields_bitmap(PARAM *param) {
       thd               Current thread
       keys_to_use       Keys to use for range retrieval
       prev_tables       Tables assumed to be already read when the scan is
-                        performed (but not read at the moment of this call)
-      const_tables      If invoked during execution: const tables for this join
-                        (so values can be assumed to be present). Otherwise 0.
+                        performed (but not read at the moment of this call),
+                        including const tables. Otherwise 0.
       read_tables       If invoked during execution: tables already read
                         for this join (so values can be assumed to be present).
                         Otherwise 0.
@@ -457,8 +456,8 @@ static int fill_used_fields_bitmap(PARAM *param) {
 
 */
 int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
-                      table_map const_tables, table_map read_tables,
-                      ha_rows limit, bool force_quick_range,
+                      table_map read_tables, ha_rows limit,
+                      bool force_quick_range,
                       const enum_order interesting_order, TABLE *table,
                       bool skip_records_in_range, Item *cond,
                       Key_map *needed_reg, QUICK_SELECT_I **quick,
@@ -470,9 +469,8 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
 
   if (keys_to_use.is_clear_all()) return 0;
 
-  DBUG_PRINT("enter", ("keys_to_use: %lu  prev_tables: %lu  const_tables: %lu",
-                       (ulong)keys_to_use.to_ulonglong(), (ulong)prev_tables,
-                       (ulong)const_tables));
+  DBUG_PRINT("enter", ("keys_to_use: %lu  prev_tables: %lu  ",
+                       (ulong)keys_to_use.to_ulonglong(), (ulong)prev_tables));
 
   bool force_skip_scan = false;
   const Cost_model_server *const cost_model = thd->cost_model();
@@ -524,7 +522,7 @@ int test_quick_select(THD *thd, Key_map keys_to_use, table_map prev_tables,
     /* set up parameter that is passed to all functions */
     param.thd = thd;
     param.baseflag = head->file->ha_table_flags();
-    param.prev_tables = prev_tables | const_tables | INNER_TABLE_BIT;
+    param.prev_tables = prev_tables | INNER_TABLE_BIT;
     param.read_tables = read_tables | INNER_TABLE_BIT;
     param.current_table = head->pos_in_table_list->map();
     param.table = head;

@@ -477,7 +477,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
     if (!no_rows && conds != nullptr) {
       Key_map keys_to_use(Key_map::ALL_BITS), needed_reg_dummy;
-      no_rows = test_quick_select(thd, keys_to_use, 0, 0, 0, limit, safe_update,
+      no_rows = test_quick_select(thd, keys_to_use, 0, 0, limit, safe_update,
                                   ORDER_NOT_RELEVANT, table,
                                   /*skip_records_in_range=*/false, conds,
                                   &needed_reg_dummy, &quick, table->force_index,

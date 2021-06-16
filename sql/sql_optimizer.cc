@@ -2298,7 +2298,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
           QUICK_SELECT_I *qck;
           const bool no_quick =
               test_quick_select(
-                  thd, new_ref_key_map, 0, 0, 0,  // empty table_map
+                  thd, new_ref_key_map, 0, 0,  // empty table_map
                   join->calc_found_rows
                       ? HA_POS_ERROR
                       : join->query_expression()->select_limit_cnt,
@@ -2410,7 +2410,7 @@ static bool test_if_skip_sort_order(JOIN_TAB *tab, ORDER_with_src &order,
       keys_to_use.set_bit(best_key);  // only best_key.
       QUICK_SELECT_I *qck;
       test_quick_select(
-          thd, keys_to_use, 0, 0, 0,  // empty table_map
+          thd, keys_to_use, 0, 0,  // empty table_map
           join->calc_found_rows ? HA_POS_ERROR
                                 : join->query_expression()->select_limit_cnt,
           true,  // force quick range
@@ -2782,7 +2782,7 @@ static bool can_switch_from_ref_to_range(THD *thd, JOIN_TAB *tab,
 
         QUICK_SELECT_I *qck;
         if (test_quick_select(
-                thd, new_ref_key_map, 0, 0, 0,  // empty table_map
+                thd, new_ref_key_map, 0, 0,  // empty table_map
                 tab->join()->row_limit, false, ordering, tab->table(),
                 tab->skip_records_in_range(),
                 tab->join_cond() ? tab->join_cond() : tab->join()->where_cond,
@@ -5994,7 +5994,7 @@ static ha_rows get_quick_record_count(THD *thd, JOIN_TAB *tab, ha_rows limit) {
     Key_map keys_to_use = tab->const_keys;
     keys_to_use.merge(tab->skip_scan_keys);
     int error = test_quick_select(
-        thd, keys_to_use, 0, 0, 0,  // empty table_map
+        thd, keys_to_use, 0, 0,  // empty table_map
         limit,
         false,  // don't force quick range
         ORDER_NOT_RELEVANT, tab->table(), tab->skip_records_in_range(),
@@ -9560,7 +9560,6 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               search_if_impossible =
                   test_quick_select(
                       thd, usable_keys, used_tables & ~tab->table_ref->map(), 0,
-                      0,
                       join->calc_found_rows
                           ? HA_POS_ERROR
                           : join->query_expression()->select_limit_cnt,
@@ -9588,7 +9587,6 @@ static bool make_join_query_block(JOIN *join, Item *cond) {
               const bool impossible_where =
                   test_quick_select(
                       thd, tab->keys(), used_tables & ~tab->table_ref->map(), 0,
-                      0,
                       join->calc_found_rows
                           ? HA_POS_ERROR
                           : join->query_expression()->select_limit_cnt,
