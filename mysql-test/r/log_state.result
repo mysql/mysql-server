@@ -270,3 +270,5 @@ SET global general_log = @old_general_log;
 SET global general_log_file = @old_general_log_file;
 SET global slow_query_log = @old_slow_query_log;
 SET global slow_query_log_file = @old_slow_query_log_file;
+TRUNCATE TABLE mysql.slow_log;
+TRUNCATE TABLE mysql.general_log;

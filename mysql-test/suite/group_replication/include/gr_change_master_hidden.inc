@@ -68,4 +68,5 @@ DROP USER manish;
 DROP USER internal_usr;
 SET sql_log_bin=1;
 SET @@global.log_output= @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 --source include/group_replication_end.inc

@@ -133,3 +133,4 @@ ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
 ALTER TABLE mysql.GENERAL_LOG DISCARD TABLESPACE;
 ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
 SET GLOBAL log_output= DEFAULT;
+TRUNCATE TABLE MYSQL.general_log;

@@ -1,3 +1,5 @@
+SET @old_log_output = @@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 drop database if exists events_test;
 create database if not exists events_test;
 use events_test;
@@ -72,3 +74,6 @@ USER_HOST	events_test	select 'events_logs_test' as inside_event, sleep(1.5)
 drop database events_test;
 set @@global.long_query_time=default;
 set @@session.long_query_time=default;
+SET GLOBAL log_output = @old_log_output;
+truncate table mysql.general_log;
+truncate table mysql.slow_log;

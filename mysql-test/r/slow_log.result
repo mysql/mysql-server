@@ -63,5 +63,7 @@ con1 is still here.
 F>/* KILL QUERY: should be logged */ SELECT SLEEP(1002);
 SET @@global.slow_query_log_file= @old_slow_query_log_file;
 SET @@global.log_output         = @old_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
 #
 # Done.

@@ -106,6 +106,8 @@
 # Thread stack overrun in debug mode on sparc
 --source include/not_sparc_debug.inc
 
+SET @old_log_output=@@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 
 --disable_query_log
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -784,4 +786,6 @@ SELECT f();
 DROP FUNCTION f;
 DROP TABLE t;
 
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
 --echo "End of tests"

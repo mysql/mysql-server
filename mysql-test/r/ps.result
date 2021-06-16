@@ -1,4 +1,6 @@
 call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+SET @old_log_output=@@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 drop table if exists t1,t2,t3,t4;
 drop database if exists client_test_db;
 create table t1
@@ -4052,3 +4054,6 @@ EXPLAIN
     -> Table scan on t1
 
 DROP TABLE t1;
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;

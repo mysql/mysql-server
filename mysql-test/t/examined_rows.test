@@ -102,3 +102,5 @@ DROP TABLE tbl_18335504;
 SET @@global.slow_query_log=@old_slow_query_log;
 SET @@global.log_output=@old_log_output;
 SET @@session.long_query_time=@old_long_query_time;
+truncate table mysql.general_log;
+truncate table mysql.slow_log;

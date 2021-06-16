@@ -1,3 +1,4 @@
+SET @old_log_output= @@global.log_output;
 SET @old_general_log= @@global.general_log;
 SET @old_general_log_file= @@global.general_log_file;
 SET @old_slow_query_log= @@global.slow_query_log;
@@ -6,6 +7,7 @@ SET @old_slow_query_log_file= @@global.slow_query_log_file;
 # Bug#45387 Information about statement id for prepared
 #           statements missed from general log
 #
+SET @@global.log_output = 'FILE,TABLE';
 SET @@global.general_log = ON;
 SET @@global.general_log_file = 'bug45387_general.log';
 FLUSH LOGS;
@@ -32,7 +34,10 @@ End of 8.0 tests
 #
 # Cleanup
 #
+SET global log_output = @old_log_output;
 SET global general_log = @old_general_log;
 SET global general_log_file = @old_general_log_file;
 SET global slow_query_log = @old_slow_query_log;
 SET global slow_query_log_file = @old_slow_query_log_file;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;

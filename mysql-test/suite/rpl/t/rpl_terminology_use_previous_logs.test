@@ -104,6 +104,8 @@ while ($terminology_use_previous < 2) {
 
 --source include/rpl_connection_master.inc
 SET @@global.log_output = @save_log_output;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
 SET @@global.long_query_time = @save_long_query_time;
 SET @@global.terminology_use_previous = @save_terminology_use_previous;
 

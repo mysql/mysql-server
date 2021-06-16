@@ -76,5 +76,7 @@ SELECT 1;
 1
 # CLEAN UP
 SET @@global.general_log=0;
+TRUNCATE TABLE mysql.general_log;
+TRUNCATE TABLE mysql.slow_log;
 # Restore default settings
 # restart:

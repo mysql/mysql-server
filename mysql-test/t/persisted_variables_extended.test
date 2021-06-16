@@ -276,6 +276,7 @@ SET PERSIST log_output=DEFAULT ,PERSIST general_log=DEFAULT;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 
 # UNSET PERSIST variables by setting variables values to DEFAULT.
 SET PERSIST block_encryption_mode=DEFAULT, PERSIST ft_boolean_syntax=DEFAULT,

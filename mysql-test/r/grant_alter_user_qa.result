@@ -1606,6 +1606,7 @@ user16@localhost,u10@localhost,u1,u2@localhost;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;
 SET GLOBAL log_output=        @old_log_output;
+TRUNCATE TABLE mysql.general_log;
 
 Bug #20602525 ALTER USER DOES NOT VERIFY AUTH PLUGIN
 

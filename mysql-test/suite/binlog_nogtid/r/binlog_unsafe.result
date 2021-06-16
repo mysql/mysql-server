@@ -1,3 +1,5 @@
+SET @old_log_output=@@global.log_output;
+SET GLOBAL log_output="FILE,TABLE";
 #### Setup tables ####
 CREATE TABLE t0 (a VARCHAR(510));
 CREATE TABLE t1 (a CHAR(100));
@@ -2760,4 +2762,6 @@ Warnings:
 Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. The statement is unsafe because it invokes a trigger or a stored function that modifies a table that has a column with a DEFAULT expression that may return a different value on the slave.
 DROP FUNCTION f;
 DROP TABLE t;
+SET GLOBAL log_output=@old_log_output;
+TRUNCATE TABLE mysql.general_log;
 "End of tests"
