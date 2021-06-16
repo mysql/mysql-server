@@ -1861,6 +1861,64 @@ void LateConcretizeMultipleEqualities(THD *thd, RelationalExpression *expr) {
   LateConcretizeMultipleEqualities(thd, expr->right);
 }
 
+// Find tables that are guaranteed to either return zero or only NULL rows.
+table_map FindNullGuaranteedTables(const RelationalExpression *expr) {
+  if (expr->type == RelationalExpression::TABLE) {
+    return 0;
+  }
+  if (expr->join_conditions_reject_all_rows) {
+    switch (expr->type) {
+      case RelationalExpression::INNER_JOIN:
+      case RelationalExpression::STRAIGHT_INNER_JOIN:
+      case RelationalExpression::FULL_OUTER_JOIN:
+      case RelationalExpression::SEMIJOIN:
+        return expr->tables_in_subtree;
+      case RelationalExpression::LEFT_JOIN:
+        return expr->right->tables_in_subtree;
+      case RelationalExpression::ANTIJOIN:
+        return 0;
+      case RelationalExpression::TABLE:
+      case RelationalExpression::MULTI_INNER_JOIN:
+        assert(false);
+    }
+  }
+  return FindNullGuaranteedTables(expr->left) |
+         FindNullGuaranteedTables(expr->right);
+}
+
+// For joins where we earlier found that the join conditions would reject
+// all rows, clear the equijoins (which we know is safe from side effects).
+// Also propagate this property up the tree wherever we have other equijoins
+// referring to the now-pruned tables.
+void ClearImpossibleJoinConditions(RelationalExpression *expr) {
+  if (expr->type == RelationalExpression::TABLE) {
+    return;
+  }
+
+  // Go through the equijoin conditions and check that all of them still
+  // refer to tables that exist. If some table was pruned away, but the
+  // equijoin condition still refers to it, it could become degenerate:
+  // The only rows it could ever see would be NULL-complemented rows,
+  // which would never match. In this case, we can remove the entire build path
+  // propagate the zero-row property to our own join. This matches what we do
+  // in CreateHashJoinAccessPath() in the old executor; see the code there
+  // for some more comments.
+  if (!expr->join_conditions_reject_all_rows) {
+    const table_map pruned_tables = FindNullGuaranteedTables(expr);
+    for (Item *item : expr->equijoin_conditions) {
+      if (Overlaps(item->used_tables(), pruned_tables)) {
+        expr->join_conditions_reject_all_rows = true;
+        break;
+      }
+    }
+  }
+  if (expr->join_conditions_reject_all_rows) {
+    expr->equijoin_conditions.clear();
+  }
+  ClearImpossibleJoinConditions(expr->left);
+  ClearImpossibleJoinConditions(expr->right);
+}
+
 /**
   Find out whether we should create mesh edges (all-to-all) for this multiple
   equality. Currently, we only support full mesh, ie., those where all tables
@@ -1946,7 +2004,9 @@ bool CanonicalizeJoinConditions(THD *thd, RelationalExpression *expr) {
   // Note that we don't actually try to remove any of the other conditions
   // if so (although they may have been optimized away earlier);
   // Cartesian products make for very restrictive join edges, so it's actually
-  // more flexible to leave them be.
+  // more flexible to leave them be, until after the hypergraph construction
+  // (in ClearImpossibleJoinConditions(), where we also propagate this
+  // property up the tree).
   for (Item *cond : expr->join_conditions) {
     if (cond->has_subquery() || cond->is_expensive()) {
       continue;
@@ -3038,6 +3098,10 @@ bool MakeJoinHypergraph(THD *thd, string *trace, JoinHypergraph *graph) {
             end(graph->table_num_to_node_num), -1);
 #endif
   MakeJoinGraphFromRelationalExpression(thd, root, trace, graph);
+
+  // Now that we have the hypergraph construction done, it no longer hurts
+  // to remove impossible conditions.
+  ClearImpossibleJoinConditions(root);
 
   // Add cycles.
   size_t old_graph_edges = graph->graph.edges.size();
