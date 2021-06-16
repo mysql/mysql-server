@@ -34,6 +34,17 @@ typedef ndb_socket_t NDB_SOCKET_TYPE;
 
 #define NDB_ADDR_STRLEN 512
 
+/*
+ * Host name length from 1035 DOMAIN NAMES - IMPLEMENTATION AND SPECIFICATION.
+ */
+#define NDB_DNS_HOST_NAME_LENGTH 255
+/*
+ * Service name length from RFC 6335 Internet Assigned Numbers Authority (IANA)
+ * Procedures for the Management of the Service Name and Transport Protocol
+ * Port Number Registry
+ */
+#define NDB_IANA_SERVICE_NAME_LENGTH 15
+
 /* Set user's preference for IPv4 or IPv6 when resolving names.
    The preference is stored and used for subsequent lookups.
    The default at startup is to prefer IPv4.
