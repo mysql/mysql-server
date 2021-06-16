@@ -3807,11 +3807,6 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       if (any_combination_will_do && (aggr.cols != 0 || aggr.table_access != 0))
         continue;
 
-      /*
-        For SHOW COLUMNS, SHOW INDEX it is enough to have some
-        privileges on any column combination on the table.
-      */
-      if (any_combination_will_do) continue;
       t_ref->grant.privilege |= aggr.table_access;
       if (!(~t_ref->grant.privilege & want_access)) {
         DBUG_PRINT("info",
