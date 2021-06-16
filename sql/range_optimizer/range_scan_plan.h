@@ -27,6 +27,7 @@
 
 #include "my_dbug.h"
 #include "sql/handler.h"
+#include "sql/range_optimizer/range_opt_param.h"
 #include "sql/range_optimizer/range_scan.h"
 #include "sql/range_optimizer/table_read_plan.h"
 #include "sql/sql_const.h"
@@ -38,9 +39,10 @@ class SEL_ROOT;
 class SEL_TREE;
 struct MEM_ROOT;
 
-QUICK_RANGE_SELECT *get_quick_select(PARAM *param, uint index,
+QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
+                                     uint keyno, uchar *min_key, uchar *max_key,
                                      SEL_ROOT *key_tree, uint mrr_flags,
-                                     uint mrr_buf_size, MEM_ROOT *alloc,
+                                     uint mrr_buf_size, MEM_ROOT *parent_alloc,
                                      uint num_key_parts = MAX_REF_PARTS);
 
 /*
@@ -68,7 +70,9 @@ class TRP_RANGE : public TABLE_READ_PLAN {
                              MEM_ROOT *parent_alloc) override {
     DBUG_TRACE;
     QUICK_RANGE_SELECT *quick;
-    if ((quick = get_quick_select(param, key_idx, key, mrr_flags, mrr_buf_size,
+    if ((quick = get_quick_select(param->thd, param->table, param->key[key_idx],
+                                  param->real_keynr[key_idx], param->min_key,
+                                  param->max_key, key, mrr_flags, mrr_buf_size,
                                   parent_alloc))) {
       quick->records = records;
       quick->cost_est = cost_est;

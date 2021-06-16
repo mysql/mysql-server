@@ -750,8 +750,12 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint nparts) {
 
   SYNOPSIS
     get_quick_select()
-      param
-      idx            Index of used key in param->key.
+      thd            Thread handle.
+      table          Table to scan.
+      key
+      keyno          Index of used key in table.
+      min_key        Lower limit of scan range.
+      max_key        Upper limit of scan rnage.
       key_tree       SEL_ARG tree for the used key
       mrr_flags      MRR parameter for quick select
       mrr_buf_size   MRR parameter for quick select
@@ -773,42 +777,37 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint nparts) {
     otherwise created quick select
 */
 
-QUICK_RANGE_SELECT *get_quick_select(PARAM *param, uint idx, SEL_ROOT *key_tree,
-                                     uint mrr_flags, uint mrr_buf_size,
-                                     MEM_ROOT *parent_alloc,
+QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
+                                     uint keyno, uchar *min_key, uchar *max_key,
+                                     SEL_ROOT *key_tree, uint mrr_flags,
+                                     uint mrr_buf_size, MEM_ROOT *parent_alloc,
                                      uint num_key_parts) {
   QUICK_RANGE_SELECT *quick;
   bool create_err = false;
   DBUG_TRACE;
 
-  if (param->table->key_info[param->real_keynr[idx]].flags & HA_SPATIAL)
+  if (table->key_info[keyno].flags & HA_SPATIAL)
     quick = new QUICK_RANGE_SELECT_GEOM(
-        param->thd, param->table, param->real_keynr[idx],
-        parent_alloc != nullptr, parent_alloc, &create_err);
+        thd, table, keyno, parent_alloc != nullptr, parent_alloc, &create_err);
   else
-    quick =
-        new QUICK_RANGE_SELECT(param->thd, param->table, param->real_keynr[idx],
-                               parent_alloc != nullptr, nullptr, &create_err);
+    quick = new QUICK_RANGE_SELECT(thd, table, keyno, parent_alloc != nullptr,
+                                   nullptr, &create_err);
 
   if (quick) {
     assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||
            key_tree->type == SEL_ROOT::Type::IMPOSSIBLE);
     if (key_tree->type == SEL_ROOT::Type::KEY_RANGE &&
         (create_err ||
-         get_quick_keys(quick, param->key[idx], key_tree->root, param->min_key,
-                        param->min_key, 0, param->max_key, param->max_key, 0,
-                        nullptr, num_key_parts))) {
+         get_quick_keys(quick, key, key_tree->root, min_key, min_key, 0,
+                        max_key, max_key, 0, nullptr, num_key_parts))) {
       delete quick;
       return nullptr;
     } else {
       quick->mrr_flags = mrr_flags;
       quick->mrr_buf_size = mrr_buf_size;
       quick->key_parts = (KEY_PART *)memdup_root(
-          parent_alloc ? parent_alloc : quick->alloc.get(),
-          (char *)param->key[idx],
-          sizeof(KEY_PART) *
-              actual_key_parts(
-                  &param->table->key_info[param->real_keynr[idx]]));
+          parent_alloc ? parent_alloc : quick->alloc.get(), (char *)key,
+          sizeof(KEY_PART) * actual_key_parts(&table->key_info[keyno]));
     }
   }
   return quick;

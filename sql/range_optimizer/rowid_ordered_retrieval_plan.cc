@@ -140,16 +140,21 @@ QUICK_SELECT_I *TRP_ROR_INTERSECT::make_quick(PARAM *param,
     alloc = parent_alloc ? parent_alloc : &quick_intrsect->alloc;
     for (ROR_SCAN_INFO **current = first_scan; current != last_scan;
          current++) {
-      if (!(quick =
-                get_quick_select(param, (*current)->idx, (*current)->sel_root,
-                                 HA_MRR_SORTED, 0, alloc)) ||
+      uint idx = (*current)->idx;
+      if (!(quick = get_quick_select(param->thd, param->table, param->key[idx],
+                                     param->real_keynr[idx], param->min_key,
+                                     param->max_key, (*current)->sel_root,
+                                     HA_MRR_SORTED, 0, alloc)) ||
           quick_intrsect->push_quick_back(quick)) {
         delete quick_intrsect;
         return nullptr;
       }
     }
     if (cpk_scan) {
-      if (!(quick = get_quick_select(param, cpk_scan->idx, cpk_scan->sel_root,
+      uint idx = cpk_scan->idx;
+      if (!(quick = get_quick_select(param->thd, param->table, param->key[idx],
+                                     param->real_keynr[idx], param->min_key,
+                                     param->max_key, cpk_scan->sel_root,
                                      HA_MRR_SORTED, 0, alloc))) {
         delete quick_intrsect;
         return nullptr;

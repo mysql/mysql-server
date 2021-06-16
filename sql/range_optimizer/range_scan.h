@@ -72,11 +72,10 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
                              const uchar *base_max_key, uchar *max_key,
                              uint max_key_flag, uint *desc_flag,
                              uint num_key_parts);
-  friend QUICK_RANGE_SELECT *get_quick_select(PARAM *, uint idx,
-                                              SEL_ROOT *key_tree,
-                                              uint mrr_flags, uint mrr_buf_size,
-                                              MEM_ROOT *alloc,
-                                              uint num_key_parts);
+  friend QUICK_RANGE_SELECT *get_quick_select(
+      THD *thd, TABLE *table, KEY_PART *key, uint keyno, uchar *min_key,
+      uchar *max_key, SEL_ROOT *key_tree, uint mrr_flags, uint mrr_buf_size,
+      MEM_ROOT *parent_alloc, uint num_key_parts);
   friend uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range);
   friend range_seq_t quick_range_seq_init(void *init_param, uint n_ranges,
                                           uint flags);

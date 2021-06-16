@@ -1450,9 +1450,10 @@ QUICK_SELECT_I *TRP_GROUP_MIN_MAX::make_quick(PARAM *param, bool,
           nullptr; /* Can't construct a quick select. */
     else {
       /* Make a QUICK_RANGE_SELECT to be used for group prefix retrieval. */
-      quick->quick_prefix_query_block =
-          get_quick_select(param, param_idx, index_tree, HA_MRR_SORTED, 0,
-                           &quick->alloc, group_key_parts);
+      quick->quick_prefix_query_block = get_quick_select(
+          param->thd, param->table, param->key[param_idx],
+          param->real_keynr[param_idx], param->min_key, param->max_key,
+          index_tree, HA_MRR_SORTED, 0, &quick->alloc, group_key_parts);
       if (!quick->quick_prefix_query_block) {
         delete quick;
         return nullptr;
