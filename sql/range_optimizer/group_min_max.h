@@ -111,8 +111,6 @@ class QUICK_GROUP_MIN_MAX_SELECT : public QUICK_SELECT_I {
   uint real_key_parts;  /* A number of keyparts in the above value.      */
   List<Item_sum> *min_functions;
   List<Item_sum> *max_functions;
-  List_iterator<Item_sum> *min_functions_it;
-  List_iterator<Item_sum> *max_functions_it;
   /*
     Use index scan to get the next different key instead of jumping into it
     through index read

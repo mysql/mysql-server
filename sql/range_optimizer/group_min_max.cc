@@ -96,8 +96,6 @@ QUICK_GROUP_MIN_MAX_SELECT::QUICK_GROUP_MIN_MAX_SELECT(
       key_infix_len(key_infix_len_arg),
       min_max_ranges(PSI_INSTRUMENT_ME),
       key_infix_ranges(PSI_INSTRUMENT_ME),
-      min_functions_it(nullptr),
-      max_functions_it(nullptr),
       is_index_scan(is_index_scan_arg) {
   head = table;
   index = use_index;
@@ -187,16 +185,6 @@ int QUICK_GROUP_MIN_MAX_SELECT::init() {
       else if (have_max && (min_max_item->sum_func() == Item_sum::MAX_FUNC))
         max_functions->push_back(min_max_item);
     }
-
-    if (have_min) {
-      if (!(min_functions_it = new List_iterator<Item_sum>(*min_functions)))
-        return 1;
-    }
-
-    if (have_max) {
-      if (!(max_functions_it = new List_iterator<Item_sum>(*max_functions)))
-        return 1;
-    }
   }
 
   return 0;
@@ -214,9 +202,6 @@ QUICK_GROUP_MIN_MAX_SELECT::~QUICK_GROUP_MIN_MAX_SELECT() {
     head->file->ha_index_or_rnd_end();
 
   for (uint i = 0; i < key_infix_parts; i++) delete key_infix_ranges[i];
-  alloc.Clear();
-  delete min_functions_it;
-  delete max_functions_it;
   delete quick_prefix_query_block;
 }
 
@@ -781,20 +766,15 @@ void QUICK_GROUP_MIN_MAX_SELECT::reset_group() {
   seen_all_infix_ranges = false;
   memset(cur_infix_range_position, 0, sizeof(cur_infix_range_position));
 
-  // Reset min/max aggregators
-  Item_sum *min_func, *max_func;
-
   if (have_min) {
-    min_functions_it->rewind();
-    while ((min_func = (*min_functions_it)++)) {
-      min_func->aggregator_clear();
+    for (Item_sum &min_func : *min_functions) {
+      min_func.aggregator_clear();
     }
   }
 
   if (have_max) {
-    max_functions_it->rewind();
-    while ((max_func = (*max_functions_it)++)) {
-      max_func->aggregator_clear();
+    for (Item_sum &max_func : *max_functions) {
+      max_func.aggregator_clear();
     }
   }
 }
@@ -1154,15 +1134,12 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_max_in_range() {
 */
 
 void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
-  Item_sum *min_func;
-
-  min_functions_it->rewind();
-  while ((min_func = (*min_functions_it)++)) {
+  for (Item_sum &min_func : *min_functions) {
     if (*reset) {
-      min_func->aggregator_clear();
+      min_func.aggregator_clear();
       *reset = false;
     }
-    min_func->aggregator_add();
+    min_func.aggregator_add();
   }
 }
 
@@ -1191,15 +1168,12 @@ void QUICK_GROUP_MIN_MAX_SELECT::update_min_result(bool *reset) {
 */
 
 void QUICK_GROUP_MIN_MAX_SELECT::update_max_result(bool *reset) {
-  Item_sum *max_func;
-
-  max_functions_it->rewind();
-  while ((max_func = (*max_functions_it)++)) {
+  for (Item_sum &max_func : *max_functions) {
     if (*reset) {
-      max_func->aggregator_clear();
+      max_func.aggregator_clear();
       *reset = false;
     }
-    max_func->aggregator_add();
+    max_func.aggregator_add();
   }
 }
 
