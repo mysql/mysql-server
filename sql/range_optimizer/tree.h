@@ -1045,7 +1045,7 @@ bool get_sel_root_for_keypart(uint key_part_num, SEL_ROOT *keypart_tree,
 */
 
 inline SEL_ROOT *get_index_range_tree(uint index, SEL_TREE *range_tree,
-                                      PARAM *param) {
+                                      RANGE_OPT_PARAM *param) {
   uint idx = 0; /* Index nr in param->key_parts */
   while (idx < param->keys) {
     if (index == param->real_keynr[idx]) break;
