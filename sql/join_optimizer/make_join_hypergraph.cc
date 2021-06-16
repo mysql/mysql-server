@@ -804,7 +804,7 @@ int CompanionSetUsedByCondition(
   condition, instead of pushing the condition onto the given point in the
   join tree (which we have presumably found out that we don't want).
  */
-bool IsCandidateForCycle(Item *cond, table_map tables_in_subtree,
+bool IsCandidateForCycle(RelationalExpression *expr, Item *cond,
                          const int table_num_to_companion_set[MAX_TABLES]) {
   if (cond->type() != Item::FUNC_ITEM) {
     return false;
@@ -823,7 +823,17 @@ bool IsCandidateForCycle(Item *cond, table_map tables_in_subtree,
       return false;
     }
   }
-  return CompanionSetUsedByCondition(cond->used_tables() & tables_in_subtree,
+
+  // Check that we are not combining together anything that is not part of
+  // the same companion set (either by means of the condition, or by making
+  // a cycle through an already-existing condition).
+  table_map used_tables = cond->used_tables();
+  assert(expr->equijoin_conditions
+             .empty());  // MakeHashJoinConditions() has not run yet.
+  for (Item *other_cond : expr->join_conditions) {
+    used_tables |= other_cond->used_tables();
+  }
+  return CompanionSetUsedByCondition(used_tables & expr->tables_in_subtree,
                                      table_num_to_companion_set) != -1;
 }
 
@@ -1583,8 +1593,7 @@ void PushDownCondition(Item *cond, RelationalExpression *expr,
           expr, cond, AssociativeRewritesAllowed::ANY,
           /*used_commutativity=*/false, &need_flatten, trace)) {
     if (expr->type == RelationalExpression::INNER_JOIN &&
-        IsCandidateForCycle(cond, expr->tables_in_subtree,
-                            table_num_to_companion_set)) {
+        IsCandidateForCycle(expr, cond, table_num_to_companion_set)) {
       // We couldn't push the condition to this join without broadening its
       // hyperedge, but we could add a simple edge (or multiple simple edges,
       // in the case of multiple equalities -- we defer the meshing of those
