@@ -2975,7 +2975,7 @@ bool Item_field::get_timeval(struct timeval *tm, int *warnings) {
 }
 
 bool Item_field::eq(const Item *item, bool) const {
-  const Item *real_item = const_cast<Item *>(item)->real_item();
+  const Item *real_item = item->real_item();
   if (real_item->type() != FIELD_ITEM) return false;
 
   const Item_field *item_field = down_cast<const Item_field *>(real_item);
@@ -10010,7 +10010,7 @@ Item_values_column::Item_values_column(THD *thd, Item *ref) : super(thd, ref) {
 
 bool Item_values_column::eq(const Item *item, bool binary_cmp) const {
   assert(false);
-  const Item *it = const_cast<Item *>(item)->real_item();
+  const Item *it = item->real_item();
   return m_value_ref && m_value_ref->eq(it, binary_cmp);
 }
 
@@ -10339,8 +10339,8 @@ bool Item_asterisk::itemize(Parse_context *pc, Item **res) {
 }
 
 bool ItemsAreEqual(const Item *a, const Item *b, bool binary_cmp) {
-  const Item *real_a = const_cast<Item *>(a)->real_item();
-  const Item *real_b = const_cast<Item *>(b)->real_item();
+  const Item *real_a = a->real_item();
+  const Item *real_b = b->real_item();
 
   // Unwrap caches, as they may not be added consistently
   // to both sides.

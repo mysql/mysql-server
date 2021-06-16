@@ -2300,7 +2300,13 @@ class Item : public Parse_tree_node {
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *) { return this; }
   virtual Item *copy_andor_structure(THD *) { return this; }
+  /**
+    @returns the "real item" underlying the owner object. Used to strip away
+             Item_ref objects.
+    @note remember to implement both real_item() functions in sub classes!
+  */
   virtual Item *real_item() { return this; }
+  virtual const Item *real_item() const { return this; }
   /**
     If an Item is materialized in a temporary table, a different Item may have
     to be used in the part of the query that runs after the materialization.
@@ -5543,7 +5549,7 @@ class Item_ref : public Item_ident {
         ref(item->ref) {}
   enum Type type() const override { return REF_ITEM; }
   bool eq(const Item *item, bool binary_cmp) const override {
-    const Item *it = const_cast<Item *>(item)->real_item();
+    const Item *it = item->real_item();
     return ref && (*ref)->eq(it, binary_cmp);
   }
   double val_real() override;
@@ -5600,6 +5606,10 @@ class Item_ref : public Item_ident {
   bool is_result_field() const override { return true; }
   Field *get_result_field() const override { return result_field; }
   Item *real_item() override { return ref ? (*ref)->real_item() : this; }
+  const Item *real_item() const override {
+    return ref ? (*ref)->real_item() : this;
+  }
+
   bool walk(Item_processor processor, enum_walk walk, uchar *arg) override {
     return ((walk & enum_walk::PREFIX) && (this->*processor)(arg)) ||
            // For having clauses 'ref' will consistently =NULL.
@@ -5953,6 +5963,7 @@ class Item_int_with_ref : public Item_int {
   }
   Item *clone_item() const override;
   Item *real_item() override { return ref; }
+  const Item *real_item() const override { return ref; }
 };
 
 /*
