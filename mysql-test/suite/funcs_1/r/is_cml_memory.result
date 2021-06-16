@@ -10,6 +10,13 @@ f5 VARCHAR(0)   UNICODE,
 f6 VARCHAR(255) UNICODE,
 f7 VARCHAR(260) UNICODE
 ) ENGINE = MEMORY;
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
 SELECT * FROM information_schema.columns
 WHERE table_schema LIKE 'test%'

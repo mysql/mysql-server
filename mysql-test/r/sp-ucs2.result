@@ -1,11 +1,16 @@
 drop function if exists bug17615|
 create table t3 (a varchar(256) unicode)|
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 create function bug17615() returns varchar(256) unicode
 begin
 declare tmp_res varchar(256) unicode;
 set tmp_res= 'foo string';
 return tmp_res;
 end|
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 insert into t3 values(bug17615())|
 select * from t3|
 a
@@ -33,6 +38,7 @@ BEGIN
 RETURN '';
 END|
 Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
@@ -48,6 +54,7 @@ RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 Warnings:
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #
@@ -64,6 +71,7 @@ BEGIN
 RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 Warnings:
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
@@ -79,6 +87,7 @@ RETURN '';
 END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
 Warnings:
 Warning	1287	'BINARY as attribute of a type' is deprecated and will be removed in a future release. Please use a CHARACTER SET clause with _bin collation instead
+Warning	1287	'ASCII' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SHOW CREATE FUNCTION f;
 DROP FUNCTION f;
 #

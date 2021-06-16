@@ -293,6 +293,8 @@ create table t1 (
 a char(10) unicode not null,
 index a (a)
 ) engine=myisam;
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 insert into t1 values (repeat(0x201f, 10));
 insert into t1 values (repeat(0x2020, 10));
 insert into t1 values (repeat(0x2021, 10));

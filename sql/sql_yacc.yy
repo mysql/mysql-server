@@ -7625,12 +7625,17 @@ opt_default:
 
 
 ascii:
-          ASCII_SYM        { $$= &my_charset_latin1; }
+          ASCII_SYM        {
+          push_deprecated_warn(YYTHD, "ASCII", "CHARACTER SET charset_name");
+          $$= &my_charset_latin1;
+        }
         | BINARY_SYM ASCII_SYM {
             warn_about_deprecated_binary(YYTHD);
+            push_deprecated_warn(YYTHD, "ASCII", "CHARACTER SET charset_name");
             $$= &my_charset_latin1_bin;
         }
         | ASCII_SYM BINARY_SYM {
+            push_deprecated_warn(YYTHD, "ASCII", "CHARACTER SET charset_name");
             warn_about_deprecated_binary(YYTHD);
             $$= &my_charset_latin1_bin;
         }
@@ -7639,6 +7644,7 @@ ascii:
 unicode:
           UNICODE_SYM
           {
+            push_deprecated_warn(YYTHD, "UNICODE", "CHARACTER SET charset_name");
             if (!($$= get_charset_by_csname("ucs2", MY_CS_PRIMARY,MYF(0))))
             {
               my_error(ER_UNKNOWN_CHARACTER_SET, MYF(0), "ucs2");
@@ -7647,6 +7653,7 @@ unicode:
           }
         | UNICODE_SYM BINARY_SYM
           {
+            push_deprecated_warn(YYTHD, "UNICODE", "CHARACTER SET charset_name");
             warn_about_deprecated_binary(YYTHD);
             if (!($$= mysqld_collation_get_by_name("ucs2_bin")))
               MYSQL_YYABORT;
@@ -7654,6 +7661,7 @@ unicode:
         | BINARY_SYM UNICODE_SYM
           {
             warn_about_deprecated_binary(YYTHD);
+            push_deprecated_warn(YYTHD, "UNICODE", "CHARACTER SET charset_name");
             if (!($$= mysqld_collation_get_by_name("ucs2_bin")))
               my_error(ER_UNKNOWN_COLLATION, MYF(0), "ucs2_bin");
           }

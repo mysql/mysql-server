@@ -858,15 +858,23 @@ SET NAMES latin1;
 SELECT CONVERT(103, CHAR(50) UNICODE);
 CONVERT(103, CHAR(50) UNICODE)
 103
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SELECT CONVERT(103.0, CHAR(50) UNICODE);
 CONVERT(103.0, CHAR(50) UNICODE)
 103.0
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SELECT CONVERT(-103, CHAR(50) UNICODE);
 CONVERT(-103, CHAR(50) UNICODE)
 -103
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 SELECT CONVERT(-103.0, CHAR(50) UNICODE);
 CONVERT(-103.0, CHAR(50) UNICODE)
 -103.0
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 create table t1(f1 varchar(5) CHARACTER SET ucs2 COLLATE ucs2_bin NOT NULL) engine=InnoDB;
 insert into t1 values('a');
 create index t1f1 on t1(f1);
@@ -4297,6 +4305,8 @@ hex(char(0x01020304 using ucs2))
 # Bug#10094 Displays wrong error message for UNIQUE key index on CHAR(255) Unicode datatype
 #
 CREATE TABLE t1 (f1 CHAR(255) unicode);
+Warnings:
+Warning	1287	'UNICODE' is deprecated and will be removed in a future release. Please use CHARACTER SET charset_name instead
 INSERT INTO t1 values ('abc'),('bcd'),('abc');
 ALTER TABLE t1 ADD UNIQUE Index_1 (f1);
 ERROR 23000: Duplicate entry 'abc' for key 't1.Index_1'
