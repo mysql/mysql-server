@@ -1876,7 +1876,7 @@ table_map FindNullGuaranteedTables(const RelationalExpression *expr) {
       case RelationalExpression::LEFT_JOIN:
         return expr->right->tables_in_subtree;
       case RelationalExpression::ANTIJOIN:
-        return 0;
+        return FindNullGuaranteedTables(expr->left);
       case RelationalExpression::TABLE:
       case RelationalExpression::MULTI_INNER_JOIN:
         assert(false);
@@ -1900,8 +1900,8 @@ void ClearImpossibleJoinConditions(RelationalExpression *expr) {
   // equijoin condition still refers to it, it could become degenerate:
   // The only rows it could ever see would be NULL-complemented rows,
   // which would never match. In this case, we can remove the entire build path
-  // propagate the zero-row property to our own join. This matches what we do
-  // in CreateHashJoinAccessPath() in the old executor; see the code there
+  // and propagate the zero-row property to our own join. This matches what we
+  // do in CreateHashJoinAccessPath() in the old executor; see the code there
   // for some more comments.
   if (!expr->join_conditions_reject_all_rows) {
     const table_map pruned_tables = FindNullGuaranteedTables(expr);
