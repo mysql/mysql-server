@@ -794,9 +794,9 @@ QUICK_RANGE_SELECT *get_quick_select(PARAM *param, uint idx, SEL_ROOT *key_tree,
            key_tree->type == SEL_ROOT::Type::IMPOSSIBLE);
     if (key_tree->type == SEL_ROOT::Type::KEY_RANGE &&
         (create_err ||
-         get_quick_keys(param, quick, param->key[idx], key_tree->root,
-                        param->min_key, 0, param->max_key, 0, nullptr,
-                        num_key_parts))) {
+         get_quick_keys(quick, param->key[idx], key_tree->root, param->min_key,
+                        param->min_key, 0, param->max_key, param->max_key, 0,
+                        nullptr, num_key_parts))) {
       delete quick;
       return nullptr;
     } else {
@@ -1012,13 +1012,14 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
   SYNOPSIS
     get_quick_keys()
 
-  @param param          Range's param
   @param quick          Quick range select to generate keys for
   @param key            Generate key values for this key
   @param key_tree       SEL_ARG tree
-  @param min_key        Min key buffer
+  @param base_min_key   Start of min key buffer
+  @param min_key        Current append place in min key buffer
   @param min_key_flag   Min key's flags
-  @param max_key        Max key buffer
+  @param base_max_key   Start of max key buffer
+  @param max_key        Current append place in max key buffer
   @param max_key_flag   Max key's flags
   @param desc_flag      Desc flag of the first keypart
   @param num_key_parts  Number of key parts that should be used for
@@ -1031,8 +1032,9 @@ static bool null_part_in_key(KEY_PART *key_part, const uchar *key,
     false   Ok
 */
 
-bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
-                    SEL_ARG *key_tree, uchar *min_key, uint min_key_flag,
+bool get_quick_keys(QUICK_RANGE_SELECT *quick, KEY_PART *key, SEL_ARG *key_tree,
+                    const uchar *base_min_key, uchar *min_key,
+                    uint min_key_flag, const uchar *base_max_key,
                     uchar *max_key, uint max_key_flag, uint *desc_flag,
                     uint num_key_parts) {
   QUICK_RANGE *range;
@@ -1043,8 +1045,9 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
   const bool asc = key_tree->is_ascending;
   SEL_ARG *cur_key_tree = asc ? key_tree->left : key_tree->right;
   if (cur_key_tree != null_element)
-    if (get_quick_keys(param, quick, key, cur_key_tree, min_key, min_key_flag,
-                       max_key, max_key_flag, desc_flag, num_key_parts))
+    if (get_quick_keys(quick, key, cur_key_tree, base_min_key, min_key,
+                       min_key_flag, base_max_key, max_key, max_key_flag,
+                       desc_flag, num_key_parts))
       return true;
   uchar *tmp_min_key = min_key, *tmp_max_key = max_key;
   key_tree->store_min_max_values(key[key_tree->part].store_length, &tmp_min_key,
@@ -1061,8 +1064,9 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
     if ((tmp_min_key - min_key) == (tmp_max_key - max_key) &&
         memcmp(min_key, max_key, (uint)(tmp_max_key - max_key)) == 0 &&
         key_tree->min_flag == 0 && key_tree->max_flag == 0) {
-      if (get_quick_keys(param, quick, key, key_tree->next_key_part->root,
-                         tmp_min_key, min_key_flag | key_tree->get_min_flag(),
+      if (get_quick_keys(quick, key, key_tree->next_key_part->root,
+                         base_min_key, tmp_min_key,
+                         min_key_flag | key_tree->get_min_flag(), base_max_key,
                          tmp_max_key, max_key_flag | key_tree->get_max_flag(),
                          (desc_flag ? desc_flag : &flag), num_key_parts - 1))
         return true;
@@ -1093,19 +1097,19 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
     regard this as no lower/upper range
   */
   if ((flag & GEOM_FLAG) == 0) {
-    if (tmp_min_key != param->min_key)
+    if (tmp_min_key != base_min_key)
       flag &= ~NO_MIN_RANGE;
     else
       flag |= NO_MIN_RANGE;
-    if (tmp_max_key != param->max_key)
+    if (tmp_max_key != base_max_key)
       flag &= ~NO_MAX_RANGE;
     else
       flag |= NO_MAX_RANGE;
   }
   if ((flag & ~DESC_FLAG) == 0) {
-    uint length = (uint)(tmp_min_key - param->min_key);
-    if (length == (uint)(tmp_max_key - param->max_key) &&
-        !memcmp(param->min_key, param->max_key, length)) {
+    uint length = (uint)(tmp_min_key - base_min_key);
+    if (length == (uint)(tmp_max_key - base_max_key) &&
+        !memcmp(base_min_key, base_max_key, length)) {
       const KEY *table_key = quick->head->key_info + quick->index;
       flag |= EQ_RANGE;
       /*
@@ -1115,8 +1119,8 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
       if ((table_key->flags & HA_NOSAME) &&
           key_tree->part == table_key->user_defined_key_parts - 1) {
         if ((table_key->flags & HA_NULL_PART_KEY) &&
-            null_part_in_key(key, param->min_key,
-                             (uint)(tmp_min_key - param->min_key)))
+            null_part_in_key(key, base_min_key,
+                             (uint)(tmp_min_key - base_min_key)))
           flag |= NULL_RANGE;
         else
           flag |= UNIQUE_RANGE;
@@ -1132,9 +1136,9 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
 
   /* Get range for retrieving rows in QUICK_SELECT::get_next */
   if (!(range = new (*THR_MALLOC)
-            QUICK_RANGE(param->min_key, (uint)(tmp_min_key - param->min_key),
+            QUICK_RANGE(base_min_key, (uint)(tmp_min_key - base_min_key),
                         min_part >= 0 ? make_keypart_map(min_part) : 0,
-                        param->max_key, (uint)(tmp_max_key - param->max_key),
+                        base_max_key, (uint)(tmp_max_key - base_max_key),
                         max_part >= 0 ? make_keypart_map(max_part) : 0, flag,
                         key_tree->rkey_func_flag)))
     return true;  // out of memory
@@ -1150,9 +1154,9 @@ bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick, KEY_PART *key,
 end:
   cur_key_tree = asc ? key_tree->right : key_tree->left;
   if (cur_key_tree != null_element)
-    return get_quick_keys(param, quick, key, cur_key_tree, min_key,
-                          min_key_flag, max_key, max_key_flag, desc_flag,
-                          num_key_parts);
+    return get_quick_keys(quick, key, cur_key_tree, base_min_key, min_key,
+                          min_key_flag, base_max_key, max_key, max_key_flag,
+                          desc_flag, num_key_parts);
   return false;
 }
 

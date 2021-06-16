@@ -66,9 +66,10 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   MY_BITMAP column_bitmap;
 
   friend class TRP_ROR_INTERSECT;
-  friend bool get_quick_keys(PARAM *param, QUICK_RANGE_SELECT *quick,
-                             KEY_PART *key, SEL_ARG *key_tree, uchar *min_key,
-                             uint min_key_flag, uchar *max_key,
+  friend bool get_quick_keys(QUICK_RANGE_SELECT *quick, KEY_PART *key,
+                             SEL_ARG *key_tree, const uchar *base_min_key,
+                             uchar *min_key, uint min_key_flag,
+                             const uchar *base_max_key, uchar *max_key,
                              uint max_key_flag, uint *desc_flag,
                              uint num_key_parts);
   friend QUICK_RANGE_SELECT *get_quick_select(PARAM *, uint idx,
