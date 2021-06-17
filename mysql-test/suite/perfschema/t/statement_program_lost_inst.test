@@ -66,4 +66,7 @@ show global status like "%performance_schema_nested_statement_lost%";
 --echo ##################### 
 --source suite/perfschema/include/program_nested_cleanup.inc 
 
+--echo # Restore default settings
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
 

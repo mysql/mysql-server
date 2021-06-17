@@ -39,3 +39,5 @@ disconnect con1;
 --source include/wait_until_count_sessions.inc
 
 DROP TABLE t1;
+let $restart_parameters = restart:;
+--source include/restart_mysqld.inc

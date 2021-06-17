@@ -23,3 +23,4 @@ UPDATE t1 SET f2 = JSON_SET(f2, '$[3]', @elem4) WHERE f1 = 1;
 DELETE FROM t1;
 commit;
 DROP TABLE t1;
+# restart:

@@ -614,3 +614,5 @@ while (!$json_sysvar_done) {
 --echo #### Clean up ####
 
 --source include/destroy_json_functions.inc
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc

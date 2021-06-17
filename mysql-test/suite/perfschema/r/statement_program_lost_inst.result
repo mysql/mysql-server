@@ -299,3 +299,5 @@ DROP PROCEDURE ifac;
 DROP TRIGGER trg;
 DROP TABLE t1,t2;
 DROP DATABASE nested_sp;
+# Restore default settings
+# restart:
