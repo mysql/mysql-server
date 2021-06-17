@@ -20,28 +20,23 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# Disable specific types of warnings for current directory
+# Disable specific types of warnings for current directory, and subdirectories,
 # if the compiler supports the flag
-
-INCLUDE(ndb_downgrade_warnings)
-
-IF(MY_COMPILER_IS_GNU_OR_CLANG)
-  INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning
-      # Downgrade -Werror=restrict for gcc10 optimized build
-      "error=restrict"
-      )
-    MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
-    IF(HAS_WARN_FLAG)
-      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
-      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
-    ENDIF()
-  ENDFOREACH()
-ENDIF()
-
-ADD_SUBDIRECTORY(src)
-IF(WITH_NDB_TEST)
-  ADD_SUBDIRECTORY(tools)
-  ADD_SUBDIRECTORY(ndbapi)
-  ADD_SUBDIRECTORY(run-test)
-ENDIF(WITH_NDB_TEST)
+FOREACH(warning
+    "unused-but-set-variable"
+    "strict-aliasing"
+    "unused-parameter"
+    "cast-qual"
+    # Downgrade -Werror=implicit-fallthrough to warning
+    "error=implicit-fallthrough"
+    # Downgrade -Werror=deprecated-copy to warning for gcc 9
+    "error=deprecated-copy"
+    # Downgrade -Werror to warning for "may be used uninitialized"
+    "error=maybe-uninitialized"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+    STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()

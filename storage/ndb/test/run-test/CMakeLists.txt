@@ -50,6 +50,11 @@ MYSQL_ADD_EXECUTABLE(atrt
   LINK_LIBRARIES ndbNDBT ndbclient_static mysqlclient
   )
 
+IF(MY_COMPILER_IS_CLANG)
+  ADD_COMPILE_FLAGS(command.cpp COMPILE_FLAGS
+    " -Wno-error=dynamic-class-memaccess")
+ENDIF()
+
 FILE(GLOB testcase_files RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} "*-tests.txt")
 ADD_TEST(NAME check_testcase_files
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}

@@ -1348,7 +1348,7 @@ class Ndb_schema_dist_data {
 
   void release(void) {
     // Release the subscriber bitmaps
-    for (const auto it : m_subscriber_bitmaps) {
+    for (const auto &it : m_subscriber_bitmaps) {
       Node_subscribers *subscriber_bitmap = it.second;
       delete subscriber_bitmap;
     }
@@ -1419,7 +1419,7 @@ class Ndb_schema_dist_data {
      @param subscriber_list The list where to return subscribers
   */
   void get_subscriber_list(std::unordered_set<uint32> &subscriber_list) const {
-    for (const auto it : m_subscriber_bitmaps) {
+    for (const auto &it : m_subscriber_bitmaps) {
       Node_subscribers *subscribers = it.second;
       subscribers->get_subscriber_list(subscriber_list);
     }

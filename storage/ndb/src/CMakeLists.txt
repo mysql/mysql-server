@@ -22,25 +22,19 @@
 
 INCLUDE(libutils)
 
+INCLUDE(ndb_downgrade_warnings)
+
 # Disable specific types of warnings for current directory
 # if the compiler supports the flag
 FOREACH(warning
-    "unused-but-set-variable"
-    "strict-aliasing"
-    "unused-parameter"
-    "cast-qual"
     # Downgrade -Werror=format-overflow to warning
     "error=format-overflow"
-    # Downgrade -Werror to warning for "may be used uninitialized"
-    "error=maybe-uninitialized"
-    # Downgrade -Werror=deprecated-copy to warning for gcc 9
-    "error=deprecated-copy"
     # Downgrade -Werror=stringop-truncation to warning for gcc 8/9
     "error=stringop-truncation"
     # Downgrade -Werror=stringop-overflow to warning
     "error=stringop-overflow"
-    # Downgrade -Werror=implicit-fallthrough to warning
-    "error=implicit-fallthrough"
+    # Downgrade -Werror=shadow-field
+    "error=shadow-field"
     )
   MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
   IF(HAS_WARN_FLAG)

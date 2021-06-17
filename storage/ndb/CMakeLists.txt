@@ -128,6 +128,18 @@ IF(MY_COMPILER_IS_GNU_OR_CLANG)
   STRING_APPEND(CMAKE_CXX_FLAGS " -fno-strict-aliasing")
 ENDIF()
 
+# Disable specific types of warnings for current directory, and subdirectories,
+# if the compiler supports the flag
+FOREACH(warning
+    "cast-qual"
+    )
+  MY_CHECK_CXX_COMPILER_WARNING("${warning}" HAS_WARN_FLAG)
+  IF(HAS_WARN_FLAG)
+    STRING_APPEND(CMAKE_CXX_FLAGS " ${HAS_WARN_FLAG}")
+    STRING_APPEND(CMAKE_C_FLAGS " ${HAS_WARN_FLAG}")
+  ENDIF()
+ENDFOREACH()
+
 IF(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
   MESSAGE(FATAL_ERROR "Only 64-bit build of NDB is supported")
 ENDIF()
