@@ -43,6 +43,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #include "ut0new.h"
 
+#include <scope_guard.h>
+
 #ifdef UNIV_HOTBACKUP
 #include "my_sys.h"
 #endif /* UNIV_HOTBACKUP */
@@ -453,14 +455,6 @@ dberr_t Datafile::validate_to_dd(space_id_t space_id, uint32_t flags,
   return (DB_ERROR);
 }
 
-/** Validates this datafile for the purpose of recovery.  The file should
-exist and be successfully opened. We initially open it in read-only mode
-because we just want to read the SpaceID.  However, if the first page is
-corrupt and needs to be restored from the doublewrite buffer, we will
-reopen it in write mode and ry to restore that page.
-@param[in]	space_id	Expected space ID
-@retval DB_SUCCESS  on success
-m_is_valid is also set true on success, else false. */
 dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
   dberr_t err;
 
@@ -486,7 +480,6 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
       /* Re-open the file in read-write mode  Attempt to restore
       page 0 from doublewrite and read the space ID from a survey
       of the first few pages. */
-      close();
       err = open_read_write(srv_read_only_mode);
       if (err != DB_SUCCESS) {
         ib::error(ER_IB_MSG_395) << "Datafile '" << m_filepath
@@ -523,21 +516,6 @@ dberr_t Datafile::validate_for_recovery(space_id_t space_id) {
   return (err);
 }
 
-/** Checks the consistency of the first page of a datafile when the
-tablespace is opened.  This occurs before the fil_space_t is created
-so the Space ID found here must not already be open.
-m_is_valid is set true on success, else false.
-@param[in]	space_id	Expected space ID
-@param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
-@param[in]	for_import	if it is for importing
-(only valid for the first file of the system tablespace)
-@retval DB_WRONG_FILE_NAME tablespace in file header doesn't match
-        expected value
-@retval DB_SUCCESS on if the datafile is valid
-@retval DB_CORRUPTION if the datafile is not readable
-@retval DB_INVALID_ENCRYPTION_META if the encrypption meta data
-        is not readable
-@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
 dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
                                       bool for_import) {
   char *prev_name;
@@ -545,6 +523,12 @@ dberr_t Datafile::validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
   const char *error_txt = nullptr;
 
   m_is_valid = true;
+
+  /* fil_space_read_name_and_filepath will acquire the fil shard mutex. If there
+  is any other thread that tries to open this file, it will have the fil
+  mutex and will wait for this file to open. It will not succeed on Windows
+  as we don't open the file for shared write. */
+  auto guard = create_scope_guard([this]() { close(); });
 
   if (m_first_page == nullptr &&
       read_first_page(srv_read_only_mode) != DB_SUCCESS) {

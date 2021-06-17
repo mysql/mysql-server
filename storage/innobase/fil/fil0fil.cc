@@ -6070,8 +6070,12 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
 
   ut_ad(df.is_open());
 
-  /* Read and validate the first page of the tablespace.
-  Assign a tablespace name based on the tablespace type. */
+  /* Get and test the file size. */
+  os_offset_t size = os_file_get_size(df.handle());
+
+  /* Read and validate the first page of the tablespace. Assign a tablespace
+  name based on the tablespace type. This will close the file, but will leave
+  the flags and names to be queried. */
   dberr_t err = df.validate_for_recovery(space_id);
 
   ut_a(err == DB_SUCCESS || err == DB_INVALID_ENCRYPTION_META);
@@ -6082,9 +6086,6 @@ fil_load_status Fil_shard::ibd_open_for_recovery(space_id_t space_id,
   }
 
   ut_a(df.space_id() == space_id);
-
-  /* Get and test the file size. */
-  os_offset_t size = os_file_get_size(df.handle());
 
   /* Every .ibd file is created >= 4 pages in size.
   Smaller files cannot be OK. */
@@ -11155,8 +11156,10 @@ void Tablespace_dirs::add_paths(const std::string &str,
 @param[in]	df		Target file that exists on disk
 @return DB_SUCCESS if all OK */
 static dberr_t fil_rename_validate(fil_space_t *space, const std::string &name,
-                                   Datafile &df) {
+                                   Datafile &&df) {
   dberr_t err = df.validate_for_recovery(space->id);
+  /* The validate_for_recovery will set space_id, but will close the file. It is
+  safe to access filepath and space_id. */
 
   if (err == DB_TABLESPACE_NOT_FOUND) {
     /* Tablespace header doesn't contain the expected
@@ -11188,7 +11191,7 @@ static dberr_t fil_rename_validate(fil_space_t *space, const std::string &name,
 
   } else if (df.space_id() != space->id) {
     /* Target file exists on disk but has a different
-    tablespce ID. The user should manually delete it. */
+    tablespace ID. The user should manually delete it. */
 
     ib::error(ER_IB_MSG_369)
         << "Cannot rename '" << name << "' to '" << df.filepath() << "'. File '"
@@ -11238,22 +11241,21 @@ static bool fil_op_replay_rename(const page_id_t &page_id,
     return true;
   }
 
-  Datafile df;
   std::string name{new_name};
+  {
+    Datafile df;
 
-  df.set_filepath(name.c_str());
+    df.set_filepath(name.c_str());
 
-  if (df.open_read_only(false) == DB_SUCCESS) {
-    dberr_t err = fil_rename_validate(space, old_name, df);
+    if (df.open_read_only(false) == DB_SUCCESS) {
+      dberr_t err = fil_rename_validate(space, old_name, std::move(df));
 
-    if (err == DB_TABLESPACE_NOT_FOUND) {
-      /* This can happend during truncate. */
-      ib::info(ER_IB_MSG_371) << "Tablespace ID mismatch in '" << name << "'";
+      if (err == DB_TABLESPACE_NOT_FOUND) {
+        /* This can happen during truncate. */
+        ib::info(ER_IB_MSG_371) << "Tablespace ID mismatch in '" << name << "'";
+      }
+      return (err == DB_SUCCESS);
     }
-
-    df.close();
-
-    return (err == DB_SUCCESS);
   }
 
   auto path_sep_pos = name.find_last_of(Fil_path::SEPARATOR);

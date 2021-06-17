@@ -268,22 +268,23 @@ class Datafile {
   dberr_t validate_to_dd(space_id_t space_id, uint32_t flags, bool for_import)
       MY_ATTRIBUTE((warn_unused_result));
 
-  /** Validates this datafile for the purpose of recovery.
-  The file should exist and be successfully opened. We initially
-  open it in read-only mode because we just want to read the SpaceID.
-  However, if the first page is corrupt and needs to be restored
-  from the doublewrite buffer, we will reopen it in write mode and
-  ry to restore that page.
+  /** Validates this datafile for the purpose of recovery.  The file should
+  exist and be successfully opened. We initially open it in read-only mode
+  because we just want to read the SpaceID.  However, if the first page is
+  corrupt and needs to be restored from the doublewrite buffer, we will reopen
+  it in write mode and try to restore that page. The file will be closed when
+  returning from this method.
   @param[in]	space_id	Expected space ID
   @retval DB_SUCCESS on success
   m_is_valid is also set true on success, else false. */
   dberr_t validate_for_recovery(space_id_t space_id)
       MY_ATTRIBUTE((warn_unused_result));
 
-  /** Checks the consistency of the first page of a datafile when the
-  tablespace is opened.  This occurs before the fil_space_t is created
-  so the Space ID found here must not already be open.
-  m_is_valid is set true on success, else false.
+  /**  Checks the consistency of the first page of a datafile when the
+  tablespace is opened. This occurs before the fil_space_t is created so the
+  Space ID found here must not already be open. m_is_valid is set true on
+  success, else false. The datafile is always closed when returning from this
+  method.
   @param[in]	space_id	Expected space ID
   @param[out]	flush_lsn	contents of FIL_PAGE_FILE_FLUSH_LSN
   @param[in]	for_import	if it is for importing
@@ -292,7 +293,7 @@ class Datafile {
           expected value
   @retval DB_SUCCESS on if the datafile is valid
   @retval DB_CORRUPTION if the datafile is not readable
-  @retval DB_INVALID_ENCRYPTION_META if the encrypption meta data
+  @retval DB_INVALID_ENCRYPTION_META if the encryption meta data
           is not readable
   @retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
   dberr_t validate_first_page(space_id_t space_id, lsn_t *flush_lsn,
@@ -315,7 +316,10 @@ class Datafile {
 
   /** Get Datafile::m_handle.
   @return m_handle */
-  pfs_os_file_t handle() const { return (m_handle); }
+  pfs_os_file_t handle() const {
+    ut_ad(is_open());
+    return (m_handle);
+  }
 
   /** Get Datafile::m_order.
   @return m_order */
