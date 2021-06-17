@@ -183,6 +183,8 @@ SELECT @@session.character_set_server;
 @@session.character_set_server
 utf8mb4
 SET @@session.character_set_server = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_server;
 @@session.character_set_server
 ucs2
@@ -338,6 +340,8 @@ SELECT @@global.character_set_server;
 @@global.character_set_server
 utf8mb4
 SET @@global.character_set_server = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_server;
 @@global.character_set_server
 ucs2

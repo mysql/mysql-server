@@ -2704,6 +2704,8 @@ hijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcdefghijabcde
 fghijabcdefghijabcde';
 SET big_tables=1;
 SET character_set_connection=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 # The below statement asserts or shows comment text in ucs2 instead of
 # using system charset, when run without the fix.
 SHOW TABLE STATUS;

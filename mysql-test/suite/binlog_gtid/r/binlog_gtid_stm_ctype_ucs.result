@@ -1,6 +1,10 @@
 SET TIMESTAMP=10000;
 create table t2 (c char(30)) charset=ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 set @v=convert('abc' using ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 reset master;
 insert into t2 values (@v);
 include/show_binlog_events.inc

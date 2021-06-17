@@ -2105,6 +2105,8 @@ d TINYBLOB,
 PRIMARY KEY (a),
 KEY i0001 (c,d(163))
 );
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t VALUES (1,'',1,'1');
 INSERT INTO t VALUES (0x03ffffffffffff,'2',0,'2');
 SELECT t2.b FROM t AS t1

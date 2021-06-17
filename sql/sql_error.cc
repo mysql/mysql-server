@@ -993,6 +993,12 @@ void warn_on_deprecated_charset(THD *thd, const CHARSET_INFO *cs,
         LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_UTF8MB3_CHARSET_OPTION,
                option);
     }
+  } else if (strcmp(cs->csname, "ucs2") == 0) {
+    if (option == nullptr)
+      push_deprecated_warn(thd, "ucs2", "utf8mb4");
+    else
+      LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_CHARSET_OPTION, option, "ucs2",
+             "utf8mb4");
   }
 }
 
@@ -1013,5 +1019,14 @@ void warn_on_deprecated_collation(THD *thd, const CHARSET_INFO *collation,
     else
       LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_UTF8MB3_COLLATION_OPTION, option,
              collation->name);
+  } else if (strcmp(collation->csname, "ucs2") == 0) {
+    if (option == nullptr)
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_WARN_DEPRECATED_COLLATION,
+                          ER_THD(thd, ER_WARN_DEPRECATED_COLLATION),
+                          collation->name, "ucs2", "utf8mb4");
+    else
+      LogErr(WARNING_LEVEL, ER_WARN_DEPRECATED_COLLATION_OPTION, option,
+             collation->name, "ucs2", "utf8mb4");
   }
 }

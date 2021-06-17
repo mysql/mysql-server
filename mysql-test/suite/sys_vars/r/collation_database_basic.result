@@ -592,132 +592,154 @@ SELECT @@session.collation_database;
 utf8_unicode_520_ci
 SET @@session.collation_database = ucs2_general_ci;
 Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_general_ci
 SET @@session.collation_database = ucs2_bin;
 Warnings:
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_bin
 SET @@session.collation_database = ucs2_unicode_ci;
 Warnings:
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_unicode_ci
 SET @@session.collation_database = ucs2_icelandic_ci;
 Warnings:
+Warning	4079	'ucs2_icelandic_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_icelandic_ci
 SET @@session.collation_database = ucs2_latvian_ci;
 Warnings:
+Warning	4079	'ucs2_latvian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_latvian_ci
 SET @@session.collation_database = ucs2_romanian_ci;
 Warnings:
+Warning	4079	'ucs2_romanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_romanian_ci
 SET @@session.collation_database = ucs2_slovenian_ci;
 Warnings:
+Warning	4079	'ucs2_slovenian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_slovenian_ci
 SET @@session.collation_database = ucs2_polish_ci;
 Warnings:
+Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_polish_ci
 SET @@session.collation_database = ucs2_estonian_ci;
 Warnings:
+Warning	4079	'ucs2_estonian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_estonian_ci
 SET @@session.collation_database = ucs2_spanish_ci;
 Warnings:
+Warning	4079	'ucs2_spanish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_spanish_ci
 SET @@session.collation_database = ucs2_swedish_ci;
 Warnings:
+Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_swedish_ci
 SET @@session.collation_database = ucs2_turkish_ci;
 Warnings:
+Warning	4079	'ucs2_turkish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_turkish_ci
 SET @@session.collation_database = ucs2_czech_ci;
 Warnings:
+Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_czech_ci
 SET @@session.collation_database = ucs2_danish_ci;
 Warnings:
+Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_danish_ci
 SET @@session.collation_database = ucs2_lithuanian_ci;
 Warnings:
+Warning	4079	'ucs2_lithuanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_lithuanian_ci
 SET @@session.collation_database = ucs2_slovak_ci;
 Warnings:
+Warning	4079	'ucs2_slovak_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_slovak_ci
 SET @@session.collation_database = ucs2_spanish2_ci;
 Warnings:
+Warning	4079	'ucs2_spanish2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_spanish2_ci
 SET @@session.collation_database = ucs2_roman_ci;
 Warnings:
+Warning	4079	'ucs2_roman_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_roman_ci
 SET @@session.collation_database = ucs2_persian_ci;
 Warnings:
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_persian_ci
 SET @@session.collation_database = ucs2_esperanto_ci;
 Warnings:
+Warning	4079	'ucs2_esperanto_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_esperanto_ci
 SET @@session.collation_database = ucs2_hungarian_ci;
 Warnings:
+Warning	4079	'ucs2_hungarian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
 ucs2_hungarian_ci
 SET @@session.collation_database = ucs2_unicode_520_ci;
 Warnings:
+Warning	4079	'ucs2_unicode_520_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@session.collation_database;
 @@session.collation_database
@@ -1407,132 +1429,154 @@ SELECT @@global.collation_database;
 utf8_unicode_520_ci
 SET @@global.collation_database = ucs2_general_ci;
 Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_general_ci
 SET @@global.collation_database = ucs2_bin;
 Warnings:
+Warning	4079	'ucs2_bin' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_bin
 SET @@global.collation_database = ucs2_unicode_ci;
 Warnings:
+Warning	4079	'ucs2_unicode_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_unicode_ci
 SET @@global.collation_database = ucs2_icelandic_ci;
 Warnings:
+Warning	4079	'ucs2_icelandic_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_icelandic_ci
 SET @@global.collation_database = ucs2_latvian_ci;
 Warnings:
+Warning	4079	'ucs2_latvian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_latvian_ci
 SET @@global.collation_database = ucs2_romanian_ci;
 Warnings:
+Warning	4079	'ucs2_romanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_romanian_ci
 SET @@global.collation_database = ucs2_slovenian_ci;
 Warnings:
+Warning	4079	'ucs2_slovenian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_slovenian_ci
 SET @@global.collation_database = ucs2_polish_ci;
 Warnings:
+Warning	4079	'ucs2_polish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_polish_ci
 SET @@global.collation_database = ucs2_estonian_ci;
 Warnings:
+Warning	4079	'ucs2_estonian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_estonian_ci
 SET @@global.collation_database = ucs2_spanish_ci;
 Warnings:
+Warning	4079	'ucs2_spanish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_spanish_ci
 SET @@global.collation_database = ucs2_swedish_ci;
 Warnings:
+Warning	4079	'ucs2_swedish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_swedish_ci
 SET @@global.collation_database = ucs2_turkish_ci;
 Warnings:
+Warning	4079	'ucs2_turkish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_turkish_ci
 SET @@global.collation_database = ucs2_czech_ci;
 Warnings:
+Warning	4079	'ucs2_czech_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_czech_ci
 SET @@global.collation_database = ucs2_danish_ci;
 Warnings:
+Warning	4079	'ucs2_danish_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_danish_ci
 SET @@global.collation_database = ucs2_lithuanian_ci;
 Warnings:
+Warning	4079	'ucs2_lithuanian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_lithuanian_ci
 SET @@global.collation_database = ucs2_slovak_ci;
 Warnings:
+Warning	4079	'ucs2_slovak_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_slovak_ci
 SET @@global.collation_database = ucs2_spanish2_ci;
 Warnings:
+Warning	4079	'ucs2_spanish2_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_spanish2_ci
 SET @@global.collation_database = ucs2_roman_ci;
 Warnings:
+Warning	4079	'ucs2_roman_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_roman_ci
 SET @@global.collation_database = ucs2_persian_ci;
 Warnings:
+Warning	4079	'ucs2_persian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_persian_ci
 SET @@global.collation_database = ucs2_esperanto_ci;
 Warnings:
+Warning	4079	'ucs2_esperanto_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_esperanto_ci
 SET @@global.collation_database = ucs2_hungarian_ci;
 Warnings:
+Warning	4079	'ucs2_hungarian_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database
 ucs2_hungarian_ci
 SET @@global.collation_database = ucs2_unicode_520_ci;
 Warnings:
+Warning	4079	'ucs2_unicode_520_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 Warning	1681	Updating 'collation_database' is deprecated. It will be made read-only in a future release.
 SELECT @@global.collation_database;
 @@global.collation_database

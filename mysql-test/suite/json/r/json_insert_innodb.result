@@ -171,6 +171,8 @@ execute ps1 using @json_latin1;
 execute ps2 using @json_utf8;
 execute ps2 using @json_latin1;
 set @string_ucs2=_ucs2 0x0627064A0631062706460650;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 select HEX(CONVERT(@string_ucs2 USING utf8mb4));
 HEX(CONVERT(@string_ucs2 USING utf8mb4))
 D8A7D98AD8B1D8A7D986D990

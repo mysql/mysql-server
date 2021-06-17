@@ -779,6 +779,8 @@ id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),
 body TEXT
 ) ENGINE=InnoDB DEFAULT CHARACTER SET ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO articles (title, body) VALUES ('数据的结合','数据库');
 CREATE FULLTEXT INDEX ft_idx ON articles(title) WITH PARSER ngram;
 ERROR HY000: Column 'title' cannot be part of FULLTEXT index

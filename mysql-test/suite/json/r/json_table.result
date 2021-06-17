@@ -1744,6 +1744,8 @@ v
 bar
 CREATE TABLE t1 (col1 VARCHAR(255) CHARACTER SET ucs2,
 col2 VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_as_cs);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 VALUES ("æ", "ハ"), ("å", "ø"), ("ø", "パ"), ("@", "バ");
 ANALYZE TABLE t1 UPDATE HISTOGRAM ON col1, col2;
 Table	Op	Msg_type	Msg_text
@@ -1760,6 +1762,8 @@ value	cumulfreq
 å	0.5
 æ	0.75
 ø	1
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT v value, c cumulfreq
 FROM INFORMATION_SCHEMA.COLUMN_STATISTICS,
 JSON_TABLE(histogram->'$.buckets', '$[*]'

@@ -3167,6 +3167,8 @@ foo
 foo
 BAR
 SET @param = CONVERT('foo' USING ucs2);
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 EXECUTE stmt USING @param;
 foo
 foo

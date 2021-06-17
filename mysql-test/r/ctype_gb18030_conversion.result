@@ -9,6 +9,8 @@ CREATE TEMPORARY TABLE head AS SELECT concat(b1.b, b2.b) AS head FROM t1 b1, t1 
 CREATE TEMPORARY TABLE tail AS SELECT concat(b1.b, b2.b) AS tail FROM t1 b1, t1 b2;
 DROP TABLE t1;
 CREATE TABLE t1 (code char(1)) CHARACTER SET UCS2 ENGINE=INNODB;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO t1 SELECT UNHEX(CONCAT(head, tail)) FROM head, tail ORDER BY
 head, tail;
 CREATE TABLE t2 (b VARCHAR(2));

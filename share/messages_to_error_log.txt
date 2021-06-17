@@ -11557,6 +11557,12 @@ ER_MFA_USER_ATTRIBUTES_CORRUPT
 ER_MFA_PLUGIN_NOT_LOADED
   eng "Plugin \'%-.192s\' is not loaded; Ignoring user"
 
+ER_WARN_DEPRECATED_CHARSET_OPTION
+  eng "%s: The character set %s is deprecated and will be removed in a future release. Please consider using %s instead."
+
+ER_WARN_DEPRECATED_COLLATION_OPTION
+  eng "%s: '%-.64s' is a collation of the deprecated character set %s. Please consider using %s with an appropriate collation instead."
+
 # DO NOT add server-to-client messages here;
 # they go in messages_to_clients.txt
 # in the same directory as this file.

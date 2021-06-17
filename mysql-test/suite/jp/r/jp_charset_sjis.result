@@ -46,6 +46,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚P`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚P`;
 CHARSET(CONVERT(`‚b‚P` USING sjis))
 sjis
@@ -60,6 +62,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚Q`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚Q`;
 CHARSET(CONVERT(`‚b‚P` USING sjis))
 sjis
@@ -74,6 +78,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚R`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚R`;
 CHARSET(CONVERT(`‚b‚P` USING sjis))
 sjis
@@ -97,6 +103,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚S`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚S`;
 CHARSET(CONVERT(`‚b‚P` USING sjis))
 sjis
@@ -111,6 +119,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚T`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚T`;
 CHARSET(CONVERT(`‚b‚P` USING sjis))
 sjis
@@ -125,6 +135,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚U`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚U`;
 CHARSET(CONVERT(`‚b‚P` USING sjis))
 sjis
@@ -148,6 +160,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚V`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚V`;
 CHARSET(CONVERT(`‚b‚P` USING sjis))
 sjis
@@ -162,6 +176,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚W`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚W`;
 CHARSET(CONVERT(`‚b‚P` USING sjis))
 sjis
@@ -176,6 +192,8 @@ Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but wil
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING ucs2)) FROM `‚s‚X`;
 CHARSET(CONVERT(`‚b‚P` USING ucs2))
 ucs2
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT DISTINCT CHARSET(CONVERT(`‚b‚P` USING sjis)) FROM `‚s‚X`;
 CHARSET(CONVERT(`‚b‚P` USING sjis))
 sjis

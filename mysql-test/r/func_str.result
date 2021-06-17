@@ -4523,6 +4523,7 @@ SELECT (SELECT (SELECT 1 FROM t1 a WHERE t1.a <_ucs2'a')) AS d5 FROM t1 GROUP BY
 d5
 NULL
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1292	Incorrect time value: 'a' for column 'a' at row 1
 DROP TABLE t1;
 #

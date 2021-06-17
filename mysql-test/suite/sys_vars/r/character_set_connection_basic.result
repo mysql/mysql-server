@@ -181,6 +181,8 @@ SELECT @@session.character_set_connection;
 @@session.character_set_connection
 utf8mb4
 SET @@session.character_set_connection = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@session.character_set_connection;
 @@session.character_set_connection
 ucs2
@@ -336,6 +338,8 @@ SELECT @@global.character_set_connection;
 @@global.character_set_connection
 utf8mb4
 SET @@global.character_set_connection = ucs2;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT @@global.character_set_connection;
 @@global.character_set_connection
 ucs2

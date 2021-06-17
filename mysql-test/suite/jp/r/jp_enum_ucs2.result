@@ -10,17 +10,38 @@ drop table if exists `£Τ£Ή`;
 SET NAMES ujis;
 SET character_set_database = ucs2;
 Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 Warning	1681	Updating 'character_set_database' is deprecated. It will be made read-only in a future release.
 SET collation_connection = ucs2_general_ci;
+Warnings:
+Warning	4079	'ucs2_general_ci' is a collation of the deprecated character set ucs2. Please consider using utf8mb4 with an appropriate collation instead.
 CREATE TABLE `£Τ£±` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Τ£²` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Τ£³` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = innodb;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Τ£΄` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Τ£µ` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Τ£¶` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = myisam;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Τ£·` (`£Γ£±` ENUM('±','²','³'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Τ£Έ` (`£Γ£±` ENUM('¤Ά','¤¤','¤¦'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 CREATE TABLE `£Τ£Ή` (`£Γ£±` ENUM('νά','νέ','νή'), INDEX(`£Γ£±`)) DEFAULT CHARSET = ucs2 engine = MEMORY;
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 INSERT INTO `£Τ£±` VALUES ('±'),('²'),('³');
 INSERT INTO `£Τ£²` VALUES ('¤Ά'),('¤¤'),('¤¦');
 INSERT INTO `£Τ£³` VALUES ('νά'),('νέ'),('νή');

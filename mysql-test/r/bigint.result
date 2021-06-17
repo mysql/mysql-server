@@ -605,6 +605,8 @@ result
 select bin(convert(-9223372036854775808 using ucs2));
 bin(convert(-9223372036854775808 using ucs2))
 1000000000000000000000000000000000000000000000000000000000000000
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 #
 # Bug #22515857	"-1 BETWEEN 9223372036854775808 AND 1" GIVES TRUE
 #

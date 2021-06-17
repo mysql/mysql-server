@@ -318,6 +318,8 @@ DROP TABLE t1;
 SELECT HEX(CONVERT(_gb18030 0xA14041 USING ucs2));
 HEX(CONVERT(_gb18030 0xA14041 USING ucs2))
 E4C60041
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_gb18030 0xA14041 USING utf8));
 HEX(CONVERT(_gb18030 0xA14041 USING utf8))
 EE938641
@@ -344,15 +346,23 @@ HEX(CONVERT(_gb18030 0xFE39FE39 USING utf32))
 SELECT HEX(CONVERT(_ucs2 0xD800 USING gb18030));
 HEX(CONVERT(_ucs2 0xD800 USING gb18030))
 3F
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_ucs2 0xDFFF USING gb18030));
 HEX(CONVERT(_ucs2 0xDFFF USING gb18030))
 3F
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_ucs2 0xE000 USING gb18030));
 HEX(CONVERT(_ucs2 0xE000 USING gb18030))
 AAA1
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_ucs2 0xF8FF USING gb18030));
 HEX(CONVERT(_ucs2 0xF8FF USING gb18030))
 84308130
+Warnings:
+Warning	1287	'ucs2' is deprecated and will be removed in a future release. Please use utf8mb4 instead
 SELECT HEX(CONVERT(_gb18030 0xA13941 USING ucs2));
 ERROR HY000: Invalid gb18030 character string: 'A13941'
 SELECT HEX(CONVERT(_gb18030 0xFFFE USING ucs2));
