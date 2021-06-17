@@ -663,6 +663,7 @@ NdbOperation::setAnyValue(Uint32 any_value)
     }
   }
   // Fall through - let setValue call set error
+  [[fallthrough]];
   default:
     return setValue(impl, (const char *)&any_value);
   }

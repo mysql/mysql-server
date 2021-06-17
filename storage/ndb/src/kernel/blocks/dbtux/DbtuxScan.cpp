@@ -645,7 +645,7 @@ Dbtux::execNEXT_SCANREQ(Signal* signal)
     break;
   case NextScanReq::ZSCAN_COMMIT:
     jamDebug();
-    // Fall through
+    [[fallthrough]];
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jamDebug();
     if (! scan.m_readCommitted)

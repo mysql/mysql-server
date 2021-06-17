@@ -371,7 +371,6 @@ Dbtup::execDUMP_STATE_ORD(Signal* signal)
 	break;
       case 2: { // Seize(n) - fail
 	alloc += free;
-	// Fall through
         sum_req += free;
         goto doalloc;
       }

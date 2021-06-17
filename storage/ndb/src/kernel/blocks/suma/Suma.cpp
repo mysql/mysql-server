@@ -3605,6 +3605,7 @@ Suma::execSUB_START_REQ(Signal* signal){
     if (!ERROR_INSERTED_CLEAR(13047))
       break;
     // Fall through - if error inserted
+    [[fallthrough]];
   default:
     /**
      * This can happen if we start...with a new config
@@ -6320,7 +6321,7 @@ do_release:
     case Table::DEFINED:
       jam();
       c_tables.remove(tabPtr);
-      // Fall through
+      [[fallthrough]];
     case Table::DROPPED:
       jam();
       tabPtr.p->release(* this);

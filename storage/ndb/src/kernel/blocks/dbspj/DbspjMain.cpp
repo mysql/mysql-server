@@ -8679,7 +8679,7 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
       data.m_frags_complete++;
       ndbrequire(data.m_frags_not_started > 0);
       data.m_frags_not_started--;
-      // fall through
+      [[fallthrough]];
     case ScanFragHandle::SFH_COMPLETE:
       jam();
       sum++; // indicate that we should abort
@@ -8695,7 +8695,7 @@ Dbspj::scanFrag_execNODE_FAILREP(Signal* signal,
       jam();
       ndbrequire(data.m_frags_outstanding > 0);
       data.m_frags_outstanding--;
-      // fall through
+      [[fallthrough]];
     case ScanFragHandle::SFH_WAIT_NEXTREQ:
       jam();
       sum++;

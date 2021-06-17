@@ -3375,7 +3375,7 @@ bool Dbdih::check_if_lcp_idle(void)
     return false;
   case LCP_TAB_COMPLETED:
     jam();
-    // Fall through
+    [[fallthrough]];
   case LCP_TAB_SAVED:
     jam();
     /**
@@ -5724,7 +5724,7 @@ void Dbdih::setNodeRecoveryStatus(Uint32 nodeId,
       {
         case NodeRecord::ALLOCATED_NODE_ID:
           jam();
-          // Fall through
+          [[fallthrough]];
         case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
           jam();
           /**
@@ -6286,49 +6286,49 @@ bool Dbdih::check_node_recovery_timers(Uint32 nodeId)
   {
   case NodeRecord::RESTART_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->restartCompletedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::WAIT_SUMA_HANDOVER:
     ndbrequire(NdbTick_IsValid(nodePtr.p->waitSumaHandoverTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::WAIT_LCP_FOR_RESTART:
     ndbrequire(NdbTick_IsValid(nodePtr.p->waitLCPForRestartTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::COPY_FRAGMENTS_STARTED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->copyFragmentsStartedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::EXECUTE_REDO_LOG_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startBuildIndexTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::UNDO_DD_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startExecREDOLogTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::RESTORE_FRAG_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startUndoDDTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::LOCAL_RECOVERY_STARTED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startDatabaseRecoveryTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::INCLUDE_NODE_IN_LCP_AND_GCP:
     ndbrequire(NdbTick_IsValid(nodePtr.p->includeNodeInLCPAndGCPTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::COPY_DICT_TO_STARTING_NODE:
     ndbrequire(NdbTick_IsValid(nodePtr.p->copyDictToStartingNodeTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::WAIT_LCP_TO_COPY_DICT:
     ndbrequire(NdbTick_IsValid(nodePtr.p->waitLCPToCopyDictTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::START_PERMITTED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->startPermittedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NDBCNTR_STARTED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->ndbcntrStartedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NDBCNTR_START_WAIT:
     ndbrequire(NdbTick_IsValid(nodePtr.p->ndbcntrStartWaitTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::INCLUDED_IN_HB_PROTOCOL:
     ndbrequire(NdbTick_IsValid(nodePtr.p->includedInHBProtocolTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::ALLOCATED_NODE_ID:
     ndbrequire(NdbTick_IsValid(nodePtr.p->allocatedNodeIdTime));
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
@@ -6336,16 +6336,16 @@ bool Dbdih::check_node_recovery_timers(Uint32 nodeId)
     break;
   case NodeRecord::NODE_ACTIVE:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeActiveTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_IN_LCP_WAIT_STATE:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeInLCPWaitStateTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_GETTING_SYNCHED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeGettingSynchedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_GETTING_INCLUDED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeGettingIncludedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_GETTING_PERMIT:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeGettingPermitTime));
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
@@ -6353,7 +6353,7 @@ bool Dbdih::check_node_recovery_timers(Uint32 nodeId)
     break;
   case NodeRecord::NODE_FAILURE_COMPLETED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailCompletedTime));
-    // Fallthrough
+    [[fallthrough]];
   case NodeRecord::NODE_FAILED:
     ndbrequire(NdbTick_IsValid(nodePtr.p->nodeFailTime));
     break;
@@ -11141,7 +11141,7 @@ void Dbdih::execMASTER_GCPCONF(Signal* signal)
     break;
   case MasterGCPConf::GCP_COMMIT_RECEIVED:
     jam();
-    // Fall through
+    [[fallthrough]];
   case MasterGCPConf::GCP_COMMITTED:
     jam();
     ok = true;
@@ -11307,7 +11307,7 @@ void Dbdih::MASTER_GCPhandling(Signal* signal, Uint32 failedNodeId)
     }
     case GcpSave::GCP_SAVE_CONF:
       jam();
-      // Fall through
+      [[fallthrough]];
     case GcpSave::GCP_SAVE_COPY_GCI:
       jam();
       ok = true;
@@ -13319,7 +13319,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
         break;
       case DictTabInfo::DistrKeyHash:
         jam();
-        // Fall through
+        [[fallthrough]];
       case DictTabInfo::DistrKeyLin:
         jam();
         if (noOfFragments == 0)
@@ -13364,7 +13364,7 @@ void Dbdih::execCREATE_FRAGMENTATION_REQ(Signal * signal)
       }
       case DictTabInfo::DistrKeyOrderedIndex:
         jam();
-        // Fall through
+        [[fallthrough]];
       default:
         jam();
         err = CreateFragmentationRef::InvalidFragmentationType;
@@ -14292,7 +14292,7 @@ void Dbdih::execDIADDTABREQ(Signal* signal)
   case DictTabInfo::AllNodesLargeTable:
   case DictTabInfo::SingleFragment:
     jam();
-    // Fall through
+    [[fallthrough]];
   case DictTabInfo::DistrKeyLin:
     jam();
     tabPtr.p->method = TabRecord::LINEAR_HASH;
@@ -15064,7 +15064,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
   switch(requestType){
   case AlterTabReq::AlterTablePrepare:
     jam();
-    // fall through
+    [[fallthrough]];
   case AlterTabReq::AlterTableRevert:
     jam();
     if (AlterTableReq::getAddFragFlag(req->changeMask) &&
@@ -15185,6 +15185,7 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
      *
      * Fall through to make this happen.
      */
+    [[fallthrough]];
   case AlterTabReq::AlterTableWaitScan:{
     jam();
     const NDB_TICKS now = NdbTick_getCurrentTicks();

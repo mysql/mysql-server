@@ -531,7 +531,7 @@ HugoAsynchTransactions::callback(int result,
 
       g_err << "Too many retries (" << tInfo->retries 
             << ") failing." << endl;
-      // Fall through
+      [[fallthrough]];
 
     default:
       /* Non temporary error */

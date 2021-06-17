@@ -3573,7 +3573,7 @@ setupOperation(NdbOperation*& op, OpTypes optype, Tup& tup)
   case PkInsert:
   case PkUpdate:
   case UkUpdate:
-    /* Fall through */
+    [[fallthrough]];
   case PkWrite:
   case UkWrite:
     CHK(setBlobValue(tup) == 0);
@@ -5971,7 +5971,7 @@ bugtest_27772916()
     switch(v)
     {
     case 0:
-      /* Fall through */
+      [[fallthrough]];
     case 1:
     {
       /* Define a scan, reading blobs */
@@ -5985,7 +5985,7 @@ bugtest_27772916()
       break;
     }
     case 2:
-      /* Fall through */
+      [[fallthrough]];
     case 3:
     {
       /* Define an update operation */

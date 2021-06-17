@@ -3207,6 +3207,7 @@ int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
         expectedEvents.push_back(Delete);
       }
       // Fall through - done with last optype
+      [[fallthrough]];
       default:
         done = true;
         break;
@@ -3437,7 +3438,7 @@ runRefreshLocking(NDBT_Context* ctx, NDBT_Step* step)
 
       if (scenario.preRefreshOps == PR_INSERT)
         break;
-      // Fall through
+      [[fallthrough]];
     case PR_DELETE:
       if (hugoTrans.pkDeleteRecord(ndb, 0) != 0)
       {

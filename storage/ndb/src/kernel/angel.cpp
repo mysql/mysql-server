@@ -787,7 +787,7 @@ angel_run(const char* progname,
                          child_error, child_signal, child_sphase);
           angel_exit(0);
         }
-        // Fall-through
+        [[fallthrough]];
       case NRT_DoStart_Restart:
         initial = false;
         no_start = false;

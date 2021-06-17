@@ -14505,7 +14505,7 @@ void Dblqh::lqhTransNextLab(Signal* signal,
                 jam();
                 break; /* Skip over */
               }
-              /* Fall through */
+              [[fallthrough]];
             default :
               jam();
               tcConnectptr.p->tcNodeFailrec = tcNodeFailPtr.i;
@@ -20335,7 +20335,7 @@ void Dblqh::closeCopyRequestLab(Signal* signal,
   case ScanRecord::COPY_FRAG_HALTED:
     jam();
     c_copy_frag_live_node_halted = false;
-    /* Fall through */
+    [[fallthrough]];
   case ScanRecord::WAIT_LQHKEY_COPY:
     jam();
 /*---------------------------------------------------------------------------*/
@@ -30034,8 +30034,7 @@ Dblqh::invalidateLogAfterLastGCI(Signal* signal,
                         logPartPtrP->firstInvalidatePageNo - 1,
                         logPartPtrP->invalidateFileNo,
                         logPartPtrP->invalidatePageNo - 1);
-
-    // Fall through...
+    [[fallthrough]];
   case LogFileOperationRecord::WRITE_SR_INVALIDATE_PAGES:
     jam();
 

@@ -1440,7 +1440,7 @@ void Dbdict::execFSREADCONF(Signal* signal)
       execFSREADREF(signal);
       return;
     }//Testing how DICT behave if read of file 1 fails (Bug#28770)
-    // Fall through
+    [[fallthrough]];
   case FsConnectRecord::READ_TAB_FILE2:
     jam();
     readTableConf(signal ,fsPtr);
@@ -5836,7 +5836,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
   {
     jam();
   }
-  // Fall through
+  [[fallthrough]];
   case DictTabInfo::AlterTableFromAPI:{
     jam();
     schemaFileId = RNIL;
@@ -14714,6 +14714,7 @@ Dbdict::alterIndex_parse(Signal* signal, bool master,
       break;
     }
     // Fall through - invalid request type
+    [[fallthrough]];
   default:
     ndbassert(false);
     setError(error, AlterIndxRef::BadRequestType, __LINE__);
@@ -15917,7 +15918,7 @@ Dbdict::buildIndex_parse(Signal* signal, bool master,
       buildIndexPtr.p->m_attrMask.set(attrId);
       break;
     }
-    /*FALLTHRU*/
+    [[fallthrough]];
   default:
     jam();
     {
@@ -20423,7 +20424,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     break;
   case CreateTrigImplReq::CreateTriggerOffline:
     jam();
-    // Fall through
+    [[fallthrough]];
   default:
     ndbassert(false);
     setError(error, CreateTrigRef::BadRequestType, __LINE__);
@@ -20456,7 +20457,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     break;
   case CreateTrigReq::TriggerDst:
     jam();
-    // Fall through
+    [[fallthrough]];
   case CreateTrigReq::TriggerSrc:
     jam();
     if (handle.m_cnt)
@@ -20632,7 +20633,7 @@ Dbdict::createTrigger_parse(Signal* signal, bool master,
     case TriggerType::REORG_TRIGGER:
       jam();
       createTrigger_create_drop_trigger_operation(signal, op_ptr, error);
-      // Fall through
+      [[fallthrough]];
     case TriggerType::SECONDARY_INDEX:
     case TriggerType::FK_PARENT:
     case TriggerType::FK_CHILD:
@@ -23507,7 +23508,7 @@ Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req,
     {
       *type = (DictLockReq::LockType) lockReq.extra;
     }
-    /* Fall through */
+    [[fallthrough]];
   case UtilUnlockRef::NotLockOwner:
     break;
   case UtilUnlockRef::NotInLockQueue:
@@ -32241,10 +32242,10 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
   switch(trans_ptr.p->m_state) {
   case SchemaTrans::TS_INITIAL:
     jam();
-    // Fall through
+    [[fallthrough]];
   case SchemaTrans::TS_STARTING:
     jam();
-    // Fall through
+    [[fallthrough]];
   case SchemaTrans::TS_STARTED:
     jam();
     if (trans_ptr.p->m_rollback_op == 0)
@@ -32262,7 +32263,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
       trans_end_start(signal, trans_ptr);
       return;
     }
-    // Fall through
+    [[fallthrough]];
   case SchemaTrans::TS_PARSING:
     jam();
     setError(trans_ptr.p->m_error, SchemaTransEndRep::TransAborted, __LINE__);
@@ -32391,7 +32392,7 @@ void Dbdict::trans_recover(Signal* signal, SchemaTransPtr trans_ptr)
       return;
     }
   }
-  // Fall through
+  [[fallthrough]];
   case SchemaTrans::TS_ENDING:
     /*
       End any pending slaves
@@ -33990,7 +33991,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
        */
       jam();
       partitionBalance = NDB_PARTITION_BALANCE_FOR_RP_BY_LDM;
-      /* Fall through */
+      [[fallthrough]];
     case NDB_PARTITION_BALANCE_FOR_RP_BY_LDM:
     case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM:
     case NDB_PARTITION_BALANCE_FOR_RA_BY_LDM_X_2:

@@ -1628,10 +1628,10 @@ static Uint32 Hash( const char* str ){
   switch(len){
   case 3:
     h = (h << 5) + h + *str++;
-    // Fall through
+    [[fallthrough]];
   case 2:
     h = (h << 5) + h + *str++;
-    // Fall through
+    [[fallthrough]];
   case 1:
     h = (h << 5) + h + *str++;
   }

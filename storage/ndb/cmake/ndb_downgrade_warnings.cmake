@@ -27,8 +27,6 @@ FOREACH(warning
     "strict-aliasing"
     "unused-parameter"
     "cast-qual"
-    # Downgrade -Werror=implicit-fallthrough to warning
-    "error=implicit-fallthrough"
     # Downgrade -Werror=deprecated-copy to warning for gcc 9
     "error=deprecated-copy"
     # Downgrade -Werror to warning for "may be used uninitialized"

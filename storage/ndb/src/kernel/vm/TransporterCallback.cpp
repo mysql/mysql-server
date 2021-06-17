@@ -299,10 +299,10 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
   switch(secCount){
   case 3:
     ok &= import(SPC_CACHE_ARG secPtr[2], ptr[2].p, ptr[2].sz);
-    // Fall through
+    [[fallthrough]];
   case 2:
     ok &= import(SPC_CACHE_ARG secPtr[1], ptr[1].p, ptr[1].sz);
-    // Fall through
+    [[fallthrough]];
   case 1:
     ok &= import(SPC_CACHE_ARG secPtr[0], ptr[0].p, ptr[0].sz);
   }

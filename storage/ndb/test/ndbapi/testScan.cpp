@@ -1686,7 +1686,7 @@ runBug54945(NDBT_Context* ctx, NDBT_Step* step)
     printf("node: %u ", node);
     switch(loops % 2){
     case 0:
-      // fall through
+      [[fallthrough]];
     case 1:
       err = 5057;
       res.insertErrorInNode(node, 5057);

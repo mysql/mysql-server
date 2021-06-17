@@ -2102,7 +2102,7 @@ DbUtil::reportSequence(Signal* signal, const Transaction * transP){
     }
     case UtilSequenceReq::SetVal:
       jam();
-      // Fall through
+      [[fallthrough]];
     case UtilSequenceReq::Create:
       jam();
       ok = true;
@@ -2948,7 +2948,7 @@ DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
   switch(res){
   case UtilUnlockRef::OK:
     jam();
-    // Fall through
+    [[fallthrough]];
   case UtilUnlockRef::NotLockOwner: {
     jam();
     UtilUnlockConf * conf = (UtilUnlockConf*)signal->getDataPtrSend();
@@ -2961,7 +2961,7 @@ DbUtil::execUTIL_UNLOCK_REQ(Signal* signal)
   }
   case UtilUnlockRef::NotInLockQueue:
     jam();
-    // Fall through
+    [[fallthrough]];
   default:
     jam();
     ndbassert(false);

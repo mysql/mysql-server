@@ -363,7 +363,7 @@ DbUtil::runQuery(const char* sql,
         switch(fields[i].type){
         case MYSQL_TYPE_STRING:
 	  ((char*)bind_result[i].buffer)[fields[i].max_length] = 0;
-          // Fall through
+          [[fallthrough]];
         case MYSQL_TYPE_VARCHAR:
         case MYSQL_TYPE_VAR_STRING:
           curr.put(fields[i].name, (char*)bind_result[i].buffer);

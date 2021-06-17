@@ -1658,7 +1658,7 @@ NdbConstOperandImpl::convert2ColumnType()
     case NdbDictionary::Column::Olddecimalunsigned: 
     case NdbDictionary::Column::Blob:
     case NdbDictionary::Column::Text: 
-      // Fall through:
+      [[fallthrough]];
 
     default:
     case NdbDictionary::Column::Undefined:    return QRY_OPERAND_HAS_WRONG_TYPE;

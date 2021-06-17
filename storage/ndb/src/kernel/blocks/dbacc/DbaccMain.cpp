@@ -1320,7 +1320,7 @@ void Dbacc::execACCKEYREQ(Signal* signal,
     case ZWRITE:
       opbits &= ~(Uint32)Operationrec::OP_MASK;
       opbits |= (op = ZINSERT);
-      // Fall through
+      [[fallthrough]];
     case ZINSERT:
       jam();
       opbits |= Operationrec::OP_INSERT_IS_DONE;
@@ -2766,7 +2766,7 @@ void Dbacc::execACC_ABORTREQ(Signal* signal,
     {
       return;
     }
-    // Fall through
+    [[fallthrough]];
   case 1:
     sendSignal(operationRecPtr.p->userblockref, GSN_ACC_ABORTCONF, 
 	       signal, 1, JBB);

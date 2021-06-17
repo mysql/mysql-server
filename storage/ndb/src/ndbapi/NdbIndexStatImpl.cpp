@@ -1260,13 +1260,13 @@ NdbIndexStatImpl::Cache::get_keyaddr(uint pos) const
   switch (m_addrLen) {
   case 4:
     addr += src[3] << 24;
-    // Fall through
+    [[fallthrough]];
   case 3:
     addr += src[2] << 16;
-    // Fall through
+    [[fallthrough]];
   case 2:
     addr += src[1] << 8;
-    // Fall through
+    [[fallthrough]];
   case 1:
     addr += src[0] << 0;
     break;
@@ -1286,13 +1286,13 @@ NdbIndexStatImpl::Cache::set_keyaddr(uint pos, uint addr)
   switch (m_addrLen) {
   case 4:
     dst[3] = (addr >> 24) & 0xFF;
-    // Fall through
+    [[fallthrough]];
   case 3:
     dst[2] = (addr >> 16) & 0xFF;
-    // Fall through
+    [[fallthrough]];
   case 2:
     dst[1] = (addr >> 8) & 0xFF;
-    // Fall through
+    [[fallthrough]];
   case 1:
     dst[0] = (addr >> 0) & 0xFF;
     break;

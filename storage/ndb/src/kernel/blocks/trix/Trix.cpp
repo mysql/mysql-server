@@ -2590,10 +2590,10 @@ Trix::statReadHeadDone(Signal* signal, StatOp& stat)
   switch (stat.m_requestType) {
   case IndexStatReq::RT_CLEAN_NEW:
     jam();
-    // Fall through
+    [[fallthrough]];
   case IndexStatReq::RT_CLEAN_OLD:
     jam();
-    // Fall through
+    [[fallthrough]];
   case IndexStatReq::RT_CLEAN_ALL:
     jam();
     statCleanBegin(signal, stat);

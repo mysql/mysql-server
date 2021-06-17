@@ -535,10 +535,10 @@ zero32(Uint8* dstPtr, const Uint32 len)
     switch(odd){     /* odd is: {1..3} */
     case 1:
       dst[1] = 0;
-      // Fall through
+      [[fallthrough]];
     case 2:
       dst[2] = 0;
-      // Fall through
+      [[fallthrough]];
     default:         /* Known to be odd==3 */
       dst[3] = 0;
     }

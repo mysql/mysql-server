@@ -3619,7 +3619,6 @@ NdbBlob::handleBlobTask(NdbTransaction::ExecType anExecType)
                 DBUG_RETURN(BA_ERROR);
               }
             }
-            /* Fall through */
           }
 
           if (oldLenUnknown)

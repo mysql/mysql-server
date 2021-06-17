@@ -303,7 +303,7 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
     break;
   case NextScanReq::ZSCAN_COMMIT:
     jam();
-    // Fall through
+    [[fallthrough]];
   case NextScanReq::ZSCAN_NEXT_COMMIT:
     jam();
     if ((scan.m_bits & ScanOp::SCAN_LOCK) != 0)
@@ -2050,7 +2050,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         // clear cached value
         pos.m_realpid_mm = RNIL;
       }
-      /*FALLTHRU*/
+      [[fallthrough]];
     case ScanPos::Get_page_mm:
       // get TUP real page
       {
@@ -2300,7 +2300,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
           }
         } // if ScanOp::SCAN_DD read ahead
       }
-      /*FALLTHRU*/
+      [[fallthrough]];
     case ScanPos::Get_page_dd:
       // get global page in PGMAN cache
       jam();
@@ -2377,7 +2377,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
         key.m_page_idx += size;
         pos.m_get = ScanPos::Get_tuple;
       }
-      /*FALLTHRU*/
+      [[fallthrough]];
     case ScanPos::Get_tuple:
       // get fixed size tuple
       jam();

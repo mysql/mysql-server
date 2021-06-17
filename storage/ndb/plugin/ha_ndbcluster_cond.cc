@@ -1326,7 +1326,7 @@ static void ndb_serialize_cond(const Item *item, void *arg) {
           case Item::DECIMAL_ITEM:
           case Item::CACHE_ITEM:
             assert(false);  // Expression folded under 'used_tables'
-            // Fall through
+            [[fallthrough]];
           default:
             DBUG_PRINT("info",
                        ("Found unsupported item of type %d", item->type()));

@@ -1885,7 +1885,7 @@ void Dbtc::execTCSEIZEREQ(Signal* signal)
 	    case NodeState::SL_STOPPING_2:
               if (getNodeState().getSingleUserMode())
                 break;
-              // Fall through
+              [[fallthrough]];
             case NodeState::SL_STOPPING_3:
             case NodeState::SL_STOPPING_4:
               if(getNodeState().stopping.systemShutdown)
@@ -2448,7 +2448,7 @@ start_failure:
         terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
         break;
       }
-      // Fall through
+      [[fallthrough]];
     case NodeState::SL_STOPPING_3:
     case NodeState::SL_STOPPING_4:
       if(getNodeState().stopping.systemShutdown)
@@ -2465,7 +2465,7 @@ start_failure:
         terrorCode  = ZCLUSTER_IN_SINGLEUSER_MODE;
         break;
       }
-      // Fall through
+      [[fallthrough]];
     default:
       terrorCode = ZWRONG_STATE;
       break;
@@ -3438,7 +3438,7 @@ void Dbtc::execTCKEYREQ(Signal* signal)
       break;
     }
     jam();
-    // Fall through
+    [[fallthrough]];
   default:
     jam();
     jamLine(regApiPtr->apiConnectstate);
@@ -5172,7 +5172,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
   switch(originalGSN) {
   case GSN_TCKEYREQ:
     jam(); 
-    /* Fall through */
+    [[fallthrough]];
   case GSN_TCINDXREQ:
   {
     jam();
@@ -5300,7 +5300,7 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
   }
   case GSN_TRANSID_AI_R:  //TODO
     jam();
-    // Fall through
+    [[fallthrough]];
   default:
     jam();
     /* Don't expect dropped signals for other GSNs,
@@ -8981,10 +8981,10 @@ ABORT020:
     break;
   case OS_PREPARED:
     jam();
-    // Fall through
+    [[fallthrough]];
   case OS_OPERATING:
     jam();
-    // Fall through
+    [[fallthrough]];
   case OS_FIRE_TRIG_REQ:
     jam();
     /*----------------------------------------------------------------------
@@ -9500,14 +9500,14 @@ void Dbtc::timeOutFoundLab(Signal* signal, Uint32 TapiConPtr, Uint32 errCode)
     // We are simply waiting for a signal in the job buffer. Only extreme
     // conditions should get us here. We ignore it.
     /*------------------------------------------------------------------*/
-    // Fall through
+    [[fallthrough]];
   case CS_COMPLETING:
     jam();
     /*------------------------------------------------------------------*/
     // We are simply waiting for a signal in the job buffer. Only extreme
     // conditions should get us here. We ignore it.
     /*------------------------------------------------------------------*/
-    // Fall through
+    [[fallthrough]];
   case CS_PREPARE_TO_COMMIT:
   {
     jam();
@@ -10141,10 +10141,10 @@ void Dbtc::timeOutFoundFragLab(Signal* signal, UintR TscanConPtr)
   }
   case ScanFragRec::DELIVERED:
     jam();
-    // Fall through
+    [[fallthrough]];
   case ScanFragRec::IDLE:
     jam();
-    // Fall through
+    [[fallthrough]];
   case ScanFragRec::QUEUED_FOR_DELIVERY:
     jam();
     /*-----------------------------------------------------------------------
@@ -19353,7 +19353,8 @@ Uint32 Dbtc::saveTRANSID_AI(Signal* signal,
         indexOp->transIdAIState= ITAS_WAIT_KEY_FAIL;
       }
     }
-      // Fall through to ITAS_WAIT_KEY_FAIL state handling
+    // Fall through to ITAS_WAIT_KEY_FAIL state handling
+    [[fallthrough]];
 
     case ITAS_WAIT_KEY_FAIL:
     {
@@ -19381,7 +19382,7 @@ Uint32 Dbtc::saveTRANSID_AI(Signal* signal,
 
     case ITAS_ALL_RECEIVED:
       jam();
-      // Fall through
+      [[fallthrough]];
     default:
       jam();
       /* Bad state, or bad state to receive TransId_Ai in */

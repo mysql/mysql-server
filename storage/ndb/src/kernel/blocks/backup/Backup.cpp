@@ -11659,10 +11659,10 @@ Backup::execABORT_BACKUP_ORD(Signal* signal)
      */
   case AbortBackupOrd::ClientAbort:
     jam();
-    // fall through
+    [[fallthrough]];
   case AbortBackupOrd::LogBufferFull:
     jam();
-    // fall through
+    [[fallthrough]];
   case AbortBackupOrd::FileOrScanError:
     jam();
     ndbrequire(isCoordinator);

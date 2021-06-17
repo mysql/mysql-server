@@ -1457,7 +1457,7 @@ bool gather_coverage_results(atrt_config &config,
       analyze_coverage_cmd.appfmt(" --test-case-no=%d", test_number);
       break;
     case coverage::Coverage::Testsuite:
-      /* Fall through */
+      [[fallthrough]];
     case coverage::Coverage::None:
       break;
   }

@@ -2713,7 +2713,7 @@ NdbScanOperation::takeOverScanOp(OperationType opType, NdbTransaction* pTrans)
   switch (opType) {
   case (ReadRequest):
     newOp->theLockMode = theLockMode;
-    // Fall through
+    [[fallthrough]];
   case (DeleteRequest):
     newOp->theStatus = GetValue;
     break;
@@ -4016,7 +4016,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case -1:
       g_eventLogger->info("3:4008 on connection %d", theNdbCon->ptr2int());
       setErrorCode(4008);
-      // Fall through
+      [[fallthrough]];
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;
@@ -4088,7 +4088,7 @@ NdbScanOperation::close_impl(bool forceSend, PollGuard *poll_guard)
     case -1:
       g_eventLogger->info("4:4008 on connection %d", theNdbCon->ptr2int());
       setErrorCode(4008);
-      // Fall through
+      [[fallthrough]];
     case -2:
       m_api_receivers_count = 0;
       m_conf_receivers_count = 0;

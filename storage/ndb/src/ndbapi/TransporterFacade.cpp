@@ -3306,7 +3306,7 @@ TransporterFacade::try_become_poll_owner(trp_client* clnt, Uint32 wait_time)
         break;
       case trp_client::PollQueue::PQ_IDLE:
         dbg("%p - PQ_IDLE", clnt);
-        // fall-through
+        [[fallthrough]];
       default:
         require(false); // should not happen!!
         break;

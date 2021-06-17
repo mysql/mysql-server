@@ -288,6 +288,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
       default:
         result = NDBT_FAILED;
         // Fall through - to '233' which also terminate test, but not 'FAILED'
+        [[fallthrough]];
       case 233:  // Out of operation records in transaction coordinator  
       case 1217:  // Out of operation records in local data manager (increase MaxNoOfLocalOperations)
       case 261: //Increased beyond MaxDMLOperationsPerTransaction or MaxNoOfConcurrentOperations
@@ -5536,7 +5537,7 @@ public:
         return -1;
       }
       case 2:
-        /* Fall through */
+        [[fallthrough]];
       case 3:
       {
         /* Body fragment */

@@ -3731,7 +3731,7 @@ NdbTransaction::unlock(const NdbLockHandle* lockHandle,
       /* Looks ok */
       break;
     }
-    /* Fall through */
+    [[fallthrough]];
   case NdbLockHandle::ALLOCATED:
     /* NdbLockHandle original operation not executed successfully */
     setErrorCode(4553);
@@ -3823,7 +3823,7 @@ NdbTransaction::releaseLockHandle(const NdbLockHandle* lockHandle)
       setErrorCode(4550);
       return -1;
     }
-    /* Fall through */
+    [[fallthrough]];
   case NdbLockHandle::ALLOCATED:
     /* Ok to release */
     break;
