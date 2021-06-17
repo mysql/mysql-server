@@ -3340,7 +3340,7 @@ Prealloced_array<AccessPath *, 4> ApplyDistinctAndOrder(
     Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
     for (AccessPath *root_path : root_candidates) {
       Ordering grouping = orderings.ordering(distinct_ordering_idx);
-      if (!aggregation_is_unordered && grouping.empty()) {
+      if (grouping.empty()) {
         // Only const fields.
         AccessPath *limit_path = NewLimitOffsetAccessPath(
             thd, root_path, /*limit=*/1, /*offset=*/0, join->calc_found_rows,
