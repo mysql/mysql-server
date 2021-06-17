@@ -853,6 +853,7 @@ static bool alloc_and_make_sortkey(Sort_param *param, Filesort_info *fs_info,
     if (sort_key_buf.array() == nullptr) return true;
     const uint rec_sz =
         param->make_sortkey(sort_key_buf, tables, longest_addons);
+    if (current_thd->is_error()) return true;
     if (rec_sz > sort_key_buf.size()) {
       // The record wouldn't fit. Try again, asking for a larger buffer.
       min_bytes = sort_key_buf.size() + 1;
@@ -1013,9 +1014,12 @@ static ha_rows read_all_rows(
       pq->push(tables);
     else {
       size_t key_length;
-      bool out_of_mem = alloc_and_make_sortkey(
+      bool out_of_mem_or_error = alloc_and_make_sortkey(
           param, fs_info, tables, &key_length, &longest_addon_so_far);
-      if (out_of_mem) {
+      if (out_of_mem_or_error) {
+        if (thd->is_error()) {
+          return HA_POS_ERROR;
+        }
         // Out of room, so flush chunk to disk (if there's anything to flush).
         if (num_records_this_chunk > 0) {
           if (write_keys(param, fs_info, num_records_this_chunk, chunk_file,
@@ -1027,12 +1031,15 @@ static ha_rows read_all_rows(
           fs_info->reset();
 
           // Now we should have room for a new row.
-          out_of_mem = alloc_and_make_sortkey(
+          out_of_mem_or_error = alloc_and_make_sortkey(
               param, fs_info, tables, &key_length, &longest_addon_so_far);
         }
 
         // If we're still out of memory after flushing to disk, give up.
-        if (out_of_mem) {
+        if (out_of_mem_or_error) {
+          if (thd->is_error()) {
+            return HA_POS_ERROR;
+          }
           my_error(ER_OUT_OF_SORTMEMORY, ME_FATALERROR);
           LogErr(ERROR_LEVEL, ER_SERVER_OUT_OF_SORTMEMORY);
           return HA_POS_ERROR;
@@ -1329,6 +1336,9 @@ size_t make_sortkey_from_item(Item *item, Item_result result_type,
     case DECIMAL_RESULT: {
       assert(!is_varlen);
       my_decimal dec_buf, *dec_val = item->val_decimal(&dec_buf);
+      if (current_thd->is_error()) {
+        return UINT_MAX;
+      }
       /*
         Note: item->null_value can't be trusted alone here; there are cases
         where we can have item->null_value set without maybe_null being set!
