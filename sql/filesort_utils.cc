@@ -129,7 +129,6 @@ class Equality_from_less {
 
 size_t Filesort_buffer::sort_buffer(Sort_param *param, size_t num_input_rows,
                                     size_t max_output_rows) {
-  const bool force_stable_sort = param->m_force_stable_sort;
   param->m_sort_algorithm = Sort_param::FILESORT_ALG_NONE;
 
   if (max_output_rows == 0) return max_output_rows;
@@ -145,8 +144,7 @@ size_t Filesort_buffer::sort_buffer(Sort_param *param, size_t num_input_rows,
   // win for small k. nth_element() isn't guaranteed to be a stable sort,
   // though, so we can only use it if an unstable one is okay.
   const bool prefilter_nth_element =
-      (max_output_rows < num_input_rows / 2 && !param->m_remove_duplicates &&
-       !force_stable_sort);
+      max_output_rows < num_input_rows / 2 && !param->m_remove_duplicates;
 
   if (param->using_varlen_keys()) {
     const Mem_compare_varlen_key comp(param->local_sortorder, param->use_hash);
@@ -154,15 +152,10 @@ size_t Filesort_buffer::sort_buffer(Sort_param *param, size_t num_input_rows,
       nth_element(it_begin, it_begin + max_output_rows - 1, it_end, comp);
       it_end = it_begin + max_output_rows;
     }
-    if (force_stable_sort) {
-      param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_STABLE;
-      stable_sort(it_begin, it_end, comp);
-    } else {
-      // TODO: Make more elaborate heuristics than just always picking
-      // std::sort.
-      param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
-      sort(it_begin, it_end, comp);
-    }
+    // TODO: Make more elaborate heuristics than just always picking
+    // std::sort.
+    param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
+    sort(it_begin, it_end, comp);
     if (param->m_remove_duplicates) {
       num_input_rows =
           unique(it_begin, it_end,
@@ -187,7 +180,7 @@ size_t Filesort_buffer::sort_buffer(Sort_param *param, size_t num_input_rows,
     than quicksort seems to be somewhere around 10 to 40 records.
     So we're a bit conservative, and stay with quicksort up to 100 records.
   */
-  if (num_input_rows <= 100 && !force_stable_sort) {
+  if (num_input_rows <= 100) {
     if (key_len < 10) {
       param->m_sort_algorithm = Sort_param::FILESORT_ALG_STD_SORT;
       if (prefilter_nth_element) {

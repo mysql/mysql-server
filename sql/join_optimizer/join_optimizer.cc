@@ -4362,8 +4362,8 @@ void FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
           path->sort().filesort = new (thd->mem_root) Filesort(
               thd, std::move(tables),
               /*keep_buffers=*/false, path->sort().order, limit_rows,
-              /*force_stable_sort=*/false, path->sort().remove_duplicates,
-              /*force_sort_positions=*/false, path->sort().unwrap_rollup);
+              path->sort().remove_duplicates, /*force_sort_positions=*/false,
+              path->sort().unwrap_rollup);
           join->filesorts_to_cleanup.push_back(path->sort().filesort);
           if (!path->sort().filesort->using_addon_fields()) {
             FindTablesToGetRowidFor(path);

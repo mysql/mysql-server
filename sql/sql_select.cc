@@ -4416,7 +4416,6 @@ bool JOIN::make_tmp_tables_info() {
         if (!plan_is_const())  // No need to sort a single row
         {
           if (add_sorting_to_table(curr_tmp_table - 1, &group_list,
-                                   /*force_stable_sort=*/false,
                                    /*sort_before_group=*/true))
             return true;
         }
@@ -4583,7 +4582,6 @@ bool JOIN::make_tmp_tables_info() {
         explain_flags.set(order_arg.src, ESP_USING_TMPTABLE);
 
       if (add_sorting_to_table(curr_tmp_table, &order_arg,
-                               /*force_stable_sort=*/false,
                                /*sort_before_group=*/false))
         return true;
       /*
@@ -4682,7 +4680,6 @@ bool JOIN::make_tmp_tables_info() {
       if (w_partition.order != nullptr) {
         Opt_trace_object trace_pre_sort(trace, "adding_sort_to_previous_table");
         if (add_sorting_to_table(curr_tmp_table - 1, &w_partition,
-                                 /*force_stable_sort=*/true,
                                  /*sort_before_group=*/false))
           return true;
       }
@@ -4690,7 +4687,6 @@ bool JOIN::make_tmp_tables_info() {
       if (m_windows[wno]->is_last()) {
         if (!order.empty() && m_ordered_index_usage != ORDERED_INDEX_ORDER_BY) {
           if (add_sorting_to_table(curr_tmp_table, &order,
-                                   /*force_stable_sort=*/false,
                                    /*sort_before_group=*/false))
             return true;
         }
@@ -4801,10 +4797,6 @@ void JOIN::unplug_join_tabs() {
                     created Filesort object gets attached to this.
 
   @param sort_order List of expressions to sort the table by
-  @param force_stable_sort
-                    If true, use stable sort, that is the sort will
-                    keep the reative order of equivalent elements.
-                    Needed for windowing semantics.
   @param sort_before_group
                     If true, this sort happens before grouping is done
                     (potentially as a step of grouping itself),
@@ -4817,7 +4809,6 @@ void JOIN::unplug_join_tabs() {
 */
 
 bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
-                                bool force_stable_sort,
                                 bool sort_before_group) {
   DBUG_TRACE;
   ASSERT_BEST_REF_IN_JOIN_ORDER(this);
@@ -4866,8 +4857,7 @@ bool JOIN::add_sorting_to_table(uint idx, ORDER_with_src *sort_order,
     Switch_ref_item_slice slice_switch(this, tab->ref_item_slice);
     tab->filesort = new (thd->mem_root)
         Filesort(thd, {tab->table()}, keep_buffers, sort_order->order,
-                 HA_POS_ERROR, force_stable_sort,
-                 /*remove_duplicates=*/false, force_sort_position,
+                 HA_POS_ERROR, /*remove_duplicates=*/false, force_sort_position,
                  /*unwrap_rollup=*/sort_before_group);
     tab->filesort_pushed_order = sort_order->order;
   }

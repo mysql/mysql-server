@@ -217,7 +217,6 @@ void Sort_param::init_for_filesort(Filesort *file_sort,
                                    const Mem_root_array<TABLE *> &tables,
                                    ha_rows maxrows, bool remove_duplicates) {
   m_fixed_sort_length = sortlen;
-  m_force_stable_sort = file_sort->m_force_stable_sort;
   m_remove_duplicates = remove_duplicates;
   sum_ref_length = 0;
   for (TABLE *table : tables) {
@@ -670,16 +669,14 @@ void filesort_free_buffers(TABLE *table, bool full) {
 
 Filesort::Filesort(THD *thd, Mem_root_array<TABLE *> tables_arg,
                    bool keep_buffers_arg, ORDER *order, ha_rows limit_arg,
-                   bool force_stable_sort, bool remove_duplicates,
-                   bool sort_positions, bool unwrap_rollup)
+                   bool remove_duplicates, bool sort_positions,
+                   bool unwrap_rollup)
     : m_thd(thd),
       tables(std::move(tables_arg)),
       keep_buffers(keep_buffers_arg),
       limit(limit_arg),
       sortorder(nullptr),
       using_pq(false),
-      m_force_stable_sort(
-          force_stable_sort),  // keep relative order of equiv. elts
       m_remove_duplicates(remove_duplicates),
       m_force_sort_positions(sort_positions),
       m_sort_order_length(make_sortorder(order, unwrap_rollup)) {}

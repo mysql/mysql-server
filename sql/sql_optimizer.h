@@ -714,7 +714,7 @@ class JOIN {
  public:
   bool update_equalities_for_sjm();
   bool add_sorting_to_table(uint idx, ORDER_with_src *order,
-                            bool force_stable_sort, bool sort_before_group);
+                            bool sort_before_group);
   bool decide_subquery_strategy();
   void refine_best_rowcount();
   table_map calculate_deps_of_remaining_lateral_derived_tables(

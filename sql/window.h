@@ -1402,7 +1402,15 @@ class Window {
     SQL standard when it comes to repeatability of non-deterministic (partially
     ordered) result sets for windowing inside a query, cf. #equal_sort.
     If more than two have the same ordering, the same applies, we only sort
-    before the first (sort equivalent) window.
+    before the first (sort equivalent) window. The hypergraph optimizer uses
+    the interesting order framework instead, eliding all sorts eliminated by
+    this function and possibly more.
+
+    Note that we do not merge windows that have the same ordering requirements,
+    so we may still get the extra materialization and multiple rounds of
+    buffering. Yet, we should get _correctness_, as long as materialization
+    preserves row ordering (which it does for all of our supported temporary
+    table types).
 
     If the result set is implicitly grouped, we also skip any sorting for
     windows.

@@ -252,7 +252,6 @@ bool JOIN::create_intermediate_table(
 
     if (m_ordered_index_usage != ORDERED_INDEX_GROUP_BY &&
         add_sorting_to_table(const_tables, &group_list,
-                             /*force_stable_sort=*/false,
                              /*sort_before_group=*/true))
       goto err;
 
@@ -282,7 +281,6 @@ bool JOIN::create_intermediate_table(
 
       if (m_ordered_index_usage != ORDERED_INDEX_ORDER_BY &&
           add_sorting_to_table(const_tables, &order,
-                               /*force_stable_sort=*/false,
                                /*sort_before_group=*/false))
         goto err;
       order.clean();
@@ -3026,21 +3024,19 @@ AccessPath *JOIN::create_root_access_path_for_join() {
         // Switch to the right slice if applicable, so that we fetch out the
         // correct items from order_arg.
         Switch_ref_item_slice slice_switch(this, qep_tab->ref_item_slice);
-        dup_filesort = new (thd->mem_root)
-            Filesort(thd, {qep_tab->table()}, /*keep_buffers=*/false, order,
-                     HA_POS_ERROR, /*force_stable_sort=*/false,
-                     /*remove_duplicates=*/true, force_sort_positions,
-                     /*unwrap_rollup=*/false);
+        dup_filesort = new (thd->mem_root) Filesort(
+            thd, {qep_tab->table()}, /*keep_buffers=*/false, order,
+            HA_POS_ERROR, /*remove_duplicates=*/true, force_sort_positions,
+            /*unwrap_rollup=*/false);
 
         if (desired_order != nullptr && filesort == nullptr) {
           // We picked up the desired order from the first table, but we cannot
           // reuse its Filesort object, as it would get the wrong slice and
           // potentially addon fields. Create a new one.
-          filesort = new (thd->mem_root)
-              Filesort(thd, {qep_tab->table()}, /*keep_buffers=*/false,
-                       desired_order, HA_POS_ERROR, /*force_stable_sort=*/false,
-                       /*remove_duplicates=*/false, force_sort_positions,
-                       /*unwrap_rollup=*/false);
+          filesort = new (thd->mem_root) Filesort(
+              thd, {qep_tab->table()}, /*keep_buffers=*/false, desired_order,
+              HA_POS_ERROR, /*remove_duplicates=*/false, force_sort_positions,
+              /*unwrap_rollup=*/false);
         }
       }
     }
