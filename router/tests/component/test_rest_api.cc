@@ -25,8 +25,6 @@
 #include <thread>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -101,7 +99,7 @@ TEST_P(RestOpenApiTest, ensure_openapi) {
                                            GetParam().expected_content_type));
 
       for (const auto &kv : GetParam().value_checks) {
-        validate_value(json_doc, kv.first, kv.second);
+        ASSERT_NO_FATAL_FAILURE(validate_value(json_doc, kv.first, kv.second));
       }
     }
   }

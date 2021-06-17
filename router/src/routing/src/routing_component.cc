@@ -32,6 +32,8 @@
 #include <algorithm>
 #include <iostream>
 
+using namespace std::string_literals;
+
 int MySQLRoutingAPI::get_max_connections() const {
   return r_->get_max_connections();
 }
@@ -139,6 +141,21 @@ std::vector<std::string> MySQLRoutingComponent::route_names() const {
   return names;
 }
 
+uint64_t MySQLRoutingComponent::current_total_connections() {
+  uint64_t result{};
+
+  std::lock_guard<std::mutex> lock(routes_mu_);
+
+  for (const auto &el : routes_) {
+    if (auto r = el.second.lock()) {
+      result +=
+          r->get_context().info_active_routes_.load(std::memory_order_relaxed);
+    }
+  }
+
+  return result;
+}
+
 MySQLRoutingAPI MySQLRoutingComponent::api(const std::string &name) {
   std::lock_guard<std::mutex> lock(routes_mu_);
 
@@ -153,4 +170,27 @@ MySQLRoutingAPI MySQLRoutingComponent::api(const std::string &name) {
   } else {
     return {};
   }
+}
+
+static uint64_t get_uint64_config(const mysql_harness::Config &config,
+                                  const std::string &option, uint64_t min_value,
+                                  uint64_t max_value, uint64_t default_val) {
+  std::string conf_str;
+  try {
+    conf_str = config.get_default(option);
+  } catch (const mysql_harness::bad_option &) {
+  }
+
+  if (!conf_str.empty()) {
+    return mysql_harness::option_as_uint<uint64_t>(
+        conf_str, "[DEFAULT]."s + option, min_value, max_value);
+  }
+
+  return default_val;
+}
+
+void MySQLRoutingComponent::init(const mysql_harness::Config &config) {
+  max_total_connections_ = get_uint64_config(
+      config, "max_total_connections", 1, std::numeric_limits<int64_t>::max(),
+      kDefaultMaxTotalConnections);
 }

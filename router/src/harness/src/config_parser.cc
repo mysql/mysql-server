@@ -157,7 +157,7 @@ std::string ConfigSection::do_replace(const std::string &value,
 }
 
 std::string ConfigSection::get(const std::string &option) const {
-  check_option(option);  // throws bad::option (std::runtime_error)
+  check_option(option);  // throws bad_option (std::runtime_error)
   auto result = do_locate(option);
   if (std::get<1>(result)) return do_replace(std::get<0>(result)->second);
   throw bad_option("Value for '" + option + "' not found");

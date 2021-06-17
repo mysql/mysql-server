@@ -26,8 +26,6 @@
 #include <thread>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -124,7 +122,8 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, DISABLED_ensure_openapi) {
   g_refresh_failed = 0;
   g_time_last_refresh_failed = "";
 
-  fetch_and_validate_schema_and_resource(GetParam(), http_server);
+  ASSERT_NO_FATAL_FAILURE(
+      fetch_and_validate_schema_and_resource(GetParam(), http_server));
 
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
   if (GetParam().status_code == HttpMethod::Get &&
@@ -134,7 +133,8 @@ TEST_P(RestMetadataCacheApiWithoutClusterTest, DISABLED_ensure_openapi) {
 
     // check the resources again, we want to compare them against the previous
     // ones
-    fetch_and_validate_schema_and_resource(GetParam(), http_server);
+    ASSERT_NO_FATAL_FAILURE(
+        fetch_and_validate_schema_and_resource(GetParam(), http_server));
   }
 }
 
@@ -402,7 +402,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
                                   metadata_cache_section_name + "/status"));
   }
 
-  EXPECT_NO_FATAL_FAILURE(
+  ASSERT_NO_FATAL_FAILURE(
       fetch_and_validate_schema_and_resource(GetParam(), router_proc));
 
   // this part is relevant only for Get OK, otherwise let's avoid useless sleep
@@ -413,7 +413,7 @@ TEST_P(RestMetadataCacheApiTest, ensure_openapi) {
 
     // check the resources again, we want to compare them against the previous
     // ones
-    EXPECT_NO_FATAL_FAILURE(
+    ASSERT_NO_FATAL_FAILURE(
         fetch_and_validate_schema_and_resource(GetParam(), router_proc));
   }
 }

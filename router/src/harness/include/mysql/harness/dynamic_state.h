@@ -39,8 +39,6 @@
 #include "harness_export.h"
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 

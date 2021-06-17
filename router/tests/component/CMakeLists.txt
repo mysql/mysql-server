@@ -69,6 +69,7 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   INCLUDE_DIRS
     ${PROJECT_SOURCE_DIR}/src/http/include/
     ${PROJECT_SOURCE_DIR}/src/mock_server/include/mysqlrouter/
+    ${CMAKE_SOURCE_DIR}/plugin/x/client
   SYSTEM_INCLUDE_DIRS ${GMOCK_INCLUDE_DIRS} ${LIBEVENT_INCLUDE_DIRS}
                       ${PROTOBUF_INCLUDE_DIR} ${MYSQLX_GENERATE_DIR}
   LIB_DEPENDS
@@ -76,6 +77,9 @@ add_test_file(${CMAKE_CURRENT_SOURCE_DIR}/${test_file}
   http_common
   mock_server_rest_client
   mysql_protocol
+  mysqlxclient_lite
+  mysqlxmessages_lite
+  ${PROTOBUF_LITE_LIBRARY}
 
   DEPENDS
   http_auth_backend

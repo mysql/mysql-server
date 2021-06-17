@@ -34,6 +34,7 @@
 #include <string>
 #include <vector>
 
+#include "mysql/harness/config_parser.h"
 #include "tcp_address.h"
 
 class MySQLRouting;
@@ -100,11 +101,18 @@ class ROUTING_EXPORT MySQLRoutingComponent {
  public:
   static MySQLRoutingComponent &get_instance();
 
+  void init(const mysql_harness::Config &config);
+
   void init(const std::string &name, std::shared_ptr<MySQLRouting> srv);
 
   MySQLRoutingAPI api(const std::string &name);
 
+  uint64_t current_total_connections();
+  uint64_t max_total_connections() const { return max_total_connections_; }
+
   std::vector<std::string> route_names() const;
+
+  static const uint64_t kDefaultMaxTotalConnections = 512;
 
  private:
   // disable copy, as we are a single-instance
@@ -113,6 +121,8 @@ class ROUTING_EXPORT MySQLRoutingComponent {
 
   std::mutex routes_mu_;
   std::map<std::string, std::weak_ptr<MySQLRouting>> routes_;
+
+  uint64_t max_total_connections_{0};
 
   MySQLRoutingComponent() = default;
 };

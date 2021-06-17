@@ -36,12 +36,14 @@
 #include "mysql/harness/net_ts/impl/socket.h"
 #include "mysql/harness/stdx/expected.h"
 #include "mysql_session.h"
+#include "mysqlxclient/xsession.h"
 #include "router_component_test.h"
 #include "router_test_helpers.h"
 #include "socket_operations.h"  // socket_t
 #include "tcp_port_pool.h"
 
 using namespace std::chrono_literals;
+using namespace std::string_literals;
 
 namespace std {
 
@@ -71,7 +73,7 @@ TEST_F(RouterRoutingTest, RoutingOk) {
 
   // launch the server mock for bootstrapping
   launch_mysql_server_mock(
-      json_stmts, server_port,
+      json_stmts, server_port, EXIT_SUCCESS,
       false /*expecting huge data, can't print on the console*/);
 
   const std::string routing_section =
@@ -224,7 +226,51 @@ TEST_F(RouterRoutingTest, ConnectTimeoutShutdownEarly) {
   EXPECT_LT(end - start, client_connect_timeout + 5s);
 }
 
-TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
+class RouterMaxConnectionsTest : public RouterRoutingTest {
+ public:
+  std::string get_static_routing_section(
+      const std::string &name, uint16_t bind_port, uint16_t server_port,
+      const std::string &protocol, const std::string &custom_settings = "") {
+    const std::string result = "[routing:"s + name +
+                               "]\n"
+                               "bind_port = " +
+                               std::to_string(bind_port) +
+                               "\n"
+                               "mode = read-write\n"
+                               "destinations = 127.0.0.1:" +
+                               std::to_string(server_port) + "\n" +
+                               "protocol=" + protocol + "\n" + custom_settings +
+                               "\n";
+
+    return result;
+  }
+
+  bool make_new_connection(uint16_t port,
+                           const std::chrono::milliseconds timeout = 5s) {
+    const auto start_timestamp = std::chrono::steady_clock::now();
+    const auto kStep = 50ms;
+    mysqlrouter::MySQLSession client;
+
+    do {
+      try {
+        client.connect("127.0.0.1", port, "root", "fake-pass", "", "");
+
+        return true;
+      } catch (...) {
+      }
+
+      if (std::chrono::duration_cast<std::chrono::milliseconds>(
+              std::chrono::steady_clock::now() - start_timestamp) >= timeout) {
+        break;
+      }
+      std::this_thread::sleep_for(kStep);
+    } while (true);
+
+    return false;
+  }
+};
+
+TEST_F(RouterMaxConnectionsTest, RoutingTooManyConnections) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
@@ -233,18 +279,11 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   // launch the server mock
-  launch_mysql_server_mock(json_stmts, server_port, false);
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
   // create a config with routing that has max_connections == 2
-  const std::string routing_section =
-      "[routing:basic]\n"
-      "bind_port = " +
-      std::to_string(router_port) +
-      "\n"
-      "mode = read-write\n"
-      "max_connections = 2\n"
-      "destinations = 127.0.0.1:" +
-      std::to_string(server_port) + "\n";
+  const std::string routing_section = get_static_routing_section(
+      "A", router_port, server_port, "classic", "max_connections = 2");
 
   TempDirectory conf_dir("conf");
   std::string conf_file = create_config_file(conf_dir.name(), routing_section);
@@ -273,7 +312,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyConnections) {
  *   2. This scenario is not treated as connection error (connection error is
  *      not incremented)
  */
-TEST_F(RouterRoutingTest, RoutingTooManyServerConnections) {
+TEST_F(RouterMaxConnectionsTest, RoutingTooManyServerConnections) {
   const auto server_port = port_pool_.get_next_available();
   const auto router_port = port_pool_.get_next_available();
 
@@ -283,7 +322,7 @@ TEST_F(RouterRoutingTest, RoutingTooManyServerConnections) {
       get_data_dir().join("handshake_too_many_con_error.js").str();
 
   // launch the server mock
-  launch_mysql_server_mock(json_stmts, server_port, false);
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
   // create a config with routing that has max_connections == 2
   const std::string routing_section =
@@ -324,6 +363,304 @@ TEST_F(RouterRoutingTest, RoutingTooManyServerConnections) {
   const auto log_content = router.get_full_logfile();
   const std::string pattern = "1 connection errors for 127.0.0.1";
   ASSERT_FALSE(pattern_found(log_content, pattern)) << log_content;
+}
+
+/**
+ * @test Verify that max_total_connections configuration options is correctly
+ * honoured.
+ */
+TEST_F(RouterMaxConnectionsTest, RoutingTotalMaxConnectionsExceeded) {
+  const auto server_port = port_pool_.get_next_available();
+  const auto router_portA = port_pool_.get_next_available();
+  const auto router_portB = port_pool_.get_next_available();
+
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+
+  // launch the server mock
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
+
+  // create a config with 2 routing sections and max_total_connections = 2
+  const std::string routing_section1 =
+      get_static_routing_section("A", router_portA, server_port, "classic");
+  const std::string routing_section2 =
+      get_static_routing_section("B", router_portB, server_port, "classic");
+
+  TempDirectory conf_dir("conf");
+
+  std::string conf_file = create_config_file(
+      conf_dir.name(), routing_section1 + routing_section2, nullptr,
+      "mysqlrouter.conf", "max_total_connections=2");
+
+  // launch the router with the created configuration
+  launch_router({"-c", conf_file});
+
+  // try to create 3 connections, the third should fail
+  // because of the max_connections limit being exceeded
+  mysqlrouter::MySQLSession client1, client2, client3;
+
+  // make 2 connections, one for each routing port
+  EXPECT_NO_THROW(
+      client1.connect("127.0.0.1", router_portA, "root", "fake-pass", "", ""));
+  EXPECT_NO_THROW(
+      client2.connect("127.0.0.1", router_portB, "root", "fake-pass", "", ""));
+
+  // try to connect to both routing ports, it should fail both times,
+  // max_total_connections has been reached
+  ASSERT_THROW_LIKE(
+      client3.connect("127.0.0.1", router_portA, "root", "fake-pass", "", ""),
+      std::runtime_error, "Too many connections to MySQL Router (1040)");
+  ASSERT_THROW_LIKE(
+      client3.connect("127.0.0.1", router_portB, "root", "fake-pass", "", ""),
+      std::runtime_error, "Too many connections to MySQL Router (1040)");
+
+  // disconnect the first client, now we should be able to connect again
+  client1.disconnect();
+  EXPECT_TRUE(make_new_connection(router_portA));
+}
+
+using XProtocolSession = std::shared_ptr<xcl::XSession>;
+
+static xcl::XError make_x_connection(XProtocolSession &session,
+                                     const std::string &host,
+                                     const uint16_t port,
+                                     const std::string &username,
+                                     const std::string &password) {
+  session = xcl::create_session();
+  xcl::XError err;
+  const auto kConnTimeout = int64_t{10000};  // 10s
+
+  err = session->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Authentication_method, "FROM_CAPABILITIES");
+  if (err) return err;
+
+  err = session->set_mysql_option(xcl::XSession::Mysqlx_option::Ssl_mode,
+                                  "PREFERRED");
+  if (err) return err;
+
+  err = session->set_mysql_option(
+      xcl::XSession::Mysqlx_option::Session_connect_timeout, kConnTimeout);
+  if (err) return err;
+
+  err = session->set_mysql_option(xcl::XSession::Mysqlx_option::Connect_timeout,
+                                  kConnTimeout);
+  if (err) return err;
+
+  return session->connect(host.c_str(), port, username.c_str(),
+                          password.c_str(), "");
+}
+
+/**
+ * @test Check if the Router behavior is correct when the configured sum of all
+ * max_connections per route is higher than max_total_connections
+ */
+TEST_F(RouterMaxConnectionsTest,
+       RoutingRouteMaxConnectionsSumOfAllMaxConsHigherThanMaxTotalConns) {
+  const auto server_classic_port = port_pool_.get_next_available();
+  const auto server_x_port = port_pool_.get_next_available();
+  const auto router_classic_rw_port = port_pool_.get_next_available();
+  const auto router_classic_ro_port = port_pool_.get_next_available();
+  const auto router_x_rw_port = port_pool_.get_next_available();
+  const auto router_x_ro_port = port_pool_.get_next_available();
+
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+
+  // launch the server mock that will terminate all our classic and x
+  // connections
+  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
+                           /*http_port*/ 0, server_x_port);
+
+  // create a configuration with 4 routes (classic rw, ro, x rw, ro)
+  // each has "local" limit of 5 max_connections
+  // the total_max_connections is 10
+  const std::string routing_section_classic_rw = get_static_routing_section(
+      "classic_rw", router_classic_rw_port, server_classic_port, "classic",
+      "max_connections=5");
+  const std::string routing_section_classic_ro = get_static_routing_section(
+      "classic_ro", router_classic_ro_port, server_classic_port, "classic",
+      "max_connections=5");
+
+  const std::string routing_section_x_rw = get_static_routing_section(
+      "x_rw", router_x_rw_port, server_x_port, "x", "max_connections=2");
+  const std::string routing_section_x_ro = get_static_routing_section(
+      "x_ro", router_x_ro_port, server_x_port, "x", "max_connections=2");
+
+  TempDirectory conf_dir("conf");
+
+  std::string conf_file = create_config_file(
+      conf_dir.name(),
+      routing_section_classic_rw + routing_section_classic_ro +
+          routing_section_x_rw + routing_section_x_ro,
+      nullptr, "mysqlrouter.conf", "max_total_connections=10");
+
+  // launch the router with the created configuration
+  launch_router({"-c", conf_file});
+
+  std::list<mysqlrouter::MySQLSession> classic_sessions;
+  // connect 5x to classic rw route, it should be OK
+  for (size_t i = 0; i < 5; ++i) {
+    classic_sessions.emplace_back();
+    auto &new_session = classic_sessions.back();
+    EXPECT_NO_THROW(new_session.connect("127.0.0.1", router_classic_rw_port,
+                                        "root", "fake-pass", "", ""));
+  }
+
+  // the 6th connection should fail, the "local" route connections limit has
+  // been reached
+  mysqlrouter::MySQLSession failed_session;
+  ASSERT_THROW_LIKE(failed_session.connect("127.0.0.1", router_classic_rw_port,
+                                           "root", "fake-pass", "", ""),
+                    std::runtime_error,
+                    "Too many connections to MySQL Router (1040)");
+
+  // connect 5x to classic ro route, it should be OK
+  for (size_t i = 0; i < 5; ++i) {
+    classic_sessions.emplace_back();
+    auto &new_session = classic_sessions.back();
+    EXPECT_NO_THROW(new_session.connect("127.0.0.1", router_classic_ro_port,
+                                        "root", "fake-pass", "", ""));
+  }
+
+  // the 6th connection should fail, both "local" route connections limit and
+  // max_total_connections limits has been reached
+  ASSERT_THROW_LIKE(failed_session.connect("127.0.0.1", router_classic_ro_port,
+                                           "root", "fake-pass", "", ""),
+                    std::runtime_error,
+                    "Too many connections to MySQL Router (1040)");
+
+  // trying to connect to x routes shold fail, as max_total_connections limit
+  // has been reached
+  for (size_t i = 0; i < 5; ++i) {
+    XProtocolSession x_session;
+    const auto res = make_x_connection(x_session, "127.0.0.1", router_x_rw_port,
+                                       "root", "fake-pass");
+    EXPECT_TRUE(res);
+    EXPECT_EQ("Too many connections to MySQL Router"s, res.what());
+  }
+
+  for (size_t i = 0; i < 5; ++i) {
+    XProtocolSession x_session;
+    const auto res = make_x_connection(x_session, "127.0.0.1", router_x_ro_port,
+                                       "root", "fake-pass");
+    EXPECT_TRUE(res);
+    EXPECT_EQ("Too many connections to MySQL Router"s, res.what());
+  }
+}
+
+/**
+ * @test Check if the Router behavior is correct when the configured sum of all
+ * max_connections per route is lower than max_total_connections
+ */
+TEST_F(RouterMaxConnectionsTest,
+       RoutingRouteMaxConnectionsSumOfAllMaxConsLowerThanMaxTotalConns) {
+  const auto server_classic_port = port_pool_.get_next_available();
+  const auto server_x_port = port_pool_.get_next_available();
+  const auto router_classic_rw_port = port_pool_.get_next_available();
+  const auto router_classic_ro_port = port_pool_.get_next_available();
+  const auto router_x_rw_port = port_pool_.get_next_available();
+  const auto router_x_ro_port = port_pool_.get_next_available();
+
+  const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
+
+  // launch the server mock that will terminate all our classic and x
+  // connections
+  launch_mysql_server_mock(json_stmts, server_classic_port, EXIT_SUCCESS, false,
+                           /*http_port*/ 0, server_x_port);
+
+  // create a configuration with 4 routes (classic rw, ro, x rw, ro)
+  // each has "local" limit of 5 max_connections
+  // the total_max_connections is 25
+  const std::string routing_section_classic_rw = get_static_routing_section(
+      "classic_rw", router_classic_rw_port, server_classic_port, "classic",
+      "max_connections=5");
+  const std::string routing_section_classic_ro = get_static_routing_section(
+      "classic_ro", router_classic_ro_port, server_classic_port, "classic",
+      "max_connections=5");
+
+  const std::string routing_section_x_rw = get_static_routing_section(
+      "x_rw", router_x_rw_port, server_x_port, "x", "max_connections=5");
+  const std::string routing_section_x_ro = get_static_routing_section(
+      "x_ro", router_x_ro_port, server_x_port, "x", "max_connections=5");
+
+  TempDirectory conf_dir("conf");
+
+  std::string conf_file = create_config_file(
+      conf_dir.name(),
+      routing_section_classic_rw + routing_section_classic_ro +
+          routing_section_x_rw + routing_section_x_ro,
+      nullptr, "mysqlrouter.conf", "max_total_connections=25");
+
+  // launch the router with the created configuration
+  launch_router({"-c", conf_file});
+
+  std::list<mysqlrouter::MySQLSession> classic_sessions;
+  // connect 5x to classic rw route, it should be OK
+  for (size_t i = 0; i < 5; ++i) {
+    classic_sessions.emplace_back();
+    auto &new_session = classic_sessions.back();
+    EXPECT_NO_THROW(new_session.connect("127.0.0.1", router_classic_rw_port,
+                                        "root", "fake-pass", "", ""));
+  }
+
+  // the 6th connection should fail, the "local" route connections limit has
+  // been reached
+  mysqlrouter::MySQLSession failed_session;
+  ASSERT_THROW_LIKE(failed_session.connect("127.0.0.1", router_classic_rw_port,
+                                           "root", "fake-pass", "", ""),
+                    std::runtime_error,
+                    "Too many connections to MySQL Router (1040)");
+
+  // connect 5x to classic ro route, it should be OK
+  for (size_t i = 0; i < 5; ++i) {
+    classic_sessions.emplace_back();
+    auto &new_session = classic_sessions.back();
+    EXPECT_NO_THROW(new_session.connect("127.0.0.1", router_classic_ro_port,
+                                        "root", "fake-pass", "", ""));
+  }
+
+  // the 6th connection should fail, the "local" route connections limit has
+  // been reached
+  ASSERT_THROW_LIKE(failed_session.connect("127.0.0.1", router_classic_ro_port,
+                                           "root", "fake-pass", "", ""),
+                    std::runtime_error,
+                    "Too many connections to MySQL Router (1040)");
+
+  std::list<XProtocolSession> x_sessions;
+
+  // connect 5x to X rw route, it should be OK
+  for (size_t i = 0; i < 5; ++i) {
+    x_sessions.emplace_back();
+    auto &new_session = x_sessions.back();
+    EXPECT_FALSE(make_x_connection(new_session, "127.0.0.1", router_x_rw_port,
+                                   "root", "fake-pass"));
+  }
+
+  // the 6th connection should fail, the "local" route connections limit has
+  // been reached
+  for (size_t i = 0; i < 1; ++i) {
+    XProtocolSession x_session;
+    const auto res = make_x_connection(x_session, "127.0.0.1", router_x_rw_port,
+                                       "root", "fake-pass");
+    EXPECT_TRUE(res);
+    EXPECT_EQ("Too many connections to MySQL Router"s, res.what());
+  }
+
+  // connect 5x to X ro route, it should be OK
+  for (size_t i = 0; i < 5; ++i) {
+    x_sessions.emplace_back();
+    auto &new_session = x_sessions.back();
+    EXPECT_FALSE(make_x_connection(new_session, "127.0.0.1", router_x_ro_port,
+                                   "root", "fake-pass"));
+  }
+
+  // the 6th connection should fail, the "local" route connections limit has
+  // been reached
+  for (size_t i = 0; i < 1; ++i) {
+    XProtocolSession x_session;
+    const auto res = make_x_connection(x_session, "127.0.0.1", router_x_ro_port,
+                                       "root", "fake-pass");
+    EXPECT_TRUE(res);
+    EXPECT_EQ("Too many connections to MySQL Router"s, res.what());
+  }
 }
 
 template <class T>
@@ -424,7 +761,7 @@ TEST_F(RouterRoutingTest, RoutingMaxConnectErrors) {
 
   // launch the server mock for bootstrapping
   launch_mysql_server_mock(
-      json_stmts, server_port,
+      json_stmts, server_port, EXIT_SUCCESS,
       false /*expecting huge data, can't print on the console*/);
 
   const std::string routing_section =
@@ -543,7 +880,7 @@ TEST_F(RouterRoutingTest, error_counters) {
   const std::string json_stmts = get_data_dir().join("bootstrap_gr.js").str();
 
   // launch the server mock
-  launch_mysql_server_mock(json_stmts, server_port, false);
+  launch_mysql_server_mock(json_stmts, server_port, EXIT_SUCCESS, false);
 
   // create a config with max_connect_errors == 3
   const std::string routing_section =
@@ -1016,6 +1353,133 @@ const RoutingConfigParam routing_config_param[] = {
 
 INSTANTIATE_TEST_SUITE_P(Spec, RoutingConfigTest,
                          ::testing::ValuesIn(routing_config_param),
+                         [](const auto &info) { return info.param.test_name; });
+
+struct RoutingDefaultConfigParam {
+  const char *test_name;
+
+  std::string extra_defaults;
+
+  std::function<void(const std::vector<std::string> &)> checker;
+};
+
+class RoutingDefaultConfigTest
+    : public RouterComponentTest,
+      public ::testing::WithParamInterface<RoutingDefaultConfigParam> {};
+
+TEST_P(RoutingDefaultConfigTest, check) {
+  mysql_harness::ConfigBuilder builder;
+
+  const std::string routing_section = builder.build_section(
+      "routing", {
+                     {"destinations", "127.0.0.1:3306"},
+                     {"bind_address", "127.0.0.1"},
+                     {"routing_strategy", "first-available"},
+                 });
+
+  TempDirectory conf_dir("conf");
+  std::string conf_file =
+      create_config_file(conf_dir.name(), routing_section, nullptr,
+                         "mysqlrouter.conf", GetParam().extra_defaults);
+
+  // launch the router with the created configuration
+  auto &router =
+      launch_router({"-c", conf_file}, EXIT_FAILURE, true, false, -1ms);
+  router.wait_for_exit();
+
+  std::vector<std::string> lines;
+  {
+    std::istringstream ss{router.get_full_logfile()};
+
+    std::string line;
+    while (std::getline(ss, line, '\n')) {
+      lines.push_back(std::move(line));
+    }
+  }
+
+  GetParam().checker(lines);
+}
+
+const RoutingDefaultConfigParam routing_default_config_param[] = {
+    {"max_total_connections_0", "max_total_connections=0",
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "Configuration error: "
+                       "[DEFAULT].max_total_connections needs value between 1 "
+                       "and 9223372036854775807 inclusive, was '0'")));
+     }},
+    {"max_total_connections_negative", "max_total_connections=-1",
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "Configuration error: "
+                       "[DEFAULT].max_total_connections needs value between 1 "
+                       "and 9223372036854775807 inclusive, was '-1'")));
+     }},
+    {"max_total_connections_too_big",
+     "max_total_connections=9223372036854775808",
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "Configuration error: "
+                       "[DEFAULT].max_total_connections needs value between 1 "
+                       "and 9223372036854775807 inclusive, was "
+                       "'9223372036854775808'")));
+     }},
+    {"max_total_connections_comma", "max_total_connections=10,000",
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "Configuration error: "
+                       "[DEFAULT].max_total_connections needs value between 1 "
+                       "and 9223372036854775807 inclusive, was "
+                       "'10,000'")));
+     }},
+    {"max_total_connections_yes", "max_total_connections=yes",
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "Configuration error: "
+                       "[DEFAULT].max_total_connections needs value between 1 "
+                       "and 9223372036854775807 inclusive, was 'yes'")));
+     }},
+    {"max_total_connections_hex", "max_total_connections=0x7FFFFFFFFFFFFFFF ",
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(
+           lines,
+           ::testing::Contains(::testing::HasSubstr(
+               "Configuration error: "
+               "[DEFAULT].max_total_connections needs value between 1 "
+               "and 9223372036854775807 inclusive, was '0x7FFFFFFFFFFFFFFF'")));
+     }},
+    {"max_total_connections_hex2", "max_total_connections=0x1",
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "Configuration error: "
+                       "[DEFAULT].max_total_connections needs value between 1 "
+                       "and 9223372036854775807 inclusive, was '0x1'")));
+     }},
+    {"max_total_connections_inv2", "max_total_connections=12a",
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "Configuration error: "
+                       "[DEFAULT].max_total_connections needs value between 1 "
+                       "and 9223372036854775807 inclusive, was '12a'")));
+     }},
+    {"max_total_connections_inv3", "max_total_connections=#^%",
+     [](const std::vector<std::string> &lines) {
+       EXPECT_THAT(lines,
+                   ::testing::Contains(::testing::HasSubstr(
+                       "Configuration error: "
+                       "[DEFAULT].max_total_connections needs value between 1 "
+                       "and 9223372036854775807 inclusive, was '#^%'")));
+     }}};
+
+INSTANTIATE_TEST_SUITE_P(Spec, RoutingDefaultConfigTest,
+                         ::testing::ValuesIn(routing_default_config_param),
                          [](const auto &info) { return info.param.test_name; });
 
 int main(int argc, char *argv[]) {

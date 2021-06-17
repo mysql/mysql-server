@@ -22,13 +22,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifdef _WIN32
-#include <Winsock2.h>  // gethostname()
-#endif
+#include "rest_routing_routes_status.h"
 
-#include "rest_router_status.h"
-
-#include <array>
 #include <ctime>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
@@ -38,45 +33,45 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 
-#include "mysql/harness/stdx/process.h"
 #include "mysqlrouter/rest_api_utils.h"
-#include "mysqlrouter/utils.h"  // string_format
+#include "mysqlrouter/routing_component.h"
 
-#include "router_config.h"  // MYSQL_ROUTER_VERSION
+constexpr const char RestRoutingRoutesStatus::path_regex[];
 
-constexpr const char RestRouterStatus::path_regex[];
-
-bool RestRouterStatus::on_handle_request(HttpRequest &req,
-                                         const std::string & /* base_path */,
-                                         const std::vector<std::string> &) {
+bool RestRoutingRoutesStatus::on_handle_request(
+    HttpRequest &req, const std::string & /* base_path */,
+    const std::vector<std::string> &path_matches) {
   if (!ensure_no_params(req)) return true;
+
+  MySQLRoutingAPI inst =
+      MySQLRoutingComponent::get_instance().api(path_matches[1]);
+
+  if (!inst) {
+    send_rfc7807_not_found_error(req);
+    return true;
+  }
 
   auto out_hdrs = req.get_output_headers();
   out_hdrs.add("Content-Type", "application/json");
 
+#if 0
+  // handle If-Modified-Since
+
+  last_modified_ = ::time(nullptr);
+
   if (!ensure_modified_since(req, last_modified_)) return true;
+#endif
 
   rapidjson::Document json_doc;
   {
     rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
 
     json_doc.SetObject()
-        .AddMember("processId", rapidjson::Value(stdx::this_process::get_id()),
+        .AddMember("activeConnections", inst.get_active_connections(),
                    allocator)
-        .AddMember("productEdition",
-                   rapidjson::Value(MYSQL_ROUTER_VERSION_EDITION), allocator)
-        .AddMember("timeStarted",
-                   json_value_from_timepoint<rapidjson::Value::EncodingType>(
-                       running_since_, allocator),
-                   allocator)
-        .AddMember("version", rapidjson::Value(MYSQL_ROUTER_VERSION),
-                   allocator);
-
-    std::array<char, 256> hname;  // enough for windows and unix
-    if (0 == gethostname(hname.data(), hname.size())) {
-      json_doc.AddMember("hostname", rapidjson::Value(hname.data(), allocator),
-                         allocator);
-    }
+        .AddMember("totalConnections", inst.get_total_connections(), allocator)
+        .AddMember<uint64_t>("blockedHosts",
+                             inst.get_blocked_client_hosts().size(), allocator);
   }
   send_json_document(req, HttpStatusCode::Ok, json_doc);
 

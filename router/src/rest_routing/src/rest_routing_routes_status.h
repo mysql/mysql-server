@@ -22,38 +22,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#include "rest_clusters_list.h"
+#ifndef MYSQLROUTER_REST_ROUTING_STATUS_INCLUDED
+#define MYSQLROUTER_REST_ROUTING_STATUS_INCLUDED
 
-#ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-#include "my_rapidjson_size_t.h"
+#include "mysqlrouter/rest_api_component.h"
+
+class RestRoutingRoutesStatus : public RestApiHandler {
+ public:
+  static constexpr const char path_regex[] = "^/routes/([^/]+)/status/?$";
+
+  RestRoutingRoutesStatus(const std::string &require_realm)
+      : RestApiHandler(require_realm, HttpMethod::Get) {}
+
+  bool on_handle_request(HttpRequest &req, const std::string &base_path,
+                         const std::vector<std::string> &path_matches) override;
+};
+
 #endif
-
-#include <rapidjson/document.h>
-#include <rapidjson/writer.h>
-
-#include "mysqlrouter/metadata_cache.h"
-#include "mysqlrouter/rest_api_utils.h"
-
-constexpr const char RestClustersList::path_regex[];
-
-bool RestClustersList::on_handle_request(
-    HttpRequest &req, const std::string & /* base_path */,
-    const std::vector<std::string> & /* path_matches */) {
-  if (!ensure_no_params(req)) return true;
-
-  auto out_hdrs = req.get_output_headers();
-  out_hdrs.add("Content-Type", "application/json");
-
-  rapidjson::Document json_doc;
-  {
-    rapidjson::Document::AllocatorType &allocator = json_doc.GetAllocator();
-
-    rapidjson::Value items(rapidjson::kArrayType);
-
-    json_doc.SetObject().AddMember("items", items, allocator);
-  }
-
-  send_json_document(req, HttpStatusCode::Ok, json_doc);
-
-  return true;
-}

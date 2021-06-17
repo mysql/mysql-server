@@ -463,11 +463,9 @@ RoutingPluginConfig::RoutingPluginConfig(
           section, mysql_harness::ConfigOption("routing_strategy"_sv), mode,
           metadata_cache_)),
       max_connections(get_uint_option<uint16_t>(
-          section,
-          mysql_harness::ConfigOption(
-              "max_connections"_sv,
-              std::to_string(routing::kDefaultMaxConnections)),
-          1)),
+          section, mysql_harness::ConfigOption(
+                       "max_connections"_sv,
+                       std::to_string(routing::kDefaultMaxConnections)))),
       max_connect_errors(get_uint_option<uint32_t>(
           section,
           mysql_harness::ConfigOption(

@@ -27,8 +27,6 @@
 
 #include <gmock/gmock.h>
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 #include <rapidjson/document.h>
@@ -224,9 +222,29 @@ TEST_P(RestRoutingApiTest, ensure_openapi) {
 
 static const std::vector<
     std::pair<std::string, RestApiTestParams::value_check_func>>
-get_expected_status_fields(const int expected_active_connections,
-                           const int expected_total_connections,
-                           const int expected_blocked_hosts) {
+get_expected_status_fields(const int expected_max_total_connections,
+                           const int expected_current_total_connections) {
+  return {
+      {"/maxTotalConnections",
+       [=](const JsonValue *value) {
+         ASSERT_TRUE(value != nullptr);
+         ASSERT_TRUE(value->IsInt());
+         ASSERT_EQ(value->GetInt(), expected_max_total_connections);
+       }},
+      {"/currentTotalConnections",
+       [=](const JsonValue *value) {
+         ASSERT_TRUE(value != nullptr);
+         ASSERT_TRUE(value->IsInt());
+         ASSERT_EQ(value->GetInt(), expected_current_total_connections);
+       }},
+  };
+}
+
+static const std::vector<
+    std::pair<std::string, RestApiTestParams::value_check_func>>
+get_expected_routes_status_fields(const int expected_active_connections,
+                                  const int expected_total_connections,
+                                  const int expected_blocked_hosts) {
   return {
       {"/activeConnections",
        [=](const JsonValue *value) {
@@ -422,41 +440,51 @@ get_expected_connections_fields_fields(const int expected_connection_qty) {
 // ****************************************************************************
 
 static const RestApiTestParams rest_api_valid_methods[]{
-    {"routing_status_ro", std::string(rest_api_basepath) + "/routes/ro/status",
+    {"routing_status", std::string(rest_api_basepath) + "/routing/status",
+     "/routing/status", HttpMethod::Get, HttpStatusCode::Ok, kContentTypeJson,
+     kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true,
+     get_expected_status_fields(
+         /*expected_max_total_connections=*/512,
+         /*expected_current_total_connections=*/3 + 1),
+     kRoutingSwaggerPaths},
+    {"routing_routes_status_ro",
+     std::string(rest_api_basepath) + "/routes/ro/status",
      "/routes/{routeName}/status", HttpMethod::Get, HttpStatusCode::Ok,
      kContentTypeJson, kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     get_expected_status_fields(/*expected_active_connections=*/3,
-                                /*expected_total_connections=*/3,
-                                /*expected_blocked_hosts*=*/0),
+     get_expected_routes_status_fields(/*expected_active_connections=*/3,
+                                       /*expected_total_connections=*/3,
+                                       /*expected_blocked_hosts*=*/0),
      kRoutingSwaggerPaths},
-    {"routing_status__", std::string(rest_api_basepath) + "/routes/_/status",
+    {"routing_routes_status__",
+     std::string(rest_api_basepath) + "/routes/_/status",
      "/routes/{routeName}/status", HttpMethod::Get, HttpStatusCode::Ok,
      kContentTypeJson, kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     get_expected_status_fields(/*expected_active_connections=*/0,
-                                /*expected_total_connections=*/0,
-                                /*expected_blocked_hosts*=*/0),
+     get_expected_routes_status_fields(/*expected_active_connections=*/0,
+                                       /*expected_total_connections=*/0,
+                                       /*expected_blocked_hosts*=*/0),
      kRoutingSwaggerPaths},
-    {"routing_status_Aaz",
+    {"routing_routes_status_Aaz",
      std::string(rest_api_basepath) + "/routes/Aaz/status",
      "/routes/{routeName}/status", HttpMethod::Get, HttpStatusCode::Ok,
      kContentTypeJson, kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     get_expected_status_fields(/*expected_active_connections=*/1,
-                                /*expected_total_connections=*/1,
-                                /*expected_blocked_hosts*=*/0),
+     get_expected_routes_status_fields(/*expected_active_connections=*/1,
+                                       /*expected_total_connections=*/1,
+                                       /*expected_blocked_hosts*=*/0),
      kRoutingSwaggerPaths},
-    {"routing_status_123",
+    {"routing_routes_status_123",
      std::string(rest_api_basepath) + "/routes/123/status",
      "/routes/{routeName}/status", HttpMethod::Get, HttpStatusCode::Ok,
      kContentTypeJson, kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     get_expected_status_fields(/*expected_active_connections=*/0,
-                                /*expected_total_connections=*/3,
-                                /*expected_blocked_hosts*=*/1),
+     get_expected_routes_status_fields(/*expected_active_connections=*/0,
+                                       /*expected_total_connections=*/3,
+                                       /*expected_blocked_hosts*=*/1),
      kRoutingSwaggerPaths},
-    {"routing_status_nonexistent",
+    {"routing_routes_status_nonexistent",
      std::string(rest_api_basepath) + "/routes/nonexistent/status",
      "/routes/{routeName}/status",
      HttpMethod::Get,
@@ -467,7 +495,7 @@ static const RestApiTestParams rest_api_valid_methods[]{
      /*request_authentication =*/true,
      {},
      kRoutingSwaggerPaths},
-    {"routing_status_params",
+    {"routing_routes_status_params",
      std::string(rest_api_basepath) + "/routes/123/status?someparam",
      "/routes/{routeName}/status",
      HttpMethod::Get,
@@ -1160,29 +1188,37 @@ TEST_P(RestRoutingApiTestCluster, ensure_openapi_cluster) {
   EXPECT_NO_THROW(client_rw_2.connect("127.0.0.1", routing_ports_[1], "root",
                                       "fake-pass", "", ""));
 
-  EXPECT_NO_FATAL_FAILURE(
+  ASSERT_NO_FATAL_FAILURE(
       fetch_and_validate_schema_and_resource(GetParam(), http_server));
 }
 
 static const RestApiTestParams rest_api_valid_methods_params_cluster[]{
-    {"routing_rw_status",
+    {"routing_status", std::string(rest_api_basepath) + "/routing/status",
+     "/routing/status", HttpMethod::Get, HttpStatusCode::Ok, kContentTypeJson,
+     kRestApiUsername, kRestApiPassword,
+     /*request_authentication =*/true,
+     get_expected_status_fields(
+         /*expected_max_total_connections=*/512,
+         /*expected_current_total_connections=*/2 + 1),
+     kRoutingSwaggerPaths},
+    {"routing_routes_rw_status",
      std::string(rest_api_basepath) + "/routes/cluster_rw/status",
      "/routes/{routeName}/status", HttpMethod::Get, HttpStatusCode::Ok,
      kContentTypeJson, kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     get_expected_status_fields(/*expected_active_connections=*/1,
-                                /*expected_total_connections=*/1,
-                                /*expected_blocked_hosts*=*/0),
+     get_expected_routes_status_fields(/*expected_active_connections=*/1,
+                                       /*expected_total_connections=*/1,
+                                       /*expected_blocked_hosts*=*/0),
      kRoutingSwaggerPaths},
 
-    {"routing_ro_status",
+    {"routing_routes_ro_status",
      std::string(rest_api_basepath) + "/routes/cluster_ro/status",
      "/routes/{routeName}/status", HttpMethod::Get, HttpStatusCode::Ok,
      kContentTypeJson, kRestApiUsername, kRestApiPassword,
      /*request_authentication =*/true,
-     get_expected_status_fields(/*expected_active_connections=*/2,
-                                /*expected_total_connections=*/2,
-                                /*expected_blocked_hosts*=*/0),
+     get_expected_routes_status_fields(/*expected_active_connections=*/2,
+                                       /*expected_total_connections=*/2,
+                                       /*expected_blocked_hosts*=*/0),
      kRoutingSwaggerPaths},
 
     {"cluster_routes",

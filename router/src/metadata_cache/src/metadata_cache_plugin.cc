@@ -58,8 +58,6 @@ static void init(mysql_harness::PluginFuncEnv *env) {
     // if a valid metadata_cache section was found in the router
     // configuration.
     if (g_app_info->config->get(kSectionName).empty()) {
-      log_error("[metadata_cache] section is empty");  // TODO remove after
-                                                       // Loader starts logging
       set_error(env, mysql_harness::kConfigInvalidArgument,
                 "[metadata_cache] section is empty");
     }
@@ -215,16 +213,12 @@ static void start(mysql_harness::PluginFuncEnv *env) {
     md_cache->cache_start();
   } catch (const std::runtime_error &exc) {  // metadata_cache::metadata_error
                                              // inherits from runtime_error
-    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kRuntimeError, "%s", exc.what());
     clear_running(env);
   } catch (const std::invalid_argument &exc) {
-    log_error("%s", exc.what());  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kConfigInvalidArgument, "%s", exc.what());
     clear_running(env);
   } catch (...) {
-    log_error(
-        "Unexpected exception");  // TODO remove after Loader starts logging
     set_error(env, mysql_harness::kUndefinedError, "Unexpected exception");
     clear_running(env);
   }

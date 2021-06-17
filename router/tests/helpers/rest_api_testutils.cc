@@ -28,8 +28,6 @@
 
 #include <gmock/gmock.h>
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -459,7 +457,7 @@ void RestApiComponentTest::fetch_and_validate_schema_and_resource(
 
       SCOPED_TRACE("// validating values");
       for (const auto &kv : test_params.value_checks) {
-        validate_value(json_doc, kv.first, kv.second);
+        ASSERT_NO_FATAL_FAILURE(validate_value(json_doc, kv.first, kv.second));
       }
     }
   }

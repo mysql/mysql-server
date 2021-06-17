@@ -829,6 +829,7 @@ class Acceptor {
         return;
       }
 
+      auto &routing_component = MySQLRoutingComponent::get_instance();
       while (is_running(env_)) {
         typename client_protocol_type::endpoint client_endpoint;
         const int socket_flags {
@@ -960,40 +961,62 @@ class Acceptor {
 
             // log_info("%s", msg.c_str());
             sock.close();
-          } else if (r_->get_context().info_active_routes_.load(
-                         std::memory_order_relaxed) >=
-                     r_->get_max_connections()) {
-            std::vector<uint8_t> error_frame;
-            const auto encode_res = encode_initial_error_packet(
-                r_->get_context().get_protocol(), error_frame, 1040,
-                "Too many connections to MySQL Router", "08004");
+          } else {
+            const auto current_total_connections =
+                routing_component.current_total_connections();
+            const auto max_total_connections =
+                routing_component.max_total_connections();
 
-            if (!encode_res) {
-              log_debug("[%s] fd=%d encode error: %s",
-                        r_->get_context().get_name().c_str(),
-                        sock.native_handle(),
-                        encode_res.error().message().c_str());
-            } else {
-              auto write_res = net::write(sock, net::buffer(error_frame));
-              if (!write_res) {
-                log_debug("[%s] fd=%d write error: %s",
+            const bool max_route_connections_limit_reached =
+                r_->get_max_connections() > 0 &&
+                r_->get_context().info_active_routes_.load(
+                    std::memory_order_relaxed) >= r_->get_max_connections();
+            const bool max_total_connections_limit_reached =
+                current_total_connections >= max_total_connections;
+
+            if (max_route_connections_limit_reached ||
+                max_total_connections_limit_reached) {
+              std::vector<uint8_t> error_frame;
+              const auto encode_res = encode_initial_error_packet(
+                  r_->get_context().get_protocol(), error_frame, 1040,
+                  "Too many connections to MySQL Router", "08004");
+
+              if (!encode_res) {
+                log_debug("[%s] fd=%d encode error: %s",
                           r_->get_context().get_name().c_str(),
                           sock.native_handle(),
-                          write_res.error().message().c_str());
+                          encode_res.error().message().c_str());
+              } else {
+                auto write_res = net::write(sock, net::buffer(error_frame));
+                if (!write_res) {
+                  log_debug("[%s] fd=%d write error: %s",
+                            r_->get_context().get_name().c_str(),
+                            sock.native_handle(),
+                            write_res.error().message().c_str());
+                }
               }
+
+              sock.close();  // no shutdown() before close()
+
+              if (max_route_connections_limit_reached) {
+                log_warning(
+                    "[%s] reached max active connections for route (%d max=%d)",
+                    r_->get_context().get_name().c_str(),
+                    r_->get_context().info_active_routes_.load(),
+                    r_->get_max_connections());
+              } else {
+                log_warning(
+                    "[%s] reached max total active connections (%" PRIu64
+                    " max=%" PRIu64 ")",
+                    r_->get_context().get_name().c_str(),
+                    current_total_connections, max_total_connections);
+              }
+            } else {
+              Connector<client_protocol_type>(
+                  r_, std::move(sock), client_endpoint, client_sock_container_,
+                  server_sock_container_)
+                  .async_run();
             }
-
-            sock.close();  // no shutdown() before close()
-
-            log_warning("[%s] reached max active connections (%d max=%d)",
-                        r_->get_context().get_name().c_str(),
-                        r_->get_context().info_active_routes_.load(),
-                        r_->get_max_connections());
-          } else {
-            Connector<client_protocol_type>(
-                r_, std::move(sock), client_endpoint, client_sock_container_,
-                server_sock_container_)
-                .async_run();
           }
         } else if (sock_res.error() ==
                    make_error_condition(std::errc::operation_would_block)) {
@@ -1561,7 +1584,7 @@ void MySQLRouting::validate_destination_connect_timeout(
 }
 
 int MySQLRouting::set_max_connections(int maximum) {
-  if (maximum <= 0 || maximum > static_cast<int>(UINT16_MAX)) {
+  if (maximum < 0 || maximum > static_cast<int>(UINT16_MAX)) {
     auto err = string_format(
         "[%s] tried to set max_connections using invalid value, was '%d'",
         context_.get_name().c_str(), maximum);

@@ -28,8 +28,6 @@
 #include <gmock/gmock.h>
 
 #ifdef RAPIDJSON_NO_SIZETYPEDEFINE
-// if we build within the server, it will set RAPIDJSON_NO_SIZETYPEDEFINE
-// globally and require to include my_rapidjson_size_t.h
 #include "my_rapidjson_size_t.h"
 #endif
 
@@ -79,7 +77,8 @@ TEST_P(RestRouterApiTest, ensure_openapi) {
       conf_dir_.name(), mysql_harness::join(config_sections, "\n"))};
   ProcessWrapper &http_server{launch_router({"-c", conf_file})};
 
-  fetch_and_validate_schema_and_resource(GetParam(), http_server);
+  ASSERT_NO_FATAL_FAILURE(
+      fetch_and_validate_schema_and_resource(GetParam(), http_server));
 }
 
 // ****************************************************************************

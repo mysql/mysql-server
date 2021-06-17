@@ -85,7 +85,7 @@ TEST_F(RoutingTests, GetAccessLiteralName) {
 
 TEST_F(RoutingTests, Defaults) {
   ASSERT_EQ(routing::kDefaultWaitTimeout, 0);
-  ASSERT_EQ(routing::kDefaultMaxConnections, 512);
+  ASSERT_EQ(routing::kDefaultMaxConnections, 0);
   ASSERT_EQ(routing::kDefaultDestinationConnectionTimeout,
             std::chrono::seconds(1));
   ASSERT_EQ(routing::kDefaultBindAddress, "127.0.0.1");
@@ -467,6 +467,9 @@ TEST_F(RoutingTests, bug_24841281) {
     server.stop();
     thd.join();
   });
+
+  mysql_harness::Config conf;
+  MySQLRoutingComponent::get_instance().init(conf);
 
   // set the number of accepts that the server should expect for before
   // stopping
