@@ -1761,7 +1761,7 @@ static bool execute(MYSQL_STMT *stmt, char *packet, ulong length,
     If the server supports query attributes raise the flag that we
     are going to be sending the parameter block.
     Unfortunately there's a bug in processing the flags in servers
-    earlier than 8.0.25 that conflates all the flags into a single
+    earlier than 8.0.26 that conflates all the flags into a single
     boolean. Thus we need to cut off sending PARAMETER_COUNT_AVAILABLE
     for these
   */
@@ -1851,7 +1851,7 @@ int cli_stmt_execute(MYSQL_STMT *stmt) {
   bool send_named_params =
       (mysql->server_capabilities & CLIENT_QUERY_ATTRIBUTES) != 0;
   bool can_deal_with_flags =
-      mysql->server_version && mysql_get_server_version(mysql) >= 80025;
+      mysql->server_version && mysql_get_server_version(mysql) >= 80026;
   /*
     When the server can deal with flags properly we should send the 0 param
     count even when there's no parameters when the server supports named
