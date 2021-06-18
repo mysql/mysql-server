@@ -306,27 +306,25 @@ ENDIF()
 SET(CLIENT_LIBS "")
 SET(LIBS "")
 
-# Extract dependencies using CMake's internal ${target}_LIB_DEPENDS variable
-# returned string in ${var} is can be passed to linker's command line
+# Extract dependencies using CMake's LINK_LIBRARIES property.
+# Returned string in ${var} is can be passed to linker's command line
 MACRO(EXTRACT_LINK_LIBRARIES target var)
-  IF(${target}_LIB_DEPENDS)
-    LIST(REMOVE_ITEM ${target}_LIB_DEPENDS "")
-    LIST(REMOVE_DUPLICATES ${target}_LIB_DEPENDS)
-    FOREACH(lib ${${target}_LIB_DEPENDS})
-      # Filter out "general", it is not a library, just CMake hint
-      IF(NOT lib STREQUAL "general" AND NOT ${var}  MATCHES "-l${lib} ")
-        IF (lib MATCHES "^\\-l")
-          SET(${var} "${${var}} ${lib} ")
-        ELSEIF (lib MATCHES "^\\-L")
-          SET(${var} "${${var}} ${lib} ")
-        ELSEIF(lib MATCHES "^/")
-          # Full path, convert to just filename, strip "lib" prefix and extension
-          GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
-          STRING(REGEX REPLACE "^lib" "" lib "${lib}")
-          SET(${var} "${${var}}-l${lib} " )
-        ELSE()
-          SET(${var} "${${var}}-l${lib} " )
-        ENDIF()
+  GET_TARGET_PROPERTY(TARGET_LIB_DEPENDS ${target} LINK_LIBRARIES)
+  IF(TARGET_LIB_DEPENDS)
+    LIST(REMOVE_DUPLICATES TARGET_LIB_DEPENDS)
+    FOREACH(lib ${TARGET_LIB_DEPENDS})
+      IF (lib MATCHES "^\\-l")
+        SET(${var} "${${var}} ${lib} ")
+      ELSEIF (lib MATCHES "^\\-L")
+        # Search directory. Test on FreeBSD: -L/usr/local/lib -lunwind
+        SET(${var} "${${var}} ${lib} ")
+      ELSEIF(lib MATCHES "^/")
+        # Full path, convert to just filename, strip "lib" prefix and extension
+        GET_FILENAME_COMPONENT(lib "${lib}" NAME_WE)
+        STRING(REGEX REPLACE "^lib" "" lib "${lib}")
+        SET(${var} "${${var}}-l${lib} " )
+      ELSE()
+        SET(${var} "${${var}}-l${lib} " )
       ENDIF()
     ENDFOREACH()
   ENDIF()
