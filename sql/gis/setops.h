@@ -51,21 +51,6 @@ bool difference(const dd::Spatial_reference_system *srs, const Geometry *g1,
                 const Geometry *g2, const char *func_name,
                 std::unique_ptr<Geometry> *result) noexcept;
 
-/// Finds the symdifference between two geometries.
-///
-/// @param[in] srs The spatial reference system.
-/// @param[in] g1 Input geometry.
-/// @param[in] g2 Input geometry.
-/// @param[in] func_name Function name used in error reporting.
-/// @param[out] result Result.
-///
-/// @retval false Success.
-/// @retval true An error has occured. The error has been reported with
-/// my_error().
-bool symdifference(const dd::Spatial_reference_system *srs, const Geometry *g1,
-                   const Geometry *g2, const char *func_name,
-                   std::unique_ptr<Geometry> *result) noexcept;
-
 /// Finds the union of two geometries.
 ///
 /// @param[in] srs The spatial reference system.

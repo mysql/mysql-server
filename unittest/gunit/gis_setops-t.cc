@@ -73,10 +73,8 @@ TYPED_TEST(SetopsTest, CodeCoverage) {
     for (auto g2 : gc) {
       std::unique_ptr<gis::Geometry> result;
       bool is_null = false;
-      gis::difference(this->m_srs.get(), g1, g2, "unittest", &result);
-      gis::intersection(this->m_srs.get(), g1, g2, "unittest", &result);
-      gis::symdifference(this->m_srs.get(), g1, g2, "unittest", &result);
       gis::union_(this->m_srs.get(), g1, g2, "unittest", &result, &is_null);
+      gis::difference(this->m_srs.get(), g1, g2, "unittest", &result);
     }
   }
 }

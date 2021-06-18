@@ -44,22 +44,6 @@ typename T::Linestring simple_ls() {
 }
 
 template <typename T>
-typename T::Linestring vertical_ls() {
-  typename T::Linestring ls;
-  ls.push_back(typename T::Point(0.1, 0.0));
-  ls.push_back(typename T::Point(0.1, 0.1));
-  return ls;
-}
-
-template <typename T>
-typename T::Linestring simple_ls_2() {
-  typename T::Linestring ls;
-  ls.push_back(typename T::Point(0.0, 0.1));
-  ls.push_back(typename T::Point(0.1, 0.1));
-  return ls;
-}
-
-template <typename T>
 typename T::Linestring offset_simple_ls() {
   typename T::Linestring ls;
   ls.push_back(typename T::Point(0.05, 0.0));

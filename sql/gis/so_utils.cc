@@ -94,7 +94,6 @@ static void typed_remove_duplicates(double semi_major, double semi_minor,
     case Geometry_type::kGeometrycollection: {
       std::unique_ptr<GC> gc = std::make_unique<GC>();
       for (auto g1 : *down_cast<GC *>(g->get())) {
-        if (g1->is_empty()) continue;
         std::unique_ptr<Geometry> g1_ptr(g1->clone());
         typed_remove_duplicates<MPt, MLs, MPy, GC>(semi_major, semi_minor,
                                                    &g1_ptr);
