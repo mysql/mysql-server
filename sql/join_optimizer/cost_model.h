@@ -1,4 +1,4 @@
-/* Copyright (c) 2021, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,12 +20,29 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_JOIN_OPTIMIZER_ESTIMATE_FILTER_COST_H
-#define SQL_JOIN_OPTIMIZER_ESTIMATE_FILTER_COST_H
+#ifndef SQL_JOIN_OPTIMIZER_COST_MODEL_H_
+#define SQL_JOIN_OPTIMIZER_COST_MODEL_H_
 
+#include "my_base.h"
+
+struct AccessPath;
 class Item;
+struct JoinPredicate;
 class Query_block;
 class THD;
+struct TABLE;
+
+// These are extremely arbitrary cost model constants. We should revise them
+// based on actual query times (possibly using linear regression?), and then
+// put them into the cost model to make them user-tunable.
+constexpr double kApplyOneFilterCost = 0.1;
+constexpr double kAggregateOneRowCost = 0.1;
+constexpr double kSortOneRowCost = 0.1;
+constexpr double kHashBuildOneRowCost = 0.1;
+constexpr double kHashProbeOneRowCost = 0.1;
+constexpr double kHashReturnOneRowCost = 0.07;
+constexpr double kMaterializeOneRowCost = 0.1;
+constexpr double kWindowOneRowCost = 0.1;
 
 /// See EstimateFilterCost.
 struct FilterCost {
@@ -50,4 +67,13 @@ struct FilterCost {
 FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
                               Query_block *outer_query_block);
 
-#endif  // SQL_JOIN_OPTIMIZER_ESTIMATE_FILTER_COST_H
+double EstimateCostForRefAccess(THD *thd, TABLE *table, unsigned key_idx,
+                                double num_output_rows);
+void EstimateSortCost(AccessPath *path, ha_rows limit_rows = HA_POS_ERROR);
+void EstimateMaterializeCost(THD *thd, AccessPath *path);
+void EstimateAggregateCost(AccessPath *path);
+double FindOutputRowsForJoin(AccessPath *left_path, AccessPath *right_path,
+                             const JoinPredicate *edge,
+                             double already_applied_selectivity);
+
+#endif  // SQL_JOIN_OPTIMIZER_COST_MODEL_H_

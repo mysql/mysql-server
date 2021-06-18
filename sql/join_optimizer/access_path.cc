@@ -137,6 +137,14 @@ static Prealloced_array<TABLE *, 4> GetUsedTables(AccessPath *child,
   return tables;
 }
 
+Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path) {
+  Mem_root_array<TABLE *> tables(thd->mem_root);
+  WalkTablesUnderAccessPath(
+      root_path, [&tables](TABLE *table) { return tables.push_back(table); },
+      /*include_pruned_tables=*/true);
+  return tables;
+}
+
 // Mirrors QEP_TAB::pfs_batch_update(), with one addition:
 // If there is more than one table, batch mode will be handled by the join
 // iterators on the probe side, so joins will return false.

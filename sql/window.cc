@@ -49,6 +49,7 @@
 #include "sql/item_func.h"
 #include "sql/item_sum.h"       // Item_sum
 #include "sql/item_timefunc.h"  // Item_date_add_interval
+#include "sql/join_optimizer/finalize_plan.h"
 #include "sql/join_optimizer/join_optimizer.h"
 #include "sql/join_optimizer/replace_item.h"
 #include "sql/key_spec.h"

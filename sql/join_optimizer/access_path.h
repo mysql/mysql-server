@@ -1462,6 +1462,12 @@ void SetCostOnTableAccessPath(const Cost_model_server &cost_model,
 table_map GetUsedTableMap(const AccessPath *path, bool include_pruned_tables);
 
 /**
+  Find the list of all tables used by this root, stopping at materializations.
+  Used for knowing which tables to sort.
+ */
+Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path);
+
+/**
   For each access path in the (sub)tree rooted at “path”, expand any use of
   “filter_predicates” into newly-inserted FILTER access paths, using the given
   predicate list. This is used after finding an optimal set of access paths,

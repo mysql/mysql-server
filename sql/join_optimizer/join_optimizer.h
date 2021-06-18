@@ -57,16 +57,11 @@
 
 #include <string>
 
-struct AccessPath;
-struct JoinHypergraph;
-class Func_ptr;
-template <class T>
-class Mem_root_array;
-struct ORDER;
 class Query_block;
 class THD;
-
-using Func_ptr_array = Mem_root_array<Func_ptr>;
+struct AccessPath;
+struct JoinHypergraph;
+struct TABLE;
 
 /**
   The main entry point for the hypergraph join optimizer; takes in a query
@@ -159,12 +154,5 @@ void FindSargablePredicates(THD *thd, std::string *trace,
 
 void EstimateAggregateCost(AccessPath *path);
 void EstimateMaterializeCost(THD *thd, AccessPath *path);
-
-// Change all items in the ORDER list to point to the temporary table.
-// This isn't important for streaming (the items would get the correct
-// value anyway -- although possibly with some extra calculations),
-// but it is for materialization.
-void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
-                                          const Func_ptr_array &items_to_copy);
 
 #endif  // SQL_JOIN_OPTIMIZER_JOIN_OPTIMIZER_H
