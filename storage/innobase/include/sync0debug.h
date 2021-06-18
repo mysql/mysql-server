@@ -106,6 +106,10 @@ class Sync_point {
   @param[in,out] thd            Server connection/session context. */
   explicit Sync_point(const THD *thd) noexcept : m_thd(thd) {}
 
+  Sync_point(const Sync_point &) = default;
+
+  Sync_point &operator=(const Sync_point &) = default;
+
   /** Destructor. */
   ~Sync_point() = default;
 

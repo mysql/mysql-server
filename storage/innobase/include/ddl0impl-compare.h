@@ -51,6 +51,8 @@ struct Compare_key {
     ut_a(m_dups == nullptr || index == m_dups->m_index);
   }
 
+  Compare_key(const Compare_key &) = default;
+
   /** Destructor. */
   ~Compare_key() = default;
 

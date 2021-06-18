@@ -132,6 +132,8 @@ struct Row {
   /** Constructor. */
   Row() = default;
 
+  Row(const Row &) = default;
+
   /** Destructor. */
   ~Row() = default;
 

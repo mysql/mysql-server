@@ -32,6 +32,7 @@
 #include <utility>
 #include <vector>
 
+#include "my_compiler.h"
 #include "mysql/harness/net_ts/buffer.h"
 #include "mysql/harness/net_ts/executor.h"
 #include "mysql/harness/net_ts/io_context.h"
@@ -370,7 +371,10 @@ class StatementReaderBase {
 
   virtual void set_session_ssl_info(const SSL *ssl) = 0;
 
+  MY_COMPILER_DIAGNOSTIC_PUSH()
+  MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated")
   virtual ~StatementReaderBase() = default;
+  MY_COMPILER_DIAGNOSTIC_POP()
 };
 
 }  // namespace server_mock
