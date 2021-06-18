@@ -1,4 +1,4 @@
-// Copyright (c) 2020, Oracle and/or its affiliates.
+// Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 //
 // This program is free software; you can redistribute it and/or modify
 // it under the terms of the GNU General Public License, version 2.0,
@@ -91,6 +91,7 @@ static void typed_remove_duplicates(double semi_major, double semi_minor,
     case Geometry_type::kGeometrycollection: {
       std::unique_ptr<GC> gc = std::make_unique<GC>();
       for (auto g1 : *down_cast<GC *>(g->get())) {
+        if (g1->is_empty()) continue;
         std::unique_ptr<Geometry> g1_ptr(g1->clone());
         typed_remove_duplicates<MPt, MLs, MPy, GC>(semi_major, semi_minor,
                                                    &g1_ptr);
