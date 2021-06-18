@@ -1264,7 +1264,7 @@ static bool fix_generated_columns_for_upgrade(
           error = true;
           LogErr(ERROR_LEVEL,
                  ER_CANT_PROCESS_EXPRESSION_FOR_GENERATED_COLUMN_TO_DD,
-                 to_string((*field_ptr)->gcol_info->expr_str).c_str(),
+                 to_string(sql_field->gcol_info->expr_str).c_str(),
                  table->s->db.str, table->s->table_name.str,
                  (*field_ptr)->field_name);
           break;
