@@ -867,6 +867,7 @@ and copies it to the corresponding .ibd file.
 @param[in]	restore_page_no		Page number to restore
 @return DB_SUCCESS if page was restored from doublewrite, else DB_ERROR */
 dberr_t Datafile::restore_from_doublewrite(page_no_t restore_page_no) {
+  ut_a(is_open());
   auto page_id = page_id_t{m_space_id, restore_page_no};
 
   /* Find if double write buffer contains page_no of given space id. */
