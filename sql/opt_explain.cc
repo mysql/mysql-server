@@ -2025,8 +2025,8 @@ bool explain_query_specification(THD *explain_thd, const THD *query_thd,
 static string FindUpdatedTables(JOIN *join) {
   Query_result *result = join->query_block->query_result();
   string ret;
-  for (size_t idx = 0; idx < join->tables; ++idx) {
-    TABLE_LIST *table_ref = join->qep_tab[idx].table_ref;
+  for (TABLE_LIST *table_ref = join->query_block->leaf_tables;
+       table_ref != nullptr; table_ref = table_ref->next_leaf) {
     if (table_ref == nullptr) continue;
     TABLE *table = table_ref->table;
     if ((table_ref->is_updated() || table_ref->is_deleted()) &&

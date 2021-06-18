@@ -172,6 +172,16 @@ COUNT(*)
 # Clean up for Bug #33296504
 DROP TABLE t1, t2, t3;
 # Bug #33296504 done
+#
+# WL#14673: Enable the hypergraph optimizer for DELETE
+#
+CREATE TABLE t (x INTEGER, y INTEGER);
+DELETE t FROM t WHERE x > 0;
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE TRACE LIKE '%Constructed hypergraph%';
+COUNT(*)
+1
+DROP TABLE t;
 # Clean up for test file using_hypergraph_optimizer
 SET optimizer_trace='enabled=off';
 SET optimizer_switch=default;

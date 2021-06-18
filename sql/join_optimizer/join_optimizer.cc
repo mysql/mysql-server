@@ -84,6 +84,7 @@
 #include "sql/range_optimizer/range_optimizer.h"
 #include "sql/range_optimizer/tree.h"
 #include "sql/sql_array.h"
+#include "sql/sql_base.h"
 #include "sql/sql_bitmap.h"
 #include "sql/sql_class.h"
 #include "sql/sql_cmd.h"
@@ -159,7 +160,9 @@ class CostingReceiver {
       const Mem_root_array<ActiveIndexInfo> *active_indexes,
       const Mem_root_array<FullTextIndexInfo> *fulltext_searches,
       NodeMap fulltext_tables, uint64_t sargable_fulltext_predicates,
-      bool need_rowid, SecondaryEngineFlags engine_flags,
+      table_map update_delete_target_tables,
+      table_map immediate_update_delete_candidates, bool need_rowid,
+      SecondaryEngineFlags engine_flags,
       secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook,
       string *trace)
       : m_thd(thd),
@@ -171,6 +174,10 @@ class CostingReceiver {
         m_fulltext_searches(fulltext_searches),
         m_fulltext_tables(fulltext_tables),
         m_sargable_fulltext_predicates(sargable_fulltext_predicates),
+        m_update_delete_target_nodes(GetNodeMapFromTableMap(
+            update_delete_target_tables, graph.table_num_to_node_num)),
+        m_immediate_update_delete_candidates(GetNodeMapFromTableMap(
+            immediate_update_delete_candidates, graph.table_num_to_node_num)),
         m_need_rowid(need_rowid),
         m_engine_flags(engine_flags),
         m_secondary_engine_cost_hook(secondary_engine_cost_hook),
@@ -304,6 +311,21 @@ class CostingReceiver {
   /// (where const must be high enough to make the comparison return false for
   /// documents with zero score).
   const uint64_t m_sargable_fulltext_predicates = 0;
+
+  /// The target tables of an UPDATE or DELETE statement.
+  const NodeMap m_update_delete_target_nodes = 0;
+
+  /// The set of tables that are candidates for immediate update or delete.
+  /// Immediate update/delete means that the rows from the table are deleted
+  /// while reading the rows from the topmost iterator. (As opposed to buffered
+  /// update/delete, where the row IDs are stored in temporary tables, and only
+  /// updated or deleted after the topmost iterator has been read to the end.)
+  /// The candidates are those target tables that are only referenced once in
+  /// the query. The requirement for immediate deletion is that the deleted row
+  /// will not have to be read again later. Currently, at most one of the
+  /// candidate tables is chosen, and it is always the outermost table in the
+  /// join tree.
+  const NodeMap m_immediate_update_delete_candidates = 0;
 
   /// Whether we will be needing row IDs from our tables, typically for
   /// a later sort. If this happens, derived tables cannot use streaming,
@@ -1326,6 +1348,10 @@ bool CostingReceiver::FindIndexRangeScans(
     path.index_range_scan().reverse = false;
     path.index_range_scan().using_extended_key_parts = false;
 
+    if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
+      path.immediate_update_delete_table = node_idx;
+    }
+
     bool contains_subqueries = false;  // Filled on the first iteration below.
 
     // First propose the unordered scan, optionally with sorting afterwards.
@@ -1555,6 +1581,10 @@ void CostingReceiver::ProposeIndexMerge(
   imerge_path.init_cost = init_cost;
   imerge_path.num_output_rows = imerge_path.num_output_rows_before_filter =
       min<double>(num_output_rows, num_output_rows_after_filter);
+
+  if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
+    imerge_path.immediate_update_delete_table = node_idx;
+  }
 
   // Find out which ordering we would follow, if any. We nominally sort
   // everything by row ID (which follows the primary key), but if we have a
@@ -1920,6 +1950,10 @@ bool CostingReceiver::ProposeRefAccess(
       parameter_tables & ~table->pos_in_table_list->map(),
       m_graph.table_num_to_node_num);
 
+  if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
+    path.immediate_update_delete_table = node_idx;
+  }
+
   ProposeAccessPathForIndex(
       node_idx, std::move(applied_predicates), std::move(subsumed_predicates),
       force_num_output_rows_after_filter, key->name, &path);
@@ -2007,6 +2041,9 @@ bool CostingReceiver::ProposeTableScan(
   path.num_output_rows_before_filter = num_output_rows;
   path.init_cost = path.init_once_cost = 0.0;
   path.cost_before_filter = path.cost = cost;
+  if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
+    path.immediate_update_delete_table = node_idx;
+  }
 
   // See if this is an information schema table that must be filled in before
   // we scan.
@@ -2151,6 +2188,9 @@ bool CostingReceiver::ProposeIndexScan(
   path.num_output_rows_before_filter = num_output_rows;
   path.init_cost = path.init_once_cost = 0.0;
   path.cost_before_filter = path.cost = cost;
+  if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
+    path.immediate_update_delete_table = node_idx;
+  }
 
   ProposeAccessPathForBaseTable(node_idx, force_num_output_rows_after_filter,
                                 table->key_info[key_idx].name, &path);
@@ -2410,6 +2450,9 @@ bool CostingReceiver::ProposeFullTextIndexScan(
   path->cost = path->cost_before_filter = cost;
   path->init_cost = path->init_once_cost = 0;
   path->ordering_state = ordering_state;
+  if (IsBitSet(node_idx, m_immediate_update_delete_candidates)) {
+    path->immediate_update_delete_table = node_idx;
+  }
 
   ProposeAccessPathForIndex(
       node_idx, std::move(applied_predicates), std::move(subsumed_predicates),
@@ -2877,6 +2920,15 @@ void CostingReceiver::ProposeHashJoin(
   join_path.hash_join().tables_to_get_rowid_for = 0;
   join_path.hash_join().allow_spill_to_disk = true;
 
+  // The rows from the inner side of a hash join come in different order from
+  // that of the underlying scan, so we need to store row IDs for any
+  // update/delete target tables on the inner side, so that we know which rows
+  // to update or delete. The same applies to rows from the outer side, if the
+  // hash join spills to disk, so we need to store row IDs for both sides.
+  if (Overlaps(m_update_delete_target_nodes, left | right)) {
+    FindTablesToGetRowidFor(&join_path);
+  }
+
   // See the equivalent code in ProposeNestedLoopJoin().
   if (rewrite_semi_to_inner) {
     int ordering_idx = edge->ordering_idx_needed_for_semijoin_rewrite;
@@ -3262,6 +3314,9 @@ void CostingReceiver::ProposeNestedLoopJoin(
   assert(BitsetsAreCommitted(left_path));
   assert(BitsetsAreCommitted(right_path));
 
+  // FULL OUTER JOIN is not possible with nested-loop join.
+  assert(edge->expr->type != RelationalExpression::FULL_OUTER_JOIN);
+
   AccessPath join_path;
   join_path.type = AccessPath::NESTED_LOOP_JOIN;
   join_path.parameter_tables =
@@ -3307,6 +3362,16 @@ void CostingReceiver::ProposeNestedLoopJoin(
         static_cast<JoinType>(edge->expr->type);
   }
   join_path.nested_loop_join().join_predicate = edge;
+
+  // Nested loop joins read the outer table exactly once, and the inner table
+  // potentially many times, so we can only perform immediate update or delete
+  // on the outer table.
+  // TODO(khatlen): If left_path is guaranteed to return at most one row (like a
+  // unique index lookup), it should be possible to perform immediate delete
+  // from both sides of the nested loop join. The old optimizer already does
+  // that for const tables.
+  join_path.immediate_update_delete_table =
+      left_path->immediate_update_delete_table;
 
   const AccessPath *inner = join_path.nested_loop_join().inner;
   double inner_rescan_cost = inner->rescan_cost();
@@ -3543,6 +3608,16 @@ PathComparisonResult CompareAccessPaths(const LogicalOrderings &orderings,
     flags = AddFlag(flags, FuzzyComparisonResult::FIRST_BETTER);
   } else if (b.safe_for_rowid < a.safe_for_rowid) {
     flags = AddFlag(flags, FuzzyComparisonResult::SECOND_BETTER);
+  }
+
+  // A path that allows immediate update or delete of a table is better than
+  // a path that allows none.
+  if (a.immediate_update_delete_table != b.immediate_update_delete_table) {
+    if (a.immediate_update_delete_table == -1) {
+      flags = AddFlag(flags, FuzzyComparisonResult::SECOND_BETTER);
+    } else if (b.immediate_update_delete_table == -1) {
+      flags = AddFlag(flags, FuzzyComparisonResult::FIRST_BETTER);
+    }
   }
 
   // Numerical cost dimensions are compared fuzzily in order to treat paths
@@ -4329,6 +4404,51 @@ bool CreateTemporaryTableForFullTextFunctions(
       JOIN::TemporaryTableToCleanup{*temp_table, *temp_table_param});
 
   return false;
+}
+
+/**
+  Finds all the target tables of an UPDATE or DELETE statement. It additionally
+  disables covering index scans on the target tables, since ha_update_row() and
+  ha_delete_row() can only be called on scans reading the full row.
+
+  @param thd The session object.
+  @param query_block The query block.
+  @param[out] target_tables The set of tables modified by this statement.
+  @param[out] immediate_candidates The subset of target tables that are
+    candidates for immediate update/delete. That is, tables that can be updated
+    or deleted from while scanning the result of the join, with no need to store
+    row IDs in temporary tables for delayed update/delete after all the rows
+    from the join have been processed. These are candidates only; the actual
+    tables to update while scanning, if any, will be chosen based on cost during
+    planning.
+ */
+void FindUpdateDeleteTargetTables(const THD *thd, Query_block *query_block,
+                                  table_map *target_tables,
+                                  table_map *immediate_candidates) {
+  switch (thd->lex->sql_command) {
+    case SQLCOM_DELETE_MULTI:
+    case SQLCOM_DELETE:
+    case SQLCOM_UPDATE_MULTI:
+    case SQLCOM_UPDATE:
+      for (TABLE_LIST *tl = query_block->leaf_tables; tl != nullptr;
+           tl = tl->next_leaf) {
+        if (tl->updating) {
+          *target_tables |= tl->map();
+          if (unique_table(tl, query_block->leaf_tables,
+                           /*check_alias=*/false) == nullptr) {
+            *immediate_candidates |= tl->map();
+          }
+
+          // Target tables of DELETE and UPDATE need the full row, so disable
+          // covering index scans.
+          tl->table->no_keyread = true;
+          tl->table->covering_keys.clear_all();
+        }
+      }
+      break;
+    default:
+      break;
+  }
 }
 
 // Returns a map containing the node indexes of all tables referenced by a
@@ -5402,6 +5522,12 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
   graph.materializable_predicates = std::move(materializable_predicates);
 
+  table_map update_delete_target_tables = 0;
+  table_map immediate_update_delete_candidates = 0;
+  FindUpdateDeleteTargetTables(thd, join->query_block,
+                               &update_delete_target_tables,
+                               &immediate_update_delete_candidates);
+
   NodeMap fulltext_tables = 0;
   uint64_t sargable_fulltext_predicates = 0;
   if (query_block->has_ft_funcs()) {
@@ -5438,11 +5564,12 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
   }
   const secondary_engine_modify_access_path_cost_t secondary_engine_cost_hook =
       SecondaryEngineCostHook(thd);
-  CostingReceiver receiver(thd, query_block, graph, &orderings,
-                           &sort_ahead_orderings, &active_indexes,
-                           &fulltext_searches, fulltext_tables,
-                           sargable_fulltext_predicates, need_rowid,
-                           EngineFlags(thd), secondary_engine_cost_hook, trace);
+  CostingReceiver receiver(
+      thd, query_block, graph, &orderings, &sort_ahead_orderings,
+      &active_indexes, &fulltext_searches, fulltext_tables,
+      sargable_fulltext_predicates, update_delete_target_tables,
+      immediate_update_delete_candidates, need_rowid, EngineFlags(thd),
+      secondary_engine_cost_hook, trace);
   if (EnumerateAllConnectedPartitions(graph.graph, &receiver) &&
       !thd->is_error()) {
     my_error(ER_HYPERGRAPH_NOT_SUPPORTED_YET, MYF(0), "large join graphs");
@@ -5751,6 +5878,27 @@ AccessPath *FindBestQueryPlan(THD *thd, Query_block *query_block,
           /*reject_multiple_rows=*/false,
           /*send_records_override=*/nullptr);
       receiver.ProposeAccessPath(limit_path, &new_root_candidates,
+                                 /*obsolete_orderings=*/0, "");
+    }
+    root_candidates = std::move(new_root_candidates);
+  }
+
+  // Add a DELETE_ROWS access path if this is the topmost query block of
+  // a DELETE statement.
+  if ((thd->lex->sql_command == SQLCOM_DELETE_MULTI ||
+       thd->lex->sql_command == SQLCOM_DELETE) &&
+      query_block->outer_query_block() == nullptr) {
+    Prealloced_array<AccessPath *, 4> new_root_candidates(PSI_NOT_INSTRUMENTED);
+    for (AccessPath *root_path : root_candidates) {
+      table_map immediate_tables = 0;
+      if (root_path->immediate_update_delete_table != -1) {
+        immediate_tables = graph.nodes[root_path->immediate_update_delete_table]
+                               .table->pos_in_table_list->map();
+      }
+      AccessPath *delete_path = NewDeleteRowsAccessPath(
+          thd, root_path, update_delete_target_tables, immediate_tables);
+      EstimateDeleteRowsCost(delete_path);
+      receiver.ProposeAccessPath(delete_path, &new_root_candidates,
                                  /*obsolete_orderings=*/0, "");
     }
     root_candidates = std::move(new_root_candidates);

@@ -807,6 +807,7 @@ INSERT INTO t2 (c1, c2) VALUES
  (3, 'ksa'), (6,'sate'), (3, 'a'), (NULL, 't'), (9, 'efq'),
  (NULL, 'f'), (6, 'qsdk'), (63, NULL), (3, 's'), (1,NULL);
 
+--skip_if_hypergraph  # Chooses a different plan and does not evaluate the subquery.
 --error ER_SUBQUERY_NO_1_ROW
 DELETE outr1.*
 FROM t2 AS outr1 INNER JOIN t1 AS outr2

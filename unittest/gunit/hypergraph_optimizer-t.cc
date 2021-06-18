@@ -151,6 +151,7 @@ Query_block *HypergraphTestBase<T>::ParseAndResolve(const char *query,
     fake_table->pos_in_table_list = tl;
     tl->table = fake_table;
     tl->set_tableno(num_tables++);
+    tl->set_updatable();
     m_fake_tables[tl->alias] = fake_table;
   }
 
@@ -3957,6 +3958,154 @@ TEST_F(HypergraphOptimizerTest, RowCountImplicitlyGrouped) {
   EXPECT_FLOAT_EQ(1.0, root->num_output_rows);
 }
 
+// Delete from a single table using the multi-table delete syntax.
+TEST_F(HypergraphOptimizerTest, DeleteSingleAsMultiTable) {
+  Query_block *query_block = ParseAndResolve("DELETE t1 FROM t1 WHERE t1.x = 1",
+                                             /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  ASSERT_EQ(AccessPath::DELETE_ROWS, root->type);
+  EXPECT_EQ(m_fake_tables["t1"]->pos_in_table_list->map(),
+            root->delete_rows().immediate_tables);
+  ASSERT_EQ(AccessPath::FILTER, root->delete_rows().child->type);
+  EXPECT_EQ(AccessPath::TABLE_SCAN,
+            root->delete_rows().child->filter().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, DeleteFromTwoTables) {
+  Query_block *query_block =
+      ParseAndResolve("DELETE t1, t2 FROM t1, t2 WHERE t1.x = t2.x",
+                      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  m_fake_tables["t1"]->file->stats.records = 1000;
+  m_fake_tables["t2"]->file->stats.records = 100;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  ASSERT_EQ(AccessPath::DELETE_ROWS, root->type);
+  ASSERT_EQ(AccessPath::HASH_JOIN, root->delete_rows().child->type);
+
+  // A hash join is chosen, since the tables are so big that a nested loop join
+  // is more expensive, even though it does not have to buffer row IDs. The join
+  // order (t1, t2) is preferred because t2 is smaller and hashes fewer rows.
+  // None of the tables can be deleted from immediately when we use hash join.
+  EXPECT_EQ(0, root->delete_rows().immediate_tables);
+  ASSERT_EQ(AccessPath::TABLE_SCAN,
+            root->delete_rows().child->hash_join().outer->type);
+  EXPECT_EQ(m_fake_tables["t1"],
+            root->delete_rows().child->hash_join().outer->table_scan().table);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, DeletePreferImmediate) {
+  // Delete from one table (t1), but read from one additional table (t2).
+  Query_block *query_block =
+      ParseAndResolve("DELETE t1 FROM t1, t2 WHERE t1.x = t2.x",
+                      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  // Add indexes so that a nested loop join with an index lookup on the inner
+  // side is preferred. Make t1 slightly larger, so that the join order (t2, t1)
+  // is considered cheaper than (t1, t2) before the cost of buffered deletes is
+  // taken into consideration.
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  t1->file->stats.records = 110000;
+  t1->file->stats.data_file_length = 1.1e6;
+  Fake_TABLE *t2 = m_fake_tables["t2"];
+  t2->create_index(t2->field[0], nullptr, /*unique=*/true);
+  t2->file->stats.records = 100000;
+  t2->file->stats.data_file_length = 1.0e6;
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_EQ(AccessPath::DELETE_ROWS, root->type);
+  ASSERT_EQ(AccessPath::NESTED_LOOP_JOIN, root->delete_rows().child->type);
+  const auto &nested_loop_join = root->delete_rows().child->nested_loop_join();
+
+  // Even though joining (t2, t1) is cheaper, it should choose the order (t1,
+  // t2) to allow immediate deletes from t1, which gives a lower total cost for
+  // the delete operation.
+  EXPECT_EQ(t1->pos_in_table_list->map(), root->delete_rows().immediate_tables);
+  ASSERT_EQ(AccessPath::TABLE_SCAN, nested_loop_join.outer->type);
+  EXPECT_STREQ("t1", nested_loop_join.outer->table_scan().table->alias);
+  ASSERT_EQ(AccessPath::EQ_REF, nested_loop_join.inner->type);
+  EXPECT_STREQ("t2", nested_loop_join.inner->eq_ref().table->alias);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, ImmedateDeleteFromRangeScan) {
+  Query_block *query_block =
+      ParseAndResolve("DELETE t1 FROM t1 WHERE t1.x < 100",
+                      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  t1->file->stats.records = 100000;
+
+  // Mark the index as supporting range scans.
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_EQ(AccessPath::DELETE_ROWS, root->type);
+  EXPECT_EQ(t1->pos_in_table_list->map(), root->delete_rows().immediate_tables);
+  EXPECT_EQ(AccessPath::INDEX_RANGE_SCAN, root->delete_rows().child->type);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
+
+TEST_F(HypergraphOptimizerTest, ImmedateDeleteFromIndexMerge) {
+  Query_block *query_block =
+      ParseAndResolve("DELETE t1 FROM t1 WHERE t1.x > 0 OR t1.y > 0",
+                      /*nullable=*/false);
+  ASSERT_NE(nullptr, query_block);
+
+  Fake_TABLE *t1 = m_fake_tables["t1"];
+  t1->create_index(t1->field[0], nullptr, /*unique=*/true);
+  t1->create_index(t1->field[1], nullptr, /*unique=*/true);
+  t1->file->stats.records = 100000;
+
+  // Mark the indexes as supporting range scans.
+  ON_CALL(*down_cast<Mock_HANDLER *>(t1->file), index_flags(_, _, _))
+      .WillByDefault(Return(HA_READ_RANGE | HA_READ_NEXT | HA_READ_PREV));
+
+  string trace;
+  AccessPath *root = FindBestQueryPlanAndFinalize(m_thd, query_block, &trace);
+  SCOPED_TRACE(trace);  // Prints out the trace on failure.
+  ASSERT_NE(nullptr, root);
+  // Prints out the query plan on failure.
+  SCOPED_TRACE(PrintQueryPlan(0, root, query_block->join,
+                              /*is_root_of_join=*/true));
+  ASSERT_EQ(AccessPath::DELETE_ROWS, root->type);
+  EXPECT_EQ(AccessPath::INDEX_MERGE, root->delete_rows().child->type);
+  EXPECT_EQ(t1->pos_in_table_list->map(), root->delete_rows().immediate_tables);
+
+  query_block->cleanup(m_thd, /*full=*/true);
+}
 // An alias for better naming.
 using HypergraphSecondaryEngineTest = HypergraphOptimizerTest;
 

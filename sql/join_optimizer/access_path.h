@@ -295,6 +295,49 @@ struct AccessPath {
   bool forced_by_dbug : 1;
 #endif
 
+  /// For UPDATE and DELETE statements: The node index of a table which can be
+  /// updated or deleted from immediately as the rows are read from the
+  /// iterator, if this path is only read from once. -1 if there is no such
+  /// table in this path.
+  ///
+  /// Note that this is an index into CostingReceiver's array of nodes, and is
+  /// not necessarily equal to the table number within the query block given by
+  /// TABLE_LIST::tableno().
+  ///
+  /// The table, if any, is currently always the outermost table in the path.
+  ///
+  /// It is possible to have plans where it would be safe to operate
+  /// "immediately" on more than one table. For example, if we do a merge join,
+  /// it is safe to perform immediate deletes on tables on the inner side of the
+  /// join, since both sides are read only once. (However, we currently do not
+  /// support merge joins.)
+  ///
+  /// Another possibility is when the outer table of a nested loop join is
+  /// guaranteed to return at most one row (typically, a unique index lookup
+  /// aka. eq_ref). Then it's safe to delete immediately from both sides of the
+  /// nested loop join. But we don't to this yet.
+  ///
+  /// Hash joins read both sides exactly once, However, with hash joins, the
+  /// scans on the inner tables are not positioned on the correct row when the
+  /// result of the join is returned, so the immediate delete logic will need to
+  /// be changed to reposition the underlying scans before doing the immediate
+  /// deletes. While this can be done, it makes the benefit of immediate deletes
+  /// less obvious for these tables, and it can also be a loss in some cases,
+  /// because we lose the deduplication provided by the Unique object used for
+  /// buffered deletes (the immediate deletes could end up spending time
+  /// repositioning to already deleted rows). So we currently don't attempt to
+  /// do immediate deletes from inner tables of hash joins either.
+  ///
+  /// The outer table of a hash join can be deleted from immediately if the
+  /// inner table fits in memory. If the hash join spills to disk, though,
+  /// neither the rows of the outer table nor the rows of the inner table come
+  /// out in the order of the underlying scan, so it is not safe in general to
+  /// perform immediate deletes on the outer table of a hash join.
+  ///
+  /// If support for immediate operations on multiple tables is added,
+  /// this member could be changed from a node index to a NodeMap.
+  int8_t immediate_update_delete_table{-1};
+
   /// Which ordering the rows produced by this path follow, if any
   /// (see interesting_orders.h). This is really a LogicalOrderings::StateIndex,
   /// but we don't want to add a dependency on interesting_orders.h from
@@ -1634,6 +1677,10 @@ AccessPath *NewDeleteRowsAccessPath(THD *thd, AccessPath *child,
                                     table_map delete_tables,
                                     table_map immediate_tables);
 
+/**
+  Modifies "path" and the paths below it so that they provide row IDs for
+  all tables.
+ */
 void FindTablesToGetRowidFor(AccessPath *path);
 
 /**
@@ -1710,5 +1757,8 @@ void ExpandFilterAccessPaths(THD *thd, AccessPath *path, const JOIN *join,
 void ExpandSingleFilterAccessPath(THD *thd, AccessPath *path, const JOIN *join,
                                   const Mem_root_array<Predicate> &predicates,
                                   unsigned num_where_predicates);
+
+/// Returns the tables that have stored row IDs in the hash join result.
+table_map GetTablesWithRowIDsInHashJoin(AccessPath *path);
 
 #endif  // SQL_JOIN_OPTIMIZER_ACCESS_PATH_H

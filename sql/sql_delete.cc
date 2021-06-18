@@ -912,6 +912,11 @@ DeleteRowsIterator::DeleteRowsIterator(
       m_join(join),
       m_tables_to_delete_from(tables_to_delete_from),
       m_immediate_tables(immediate_tables),
+      // The old optimizer does not use hash join in DELETE statements.
+      m_tables_with_rowid_in_hash_join_buffer(
+          thd->lex->using_hypergraph_optimizer
+              ? GetTablesWithRowIDsInHashJoin(join->root_access_path())
+              : 0),
       m_tempfiles(thd->mem_root),
       m_delayed_tables(thd->mem_root) {
   for (const TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
@@ -1061,7 +1066,9 @@ bool DeleteRowsIterator::DoImmediateDeletesAndBufferRowIds() {
     // Check if using outer join and no row found, or row is already deleted
     if (table->has_null_row() || table->has_deleted_row()) continue;
 
-    table->file->position(table->record[0]);
+    if (!Overlaps(map, m_tables_with_rowid_in_hash_join_buffer)) {
+      table->file->position(table->record[0]);
+    }
 
     if (immediate) {
       // Rows from this table can be deleted immediately
@@ -1239,8 +1246,14 @@ bool Sql_cmd_delete::accept(THD *thd, Select_lex_visitor *visitor) {
 
 table_map GetImmediateDeleteTables(const JOIN *join, table_map delete_tables) {
   // The hypergraph optimizer determines the immediate delete tables during
-  // planning, not after planning.
-  assert(!join->thd->lex->using_hypergraph_optimizer);
+  // planning, not after planning. The only time this function is called when
+  // using the hypergraph optimizer is when there is an impossible WHERE clause,
+  // in which case join order optimization is short-circuited. See
+  // JOIN::create_access_paths_for_zero_rows().
+  if (join->thd->lex->using_hypergraph_optimizer) {
+    assert(join->root_access_path()->type == AccessPath::ZERO_ROWS);
+    return 0;
+  }
 
   for (TABLE_LIST *tr = join->query_block->leaf_tables; tr != nullptr;
        tr = tr->next_leaf) {
