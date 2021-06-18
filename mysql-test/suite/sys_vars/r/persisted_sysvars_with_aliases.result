@@ -7481,3 +7481,4 @@ include/assert.inc [sync_master_info should have source COMMAND_LINE in P_S.vari
 include/assert.inc [sync_master_info should not exist in P_S.persisted_variables]
 include/assert.inc [sync_master_info should not exist in the persist file]
 #### Clean up ####
+# restart
