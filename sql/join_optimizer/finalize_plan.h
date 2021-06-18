@@ -1,4 +1,4 @@
-/* Copyright (c) 2020, Oracle and/or its affiliates.
+/* Copyright (c) 2020, 2021, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -20,34 +20,15 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef SQL_JOIN_OPTIMIZER_ESTIMATE_FILTER_COST_H
-#define SQL_JOIN_OPTIMIZER_ESTIMATE_FILTER_COST_H
+#ifndef SQL_JOIN_OPTIMIZER_FINALIZE_PLAN_H_
+#define SQL_JOIN_OPTIMIZER_FINALIZE_PLAN_H_
 
-class Item;
+struct AccessPath;
 class Query_block;
 class THD;
 
-/// See EstimateFilterCost.
-struct FilterCost {
-  // Cost of evaluating the filter if nothing in particular is done with it.
-  double cost_if_not_materialized;
+// See comment in .cc file.
+bool FinalizePlanForQueryBlock(THD *thd, Query_block *query_block,
+                               AccessPath *root_path);
 
-  // Cost of evaluating the filter if all subqueries in it have been
-  // materialized beforehand. If there are no subqueries in the condition,
-  // equals cost_if_not_materialized.
-  double cost_if_materialized;
-
-  // Cost of materializing all subqueries present in the filter.
-  // If there are no subqueries in the condition, equals zero.
-  double cost_to_materialize;
-};
-
-/**
-  Estimate the cost of evaluating “condition”, “num_rows” times.
-  This is a fairly rudimentary estimation, _but_ it includes the cost
-  of any subqueries that may be present and that need evaluation.
- */
-FilterCost EstimateFilterCost(THD *thd, double num_rows, Item *condition,
-                              Query_block *outer_query_block);
-
-#endif  // SQL_JOIN_OPTIMIZER_ESTIMATE_FILTER_COST_H
+#endif  // SQL_JOIN_OPTIMIZER_FINALIZE_PLAN_H_

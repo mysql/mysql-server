@@ -57,14 +57,15 @@
 
 #include <string>
 
-struct AccessPath;
-struct JoinHypergraph;
+#include "sql/mem_root_array.h"
+
 class Func_ptr;
-template <class T>
-class Mem_root_array;
-struct ORDER;
 class Query_block;
 class THD;
+struct AccessPath;
+struct JoinHypergraph;
+struct ORDER;
+struct TABLE;
 
 using Func_ptr_array = Mem_root_array<Func_ptr>;
 
@@ -166,5 +167,11 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path);
 // but it is for materialization.
 void ReplaceOrderItemsWithTempTableFields(THD *thd, ORDER *order,
                                           const Func_ptr_array &items_to_copy);
+
+/**
+  Find the list of all tables used by this root, stopping at materializations.
+  Used for knowing which tables to sort.
+ */
+Mem_root_array<TABLE *> CollectTables(THD *thd, AccessPath *root_path);
 
 #endif  // SQL_JOIN_OPTIMIZER_JOIN_OPTIMIZER_H
