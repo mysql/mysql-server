@@ -37,6 +37,7 @@
 #include <type_traits>  // decay_t, enable_if
 #include <unordered_map>
 
+#include "my_compiler.h"
 #include "mysql/harness/net_ts/netfwd.h"
 #include "mysql/harness/stdx/type_traits.h"  // conjunction, void_t
 
@@ -89,12 +90,17 @@ class async_completion {
 
 // 13.5 [async.assoc.alloc]
 
+MY_COMPILER_DIAGNOSTIC_PUSH()
+MY_COMPILER_CLANG_DIAGNOSTIC_IGNORE("-Wdeprecated-declarations")
+
 template <class T, class ProtoAllocator = std::allocator<void>>
 struct associated_allocator;
 
 template <class T, class ProtoAllocator = std::allocator<void>>
 using associated_allocator_t =
     typename associated_allocator<T, ProtoAllocator>::type;
+
+MY_COMPILER_DIAGNOSTIC_POP()
 
 template <class T, class ProtoAllocator, typename = stdx::void_t<>>
 struct associated_allocator_impl {
