@@ -4265,3 +4265,8 @@ a	COUNT(*)
 NULL	1
 NULL	3
 DROP TABLE t1;
+#
+# Bug #33007298: RECENT REGRESSION: CRASH IN QEP_SHARED_OWNER::TABLE
+#
+select is_uuid(avg(distinct json_storage_free('$b*<*#]E')));
+ERROR 22032: Invalid JSON text in argument 1 to function json_storage_free: "Invalid value." at position 0.

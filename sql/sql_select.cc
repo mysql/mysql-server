@@ -4179,6 +4179,9 @@ bool JOIN::make_tmp_tables_info() {
 
   auto cleanup_tmp_tables_on_error =
       create_scope_guard([this, &curr_tmp_table] {
+        if (qep_tab == nullptr) {
+          return;
+        }
         for (unsigned table_idx = primary_tables; table_idx <= curr_tmp_table;
              ++table_idx) {
           TABLE *table = qep_tab[table_idx].table();

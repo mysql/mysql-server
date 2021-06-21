@@ -3231,3 +3231,10 @@ INSERT INTO t1 VALUES (NULL), (1), (2);
 SELECT DISTINCT a, COUNT(*) FROM t1 GROUP BY a WITH ROLLUP;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #33007298: RECENT REGRESSION: CRASH IN QEP_SHARED_OWNER::TABLE
+--echo #
+
+--error ER_INVALID_JSON_TEXT_IN_PARAM
+select is_uuid(avg(distinct json_storage_free('$b*<*#]E')));
