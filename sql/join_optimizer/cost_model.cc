@@ -218,7 +218,8 @@ void EstimateMaterializeCost(THD *thd, AccessPath *path) {
 
       // Try to get usable estimates. Ignored by InnoDB, but used by
       // TempTable.
-      temp_table->file->stats.records = path->num_output_rows;
+      temp_table->file->stats.records =
+          min(path->num_output_rows, LLONG_MAX_DOUBLE);
       table_path->cost = temp_table->file->table_scan_cost().total_cost();
     }
   }
