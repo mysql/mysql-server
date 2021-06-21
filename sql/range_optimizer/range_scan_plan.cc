@@ -783,23 +783,21 @@ QUICK_RANGE_SELECT *get_quick_select(THD *thd, TABLE *table, KEY_PART *key,
                                      uint mrr_buf_size, MEM_ROOT *parent_alloc,
                                      uint num_key_parts) {
   QUICK_RANGE_SELECT *quick;
-  bool create_err = false;
   DBUG_TRACE;
 
   if (table->key_info[keyno].flags & HA_SPATIAL)
-    quick = new QUICK_RANGE_SELECT_GEOM(
-        thd, table, keyno, parent_alloc != nullptr, parent_alloc, &create_err);
+    quick = new QUICK_RANGE_SELECT_GEOM(thd, table, keyno,
+                                        parent_alloc != nullptr, parent_alloc);
   else
     quick = new QUICK_RANGE_SELECT(thd, table, keyno, parent_alloc != nullptr,
-                                   nullptr, &create_err);
+                                   nullptr);
 
   if (quick) {
     assert(key_tree->type == SEL_ROOT::Type::KEY_RANGE ||
            key_tree->type == SEL_ROOT::Type::IMPOSSIBLE);
     if (key_tree->type == SEL_ROOT::Type::KEY_RANGE &&
-        (create_err ||
-         get_quick_keys(quick, key, key_tree->root, min_key, min_key, 0,
-                        max_key, max_key, 0, nullptr, num_key_parts))) {
+        get_quick_keys(quick, key, key_tree->root, min_key, min_key, 0, max_key,
+                       max_key, 0, nullptr, num_key_parts)) {
       delete quick;
       return nullptr;
     } else {

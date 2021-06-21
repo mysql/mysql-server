@@ -49,8 +49,7 @@
 #include "template_utils.h"
 
 QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
-                                       bool no_alloc, MEM_ROOT *parent_alloc,
-                                       bool *create_error)
+                                       bool no_alloc, MEM_ROOT *parent_alloc)
     : ranges(key_memory_Quick_ranges),
       free_file(false),
       cur_range(nullptr),
@@ -59,7 +58,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
       mrr_buf_size(0),
       mrr_buf_desc(nullptr),
       dont_free(false) {
-  my_bitmap_map *bitmap;
   DBUG_TRACE;
 
   in_ror_merged_scan = false;
@@ -80,21 +78,24 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
     ::new (alloc.get()) MEM_ROOT(PSI_NOT_INSTRUMENTED, 0);
   file = head->file;
   record = head->record[0];
-
-  /* Allocate a bitmap for used columns (Q: why not on MEM_ROOT?) */
-  if (!(bitmap = (my_bitmap_map *)my_malloc(key_memory_my_bitmap_map,
-                                            head->s->column_bitmap_size,
-                                            MYF(MY_WME)))) {
-    column_bitmap.bitmap = nullptr;
-    *create_error = true;
-  } else
-    bitmap_init(&column_bitmap, bitmap, head->s->fields);
 }
 
 void QUICK_RANGE_SELECT::need_sorted_output() { mrr_flags |= HA_MRR_SORTED; }
 
 int QUICK_RANGE_SELECT::init() {
   DBUG_TRACE;
+
+  if (column_bitmap.bitmap == nullptr) {
+    /* Allocate a bitmap for used columns (Q: why not on MEM_ROOT?) */
+    my_bitmap_map *bitmap = (my_bitmap_map *)my_malloc(
+        key_memory_my_bitmap_map, head->s->column_bitmap_size, MYF(MY_WME));
+    if (bitmap == nullptr) {
+      column_bitmap.bitmap = nullptr;
+      return true;
+    } else {
+      bitmap_init(&column_bitmap, bitmap, head->s->fields);
+    }
+  }
 
   if (file->inited) file->ha_index_or_rnd_end();
   return false;

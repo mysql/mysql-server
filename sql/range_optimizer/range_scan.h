@@ -114,7 +114,7 @@ class QUICK_RANGE_SELECT : public QUICK_SELECT_I {
   std::shared_ptr<MEM_ROOT> alloc;
 
   QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint index_arg, bool no_alloc,
-                     MEM_ROOT *parent_alloc, bool *create_error);
+                     MEM_ROOT *parent_alloc);
   ~QUICK_RANGE_SELECT() override;
 
   void need_sorted_output() override;
